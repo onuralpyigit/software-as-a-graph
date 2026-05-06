@@ -155,9 +155,10 @@ def main():
         display.display_validation_summary(result.validation)
     
     # Anti-patterns
-    if result.problems and not getattr(args, "quiet", False):
-        display.print_subheader(f"Architectural Anti-Patterns ({len(result.problems)})")
-        for p in result.problems:
+    problems = result.analysis.problems if result.analysis else []
+    if problems and not getattr(args, "quiet", False):
+        display.print_subheader(f"Architectural Anti-Patterns ({len(problems)})")
+        for p in problems:
             from cli.common.console import Colors
             severity = getattr(p, "severity", "medium").upper()
             category = getattr(p, "category", "risk")
