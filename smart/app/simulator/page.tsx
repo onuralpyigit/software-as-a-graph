@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Activity,
@@ -67,7 +68,7 @@ const LS_CONFIGS_KEY = "traffic_sim_configs"
 // ============================================================================
 
 export default function TrafficSimulatorPage() {
-  const { status } = useConnection()
+  const { status, initialLoadComplete } = useConnection()
 
   // ---- Topics ----
   const [topics, setTopics] = useState<TopicInfo[]>([])
@@ -301,6 +302,46 @@ export default function TrafficSimulatorPage() {
   // ------------------------------------------------------------------
   // Render
   // ------------------------------------------------------------------
+
+  // Loading state when page first opens
+  if (!initialLoadComplete || status === 'connecting') {
+    return (
+      <AppLayout title="Simulator" description="Estimate pub-sub network and broker load">
+        <div className="space-y-6">
+          {/* Selection Card Skeleton */}
+          <div className="rounded-xl border border-border bg-muted/20 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 space-y-3">
+                <Skeleton className="h-6 w-6 rounded" />
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-4 w-56" />
+              </div>
+              <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-8 w-32" />
+                <Skeleton className="h-8 w-24" />
+              </div>
+            </div>
+            {/* Tabs skeleton */}
+            <div className="flex items-center gap-2 mb-4">
+              <Skeleton className="h-9 w-20 rounded-md" />
+              <Skeleton className="h-9 w-24 rounded-md" />
+              <Skeleton className="h-9 w-20 rounded-md" />
+            </div>
+            {/* Selection list skeleton */}
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 p-2">
+                  <Skeleton className="h-4 w-4 rounded shrink-0" />
+                  <Skeleton className="h-4 flex-1" style={{ width: `${50 + (i * 13) % 40}%`, flex: "none" }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
 
   if (status !== "connected") {
     return (
