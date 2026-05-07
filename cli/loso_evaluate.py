@@ -366,6 +366,7 @@ def run_one_fold(
     workdir: Path,
     mode: str,
     global_metadata: Optional[Tuple] = None,
+    variant: str = "hetero_qos",
 ) -> FoldResult:
     """
     One LOSO fold: train on N-1 scenarios with multi-seed, predict on held-out.
@@ -406,63 +407,114 @@ def run_one_fold(
         ckpt_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            service = GNNService(
-                checkpoint_dir=str(ckpt_dir),
-                hidden_channels=hidden,
-                num_heads=heads,
-                num_layers=layers,
-                dropout=dropout,
-                predict_edges=False,  # focus on node criticality for LOSO
-            )
-        except TypeError:
-            # Fall back if the GNNService constructor doesn't accept hyperparams
-            # (older builds may take only checkpoint_dir).
-            service = GNNService(checkpoint_dir=str(ckpt_dir))
+            if variant in ("homo_unweighted", "homo_scalar"):
+                # Baseline variants use GNNTrainer directly
+                from saag.prediction.models.baselines import build_baseline
+                from saag.prediction.data_preparation import networkx_to_hetero_data, create_node_splits
+                from saag.prediction.trainer import GNNTrainer, evaluate
 
-        # Train: primary as the masked graph, others as inductive context
-        service.train(
-            graph=primary.graph,
-            structural_metrics=primary.structural,
-            simulation_results=primary.simulation,
-            rmav_scores=primary.rmav,
-            inductive_graphs=[b.hetero_data for b in inductives],
-            seeds=[seed],
-            num_epochs=epochs,
-            lr=lr,
-            patience=30,
-            layer=layer,
-            global_metadata=global_metadata,
-        )
+                conv = networkx_to_hetero_data(
+                    primary.graph, primary.structural, primary.simulation, primary.rmav
+                )
+                data = conv.hetero_data
+                create_node_splits(data, seed=seed)
+                model = build_baseline(variant, hidden_channels=hidden, num_heads=heads,
+                                       num_layers=layers, dropout=dropout)
+                trainer = GNNTrainer(model=model, checkpoint_dir=str(ckpt_dir),
+                                     lr=lr, num_epochs=epochs, patience=30)
+                trainer.train(data)
 
-        # Inference on the held-out scenario — never seen during training
-        result = service.predict(
-            graph=holdout.graph,
-            structural_metrics=holdout.structural,
-            rmav_scores=holdout.rmav,
-            simulation_results=holdout.simulation,  # only used for validation logs
-            mode=mode,
-        )
+                # Evaluate on holdout
+                conv_h = networkx_to_hetero_data(
+                    holdout.graph, holdout.structural, holdout.simulation, holdout.rmav
+                )
+                data_h = conv_h.hetero_data
+                create_node_splits(data_h, seed=seed)
+                device = torch.device("cpu")
+                metrics = evaluate(model, data_h, "test_mask", device)
 
-        pred_scores = {nid: float(ns.composite_score) for nid, ns in result.node_scores.items()}
-        # Capture all dimensions for prediction-step export
-        full_node_scores = {
-            nid: {
-                "overall": float(ns.composite_score),
-                "reliability": float(ns.reliability_score),
-                "maintainability": float(ns.maintainability_score),
-                "availability": float(ns.availability_score),
-                "vulnerability": float(ns.vulnerability_score),
-            }
-            for nid, ns in result.node_scores.items()
-        }
+                # Build pred_scores from model output for inductive metrics
+                model.eval()
+                with torch.no_grad():
+                    x_h = {nt: data_h[nt].x for nt in data_h.node_types if hasattr(data_h[nt], "x")}
+                    ei_h = {r: data_h[r].edge_index for r in data_h.edge_types}
+                    ea_h = {r: data_h[r].edge_attr for r in data_h.edge_types if hasattr(data_h[r], "edge_attr")}
+                    out_h = model(x_h, ei_h, ea_h)
+
+                pred_scores: Dict[str, float] = {}
+                full_node_scores: Dict[str, Dict[str, float]] = {}
+                # node_id_map is Dict[str, List[str]]: node_type → ordered list of node IDs
+                for nt, preds in out_h.items():
+                    node_list = conv_h.node_id_map.get(nt, [])
+                    for local_idx, nid in enumerate(node_list):
+                        if local_idx < preds.shape[0]:
+                            pred_scores[nid] = float(preds[local_idx, 0])
+                            full_node_scores[nid] = {
+                                "overall":         float(preds[local_idx, 0]),
+                                "reliability":     float(preds[local_idx, 1]),
+                                "maintainability": float(preds[local_idx, 2]),
+                                "availability":    float(preds[local_idx, 3]),
+                                "vulnerability":   float(preds[local_idx, 4]),
+                            }
+
+            else:
+                # hetero_qos (default) or topology_rmav → GNNService path
+                effective_mode = "rmav" if variant == "topology_rmav" else mode
+                service = GNNService(
+                    checkpoint_dir=str(ckpt_dir),
+                    hidden_channels=hidden,
+                    num_heads=heads,
+                    num_layers=layers,
+                    dropout=dropout,
+                    predict_edges=False,
+                )
+                service.train(
+                    graph=primary.graph,
+                    structural_metrics=primary.structural,
+                    simulation_results=primary.simulation,
+                    rmav_scores=primary.rmav,
+                    inductive_graphs=[b.hetero_data for b in inductives],
+                    seeds=[seed],
+                    num_epochs=epochs,
+                    lr=lr,
+                    patience=30,
+                    layer=layer,
+                    global_metadata=global_metadata,
+                )
+                result = service.predict(
+                    graph=holdout.graph,
+                    structural_metrics=holdout.structural,
+                    rmav_scores=holdout.rmav,
+                    simulation_results=holdout.simulation,
+                    mode=effective_mode,
+                )
+                pred_scores = {nid: float(ns.composite_score)
+                               for nid, ns in result.node_scores.items()}
+                full_node_scores = {
+                    nid: {
+                        "overall":         float(ns.composite_score),
+                        "reliability":     float(ns.reliability_score),
+                        "maintainability": float(ns.maintainability_score),
+                        "availability":    float(ns.availability_score),
+                        "vulnerability":   float(ns.vulnerability_score),
+                    }
+                    for nid, ns in result.node_scores.items()
+                }
+
+
+        except Exception as e:
+            logger.error("  Fold seed %d failed: %s", seed, e, exc_info=True)
+            continue
 
         true_impact = {nid: float(d.get("composite", 0.0)) for nid, d in holdout.simulation.items()}
 
         m = compute_inductive_metrics(pred_scores, true_impact, holdout.graph)
         m["seed"] = seed
-        m["prediction_mode"] = getattr(result, "prediction_mode", mode)
+        m["prediction_mode"] = mode
+        m["variant"] = variant
         m["_full_scores"] = full_node_scores  # temporary storage for aggregation
         seed_metrics.append(m)
+
 
         logger.info(
             "    ρ=%.4f  F1=%.4f  NDCG=%.4f  RMSE=%.4f  (n=%d, mode=%s)",
@@ -546,6 +598,7 @@ def run_loso(
     layers: int,
     dropout: float,
     mode: str,
+    variant: str = "hetero_qos",
 ) -> LOSOReport:
     """Run leave-one-scenario-out across all loaded bundles."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -576,6 +629,7 @@ def run_loso(
                 hidden=hidden, heads=heads, layers=layers, dropout=dropout,
                 workdir=workdir, mode=mode,
                 global_metadata=global_metadata,
+                variant=variant,
             )
             fold_results.append(fold)
         except Exception as exc:
@@ -733,6 +787,18 @@ def parse_args() -> argparse.Namespace:
                    help="Comma-separated scenario id substrings to skip")
     p.add_argument("--mode", default="gnn", choices=["gnn", "rmav", "ensemble"],
                    help="Prediction mode for evaluation (default: gnn)")
+    p.add_argument(
+        "--variant",
+        choices=["hetero_qos", "homo_unweighted", "homo_scalar", "topology_rmav"],
+        default="hetero_qos",
+        help=(
+            "Model architecture variant (default: hetero_qos). "
+            "hetero_qos = QoS-aware HeteroGAT; "
+            "homo_unweighted = flat GAT no edge_attr; "
+            "homo_scalar = flat GAT scalar weight; "
+            "topology_rmav = RMAV scores only (no GNN)."
+        ),
+    )
     p.add_argument("--epochs", type=int, default=300)
     p.add_argument("--lr", type=float, default=3e-4)
     p.add_argument("--hidden", type=int, default=64)
@@ -760,6 +826,7 @@ def main() -> int:
     logger.info("  Layer:     %s", args.layer)
     logger.info("  Seeds:     %s", seeds)
     logger.info("  Mode:      %s", args.mode)
+    logger.info("  Variant:   %s", getattr(args, 'variant', 'hetero_qos'))
     logger.info("  Skip:      %s", skip if skip else "(none)")
 
     if not args.cache_dir.exists():
@@ -776,6 +843,7 @@ def main() -> int:
         layer=args.layer, epochs=args.epochs, lr=args.lr,
         hidden=args.hidden, heads=args.heads, layers=args.layers,
         dropout=args.dropout, mode=args.mode,
+        variant=getattr(args, 'variant', 'hetero_qos'),
     )
     elapsed = time.time() - t0
     logger.info("LOSO complete in %.1f s.", elapsed)
