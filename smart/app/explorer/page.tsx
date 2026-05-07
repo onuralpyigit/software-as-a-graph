@@ -3567,6 +3567,9 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
     selectedId ? new Set([selectedId]) : new Set()
   )
 
+  // Node spread/repulsion control
+  const [spreadValue, setSpreadValue] = useState(100) // 0-200 scale, 100 is default
+
   // When selection changes from *outside* (List tab), reset expansion.
   // When the click originates from the graph itself we skip the reset.
   const skipResetRef = useRef(false)
@@ -3639,7 +3642,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
         source: String(l.source),
         target: String(l.target),
         edgeType: l.type ?? "",
-        label: { show: true, formatter: l.type ?? "", fontSize: 9 },
+        label: { show: false, formatter: l.type ?? "", fontSize: 9 }, // Hide edge labels
         lineStyle: {
           opacity: 0.55,
           width: Math.max(0.5, (l.weight ?? 0.5) * 2),
@@ -3738,19 +3741,19 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
             ...(type === "Library" ? { _version: n.version ?? n.properties?.version ?? "" } : {}),
             ...(type === "Broker" ? { _broker_type: n.broker_type ?? n.properties?.broker_type ?? "" } : {}),
             label: {
-              show: true, // Always show labels for all nodes
+              show: sel, // Show label only for selected node
               formatter: (p: any) => {
                 const n = p.data?.name ?? p.name ?? ""
-                return n.length > 5 ? n.slice(0, 5) + "…" : n
+                return n // Show full name without truncation for selected node
               },
               fontSize: sel ? 11 : 9,
               fontWeight: sel ? 700 : 400,
               color: "#fff",
               position: "inside",
-              overflow: "truncate",
+              overflow: "none",
             },
             z: sel ? 10 : 1,
-            emphasis: { label: { show: true } },
+            emphasis: { label: { show: sel } }, // Show label only for selected node on emphasis
           }
         })
     )
@@ -3793,20 +3796,26 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
   }, [selectedId, graphLinks, nodeMap, hiddenNodeTypes, hiddenEdgeTypes])
 
   const option = useMemo(() => {
+    // Scale repulsion and edge length based on spread slider (0-200, default 100)
+    const spreadFactor = spreadValue / 100
+    const baseRepulsion = 400
+    const baseEdgeLengthMin = 100
+    const baseEdgeLengthMax = 200
+
     // Uniform force simulation parameters across all graph sizes — optimized for stability
     // Key: disable layoutAnimation to freeze positions once settled, use high friction to converge quickly
     const forceParams = {
-      repulsion: 150,        // Consistent node repulsion across all sizes
-      gravity: 0.25,         // Consistent gravity pull toward center
-      edgeLength: [50, 100], // Consistent edge spacing
+      repulsion: baseRepulsion * spreadFactor,        // Scaled by spread slider
+      gravity: 0.15 * (1 / spreadFactor),             // Reduced gravity inversely to repulsion
+      edgeLength: [baseEdgeLengthMin * spreadFactor, baseEdgeLengthMax * spreadFactor], // Scaled edge spacing
       friction: 0.92,        // High damping to stop movement quickly
       layoutAnimation: false,// Disable continuous animation — freeze positions once calculated
       initLayout: "circular" as const, // Start from circular layout, converges faster
       // Note: ECharts will run physics for several frames then stop
     }
 
-    // Disable edge labels for large graphs (very expensive to render)
-    const showEdgeLabels = !graphComplexity.isLarge && graphComplexity.nodeCount < 150
+    // Disable edge labels entirely (only show labels on selected node)
+    const showEdgeLabels = false
 
     return {
       backgroundColor: "transparent",
@@ -3832,6 +3841,14 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
             const typeStr = type ? `<br/><span style="opacity:0.7">${type}</span>` : ""
             return `<div style="font-size:12px;line-height:1.7"><b>${name}</b>${typeStr}${extra}</div>`
           }
+          if (p.dataType === "edge") {
+            const edgeType = p.data?.edgeType ?? ""
+            const source = p.data?.source ?? ""
+            const target = p.data?.target ?? ""
+            const sourceName = nodeMap.get(source)?.raw?.name ?? nodeMap.get(source)?.raw?.csu ?? source
+            const targetName = nodeMap.get(target)?.raw?.name ?? nodeMap.get(target)?.raw?.csu ?? target
+            return `<div style="font-size:12px;line-height:1.7"><b>${sourceName}</b><br/><span style="opacity:0.7">↓ ${edgeType}</span><br/><b>${targetName}</b></div>`
+          }
           return `${p.data?.source} → ${p.data?.target}`
         },
       },
@@ -3847,7 +3864,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
         roam:          true,
         focusNodeAdjacency: true,
         label:         {
-          show: true,
+          show: false, // Labels controlled per-node; only selected node shows label
           position: "inside",
           fontSize: 9,
           formatter: (p: any) => {
@@ -3857,19 +3874,17 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
         },
         edgeSymbol:    ["none", "arrow"],
         edgeSymbolSize: graphComplexity.isLarge ? 4 : 8, // Smaller arrows for large graphs
-        edgeLabel:     showEdgeLabels
-          ? { show: true, fontSize: 9, position: "middle" }
-          : { show: false }, // Hide edge labels for performance
+        edgeLabel:     { show: false }, // Always hide edge labels
         lineStyle:     { opacity: 0.55 },
         force:         forceParams,
         emphasis: {
           focus:     "adjacency",
           lineStyle: { opacity: 0.7 },
-          label:     { show: true },
+          label:     { show: false }, // Hide edge labels on emphasis
         },
       }],
     }
-  }, [eNodes, eLinks, isDark, graphComplexity])
+  }, [eNodes, eLinks, isDark, graphComplexity, spreadValue])
 
   const onEvents = useMemo(() => ({
     click: (p: any) => {
@@ -3896,9 +3911,9 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
         </div>
       )}
 
-      {/* Search bar overlay */}
-      <div className="absolute top-2 left-3 z-20 w-56">
-        <div className="relative flex items-center">
+      {/* Search bar and spread slider overlay */}
+      <div className="absolute top-2 left-3 z-20 w-64">
+        <div className="relative flex items-center mb-2">
           <Search className="absolute left-2 h-3 w-3 text-muted-foreground/50 pointer-events-none" />
           <Input
             className="h-7 pl-6 pr-6 text-xs bg-background/90 rounded-md border-border shadow-sm focus-visible:ring-1 focus-visible:ring-primary/50 backdrop-blur"
@@ -3943,6 +3958,34 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
             ))}
           </div>
         )}
+      </div>
+
+      {/* Spread/Repulsion Slider — matches system tab styling, positioned bottom-right */}
+      <div style={{
+        position: "absolute", bottom: 12, right: 12, zIndex: 10,
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "6px 10px",
+        borderRadius: 8,
+        width: 224,
+        background: isDark ? "rgba(15,15,20,0.70)" : "rgba(255,255,255,0.80)",
+        backdropFilter: "blur(8px)",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+        fontSize: 11,
+        color: isDark ? "#e4e4e7" : "#3f3f46",
+        boxSizing: "border-box",
+      }}>
+        <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.8, flexShrink: 0 }}>Spread</span>
+        <input
+          type="range"
+          min="20"
+          max="200"
+          value={spreadValue}
+          onChange={e => setSpreadValue(Number(e.target.value))}
+          style={{ flex: 1, minWidth: 0, accentColor: isDark ? "#a1a1aa" : "#71717a" }}
+        />
+        <span style={{ fontSize: 10, fontVariantNumeric: "tabular-nums", opacity: 0.7, minWidth: 32, textAlign: "right", flexShrink: 0 }}>
+          {spreadValue}%
+        </span>
       </div>
 
       {(nodeTypesInView.length > 0 || edgeTypesInView.length > 0) && (
