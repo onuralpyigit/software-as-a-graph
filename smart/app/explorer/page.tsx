@@ -4791,7 +4791,7 @@ function ConnectionsColumn({ selectedNode, links, nodeLabels, onSelect, loading 
     return (
       <button
         onClick={() => onSelect(peerId)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/30 transition-colors border-b border-border/40 group flex-col items-start"
+        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/30 transition-colors border-b border-border/40 group"
       >
         <span className="flex-1 text-xs text-foreground group-hover:text-primary transition-colors break-words">{label}</span>
         <span
