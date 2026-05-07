@@ -2042,6 +2042,72 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
   // nodes grows. Panning enabled via roam: true. Controlled by the slider below.
   const [spread, setSpread] = useState(1)
 
+  // Track which nodes have labels shown — only newly expanded nodes and their ancestors
+  const [nodesToShowLabel, setNodesToShowLabel] = useState<Set<string>>(new Set())
+  const prevExpandedLeavesRef = useRef(expandedLeaves)
+
+  // Update nodesToShowLabel when expandedLeaves changes
+  useEffect(() => {
+    const prevKeys = new Set(prevExpandedLeavesRef.current.keys())
+    const currKeys = new Set(expandedLeaves.keys())
+
+    // Find newly expanded nodes (in current but not in previous)
+    const newlyExpanded = new Set<string>()
+    for (const key of currKeys) {
+      if (!prevKeys.has(key)) {
+        newlyExpanded.add(key)
+      }
+    }
+
+    // If there are no new expansions, don't update state
+    if (newlyExpanded.size === 0) {
+      prevExpandedLeavesRef.current = expandedLeaves
+      return
+    }
+
+    // For each newly expanded node, add it and its ancestors to the label set
+    const toShow = new Set<string>(nodesToShowLabel)
+    for (const nodeKey of newlyExpanded) {
+      // Add the newly expanded leaf node (format: "parentPath:nodeId")
+      const leafId = `cl:${nodeKey}`
+      toShow.add(leafId)
+
+      // Add ancestors by parsing the parent path
+      // expandedLeaves keys are like "app:csms/css/csci/csc/appId:connNodeId"
+      const parts = nodeKey.split(":")
+      if (parts.length >= 2) {
+        const parentPath = parts[0] === "app" ? parts[1] : parts.slice(0, -1).join(":")
+        // parentPath is like "csms/css/csci/csc/appId" or "parentPath:nodeId"
+        const pathSegments = parentPath.split("/")
+
+        // Add each level of the hierarchy
+        if (pathSegments.length >= 5) {
+          // Full app path: csms/css/csci/csc/appId
+          const [csmsKey, cssKey, csciKey, cscKey, appId] = pathSegments
+          toShow.add(`app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${appId}`)
+          toShow.add(`csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`)
+          toShow.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
+          toShow.add(`css:${csmsKey}/${cssKey}`)
+          toShow.add(`csms:${csmsKey}`)
+        } else if (parentPath.includes(":")) {
+          // Nested connection leaf path: extract app id and add ancestors
+          const segments = parentPath.split(":")[0].split("/")
+          if (segments.length >= 5) {
+            const [csmsKey, cssKey, csciKey, cscKey, appId] = segments
+            toShow.add(`app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${appId}`)
+            toShow.add(`csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`)
+            toShow.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
+            toShow.add(`css:${csmsKey}/${cssKey}`)
+            toShow.add(`csms:${csmsKey}`)
+          }
+        }
+      }
+    }
+
+    setNodesToShowLabel(toShow)
+    prevExpandedLeavesRef.current = expandedLeaves
+  }, [expandedLeaves])
+
   const treeData = useMemo(
     () => buildMergedTree(hierarchy, selectedApp?.instanceKey ?? null, selectedApp?.pathKey ?? null, connDataMap, expandedLeaves, isDark, focusHierPathKey),
     [hierarchy, selectedApp?.instanceKey, selectedApp?.pathKey, connDataMap, expandedLeaves, isDark, focusHierPathKey],
@@ -2069,6 +2135,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
         align: "center",
         fontSize: 14,
         color: isDark ? "#e5e7eb" : "#374151",
+        show: false, // Hide by default
         formatter: (params: any) => {
           const raw: string = params.name ?? ""
           const name = raw.split("\x00")[0]
@@ -2078,7 +2145,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
         },
       },
       leaves: {
-        label: { position: "bottom", verticalAlign: "top", align: "center", fontSize: 11 },
+        label: { position: "bottom", verticalAlign: "top", align: "center", fontSize: 11, show: false },
       },
       emphasis: { focus: "descendant", itemStyle: { shadowBlur: 8 } },
       animationDuration: 350,
@@ -2138,9 +2205,20 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
         right: `${50 - 45 * spread}%`,
         top: "5%",
         bottom: "5%",
+        // Override label rendering to show labels only for newly expanded nodes and their parents
+        label: {
+          ...sharedProps.label,
+          show: (params: any) => {
+            const nodeId = params.data?.id
+            // Always show labels for connection leaves and groups
+            if (params.data?._isConnLeaf || params.data?._isConnGroup) return true
+            // Show labels for nodes marked to display
+            return nodeId && nodesToShowLabel.has(nodeId)
+          },
+        },
       }],
     }
-  }, [treeData, isDark, spread])
+  }, [treeData, isDark, spread, nodesToShowLabel])
 
   const onEvents = useMemo(() => ({
     click: (params: any) => {
