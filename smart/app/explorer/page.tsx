@@ -3808,10 +3808,11 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
       repulsion: baseRepulsion * spreadFactor,        // Scaled by spread slider
       gravity: 0.15 * (1 / spreadFactor),             // Reduced gravity inversely to repulsion
       edgeLength: [baseEdgeLengthMin * spreadFactor, baseEdgeLengthMax * spreadFactor], // Scaled edge spacing
-      friction: 0.92,        // High damping to stop movement quickly
+      friction: 0.95,        // Very high damping to stop movement immediately
       layoutAnimation: false,// Disable continuous animation — freeze positions once calculated
       initLayout: "circular" as const, // Start from circular layout, converges faster
-      // Note: ECharts will run physics for several frames then stop
+      iterations: 50,        // Run 50 iterations then stop completely
+      // Note: ECharts will run physics for 50 frames then stop — no further movement
     }
 
     // Disable edge labels entirely (only show labels on selected node)
@@ -3861,7 +3862,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
           name:      c.name,
           itemStyle: { color: c.color },
         })),
-        roam:          true,
+        roam:          true,  // Enable panning/zooming
         focusNodeAdjacency: true,
         label:         {
           show: false, // Labels controlled per-node; only selected node shows label
