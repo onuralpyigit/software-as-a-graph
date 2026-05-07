@@ -1140,7 +1140,7 @@ const HierFlowNode = memo(function HierFlowNode({ data }: NodeProps) {
           fontSize, fontWeight: isParent ? 700 : isSelected ? 600 : 500,
           color: isDark ? "#f1f5f9" : "#1e293b",
           lineHeight: 1.3,
-        }}>{hn.name.length > 5 ? hn.name.slice(0, 5) + "…" : hn.name}</span>
+        }}>{hn.name}</span>
       </div>
       {/* Count badge */}
       {hn.appCount > 0 && hn.level !== "app" && (
@@ -2139,9 +2139,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
         formatter: (params: any) => {
           const raw: string = params.name ?? ""
           const name = raw.split("\x00")[0]
-          const d = params.data
-          if (d?._isConnLeaf || d?._isConnGroup) return name.length > 5 ? name.slice(0, 5) + "…" : name
-          return name.length > 5 ? name.slice(0, 5) + "…" : name
+          return name
         },
       },
       leaves: {
@@ -4782,9 +4780,9 @@ function ConnectionsColumn({ selectedNode, links, nodeLabels, onSelect, loading 
     return (
       <button
         onClick={() => onSelect(peerId)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/30 transition-colors border-b border-border/40 group"
+        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/30 transition-colors border-b border-border/40 group flex-col items-start"
       >
-        <span className="flex-1 text-xs text-foreground truncate group-hover:text-primary transition-colors">{label}</span>
+        <span className="flex-1 text-xs text-foreground group-hover:text-primary transition-colors break-words">{label}</span>
         <span
           className="shrink-0 text-[9px] font-medium px-1 py-px rounded whitespace-nowrap"
           style={{ color, background: `${color}18`, border: `1px solid ${color}40` }}
