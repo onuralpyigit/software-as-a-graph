@@ -78,6 +78,18 @@ def parse_args() -> argparse.Namespace:
     gnn.add_argument("--seeds", type=int, nargs="+", help="Seed list for stability validation")
     gnn.add_argument("--multi-scenario", action="store_true", help="Inductive training on all domain scenarios")
     gnn.add_argument("--mode", choices=["rmav", "gnn", "ensemble"], default="ensemble", help="Evaluation path for final summary (default: ensemble)")
+    gnn.add_argument(
+        "--variant",
+        choices=["hetero_qos", "homo_unweighted", "homo_scalar", "topology_rmav"],
+        default="hetero_qos",
+        help=(
+            "Model architecture variant (default: hetero_qos). "
+            "hetero_qos = full QoS-aware HeteroGAT (paper contribution); "
+            "homo_unweighted = flat GAT, no edge_attr; "
+            "homo_scalar = flat GAT, scalar QoS weight; "
+            "topology_rmav = RMAV scores only, no GNN training."
+        ),
+    )
 
     # Output
     output = parser.add_argument_group("Output")
@@ -198,13 +210,74 @@ def main() -> None:
                 inductive_graphs.append(h_conv.hetero_data)
 
     # ── Training ────────────────────────────────────────────────────────────
+    variant = getattr(args, "variant", "hetero_qos")
+
+    # Embed variant name in checkpoint dir for easy identification
+    ckpt_base = Path(args.checkpoint)
+    if variant != "hetero_qos" and not str(ckpt_base).endswith(variant):
+        ckpt_dir = str(ckpt_base.parent / f"{ckpt_base.name}_{variant}")
+    else:
+        ckpt_dir = args.checkpoint
+
+    if variant == "topology_rmav":
+        # topology_rmav: no GNN — use RMAV scores directly as prediction
+        display.print_step("Variant 'topology_rmav': skipping GNN training (RMAV-only).")
+        if not rmav_dict:
+            display.print_error("topology_rmav requires --rmav (RMAV scores). Exiting.")
+            import sys; sys.exit(1)
+        # Emit a minimal summary with RMAV scores
+        print(f"\n  RMAV scores loaded for {len(rmav_dict)} nodes.")
+        if args.output:
+            out_path = Path(args.output)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            import json
+            with open(out_path, "w") as f:
+                json.dump({"variant": "topology_rmav", "rmav_scores": rmav_dict}, f, indent=2)
+            print(f"  RMAV output saved to: {out_path}")
+        return
+
+    elif variant in ("homo_unweighted", "homo_scalar"):
+        display.print_step(f"Variant '{variant}': HomogeneousGAT baseline.")
+        from saag.prediction.models.baselines import build_baseline
+        from saag.prediction.data_preparation import networkx_to_hetero_data, create_node_splits
+        import torch
+        from saag.prediction.trainer import GNNTrainer, evaluate
+
+        conv = networkx_to_hetero_data(
+            nx_graph, structural_dict, simulation_dict, rmav_dict
+        )
+        data = conv.hetero_data
+        seed = (args.seeds or [42])[0]
+        create_node_splits(data, args.train_ratio, args.val_ratio, seed=seed)
+        torch.manual_seed(seed)
+
+        model = build_baseline(
+            variant,
+            hidden_channels=args.hidden,
+            num_heads=args.heads,
+            num_layers=args.layers,
+            dropout=args.dropout,
+        )
+        trainer = GNNTrainer(
+            model=model,
+            checkpoint_dir=ckpt_dir,
+            lr=args.lr,
+            num_epochs=args.epochs,
+            patience=args.patience,
+        )
+        _, best_metrics = trainer.train(data)
+        if best_metrics:
+            display.display_training_metrics(best_metrics.to_dict())
+        return
+
+    # Default: hetero_qos — existing GNNService path
     service = GNNService(
         hidden_channels=args.hidden,
         num_heads=args.heads,
         num_layers=args.layers,
         dropout=args.dropout,
         predict_edges=not args.no_edge_model,
-        checkpoint_dir=args.checkpoint,
+        checkpoint_dir=ckpt_dir,
     )
 
     display.print_step("Starting GNN training session...")
