@@ -354,7 +354,12 @@ def _collect_samples(
     data: 'HeteroData',
     mask_name: str
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Helper to gather masked predictions and targets."""
+    """Helper to gather masked predictions and targets.
+
+    Only includes nodes where the true composite label (column 0) is non-zero,
+    i.e. nodes that were actually in the failure simulation. This prevents
+    unlabelled nodes (y=0) from diluting the Spearman ρ.
+    """
     all_preds = []
     all_targets = []
 
@@ -366,13 +371,24 @@ def _collect_samples(
         if mask.sum() == 0:
             continue
 
-        all_preds.append(preds[mask].detach().cpu().numpy())
-        all_targets.append(store.y[mask].detach().cpu().numpy())
+        y_masked = store.y[mask].detach().cpu().numpy()
+        p_masked = preds[mask].detach().cpu().numpy()
+
+        # Filter to labelled nodes (composite score > 0)
+        labelled = np.abs(y_masked[:, 0]) > 1e-6
+        if labelled.sum() >= 2:
+            all_preds.append(p_masked[labelled])
+            all_targets.append(y_masked[labelled])
+        elif labelled.sum() > 0:
+            # Include partial if we have at least 1 (will be concatenated with others)
+            all_preds.append(p_masked[labelled])
+            all_targets.append(y_masked[labelled])
 
     if not all_preds:
         return np.empty((0, 5)), np.empty((0, 5))
 
     return np.concatenate(all_preds, axis=0), np.concatenate(all_targets, axis=0)
+
 
 
 def _compute_per_type_rho(
