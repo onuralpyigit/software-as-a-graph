@@ -1954,6 +1954,7 @@ function buildMergedTree(
       return {
         id: csmsId,
         name: csms.name + `\x00${csmsId}`,
+        _level: "csms",
         ...(isCsms && { collapsed: false }),
         itemStyle: { color: NODE_COLORS.csms },
         // Hide the edge from the invisible synthetic root to this CSMS
@@ -1966,6 +1967,7 @@ function buildMergedTree(
           return {
             id: cssId,
             name: css.name + `\x00${cssId}`,
+            _level: "css",
             ...(isCss && { collapsed: false }),
             itemStyle: { color: NODE_COLORS.css },
             lineStyle: { color: NODE_COLORS.css + "88" },
@@ -1976,6 +1978,7 @@ function buildMergedTree(
               return {
                 id: csciId,
                 name: csci.name + `\x00${csciId}`,
+                _level: "csci",
                 ...(isCsci && { collapsed: false }),
                 itemStyle: { color: NODE_COLORS.csci },
                 lineStyle: { color: NODE_COLORS.csci + "88" },
@@ -1986,6 +1989,7 @@ function buildMergedTree(
                   return {
                     id: cscId,
                     name: csc.name + `\x00${cscId}`,
+                    _level: "csc",
                     ...(isCsc && { collapsed: false }),
                     itemStyle: { color: NODE_COLORS.csc },
                     lineStyle: { color: NODE_COLORS.csc + "88" },
@@ -2001,6 +2005,7 @@ function buildMergedTree(
                         name: (app.csu ?? app.name ?? app.id ?? "?") + `\x00${instancePathKey}`,
                         value: app.weight,
                         _app: app,
+                        _level: "app",
                         ...(appConnData && { collapsed: false }),
                         itemStyle: {
                           color: NODE_COLORS.app,
@@ -2160,9 +2165,15 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
           if (d?._app) {
             const app = d._app
             const name = dispName(d.name)
+            const levelLabel = LEVEL_LABELS[d._level] ?? "Application"
             const role = app.role ?? app.properties?.role
             const roleStr = (role != null && role !== "") ? `<br/><span style="opacity:0.7">Role: ${role}</span>` : ""
-            return `<div style="font-size:12px;line-height:1.7"><b>${name}</b><br/><span style="opacity:0.7">Application</span>${roleStr}</div>`
+            return `<div style="font-size:12px;line-height:1.7"><b>${name}</b><br/><span style="opacity:0.7">${levelLabel}</span>${roleStr}</div>`
+          }
+          if (d?._level && !d?._isConnLeaf) {
+            const name = dispName(d.name)
+            const levelLabel = LEVEL_LABELS[d._level] ?? d._level
+            return `<div style="font-size:12px;line-height:1.7"><b>${name}</b><br/><span style="opacity:0.7">${levelLabel}</span></div>`
           }
           if (d?._isConnLeaf && d._raw) {
             const n = d._raw
