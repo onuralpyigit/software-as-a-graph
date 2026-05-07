@@ -4271,10 +4271,12 @@ function BrowserPageContent() {
       <AppLayout title="Explorer" description="Browse your system topology, inspect components, and explore dependency relationships.">
         <div className="space-y-3">
           {/* Tabs skeleton */}
-          <div className="flex items-center gap-1 mb-2 shrink-0">
-            <Skeleton className="h-9 w-20 rounded-md" />
-            <Skeleton className="h-9 w-20 rounded-md" />
-            <Skeleton className="h-9 w-20 rounded-md" />
+          <div className="flex items-center justify-between mb-2 shrink-0">
+            <div className="bg-muted inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px] gap-1">
+              <Skeleton className="h-[calc(100%-2px)] w-20 rounded-md" />
+              <Skeleton className="h-[calc(100%-2px)] w-20 rounded-md" />
+              <Skeleton className="h-[calc(100%-2px)] w-20 rounded-md" />
+            </div>
           </div>
           {/* 3-column layout skeleton */}
           <div className="flex gap-0 border border-border rounded-lg overflow-hidden" style={{ minHeight: "520px" }}>
