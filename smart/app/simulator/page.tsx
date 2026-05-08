@@ -394,7 +394,7 @@ export default function TrafficSimulatorPage() {
                       type="number" min={0.001} step={1}
                       value={frequencyHz}
                       onChange={e => setFrequencyHz(parseFloat(e.target.value) || 10)}
-                      className="h-8 w-16 text-xs"
+                      className="h-8 w-24 text-xs"
                     />
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -403,7 +403,7 @@ export default function TrafficSimulatorPage() {
                       type="number" min={1} step={10}
                       value={durationSec}
                       onChange={e => setDurationSec(parseFloat(e.target.value) || 60)}
-                      className="h-8 w-20 text-xs"
+                      className="h-8 w-28 text-xs"
                     />
                   </div>
                   {selectedTopicIds.length > 0 && (
