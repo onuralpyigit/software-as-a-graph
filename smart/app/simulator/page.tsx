@@ -346,7 +346,7 @@ export default function TrafficSimulatorPage() {
   if (status !== "connected") {
     return (
       <AppLayout title="Simulator" description="Estimate pub-sub network and broker load">
-        <NoConnectionInfo description="Connect to your Neo4j database to use the traffic simulator" />
+        <NoConnectionInfo description="Connect to your Neo4j database to use the simulator" />
       </AppLayout>
     )
   }

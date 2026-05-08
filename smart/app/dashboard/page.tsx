@@ -220,6 +220,9 @@ export default function DashboardPage() {
 
         {!isConnected && <NoConnectionInfo />}
 
+        {isConnected && (
+        <>
+
         {/* ── KPI tiles ─────────────────────────────────────────────── */}
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {kpis.map(({ label, value, sub, Icon, text, border, bg, ring, glow }) => (
@@ -404,6 +407,9 @@ export default function DashboardPage() {
             )}
 
           </div>
+        )}
+
+        </>
         )}
 
       </div>
