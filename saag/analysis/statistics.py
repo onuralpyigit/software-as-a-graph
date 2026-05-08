@@ -1537,6 +1537,100 @@ def to_serializable(obj: Any) -> Any:
     return obj
 
 
+def compute_network_usage_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute per-node network bandwidth used by the topology.
+
+    For each physical node the function sums the message sizes of every topic
+    published *from* (outbound) and subscribed *to* (inbound) by the
+    applications hosted on that node.  The result shows how much raw network
+    traffic each host contributes in one message cycle and lets you spot nodes
+    that dominate total bandwidth.
+
+    The topology-level totals mirror what ``compute_topic_bandwidth_stats``
+    already reports per topic, but aggregated to physical infrastructure
+    (nodes / brokers) so operators can see *where* that traffic lands.
+    """
+    node_ids = [n["id"] for n in cc["nodes"]]
+
+    # ── Per-node bandwidth accumulators ─────────────────────────────────
+    node_out_bw: Dict[str, float] = {nid: 0.0 for nid in node_ids}
+    node_in_bw: Dict[str, float] = {nid: 0.0 for nid in node_ids}
+
+    for rel in cc["publishes_to"]:
+        aid, tid = rel.get("from"), rel.get("to")
+        nid = cc["app_node"].get(aid)
+        if nid and nid in node_out_bw:
+            node_out_bw[nid] += cc["topic_sizes"].get(tid, 0)
+
+    for rel in cc["subscribes_to"]:
+        aid, tid = rel.get("from"), rel.get("to")
+        nid = cc["app_node"].get(aid)
+        if nid and nid in node_in_bw:
+            node_in_bw[nid] += cc["topic_sizes"].get(tid, 0)
+
+    # ── Topology-level totals (sum over all topics) ──────────────────────
+    total_out = sum(node_out_bw.values())
+    total_in = sum(node_in_bw.values())
+    # Total bytes flowing across the network per cycle:
+    # for each topic: size × (pub_connections + sub_connections)
+    total_bw = sum(
+        cc["topic_sizes"].get(tid, 0) * (
+            cc["topic_pub_count"].get(tid, 0) + cc["topic_sub_count"].get(tid, 0)
+        )
+        for tid in cc["topic_sizes"]
+    )
+
+    # ── Sort by total node bandwidth descending ──────────────────────────
+    node_totals = {nid: node_out_bw[nid] + node_in_bw[nid] for nid in node_ids}
+    sorted_idx = sorted(range(len(node_ids)), key=lambda i: node_totals[node_ids[i]], reverse=True)
+    sorted_ids = [node_ids[i] for i in sorted_idx]
+    sorted_labels = [cc["node_names"].get(nid, nid)[:25] for nid in sorted_ids]
+    sorted_out = [node_out_bw[nid] for nid in sorted_ids]
+    sorted_in = [node_in_bw[nid] for nid in sorted_ids]
+    sorted_total = [node_totals[nid] for nid in sorted_ids]
+
+    # ── Outlier detection ────────────────────────────────────────────────
+    outliers: List[Tuple[str, float, float, float]] = []
+    iqr_upper = 0.0
+    nonzero = [t for t in sorted_total if t > 0]
+    if len(nonzero) >= 4:
+        _, iqr_upper, _ = find_1d_outliers_iqr(nonzero)
+        for i, nid in enumerate(sorted_ids):
+            if sorted_total[i] > iqr_upper:
+                outliers.append((sorted_labels[i], sorted_out[i], sorted_in[i], sorted_total[i]))
+
+    # ── Summary ─────────────────────────────────────────────────────────
+    summary: Dict[str, Any] = {
+        "total_bandwidth": total_bw,
+        "total_outbound": total_out,
+        "total_inbound": total_in,
+        "node_count": len(node_ids),
+        "topic_count": len(cc["topic_sizes"]),
+        "zero_bw_nodes": sum(1 for t in sorted_total if t == 0),
+        "outlier_count": len(outliers),
+    }
+    if sorted_total:
+        arr = np.array(sorted_total, dtype=float)
+        summary["bw_mean"] = float(np.mean(arr))
+        summary["bw_median"] = float(np.median(arr))
+        summary["bw_max"] = float(np.max(arr))
+        summary["bw_std"] = float(np.std(arr))
+        summary["cv"] = (
+            float(np.std(arr) / np.mean(arr) * 100) if np.mean(arr) > 0 else 0.0
+        )
+
+    return {
+        "sorted_labels": sorted_labels,
+        "sorted_ids": sorted_ids,
+        "sorted_out": sorted_out,
+        "sorted_in": sorted_in,
+        "sorted_total": sorted_total,
+        "outliers": outliers,
+        "iqr_upper": iqr_upper,
+        "summary": summary,
+    }
+
+
 def compute_all_extras_statistics(
     cc: Dict[str, Any],
     risk_weight_fn: Optional[Callable[[str, str], float]] = None,
@@ -1569,6 +1663,7 @@ def compute_all_extras_statistics(
         "lib_dependency": compute_lib_dependency_stats(cc),
         "node_critical_density": compute_node_critical_density_stats(cc),
         "domain_diversity": compute_segment_diversity_stats(cc),
+        "network_usage": compute_network_usage_stats(cc),
     }
 
     if risk_weight_fn is not None:
