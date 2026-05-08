@@ -85,6 +85,7 @@ export default function TrafficSimulatorPage() {
 
   // ---- Selection ----
   const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([])
+  const [selectedRoleKeys, setSelectedRoleKeys] = useState<Set<string>>(new Set())
   const [topicParams, setTopicParams] = useState<Record<string, TopicParams>>({})
   const [topicSearch, setTopicSearch] = useState("")
   const [topicQosFilter, setTopicQosFilter] = useState<string>("all")
@@ -117,6 +118,7 @@ export default function TrafficSimulatorPage() {
     } else {
       setTopics([])
       setApps([])
+      setSelectedRoleKeys(new Set())
     }
   }, [status])
 
@@ -246,14 +248,6 @@ export default function TrafficSimulatorPage() {
       a.id.toLowerCase().includes(appSearch.toLowerCase())
     )
     list = [...list].sort((a, b) => {
-      // Selected items float to the top: fully selected > partially selected > unselected
-      const aAllIds = Array.from(new Set([...a.pub_topic_ids, ...a.sub_topic_ids]))
-      const bAllIds = Array.from(new Set([...b.pub_topic_ids, ...b.sub_topic_ids]))
-      const aSelCount = aAllIds.filter(tid => selectedTopicIds.includes(tid)).length
-      const bSelCount = bAllIds.filter(tid => selectedTopicIds.includes(tid)).length
-      const aPriority = aAllIds.length > 0 && aSelCount === aAllIds.length ? 2 : aSelCount > 0 ? 1 : 0
-      const bPriority = bAllIds.length > 0 && bSelCount === bAllIds.length ? 2 : bSelCount > 0 ? 1 : 0
-      if (aPriority !== bPriority) return bPriority - aPriority
       if (appSort === "name")   return a.name.localeCompare(b.name)
       if (appSort === "weight") return b.weight - a.weight
       if (appSort === "topics") {
@@ -264,7 +258,7 @@ export default function TrafficSimulatorPage() {
       return 0
     })
     return list
-  }, [apps, appSearch, appSort, selectedTopicIds])
+  }, [apps, appSearch, appSort])
 
   const filteredTopics = React.useMemo(() => {
     let list = topics.filter(t => {
@@ -767,7 +761,21 @@ export default function TrafficSimulatorPage() {
                         </div>
                       ) : (
                         <div className="max-h-96 overflow-y-auto divide-y">
-                          {filteredApps.map(app => {
+                          {[
+                            ...filteredApps.filter(a => {
+                              const ids = Array.from(new Set([...a.pub_topic_ids, ...a.sub_topic_ids]))
+                              return ids.length > 0 && ids.every(tid => selectedTopicIds.includes(tid))
+                            }),
+                            ...filteredApps.filter(a => {
+                              const ids = Array.from(new Set([...a.pub_topic_ids, ...a.sub_topic_ids]))
+                              const count = ids.filter(tid => selectedTopicIds.includes(tid)).length
+                              return count > 0 && count < ids.length
+                            }),
+                            ...filteredApps.filter(a => {
+                              const ids = Array.from(new Set([...a.pub_topic_ids, ...a.sub_topic_ids]))
+                              return ids.length === 0 || ids.every(tid => !selectedTopicIds.includes(tid))
+                            }),
+                          ].map(app => {
                             const allTopicIds = Array.from(new Set([...app.pub_topic_ids, ...app.sub_topic_ids]))
                             const selectedCount = allTopicIds.filter(tid => selectedTopicIds.includes(tid)).length
                             const isFullySelected = allTopicIds.length > 0 && selectedCount === allTopicIds.length
@@ -786,18 +794,11 @@ export default function TrafficSimulatorPage() {
                                   disabled={!hasTopics}
                                 >
                                   <div className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors ${
-                                    isFullySelected ? "bg-primary border-primary"
-                                    : isPartiallySelected ? "bg-amber-400 border-amber-400"
-                                    : "border-muted-foreground/40"
+                                    isFullySelected ? "bg-primary border-primary" : "border-muted-foreground/40"
                                   }`}>
                                     {isFullySelected && (
                                       <svg className="h-2.5 w-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 12 12">
                                         <path d="M10.28 2.28L3.989 8.575 1.695 6.28A1 1 0 00.28 7.695l3 3a1 1 0 001.414 0l7-7A1 1 0 0010.28 2.28z" />
-                                      </svg>
-                                    )}
-                                    {isPartiallySelected && (
-                                      <svg className="h-2 w-2 text-white" fill="currentColor" viewBox="0 0 12 12">
-                                        <rect x="1" y="5" width="10" height="2" rx="1" />
                                       </svg>
                                     )}
                                   </div>
@@ -876,37 +877,46 @@ export default function TrafficSimulatorPage() {
                     if (!roleMap.has(key)) roleMap.set(key, [])
                     roleMap.get(key)!.push(app)
                   }
-                  const roleKeys = Array.from(roleMap.keys()).sort((a, b) => {
-                    const aApps = roleMap.get(a)!
-                    const bApps = roleMap.get(b)!
-                    const aPriority = isGroupFullySelected(aApps) ? 2 : isGroupPartiallySelected(aApps) ? 1 : 0
-                    const bPriority = isGroupFullySelected(bApps) ? 2 : isGroupPartiallySelected(bApps) ? 1 : 0
-                    if (aPriority !== bPriority) return bPriority - aPriority
-                    return a.localeCompare(b)
-                  })
+                  const roleKeys = Array.from(roleMap.keys()).sort()
 
-                  function isGroupFullySelected(roleApps: AppInfo[]) {
-                    return roleApps.length > 0 && roleApps.every(a => {
-                      const ids = Array.from(new Set([...a.pub_topic_ids, ...a.sub_topic_ids]))
-                      return ids.length > 0 && ids.every(tid => selectedTopicIds.includes(tid))
-                    })
+                  // A role is fully selected only when the user explicitly selected it.
+                  function isRoleSelected(roleKey: string) {
+                    return selectedRoleKeys.has(roleKey)
                   }
 
-                  function isGroupPartiallySelected(roleApps: AppInfo[]) {
+                  // Partial: some topics are selected (e.g. via the Apps/Topics tabs) but the
+                  // role itself was not explicitly selected as a whole.
+                  function isGroupPartiallySelected(roleKey: string, roleApps: AppInfo[]) {
+                    if (selectedRoleKeys.has(roleKey)) return false
                     return roleApps.some(a => {
                       const ids = Array.from(new Set([...a.pub_topic_ids, ...a.sub_topic_ids]))
                       return ids.some(tid => selectedTopicIds.includes(tid))
-                    }) && !isGroupFullySelected(roleApps)
+                    })
                   }
 
-                  function toggleGroup(roleApps: AppInfo[]) {
-                    const full = isGroupFullySelected(roleApps)
-                    if (full) {
-                      const allIds = new Set(roleApps.flatMap(a => [...a.pub_topic_ids, ...a.sub_topic_ids]))
-                      setSelectedTopicIds(prev => prev.filter(tid => !allIds.has(tid)))
+                  function toggleGroup(roleKey: string, roleApps: AppInfo[]) {
+                    const myIds = new Set(roleApps.flatMap(a => [...a.pub_topic_ids, ...a.sub_topic_ids]))
+                    if (selectedRoleKeys.has(roleKey)) {
+                      // Deselect: remove this role, keep topics still needed by other selected roles
+                      setSelectedRoleKeys(prev => {
+                        const next = new Set(prev)
+                        next.delete(roleKey)
+                        return next
+                      })
+                      const otherRoleTopics = new Set<string>()
+                      for (const [otherKey, otherApps] of roleMap.entries()) {
+                        if (otherKey === roleKey || !selectedRoleKeys.has(otherKey)) continue
+                        for (const a of otherApps) {
+                          for (const tid of [...a.pub_topic_ids, ...a.sub_topic_ids]) {
+                            otherRoleTopics.add(tid)
+                          }
+                        }
+                      }
+                      setSelectedTopicIds(prev => prev.filter(tid => !myIds.has(tid) || otherRoleTopics.has(tid)))
                     } else {
-                      const allIds = Array.from(new Set(roleApps.flatMap(a => [...a.pub_topic_ids, ...a.sub_topic_ids])))
-                      setSelectedTopicIds(prev => Array.from(new Set([...prev, ...allIds])))
+                      // Select: add role and its topics
+                      setSelectedRoleKeys(prev => new Set([...prev, roleKey]))
+                      setSelectedTopicIds(prev => Array.from(new Set([...prev, ...myIds])))
                     }
                   }
 
@@ -921,10 +931,14 @@ export default function TrafficSimulatorPage() {
                         <div className="py-10 text-center text-sm text-muted-foreground">No role values set on Application nodes.</div>
                       ) : (
                         <div className="border rounded-lg overflow-hidden divide-y">
-                          {roleKeys.map(roleKey => {
+                          {[
+                            ...roleKeys.filter(k => isRoleSelected(k)),
+                            ...roleKeys.filter(k => isGroupPartiallySelected(k, roleMap.get(k)!)),
+                            ...roleKeys.filter(k => !isRoleSelected(k) && !isGroupPartiallySelected(k, roleMap.get(k)!)),
+                          ].map(roleKey => {
                             const roleApps = roleMap.get(roleKey)!
-                            const fullySelected = isGroupFullySelected(roleApps)
-                            const partiallySelected = isGroupPartiallySelected(roleApps)
+                            const fullySelected = isRoleSelected(roleKey)
+                            const partiallySelected = isGroupPartiallySelected(roleKey, roleApps)
                             const topicCount = new Set(roleApps.flatMap(a => [...a.pub_topic_ids, ...a.sub_topic_ids])).size
                             return (
                               <div
@@ -932,20 +946,13 @@ export default function TrafficSimulatorPage() {
                                 className={`flex items-center gap-3 px-3 py-3 transition-colors ${fullySelected ? "bg-primary/5 dark:bg-primary/10" : partiallySelected ? "bg-amber-50/50 dark:bg-amber-950/20" : "hover:bg-muted/60"}`}
                               >
                                 {/* Checkbox */}
-                                <button onClick={() => toggleGroup(roleApps)} className="shrink-0">
+                                <button onClick={() => toggleGroup(roleKey, roleApps)} className="shrink-0">
                                   <div className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors ${
-                                    fullySelected ? "bg-primary border-primary"
-                                    : partiallySelected ? "bg-amber-400 border-amber-400"
-                                    : "border-muted-foreground/40"
+                                    fullySelected ? "bg-primary border-primary" : "border-muted-foreground/40"
                                   }`}>
                                     {fullySelected && (
                                       <svg className="h-2.5 w-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 12 12">
                                         <path d="M10.28 2.28L3.989 8.575 1.695 6.28A1 1 0 00.28 7.695l3 3a1 1 0 001.414 0l7-7A1 1 0 0010.28 2.28z" />
-                                      </svg>
-                                    )}
-                                    {partiallySelected && (
-                                      <svg className="h-2 w-2 text-white" fill="currentColor" viewBox="0 0 12 12">
-                                        <rect x="1" y="5" width="10" height="2" rx="1" />
                                       </svg>
                                     )}
                                   </div>
@@ -953,7 +960,7 @@ export default function TrafficSimulatorPage() {
 
                                 {/* Label */}
                                 <button
-                                  onClick={() => toggleGroup(roleApps)}
+                                  onClick={() => toggleGroup(roleKey, roleApps)}
                                   className="flex-1 min-w-0 text-left"
                                 >
                                   <span className={`text-sm font-medium ${fullySelected ? "text-primary" : partiallySelected ? "text-amber-700 dark:text-amber-400" : ""}`}>
