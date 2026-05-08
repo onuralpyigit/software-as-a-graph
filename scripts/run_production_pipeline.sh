@@ -2,29 +2,44 @@
 set -euo pipefail
 
 echo "=========================================="
-echo "Starting Full Production Run"
+echo "Starting Full Production Run (PARALLEL)"
 echo "=========================================="
 
 cd /home/onuralpyigit/Workspace/SoftwareAsAGraph
 
-echo "[1/4] Running main table (Table 3)..."
+# Set lower thread counts for parallel PyTorch runs
+export OMP_NUM_THREADS=4
+
+echo "[1/3] Launching main table (Table 3) sweep in background..."
 PYTHONPATH=. python tools/middleware26_main_table.py \
     --epochs 300 \
     --seeds 42 123 456 789 2024 \
     --output results/main_table.json \
-    -v > results/main_table_run.log 2>&1
+    --resume \
+    -v > results/main_table_run.log 2>&1 &
+PID1=$!
 
-echo "[2/4] Running LOSO validation (Table 4)..."
+echo "[2/3] Launching LOSO validation (Table 4) sweep in background..."
 PYTHONPATH=. python tools/loso_all_variants.py \
     --epochs 300 \
-    --seeds 42 123 456 789 2024 \
+    --seeds "42,123,456,789,2024" \
     --output results/loso_all_variants.json \
-    -v > results/loso_run.log 2>&1
+    --resume \
+    -v > results/loso_run.log 2>&1 &
+PID2=$!
 
-echo "[3/4] Running Gini Sweep (Figure 3)..."
+echo "[3/3] Launching Gini Sweep (Figure 3) in background..."
 PYTHONPATH=. python tools/qos_gini_sweep.py \
     --epochs 300 \
-    -v > results/gini_run.log 2>&1
+    --resume \
+    -v > results/gini_run.log 2>&1 &
+PID3=$!
+
+echo "Waiting for all 3 compute sweeps to finish (PIDs: $PID1 $PID2 $PID3)..."
+wait $PID1
+wait $PID2
+wait $PID3
+echo "Compute sweeps completed!"
 
 echo "[4/4] Generating Artifacts (Tables & Figures)..."
 PYTHONPATH=. python tools/render_table.py \

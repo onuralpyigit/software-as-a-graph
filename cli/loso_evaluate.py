@@ -230,8 +230,17 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
 
     graph = _build_graph_from_json(topology)
     structural = extract_structural_metrics_dict(structural_raw)
-    rmav = extract_rmav_scores_dict(rmav_raw) if rmav_raw else {}
-    simulation = extract_simulation_dict(sim_raw)
+
+    try:
+        from tools.middleware26_main_table import _parse_failure_impact, _parse_quality_scores, _remap_node_ids
+        sim_parsed = _parse_failure_impact(sim_raw)
+        rmav_parsed = _parse_quality_scores(rmav_raw) if rmav_raw else {}
+        graph_nodes = set(str(n) for n in graph.nodes())
+        simulation = _remap_node_ids(sim_parsed, graph_nodes)
+        rmav = _remap_node_ids(rmav_parsed, graph_nodes)
+    except ImportError:
+        rmav = extract_rmav_scores_dict(rmav_raw) if rmav_raw else {}
+        simulation = extract_simulation_dict(sim_raw)
 
     conv = networkx_to_hetero_data(graph, structural, simulation, rmav)
 
