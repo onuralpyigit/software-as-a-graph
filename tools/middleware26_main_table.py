@@ -285,11 +285,16 @@ def _train_cell(
         conv = networkx_to_hetero_data(nx_graph, structural_dict, simulation_dict, rmav_dict)
         data = conv.hetero_data
         create_node_splits(data, train_ratio, val_ratio, seed=seed)
+        # Use fewer layers on small graphs to prevent over-smoothing collapse
+        n_nodes = nx_graph.number_of_nodes()
+        effective_layers = 1 if n_nodes <= 200 else (2 if n_nodes <= 500 else num_layers)
+        effective_lr = 1e-3  # higher LR for faster convergence on small labelled sets
+        effective_patience = max(patience, 60)
         model = build_baseline(variant, hidden_channels=hidden, num_heads=num_heads,
-                               num_layers=num_layers, dropout=dropout)
+                               num_layers=effective_layers, dropout=dropout)
         ckpt_dir = f"output/gnn_checkpoints/{scenario}_{variant}_s{seed}"
-        trainer = GNNTrainer(model=model, checkpoint_dir=ckpt_dir, lr=3e-4,
-                             num_epochs=num_epochs, patience=patience)
+        trainer = GNNTrainer(model=model, checkpoint_dir=ckpt_dir, lr=effective_lr,
+                             num_epochs=num_epochs, patience=effective_patience)
         trainer.train(data)
         device = torch.device("cpu")
         metrics = evaluate(model, data, "test_mask", device)
@@ -303,7 +308,7 @@ def _train_cell(
             graph=nx_graph, structural_metrics=structural_dict,
             simulation_results=simulation_dict, rmav_scores=rmav_dict,
             train_ratio=train_ratio, val_ratio=val_ratio,
-            num_epochs=num_epochs, lr=3e-4, patience=patience,
+            num_epochs=num_epochs, lr=1e-3, patience=patience,
             seeds=[seed], mode="gnn",
         )
         metrics = result.gnn_metrics

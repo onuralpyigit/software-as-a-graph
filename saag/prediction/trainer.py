@@ -108,7 +108,7 @@ class GNNTrainer:
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
     def _compute_val_loss(self, data: "HeteroData") -> float:
-        """Compute loss on validation-masked nodes (no grad)."""
+        """Compute loss on validation-masked *labelled* nodes (no grad)."""
         self.model.eval()
         with torch.no_grad():
             x_dict = {nt: data[nt].x for nt in data.node_types if hasattr(data[nt], "x")}
@@ -126,8 +126,12 @@ class GNNTrainer:
                 mask = store.val_mask
                 if mask.sum() == 0:
                     continue
+                # Sub-mask to labelled nodes only (|y_composite| > 0)
+                labelled = mask & (store.y[:, 0].abs() > 1e-6)
+                if labelled.sum() == 0:
+                    continue
                 rmav_target = store.y_rmav if hasattr(store, "y_rmav") else None
-                loss, _ = self.loss_fn(preds, store.y, mask, rmav_target)
+                loss, _ = self.loss_fn(preds, store.y, labelled, rmav_target)
                 total += loss.item()
                 count += 1
         return total / max(count, 1)
@@ -154,7 +158,7 @@ class GNNTrainer:
         return epoch_loss / max(num_batches, 1)
 
     def _node_loss(self, node_preds: Dict, batch) -> Tensor:
-        """Accumulate loss over all labelled node types in a batch."""
+        """Accumulate loss over all *labelled* train nodes (|y_composite| > 0)."""
         total = torch.tensor(0.0, device=self.device, requires_grad=True)
         for nt, preds in node_preds.items():
             store = batch[nt]
@@ -163,8 +167,12 @@ class GNNTrainer:
             mask = store.train_mask
             if mask.sum() == 0:
                 continue
+            # Sub-mask: only train on nodes that have non-zero ground-truth labels
+            labelled = mask & (store.y[:, 0].abs() > 1e-6)
+            if labelled.sum() == 0:
+                continue
             rmav_target = store.y_rmav if hasattr(store, "y_rmav") else None
-            loss, _ = self.loss_fn(preds, store.y, mask, rmav_target)
+            loss, _ = self.loss_fn(preds, store.y, labelled, rmav_target)
             total = total + loss
         return total
 
