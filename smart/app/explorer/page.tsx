@@ -32,6 +32,7 @@ import {
   List,
   X,
   Share2,
+  Download,
 } from "lucide-react"
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false })
@@ -2027,7 +2028,7 @@ function buildMergedTree(
 }
 
 const MergedEChartsTree = memo(function MergedEChartsTree({
-  hierarchy, connDataMap, expandedLeaves, selectedApp, dims, isDark, focusHierPathKey, onAppNodeClick, onConnNodeClick,
+  hierarchy, connDataMap, expandedLeaves, selectedApp, dims, isDark, focusHierPathKey, onAppNodeClick, onConnNodeClick, exportFnRef,
 }: {
   hierarchy: Record<string, CsmsGroup>
   connDataMap: Map<string, { nodes: any[]; links: any[] }>
@@ -2038,9 +2039,25 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
   focusHierPathKey?: string | null
   onAppNodeClick: (app: AppNode, instanceKey: string) => void
   onConnNodeClick: (nodeId: string, instanceKey: string) => void
+  exportFnRef?: React.MutableRefObject<(() => void) | null>
 }) {
   const W = dims.width || 800
   const H = dims.height || 600
+
+  // ECharts instance ref for PNG export
+  const echartsRef = useRef<any>(null)
+  useEffect(() => {
+    if (!exportFnRef) return
+    exportFnRef.current = () => {
+      const ec = echartsRef.current?.getEchartsInstance?.()
+      if (!ec) return
+      const dataUrl = ec.getDataURL({ type: "png", backgroundColor: isDark ? "#09090b" : "#ffffff", pixelRatio: 2 })
+      const a = document.createElement("a")
+      a.href = dataUrl
+      a.download = "system-export.png"
+      a.click()
+    }
+  }, [exportFnRef, isDark])
 
   // Horizontal spread multiplier. 1.0 = fits viewport with a 5% margin per side
   // (normal layout); >1 widens the tree beyond the viewport so spacing between
@@ -2253,6 +2270,8 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
     <div style={{ width: W, height: H, position: "relative" }}>
       {W > 0 && H > 0 && (
         <ReactECharts
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          {...({ ref: echartsRef } as any)}
           key={isDark ? "dark" : "light"}
           option={option}
           style={{ width: W, height: H }}
@@ -2453,7 +2472,7 @@ const HierEChartsTree = memo(function HierEChartsTree({
   )
 })
 
-function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, syncKey = null, onNodeSelect, onSelectInfo }: { hierarchy: Record<string, CsmsGroup>; extraNodes?: any[]; initialNodeId?: string | null; syncKey?: string | null; onNodeSelect?: (key: string) => void; onSelectInfo?: (pathKey: string, name: string, nodeType?: string) => void }) {
+function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, syncKey = null, onNodeSelect, onSelectInfo, exportFnRef }: { hierarchy: Record<string, CsmsGroup>; extraNodes?: any[]; initialNodeId?: string | null; syncKey?: string | null; onNodeSelect?: (key: string) => void; onSelectInfo?: (pathKey: string, name: string, nodeType?: string) => void; exportFnRef?: React.MutableRefObject<(() => void) | null> }) {
   const { theme, systemTheme } = useTheme()
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
 
@@ -3008,6 +3027,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
               onSelectInfo?.(hgNode.pathKey, hgNode.name, hgNode.nodeType)
             }}
             onConnNodeClick={onConnLeafClick}
+            exportFnRef={exportFnRef}
           />
 
           {/* Search overlay */}
@@ -3622,6 +3642,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
   linksLoading,
   selectedKey,
   onNodeClick,
+  exportFnRef,
 }: {
   nodesList: any[]
   appsList: any[]
@@ -3632,10 +3653,26 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
   linksLoading: boolean
   selectedKey: string | null
   onNodeClick: (rawNode: any, nodeType: SwimlaneType) => void
+  exportFnRef?: React.MutableRefObject<(() => void) | null>
 }) {
   const { theme, systemTheme } = useTheme()
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
   const selectedId = selectedKey ? selectedKey.replace(/^[^:]+:/, "") : null
+
+  // ECharts instance ref for PNG export
+  const echartsRef = useRef<any>(null)
+  useEffect(() => {
+    if (!exportFnRef) return
+    exportFnRef.current = () => {
+      const ec = echartsRef.current?.getEchartsInstance?.()
+      if (!ec) return
+      const dataUrl = ec.getDataURL({ type: "png", backgroundColor: isDark ? "#09090b" : "#ffffff", pixelRatio: 2 })
+      const a = document.createElement("a")
+      a.href = dataUrl
+      a.download = "graph-export.png"
+      a.click()
+    }
+  }, [exportFnRef, isDark])
 
   // Search state
   const [graphSearch, setGraphSearch] = useState("")
@@ -4122,6 +4159,8 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
         </div>
       )}
       <ReactECharts
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {...({ ref: echartsRef } as any)}
         option={option}
         onEvents={onEvents}
         style={{ width: "100%", height: "100%" }}
@@ -4162,6 +4201,10 @@ function BrowserPageContent() {
   const [layerGraphLinks, setLayerGraphLinks] = useState<Array<{ source: string; target: string; type: string; weight?: number }>>([])
   const [layerLinksLoading, setLayerLinksLoading] = useState(false)
   const layerLinksLoadedRef = useRef(false)
+
+  // Export-to-PNG refs — populated by child graph components
+  const forceGraphExportRef = useRef<(() => void) | null>(null)
+  const systemGraphExportRef = useRef<(() => void) | null>(null)
 
   const toggle = useCallback((key: string) => {
     setOpenSet((prev) => {
@@ -4483,6 +4526,25 @@ function BrowserPageContent() {
               </TabsTrigger>
             </TabsList>
 
+            {(activeTab === "forcegraph" || activeTab === "graph") && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => {
+                      if (activeTab === "forcegraph") forceGraphExportRef.current?.()
+                      else systemGraphExportRef.current?.()
+                    }}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Export PNG
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Download current graph view as PNG</TooltipContent>
+              </Tooltip>
+            )}
           </div>
 
           {/* ── Browse tab ── */}
@@ -4566,6 +4628,7 @@ function BrowserPageContent() {
                     <HierarchyGraph
                       hierarchy={hierarchy}
                       extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]}
+                      exportFnRef={systemGraphExportRef}
                       onSelectInfo={(pathKey, name, nodeType) => {
                         const info = allNodeLabels.get(pathKey)
                         const type = nodeType ?? info?.type ?? "Application"
@@ -4622,6 +4685,7 @@ function BrowserPageContent() {
                       linksLoading={layerLinksLoading}
                       selectedKey={selectedNode?.key ?? null}
                       onNodeClick={handleLayersNodeClick}
+                      exportFnRef={forceGraphExportRef}
                     />
                   </div>
                   <div className="w-64 shrink-0 border-l border-border flex flex-col overflow-hidden">
