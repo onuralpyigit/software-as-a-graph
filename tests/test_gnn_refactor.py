@@ -72,10 +72,15 @@ def test_node_type_dims_updated():
     assert NODE_TYPE_TO_DIM["Node"] == 20
 
 
-def test_edge_feature_dim_is_nine():
+def test_edge_feature_dim_is_sixteen():
+    """
+    Edge features: 2 (weight + path_count) + 7 (edge type one-hot) + 7 (QoS) = 16
+    """
     from saag.prediction.data_preparation import EDGE_FEATURE_DIM, EDGE_TYPES
-    assert EDGE_FEATURE_DIM == 2 + len(EDGE_TYPES)
-    assert EDGE_FEATURE_DIM == 9
+    # Base dimensions: weight + path_count + 7 edge types = 9
+    assert 2 + len(EDGE_TYPES) == 9
+    # Total with QoS decomposition: 9 + 7 = 16
+    assert EDGE_FEATURE_DIM == 16
 
 
 def test_node_type_to_dim_same_in_models_and_data_prep():
