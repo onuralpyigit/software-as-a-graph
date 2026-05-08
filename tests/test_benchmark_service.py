@@ -218,6 +218,7 @@ class TestBenchmarkRunner:
         mock_gen.return_value = ({"nodes": []}, 10.0)
         mock_imp.return_value = (True, 20.0)
         mock_an.return_value = (
+            MagicMock(),
             {
                 "graph_summary": {"nodes": 10, "edges": 20, "density": 0.5},
                 "quality_analysis": {"components": []},
@@ -268,7 +269,7 @@ class TestBenchmarkRunner:
     ):
         mock_gen.return_value = ({"nodes": []}, 10.0)
         mock_imp.return_value = (True, 20.0)
-        mock_an.return_value = (None, 0.0)
+        mock_an.return_value = (None, None, 0.0)
 
         runner = BenchmarkRunner(tmp_output)
         scenario = BenchmarkScenario(name="T", scale="tiny", layers=["app"], runs=1)

@@ -99,6 +99,7 @@ Section 2 describes the overall test strategy and schedule. Section 3 defines th
 | 2.2 | February 2026 | Updated references to SRS/SDD v2.2; added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL to glossary (§1.6); corrected UT-ANAL-21 formula reference from PR to RPR; added unit tests for new derived terms (§4.3 UT-ANAL-33–43); added `api` marker to pytest config (§3.3); corrected IT-API-09 from POST to GET; updated coverage table (§4.9); raised validation primary targets to match SRS v2.2 (§8.1, §8.2, AC-25); updated achieved results to IEEE RASSE 2025 published figures (§8.3); extended traceability matrix for SRS v2.2 requirements (§10) |
 | 2.3 | March 2026 | Added `tests/test_api_graph.py` for comprehensive Graph module API verification; updated §3.5 with specific test command; refined REST API integration test descriptions (§5.5) |
 | 2.3 | March 2026 | Added `tests/test_api_graph.py` for comprehensive Graph module API verification; updated §3.5 with specific test command; refined REST API integration test descriptions (§5.5); removed legacy `analyzer.py` shim |
+| 2.4 | May 2026 | Aligned Python baseline to 3.11; corrected SDK package path from `src/` to `saag/`; documented in-memory `MemoryRepository` test fixture (no live Neo4j required for ~99% of unit suite); refreshed scenario_08 golden hash after generator update; clarified solitary-population CQP behaviour (zero-variance population yields norm=1.0, CQP=0.70); updated `test_usecases.py` to construct services (`AnalysisService`, `PredictionService`, `SimulationService`, `ValidationService`) instead of repositories; updated benchmark mocks to 3-tuple `_run_analysis` return; current suite: 587 passed, 5 skipped (Neo4j/example-script gated). |
 
 ---
 
@@ -150,7 +151,7 @@ all planned tests are executed, no Critical or High-severity defects remain open
 
 | Software | Version | Purpose |
 |----------|---------|---------|
-| Python | 3.9+ | Runtime and test execution |
+| Python | 3.11 | Runtime and test execution |
 | pytest | 7.0+ | Test framework |
 | pytest-cov | 4.0+ | Coverage reporting |
 | pytest-timeout | 2.0+ | Timeout enforcement |
@@ -212,7 +213,7 @@ services:
 pytest tests/ -m "not integration and not api" -v
 
 # Unit tests with coverage report
-pytest tests/ -m "not integration and not api" --cov=src --cov-report=html
+pytest tests/ -m "not integration and not api" --cov=saag --cov-report=html
 
 # Integration tests (requires Neo4j on port 7688)
 docker compose -f docker-compose.test.yml up -d

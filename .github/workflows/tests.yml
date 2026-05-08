@@ -1,0 +1,43 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install project (CPU torch + all extras + dev)
+        run: |
+          python -m pip install --upgrade pip
+          # 1. CPU-only torch wheel (~200 MB vs ~2 GB CUDA build).
+          pip install torch==2.5.0 --index-url https://download.pytorch.org/whl/cpu
+          # 2. torch-scatter / torch-sparse have no PyPI wheels; their sdists need
+          #    torch at build time and pip's build isolation hides it. Install the
+          #    prebuilt CPU wheels from PyG's wheel index.
+          pip install torch-scatter==2.1.2 torch-sparse==0.6.18 \
+            -f https://data.pyg.org/whl/torch-2.5.0+cpu.html
+          # 3. Remaining extras (torch + scatter + sparse already satisfied).
+          pip install -e ".[neo4j,gnn,api,dev]"
+
+      - name: Run pytest
+        run: pytest --tb=short -q

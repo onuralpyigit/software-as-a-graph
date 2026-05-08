@@ -32,6 +32,10 @@ def mock_event_result():
         "drop_reasons": {},
         "related_components": [],
     }
+    # Presenter reads metrics.latencies (real list, not MagicMock) to compute min/p50/max.
+    result.metrics.latencies = [0.001, 0.002, 0.003, 0.004, 0.005]
+    result.metrics.min_latency = 0.001
+    result.metrics.max_latency = 0.005
     return result
 
 @pytest.fixture

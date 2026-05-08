@@ -17,7 +17,7 @@ The project is a full-stack framework with five top-level components:
 - **Repository pattern:** `saag/infrastructure/neo4j_repo.py` (production) and `saag/infrastructure/memory_repo.py` (testing) both implement `IGraphRepository`.
 
 ### REST API (`api/`)
-- **Language:** Python 3.9+, FastAPI on port 8000.
+- **Language:** Python 3.11 (project requires `>=3.9`; CI/dev baseline pinned to 3.11), FastAPI on port 8000.
 - **Routers:** `api/routers/` — health, graph, analysis, prediction, components, statistics, simulation, classification, validation, traffic.
 - **Presenters:** `api/presenters/` — decoupled response formatting (analysis, graph, simulation, statistics).
 - **Dependency injection:** `api/dependencies.py` — `get_repository`, `get_client`, `get_pipeline`, `get_prediction_service`, `get_generation_service`.
@@ -57,7 +57,7 @@ Pipeline scripts that can run independently or via the orchestrator. All run fro
 ## Development
 
 ### Prerequisites
-- Python 3.9+ with a virtual environment (`.venv/` recommended)
+- Python 3.11 (project requires `>=3.9`; dev baseline pinned to 3.11) with a virtual environment (`.venv/` recommended)
 - Node.js 18+ (for the frontend)
 - Neo4j 5.x (local or via Docker)
 - Docker & Docker Compose (for full-stack deployment)
@@ -146,7 +146,7 @@ pytest -k "test_name"  # Run by test name pattern
 - **Graph layers:** Four layers: `app`, `infra`, `mw`, `system`. Canonical definitions are in `saag/core/layers.py` (`LAYER_DEFINITIONS`, `DEPENDENCY_TO_LAYER`). Key: the `app` layer includes both Application **and Library** nodes — library blast-radius risk is visible at this layer.
 - **Dependency types:** Six DEPENDS_ON subtypes derived by `Neo4jRepository._derive_dependencies()`: `app_to_app`, `app_to_lib`, `app_to_broker`, `node_to_node`, `node_to_broker`, `broker_to_broker`. All carry `weight ∈ [0,1]` (max QoS severity) and `path_count` (coupling intensity).
 - **Use cases:** Each pipeline stage has a dedicated `UseCase` class in `saag/usecases/`. These are the boundary between the API/CLI layer and the service layer.
-- **Examples:** `examples/` — `example_end_to_end.py` is the most comprehensive. Run from the repo root.
+- **Examples:** `examples/` directory was removed. Use the programmatic SDK entry points (`saag.Pipeline`, `saag.Client`) directly; see `tests/test_usecases.py` for service-construction patterns.
 - **Input data:** Topology JSON files in `data/` (e.g., `system.json`) and YAML scenario configs (`data/scenario_0N_*.yaml`).
 - **Scenarios:** 8 domain scenarios (autonomous vehicle, IoT, financial trading, healthcare, hub-and-spoke, microservices, enterprise XL, tiny regression).
 
@@ -331,7 +331,6 @@ Validation also reports statistical power tables and Spearman–Kendall gap diag
 - `docs/` — Detailed documentation for each pipeline step:
   - `graph-model.md`, `structural-analysis.md`, `prediction.md`, `failure-simulation.md`, `validation.md`, `visualization.md`
   - `SDD.md` (Design), `SRS.md` (Requirements), `STD.md` (Test Description)
-- `examples/` — Runnable example scripts for programmatic API usage.
 - `output/` — Pipeline output artefacts (dashboards, reports, exported graphs).
 - `results/` — Validation results from previous runs.
 - `benchmarks/` — Benchmark data and results.
@@ -388,7 +387,6 @@ Validation also reports statistical power tables and Spearman–Kendall gap diag
 ├── data/                       # Topology JSONs and scenario YAMLs
 ├── models/                     # Trained GNN checkpoints
 ├── output/                     # Generated dashboards and reports
-├── examples/                   # Annotated programmatic usage examples
 ├── docs/                       # Per-step methodology documentation
 ├── pyproject.toml              # Python package config, dependencies, entry points
 └── docker-compose.yml          # Full-stack orchestration (single all-in-one container)

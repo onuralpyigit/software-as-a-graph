@@ -65,12 +65,24 @@ Total dimensions:
   Topic:                20
   Node:                 20
 
-Edge feature vector (dim = 9)
--------------------------------
-  0  QoS-derived edge weight (normalised)
-  1  path_count_norm (log2-scaled coupling intensity)
-  2-8  Edge-type one-hot (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES,
-                          RUNS_ON, CONNECTS_TO, USES, DEPENDS_ON)
+Edge feature vector (dim = 16)   [expanded for Middleware 2026 Q-HGL]
+------------------------------------------------------------------------
+  0   QoS aggregate weight w(e)  (normalised scalar, unchanged)
+  1   path_count_norm            (log2-scaled coupling intensity, unchanged)
+  2–8 Edge-type one-hot          (PUBLISHES_TO … DEPENDS_ON, 7 dims, unchanged)
+  9   reliability_score          (0.0 BEST_EFFORT / 1.0 RELIABLE)
+  10  durability_score           (VOLATILE=0.0 / TRANSIENT_LOCAL=0.5 /
+                                  TRANSIENT=0.6 / PERSISTENT=1.0)
+  11  priority_score             (LOW=0.0 / MEDIUM=0.33 / HIGH=0.66 / URGENT=1.0)
+  12  has_deadline               (1.0 if a finite deadline_ns is set, else 0.0)
+  13  deadline_ns_log            (log10(1 + deadline_ns / 1e6), 0.0 if absent)
+  14  max_blocking_ms_log        (log10(1 + max_blocking_ms), 0.0 if absent)
+  15  qos_heterogeneity_flag     (1.0 if topic QoS differs from scenario-level
+                                  majority profile, else 0.0)
+
+Dims 9–15 are non-zero only for PUBLISHES_TO / SUBSCRIBES_TO edges, where
+QoS profiles are semantically meaningful.  All other edge types receive zeros
+for these dimensions, preserving backward numerical compatibility.
 """
 
 from __future__ import annotations
@@ -78,7 +90,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import networkx as nx
 import numpy as np
@@ -158,7 +170,13 @@ NODE_TYPE_TO_DIM: Dict[str, int] = {
     "Node":        20,   # +2: cpu_cores_norm, memory_gb_norm
 }
 
-EDGE_FEATURE_DIM = 2 + len(EDGE_TYPES)  # 9: weight + path_count_norm + 7 type one-hot
+# Base dims (unchanged): weight + path_count_norm + 7 type one-hot
+_EDGE_BASE_DIM = 2 + len(EDGE_TYPES)  # = 9
+# QoS decomposition dims added for Middleware 2026 Q-HGL contribution:
+#   reliability_score, durability_score, priority_score,
+#   has_deadline, deadline_ns_log, max_blocking_ms_log, qos_heterogeneity_flag
+_QOS_EXTRA_DIM = 7
+EDGE_FEATURE_DIM = _EDGE_BASE_DIM + _QOS_EXTRA_DIM  # = 16
 
 # Label column indices in the (N, 5) label matrix
 LABEL_COLS = {
@@ -168,6 +186,107 @@ LABEL_COLS = {
     "availability": 3,
     "vulnerability": 4,
 }
+
+# ── QoS edge feature helpers ───────────────────────────────────────────────────
+
+# Canonical score tables (mirrors QoSPolicy in saag/core/models.py)
+_RELIABILITY_SCORE: Dict[str, float] = {"BEST_EFFORT": 0.0, "RELIABLE": 1.0}
+_DURABILITY_SCORE: Dict[str, float] = {
+    "VOLATILE": 0.0, "TRANSIENT_LOCAL": 0.5, "TRANSIENT": 0.6, "PERSISTENT": 1.0
+}
+_PRIORITY_SCORE: Dict[str, float] = {
+    "LOW": 0.0, "MEDIUM": 0.33, "HIGH": 0.66, "URGENT": 1.0
+}
+
+# Edge types for which QoS attributes are semantically meaningful
+_QOS_EDGE_TYPES = {"PUBLISHES_TO", "SUBSCRIBES_TO"}
+
+
+def _compute_qos_heterogeneity_flags(
+    graph: nx.DiGraph,
+) -> Dict[Tuple[str, str], float]:
+    """Return a per-edge flag indicating QoS heterogeneity relative to the
+    scenario-level majority profile.
+
+    For every PUBLISHES_TO / SUBSCRIBES_TO edge we compare its QoS triple
+    (reliability, durability, priority) against the modal profile across all
+    such edges in the graph.  The flag is 1.0 if the edge deviates, 0.0 otherwise.
+    """
+    profiles: List[Tuple[str, str, str]] = []
+    edge_profiles: Dict[Tuple[str, str], Tuple[str, str, str]] = {}
+
+    for src, dst, attrs in graph.edges(data=True):
+        if attrs.get("type", "") not in _QOS_EDGE_TYPES:
+            continue
+        qp = attrs.get("qos_profile") or {}
+        triple = (
+            str(qp.get("reliability", "BEST_EFFORT")).upper(),
+            str(qp.get("durability", "VOLATILE")).upper(),
+            str(qp.get("transport_priority", qp.get("priority", "MEDIUM"))).upper(),
+        )
+        profiles.append(triple)
+        edge_profiles[(src, dst)] = triple
+
+    if not profiles:
+        return {}
+
+    # Modal (majority) profile
+    from collections import Counter
+    modal_triple = Counter(profiles).most_common(1)[0][0]
+
+    flags: Dict[Tuple[str, str], float] = {}
+    for (src, dst), triple in edge_profiles.items():
+        flags[(src, dst)] = 0.0 if triple == modal_triple else 1.0
+    return flags
+
+
+def _extract_qos_edge_features(
+    attrs: Dict[str, Any],
+    edge_type: str,
+    heterogeneity_flag: float = 0.0,
+) -> List[float]:
+    """Return the 7 QoS-specific edge feature values (dims 9-15).
+
+    Non-zero only for PUBLISHES_TO / SUBSCRIBES_TO edges.
+    All values are in [0, 1] or log-scaled to a bounded range.
+    """
+    if edge_type not in _QOS_EDGE_TYPES:
+        return [0.0] * _QOS_EXTRA_DIM
+
+    qp: Dict[str, Any] = attrs.get("qos_profile") or {}
+
+    reliability = _RELIABILITY_SCORE.get(
+        str(qp.get("reliability", "BEST_EFFORT")).upper(), 0.0
+    )
+    durability = _DURABILITY_SCORE.get(
+        str(qp.get("durability", "VOLATILE")).upper(), 0.0
+    )
+    priority_key = str(
+        qp.get("transport_priority", qp.get("priority", "MEDIUM"))
+    ).upper()
+    priority = _PRIORITY_SCORE.get(priority_key, 0.33)
+
+    # Deadline handling: raw nanoseconds → log10-scaled ms, clamped
+    deadline_ns = float(qp.get("deadline_ns", qp.get("deadline", 0)) or 0)
+    has_deadline = 1.0 if deadline_ns > 0 else 0.0
+    deadline_log = math.log10(1.0 + deadline_ns / 1e6) if deadline_ns > 0 else 0.0
+    deadline_log = min(deadline_log, 10.0) / 10.0  # normalise to [0,1]
+
+    # Max blocking time: raw ms → log10-scaled
+    blocking_ms = float(qp.get("max_blocking_ms", qp.get("max_blocking", 0)) or 0)
+    blocking_log = math.log10(1.0 + blocking_ms) if blocking_ms > 0 else 0.0
+    blocking_log = min(blocking_log, 5.0) / 5.0   # normalise to [0,1]
+
+    return [
+        reliability,       # dim 9
+        durability,        # dim 10
+        priority,          # dim 11
+        has_deadline,      # dim 12
+        deadline_log,      # dim 13
+        blocking_log,      # dim 14
+        heterogeneity_flag,  # dim 15
+    ]
+
 
 # ── Infrastructure feature helpers ─────────────────────────────────────────────
 
@@ -379,6 +498,9 @@ def networkx_to_hetero_data(
     except Exception:
         bridges = set()
 
+    # Pre-compute per-edge QoS heterogeneity flags (single graph pass)
+    _hetero_flags: Dict[Tuple[str, str], float] = _compute_qos_heterogeneity_flags(graph)
+
     rel_edges: Dict[Tuple[str, str, str], Tuple[List[int], List[int], List[List[float]]]] = {}
 
     for src, dst, attrs in graph.edges(data=True):
@@ -399,14 +521,19 @@ def networkx_to_hetero_data(
         rel_edges[rel_key][1].append(dst_local)
         result.edge_name_map[rel_key].append((src, dst))
 
-        # Edge features: [weight, path_count_norm, type_onehot x7]
+        # ── Edge features: 16-d (base 9 + QoS decomposition 7) ───────────────
         weight = float(attrs.get("weight", 1.0))
         path_count_raw = float(attrs.get("path_count", 1) or 1)
         path_count_norm = math.log2(1.0 + path_count_raw) / math.log2(17.0)
         type_onehot = [0.0] * len(EDGE_TYPES)
         if edge_type in EDGE_TYPE_INDEX:
             type_onehot[EDGE_TYPE_INDEX[edge_type]] = 1.0
-        rel_edges[rel_key][2].append([weight, path_count_norm] + type_onehot)
+
+        # QoS decomposition dims 9-15 (non-zero only for pub/sub edges)
+        hetero_flag = _hetero_flags.get((src, dst), 0.0)
+        qos_dims = _extract_qos_edge_features(attrs, edge_type, hetero_flag)
+
+        rel_edges[rel_key][2].append([weight, path_count_norm] + type_onehot + qos_dims)
 
     for (src_type, edge_type, dst_type), (srcs, dsts, feats) in rel_edges.items():
         rel = (src_type, edge_type, dst_type)

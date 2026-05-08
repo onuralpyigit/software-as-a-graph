@@ -35,6 +35,17 @@ class TrainRequest(BaseModel):
     val_ratio: float = Field(default=0.2, description="Validation split fraction")
     use_ahp: bool = Field(default=False, description="Use AHP weights for RMAV")
     predict_edges: bool = Field(default=True, description="Also predict edge criticality")
+    variant: str = Field(
+        default="hetero_qos",
+        description=(
+            "Model architecture variant: "
+            "'hetero_qos' (QoS-aware HeteroGAT, default), "
+            "'homo_unweighted' (flat GAT, no edge_attr), "
+            "'homo_scalar' (flat GAT, scalar weight), "
+            "'topology_rmav' (RMAV baseline, no GNN)."
+        ),
+    )
+
 
 
 class GNNScoreModel(BaseModel):

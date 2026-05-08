@@ -41,7 +41,7 @@ def mock_quality_result():
 def test_detector_spof(mock_quality_result):
     """Verify SPOF detection."""
     detector = AntiPatternDetector()
-    shim = SimpleNamespace(quality=mock_quality_result)
+    shim = SimpleNamespace(quality=mock_quality_result, components=mock_quality_result.components)
     problems = detector.detect(shim, "system")
     
     spofs = [p for p in problems if "Single Point of Failure" in p.name]
@@ -56,7 +56,7 @@ def test_detector_god_component(mock_quality_result):
     mock_quality_result.components[0].levels.maintainability = CriticalityLevel.CRITICAL
     mock_quality_result.components[0].structural.betweenness = 0.5
     
-    shim = SimpleNamespace(quality=mock_quality_result)
+    shim = SimpleNamespace(quality=mock_quality_result, components=mock_quality_result.components)
     problems = detector.detect(shim, "system")
     
     gods = [p for p in problems if "God Component" in p.name]

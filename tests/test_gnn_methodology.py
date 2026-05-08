@@ -94,8 +94,8 @@ def test_best_seed_selection():
     G.add_edge("1", "1", type="DEPENDS_ON") # Self-loop for minimal graph
     
     # Mock Trainer and evaluate
-    with patch("src.prediction.gnn_service.GNNTrainer") as MockTrainer, \
-         patch("src.prediction.gnn_service.evaluate") as MockEval:
+    with patch("saag.prediction.gnn_service.GNNTrainer") as MockTrainer, \
+         patch("saag.prediction.gnn_service.evaluate") as MockEval:
         
         # Seed 1: poor performance (rho=0.5)
         # Seed 2: best performance (rho=0.9)

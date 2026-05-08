@@ -40,9 +40,15 @@ class EvalMetrics:
     top_5_overlap: float
     top_10_overlap: float
     ndcg_10: float
+    # Per-node-type Spearman ρ — populated by evaluate() for Figure 4 (Block F)
+    per_node_type: Dict[str, float] = None  # type: ignore[assignment]
+
+    def __post_init__(self):
+        if self.per_node_type is None:
+            object.__setattr__(self, "per_node_type", {})
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "spearman_rho": round(self.spearman_rho, 4),
             "f1_score": round(self.f1_score, 4),
             "rmse": round(self.rmse, 4),
@@ -51,6 +57,9 @@ class EvalMetrics:
             "top_10_overlap": round(self.top_10_overlap, 4),
             "ndcg_10": round(self.ndcg_10, 4),
         }
+        if self.per_node_type:
+            d["per_node_type"] = {nt: round(r, 4) for nt, r in self.per_node_type.items()}
+        return d
 
     @property
     def spearman(self) -> float:
@@ -58,13 +67,18 @@ class EvalMetrics:
         return self.spearman_rho
 
     def __str__(self) -> str:
-        return (
-            f"  Spearman ρ: {self.spearman_rho:.4f}\n"
-            f"  F1 Score:   {self.f1_score:.4f}\n"
-            f"  RMSE:       {self.rmse:.4f}\n"
-            f"  MAE:        {self.mae:.4f}\n"
-            f"  NDCG@10:    {self.ndcg_10:.4f}"
-        )
+        lines = [
+            f"  Spearman ρ: {self.spearman_rho:.4f}",
+            f"  F1 Score:   {self.f1_score:.4f}",
+            f"  RMSE:       {self.rmse:.4f}",
+            f"  MAE:        {self.mae:.4f}",
+            f"  NDCG@10:    {self.ndcg_10:.4f}",
+        ]
+        if self.per_node_type:
+            lines.append("  Per-type ρ:")
+            for nt, r in sorted(self.per_node_type.items()):
+                lines.append(f"    {nt:<20} {r:.4f}")
+        return "\n".join(lines)
 
 
 class GNNTrainer:
@@ -254,7 +268,7 @@ def evaluate(
     mask_name: str,
     device: torch.device,
 ) -> EvalMetrics:
-    """Compute validation/test metrics.
+    """Compute validation/test metrics, including per-node-type Spearman ρ.
 
     Parameters
     ----------
@@ -281,7 +295,12 @@ def evaluate(
             node_preds = model(x_dict, ei_dict, ea_dict)
 
     y_pred, y_true = _collect_samples(node_preds, data, mask_name)
-    return evaluate_scores(y_pred, y_true)
+    metrics = evaluate_scores(y_pred, y_true)
+
+    # Populate per-node-type Spearman ρ (Block F prerequisite)
+    metrics.per_node_type = _compute_per_type_rho(node_preds, data, mask_name)
+
+    return metrics
 
 
 def evaluate_scores(y_pred: np.ndarray, y_true: np.ndarray) -> EvalMetrics:
@@ -331,11 +350,16 @@ def evaluate_scores(y_pred: np.ndarray, y_true: np.ndarray) -> EvalMetrics:
 
 
 def _collect_samples(
-    node_preds: Dict[str, Tensor], 
-    data: 'HeteroData', 
+    node_preds: Dict[str, Tensor],
+    data: 'HeteroData',
     mask_name: str
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Helper to gather masked predictions and targets."""
+    """Helper to gather masked predictions and targets.
+
+    Only includes nodes where the true composite label (column 0) is non-zero,
+    i.e. nodes that were actually in the failure simulation. This prevents
+    unlabelled nodes (y=0) from diluting the Spearman ρ.
+    """
     all_preds = []
     all_targets = []
 
@@ -347,13 +371,52 @@ def _collect_samples(
         if mask.sum() == 0:
             continue
 
-        all_preds.append(preds[mask].detach().cpu().numpy())
-        all_targets.append(store.y[mask].detach().cpu().numpy())
+        y_masked = store.y[mask].detach().cpu().numpy()
+        p_masked = preds[mask].detach().cpu().numpy()
+
+        # Filter to labelled nodes (composite score > 0)
+        labelled = np.abs(y_masked[:, 0]) > 1e-6
+        if labelled.sum() >= 2:
+            all_preds.append(p_masked[labelled])
+            all_targets.append(y_masked[labelled])
+        elif labelled.sum() > 0:
+            # Include partial if we have at least 1 (will be concatenated with others)
+            all_preds.append(p_masked[labelled])
+            all_targets.append(y_masked[labelled])
 
     if not all_preds:
         return np.empty((0, 5)), np.empty((0, 5))
 
     return np.concatenate(all_preds, axis=0), np.concatenate(all_targets, axis=0)
+
+
+
+def _compute_per_type_rho(
+    node_preds: Dict[str, Tensor],
+    data: 'HeteroData',
+    mask_name: str,
+) -> Dict[str, float]:
+    """Compute per-node-type Spearman ρ on composite score (column 0).
+
+    Returns a dict mapping node type name to rho.  Types with fewer than 3
+    samples are omitted (insufficient for Spearman correlation).
+    """
+    result: Dict[str, float] = {}
+    for nt, preds in node_preds.items():
+        store = data[nt]
+        if not (hasattr(store, "y") and hasattr(store, mask_name)):
+            continue
+        mask = getattr(store, mask_name)
+        if mask.sum() < 3:
+            continue
+        p_comp = preds[mask].detach().cpu().numpy()[:, 0]
+        t_comp = store.y[mask].detach().cpu().numpy()[:, 0]
+        if np.all(p_comp == p_comp[0]) or np.all(t_comp == t_comp[0]):
+            result[nt] = 0.0
+            continue
+        rho, _ = spearmanr(p_comp, t_comp)
+        result[nt] = float(rho) if not np.isnan(rho) else 0.0
+    return result
 
 
 def _compute_ndcg(y_score, y_true, k=10):
