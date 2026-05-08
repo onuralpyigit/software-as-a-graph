@@ -22,6 +22,7 @@ from saag.analysis.statistics import (
     compute_node_critical_density_stats,
     compute_segment_diversity_stats,
     compute_bottleneck_stats_from_structural,
+    compute_network_usage_stats,
     to_serializable,
 )
 
@@ -85,6 +86,7 @@ _CHART_FN_MAP = {
     "lib_dependency": compute_lib_dependency_stats,
     "node_critical_density": compute_node_critical_density_stats,
     "domain_diversity": compute_segment_diversity_stats,
+    "network_usage": compute_network_usage_stats,
 }
 
 

@@ -12,7 +12,7 @@ import { apiClient } from "@/lib/api/client"
 import ReactECharts from "echarts-for-react"
 import {
   Activity, AlertTriangle, BarChart3, Layers, Network, Radio,
-  Shield, Box, Server, BookOpen, Zap, ChevronLeft,
+  Shield, Box, Server, BookOpen, Zap, ChevronLeft, Wifi,
 } from "lucide-react"
 import { TermTooltip } from "@/components/ui/term-tooltip"
 import { ItemTooltip } from "@/components/ui/item-tooltip"
@@ -136,6 +136,16 @@ interface ExtrasStats {
       weight: number
     }[]
     outlier_indices: number[]
+    summary: SummaryDict
+  }
+  network_usage?: {
+    sorted_labels: string[]
+    sorted_ids: string[]
+    sorted_out: number[]
+    sorted_in: number[]
+    sorted_total: number[]
+    outliers: [string, number, number, number][]
+    iqr_upper: number
     summary: SummaryDict
   }
 }
@@ -1404,6 +1414,117 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
   )
 }
 
+// ── Network Usage Section ─────────────────────────────────────────────────
+
+type NetworkUsageMode = "total" | "out" | "in"
+
+function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
+  const [mode, setMode] = useState<NetworkUsageMode>("total")
+
+  const allItems = useMemo(() => (!data ? [] : data.sorted_labels.map((label, i) => ({
+    name: label,
+    id: data.sorted_ids?.[i],
+    outbound: data.sorted_out[i],
+    inbound: data.sorted_in[i],
+    total: data.sorted_total[i],
+  })).sort((a, b) => {
+    if (mode === "out") return b.outbound - a.outbound
+    if (mode === "in") return b.inbound - a.inbound
+    return b.total - a.total
+  })), [data, mode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { search, handleSearch, filtered } = useFilteredSearch(allItems)
+
+  if (!data) return null
+
+  const totalBw = Number(data.summary.total_bandwidth ?? 0)
+  const totalOut = Number(data.summary.total_outbound ?? 0)
+  const totalIn = Number(data.summary.total_inbound ?? 0)
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <MetricInsightCard
+          label="Total Network Bandwidth"
+          value={fmtBytes(totalBw)}
+          description="Aggregate bytes flowing across the network per message cycle. Computed as Σ topic_size × (publishers + subscribers) across every topic in the topology."
+          formula="Σ size(t) × (pub_count(t) + sub_count(t))"
+        />
+        <MetricInsightCard
+          label="Total Outbound"
+          value={fmtBytes(totalOut)}
+          description="Sum of bytes produced by all application publishers across every physical node in one cycle. High values relative to inbound indicate a producer-heavy topology."
+          formula="Σ size(t) × pub_count(t)"
+        />
+        <MetricInsightCard
+          label="Total Inbound"
+          value={fmtBytes(totalIn)}
+          description="Sum of bytes consumed by all application subscribers across every physical node in one cycle. High relative inbound traffic indicates many fan-out subscribers."
+          formula="Σ size(t) × sub_count(t)"
+        />
+      </div>
+      <SummaryCards summary={data.summary} keys={[
+        { key: "node_count", label: "Nodes" },
+        { key: "topic_count", label: "Topics" },
+        { key: "bw_mean", label: "Avg / Node", format: (v) => fmtBytes(Number(v)) },
+        { key: "bw_max", label: "Max Node", format: (v) => fmtBytes(Number(v)) },
+        { key: "cv", label: "CV%", format: (v) => Number(v).toFixed(1) + "%" },
+        { key: "zero_bw_nodes", label: "Zero-BW Nodes" },
+        { key: "outlier_count", label: "Outliers" },
+      ]} />
+      <Card className="bg-background pb-3">
+        <CardHeader>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">Network Usage per Node</CardTitle>
+            <div className="flex items-center gap-2">
+              <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+              <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
+                {(["total", "out", "in"] as NetworkUsageMode[]).map((m) => (
+                  <button key={m} onClick={() => setMode(m)}
+                    className={`px-2.5 py-0.5 text-xs rounded transition-colors ${mode === m ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"}`}>
+                    {m === "total" ? "Total" : m === "out" ? "Outbound" : "Inbound"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {mode === "total" ? (
+            <EBarChart
+              items={filtered}
+              series={[
+                { key: "outbound", label: "Outbound", color: "#818cf8", stack: "bw", fmt: fmtBytes },
+                { key: "inbound", label: "Inbound", color: "#34d399", stack: "bw", fmt: fmtBytes },
+              ]}
+              onClickId={goToExplorer}
+            />
+          ) : mode === "out" ? (
+            <EBarChart
+              items={filtered}
+              series={[{ key: "outbound", label: "Outbound", color: "#818cf8", fmt: fmtBytes }]}
+              onClickId={goToExplorer}
+            />
+          ) : (
+            <EBarChart
+              items={filtered}
+              series={[{ key: "inbound", label: "Inbound", color: "#34d399", fmt: fmtBytes }]}
+              onClickId={goToExplorer}
+            />
+          )}
+        </CardContent>
+      </Card>
+      {data.outliers.length > 0 && (
+        <OutlierTable
+          title="High-Bandwidth Nodes"
+          headers={["Node", "Outbound", "Inbound", "Total"]}
+          rows={data.outliers.map(([label, out, inn, tot]) => [label, fmtBytes(out), fmtBytes(inn), fmtBytes(tot)])}
+        />
+      )}
+    </div>
+  )
+}
+
 function CoeffInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <input
@@ -1644,6 +1765,7 @@ const TAB_CONFIG = [
   { id: "node_density", label: "Node Density", icon: Shield, color: "text-green-500", description: "Critical application density per physical node. Concentrated critical apps mean a single host failure causes outsized impact." },
   { id: "domain_div", label: "Segment Diversity", icon: Box, color: "text-orange-500", description: "Apps, topics, and I/O load per segment. Low diversity flags monolithic subsystems; high I/O flags communication hubs." },
   { id: "bottleneck", label: "Bottlenecks", icon: Zap, color: "text-yellow-500", description: "Composite structural score: betweenness, SPOF severity, blast radius, and bridge ratio. The top scorers are your highest-risk single points of failure." },
+  { id: "network_usage", label: "Network Usage", icon: Wifi, color: "text-sky-500", description: "Total network bandwidth consumed by the topology. Shows per-node outbound and inbound byte load so you can spot hosts that dominate raw network traffic." },
 ] as const
 
 type TabId = typeof TAB_CONFIG[number]["id"]
@@ -1661,6 +1783,7 @@ const TAB_TO_CHART_ID: Record<TabId, keyof ExtrasStats> = {
   node_density: "node_critical_density",
   domain_div: "domain_diversity",
   bottleneck: "bottleneck",
+  network_usage: "network_usage",
 }
 
 // ── Main page ───────────────────────────────────────────────────────────
@@ -1924,6 +2047,7 @@ export default function StatisticsPage() {
                       {selectedSection === "node_density" && <NodeCriticalDensitySection data={tabData.node_critical_density} />}
                       {selectedSection === "domain_div" && <DomainDiversitySection data={tabData.domain_diversity} />}
                       {selectedSection === "bottleneck" && <BottleneckSection data={tabData.bottleneck} />}
+                      {selectedSection === "network_usage" && <NetworkUsageSection data={tabData.network_usage} />}
                     </>
                   )}
                 </div>
