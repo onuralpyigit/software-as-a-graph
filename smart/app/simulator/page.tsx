@@ -246,6 +246,14 @@ export default function TrafficSimulatorPage() {
       a.id.toLowerCase().includes(appSearch.toLowerCase())
     )
     list = [...list].sort((a, b) => {
+      // Selected items float to the top: fully selected > partially selected > unselected
+      const aAllIds = Array.from(new Set([...a.pub_topic_ids, ...a.sub_topic_ids]))
+      const bAllIds = Array.from(new Set([...b.pub_topic_ids, ...b.sub_topic_ids]))
+      const aSelCount = aAllIds.filter(tid => selectedTopicIds.includes(tid)).length
+      const bSelCount = bAllIds.filter(tid => selectedTopicIds.includes(tid)).length
+      const aPriority = aAllIds.length > 0 && aSelCount === aAllIds.length ? 2 : aSelCount > 0 ? 1 : 0
+      const bPriority = bAllIds.length > 0 && bSelCount === bAllIds.length ? 2 : bSelCount > 0 ? 1 : 0
+      if (aPriority !== bPriority) return bPriority - aPriority
       if (appSort === "name")   return a.name.localeCompare(b.name)
       if (appSort === "weight") return b.weight - a.weight
       if (appSort === "topics") {
@@ -256,7 +264,7 @@ export default function TrafficSimulatorPage() {
       return 0
     })
     return list
-  }, [apps, appSearch, appSort])
+  }, [apps, appSearch, appSort, selectedTopicIds])
 
   const filteredTopics = React.useMemo(() => {
     let list = topics.filter(t => {
@@ -271,13 +279,17 @@ export default function TrafficSimulatorPage() {
       return matchesSearch && matchesQos
     })
     list = [...list].sort((a, b) => {
+      // Selected topics float to the top
+      const aSelected = selectedTopicIds.includes(a.id)
+      const bSelected = selectedTopicIds.includes(b.id)
+      if (aSelected !== bSelected) return aSelected ? -1 : 1
       if (topicSort === "name")   return a.name.localeCompare(b.name)
       if (topicSort === "pub")    return b.publisher_count - a.publisher_count
       if (topicSort === "sub")    return b.subscriber_count - a.subscriber_count
       return 0
     })
     return list
-  }, [topics, topicSearch, topicQosFilter, topicSort])
+  }, [topics, topicSearch, topicQosFilter, topicSort, selectedTopicIds])
 
   const qosOptions = React.useMemo(() => {
     const reliabilityVals = Array.from(new Set(topics.map(t => t.qos_reliability).filter(Boolean))) as string[]
@@ -864,7 +876,14 @@ export default function TrafficSimulatorPage() {
                     if (!roleMap.has(key)) roleMap.set(key, [])
                     roleMap.get(key)!.push(app)
                   }
-                  const roleKeys = Array.from(roleMap.keys()).sort()
+                  const roleKeys = Array.from(roleMap.keys()).sort((a, b) => {
+                    const aApps = roleMap.get(a)!
+                    const bApps = roleMap.get(b)!
+                    const aPriority = isGroupFullySelected(aApps) ? 2 : isGroupPartiallySelected(aApps) ? 1 : 0
+                    const bPriority = isGroupFullySelected(bApps) ? 2 : isGroupPartiallySelected(bApps) ? 1 : 0
+                    if (aPriority !== bPriority) return bPriority - aPriority
+                    return a.localeCompare(b)
+                  })
 
                   function isGroupFullySelected(roleApps: AppInfo[]) {
                     return roleApps.length > 0 && roleApps.every(a => {
