@@ -580,7 +580,14 @@ def create_node_splits(
     val_ratio: float = 0.2,
     seed: int = 42,
 ) -> None:
-    """Add train/val/test boolean masks to every node store in-place."""
+    """Add train/val/test boolean masks to every node store in-place.
+
+    Uses **stratified splitting** when ground-truth labels exist: labelled nodes
+    (|y_composite| > 1e-6) are split proportionally across train/val/test first,
+    ensuring each split contains labelled nodes for meaningful ρ evaluation.
+    Unlabelled nodes are then distributed to fill the remaining capacity.
+    Falls back to uniform random split when no ``y`` attribute is present.
+    """
     rng = np.random.default_rng(seed)
 
     for store in hetero_data.node_stores:
@@ -588,21 +595,58 @@ def create_node_splits(
         if n == 0:
             continue
 
+        train_mask = torch.zeros(n, dtype=torch.bool)
+        val_mask   = torch.zeros(n, dtype=torch.bool)
+        test_mask  = torch.zeros(n, dtype=torch.bool)
+
+        # ── Stratified split when labels available ──────────────────────────
+        if hasattr(store, "y") and store.y.numel() > 0:
+            y_comp = store.y[:, 0].detach().numpy()
+            labelled_idx   = np.where(np.abs(y_comp) > 1e-6)[0]
+            unlabelled_idx = np.where(np.abs(y_comp) <= 1e-6)[0]
+
+            if len(labelled_idx) >= 3:
+                lab_shuffled = rng.permutation(labelled_idx)
+                n_lab_train = max(1, int(len(lab_shuffled) * train_ratio))
+                n_lab_val   = max(1, int(len(lab_shuffled) * val_ratio))
+                lab_train = lab_shuffled[:n_lab_train]
+                lab_val   = lab_shuffled[n_lab_train: n_lab_train + n_lab_val]
+                lab_test  = lab_shuffled[n_lab_train + n_lab_val:]
+
+                unlab_shuffled = rng.permutation(unlabelled_idx)
+                n_total_train  = max(1, int(n * train_ratio))
+                n_total_val    = max(1, int(n * val_ratio))
+                n_need_train   = max(0, n_total_train - len(lab_train))
+                n_need_val     = max(0, n_total_val   - len(lab_val))
+
+                unlab_train = unlab_shuffled[:n_need_train]
+                unlab_val   = unlab_shuffled[n_need_train: n_need_train + n_need_val]
+                unlab_test  = unlab_shuffled[n_need_train + n_need_val:]
+
+                all_train = np.concatenate([lab_train, unlab_train])
+                all_val   = np.concatenate([lab_val,   unlab_val])
+                all_test  = np.concatenate([lab_test,  unlab_test])
+
+                train_mask[torch.from_numpy(all_train.astype(np.int64))] = True
+                val_mask[torch.from_numpy(all_val.astype(np.int64))]     = True
+                test_mask[torch.from_numpy(all_test.astype(np.int64))]   = True
+
+                store.train_mask = train_mask
+                store.val_mask   = val_mask
+                store.test_mask  = test_mask
+                continue
+
+        # ── Fallback: uniform random split ──────────────────────────────────
         indices = rng.permutation(n)
         n_train = max(1, int(n * train_ratio))
-        n_val = max(1, int(n * val_ratio))
-
-        train_mask = torch.zeros(n, dtype=torch.bool)
-        val_mask = torch.zeros(n, dtype=torch.bool)
-        test_mask = torch.zeros(n, dtype=torch.bool)
-
-        train_mask[torch.from_numpy(indices[:n_train])] = True
-        val_mask[torch.from_numpy(indices[n_train: n_train + n_val])] = True
-        test_mask[torch.from_numpy(indices[n_train + n_val:])] = True
-
+        n_val   = max(1, int(n * val_ratio))
+        train_mask[torch.from_numpy(indices[:n_train].astype(np.int64))]               = True
+        val_mask[torch.from_numpy(indices[n_train: n_train + n_val].astype(np.int64))] = True
+        test_mask[torch.from_numpy(indices[n_train + n_val:].astype(np.int64))]        = True
         store.train_mask = train_mask
-        store.val_mask = val_mask
-        store.test_mask = test_mask
+        store.val_mask   = val_mask
+        store.test_mask  = test_mask
+
 
 
 def normalize_labels_robust(hetero_data) -> None:
