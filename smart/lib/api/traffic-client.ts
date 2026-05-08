@@ -24,6 +24,7 @@ export interface AppInfo {
   id: string
   name: string
   weight: number
+  role: string | null
   pub_topic_ids: string[]
   sub_topic_ids: string[]
 }

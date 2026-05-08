@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
+import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -98,7 +99,7 @@ export default function TrafficSimulatorPage() {
   const [appsError, setAppsError] = useState<string | null>(null)
   const [appSearch, setAppSearch] = useState("")
   const [appSort, setAppSort] = useState<"name" | "weight" | "topics">("name")
-  const [selectionTab, setSelectionTab] = useState<"topics" | "apps">("topics")
+  const [selectionTab, setSelectionTab] = useState<"topics" | "apps" | "roles">("topics")
 
   // ---- Selection ----
   const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([])
@@ -394,17 +395,14 @@ export default function TrafficSimulatorPage() {
 
   if (status !== "connected") {
     return (
-      <AppLayout title="Traffic Simulator" description="Estimate pub-sub network and broker load">
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <AlertCircle className="h-12 w-12 text-muted-foreground" />
-          <p className="text-muted-foreground">Connect to Neo4j to use the traffic simulator.</p>
-        </div>
+      <AppLayout title="Simulator" description="Estimate pub-sub network and broker load">
+        <NoConnectionInfo description="Connect to your Neo4j database to use the traffic simulator" />
       </AppLayout>
     )
   }
 
   return (
-    <AppLayout title="Traffic Simulator" description="Estimate pub-sub network and broker load for selected topics">
+    <AppLayout title="Simulator" description="Estimate pub-sub network and broker load for selected topics">
       <div className="space-y-6">
 
         {/* ── How it works ────────────────────────────────────────── */}
@@ -571,6 +569,13 @@ export default function TrafficSimulatorPage() {
                   <Server className="h-3.5 w-3.5" />
                   Applications
                   {apps.length > 0 && <span className="text-xs text-muted-foreground">({apps.length})</span>}
+                </button>
+                <button
+                  onClick={() => setSelectionTab("roles")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${selectionTab === "roles" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                  Roles
                 </button>
               </div>
 
@@ -976,6 +981,142 @@ export default function TrafficSimulatorPage() {
                     </div>
                   </>
                 )
+              )}
+
+              {/* ── Roles panel ── */}
+              {selectionTab === "roles" && (
+                appsLoading ? (
+                  <div className="space-y-2 py-2">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 px-1 py-2.5 animate-pulse">
+                        <div className="h-4 w-4 rounded bg-muted shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-3 rounded bg-muted" style={{ width: `${50 + (i * 17) % 40}%` }} />
+                          <div className="h-2.5 rounded bg-muted w-40" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : appsError ? (
+                  <div className="flex items-center gap-2 text-destructive text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    {appsError}
+                    <Button variant="ghost" size="sm" onClick={loadApps}>Retry</Button>
+                  </div>
+                ) : (() => {
+                  // Group apps by their `role` field; apps with null role go under "(unset)"
+                  const roleMap = new Map<string, AppInfo[]>()
+                  for (const app of apps) {
+                    const key = app.role ?? "(unset)"
+                    if (!roleMap.has(key)) roleMap.set(key, [])
+                    roleMap.get(key)!.push(app)
+                  }
+                  const roleKeys = Array.from(roleMap.keys()).sort()
+
+                  function isGroupFullySelected(roleApps: AppInfo[]) {
+                    return roleApps.length > 0 && roleApps.every(a => {
+                      const ids = Array.from(new Set([...a.pub_topic_ids, ...a.sub_topic_ids]))
+                      return ids.length > 0 && ids.every(tid => selectedTopicIds.includes(tid))
+                    })
+                  }
+
+                  function isGroupPartiallySelected(roleApps: AppInfo[]) {
+                    return roleApps.some(a => {
+                      const ids = Array.from(new Set([...a.pub_topic_ids, ...a.sub_topic_ids]))
+                      return ids.some(tid => selectedTopicIds.includes(tid))
+                    }) && !isGroupFullySelected(roleApps)
+                  }
+
+                  function toggleGroup(roleApps: AppInfo[]) {
+                    const full = isGroupFullySelected(roleApps)
+                    if (full) {
+                      const allIds = new Set(roleApps.flatMap(a => [...a.pub_topic_ids, ...a.sub_topic_ids]))
+                      setSelectedTopicIds(prev => prev.filter(tid => !allIds.has(tid)))
+                      setTopicParams(prev => {
+                        const next = { ...prev }
+                        for (const id of allIds) delete next[id]
+                        return next
+                      })
+                    } else {
+                      const allIds = Array.from(new Set(roleApps.flatMap(a => [...a.pub_topic_ids, ...a.sub_topic_ids])))
+                      setSelectedTopicIds(prev => Array.from(new Set([...prev, ...allIds])))
+                      setTopicParams(prev => {
+                        const next = { ...prev }
+                        for (const id of allIds) {
+                          if (!next[id]) next[id] = { frequency_hz: frequencyHz, duration_sec: durationSec }
+                        }
+                        return next
+                      })
+                    }
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      <div className="text-xs text-muted-foreground">
+                        Distinct <code className="font-mono">role</code> values from Application nodes. Selecting a role includes every topic those apps publish to or subscribe to.
+                      </div>
+                      {apps.length === 0 ? (
+                        <div className="py-10 text-center text-sm text-muted-foreground">No Application nodes found in the graph.</div>
+                      ) : roleKeys.length === 0 ? (
+                        <div className="py-10 text-center text-sm text-muted-foreground">No role values set on Application nodes.</div>
+                      ) : (
+                        <div className="border rounded-lg overflow-hidden divide-y">
+                          {roleKeys.map(roleKey => {
+                            const roleApps = roleMap.get(roleKey)!
+                            const fullySelected = isGroupFullySelected(roleApps)
+                            const partiallySelected = isGroupPartiallySelected(roleApps)
+                            const topicCount = new Set(roleApps.flatMap(a => [...a.pub_topic_ids, ...a.sub_topic_ids])).size
+                            return (
+                              <div
+                                key={roleKey}
+                                className={`flex items-center gap-3 px-3 py-3 transition-colors ${fullySelected ? "bg-primary/5 dark:bg-primary/10" : partiallySelected ? "bg-amber-50/50 dark:bg-amber-950/20" : "hover:bg-muted/60"}`}
+                              >
+                                {/* Checkbox */}
+                                <button onClick={() => toggleGroup(roleApps)} className="shrink-0">
+                                  <div className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors ${
+                                    fullySelected ? "bg-primary border-primary"
+                                    : partiallySelected ? "bg-amber-400 border-amber-400"
+                                    : "border-muted-foreground/40"
+                                  }`}>
+                                    {fullySelected && (
+                                      <svg className="h-2.5 w-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 12 12">
+                                        <path d="M10.28 2.28L3.989 8.575 1.695 6.28A1 1 0 00.28 7.695l3 3a1 1 0 001.414 0l7-7A1 1 0 0010.28 2.28z" />
+                                      </svg>
+                                    )}
+                                    {partiallySelected && (
+                                      <svg className="h-2 w-2 text-white" fill="currentColor" viewBox="0 0 12 12">
+                                        <rect x="1" y="5" width="10" height="2" rx="1" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                </button>
+
+                                {/* Label */}
+                                <button
+                                  onClick={() => toggleGroup(roleApps)}
+                                  className="flex-1 min-w-0 text-left"
+                                >
+                                  <span className={`text-sm font-medium ${fullySelected ? "text-primary" : partiallySelected ? "text-amber-700 dark:text-amber-400" : ""}`}>
+                                    {roleKey}
+                                  </span>
+                                </button>
+
+                                {/* Counts */}
+                                <div className="flex items-center gap-3 shrink-0 text-xs text-muted-foreground">
+                                  {partiallySelected && (
+                                    <span className="text-amber-600 dark:text-amber-400 font-medium">partial</span>
+                                  )}
+                                  <span>{roleApps.length} app{roleApps.length !== 1 ? "s" : ""}</span>
+                                  <span>{topicCount} topic{topicCount !== 1 ? "s" : ""}</span>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()
               )}
             </CardContent>
           </Card>

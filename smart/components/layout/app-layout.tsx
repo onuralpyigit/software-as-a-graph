@@ -3,7 +3,6 @@
 import { ReactNode } from "react"
 import { Sidebar } from "./sidebar"
 import { Header } from "./header"
-import { ConnectionStatusBanner } from "./connection-status-banner"
 
 interface AppLayoutProps {
   children: ReactNode
@@ -29,8 +28,6 @@ export function AppLayout({ children, title, description, actions }: AppLayoutPr
         </main>
       </div>
 
-      {/* Global Connection Status Toast */}
-      <ConnectionStatusBanner />
     </div>
   )
 }

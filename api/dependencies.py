@@ -13,7 +13,7 @@ from typing import AsyncGenerator
 from fastapi import Depends, Request, HTTPException
 from saag.infrastructure import create_repository
 from saag.core.ports.graph_repository import IGraphRepository
-from saag.analysis import AnalysisService, StatisticsService
+from saag.analysis import AnalysisService
 from saag.prediction import PredictionService
 from tools.generation import GenerationService
 from api.models import (
@@ -84,14 +84,6 @@ def get_prediction_service() -> PredictionService:
     Dependency to provide a PredictionService instance.
     """
     return PredictionService()
-
-
-def get_statistics_service(repo: IGraphRepository = Depends(get_repository)) -> StatisticsService:
-    """
-    Dependency to provide a configured StatisticsService instance.
-    Automatically uses the request-scoped repository.
-    """
-    return StatisticsService(repo)
 
 
 def get_generation_service(request: GenerateGraphRequest | GenerateGraphFileRequest) -> GenerationService:

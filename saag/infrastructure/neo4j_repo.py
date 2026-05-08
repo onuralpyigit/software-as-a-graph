@@ -933,9 +933,9 @@ class Neo4jRepository:
                 props.pop("weight", None)
                 components.append({
                     "id": record["id"],
-                    "type": record["type"],
                     "weight": record["weight"],
-                    **props
+                    **props,
+                    "type": record["type"],
                 })
                 
             return {
@@ -1080,9 +1080,9 @@ class Neo4jRepository:
                 props.pop("weight", None)
                 components.append({
                     "id": record["id"],
-                    "type": record["type"],
                     "weight": float(record["weight"]),
-                    **props
+                    **props,
+                    "type": record["type"],
                 })
             
             if not components:
@@ -1096,9 +1096,9 @@ class Neo4jRepository:
                 props.pop("weight", None)
                 components.append({
                     "id": record["id"],
-                    "type": record["type"],
                     "weight": float(record["weight"]),
-                    **props
+                    **props,
+                    "type": record["type"],
                 })
             
             # Fetch edges
@@ -1177,10 +1177,10 @@ class Neo4jRepository:
             props.pop("name", None)
             components.append({
                 "id": record["id"],
-                "type": record["type"],
                 "label": name,
                 "weight": float(record["weight"]),
-                **props
+                **props,
+                "type": record["type"],
             })
 
     def _process_edge_result(self, result, edges, relation_type=None):

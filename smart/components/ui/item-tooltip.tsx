@@ -146,6 +146,7 @@ function TypeSpecificRows({ type, properties }: { type: string; properties: Reco
 
   switch (type) {
     case "Application":
+      if (hasKey("role"))                  rows.push({ key: "role",                label: "Role" })
       if (hasKey("weight"))                rows.push({ key: "weight",               label: "QoS Weight",    unit: "[0–1]" })
       if (hasKey("loc"))                   rows.push({ key: "loc",                  label: "LoC",           unit: "lines" })
       if (hasKey("cyclomatic_complexity")) rows.push({ key: "cyclomatic_complexity", label: "Cyclomatic CC", unit: "CC" })
@@ -158,6 +159,9 @@ function TypeSpecificRows({ type, properties }: { type: string; properties: Reco
         const k = hasKey("message_size") ? "message_size" : hasKey("payload_size_bytes") ? "payload_size_bytes" : "size"
         rows.push({ key: k, label: "Payload Size" })
       }
+      if (hasKey("qos_reliability"))        rows.push({ key: "qos_reliability",        label: "Reliability" })
+      if (hasKey("qos_durability"))         rows.push({ key: "qos_durability",         label: "Durability" })
+      if (hasKey("qos_transport_priority")) rows.push({ key: "qos_transport_priority", label: "Transport Priority" })
       if (hasKey("frequency"))   rows.push({ key: "frequency",   label: "Frequency",  unit: "Hz" })
       if (hasKey("deadline_ms")) rows.push({ key: "deadline_ms", label: "Deadline",   unit: "ms" })
       if (hasKey("queue_size"))  rows.push({ key: "queue_size",  label: "Queue Size", unit: "msgs" })
@@ -170,11 +174,13 @@ function TypeSpecificRows({ type, properties }: { type: string; properties: Reco
       break
 
     case "Broker":
+      if (hasKey("broker_type")) rows.push({ key: "broker_type", label: "Protocol" })
       if (hasKey("weight"))      rows.push({ key: "weight",      label: "QoS Weight", unit: "[0–1]" })
       if (hasKey("path_count"))  rows.push({ key: "path_count",  label: "Paths",      unit: "paths" })
       break
 
     case "Library":
+      if (hasKey("version"))               rows.push({ key: "version",              label: "Version" })
       if (hasKey("weight"))                rows.push({ key: "weight",               label: "QoS Weight",   unit: "[0–1]" })
       if (hasKey("cyclomatic_complexity")) rows.push({ key: "cyclomatic_complexity", label: "Cyclomatic CC", unit: "CC" })
       if (hasKey("lcom_norm"))             rows.push({ key: "lcom_norm",            label: "LCOM (norm)",  unit: "[0–1]" })
@@ -210,6 +216,10 @@ export function ItemTooltipContent({ data }: { data: ItemTooltipData }) {
         </div>
         {overallLevel && <CritBadge level={overallLevel} />}
       </div>
+      {/* Name */}
+      {data.name && (
+        <div className="text-foreground/90 font-medium truncate max-w-[240px] leading-tight">{data.name}</div>
+      )}
 
       {/* RMAV score bars */}
       {scores && (

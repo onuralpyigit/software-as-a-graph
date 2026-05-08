@@ -1,11 +1,11 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Tutorial - Genieus",
-  description: "Learn how to use Genieus",
+  title: "Explorer - Genieus",
+  description: "Explore and visualize the system graph",
 }
 
-export default function TutorialLayout({
+export default function ExplorerLayout({
   children,
 }: {
   children: React.ReactNode

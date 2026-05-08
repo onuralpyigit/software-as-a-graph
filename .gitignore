@@ -141,6 +141,7 @@ test_outputs/
 output/
 results/
 models/
+scratch/
 
 # Genieus (Next.js frontend)
 genieus/node_modules/

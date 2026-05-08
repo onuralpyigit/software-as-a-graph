@@ -9,21 +9,19 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Skeleton } from "@/components/ui/skeleton"
 import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
-import { ItemTooltip, ItemTooltipContent } from "@/components/ui/item-tooltip"
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
-import { forceCollide } from "d3-force-3d"
-import { ReactFlow, Background, BackgroundVariant, Handle, Position, getBezierPath, applyNodeChanges, useViewport, type NodeProps, type EdgeProps, type NodeChange } from "@xyflow/react"
+import { ReactFlow, ReactFlowProvider, Background, BackgroundVariant, Handle, Position, getBezierPath, applyNodeChanges, useViewport, useReactFlow, MarkerType, type NodeProps, type EdgeProps, type NodeChange } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { cn } from "@/lib/utils"
 import {
   ChevronDown,
   ChevronRight,
   Search,
-  RefreshCw,
   FolderOpen,
   Folder,
   Box,
@@ -33,10 +31,11 @@ import {
   Network,
   List,
   X,
+  Share2,
+  Download,
 } from "lucide-react"
 
-const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false })
-const ForceGraph3D = dynamic(() => import("react-force-graph-3d"), { ssr: false })
+const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false })
 
 // Polyfill GPUShaderStage to prevent errors when WebGPU is not available
 if (typeof window !== 'undefined' && typeof (window as any).GPUShaderStage === 'undefined') {
@@ -81,6 +80,7 @@ interface HGNode {
   nodeType?: string   // non-hierarchy node type (Topic, Node, Broker, Library …)
   appCount: number
   pathKey: string
+  instanceKey?: string // full path within hierarchy tree: "app:csms/css/csci/csc/appId"
   appData?: AppNode   // raw AppNode data for app-level nodes (used in tooltips)
   // runtime fields added by force-graph simulation
   x?: number; y?: number; vx?: number; vy?: number; fx?: number; fy?: number
@@ -125,8 +125,9 @@ function sortKeys(keys: string[]): string[] {
 
 // ── Graph helpers ─────────────────────────────────────────────────────────────
 
+// Hierarchy node colors — distinct from connection node types to avoid confusion
 const NODE_COLORS: Record<HGLevel, string> = {
-  csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#8b5cf6",
+  csms: "#ec4899", css: "#8b5cf6", csci: "#06b6d4", csc: "#14b8a6", app: "#4CBCD0",
 }
 const NODE_SIZES: Record<HGLevel, number> = {
   csms: 14, css: 10, csci: 8, csc: 6, app: 3.5,
@@ -145,40 +146,45 @@ const CONN_LAYER_LABEL: Record<number, string> = {
   0: "Node", 1: "Broker", 2: "Application", 3: "Topic", 4: "Library",
 }
 
-// Node-type → color (matches Explorer page — theme-aware via isDark flag passed at callsite)
-// Dark variants used at runtime; light variants noted for reference.
+// Node-type → color. Single source of truth shared with the Force Graph tab
+// (FORCE_CATEGORIES) so item-type colours are consistent across List, Tree,
+// and Force Graph views. Same values for both themes — Force Graph does not
+// theme-switch, and consistency across tabs trumps per-theme contrast tuning.
 const CONN_NODE_TYPE_COLORS_DARK: Record<string, string> = {
-  Application: "#3b82f6",
-  Node:        "#ef4444",
-  Broker:      "#a1a1aa",
-  Topic:       "#facc15",
-  Library:     "#06b6d4",
+  Application: "#4CBCD0",
+  Node:        "#C570CE",
+  Broker:      "#EFC050",
+  Topic:       "#7DAA7A",
+  Library:     "#ECA088",
 }
 const CONN_NODE_TYPE_COLORS_LIGHT: Record<string, string> = {
-  Application: "#2563eb",
-  Node:        "#dc2626",
-  Broker:      "#71717a",
-  Topic:       "#eab308",
-  Library:     "#0891b2",
+  Application: "#4CBCD0",
+  Node:        "#C570CE",
+  Broker:      "#EFC050",
+  Topic:       "#7DAA7A",
+  Library:     "#ECA088",
 }
-// Link-type → color (matches Explorer page)
+// Link-type → color. Aligned with the Force Graph tab's EDGE_COLORS so
+// relationship-type colours are consistent across List, Tree, and Force Graph.
+// DEPENDS_ON / CONNECTS_TO are not part of EDGE_COLORS but are kept here for
+// the Tree-tab connection groups; they reuse semantically related hues.
 const CONN_LINK_TYPE_COLORS_DARK: Record<string, string> = {
-  RUNS_ON:       "#a855f7",
+  RUNS_ON:       "#64748b",
   PUBLISHES_TO:  "#22c55e",
   SUBSCRIBES_TO: "#f97316",
-  DEPENDS_ON:    "#ef4444",
-  CONNECTS_TO:   "#22c55e",
-  ROUTES:        "#a1a1aa",
   USES:          "#06b6d4",
+  ROUTES:        "#d946ef",
+  DEPENDS_ON:    "#ef4444",
+  CONNECTS_TO:   "#84cc16",
 }
 const CONN_LINK_TYPE_COLORS_LIGHT: Record<string, string> = {
-  RUNS_ON:       "#9333ea",
-  PUBLISHES_TO:  "#16a34a",
-  SUBSCRIBES_TO: "#ea580c",
-  DEPENDS_ON:    "#dc2626",
-  CONNECTS_TO:   "#16a34a",
-  ROUTES:        "#71717a",
-  USES:          "#0891b2",
+  RUNS_ON:       "#64748b",
+  PUBLISHES_TO:  "#22c55e",
+  SUBSCRIBES_TO: "#f97316",
+  USES:          "#06b6d4",
+  ROUTES:        "#d946ef",
+  DEPENDS_ON:    "#ef4444",
+  CONNECTS_TO:   "#84cc16",
 }
 /** Deterministic fallback color for unknown types */
 function hashTypeColor(type: string): string {
@@ -198,18 +204,99 @@ function linkTypeColor(type: string | undefined, isDark = true): string {
 
 // ── Property descriptions (shown as tooltips on key labels) ─────────────────
 const PROP_DESCS: Record<string, string> = {
+  // ── System hierarchy ──────────────────────────────────────────────────────
+  csms_name:               "Computer Software Management System — top-level system boundary this component belongs to",
+  css_name:                "Computer Software Segment — functional grouping within the CSMS",
+  csci_name:               "Computer Software Configuration Item — deployable unit within the CSS",
+  csc_name:                "Computer Software Component — the immediate architectural parent of this application",
+  // ── Identity / classification ──────────────────────────────────────────────
+  id:                      "Unique identifier for this component in the graph",
+  name:                    "Human-readable display name",
+  type:                    "Component type (Application, Library, Node, Broker, Topic)",
+  app_type:                "Application sub-type (e.g. publisher, subscriber, service)",
+  role:                    "Functional role of this application within the system",
+  criticality:             "Statically declared criticality tier (CRITICAL / HIGH / MEDIUM / LOW)",
+  version:                 "Software version string for this component",
+  layer:                   "Architectural layer this component belongs to (app, infra, mw, system)",
+  // ── Infrastructure node ────────────────────────────────────────────────────
+  ip_address:              "IP address of the physical or virtual host node",
+  cpu_cores:               "Number of logical CPU cores available on this host",
+  memory_gb:               "RAM capacity of this host in gigabytes",
+  os_type:                 "Operating system type running on this host (e.g. Linux, Windows)",
+  // ── Broker ────────────────────────────────────────────────────────────────
+  host:                    "Hostname or IP address where this broker is reachable",
+  max_connections:         "Maximum number of concurrent client connections this broker accepts",
+  broker_type:             "Middleware protocol/type of this broker (e.g. MQTT, DDS, ROS2)",
+  // ── Topic / QoS ───────────────────────────────────────────────────────────
+  qos_reliability:         "QoS Reliability policy — BEST_EFFORT (0) or RELIABLE (1); drives delivery guarantee weight",
+  qos_durability:          "QoS Durability policy — how long the broker retains messages for late-joining subscribers (VOLATILE < TRANSIENT_LOCAL < TRANSIENT < PERSISTENT)",
+  qos_transport_priority:  "QoS Transport Priority — routing urgency level (LOW / MEDIUM / HIGH / URGENT)",
+  subscriber_count:        "Number of active subscribers registered on this topic",
+  // ── Operational weight ────────────────────────────────────────────────────
   weight:                  "Operational priority weight — QoS severity of topics routed through this component (0 = low, 1 = high)",
   path_count:              "Number of independent event-routing paths that share this dependency",
+  dependency_weight_in:    "Sum of incoming dependency weights — total inbound QoS exposure",
+  dependency_weight_out:   "Sum of outgoing dependency weights — total outbound QoS coupling",
+  // ── Centrality ────────────────────────────────────────────────────────────
+  pagerank:                "PageRank — global importance in the forward dependency graph; high value = many (important) dependents",
+  reverse_pagerank:        "Reverse PageRank on G^T — fault-propagation reach; high value = failure spreads widely",
+  betweenness:             "Betweenness centrality — fraction of shortest paths passing through this node; proxy for structural bottleneck",
+  closeness:               "Closeness centrality — inverse average distance to all other nodes; high = fast change propagation",
+  reverse_closeness:       "Reverse Closeness on G^T — adversarial propagation speed; how quickly a compromise reaches others",
+  eigenvector:             "Eigenvector centrality — influence weighted by the importance of neighbours",
+  reverse_eigenvector:     "Reverse Eigenvector on G^T — strategic attack reach; high value = many high-value nodes depend on this",
+  // ── Degree ────────────────────────────────────────────────────────────────
+  degree:                  "Normalised total degree (in + out) centrality",
+  in_degree:               "Normalised in-degree — fraction of components that directly depend on this node",
+  out_degree:              "Normalised out-degree — fraction of components this node directly depends on",
+  in_degree_raw:           "Raw count of direct dependents (components that depend on this node)",
+  out_degree_raw:          "Raw count of direct dependencies (components this node depends on)",
+  // ── Resilience ────────────────────────────────────────────────────────────
+  is_articulation_point:   "True if removing this node disconnects the graph — a structural Single Point of Failure (SPOF)",
+  is_directed_ap:          "True if removing this node reduces the reachable set from source nodes — directed SPOF",
+  is_isolated:             "True if this node has no connections at all",
+  bridge_count:            "Number of bridge edges incident to this node (edges whose removal disconnects the graph)",
+  bridge_ratio:            "Fraction of this node's incident edges that are bridges; high ratio = low redundancy",
+  ap_c_directed:           "Directed articulation-point SPOF severity score ∈ [0,1]",
+  cdi:                     "Connectivity Degradation Index — normalised increase in average path length when this node is removed",
+  blast_radius:            "Number of nodes that become unreachable from the rest of the graph if this node fails",
+  cascade_depth:           "Longest failure-propagation chain reachable from this node",
+  clustering_coefficient:  "Local clustering coefficient — probability that two neighbours are also connected; higher = more redundant paths",
+  publisher_spof:          "Sole-publisher risk — non-zero when this app is the only publisher on a high-weight topic",
+  // ── Pub-sub topology ──────────────────────────────────────────────────────
+  pubsub_degree:           "Number of topics this app publishes to or subscribes to in the pub-sub bipartite graph",
+  pubsub_betweenness:      "Betweenness centrality computed on the pub-sub bipartite graph",
+  broker_exposure:         "Number of distinct brokers routing topics touched by this component",
+  fan_out_criticality:     "Topic fan-out criticality — number of distinct subscribers scaled by topic weight (Topic nodes only)",
+  mpci:                    "Multi-Path Coupling Intensity — mean log-scaled path count across efferent dependencies; measures coupling via multiple routes",
+  path_complexity:         "Efferent path count complexity: mean(log2(1 + path_count)) across outgoing dependencies",
+  // ── Code size ─────────────────────────────────────────────────────────────
   loc:                     "Lines of Code — total source size of this component",
-  lcom_norm:               "Normalised Lack of Cohesion of Methods — how scattered responsibilities are (0 = cohesive, 1 = fully scattered)",
+  loc_norm:                "Normalised Lines-of-Code within the component's type population (0 = smallest, 1 = largest)",
+  cm_total_loc:            "Total lines of code across the component",
+  cm_total_lines:          "Total lines of code across the component",
+  cm_total_classes:        "Total number of classes defined in this component",
+  cm_total_methods:        "Total number of methods across all classes in this component",
+  cm_total_fields:         "Total number of fields (instance variables) across all classes in this component",
+  duplicated_lines_density:"Percentage of lines that are duplicated within the codebase (SonarQube); higher = more copy-paste debt",
+  // ── Complexity ────────────────────────────────────────────────────────────
   cyclomatic_complexity:   "McCabe's Cyclomatic Complexity — number of linearly independent paths through the code",
-  instability_code:        "Martin's Instability I = Ce/(Ca+Ce) — ratio of efferent to total couplings (0 = stable, 1 = unstable)",
   complexity_norm:         "Normalised cyclomatic complexity within the component's type population (0 = simplest, 1 = most complex)",
-  cm_avg_lcom:             "Average Lack of Cohesion of Methods across classes — higher values indicate poorly cohesive classes",
-  cm_max_lcom:             "Maximum Lack of Cohesion of Methods across all classes in this component",
   cm_avg_wmc:              "Average Weighted Methods per Class — sum of cyclomatic complexities of all methods, averaged across classes",
   cm_max_wmc:              "Maximum Weighted Methods per Class across all classes",
   cm_total_wmc:            "Total Weighted Methods per Class — aggregate cyclomatic complexity across the whole component",
+  // ── Cohesion ──────────────────────────────────────────────────────────────
+  lcom:                    "Raw Lack of Cohesion of Methods — measures how scattered the responsibilities of a class are (lower is better)",
+  lcom_norm:               "Normalised Lack of Cohesion of Methods — how scattered responsibilities are (0 = cohesive, 1 = fully scattered)",
+  cm_avg_lcom:             "Average Lack of Cohesion of Methods across classes — higher values indicate poorly cohesive classes",
+  cm_max_lcom:             "Maximum Lack of Cohesion of Methods across all classes in this component",
+  // ── Coupling ──────────────────────────────────────────────────────────────
+  coupling_afferent:       "Afferent coupling (Ca) — number of external components that directly depend on this component; high = hard to change",
+  coupling_efferent:       "Efferent coupling (Ce) — number of components this component directly depends on; high = many external dependencies",
+  instability_code:        "Martin's Instability I = Ce/(Ca+Ce) — ratio of efferent to total couplings (0 = stable, 1 = unstable)",
+  complexity_norm:         "Normalised cyclomatic complexity within the component's type population (0 = simplest, 1 = most complex)",
+  coupling_risk:           "Coupling Risk = 1 − |2·Instability − 1| — maximised at 0.5 (deeply embedded on both sides); measures bi-directional coupling exposure",
+  code_quality_penalty:    "Composite Code Quality Penalty (CQP) = 0.40·complexity + 0.35·instability + 0.25·LCOM; used as M(v) sub-score",
   cm_avg_cbo:              "Average Coupling Between Objects — number of classes this class is directly coupled to, averaged",
   cm_max_cbo:              "Maximum Coupling Between Objects across all classes",
   cm_avg_rfc:              "Average Response For Class — number of methods potentially executed in response to a message, averaged",
@@ -218,20 +305,20 @@ const PROP_DESCS: Record<string, string> = {
   cm_max_fanin:            "Maximum fan-in across all classes in this component",
   cm_avg_fanout:           "Average fan-out — average number of modules/classes each class directly depends on",
   cm_max_fanout:           "Maximum fan-out across all classes in this component",
-  cm_total_classes:        "Total number of classes defined in this component",
-  cm_total_methods:        "Total number of methods across all classes in this component",
-  cm_total_lines:          "Total lines of code across the component",
-  cm_total_loc:            "Total lines of code across the component",
-  // Byte-sized fields
+  // ── SonarQube quality ─────────────────────────────────────────────────────
+  sqale_debt_ratio:        "SonarQube SQALE Debt Ratio — technical debt as a percentage of estimated time to rewrite the component from scratch (lower is better)",
+  bugs:                    "Number of static bug issues detected by the static analyser (e.g. SonarQube)",
+  vulnerabilities:         "Number of static security vulnerability issues detected by the static analyser",
+  // ── Byte-sized fields ─────────────────────────────────────────────────────
   size:                    "Message payload size in bytes — used to compute the topic's contribution to the QoS weight (W_topic = 0.85·QoS + 0.15·size_norm)",
   message_size:            "Message payload size in bytes used in event-flow simulation",
   payload_size_bytes:      "Message payload size in bytes used in event-flow simulation",
-  // Time fields
+  // ── Time fields ───────────────────────────────────────────────────────────
   deadline_ms:             "Maximum allowed end-to-end latency for this flow in milliseconds",
   latency_p50_ms:          "Median (p50) observed end-to-end message latency in milliseconds",
   latency_p95_ms:          "95th-percentile observed end-to-end message latency in milliseconds",
   latency_p99_ms:          "99th-percentile observed end-to-end message latency in milliseconds",
-  // Queue / frequency
+  // ── Queue / frequency ─────────────────────────────────────────────────────
   queue_size:              "Maximum number of messages this subscriber's queue can buffer before dropping",
   frequency:               "Publishing frequency in Hz (messages per second)",
 }
@@ -390,35 +477,103 @@ function formatBytes(n: number): string {
 function propValue(key: string, v: unknown): string {
   const n = typeof v === "number" ? v : (typeof v === "string" && v !== "" && !isNaN(Number(v)) ? Number(v) : null)
   if (n !== null && isBytesKey(key)) return formatBytes(n)
+  if (n !== null && !Number.isInteger(n)) return n.toFixed(2)
   return String(v)
+}
+
+function formatKey(key: string): string {
+  return key
+    .replace(/^cm_/, "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, c => c.toUpperCase())
 }
 
 function propUnit(key: string): string {
   if (isBytesKey(key))                                return ""   // unit embedded by formatBytes
-  // Strictly bounded [0–1] fields
+
+  // ── Strictly bounded [0–1] ─────────────────────────────────────────────────
   if (key === "weight")                               return "[0–1]"
   if (key === "lcom_norm")                            return "[0–1]"
+  if (key === "instability_code")                     return "[0–1]"
+  if (key === "complexity_norm")                      return "[0–1]"
+  if (key === "loc_norm")                             return "[0–1]"
+  if (key === "code_quality_penalty")                 return "[0–1]"
   if (/^coupling_risk/.test(key))                     return "[0–1]"
-  // Time fields
-  if (/_ms$/.test(key) || key === "deadline_ms")      return "ms"
-  // Frequency fields
-  if (/_hz$/.test(key) || key === "frequency")        return "Hz"
-  // Queue / count fields
-  if (key === "queue_size")                           return "msgs"
-  // Raw code-metric counts (unbounded — no [0–1] claim)
-  if (key === "loc")                                  return "lines"
-  if (key === "cyclomatic_complexity")                return "CC"
+  if (/^coupling_/.test(key))                         return "[0–1]"
+  if (key === "sqale_debt_ratio")                     return "%"
+  if (key === "duplicated_lines_density")             return "%"
+
+  // ── Centraliy / graph scores (all [0–1] normalised) ───────────────────────
+  if (key === "pagerank")                             return "[0–1]"
+  if (key === "reverse_pagerank")                     return "[0–1]"
+  if (key === "betweenness")                          return "[0–1]"
+  if (key === "closeness")                            return "[0–1]"
+  if (key === "reverse_closeness")                    return "[0–1]"
+  if (key === "eigenvector")                          return "[0–1]"
+  if (key === "reverse_eigenvector")                  return "[0–1]"
+  if (key === "degree")                               return "[0–1]"
+  if (key === "in_degree")                            return "[0–1]"
+  if (key === "out_degree")                           return "[0–1]"
+  if (key === "bridge_ratio")                         return "[0–1]"
+  if (key === "ap_c_directed")                        return "[0–1]"
+  if (key === "cdi")                                  return "[0–1]"
+  if (key === "clustering_coefficient")               return "[0–1]"
+  if (key === "publisher_spof")                       return "[0–1]"
+  if (key === "pubsub_betweenness")                   return "[0–1]"
+  if (key === "mpci")                                 return "[0–1]"
+  if (key === "path_complexity")                      return "[0–1]"
+  if (key === "dependency_weight_in")                 return "[0–1]"
+  if (key === "dependency_weight_out")                return "[0–1]"
+
+  // ── Raw degree / topology counts ──────────────────────────────────────────
+  if (key === "in_degree_raw")                        return "deps"
+  if (key === "out_degree_raw")                       return "deps"
+  if (key === "blast_radius")                         return "nodes"
+  if (key === "cascade_depth")                        return "hops"
+  if (key === "bridge_count")                         return "edges"
+  if (key === "pubsub_degree")                        return "topics"
+  if (key === "broker_exposure")                      return "brokers"
   if (key === "path_count")                           return "paths"
-  if (/^cm_(avg_|max_|total_)?lcom$/.test(key))       return "LCOM"
-  if (/fanin/.test(key))                              return "in-deps"
-  if (/fanout/.test(key))                             return "out-deps"
-  if (/\bcbo\b/.test(key))                            return "deps"
-  if (/\brfc\b/.test(key))                            return "calls"
+  if (key === "subscriber_count")                     return "subs"
+  if (key === "fan_out_criticality")                  return "subs"
+  if (key === "max_connections")                      return "conns"
+  if (key === "cpu_cores")                            return "cores"
+  if (key === "memory_gb")                            return "GB"
+
+  // ── Time fields ───────────────────────────────────────────────────────────
+  if (/_ms$/.test(key) || key === "deadline_ms")      return "ms"
+
+  // ── Frequency ─────────────────────────────────────────────────────────────
+  if (/_hz$/.test(key) || key === "frequency")        return "Hz"
+
+  // ── Queue ─────────────────────────────────────────────────────────────────
+  if (key === "queue_size")                           return "msgs"
+
+  // ── Code size ─────────────────────────────────────────────────────────────
+  if (key === "loc")                                  return "lines"
+  if (key === "cyclomatic_complexity")                return "paths"
+  if (/cm_total_(lines|loc)/.test(key))               return "lines"
   if (/cm_total_classes/.test(key))                   return "classes"
   if (/cm_total_methods/.test(key))                   return "methods"
-  if (/cm_total_(lines|loc)/.test(key))               return "lines"
-  // Other coupling_ fields are instability-derived [0–1]
-  if (/^coupling_/.test(key))                         return "[0–1]"
+  if (/cm_total_fields/.test(key))                    return "fields"
+  if (/cm_total_wmc/.test(key))                       return "CC"
+  if (/cm_(avg_|max_)wmc/.test(key))                  return "CC/class"
+
+  // ── Cohesion ──────────────────────────────────────────────────────────────
+  if (/cm_(avg_|max_)?lcom$|^lcom$/.test(key))        return "LCOM"
+
+  // ── Coupling ──────────────────────────────────────────────────────────────
+  if (/fanin/.test(key))                              return "in-deps"
+  if (/fanout/.test(key))                             return "out-deps"
+  if (/cbo/.test(key))                                return "classes"
+  if (/rfc/.test(key))                                return "calls"
+  if (key === "coupling_afferent")                    return "components"
+  if (key === "coupling_efferent")                    return "components"
+
+  // ── Issue counts ──────────────────────────────────────────────────────────
+  if (key === "bugs")                                 return "issues"
+  if (key === "vulnerabilities")                      return "issues"
+
   return ""
 }
 
@@ -466,6 +621,7 @@ function RiskBadge({ k, v }: { k: string; v: unknown }) {
 // ── Shared ReactFlow prop constants (hoisted to avoid re-renders) ─────────────
 const RF_NODE_ORIGIN: [number, number] = [0.5, 0.5]
 const RF_FIT_VIEW_OPTIONS = { padding: 0.25 }
+const RF_HIER_FIT_VIEW_OPTIONS = { padding: 0.12, minZoom: 0.25 }
 const RF_STYLE_TRANSPARENT = { background: "transparent" }
 const RF_STYLE_CONN = { background: "transparent", position: "relative" as const, zIndex: 1 }
 const RF_PRO_OPTIONS = { hideAttribution: true }
@@ -696,7 +852,7 @@ function ConnSvgGraph({
               shape = <>{isCenter && <circle cx={nx} cy={ny} r={r + 7} fill={color + "33"} />}<circle cx={nx} cy={ny} r={r} fill={color} stroke={strokeColor} strokeWidth={sw} /></>
           }
           const label = String(n.label ?? n.id ?? "?")
-          const disp = label.length > 22 ? label.slice(0, 20) + "…" : label
+          const disp = label.length > 5 ? label.slice(0, 5) + "…" : label
           return (
             <g key={n.id} onClick={e => { e.stopPropagation(); if (!movedRef.current) onNodeClick(n) }} style={{ cursor: "pointer" }}>
               {shape}
@@ -728,7 +884,7 @@ const ConnFlowNode = memo(function ConnFlowNode({ data }: NodeProps) {
   const C  = S / 2                // center coord
   const color = nodeTypeColor(n.type, isDark)
   const label = String(n.label ?? n.id ?? "?")
-  const disp = label.length > 20 ? label.slice(0, 18) + "…" : label
+  const disp = label.length > 5 ? label.slice(0, 5) + "…" : label
 
   // Shared style tokens
   const fill   = color
@@ -804,8 +960,6 @@ const ConnFlowNode = memo(function ConnFlowNode({ data }: NodeProps) {
   const textColor = isDark ? "#f1f5f9" : "#1e293b"
   const subColor  = isDark ? "#94a3b8" : "#64748b"
   return (
-    <Tooltip>
-    <TooltipTrigger asChild>
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", userSelect: "none" }}>
       <Handle type="target" position={Position.Top}    id="t-top" style={hs} />
       <Handle type="source" position={Position.Top}    id="s-top" style={hs} />
@@ -850,11 +1004,6 @@ const ConnFlowNode = memo(function ConnFlowNode({ data }: NodeProps) {
       <Handle type="source" position={Position.Bottom} id="s-bot" style={hs} />
       <Handle type="target" position={Position.Bottom} id="t-bot" style={hs} />
     </div>
-    </TooltipTrigger>
-    <TooltipContent side="top" className="p-2.5 leading-relaxed shadow-xl border-border/60 bg-popover text-popover-foreground z-[9999]">
-      <ItemTooltipContent data={{ type: n.type, name: disp, properties: n.properties ?? {} }} />
-    </TooltipContent>
-    </Tooltip>
   )
 })
 
@@ -1009,11 +1158,7 @@ const HierFlowNode = memo(function HierFlowNode({ data }: NodeProps) {
   )
 
   if (hn.level === "app" && hn.appData) {
-    return (
-      <ItemTooltip data={{ type: "Application", name: hn.name, properties: hn.appData as Record<string, unknown> }} side="right">
-        {nodeContent}
-      </ItemTooltip>
-    )
+    return nodeContent
   }
   return nodeContent
 })
@@ -1076,8 +1221,8 @@ const HierFlowGraph = memo(function HierFlowGraph({ graphData, dims, isDark, sel
     const presentLevels = LEVEL_ORDER.filter(l => byLevel.has(l))
     if (presentLevels.length === 0) return map
 
-    // Vertical spacing: use fraction of height per tier
-    const yStep = presentLevels.length === 1 ? 0 : H / (presentLevels.length + 0.5)
+    // Vertical spacing: fixed minimum per tier so levels don't stack up on large trees
+    const yStep = presentLevels.length === 1 ? 0 : Math.max(220, H / (presentLevels.length + 0.5))
     const yStart = presentLevels.length === 1 ? H * 0.4 : yStep * 0.75
 
     for (let li = 0; li < presentLevels.length; li++) {
@@ -1090,7 +1235,7 @@ const HierFlowGraph = memo(function HierFlowGraph({ graphData, dims, isDark, sel
         map.set(arr[0].id, { x: W / 2, y })
       } else {
         // Equal spacing with enough room for node cards (~200px wide)
-        const minGap = 200
+        const minGap = Math.max(500, 400 + arr.length * 10)
         const naturalWidth = (arr.length - 1) * minGap
         const margin = Math.max(W * 0.12, 100)
         const usable = Math.max(W - 2 * margin, naturalWidth)
@@ -1166,7 +1311,8 @@ const HierFlowGraph = memo(function HierFlowGraph({ graphData, dims, isDark, sel
       edgeTypes={cfHierEdgeTypes}
       nodeOrigin={RF_NODE_ORIGIN}
       fitView
-      fitViewOptions={RF_FIT_VIEW_OPTIONS}
+      fitViewOptions={RF_HIER_FIT_VIEW_OPTIONS}
+      minZoom={0.08}
       nodesDraggable
       onNodesChange={onNodesChange}
       onNodeClick={handleNodeClick}
@@ -1178,6 +1324,272 @@ const HierFlowGraph = memo(function HierFlowGraph({ graphData, dims, isDark, sel
       <Background variant={BackgroundVariant.Dots} gap={24} size={1}
         color={isDark ? "#ffffff10" : "#00000010"} />
     </ReactFlow>
+  )
+})
+
+// ── ECharts connections tree ──────────────────────────────────────────────────
+
+// ── ECharts connections tree ──────────────────────────────────────────────────
+
+const ConnEChartsGraph = memo(function ConnEChartsGraph({ graphData, dims, isDark, selectedAppId, onNodeClick, onBackgroundClick }: {
+  graphData: { nodes: any[]; links: any[] }
+  dims: { width: number; height: number }
+  isDark: boolean
+  selectedAppId: string | null
+  selectedLink: { link: any } | null
+  onNodeClick: (n: any) => void
+  onEdgeClick: (link: any, event: React.MouseEvent) => void
+  onBackgroundClick: () => void
+}) {
+  const W = dims.width || 800
+  const H = dims.height || 600
+
+  // Build edge-type-grouped tree:  root → [EdgeTypeGroup…] → target nodes
+  const treeData = useMemo(() => {
+    const nodes: any[] = graphData.nodes
+    const links: any[] = graphData.links
+    if (nodes.length === 0) return null
+
+    const rootNode = nodes.find(n => n.id === selectedAppId) ?? nodes[0]
+    const rootId = rootNode.id
+    const rootColor = nodeTypeColor(rootNode.type, isDark)
+    const rootLabel: string = rootNode.label ?? rootNode.name ?? rootId
+    const trimRoot = rootLabel.length > 5 ? rootLabel.slice(0, 5) + "…" : rootLabel
+    const nodeById = new Map(nodes.map(n => [n.id, n]))
+
+    // Group links by edge type; each entry: { edgeType, peer node, direction }
+    const edgeGroups = new Map<string, Array<{ node: any; dir: "out" | "in" }>>()
+    for (const l of links) {
+      const srcId = l.source?.id ?? l.source
+      const tgtId = l.target?.id ?? l.target
+      const type: string = l.type ?? "CONNECTED"
+
+      if (srcId === rootId) {
+        const peer = nodeById.get(tgtId)
+        if (!peer) continue
+        if (!edgeGroups.has(type)) edgeGroups.set(type, [])
+        edgeGroups.get(type)!.push({ node: peer, dir: "out" })
+      } else if (tgtId === rootId) {
+        const peer = nodeById.get(srcId)
+        if (!peer) continue
+        if (!edgeGroups.has(type)) edgeGroups.set(type, [])
+        edgeGroups.get(type)!.push({ node: peer, dir: "in" })
+      }
+    }
+
+    // Sort groups: known types first (in CONN_LINK_TYPE_COLORS order), then unknown alphabetically
+    const knownOrder = Object.keys(isDark ? CONN_LINK_TYPE_COLORS_DARK : CONN_LINK_TYPE_COLORS_LIGHT)
+    const sortedEdgeTypes = Array.from(edgeGroups.keys()).sort((a, b) => {
+      const ai = knownOrder.indexOf(a)
+      const bi = knownOrder.indexOf(b)
+      if (ai !== -1 && bi !== -1) return ai - bi
+      if (ai !== -1) return -1
+      if (bi !== -1) return 1
+      return a.localeCompare(b)
+    })
+
+    const children = sortedEdgeTypes.map(edgeType => {
+      const entries = edgeGroups.get(edgeType)!
+      // De-duplicate peers (a node may appear via multiple edges of same type)
+      const seen = new Set<string>()
+      const unique = entries.filter(e => { if (seen.has(e.node.id)) return false; seen.add(e.node.id); return true })
+      unique.sort((a, b) => (a.node.label ?? a.node.id ?? "").localeCompare(b.node.label ?? b.node.id ?? ""))
+
+      const edgeColor = linkTypeColor(edgeType, isDark)
+
+      const leafNodes = unique.map(({ node, dir }) => {
+        const lbl: string = node.label ?? node.name ?? node.id ?? ""
+        const trimLbl = lbl.length > 5 ? lbl.slice(0, 5) + "…" : lbl
+        const nc = nodeTypeColor(node.type, isDark)
+        return {
+          name: trimLbl,
+          value: node.id,
+          _raw: node,
+          _isGroup: false,
+          _dir: dir,
+          symbolSize: 10,
+          itemStyle: { color: nc, borderWidth: 0 },
+          lineStyle: { color: edgeColor + "88" },
+          label: {
+            fontSize: 9,
+            fontWeight: 400,
+            color: isDark ? "#a1a1aa" : "#6b7280",
+          },
+        }
+      })
+
+      return {
+        name: `${edgeType}  (${unique.length})`,
+        value: `__group__${edgeType}`,
+        _raw: null,
+        _isGroup: true,
+        symbol: "none",
+        symbolSize: 0,
+        itemStyle: {
+          color: edgeColor,
+          borderWidth: 0,
+        },
+        label: {
+          fontSize: 9,
+          fontWeight: 700,
+          color: edgeColor,
+        },
+        children: leafNodes,
+      }
+    })
+
+    return {
+      name: trimRoot,
+      value: rootId,
+      _raw: rootNode,
+      _isGroup: false,
+      symbolSize: 20,
+      itemStyle: {
+        color: rootColor,
+        borderColor: isDark ? "#ffffff" : "#1e293b",
+        borderWidth: 2.5,
+        shadowBlur: 14,
+        shadowColor: rootColor + "99",
+      },
+      label: {
+        fontSize: 12,
+        fontWeight: 700,
+        color: isDark ? "#e5e7eb" : "#1e293b",
+      },
+      children,
+    }
+  }, [graphData, selectedAppId, isDark])
+
+  const option = useMemo(() => {
+    if (!treeData) return {}
+    return {
+      backgroundColor: "transparent",
+      tooltip: {
+        trigger: "item",
+        triggerOn: "mousemove",
+        formatter: (params: any) => {
+          const d = params.data
+          if (d?._isGroup) return `<b>${d.name}</b>`
+          const n = d?._raw
+          if (!n) return ""
+          const typeLabel: string = n.type ?? "Node"
+          const lbl = n.label ?? n.name ?? n.id ?? ""
+          const get = (key: string) => n.properties?.[key] ?? n[key]
+          let extra = ""
+          if (typeLabel === "Application") {
+            const role = get("role"); if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
+          } else if (typeLabel === "Topic") {
+            const qr = get("qos_reliability"); if (qr != null && qr !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${qr}</span>`
+            const qd = get("qos_durability");  if (qd != null && qd !== "") extra += `<br/><span style="opacity:0.7">Durability: ${qd}</span>`
+            const qt = get("qos_transport_priority"); if (qt != null && qt !== "") extra += `<br/><span style="opacity:0.7">Transport Priority: ${qt}</span>`
+            const szRaw = get("message_size") ?? get("payload_size_bytes") ?? get("size")
+            if (szRaw != null && szRaw !== "") { const szN = Number(szRaw); const szFmt = isFinite(szN) ? (szN >= 1048576 ? `${(szN/1048576).toFixed(2)} MB` : szN >= 1024 ? `${(szN/1024).toFixed(1)} KB` : `${szN} B`) : String(szRaw); extra += `<br/><span style="opacity:0.7">Size: ${szFmt}</span>` }
+          } else if (typeLabel === "Library") {
+            const ver = get("version"); if (ver != null && ver !== "") extra += `<br/><span style="opacity:0.7">Version: ${ver}</span>`
+          } else if (typeLabel === "Broker") {
+            const bt = get("broker_type"); if (bt != null && bt !== "") extra += `<br/><span style="opacity:0.7">Protocol: ${bt}</span>`
+          }
+          return `<div style="font-size:12px;line-height:1.7"><b>${lbl}</b><br/><span style="opacity:0.7">${typeLabel}</span>${extra}</div>`
+        },
+      },
+      series: [{
+        type: "tree",
+        data: [treeData],
+        top: "6%",
+        left: "3%",
+        bottom: "6%",
+        right: "3%",
+        orient: "TB",
+        expandAndCollapse: true,
+        initialTreeDepth: -1,
+        roam: true,
+        lineStyle: {
+          width: 1.2,
+          curveness: 0.4,
+          color: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.14)",
+        },
+        label: {
+          position: "bottom",
+          verticalAlign: "top",
+          align: "center",
+          fontSize: 9,
+          color: isDark ? "#d4d4d8" : "#374151",
+          formatter: (p: any) => {
+            const name = p.name ?? ""
+            return name.length > 5 ? name.slice(0, 5) + "…" : name
+          },
+        },
+        leaves: {
+          label: {
+            position: "bottom",
+            verticalAlign: "top",
+            align: "center",
+          },
+        },
+        emphasis: {
+          focus: "descendant",
+          itemStyle: { shadowBlur: 10 },
+        },
+        animationDuration: 350,
+        animationDurationUpdate: 250,
+      }],
+    }
+  }, [treeData, isDark])
+
+  const onEvents = useMemo(() => ({
+    click: (params: any) => {
+      if (params.componentType === "series" && params.data?._raw && !params.data._isGroup) {
+        onNodeClick(params.data._raw)
+      } else if (!params.data || params.data._isGroup) {
+        // group label click → collapse/expand handled by ECharts; no nav
+      }
+    },
+  }), [onNodeClick])
+
+  if (!treeData) return (
+    <div style={{ width: W, height: H, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <span style={{ fontSize: 13, color: isDark ? "#71717a" : "#a1a1aa" }}>Select a node to view connections</span>
+    </div>
+  )
+
+  return (
+    <div style={{ width: W, height: H, position: "relative" }}>
+      {/* Legend */}
+      <div style={{
+        position: "absolute", bottom: 10, left: 10, zIndex: 10,
+        display: "flex", flexWrap: "wrap", gap: "6px 12px",
+        padding: "5px 10px",
+        borderRadius: 8,
+        background: isDark ? "rgba(15,15,20,0.70)" : "rgba(255,255,255,0.80)",
+        backdropFilter: "blur(8px)",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+        fontSize: 9,
+        color: isDark ? "#94a3b8" : "#64748b",
+        pointerEvents: "none",
+      }}>
+        {Object.keys(isDark ? CONN_LINK_TYPE_COLORS_DARK : CONN_LINK_TYPE_COLORS_LIGHT).map(type => (
+          <span key={type} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 18, height: 2, background: linkTypeColor(type, isDark), flexShrink: 0, borderRadius: 1 }} />
+            {type}
+          </span>
+        ))}
+      </div>
+      {/* Hint */}
+      <div style={{
+        position: "absolute", top: 8, right: 8, zIndex: 10,
+        fontSize: 10, color: isDark ? "#52525b" : "#a1a1aa",
+        pointerEvents: "none",
+      }}>
+        Click groups to collapse · Scroll to zoom · Drag to pan
+      </div>
+      <ReactECharts
+        option={option}
+        style={{ width: W, height: H }}
+        onEvents={onEvents}
+        notMerge={true}
+        theme={isDark ? "dark" : undefined}
+      />
+    </div>
   )
 })
 
@@ -1370,32 +1782,711 @@ const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, 
   )
 })
 
-function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, syncKey = null, onNodeSelect }: { hierarchy: Record<string, CsmsGroup>; extraNodes?: any[]; initialNodeId?: string | null; syncKey?: string | null; onNodeSelect?: (key: string) => void }) {
+// ── ECharts full-tree view ────────────────────────────────────────────────────
+
+function buildEChartsTree(hierarchy: Record<string, CsmsGroup>): object {
+  return {
+    name: "System",
+    itemStyle: { color: "#64748b" },
+    label: { show: false },
+    children: sortKeys(Object.keys(hierarchy)).map(csmsKey => {
+      const csms = hierarchy[csmsKey]
+      return {
+        name: csms.name,
+        itemStyle: { color: NODE_COLORS.csms },
+        lineStyle: { color: NODE_COLORS.csms + "88" },
+        children: sortKeys(Object.keys(csms.css)).map(cssKey => {
+          const css = csms.css[cssKey]
+          return {
+            name: css.name,
+            itemStyle: { color: NODE_COLORS.css },
+            lineStyle: { color: NODE_COLORS.css + "88" },
+            children: sortKeys(Object.keys(css.csci)).map(csciKey => {
+              const csci = css.csci[csciKey]
+              return {
+                name: csci.name,
+                itemStyle: { color: NODE_COLORS.csci },
+                lineStyle: { color: NODE_COLORS.csci + "88" },
+                children: sortKeys(Object.keys(csci.csc)).map(cscKey => {
+                  const csc = csci.csc[cscKey]
+                  return {
+                    name: csc.name,
+                    itemStyle: { color: NODE_COLORS.csc },
+                    lineStyle: { color: NODE_COLORS.csc + "88" },
+                    children: csc.apps.map(app => ({
+                      name: app.csu ?? app.name ?? app.id ?? "?",
+                      value: app.weight,
+                      itemStyle: { color: NODE_COLORS.app },
+                      lineStyle: { color: NODE_COLORS.app + "66" },
+                      // carry raw app data for tooltip
+                      _app: app,
+                    })),
+                  }
+                }),
+              }
+            }),
+          }
+        }),
+      }
+    }),
+  }
+}
+
+// ── Merged hierarchy + connections tree ──────────────────────────────────────
+
+function buildConnSubtree(
+  centerNodeId: string,
+  connData: { nodes: any[]; links: any[] },
+  expandedLeaves: Map<string, { nodes: any[]; links: any[] }>,
+  isDark: boolean,
+  parentPath: string = "",
+): any[] {
+  if (!centerNodeId || connData.nodes.length === 0) return []
+  const nodeById = new Map(connData.nodes.map((n: any) => [n.id, n]))
+  const groups = new Map<string, Array<{ node: any; dir: "out" | "in" }>>()
+  for (const l of connData.links) {
+    const src = l.source?.id ?? l.source
+    const tgt = l.target?.id ?? l.target
+    const type: string = l.type ?? "CONNECTED"
+    if (src === centerNodeId) {
+      const peer = nodeById.get(tgt); if (!peer) continue
+      if (!groups.has(type)) groups.set(type, [])
+      groups.get(type)!.push({ node: peer, dir: "out" })
+    } else if (tgt === centerNodeId) {
+      const peer = nodeById.get(src); if (!peer) continue
+      if (!groups.has(type)) groups.set(type, [])
+      groups.get(type)!.push({ node: peer, dir: "in" })
+    }
+  }
+  const knownOrder = Object.keys(isDark ? CONN_LINK_TYPE_COLORS_DARK : CONN_LINK_TYPE_COLORS_LIGHT)
+  const sortedTypes = Array.from(groups.keys()).sort((a, b) => {
+    const ai = knownOrder.indexOf(a); const bi = knownOrder.indexOf(b)
+    if (ai !== -1 && bi !== -1) return ai - bi
+    if (ai !== -1) return -1; if (bi !== -1) return 1
+    return a.localeCompare(b)
+  })
+  return sortedTypes.map(edgeType => {
+    const entries = groups.get(edgeType)!
+    const seen = new Set<string>()
+    const unique = entries.filter(e => { if (seen.has(e.node.id)) return false; seen.add(e.node.id); return true })
+    unique.sort((a, b) => (a.node.label ?? a.node.id ?? "").localeCompare(b.node.label ?? b.node.id ?? ""))
+    const ec = linkTypeColor(edgeType, isDark)
+    const groupPath = `${parentPath}/${edgeType}`
+    const groupId = `cg:${groupPath}:${centerNodeId}`
+    return {
+      id: groupId,
+      name: `${edgeType}  (${unique.length})\x00${groupId}`,
+      value: `__cg__${edgeType}__${centerNodeId}`,
+      _isConnGroup: true,
+      collapsed: false,
+      symbol: "none",
+      symbolSize: 0,
+      itemStyle: { color: ec, borderWidth: 0 },
+      lineStyle: { color: ec + "88" },
+      label: { fontSize: 11, fontWeight: 700, color: ec },
+      children: unique.map(({ node, dir }) => {
+        const lbl: string = node.label ?? node.name ?? node.id ?? ""
+        const trimLbl = lbl.length > 26 ? lbl.slice(0, 24) + "…" : lbl
+        const nc = nodeTypeColor(node.type, isDark)
+        const instanceKey = `${groupPath}:${node.id}`
+        const leafId = `cl:${instanceKey}`
+        const leafData = expandedLeaves.get(instanceKey)
+        return {
+          id: leafId,
+          name: trimLbl + `\x00${leafId}`,
+          value: node.id,
+          _raw: node,
+          _isConnLeaf: true,
+          _dir: dir,
+          collapsed: !leafData,
+          symbol: "circle",
+          symbolSize: 10,
+          itemStyle: { color: nc, borderWidth: leafData ? 1.5 : 0, ...(leafData ? { borderColor: isDark ? "#e5e7eb" : "#374151" } : {}) },
+          lineStyle: { color: ec + "88" },
+          label: { fontSize: 11, color: isDark ? "#a1a1aa" : "#6b7280" },
+          ...(leafData ? { children: buildConnSubtree(node.id, leafData, expandedLeaves, isDark, instanceKey) } : {}),
+        }
+      }),
+    }
+  })
+}
+
+function buildMergedTree(
+  hierarchy: Record<string, CsmsGroup>,
+  selectedInstanceKey: string | null,
+  selectedPathKey: string | null,
+  connDataMap: Map<string, { nodes: any[]; links: any[] }>,
+  expandedLeaves: Map<string, { nodes: any[]; links: any[] }>,
+  isDark: boolean,
+  focusHierPathKey?: string | null,
+): object {
+  const fp = focusHierPathKey?.split("/") ?? null
+  // Find ancestor paths for ALL apps that have connection data loaded
+  const ancMap = new Map<string, { csmsKey: string; cssKey: string; csciKey: string; cscKey: string }>()
+  for (const [ck, csms] of Object.entries(hierarchy)) {
+    for (const [sk, css] of Object.entries(csms.css)) {
+      for (const [ik, csci] of Object.entries(css.csci)) {
+        for (const [pk, csc] of Object.entries(csci.csc)) {
+          for (const app of csc.apps) {
+            const instKey = `app:${ck}/${sk}/${ik}/${pk}/${app.id}`
+            const hasData = connDataMap.has(instKey)
+            const isSelected = selectedInstanceKey ? instKey === selectedInstanceKey : app.id === selectedPathKey
+            if (hasData || isSelected) {
+              ancMap.set(instKey, { csmsKey: ck, cssKey: sk, csciKey: ik, cscKey: pk })
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    id: "root",
+    name: "System",
+    symbol: "none",
+    symbolSize: 0,
+    itemStyle: { color: "transparent", borderWidth: 0, opacity: 0 },
+    lineStyle: { opacity: 0 },
+    label: { show: false },
+    children: sortKeys(Object.keys(hierarchy)).map(csmsKey => {
+      const csms = hierarchy[csmsKey]
+      const csmsId = `csms:${csmsKey}`
+      const isCsms = Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey) || (fp != null && fp[0] === csmsKey)
+      return {
+        id: csmsId,
+        name: csms.name + `\x00${csmsId}`,
+        _level: "csms",
+        ...(isCsms && { collapsed: false }),
+        itemStyle: { color: NODE_COLORS.csms },
+        // Hide the edge from the invisible synthetic root to this CSMS
+        // (ECharts tree styles parent→child edges via the child's lineStyle).
+        lineStyle: { opacity: 0, width: 0 },
+        children: sortKeys(Object.keys(csms.css)).map(cssKey => {
+          const css = csms.css[cssKey]
+          const cssId = `css:${csmsKey}/${cssKey}`
+          const isCss = isCsms && (Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey) || (fp != null && fp[0] === csmsKey && fp[1] === cssKey))
+          return {
+            id: cssId,
+            name: css.name + `\x00${cssId}`,
+            _level: "css",
+            ...(isCss && { collapsed: false }),
+            itemStyle: { color: NODE_COLORS.css },
+            lineStyle: { color: NODE_COLORS.css + "88" },
+            children: sortKeys(Object.keys(css.csci)).map(csciKey => {
+              const csci = css.csci[csciKey]
+              const csciId = `csci:${csmsKey}/${cssKey}/${csciKey}`
+              const isCsci = isCss && (Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey && a.csciKey === csciKey) || (fp != null && fp[0] === csmsKey && fp[1] === cssKey && fp[2] === csciKey))
+              return {
+                id: csciId,
+                name: csci.name + `\x00${csciId}`,
+                _level: "csci",
+                ...(isCsci && { collapsed: false }),
+                itemStyle: { color: NODE_COLORS.csci },
+                lineStyle: { color: NODE_COLORS.csci + "88" },
+                children: sortKeys(Object.keys(csci.csc)).map(cscKey => {
+                  const csc = csci.csc[cscKey]
+                  const cscId = `csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`
+                  const isCsc = isCsci && (Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey && a.csciKey === csciKey && a.cscKey === cscKey) || (fp != null && fp[0] === csmsKey && fp[1] === cssKey && fp[2] === csciKey && fp[3] === cscKey))
+                  return {
+                    id: cscId,
+                    name: csc.name + `\x00${cscId}`,
+                    _level: "csc",
+                    ...(isCsc && { collapsed: false }),
+                    itemStyle: { color: NODE_COLORS.csc },
+                    lineStyle: { color: NODE_COLORS.csc + "88" },
+                    children: csc.apps.map(app => {
+                      const instancePathKey = `app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${app.id}`
+                      const isSel = selectedInstanceKey
+                        ? instancePathKey === selectedInstanceKey
+                        : selectedPathKey !== null && app.id === selectedPathKey
+                      const appConnData = connDataMap.get(instancePathKey)
+                      const appChildren = appConnData ? buildConnSubtree(app.id, appConnData, expandedLeaves, isDark, instancePathKey) : []
+                      return {
+                        id: instancePathKey,
+                        name: (app.csu ?? app.name ?? app.id ?? "?") + `\x00${instancePathKey}`,
+                        value: app.weight,
+                        _app: app,
+                        _level: "app",
+                        ...(appConnData && { collapsed: false }),
+                        itemStyle: {
+                          color: NODE_COLORS.app,
+                          ...(isSel ? { borderColor: isDark ? "#fff" : "#1e293b", borderWidth: 2, shadowBlur: 10, shadowColor: NODE_COLORS.app + "99" } : {}),
+                        },
+                        lineStyle: { color: NODE_COLORS.app + "66" },
+                        ...(appChildren.length > 0 ? { children: appChildren } : {}),
+                      }
+                    }),
+                  }
+                }),
+              }
+            }),
+          }
+        }),
+      }
+    }),
+  }
+}
+
+const MergedEChartsTree = memo(function MergedEChartsTree({
+  hierarchy, connDataMap, expandedLeaves, selectedApp, dims, isDark, focusHierPathKey, onAppNodeClick, onConnNodeClick, exportFnRef,
+}: {
+  hierarchy: Record<string, CsmsGroup>
+  connDataMap: Map<string, { nodes: any[]; links: any[] }>
+  expandedLeaves: Map<string, { nodes: any[]; links: any[] }>
+  selectedApp: HGNode | null
+  dims: { width: number; height: number }
+  isDark: boolean
+  focusHierPathKey?: string | null
+  onAppNodeClick: (app: AppNode, instanceKey: string) => void
+  onConnNodeClick: (nodeId: string, instanceKey: string) => void
+  exportFnRef?: React.MutableRefObject<(() => void) | null>
+}) {
+  const W = dims.width || 800
+  const H = dims.height || 600
+
+  // ECharts instance ref for PNG export
+  const echartsRef = useRef<any>(null)
+  useEffect(() => {
+    if (!exportFnRef) return
+    exportFnRef.current = () => {
+      const ec = echartsRef.current?.getEchartsInstance?.()
+      if (!ec) return
+      const dataUrl = ec.getDataURL({ type: "png", backgroundColor: isDark ? "#09090b" : "#ffffff", pixelRatio: 2 })
+      const a = document.createElement("a")
+      a.href = dataUrl
+      a.download = "system-export.png"
+      a.click()
+    }
+  }, [exportFnRef, isDark])
+
+  // Horizontal spread multiplier. 1.0 = fits viewport with a 5% margin per side
+  // (normal layout); >1 widens the tree beyond the viewport so spacing between
+  // nodes grows. Panning enabled via roam: true. Controlled by the slider below.
+  const [spread, setSpread] = useState(1)
+
+  // Track which nodes have labels shown — only newly expanded nodes and their ancestors
+  const [nodesToShowLabel, setNodesToShowLabel] = useState<Set<string>>(new Set())
+  const prevExpandedLeavesRef = useRef(expandedLeaves)
+
+  // Update nodesToShowLabel when expandedLeaves changes
+  useEffect(() => {
+    const prevKeys = new Set(prevExpandedLeavesRef.current.keys())
+    const currKeys = new Set(expandedLeaves.keys())
+
+    // Find newly expanded nodes (in current but not in previous)
+    const newlyExpanded = new Set<string>()
+    for (const key of currKeys) {
+      if (!prevKeys.has(key)) {
+        newlyExpanded.add(key)
+      }
+    }
+
+    // If there are no new expansions, don't update state
+    if (newlyExpanded.size === 0) {
+      prevExpandedLeavesRef.current = expandedLeaves
+      return
+    }
+
+    // For each newly expanded node, add it and its ancestors to the label set
+    const toShow = new Set<string>(nodesToShowLabel)
+    for (const nodeKey of newlyExpanded) {
+      // Add the newly expanded leaf node (format: "parentPath:nodeId")
+      const leafId = `cl:${nodeKey}`
+      toShow.add(leafId)
+
+      // Add ancestors by parsing the parent path
+      // expandedLeaves keys are like "app:csms/css/csci/csc/appId:connNodeId"
+      const parts = nodeKey.split(":")
+      if (parts.length >= 2) {
+        const parentPath = parts[0] === "app" ? parts[1] : parts.slice(0, -1).join(":")
+        // parentPath is like "csms/css/csci/csc/appId" or "parentPath:nodeId"
+        const pathSegments = parentPath.split("/")
+
+        // Add each level of the hierarchy
+        if (pathSegments.length >= 5) {
+          // Full app path: csms/css/csci/csc/appId
+          const [csmsKey, cssKey, csciKey, cscKey, appId] = pathSegments
+          toShow.add(`app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${appId}`)
+          toShow.add(`csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`)
+          toShow.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
+          toShow.add(`css:${csmsKey}/${cssKey}`)
+          toShow.add(`csms:${csmsKey}`)
+        } else if (parentPath.includes(":")) {
+          // Nested connection leaf path: extract app id and add ancestors
+          const segments = parentPath.split(":")[0].split("/")
+          if (segments.length >= 5) {
+            const [csmsKey, cssKey, csciKey, cscKey, appId] = segments
+            toShow.add(`app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${appId}`)
+            toShow.add(`csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`)
+            toShow.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
+            toShow.add(`css:${csmsKey}/${cssKey}`)
+            toShow.add(`csms:${csmsKey}`)
+          }
+        }
+      }
+    }
+
+    setNodesToShowLabel(toShow)
+    prevExpandedLeavesRef.current = expandedLeaves
+  }, [expandedLeaves])
+
+  const treeData = useMemo(
+    () => buildMergedTree(hierarchy, selectedApp?.instanceKey ?? null, selectedApp?.pathKey ?? null, connDataMap, expandedLeaves, isDark, focusHierPathKey),
+    [hierarchy, selectedApp?.instanceKey, selectedApp?.pathKey, connDataMap, expandedLeaves, isDark, focusHierPathKey],
+  )
+
+  const option = useMemo(() => {
+    const sharedProps = {
+      type: "tree",
+      orient: "TB",
+      expandAndCollapse: true,
+      initialTreeDepth: 2,
+      roam: true,
+      symbol: "circle",
+      itemStyle: { borderWidth: 0 },
+      lineStyle: { width: 1.2, curveness: 0.5, opacity: 0.6 },
+      symbolSize: (_val: number, params: any) => {
+        // treeAncestors includes the invisible "System" root — subtract 2 so CSMS = depth 0
+        const depth = (params.treeAncestors?.length ?? 2) - 2
+        // Monotonically decreasing top → bottom: CSMS, CSS, CSCI, CSC, App
+        return ([40, 32, 26, 20, 16] as number[])[Math.min(Math.max(depth, 0), 4)] ?? 16
+      },
+      label: {
+        position: "bottom",
+        verticalAlign: "top",
+        align: "center",
+        fontSize: 14,
+        color: isDark ? "#e5e7eb" : "#374151",
+        show: false, // Hide by default
+        formatter: (params: any) => {
+          const raw: string = params.name ?? ""
+          const name = raw.split("\x00")[0]
+          return name
+        },
+      },
+      leaves: {
+        label: { position: "bottom", verticalAlign: "top", align: "center", fontSize: 11, show: false },
+      },
+      emphasis: { focus: "descendant", itemStyle: { shadowBlur: 8 } },
+      animationDuration: 350,
+      animationDurationUpdate: 250,
+    }
+    return {
+      backgroundColor: "transparent",
+      tooltip: {
+        trigger: "item",
+        formatter: (params: any) => {
+          const d = params.data
+          const dispName = (s: string) => s?.split("\x00")[0] ?? s
+          if (d?._isConnGroup) return dispName(d.name)
+          if (d?._app) {
+            const app = d._app
+            const name = dispName(d.name)
+            const levelLabel = LEVEL_LABELS[d._level] ?? "Application"
+            const role = app.role ?? app.properties?.role
+            const roleStr = (role != null && role !== "") ? `<br/><span style="opacity:0.7">Role: ${role}</span>` : ""
+            return `<div style="font-size:12px;line-height:1.7"><b>${name}</b><br/><span style="opacity:0.7">${levelLabel}</span>${roleStr}</div>`
+          }
+          if (d?._level && !d?._isConnLeaf) {
+            const name = dispName(d.name)
+            const levelLabel = LEVEL_LABELS[d._level] ?? d._level
+            return `<div style="font-size:12px;line-height:1.7"><b>${name}</b><br/><span style="opacity:0.7">${levelLabel}</span></div>`
+          }
+          if (d?._isConnLeaf && d._raw) {
+            const n = d._raw
+            const name = dispName(d.name)
+            const type: string = n.type ?? ""
+            let extra = ""
+            if (type === "Topic") {
+              const qr = n.properties?.qos_reliability ?? n.qos_reliability
+              const qd = n.properties?.qos_durability ?? n.qos_durability
+              if (qr != null && qr !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${qr}</span>`
+              if (qd != null && qd !== "") extra += `<br/><span style="opacity:0.7">Durability: ${qd}</span>`
+              const qt = n.properties?.qos_transport_priority ?? n.qos_transport_priority
+              if (qt != null && qt !== "") extra += `<br/><span style="opacity:0.7">Transport Priority: ${qt}</span>`
+              const szRaw = n.properties?.message_size ?? n.message_size ?? n.properties?.payload_size_bytes ?? n.payload_size_bytes ?? n.properties?.size ?? n.size
+              if (szRaw != null && szRaw !== "") { const szN = Number(szRaw); const szFmt = isFinite(szN) ? (szN >= 1048576 ? `${(szN/1048576).toFixed(2)} MB` : szN >= 1024 ? `${(szN/1024).toFixed(1)} KB` : `${szN} B`) : String(szRaw); extra += `<br/><span style="opacity:0.7">Size: ${szFmt}</span>` }
+            } else if (type === "Library") {
+              const ver = n.properties?.version ?? n.version
+              if (ver != null && ver !== "") extra += `<br/><span style="opacity:0.7">Version: ${ver}</span>`
+            } else if (type === "Application") {
+              const role = n.properties?.role ?? n.role
+              if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
+            } else if (type === "Broker") {
+              const bt = n.properties?.broker_type ?? n.broker_type
+              if (bt != null && bt !== "") extra += `<br/><span style="opacity:0.7">Protocol: ${bt}</span>`
+            }
+            return `<div style="font-size:12px;line-height:1.7"><b>${name}</b><br/><span style="opacity:0.7">${type}</span>${extra}</div>`
+          }
+          return dispName(d?.name ?? "")
+        },
+      },
+      series: [{
+        ...sharedProps,
+        data: [treeData],
+        // spread=1 → 5% margin per side (normal viewport fit). Increasing spread
+        // grows the tree's bounding box beyond the viewport (negative margins),
+        // which proportionally increases horizontal spacing between sibling nodes.
+        left: `${50 - 45 * spread}%`,
+        right: `${50 - 45 * spread}%`,
+        top: "5%",
+        bottom: "5%",
+        // Override label rendering to show labels only for newly expanded nodes and their parents
+        label: {
+          ...sharedProps.label,
+          show: (params: any) => {
+            const nodeId = params.data?.id
+            // Always show labels for connection leaves and groups
+            if (params.data?._isConnLeaf || params.data?._isConnGroup) return true
+            // Show labels for nodes marked to display
+            return nodeId && nodesToShowLabel.has(nodeId)
+          },
+        },
+      }],
+    }
+  }, [treeData, isDark, spread, nodesToShowLabel])
+
+  const onEvents = useMemo(() => ({
+    click: (params: any) => {
+      const d = params.data
+      if (!d) return
+      if (d._isConnLeaf) {
+        const rawKey: string = (d.name as string).includes('\x00') ? (d.name as string).split('\x00')[1] : `cl:${d.value}`
+        // strip the "cl:" prefix that was added for ECharts node uniqueness
+        const instanceKey = rawKey.startsWith('cl:') ? rawKey.slice(3) : rawKey
+        onConnNodeClick(String(d.value ?? ''), instanceKey)
+        return
+      }
+      if (d._isConnGroup) return
+      if (d._app) {
+        const instanceKey: string = (d.name as string).includes('\x00') ? (d.name as string).split('\x00')[1] : `app:${d._app.id}`
+        onAppNodeClick(d._app, instanceKey)
+        return
+      }
+    },
+  }), [onAppNodeClick, onConnNodeClick])
+
+  return (
+    <div style={{ width: W, height: H, position: "relative" }}>
+      {W > 0 && H > 0 && (
+        <ReactECharts
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          {...({ ref: echartsRef } as any)}
+          key={isDark ? "dark" : "light"}
+          option={option}
+          style={{ width: W, height: H }}
+          onEvents={onEvents}
+          notMerge={false}
+          lazyUpdate
+          theme={isDark ? "dark" : undefined}
+        />
+      )}
+      {/* Spread slider — controls horizontal distance between nodes */}
+      <div style={{
+        position: "absolute", bottom: 12, right: 12, zIndex: 10,
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "6px 10px",
+        borderRadius: 8,
+        width: 224,
+        background: isDark ? "rgba(15,15,20,0.70)" : "rgba(255,255,255,0.80)",
+        backdropFilter: "blur(8px)",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+        fontSize: 11,
+        color: isDark ? "#e4e4e7" : "#3f3f46",
+        boxSizing: "border-box",
+      }}>
+        <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.8, flexShrink: 0 }}>Spread</span>
+        <input
+          type="range"
+          min={1}
+          max={10}
+          step={0.1}
+          value={spread}
+          onChange={(e) => setSpread(parseFloat(e.target.value))}
+          style={{ flex: 1, minWidth: 0, accentColor: isDark ? "#a1a1aa" : "#71717a" }}
+        />
+        <span style={{ fontSize: 10, fontVariantNumeric: "tabular-nums", opacity: 0.7, minWidth: 28, textAlign: "right", flexShrink: 0 }}>
+          {spread.toFixed(1)}×
+        </span>
+      </div>
+    </div>
+  )
+})
+
+// ── Legacy split-panel components (kept for reference) ────────────────────────
+
+const HierEChartsTree = memo(function HierEChartsTree({
+  hierarchy, dims, isDark, onNodeClick,
+}: {
+  hierarchy: Record<string, CsmsGroup>
+  dims: { width: number; height: number }
+  isDark: boolean
+  onNodeClick?: (level: HGLevel, pathKey: string, name: string) => void
+}) {
+  const [legendVisible, setLegendVisible] = useState(true)
+  const treeData = useMemo(() => buildEChartsTree(hierarchy), [hierarchy])
+
+  const option = useMemo(() => ({
+    backgroundColor: "transparent",
+    tooltip: {
+      trigger: "item",
+      triggerOn: "mousemove",
+    },
+    series: [{
+      type: "tree",
+      data: [treeData],
+      top: "5%",
+      left: "6%",
+      bottom: "5%",
+      right: "18%",
+      symbolSize: (val: number, params: any) => {
+        const depth = (params.treeAncestors?.length ?? 1) - 1
+        const sizes = [0, 14, 10, 8, 6, 4]
+        return sizes[depth] ?? 4
+      },
+      symbol: "circle",
+      orient: "LR",
+      expandAndCollapse: true,
+      initialTreeDepth: 3,
+      roam: true,
+      label: {
+        position: "right",
+        rotate: 0,
+        verticalAlign: "middle",
+        align: "left",
+        fontSize: (params: any) => {
+          const depth = (params.treeAncestors?.length ?? 1) - 1
+          return [0, 12, 11, 10, 9, 8][depth] ?? 8
+        },
+        color: isDark ? "#e5e7eb" : "#374151",
+        formatter: (params: any) => {
+          const name: string = params.name ?? ""
+          return name.length > 5 ? name.slice(0, 5) + "…" : name
+        },
+      },
+      leaves: {
+        label: {
+          position: "right",
+          verticalAlign: "middle",
+          align: "left",
+          fontSize: 8,
+          color: isDark ? "#a1a1aa" : "#6b7280",
+        },
+      },
+      itemStyle: {
+        borderWidth: 0,
+      },
+      lineStyle: {
+        width: 1.2,
+        curveness: 0.5,
+        opacity: 0.6,
+      },
+      emphasis: {
+        focus: "ancestor",
+        itemStyle: { shadowBlur: 8 },
+      },
+      animationDuration: 350,
+      animationDurationUpdate: 250,
+    }],
+  }), [treeData, isDark])
+
+  const onEvents = useMemo(() => ({
+    click: (params: any) => {
+      if (!onNodeClick) return
+      const depth = (params.treeAncestors?.length ?? 1) - 1
+      const levels: HGLevel[] = ["csms", "csms", "css", "csci", "csc", "app"]
+      const level = levels[depth] ?? "app"
+      // Build path key from ancestor names
+      const ancestors: string[] = (params.treeAncestors ?? []).map((a: any) => a.name).slice(1) // skip root "System"
+      const name: string = params.name ?? ""
+      const pathKey = [...ancestors, name].join("/")
+      onNodeClick(level, pathKey, name)
+    },
+  }), [onNodeClick])
+
+  return (
+    <div style={{ width: dims.width, height: dims.height, position: "relative" }}>
+      {/* Legend */}
+      <div style={{
+        position: "absolute", bottom: 10, left: 10, zIndex: 10,
+        display: "flex", flexDirection: "column", gap: "6px",
+        padding: "6px 10px",
+        borderRadius: 8,
+        background: isDark ? "rgba(15,15,20,0.70)" : "rgba(255,255,255,0.80)",
+        backdropFilter: "blur(8px)",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+        fontSize: 10,
+        color: isDark ? "#94a3b8" : "#64748b",
+        pointerEvents: "auto",
+      }}>
+        <button
+          onClick={() => setLegendVisible(!legendVisible)}
+          style={{
+            background: "none", border: "none", padding: 0, cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 4, color: "inherit", fontSize: "inherit",
+          }}
+        >
+          <svg
+            width="14"
+            height="10"
+            viewBox="0 0 14 10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ transform: legendVisible ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 200ms", flexShrink: 0 }}
+          >
+            <polyline points="5 1 9 5 5 9" />
+          </svg>
+          <span style={{ fontWeight: 600 }}>Legend</span>
+        </button>
+        {legendVisible && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 14px" }}>
+            {(["csms", "css", "csci", "csc", "app"] as const).map(lvl => (
+              <span key={lvl} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: NODE_COLORS[lvl], flexShrink: 0 }} />
+                {LEVEL_LABELS[lvl]}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* Hint */}
+      <div style={{
+        position: "absolute", top: 8, right: 8, zIndex: 10,
+        fontSize: 10, color: isDark ? "#52525b" : "#a1a1aa",
+        pointerEvents: "none",
+      }}>
+        Click nodes to collapse · Scroll to zoom · Drag to pan
+      </div>
+      <ReactECharts
+        option={option}
+        style={{ width: dims.width, height: dims.height }}
+        onEvents={onEvents}
+        notMerge={false}
+        lazyUpdate
+        theme={isDark ? "dark" : undefined}
+      />
+    </div>
+  )
+})
+
+function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, syncKey = null, onNodeSelect, onSelectInfo, exportFnRef }: { hierarchy: Record<string, CsmsGroup>; extraNodes?: any[]; initialNodeId?: string | null; syncKey?: string | null; onNodeSelect?: (key: string) => void; onSelectInfo?: (pathKey: string, name: string, nodeType?: string) => void; exportFnRef?: React.MutableRefObject<(() => void) | null> }) {
   const { theme, systemTheme } = useTheme()
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
 
-
+  const [graphLegendVisible, setGraphLegendVisible] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
-  const fgRef = useRef<any>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const [dims, setDims] = useState({ width: 800, height: 580 })
 
   const [drillNode, setDrillNode] = useState<HGNode | null>(null)
   const [drillStack, setDrillStack] = useState<HGNode[]>([])
+  const [focusHierPathKey, setFocusHierPathKey] = useState<string | null>(null)
   const [selectedApp, setSelectedApp] = useState<HGNode | null>(null)
-  const [viewMode, setViewMode] = useState<"hierarchy" | "connections">("hierarchy")
-  const [is3D, setIs3D] = useState(false)
-  const [threeReady, setThreeReady] = useState(false)
-
-  // Load Three.js and SpriteText for 3D labels
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    Promise.all([
-      import('three-spritetext').then(m => { (window as any).__SpriteText = m.default }),
-      import('three').then(m => { (window as any).__THREE = m }),
-    ]).then(() => setThreeReady(true)).catch(() => {})
-  }, [])
-
+  const [expandedLeaves, setExpandedLeaves] = useState<Map<string, { nodes: any[]; links: any[] }>>(new Map())
+  const [connDataMap, setConnDataMap] = useState<Map<string, { nodes: any[]; links: any[] }>>(new Map())
   const [connData, setConnData] = useState<{ nodes: any[]; links: any[] } | null>(null)
   const [connLoading, setConnLoading] = useState(false)
   const [connError, setConnError] = useState<string | null>(null)
@@ -1407,7 +2498,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 
   const [hiddenLevels, setHiddenLevels] = useState<Set<HGLevel>>(new Set())
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set())
-  const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<string>>(new Set(["DEPENDS_ON"]))
+  const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<string>>(new Set())
 
   const toggleLevel = (lvl: HGLevel) => setHiddenLevels(prev => { const s = new Set(prev); s.has(lvl) ? s.delete(lvl) : s.add(lvl); return s })
   const toggleNodeType = (t: string) => setHiddenNodeTypes(prev => { const s = new Set(prev); s.has(t) ? s.delete(t) : s.add(t); return s })
@@ -1430,7 +2521,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
           for (const [cscKey, csc] of Object.entries(csci.csc)) {
             result.push({ id: `csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`, name: csc.name, level: "csc", appCount: csc.apps.length, pathKey: `${csmsKey}/${cssKey}/${csciKey}/${cscKey}` })
             for (const app of csc.apps)
-              result.push({ id: `app:${app.id}`, name: app.name ?? app.id, level: "app", appCount: 1, pathKey: app.id })
+              result.push({ id: `app:${app.id}`, name: app.name ?? app.id, level: "app", appCount: 1, pathKey: app.id, instanceKey: `app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${app.id}` })
           }
         }
       }
@@ -1467,12 +2558,13 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     isSyncingRef.current = false
     if (node.level === "app") {
       setSelectedApp(node)
-      setViewMode("connections")
+      setFocusHierPathKey(null)
       setConnTab("props")
       setConnData(null)
+      onSelectInfo?.(node.pathKey, node.name, node.nodeType)
     } else {
       setSelectedApp(null)
-      setViewMode("hierarchy")
+      setFocusHierPathKey(node.pathKey)
       setConnData(null)
       setConnError(null)
       const parts = node.pathKey.split("/")
@@ -1493,7 +2585,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
       setDrillNode({ id: node.id, name: node.name, level: node.level, appCount: node.appCount, pathKey: node.pathKey })
     }
     if (!wasSyncing) onNodeSelect?.(node.id)
-  }, [hierarchy, onNodeSelect])
+  }, [hierarchy, onNodeSelect, onSelectInfo])
 
   // Sync selection when syncKey changes (cross-view sync or URL param)
   const prevSyncKeyRef = useRef<string | null | undefined>(undefined)
@@ -1678,39 +2770,6 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     return layers
   }, [connGraphData])
 
-  // Forces — hierarchy
-  useEffect(() => {
-    if (viewMode !== "hierarchy") return
-    const fg = fgRef.current
-    if (!fg) return
-    fg.d3Force("x", null)
-    fg.d3Force("y", null)
-    fg.d3Force("charge")?.strength(-600).distanceMax(800)
-    fg.d3Force("link")?.distance(100)
-    fg.d3Force("collide", forceCollide((node: any) => {
-      const n = node as HGNode
-      const base = NODE_SIZES[n.level] ?? 6
-      const labelPad = { csms: 50, css: 40, csci: 35, csc: 30, app: 22 }[n.level as HGLevel] ?? 30
-      return base * (n.id === drillNode?.id ? 1.5 : 1) + labelPad
-    }).strength(1).iterations(4))
-    fg.d3ReheatSimulation()
-  }, [graphData, viewMode, drillNode])
-
-  // Forces — connections 3D only (2D is handled by ConnFlowGraph)
-  useEffect(() => {
-    if (viewMode !== "connections" || !is3D) return
-    const fg = fgRef.current
-    if (!fg) return
-    fg.d3Force("x", null)
-    fg.d3Force("y", null)
-    fg.d3Force("charge")?.strength(-800).distanceMax(800)
-    fg.d3Force("link")?.distance(150)
-    fg.d3Force("collide", forceCollide((node: any) => {
-      return (node.id === selectedApp?.pathKey ? 10 : 4) + 28
-    }).strength(1).iterations(4))
-    fg.d3ReheatSimulation()
-  }, [connGraphData, viewMode, selectedApp, is3D])
-
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -1733,11 +2792,10 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     const scenarios = getScenariosForType(selectedApp.nodeType ?? "Application")
     setConnScenario(scenarios[0].id)
     setHiddenNodeTypes(new Set())
-    setHiddenEdgeTypes(new Set(["DEPENDS_ON"]))
+    setHiddenEdgeTypes(new Set())
   }, [selectedApp?.pathKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch connections whenever selected app or scenario changes
-  // Two parallel calls: structural (fetch_structural=true) + derived DEPENDS_ON (fetch_structural=false)
   useEffect(() => {
     if (!selectedApp) { setConnData(null); setConnError(null); return }
     const scenarios = getScenariosForType(selectedApp.nodeType ?? "Application")
@@ -1747,21 +2805,12 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     setConnLoading(true)
     setConnError(null)
     setConnData(null)
-    Promise.all([
-      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, true, effectiveDepth),
-      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, false, effectiveDepth),
-    ]).then(([structural, derived]) => {
-      if (cancelled) return
-      // Merge nodes (deduplicate by id)
-      const nodeMap = new Map<string, any>()
-      for (const n of [...structural.nodes, ...derived.nodes]) nodeMap.set(n.id, n)
-      // Merge links (structural first, then DEPENDS_ON from derived)
-      const linkKey = (l: any) => `${l.source?.id ?? l.source}→${l.target?.id ?? l.target}→${l.type}`
-      const linkMap = new Map<string, any>()
-      for (const l of structural.links) linkMap.set(linkKey(l), l)
-      for (const l of derived.links) { const k = linkKey(l); if (!linkMap.has(k)) linkMap.set(k, l) }
-      setConnData({ nodes: Array.from(nodeMap.values()), links: Array.from(linkMap.values()) })
-    })
+    apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, true, effectiveDepth)
+      .then(structural => {
+        if (cancelled) return
+        setConnData({ nodes: structural.nodes, links: structural.links })
+        setConnDataMap(prev => new Map(prev).set(selectedApp.instanceKey ?? selectedApp.pathKey, { nodes: structural.nodes, links: structural.links }))
+      })
       .catch(e => { if (!cancelled) setConnError(e instanceof Error ? e.message : String(e)) })
       .finally(() => { if (!cancelled) setConnLoading(false) })
     return () => { cancelled = true }
@@ -1769,90 +2818,12 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 
   const clearSelection = useCallback(() => {
     setSelectedApp(null)
-    setViewMode("hierarchy")
     setConnData(null)
     setConnError(null)
     setSelectedLink(null)
+    setExpandedLeaves(new Map())
+    setConnDataMap(new Map())
   }, [])
-
-  // ── 3D node objects with in-scene labels + selection ring ─────────────────
-  const hierNodeThreeObj = useCallback((node: any) => {
-    const n = node as HGNode
-    const SpriteText = (window as any).__SpriteText
-    const THREE = (window as any).__THREE
-    if (!SpriteText || !THREE) return undefined
-
-    const isParent = drillNode !== null && n.id === drillNode.id
-    const isSelectedApp = selectedApp?.id === n.id
-    const r = isParent ? NODE_SIZES[n.level] * 1.5 : NODE_SIZES[n.level]
-
-    const group = new THREE.Group()
-
-    const label = n.name.length > 24 ? n.name.slice(0, 22) + '\u2026' : n.name
-    const sprite = new SpriteText(label)
-    sprite.color = isDark ? '#e5e7eb' : '#374151'
-    sprite.textHeight = Math.max(3, r * 0.85)
-    sprite.position.set(0, r + sprite.textHeight + 2, 0)
-    group.add(sprite)
-
-    if (isParent || isSelectedApp) {
-      const hexColor = isParent ? '#ffffff' : '#fbbf24'
-      const tc = new THREE.Color(hexColor)
-      const rc = Math.round(tc.r * 255), gc = Math.round(tc.g * 255), bc = Math.round(tc.b * 255)
-      const cvs = document.createElement('canvas'); cvs.width = 128; cvs.height = 128
-      const ctx2d = cvs.getContext('2d')!
-      const grd = ctx2d.createRadialGradient(64, 64, r * 0.5, 64, 64, 64)
-      grd.addColorStop(0,   `rgba(${rc},${gc},${bc},0.55)`)
-      grd.addColorStop(0.4, `rgba(${rc},${gc},${bc},0.25)`)
-      grd.addColorStop(1,   `rgba(${rc},${gc},${bc},0)`)
-      ctx2d.fillStyle = grd; ctx2d.fillRect(0, 0, 128, 128)
-      const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cvs), transparent: true, depthWrite: false }))
-      const sz = (r + 2) * 5
-      glowSprite.scale.set(sz, sz, 1)
-      group.add(glowSprite)
-    }
-
-    return group
-  }, [threeReady, drillNode, selectedApp, isDark])
-
-  const connNodeThreeObj = useCallback((node: any) => {
-    const n = node as any
-    const SpriteText = (window as any).__SpriteText
-    const THREE = (window as any).__THREE
-    if (!SpriteText || !THREE) return undefined
-
-    const isCenter = n.id === selectedApp?.pathKey
-    const r = isCenter ? 10 : 4
-    const color = nodeTypeColor(n.type, isDark)
-
-    const group = new THREE.Group()
-
-    const raw = n.label ?? n.id ?? '?'
-    const labelText = raw.length > 26 ? raw.slice(0, 24) + '\u2026' : raw
-    const sprite = new SpriteText(labelText)
-    sprite.color = isDark ? '#e5e7eb' : '#374151'
-    sprite.textHeight = Math.max(3, r * 0.8)
-    sprite.position.set(0, r + sprite.textHeight + 2, 0)
-    group.add(sprite)
-
-    if (isCenter) {
-      const tc = new THREE.Color(color)
-      const rc = Math.round(tc.r * 255), gc = Math.round(tc.g * 255), bc = Math.round(tc.b * 255)
-      const cvs = document.createElement('canvas'); cvs.width = 128; cvs.height = 128
-      const ctx2d = cvs.getContext('2d')!
-      const grd = ctx2d.createRadialGradient(64, 64, r * 0.5, 64, 64, 64)
-      grd.addColorStop(0,   `rgba(${rc},${gc},${bc},0.6)`)
-      grd.addColorStop(0.4, `rgba(${rc},${gc},${bc},0.28)`)
-      grd.addColorStop(1,   `rgba(${rc},${gc},${bc},0)`)
-      ctx2d.fillStyle = grd; ctx2d.fillRect(0, 0, 128, 128)
-      const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cvs), transparent: true, depthWrite: false }))
-      const sz = (r + 2) * 4.5
-      glowSprite.scale.set(sz, sz, 1)
-      group.add(glowSprite)
-    }
-
-    return group
-  }, [threeReady, selectedApp, isDark])
 
   // Click handler — hierarchy mode
   const drillInto = useCallback((node: object) => {
@@ -1861,7 +2832,6 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     if (n.level === "app") {
       if (selectedApp?.id === n.id) { clearSelection(); return }
       setSelectedApp(n)
-      setViewMode("connections")
       setConnTab("props")
       onNodeSelect?.(n.id)
       return
@@ -1884,6 +2854,43 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     const key = n.type === 'Application' ? `app:${n.id}` : `extra:${n.id}`
     onNodeSelect?.(key)
   }, [selectedApp, onNodeSelect])
+
+  const onConnLeafClick = useCallback((nodeId: string, instanceKey: string) => {
+    // Update right panel to show the clicked node
+    const existingData = connDataMap.get(nodeId)
+    // Use a "conn:" prefixed instanceKey so the hierarchy tree never highlights/expands this node
+    const connInstanceKey = `conn:${nodeId}`
+    const extraNode = extraNodes.find((n: any) => n.id === nodeId)
+    const nodeName = extraNode?.name ?? extraNode?.label ?? nodeId
+    const nodeType = extraNode?.type
+    const hgNode: HGNode = { id: `app:${nodeId}`, name: nodeName, level: "app", appCount: 1, pathKey: nodeId, instanceKey: connInstanceKey, nodeType }
+    setSelectedApp(hgNode)
+    setConnTab("props")
+    if (existingData) setConnData(existingData)
+
+    // Notify parent so side panel and list view stay in sync
+    onSelectInfo?.(nodeId, nodeName, nodeType)
+
+    // Toggle expansion
+    if (expandedLeaves.has(instanceKey)) {
+      setExpandedLeaves(prev => { const next = new Map(prev); next.delete(instanceKey); return next })
+      return
+    }
+    apiClient.getNodeConnectionsWithDepth(nodeId, true, 1)
+      .then(structural => {
+        setExpandedLeaves(prev => new Map(prev).set(instanceKey, { nodes: structural.nodes, links: structural.links }))
+        setConnDataMap(prev => new Map(prev).set(nodeId, { nodes: structural.nodes, links: structural.links }))
+        setConnData({ nodes: structural.nodes, links: structural.links })
+        // Update name/type from fetched data and re-notify parent side panel
+        const fetchedNode = structural.nodes.find((n: any) => n.id === nodeId)
+        if (fetchedNode) {
+          const fetchedName = (fetchedNode as any).label ?? (fetchedNode as any).name ?? nodeId
+          const fetchedType = (fetchedNode as any).type
+          setSelectedApp({ id: `app:${nodeId}`, name: fetchedName, level: "app", nodeType: fetchedType, appCount: 1, pathKey: nodeId, instanceKey: connInstanceKey })
+          onSelectInfo?.(nodeId, fetchedName, fetchedType)
+        }
+      }).catch(() => {})
+  }, [expandedLeaves, connDataMap, extraNodes, onNodeSelect, onSelectInfo])
 
   const drillTo = useCallback((idx: number) => {
     clearSelection()
@@ -1926,43 +2933,6 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
       }
     }, [drillNode, selectedApp, isDark])
 
-  const connLinkColor = useCallback((link: any) => {
-    if (selectedLink && link === selectedLink.link) return "#f59e0b"
-    return linkTypeColor(link.type, isDark)
-  }, [selectedLink, isDark])
-
-  // Map edge weights → pixel widths, clamped to [MIN_LINK_W, MAX_LINK_W]
-  const LINK_W_MIN = 0.8
-  const LINK_W_MAX = 5.0
-  const linkWeightScale = useMemo(() => {
-    const weights = connGraphData.links.map((l: any) => Number(l.weight ?? 1)).filter(w => isFinite(w))
-    if (weights.length === 0) return () => 1.5
-    const lo = Math.min(...weights)
-    const hi = Math.max(...weights)
-    if (lo === hi) return () => (LINK_W_MIN + LINK_W_MAX) / 2
-    return (w: number) => {
-      const t = (w - lo) / (hi - lo)              // 0 → 1
-      return LINK_W_MIN + t * (LINK_W_MAX - LINK_W_MIN)
-    }
-  }, [connGraphData.links])
-
-  const connLinkWidth = useCallback((link: any) => {
-    if (selectedLink && link === selectedLink.link) return 5.0
-    const w = linkWeightScale(Number(link.weight ?? 1))
-    const src = link.source?.id ?? link.source
-    const tgt = link.target?.id ?? link.target
-    const isAdjacentToCenter = src === selectedApp?.pathKey || tgt === selectedApp?.pathKey
-    // Bump adjacent-to-center edges slightly but keep weight proportions
-    return isAdjacentToCenter ? Math.min(w + 0.8, LINK_W_MAX) : w
-  }, [selectedApp, selectedLink, linkWeightScale])
-
-  const handleLinkClick = useCallback((link: any, event: MouseEvent) => {
-    const rect = containerRef.current?.getBoundingClientRect()
-    const x = rect ? event.clientX - rect.left : event.clientX
-    const y = rect ? event.clientY - rect.top : event.clientY
-    setSelectedLink(prev => (prev?.link === link ? null : { link, x, y }))
-  }, [])
-
   const hierLinkColor = isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.30)"
   const bgColor = isDark ? "#09090b" : "#ffffff"
   const breadcrumbs = [
@@ -1997,471 +2967,214 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 
   return (
     <div className="flex flex-col gap-3 h-full">
-      {/* Nav bar */}
-      <div className="flex items-center gap-1 text-sm flex-wrap min-h-[32px] bg-muted/50 border border-border/60 rounded-lg px-3 py-1.5">
-        {viewMode === "hierarchy" ? (
-          <>
-            {breadcrumbs.map((bc, i) => (
-              <span key={bc.idx} className="flex items-center gap-1">
-                {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                <button className="text-foreground/60 hover:text-foreground transition-colors hover:underline underline-offset-2 text-xs font-medium"
-                  onClick={() => drillTo(bc.idx)}>{bc.label}</button>
-              </span>
-            ))}
-            {drillNode && (
-              <span className="flex items-center gap-1.5">
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: NODE_COLORS[drillNode.level] }} />
-                <span className="font-semibold text-foreground text-sm">{drillNode.name}</span>
-              </span>
-            )}
-            {!drillNode && <span className="ml-3 text-xs text-muted-foreground">click a node to drill in</span>}
-          </>
-        ) : (
-          <>
-            {/* Reuse the same drillStack breadcrumbs as hierarchy mode — all clickable */}
-            {breadcrumbs.map((bc, i) => (
-              <span key={bc.idx} className="flex items-center gap-1">
-                {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                <button className="text-foreground/60 hover:text-foreground transition-colors hover:underline underline-offset-2 text-xs font-medium"
-                  onClick={() => drillTo(bc.idx)}>{bc.label}</button>
-              </span>
-            ))}
-            {/* drillNode (parent level) — clicking goes back to hierarchy at that level */}
-            {drillNode && (
-              <span className="flex items-center gap-1">
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: NODE_COLORS[drillNode.level] }} />
-                <button className="text-foreground/60 hover:text-foreground transition-colors hover:underline underline-offset-2 text-xs font-medium"
-                  onClick={clearSelection}>{drillNode.name}</button>
-              </span>
-            )}
-            {/* Current selected app/node — not clickable */}
-            <span className="flex items-center gap-1">
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: nodeTypeColor(appNode?.type ?? selectedApp?.nodeType, isDark) }} />
-              <span className="text-sm font-semibold text-foreground truncate max-w-64">{selectedApp?.name}</span>
-            </span>
-            {connLoading && <LoadingSpinner className="h-3.5 w-3.5 ml-1 text-muted-foreground" />}
-            {!connLoading && <span className="ml-2 text-xs text-muted-foreground">click a node to re-center</span>}
-          </>
-        )}
-
-        {/* Search — always visible on the right */}
-        <div className="relative shrink-0 ml-auto">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-            <input
-              ref={searchRef}
-              className="h-7 pl-7 pr-7 text-xs rounded-md border border-border bg-muted/40 focus:outline-none focus:ring-1 focus:ring-ring w-48 placeholder:text-muted-foreground"
-              placeholder="Search nodes…"
-              value={appSearch}
-              onChange={e => { setAppSearch(e.target.value); setSearchOpen(true) }}
-              onFocus={() => setSearchOpen(true)}
-              onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
-            />
-            {appSearch && (
-              <button className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                onMouseDown={e => { e.preventDefault(); setAppSearch(""); setSearchOpen(false) }}>
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-          {searchOpen && filteredNodes.length > 0 && (
-            <div className="absolute right-0 top-full mt-1 z-50 w-80 rounded-md border border-border bg-popover shadow-lg overflow-hidden">
-              <div className="max-h-72 overflow-y-auto py-1">
-                {filteredNodes.map(node => (
-                  <button
-                    key={node.id}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent hover:text-accent-foreground text-left transition-colors"
-                    onMouseDown={e => { e.preventDefault(); jumpToNode(node) }}
-                  >
-                    <span className="h-2 w-2 rounded-full shrink-0" style={{ background: node.nodeType ? nodeTypeColor(node.nodeType, isDark) : NODE_COLORS[node.level] }} />
-                    <span className="font-medium truncate">{node.name}</span>
-                    <span className="ml-auto flex items-center gap-1.5 shrink-0">
-                      <span className="text-[10px] text-muted-foreground">{node.nodeType ?? LEVEL_LABELS[node.level]}</span>
-                      {node.level !== "app" && !node.nodeType && <span className="text-[10px] text-muted-foreground">{node.appCount} apps</span>}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="border-t border-border px-3 py-1.5 text-[10px] text-muted-foreground">
-                {filteredNodes.length} result{filteredNodes.length !== 1 ? "s" : ""}{filteredNodes.length === 25 ? " (showing first 25)" : ""}
-              </div>
-            </div>
-          )}
-          {searchOpen && appSearch.trim() && filteredNodes.length === 0 && (
-            <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-md border border-border bg-popover shadow-lg px-3 py-2.5 text-xs text-muted-foreground">
-              No results for &ldquo;{appSearch.trim()}&rdquo;
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Main row */}
       <div className="flex gap-4 flex-1 min-h-0">
-        {/* Canvas */}
-        <div ref={containerRef} className="flex-1 overflow-hidden relative" style={{ background: bgColor }}>
-          {/* Filter overlay — connections mode only */}
-          {viewMode === "connections" && <div className="absolute top-3 right-3 z-10 flex flex-col gap-2 rounded-lg border border-border/50 px-3.5 py-3 text-sm"
-            style={{ background: isDark ? "rgba(15,15,20,0.75)" : "rgba(255,255,255,0.80)", backdropFilter: "blur(8px)", minWidth: 140 }}>
-            <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px]">Filter</p>
-            {viewMode !== "hierarchy" && (
-              <>
-                <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px] mt-0.5">Nodes</p>
-                {Array.from(new Set([
-                  ...(connGraphData?.nodes ?? []).map((n: any) => n.type).filter(Boolean),
-                  ...Array.from(hiddenNodeTypes).filter(t => (connData?.nodes as any[] ?? []).some(n => n.type === t)),
-                ])).map(t => (
-                  <button key={t} onClick={() => toggleNodeType(t as string)}
-                    className={cn("flex items-center gap-2.5 w-full text-left transition-opacity py-0.5", hiddenNodeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
-                    <svg width="12" height="12" viewBox="0 0 10 10" className="shrink-0">
-                      {t === "Node"    && <rect x="1" y="1" width="8" height="8" fill={nodeTypeColor(t, isDark)} />}
-                      {t === "Topic"   && <polygon points="5,1 9,5 5,9 1,5" fill={nodeTypeColor(t, isDark)} />}
-                      {t === "Library" && <polygon points="5,1 9,8.5 1,8.5" fill={nodeTypeColor(t, isDark)} />}
-                      {t === "Broker"  && <polygon points="5,0.5 8.3,2.5 8.3,7.5 5,9.5 1.7,7.5 1.7,2.5" fill={nodeTypeColor(t, isDark)} />}
-                      {!["Node","Topic","Library","Broker"].includes(t as string) && <circle cx="5" cy="5" r="4" fill={nodeTypeColor(t as string, isDark)} />}
-                    </svg>
-                    <span className={cn("truncate text-xs", hiddenNodeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
+        {/* Canvas — merged hierarchy + connections tree */}
+        <div ref={containerRef} className="flex-1 overflow-hidden relative min-w-0" style={{ background: bgColor }}>
+          {connLoading && !connData && (
+            <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/60">
+              <LoadingSpinner className="h-8 w-8" />
+            </div>
+          )}
+          {connError && (
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <p className="text-sm text-destructive bg-background/90 px-4 py-2 rounded border">{connError}</p>
+            </div>
+          )}
+          <MergedEChartsTree
+            hierarchy={hierarchy}
+            connDataMap={connDataMap}
+            expandedLeaves={expandedLeaves}
+            selectedApp={selectedApp}
+            dims={dims}
+            isDark={isDark}
+            focusHierPathKey={focusHierPathKey}
+            onAppNodeClick={(app: AppNode, instanceKey: string) => {
+              const hgNode: HGNode = { id: `app:${app.id}`, name: app.csu ?? app.name ?? app.id ?? "?", level: "app", appCount: 1, pathKey: app.id, instanceKey, appData: app }
+              // If this app is already expanded (has fetched connection data), single-click collapses it.
+              const isExpanded = connDataMap.has(instanceKey) || connDataMap.has(app.id)
+              if (isExpanded) {
+                // Collapse just this app — keep other apps' expanded subtrees visible.
+                const wasSelected = selectedApp?.instanceKey === instanceKey
+                if (wasSelected) {
+                  setSelectedApp(null)
+                  setConnData(null)
+                  setConnError(null)
+                  setSelectedLink(null)
+                }
+                setConnDataMap(prev => {
+                  const next = new Map(prev)
+                  next.delete(instanceKey)
+                  next.delete(app.id) // legacy key
+                  return next
+                })
+                setExpandedLeaves(prev => {
+                  const next = new Map(prev)
+                  // expandedLeaves are keyed by `${parentPath}:${nodeId}` — drop any rooted at this app.
+                  for (const k of Array.from(next.keys())) {
+                    if (k === instanceKey || k.startsWith(`${instanceKey}:`) || k.startsWith(`${instanceKey}/`)) {
+                      next.delete(k)
+                    }
+                  }
+                  return next
+                })
+                return
+              }
+              setSelectedApp(hgNode)
+              setConnTab("props")
+              setConnData(null)
+              onNodeSelect?.(hgNode.id)
+              onSelectInfo?.(hgNode.pathKey, hgNode.name, hgNode.nodeType)
+            }}
+            onConnNodeClick={onConnLeafClick}
+            exportFnRef={exportFnRef}
+          />
+
+          {/* Search overlay */}
+          <div className="absolute top-2 left-3 z-20 w-56">
+            <div className="relative flex items-center">
+              <Search className="absolute left-2 h-3 w-3 text-muted-foreground/50 pointer-events-none" />
+              <Input
+                ref={searchRef}
+                className="h-7 pl-6 pr-6 text-xs bg-background/90 rounded-md border-border shadow-sm focus-visible:ring-1 focus-visible:ring-primary/50 backdrop-blur"
+                placeholder="Search hierarchy…"
+                value={appSearch}
+                onChange={e => { setAppSearch(e.target.value); setSearchOpen(true) }}
+                onFocus={() => setSearchOpen(true)}
+                onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+              />
+              {appSearch && (
+                <button
+                  className="absolute right-2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                  onMouseDown={e => { e.preventDefault(); setAppSearch(""); setSearchOpen(false) }}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            {searchOpen && filteredNodes.length > 0 && (
+              <div className="mt-1 rounded-md border border-border bg-background shadow-md overflow-hidden max-h-64 overflow-y-auto">
+                {filteredNodes.map(r => (
+                  <button
+                    key={r.id}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-muted transition-colors"
+                    onMouseDown={e => { e.preventDefault(); jumpToNode(r) }}
+                  >
+                    <span
+                      className="inline-block w-2 h-2 rounded-full shrink-0"
+                      style={{ background: NODE_COLORS[r.level] }}
+                    />
+                    <span className="truncate">{r.name}</span>
+                    <span className="ml-auto text-muted-foreground/50 shrink-0 pl-1">{LEVEL_LABELS[r.level]}</span>
                   </button>
                 ))}
-                <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px] mt-1">Edges</p>
-                {Array.from(new Set((connData?.links as any[] ?? []).map(l => l.type).filter(Boolean))).map(t => (
-                  <button key={t} onClick={() => toggleEdgeType(t as string)}
-                    className={cn("flex items-center gap-2.5 w-full text-left transition-opacity py-0.5", hiddenEdgeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
-                    {t === "DEPENDS_ON" ? (
-                      <svg width="18" height="6" viewBox="0 0 16 4" className="shrink-0">
-                        <line x1="0" y1="2" x2="16" y2="2" stroke={linkTypeColor(t as string, isDark)} strokeWidth="1.5" strokeDasharray="4 2" />
-                      </svg>
-                    ) : (
-                      <span className="h-0.5 w-4 shrink-0 rounded-full" style={{ background: linkTypeColor(t as string, isDark) }} />
-                    )}
-                    <span className={cn("truncate text-xs", hiddenEdgeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
-                  </button>
+              </div>
+            )}
+          </div>
+
+          {/* Legend — matches Force Graph tab */}
+          <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background/70 px-3 py-2 text-xs backdrop-blur pointer-events-auto">
+            <button
+              onClick={() => setGraphLegendVisible(!graphLegendVisible)}
+              className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              <svg
+                width="14"
+                height="10"
+                viewBox="0 0 14 10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ transform: graphLegendVisible ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 200ms", flexShrink: 0 }}
+                className="text-muted-foreground"
+              >
+                <polyline points="5 1 9 5 5 9" />
+              </svg>
+              <span className="font-medium text-muted-foreground">Legend</span>
+            </button>
+            {graphLegendVisible && (
+              <>
+                <span className="font-medium text-muted-foreground mb-0.5 mt-1">Hierarchy Nodes</span>
+                {(["csms", "css", "csci", "csc", "app"] as const).map(lvl => (
+                  <div key={lvl} className="flex items-center gap-2">
+                    <svg width="12" height="12" className="shrink-0">
+                      <circle cx="6" cy="6" r="5" fill={NODE_COLORS[lvl]} />
+                    </svg>
+                    <span style={{ color: isDark ? "#e4e4e7" : "#3f3f46" }}>{LEVEL_LABELS[lvl]}</span>
+                  </div>
+                ))}
+                <hr className="my-1 border-border" />
+                <span className="font-medium text-muted-foreground mb-0.5">Nodes</span>
+                {(Object.entries(CONN_NODE_TYPE_COLORS_DARK) as [string, string][]).map(([name, color]) => (
+                  <div key={name} className="flex items-center gap-2">
+                    <svg width="12" height="12" className="shrink-0">
+                      <circle cx="6" cy="6" r="5" fill={color} />
+                    </svg>
+                    <span style={{ color: isDark ? "#e4e4e7" : "#3f3f46" }}>{name}</span>
+                  </div>
+                ))}
+                <hr className="my-1 border-border" />
+                <span className="font-medium text-muted-foreground mb-0.5">Relationships</span>
+                {(Object.entries(CONN_LINK_TYPE_COLORS_DARK) as [string, string][])
+                  .filter(([type]) => type !== "DEPENDS_ON" && type !== "CONNECTS_TO")
+                  .map(([type, color]) => (
+                  <div key={type} className="flex items-center gap-2">
+                    <svg width="22" height="10" className="shrink-0">
+                      <line x1="0" y1="5" x2="22" y2="5" stroke={color} strokeWidth="2" />
+                    </svg>
+                    <span style={{ color: isDark ? "#e4e4e7" : "#3f3f46" }}>{type}</span>
+                  </div>
                 ))}
               </>
             )}
-            <div className="border-t border-border/40 mt-1 pt-1.5 space-y-0.5 text-xs text-muted-foreground">
-              {connGraphData ? (
-                <><p>{connGraphData.nodes.length} nodes</p><p>{connGraphData.links.length} edges</p></>
-              ) : null}
-            </div>
-          </div>}
-          {viewMode === "hierarchy" ? (
-            <HierFlowGraph
-              graphData={filteredGraphData}
-              dims={dims}
-              isDark={isDark}
-              selectedNodeId={drillNode?.id ?? null}
-              onNodeClick={drillInto}
-            />
-          ) : (
-            <>
-              {connLoading && !connData && (
-                <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/60">
-                  <LoadingSpinner className="h-8 w-8" />
-                </div>
-              )}
-              {connError && (
-                <div className="absolute inset-0 flex items-center justify-center z-10">
-                  <p className="text-sm text-destructive bg-background/90 px-4 py-2 rounded border">{connError}</p>
-                </div>
-              )}
-              {is3D ? (
-                <ForceGraph3D
-                  graphData={connGraphData as any}
-                  width={dims.width}
-                  height={dims.height}
-                  backgroundColor={bgColor}
-                  nodeColor={(n: any) => nodeTypeColor(n.type, isDark)}
-                  nodeVal={(n: any) => n.id === selectedApp?.pathKey ? 10 : 4}
-                  nodeLabel=""
-                  nodeThreeObject={threeReady ? connNodeThreeObj : undefined}
-                  nodeThreeObjectExtend={true}
-                  onNodeClick={(node: any) => { setSelectedLink(null); drillIntoConn(node) }}
-                  onBackgroundClick={() => { setSelectedLink(null) }}
-                  onLinkClick={handleLinkClick as any}
-                  linkColor={connLinkColor}
-                  linkWidth={connLinkWidth}
-                  linkDirectionalArrowLength={9}
-                  linkDirectionalArrowRelPos={0.85}
-                  linkDirectionalArrowColor={connLinkColor}
-                  cooldownTicks={200}
-                  d3AlphaDecay={0.02}
-                  d3VelocityDecay={0.3}
-                  ref={fgRef}
-                />
-              ) : (
-                <ConnFlowGraph
-                  graphData={connGraphData}
-                  positions={connTargetPositions}
-                  dims={dims}
-                  isDark={isDark}
-                  populatedLayers={connPopulatedLayers}
-                  selectedAppId={selectedApp?.pathKey ?? null}
-                  selectedLink={selectedLink}
-                  onNodeClick={(node: any) => { setSelectedLink(null); drillIntoConn(node) }}
-                  onEdgeClick={(link: any, event: React.MouseEvent) => {
-                    const rect = containerRef.current?.getBoundingClientRect()
-                    const x = rect ? event.clientX - rect.left : event.clientX
-                    const y = rect ? event.clientY - rect.top : event.clientY
-                    setSelectedLink(prev => (prev?.link === link ? null : { link, x, y }))
-                  }}
-                  onBackgroundClick={() => { setSelectedLink(null) }}
-                />
-              )}
-              {/* Edge props popover */}
-              {selectedLink && (() => {
-                const l = selectedLink.link
-                const srcId = l.source?.id ?? l.source
-                const tgtId = l.target?.id ?? l.target
-                const srcLabel = nodeById.get(srcId)?.label ?? srcId
-                const tgtLabel = nodeById.get(tgtId)?.label ?? tgtId
-                const extraProps = l.properties ? Object.entries(l.properties as object).filter(([, v]) => v !== undefined && v !== null) : []
-                const clampX = Math.min(selectedLink.x, dims.width - 224)
-                const clampY = Math.min(selectedLink.y + 12, dims.height - 20)
-                return (
-                  <div className="absolute z-20 w-56 rounded-lg border border-border bg-popover shadow-xl text-xs"
-                    style={{ left: clampX, top: clampY }}>
-                    <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-                      <span className="font-semibold text-foreground" style={{ color: linkTypeColor(l.type, isDark) }}>{l.type ?? "Edge"}</span>
-                      <button onClick={() => setSelectedLink(null)} className="text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /></button>
-                    </div>
-                    <div className="px-3 py-2 space-y-1.5">
-                      <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0">From</span><span className="font-medium truncate">{srcLabel}</span></div>
-                      <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0">To</span><span className="font-medium truncate">{tgtLabel}</span></div>
-                      {l.weight !== undefined && <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0 inline-flex items-center">Weight{EDGE_DESCS.weight && <Tip text={EDGE_DESCS.weight} />}</span><span className="font-mono">{typeof l.weight === "number" ? l.weight.toFixed(4) : String(l.weight)}<span className="ml-1 text-[9px] opacity-55">[0–1]</span></span></div>}
-                      {extraProps.map(([k, v]) => {
-                        const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
-                        const desc = EDGE_DESCS[k] ?? PROP_DESCS[k]
-                        return (
-                          <div key={k} className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0 truncate inline-flex items-center">{k}{desc && <Tip text={desc} />}</span><span className="font-mono truncate inline-flex items-center gap-0">{propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55">{unit}</span>}<RiskBadge k={k} v={v} /></span></div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })()}
-            </>
-          )}
-        </div>
-
-        {/* Side panel */}
-        {selectedApp && (
-          <div className="w-72 shrink-0 border-l border-border bg-background flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold text-white shrink-0"
-                  style={{ background: nodeTypeColor(appNode?.type ?? selectedApp?.nodeType, isDark) }}>
-                  {appNode?.type ?? selectedApp?.nodeType ?? "App"}
-                </span>
-                <span className="text-xs font-semibold text-foreground truncate">{selectedApp.name}</span>
-              </div>
-              <button onClick={clearSelection} className="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            {/* Scenario selector */}
-            <div className="px-4 py-2.5 border-b border-border shrink-0">
-              {(() => {
-                const nodeType = appNode?.type ?? selectedApp?.nodeType ?? "Application"
-                const scenarios = getScenariosForType(nodeType)
-                return (
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">View</span>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {scenarios.map(s => (
-                        <Tooltip key={s.id}>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => setConnScenario(s.id)}
-                              className={cn(
-                                "px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors",
-                                connScenario === s.id
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                              )}
-                            >{s.label}</button>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom" className="max-w-52 text-xs leading-relaxed">
-                            {s.tooltip}
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
-                      {connData && !connLoading && (
-                        <span className="ml-auto text-[11px] text-muted-foreground">{connData.links.length} edges</span>
-                      )}
-                    </div>
-                  </div>
-                )
-              })()}
-            </div>
-            <div className="flex border-b border-border shrink-0">
-              {(["props", "connections"] as const).map(tab => (
-                <button key={tab} onClick={() => setConnTab(tab)}
-                  className={cn("flex-1 py-1.5 text-[11px] font-medium transition-colors",
-                    connTab === tab ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"
-                  )}>
-                  {tab === "connections" ? `Connections (${outLinks.length + inLinks.length})` : "Props"}
-                </button>
-              ))}
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {connLoading && <div className="flex items-center justify-center h-24"><LoadingSpinner className="h-5 w-5" /></div>}
-              {connError && !connLoading && <p className="px-4 py-3 text-xs text-destructive">{connError}</p>}
-              {!connLoading && !connError && connTab === "connections" && (
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-background z-10">
-                    <tr className="border-b border-border">
-                      {(["node", "type", "dir"] as const).map(col => (
-                        <th key={col}
-                          onClick={() => setConnSort(s => ({ col, asc: s.col === col ? !s.asc : true }))}
-                          className={cn(
-                            "py-2 text-[10px] font-semibold uppercase tracking-wide cursor-pointer select-none transition-colors hover:text-foreground",
-                            col === "dir" ? "text-right px-3" : "text-left px-3",
-                            connSort.col === col ? "text-foreground" : "text-muted-foreground"
-                          )}>
-                          {col === "node" ? "Node" : col === "type" ? "Type" : "Dir"}
-                          <span className={connSort.col === col ? "" : "opacity-30"}>{connSort.col === col ? (connSort.asc ? " ↑" : " ↓") : " ↑"}</span>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      ...outLinks.map(l => ({ link: l, dir: "out" as const })),
-                      ...inLinks.map(l => ({ link: l, dir: "in" as const })),
-                    ].sort((a, b) => {
-                      let cmp = 0
-                      if (connSort.col === "node") {
-                        const aId = a.dir === "out" ? (a.link.target?.id ?? a.link.target) : (a.link.source?.id ?? a.link.source)
-                        const bId = b.dir === "out" ? (b.link.target?.id ?? b.link.target) : (b.link.source?.id ?? b.link.source)
-                        cmp = peerLabel(aId).localeCompare(peerLabel(bId))
-                      } else if (connSort.col === "type") {
-                        cmp = (a.link.type ?? "").localeCompare(b.link.type ?? "")
-                      } else {
-                        cmp = a.dir.localeCompare(b.dir)
-                      }
-                      return connSort.asc ? cmp : -cmp
-                    }).map(({ link, dir }, i) => {
-                      const peerId = dir === "out" ? (link.target?.id ?? link.target) : (link.source?.id ?? link.source)
-                      const peerNode = nodeById.get(peerId)
-                      return (
-                        <tr key={i} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                          <td className="px-3 py-2 font-medium text-foreground max-w-[110px] truncate" title={peerLabel(peerId)}>
-                            <ItemTooltip
-                              data={{
-                                type: peerNode?.type ?? "Application",
-                                properties: peerNode?.properties ?? {},
-                              }}
-                              side="left"
-                            >
-                              <span className="truncate">{peerLabel(peerId)}</span>
-                            </ItemTooltip>
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground max-w-[80px] truncate text-[10px]">{link.type ?? "—"}</td>
-                          <td className="px-3 py-2 text-right">
-                            <span className={cn(
-                              "text-[9px] font-semibold px-1.5 py-0.5 rounded-full",
-                              dir === "out"
-                                ? "bg-blue-500/15 text-blue-400"
-                                : "bg-orange-500/15 text-orange-400"
-                            )}>{dir}</span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                    {outLinks.length === 0 && inLinks.length === 0 && (
-                      <tr><td colSpan={3} className="px-3 py-8 text-center text-muted-foreground text-[11px]">
-                        No connections
-                      </td></tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-              {!connLoading && !connError && connTab === "props" && (
-                <table className="w-full text-xs">
-                  <tbody>
-                    {appProps.length === 0 && (
-                      <tr><td colSpan={2} className="px-3 py-8 text-center text-muted-foreground text-[11px]">No properties available</td></tr>
-                    )}
-                    {(() => {
-                      const HIER_KEYS = new Set(["csms_name","csc_name","csci_name","css_name"])
-                      const isCmSize     = (k: string) => /^cm_total_|^loc$/.test(k)
-                      const isCmComplex  = (k: string) => /^cm_(total_|avg_|max_)wmc$|^cyclomatic_complexity$/.test(k)
-                      const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$/.test(k)
-                      const isCmCoupling = (k: string) => /^cm_(avg_|max_)(cbo|rfc|fanin|fanout)$|^coupling_/.test(k)
-                      const isCm         = (k: string) => /^cm_|^cyclomatic_complexity$|^coupling_|^loc$/.test(k)
-
-                      const primitives = appProps.filter(([k, v]) => typeof v !== "object" && !HIER_KEYS.has(k) && !isCm(k))
-                      const hierarchy  = appProps.filter(([k]) => HIER_KEYS.has(k))
-                      const cmSize     = appProps.filter(([k]) => isCmSize(k))
-                      const cmComplex  = appProps.filter(([k]) => isCmComplex(k))
-                      const cmCohesion = appProps.filter(([k]) => isCmCohesion(k))
-                      const cmCoupling = appProps.filter(([k]) => isCmCoupling(k))
-                      const cmOther    = appProps.filter(([k, v]) => isCm(k) && !isCmSize(k) && !isCmComplex(k) && !isCmCohesion(k) && !isCmCoupling(k))
-
-                      const PrimRow = ({ k, v, indent = false }: { k: string; v: unknown; indent?: boolean }) => {
-                        const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
-                        const desc = PROP_DESCS[k]
-                        return (
-                          <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                            <td className={`${indent ? "pl-6" : "px-3"} pr-3 py-2 font-medium text-foreground w-2/5`}>
-                              <span className="inline-flex items-center gap-0">{k}{desc && <Tip text={desc} />}</span>
-                            </td>
-                            <td className="px-3 py-2 font-mono text-muted-foreground break-all text-[10px]">
-                              {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}<RiskBadge k={k} v={v} />
-                            </td>
-                          </tr>
-                        )
-                      }
-                      const GroupHeader = ({ label }: { label: string }) => (
-                        <tr className="bg-muted/60 border-t border-border">
-                          <td colSpan={2} className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</td>
-                        </tr>
-                      )
-                      const SubHeader = ({ label }: { label: string }) => (
-                        <tr className="bg-muted/30 border-t border-border/50">
-                          <td colSpan={2} className="pl-5 pr-3 py-1 text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest">{label}</td>
-                        </tr>
-                      )
-
-                      return <>
-                        {primitives.map(([k, v]) => <PrimRow key={k} k={k} v={v} />)}
-
-                        {hierarchy.length > 0 && <>
-                          <GroupHeader label="System Hierarchy" />
-                          {hierarchy.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
-                        </>}
-
-                        {(cmSize.length + cmComplex.length + cmCohesion.length + cmCoupling.length + cmOther.length) > 0 && <>
-                          <GroupHeader label="Code Metrics" />
-                          {cmSize.length > 0 && <>
-                            <SubHeader label="Size" />
-                            {cmSize.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
-                          </>}
-                          {cmComplex.length > 0 && <>
-                            <SubHeader label="Complexity" />
-                            {cmComplex.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
-                          </>}
-                          {cmCohesion.length > 0 && <>
-                            <SubHeader label="Cohesion" />
-                            {cmCohesion.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
-                          </>}
-                          {cmCoupling.length > 0 && <>
-                            <SubHeader label="Coupling" />
-                            {cmCoupling.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
-                          </>}
-                          {cmOther.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
-                        </>}
-                      </>
-                    })()}
-                  </tbody>
-                </table>
-              )}
-            </div>
           </div>
-        )}
+        </div>
+      </div>
+    </div>
+  )
+}
+// ── Graph Tab Side Panel ─────────────────────────────────────────────────────
+
+function GraphTabSidePanel({ selectedNode, links, nodeLabels, onSelect, loading = false }: {
+  selectedNode: SelectedNodeInfo | null
+  links: any[]
+  nodeLabels: Map<string, { label: string; type: string }>
+  onSelect: (id: string) => void
+  loading?: boolean
+}) {
+  const [tab, setTab] = useState<"details" | "connections">("details")
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex shrink-0 border-b border-border">
+        {(["details", "connections"] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={cn(
+              "flex-1 py-2.5 text-[11px] font-medium transition-colors capitalize",
+              tab === t
+                ? "border-b-2 border-primary text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto">
+        {tab === "details"
+          ? (selectedNode ? <NodeDetailPanel node={selectedNode} /> : <EmptyDetailState />)
+          : <ConnectionsColumn
+              selectedNode={selectedNode}
+              links={links}
+              nodeLabels={nodeLabels}
+              onSelect={(id) => { onSelect(id); setTab("details") }}
+              loading={loading}
+            />
+        }
       </div>
     </div>
   )
@@ -2470,10 +3183,13 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 // ── Detail Panel (left) ──────────────────────────────────────────────────────
 
 const KIND_LABEL: Record<SelectedKind, string> = {
-  csms: "System (CSMS)", css: "Segment (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)", node: "Node", topic: "Topic",
+  csms: "System", css: "Segment", csci: "Config Item", csc: "Component", app: "Application", node: "Node", topic: "Topic",
 }
+// Hierarchy levels (csms/css/csci/csc) keep their grouping palette.
+// Item-type kinds (app/node/topic) align with the Force Graph palette so
+// the type badge in the List tab matches the Force Graph node colour.
 const KIND_COLOR: Record<SelectedKind, string> = {
-  csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#8b5cf6", node: "#ef4444", topic: "#a855f7",
+  csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#4CBCD0", node: "#C570CE", topic: "#7DAA7A",
 }
 
 function DetailTable({ headers, rows }: {
@@ -2482,10 +3198,10 @@ function DetailTable({ headers, rows }: {
 }) {
   return (
     <table className="w-full text-sm">
-      <thead className="sticky top-0 bg-background z-10">
-        <tr className="border-b border-border">
+      <thead className="sticky top-0 bg-background/95 backdrop-blur z-10">
+        <tr className="border-b border-border/60">
           {headers.map((h) => (
-            <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+            <th key={h} className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest whitespace-nowrap">
               {h}
             </th>
           ))}
@@ -2493,9 +3209,9 @@ function DetailTable({ headers, rows }: {
       </thead>
       <tbody>
         {rows.map((row, i) => (
-          <tr key={i} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+          <tr key={i} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
             {row.map((cell, j) => (
-              <td key={j} className="px-4 py-2.5 text-sm first:font-medium first:text-foreground text-muted-foreground">
+              <td key={j} className={cn("px-4 py-2.5 text-xs", j === 0 ? "font-medium text-foreground" : "text-muted-foreground font-mono")}>
                 {cell !== undefined && cell !== null && cell !== ""
                   ? String(cell)
                   : <span className="text-muted-foreground/40">—</span>}
@@ -2505,7 +3221,7 @@ function DetailTable({ headers, rows }: {
         ))}
         {rows.length === 0 && (
           <tr>
-            <td colSpan={headers.length} className="px-4 py-12 text-center text-muted-foreground text-sm">
+            <td colSpan={headers.length} className="px-4 py-12 text-center text-muted-foreground/50 text-xs">
               No items
             </td>
           </tr>
@@ -2551,11 +3267,11 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
     const entries = Object.entries(app).filter(([, v]) => v !== undefined && v !== null && v !== "")
 
     const HIER_KEYS = new Set(["csms_name","csc_name","csci_name","css_name"])
-    const isCmSize     = (k: string) => /^cm_total_|^loc$/.test(k)
+    const isCmSize     = (k: string) => /^cm_total_|^loc$|^duplicated_lines_density$/.test(k)
     const isCmComplex  = (k: string) => /^cm_(total_|avg_|max_)wmc$|^cyclomatic_complexity$/.test(k)
-    const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$/.test(k)
+    const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$|^lcom(_norm)?$/.test(k)
     const isCmCoupling = (k: string) => /^cm_(avg_|max_)(cbo|rfc|fanin|fanout)$|^coupling_/.test(k)
-    const isCm         = (k: string) => /^cm_|^cyclomatic_complexity$|^coupling_|^loc$/.test(k)
+    const isCm         = (k: string) => /^cm_|^cyclomatic_complexity$|^coupling_|^loc$|^duplicated_lines_density$|^lcom(_norm)?$|^sqale_debt_ratio$/.test(k)
 
     const primitives = entries.filter(([k, v]) => typeof v !== "object" && !HIER_KEYS.has(k) && !isCm(k))
     const hierarchyEntries = entries.filter(([k]) => HIER_KEYS.has(k))
@@ -2569,33 +3285,40 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
       const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
       const desc = PROP_DESCS[k]
       return (
-        <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-          <td className={`${indent ? "pl-8" : "px-4"} pr-4 py-2.5 font-medium text-foreground w-2/5`}>
-            <span className="inline-flex items-center gap-0">{k}{desc && <Tip text={desc} />}</span>
+        <tr className="border-b border-border/40 hover:bg-muted/20 transition-colors">
+          <td className={`${indent ? "pl-8" : "px-4"} pr-4 py-2.5 w-2/5`}>
+            <span className="inline-flex items-center gap-0 text-[11px] text-foreground">{k}{desc && <Tip text={desc} />}</span>
           </td>
-          <td className="px-4 py-2.5 font-mono text-muted-foreground break-all text-xs">
-            {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}<RiskBadge k={k} v={v} />
+          <td className="px-4 py-2.5 font-mono text-foreground break-all text-xs">
+            {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-50 not-italic">{unit}</span>}
           </td>
         </tr>
       )
     }
     const GroupHeader = ({ label }: { label: string }) => (
-      <tr className="bg-muted/60 border-t border-border">
-        <td colSpan={2} className="px-4 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</td>
+      <tr>
+        <td colSpan={2} className="px-4 pt-4 pb-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap">{label}</span>
+            <div className="flex-1 h-px bg-border/50" />
+          </div>
+        </td>
       </tr>
     )
     const SubHeader = ({ label }: { label: string }) => (
-      <tr className="bg-muted/30 border-t border-border/50">
-        <td colSpan={2} className="pl-7 pr-4 py-1 text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest">{label}</td>
+      <tr>
+        <td colSpan={2} className="pl-8 pr-4 pt-2 pb-0.5">
+          <span className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">{label}</span>
+        </td>
       </tr>
     )
 
     content = (
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-background z-10">
-          <tr className="border-b border-border">
-            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-2/5">Property</th>
-            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Value</th>
+        <thead className="sticky top-0 bg-background/95 backdrop-blur z-10">
+          <tr className="border-b border-border/60">
+            <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest w-2/5">Property</th>
+            <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest">Value</th>
           </tr>
         </thead>
         <tbody>
@@ -2637,19 +3360,30 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-5 py-4 border-b border-border shrink-0">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span
-            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
-            style={{ background: KIND_COLOR[node.kind] }}
-          >
-            {KIND_LABEL[node.kind]}
-          </span>
-        </div>
-        <h2 className="text-base font-semibold text-foreground leading-tight">{node.label}</h2>
+      <div className="px-4 pt-4 pb-3 border-b border-border/60 shrink-0">
         {node.path.length > 1 && (
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">{node.path.join(" › ")}</p>
+          <p className="text-[10px] text-muted-foreground/50 mb-1.5 truncate leading-none">
+            {node.path.join(" › ")}
+          </p>
         )}
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-foreground truncate">{node.label}</h2>
+          {(() => {
+            const rawType: string = node.kind === "node" ? ((node.payload as any).type ?? "Node") : KIND_LABEL[node.kind]
+            const actualType = rawType.toLowerCase() === "mqtt" ? "Broker" : rawType
+            const color = node.kind === "node"
+              ? (CONN_NODE_TYPE_COLORS_DARK[actualType] ?? KIND_COLOR[node.kind])
+              : KIND_COLOR[node.kind]
+            return (
+              <span
+                className="inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold shrink-0 border"
+                style={{ color, borderColor: `${color}60`, background: `${color}12` }}
+              >
+                {actualType}
+              </span>
+            )
+          })()}
+        </div>
       </div>
       <div className="flex-1 overflow-auto">{content}</div>
     </div>
@@ -2732,16 +3466,14 @@ function AppTreeNode({ app, path, depth, selectedKey, onSelect }: {
   const label = app.csu ?? app.name ?? app.id ?? "?"
   const nodeKey = `app:${app.id}`
   return (
-    <ItemTooltip data={{ type: "Application", name: label, properties: app as Record<string, unknown> }} side="right">
-      <TreeRow
-        depth={depth}
-        icon={<Cpu className="h-3 w-3 text-violet-500" />}
-        label={label}
-        isSelected={selectedKey === nodeKey}
-        hasChildren={false}
-        onClick={() => onSelect({ kind: "app", key: nodeKey, label, path: [...path, label], payload: app })}
-      />
-    </ItemTooltip>
+    <TreeRow
+      depth={depth}
+      icon={<Cpu className="h-3 w-3 text-violet-500" />}
+      label={label}
+      isSelected={selectedKey === nodeKey}
+      hasChildren={false}
+      onClick={() => onSelect({ kind: "app", key: nodeKey, label, path: [...path, label], payload: app })}
+    />
   )
 }
 
@@ -2879,6 +3611,570 @@ function CsmsTreeNode({ name, csms, selectedKey, onSelect, openSet, toggle, q }:
   )
 }
 
+// ── Force-layout ECharts tab ──────────────────────────────────────────────────
+
+type SwimlaneType = "Node" | "Application" | "Topic" | "Library" | "Broker"
+
+const FORCE_CATEGORIES: { name: SwimlaneType; color: string }[] = [
+  { name: "Application", color: "#4CBCD0" },
+  { name: "Node",        color: "#C570CE" },
+  { name: "Topic",       color: "#7DAA7A" },
+  { name: "Broker",      color: "#EFC050" },
+  { name: "Library",     color: "#ECA088" },
+]
+
+const EDGE_COLORS: Record<string, string> = {
+  RUNS_ON:       "#64748b",
+  PUBLISHES_TO:  "#22c55e",
+  SUBSCRIBES_TO: "#f97316",
+  USES:          "#06b6d4",
+  ROUTES:        "#d946ef",
+}
+const EDGE_COLOR_FALLBACK = "#94a3b8"
+
+const ForceGraphEChart = memo(function ForceGraphEChart({
+  nodesList,
+  appsList,
+  topicsList,
+  brokersList,
+  libsList,
+  graphLinks,
+  linksLoading,
+  selectedKey,
+  onNodeClick,
+  exportFnRef,
+}: {
+  nodesList: any[]
+  appsList: any[]
+  topicsList: any[]
+  brokersList: any[]
+  libsList: any[]
+  graphLinks: Array<{ source: string; target: string; type: string; weight?: number }>
+  linksLoading: boolean
+  selectedKey: string | null
+  onNodeClick: (rawNode: any, nodeType: SwimlaneType) => void
+  exportFnRef?: React.MutableRefObject<(() => void) | null>
+}) {
+  const { theme, systemTheme } = useTheme()
+  const isDark = (theme === "system" ? systemTheme : theme) === "dark"
+  const selectedId = selectedKey ? selectedKey.replace(/^[^:]+:/, "") : null
+
+  // ECharts instance ref for PNG export
+  const echartsRef = useRef<any>(null)
+  useEffect(() => {
+    if (!exportFnRef) return
+    exportFnRef.current = () => {
+      const ec = echartsRef.current?.getEchartsInstance?.()
+      if (!ec) return
+      const dataUrl = ec.getDataURL({ type: "png", backgroundColor: isDark ? "#09090b" : "#ffffff", pixelRatio: 2 })
+      const a = document.createElement("a")
+      a.href = dataUrl
+      a.download = "graph-export.png"
+      a.click()
+    }
+  }, [exportFnRef, isDark])
+
+  // Search state
+  const [graphSearch, setGraphSearch] = useState("")
+  const [searchFocused, setSearchFocused] = useState(false)
+
+  // Legend filter state
+  const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set())
+  const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<string>>(new Set())
+  const toggleNodeType = useCallback((name: string) =>
+    setHiddenNodeTypes(prev => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n }), [])
+  const toggleEdgeType = useCallback((t: string) =>
+    setHiddenEdgeTypes(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n }), [])
+
+  // Track which nodes have been expanded (clicked) in the graph
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() =>
+    selectedId ? new Set([selectedId]) : new Set()
+  )
+
+  // Node spread/repulsion control
+  const [spreadValue, setSpreadValue] = useState(100) // 0-200 scale, 100 is default
+
+  // When selection changes from *outside* (List tab), reset expansion.
+  // When the click originates from the graph itself we skip the reset.
+  const skipResetRef = useRef(false)
+  const prevSelectedIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (selectedId !== prevSelectedIdRef.current) {
+      prevSelectedIdRef.current = selectedId
+      if (skipResetRef.current) {
+        skipResetRef.current = false
+      } else {
+        setExpandedIds(selectedId ? new Set([selectedId]) : new Set())
+      }
+    }
+  }, [selectedId])
+
+  // Map nodeId → { raw, type } for click handler
+  const nodeMap = useMemo(() => {
+    const m = new Map<string, { raw: any; type: SwimlaneType }>()
+    appsList.forEach(n  => m.set(String(n.id), { raw: n, type: "Application" }))
+    nodesList.forEach(n => m.set(String(n.id), { raw: n, type: "Node" }))
+    topicsList.forEach(n => m.set(String(n.id), { raw: n, type: "Topic" }))
+    brokersList.forEach(n => m.set(String(n.id), { raw: n, type: "Broker" }))
+    libsList.forEach(n  => m.set(String(n.id), { raw: n, type: "Library" }))
+    return m
+  }, [appsList, nodesList, topicsList, brokersList, libsList])
+
+  // Search results derived from nodeMap
+  const searchResults = useMemo(() => {
+    const q = graphSearch.trim().toLowerCase()
+    if (!q) return []
+    const results: Array<{ id: string; name: string; type: SwimlaneType }> = []
+    nodeMap.forEach(({ raw, type }, id) => {
+      const name = raw.name ?? raw.csu ?? id
+      if (String(name).toLowerCase().includes(q) || id.toLowerCase().includes(q))
+        results.push({ id, name: String(name), type })
+    })
+    return results.slice(0, 20)
+  }, [nodeMap, graphSearch])
+
+  const eLinks = useMemo(() => {
+    const filtered = graphLinks.filter(l => {
+      if (l.type === "DEPENDS_ON" || l.type === "CONNECTS_TO") return false
+      if (hiddenEdgeTypes.has(l.type ?? "")) return false
+      const srcType = nodeMap.get(String(l.source))?.type
+      const tgtType = nodeMap.get(String(l.target))?.type
+      if (srcType && hiddenNodeTypes.has(srcType)) return false
+      if (tgtType && hiddenNodeTypes.has(tgtType)) return false
+      return true
+    })
+    const visible = !expandedIds.size
+      ? filtered
+      : filtered.filter(l => expandedIds.has(String(l.source)) || expandedIds.has(String(l.target)))
+
+    // Count how many edges exist per unordered pair so we can spread them with curveness
+    const pairCount = new Map<string, number>()
+    const pairIndex = new Map<string, number>()
+    for (const l of visible) {
+      const key = [String(l.source), String(l.target)].sort().join("||")
+      pairCount.set(key, (pairCount.get(key) ?? 0) + 1)
+    }
+
+    return visible.map(l => {
+      const key = [String(l.source), String(l.target)].sort().join("||")
+      const total = pairCount.get(key) ?? 1
+      const idx   = pairIndex.get(key) ?? 0
+      pairIndex.set(key, idx + 1)
+      // Spread curves symmetrically: 0 edges → 0, 2 edges → ±0.3, 3 → -0.3/0/0.3 …
+      const curveness = total === 1 ? 0 : (idx / (total - 1) - 0.5) * 0.6
+      return {
+        source: String(l.source),
+        target: String(l.target),
+        edgeType: l.type ?? "",
+        label: { show: false, formatter: l.type ?? "", fontSize: 9 }, // Hide edge labels
+        lineStyle: {
+          opacity: 0.55,
+          width: Math.max(0.5, (l.weight ?? 0.5) * 2),
+          curveness,
+          color: EDGE_COLORS[l.type ?? ""] ?? EDGE_COLOR_FALLBACK,
+        },
+      }
+    })
+  }, [graphLinks, expandedIds, hiddenEdgeTypes, hiddenNodeTypes, nodeMap])
+
+  const visibleNodeIds = useMemo(() => {
+    if (!expandedIds.size) return null
+    const ids = new Set<string>(expandedIds)
+    eLinks.forEach(l => { ids.add(String(l.source)); ids.add(String(l.target)) })
+    return ids
+  }, [expandedIds, eLinks])
+
+  // First pass: build basic node list to determine complexity
+  const baseNodeCount = useMemo(() => {
+    const catIdx: Record<SwimlaneType, number> = {
+      Application: 0, Node: 1, Topic: 2, Broker: 3, Library: 4,
+    }
+    const rows: [any[], SwimlaneType][] = [
+      [appsList,   "Application"],
+      [nodesList,  "Node"],
+      [topicsList, "Topic"],
+      [brokersList,"Broker"],
+      [libsList,   "Library"],
+    ]
+    return rows.reduce((count, [list, type]) =>
+      count + list.filter(n => !visibleNodeIds || visibleNodeIds.has(String(n.id)))
+                  .filter(() => !hiddenNodeTypes.has(type as string)).length,
+      0
+    )
+  }, [appsList, nodesList, topicsList, brokersList, libsList, visibleNodeIds, hiddenNodeTypes])
+
+  // Detect graph complexity to adjust simulation parameters dynamically
+  const graphComplexity = useMemo(() => {
+    const nodeCount = baseNodeCount
+    const edgeCount = eLinks.length
+    const avgDegree = nodeCount > 0 ? edgeCount / nodeCount : 0
+    // Classify: small (<50), medium (50-200), large (>200)
+    return {
+      nodeCount,
+      edgeCount,
+      avgDegree,
+      isLarge: nodeCount > 200 || edgeCount > 500,
+      isMedium: nodeCount > 50 || edgeCount > 150,
+    }
+  }, [baseNodeCount, eLinks])
+
+  const eNodes = useMemo(() => {
+    const catIdx: Record<SwimlaneType, number> = {
+      Application: 0, Node: 1, Topic: 2, Broker: 3, Library: 4,
+    }
+    const rows: [any[], SwimlaneType][] = [
+      [appsList,   "Application"],
+      [nodesList,  "Node"],
+      [topicsList, "Topic"],
+      [brokersList,"Broker"],
+      [libsList,   "Library"],
+    ]
+    // Node sizing for force graph
+    const nodeSizeConfig = { selected: 60, normal: 28 }
+
+    return rows.flatMap(([list, type]) =>
+      list
+        .filter(n => !visibleNodeIds || visibleNodeIds.has(String(n.id)))
+        .filter(() => !hiddenNodeTypes.has(type as string))
+        .map(n => {
+          const id   = String(n.id)
+          const name = n.name ?? n.csu ?? id
+          const sel  = id === selectedId
+          return {
+            id,
+            name,
+            category: catIdx[type],
+            symbolSize: sel ? nodeSizeConfig.selected : nodeSizeConfig.normal,
+            itemStyle: sel
+              ? {
+                  borderWidth: graphComplexity.isLarge ? 2 : 4, // Thinner border for large graphs
+                  borderColor: "#f97316",
+                  borderType: "solid",
+                  shadowBlur: graphComplexity.isLarge ? 10 : 18, // Reduced shadow for performance
+                  shadowColor: "rgba(249,115,22,0.7)",
+                }
+              : undefined,
+            nodeType: type as string,
+            ...(type === "Application" ? { _role: n.role ?? n.properties?.role ?? "" } : {}),
+            ...(type === "Topic" ? {
+              _qos_reliability:        n.qos_reliability            ?? n.properties?.qos_reliability            ?? "",
+              _qos_durability:         n.qos_durability             ?? n.properties?.qos_durability             ?? "",
+              _qos_transport_priority: n.qos_transport_priority     ?? n.properties?.qos_transport_priority     ?? "",
+              _size:                   n.message_size ?? n.properties?.message_size ?? n.payload_size_bytes ?? n.properties?.payload_size_bytes ?? n.size ?? n.properties?.size ?? "",
+            } : {}),
+            ...(type === "Library" ? { _version: n.version ?? n.properties?.version ?? "" } : {}),
+            ...(type === "Broker" ? { _broker_type: n.broker_type ?? n.properties?.broker_type ?? "" } : {}),
+            label: {
+              show: sel, // Show label only for selected node
+              formatter: (p: any) => {
+                const n = p.data?.name ?? p.name ?? ""
+                return n // Show full name without truncation for selected node
+              },
+              fontSize: sel ? 11 : 9,
+              fontWeight: sel ? 700 : 400,
+              color: "#fff",
+              position: "inside",
+              overflow: "none",
+            },
+            z: sel ? 10 : 1,
+            emphasis: { label: { show: sel } }, // Show label only for selected node on emphasis
+          }
+        })
+    )
+  }, [appsList, nodesList, topicsList, brokersList, libsList, selectedId, visibleNodeIds, hiddenNodeTypes, graphComplexity])
+
+  // All edge types present in data (unfiltered) — used for legend so hidden items remain visible
+  const edgeTypesInView = useMemo(() => {
+    const types = graphLinks
+      .filter(l => l.type !== "DEPENDS_ON" && l.type !== "CONNECTS_TO")
+      .map(l => l.type)
+      .filter(Boolean)
+    return [...new Set(types)] as string[]
+  }, [graphLinks])
+
+  // All node types present in data (unfiltered) — used for legend
+  const nodeTypesInView = useMemo(() => {
+    const present = new Set<string>()
+    nodeMap.forEach(({ type }) => present.add(type))
+    return FORCE_CATEGORIES.filter(c => present.has(c.name))
+  }, [nodeMap])
+
+  const selectedConnections = useMemo(() => {
+    if (!selectedId) return null
+    const relevant = graphLinks.filter(l =>
+      l.type !== "DEPENDS_ON" && l.type !== "CONNECTS_TO" &&
+      !hiddenEdgeTypes.has(l.type ?? "")
+    )
+    const outgoing = relevant.filter(l => {
+      if (String(l.source) !== selectedId) return false
+      const targetType = nodeMap.get(String(l.target))?.type
+      return !targetType || !hiddenNodeTypes.has(targetType)
+    })
+    const incoming = relevant.filter(l => {
+      if (String(l.target) !== selectedId) return false
+      const srcType = nodeMap.get(String(l.source))?.type
+      return !srcType || !hiddenNodeTypes.has(srcType)
+    })
+    const getName = (id: string) => nodeMap.get(id)?.raw?.name ?? nodeMap.get(id)?.raw?.csu ?? id
+    return { outgoing, incoming, getName }
+  }, [selectedId, graphLinks, nodeMap, hiddenNodeTypes, hiddenEdgeTypes])
+
+  const option = useMemo(() => {
+    // Scale repulsion and edge length based on spread slider (0-200, default 100)
+    const spreadFactor = spreadValue / 100
+    const baseRepulsion = 400
+    const baseEdgeLengthMin = 100
+    const baseEdgeLengthMax = 200
+
+    // Uniform force simulation parameters across all graph sizes — optimized for stability
+    // Key: disable layoutAnimation to freeze positions once settled, use high friction to converge quickly
+    const forceParams = {
+      repulsion: baseRepulsion * spreadFactor,        // Scaled by spread slider
+      gravity: 0.15 * (1 / spreadFactor),             // Reduced gravity inversely to repulsion
+      edgeLength: [baseEdgeLengthMin * spreadFactor, baseEdgeLengthMax * spreadFactor], // Scaled edge spacing
+      friction: 0.95,        // Very high damping to stop movement immediately
+      layoutAnimation: false,// Disable continuous animation — freeze positions once calculated
+      initLayout: "circular" as const, // Start from circular layout, converges faster
+      iterations: 50,        // Run 50 iterations then stop completely
+      // Note: ECharts will run physics for 50 frames then stop — no further movement
+    }
+
+    // Disable edge labels entirely (only show labels on selected node)
+    const showEdgeLabels = false
+
+    return {
+      backgroundColor: "transparent",
+      animation: false,        // Disable chart-level animation to prevent persistent movement
+      legend: { show: false },
+      tooltip: {
+        trigger: "item",
+        formatter: (p: any) => {
+          if (p.dataType === "node") {
+            const d = p.data ?? {}
+            const name = d.name ?? p.name ?? ""
+            const type: string = d.nodeType ?? ""
+            let extra = ""
+            if (type === "Application" && d._role) extra += `<br/><span style="opacity:0.7">Role: ${d._role}</span>`
+            if (type === "Topic") {
+              if (d._qos_reliability        != null && d._qos_reliability        !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${d._qos_reliability}</span>`
+              if (d._qos_durability         != null && d._qos_durability         !== "") extra += `<br/><span style="opacity:0.7">Durability: ${d._qos_durability}</span>`
+              if (d._qos_transport_priority != null && d._qos_transport_priority !== "") extra += `<br/><span style="opacity:0.7">Transport Priority: ${d._qos_transport_priority}</span>`
+              if (d._size != null && d._size !== "") { const szN = Number(d._size); const szFmt = isFinite(szN) ? (szN >= 1048576 ? `${(szN/1048576).toFixed(2)} MB` : szN >= 1024 ? `${(szN/1024).toFixed(1)} KB` : `${szN} B`) : String(d._size); extra += `<br/><span style="opacity:0.7">Size: ${szFmt}</span>` }
+            }
+            if (type === "Library" && d._version) extra += `<br/><span style="opacity:0.7">Version: ${d._version}</span>`
+            if (type === "Broker" && d._broker_type) extra += `<br/><span style="opacity:0.7">Protocol: ${d._broker_type}</span>`
+            const typeStr = type ? `<br/><span style="opacity:0.7">${type}</span>` : ""
+            return `<div style="font-size:12px;line-height:1.7"><b>${name}</b>${typeStr}${extra}</div>`
+          }
+          if (p.dataType === "edge") {
+            const edgeType = p.data?.edgeType ?? ""
+            const source = p.data?.source ?? ""
+            const target = p.data?.target ?? ""
+            const sourceName = nodeMap.get(source)?.raw?.name ?? nodeMap.get(source)?.raw?.csu ?? source
+            const targetName = nodeMap.get(target)?.raw?.name ?? nodeMap.get(target)?.raw?.csu ?? target
+            return `<div style="font-size:12px;line-height:1.7"><b>${sourceName}</b><br/><span style="opacity:0.7">↓ ${edgeType}</span><br/><b>${targetName}</b></div>`
+          }
+          return `${p.data?.source} → ${p.data?.target}`
+        },
+      },
+      series: [{
+        type:          "graph",
+        layout:        "force",
+        data:          eNodes,
+        links:         eLinks,
+        categories:    FORCE_CATEGORIES.map(c => ({
+          name:      c.name,
+          itemStyle: { color: c.color },
+        })),
+        roam:          true,  // Enable panning/zooming
+        focusNodeAdjacency: true,
+        label:         {
+          show: false, // Labels controlled per-node; only selected node shows label
+          position: "inside",
+          fontSize: 9,
+          formatter: (p: any) => {
+            const name = p.data?.name ?? p.name ?? ""
+            return name.length > 5 ? name.slice(0, 5) + "…" : name
+          }
+        },
+        edgeSymbol:    ["none", "arrow"],
+        edgeSymbolSize: graphComplexity.isLarge ? 4 : 8, // Smaller arrows for large graphs
+        edgeLabel:     { show: false }, // Always hide edge labels
+        lineStyle:     { opacity: 0.55 },
+        force:         forceParams,
+        emphasis: {
+          focus:     "adjacency",
+          lineStyle: { opacity: 0.7 },
+          label:     { show: false }, // Hide edge labels on emphasis
+        },
+      }],
+    }
+  }, [eNodes, eLinks, isDark, graphComplexity, spreadValue])
+
+  const onEvents = useMemo(() => ({
+    click: (p: any) => {
+      if (p.dataType !== "node") return
+      const id = String(p.data?.id ?? "")
+      // Expand this node's connections and make it selected
+      setExpandedIds(prev => new Set([...prev, id]))
+      const entry = nodeMap.get(id)
+      if (entry) {
+        skipResetRef.current = true
+        onNodeClick(entry.raw, entry.type)
+      }
+    },
+  }), [nodeMap, onNodeClick])
+
+  return (
+    <div className="relative w-full h-full">
+      {linksLoading && (
+        <div className="absolute top-2 right-3 z-10 text-xs text-muted-foreground">Loading edges…</div>
+      )}
+      {graphComplexity.isLarge && (
+        <div className="absolute top-2 right-3 z-10 text-xs text-muted-foreground">
+          Optimized mode: {graphComplexity.nodeCount} nodes, {graphComplexity.edgeCount} edges
+        </div>
+      )}
+
+      {/* Search bar and spread slider overlay */}
+      <div className="absolute top-2 left-3 z-20 w-64">
+        <div className="relative flex items-center mb-2">
+          <Search className="absolute left-2 h-3 w-3 text-muted-foreground/50 pointer-events-none" />
+          <Input
+            className="h-7 pl-6 pr-6 text-xs bg-background/90 rounded-md border-border shadow-sm focus-visible:ring-1 focus-visible:ring-primary/50 backdrop-blur"
+            placeholder="Search nodes…"
+            value={graphSearch}
+            onChange={e => setGraphSearch(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+          />
+          {graphSearch && (
+            <button
+              className="absolute right-2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+              onMouseDown={e => { e.preventDefault(); setGraphSearch("") }}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+        {searchFocused && searchResults.length > 0 && (
+          <div className="mt-1 rounded-md border border-border bg-background shadow-md overflow-hidden max-h-64 overflow-y-auto">
+            {searchResults.map(r => (
+              <button
+                key={r.id}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-muted transition-colors"
+                onMouseDown={e => {
+                  e.preventDefault()
+                  const entry = nodeMap.get(r.id)
+                  if (!entry) return
+                  setExpandedIds(prev => new Set([...prev, r.id]))
+                  skipResetRef.current = true
+                  onNodeClick(entry.raw, entry.type)
+                  setGraphSearch("")
+                }}
+              >
+                <span
+                  className="inline-block w-2 h-2 rounded-full shrink-0"
+                  style={{ background: FORCE_CATEGORIES.find(c => c.name === r.type)?.color ?? "#94a3b8" }}
+                />
+                <span className="truncate">{r.name}</span>
+                <span className="ml-auto text-muted-foreground/50 shrink-0">{r.type}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Spread/Repulsion Slider — matches system tab styling, positioned bottom-right */}
+      <div style={{
+        position: "absolute", bottom: 12, right: 12, zIndex: 10,
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "6px 10px",
+        borderRadius: 8,
+        width: 224,
+        background: isDark ? "rgba(15,15,20,0.70)" : "rgba(255,255,255,0.80)",
+        backdropFilter: "blur(8px)",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+        fontSize: 11,
+        color: isDark ? "#e4e4e7" : "#3f3f46",
+        boxSizing: "border-box",
+      }}>
+        <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.8, flexShrink: 0 }}>Spread</span>
+        <input
+          type="range"
+          min="20"
+          max="200"
+          value={spreadValue}
+          onChange={e => setSpreadValue(Number(e.target.value))}
+          style={{ flex: 1, minWidth: 0, accentColor: isDark ? "#a1a1aa" : "#71717a" }}
+        />
+        <span style={{ fontSize: 10, fontVariantNumeric: "tabular-nums", opacity: 0.7, minWidth: 32, textAlign: "right", flexShrink: 0 }}>
+          {spreadValue}%
+        </span>
+      </div>
+
+      {(nodeTypesInView.length > 0 || edgeTypesInView.length > 0) && (
+        <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background/80 px-3 py-2 text-xs backdrop-blur max-h-[60%] overflow-y-auto">
+          {nodeTypesInView.length > 0 && (
+            <>
+              <span className="font-medium text-muted-foreground mb-0.5">Nodes</span>
+              {nodeTypesInView.map(c => {
+                const hidden = hiddenNodeTypes.has(c.name)
+                return (
+                  <button key={c.name} onClick={() => toggleNodeType(c.name)}
+                    className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity">
+                    <svg width="12" height="12" className="shrink-0">
+                      <circle cx="6" cy="6" r="5" fill={hidden ? "transparent" : c.color} stroke={c.color} strokeWidth="1.5" />
+                    </svg>
+                    <span style={{ color: hidden ? (isDark ? "#71717a" : "#a1a1aa") : (isDark ? "#e4e4e7" : "#3f3f46") }}
+                      className={hidden ? "line-through" : ""}>{c.name}</span>
+                  </button>
+                )
+              })}
+            </>
+          )}
+          {nodeTypesInView.length > 0 && edgeTypesInView.length > 0 && (
+            <hr className="my-1 border-border" />
+          )}
+          {edgeTypesInView.length > 0 && (
+            <>
+              <span className="font-medium text-muted-foreground mb-0.5">Relationships</span>
+              {edgeTypesInView.map(t => {
+                const hidden = hiddenEdgeTypes.has(t)
+                const color = EDGE_COLORS[t] ?? EDGE_COLOR_FALLBACK
+                return (
+                  <button key={t} onClick={() => toggleEdgeType(t)}
+                    className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity">
+                    <svg width="22" height="10" className="shrink-0">
+                      <line x1="0" y1="5" x2="22" y2="5" stroke={hidden ? (isDark ? "#52525b" : "#d4d4d8") : color} strokeWidth="2"
+                        strokeDasharray={hidden ? "3 2" : undefined} />
+                    </svg>
+                    <span style={{ color: hidden ? (isDark ? "#71717a" : "#a1a1aa") : (isDark ? "#e4e4e7" : "#3f3f46") }}
+                      className={hidden ? "line-through" : ""}>{t}</span>
+                  </button>
+                )
+              })}
+            </>
+          )}
+        </div>
+      )}
+      <ReactECharts
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {...({ ref: echartsRef } as any)}
+        option={option}
+        onEvents={onEvents}
+        style={{ width: "100%", height: "100%" }}
+        theme={isDark ? "dark" : undefined}
+        opts={{ renderer: "canvas", useDirtyRect: true }} // Enable incremental rendering
+        notMerge={true} // Full re-render to handle selection/expansion properly
+        lazyUpdate={false} // Ensure immediate updates for selection changes
+      />
+
+      {/* Connections panel removed — available in the Table view's third column */}
+    </div>
+  )
+})
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function BrowserPageContent() {
@@ -2896,11 +4192,19 @@ function BrowserPageContent() {
   const [openSet, setOpenSet] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState("")
   const [sideSearch, setSideSearch] = useState("")
-  const [browseSearchOpen, setBrowseSearchOpen] = useState(false)
-  const [sideInitialTab, setSideInitialTab] = useState<"system" | "nodes" | "apps" | "topics">("system")
+  const [sideInitialTab, setSideInitialTab] = useState<"nodes" | "brokers" | "libs" | "apps" | "topics">("nodes")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null)
+  const [hierSelectedNode, setHierSelectedNode] = useState<SelectedNode | null>(null)
+  const [activeTab, setActiveTab] = useState<"browse" | "graph" | "forcegraph">("browse")
+  const [layerGraphLinks, setLayerGraphLinks] = useState<Array<{ source: string; target: string; type: string; weight?: number }>>([])
+  const [layerLinksLoading, setLayerLinksLoading] = useState(false)
+  const layerLinksLoadedRef = useRef(false)
+
+  // Export-to-PNG refs — populated by child graph components
+  const forceGraphExportRef = useRef<(() => void) | null>(null)
+  const systemGraphExportRef = useRef<(() => void) | null>(null)
 
   const toggle = useCallback((key: string) => {
     setOpenSet((prev) => {
@@ -2945,7 +4249,7 @@ function BrowserPageContent() {
                   const cscOpenKey  = `csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`
                   setOpenSet(new Set([csmsOpenKey, cssOpenKey, csciOpenKey, cscOpenKey]))
                   setSelectedNode({ kind: "app", key: `app:${app.id}`, label, path: [csmsKey, cssKey, csciKey, cscKey, label], payload: app })
-                  setSideInitialTab("system")
+                  setSideInitialTab("apps")
                   found = true
                   break outer
                 }
@@ -2961,7 +4265,11 @@ function BrowserPageContent() {
             const kind: SelectedKind = topics.some((t: any) => t.id === targetNodeId) ? "topic" : "node"
             const label = extra.name ?? extra.id ?? "?"
             setSelectedNode({ kind, key: `${kind}:${extra.id}`, label, path: [label], payload: extra })
-            setSideInitialTab(kind === "topic" ? "topics" : "nodes")
+            setSideInitialTab(
+              topics.some((t: any) => t.id === targetNodeId) ? "topics" :
+              brokers.some((b: any) => b.id === targetNodeId) ? "brokers" :
+              libs.some((l: any) => l.id === targetNodeId) ? "libs" : "nodes"
+            )
           } else {
             // Unknown id — fall back to default first-CSMS selection
             const firstCsmsKey = sortKeys(Object.keys(h))[0]
@@ -2969,23 +4277,15 @@ function BrowserPageContent() {
               const firstCsms = h[firstCsmsKey]
               setOpenSet(new Set([`csms:${firstCsmsKey}`]))
               setSelectedNode({ kind: "csms", key: `csms:${firstCsmsKey}`, label: firstCsms.name, path: [firstCsms.name], payload: firstCsms })
-              setSideInitialTab("system")
+              setSideInitialTab("nodes")
             }
           }
         }
       } else {
-        setSideInitialTab("system")
-        const firstCsmsKey = sortKeys(Object.keys(h))[0]
-        if (firstCsmsKey) {
-          const firstCsms = h[firstCsmsKey]
-          setOpenSet(new Set([`csms:${firstCsmsKey}`]))
-          setSelectedNode({
-            kind: "csms",
-            key: `csms:${firstCsmsKey}`,
-            label: firstCsms.name,
-            path: [firstCsms.name],
-            payload: firstCsms,
-          })
+        setSideInitialTab("nodes")
+        if (nodes.length > 0) {
+          const first = nodes[0]
+          setSelectedNode({ kind: "node", key: `node:${first.id}`, label: first.name ?? first.id ?? "?", path: [first.name ?? first.id ?? "?"], payload: first })
         }
       }
     } catch (e: unknown) {
@@ -2996,7 +4296,7 @@ function BrowserPageContent() {
   }
 
   useEffect(() => {
-    if (isConnected) fetchData(nodeId)
+    if (isConnected) { fetchData(nodeId); fetchLayerLinks() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, nodeId])
 
@@ -3043,19 +4343,42 @@ function BrowserPageContent() {
 
   const jumpToBrowseNode = useCallback((entry: FlatBrowseEntry) => {
     setSelectedNode({ kind: entry.kind, key: entry.key, label: entry.label, path: entry.path, payload: entry.payload })
-    setOpenSet(prev => {
-      const next = new Set(prev)
-      const parts = entry.key.replace(/^[^:]+:/, "").split("/")
-      const [csmsKey, cssKey, csciKey] = parts
-      if (csmsKey) next.add(`csms:${csmsKey}`)
-      if (cssKey)  next.add(`css:${csmsKey}/${cssKey}`)
-      if (csciKey) next.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
-      next.add(entry.key)
-      return next
-    })
+    if (entry.kind === 'app') {
+      // App keys are "app:appId" — must search hierarchy to find ancestor CSMS/CSS/CSCI/CSC keys
+      const appId = entry.key.slice(4)
+      outer: for (const [csmsKey, csms] of Object.entries(hierarchy)) {
+        for (const [cssKey, css] of Object.entries(csms.css)) {
+          for (const [csciKey, csci] of Object.entries(css.csci)) {
+            for (const [cscKey, csc] of Object.entries(csci.csc)) {
+              if (csc.apps.some(a => a.id === appId)) {
+                setOpenSet(prev => {
+                  const next = new Set(prev)
+                  next.add(`csms:${csmsKey}`)
+                  next.add(`css:${csmsKey}/${cssKey}`)
+                  next.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
+                  next.add(`csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`)
+                  return next
+                })
+                break outer
+              }
+            }
+          }
+        }
+      }
+    } else {
+      setOpenSet(prev => {
+        const next = new Set(prev)
+        const parts = entry.key.replace(/^[^:]+:/, "").split("/")
+        const [csmsKey, cssKey, csciKey] = parts
+        if (csmsKey) next.add(`csms:${csmsKey}`)
+        if (cssKey)  next.add(`css:${csmsKey}/${cssKey}`)
+        if (csciKey) next.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
+        next.add(entry.key)
+        return next
+      })
+    }
     setSearch("")
-    setBrowseSearchOpen(false)
-  }, [])
+  }, [hierarchy])
 
   const expandPath = useCallback((keys: string[]) => {
     setOpenSet(prev => {
@@ -3065,49 +4388,110 @@ function BrowserPageContent() {
     })
   }, [])
 
-  // Derive the key in the graph's internal format for the currently selected list node
-  const graphSyncKey = useMemo(() => {
-    if (!selectedNode) return null
-    if (selectedNode.kind === 'node' || selectedNode.kind === 'topic') {
-      return `extra:${(selectedNode.payload as any).id}`
+  const fetchLayerLinks = useCallback(async () => {
+    if (layerLinksLoadedRef.current) return
+    layerLinksLoadedRef.current = true
+    setLayerLinksLoading(true)
+    try {
+      const data = await apiClient.getGraphData()
+      setLayerGraphLinks(data.links.map(l => ({ source: String(l.source), target: String(l.target), type: l.type, weight: l.weight })))
+    } catch {
+      // edges are optional — silently ignore failures
+    } finally {
+      setLayerLinksLoading(false)
     }
-    return selectedNode.key  // app:id, csms:k, css:k/k, csci:k/k/k, csc:k/k/k/k — already match graph ids
-  }, [selectedNode])
+  }, [])
 
-  // Handle selection coming from the graph view — sync it into the list view
-  const handleGraphNodeSelect = useCallback((key: string) => {
-    if (!key) return
-    if (key.startsWith('app:') || key.startsWith('csms:') || key.startsWith('css:') || key.startsWith('csci:') || key.startsWith('csc:')) {
-      const entry = flatBrowseNodes.find(e => e.key === key)
-      if (!entry) return
-      if (selectedNode?.key === entry.key) return  // already selected
-      setSelectedNode({ kind: entry.kind, key: entry.key, label: entry.label, path: entry.path, payload: entry.payload })
-      // Expand tree ancestors
-      setOpenSet(prev => {
-        const next = new Set(prev)
-        const rawPath = key.replace(/^[^:]+:/, "").split("/")
-        const [k0, k1, k2] = rawPath
-        if (k0) next.add(`csms:${k0}`)
-        if (k1) next.add(`css:${k0}/${k1}`)
-        if (k2) next.add(`csci:${k0}/${k1}/${k2}`)
-        next.add(key)
-        return next
-      })
-    } else if (key.startsWith('extra:')) {
-      const rawId = key.slice(6)
-      const allExtra = [...nodesList, ...topicsList, ...brokersList, ...libsList]
-      const extra = allExtra.find((n: any) => n.id === rawId)
-      if (!extra) return
-      const kind: SelectedKind = topicsList.some((t: any) => t.id === rawId) ? 'topic' : 'node'
-      const newKey = `${kind}:${rawId}`
-      if (selectedNode?.key === newKey) return  // already selected
-      setSelectedNode({ kind, key: newKey, label: extra.name ?? rawId, path: [extra.name ?? rawId], payload: extra })
-      setSideInitialTab(kind === 'topic' ? 'topics' : 'nodes')
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab as "browse" | "graph" | "forcegraph")
+    if (tab === "forcegraph" || tab === "browse") fetchLayerLinks()
+  }, [fetchLayerLinks])
+
+  const allNodeLabels = useMemo(() => {
+    const m = new Map<string, { label: string; type: string }>()
+    appsList.forEach(a => m.set(String(a.id), { label: a.csu ?? a.name ?? a.id ?? String(a.id), type: "Application" }))
+    nodesList.forEach(n => m.set(String(n.id), { label: n.name ?? String(n.id), type: n.type ?? "Node" }))
+    topicsList.forEach(t => m.set(String(t.id), { label: t.name ?? String(t.id), type: "Topic" }))
+    brokersList.forEach(b => m.set(String(b.id), { label: b.name ?? String(b.id), type: "Broker" }))
+    libsList.forEach(l => m.set(String(l.id), { label: l.name ?? String(l.id), type: "Library" }))
+    return m
+  }, [appsList, nodesList, topicsList, brokersList, libsList])
+
+  const handleLayersNodeClick = useCallback((rawNode: any, nodeType: SwimlaneType) => {
+    const id = String(rawNode.id ?? "")
+    if (nodeType === "Application") {
+      const app = appsList.find(a => a.id === id)
+      if (app) {
+        const label = app.csu ?? app.name ?? id
+        setSelectedNode({ kind: "app", key: `app:${id}`, label, path: [label], payload: app })
+        setSideInitialTab("apps")
+        return
+      }
     }
-  }, [flatBrowseNodes, nodesList, topicsList, brokersList, libsList, selectedNode])
+    const kindMap: Record<SwimlaneType, SelectedKind> = {
+      Node: "node", Application: "app", Topic: "topic", Library: "node", Broker: "node",
+    }
+    const tabMap: Record<SwimlaneType, "nodes" | "brokers" | "libs" | "apps" | "topics"> = {
+      Node: "nodes", Application: "apps", Topic: "topics", Library: "libs", Broker: "brokers",
+    }
+    const kind: SelectedKind = kindMap[nodeType] ?? "node"
+    const label: string = rawNode.name ?? rawNode.id ?? "?"
+    setSelectedNode({ kind, key: `${kind}:${id}`, label, path: [label], payload: rawNode })
+    setSideInitialTab(tabMap[nodeType] ?? "nodes")
+  }, [appsList])
 
-  if (!initialLoadComplete) {
-    return <AppLayout><div className="flex items-center justify-center h-64"><LoadingSpinner /></div></AppLayout>
+  if (!initialLoadComplete || (isConnected && loading && nodesList.length === 0)) {
+    return (
+      <AppLayout title="Explorer" description="Browse your system topology, inspect components, and explore dependency relationships.">
+        <div className="space-y-3">
+          {/* Tabs skeleton */}
+          <div className="flex items-center justify-between mb-2 shrink-0">
+            <div className="bg-muted inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px] gap-1">
+              <Skeleton className="h-[calc(100%-2px)] w-20 rounded-md" />
+              <Skeleton className="h-[calc(100%-2px)] w-20 rounded-md" />
+              <Skeleton className="h-[calc(100%-2px)] w-20 rounded-md" />
+            </div>
+          </div>
+          {/* 3-column layout skeleton */}
+          <div className="flex gap-0 border border-border rounded-lg overflow-hidden" style={{ minHeight: "520px" }}>
+            {/* Left: list panel */}
+            <div className="w-56 shrink-0 border-r border-border p-3 space-y-2">
+              <Skeleton className="h-7 w-full rounded-md mb-3" />
+              {Array.from({ length: 14 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-2 px-1">
+                  <Skeleton className="h-3" style={{ width: `${50 + (i * 13) % 40}%` }} />
+                </div>
+              ))}
+            </div>
+            {/* Middle: detail panel */}
+            <div className="flex-1 p-4 space-y-3 border-r border-border">
+              <div className="flex items-center gap-3 pb-3 border-b border-border/60">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-5 w-16 ml-auto rounded-full" />
+              </div>
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 py-1">
+                  <Skeleton className="h-3" style={{ width: `${25 + (i * 17) % 30}%` }} />
+                  <Skeleton className="h-3" style={{ width: `${20 + (i * 11) % 25}%` }} />
+                </div>
+              ))}
+            </div>
+            {/* Right: connections panel */}
+            <div className="w-64 shrink-0 p-3 space-y-2">
+              <Skeleton className="h-2.5 w-24 mb-1.5" />
+              <Skeleton className="h-2.5 w-16 mb-3" />
+              <Skeleton className="h-7 w-full rounded-md mb-2" />
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-2 py-1.5 border-b border-border/40">
+                  <Skeleton className="h-3" style={{ width: `${40 + (i * 19) % 40}%` }} />
+                  <Skeleton className="h-4 w-14 rounded ml-auto" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    )
   }
   if (!isConnected) {
     return <AppLayout><NoConnectionInfo /></AppLayout>
@@ -3119,7 +4503,7 @@ function BrowserPageContent() {
   return (
     <AppLayout
       title="Explorer"
-      description="System (CSMS) → Segment (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)"
+      description="Browse your system topology, inspect components, and explore dependency relationships."
     >
       <div className="flex flex-col gap-5 h-full">
         {error && (
@@ -3128,49 +4512,52 @@ function BrowserPageContent() {
           </div>
         )}
 
-        <Tabs defaultValue="browse" className="flex flex-col flex-1 min-h-0">
-          <div className="flex items-center justify-between mb-4 shrink-0">
-            <TabsList>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col flex-1 min-h-0 gap-0">
+          <div className="flex items-center justify-between mb-2 shrink-0">
+            <TabsList className="bg-background border border-border">
               <TabsTrigger value="browse" className="flex items-center gap-2">
                 <List className="h-4 w-4" />List
               </TabsTrigger>
+              <TabsTrigger value="forcegraph" className="flex items-center gap-2">
+                <Share2 className="h-4 w-4" />Graph
+              </TabsTrigger>
               <TabsTrigger value="graph" className="flex items-center gap-2">
-                <Network className="h-4 w-4" />Graph
+                <Network className="h-4 w-4" />System
               </TabsTrigger>
             </TabsList>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="px-3 py-1">
-                <Layers className="h-3.5 w-3.5 mr-1.5" />{csmsKeys.length} CSMS
-              </Badge>
-              <Badge variant="secondary" className="px-3 py-1">
-                <Cpu className="h-3.5 w-3.5 mr-1.5" />{totalApps} Apps
-              </Badge>
-              <Button variant="outline" size="sm" onClick={() => fetchData(selectedNode?.payload?.id ?? nodeId)} disabled={loading}>
-                {loading ? <LoadingSpinner className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
-                <span className="ml-2">Refresh</span>
-              </Button>
-            </div>
+
+            {(activeTab === "forcegraph" || activeTab === "graph") && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => {
+                      if (activeTab === "forcegraph") forceGraphExportRef.current?.()
+                      else systemGraphExportRef.current?.()
+                    }}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Export PNG
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Download current graph view as PNG</TooltipContent>
+              </Tooltip>
+            )}
           </div>
 
           {/* ── Browse tab ── */}
-          <TabsContent value="browse" className="flex-1 min-h-0 mt-0">
+          <TabsContent forceMount value="browse" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
             <div className="flex border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
-              {/* Left: Detail / table panel */}
-              <div className="flex-1 overflow-auto border-r border-border min-w-0">
-                {loading && !csmsKeys.length
-                  ? <div className="flex items-center justify-center h-full"><LoadingSpinner /></div>
-                  : selectedNode
-                    ? <NodeDetailPanel node={selectedNode} />
-                    : <EmptyDetailState />
-                }
-              </div>
-
-              {/* Right: Tabbed list panel */}
-              <div className="w-72 flex flex-col overflow-hidden shrink-0">
+              {/* Left: Tabbed list panel */}
+              <div className="w-72 flex flex-col overflow-hidden shrink-0 border-r border-border">
                 <SideListPanel
                   nodesList={nodesList}
                   appsList={appsList}
                   topicsList={topicsList}
+                  brokersList={brokersList}
+                  libsList={libsList}
                   hierarchy={hierarchy}
                   openSet={openSet}
                   toggle={toggle}
@@ -3183,13 +4570,146 @@ function BrowserPageContent() {
                   initialTab={sideInitialTab}
                 />
               </div>
+
+              {/* Middle: Detail / table panel */}
+              <div className="flex-1 overflow-auto min-w-0 border-r border-border">
+                {loading && !csmsKeys.length
+                  ? (
+                    <div className="p-4 flex flex-col gap-3">
+                      <div className="flex items-center gap-3 pb-3 border-b border-border/60">
+                        <Skeleton className="h-4 w-40" />
+                        <Skeleton className="h-5 w-16 ml-auto rounded-full" />
+                      </div>
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-4 py-1">
+                          <Skeleton className="h-3" style={{ width: `${30 + (i * 17) % 30}%` }} />
+                          <Skeleton className="h-3" style={{ width: `${20 + (i * 11) % 25}%` }} />
+                        </div>
+                      ))}
+                    </div>
+                  )
+                  : selectedNode
+                    ? <NodeDetailPanel node={selectedNode} />
+                    : <EmptyDetailState />
+                }
+              </div>
+
+              {/* Right: Connections column */}
+              <div className="w-64 shrink-0 flex flex-col overflow-hidden">
+                <ConnectionsColumn
+                  selectedNode={selectedNode}
+                  links={layerGraphLinks}
+                  nodeLabels={allNodeLabels}
+                  loading={layerLinksLoading}
+                  onSelect={(id) => {
+                    const info = allNodeLabels.get(id)
+                    if (!info) return
+                    const kind: SelectedKind = info.type === "Application" ? "app" : info.type === "Topic" ? "topic" : "node"
+                    const app = appsList.find(a => String(a.id) === id)
+                    const raw = app
+                      ?? nodesList.find(n => String(n.id) === id)
+                      ?? topicsList.find(t => String(t.id) === id)
+                      ?? brokersList.find(b => String(b.id) === id)
+                      ?? libsList.find(l => String(l.id) === id)
+                    if (!raw) return
+                    setSelectedNode({ kind, key: `${kind}:${id}`, label: info.label, path: [info.label], payload: raw })
+                  }}
+                />
+              </div>
             </div>
           </TabsContent>
 
           {/* ── Graph tab ── */}
-          <TabsContent value="graph" className="flex-1 min-h-0 mt-0 h-full">
+          <TabsContent forceMount value="graph" className="flex-1 min-h-0 mt-0 h-full data-[state=inactive]:hidden">
             {csmsKeys.length > 0
-              ? <HierarchyGraph hierarchy={hierarchy} extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]} syncKey={graphSyncKey} onNodeSelect={handleGraphNodeSelect} />
+              ? (
+                <div className="flex border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <HierarchyGraph
+                      hierarchy={hierarchy}
+                      extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]}
+                      exportFnRef={systemGraphExportRef}
+                      onSelectInfo={(pathKey, name, nodeType) => {
+                        const info = allNodeLabels.get(pathKey)
+                        const type = nodeType ?? info?.type ?? "Application"
+                        const kind: SelectedKind = type === "Topic" ? "topic" : type === "Application" ? "app" : "node"
+                        const label = info?.label ?? name
+                        const raw = appsList.find(a => String(a.id) === pathKey)
+                          ?? nodesList.find(n => String(n.id) === pathKey)
+                          ?? topicsList.find(t => String(t.id) === pathKey)
+                          ?? brokersList.find(b => String(b.id) === pathKey)
+                          ?? libsList.find(l => String(l.id) === pathKey)
+                        setHierSelectedNode({ kind, key: `${kind}:${pathKey}`, label, path: [label], payload: raw ?? { id: pathKey, name: label } })
+                      }}
+                    />
+                  </div>
+                  <div className="w-72 shrink-0 border-l border-border flex flex-col overflow-hidden">
+                    <GraphTabSidePanel
+                      selectedNode={hierSelectedNode}
+                      links={layerGraphLinks}
+                      nodeLabels={allNodeLabels}
+                      loading={layerLinksLoading}
+                      onSelect={(id) => {
+                        const info = allNodeLabels.get(id)
+                        if (!info) return
+                        const kind: SelectedKind = info.type === "Application" ? "app" : info.type === "Topic" ? "topic" : "node"
+                        const label = info.label
+                        const raw = appsList.find(a => String(a.id) === id)
+                          ?? nodesList.find(n => String(n.id) === id)
+                          ?? topicsList.find(t => String(t.id) === id)
+                          ?? brokersList.find(b => String(b.id) === id)
+                          ?? libsList.find(l => String(l.id) === id)
+                        setHierSelectedNode({ kind, key: `${kind}:${id}`, label, path: [label], payload: raw ?? { id, name: label } })
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+              : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
+            }
+          </TabsContent>
+
+          {/* ── Force-graph tab ── */}
+          <TabsContent forceMount value="forcegraph" className="flex-1 min-h-0 mt-0 h-full data-[state=inactive]:hidden">
+            {(appsList.length > 0 || nodesList.length > 0 || topicsList.length > 0)
+              ? (
+                <div className="flex border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <ForceGraphEChart
+                      nodesList={nodesList}
+                      appsList={appsList}
+                      topicsList={topicsList}
+                      libsList={libsList}
+                      brokersList={brokersList}
+                      graphLinks={layerGraphLinks}
+                      linksLoading={layerLinksLoading}
+                      selectedKey={selectedNode?.key ?? null}
+                      onNodeClick={handleLayersNodeClick}
+                      exportFnRef={forceGraphExportRef}
+                    />
+                  </div>
+                  <div className="w-64 shrink-0 border-l border-border flex flex-col overflow-hidden">
+                    <ConnectionsColumn
+                      selectedNode={selectedNode}
+                      links={layerGraphLinks}
+                      nodeLabels={allNodeLabels}
+                      loading={layerLinksLoading}
+                      onSelect={(id) => {
+                        const info = allNodeLabels.get(id)
+                        if (!info) return
+                        const kind: SelectedKind = info.type === "Application" ? "app" : info.type === "Topic" ? "topic" : "node"
+                        const raw = appsList.find(a => String(a.id) === id)
+                          ?? nodesList.find(n => String(n.id) === id)
+                          ?? topicsList.find(t => String(t.id) === id)
+                          ?? brokersList.find(b => String(b.id) === id)
+                          ?? libsList.find(l => String(l.id) === id)
+                        if (!raw) return
+                        setSelectedNode({ kind, key: `${kind}:${id}`, label: info.label, path: [info.label], payload: raw })
+                      }}
+                    />
+                  </div>
+                </div>
+              )
               : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
             }
           </TabsContent>
@@ -3201,11 +4721,7 @@ function BrowserPageContent() {
 
 export default function BrowserPage() {
   return (
-    <Suspense fallback={
-      <AppLayout title="Explorer" description="System (CSMS) → Segment (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)">
-        <div className="flex items-center justify-center h-64"><LoadingSpinner /></div>
-      </AppLayout>
-    }>
+    <Suspense fallback={null}>
       <BrowserPageContent />
     </Suspense>
   )
@@ -3249,14 +4765,222 @@ function SimpleVirtualList({ items, renderItem, itemHeight = 34 }: {
   )
 }
 
+// ── Connections Column ────────────────────────────────────────────────────────
+
+const CONN_TYPE_COLORS: Record<string, string> = {
+  app_to_app: "#4CBCD0", app_to_broker: "#f59e0b", app_to_lib: "#a78bfa",
+  node_to_node: "#C570CE", node_to_broker: "#f97316", broker_to_broker: "#10b981",
+}
+function connTypeColor(type: string) { return CONN_TYPE_COLORS[type] ?? "#71717a" }
+
+function ConnectionsColumn({ selectedNode, links, nodeLabels, onSelect, loading = false }: {
+  selectedNode: SelectedNode | null
+  links: Array<{ source: string; target: string; type: string; weight?: number }>
+  nodeLabels: Map<string, { label: string; type: string }>
+  onSelect: (id: string) => void
+  loading?: boolean
+}) {
+  const nodeId = selectedNode ? selectedNode.key.replace(/^[^:]+:/, "") : null
+  const [activeRelTypes, setActiveRelTypes] = useState<Set<string>>(new Set())
+  const [activeNodeTypes, setActiveNodeTypes] = useState<Set<string>>(new Set())
+  const [connSearch, setConnSearch] = useState("")
+
+  const DERIVED_TYPES = new Set(["node_to_node", "node_to_broker", "DEPENDS_ON", "CONNECTS_TO"])
+
+  const allConns = useMemo(() => {
+    if (!nodeId) return []
+    const out = links.filter(l => l.source === nodeId && !DERIVED_TYPES.has(l.type)).map(l => ({ peerId: l.target, type: l.type }))
+    const inn = links.filter(l => l.target === nodeId && !DERIVED_TYPES.has(l.type)).map(l => ({ peerId: l.source, type: l.type }))
+    return [...out, ...inn]
+  }, [nodeId, links])
+
+  const allRelTypes  = useMemo(() => Array.from(new Set(allConns.map(c => c.type))).sort(), [allConns])
+  const allNodeTypes = useMemo(() => Array.from(new Set(allConns.map(c => nodeLabels.get(c.peerId)?.type ?? "Unknown"))).sort(), [allConns, nodeLabels])
+
+  // Reset filters when selected node changes
+  useEffect(() => { setActiveRelTypes(new Set()); setActiveNodeTypes(new Set()); setConnSearch("") }, [nodeId])
+
+  const filtered = useMemo(() => {
+    const q = connSearch.toLowerCase()
+    return allConns.filter(c => {
+      if (activeRelTypes.size > 0 && !activeRelTypes.has(c.type)) return false
+      if (activeNodeTypes.size > 0 && !activeNodeTypes.has(nodeLabels.get(c.peerId)?.type ?? "Unknown")) return false
+      if (q && !(nodeLabels.get(c.peerId)?.label ?? c.peerId).toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [allConns, activeRelTypes, activeNodeTypes, nodeLabels, connSearch])
+
+  // Group by peer node type
+  const grouped = useMemo(() => {
+    const map = new Map<string, typeof filtered>()
+    for (const c of filtered) {
+      const peerType = nodeLabels.get(c.peerId)?.type ?? "Unknown"
+      if (!map.has(peerType)) map.set(peerType, [])
+      map.get(peerType)!.push(c)
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b))
+  }, [filtered, nodeLabels])
+
+  const toggleRelType  = (t: string) => setActiveRelTypes(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n })
+  const toggleNodeType = (t: string) => setActiveNodeTypes(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n })
+
+  const NODE_TYPE_COLORS: Record<string, string> = {
+    Application: "#4CBCD0", Node: "#C570CE", Topic: "#7DAA7A", Broker: "#f59e0b", Library: "#a78bfa",
+  }
+  const nodeTypeColor = (t: string) => NODE_TYPE_COLORS[t] ?? "#71717a"
+
+  const FilterChips = ({ items, active, toggle, colorFn }: {
+    items: string[]; active: Set<string>; toggle: (t: string) => void; colorFn: (t: string) => string
+  }) => (
+    <div className="flex flex-wrap gap-1">
+      {items.map(t => {
+        const color = colorFn(t)
+        const isActive = active.has(t)
+        return (
+          <button key={t} onClick={() => toggle(t)}
+            className="text-[9px] font-medium px-1.5 py-0.5 rounded transition-all"
+            style={isActive
+              ? { color, background: `${color}28`, border: `1px solid ${color}80` }
+              : { color: "#71717a", background: "transparent", border: "1px solid #3f3f46" }
+            }
+          >{t}</button>
+        )
+      })}
+    </div>
+  )
+
+  const ConnRow = ({ peerId, type }: { peerId: string; type: string }) => {
+    const label = nodeLabels.get(peerId)?.label ?? peerId
+    const color = connTypeColor(type)
+    return (
+      <button
+        onClick={() => onSelect(peerId)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/30 transition-colors border-b border-border/40 group"
+      >
+        <span className="flex-1 text-xs text-foreground group-hover:text-primary transition-colors break-words">{label}</span>
+        <span
+          className="shrink-0 text-[9px] font-medium px-1 py-px rounded whitespace-nowrap"
+          style={{ color, background: `${color}18`, border: `1px solid ${color}40` }}
+        >{type}</span>
+      </button>
+    )
+  }
+
+  if (!selectedNode) return (
+    <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+      <Network className="h-5 w-5 text-muted-foreground/30 mb-2" />
+      <p className="text-xs text-muted-foreground/50">Select a component to see what it connects to</p>
+    </div>
+  )
+
+  if (loading && links.length === 0) return (
+    <div className="flex flex-col h-full">
+      <div className="px-3 pt-3 pb-2 border-b border-border/60 shrink-0">
+        <Skeleton className="h-2.5 w-24 mb-1.5" />
+        <Skeleton className="h-2.5 w-16" />
+      </div>
+      <div className="px-2 py-1.5 border-b border-border/60 shrink-0">
+        <Skeleton className="h-7 w-full rounded-md" />
+      </div>
+      <div className="flex-1 overflow-y-auto p-1">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-2 px-3 py-2 border-b border-border/40">
+            <Skeleton className="h-3 flex-1" style={{ width: `${40 + (i * 19) % 40}%`, flex: "none" }} />
+            <Skeleton className="h-4 w-14 rounded ml-auto" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="px-3 pt-3 pb-2 border-b border-border/60 shrink-0">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">Connections</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{allConns.length} structural</p>
+      </div>
+
+      {/* Search */}
+      <div className="px-2 py-1.5 border-b border-border/60 shrink-0">
+        <div className="relative flex items-center">
+          <Search className="absolute left-2 h-3 w-3 text-muted-foreground/40 pointer-events-none" />
+          <Input
+            className="h-7 pl-6 pr-6 text-xs bg-background rounded-md border-border focus-visible:ring-1 focus-visible:ring-primary/50"
+            placeholder="Search…"
+            value={connSearch}
+            onChange={e => setConnSearch(e.target.value)}
+          />
+          {connSearch && (
+            <button className="absolute right-2 text-muted-foreground/40 hover:text-muted-foreground transition-colors" onClick={() => setConnSearch("")}>
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Filters */}
+      {(allNodeTypes.length > 1 || allRelTypes.length > 1) && (
+        <div className="px-2 py-2 border-b border-border/60 shrink-0 space-y-1.5">
+          {allNodeTypes.length > 1 && (
+            <div>
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 mb-1">Node type</p>
+              <FilterChips items={allNodeTypes} active={activeNodeTypes} toggle={toggleNodeType} colorFn={nodeTypeColor} />
+            </div>
+          )}
+          {allRelTypes.length > 1 && (
+            <div>
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 mb-1">Relationship type</p>
+              <FilterChips items={allRelTypes} active={activeRelTypes} toggle={toggleRelType} colorFn={connTypeColor} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Grouped list */}
+      <div className="flex-1 overflow-y-auto">
+        {filtered.length === 0 && (
+          <p className="text-center text-muted-foreground/50 py-10 text-xs">No connections</p>
+        )}
+        {grouped.map(([peerType, conns]) => (
+          <div key={peerType}>
+            <div className="flex items-center gap-2 px-3 pt-3 pb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap">{peerType}</span>
+              <div className="flex-1 h-px bg-border/50" />
+              <span className="text-[10px] text-muted-foreground/40">{conns.length}</span>
+            </div>
+            {conns.map((c, i) => <ConnRow key={i} {...c} />)}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Skeleton list ─────────────────────────────────────────────────────────────
+
+function SkeletonList({ count = 10 }: { count?: number }) {
+  return (
+    <div className="flex flex-col gap-0">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 px-3 h-8">
+          <Skeleton className="h-3 flex-1" style={{ width: `${50 + (i * 13) % 40}%`, flex: "none" }} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ── Side List Panel ───────────────────────────────────────────────────────────
 
 function SideListPanel({
-  nodesList, appsList, topicsList, hierarchy, openSet, toggle, expandPath, selectedKey, onSelect, search, onSearchChange, loading, initialTab,
+  nodesList, appsList, topicsList, brokersList = [], libsList = [], hierarchy, openSet, toggle, expandPath, selectedKey, onSelect, search, onSearchChange, loading, initialTab,
 }: {
   nodesList: any[]
   appsList: AppNode[]
   topicsList: any[]
+  brokersList?: any[]
+  libsList?: any[]
   hierarchy: Record<string, CsmsGroup>
   openSet: Set<string>
   toggle: (k: string) => void
@@ -3266,9 +4990,9 @@ function SideListPanel({
   search: string
   onSearchChange: (v: string) => void
   loading: boolean
-  initialTab?: "system" | "nodes" | "apps" | "topics"
+  initialTab?: "nodes" | "brokers" | "libs" | "apps" | "topics"
 }) {
-  const [sideTab, setSideTab] = useState<"system" | "nodes" | "apps" | "topics">(initialTab ?? "system")
+  const [sideTab, setSideTab] = useState<"nodes" | "brokers" | "libs" | "apps" | "topics">(initialTab ?? "nodes")
 
   // Sync if parent changes the initial tab (e.g. via URL param auto-select)
   const prevInitialTab = useRef(initialTab)
@@ -3278,64 +5002,18 @@ function SideListPanel({
       prevInitialTab.current = initialTab
     }
   }, [initialTab])
-  const [suggestOpen, setSuggestOpen] = useState(false)
   // Defer expensive filter/tree work so the search input stays responsive
   const deferredSearch = useDeferredValue(search)
   const q = deferredSearch.toLowerCase()
 
-  const switchTab = (tab: "system" | "nodes" | "apps" | "topics") => {
+  const switchTab = (tab: "nodes" | "brokers" | "libs" | "apps" | "topics") => {
     setSideTab(tab)
     onSearchChange("")
   }
 
-  // Flat list of all hierarchy nodes for System tab suggestions
-  const flatNodes = useMemo(() => {
-    type Entry = { kind: SelectedKind; key: string; label: string; path: string[]; payload: CsmsGroup | CssGroup | CsciGroup | CscGroup | AppNode; treePath: string[]; tab: "system" | "nodes" | "apps" | "topics" }
-    const result: Entry[] = []
-    for (const [csmsKey, csms] of Object.entries(hierarchy)) {
-      const csmsPath = [csms.name]
-      const csmsOpenKey = `csms:${csmsKey}`
-      result.push({ kind: "csms", key: csmsOpenKey, label: csms.name, path: csmsPath, payload: csms, treePath: [csmsOpenKey], tab: "system" })
-      for (const [cssKey, css] of Object.entries(csms.css)) {
-        const cssPath = [...csmsPath, css.name]
-        const cssOpenKey = `css:${csmsKey}/${cssKey}`
-        result.push({ kind: "css", key: cssOpenKey, label: css.name, path: cssPath, payload: css, treePath: [csmsOpenKey, cssOpenKey], tab: "system" })
-        for (const [csciKey, csci] of Object.entries(css.csci)) {
-          const csciPath = [...cssPath, csci.name]
-          const csciOpenKey = `csci:${csmsKey}/${cssKey}/${csciKey}`
-          result.push({ kind: "csci", key: csciOpenKey, label: csci.name, path: csciPath, payload: csci, treePath: [csmsOpenKey, cssOpenKey, csciOpenKey], tab: "system" })
-          for (const [cscKey, csc] of Object.entries(csci.csc)) {
-            const cscPath = [...csciPath, csc.name]
-            const cscOpenKey = `csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`
-            result.push({ kind: "csc", key: cscOpenKey, label: csc.name, path: cscPath, payload: csc, treePath: [csmsOpenKey, cssOpenKey, csciOpenKey, cscOpenKey], tab: "system" })
-            for (const app of csc.apps)
-              result.push({ kind: "app", key: `app:${app.id}`, label: app.csu ?? app.name ?? app.id ?? "?", path: [...cscPath, app.csu ?? app.name ?? app.id ?? "?"], payload: app, treePath: [csmsOpenKey, cssOpenKey, csciOpenKey, cscOpenKey], tab: "system" })
-          }
-        }
-      }
-    }
-    // Add nodes, topics as flat entries
-    for (const n of nodesList)
-      result.push({ kind: "node", key: `node:${n.id}`, label: n.name ?? n.id ?? "?", path: [n.name ?? n.id ?? "?"], payload: n, treePath: [], tab: "nodes" })
-    for (const t of topicsList)
-      result.push({ kind: "topic", key: `topic:${t.id}`, label: t.name ?? t.id ?? "?", path: [t.name ?? t.id ?? "?"], payload: t, treePath: [], tab: "topics" })
-    return result
-  }, [hierarchy, nodesList, topicsList])
-
-  const suggestions = useMemo(() => {
-    if (!q) return []
-    return flatNodes.filter(n => n.label.toLowerCase().includes(q) || n.key.toLowerCase().includes(q)).slice(0, 30)
-  }, [flatNodes, q])
-
-  const handleJump = (entry: { kind: SelectedKind; key: string; label: string; path: string[]; payload: any; treePath: string[]; tab: "system" | "nodes" | "apps" | "topics" }) => {
-    onSelect({ kind: entry.kind, key: entry.key, label: entry.label, path: entry.path, payload: entry.payload })
-    if (entry.tab === "system") expandPath(entry.treePath)
-    setSideTab(entry.tab)
-    onSearchChange("")
-    setSuggestOpen(false)
-  }
-
-  const filteredNodes  = useMemo(() => nodesList.filter(n => !q || (n.name ?? n.id ?? "").toLowerCase().includes(q) || (n.id ?? "").toLowerCase().includes(q)), [nodesList, q])
+  const filteredNodes   = useMemo(() => nodesList.filter(n  => !q || (n.name ?? n.id ?? "").toLowerCase().includes(q) || (n.id ?? "").toLowerCase().includes(q)), [nodesList, q])
+  const filteredBrokers = useMemo(() => brokersList.filter(b => !q || (b.name ?? b.id ?? "").toLowerCase().includes(q) || (b.id ?? "").toLowerCase().includes(q)), [brokersList, q])
+  const filteredLibs    = useMemo(() => libsList.filter(l    => !q || (l.name ?? l.id ?? "").toLowerCase().includes(q) || (l.id ?? "").toLowerCase().includes(q)), [libsList, q])
   const filteredApps   = useMemo(() => appsList.filter(a  => !q || (a.csu ?? a.name ?? a.id ?? "").toLowerCase().includes(q) || (a.id ?? "").toLowerCase().includes(q)), [appsList, q])
   const filteredTopics = useMemo(() => topicsList.filter(t => !q || (t.name ?? t.id ?? "").toLowerCase().includes(q) || (t.id ?? "").toLowerCase().includes(q)), [topicsList, q])
 
@@ -3349,16 +5027,14 @@ function SideListPanel({
       <button
         key={key}
         className={cn(
-          "w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors",
-          isSelected ? "bg-accent text-accent-foreground font-medium" : "hover:bg-muted/50 text-foreground",
+          "w-full flex items-center gap-3 px-3 text-left text-xs transition-colors border-l-2 h-8",
+          isSelected
+            ? "bg-muted border-l-primary text-foreground font-medium"
+            : "border-l-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground",
         )}
         onClick={() => onSelect({ kind, key, label, path: [label], payload: item })}
       >
-        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: KIND_COLOR[kind] }} />
         <span className="flex-1 truncate">{label}</span>
-        {item.weight != null && (
-          <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{typeof item.weight === "number" ? item.weight.toFixed(2) : item.weight}</span>
-        )}
       </button>
     )
   }
@@ -3368,111 +5044,60 @@ function SideListPanel({
   return (
     <>
       {/* Tab bar */}
-      <div className="border-b border-border shrink-0">
-        <div className="flex text-xs">
-          {(["system", "nodes", "apps", "topics"] as const).map(tab => {
-            const count = tab === "system" ? csmsKeys.length : tab === "nodes" ? nodesList.length : tab === "apps" ? appsList.length : topicsList.length
-            const label = tab === "system" ? "System" : tab === "nodes" ? "Nodes" : tab === "apps" ? "Apps" : "Topics"
-            return (
-              <button
-                key={tab}
-                className={cn(
-                  "flex-1 py-2 px-1 transition-colors border-b-2 text-[11px]",
-                  sideTab === tab
-                    ? "border-primary text-foreground font-medium"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => switchTab(tab)}
-              >
-                {label}{" "}
-                <span className={cn("text-[10px]", sideTab === tab ? "text-muted-foreground" : "text-muted-foreground/60")}>{count}</span>
-              </button>
-            )
-          })}
+      <div className="shrink-0">
+        <div className="flex h-9 border-b border-border text-xs">
+          {([
+            { id: "nodes",   label: "Nodes",   count: nodesList.length },
+            { id: "apps",    label: "Apps",    count: appsList.length },
+            { id: "topics",  label: "Topics",  count: topicsList.length },
+            { id: "libs",    label: "Libs",    count: libsList.length },
+            { id: "brokers", label: "Brokers", count: brokersList.length },
+          ] as const).map(tab => (
+            <button
+              key={tab.id}
+              className={cn(
+                "flex-1 px-1 transition-colors border-b-2 text-[11px] min-w-0",
+                sideTab === tab.id
+                  ? "border-primary text-foreground font-semibold"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => switchTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
         {/* Search */}
-        <div className="px-2 py-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <div className="px-3 border-b border-border bg-muted/20 h-10">
+          <div className="relative flex items-center h-full">
+            <Search className="absolute left-2 h-3 w-3 text-muted-foreground/40 pointer-events-none" />
             <Input
-              className="pl-8 h-7 text-xs bg-muted/30"
-              placeholder="Search…"
+              className="h-7 pl-6 pr-6 text-xs bg-background rounded-md border-border focus-visible:ring-1 focus-visible:ring-primary/50"
+              placeholder="Filter…"
               value={search}
-              onChange={(e) => { onSearchChange(e.target.value); setSuggestOpen(true) }}
-              onFocus={() => setSuggestOpen(true)}
-              onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
+              onChange={(e) => onSearchChange(e.target.value)}
             />
             {search && (
               <button
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                onClick={() => { onSearchChange(""); setSuggestOpen(false) }}
+                className="absolute right-2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                onClick={() => onSearchChange("")}
               >
                 <X className="h-3 w-3" />
               </button>
-            )}
-            {/* Global suggestions dropdown */}
-            {suggestOpen && suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-border bg-popover shadow-lg overflow-hidden">
-                <div className="max-h-64 overflow-y-auto py-1">
-                  {suggestions.map(n => (
-                    <button
-                      key={n.key}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent hover:text-accent-foreground text-left transition-colors"
-                      onMouseDown={e => { e.preventDefault(); handleJump(n) }}
-                    >
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: KIND_COLOR[n.kind] }} />
-                      <span className="flex-1 truncate font-medium">{n.label}</span>
-                      <span className="text-[10px] text-muted-foreground shrink-0 capitalize">{n.tab}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="border-t border-border px-3 py-1 text-[10px] text-muted-foreground">
-                  {suggestions.length} result{suggestions.length !== 1 ? "s" : ""}{suggestions.length === 30 ? " (first 30)" : ""}
-                </div>
-              </div>
-            )}
-            {suggestOpen && search.trim() && suggestions.length === 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-border bg-popover shadow-lg px-3 py-2.5 text-xs text-muted-foreground">
-                No results for &ldquo;{search.trim()}&rdquo;
-              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* List / Tree */}
-      <div className={`flex-1 ${sideTab === "system" ? "overflow-y-auto" : "overflow-hidden"}`}>
-        {sideTab === "system" && (
-          csmsKeys.length > 0
-            ? csmsKeys.map(k => (
-                <CsmsTreeNode
-                  key={k}
-                  name={k}
-                  csms={hierarchy[k]}
-                  selectedKey={selectedKey}
-                  onSelect={onSelect}
-                  openSet={openSet}
-                  toggle={toggle}
-                  q=""
-                />
-              ))
-            : !loading && <p className="text-center text-muted-foreground py-8 text-xs px-4">No data loaded. Import a graph first.</p>
-        )}
-        {sideTab === "nodes"  && (filteredNodes.length  > 0 ? <SimpleVirtualList items={filteredNodes}  renderItem={n => makeRow(n, "node")}  itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No nodes found.</p>)}
-        {sideTab === "apps"   && (filteredApps.length   > 0 ? <SimpleVirtualList items={filteredApps}   renderItem={a => makeRow(a, "app")}   itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No apps found.</p>)}
-        {sideTab === "topics" && (filteredTopics.length > 0 ? <SimpleVirtualList items={filteredTopics} renderItem={t => makeRow(t, "topic")} itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No topics found.</p>)}
+      {/* List */}
+      <div className="flex-1 overflow-hidden">
+        {sideTab === "nodes"   && (loading && !filteredNodes.length   ? <SkeletonList /> : filteredNodes.length   > 0 ? <SimpleVirtualList items={filteredNodes}   renderItem={n => makeRow(n, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No nodes.</p>)}
+        {sideTab === "brokers" && (loading && !filteredBrokers.length ? <SkeletonList /> : filteredBrokers.length > 0 ? <SimpleVirtualList items={filteredBrokers} renderItem={b => makeRow(b, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No brokers.</p>)}
+        {sideTab === "libs"    && (loading && !filteredLibs.length    ? <SkeletonList /> : filteredLibs.length    > 0 ? <SimpleVirtualList items={filteredLibs}    renderItem={l => makeRow(l, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No libraries.</p>)}
+        {sideTab === "apps"    && (loading && !filteredApps.length    ? <SkeletonList /> : filteredApps.length    > 0 ? <SimpleVirtualList items={filteredApps}    renderItem={a => makeRow(a, "app")}   itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No apps.</p>)}
+        {sideTab === "topics"  && (loading && !filteredTopics.length  ? <SkeletonList /> : filteredTopics.length  > 0 ? <SimpleVirtualList items={filteredTopics}  renderItem={t => makeRow(t, "topic")} itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No topics.</p>)}
       </div>
-      {/* Tree legend (System tab only) */}
-      {sideTab === "system" && (
-        <div className="border-t border-border px-3 py-2 shrink-0 flex flex-wrap gap-x-3 gap-y-1">
-          {(["csms", "css", "csci", "csc", "app"] as const).map(k => (
-            <span key={k} className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <span className="h-1.5 w-1.5 rounded-full" style={{ background: NODE_COLORS[k] }} />
-              {KIND_LABEL[k]}
-            </span>
-          ))}
-        </div>
-      )}
+
     </>
   )
 }

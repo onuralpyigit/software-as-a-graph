@@ -71,6 +71,7 @@ class TrafficSimulator:
                         a.id                       AS id,
                         COALESCE(a.name, a.id)     AS name,
                         COALESCE(a.weight, 0.5)    AS weight,
+                        a.role                     AS role,
                         pub_ids,
                         sub_ids
                     ORDER BY name
@@ -83,6 +84,7 @@ class TrafficSimulator:
                             "id": rec["id"],
                             "name": rec["name"],
                             "weight": float(rec["weight"]),
+                            "role": rec["role"],
                             "pub_topic_ids": list(rec["pub_ids"]),
                             "sub_topic_ids": list(rec["sub_ids"]),
                         }
