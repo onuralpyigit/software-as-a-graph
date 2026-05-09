@@ -4531,7 +4531,7 @@ function BrowserPageContent() {
                 <Share2 className="h-4 w-4" />Graph
               </TabsTrigger>
               <TabsTrigger value="graph" className="flex items-center gap-2">
-                <Network className="h-4 w-4" />System
+                <Network className="h-4 w-4" />Tree
               </TabsTrigger>
             </TabsList>
 
