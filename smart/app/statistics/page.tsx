@@ -227,10 +227,10 @@ function EBarChart({
   // Theme-aware color tokens
   const axisColor       = isDark ? "#94a3b8" : "#64748b"
   const gridColor       = isDark ? "rgba(148,163,184,0.15)" : "rgba(100,116,139,0.15)"
-  const tooltipBg       = isDark ? "#1e293b" : "#ffffff"
-  const tooltipBorder   = isDark ? "rgba(148,163,184,0.2)" : "rgba(100,116,139,0.25)"
-  const tooltipText     = isDark ? "#e2e8f0" : "#1e293b"
-  const tooltipMuted    = isDark ? "rgba(226,232,240,0.65)" : "rgba(71,85,105,0.8)"
+  const tooltipBg       = isDark ? "#1c1c1e" : "#ffffff"
+  const tooltipBorder   = isDark ? "#3f3f46" : "#e4e4e7"
+  const tooltipText     = isDark ? "#fafafa" : "#09090b"
+  const tooltipMuted    = isDark ? "rgba(250,250,250,0.7)" : "rgba(9,9,11,0.7)"
   const zoomBg          = isDark ? "rgba(128,128,128,0.08)" : "rgba(0,0,0,0.03)"
   const zoomDataLine    = isDark ? "rgba(128,128,128,0.3)" : "rgba(100,116,139,0.25)"
   const zoomDataArea    = isDark ? "rgba(128,128,128,0.05)" : "rgba(100,116,139,0.05)"
@@ -244,7 +244,7 @@ function EBarChart({
       axisPointer: { type: "shadow" as const },
       backgroundColor: tooltipBg,
       borderColor: tooltipBorder,
-      textStyle: { color: tooltipText },
+      textStyle: { color: tooltipText, fontSize: 12 },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       formatter: (params: any) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -805,10 +805,10 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
 
   // Theme-aware color tokens
   const axisColor     = isDark ? "#94a3b8" : "#64748b"
-  const tooltipBg     = isDark ? "#1e293b" : "#ffffff"
-  const tooltipBorder = isDark ? "rgba(148,163,184,0.2)" : "rgba(100,116,139,0.25)"
-  const tooltipText   = isDark ? "#e2e8f0" : "#1e293b"
-  const tooltipMuted  = isDark ? "rgba(226,232,240,0.65)" : "rgba(71,85,105,0.8)"
+  const tooltipBg     = isDark ? "#1c1c1e" : "#ffffff"
+  const tooltipBorder = isDark ? "#3f3f46" : "#e4e4e7"
+  const tooltipText   = isDark ? "#fafafa" : "#09090b"
+  const tooltipMuted  = isDark ? "rgba(250,250,250,0.7)" : "rgba(9,9,11,0.7)"
   const splitAreaColors = isDark
     ? ["rgba(30,41,59,0.3)", "rgba(15,23,42,0.3)"]
     : ["rgba(241,245,249,0.6)", "rgba(226,232,240,0.4)"]
@@ -875,7 +875,7 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
       position: "top" as const,
       backgroundColor: tooltipBg,
       borderColor: tooltipBorder,
-      textStyle: { color: tooltipText },
+      textStyle: { color: tooltipText, fontSize: 12 },
       confine: true,            // Keep tooltip within chart bounds
       hideDelay: 200,           // 200ms delay before hiding (allows scroll time)
       formatter: (params: { data: [number, number, number] }) => {
