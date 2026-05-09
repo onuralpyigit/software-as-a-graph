@@ -4442,14 +4442,23 @@ function BrowserPageContent() {
 
   if (!initialLoadComplete || (isConnected && loading && nodesList.length === 0)) {
     return (
-      <AppLayout title="Explorer" description="Browse your system topology, inspect components, and explore dependency relationships.">
+      <AppLayout title="Explorer" description="Browse your system topology">
         <div className="space-y-3">
           {/* Tabs skeleton */}
           <div className="flex items-center justify-between mb-2 shrink-0">
-            <div className="bg-muted inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px] gap-1">
-              <Skeleton className="h-[calc(100%-2px)] w-20 rounded-md" />
-              <Skeleton className="h-[calc(100%-2px)] w-20 rounded-md" />
-              <Skeleton className="h-[calc(100%-2px)] w-20 rounded-md" />
+            <div className="bg-background border border-border inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px] gap-0.5">
+              <div className="inline-flex items-center gap-1.5 h-[calc(100%-2px)] px-3 rounded-md bg-muted animate-pulse">
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-3.5 w-8" />
+              </div>
+              <div className="inline-flex items-center gap-1.5 h-[calc(100%-2px)] px-3 rounded-md">
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-3.5 w-10" />
+              </div>
+              <div className="inline-flex items-center gap-1.5 h-[calc(100%-2px)] px-3 rounded-md">
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-3.5 w-12" />
+              </div>
             </div>
           </div>
           {/* 3-column layout skeleton */}
@@ -4494,7 +4503,7 @@ function BrowserPageContent() {
     )
   }
   if (!isConnected) {
-    return <AppLayout><NoConnectionInfo /></AppLayout>
+    return <AppLayout title="Explorer" description="Browse your system topology"><NoConnectionInfo description="Connect to your Neo4j database to explore topology" /></AppLayout>
   }
 
   const q = search.toLowerCase()
@@ -4503,7 +4512,7 @@ function BrowserPageContent() {
   return (
     <AppLayout
       title="Explorer"
-      description="Browse your system topology, inspect components, and explore dependency relationships."
+      description="Browse your system topology"
     >
       <div className="flex flex-col gap-5 h-full">
         {error && (

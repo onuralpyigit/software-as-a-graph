@@ -1860,7 +1860,7 @@ export default function StatisticsPage() {
 
   if (!initialLoadComplete || status === "connecting") {
     return (
-      <AppLayout title="Statistics" description="Structural and communication metrics across topics, applications, nodes, and libraries">
+      <AppLayout title="Statistics" description="System metrics across components">
         <div className="space-y-5">
           {/* Section card grid skeleton */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1880,14 +1880,14 @@ export default function StatisticsPage() {
 
   if (!isConnected) {
     return (
-      <AppLayout title="Statistics" description="Structural and communication metrics across topics, applications, nodes, and libraries">
+      <AppLayout title="Statistics" description="System metrics across components">
         <NoConnectionInfo description="Connect to your Neo4j database to view statistics" />
       </AppLayout>
     )
   }
 
   return (
-    <AppLayout title="Statistics" description="Structural and communication metrics across topics, applications, nodes, and libraries">
+    <AppLayout title="Statistics" description="System metrics across components">
       <div className="space-y-6">
         <>
             {/* Card grid — hidden once a section is selected */}

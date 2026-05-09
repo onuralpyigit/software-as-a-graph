@@ -586,25 +586,6 @@ export default function AnalysisPage() {
     )
   }
 
-  // Empty database state
-  if (stats && stats.total_nodes === 0) {
-    return (
-      <AppLayout
-        title="Analysis"
-        description="RMAV quality scoring by architectural layer"
-      >
-        <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
-          <Database className="h-7 w-7 text-muted-foreground" />
-          <p className="text-sm font-semibold text-foreground">Empty Database</p>
-          <p className="text-sm text-muted-foreground">Import a graph to run quality analysis.</p>
-          <Button variant="outline" size="sm" onClick={() => router.push('/data')} className="mt-2">
-            Go to Data Management
-          </Button>
-        </div>
-      </AppLayout>
-    )
-  }
-
   return (
     <AppLayout
       title="Analysis"

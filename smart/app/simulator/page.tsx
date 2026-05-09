@@ -88,6 +88,7 @@ export default function TrafficSimulatorPage() {
   const [selectedRoleKeys, setSelectedRoleKeys] = useState<Set<string>>(new Set())
   const [topicParams, setTopicParams] = useState<Record<string, TopicParams>>({})
   const [topicSearch, setTopicSearch] = useState("")
+  const [roleSearch, setRoleSearch] = useState("")
   const [topicQosFilter, setTopicQosFilter] = useState<string>("all")
   const [topicSort, setTopicSort] = useState<"name" | "pub" | "sub">("name")
 
@@ -877,7 +878,9 @@ export default function TrafficSimulatorPage() {
                     if (!roleMap.has(key)) roleMap.set(key, [])
                     roleMap.get(key)!.push(app)
                   }
-                  const roleKeys = Array.from(roleMap.keys()).sort()
+                  const roleKeys = Array.from(roleMap.keys()).sort().filter(k =>
+                    k.toLowerCase().includes(roleSearch.toLowerCase())
+                  )
 
                   // A role is fully selected only when the user explicitly selected it.
                   function isRoleSelected(roleKey: string) {
@@ -922,13 +925,37 @@ export default function TrafficSimulatorPage() {
 
                   return (
                     <div className="space-y-3">
+                      {/* Search */}
+                      <div className="relative flex-1 min-w-[180px]">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                        <Input
+                          placeholder="Search roles..."
+                          value={roleSearch}
+                          onChange={e => setRoleSearch(e.target.value)}
+                          className="pl-8 h-8 text-sm"
+                        />
+                        {roleSearch && (
+                          <button
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            onClick={() => setRoleSearch("")}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                       <div className="text-xs text-muted-foreground">
-                        Distinct <code className="font-mono">role</code> values from Application nodes. Selecting a role includes every topic those apps publish to or subscribe to.
+                        {roleKeys.length} role{roleKeys.length !== 1 ? "s" : ""}
+                        {roleSearch ? ` (filtered from ${Array.from(roleMap.keys()).length})` : ""}
+                        {" · Selecting a role includes every topic those apps publish to or subscribe to."}
                       </div>
                       {apps.length === 0 ? (
-                        <div className="py-10 text-center text-sm text-muted-foreground">No Application nodes found in the graph.</div>
+                        <div className="border rounded-lg overflow-hidden">
+                          <div className="py-10 text-center text-sm text-muted-foreground">No Application nodes found in the graph.</div>
+                        </div>
                       ) : roleKeys.length === 0 ? (
-                        <div className="py-10 text-center text-sm text-muted-foreground">No role values set on Application nodes.</div>
+                        <div className="border rounded-lg overflow-hidden">
+                          <div className="py-10 text-center text-sm text-muted-foreground">No role values set on Application nodes.</div>
+                        </div>
                       ) : (
                         <div className="border rounded-lg overflow-hidden divide-y">
                           {[
