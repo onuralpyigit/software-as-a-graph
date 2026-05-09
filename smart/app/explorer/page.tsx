@@ -3650,6 +3650,7 @@ const GraphOverviewEChart = memo(function GraphOverviewEChart({
   libsList,
   graphLinks,
   linksLoading,
+  exportFnRef,
 }: {
   nodesList: any[]
   appsList: any[]
@@ -3658,12 +3659,25 @@ const GraphOverviewEChart = memo(function GraphOverviewEChart({
   libsList: any[]
   graphLinks: Array<{ source: string; target: string; type: string; weight?: number }>
   linksLoading: boolean
+  exportFnRef?: React.MutableRefObject<(() => void) | null>
 }) {
   const { theme, systemTheme } = useTheme()
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
 
-  // ECharts instance ref — used to dispatch downplay on edge hover
+  // ECharts instance ref — used to dispatch downplay on edge hover and for PNG export
   const echartsRef = useRef<any>(null)
+  useEffect(() => {
+    if (!exportFnRef) return
+    exportFnRef.current = () => {
+      const ec = echartsRef.current?.getEchartsInstance?.()
+      if (!ec) return
+      const dataUrl = ec.getDataURL({ type: "png", backgroundColor: isDark ? "#09090b" : "#ffffff", pixelRatio: 2 })
+      const a = document.createElement("a")
+      a.href = dataUrl
+      a.download = "overview-export.png"
+      a.click()
+    }
+  }, [exportFnRef, isDark])
 
   // Suppress focus effect when hovering an edge
   const onEvents = useMemo(() => ({
@@ -4577,6 +4591,7 @@ function BrowserPageContent() {
   // Export-to-PNG refs — populated by child graph components
   const forceGraphExportRef = useRef<(() => void) | null>(null)
   const systemGraphExportRef = useRef<(() => void) | null>(null)
+  const overviewGraphExportRef = useRef<(() => void) | null>(null)
 
   const toggle = useCallback((key: string) => {
     setOpenSet((prev) => {
@@ -4914,7 +4929,7 @@ function BrowserPageContent() {
               </TabsTrigger>
             </TabsList>
 
-            {(activeTab === "forcegraph" || activeTab === "graph") && (
+            {(activeTab === "forcegraph" || activeTab === "graph" || activeTab === "overview") && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -4923,11 +4938,12 @@ function BrowserPageContent() {
                     className="h-8 gap-1.5 text-xs"
                     onClick={() => {
                       if (activeTab === "forcegraph") forceGraphExportRef.current?.()
+                      else if (activeTab === "overview") overviewGraphExportRef.current?.()
                       else systemGraphExportRef.current?.()
                     }}
                   >
                     <Download className="h-3.5 w-3.5" />
-                    Export PNG
+                    Save as PNG
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Download current graph view as PNG</TooltipContent>
@@ -5068,6 +5084,7 @@ function BrowserPageContent() {
                 brokersList={brokersList}
                 graphLinks={layerGraphLinks}
                 linksLoading={layerLinksLoading}
+                exportFnRef={overviewGraphExportRef}
               />
             </div>
           </TabsContent>
