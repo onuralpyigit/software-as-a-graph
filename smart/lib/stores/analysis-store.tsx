@@ -72,6 +72,7 @@ interface AnalysisContextType extends AnalysisState {
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined)
 
 const STORAGE_KEY = 'analysis-cache'
+const CACHE_VERSION = 2 // Bump when API stats shape changes to auto-bust stale data
 const MAX_CACHE_ITEMS = 3 // Limit number of cached analyses
 
 // Use sessionStorage instead of localStorage - larger quota and persists during session
@@ -96,16 +97,12 @@ const saveToStorage = (cache: Record<string, AnalysisResult>) => {
   try {
     // Keep only the most recent MAX_CACHE_ITEMS
     const keys = Object.keys(cache)
-    if (keys.length > MAX_CACHE_ITEMS) {
-      const keysToKeep = keys.slice(-MAX_CACHE_ITEMS)
-      const trimmedCache: Record<string, AnalysisResult> = {}
-      keysToKeep.forEach(key => {
-        trimmedCache[key] = cache[key]
-      })
-      storage.setItem(STORAGE_KEY, JSON.stringify(trimmedCache))
-    } else {
-      storage.setItem(STORAGE_KEY, JSON.stringify(cache))
-    }
+    const trimmedCache: Record<string, AnalysisResult> = {}
+    const keysToKeep = keys.length > MAX_CACHE_ITEMS ? keys.slice(-MAX_CACHE_ITEMS) : keys
+    keysToKeep.forEach(key => {
+      trimmedCache[key] = cache[key]
+    })
+    storage.setItem(STORAGE_KEY, JSON.stringify({ v: CACHE_VERSION, data: trimmedCache }))
   } catch (error: any) {
     // If quota exceeded, clear everything and just keep in memory
     if (error.name === 'QuotaExceededError') {
@@ -123,7 +120,13 @@ const loadFromStorage = (): Record<string, AnalysisResult> => {
   try {
     const saved = storage.getItem(STORAGE_KEY)
     if (saved) {
-      return JSON.parse(saved)
+      const parsed = JSON.parse(saved)
+      // Bust cache on version mismatch (e.g. API stats shape changed)
+      if (parsed.v !== CACHE_VERSION) {
+        storage.removeItem(STORAGE_KEY)
+        return {}
+      }
+      return parsed.data as Record<string, AnalysisResult>
     }
   } catch (error) {
     console.error('Failed to load analysis cache:', error)

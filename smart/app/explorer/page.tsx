@@ -1467,6 +1467,9 @@ const ConnEChartsGraph = memo(function ConnEChartsGraph({ graphData, dims, isDar
       tooltip: {
         trigger: "item",
         triggerOn: "mousemove",
+        backgroundColor: isDark ? "#1c1c1e" : "#ffffff",
+        borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+        textStyle: { color: isDark ? "#fafafa" : "#09090b", fontSize: 12 },
         formatter: (params: any) => {
           const d = params.data
           if (d?._isGroup) return `<b>${d.name}</b>`
@@ -2175,6 +2178,9 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       backgroundColor: "transparent",
       tooltip: {
         trigger: "item",
+        backgroundColor: isDark ? "#1c1c1e" : "#ffffff",
+        borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+        textStyle: { color: isDark ? "#fafafa" : "#09090b", fontSize: 12 },
         formatter: (params: any) => {
           const d = params.data
           const dispName = (s: string) => s?.split("\x00")[0] ?? s
@@ -2331,6 +2337,9 @@ const HierEChartsTree = memo(function HierEChartsTree({
     tooltip: {
       trigger: "item",
       triggerOn: "mousemove",
+      backgroundColor: isDark ? "#1c1c1e" : "#ffffff",
+      borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+      textStyle: { color: isDark ? "#fafafa" : "#09090b", fontSize: 12 },
     },
     series: [{
       type: "tree",
@@ -3611,6 +3620,380 @@ function CsmsTreeNode({ name, csms, selectedKey, onSelect, openSet, toggle, q }:
   )
 }
 
+// ── Overview ECharts tab — full graph, thousands of nodes, no detail ──────────
+
+// Re-export of shared palette (defined before ForceGraphEChart below)
+const OVERVIEW_TYPE_COLORS: Record<string, string> = {
+  Application: "#4CBCD0",
+  Node:        "#C570CE",
+  Topic:       "#7DAA7A",
+  Broker:      "#EFC050",
+  Library:     "#ECA088",
+}
+const OVERVIEW_EDGE_COLORS: Record<string, string> = {
+  RUNS_ON:       "#64748b",
+  PUBLISHES_TO:  "#22c55e",
+  SUBSCRIBES_TO: "#f97316",
+  USES:          "#06b6d4",
+  ROUTES:        "#d946ef",
+  DEPENDS_ON:    "#ef4444",
+  CONNECTS_TO:   "#84cc16",
+}
+
+const OVERVIEW_TYPES = ["Application", "Node", "Broker", "Topic", "Library"] as const
+
+const GraphOverviewEChart = memo(function GraphOverviewEChart({
+  nodesList,
+  appsList,
+  topicsList,
+  brokersList,
+  libsList,
+  graphLinks,
+  linksLoading,
+  exportFnRef,
+}: {
+  nodesList: any[]
+  appsList: any[]
+  topicsList: any[]
+  brokersList: any[]
+  libsList: any[]
+  graphLinks: Array<{ source: string; target: string; type: string; weight?: number }>
+  linksLoading: boolean
+  exportFnRef?: React.MutableRefObject<(() => void) | null>
+}) {
+  const { theme, systemTheme } = useTheme()
+  const isDark = (theme === "system" ? systemTheme : theme) === "dark"
+
+  // ECharts instance ref — used to dispatch downplay on edge hover and for PNG export
+  const echartsRef = useRef<any>(null)
+  useEffect(() => {
+    if (!exportFnRef) return
+    exportFnRef.current = () => {
+      const ec = echartsRef.current?.getEchartsInstance?.()
+      if (!ec) return
+      const dataUrl = ec.getDataURL({ type: "png", backgroundColor: isDark ? "#09090b" : "#ffffff", pixelRatio: 2 })
+      const a = document.createElement("a")
+      a.href = dataUrl
+      a.download = "overview-export.png"
+      a.click()
+    }
+  }, [exportFnRef, isDark])
+
+  // Suppress focus effect when hovering an edge
+  const onEvents = useMemo(() => ({
+    mouseover: (params: any) => {
+      if (params.dataType === "edge") {
+        echartsRef.current?.getEchartsInstance?.()?.dispatchAction({ type: "downplay" })
+      }
+    },
+  }), [])
+
+  // Legend filter — which node types to hide
+  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set())
+  const toggleType = useCallback((t: string) =>
+    setHiddenTypes(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n })
+  , [])
+
+  // Hidden edge types — DEPENDS_ON and CONNECTS_TO hidden by default (too noisy)
+  const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<string>>(new Set(["DEPENDS_ON", "CONNECTS_TO"]))
+  const toggleEdgeType = useCallback((t: string) =>
+    setHiddenEdgeTypes(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n })
+  , [])
+
+  // Layout mode: clustered (by type) or scattered (uniform disk)
+  const [layoutMode, setLayoutMode] = useState<"clustered" | "scattered">("scattered")
+
+  // Build per-type lists merged into one array, compute degree for node sizing
+  const { eNodes, eEdges, edgeTypes, stats } = useMemo(() => {
+    const typeArrays: Record<string, any[]> = {
+      Application: appsList,
+      Node:        nodesList,
+      Broker:      brokersList,
+      Topic:       topicsList,
+      Library:     libsList,
+    }
+
+    // Degree map for sizing
+    const degree = new Map<string, number>()
+    const incDeg = (id: string) => degree.set(id, (degree.get(id) ?? 0) + 1)
+
+    // Compute positions: place each type on its own arc segment in a big circle.
+    // We pack arcs proportionally to node count.
+    const allEntries: Array<{ id: string; name: string; typeName: string; raw: any }> = []
+    for (const t of OVERVIEW_TYPES) {
+      if (hiddenTypes.has(t)) continue
+      for (const n of typeArrays[t]) {
+        allEntries.push({ id: String(n.id), name: String(n.name ?? n.csu ?? n.id ?? ""), typeName: t, raw: n })
+      }
+    }
+
+    // Per-type counts (used in stats / legend)
+    const typeCounts: Record<string, number> = {}
+    for (const { typeName } of allEntries) typeCounts[typeName] = (typeCounts[typeName] ?? 0) + 1
+
+    // Filter edges first so we can compute degrees on visible nodes
+    const visibleIds = new Set(allEntries.map(e => e.id))
+    const candidateEdges = graphLinks.filter(l =>
+      visibleIds.has(String(l.source)) &&
+      visibleIds.has(String(l.target))
+    )
+    // All edge types present (used for stable legend buttons regardless of filter)
+    const edgeTypes = [...new Set(candidateEdges.map(l => l.type ?? "").filter(Boolean))]
+
+    const filteredEdges = candidateEdges.filter(l => !hiddenEdgeTypes.has(l.type ?? ""))
+    for (const l of filteredEdges) { incDeg(String(l.source)); incDeg(String(l.target)) }
+
+    // Deterministic seeded PRNG (mulberry32-style) — stable positions across re-renders
+    let seed = 0x9e3779b9
+    const rand = () => {
+      seed = Math.imul(seed ^ (seed >>> 15), seed | 1)
+      seed ^= seed + Math.imul(seed ^ (seed >>> 7), seed | 61)
+      return ((seed ^ (seed >>> 14)) >>> 0) / 4294967296
+    }
+
+    // Place each type's cluster center evenly around a ring, then scatter
+    // nodes uniformly inside a sub-disk around that center.
+    // All math is O(n) — no simulation, no iteration.
+    const visibleTypes = OVERVIEW_TYPES.filter(t => !hiddenTypes.has(t) && typeCounts[t])
+    const numTypes = visibleTypes.length
+    const ORBIT_R  = 620   // distance from origin to each cluster center
+    const CLUSTER_R = 340  // radius of each type's sub-disk
+
+    // Center of each type's cluster — evenly spaced on a circle
+    const clusterCenter: Record<string, { cx: number; cy: number }> = {}
+    visibleTypes.forEach((t, i) => {
+      const a = (i / numTypes) * 2 * Math.PI - Math.PI / 2  // start from top
+      clusterCenter[t] = { cx: ORBIT_R * Math.cos(a), cy: ORBIT_R * Math.sin(a) }
+    })
+
+    const eNodes: any[] = []
+    for (const entry of allEntries) {
+      const { id, name, typeName, raw } = entry
+      const deg = degree.get(id) ?? 0
+      const symbolSize = Math.max(3, Math.min(14, 3 + Math.log2(1 + deg) * 1.4))
+
+      // Uniform disk sampling within the type's cluster sub-disk
+      const { cx, cy } = clusterCenter[typeName] ?? { cx: 0, cy: 0 }
+      const angle  = rand() * 2 * Math.PI
+      const radius = Math.sqrt(rand()) * (layoutMode === "clustered" ? CLUSTER_R : 960)
+      const finalCx = layoutMode === "clustered" ? cx : 0
+      const finalCy = layoutMode === "clustered" ? cy : 0
+
+      eNodes.push({
+        id,
+        name,
+        category: OVERVIEW_TYPES.indexOf(typeName as any),
+        x: finalCx + radius * Math.cos(angle),
+        y: finalCy + radius * Math.sin(angle),
+        symbolSize,
+        itemStyle: { color: OVERVIEW_TYPE_COLORS[typeName] },
+        label: { show: false },
+        _raw: raw,
+        _type: typeName,
+      })
+    }
+
+    // Build ECharts edges
+    const edgeOpacity = Math.max(0.04, Math.min(0.25, 0.12 - (filteredEdges.length / 100000) * 0.08))
+    const eEdges = filteredEdges.map(l => ({
+      source: String(l.source),
+      target: String(l.target),
+      edgeType: l.type ?? "",
+      lineStyle: {
+        color: OVERVIEW_EDGE_COLORS[l.type ?? ""] ?? "#94a3b8",
+        opacity: edgeOpacity,
+        width: 0.6,
+      },
+      // Suppress emphasis on edge hover — keep same opacity so nothing visually changes
+      emphasis: {
+        lineStyle: { opacity: edgeOpacity, width: 0.6 },
+        disabled: false,
+      },
+    }))
+
+    const stats = {
+      nodes: eNodes.length,
+      edges: eEdges.length,
+      typeCounts,
+    }
+
+    return { eNodes, eEdges, edgeTypes, stats }
+  }, [appsList, nodesList, brokersList, topicsList, libsList, graphLinks, hiddenTypes, hiddenEdgeTypes, layoutMode])
+
+  // Name lookup for edge tooltip (id → display name)
+  const nodeNameMap = useMemo(() => {
+    const m = new Map<string, string>()
+    eNodes.forEach(n => m.set(String(n.id), n.name || n.id))
+    return m
+  }, [eNodes])
+
+  const option = useMemo(() => ({
+    backgroundColor: "transparent",
+    animation: false,
+    tooltip: {
+      show: true,
+      trigger: "item",
+      formatter: (params: any) => {
+        if (params.dataType === "node") {
+          const d = params.data
+          const type: string = d._type ?? (OVERVIEW_TYPES[d.category] ?? "Unknown")
+          const n = d._raw ?? {}
+          const get = (k: string) => n.properties?.[k] ?? n[k]
+          const name = d.name || d.id
+          let extra = ""
+          if (type === "Application") {
+            const role = get("role"); if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
+          }
+          if (type === "Topic") {
+            const qr = get("qos_reliability"); if (qr != null && qr !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${qr}</span>`
+            const qd = get("qos_durability");  if (qd != null && qd !== "") extra += `<br/><span style="opacity:0.7">Durability: ${qd}</span>`
+            const qt = get("qos_transport_priority"); if (qt != null && qt !== "") extra += `<br/><span style="opacity:0.7">Transport Priority: ${qt}</span>`
+            const szRaw = get("message_size") ?? get("payload_size_bytes") ?? get("size")
+            if (szRaw != null && szRaw !== "") { const szN = Number(szRaw); const szFmt = isFinite(szN) ? (szN >= 1048576 ? `${(szN/1048576).toFixed(2)} MB` : szN >= 1024 ? `${(szN/1024).toFixed(1)} KB` : `${szN} B`) : String(szRaw); extra += `<br/><span style="opacity:0.7">Size: ${szFmt}</span>` }
+          }
+          if (type === "Library") {
+            const ver = get("version"); if (ver != null && ver !== "") extra += `<br/><span style="opacity:0.7">Version: ${ver}</span>`
+          }
+          if (type === "Broker") {
+            const bt = get("broker_type"); if (bt != null && bt !== "") extra += `<br/><span style="opacity:0.7">Protocol: ${bt}</span>`
+          }
+          const typeStr = type ? `<br/><span style="opacity:0.7">${type}</span>` : ""
+          return `<div style="font-size:12px;line-height:1.7"><b>${name}</b>${typeStr}${extra}</div>`
+        }
+        if (params.dataType === "edge") {
+          const d = params.data
+          const edgeType = d.edgeType ?? ""
+          const sourceName = nodeNameMap.get(String(d.source)) ?? d.source
+          const targetName = nodeNameMap.get(String(d.target)) ?? d.target
+          return `<div style="font-size:12px;line-height:1.7"><b>${sourceName}</b><br/><span style="opacity:0.7">↓ ${edgeType}</span><br/><b>${targetName}</b></div>`
+        }
+        return ""
+      },
+      enterable: false,
+      backgroundColor: isDark ? "#1c1c1e" : "#ffffff",
+      borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+      textStyle: { color: isDark ? "#fafafa" : "#09090b", fontSize: 12 },
+    },
+    legend: { show: false },
+    series: [{
+      type: "graph",
+      layout: "none",
+      data: eNodes,
+      links: eEdges,
+      categories: OVERVIEW_TYPES.map(t => ({ name: t, itemStyle: { color: OVERVIEW_TYPE_COLORS[t] } })),
+      roam: true,
+      draggable: false,
+      focusNodeAdjacency: false,
+      progressive: 500,
+      progressiveThreshold: 1000,
+      label: { show: false },
+      lineStyle: { curveness: 0 },
+      emphasis: {
+        focus: "adjacency",
+        scale: true,
+        lineStyle: { opacity: 0.7, width: 1.2 },
+        label: {
+          show: true,
+          fontSize: 10,
+          color: isDark ? "#fafafa" : "#09090b",
+          backgroundColor: isDark ? "#1c1c1e" : "#ffffff",
+          borderRadius: 4,
+          padding: [2, 4],
+        },
+      },
+      blur: {
+        itemStyle: { opacity: 0.08 },
+        lineStyle: { opacity: 0.03 },
+      },
+      zoom: 0.9,
+    }],
+  }), [eNodes, eEdges, isDark, nodeNameMap])
+
+  const bg = isDark ? "#09090b" : "#fafaf9"
+  const textMuted = isDark ? "#71717a" : "#a1a1aa"
+
+  return (
+    <div className="flex flex-col h-full" style={{ background: bg }}>
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 px-3 py-2 shrink-0 flex-wrap">
+        {/* Node type legend */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs text-muted-foreground mr-1">Nodes:</span>
+          {OVERVIEW_TYPES.map(t => (
+            <button
+              key={t}
+              onClick={() => toggleType(t)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-opacity"
+              style={{
+                borderColor: OVERVIEW_TYPE_COLORS[t],
+                color: hiddenTypes.has(t) ? textMuted : OVERVIEW_TYPE_COLORS[t],
+                opacity: hiddenTypes.has(t) ? 0.4 : 1,
+                background: hiddenTypes.has(t) ? "transparent" : `${OVERVIEW_TYPE_COLORS[t]}18`,
+              }}
+            >
+              <span className="w-2 h-2 rounded-full inline-block" style={{ background: OVERVIEW_TYPE_COLORS[t] }} />
+              {t}
+              {stats.typeCounts[t] ? <span className="opacity-60">({stats.typeCounts[t]})</span> : null}
+            </button>
+          ))}
+        </div>
+
+        {/* Edge type legend — always rendered so buttons don't disappear when all are toggled off */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs text-muted-foreground mr-1">Edges:</span>
+          {edgeTypes.map(t => (
+            <button
+              key={t}
+              onClick={() => toggleEdgeType(t)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-opacity"
+              style={{
+                borderColor: OVERVIEW_EDGE_COLORS[t] ?? "#94a3b8",
+                color: hiddenEdgeTypes.has(t) ? textMuted : (OVERVIEW_EDGE_COLORS[t] ?? "#94a3b8"),
+                opacity: hiddenEdgeTypes.has(t) ? 0.4 : 1,
+                background: hiddenEdgeTypes.has(t) ? "transparent" : `${OVERVIEW_EDGE_COLORS[t] ?? "#94a3b8"}18`,
+              }}
+            >
+              <span className="w-3 h-px inline-block" style={{ background: OVERVIEW_EDGE_COLORS[t] ?? "#94a3b8" }} />
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {/* Layout toggle + Stats */}
+        <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
+          {linksLoading && <span className="animate-pulse">Loading edges…</span>}
+          <span>{stats.nodes.toLocaleString()} nodes</span>
+          <span>{stats.edges.toLocaleString()} edges</span>
+          <button
+            onClick={() => setLayoutMode(m => m === "clustered" ? "scattered" : "clustered")}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border text-xs transition-colors hover:bg-accent"
+            title={layoutMode === "clustered" ? "Switch to scattered layout" : "Switch to clustered layout"}
+          >
+            {layoutMode === "clustered" ? "Clustered" : "Scattered"}
+          </button>
+          <span className="hidden sm:inline opacity-60">Scroll to zoom · drag to pan</span>
+        </div>
+      </div>
+
+      {/* Chart */}
+      {eNodes.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+          No graph data available.
+        </div>
+      ) : (
+        <ReactECharts
+          ref={echartsRef}
+          option={option}
+          style={{ flex: 1, width: "100%", minHeight: 0 }}
+          opts={{ renderer: "canvas" }}
+          onEvents={onEvents}
+          notMerge
+        />
+      )}
+    </div>
+  )
+})
+
 // ── Force-layout ECharts tab ──────────────────────────────────────────────────
 
 type SwimlaneType = "Node" | "Application" | "Topic" | "Library" | "Broker"
@@ -3948,6 +4331,9 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
       legend: { show: false },
       tooltip: {
         trigger: "item",
+        backgroundColor: isDark ? "#1c1c1e" : "#ffffff",
+        borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+        textStyle: { color: isDark ? "#fafafa" : "#09090b", fontSize: 12 },
         formatter: (p: any) => {
           if (p.dataType === "node") {
             const d = p.data ?? {}
@@ -4197,7 +4583,7 @@ function BrowserPageContent() {
   const [error, setError] = useState<string | null>(null)
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null)
   const [hierSelectedNode, setHierSelectedNode] = useState<SelectedNode | null>(null)
-  const [activeTab, setActiveTab] = useState<"browse" | "graph" | "forcegraph">("browse")
+  const [activeTab, setActiveTab] = useState<"browse" | "graph" | "forcegraph" | "overview">("browse")
   const [layerGraphLinks, setLayerGraphLinks] = useState<Array<{ source: string; target: string; type: string; weight?: number }>>([])
   const [layerLinksLoading, setLayerLinksLoading] = useState(false)
   const layerLinksLoadedRef = useRef(false)
@@ -4205,6 +4591,7 @@ function BrowserPageContent() {
   // Export-to-PNG refs — populated by child graph components
   const forceGraphExportRef = useRef<(() => void) | null>(null)
   const systemGraphExportRef = useRef<(() => void) | null>(null)
+  const overviewGraphExportRef = useRef<(() => void) | null>(null)
 
   const toggle = useCallback((key: string) => {
     setOpenSet((prev) => {
@@ -4403,8 +4790,8 @@ function BrowserPageContent() {
   }, [])
 
   const handleTabChange = useCallback((tab: string) => {
-    setActiveTab(tab as "browse" | "graph" | "forcegraph")
-    if (tab === "forcegraph" || tab === "browse") fetchLayerLinks()
+    setActiveTab(tab as "browse" | "graph" | "forcegraph" | "overview")
+    if (tab === "forcegraph" || tab === "browse" || tab === "overview") fetchLayerLinks()
   }, [fetchLayerLinks])
 
   const allNodeLabels = useMemo(() => {
@@ -4442,14 +4829,27 @@ function BrowserPageContent() {
 
   if (!initialLoadComplete || (isConnected && loading && nodesList.length === 0)) {
     return (
-      <AppLayout title="Explorer" description="Browse your system topology, inspect components, and explore dependency relationships.">
+      <AppLayout title="Explorer" description="Browse your system topology">
         <div className="space-y-3">
           {/* Tabs skeleton */}
           <div className="flex items-center justify-between mb-2 shrink-0">
-            <div className="bg-muted inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px] gap-1">
-              <Skeleton className="h-[calc(100%-2px)] w-20 rounded-md" />
-              <Skeleton className="h-[calc(100%-2px)] w-20 rounded-md" />
-              <Skeleton className="h-[calc(100%-2px)] w-20 rounded-md" />
+            <div className="bg-background border border-border inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px] gap-0.5">
+              <div className="inline-flex items-center gap-1.5 h-[calc(100%-2px)] px-3 rounded-md bg-muted animate-pulse">
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-3.5 w-8" />
+              </div>
+              <div className="inline-flex items-center gap-1.5 h-[calc(100%-2px)] px-3 rounded-md">
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-3.5 w-10" />
+              </div>
+              <div className="inline-flex items-center gap-1.5 h-[calc(100%-2px)] px-3 rounded-md">
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-3.5 w-12" />
+              </div>
+              <div className="inline-flex items-center gap-1.5 h-[calc(100%-2px)] px-3 rounded-md">
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-3.5 w-14" />
+              </div>
             </div>
           </div>
           {/* 3-column layout skeleton */}
@@ -4494,7 +4894,7 @@ function BrowserPageContent() {
     )
   }
   if (!isConnected) {
-    return <AppLayout><NoConnectionInfo /></AppLayout>
+    return <AppLayout title="Explorer" description="Browse your system topology"><NoConnectionInfo description="Connect to your Neo4j database to explore topology" /></AppLayout>
   }
 
   const q = search.toLowerCase()
@@ -4503,7 +4903,7 @@ function BrowserPageContent() {
   return (
     <AppLayout
       title="Explorer"
-      description="Browse your system topology, inspect components, and explore dependency relationships."
+      description="Browse your system topology"
     >
       <div className="flex flex-col gap-5 h-full">
         {error && (
@@ -4522,11 +4922,14 @@ function BrowserPageContent() {
                 <Share2 className="h-4 w-4" />Graph
               </TabsTrigger>
               <TabsTrigger value="graph" className="flex items-center gap-2">
-                <Network className="h-4 w-4" />System
+                <Network className="h-4 w-4" />Tree
+              </TabsTrigger>
+              <TabsTrigger value="overview" className="flex items-center gap-2">
+                <Layers className="h-4 w-4" />Overview
               </TabsTrigger>
             </TabsList>
 
-            {(activeTab === "forcegraph" || activeTab === "graph") && (
+            {(activeTab === "forcegraph" || activeTab === "graph" || activeTab === "overview") && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -4535,11 +4938,12 @@ function BrowserPageContent() {
                     className="h-8 gap-1.5 text-xs"
                     onClick={() => {
                       if (activeTab === "forcegraph") forceGraphExportRef.current?.()
+                      else if (activeTab === "overview") overviewGraphExportRef.current?.()
                       else systemGraphExportRef.current?.()
                     }}
                   >
                     <Download className="h-3.5 w-3.5" />
-                    Export PNG
+                    Save as PNG
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Download current graph view as PNG</TooltipContent>
@@ -4667,6 +5071,22 @@ function BrowserPageContent() {
               )
               : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
             }
+          </TabsContent>
+
+          {/* ── Overview tab ── */}
+          <TabsContent forceMount value="overview" className="flex-1 min-h-0 mt-0 h-full data-[state=inactive]:hidden">
+            <div className="border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
+              <GraphOverviewEChart
+                nodesList={nodesList}
+                appsList={appsList}
+                topicsList={topicsList}
+                libsList={libsList}
+                brokersList={brokersList}
+                graphLinks={layerGraphLinks}
+                linksLoading={layerLinksLoading}
+                exportFnRef={overviewGraphExportRef}
+              />
+            </div>
           </TabsContent>
 
           {/* ── Force-graph tab ── */}
