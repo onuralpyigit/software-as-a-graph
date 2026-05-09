@@ -109,6 +109,14 @@ class AnalysisStatsModel(BaseModel):
     edges: int
     density: float
     avg_degree: float
+    avg_clustering: float = 0.0
+    is_connected: bool = True
+    num_components: int = 1
+    num_articulation_points: int = 0
+    num_bridges: int = 0
+    connectivity_health: str = "UNKNOWN"
+    node_types: Dict[str, int] = {}
+    edge_types: Dict[str, int] = {}
 
 
 class AnalysisDetailModel(BaseModel):

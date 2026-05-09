@@ -60,7 +60,7 @@ def _detect_antipatterns(prediction) -> list:
     layer_name = getattr(quality, "layer", "system")
     if hasattr(layer_name, "value"):
         layer_name = layer_name.value
-    shim = SimpleNamespace(quality=quality, components=quality.components)
+    shim = SimpleNamespace(quality=quality, components=quality.components, edges=quality.edges)
     detector = AntiPatternDetector()
     return detector.detect(shim, layer_name)
 
