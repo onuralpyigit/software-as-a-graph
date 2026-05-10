@@ -244,6 +244,8 @@ def _train_cell(
     if nx_graph.number_of_nodes() == 0:
         return {"error": "empty_graph"}
 
+    n_nodes = nx_graph.number_of_nodes()
+    effective_layers = 1 if n_nodes <= 200 else (2 if n_nodes <= 500 else num_layers)
     start = time.time()
 
     if variant == "topology_rmav":
@@ -257,8 +259,6 @@ def _train_cell(
                 str(n): {"composite": d / max_deg}
                 for n, d in deg.items()
             }
-        n_nodes = nx_graph.number_of_nodes()
-        effective_layers = 1 if n_nodes <= 200 else (2 if n_nodes <= 500 else num_layers)
 
         if not rmav_dict:
             # Use in-degree centrality as RMAV proxy
