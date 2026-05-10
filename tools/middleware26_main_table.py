@@ -257,6 +257,9 @@ def _train_cell(
                 str(n): {"composite": d / max_deg}
                 for n, d in deg.items()
             }
+        n_nodes = nx_graph.number_of_nodes()
+        effective_layers = 1 if n_nodes <= 200 else (2 if n_nodes <= 500 else num_layers)
+
         if not rmav_dict:
             # Use in-degree centrality as RMAV proxy
             import networkx as nx
@@ -266,6 +269,7 @@ def _train_cell(
                 for n, v in ic.items()
             }
         from scipy.stats import spearmanr
+        start = time.time()
         # Align keys
         keys = sorted(set(rmav_dict) & set(simulation_dict))
         if len(keys) < 3:
@@ -282,12 +286,10 @@ def _train_cell(
 
     elif variant in ("homo_unweighted", "homo_scalar"):
         from saag.prediction.models.baselines import build_baseline
+        start = time.time()
         conv = networkx_to_hetero_data(nx_graph, structural_dict, simulation_dict, rmav_dict)
         data = conv.hetero_data
         create_node_splits(data, train_ratio, val_ratio, seed=seed)
-        # Use fewer layers on small graphs to prevent over-smoothing collapse
-        n_nodes = nx_graph.number_of_nodes()
-        effective_layers = 1 if n_nodes <= 200 else (2 if n_nodes <= 500 else num_layers)
         effective_lr = 1e-3  # higher LR for faster convergence on small labelled sets
         effective_patience = max(patience, 60)
         model = build_baseline(variant, hidden_channels=hidden, num_heads=num_heads,
@@ -301,7 +303,8 @@ def _train_cell(
 
     else:  # hetero_qos
         from saag.prediction.gnn_service import GNNService
-        svc = GNNService(hidden_channels=hidden, num_heads=num_heads, num_layers=num_layers,
+        start = time.time()
+        svc = GNNService(hidden_channels=hidden, num_heads=num_heads, num_layers=effective_layers,
                          dropout=dropout, predict_edges=False,
                          checkpoint_dir=f"output/gnn_checkpoints/{scenario}_hetero_qos_s{seed}")
         result = svc.train(
