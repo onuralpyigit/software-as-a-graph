@@ -257,6 +257,65 @@ def print_table3_console(data: Dict):
         print(row)
 
 
+# ── Identification Metrics (F1, Prec, Rec, Top-5) ───────────────────────────
+
+def render_id_metrics_md(data: Dict, output: Path):
+    agg = data.get("aggregate", {})
+    scenarios = sorted({k.split("|")[0] for k in agg})
+    
+    header = "| Scenario | Variant | F1 | Precision | Recall | Top-5 | Top-10 |"
+    divider = "|---|---|---|---|---|---|---|"
+    rows = [header, divider]
+    
+    for sc in scenarios:
+        label = _SCENARIO_LABELS.get(sc, sc)
+        for v in _VARIANT_ORDER:
+            st = agg.get(f"{sc}|{v}", {})
+            f1   = st.get("mean_f1", "—")
+            prec = st.get("mean_precision", "—")
+            rec  = st.get("mean_recall", "—")
+            t5   = st.get("mean_top5", "—")
+            t10  = st.get("mean_top10", "—")
+            
+            f1_s   = f"{f1:.3f}" if isinstance(f1, float) else f1
+            prec_s = f"{prec:.3f}" if isinstance(prec, float) else prec
+            rec_s  = f"{rec:.3f}" if isinstance(rec, float) else rec
+            t5_s   = f"{t5:.3f}" if isinstance(t5, float) else t5
+            t10_s  = f"{t10:.3f}" if isinstance(t10, float) else t10
+            
+            v_label = _VARIANT_LABELS_PLAIN.get(v, v)
+            rows.append(f"| {label} | {v_label} | {f1_s} | {prec_s} | {rec_s} | {t5_s} | {t10_s} |")
+        rows.append("| | | | | | | |") # spacer
+        
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(rows) + "\n")
+    print(f"  Saved ID Metrics MD: {output}")
+
+
+def print_id_metrics_console(data: Dict):
+    agg = data.get("aggregate", {})
+    scenarios = sorted({k.split("|")[0] for k in agg})
+    
+    print("\n  Identification Metrics (Critical Component Detection)")
+    header = f"  {'Scenario':<25} {'Variant':<15} {'F1':<8} {'Prec':<8} {'Rec':<8} {'Top-5':<8} {'Top-10'}"
+    print(header)
+    print("  " + "─" * 85)
+    
+    for sc in scenarios:
+        label = _SCENARIO_LABELS.get(sc, sc)
+        for v in _VARIANT_ORDER:
+            st = agg.get(f"{sc}|{v}", {})
+            f1   = st.get("mean_f1", 0.0)
+            prec = st.get("mean_precision", 0.0)
+            rec  = st.get("mean_recall", 0.0)
+            t5   = st.get("mean_top5", 0.0)
+            t10  = st.get("mean_top10", 0.0)
+            
+            v_label = _VARIANT_LABELS_PLAIN.get(v, v)
+            print(f"  {label[:25]:<25} {v_label:<15} {f1:<8.3f} {prec:<8.3f} {rec:<8.3f} {t5:<8.3f} {t10:<8.3f}")
+        print()
+
+
 # ── Table 4: LOSO results (4 variants) ───────────────────────────────────────
 
 def render_table4_tex(loso_data: Dict, output: Path):
@@ -370,6 +429,8 @@ def main():
             if not args.tex_only:
                 render_table3_csv(data3, out / "table3_main_results.csv")
                 render_table3_md(data3,  out / "table3_main_results.md")
+                render_id_metrics_md(data3, out / "table3_id_metrics.md")
+            print_id_metrics_console(data3)
     else:
         print(f"\n  [Table 3] Not found: {args.table3}")
         print("  Run: python tools/middleware26_main_table.py")

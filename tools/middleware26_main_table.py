@@ -763,16 +763,36 @@ def _train_cell(
             max_deg = max(deg.values()) if deg else 1
             simulation_dict = {str(n): {"composite": d / max_deg} for n, d in deg.items()}
 
+        from scipy.stats import spearmanr
+        from saag.prediction.trainer import evaluate_scores
+        import numpy as np
+
         keys = sorted(set(struct_pred) & set(simulation_dict))
         if len(keys) < 3:
             return {"error": "insufficient_overlap"}
-        pred_r = [struct_pred[k] for k in keys]
-        true_r = [simulation_dict[k].get("composite", 0.0) for k in keys]
-        rho, _ = spearmanr(pred_r, true_r)
+        
+        pred_list = [struct_pred[k] for k in keys]
+        true_list = [simulation_dict[k].get("composite", 0.0) for k in keys]
+        
+        # Convert to (N, 5) for evaluate_scores compatibility (cols 1-4 are dummies)
+        y_pred = np.zeros((len(pred_list), 5))
+        y_true = np.zeros((len(true_list), 5))
+        y_pred[:, 0] = pred_list
+        y_true[:, 0] = true_list
+        
+        m = evaluate_scores(y_pred, y_true)
+        
         return {
             "scenario": scenario, "variant": variant, "seed": seed,
-            "spearman_rho": _safe_rho(rho),
-            "f1_score": 0.0, "rmse": 0.0, "mae": 0.0, "ndcg_10": 0.0,
+            "spearman_rho": round(m.spearman_rho, 4),
+            "f1_score": round(m.f1_score, 4),
+            "precision": round(m.precision, 4),
+            "recall": round(m.recall, 4),
+            "rmse": round(m.rmse, 4),
+            "mae": round(m.mae, 4),
+            "ndcg_10": round(m.ndcg_10, 4),
+            "top_5_overlap": round(m.top_5_overlap, 4),
+            "top_10_overlap": round(m.top_10_overlap, 4),
             "per_node_type": {}, "runtime_s": round(time.time() - start, 2),
         }
 
@@ -784,13 +804,14 @@ def _train_cell(
         create_node_splits(data, train_ratio, val_ratio, seed=seed)
         effective_lr = 1e-3  # higher LR for faster convergence on small labelled sets
         effective_patience = max(patience, 60)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = build_baseline(variant, hidden_channels=hidden, num_heads=num_heads,
                                num_layers=effective_layers, dropout=dropout)
+        model.to(device)
         ckpt_dir = f"output/gnn_checkpoints/{scenario}_{variant}_s{seed}"
         trainer = GNNTrainer(model=model, checkpoint_dir=ckpt_dir, lr=effective_lr,
                              num_epochs=num_epochs, patience=effective_patience)
         trainer.train(data)
-        device = torch.device("cpu")
         metrics = evaluate(model, data, "test_mask", device)
 
     else:  # hetero_qos
@@ -858,11 +879,22 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
 
     aggregate = {}
     for (sc, var), cs in by_sv.items():
-        rhos = [c["spearman_rho"] for c in cs]
+        rhos = [c.get("spearman_rho", 0.0) for c in cs]
+        f1s = [c.get("f1_score", 0.0) for c in cs]
+        precs = [c.get("precision", 0.0) for c in cs]
+        recs = [c.get("recall", 0.0) for c in cs]
+        top5s = [c.get("top_5_overlap", 0.0) for c in cs]
+        top10s = [c.get("top_10_overlap", 0.0) for c in cs]
+
         mean_r = float(np.mean(rhos))
         lo, hi = _bootstrap_ci(rhos)
         aggregate[(sc, var)] = {
             "mean_rho": round(mean_r, 4),
+            "mean_f1": round(float(np.mean(f1s)), 4),
+            "mean_precision": round(float(np.mean(precs)), 4),
+            "mean_recall": round(float(np.mean(recs)), 4),
+            "mean_top5": round(float(np.mean(top5s)), 4),
+            "mean_top10": round(float(np.mean(top10s)), 4),
             "ci_lo": round(lo, 4),
             "ci_hi": round(hi, 4),
             "n_seeds": len(cs),

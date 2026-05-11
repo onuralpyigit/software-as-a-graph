@@ -13,7 +13,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 EPOCHS=300
-SEEDS="42,123,456,789,2024"
+SEEDS="42 123 456 789 2024"
 SCENARIOS_DIR="data/scenarios"
 OUTPUT="results/main_table.json"
 RESUME=""
@@ -49,9 +49,8 @@ echo ""
 # ── Step 1: Training matrix ────────────────────────────────────────────────────
 echo "  [1/3] Training matrix (8 scenarios × 4 variants × 5 seeds) ..."
 PYTHONPATH=. python tools/middleware26_main_table.py \
-    --scenarios-dir "$SCENARIOS_DIR" \
     --output "$OUTPUT" \
-    --seeds "$SEEDS" \
+    --seeds ${SEEDS} \
     --epochs "$EPOCHS" \
     ${RESUME} \
     --verbose
