@@ -45,18 +45,20 @@ _SCENARIO_LABELS = {
 }
 
 _VARIANT_LABELS = {
-    "topology_rmav":   r"\textsc{RMAV}",
+    "topo_baseline":   r"\textsc{Topo-BL}",
+    "rasse_2025":      r"\textsc{RMAV (RASSE '25)}",
     "homo_unweighted": r"\textsc{Homo-U}",
     "homo_scalar":     r"\textsc{Homo-S}",
     "hetero_qos":      r"\textbf{Q-HGL}",
 }
 _VARIANT_LABELS_PLAIN = {
-    "topology_rmav":   "RMAV",
+    "topo_baseline":   "Topo-BL",
+    "rasse_2025":      "RMAV (RASSE '25)",
     "homo_unweighted": "Homo-U",
     "homo_scalar":     "Homo-S",
     "hetero_qos":      "Q-HGL (ours)",
 }
-_VARIANT_ORDER = ["topology_rmav", "homo_unweighted", "homo_scalar", "hetero_qos"]
+_VARIANT_ORDER = ["topo_baseline", "rasse_2025", "homo_unweighted", "homo_scalar", "hetero_qos"]
 
 _RESULTS_DIR = Path("results")
 
@@ -76,10 +78,12 @@ def _get_cell_stats(agg: Dict, scenario: str, variant: str) -> Dict:
 
 
 def _format_rho(mean: Optional[float], ci_lo: Optional[float], ci_hi: Optional[float],
-                bold: bool = False) -> str:
+                bold: bool = False, is_circular: bool = False) -> str:
     """Format 'mean [lo, hi]' for LaTeX cell, optionally bold."""
     if mean is None:
         return r"\textemdash"
+    if is_circular:
+        return r"1.000$^\dagger$"
     s = f"{mean:.3f}"
     if ci_lo is not None and ci_hi is not None:
         s += rf" $[{ci_lo:.3f},{ci_hi:.3f}]$"
@@ -112,7 +116,7 @@ def render_table3_tex(data: Dict, output: Path):
     lines = [
         r"\begin{table}[t]",
         r"\centering",
-        r"\caption{Spearman $\rho$ (composite score) across 8 scenarios $\times$ 4 variants,",
+        rf"\caption{{Spearman $\rho$ (composite score) across 8 scenarios $\times$ {n_vars} variants,",
         r"         5 seeds, Bootstrap 95\% CI. $^{*}p<0.05$, $^{**}p<0.01$, $^{***}p<0.001$ vs Q-HGL (Wilcoxon).}",
         r"\label{tab:main_results}",
         rf"\begin{{tabular}}{{{col_spec}}}",
@@ -136,8 +140,8 @@ def render_table3_tex(data: Dict, output: Path):
             ci_hi  = stats.get("ci_hi")
             p_val  = stats.get("wilcoxon_p_vs_hetero")
             is_best = mean_r is not None and abs(mean_r - best_rho) < 0.001
-            is_hq   = var == "hetero_qos"
-            cell = _format_rho(mean_r, ci_lo, ci_hi, bold=(is_best and is_hq))
+            is_circ = stats.get("is_circular", False)
+            cell = _format_rho(mean_r, ci_lo, ci_hi, bold=(is_best and var == "hetero_qos"), is_circular=is_circ)
             if var != "hetero_qos" and p_val is not None:
                 cell += _pval_star(p_val)
             cells.append(cell)
@@ -214,8 +218,12 @@ def render_table3_md(data: Dict, output: Path):
         for v in _VARIANT_ORDER:
             st = agg.get(f"{sc}|{v}", {})
             r = st.get("mean_rho")
+            is_circ = st.get("is_circular", False)
+            
             if r is None:
                 cells.append("—")
+            elif is_circ:
+                cells.append("1.000*")
             elif abs(r - best_rho) < 0.001:
                 cells.append(f"**{r:.3f}**")
             else:
@@ -247,9 +255,13 @@ def print_table3_console(data: Dict):
         row = f"  {label:<30}"
         for v in _VARIANT_ORDER:
             st = agg.get(f"{sc}|{v}", {})
-            r  = st.get("mean_rho")
+            r = st.get("mean_rho")
+            is_circ = st.get("is_circular", False)
+            
             if r is None:
                 row += f"{'—':<{col_w}}"
+            elif is_circ:
+                row += f"{'1.000*':<{col_w}}"
             elif abs(r - best_rho) < 0.001:
                 row += f"*{r:.3f}*     "[:col_w].ljust(col_w)
             else:

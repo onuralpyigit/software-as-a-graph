@@ -54,10 +54,11 @@ Measures the intersection between the top $K$ most critical components in the gr
 
 | Variant | Logic |
 |---|---|
-| `hetero_qos` | **Q-HGL (Proposed)**: Heterogeneous GAT with 16-dimensional edge features and node-type-specific attention heads. |
-| `homo_scalar` | **Baseline**: Homogeneous GAT that reduces QoS metadata to a single scalar weight per edge. |
+| `topo_baseline` | **Baseline**: Comparison of simple structural centrality (Betweenness + Articulation Point) against ground truth. |
+| `rasse_2025` | **RASSE '25**: The full RMAV (Risk-Mitigation and Availability-Value) composite score from the previous paper. |
 | `homo_unweighted` | **Baseline**: Homogeneous GAT that ignores QoS metadata entirely (pure topology). |
-| `topology_rmav` | **Baseline**: Non-learning centrality-based heuristic (RMAV). |
+| `homo_scalar` | **Baseline**: Homogeneous GAT that reduces QoS metadata to a single scalar weight per edge. |
+| `hetero_qos` | **Q-HGL (Proposed)**: Heterogeneous GAT with 16-dimensional edge features and node-type-specific attention heads. |
 
 ---
 

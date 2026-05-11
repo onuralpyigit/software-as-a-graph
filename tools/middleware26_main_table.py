@@ -55,7 +55,7 @@ ALL_SCENARIOS = [
     "enterprise_system",
 ]
 
-ALL_VARIANTS = ["topology_rmav", "homo_unweighted", "homo_scalar", "hetero_qos"]
+ALL_VARIANTS = ["topo_baseline", "rasse_2025", "homo_unweighted", "homo_scalar", "hetero_qos"]
 
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
 
@@ -452,7 +452,7 @@ def _merge_structural_dicts(nx_features: Dict, cached: Dict) -> Dict:
     return merged
 
 
-def _load_scenario_data(scenario: str) -> Tuple[Any, Dict, Dict, Dict]:
+def _load_scenario_data(scenario: str) -> Tuple[Any, Dict, Dict, Dict, bool]:
     """Load graph + structural/simulation/RMAV data for a scenario.
 
     Topology source priority: (1) LOSO cache topology.json, (2) data/scenarios/<name>.json.
@@ -511,10 +511,12 @@ def _load_scenario_data(scenario: str) -> Tuple[Any, Dict, Dict, Dict]:
 
         # Fresh RMAV quality from DEPENDS_ON features — consistent with feature source.
         fresh_rmav = _compute_rmav_from_structural(topology, saag_features)
+        is_circular = False
         if fresh_rmav:
             logger.info("Using fresh RMAV quality as simulation labels (DEPENDS_ON-consistent).")
             simulation_dict = fresh_rmav
             rmav_dict = fresh_rmav
+            is_circular = True
 
         # Build DEPENDS_ON-only graph: Application + Library nodes, Rules 1 & 5.
         # Node 'type' attribute is required by networkx_to_hetero_data to assign
@@ -539,7 +541,7 @@ def _load_scenario_data(scenario: str) -> Tuple[Any, Dict, Dict, Dict]:
         nx_features = _compute_nx_structural_features(nx_graph)
         structural_dict = _merge_structural_dicts(nx_features, structural_dict)
 
-    return nx_graph, structural_dict, simulation_dict, rmav_dict
+    return nx_graph, structural_dict, simulation_dict, rmav_dict, is_circular
 
 
 def _remap_node_ids(d: Dict, graph_nodes: set) -> Dict:
@@ -625,16 +627,18 @@ def _parse_structural_metrics(raw: Dict) -> Dict:
             metrics = entry.get("metrics", {})
             if nid:
                 result[nid] = {
-                    "betweenness": float(metrics.get("betweenness", 0.0)),
+                    "betweenness": float(metrics.get("betweenness", metrics.get("betweenness_centrality", 0.0))),
                     "in_degree":   float(metrics.get("in_degree",   metrics.get("degree", 0.0))),
+                    "articulation_point": float(metrics.get("ap_c_score", 0.0)),
                     "out_degree":  float(metrics.get("out_degree",  0.0)),
                     "degree":      float(metrics.get("degree",      0.0)),
                 }
     elif isinstance(comps, dict):
         for nid, metrics in comps.items():
             result[str(nid)] = {
-                "betweenness": float(metrics.get("betweenness", 0.0)),
+                "betweenness": float(metrics.get("betweenness", metrics.get("betweenness_centrality", 0.0))),
                 "in_degree":   float(metrics.get("in_degree",   metrics.get("degree", 0.0))),
+                "articulation_point": float(metrics.get("ap_c_score", 0.0)),
                 "out_degree":  float(metrics.get("out_degree",  0.0)),
                 "degree":      float(metrics.get("degree",      0.0)),
             }
@@ -729,7 +733,7 @@ def _train_cell(
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    nx_graph, structural_dict, simulation_dict, rmav_dict = _load_scenario_data(scenario)
+    nx_graph, structural_dict, simulation_dict, rmav_dict, is_circular = _load_scenario_data(scenario)
 
     if nx_graph.number_of_nodes() == 0:
         return {"error": "empty_graph"}
@@ -738,34 +742,24 @@ def _train_cell(
     effective_layers = 1 if n_nodes <= 200 else (2 if n_nodes <= 500 else num_layers)
     start = time.time()
 
-    if variant == "topology_rmav":
-        # topology_rmav baseline: compare structural centrality (betweenness + in_degree)
-        # against the quality ground truth (simulation_dict, which may be RMAV quality
-        # when simulation labels are too sparse).  Using rmav_dict as prediction would be
-        # circular when simulation_dict was already replaced with RMAV quality scores.
+    if variant == "topo_baseline":
+        # simple baseline: compare structural centrality (betweenness + in_degree)
+        # against the quality ground truth.
         import networkx as nx
-        from scipy.stats import spearmanr
-
-        # Build structural-centrality prediction for every graph node
-        if structural_dict:
-            # Cached betweenness + in_degree from structural_metrics.json
-            struct_pred = {
-                nid: 0.6 * m.get("betweenness", 0.0) + 0.4 * m.get("in_degree", 0.0)
-                for nid, m in structural_dict.items()
-            }
-        else:
-            # Fall back to NetworkX in-degree centrality
-            struct_pred = {str(n): float(v) for n, v in nx.in_degree_centrality(nx_graph).items()}
-
-        if not simulation_dict:
-            # Last resort: degree-based proxy as ground truth
-            deg = dict(nx.degree(nx_graph))
-            max_deg = max(deg.values()) if deg else 1
-            simulation_dict = {str(n): {"composite": d / max_deg} for n, d in deg.items()}
-
         from scipy.stats import spearmanr
         from saag.prediction.trainer import evaluate_scores
         import numpy as np
+
+        # Build structural-centrality prediction for every graph node
+        if structural_dict:
+            # Cached betweenness + articulation_point from structural_metrics.json
+            struct_pred = {
+                nid: 0.6 * m.get("betweenness", 0.0) + 0.4 * m.get("articulation_point", 0.0)
+                for nid, m in structural_dict.items()
+            }
+        else:
+            # Fall back to NetworkX betweenness centrality
+            struct_pred = {str(n): float(v) for n, v in nx.betweenness_centrality(nx_graph).items()}
 
         keys = sorted(set(struct_pred) & set(simulation_dict))
         if len(keys) < 3:
@@ -774,7 +768,50 @@ def _train_cell(
         pred_list = [struct_pred[k] for k in keys]
         true_list = [simulation_dict[k].get("composite", 0.0) for k in keys]
         
-        # Convert to (N, 5) for evaluate_scores compatibility (cols 1-4 are dummies)
+        y_pred = np.zeros((len(pred_list), 5))
+        y_true = np.zeros((len(true_list), 5))
+        y_pred[:, 0] = pred_list
+        y_true[:, 0] = true_list
+        
+        m = evaluate_scores(y_pred, y_true)
+        
+        return {
+            "scenario": scenario, "variant": variant, "seed": seed,
+            "spearman_rho": round(m.spearman_rho, 4),
+            "f1_score": round(m.f1_score, 4),
+            "precision": round(m.precision, 4),
+            "recall": round(m.recall, 4),
+            "rmse": round(m.rmse, 4),
+            "mae": round(m.mae, 4),
+            "ndcg_10": round(m.ndcg_10, 4),
+            "top_5_overlap": round(m.top_5_overlap, 4),
+            "top_10_overlap": round(m.top_10_overlap, 4),
+            "per_node_type": {}, "runtime_s": round(time.time() - start, 2),
+        }
+
+    elif variant == "rasse_2025":
+        # Full IEEE RASSE 2025 approach (RMAV scores)
+        import numpy as np
+        from saag.prediction.trainer import evaluate_scores
+
+        if is_circular:
+            # RMAV is used as ground truth for this scenario -> 1.0 correlation is trivial.
+            # Mark as circular so renderer can handle it.
+            return {
+                "scenario": scenario, "variant": variant, "seed": seed,
+                "is_circular": True,
+                "spearman_rho": 1.0, "f1_score": 1.0, "ndcg_10": 1.0,
+                "precision": 1.0, "recall": 1.0,
+                "per_node_type": {}, "runtime_s": 0.01,
+            }
+
+        keys = sorted(set(rmav_dict) & set(simulation_dict))
+        if len(keys) < 3:
+            return {"error": "insufficient_overlap"}
+        
+        pred_list = [rmav_dict[k].get("overall", 0.0) for k in keys]
+        true_list = [simulation_dict[k].get("composite", 0.0) for k in keys]
+        
         y_pred = np.zeros((len(pred_list), 5))
         y_true = np.zeros((len(true_list), 5))
         y_pred[:, 0] = pred_list
@@ -888,6 +925,7 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
 
         mean_r = float(np.mean(rhos))
         lo, hi = _bootstrap_ci(rhos)
+        is_circ = any(c.get("is_circular", False) for c in cs)
         aggregate[(sc, var)] = {
             "mean_rho": round(mean_r, 4),
             "mean_f1": round(float(np.mean(f1s)), 4),
@@ -897,6 +935,7 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
             "mean_top10": round(float(np.mean(top10s)), 4),
             "ci_lo": round(lo, 4),
             "ci_hi": round(hi, 4),
+            "is_circular": is_circ,
             "n_seeds": len(cs),
             "rhos": rhos,
         }
