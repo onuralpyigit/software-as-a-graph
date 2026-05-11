@@ -55,7 +55,7 @@ ALL_SCENARIOS = [
     "enterprise_system",
 ]
 
-ALL_VARIANTS = ["topo_baseline", "rasse_2025", "homo_unweighted", "homo_scalar", "hetero_qos"]
+ALL_VARIANTS = ["topo_baseline", "homo_unweighted", "homo_scalar", "hetero_qos"]
 
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
 
@@ -920,8 +920,10 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
         f1s = [c.get("f1_score", 0.0) for c in cs]
         precs = [c.get("precision", 0.0) for c in cs]
         recs = [c.get("recall", 0.0) for c in cs]
+        accs = [c.get("accuracy", 0.0) for c in cs]
         top5s = [c.get("top_5_overlap", 0.0) for c in cs]
         top10s = [c.get("top_10_overlap", 0.0) for c in cs]
+        ndcgs = [c.get("ndcg_10", 0.0) for c in cs]
 
         mean_r = float(np.mean(rhos))
         lo, hi = _bootstrap_ci(rhos)
@@ -931,8 +933,10 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
             "mean_f1": round(float(np.mean(f1s)), 4),
             "mean_precision": round(float(np.mean(precs)), 4),
             "mean_recall": round(float(np.mean(recs)), 4),
+            "mean_accuracy": round(float(np.mean(accs)), 4),
             "mean_top5": round(float(np.mean(top5s)), 4),
             "mean_top10": round(float(np.mean(top10s)), 4),
+            "mean_ndcg_10": round(float(np.mean(ndcgs)), 4),
             "ci_lo": round(lo, 4),
             "ci_hi": round(hi, 4),
             "is_circular": is_circ,

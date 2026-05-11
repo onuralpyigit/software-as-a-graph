@@ -53,12 +53,11 @@ _VARIANT_LABELS = {
 }
 _VARIANT_LABELS_PLAIN = {
     "topo_baseline":   "Topo-BL",
-    "rasse_2025":      "RMAV (RASSE '25)",
     "homo_unweighted": "Homo-U",
     "homo_scalar":     "Homo-S",
     "hetero_qos":      "Q-HGL (ours)",
 }
-_VARIANT_ORDER = ["topo_baseline", "rasse_2025", "homo_unweighted", "homo_scalar", "hetero_qos"]
+_VARIANT_ORDER = ["topo_baseline", "homo_unweighted", "homo_scalar", "hetero_qos"]
 
 _RESULTS_DIR = Path("results")
 
@@ -272,32 +271,28 @@ def print_table3_console(data: Dict):
 # ── Identification Metrics (F1, Prec, Rec, Top-5) ───────────────────────────
 
 def render_id_metrics_md(data: Dict, output: Path):
-    agg = data.get("aggregate", {})
+    agg = data["aggregate"]
     scenarios = sorted({k.split("|")[0] for k in agg})
     
-    header = "| Scenario | Variant | F1 | Precision | Recall | Top-5 | Top-10 |"
-    divider = "|---|---|---|---|---|---|---|"
+    header = "| Scenario | Variant | F1 | Accuracy | Precision | Recall | Top-5 | Top-10 | NDCG@10 |"
+    divider = "|---|---|---|---|---|---|---|---|---|"
     rows = [header, divider]
-    
+
     for sc in scenarios:
         label = _SCENARIO_LABELS.get(sc, sc)
         for v in _VARIANT_ORDER:
             st = agg.get(f"{sc}|{v}", {})
-            f1   = st.get("mean_f1", "—")
-            prec = st.get("mean_precision", "—")
-            rec  = st.get("mean_recall", "—")
-            t5   = st.get("mean_top5", "—")
-            t10  = st.get("mean_top10", "—")
+            f1   = st.get("mean_f1", 0.0)
+            acc  = st.get("mean_accuracy", 0.0)
+            prec = st.get("mean_precision", 0.0)
+            rec  = st.get("mean_recall", 0.0)
+            t5   = st.get("mean_top5", 0.0)
+            t10  = st.get("mean_top10", 0.0)
+            ndcg = st.get("mean_ndcg_10", 0.0)
             
-            f1_s   = f"{f1:.3f}" if isinstance(f1, float) else f1
-            prec_s = f"{prec:.3f}" if isinstance(prec, float) else prec
-            rec_s  = f"{rec:.3f}" if isinstance(rec, float) else rec
-            t5_s   = f"{t5:.3f}" if isinstance(t5, float) else t5
-            t10_s  = f"{t10:.3f}" if isinstance(t10, float) else t10
-            
-            v_label = _VARIANT_LABELS_PLAIN.get(v, v)
-            rows.append(f"| {label} | {v_label} | {f1_s} | {prec_s} | {rec_s} | {t5_s} | {t10_s} |")
-        rows.append("| | | | | | | |") # spacer
+            rows.append(f"| {label} | {_VARIANT_LABELS_PLAIN.get(v, v)} | {f1:.3f} | {acc:.3f} | {prec:.3f} | {rec:.3f} | {t5:.3f} | {t10:.3f} | {ndcg:.3f} |")
+            label = "" # Only show scenario once
+        rows.append("| | | | | | | | | |")
         
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\n".join(rows) + "\n")
@@ -305,27 +300,29 @@ def render_id_metrics_md(data: Dict, output: Path):
 
 
 def print_id_metrics_console(data: Dict):
-    agg = data.get("aggregate", {})
+    agg = data["aggregate"]
     scenarios = sorted({k.split("|")[0] for k in agg})
     
     print("\n  Identification Metrics (Critical Component Detection)")
-    header = f"  {'Scenario':<25} {'Variant':<15} {'F1':<8} {'Prec':<8} {'Rec':<8} {'Top-5':<8} {'Top-10'}"
+    header = f"  {'Scenario':<25} {'Variant':<15} {'F1':<8} {'Acc':<8} {'Prec':<8} {'Rec':<8} {'T5':<8} {'T10':<8} {'NDCG':<8}"
     print(header)
-    print("  " + "─" * 85)
-    
+    print("  " + "─" * 105)
+
     for sc in scenarios:
         label = _SCENARIO_LABELS.get(sc, sc)
         for v in _VARIANT_ORDER:
             st = agg.get(f"{sc}|{v}", {})
             f1   = st.get("mean_f1", 0.0)
+            acc  = st.get("mean_accuracy", 0.0)
             prec = st.get("mean_precision", 0.0)
             rec  = st.get("mean_recall", 0.0)
             t5   = st.get("mean_top5", 0.0)
             t10  = st.get("mean_top10", 0.0)
+            ndcg = st.get("mean_ndcg_10", 0.0)
             
-            v_label = _VARIANT_LABELS_PLAIN.get(v, v)
-            print(f"  {label[:25]:<25} {v_label:<15} {f1:<8.3f} {prec:<8.3f} {rec:<8.3f} {t5:<8.3f} {t10:<8.3f}")
-        print()
+            print(f"  {label:<25} {_VARIANT_LABELS_PLAIN.get(v, v):<15} {f1:<8.3f} {acc:<8.3f} {prec:<8.3f} {rec:<8.3f} {t5:<8.3f} {t10:<8.3f} {ndcg:<8.3f}")
+            label = ""
+        print("")
 
 
 # ── Table 4: LOSO results (4 variants) ───────────────────────────────────────

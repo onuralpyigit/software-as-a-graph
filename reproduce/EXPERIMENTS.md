@@ -34,10 +34,12 @@ The primary metric is the **Spearman Rank Correlation Coefficient (ρ)**.
 - A high ρ indicates that the system correctly identifies the relative priority of components for architectural hardening.
 
 ### B. Identification Performance (F1, Precision, Recall)
-While Spearman measures ordering, identification metrics measure the quality of the binary classification of "Critical" vs. "Safe" nodes at a threshold of 0.5.
-- **Recall**: Critical for safety-critical systems; measures the fraction of truly critical components that were correctly identified.
-- **Precision**: Measures the "False Top Rate"; ensures that architect resources aren't wasted on components that are actually safe.
-- **F1 Score**: The harmonic mean, used as the primary gate for "Identification Quality" (Target ≥ 0.70).
+While Spearman measures ordering, identification:
+- **Spearman ρ**: Measures global ranking quality.
+- **Accuracy Score**: Overall fraction of correct predictions (Threshold = 0.5).
+- **Precision / Recall / F1**: Binary classification quality metrics.
+- **Top-5/10 Overlap**: Top-K identification quality.
+- **NDCG@10**: Normalized Discounted Cumulative Gain for ranking stability.
 
 ### C. Top-K Overlap (Top-5, Top-10)
 Measures the intersection between the top $K$ most critical components in the ground truth vs. the top $K$ in the predictions.
@@ -55,7 +57,6 @@ Measures the intersection between the top $K$ most critical components in the gr
 | Variant | Logic |
 |---|---|
 | `topo_baseline` | **Baseline**: Comparison of simple structural centrality (Betweenness + Articulation Point) against ground truth. |
-| `rasse_2025` | **RASSE '25**: The full RMAV (Risk-Mitigation and Availability-Value) composite score from the previous paper. |
 | `homo_unweighted` | **Baseline**: Homogeneous GAT that ignores QoS metadata entirely (pure topology). |
 | `homo_scalar` | **Baseline**: Homogeneous GAT that reduces QoS metadata to a single scalar weight per edge. |
 | `hetero_qos` | **Q-HGL (Proposed)**: Heterogeneous GAT with 16-dimensional edge features and node-type-specific attention heads. |

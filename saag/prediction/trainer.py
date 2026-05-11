@@ -16,7 +16,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from scipy.stats import spearmanr
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score
 from torch import Tensor
 
 from torch_geometric.data import HeteroData
@@ -42,6 +42,7 @@ class EvalMetrics:
     ndcg_10: float
     precision: float = 0.0
     recall: float = 0.0
+    accuracy: float = 0.0
     # Per-node-type Spearman ρ — populated by evaluate() for Figure 4 (Block F)
     per_node_type: Dict[str, float] = None  # type: ignore[assignment]
 
@@ -60,6 +61,7 @@ class EvalMetrics:
             "ndcg_10": round(self.ndcg_10, 4),
             "precision": round(self.precision, 4),
             "recall": round(self.recall, 4),
+            "accuracy": round(self.accuracy, 4),
         }
         if self.per_node_type:
             d["per_node_type"] = {nt: round(r, 4) for nt, r in self.per_node_type.items()}
@@ -76,6 +78,7 @@ class EvalMetrics:
             f"  F1 Score:   {self.f1_score:.4f}",
             f"  Precision:  {self.precision:.4f}",
             f"  Recall:     {self.recall:.4f}",
+            f"  Accuracy:   {self.accuracy:.4f}",
             f"  RMSE:       {self.rmse:.4f}",
             f"  MAE:        {self.mae:.4f}",
             f"  NDCG@10:    {self.ndcg_10:.4f}",
@@ -334,10 +337,13 @@ def evaluate_scores(y_pred: np.ndarray, y_true: np.ndarray) -> EvalMetrics:
         if np.isnan(rho):
             rho = 0.0
 
-    # F1 (threshold at 0.5)
-    f1 = f1_score(t_comp >= 0.5, p_comp >= 0.5, zero_division=0)
-    prec = precision_score(t_comp >= 0.5, p_comp >= 0.5, zero_division=0)
-    rec = recall_score(t_comp >= 0.5, p_comp >= 0.5, zero_division=0)
+    # Binary classification metrics
+    y_true_bin = (t_comp >= 0.5).astype(int)
+    y_pred_bin = (p_comp >= 0.5).astype(int)
+    f1 = float(f1_score(y_true_bin, y_pred_bin, zero_division=0))
+    prec = float(precision_score(y_true_bin, y_pred_bin, zero_division=0))
+    rec = float(recall_score(y_true_bin, y_pred_bin, zero_division=0))
+    acc = float(accuracy_score(y_true_bin, y_pred_bin))
 
     # Error metrics
     rmse = np.sqrt(np.mean((p_comp - t_comp)**2))
@@ -356,14 +362,15 @@ def evaluate_scores(y_pred: np.ndarray, y_true: np.ndarray) -> EvalMetrics:
 
     return EvalMetrics(
         spearman_rho=float(rho),
-        f1_score=float(f1),
+        f1_score=f1,
         rmse=float(rmse),
         mae=float(mae),
         top_5_overlap=float(top_5_overlap),
         top_10_overlap=float(top_10_overlap),
         ndcg_10=float(ndcg),
-        precision=float(prec),
-        recall=float(rec),
+        precision=prec,
+        recall=rec,
+        accuracy=acc,
     )
 
 
