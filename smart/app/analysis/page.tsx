@@ -418,7 +418,23 @@ export default function AnalysisPage() {
     return order.filter(l => present.has(l))
   }, [analysisData?.components])
 
-  useEffect(() => { setComponentsPage(1) }, [compTypeFilter, compLevelFilter, compSearchQuery])
+  // Reset pages when analysis data changes (new analysis run)
+  useEffect(() => {
+    setComponentsPage(1)
+  }, [analysisData?.components])
+
+  useEffect(() => {
+    setIssuesPage(1)
+  }, [analysisData?.problems])
+
+  useEffect(() => {
+    setEdgesPage(1)
+  }, [analysisData?.edges])
+
+  // Reset page when filters change (but not when analysisData changes, handled above)
+  useEffect(() => {
+    setComponentsPage(1)
+  }, [compTypeFilter, compLevelFilter, compSearchQuery])
 
   const paginatedComponents = useMemo(() => {
     const startIdx = (componentsPage - 1) * componentsPerPage
@@ -1371,47 +1387,17 @@ export default function AnalysisPage() {
 
 
                 {/* Pagination */}
-
                 {totalIssuesPages > 1 && (
-
-                  <div className="flex items-center justify-between">
-
-                    <span className="text-xs text-muted-foreground">
-
-                      Showing {(issuesPage - 1) * issuesPerPage + 1}–{Math.min(issuesPage * issuesPerPage, filteredIssues.length)} of {filteredIssues.length} issues
-
-                    </span>
-
+                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                    <span>Showing {(issuesPage - 1) * issuesPerPage + 1}–{Math.min(issuesPage * issuesPerPage, filteredIssues.length)} of {filteredIssues.length} issues</span>
                     <div className="flex items-center gap-1">
-
-                      <Button variant="outline" size="sm" onClick={() => setIssuesPage(1)} disabled={issuesPage === 1} className="h-7 w-7 p-0"><ChevronsLeft className="h-3.5 w-3.5" /></Button>
-
-                      <Button variant="outline" size="sm" onClick={() => setIssuesPage(p => p - 1)} disabled={issuesPage === 1} className="h-7 w-7 p-0"><ChevronLeft className="h-3.5 w-3.5" /></Button>
-
-                      {Array.from({ length: totalIssuesPages }, (_, i) => i + 1)
-
-                        .filter(p => totalIssuesPages <= 7 || p === 1 || p === totalIssuesPages || Math.abs(p - issuesPage) <= 1)
-
-                        .map((p, i, arr) => (
-
-                          <React.Fragment key={p}>
-
-                            {i > 0 && arr[i-1] !== p - 1 && <span className="text-xs text-muted-foreground px-1">…</span>}
-
-                            <Button variant={issuesPage === p ? 'default' : 'outline'} size="sm" onClick={() => setIssuesPage(p)} className="h-7 w-7 p-0 text-xs">{p}</Button>
-
-                          </React.Fragment>
-
-                        ))}
-
-                      <Button variant="outline" size="sm" onClick={() => setIssuesPage(p => p + 1)} disabled={issuesPage === totalIssuesPages} className="h-7 w-7 p-0"><ChevronRight className="h-3.5 w-3.5" /></Button>
-
-                      <Button variant="outline" size="sm" onClick={() => setIssuesPage(totalIssuesPages)} disabled={issuesPage === totalIssuesPages} className="h-7 w-7 p-0"><ChevronsRight className="h-3.5 w-3.5" /></Button>
-
+                      <button onClick={() => setIssuesPage(1)} disabled={issuesPage === 1} className="p-1 rounded hover:bg-muted disabled:opacity-30"><ChevronsLeft className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => setIssuesPage(p => p - 1)} disabled={issuesPage === 1} className="p-1 rounded hover:bg-muted disabled:opacity-30"><ChevronLeft className="h-3.5 w-3.5" /></button>
+                      <span className="px-2">{issuesPage} / {totalIssuesPages}</span>
+                      <button onClick={() => setIssuesPage(p => p + 1)} disabled={issuesPage === totalIssuesPages} className="p-1 rounded hover:bg-muted disabled:opacity-30"><ChevronRight className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => setIssuesPage(totalIssuesPages)} disabled={issuesPage === totalIssuesPages} className="p-1 rounded hover:bg-muted disabled:opacity-30"><ChevronsRight className="h-3.5 w-3.5" /></button>
                     </div>
-
                   </div>
-
                 )}
 
               </div>
