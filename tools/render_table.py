@@ -45,21 +45,26 @@ _SCENARIO_LABELS = {
 }
 
 _VARIANT_LABELS = {
-    "topo_baseline":   r"\textsc{Topo-BL}",
-    "rasse_2025":      r"\textsc{RMAV (RASSE '25)}",
-    "homo_unweighted": r"\textsc{Homo-U}",
-    "homo_scalar":     r"\textsc{Homo-S}",
-    "hetero_no_qos":   r"\textsc{HGL-NoQoS}",
-    "hetero_qos":      r"\textbf{Q-HGL}",
+    "topo_baseline":     r"\textsc{Topo-BL}",
+    "q_topo_baseline":   r"\textsc{Q-Topo-BL}",
+    "homo_unweighted":   r"\textsc{Homo-U}",
+    "homo_scalar":       r"\textsc{Homo-S}",
+    "hgl":               r"\textsc{HGL}",
+    "hetero_qos":        r"\textbf{Q-HGL}",
 }
 _VARIANT_LABELS_PLAIN = {
-    "topo_baseline":   "Topo-BL",
-    "homo_unweighted": "Homo-U",
-    "homo_scalar":     "Homo-S",
-    "hetero_no_qos":   "HGL-NoQoS",
-    "hetero_qos":      "Q-HGL (ours)",
+    "topo_baseline":     "Topo-BL",
+    "q_topo_baseline":   "Q-Topo-BL",
+    "homo_unweighted":   "Homo-U",
+    "homo_scalar":       "Homo-S",
+    "hgl":               "HGL",
+    "hetero_qos":        "Q-HGL (ours)",
 }
-_VARIANT_ORDER = ["topo_baseline", "homo_unweighted", "homo_scalar", "hetero_no_qos", "hetero_qos"]
+_VARIANT_ORDER = [
+    "topo_baseline", "q_topo_baseline",
+    "homo_unweighted", "homo_scalar",
+    "hgl", "hetero_qos",
+]
 
 _RESULTS_DIR = Path("results")
 
@@ -100,10 +105,48 @@ def _pval_star(p: Optional[float]) -> str:
     return ""
 
 
+def _calibration_marker(stats: Dict) -> str:
+    """LaTeX footnote marker for the calibration policy of an aggregate cell."""
+    cal = stats.get("calibration", "rank_matched")
+    if cal == "rank_matched":
+        return ""
+    if "degenerate" in cal:
+        return r"$^{\ddagger}$"
+    if cal == "fixed":
+        return r"$^{\dagger}$"
+    return r"$^{?}$"
+
+
+def _calibration_marker_md(stats: Dict) -> str:
+    """Markdown footnote marker for the calibration policy of an aggregate cell."""
+    cal = stats.get("calibration", "rank_matched")
+    if cal == "rank_matched":
+        return ""
+    if "degenerate" in cal:
+        return "‡"
+    if cal == "fixed":
+        return "†"
+    return "?"
+
+
+def _fmt_f1_md(stats: Dict) -> str:
+    """Format mean F1 for markdown: shows NaN‡ for degenerate, value†/‡ for others."""
+    if stats.get("n_needs_recalibration", 0) > 0:
+        return "— (re-train)"
+    f1 = stats.get("mean_f1")
+    marker = _calibration_marker_md(stats)
+    if f1 is None:
+        return f"NaN{marker}"
+    return f"{f1:.3f}{marker}"
+
+
 def render_table3_tex(data: Dict, output: Path):
     """LaTeX booktabs Table 3: Spearman ρ per scenario × variant."""
     agg = data["aggregate"]
-    scenarios = sorted({k.split("|")[0] for k in agg.keys()})
+    scenarios = sorted({
+        k.split("|")[0] for k in agg.keys()
+        if not k.startswith("_")  # skip meta entries like _factorial_contrasts
+    })
     if not scenarios:
         print("  No aggregate data found in table3 input.")
         return
@@ -199,7 +242,7 @@ def render_table3_tex(data: Dict, output: Path):
 
 def render_table3_csv(data: Dict, output: Path):
     agg = data["aggregate"]
-    scenarios = sorted({k.split("|")[0] for k in agg})
+    scenarios = sorted({k.split("|")[0] for k in agg if not k.startswith("_")})
     rows = []
     header = ["scenario", "gt_source"] + [f"{v}_rho" for v in _VARIANT_ORDER] + \
              [f"{v}_ci_lo" for v in _VARIANT_ORDER] + [f"{v}_ci_hi" for v in _VARIANT_ORDER] + \
@@ -227,7 +270,7 @@ def render_table3_csv(data: Dict, output: Path):
 
 def render_table3_md(data: Dict, output: Path):
     agg = data["aggregate"]
-    scenarios = sorted({k.split("|")[0] for k in agg})
+    scenarios = sorted({k.split("|")[0] for k in agg if not k.startswith("_")})
     
     headers = ["Scenario", "GT"] + [_VARIANT_LABELS_PLAIN.get(v, v) for v in _VARIANT_ORDER] + ["Δρ (QoS)"]
     rows = ["| " + " | ".join(headers) + " |", "| " + " | ".join(["---"] * len(headers)) + " |"]
@@ -298,7 +341,7 @@ def render_table3_md(data: Dict, output: Path):
 
 def print_table3_console(data: Dict):
     agg = data["aggregate"]
-    scenarios = sorted({k.split("|")[0] for k in agg})
+    scenarios = sorted({k.split("|")[0] for k in agg if not k.startswith("_")})
     var_labels = [_VARIANT_LABELS_PLAIN.get(v, v) for v in _VARIANT_ORDER]
     col_w = 26
 
@@ -385,29 +428,45 @@ def print_table3_console(data: Dict):
 
 def render_id_metrics_md(data: Dict, output: Path):
     agg = data["aggregate"]
-    scenarios = sorted({k.split("|")[0] for k in agg})
-    
-    header = "| Scenario | GT | Variant | F1 | Accuracy | Precision | Recall | Top-5 | Top-10 | NDCG@10 |"
-    divider = "|---|---|---|---|---|---|---|---|---|---|"
+    scenarios = sorted({k.split("|")[0] for k in agg if not k.startswith("_")})
+
+    header  = "| Scenario | GT | Variant | F1 | Precision | Recall | Top-5 | Top-10 | NDCG@10 |"
+    divider = "|---|---|---|---|---|---|---|---|---|"
     rows = [header, divider]
 
     for sc in scenarios:
-        label = _SCENARIO_LABELS.get(sc, sc)
+        label     = _SCENARIO_LABELS.get(sc, sc)
         gt_source = agg.get(f"{sc}|topo_baseline", {}).get("gt_source", "Sim")
         for v in _VARIANT_ORDER:
             st = agg.get(f"{sc}|{v}", {})
-            f1   = st.get("mean_f1", 0.0)
-            acc  = st.get("mean_accuracy", 0.0)
-            prec = st.get("mean_precision", 0.0)
-            rec  = st.get("mean_recall", 0.0)
-            t5   = st.get("mean_top5", 0.0)
-            t10  = st.get("mean_top10", 0.0)
-            ndcg = st.get("mean_ndcg_10", 0.0)
-            v_lbl = _VARIANT_LABELS_PLAIN.get(v, v)
-            rows.append(f"| {label} | {gt_source} | {v_lbl} | {f1:.3f} | {acc:.3f} | {prec:.3f} | {rec:.3f} | {t5:.3f} | {t10:.3f} | {ndcg:.3f} |")
-            label = "" # Only show scenario once
-        rows.append("| | | | | | | | | |")
-        
+            f1_str = _fmt_f1_md(st)
+
+            def _fmt(x):
+                return "—" if x is None else f"{x:.3f}"
+
+            rows.append(
+                f"| {label} | {gt_source} | {_VARIANT_LABELS_PLAIN.get(v, v)} "
+                f"| {f1_str} "
+                f"| {_fmt(st.get('mean_precision'))} "
+                f"| {_fmt(st.get('mean_recall'))} "
+                f"| {_fmt(st.get('mean_top5'))} "
+                f"| {_fmt(st.get('mean_top10'))} "
+                f"| {_fmt(st.get('mean_ndcg_10'))} |"
+            )
+            label     = ""  # Only show scenario once
+            gt_source = ""
+        rows.append("| | | | | | | | |")
+
+    rows += [
+        "",
+        "**Calibration:** All identification metrics use rank-matched binarization "
+        "(top-K predicted = critical, K = #ground-truth criticals).",
+        "",
+        "- † = legacy fixed-threshold (0.5) binarization; not yet recalibrated",
+        "- ‡ = degenerate label distribution (F1 undefined)",
+        "- '— (re-train)' = checkpoint missing or recalibration failed; re-run this cell",
+    ]
+
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\n".join(rows) + "\n")
     print(f"  Saved ID Metrics MD: {output}")
@@ -415,26 +474,30 @@ def render_id_metrics_md(data: Dict, output: Path):
 
 def print_id_metrics_console(data: Dict):
     agg = data["aggregate"]
-    scenarios = sorted({k.split("|")[0] for k in agg})
-    
+    scenarios = sorted({k.split("|")[0] for k in agg if not k.startswith("_")})
+
     print("\n  Identification Metrics (Critical Component Detection)")
-    header = f"  {'Scenario':<25} {'Variant':<15} {'F1':<8} {'Acc':<8} {'Prec':<8} {'Rec':<8} {'T5':<8} {'T10':<8} {'NDCG':<8}"
+    header = f"  {'Scenario':<25} {'Variant':<15} {'F1':<10} {'Prec':<8} {'Rec':<8} {'T5':<8} {'T10':<8} {'NDCG':<8} Cal"
     print(header)
-    print("  " + "─" * 105)
+    print("  " + "─" * 110)
 
     for sc in scenarios:
         label = _SCENARIO_LABELS.get(sc, sc)
         for v in _VARIANT_ORDER:
-            st = agg.get(f"{sc}|{v}", {})
-            f1   = st.get("mean_f1", 0.0)
-            acc  = st.get("mean_accuracy", 0.0)
-            prec = st.get("mean_precision", 0.0)
-            rec  = st.get("mean_recall", 0.0)
-            t5   = st.get("mean_top5", 0.0)
-            t10  = st.get("mean_top10", 0.0)
+            st   = agg.get(f"{sc}|{v}", {})
+            f1   = st.get("mean_f1")
+            prec = st.get("mean_precision")
+            rec  = st.get("mean_recall")
+            t5   = st.get("mean_top5",    0.0)
+            t10  = st.get("mean_top10",   0.0)
             ndcg = st.get("mean_ndcg_10", 0.0)
-            
-            print(f"  {label:<25} {_VARIANT_LABELS_PLAIN.get(v, v):<15} {f1:<8.3f} {acc:<8.3f} {prec:<8.3f} {rec:<8.3f} {t5:<8.3f} {t10:<8.3f} {ndcg:<8.3f}")
+            cal  = st.get("calibration",  "rank_matched")
+            marker = "" if cal == "rank_matched" else ("‡" if "degenerate" in cal else ("†" if cal == "fixed" else "?"))
+            f1_s = f"{f1:.3f}" if f1 is not None else "NaN"
+
+            print(f"  {label:<25} {_VARIANT_LABELS_PLAIN.get(v, v):<15} "
+                  f"{f1_s+marker:<10} {(prec or 0):<8.3f} {(rec or 0):<8.3f} "
+                  f"{t5:<8.3f} {t10:<8.3f} {ndcg:<8.3f} {cal}")
             label = ""
         print("")
 
@@ -536,7 +599,7 @@ def parse_args():
 
 def render_per_type_table_md(data: Dict, output: Path):
     agg = data["aggregate"]
-    scenarios = sorted({k.split("|")[0] for k in agg})
+    scenarios = sorted({k.split("|")[0] for k in agg if not k.startswith("_")})
     
     header = "| Scenario | Node Type | " + " | ".join([_VARIANT_LABELS_PLAIN.get(v, v) for v in _VARIANT_ORDER]) + " |"
     divider = "|---|---| " + " | ".join(["---"] * len(_VARIANT_ORDER)) + " |"

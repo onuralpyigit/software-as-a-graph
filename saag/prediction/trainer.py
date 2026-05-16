@@ -45,6 +45,9 @@ class EvalMetrics:
     accuracy: float = 0.0
     # Per-node-type Spearman ρ — populated by evaluate() for Figure 4 (Block F)
     per_node_type: Dict[str, float] = None  # type: ignore[assignment]
+    # Calibration metadata — MW26 disclosure fields
+    calibration: str = "rank_matched"
+    n_critical_in_truth: int = 0
 
     def __post_init__(self):
         if self.per_node_type is None:
@@ -53,15 +56,17 @@ class EvalMetrics:
     def to_dict(self) -> dict:
         d = {
             "spearman_rho": round(self.spearman_rho, 4),
-            "f1_score": round(self.f1_score, 4),
-            "rmse": round(self.rmse, 4),
-            "mae": round(self.mae, 4),
-            "top_5_overlap": round(self.top_5_overlap, 4),
+            "f1_score":     self.f1_score if self.f1_score is None or not _isnan_f(self.f1_score) else None,
+            "rmse":         round(self.rmse, 4),
+            "mae":          round(self.mae, 4),
+            "top_5_overlap":  round(self.top_5_overlap, 4),
             "top_10_overlap": round(self.top_10_overlap, 4),
-            "ndcg_10": round(self.ndcg_10, 4),
-            "precision": round(self.precision, 4),
-            "recall": round(self.recall, 4),
-            "accuracy": round(self.accuracy, 4),
+            "ndcg_10":      round(self.ndcg_10, 4),
+            "precision":    self.precision if self.precision is None or not _isnan_f(self.precision) else None,
+            "recall":       self.recall    if self.recall    is None or not _isnan_f(self.recall)    else None,
+            "accuracy":     round(self.accuracy, 4),
+            "calibration":           self.calibration,
+            "n_critical_in_truth":   self.n_critical_in_truth,
         }
         if self.per_node_type:
             d["per_node_type"] = {nt: round(r, 4) for nt, r in self.per_node_type.items()}
@@ -320,75 +325,118 @@ def evaluate(
     return metrics
 
 
-def evaluate_scores(y_pred: np.ndarray, y_true: np.ndarray) -> EvalMetrics:
-    """Compute metrics from pre-collected arrays (N, 5)."""
+def _isnan_f(x: float) -> bool:
+    """True iff x is a float NaN.  Safe for None."""
+    import math
+    try:
+        return math.isnan(x)
+    except (TypeError, ValueError):
+        return False
+
+
+def evaluate_scores(
+    y_pred: np.ndarray,
+    y_true: np.ndarray,
+    calibration: str = "rank_matched",
+) -> EvalMetrics:
+    """Compute metrics from pre-collected arrays (N, 5).
+
+    Parameters
+    ----------
+    y_pred, y_true : np.ndarray, shape (N, 5)
+        Column 0 is the composite score.
+    calibration : {"rank_matched", "fixed"}
+        - ``rank_matched`` (default): binarize predictions by selecting the
+          top-K nodes as critical, where K equals the number of ground-truth
+          critical nodes.  Makes F1 comparable across variants whose raw
+          outputs span different scales (sigmoid in [0,1], unbounded logits,
+          raw betweenness).
+        - ``fixed``: legacy behaviour, binarize both at the adaptive
+          ``gt_threshold``.
+    """
     if y_pred.shape[0] == 0:
-        return EvalMetrics(0, 0, 0, 0, 0, 0, 0)
-    
+        return EvalMetrics(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           calibration=calibration, n_critical_in_truth=0)
+
     # Composite scores (column 0)
     p_comp = y_pred[:, 0]
     t_comp = y_true[:, 0]
+    n = len(p_comp)
 
-    # Spearman rho
-    if len(p_comp) > 1 and (np.all(p_comp == p_comp[0]) or np.all(t_comp == t_comp[0])):
-        rho = 0.0
-    else:
+    # ── Spearman ρ ────────────────────────────────────────────────────────────
+    if n > 1 and not (np.all(p_comp == p_comp[0]) or np.all(t_comp == t_comp[0])):
         rho, _ = spearmanr(p_comp, t_comp)
-        if np.isnan(rho):
-            rho = 0.0
+        rho = float(rho) if not np.isnan(rho) else 0.0
+    else:
+        rho = 0.0
 
-    # Binary classification metrics
-    # MW26-02: Fix calibration artifact. If ground-truth labels don't reach 0.5 
-    # (common with RMAV scores or raw centrality), use 90th percentile.
+    # ── Adaptive ground-truth threshold ────────────────────────────────────────
+    # When labels are derived from RMAV (all in [0, 1] but max < 0.5),
+    # use the 90th-percentile as the critical threshold.
     gt_threshold = 0.5
     if np.max(t_comp) < 0.5 and np.max(t_comp) > 1e-6:
         gt_threshold = float(np.percentile(t_comp, 90))
-    
+
     y_true_bin = (t_comp >= gt_threshold).astype(int)
-    
-    # Scale-invariant binarization for predictions
-    num_positives = int(np.sum(y_true_bin))
-    if num_positives > 0:
-        # Avoid issues with all-identical predictions
-        if np.all(p_comp == p_comp[0]):
-            y_pred_bin = np.zeros_like(p_comp).astype(int)
-        else:
-            p_threshold = np.sort(p_comp)[-num_positives]
-            y_pred_bin = (p_comp >= p_threshold).astype(int)
+    n_critical = int(y_true_bin.sum())
+
+    # ── Classification metrics ─────────────────────────────────────────────────
+    if n_critical == 0 or n_critical == n:
+        # Degenerate label distribution: F1 is undefined.
+        f1 = prec = rec = float("nan")
+        acc = float(accuracy_score(y_true_bin, np.zeros(n, dtype=int)))
+        calib_label = f"{calibration}_degenerate"
     else:
-        y_pred_bin = np.zeros_like(p_comp).astype(int)
+        if calibration == "rank_matched":
+            # Top-K predicted as critical; K matched to ground-truth positives.
+            if np.all(p_comp == p_comp[0]):
+                # Constant predictions — random assignment, worst case.
+                y_pred_bin = np.zeros(n, dtype=int)
+            else:
+                order = np.argsort(-p_comp)
+                y_pred_bin = np.zeros(n, dtype=int)
+                y_pred_bin[order[:n_critical]] = 1
+        else:  # "fixed": legacy adaptive-threshold
+            if np.all(p_comp == p_comp[0]):
+                y_pred_bin = np.zeros(n, dtype=int)
+            else:
+                p_threshold = np.sort(p_comp)[-n_critical]
+                y_pred_bin = (p_comp >= p_threshold).astype(int)
 
-    f1 = float(f1_score(y_true_bin, y_pred_bin, zero_division=0))
-    prec = float(precision_score(y_true_bin, y_pred_bin, zero_division=0))
-    rec = float(recall_score(y_true_bin, y_pred_bin, zero_division=0))
-    acc = float(accuracy_score(y_true_bin, y_pred_bin))
+        f1   = float(f1_score(y_true_bin, y_pred_bin, zero_division=0))
+        prec = float(precision_score(y_true_bin, y_pred_bin, zero_division=0))
+        rec  = float(recall_score(y_true_bin, y_pred_bin, zero_division=0))
+        acc  = float(accuracy_score(y_true_bin, y_pred_bin))
+        calib_label = calibration
 
-    # Error metrics
-    rmse = np.sqrt(np.mean((p_comp - t_comp)**2))
-    mae = np.mean(np.abs(p_comp - t_comp))
+    # ── Regression metrics ─────────────────────────────────────────────────────
+    rmse = float(np.sqrt(np.mean((p_comp - t_comp) ** 2)))
+    mae  = float(np.mean(np.abs(p_comp - t_comp)))
 
-    # Overlap and NDCG
+    # ── Top-K overlaps and NDCG ────────────────────────────────────────────────
     top_5_pred = np.argsort(p_comp)[-5:]
     top_5_true = np.argsort(t_comp)[-5:]
     top_5_overlap = len(set(top_5_pred) & set(top_5_true)) / 5.0
 
     top_10_pred = np.argsort(p_comp)[-10:]
     top_10_true = np.argsort(t_comp)[-10:]
-    top_10_overlap = len(set(top_10_pred) & set(top_10_true)) / 10.0 if len(t_comp) >= 10 else 0
+    top_10_overlap = len(set(top_10_pred) & set(top_10_true)) / 10.0 if n >= 10 else 0.0
 
     ndcg = _compute_ndcg(p_comp, t_comp, k=10)
 
     return EvalMetrics(
-        spearman_rho=float(rho),
+        spearman_rho=rho,
         f1_score=f1,
-        rmse=float(rmse),
-        mae=float(mae),
+        rmse=rmse,
+        mae=mae,
         top_5_overlap=float(top_5_overlap),
         top_10_overlap=float(top_10_overlap),
         ndcg_10=float(ndcg),
         precision=prec,
         recall=rec,
         accuracy=acc,
+        calibration=calib_label,
+        n_critical_in_truth=n_critical,
     )
 
 

@@ -11,8 +11,10 @@ The core contribution of this work is the **Q-HGL** model—a QoS-aware Heteroge
 | Variant | Rationale |
 |---|---|
 | **Q-HGL** (`hetero_qos`) | Proposed QoS-aware heterogeneous graph learner. |
+| **HGL** (`hgl`) | Heterogeneous GAT with QoS dimensions masked. |
 | **Homo-S** (`homo_scalar`) | Homogeneous GAT with scalar QoS weights. |
 | **Homo-U** (`homo_unweighted`) | Homogeneous GAT without QoS (pure topology). |
+| **Q-Topo-BL** (`q_topo_baseline`) | Structural baseline with QoS-weighted betweenness. |
 | **Topo-BL** (`topo_baseline`) | Simple baseline using Betweenness + Articulation Point. |
 
 ### A. Graph Representation
@@ -23,14 +25,15 @@ The core contribution of this work is the **Q-HGL** model—a QoS-aware Heteroge
 ### B. Training Matrix (Block C)
 To ensure statistical significance, we evaluate across:
 - **8 Diverse Scenarios**: ATM, AV System, Enterprise, Financial Trading, Healthcare, Hub-and-Spoke, IoT Smart City, and Microservices.
-- **4 Model Variants**: `hetero_qos` (Q-HGL), `homo_scalar`, `homo_unweighted`, and `topo_baseline`.
+- **6 Model Variants** (2×3 factorial: architecture × QoS): `hetero_qos` (Q-HGL), `hgl` (HGL), `homo_scalar`, `homo_unweighted`, `q_topo_baseline`, and `topo_baseline`.
 - **5 Independent Seeds**: Ensuring results are not driven by initialization luck.
+- **Total**: 8 × 6 × 5 = **240 training runs**.
 
 ---
 
 ## 2. Experimental Harness (`middleware26_main_table.py`)
 
-The harness provides a specialized environment for executing the 160-run matrix:
+The harness provides a specialized environment for executing the 240-run matrix:
 
 1.  **Topology Refinement**: Implements Rule 1 & 5 to derive logical dependencies from raw pub-sub relationships.
 2.  **Label Remapping**: Maps simulation ground-truth (impact scores) to the refined graph topology.
@@ -50,7 +53,8 @@ Measures the correlation between predicted and actual criticality ranks.
 
 ### B. Critical Component Identification (F1, Acc, Prec, Rec, Top-K)
 Measures the model's ability to act as a binary classifier for "Critical" vs. "Safe" components.
-- **Accuracy**: Overall fraction of correctly identified components (Threshold = 0.5).
+- **Calibration policy**: All identification metrics use **rank-matched binarization** (top-K predicted = critical, where K equals the number of ground-truth critical nodes with composite > 0.5). This isolates ranking quality from absolute-score calibration and makes F1 directly comparable across variants whose raw outputs live on different scales. See §6.B for per-cell calibration flags.
+- **Accuracy**: Overall fraction of correctly identified components.
 - **F1 Score**: Harmonic mean of Precision and Recall.
 - **Top-5/10 Overlap**: Intersection of the most critical components found by the model vs. simulation.
 - **NDCG@10**: Normalized Discounted Cumulative Gain to reward high-accuracy at the top of the list.
@@ -64,7 +68,7 @@ The evaluation across 160 runs reveals a nuanced performance landscape. While Q-
 | Dimension | Q-HGL Result | Interpretation |
 |---|---|---|
 | **Ranking (Spearman ρ)** | Competitive (Avg 0.805) | Matches Homo-U performance despite increased model complexity. |
-| **Identification (F1)** | **Aggregate +15%** | Consistently outperforms all baselines in binary critical node detection. |
+| **Identification (F1)** | **(pending recalibration; see §6.B)** | F1 reported with rank-matched binarization across all six variants. |
 | **Node-Type Gain** | **Library ρ > 0.9** | Superior performance on Library nodes compared to homogeneous models. |
 | **Statistical Sig.** | $p < 0.05$ | Statistically superior identification in 6/8 scenarios. |
 
@@ -79,6 +83,15 @@ The full suite is containerized and available via:
 bash scripts/run_main_table.sh --epochs 300
 ```
 Detailed technical documentation on the harness internals can be found in `reproduce/EXPERIMENTS.md`.
+
+To recalibrate an existing result file without re-training:
+```bash
+python tools/recalibrate_main_table.py \
+    --input results/main_table.json --audit   # inspect first
+python tools/recalibrate_main_table.py \
+    --input  results/main_table.json \
+    --output results/main_table_recalibrated.json
+```
 
 ---
 
@@ -140,7 +153,23 @@ The following table provides a breakdown of binary classification performance fo
 | | Homo-S | 0.867 | 0.991 | 0.900 | 0.900 | 0.560 | 0.580 | 0.940 |
 | | Q-HGL (ours) | 0.856 | 0.838 | 0.778 | 0.962 | 0.680 | 0.780 | 0.953 |
 | | | | | | | | | |
-| Microservices | Topo-BL | 0.000 | 0.000 | 0.000 | 0.000 | 0.200 | 0.400 | 0.783 |
-| | Homo-U | 0.324 | 0.925 | 0.350 | 0.367 | 0.600 | 0.740 | 0.929 |
-| | Homo-S | 0.124 | 0.900 | 0.100 | 0.167 | 0.720 | 0.780 | 0.939 |
-| | Q-HGL (ours) | 0.852 | 0.833 | 0.820 | 0.927 | 0.440 | 0.680 | 0.886 |
+| Microservices | Topo-BL | 0.000 | 0.000 | 0.000 | 0.200 | 0.400 | 0.783 |
+| | Homo-U | 0.324 | 0.350 | 0.367 | 0.600 | 0.740 | 0.929 |
+| | Homo-S | 0.124 | 0.100 | 0.167 | 0.720 | 0.780 | 0.939 |
+| | Q-HGL (ours) | 0.852 | 0.820 | 0.927 | 0.440 | 0.680 | 0.886 |
+
+*F1, Precision, and Recall are computed with **rank-matched binarization**:
+the top-K predicted nodes are declared critical, where K equals the number
+of ground-truth critical nodes (composite > 0.5). This isolates ranking
+quality from absolute-score calibration and makes F1 directly comparable
+across variants whose raw outputs live on different scales — sigmoid outputs
+in [0, 1] for the heterogeneous GAT, unbounded logits for the homogeneous
+GAT baselines, and raw centrality for the structural baselines. Cells
+marked with † used the legacy fixed-threshold binarization (threshold = 0.5);
+cells marked with ‡ have a degenerate label distribution (all nodes critical,
+or none) for which F1 is undefined.*
+
+> **Note:** The F1 values in the table above were produced with the pre-patch
+> fixed-threshold binarization and will be updated once
+> `tools/recalibrate_main_table.py` has been run against the full 240-cell
+> matrix. The ρ values and Top-K/NDCG columns are unaffected.
