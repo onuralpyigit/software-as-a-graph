@@ -49,15 +49,17 @@ _VARIANT_LABELS = {
     "rasse_2025":      r"\textsc{RMAV (RASSE '25)}",
     "homo_unweighted": r"\textsc{Homo-U}",
     "homo_scalar":     r"\textsc{Homo-S}",
+    "hetero_no_qos":   r"\textsc{HGL-NoQoS}",
     "hetero_qos":      r"\textbf{Q-HGL}",
 }
 _VARIANT_LABELS_PLAIN = {
     "topo_baseline":   "Topo-BL",
     "homo_unweighted": "Homo-U",
     "homo_scalar":     "Homo-S",
+    "hetero_no_qos":   "HGL-NoQoS",
     "hetero_qos":      "Q-HGL (ours)",
 }
-_VARIANT_ORDER = ["topo_baseline", "homo_unweighted", "homo_scalar", "hetero_qos"]
+_VARIANT_ORDER = ["topo_baseline", "homo_unweighted", "homo_scalar", "hetero_no_qos", "hetero_qos"]
 
 _RESULTS_DIR = Path("results")
 
@@ -77,12 +79,10 @@ def _get_cell_stats(agg: Dict, scenario: str, variant: str) -> Dict:
 
 
 def _format_rho(mean: Optional[float], ci_lo: Optional[float], ci_hi: Optional[float],
-                bold: bool = False, is_circular: bool = False) -> str:
+                bold: bool = False) -> str:
     """Format 'mean [lo, hi]' for LaTeX cell, optionally bold."""
     if mean is None:
         return r"\textemdash"
-    if is_circular:
-        return r"1.000$^\dagger$"
     s = f"{mean:.3f}"
     if ci_lo is not None and ci_hi is not None:
         s += rf" $[{ci_lo:.3f},{ci_hi:.3f}]$"
@@ -109,7 +109,7 @@ def render_table3_tex(data: Dict, output: Path):
         return
 
     n_vars = len(_VARIANT_ORDER)
-    col_spec = "l" + "c" * n_vars
+    col_spec = "ll" + "c" * n_vars + "c"
     header_row = " & ".join(_VARIANT_LABELS.get(v, v) for v in _VARIANT_ORDER)
 
     lines = [
@@ -120,7 +120,7 @@ def render_table3_tex(data: Dict, output: Path):
         r"\label{tab:main_results}",
         rf"\begin{{tabular}}{{{col_spec}}}",
         r"\toprule",
-        rf"Scenario & {header_row} \\",
+        rf"Scenario & GT & {header_row} & $\Delta\rho$ (QoS) \\",
         r"\midrule",
     ]
 
@@ -139,31 +139,53 @@ def render_table3_tex(data: Dict, output: Path):
             ci_hi  = stats.get("ci_hi")
             p_val  = stats.get("wilcoxon_p_vs_hetero")
             is_best = mean_r is not None and abs(mean_r - best_rho) < 0.001
-            is_circ = stats.get("is_circular", False)
-            cell = _format_rho(mean_r, ci_lo, ci_hi, bold=(is_best and var == "hetero_qos"), is_circular=is_circ)
+            cell = _format_rho(mean_r, ci_lo, ci_hi, bold=(is_best and var == "hetero_qos"))
             if var != "hetero_qos" and p_val is not None:
                 cell += _pval_star(p_val)
             cells.append(cell)
 
-        lines.append(rf"{label} & {' & '.join(cells)} \\")
+        # Delta column: hetero_qos - hetero_no_qos
+        stats_qos = _get_cell_stats(agg, sc, "hetero_qos")
+        stats_none = _get_cell_stats(agg, sc, "hetero_no_qos")
+        r_qos = stats_qos.get("mean_rho")
+        r_none = stats_none.get("mean_rho")
+        p_delta = stats_none.get("wilcoxon_p_vs_hetero") # p-value for the pair
+        
+        delta_str = r"\textemdash"
+        if r_qos is not None and r_none is not None:
+            diff = r_qos - r_none
+            delta_str = rf"{'+' if diff >= 0 else ''}{diff:.3f}"
+            delta_str += _pval_star(p_delta)
+
+        gt_source = agg.get(f"{sc}|topo_baseline", {}).get("gt_source", "Sim")
+        lines.append(rf"{label} & {gt_source} & {' & '.join(cells)} & {delta_str} \\")
 
     # Summary row: cross-scenario mean
     lines.append(r"\midrule")
     avg_cells = []
+    import numpy as np
+    all_means = []
     for var in _VARIANT_ORDER:
         rhos = [
             agg.get(f"{sc}|{var}", {}).get("mean_rho")
             for sc in scenarios
             if agg.get(f"{sc}|{var}", {}).get("mean_rho") is not None
         ]
-        if rhos:
-            import numpy as np
-            m = np.mean(rhos)
-            avg_cells.append(rf"\textbf{{{m:.3f}}}" if var == "hetero_qos" else f"{m:.3f}")
-        else:
-            avg_cells.append("—")
+        all_means.append(np.mean(rhos) if rhos else 0.0)
+    
+    best_avg = max(all_means)
+    avg_cells = []
+    for i, var in enumerate(_VARIANT_ORDER):
+        m = all_means[i]
+        cell = f"{m:.3f}"
+        if abs(m - best_avg) < 0.001 and var == "hetero_qos":
+            cell = rf"\textbf{{{cell}}}"
+        avg_cells.append(cell)
 
-    lines.append(rf"\textbf{{Mean}} & {' & '.join(avg_cells)} \\")
+    avg_delta = all_means[-1] - all_means[-2] # hetero_qos - hetero_no_qos
+    avg_cells.append(rf"{'+' if avg_delta >= 0 else ''}{avg_delta:.3f}")
+
+    lines.append(rf"\textbf{{Mean}} & & {' & '.join(avg_cells)} \\")
     lines += [
         r"\bottomrule",
         r"\end{tabular}",
@@ -179,15 +201,19 @@ def render_table3_csv(data: Dict, output: Path):
     agg = data["aggregate"]
     scenarios = sorted({k.split("|")[0] for k in agg})
     rows = []
-    header = ["scenario"] + [f"{v}_rho" for v in _VARIANT_ORDER] + \
-             [f"{v}_ci_lo" for v in _VARIANT_ORDER] + [f"{v}_ci_hi" for v in _VARIANT_ORDER]
+    header = ["scenario", "gt_source"] + [f"{v}_rho" for v in _VARIANT_ORDER] + \
+             [f"{v}_ci_lo" for v in _VARIANT_ORDER] + [f"{v}_ci_hi" for v in _VARIANT_ORDER] + \
+             [f"{v}_pval" for v in _VARIANT_ORDER if v != "hetero_qos"]
     for sc in scenarios:
-        row = {"scenario": sc}
+        gt_source = agg.get(f"{sc}|topo_baseline", {}).get("gt_source", "Sim")
+        row = {"scenario": sc, "gt_source": gt_source}
         for v in _VARIANT_ORDER:
             st = agg.get(f"{sc}|{v}", {})
             row[f"{v}_rho"]   = st.get("mean_rho", "")
             row[f"{v}_ci_lo"] = st.get("ci_lo", "")
             row[f"{v}_ci_hi"] = st.get("ci_hi", "")
+            if v != "hetero_qos":
+                row[f"{v}_pval"] = st.get("wilcoxon_p_vs_hetero", "")
         rows.append(row)
 
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -198,36 +224,72 @@ def render_table3_csv(data: Dict, output: Path):
     print(f"  Saved CSV Table 3:    {output}")
 
 
+
 def render_table3_md(data: Dict, output: Path):
     agg = data["aggregate"]
     scenarios = sorted({k.split("|")[0] for k in agg})
-    var_labels = [_VARIANT_LABELS_PLAIN.get(v, v) for v in _VARIANT_ORDER]
-
-    header  = "| Scenario | " + " | ".join(var_labels) + " |"
-    divider = "|" + "---|" * (len(_VARIANT_ORDER) + 1)
-    rows = [header, divider]
+    
+    headers = ["Scenario", "GT"] + [_VARIANT_LABELS_PLAIN.get(v, v) for v in _VARIANT_ORDER] + ["Δρ (QoS)"]
+    rows = ["| " + " | ".join(headers) + " |", "| " + " | ".join(["---"] * len(headers)) + " |"]
 
     for sc in scenarios:
         label = _SCENARIO_LABELS.get(sc, sc)
-        best_rho = max(
-            (agg.get(f"{sc}|{v}", {}).get("mean_rho", 0.0) or 0.0)
-            for v in _VARIANT_ORDER
-        )
-        cells = []
-        for v in _VARIANT_ORDER:
-            st = agg.get(f"{sc}|{v}", {})
+        best_rho = max((agg.get(f"{sc}|{v}", {}).get("mean_rho", 0.0) or 0.0) for v in _VARIANT_ORDER)
+        gt_source = agg.get(f"{sc}|topo_baseline", {}).get("gt_source", "Sim")
+        
+        cells = [f"**{label}**", gt_source]
+        for var in _VARIANT_ORDER:
+            st = agg.get(f"{sc}|{var}", {})
             r = st.get("mean_rho")
-            is_circ = st.get("is_circular", False)
-            
+            p = st.get("wilcoxon_p_vs_hetero")
             if r is None:
-                cells.append("—")
-            elif is_circ:
-                cells.append("1.000*")
-            elif abs(r - best_rho) < 0.001:
-                cells.append(f"**{r:.3f}**")
+                cell = "—"
             else:
-                cells.append(f"{r:.3f}")
-        rows.append(f"| {label} | " + " | ".join(cells) + " |")
+                cell = f"{r:.3f}"
+                if abs(r - best_rho) < 0.001 and var == "hetero_qos":
+                    cell = f"**{cell}**"
+                if var != "hetero_qos" and p is not None:
+                    if p < 0.001: cell += "***"
+                    elif p < 0.01: cell += "**"
+                    elif p < 0.05: cell += "*"
+            cells.append(cell)
+            
+        # Delta
+        r_qos = agg.get(f"{sc}|hetero_qos", {}).get("mean_rho")
+        r_none = agg.get(f"{sc}|hetero_no_qos", {}).get("mean_rho")
+        p_delta = agg.get(f"{sc}|hetero_no_qos", {}).get("wilcoxon_p_vs_hetero")
+        if r_qos is not None and r_none is not None:
+            diff = r_qos - r_none
+            d_str = f"{'+' if diff >= 0 else ''}{diff:.3f}"
+            if p_delta is not None:
+                if p_delta < 0.001: d_str += "***"
+                elif p_delta < 0.01: d_str += "**"
+                elif p_delta < 0.05: d_str += "*"
+            cells.append(d_str)
+        else:
+            cells.append("—")
+            
+        rows.append("| " + " | ".join(cells) + " |")
+
+    # Mean row
+    import numpy as np
+    all_means = []
+    for var in _VARIANT_ORDER:
+        rhos = [agg.get(f"{sc}|{var}", {}).get("mean_rho") for sc in scenarios if agg.get(f"{sc}|{var}", {}).get("mean_rho") is not None]
+        all_means.append(np.mean(rhos) if rhos else 0.0)
+    
+    avg_cells = ["**Mean**", ""]
+    best_avg = max(all_means)
+    for i, var in enumerate(_VARIANT_ORDER):
+        m = all_means[i]
+        cell = f"{m:.3f}"
+        if abs(m - best_avg) < 0.001 and var == "hetero_qos":
+            cell = f"**{cell}**"
+        avg_cells.append(cell)
+    
+    avg_delta = all_means[-1] - all_means[-2]
+    avg_cells.append(f"{'+' if avg_delta >= 0 else ''}{avg_delta:.3f}")
+    rows.append("| " + " | ".join(avg_cells) + " |")
 
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\n".join(rows) + "\n")
@@ -238,34 +300,85 @@ def print_table3_console(data: Dict):
     agg = data["aggregate"]
     scenarios = sorted({k.split("|")[0] for k in agg})
     var_labels = [_VARIANT_LABELS_PLAIN.get(v, v) for v in _VARIANT_ORDER]
-    col_w = 13
+    col_w = 26
 
     print("\n  Table 3: Spearman ρ — Main Results")
-    header = f"  {'Scenario':<30}" + "".join(f"{lbl:<{col_w}}" for lbl in var_labels)
+    header = f"  {'Scenario':<30} {'GT':<12}" + "".join(f"{lbl:<{col_w}}" for lbl in var_labels) + "Δρ (QoS)"
     print(header)
-    print("  " + "─" * (30 + col_w * len(_VARIANT_ORDER)))
+    print("  " + "─" * (42 + col_w * len(_VARIANT_ORDER) + 12))
 
     for sc in scenarios:
         label = _SCENARIO_LABELS.get(sc, sc)
-        best_rho = max(
-            (agg.get(f"{sc}|{v}", {}).get("mean_rho", 0.0) or 0.0)
-            for v in _VARIANT_ORDER
-        )
-        row = f"  {label:<30}"
+        best_rho = max((agg.get(f"{sc}|{v}", {}).get("mean_rho", 0.0) or 0.0) for v in _VARIANT_ORDER)
+        gt_source = agg.get(f"{sc}|topo_baseline", {}).get("gt_source", "Sim")
+        row = f"  {label:<30} {gt_source:<12}"
         for v in _VARIANT_ORDER:
             st = agg.get(f"{sc}|{v}", {})
             r = st.get("mean_rho")
-            is_circ = st.get("is_circular", False)
+            ci_lo = st.get("ci_lo")
+            ci_hi = st.get("ci_hi")
+            p_val = st.get("wilcoxon_p_vs_hetero")
             
             if r is None:
-                row += f"{'—':<{col_w}}"
-            elif is_circ:
-                row += f"{'1.000*':<{col_w}}"
-            elif abs(r - best_rho) < 0.001:
-                row += f"*{r:.3f}*     "[:col_w].ljust(col_w)
+                cell = "—"
             else:
-                row += f"{r:.3f}".ljust(col_w)
+                cell = f"{r:.3f}"
+                if ci_lo is not None and ci_hi is not None:
+                    cell += f" [{ci_lo:.3f}, {ci_hi:.3f}]"
+                if abs(r - best_rho) < 0.001 and v == "hetero_qos":
+                    cell = f"*{cell}*"
+            
+            if v != "hetero_qos" and p_val is not None:
+                if p_val < 0.001: cell += "***"
+                elif p_val < 0.01: cell += "**"
+                elif p_val < 0.05: cell += "*"
+                
+            row += cell.ljust(col_w)
+        
+        # Delta
+        r_qos = agg.get(f"{sc}|hetero_qos", {}).get("mean_rho")
+        r_none = agg.get(f"{sc}|hetero_no_qos", {}).get("mean_rho")
+        p_delta = agg.get(f"{sc}|hetero_no_qos", {}).get("wilcoxon_p_vs_hetero")
+        if r_qos is not None and r_none is not None:
+            diff = r_qos - r_none
+            d_str = f"{'+' if diff >= 0 else ''}{diff:.3f}"
+            if p_delta is not None:
+                if p_delta < 0.001: d_str += "***"
+                elif p_delta < 0.01: d_str += "**"
+                elif p_delta < 0.05: d_str += "*"
+            row += d_str
+            
         print(row)
+
+        # Per-node-type breakdown (Block F story)
+        node_types = sorted({nt for v in _VARIANT_ORDER for nt in agg.get(f"{sc}|{v}", {}).get("per_node_type", {})})
+        for nt in node_types:
+            subrow = f"    └─ {nt:<27} {'':<12}"
+            for v in _VARIANT_ORDER:
+                nt_rho = agg.get(f"{sc}|{v}", {}).get("per_node_type", {}).get(nt)
+                cell = f"{nt_rho:.3f}" if nt_rho is not None else "—"
+                subrow += cell.ljust(col_w)
+            print(subrow)
+
+    # Summary row: cross-scenario mean
+    print("  " + "─" * (42 + col_w * len(_VARIANT_ORDER) + 12))
+    import numpy as np
+    all_means = []
+    for var in _VARIANT_ORDER:
+        rhos = [
+            agg.get(f"{sc}|{var}", {}).get("mean_rho")
+            for sc in scenarios
+            if agg.get(f"{sc}|{var}", {}).get("mean_rho") is not None
+        ]
+        all_means.append(np.mean(rhos) if rhos else 0.0)
+    
+    avg_row = f"  {'Mean':<30} {'':<12}"
+    for m in all_means:
+        avg_row += f"{m:.3f}".ljust(col_w)
+    
+    avg_delta = all_means[-1] - all_means[-2]
+    avg_row += f"{'+' if avg_delta >= 0 else ''}{avg_delta:.3f}"
+    print(avg_row)
 
 
 # ── Identification Metrics (F1, Prec, Rec, Top-5) ───────────────────────────
@@ -274,12 +387,13 @@ def render_id_metrics_md(data: Dict, output: Path):
     agg = data["aggregate"]
     scenarios = sorted({k.split("|")[0] for k in agg})
     
-    header = "| Scenario | Variant | F1 | Accuracy | Precision | Recall | Top-5 | Top-10 | NDCG@10 |"
-    divider = "|---|---|---|---|---|---|---|---|---|"
+    header = "| Scenario | GT | Variant | F1 | Accuracy | Precision | Recall | Top-5 | Top-10 | NDCG@10 |"
+    divider = "|---|---|---|---|---|---|---|---|---|---|"
     rows = [header, divider]
 
     for sc in scenarios:
         label = _SCENARIO_LABELS.get(sc, sc)
+        gt_source = agg.get(f"{sc}|topo_baseline", {}).get("gt_source", "Sim")
         for v in _VARIANT_ORDER:
             st = agg.get(f"{sc}|{v}", {})
             f1   = st.get("mean_f1", 0.0)
@@ -289,8 +403,8 @@ def render_id_metrics_md(data: Dict, output: Path):
             t5   = st.get("mean_top5", 0.0)
             t10  = st.get("mean_top10", 0.0)
             ndcg = st.get("mean_ndcg_10", 0.0)
-            
-            rows.append(f"| {label} | {_VARIANT_LABELS_PLAIN.get(v, v)} | {f1:.3f} | {acc:.3f} | {prec:.3f} | {rec:.3f} | {t5:.3f} | {t10:.3f} | {ndcg:.3f} |")
+            v_lbl = _VARIANT_LABELS_PLAIN.get(v, v)
+            rows.append(f"| {label} | {gt_source} | {v_lbl} | {f1:.3f} | {acc:.3f} | {prec:.3f} | {rec:.3f} | {t5:.3f} | {t10:.3f} | {ndcg:.3f} |")
             label = "" # Only show scenario once
         rows.append("| | | | | | | | | |")
         
@@ -420,6 +534,31 @@ def parse_args():
     return p.parse_args()
 
 
+def render_per_type_table_md(data: Dict, output: Path):
+    agg = data["aggregate"]
+    scenarios = sorted({k.split("|")[0] for k in agg})
+    
+    header = "| Scenario | Node Type | " + " | ".join([_VARIANT_LABELS_PLAIN.get(v, v) for v in _VARIANT_ORDER]) + " |"
+    divider = "|---|---| " + " | ".join(["---"] * len(_VARIANT_ORDER)) + " |"
+    rows = [header, divider]
+
+    for sc in scenarios:
+        label = _SCENARIO_LABELS.get(sc, sc)
+        node_types = sorted({nt for v in _VARIANT_ORDER for nt in agg.get(f"{sc}|{v}", {}).get("per_node_type", {})})
+        for nt in node_types:
+            row = f"| {label} | {nt} |"
+            for v in _VARIANT_ORDER:
+                rho = agg.get(f"{sc}|{v}", {}).get("per_node_type", {}).get(nt)
+                row += f" {rho:.3f} |" if rho is not None else " — |"
+            rows.append(row)
+            label = ""
+        rows.append("| | | " + " | ".join([""] * len(_VARIANT_ORDER)) + " |")
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(rows) + "\n")
+    print(f"  Saved Markdown Table 5: {output}")
+
+
 def main():
     args = parse_args()
     out = args.output_dir
@@ -439,7 +578,9 @@ def main():
                 render_table3_csv(data3, out / "table3_main_results.csv")
                 render_table3_md(data3,  out / "table3_main_results.md")
                 render_id_metrics_md(data3, out / "table3_id_metrics.md")
-            print_id_metrics_console(data3)
+                render_per_type_table_md(data3, out / "table5_per_type_metrics.md")
+        
+        print_id_metrics_console(data3)
     else:
         print(f"\n  [Table 3] Not found: {args.table3}")
         print("  Run: python tools/middleware26_main_table.py")

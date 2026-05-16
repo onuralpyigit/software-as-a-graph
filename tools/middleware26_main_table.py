@@ -55,7 +55,7 @@ ALL_SCENARIOS = [
     "enterprise_system",
 ]
 
-ALL_VARIANTS = ["topo_baseline", "homo_unweighted", "homo_scalar", "hetero_qos"]
+ALL_VARIANTS = ["topo_baseline", "homo_unweighted", "homo_scalar", "hetero_no_qos", "hetero_qos"]
 
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
 
@@ -89,7 +89,7 @@ def _safe_rho(rho: Any) -> float:
         return 0.0
 
 
-def _load_cache_dicts(cache_dir: Path, graph_nodes: set) -> Tuple[Dict, Dict, Dict]:
+def _load_cache_dicts(cache_dir: Path, graph_nodes: set) -> Tuple[Dict, Dict, Dict, str]:
     """Load and remap structural / simulation / RMAV dicts from *cache_dir*."""
     structural_dict: Dict = {}
     simulation_dict: Dict = {}
@@ -110,14 +110,16 @@ def _load_cache_dicts(cache_dir: Path, graph_nodes: set) -> Tuple[Dict, Dict, Di
     simulation_dict = _remap_node_ids(simulation_dict, graph_nodes)
     rmav_dict       = _remap_node_ids(rmav_dict,       graph_nodes)
 
+    gt_source = "Sim"
     # Cached simulation uses a simple feed-loss model → ~94 % zero labels → GNN
     # collapses to constant output.  Substitute RMAV quality scores (non-zero for
     # all nodes, std ≈ 0.12) so the model has a meaningful training signal.
     if _is_sparse(simulation_dict) and rmav_dict:
         logger.info("Simulation labels sparse — using RMAV quality as ground truth.")
         simulation_dict = _rmav_to_sim_format(rmav_dict)
+        gt_source = "RMAV-sub"
 
-    return structural_dict, simulation_dict, rmav_dict
+    return structural_dict, simulation_dict, rmav_dict, gt_source
 
 
 def _derive_depends_on_edges(topology: Dict) -> List[Dict]:
@@ -481,10 +483,10 @@ def _load_scenario_data(scenario: str) -> Tuple[Any, Dict, Dict, Dict, bool]:
 
     if cache_dir.exists():
         graph_nodes = {str(n) for n in nx_graph.nodes()}
-        structural_dict, simulation_dict, rmav_dict = _load_cache_dicts(cache_dir, graph_nodes)
+        structural_dict, simulation_dict, rmav_dict, gt_source = _load_cache_dicts(cache_dir, graph_nodes)
     else:
         logger.warning("No LOSO cache for '%s'. Structural/simulation data will be empty.", scenario)
-        structural_dict, simulation_dict, rmav_dict = {}, {}, {}
+        structural_dict, simulation_dict, rmav_dict, gt_source = {}, {}, {}, "Sim"
 
     # Derive DEPENDS_ON features and build a DEPENDS_ON-only graph.
     #
@@ -511,12 +513,11 @@ def _load_scenario_data(scenario: str) -> Tuple[Any, Dict, Dict, Dict, bool]:
 
         # Fresh RMAV quality from DEPENDS_ON features — consistent with feature source.
         fresh_rmav = _compute_rmav_from_structural(topology, saag_features)
-        is_circular = False
         if fresh_rmav:
             logger.info("Using fresh RMAV quality as simulation labels (DEPENDS_ON-consistent).")
             simulation_dict = fresh_rmav
             rmav_dict = fresh_rmav
-            is_circular = True
+            gt_source = "Fresh-RMAV"
 
         # Build DEPENDS_ON-only graph: Application + Library nodes, Rules 1 & 5.
         # Node 'type' attribute is required by networkx_to_hetero_data to assign
@@ -541,7 +542,7 @@ def _load_scenario_data(scenario: str) -> Tuple[Any, Dict, Dict, Dict, bool]:
         nx_features = _compute_nx_structural_features(nx_graph)
         structural_dict = _merge_structural_dicts(nx_features, structural_dict)
 
-    return nx_graph, structural_dict, simulation_dict, rmav_dict, is_circular
+    return nx_graph, structural_dict, simulation_dict, rmav_dict, gt_source
 
 
 def _remap_node_ids(d: Dict, graph_nodes: set) -> Dict:
@@ -711,6 +712,56 @@ def _parse_quality_scores(raw: Dict) -> Dict:
     return {str(k): v for k, v in raw.items() if isinstance(v, dict)}
 
 
+# QoS masking constants (Block C pull-forward from MW26-09)
+QOS_STRUCTURAL_KEYS: Tuple[str, ...] = (
+    "qos_weight",
+    "qos_weight_in",
+    "qos_weight_out",
+)
+
+
+def _mask_qos_in_graph(graph: nx.DiGraph) -> nx.DiGraph:
+    """Return a deep-copied graph with every edge `weight` set to 1.0."""
+    g = graph.copy()
+    for u, v, attrs in g.edges(data=True):
+        attrs["weight"] = 1.0
+    return g
+
+
+def _mask_qos_in_structural_metrics(sm: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Return a deep-copied structural-metrics dict with QoS fields zeroed."""
+    import copy
+    out = copy.deepcopy(sm)
+    for metrics in out.values():
+        for key in QOS_STRUCTURAL_KEYS:
+            if key in metrics:
+                metrics[key] = 0.0
+    return out
+
+
+def _get_per_type_rho(keys, y_pred, y_true, nx_graph):
+    """Compute Spearman rho for each node type (e.g. Application, Library)."""
+    import numpy as np
+    from scipy.stats import spearmanr
+    per_type = {}
+    # keys and y_pred/y_true are aligned
+    types = [nx_graph.nodes[k].get("type", "Application") for k in keys]
+    unique_types = sorted(set(types))
+    for t in unique_types:
+        indices = [i for i, ty in enumerate(types) if ty == t]
+        if len(indices) < 3:
+            continue
+        p = y_pred[indices, 0]
+        t_val = y_true[indices, 0]
+        if np.all(p == p[0]) or np.all(t_val == t_val[0]):
+            rho = 0.0
+        else:
+            rho, _ = spearmanr(p, t_val)
+        if not np.isnan(rho):
+            per_type[t] = round(float(rho), 4)
+    return per_type
+
+
 def _train_cell(
     scenario: str,
     variant: str,
@@ -733,7 +784,7 @@ def _train_cell(
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    nx_graph, structural_dict, simulation_dict, rmav_dict, is_circular = _load_scenario_data(scenario)
+    nx_graph, structural_dict, simulation_dict, rmav_dict, gt_source = _load_scenario_data(scenario)
 
     if nx_graph.number_of_nodes() == 0:
         return {"error": "empty_graph"}
@@ -775,6 +826,8 @@ def _train_cell(
         
         m = evaluate_scores(y_pred, y_true)
         
+        per_node_type = _get_per_type_rho(keys, y_pred, y_true, nx_graph)
+        
         return {
             "scenario": scenario, "variant": variant, "seed": seed,
             "spearman_rho": round(m.spearman_rho, 4),
@@ -786,7 +839,8 @@ def _train_cell(
             "ndcg_10": round(m.ndcg_10, 4),
             "top_5_overlap": round(m.top_5_overlap, 4),
             "top_10_overlap": round(m.top_10_overlap, 4),
-            "per_node_type": {}, "runtime_s": round(time.time() - start, 2),
+            "per_node_type": per_node_type, "runtime_s": round(time.time() - start, 2),
+            "gt_source": gt_source,
         }
 
     elif variant == "rasse_2025":
@@ -794,15 +848,16 @@ def _train_cell(
         import numpy as np
         from saag.prediction.trainer import evaluate_scores
 
-        if is_circular:
+        if gt_source == "Fresh-RMAV":
             # RMAV is used as ground truth for this scenario -> 1.0 correlation is trivial.
             # Mark as circular so renderer can handle it.
+            types = sorted({nx_graph.nodes[k].get("type", "Application") for k in simulation_dict})
             return {
                 "scenario": scenario, "variant": variant, "seed": seed,
-                "is_circular": True,
+                "gt_source": gt_source,
                 "spearman_rho": 1.0, "f1_score": 1.0, "ndcg_10": 1.0,
                 "precision": 1.0, "recall": 1.0,
-                "per_node_type": {}, "runtime_s": 0.01,
+                "per_node_type": {t: 1.0 for t in types}, "runtime_s": 0.01,
             }
 
         keys = sorted(set(rmav_dict) & set(simulation_dict))
@@ -819,6 +874,8 @@ def _train_cell(
         
         m = evaluate_scores(y_pred, y_true)
         
+        per_node_type = _get_per_type_rho(keys, y_pred, y_true, nx_graph)
+        
         return {
             "scenario": scenario, "variant": variant, "seed": seed,
             "spearman_rho": round(m.spearman_rho, 4),
@@ -830,48 +887,55 @@ def _train_cell(
             "ndcg_10": round(m.ndcg_10, 4),
             "top_5_overlap": round(m.top_5_overlap, 4),
             "top_10_overlap": round(m.top_10_overlap, 4),
-            "per_node_type": {}, "runtime_s": round(time.time() - start, 2),
+            "per_node_type": per_node_type, "runtime_s": round(time.time() - start, 2),
         }
 
-    elif variant in ("homo_unweighted", "homo_scalar"):
+    elif variant in ("homo_unweighted", "homo_scalar", "hetero_no_qos", "hetero_qos"):
         from saag.prediction.models.baselines import build_baseline
         start = time.time()
-        conv = networkx_to_hetero_data(nx_graph, structural_dict, simulation_dict, rmav_dict)
-        data = conv.hetero_data
-        create_node_splits(data, train_ratio, val_ratio, seed=seed)
-        effective_lr = 1e-3  # higher LR for faster convergence on small labelled sets
-        effective_patience = max(patience, 60)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = build_baseline(variant, hidden_channels=hidden, num_heads=num_heads,
-                               num_layers=effective_layers, dropout=dropout)
-        model.to(device)
-        ckpt_dir = f"output/gnn_checkpoints/{scenario}_{variant}_s{seed}"
-        trainer = GNNTrainer(model=model, checkpoint_dir=ckpt_dir, lr=effective_lr,
-                             num_epochs=num_epochs, patience=effective_patience)
-        trainer.train(data)
-        metrics = evaluate(model, data, "test_mask", device)
+        
+        # Apply QoS masking for the ablation arm
+        if variant == "hetero_no_qos":
+            nx_graph = _mask_qos_in_graph(nx_graph)
+            structural_dict = _mask_qos_in_structural_metrics(structural_dict)
 
-    else:  # hetero_qos
-        from saag.prediction.gnn_service import GNNService
-        start = time.time()
-        svc = GNNService(hidden_channels=hidden, num_heads=num_heads, num_layers=effective_layers,
-                         dropout=dropout, predict_edges=False,
-                         checkpoint_dir=f"output/gnn_checkpoints/{scenario}_hetero_qos_s{seed}")
-        result = svc.train(
-            graph=nx_graph, structural_metrics=structural_dict,
-            simulation_results=simulation_dict, rmav_scores=rmav_dict,
-            train_ratio=train_ratio, val_ratio=val_ratio,
-            num_epochs=num_epochs, lr=1e-3, patience=patience,
-            seeds=[seed], mode="gnn",
-        )
-        metrics = result.gnn_metrics
+        if variant.startswith("homo"):
+            conv = networkx_to_hetero_data(nx_graph, structural_dict, simulation_dict, rmav_dict)
+            data = conv.hetero_data
+            create_node_splits(data, train_ratio, val_ratio, seed=seed)
+            effective_lr = 1e-3  # higher LR for faster convergence on small labelled sets
+            effective_patience = max(patience, 60)
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            model = build_baseline(variant, hidden_channels=hidden, num_heads=num_heads,
+                                   num_layers=effective_layers, dropout=dropout)
+            model.to(device)
+            ckpt_dir = f"output/gnn_checkpoints/{scenario}_{variant}_s{seed}"
+            trainer = GNNTrainer(model=model, checkpoint_dir=ckpt_dir, lr=effective_lr,
+                                 num_epochs=num_epochs, patience=effective_patience)
+            trainer.train(data)
+            metrics = evaluate(model, data, "test_mask", device)
+        else:
+            # hetero_no_qos or hetero_qos
+            from saag.prediction.gnn_service import GNNService
+            svc = GNNService(hidden_channels=hidden, num_heads=num_heads, num_layers=effective_layers,
+                             dropout=dropout, predict_edges=False,
+                             checkpoint_dir=f"output/gnn_checkpoints/{scenario}_{variant}_s{seed}")
+            result = svc.train(
+                graph=nx_graph, structural_metrics=structural_dict,
+                simulation_results=simulation_dict, rmav_scores=rmav_dict,
+                train_ratio=train_ratio, val_ratio=val_ratio,
+                num_epochs=num_epochs, lr=1e-3, patience=patience,
+                seeds=[seed], mode="gnn",
+            )
+            metrics = result.gnn_metrics
 
     if metrics is None:
         return {"error": "no_metrics"}
 
     d = metrics.to_dict()
     d.update({"scenario": scenario, "variant": variant, "seed": seed,
-              "runtime_s": round(time.time() - start, 2)})
+              "runtime_s": round(time.time() - start, 2),
+              "gt_source": gt_source})
     return d
 
 
@@ -927,7 +991,17 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
 
         mean_r = float(np.mean(rhos))
         lo, hi = _bootstrap_ci(rhos)
-        is_circ = any(c.get("is_circular", False) for c in cs)
+        gt_source = cs[0].get("gt_source", "Sim") if cs else "Sim"
+
+        # Aggregate per-node-type
+        pnt_aggr = {}
+        for c in cs:
+            pnt = c.get("per_node_type", {})
+            for nt, val in pnt.items():
+                pnt_aggr.setdefault(nt, []).append(val)
+        
+        mean_pnt = {nt: round(float(np.mean(vals)), 4) for nt, vals in pnt_aggr.items()}
+
         aggregate[(sc, var)] = {
             "mean_rho": round(mean_r, 4),
             "mean_f1": round(float(np.mean(f1s)), 4),
@@ -939,7 +1013,8 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
             "mean_ndcg_10": round(float(np.mean(ndcgs)), 4),
             "ci_lo": round(lo, 4),
             "ci_hi": round(hi, 4),
-            "is_circular": is_circ,
+            "gt_source": gt_source,
+            "per_node_type": mean_pnt,
             "n_seeds": len(cs),
             "rhos": rhos,
         }

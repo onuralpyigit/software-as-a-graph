@@ -338,8 +338,26 @@ def evaluate_scores(y_pred: np.ndarray, y_true: np.ndarray) -> EvalMetrics:
             rho = 0.0
 
     # Binary classification metrics
-    y_true_bin = (t_comp >= 0.5).astype(int)
-    y_pred_bin = (p_comp >= 0.5).astype(int)
+    # MW26-02: Fix calibration artifact. If ground-truth labels don't reach 0.5 
+    # (common with RMAV scores or raw centrality), use 90th percentile.
+    gt_threshold = 0.5
+    if np.max(t_comp) < 0.5 and np.max(t_comp) > 1e-6:
+        gt_threshold = float(np.percentile(t_comp, 90))
+    
+    y_true_bin = (t_comp >= gt_threshold).astype(int)
+    
+    # Scale-invariant binarization for predictions
+    num_positives = int(np.sum(y_true_bin))
+    if num_positives > 0:
+        # Avoid issues with all-identical predictions
+        if np.all(p_comp == p_comp[0]):
+            y_pred_bin = np.zeros_like(p_comp).astype(int)
+        else:
+            p_threshold = np.sort(p_comp)[-num_positives]
+            y_pred_bin = (p_comp >= p_threshold).astype(int)
+    else:
+        y_pred_bin = np.zeros_like(p_comp).astype(int)
+
     f1 = float(f1_score(y_true_bin, y_pred_bin, zero_division=0))
     prec = float(precision_score(y_true_bin, y_pred_bin, zero_division=0))
     rec = float(recall_score(y_true_bin, y_pred_bin, zero_division=0))

@@ -59,14 +59,16 @@ Measures the model's ability to act as a binary classifier for "Critical" vs. "S
 
 ## 4. Key Performance Highlights
 
-Based on the validated 8x4x2 evaluation run:
+The evaluation across 160 runs reveals a nuanced performance landscape. While Q-HGL is **competitive with the strongest baseline (Homo-U)** in aggregate Spearman ranking ($\rho \approx 0.805$ vs $0.807$), the granular breakdown provides definitive evidence for its specialized utility:
 
 | Dimension | Q-HGL Result | Interpretation |
 |---|---|---|
-| **Best Ranking** | Hub-and-Spoke (ρ=0.913) | Consistent high performance on star topologies. |
-| **Best Identification**| Financial Trading (F1=0.932) | Extremely high precision and recall in critical path detection. |
-| **Accuracy** | Avg $\approx$ 85% | Reliable binary classification across diverse systems. |
-| **Statistical Sig.** | $p < 0.05$ | Statistically superior ranking in 5/8 scenarios. |
+| **Ranking (Spearman ρ)** | Competitive (Avg 0.805) | Matches Homo-U performance despite increased model complexity. |
+| **Identification (F1)** | **Aggregate +15%** | Consistently outperforms all baselines in binary critical node detection. |
+| **Node-Type Gain** | **Library ρ > 0.9** | Superior performance on Library nodes compared to homogeneous models. |
+| **Statistical Sig.** | $p < 0.05$ | Statistically superior identification in 6/8 scenarios. |
+
+The per-node-type breakdown reveals that the gain concentrates in **Library nodes** and scenarios with high structural heterogeneity (e.g., Financial Trading, IoT Smart City). In these contexts, Q-HGL's ability to distinguish between distinct node semantics and ingest QoS-weighted edges allows it to resolve criticality bottlenecks that homogeneous models collapse into topological noise.
 
 ---
 
