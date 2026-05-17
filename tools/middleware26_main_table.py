@@ -1347,6 +1347,7 @@ def main():
     # Stripping (rather than just excluding from done_keys) prevents stale
     # entries from accumulating as duplicates in the output JSON.
     meta_passthrough: Dict[str, Any] = {}
+    existing_cells: List[Dict] = []
     if args.resume and args.output.exists():
         data = json.loads(args.output.read_text())
         for k, v in data.items():
