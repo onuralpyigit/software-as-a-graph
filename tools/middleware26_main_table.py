@@ -137,14 +137,16 @@ def _load_cache_dicts(cache_dir: Path, graph_nodes: set) -> Tuple[Dict, Dict, Di
     simulation_dict = _remap_node_ids(simulation_dict, graph_nodes)
     rmav_dict       = _remap_node_ids(rmav_dict,       graph_nodes)
 
+    # Ground truth is always raw simulation failure impact — no RMAV substitution.
+    # Sparse simulation labels (many zero entries) are allowed: the model learns
+    # to predict the sparse impact distribution directly.  This is the only
+    # ground truth source used across all 8 scenarios.
     gt_source = "Sim"
-    # Cached simulation uses a simple feed-loss model → ~94 % zero labels → GNN
-    # collapses to constant output.  Substitute RMAV quality scores (non-zero for
-    # all nodes, std ≈ 0.12) so the model has a meaningful training signal.
-    if _is_sparse(simulation_dict) and rmav_dict:
-        logger.info("Simulation labels sparse — using RMAV quality as ground truth.")
-        simulation_dict = _rmav_to_sim_format(rmav_dict)
-        gt_source = "RMAV-sub"
+    if _is_sparse(simulation_dict):
+        logger.info(
+            "Simulation labels are sparse for this scenario (< 20%% non-zero). "
+            "Using raw simulation data as ground truth regardless."
+        )
 
     return structural_dict, simulation_dict, rmav_dict, gt_source
 
