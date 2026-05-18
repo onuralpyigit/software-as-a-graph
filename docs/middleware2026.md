@@ -97,7 +97,7 @@ $$
 
 The §6.B table therefore reports F1 only; including Precision and Recall as separate columns would convey the same number three times. The two degenerate cases — $K = 0$ (no critical components, F1 undefined) and $K = |V|$ (all components critical, F1 = 1 trivially) — do not occur in our 8 application-level scenarios, but the harness flags them in the per-cell output (`needs_recalibration` field) so that future scenarios falling into these regimes are not silently scored.
 
-**Complementary identification metrics.** Alongside F1 we report three further metrics that capture different aspects of identification quality. **Top-5** and **Top-10 overlap** — $|\mathrm{top}_K(\text{pred}) \cap \mathrm{top}_K(\text{truth})| / K$ for $K \in \{5, 10\}$ — evaluate the model's ability to surface the most critical components at fixed thresholds independent of the per-scenario ground-truth cardinality, which matters for manual architectural review workflows where only a handful of components can be refactored at once. **NDCG@10** weights overlap by rank position via a logarithmic discount, rewarding models that place the truly-most-critical components at the top of the predicted ranking. **Accuracy**, the overall fraction of correctly classified components, is included for cross-paper comparability but does not appear in the §4 headline summary because it is not invariant to the criticality density of the scenario — a model that predicts "all components are safe" achieves high Accuracy on scenarios with few critical components without identifying any of them.
+**Complementary identification metrics.** Alongside F1 we report further metrics that capture different aspects of prediction and identification quality. **NDCG@10** weights overlap by rank position via a logarithmic discount, rewarding models that place the truly-most-critical components at the top of the predicted ranking. **Accuracy**, the overall fraction of correctly classified components, is included for cross-paper comparability but does not appear in the §4 headline summary because it is not invariant to the criticality density of the scenario — a model that predicts "all components are safe" achieves high Accuracy on scenarios with few critical components without identifying any of them. We also report regression metrics **RMSE** (Root Mean Squared Error) and **MAE** (Mean Absolute Error) to quantify the absolute deviation of predicted criticality from simulation ground-truth.
 
 Statistical significance between HGL and each comparator on F1 is established via paired Wilcoxon signed-rank tests over the 5 seeds per scenario; the per-scenario and aggregate $p$-values are reported alongside the bootstrap 95% confidence intervals in §6 and in the JSON output of `tools/middleware26_main_table.py`.
 
@@ -173,64 +173,64 @@ The most stable property of HGL on ranking is **consistency rather than peak per
 ### B. Identification Metrics
 The following table provides a breakdown of binary classification performance for critical component identification.
 
-| Scenario | Variant | F1 | Precision | Recall | Top-5 | Top-10 | NDCG@10 |
-|---|---|---|---|---|---|---|---|
-| ATM System | Topo-BL | 0.250 | 0.250 | 0.250 | 0.400 | 0.700 | 0.905 |
-|  | Q-Topo-BL | 0.500 | 0.500 | 0.500 | 0.400 | 0.700 | 0.897 |
-|  | GL | 0.600 | 0.600 | 0.600 | 0.680 | 0.000 | 0.972 |
-|  | Q-GL | 0.600 | 0.600 | 0.600 | 0.720 | 0.000 | 0.974 |
-|  | HGL | 0.788 | 0.788 | 0.788 | 0.720 | 0.000 | 0.976 |
-|  | Q-HGL | 0.788 | 0.788 | 0.788 | 0.720 | 0.000 | 0.975 |
-| | | | | | | |
-| AV System | Topo-BL | 0.200 | 0.200 | 0.200 | 0.200 | 0.200 | 0.740 |
-|  | Q-Topo-BL | 0.600 | 0.600 | 0.600 | 0.600 | 0.600 | 0.969 |
-|  | GL | 0.700 | 0.700 | 0.700 | 0.600 | 0.740 | 0.931 |
-|  | Q-GL | 0.600 | 0.600 | 0.600 | 0.720 | 0.720 | 0.949 |
-|  | HGL | 0.855 | 0.855 | 0.855 | 0.960 | 0.840 | 0.977 |
-|  | Q-HGL | 0.732 | 0.732 | 0.732 | 0.680 | 0.660 | 0.928 |
-| | | | | | | |
-| Enterprise | Topo-BL | 0.000 | 0.000 | 0.000 | 0.200 | 0.300 | 0.859 |
-|  | Q-Topo-BL | 0.000 | 0.000 | 0.000 | 0.400 | 0.500 | 0.861 |
-|  | GL | 0.343 | 0.343 | 0.343 | 0.360 | 0.580 | 0.920 |
-|  | Q-GL | 0.400 | 0.400 | 0.400 | 0.440 | 0.580 | 0.928 |
-|  | HGL | 0.922 | 0.922 | 0.922 | 0.760 | 0.860 | 0.994 |
-|  | Q-HGL | 0.845 | 0.845 | 0.845 | 0.200 | 0.380 | 0.867 |
-| | | | | | | |
-| Financial Trading | Topo-BL | 0.000 | 0.000 | 0.000 | 0.400 | 0.600 | 0.883 |
-|  | Q-Topo-BL | 0.000 | 0.000 | 0.000 | 0.200 | 0.400 | 0.863 |
-|  | GL | 0.500 | 0.500 | 0.500 | 0.640 | 0.920 | 0.958 |
-|  | Q-GL | 0.200 | 0.200 | 0.200 | 0.600 | 0.900 | 0.930 |
-|  | HGL | 0.938 | 0.938 | 0.938 | 0.560 | 0.900 | 0.975 |
-|  | Q-HGL | 0.873 | 0.873 | 0.873 | 0.320 | 0.880 | 0.927 |
-| | | | | | | |
-| Healthcare | Topo-BL | 0.000 | 0.000 | 0.000 | 0.400 | 0.600 | 0.846 |
-|  | Q-Topo-BL | 0.500 | 0.500 | 0.500 | 0.800 | 0.900 | 0.983 |
-|  | GL | 0.500 | 0.500 | 0.500 | 0.760 | 0.880 | 0.941 |
-|  | Q-GL | 0.700 | 0.700 | 0.700 | 0.840 | 0.920 | 0.982 |
-|  | HGL | 0.946 | 0.946 | 0.946 | 0.880 | 0.940 | 0.983 |
-|  | Q-HGL | 0.878 | 0.878 | 0.878 | 0.800 | 0.940 | 0.964 |
-| | | | | | | |
-| Hub-and-Spoke | Topo-BL | 0.500 | 0.500 | 0.500 | 0.400 | 0.500 | 0.954 |
-|  | Q-Topo-BL | 0.800 | 0.800 | 0.800 | 0.600 | 0.800 | 0.989 |
-|  | GL | 0.300 | 0.300 | 0.300 | 0.800 | 0.940 | 0.955 |
-|  | Q-GL | 0.400 | 0.400 | 0.400 | 0.760 | 0.940 | 0.971 |
-|  | HGL | 0.978 | 0.978 | 0.978 | 0.800 | 0.940 | 0.995 |
-|  | Q-HGL | 1.000 | 1.000 | 1.000 | 0.760 | 0.960 | 0.978 |
-| | | | | | | |
-| IoT Smart City | Topo-BL | 0.000 | 0.000 | 0.000 | 0.000 | 0.300 | 0.752 |
-|  | Q-Topo-BL | 0.600 | 0.600 | 0.600 | 0.600 | 0.700 | 0.952 |
-|  | GL | 0.640 | 0.640 | 0.640 | 0.560 | 0.840 | 0.969 |
-|  | Q-GL | 0.700 | 0.700 | 0.700 | 0.640 | 0.840 | 0.978 |
-|  | HGL | 0.918 | 0.918 | 0.918 | 0.880 | 0.880 | 0.994 |
-|  | Q-HGL | 0.863 | 0.863 | 0.863 | 0.760 | 0.860 | 0.974 |
-| | | | | | | |
-| Microservices | Topo-BL | 0.000 | 0.000 | 0.000 | 0.200 | 0.400 | 0.783 |
-|  | Q-Topo-BL | 0.000 | 0.000 | 0.000 | 0.200 | 0.600 | 0.872 |
-|  | GL | 0.733 | 0.733 | 0.733 | 0.840 | 0.860 | 0.978 |
-|  | Q-GL | 0.800 | 0.800 | 0.800 | 0.840 | 0.860 | 0.987 |
-|  | HGL | 0.832 | 0.832 | 0.832 | 0.800 | 0.820 | 0.979 |
-|  | Q-HGL | 0.816 | 0.816 | 0.816 | 0.720 | 0.800 | 0.956 |
-| | | | | | | |
+| Scenario | Variant | Spearman ρ | F1 | Precision | Recall | Accuracy | RMSE | MAE | NDCG@10 |
+|---|---|---|---|---|---|---|---|---|---|
+| ATM System | Topo-BL | 0.747 | 0.250 | 0.250 | 0.250 | 0.824 | 0.293 | 0.281 | 0.905 |
+|  | Q-Topo-BL | 0.766 | 0.500 | 0.500 | 0.500 | 0.882 | 0.293 | 0.281 | 0.897 |
+|  | GL | 0.613 | 0.600 | 0.600 | 0.600 | 0.911 | 0.091 | 0.079 | 0.972 |
+|  | Q-GL | 0.673 | 0.600 | 0.600 | 0.600 | 0.911 | 0.097 | 0.083 | 0.974 |
+|  | HGL | 0.623 | 0.788 | 0.788 | 0.788 | 0.733 | 0.117 | 0.092 | 0.976 |
+|  | Q-HGL | 0.620 | 0.788 | 0.788 | 0.788 | 0.733 | 0.145 | 0.123 | 0.975 |
+| | | | | | | | | | |
+| AV System | Topo-BL | 0.372 | 0.200 | 0.200 | 0.200 | 0.840 | 0.284 | 0.269 | 0.740 |
+|  | Q-Topo-BL | 0.923 | 0.600 | 0.600 | 0.600 | 0.920 | 0.282 | 0.268 | 0.969 |
+|  | GL | 0.665 | 0.700 | 0.700 | 0.700 | 0.940 | 0.091 | 0.074 | 0.931 |
+|  | Q-GL | 0.773 | 0.600 | 0.600 | 0.600 | 0.920 | 0.092 | 0.077 | 0.949 |
+|  | HGL | 0.873 | 0.855 | 0.855 | 0.855 | 0.860 | 0.116 | 0.095 | 0.977 |
+|  | Q-HGL | 0.667 | 0.732 | 0.732 | 0.732 | 0.740 | 0.146 | 0.117 | 0.928 |
+| | | | | | | | | | |
+| Enterprise | Topo-BL | 0.503 | 0.000 | 0.000 | 0.000 | 0.989 | 0.292 | 0.276 | 0.859 |
+|  | Q-Topo-BL | 0.936 | 0.000 | 0.000 | 0.000 | 0.989 | 0.291 | 0.276 | 0.861 |
+|  | GL | 0.866 | 0.343 | 0.343 | 0.343 | 0.903 | 0.097 | 0.085 | 0.920 |
+|  | Q-GL | 0.864 | 0.400 | 0.400 | 0.400 | 0.914 | 0.089 | 0.077 | 0.928 |
+|  | HGL | 0.957 | 0.922 | 0.922 | 0.922 | 0.920 | 0.122 | 0.107 | 0.994 |
+|  | Q-HGL | 0.826 | 0.845 | 0.845 | 0.845 | 0.840 | 0.139 | 0.117 | 0.867 |
+| | | | | | | | | | |
+| Financial Trading | Topo-BL | 0.379 | 0.000 | 0.000 | 0.000 | 0.949 | 0.296 | 0.277 | 0.883 |
+|  | Q-Topo-BL | 0.914 | 0.000 | 0.000 | 0.000 | 0.949 | 0.296 | 0.278 | 0.863 |
+|  | GL | 0.827 | 0.500 | 0.500 | 0.500 | 0.882 | 0.090 | 0.076 | 0.958 |
+|  | Q-GL | 0.738 | 0.200 | 0.200 | 0.200 | 0.835 | 0.102 | 0.085 | 0.930 |
+|  | HGL | 0.841 | 0.938 | 0.938 | 0.938 | 0.929 | 0.119 | 0.103 | 0.975 |
+|  | Q-HGL | 0.657 | 0.873 | 0.873 | 0.873 | 0.859 | 0.124 | 0.104 | 0.927 |
+| | | | | | | | | | |
+| Healthcare | Topo-BL | 0.308 | 0.000 | 0.000 | 0.000 | 0.935 | 0.297 | 0.278 | 0.846 |
+|  | Q-Topo-BL | 0.947 | 0.500 | 0.500 | 0.500 | 0.968 | 0.295 | 0.278 | 0.983 |
+|  | GL | 0.734 | 0.500 | 0.500 | 0.500 | 0.877 | 0.102 | 0.089 | 0.941 |
+|  | Q-GL | 0.915 | 0.700 | 0.700 | 0.700 | 0.939 | 0.094 | 0.086 | 0.982 |
+|  | HGL | 0.918 | 0.946 | 0.946 | 0.946 | 0.939 | 0.122 | 0.103 | 0.983 |
+|  | Q-HGL | 0.869 | 0.878 | 0.878 | 0.878 | 0.877 | 0.133 | 0.111 | 0.964 |
+| | | | | | | | | | |
+| Hub-and-Spoke | Topo-BL | 0.734 | 0.500 | 0.500 | 0.500 | 0.895 | 0.285 | 0.270 | 0.954 |
+|  | Q-Topo-BL | 0.838 | 0.800 | 0.800 | 0.800 | 0.958 | 0.287 | 0.272 | 0.989 |
+|  | GL | 0.873 | 0.300 | 0.300 | 0.300 | 0.853 | 0.064 | 0.046 | 0.955 |
+|  | Q-GL | 0.890 | 0.400 | 0.400 | 0.400 | 0.874 | 0.066 | 0.049 | 0.971 |
+|  | HGL | 0.911 | 0.978 | 0.978 | 0.978 | 0.979 | 0.062 | 0.047 | 0.995 |
+|  | Q-HGL | 0.909 | 1.000 | 1.000 | 1.000 | 1.000 | 0.081 | 0.060 | 0.978 |
+| | | | | | | | | | |
+| IoT Smart City | Topo-BL | 0.522 | 0.000 | 0.000 | 0.000 | 0.952 | 0.299 | 0.285 | 0.752 |
+|  | Q-Topo-BL | 0.820 | 0.600 | 0.600 | 0.600 | 0.981 | 0.300 | 0.287 | 0.952 |
+|  | GL | 0.909 | 0.640 | 0.640 | 0.640 | 0.952 | 0.102 | 0.089 | 0.969 |
+|  | Q-GL | 0.935 | 0.700 | 0.700 | 0.700 | 0.943 | 0.096 | 0.083 | 0.978 |
+|  | HGL | 0.959 | 0.918 | 0.918 | 0.918 | 0.914 | 0.123 | 0.106 | 0.994 |
+|  | Q-HGL | 0.909 | 0.863 | 0.863 | 0.863 | 0.857 | 0.126 | 0.104 | 0.974 |
+| | | | | | | | | | |
+| Microservices | Topo-BL | 0.469 | 0.000 | 0.000 | 0.000 | 0.933 | 0.298 | 0.281 | 0.783 |
+|  | Q-Topo-BL | 0.916 | 0.000 | 0.000 | 0.000 | 0.933 | 0.296 | 0.281 | 0.872 |
+|  | GL | 0.916 | 0.733 | 0.733 | 0.733 | 0.933 | 0.081 | 0.069 | 0.978 |
+|  | Q-GL | 0.951 | 0.800 | 0.800 | 0.800 | 0.950 | 0.089 | 0.077 | 0.987 |
+|  | HGL | 0.927 | 0.832 | 0.832 | 0.832 | 0.850 | 0.114 | 0.096 | 0.979 |
+|  | Q-HGL | 0.896 | 0.816 | 0.816 | 0.816 | 0.833 | 0.124 | 0.102 | 0.956 |
+| | | | | | | | | | |
 
 *F1, Precision, and Recall are computed with **rank-matched binarization**:
 the top-K predicted nodes are declared critical, where K equals the number

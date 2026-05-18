@@ -953,11 +953,10 @@ def _train_cell(
             "f1_score":       round(m.f1_score, 4),
             "precision":      round(m.precision, 4),
             "recall":         round(m.recall, 4),
+            "accuracy":       round(m.accuracy, 4),
             "rmse":           round(m.rmse, 4),
             "mae":            round(m.mae, 4),
             "ndcg_10":        round(m.ndcg_10, 4),
-            "top_5_overlap":  round(m.top_5_overlap, 4),
-            "top_10_overlap": round(m.top_10_overlap, 4),
             "per_node_type":  per_node_type,
             "runtime_s":      round(time.time() - start, 2),
             "gt_source":      gt_source,
@@ -978,6 +977,7 @@ def _train_cell(
                 "gt_source": gt_source,
                 "spearman_rho": 1.0, "f1_score": 1.0, "ndcg_10": 1.0,
                 "precision": 1.0, "recall": 1.0,
+                "accuracy": 1.0, "rmse": 0.0, "mae": 0.0,
                 "per_node_type": {t: 1.0 for t in types}, "runtime_s": 0.01,
             }
 
@@ -1003,11 +1003,10 @@ def _train_cell(
             "f1_score": round(m.f1_score, 4),
             "precision": round(m.precision, 4),
             "recall": round(m.recall, 4),
+            "accuracy": round(m.accuracy, 4),
             "rmse": round(m.rmse, 4),
             "mae": round(m.mae, 4),
             "ndcg_10": round(m.ndcg_10, 4),
-            "top_5_overlap": round(m.top_5_overlap, 4),
-            "top_10_overlap": round(m.top_10_overlap, 4),
             "per_node_type": per_node_type, "runtime_s": round(time.time() - start, 2),
         }
 
@@ -1149,8 +1148,8 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
         precs = [c.get("precision", 0.0) for c in cs]
         recs = [c.get("recall", 0.0) for c in cs]
         accs = [c.get("accuracy", 0.0) for c in cs]
-        top5s = [c.get("top_5_overlap", 0.0) for c in cs]
-        top10s = [c.get("top_10_overlap", 0.0) for c in cs]
+        rmses = [c.get("rmse", 0.0) for c in cs]
+        maes = [c.get("mae", 0.0) for c in cs]
         ndcgs = [c.get("ndcg_10", 0.0) for c in cs]
 
         mean_r = float(np.mean(rhos))
@@ -1187,8 +1186,8 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
             "mean_precision": round(_nanmean(precs),  4) if not np.isnan(_nanmean(precs)) else None,
             "mean_recall":    round(_nanmean(recs),   4) if not np.isnan(_nanmean(recs))  else None,
             "mean_accuracy":  round(float(np.mean(accs)), 4),
-            "mean_top5":      round(float(np.mean(top5s)), 4),
-            "mean_top10":     round(float(np.mean(top10s)), 4),
+            "mean_rmse":      round(float(np.mean(rmses)), 4),
+            "mean_mae":       round(float(np.mean(maes)), 4),
             "mean_ndcg_10":   round(float(np.mean(ndcgs)), 4),
             "ci_lo":          round(lo, 4),
             "ci_hi":          round(hi, 4),
@@ -1357,7 +1356,13 @@ def main():
         raw_cells = data.get("cells", [])
 
         n_flagged = sum(1 for c in raw_cells if c.get("needs_recalibration"))
-        existing_cells = [c for c in raw_cells if not c.get("needs_recalibration")]
+        existing_cells = [
+            c for c in raw_cells 
+            if not c.get("needs_recalibration") and c["variant"] not in ("topo_baseline", "q_topo_baseline")
+        ]
+        for c in existing_cells:
+            c.pop("top_5_overlap", None)
+            c.pop("top_10_overlap", None)
 
         done_keys = {
             (c["scenario"], c["variant"], c["seed"])
