@@ -872,7 +872,7 @@ class StatisticalGraphGenerator:
         connects = []
         for i in range(len(nodes)):
             for j in range(i + 1, len(nodes)):
-                if self.rng.random() < 0.3:
+                if self.rng.random() < c.connection_density:
                     connects.append(self._make_edge(nodes[i], nodes[j]))
         
         # Guard against zero-mesh tiny topologies explicitly
