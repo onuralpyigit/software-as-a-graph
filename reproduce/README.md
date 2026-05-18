@@ -73,7 +73,6 @@ make -f reproduce/Makefile table4
 ### Step 4 — Figures (run after Tables 3+4)
 
 ```bash
-make -f reproduce/Makefile figure3   # Gini monotonicity sweep (~1-2 h)
 make -f reproduce/Makefile figure4   # Stratified ρ (instantaneous, reads JSON)
 make -f reproduce/Makefile figure5   # ATM attention subgraph (~10 min)
 ```
@@ -99,10 +98,8 @@ make -f reproduce/Makefile smoke-test EPOCHS=50
 | `results/table3_main_results.tex` | LaTeX Table 3 — Spearman ρ 8×4 |
 | `results/table3_main_results.csv` | CSV version for Excel/R |
 | `results/table4_loso_results.tex` | LaTeX Table 4 — LOSO Δρ |
-| `results/figure3_gini_monotonicity.pdf` | Figure 3 — ρ vs Gini |
 | `results/figure4_stratified_rho.pdf` | Figure 4 — per-node-type ρ |
 | `output/atm_case_study/attention_subgraph.pdf` | Figure 5 — HGT attention |
-| `results/gini_sweep.json` | Raw Gini sweep data |
 | `results/loso_all_variants.json` | Raw LOSO Δρ data |
 
 ---
@@ -153,8 +150,6 @@ reproduce/
 
 tools/
 ├── middleware26_main_table.py   — Block C: 8×4×5 training matrix
-├── qos_gini_sweep.py            — Block D: Gini monotonicity sweep
-├── plot_gini_monotonicity.py    — Block D: Figure 3 generator
 ├── loso_all_variants.py         — Block E: LOSO × 4 variants
 ├── render_table.py              — Block C+E: LaTeX/CSV/MD table renderer
 ├── render_stratified_figure.py  — Block F: Figure 4 generator
