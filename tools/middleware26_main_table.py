@@ -541,10 +541,8 @@ def _load_scenario_data(scenario: str) -> Tuple[Any, Dict, Dict, Dict, bool]:
         # Fresh RMAV quality from DEPENDS_ON features — consistent with feature source.
         fresh_rmav = _compute_rmav_from_structural(topology, saag_features)
         if fresh_rmav:
-            logger.info("Using fresh RMAV quality as simulation labels (DEPENDS_ON-consistent).")
-            simulation_dict = fresh_rmav
+            logger.info("Computed fresh RMAV quality scores (DEPENDS_ON-consistent).")
             rmav_dict = fresh_rmav
-            gt_source = "Fresh-RMAV"
 
         # Build DEPENDS_ON-only graph: Application + Library nodes, Rules 1 & 5.
         # Node 'type' attribute is required by networkx_to_hetero_data to assign

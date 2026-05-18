@@ -502,7 +502,7 @@ Topics receive one value for each of three QoS dimensions:
 
 These values are used by the RMAV framework to compute the QSPOF term in A(v). The QoS weight for a topic is computed from `QoSPolicy.DURABILITY_SCORES`, `QoSPolicy.RELIABILITY_SCORES`, and `QoSPolicy.PRIORITY_SCORES`. Topics carrying `PERSISTENT + RELIABLE + CRITICAL` traffic receive the maximum QoS weight (1.0), which multiplies the AP_c_directed articulation-point score to produce the full A(v) term.
 
-The QoS Gini coefficient across all topic weights measures the heterogeneity of a generated dataset. Homogeneous datasets (all topics have similar QoS) are expected to show Δρ ≈ 0 when comparing weighted vs. unweighted RMAV, while heterogeneous datasets (high Gini coefficient) are expected to show statistically significant positive Δρ. This is the core hypothesis tested in the Middleware 2026 QoS ablation experiment.
+The QoS weights across topic weights measure the QoS heterogeneity of a generated dataset. Heterogeneous datasets (high QoS variation) are designed to validate whether QoS-weighted architectural baselines and GNN variants capture safety-critical message prioritization under failure cascades.
 
 ---
 
