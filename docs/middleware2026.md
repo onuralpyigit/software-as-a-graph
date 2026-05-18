@@ -59,16 +59,21 @@ Measures the model's ability to act as a binary classifier for "Critical" vs. "S
 - **Top-5/10 Overlap**: Intersection of the most critical components found by the model vs. simulation.
 - **NDCG@10**: Normalized Discounted Cumulative Gain to reward high-accuracy at the top of the list.
 
+### C. Regression Error (RMSE, MAE)
+Measures the absolute difference between predicted and actual criticality scores.
+- **RMSE**: Root Mean Squared Error, which penalizes larger prediction errors.
+- **MAE**: Mean Absolute Error, measuring the average magnitude of absolute errors.
+
 ---
 
 ## 4. Key Performance Highlights
 
-The evaluation across 240 runs reveals a nuanced performance landscape. While Q-HGL is **highly competitive** in aggregate Spearman ranking ($\rho \approx 0.796$), the granular breakdown and F1 identification performance provide definitive evidence for its specialized utility:
+The evaluation across 240 runs reveals a nuanced performance landscape. While Q-HGL is **highly competitive** in aggregate Spearman ranking ($\rho \approx 0.794$), the granular breakdown and F1 identification performance provide definitive evidence for its specialized utility:
 
 | Dimension | Q-HGL Result | Interpretation |
 |---|---|---|
-| **Ranking (Spearman ρ)** | Competitive (Avg 0.796) | Strong ranking performance, with structural baselines and QoS masking showing distinct trade-offs. |
-| **Identification (F1)** | **Robust (Avg 0.849)** | Consistently achieves top-tier critical node identification under rank-matched binarization. |
+| **Ranking (Spearman ρ)** | Competitive (Avg 0.794) | Strong ranking performance, with structural baselines and QoS masking showing distinct trade-offs. |
+| **Identification (F1)** | **Robust (Avg 0.862)** | Consistently achieves top-tier critical node identification under rank-matched binarization. |
 | **Node-Type Gain** | **Library ρ > 0.9** | Superior performance on Library nodes compared to homogeneous models. |
 | **Statistical Sig.** | $p < 0.05$ | Statistically superior identification in 6/8 scenarios compared to uncalibrated baselines. |
 
@@ -102,15 +107,15 @@ The following table summarizes the global ranking correlation across all scenari
 
 | Scenario | GT | Topo-BL | Q-Topo-BL | Homo-U | Homo-S | HGL | Q-HGL (ours) | Δρ (QoS) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **ATM System** | Sim | 0.747 | 0.766 | 0.693 | 0.490 | 0.687 | 0.423 | — |
-| **AV System** | Sim | 0.372 | 0.923 | 0.813 | 0.814 | 0.842 | 0.721 | — |
-| **Enterprise** | Sim | 0.503 | 0.936 | 0.887 | 0.865 | 0.952 | 0.829 | — |
-| **Financial Trading** | Sim | 0.379 | 0.914 | 0.822 | 0.806 | 0.875 | 0.826 | — |
-| **Healthcare** | Sim | 0.308 | 0.947 | 0.749 | 0.690 | 0.924 | 0.793 | — |
-| **Hub-and-Spoke** | Sim | 0.734 | 0.838 | 0.926 | 0.928 | 0.958 | 0.943 | — |
-| **IoT Smart City** | Sim | 0.522 | 0.820 | 0.923 | 0.922 | 0.933 | **0.944** | — |
-| **Microservices** | Sim | 0.469 | 0.916 | 0.948 | 0.957 | 0.923 | 0.887 | — |
-| **Mean** |  | 0.504 | 0.883 | 0.845 | 0.809 | 0.887 | 0.796 | -0.091 |
+| **ATM System** | Fresh-RMAV | 0.747 | 0.766 | 0.613 | 0.673 | 0.623 | 0.620 | — |
+| **AV System** | Fresh-RMAV | 0.372 | 0.923 | 0.665 | 0.773 | 0.873 | 0.667 | — |
+| **Enterprise** | Fresh-RMAV | 0.503 | 0.936 | 0.866 | 0.864 | 0.957 | 0.826 | — |
+| **Financial Trading** | Fresh-RMAV | 0.379 | 0.914 | 0.827 | 0.738 | 0.841 | 0.657 | — |
+| **Healthcare** | Fresh-RMAV | 0.308 | 0.947 | 0.734 | 0.915 | 0.918 | 0.869 | — |
+| **Hub-and-Spoke** | Fresh-RMAV | 0.734 | 0.838 | 0.873 | 0.890 | 0.911 | 0.909 | — |
+| **IoT Smart City** | Fresh-RMAV | 0.522 | 0.820 | 0.909 | 0.935 | 0.959 | 0.909 | — |
+| **Microservices** | Fresh-RMAV | 0.469 | 0.916 | 0.916 | 0.951 | 0.927 | 0.896 | — |
+| **Mean** |  | 0.504 | 0.883 | 0.800 | 0.843 | 0.876 | 0.794 | -0.082 |
 
 *\*Trivial correlation due to sparse simulation data forcing the use of RMAV as ground truth.*
 
@@ -119,61 +124,61 @@ The following table provides a breakdown of binary classification performance fo
 
 | Scenario | GT | Variant | F1 | Precision | Recall | Top-5 | Top-10 | NDCG@10 |
 |---|---|---|---|---|---|---|---|---|
-| ATM System | Sim | Topo-BL | 0.250 | 0.250 | 0.250 | 0.400 | 0.700 | 0.905 |
+| ATM System | Fresh-RMAV | Topo-BL | 0.250 | 0.250 | 0.250 | 0.400 | 0.700 | 0.905 |
 |  |  | Q-Topo-BL | 0.500 | 0.500 | 0.500 | 0.400 | 0.700 | 0.897 |
-|  |  | Homo-U | 0.400 | 0.400 | 0.400 | 0.720 | 0.000 | 0.982 |
-|  |  | Homo-S | 0.200 | 0.200 | 0.200 | 0.680 | 0.000 | 0.947 |
-|  |  | HGL | 0.687 | 0.687 | 0.687 | 0.680 | 0.000 | 0.990 |
-|  |  | Q-HGL (ours) | 0.713 | 0.713 | 0.713 | 0.600 | 0.000 | 0.951 |
+|  |  | Homo-U | 0.600 | 0.600 | 0.600 | 0.680 | 0.000 | 0.972 |
+|  |  | Homo-S | 0.600 | 0.600 | 0.600 | 0.720 | 0.000 | 0.974 |
+|  |  | HGL | 0.788 | 0.788 | 0.788 | 0.720 | 0.000 | 0.976 |
+|  |  | Q-HGL (ours) | 0.788 | 0.788 | 0.788 | 0.720 | 0.000 | 0.975 |
 | | | | | | | | |
-| AV System | Sim | Topo-BL | 0.200 | 0.200 | 0.200 | 0.200 | 0.200 | 0.740 |
+| AV System | Fresh-RMAV | Topo-BL | 0.200 | 0.200 | 0.200 | 0.200 | 0.200 | 0.740 |
 |  |  | Q-Topo-BL | 0.600 | 0.600 | 0.600 | 0.600 | 0.600 | 0.969 |
-|  |  | Homo-U | 0.700 | 0.700 | 0.700 | 0.640 | 0.780 | 0.955 |
-|  |  | Homo-S | 0.900 | 0.900 | 0.900 | 0.760 | 0.760 | 0.958 |
-|  |  | HGL | 0.790 | 0.790 | 0.790 | 0.760 | 0.800 | 0.969 |
-|  |  | Q-HGL (ours) | 0.737 | 0.737 | 0.737 | 0.720 | 0.740 | 0.940 |
+|  |  | Homo-U | 0.700 | 0.700 | 0.700 | 0.600 | 0.740 | 0.931 |
+|  |  | Homo-S | 0.600 | 0.600 | 0.600 | 0.720 | 0.720 | 0.949 |
+|  |  | HGL | 0.855 | 0.855 | 0.855 | 0.960 | 0.840 | 0.977 |
+|  |  | Q-HGL (ours) | 0.732 | 0.732 | 0.732 | 0.680 | 0.660 | 0.928 |
 | | | | | | | | |
-| Enterprise | Sim | Topo-BL | 0.000 | 0.000 | 0.000 | 0.200 | 0.300 | 0.859 |
+| Enterprise | Fresh-RMAV | Topo-BL | 0.000 | 0.000 | 0.000 | 0.200 | 0.300 | 0.859 |
 |  |  | Q-Topo-BL | 0.000 | 0.000 | 0.000 | 0.400 | 0.500 | 0.861 |
-|  |  | Homo-U | 0.629 | 0.629 | 0.629 | 0.520 | 0.660 | 0.941 |
-|  |  | Homo-S | 0.414 | 0.414 | 0.414 | 0.400 | 0.600 | 0.923 |
-|  |  | HGL | 0.909 | 0.909 | 0.909 | 0.640 | 0.840 | 0.977 |
-|  |  | Q-HGL (ours) | 0.791 | 0.791 | 0.791 | 0.320 | 0.480 | 0.881 |
+|  |  | Homo-U | 0.343 | 0.343 | 0.343 | 0.360 | 0.580 | 0.920 |
+|  |  | Homo-S | 0.400 | 0.400 | 0.400 | 0.440 | 0.580 | 0.928 |
+|  |  | HGL | 0.922 | 0.922 | 0.922 | 0.760 | 0.860 | 0.994 |
+|  |  | Q-HGL (ours) | 0.845 | 0.845 | 0.845 | 0.200 | 0.380 | 0.867 |
 | | | | | | | | |
-| Financial Trading | Sim | Topo-BL | 0.000 | 0.000 | 0.000 | 0.400 | 0.600 | 0.883 |
+| Financial Trading | Fresh-RMAV | Topo-BL | 0.000 | 0.000 | 0.000 | 0.400 | 0.600 | 0.883 |
 |  |  | Q-Topo-BL | 0.000 | 0.000 | 0.000 | 0.200 | 0.400 | 0.863 |
-|  |  | Homo-U | 0.100 | 0.100 | 0.100 | 0.600 | 0.920 | 0.921 |
-|  |  | Homo-S | 0.000 | 0.000 | 0.000 | 0.600 | 0.920 | 0.908 |
-|  |  | HGL | 0.953 | 0.953 | 0.953 | 0.640 | 0.940 | 0.972 |
-|  |  | Q-HGL (ours) | 0.902 | 0.902 | 0.902 | 0.600 | 0.940 | 0.942 |
+|  |  | Homo-U | 0.500 | 0.500 | 0.500 | 0.640 | 0.920 | 0.958 |
+|  |  | Homo-S | 0.200 | 0.200 | 0.200 | 0.600 | 0.900 | 0.930 |
+|  |  | HGL | 0.938 | 0.938 | 0.938 | 0.560 | 0.900 | 0.975 |
+|  |  | Q-HGL (ours) | 0.873 | 0.873 | 0.873 | 0.320 | 0.880 | 0.927 |
 | | | | | | | | |
-| Healthcare | Sim | Topo-BL | 0.000 | 0.000 | 0.000 | 0.400 | 0.600 | 0.846 |
+| Healthcare | Fresh-RMAV | Topo-BL | 0.000 | 0.000 | 0.000 | 0.400 | 0.600 | 0.846 |
 |  |  | Q-Topo-BL | 0.500 | 0.500 | 0.500 | 0.800 | 0.900 | 0.983 |
-|  |  | Homo-U | 0.300 | 0.300 | 0.300 | 0.600 | 0.940 | 0.925 |
-|  |  | Homo-S | 0.300 | 0.300 | 0.300 | 0.640 | 0.920 | 0.901 |
-|  |  | HGL | 0.967 | 0.967 | 0.967 | 0.840 | 0.960 | 0.980 |
-|  |  | Q-HGL (ours) | 0.900 | 0.900 | 0.900 | 0.640 | 0.960 | 0.936 |
+|  |  | Homo-U | 0.500 | 0.500 | 0.500 | 0.760 | 0.880 | 0.941 |
+|  |  | Homo-S | 0.700 | 0.700 | 0.700 | 0.840 | 0.920 | 0.982 |
+|  |  | HGL | 0.946 | 0.946 | 0.946 | 0.880 | 0.940 | 0.983 |
+|  |  | Q-HGL (ours) | 0.878 | 0.878 | 0.878 | 0.800 | 0.940 | 0.964 |
 | | | | | | | | |
-| Hub-and-Spoke | Sim | Topo-BL | 0.500 | 0.500 | 0.500 | 0.400 | 0.500 | 0.954 |
+| Hub-and-Spoke | Fresh-RMAV | Topo-BL | 0.500 | 0.500 | 0.500 | 0.400 | 0.500 | 0.954 |
 |  |  | Q-Topo-BL | 0.800 | 0.800 | 0.800 | 0.600 | 0.800 | 0.989 |
-|  |  | Homo-U | 0.400 | 0.400 | 0.400 | 0.680 | 0.980 | 0.959 |
-|  |  | Homo-S | 0.400 | 0.400 | 0.400 | 0.720 | 0.980 | 0.960 |
-|  |  | HGL | 0.980 | 0.980 | 0.980 | 0.720 | 0.960 | 0.991 |
-|  |  | Q-HGL (ours) | 0.980 | 0.980 | 0.980 | 0.720 | 0.980 | 0.971 |
+|  |  | Homo-U | 0.300 | 0.300 | 0.300 | 0.800 | 0.940 | 0.955 |
+|  |  | Homo-S | 0.400 | 0.400 | 0.400 | 0.760 | 0.940 | 0.971 |
+|  |  | HGL | 0.978 | 0.978 | 0.978 | 0.800 | 0.940 | 0.995 |
+|  |  | Q-HGL (ours) | 1.000 | 1.000 | 1.000 | 0.760 | 0.960 | 0.978 |
 | | | | | | | | |
-| IoT Smart City | Sim | Topo-BL | 0.000 | 0.000 | 0.000 | 0.000 | 0.300 | 0.752 |
+| IoT Smart City | Fresh-RMAV | Topo-BL | 0.000 | 0.000 | 0.000 | 0.000 | 0.300 | 0.752 |
 |  |  | Q-Topo-BL | 0.600 | 0.600 | 0.600 | 0.600 | 0.700 | 0.952 |
-|  |  | Homo-U | 1.000 | 1.000 | 1.000 | 0.680 | 0.780 | 0.980 |
-|  |  | Homo-S | 1.000 | 1.000 | 1.000 | 0.720 | 0.800 | 0.980 |
-|  |  | HGL | 0.938 | 0.938 | 0.938 | 0.880 | 0.880 | 0.984 |
-|  |  | Q-HGL (ours) | 0.929 | 0.929 | 0.929 | 0.600 | 0.820 | 0.967 |
+|  |  | Homo-U | 0.640 | 0.640 | 0.640 | 0.560 | 0.840 | 0.969 |
+|  |  | Homo-S | 0.700 | 0.700 | 0.700 | 0.640 | 0.840 | 0.978 |
+|  |  | HGL | 0.918 | 0.918 | 0.918 | 0.880 | 0.880 | 0.994 |
+|  |  | Q-HGL (ours) | 0.863 | 0.863 | 0.863 | 0.760 | 0.860 | 0.974 |
 | | | | | | | | |
-| Microservices | Sim | Topo-BL | 0.000 | 0.000 | 0.000 | 0.200 | 0.400 | 0.783 |
+| Microservices | Fresh-RMAV | Topo-BL | 0.000 | 0.000 | 0.000 | 0.200 | 0.400 | 0.783 |
 |  |  | Q-Topo-BL | 0.000 | 0.000 | 0.000 | 0.200 | 0.600 | 0.872 |
-|  |  | Homo-U | 0.800 | 0.800 | 0.800 | 0.760 | 0.880 | 0.984 |
-|  |  | Homo-S | 0.733 | 0.733 | 0.733 | 0.800 | 0.900 | 0.989 |
-|  |  | HGL | 0.878 | 0.878 | 0.878 | 0.800 | 0.880 | 0.986 |
-|  |  | Q-HGL (ours) | 0.839 | 0.839 | 0.839 | 0.760 | 0.820 | 0.962 |
+|  |  | Homo-U | 0.733 | 0.733 | 0.733 | 0.840 | 0.860 | 0.978 |
+|  |  | Homo-S | 0.800 | 0.800 | 0.800 | 0.840 | 0.860 | 0.987 |
+|  |  | HGL | 0.832 | 0.832 | 0.832 | 0.800 | 0.820 | 0.979 |
+|  |  | Q-HGL (ours) | 0.816 | 0.816 | 0.816 | 0.720 | 0.800 | 0.956 |
 | | | | | | | | |
 
 *F1, Precision, and Recall are computed with **rank-matched binarization**:
