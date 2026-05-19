@@ -71,7 +71,6 @@ block0:
 
 table3: block0
 	$(PYTHON) tools/middleware26_main_table.py \
-	    --scenarios-dir $(SCENARIOS_DIR) \
 	    --output $(RESULTS_DIR)/main_table.json \
 	    --seeds $(SEEDS) \
 	    --epochs $(EPOCHS) \

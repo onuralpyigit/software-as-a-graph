@@ -83,7 +83,9 @@ CKPT_ROOT = Path("output/gnn_checkpoints")
 # Heuristic: a cell is "suspicious" (broken F1) when ranking is strong but
 # F1 is near zero.  This is what the fixed-0.5 threshold artifact looks like.
 _BROKEN_F1_HEURISTIC = lambda c: (
-    c.get("spearman_rho", 0.0) > 0.30
+    c.get("spearman_rho") is not None
+    and c.get("spearman_rho", 0.0) > 0.30
+    and c.get("f1_score") is not None
     and c.get("f1_score", 1.0) < 0.05
 )
 
