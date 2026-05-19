@@ -3,8 +3,9 @@
 tools/middleware26_main_table.py — Block C: Main Results Table Harness
 ======================================================================
 
-Orchestrates the 8×6×5 training matrix for Table 3 (paper §6.2):
-  8 scenarios × 6 variants × 5 seeds = 240 training runs.
+Orchestrates the 8×6×5 evaluation matrix for Table 3 (paper §6.2):
+  8 scenarios × 6 variants × 5 seeds = 240 evaluation cells
+  (160 GNN training runs + 80 closed-form structural baseline computations).
 
   Factorial design (2×3: architecture × qos):
     Structural BL : Topo-BL       | Q-Topo-BL

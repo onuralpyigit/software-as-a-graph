@@ -187,9 +187,9 @@ def render_table3_tex(data: Dict, output: Path):
                 cell += _pval_star(p_val)
             cells.append(cell)
 
-        # Delta column: hetero_qos - hetero_no_qos
+        # Delta column: hetero_qos - hgl
         stats_qos = _get_cell_stats(agg, sc, "hetero_qos")
-        stats_none = _get_cell_stats(agg, sc, "hetero_no_qos")
+        stats_none = _get_cell_stats(agg, sc, "hgl")
         r_qos = stats_qos.get("mean_rho")
         r_none = stats_none.get("mean_rho")
         p_delta = stats_none.get("wilcoxon_p_vs_hetero") # p-value for the pair
@@ -299,8 +299,8 @@ def render_table3_md(data: Dict, output: Path):
             
         # Delta
         r_qos = agg.get(f"{sc}|hetero_qos", {}).get("mean_rho")
-        r_none = agg.get(f"{sc}|hetero_no_qos", {}).get("mean_rho")
-        p_delta = agg.get(f"{sc}|hetero_no_qos", {}).get("wilcoxon_p_vs_hetero")
+        r_none = agg.get(f"{sc}|hgl", {}).get("mean_rho")
+        p_delta = agg.get(f"{sc}|hgl", {}).get("wilcoxon_p_vs_hetero")
         if r_qos is not None and r_none is not None:
             diff = r_qos - r_none
             d_str = f"{'+' if diff >= 0 else ''}{diff:.3f}"
@@ -380,8 +380,8 @@ def print_table3_console(data: Dict):
         
         # Delta
         r_qos = agg.get(f"{sc}|hetero_qos", {}).get("mean_rho")
-        r_none = agg.get(f"{sc}|hetero_no_qos", {}).get("mean_rho")
-        p_delta = agg.get(f"{sc}|hetero_no_qos", {}).get("wilcoxon_p_vs_hetero")
+        r_none = agg.get(f"{sc}|hgl", {}).get("mean_rho")
+        p_delta = agg.get(f"{sc}|hgl", {}).get("wilcoxon_p_vs_hetero")
         if r_qos is not None and r_none is not None:
             diff = r_qos - r_none
             d_str = f"{'+' if diff >= 0 else ''}{diff:.3f}"
@@ -430,8 +430,8 @@ def render_id_metrics_md(data: Dict, output: Path):
     agg = data["aggregate"]
     scenarios = sorted({k.split("|")[0] for k in agg if not k.startswith("_")})
 
-    header  = "| Scenario | GT | Variant | Spearman ρ | F1 | Precision | Recall | Accuracy | RMSE | MAE | NDCG@10 |"
-    divider = "|---|---|---|---|---|---|---|---|---|---|---|"
+    header  = "| Scenario | GT | Variant | Spearman ρ | F1 | Accuracy | RMSE | MAE | NDCG@10 |"
+    divider = "|---|---|---|---|---|---|---|---|---|"
     rows = [header, divider]
 
     for sc in scenarios:
@@ -448,8 +448,6 @@ def render_id_metrics_md(data: Dict, output: Path):
                 f"| {label} | {gt_source} | {_VARIANT_LABELS_PLAIN.get(v, v)} "
                 f"| {_fmt(st.get('mean_rho'))} "
                 f"| {f1_str} "
-                f"| {_fmt(st.get('mean_precision'))} "
-                f"| {_fmt(st.get('mean_recall'))} "
                 f"| {_fmt(st.get('mean_accuracy'))} "
                 f"| {_fmt(st.get('mean_rmse'))} "
                 f"| {_fmt(st.get('mean_mae'))} "
@@ -457,7 +455,7 @@ def render_id_metrics_md(data: Dict, output: Path):
             )
             label     = ""  # Only show scenario once
             gt_source = ""
-        rows.append("| | | | | | | | | | | |")
+        rows.append("| | | | | | | | |")
 
     rows += [
         "",
@@ -479,9 +477,9 @@ def print_id_metrics_console(data: Dict):
     scenarios = sorted({k.split("|")[0] for k in agg if not k.startswith("_")})
 
     print("\n  Identification Metrics (Critical Component Detection)")
-    header = f"  {'Scenario':<25} {'Variant':<15} {'Rho':<8} {'F1':<10} {'Prec':<8} {'Rec':<8} {'Acc':<8} {'RMSE':<8} {'MAE':<8} {'NDCG':<8} Cal"
+    header = f"  {'Scenario':<25} {'Variant':<15} {'Rho':<8} {'F1':<10} {'Acc':<8} {'RMSE':<8} {'MAE':<8} {'NDCG':<8} Cal"
     print(header)
-    print("  " + "─" * 125)
+    print("  " + "─" * 105)
 
     for sc in scenarios:
         label = _SCENARIO_LABELS.get(sc, sc)
@@ -489,8 +487,6 @@ def print_id_metrics_console(data: Dict):
             st   = agg.get(f"{sc}|{v}", {})
             rho  = st.get("mean_rho")
             f1   = st.get("mean_f1")
-            prec = st.get("mean_precision")
-            rec  = st.get("mean_recall")
             acc  = st.get("mean_accuracy")
             rmse = st.get("mean_rmse")
             mae  = st.get("mean_mae")
@@ -500,7 +496,7 @@ def print_id_metrics_console(data: Dict):
             f1_s = f"{f1:.3f}" if f1 is not None else "NaN"
 
             print(f"  {label:<25} {_VARIANT_LABELS_PLAIN.get(v, v):<15} "
-                  f"{(rho or 0.0):<8.3f} {f1_s+marker:<10} {(prec or 0.0):<8.3f} {(rec or 0.0):<8.3f} "
+                  f"{(rho or 0.0):<8.3f} {f1_s+marker:<10} "
                   f"{(acc or 0.0):<8.3f} {(rmse or 0.0):<8.3f} {(mae or 0.0):<8.3f} {ndcg:<8.3f} {cal}")
             label = ""
         print("")

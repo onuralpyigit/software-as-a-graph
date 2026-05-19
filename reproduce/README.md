@@ -95,7 +95,7 @@ make -f reproduce/Makefile smoke-test EPOCHS=50
 
 | File | Content |
 |---|---|
-| `results/table3_main_results.tex` | LaTeX Table 3 — Spearman ρ 8×4 |
+| `results/table3_main_results.tex` | LaTeX Table 3 — Spearman ρ 8×6 |
 | `results/table3_main_results.csv` | CSV version for Excel/R |
 | `results/table4_loso_results.tex` | LaTeX Table 4 — LOSO Δρ |
 | `results/figure4_stratified_rho.pdf` | Figure 4 — per-node-type ρ |
@@ -108,10 +108,12 @@ make -f reproduce/Makefile smoke-test EPOCHS=50
 
 | Variant flag | Description |
 |---|---|
-| `hetero_qos` | **Q-HGL (ours)** — QoS-aware HeteroGAT with 16-d edge features |
-| `homo_scalar` | Homogeneous GAT with scalar QoS weight per edge |
-| `homo_unweighted` | Homogeneous GAT with no edge weighting |
-| `topology_rmav` | RMAV topology baseline (no GNN) |
+| `hetero_qos` | **Q-HGL (Proposed)** — Heterogeneous GAT with 7-d edge features |
+| `hetero_unweighted` | **HGL (Proposed)** — Heterogeneous GAT with QoS attributes masked |
+| `homo_scalar` | **Homo-S** — Homogeneous GAT with scalar QoS weight per edge |
+| `homo_unweighted` | **Homo-U** — Homogeneous GAT with no edge weighting |
+| `q_topo_baseline` | **Q-Topo-BL** — QoS-weighted structural centrality baseline |
+| `topo_baseline` | **Topo-BL** — Unweighted structural centrality baseline |
 
 ---
 
@@ -149,7 +151,7 @@ reproduce/
 └── README.md          — this file
 
 tools/
-├── middleware26_main_table.py   — Block C: 8×4×5 training matrix
+├── middleware26_main_table.py   — Block C: 8×6×5 evaluation matrix
 ├── loso_all_variants.py         — Block E: LOSO × 4 variants
 ├── render_table.py              — Block C+E: LaTeX/CSV/MD table renderer
 ├── render_stratified_figure.py  — Block F: Figure 4 generator

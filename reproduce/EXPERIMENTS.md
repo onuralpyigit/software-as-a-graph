@@ -6,7 +6,7 @@ This document provides a technical deep-dive into the reproducibility infrastruc
 
 ## 1. The Experimental Harness (`middleware26_main_table.py`)
 
-The primary harness orchestrates an **8 × 4 × 5 training matrix** (8 scenarios, 4 model variants, 5 seeds), totaling 160 independent training and evaluation cycles.
+The primary harness orchestrates an **8 × 6 × 5 evaluation matrix** (8 scenarios, 6 variants, 5 seeds), totaling 240 cells (160 GNN training runs plus 80 closed-form structural baseline computations).
 
 ### A. Topology Refinement (`DEPENDS_ON` Edges)
 Raw pub-sub graphs often exhibit "feature degeneracy" where Application nodes lack structural centrality because they only possess high-level logical connections. The harness implements a custom edge derivation rule (Rule 1 & 5) before training:
@@ -56,10 +56,12 @@ Measures the intersection between the top $K$ most critical components in the gr
 
 | Variant | Logic |
 |---|---|
-| `topo_baseline` | **Baseline**: Comparison of simple structural centrality (Betweenness + Articulation Point) against ground truth. |
-| `homo_unweighted` | **Baseline**: Homogeneous GAT that ignores QoS metadata entirely (pure topology). |
-| `homo_scalar` | **Baseline**: Homogeneous GAT that reduces QoS metadata to a single scalar weight per edge. |
-| `hetero_qos` | **Q-HGL (Proposed)**: Heterogeneous GAT with 16-dimensional edge features and node-type-specific attention heads. |
+| `topo_baseline` (`Topo-BL`) | **Baseline**: Structural centrality (Betweenness + Articulation Point) on refined unweighted topology. |
+| `q_topo_baseline` (`Q-Topo-BL`) | **Baseline**: Structural centrality weighted by local QoS edge features. |
+| `homo_unweighted` (`Homo-U`) | **Baseline**: Homogeneous GAT that ignores QoS metadata entirely (pure topology). |
+| `homo_scalar` (`Homo-S`) | **Baseline**: Homogeneous GAT that encodes QoS metadata as edge weights. |
+| `hetero_unweighted` (`HGL`) | **Factorial Variant**: Heterogeneous GAT with node/relation types but QoS attributes masked. |
+| `hetero_qos` (`Q-HGL`) | **Factorial Variant**: Heterogeneous GAT with explicit 7-dimensional QoS edge attributes. |
 
 ---
 
