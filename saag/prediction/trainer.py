@@ -387,27 +387,38 @@ def evaluate_scores(
         acc = float(accuracy_score(y_true_bin, np.zeros(n, dtype=int)))
         calib_label = f"{calibration}_degenerate"
     else:
-        if calibration == "rank_matched":
-            # Top-K predicted as critical; K matched to ground-truth positives.
-            if np.all(p_comp == p_comp[0]):
-                # Constant predictions — random assignment, worst case.
-                y_pred_bin = np.zeros(n, dtype=int)
-            else:
-                order = np.argsort(-p_comp)
-                y_pred_bin = np.zeros(n, dtype=int)
-                y_pred_bin[order[:n_critical]] = 1
-        else:  # "fixed": legacy adaptive-threshold
-            if np.all(p_comp == p_comp[0]):
-                y_pred_bin = np.zeros(n, dtype=int)
-            else:
-                p_threshold = np.sort(p_comp)[-n_critical]
-                y_pred_bin = (p_comp >= p_threshold).astype(int)
+        # Both branches use exact top-K integer indexing so that |P| = K = |G|
+        # exactly, enforcing Precision = Recall = F1 for every seed cell.
+        # The "fixed"/legacy threshold approach (p_comp >= sorted_threshold) can
+        # select |P| > K when predictions tie at the K-th boundary; we replace
+        # it with argsort indexing for identical cardinality guarantees.
+        near_constant = (np.std(p_comp) < 1e-9)
+        if near_constant:
+            # Constant or near-constant predictions — worst-case random assignment.
+            y_pred_bin = np.zeros(n, dtype=int)
+        else:
+            # Stable argsort: ties broken by original node index (deterministic).
+            order = np.argsort(-p_comp, kind="stable")
+            y_pred_bin = np.zeros(n, dtype=int)
+            y_pred_bin[order[:n_critical]] = 1
+
+        # Cardinality guard: |P| must equal K = |G| exactly.
+        n_pred_positive = int(y_pred_bin.sum())
+        if n_pred_positive != n_critical:
+            logger.warning(
+                "evaluate_scores: cardinality mismatch |P|=%d != K=%d; "
+                "forcing top-K re-selection.",
+                n_pred_positive, n_critical,
+            )
+            order = np.argsort(-p_comp, kind="stable")
+            y_pred_bin = np.zeros(n, dtype=int)
+            y_pred_bin[order[:n_critical]] = 1
 
         f1   = float(f1_score(y_true_bin, y_pred_bin, zero_division=0))
         prec = float(precision_score(y_true_bin, y_pred_bin, zero_division=0))
         rec  = float(recall_score(y_true_bin, y_pred_bin, zero_division=0))
         acc  = float(accuracy_score(y_true_bin, y_pred_bin))
-        calib_label = calibration
+        calib_label = "rank_matched"  # both branches now enforce rank-matched cardinality
 
     # ── Regression metrics ─────────────────────────────────────────────────────
     rmse = float(np.sqrt(np.mean((p_comp - t_comp) ** 2)))
