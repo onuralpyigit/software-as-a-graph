@@ -96,7 +96,7 @@ A generated graph contains five node types and six structural edge types.
 | `ROUTES` | Broker → Topic | Broker is responsible for routing this topic |
 | `RUNS_ON` | Application/Broker → Node | Component is deployed on this infrastructure node |
 | `USES` | Application / Library → Library | Component or library depends on this shared library; library-to-library transitive dependencies are also generated (30 % probability per library) |
-| `CONNECTS_TO` | Node → Node | Network link between infrastructure nodes (30 % probability) |
+| `CONNECTS_TO` | Node → Node | Network link between infrastructure nodes (30 % probability by default, configurable via connection density) |
 
 These six edge types constitute the **structural graph G_structural**, which is used by the simulation stage (Step 4) to trace failure propagation. A separate **analysis graph G_analysis** is derived from G_structural by computing `DEPENDS_ON` edges, which are used exclusively by Steps 2 and 3 (analysis and prediction). The separation ensures that prediction and simulation remain independent.
 
@@ -168,6 +168,7 @@ Located at `cli/generate_graph.py`. This is the primary generation entry point. 
 | `--seed` | int | `42` | Random seed. Any integer value gives a deterministic, reproducible output. |
 | `--domain` | str | — | Domain name pool: `av`, `iot`, `finance`, `healthcare`, `hub-and-spoke`, `microservices`, `enterprise`, `atm`. **No validation is performed** — an unrecognised string silently falls back to generic naming with no error. |
 | `--scenario` | choice | — | QoS scenario mapping: `av`, `iot`, `finance`, `healthcare`, `hub-and-spoke`, `microservices`, `enterprise`, `atm`. |
+| `--connection-density` | float | `0.3` | Connection density (probability of `connects_to` edges between physical infrastructure nodes). |
 | `--verbose` / `-v` | flag | off | Print full tracebacks on error. |
 
 When `--config` is provided, the seed embedded in the YAML (`graph.seed`) is used and the `--seed` CLI argument is ignored. When `--scale` is provided without `--seed`, the default seed of 42 is used.
@@ -324,6 +325,7 @@ graph:
   seed: <integer>           # Unique per scenario; determines full reproducibility
   domain: <string>          # Optional: av | iot | finance | healthcare | enterprise
   scenario: <string>        # Optional: matches --scenario QoS mapping table
+  connection_density: <float> # Optional: probability of physical node reachability (default: 0.3)
 
   counts:
     nodes: <int>            # Infrastructure nodes
@@ -500,7 +502,7 @@ Topics receive one value for each of three QoS dimensions:
 
 These values are used by the RMAV framework to compute the QSPOF term in A(v). The QoS weight for a topic is computed from `QoSPolicy.DURABILITY_SCORES`, `QoSPolicy.RELIABILITY_SCORES`, and `QoSPolicy.PRIORITY_SCORES`. Topics carrying `PERSISTENT + RELIABLE + CRITICAL` traffic receive the maximum QoS weight (1.0), which multiplies the AP_c_directed articulation-point score to produce the full A(v) term.
 
-The QoS Gini coefficient across all topic weights measures the heterogeneity of a generated dataset. Homogeneous datasets (all topics have similar QoS) are expected to show Δρ ≈ 0 when comparing weighted vs. unweighted RMAV, while heterogeneous datasets (high Gini coefficient) are expected to show statistically significant positive Δρ. This is the core hypothesis tested in the Middleware 2026 QoS ablation experiment.
+The QoS weights across topic weights measure the QoS heterogeneity of a generated dataset. Heterogeneous datasets (high QoS variation) are designed to validate whether QoS-weighted architectural baselines and GNN variants capture safety-critical message prioritization under failure cascades.
 
 ---
 
@@ -598,16 +600,16 @@ The generation service can be called directly from Python without going through 
 from tools.generation import GenerationService, load_config, generate_graph  # service layer
 from tools.generation.models import GraphConfig, SCALE_PRESETS               # data models (separate import required)
 
-# Scale-preset mode — quickest
-data = generate_graph(scale="medium", seed=42)
+# Scale-preset mode — quickest (supports connection_density parameter too)
+data = generate_graph(scale="medium", seed=42, connection_density=0.15)
 
 # Statistical-config mode from a YAML file
 config = load_config(Path("data/scenario_01_autonomous_vehicle.yaml"))
 service = GenerationService(config=config)
 data = service.generate()
 
-# Scale-preset mode with domain enrichment
-service = GenerationService(scale="medium", seed=42, domain="finance", scenario="finance")
+# Scale-preset mode with domain enrichment and custom connection density
+service = GenerationService(scale="medium", seed=42, domain="finance", scenario="finance", connection_density=0.8)
 data = service.generate()
 
 # Inspect available presets

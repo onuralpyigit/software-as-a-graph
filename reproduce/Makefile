@@ -8,7 +8,6 @@
 #   make block0          — W1 QoS pipeline audit (go/no-go gate)
 #   make table3          — Table 3: 8×4×5 training matrix
 #   make table4          — Table 4: LOSO × 4 variants
-#   make figure3         — Figure 3: Gini monotonicity sweep
 #   make figure4         — Figure 4: Stratified per-node-type ρ
 #   make figure5         — Figure 5: ATM attention subgraph
 #   make all             — full end-to-end pipeline
@@ -26,7 +25,7 @@ SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios block0 table3 table4 figure3 figure4 figure5 \
+.PHONY: setup scenarios block0 table3 table4 figure4 figure5 \
         all smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -72,7 +71,6 @@ block0:
 
 table3: block0
 	$(PYTHON) tools/middleware26_main_table.py \
-	    --scenarios-dir $(SCENARIOS_DIR) \
 	    --output $(RESULTS_DIR)/main_table.json \
 	    --seeds $(SEEDS) \
 	    --epochs $(EPOCHS) \
@@ -81,20 +79,6 @@ table3: block0
 	    --table3 $(RESULTS_DIR)/main_table.json \
 	    --output-dir $(RESULTS_DIR)
 	@echo "✓ Table 3 ready: $(RESULTS_DIR)/table3_main_results.tex"
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Block D: Figure 3 — Gini monotonicity sweep
-# ─────────────────────────────────────────────────────────────────────────────
-
-figure3: scenarios
-	$(PYTHON) tools/qos_gini_sweep.py \
-	    --epochs $(EPOCHS) \
-	    --output $(RESULTS_DIR)/gini_sweep.json \
-	    --resume
-	$(PYTHON) tools/plot_gini_monotonicity.py \
-	    --input $(RESULTS_DIR)/gini_sweep.json \
-	    --output $(RESULTS_DIR)/figure3_gini_monotonicity
-	@echo "✓ Figure 3 ready: $(RESULTS_DIR)/figure3_gini_monotonicity.[png|pdf]"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Block E: Table 4 — LOSO × 4 variants
@@ -138,14 +122,13 @@ figure5:
 # Full pipeline
 # ─────────────────────────────────────────────────────────────────────────────
 
-all: setup scenarios block0 table3 table4 figure3 figure4 figure5
+all: setup scenarios block0 table3 table4 figure4 figure5
 	@echo ""
 	@echo "══════════════════════════════════════════════════════"
 	@echo "  Q-HGL Middleware 2026 — Full Pipeline Complete"
 	@echo "══════════════════════════════════════════════════════"
 	@echo "  Table 3  : $(RESULTS_DIR)/table3_main_results.tex"
 	@echo "  Table 4  : $(RESULTS_DIR)/table4_loso_results.tex"
-	@echo "  Figure 3 : $(RESULTS_DIR)/figure3_gini_monotonicity.pdf"
 	@echo "  Figure 4 : $(RESULTS_DIR)/figure4_stratified_rho.pdf"
 	@echo "  Figure 5 : $(OUTPUT_DIR)/atm_case_study/attention_subgraph.pdf"
 	@echo ""
@@ -175,5 +158,5 @@ clean:
 
 clean-all: clean
 	rm -rf $(OUTPUT_DIR)/gnn_checkpoints $(OUTPUT_DIR)/loso \
-	       $(OUTPUT_DIR)/atm_case_study data/scenarios/gini_variants
+	       $(OUTPUT_DIR)/atm_case_study
 	@echo "✓ Full clean done."

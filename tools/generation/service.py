@@ -19,6 +19,7 @@ class GenerationService:
         config: Optional[GraphConfig] = None,
         domain: Optional[str] = None,
         scenario: Optional[str] = None,
+        connection_density: Optional[float] = None,
     ) -> None:
         if config is not None:
             self.config = config
@@ -29,6 +30,8 @@ class GenerationService:
             self.config.domain = domain
         if scenario is not None:
             self.config.scenario = scenario
+        if connection_density is not None:
+            self.config.connection_density = connection_density
             
         self.generator = StatisticalGraphGenerator(self.config)
 
@@ -50,11 +53,12 @@ def generate_graph(
     config: Optional[GraphConfig] = None,
     domain: Optional[str] = None,
     scenario: Optional[str] = None,
+    connection_density: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Convenience function to generate a graph.
 
     When *config* is provided it takes precedence: *scale* and *seed* are
     ignored because the config already encodes those parameters.
     """
-    service = GenerationService(scale=scale, seed=seed, config=config, domain=domain, scenario=scenario)
+    service = GenerationService(scale=scale, seed=seed, config=config, domain=domain, scenario=scenario, connection_density=connection_density)
     return service.generate()

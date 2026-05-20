@@ -469,7 +469,7 @@ def run_one_fold(
             else:
                 # hetero_qos (default) or topology_rmav → GNNService path
                 effective_mode = "rmav" if variant == "topology_rmav" else mode
-                effective_layers = 1 if bundle.n_nodes <= 200 else (2 if bundle.n_nodes <= 500 else layers)
+                effective_layers = 1 if primary.n_nodes <= 200 else (2 if primary.n_nodes <= 500 else layers)
                 service = GNNService(
                     checkpoint_dir=str(ckpt_dir),
                     hidden_channels=hidden,
@@ -489,7 +489,6 @@ def run_one_fold(
                     lr=lr,
                     patience=30,
                     layer=layer,
-                    global_metadata=global_metadata,
                 )
                 result = service.predict(
                     graph=holdout.graph,

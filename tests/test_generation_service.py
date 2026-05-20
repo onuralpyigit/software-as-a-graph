@@ -61,6 +61,21 @@ class TestGenerationService:
         assert len(data["topics"]) == 5
         assert len(data["applications"]) == 5
 
+    def test_connection_density(self):
+        # 1. Test connection_density = 0.0 (only the fallback/guard edge should be present)
+        gen_sparse = GenerationService(scale="medium", seed=42, connection_density=0.0)
+        data_sparse = gen_sparse.generate()
+        connects_sparse = data_sparse["relationships"]["connects_to"]
+        assert len(connects_sparse) == 1
+
+        # 2. Test connection_density = 1.0 (should have a complete graph of connects_to edges)
+        gen_dense = GenerationService(scale="medium", seed=42, connection_density=1.0)
+        data_dense = gen_dense.generate()
+        connects_dense = data_dense["relationships"]["connects_to"]
+        num_nodes = len(data_dense["nodes"])
+        expected_edges = num_nodes * (num_nodes - 1) // 2
+        assert len(connects_dense) == expected_edges
+
 
 class TestScenario08GoldenFile:
     """Regression tests that pin the scenario_08 generator output.

@@ -20,8 +20,11 @@ def dispatch_generate(args: argparse.Namespace) -> Dict[str, Any]:
     from tools.generation import GenerationService, load_config, generate_graph
     
     graph_data = {}
+    connection_density = getattr(args, 'connection_density', None)
     if hasattr(args, 'config') and args.config:
         config = load_config(Path(args.config))
+        if connection_density is not None:
+            config.connection_density = connection_density
         service = GenerationService(config=config)
         graph_data = service.generate()
     else:
@@ -33,7 +36,8 @@ def dispatch_generate(args: argparse.Namespace) -> Dict[str, Any]:
             scale=scale, 
             seed=seed,
             domain=domain,
-            scenario=scenario
+            scenario=scenario,
+            connection_density=connection_density
         )
     
     if hasattr(args, 'output') and args.output:

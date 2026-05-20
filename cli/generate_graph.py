@@ -70,6 +70,13 @@ def main() -> None:
         help="Scenario mapping for QoS generation",
     )
     
+    parser.add_argument(
+        "--connection-density",
+        type=float,
+        default=0.3,
+        help="Connection density (probability of connects_to edges between nodes)",
+    )
+    
     add_runtime_arguments(parser)
     
     subparsers = parser.add_subparsers(dest="command", help="Optional command mode")
