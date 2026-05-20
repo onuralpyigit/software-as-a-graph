@@ -753,6 +753,15 @@ def _parse_quality_scores(raw: Dict) -> Dict:
 _QOS_STRUCTURAL_KEYS = ("w", "w_in", "w_out", "qspof", "qos_aggregate",
                          "qos_weight", "qos_weight_in", "qos_weight_out")
 
+# Edge-attribute keys carrying the 7-dimensional QoS profile that networkx_to_hetero_data
+# reads into edge_attr.  These must be zeroed for the HGL variant so that the masking
+# is complete at both the node-structural and edge-attribute levels (§3.D).
+_QOS_EDGE_PROFILE_KEYS = (
+    "reliability", "durability", "priority",
+    "deadline_ns", "max_blocking_ms", "qos_heterogeneity_flag",
+    "qos_profile",
+)
+
 
 def _mask_qos_in_structural(structural_dict: Dict) -> Dict:
     """Return a copy of structural_dict with QoS-derived keys zeroed.
@@ -781,21 +790,35 @@ _mask_qos_in_structural_metrics = _mask_qos_in_structural
 
 
 def _mask_qos_in_graph(nx_graph):
-    """Return a copy of nx_graph with edge QoS weights replaced by uniform 1.0.
+    """Return a copy of nx_graph with all QoS signals replaced by neutral values.
 
-    Preserves topology and edge-type attributes (PUBLISHES_TO / DEPENDS_ON / ...)
-    so the heterogeneous GAT still sees the relation structure.  Only the
-    QoS contract signal is removed.
+    Zeroes / uniformises three tiers of QoS information so that the HGL
+    variant is truly QoS-masked at the edge-attribute level (§3.D):
+
+    1. Scalar structural weights (``weight``, ``qos_weight``) → 1.0
+       Preserves topology connectivity while removing QoS magnitude signal.
+
+    2. 7-dimensional QoS profile keys (``reliability``, ``durability``, etc.)
+       → 0.0  Prevents profile features from leaking into ``edge_attr`` via
+       the PyG conversion pipeline.
+
+    Preserves topology and edge-type attributes (PUBLISHES_TO / DEPENDS_ON /
+    …) so the heterogeneous GAT still sees the relation structure.
     """
     import networkx as _nx
     masked = _nx.DiGraph()
     masked.add_nodes_from(nx_graph.nodes(data=True))
     for u, v, data in nx_graph.edges(data=True):
         new_data = dict(data)
+        # Tier 1: scalar weight normalisation
         if "weight" in new_data:
             new_data["weight"] = 1.0
         if "qos_weight" in new_data:
             new_data["qos_weight"] = 1.0
+        # Tier 2: 7-dim QoS profile keys → zero (prevents edge_attr leakage)
+        for k in _QOS_EDGE_PROFILE_KEYS:
+            if k in new_data:
+                new_data[k] = 0.0
         masked.add_edge(u, v, **new_data)
     return masked
 
@@ -1019,7 +1042,19 @@ def _train_cell(
         from saag.prediction.models.baselines import build_baseline
         start = time.time()
 
-        conv = networkx_to_hetero_data(nx_graph, structural_dict, simulation_dict, rmav_dict)
+        # Ablation gate: GL (homo_unweighted) must receive a fully QoS-masked
+        # graph so that the (GL, HGL) column in the 2×3 factorial differs only
+        # on architecture, not on QoS signal.  Q-GL (homo_scalar) explicitly
+        # encodes scalar QoS weights and therefore uses the raw graph.
+        use_qos = (variant == "homo_scalar")
+        if use_qos:
+            train_graph = nx_graph
+            train_sm    = structural_dict
+        else:
+            train_graph = _mask_qos_in_graph(nx_graph)
+            train_sm    = _mask_qos_in_structural(structural_dict)
+
+        conv = networkx_to_hetero_data(train_graph, train_sm, simulation_dict, rmav_dict)
         data = conv.hetero_data
         create_node_splits(data, train_ratio, val_ratio, seed=seed)
         effective_lr = 1e-3
@@ -1040,7 +1075,7 @@ def _train_cell(
         d = metrics.to_dict()
         d.update({"scenario": scenario, "variant": variant, "seed": seed,
                   "runtime_s": round(time.time() - start, 2),
-                  "gt_source": gt_source, "qos_enabled": (variant == "homo_scalar")})
+                  "gt_source": gt_source, "qos_enabled": use_qos})
         return d
 
     elif variant in ("hgl", "hetero_qos"):
