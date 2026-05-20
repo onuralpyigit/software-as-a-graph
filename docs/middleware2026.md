@@ -29,7 +29,7 @@ The evaluation answers three research questions:
 
 These three questions map onto a controlled 2×3 factorial design (architecture × QoS encoding) plus two non-learning structural baselines, evaluated across 8 representative pub-sub deployment scenarios with 5 independent seeds — **240 evaluation cells in total (160 trained GNN models plus 80 structural-baseline computations)**.
 
-| Variant (Prose Label) | Internal Identifier (Code) | Architecture | QoS Encoding / Calibration | GT Source (ATM / AV) | GT Source (Others) | Description / Role |
+| Variant (Prose Label) | Internal Identifier (Code) | Architecture | QoS Encoding / Calibration | GT Source (ATM Only) | GT Source (AV + 6 Others) | Description / Role |
 |---|---|---|---|---|---|---|
 | **HGL** (Proposed, QoS-masked) | `hgl` | Heterogeneous GAT | masked | Sim | Fresh-RMAV | Proposed method (QoS-masked) to isolate structural GNN gains. |
 | **Q-HGL** (Proposed, Full) | `hetero_qos` | Heterogeneous GAT | 7-dimensional vector | Sim | Fresh-RMAV | Proposed method (full QoS encoding) to evaluate GNN QoS benefit. |
@@ -178,7 +178,7 @@ The following table summarizes the global ranking correlation across all scenari
 | Scenario | GT | Topo-BL | Q-Topo-BL | GL | Q-GL | HGL | Q-HGL (ours) | Δρ (QoS) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | **ATM System** | Sim | — | — | 0.077 | 0.326 | 0.811 | 0.742 | -0.070 |
-| **AV System** | Sim | — | — | 0.831 | 0.810 | 0.915 | 0.605 | -0.309 |
+| **AV System** | Fresh-RMAV | — | — | 0.831 | 0.810 | 0.915 | 0.605 | -0.309 |
 | **Enterprise** | Fresh-RMAV | 0.503 | 0.936 | 0.833 | 0.852 | 0.948 | 0.815 | -0.134 |
 | **Financial Trading** | Fresh-RMAV | 0.379 | 0.914 | 0.912 | 0.843 | 0.925 | 0.856 | -0.070 |
 | **Healthcare** | Fresh-RMAV | 0.308 | 0.947 | 0.799 | 0.625 | 0.856 | 0.674 | -0.182 |
@@ -187,7 +187,7 @@ The following table summarizes the global ranking correlation across all scenari
 | **Microservices** | Fresh-RMAV | 0.469 | 0.916 | 0.934 | 0.921 | 0.868 | 0.801 | -0.067 |
 | **Mean** |  | 0.486 | 0.895 | 0.782 | 0.781 | 0.902 | 0.790 | -0.112 |
 
-*\*All 8 scenarios validated directly against raw physical simulation failure impacts ("Sim"). No RMAV-based fallback is used.*
+*\*ATM System uses raw physical simulation failure impacts (`gt_source = "Sim"`). The remaining 7 scenarios use the DEPENDS_ON-consistent structural proxy (`gt_source = "Fresh-RMAV"`) because their simulation label distributions are too sparse (>90% zero) for stable GNN training.*
 
 **Discussion.** HGL achieves highly competitive ranking performance across the 240 application-level evaluation cells (mean $\rho = 0.902$), outperforming the best QoS-weighted structural baseline Q-Topo-BL ($\rho = 0.895$). Paired Wilcoxon signed-rank tests confirm that the two are not statistically distinguishable on the global mean: heterogeneous graph attention and structural centrality converge on the same ranking signal under the raw and proxy-substituted ground-truth. Crucially, the QoS-weighted baseline Q-Topo-BL achieves substantially stronger ranking performance ($\rho = 0.895$) compared to the unweighted baseline Topo-BL ($\rho = 0.486$), indicating that QoS weights provide crucial local connectivity context.
 
@@ -207,7 +207,7 @@ The following table provides a breakdown of binary classification performance fo
 |  |  | HGL | 0.811 | 0.950 | 0.956 | 0.175 | 0.141 | 0.945 |
 |  |  | Q-HGL (ours) | 0.742 | 0.920 | 0.911 | 0.191 | 0.147 | 0.916 |
 | | | | | | | | | |
-| AV System | Sim | Topo-BL | — | NaN | — | — | — | — |
+| AV System | Fresh-RMAV | Topo-BL | — | NaN | — | — | — | — |
 |  |  | Q-Topo-BL | — | NaN | — | — | — | — |
 |  |  | GL | 0.831 | 0.400 | 0.880 | 0.092 | 0.079 | 0.955 |
 |  |  | Q-GL | 0.810 | 0.500 | 0.900 | 0.108 | 0.094 | 0.951 |
@@ -367,7 +367,7 @@ The training configuration used for all 160 trained GNN cells — 4 attention he
 
 To address this concern we run a focused $3 \times 2$ sensitivity sweep on the two scenarios in which Q-HGL underperforms HGL by the largest margin — Healthcare ($\Delta\rho = -0.182$) and Enterprise ($\Delta\rho = -0.134$) — over learning rate $\in \{5 \times 10^{-4},\, 10^{-3},\, 2 \times 10^{-3}\}$ and hidden dimension $\in \{64,\, 128\}$, with all other settings held fixed. This adds 12 cells to the experimental matrix at a cost of roughly one additional GPU-hour. Due to compute budget constraints, we limit this sweep to these two worst-performing scenarios rather than all eight scenarios. The sign of $\Delta\rho_{\text{Q-HGL} - \text{HGL}}$ remains negative in 11 of the 12 configurations; the single exception (Healthcare, $\mathrm{lr} = 5 \times 10^{-4}$, hidden $= 128$) produces $\Delta\rho = -0.012$, which is closer to parity but does not flip sign. We conclude that the qualitative finding — adding 7-dimensional QoS attribute encoding to the heterogeneous message function does not improve over QoS-masked HGL — is robust to local hyperparameter variation in the neighbourhood of the chosen configuration. A complete cross-validated grid search per scenario remains future work and is more naturally addressed in the journal extension of this paper than within the page budget here.
 
-A secondary concern under this category is the validation ground truth itself. Due to the extreme label sparsity inherent in raw discrete-event Monte Carlo fault simulations for 6 of our 8 scenarios (where failure cascades are highly localized and 90%+ of nodes have exactly 0.0 impact), evaluating directly against raw simulation results would cause training optimization to collapse to constant predictions. To mitigate this construct-validity threat while preserving a broad 8-scenario evaluation suite, we employ a mixed-ground-truth strategy. First, we use both `atm_system` and `av_system` as our physical simulation anchors; because their topologies are naturally dense, their physical simulations exhibit high density and are evaluated purely against raw Monte Carlo failure impacts (`gt_source = "Sim"`). Second, for the remaining 6 scenarios, we substitute the target labels with `Fresh-RMAV` or `RMAV-sub`—structural proxy ground truths that avoid optimization degeneracy. While these proxies introduce some construct-validity bias toward static structural features, they are shared equally by all evaluated model variants, and our relative architectural comparisons remain completely internally consistent. The fact that HGL demonstrates outstanding alignment on both the physical simulation anchors (`Sim` on ATM and AV, achieving F1 up to 0.950) and the structural proxy scenarios validates that the heterogeneous message passing expressiveness successfully captures both physical failure cascades and structural abstractions.
+A secondary concern under this category is the validation ground truth itself. Due to the extreme label sparsity inherent in raw discrete-event Monte Carlo fault simulations for 7 of our 8 scenarios (where failure cascades are highly localized and 90%+ of nodes have exactly 0.0 impact), evaluating directly against raw simulation results would cause training optimization to collapse to constant predictions. To mitigate this construct-validity threat while preserving a broad 8-scenario evaluation suite, we employ a mixed-ground-truth strategy. We use `atm_system` as the sole physical simulation anchor; because its topology is naturally dense (93.6% non-zero simulation impact), its failure impacts are evaluated purely against raw Monte Carlo failure impacts (`gt_source = "Sim"`). For the remaining 7 scenarios — including `av_system`, whose simulation labels are similarly sparse (>90% zero) — we substitute the target labels with `Fresh-RMAV`, a DEPENDS_ON-consistent structural proxy ground truth that avoids optimization degeneracy. While this proxy introduces some construct-validity bias toward static structural features, it is shared equally by all evaluated model variants on those scenarios, and our relative architectural comparisons remain completely internally consistent. The fact that HGL demonstrates outstanding alignment on the physical simulation anchor (`Sim` on ATM, achieving F1 = 0.950) and consistently strong alignment on all 7 structural proxy scenarios validates that the heterogeneous message passing expressiveness successfully captures both physical failure cascades and structural abstractions.
 
 ### C. External Validity: Topology and Domain Coverage
 
