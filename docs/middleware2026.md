@@ -12,9 +12,24 @@ Pre-deployment identification of architecturally critical components in distribu
 
 This paper introduces HGL (Heterogeneous Graph Learning), a novel approach that leverages heterogeneous graph attention networks to identify critical components at the application level before deployment. By modeling the publish-subscribe architecture as a typed directed graph with explicit representation of Applications, Libraries, Topics, Brokers, and Nodes, along with their semantic relationships, HGL learns specialized message-function representations for each relation type. This enables the model to distinguish between structurally similar but semantically different dependencies that homogeneous approaches conflate.
 
-Our contributions are threefold: (1) We formulate pre-deployment critical component prediction as a heterogeneous graph learning problem over the logical dependency graph of publish-subscribe systems; (2) We demonstrate that heterogeneous architecture provides substantial improvements over homogeneous baselines in critical component identification (ΔF1 = +0.387) while maintaining competitive ranking performance; (3) Through rigorous ablation studies, we show that the performance gains derive primarily from typed node and relation semantics rather than QoS attribute encoding, with the latter providing negligible or even detrimental effects when added to the heterogeneous architecture.
+### Contributions
+
+Our contributions are threefold: 
+(1) We formulate pre-deployment critical component prediction as a heterogeneous graph learning problem over the logical dependency graph of publish-subscribe systems; 
+(2) We demonstrate that heterogeneous architecture provides substantial improvements over homogeneous baselines in critical component identification (ΔF1 = +0.387) while maintaining competitive ranking performance; 
+(3) Through rigorous ablation studies, we show that the performance gains derive primarily from typed node and relation semantics rather than QoS attribute encoding, with the latter providing negligible or even detrimental effects when added to the heterogeneous architecture.
 
 The remainder of this paper is organized as follows: Section 2 details our experimental methodology, including ground-truth calibration strategies and the 2×3 factorial evaluation design. Section 3 describes our evaluation suite comprising ranking and identification metrics. Section 4 presents key performance highlights, followed by detailed experimental results in Section 5. Section 6 discusses threats to validity, and Section 7 concludes the paper.
+
+## 2. Related Work
+
+Critical component identification in distributed systems has been extensively studied using various approaches. Traditional structural centrality measures such as betweenness centrality, articulation points, and PageRank have been widely applied due to their computational efficiency [1,2]. However, these methods often fail in complex topologies where semantic relationships significantly influence failure propagation patterns.
+
+Recent learning-based approaches have shown promise in critical node identification. FINDER [3] uses graph neural networks for key player identification in social networks, while DrBC [4] focuses on betweenness estimation using graph convolutional networks. PowerGraph [5] addresses power-grid critical node identification. However, these methods operate on homogeneous graphs and cannot directly handle the multi-layered, typed nature of publish-subscribe middleware architectures.
+
+Heterogeneous graph neural networks (HGNNs) have emerged as a powerful approach for modeling multi-typed relational data. RGCN [6] introduces relation-specific transformation matrices, while HAN [7] employs hierarchical attention mechanisms at node and relation levels. MAGNN [8] further enhances expressiveness through metapath-based encodings. Despite their success in domains like recommendation systems and bioinformatics, HGNNs have been underexplored in the context of publish-subscribe middleware criticality analysis.
+
+Our work bridges this gap by applying heterogeneous graph attention to the logical dependency graph of publish-subscribe systems. Unlike existing approaches that treat all relationships uniformly, our method explicitly models the semantic differences between transport-level (PUBLISHES_TO/SUBSCRIBES_TO) and logical-level (DEPENDS_ON) relationships through typed message functions. This enables fine-grained criticality prediction that captures both topological and semantic aspects of architectural importance.
 
 ## 2. Experimental Methodology
 
