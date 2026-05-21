@@ -361,6 +361,7 @@ class TopicInfoModel(BaseModel):
     qos_durability: Optional[str] = None
     qos_transport_priority: Optional[str] = None
     size: int = 0
+    frequency: float = 10.0
 
 
 class TopicsListResponse(BaseModel):

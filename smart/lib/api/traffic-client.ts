@@ -18,6 +18,7 @@ export interface TopicInfo {
   qos_durability: string | null
   qos_transport_priority: string | null
   size: number
+  frequency: number
 }
 
 export interface AppInfo {

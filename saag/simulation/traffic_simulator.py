@@ -124,7 +124,8 @@ class TrafficSimulator:
                         t.qos_reliability          AS qos_reliability,
                         t.qos_durability           AS qos_durability,
                         t.qos_transport_priority   AS qos_transport_priority,
-                        COALESCE(t.size, 0)        AS size
+                        COALESCE(t.size, 0)        AS size,
+                        COALESCE(t.topic_frequency, 10.0) AS frequency
                     ORDER BY t.id
                     """
                 )
@@ -143,6 +144,7 @@ class TrafficSimulator:
                             "qos_durability": rec["qos_durability"],
                             "qos_transport_priority": rec["qos_transport_priority"],
                             "size": int(rec["size"]),
+                            "frequency": float(rec["frequency"]),
                         }
                     )
                 return topics
