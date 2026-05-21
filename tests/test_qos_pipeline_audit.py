@@ -50,10 +50,12 @@ def _build_minimal_graph(qos_for_conflict: Dict[str, str]) -> nx.DiGraph:
     """Three-node pub-sub graph: ConflictDetector →[PUB]→ /conflicts →[SUB]→ AlertManager.
 
     Uses a heterogeneous QoS profile for the ConflictDetector edge by default.
+    Includes two Topic nodes with heterogeneous frequency and criticality to audit z-scoring.
     """
     g = nx.DiGraph()
     g.add_node("ConflictDetector", type="Application")
-    g.add_node("/conflicts", type="Topic")
+    g.add_node("/conflicts", type="Topic", topic_frequency=50.0, topic_criticality="high")
+    g.add_node("/alerts", type="Topic", topic_frequency=5.0, topic_criticality="low")
     g.add_node("AlertManager", type="Application")
     g.add_node("BrokerMain", type="Broker")
     g.add_node("WorkerNode", type="Node")
@@ -74,9 +76,20 @@ def _build_minimal_graph(qos_for_conflict: Dict[str, str]) -> nx.DiGraph:
             "transport_priority": "MEDIUM",
         },
     )
+    g.add_edge(
+        "AlertManager", "/alerts",
+        type="PUBLISHES_TO",
+        weight=0.6,
+        qos_profile={
+            "reliability": "BEST_EFFORT",
+            "durability": "VOLATILE",
+            "transport_priority": "LOW",
+        },
+    )
     g.add_edge("BrokerMain", "WorkerNode", type="CONNECTS_TO", weight=1.0)
     g.add_edge("ConflictDetector", "BrokerMain", type="RUNS_ON", weight=1.0)
     return g
+
 
 
 def _build_structural_metrics(graph: nx.DiGraph) -> Dict[str, Any]:
@@ -231,14 +244,17 @@ class TestQoSMutationDelta:
         for rel in rel_a.edge_types:
             if rel[1] != "PUBLISHES_TO":
                 continue
-            ea_a = rel_a[rel].edge_attr[:, 9]  # reliability dim
-            ea_b = rel_b[rel].edge_attr[:, 9]
+            edge_names = hetero_data_reliable.edge_name_map[rel]
+            mutated_idx = edge_names.index(("ConflictDetector", "/conflicts"))
 
-            assert ea_a.mean().item() == pytest.approx(1.0, abs=0.01), (
-                f"Expected reliability=1.0 for RELIABLE edges, got {ea_a.mean():.4f}"
+            ea_a = rel_a[rel].edge_attr[mutated_idx, 9].item()
+            ea_b = rel_b[rel].edge_attr[mutated_idx, 9].item()
+
+            assert ea_a == pytest.approx(1.0, abs=0.01), (
+                f"Expected reliability=1.0 for RELIABLE edges, got {ea_a:.4f}"
             )
-            assert ea_b.mean().item() == pytest.approx(0.0, abs=0.01), (
-                f"Expected reliability=0.0 for BEST_EFFORT edges, got {ea_b.mean():.4f}"
+            assert ea_b == pytest.approx(0.0, abs=0.01), (
+                f"Expected reliability=0.0 for BEST_EFFORT edges, got {ea_b:.4f}"
             )
 
     def test_durability_dim_differs(self, hetero_data_reliable, hetero_data_best_effort):
@@ -249,8 +265,11 @@ class TestQoSMutationDelta:
         for rel in rel_a.edge_types:
             if rel[1] != "PUBLISHES_TO":
                 continue
-            dur_a = rel_a[rel].edge_attr[:, 10].mean().item()
-            dur_b = rel_b[rel].edge_attr[:, 10].mean().item()
+            edge_names = hetero_data_reliable.edge_name_map[rel]
+            mutated_idx = edge_names.index(("ConflictDetector", "/conflicts"))
+
+            dur_a = rel_a[rel].edge_attr[mutated_idx, 10].item()
+            dur_b = rel_b[rel].edge_attr[mutated_idx, 10].item()
 
             assert dur_a == pytest.approx(1.0, abs=0.01), (
                 f"Expected durability=1.0 for PERSISTENT edges, got {dur_a:.4f}"
@@ -258,6 +277,7 @@ class TestQoSMutationDelta:
             assert dur_b == pytest.approx(0.0, abs=0.01), (
                 f"Expected durability=0.0 for VOLATILE edges, got {dur_b:.4f}"
             )
+
 
 
 class TestQoSPredictionDelta:
@@ -434,3 +454,77 @@ class TestScenarioAudit:
                     "scenario may not have qos_profile on edges. "
                     "Paper §5.1 must disclose this."
                 )
+
+
+class TestTopicQoSFeaturesFlow:
+    """W1 Audit: validates that Topic frequency and criticality flow to GNN inputs
+    and participate in gradient propagation.
+    """
+
+    def test_topic_frequency_and_criticality_flow_to_x(self, hetero_data_reliable):
+        """Verify frequency and criticality are in the correct index of Topic node features."""
+        data = hetero_data_reliable.hetero_data
+
+        # log1p_frequency_norm is at index 20
+        # topic_qos_criticality_ord is at index 21
+        freq_idx = 20
+        crit_idx = 21
+
+        assert "Topic" in data.node_types
+        topic_x = data["Topic"].x
+
+        # Ensure Topic node features are loaded and shape matches dim 22
+        assert topic_x.shape[-1] == 22, f"Expected 22 dimensions for Topic node, got {topic_x.shape[-1]}"
+
+        # assert builder.heterodata['topic'].x[:, freq_idx].std() > 0 (didn't collapse to default)
+        freq_std = topic_x[:, freq_idx].std().item()
+        assert freq_std > 0, f"Topic frequency features collapsed to constant/default (std={freq_std})!"
+
+        crit_std = topic_x[:, crit_idx].std().item()
+        assert crit_std > 0, f"Topic criticality features collapsed to constant/default (std={crit_std})!"
+
+    def test_gradient_propagates_through_frequency_and_criticality(self):
+        """Verify that topic frequency and criticality participate in gradient flow.
+        assert message_fn_grad_w.r.t.(freq) != 0 (signal actually propagates through ∂L/∂freq)
+        """
+        import torch
+        from saag.prediction.data_preparation import networkx_to_hetero_data, create_node_splits
+        from saag.prediction.models import build_node_gnn
+
+        g = _build_minimal_graph(_RELIABLE_QOS)
+        sm = _build_structural_metrics(g)
+        sr = _build_simulation_results(g)
+        conv = networkx_to_hetero_data(g, sm, sr)
+        data = conv.hetero_data
+        create_node_splits(data, train_ratio=0.6, val_ratio=0.2, seed=SEED)
+
+        torch.manual_seed(SEED)
+        model = build_node_gnn(data.metadata(), hidden_channels=16, num_heads=2, num_layers=2)
+        model.train()
+
+        # Wrap Topic x feature matrix as differentiable to measure gradient w.r.t. freq and crit
+        topic_x = data["Topic"].x.clone().detach().requires_grad_(True)
+
+        # Pass features with requires_grad=True
+        x_dict = {nt: data[nt].x for nt in data.node_types}
+        x_dict["Topic"] = topic_x
+
+        ei = {rel: data[rel].edge_index for rel in data.edge_types}
+        ea = {rel: data[rel].edge_attr for rel in data.edge_types if hasattr(data[rel], "edge_attr")}
+
+        out = model(x_dict, ei, ea)
+
+        # Compute dummy loss on Topic predictions
+        loss = out["Topic"].sum()
+        loss.backward()
+
+        freq_idx = 20
+        crit_idx = 21
+
+        assert topic_x.grad is not None, "GNN did not compute gradients for Topic features!"
+        freq_grads = topic_x.grad[:, freq_idx].abs().sum().item()
+        crit_grads = topic_x.grad[:, crit_idx].abs().sum().item()
+
+        assert freq_grads > 1e-6, f"Gradient of loss w.r.t. topic frequency is zero (got {freq_grads})! Signal is not propagating."
+        assert crit_grads > 1e-6, f"Gradient of loss w.r.t. topic criticality is zero (got {crit_grads})! Signal is not propagating."
+

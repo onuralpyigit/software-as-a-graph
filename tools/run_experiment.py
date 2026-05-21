@@ -251,16 +251,16 @@ class AblationReport:
 
 def compute_qos_gini(graph: nx.DiGraph) -> float:
     """
-    Gini coefficient over per-edge QoS-derived weights. A value of 0 means
-    every edge carries the same QoS weight (homogeneous workload); higher
-    values indicate increasing heterogeneity. This is the moderator variable
-    for the §6.5 mechanism analysis.
+    Gini coefficient over per-edge QoS-derived weights, scaled by Topic frequency.
+    A value of 0 means every edge carries the same QoS weight (homogeneous workload);
+    higher values indicate increasing heterogeneity. This serves as the continuous
+    moderator variable for the §6.5 mechanism analysis.
 
-    We use the published edge `weight` attribute, which the import pipeline
-    populates from QoSPolicy (durability + reliability + transport_priority).
+    For each edge, we scale the categorical QoS weight by log1p(frequency) of the
+    associated Topic to capture continuous traffic rate variance.
     """
     weights = []
-    for _, _, attrs in graph.edges(data=True):
+    for u, v, attrs in graph.edges(data=True):
         w = attrs.get("weight")
         if w is None:
             continue
@@ -268,8 +268,21 @@ def compute_qos_gini(graph: nx.DiGraph) -> float:
             wf = float(w)
         except (TypeError, ValueError):
             continue
-        if wf > 0.0:
-            weights.append(wf)
+        if wf <= 0.0:
+            continue
+
+        # Scale by topic frequency if either endpoint is a Topic node
+        hz = 1.0
+        u_attrs = graph.nodes[u]
+        v_attrs = graph.nodes[v]
+        if u_attrs.get("type") == "Topic":
+            hz = float(u_attrs.get("frequency", u_attrs.get("topic_frequency", 1.0)) or 1.0)
+        elif v_attrs.get("type") == "Topic":
+            hz = float(v_attrs.get("frequency", v_attrs.get("topic_frequency", 1.0)) or 1.0)
+
+        scale = math.log1p(max(0.0, hz))
+        scale = max(scale, 0.1)  # preserve positive weight
+        weights.append(wf * scale)
 
     if len(weights) < 2:
         return 0.0
@@ -279,9 +292,9 @@ def compute_qos_gini(graph: nx.DiGraph) -> float:
     total = arr.sum()
     if total <= 0.0:
         return 0.0
-    # Standard Gini formula via the mean-absolute-difference identity.
     gini = (2.0 * np.sum((np.arange(1, n + 1)) * arr) - (n + 1) * total) / (n * total)
     return float(max(0.0, min(1.0, gini)))
+
 
 
 # ── QoS masking ──────────────────────────────────────────────────────────────
