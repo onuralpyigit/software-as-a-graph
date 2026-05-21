@@ -232,8 +232,18 @@ def _try_recompute_homo(
         logger.debug("[%s|%s|s%d] checkpoint dir missing: %s", scenario, variant, seed, ckpt_dir)
         return None, cached_data
 
+    # Mirror the ablation gate in _train_cell: GL must use the masked graph
+    # so that inference runs on the same input distribution as training.
+    use_qos = (variant == "homo_scalar")
+    if use_qos:
+        train_graph = nx_graph
+        train_sm    = structural_dict
+    else:
+        train_graph = _mask_qos_in_graph(nx_graph)
+        train_sm    = _mask_qos_in_structural(structural_dict)
+
     conv = networkx_to_hetero_data(
-        nx_graph, structural_dict, simulation_dict, rmav_dict
+        train_graph, train_sm, simulation_dict, rmav_dict
     )
     data = conv.hetero_data
     create_node_splits(data, train_ratio, val_ratio, seed=seed)
