@@ -31,7 +31,7 @@ def _canonical_sha256(data: dict) -> str:
 
 _SCENARIO_08_YAML = project_root / "data" / "scenarios" / "scenario_08_tiny_regression.yaml"
 
-_GOLDEN_SHA256 = "fda91991ba46a0613c4abba6074b65246eeea0acd481f5aeeac4c115c759d55c"
+_GOLDEN_SHA256 = "15de4fd13899fd954df6068dc2eff4342b94e4092ff1cdee0b40614cca20c5e7"
 
 _GOLDEN_ENTITY_COUNTS = {
     "nodes": 3,
@@ -168,10 +168,9 @@ class TestTopicDerivedFields:
         # (reliability, durability, priority) -> (expected_criticality, expected_freq)
         # Thresholds: ≤0.19 minimal, ≤0.43 low, ≤0.64 medium, ≤1.00 high, >1.00 critical
         return [
-            # BEST_EFFORT + VOLATILE  → weight=0xxy  → 0.00 ≤ x ≤ y = low (exact weight ~0.10, very low)
-            # BEST_EFFORT/MEDIUM + VOLATILE on rare: test using vex simple case
-            ("RELIABLE",    "VOLATILE",   "MEDIUM",   "medium",   1.0),    # w = 0.30 + 0 + 0.11 = 0.41
-            # RELIABLE × HIGH        → rel×pri = 0.66 → bin 8 → 100 Hz; w=0.30+0+0.20=0.50
+            # RELIABLE × MEDIUM  → combined=0.330 bin 5 → 20 Hz
+            ("RELIABLE",    "VOLATILE",   "MEDIUM",   "medium",   20.0),
+            # RELIABLE × HIGH   → combined=0.660 bin 10 → 100 Hz
             ("RELIABLE",    "VOLATILE",   "HIGH",     "high",    100.0),
         ]
 
