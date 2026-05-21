@@ -344,6 +344,8 @@ reported.
 
 ## 6. Node-Type Stratified Reporting
 
+### Node-Type Stratification
+
 Spearman ρ and F1@K are computed independently for each node type:
 
 ```
@@ -370,6 +372,15 @@ Strata with constant I(v) (std < 1e-9) report `"constant signal (not a primary f
 Topics and Brokers are expected to show constant signal: the cascade simulation triggers from a
 *source* node's failure, not from a topic. Topic-layer reliability is captured through pub-sub
 orphaning (Phase B), but the score accrues to the publisher application, not the topic node itself.
+
+### Topic Frequency-Decile Stratification (Simpson's Paradox Mitigation)
+
+Because distributed systems exhibit highly skewed topic messaging rates (spanning several orders of magnitude), aggregate validation metrics can be subject to **Simpson's paradox**—where global correlations mask strong or weak associations within specific frequency bands.
+
+To address this, the validation pipeline automatically performs **frequency-decile stratified reporting** for all `Topic` nodes:
+1. **Topic Binning**: All `Topic` components in the graph are sorted by their raw messaging frequency (`frequency` or `topic_frequency` in Hz) and partitioned into ten deciles.
+2. **Spearman ρ per Decile**: For each frequency decile containing $\ge 3$ topics, the Spearman correlation $\rho$ and its corresponding $p$-value are calculated between predictions and simulation-derived ground truth.
+3. **Frequency Range Tracking**: The concrete frequency bounds of each decile are reported (e.g., `(10.0, 50.0) Hz`), enabling structural engineers to verify which communication bandwidths have the strongest correlation.
 
 ---
 

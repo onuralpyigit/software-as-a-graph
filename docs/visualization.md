@@ -329,9 +329,14 @@ Proportional to Q(v). CRITICAL components are visually largest, making them imme
 
 | Property | Encoding |
 |----------|---------|
-| Thickness | Proportional to DEPENDS_ON edge weight w(e) |
+| Thickness | Frequency-weighted: dynamically mapped using logarithmic scaling of topic frequency: $\text{thickness} = 1.5 + 2.5 \times \log_{10}(1.0 + f)$ |
 | Colour | Edge type: structural (grey); highlighted on component click (orange) |
 | Dashed edge | Bridge edge (part of Bridge Ratio) |
+
+**Frequency-Weighted Weights**:
+- **Topic Edges**: Weighted directly by the messaging frequency of the Topic component (e.g. `frequency` or `topic_frequency` in Hz).
+- **Library Edges (`USES`)**: Weighted by the **aggregate messaging frequency** of the dependent Application (sum of all direct publish/subscribe topic frequencies).
+- **Default Edges**: Graced with a default baseline weight of $1.0$.
 
 ### Tooltip Fields (on node hover)
 
