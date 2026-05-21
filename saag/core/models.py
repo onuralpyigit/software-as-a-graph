@@ -284,38 +284,59 @@ class Node(GraphEntity):
 @dataclass
 class Topic(GraphEntity):
     """A named channel for message exchange with QoS policies.
-    
+
     Attributes:
         size: Message size in bytes.
         qos: QoS policy governing reliability, durability, and priority.
-        frequency: Derived message frequency in Hz, computed from
-            reliability × priority score using TOPIC_FREQUENCY_HZ bins.
-        criticality: Derived criticality string (critical / high / medium /
-            low / minimal), computed from the QoS weight score.
+        frequency: Message frequency in Hz.  When supplied explicitly by the
+            generator (per-domain log-uniform sample), that value is kept as-is
+            so that domain signal is preserved across LOSO folds.  When
+            *None* (the default), frequency is derived from the
+            reliability × priority score via ``TOPIC_FREQUENCY_HZ`` bins.
+        criticality: Criticality label (``critical`` / ``high`` / ``medium`` /
+            ``low`` / ``minimal``).  When supplied explicitly by the generator
+            (rule-derived label ± noise injection), that value is kept as-is.
+            When *None* (the default), it is derived deterministically from the
+            QoS weight score via ``CRITICALITY_THRESHOLDS``.
+
+    Note on leakage prevention:
+        Passing ``frequency`` and ``criticality`` from the generator breaks the
+        closed-form QoS→label mapping that would otherwise make the prediction
+        task trivially solvable from QoS attributes alone.  The generator is
+        responsible for (a) sampling frequency from per-domain log-uniform
+        distributions and (b) injecting ~15–20 % label noise into criticality
+        so that the GNN must use graph-structural context to recover it.
     """
     size: int = 256
     qos: QoSPolicy = field(default_factory=QoSPolicy)
-    frequency: float = field(init=False, default=0.0)
-    criticality: str = field(init=False, default="minimal")
+    # Optional generator-supplied overrides.  ``None`` triggers QoS-derived fallback.
+    frequency: Optional[float] = field(default=None)
+    criticality: Optional[str] = field(default=None)
 
     def __post_init__(self) -> None:
-        # Derive frequency from reliability × priority score (12 equal-width bins).
-        score_map = QoSPolicy.RELIABILITY_SCORES
-        r = score_map.get(self.qos.reliability, 0.0)
-        p = QoSPolicy.PRIORITY_SCORES.get(self.qos.transport_priority, 0.0)
-        combined = r * p  # range [0, 1]
-        bin_idx = int(combined * len(TOPIC_FREQUENCY_HZ))
-        bin_idx = max(0, min(bin_idx, len(TOPIC_FREQUENCY_HZ) - 1))
-        self.frequency = float(TOPIC_FREQUENCY_HZ[bin_idx])
+        # --- frequency ---------------------------------------------------
+        # If the generator did not supply a value, fall back to the legacy
+        # reliability × priority bin-lookup so existing callers are unaffected.
+        if self.frequency is None:
+            score_map = QoSPolicy.RELIABILITY_SCORES
+            r = score_map.get(self.qos.reliability, 0.0)
+            p = QoSPolicy.PRIORITY_SCORES.get(self.qos.transport_priority, 0.0)
+            combined = r * p  # range [0, 1]
+            bin_idx = int(combined * len(TOPIC_FREQUENCY_HZ))
+            bin_idx = max(0, min(bin_idx, len(TOPIC_FREQUENCY_HZ) - 1))
+            self.frequency = float(TOPIC_FREQUENCY_HZ[bin_idx])
 
-        # Derive criticality from combined QoS weight (durability + reliability + priority).
-        qos_score = self.qos.calculate_weight()
-        for threshold, label in CRITICALITY_THRESHOLDS:
-            if qos_score <= threshold:
-                self.criticality = label
-                break
-        else:
-            self.criticality = "critical"
+        # --- criticality -------------------------------------------------
+        # If the generator did not supply a value, derive it deterministically
+        # from the QoS weight so existing callers are unaffected.
+        if self.criticality is None:
+            qos_score = self.qos.calculate_weight()
+            for threshold, label in CRITICALITY_THRESHOLDS:
+                if qos_score <= threshold:
+                    self.criticality = label
+                    break
+            else:
+                self.criticality = "critical"
 
     def to_dict(self) -> Dict[str, Any]:
         return {

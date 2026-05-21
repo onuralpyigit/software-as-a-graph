@@ -31,7 +31,7 @@ def _canonical_sha256(data: dict) -> str:
 
 _SCENARIO_08_YAML = project_root / "data" / "scenarios" / "scenario_08_tiny_regression.yaml"
 
-_GOLDEN_SHA256 = "15de4fd13899fd954df6068dc2eff4342b94e4092ff1cdee0b40614cca20c5e7"
+_GOLDEN_SHA256 = "6df351bd76bb6c039748b3d790e9199800799020d211d23a1439173b08c19104"
 
 _GOLDEN_ENTITY_COUNTS = {
     "nodes": 3,
@@ -220,4 +220,4 @@ class TestTopicDerivedFields:
                 f"Topic {topic.get('id')!r}: invalid criticality {topic['criticality']!r}"
             )
             assert isinstance(topic["frequency"], (int, float))
-            assert topic["frequency"] >= 1.0
+            assert topic["frequency"] > 0.0

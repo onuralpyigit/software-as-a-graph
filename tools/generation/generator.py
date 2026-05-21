@@ -120,6 +120,39 @@ _APP_TYPE_QOS_AFFINITY: Dict[str, Dict[str, List[str]]] = {
 # --- Criticality levels for statistical generation ---
 CRITICALITY_OPTIONS = [True, False]
 
+# ---------------------------------------------------------------------------
+# Per-domain frequency bounds (Hz) for log-uniform sampling.
+# Each entry is (lo_hz, hi_hz) for ``random.uniform(log10(lo), log10(hi))``.
+# References:
+#   ATM (ICAO SWIM/DDS):  radar/ADS-B updates 1–100 Hz, control msgs up to 200 Hz
+#   AV (ROS2 pubsub):     sensor streams 10–100 Hz, HD-map infrequent ≈ 0.1 Hz
+#   HFT (market data):    tick feeds 100–10 000 Hz
+#   IoT smart-city:       environmental sensors 0.01–5 Hz
+#   Healthcare/PACS:      clinical events 0.001–2 Hz
+#   Financial/enterprise: order/CRM events 0.001–10 Hz
+#   Hub-and-spoke/micro:  service calls 0.01–50 Hz
+# Domains not listed fall back to the generic range (0.1–100 Hz).
+# ---------------------------------------------------------------------------
+_DOMAIN_FREQ_BOUNDS: Dict[str, tuple] = {
+    "air_traffic_management": (1.0,   200.0),
+    "autonomous_vehicle":     (0.1,   100.0),
+    "financial_trading":      (100.0, 10000.0),
+    "iot_smart_city":         (0.01,  5.0),
+    "healthcare":             (0.001, 2.0),
+    "enterprise":             (0.001, 10.0),
+    "hub_and_spoke":          (0.01,  50.0),
+    "microservices":          (0.01,  50.0),
+}
+_DOMAIN_FREQ_BOUNDS_DEFAULT: tuple = (0.1, 100.0)
+
+# Label-noise rate for Topic.criticality ground-truth injection.
+# ~17 % of QoS-rule-derived labels are flipped uniformly so the GNN cannot
+# trivially recover criticality from QoS features alone.
+_CRITICALITY_NOISE_RATE: float = 0.17
+
+# Ordered criticality levels (used to pick a random *different* label on flip).
+_CRITICALITY_LABELS = ["minimal", "low", "medium", "high", "critical"]
+
 
 class StatisticalGraphGenerator:
     """Generates graphs using statistical distributions from config."""
@@ -416,6 +449,85 @@ class StatisticalGraphGenerator:
             )
         return clean_pub, clean_sub
 
+    def _sample_topic_frequency(self, domain: Optional[str], rng: Optional[random.Random] = None) -> float:
+        """Sample a topic frequency from a per-domain log-uniform distribution.
+
+        Log-uniform (i.e. uniform on the log10 axis) is appropriate because
+        topic frequencies span several orders of magnitude across domains.  A
+        plain uniform draw over [lo, hi] would massively over-sample the
+        high-frequency end and suppress the low-frequency tail that carries the
+        domain-differentiating signal LOSO needs to reward.
+
+        Args:
+            domain: Domain key matching ``_DOMAIN_FREQ_BOUNDS`` (e.g.
+                ``"air_traffic_management"``).  Falls back to the generic range
+                when the domain is unknown or ``None``.
+            rng: Random instance to use.  Defaults to ``self.rng``; callers
+                that want to avoid perturbing the main topology RNG stream
+                should pass a dedicated ``random.Random`` object.
+
+        Returns:
+            Frequency in Hz, rounded to 3 significant figures.
+        """
+        import math
+        _rng = rng if rng is not None else self.rng
+        lo, hi = _DOMAIN_FREQ_BOUNDS.get(domain or "", _DOMAIN_FREQ_BOUNDS_DEFAULT)
+        log_val = _rng.uniform(math.log10(lo), math.log10(hi))
+        freq = 10.0 ** log_val
+        # Round to 3 significant figures to avoid spurious decimal precision.
+        if freq >= 1.0:
+            return round(freq, max(0, 2 - int(math.floor(math.log10(freq)))))
+        return round(freq, 3)
+
+    def _derive_topic_criticality_with_noise(
+        self,
+        qos: "QoSPolicy",
+        noise_rate: float = _CRITICALITY_NOISE_RATE,
+        rng: Optional[random.Random] = None,
+    ) -> str:
+        """Derive a criticality label from QoS and inject controlled label noise.
+
+        The base label is produced by the same threshold table used in
+        ``Topic.__post_init__`` (``CRITICALITY_THRESHOLDS``).  Then, with
+        probability *noise_rate*, the label is replaced by a uniformly
+        chosen *different* label from ``_CRITICALITY_LABELS``.
+
+        Rationale for noise injection:
+            Without noise, ``criticality`` is a deterministic function of
+            QoS weights.  Any model that sees the QoS features can recover the
+            label perfectly via a lookup table — the prediction task collapses
+            to a dictionary read, not structural graph learning.  The noise
+            channel forces the GNN to exploit multi-hop graph context (fan-out,
+            betweenness, cluster membership) to resolve ambiguous labels,
+            which is precisely the generalisation the paper claims.
+
+        Args:
+            qos: The ``QoSPolicy`` of the topic being constructed.
+            noise_rate: Fraction of labels to flip.  Default is
+                ``_CRITICALITY_NOISE_RATE`` (≈ 17 %).
+            rng: Random instance to use.  Defaults to ``self.rng``; callers
+                that want to avoid perturbing the main topology RNG stream
+                should pass a dedicated ``random.Random`` object.
+
+        Returns:
+            A criticality label string (one of ``_CRITICALITY_LABELS``).
+        """
+        from saag.core.models import CRITICALITY_THRESHOLDS
+        _rng = rng if rng is not None else self.rng
+        # --- derive base label via threshold table ---
+        qos_score = qos.calculate_weight()
+        base_label = "critical"  # fallback if all thresholds exceeded
+        for threshold, label in CRITICALITY_THRESHOLDS:
+            if qos_score <= threshold:
+                base_label = label
+                break
+
+        # --- inject noise ---
+        if _rng.random() < noise_rate:
+            alternatives = [lbl for lbl in _CRITICALITY_LABELS if lbl != base_label]
+            return _rng.choice(alternatives)
+        return base_label
+
     def _assign_criticality_two_pass(
         self,
         apps: List[Application],
@@ -461,7 +573,11 @@ class StatisticalGraphGenerator:
     def generate(self) -> Dict[str, Any]:
         c = self.config
         name_rng = random.Random(c.seed + 12345)
-        
+        # Dedicated RNG for topic attribute sampling (frequency, criticality).
+        # Isolated from self.rng so that topic attribute draws do NOT perturb
+        # the main topology RNG stream (broker routes, pub/sub edges, node
+        # placement), preserving reproducibility of all previously seeded tests.
+        topic_attr_rng = random.Random(c.seed + 99999)
         # 1. Generate base entities using Core Models
         domain_ds = None
         if c.domain:
@@ -526,15 +642,23 @@ class StatisticalGraphGenerator:
                 else:
                     transport_priority = name_rng.choice(PRIORITY_OPTIONS)
             
+            qos_policy = QoSPolicy(
+                durability=durability,
+                reliability=reliability,
+                transport_priority=transport_priority,
+            )
             topics.append(Topic(
                 id=f"T{i}",
                 name=topic_name,
                 size=size,
-                qos=QoSPolicy(
-                    durability=durability,
-                    reliability=reliability,
-                    transport_priority=transport_priority,
-                )
+                qos=qos_policy,
+                # Inject domain-aware frequency and noisy criticality as
+                # generator-supplied ground truth.  This prevents the prediction
+                # task from collapsing to a QoS lookup (leakage path).
+                # Both calls use the isolated topic_attr_rng so the main
+                # topology RNG stream (self.rng) remains unperturbed.
+                frequency=self._sample_topic_frequency(c.domain, rng=topic_attr_rng),
+                criticality=self._derive_topic_criticality_with_noise(qos_policy, rng=topic_attr_rng),
             ))
 
         # === Pass 1: hierarchy cluster pre-assignment ===
