@@ -831,12 +831,18 @@ class DashboardGenerator:
             weight = edge.get("weight", 1.0)
             if weight != weight:
                 weight = 1.0
+            
+            # Calculate thickness dynamically using log-scaling of weight (frequency)
+            import math
+            thickness = 1.5 + 2.5 * math.log10(1.0 + max(0.0, weight))
+            
             elements.append({
                 "data": {
                     "id": f"e_{edge['source']}_{edge['target']}",
                     "source": edge["source"],
                     "target": edge["target"],
                     "weight": weight,
+                    "thickness": thickness,
                     "depType": edge.get("dependency_type", "DEPENDS_ON"),
                 },
             })
@@ -858,7 +864,7 @@ class DashboardGenerator:
                 "text-halign": "center",
             }},
             {"selector": "edge", "style": {
-                "width": 1.5, "line-color": "#d1d5db",
+                "width": "data(thickness)", "line-color": "#d1d5db",
                 "target-arrow-color": "#d1d5db",
                 "target-arrow-shape": "triangle",
                 "curve-style": "bezier",

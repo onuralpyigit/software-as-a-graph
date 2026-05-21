@@ -505,6 +505,59 @@ class TestLayerDataCollector:
         data = collector.collect_layer_data("system")
         assert data.nodes == 0  # Defaults preserved
 
+    def test_collect_frequency_weighted_edges(self, mock_prediction_service, mock_simulation_service, mock_validation_service):
+        """Collector should weight edges based on topic and app aggregate frequencies."""
+        import networkx as nx
+        from saag.analysis.models import LayerAnalysisResult
+        
+        # Build a NetworkX graph with an App, Topic, and Library
+        g = nx.DiGraph()
+        g.add_node("A01", type="Application")
+        g.add_node("T01", type="Topic", frequency=50.0)
+        g.add_node("L01", type="Library")
+        g.add_edge("A01", "T01", type="PUBLISHES_TO")
+        g.add_edge("A01", "L01", type="USES")
+
+        mock_analysis = MagicMock()
+        mock_analysis.graph = g
+        mock_analysis.quality.components = []
+        
+        # Create a mock edge
+        mock_edge = MagicMock()
+        mock_edge.source = "A01"
+        mock_edge.target = "T01"
+        mock_edge.weight = 1.0
+        mock_edge.dependency_type = "PUBLISHES_TO"
+        
+        mock_uses_edge = MagicMock()
+        mock_uses_edge.source = "A01"
+        mock_uses_edge.target = "L01"
+        mock_uses_edge.weight = 1.0
+        mock_uses_edge.dependency_type = "USES"
+
+        mock_analysis.quality.edges = [mock_edge, mock_uses_edge]
+
+        repository = MagicMock()
+        collector = LayerDataCollector(
+            MagicMock(),
+            mock_prediction_service,
+            mock_simulation_service,
+            mock_validation_service,
+            repository=repository,
+        )
+
+        data = LayerData(layer="system", name="System")
+        collector._build_network_data(data, mock_analysis)
+
+        # Check weights are populated by dynamic edge frequency
+        edge_map = {f"{e['source']}->{e['target']}": e["weight"] for e in data.network_edges}
+        
+        # A01->T01 should have frequency of T01 (50.0)
+        assert edge_map["A01->T01"] == 50.0
+        # A01->L01 is a USES edge. A01 connects to T01 (50.0 Hz), so aggregate is 50.0
+        assert edge_map["A01->L01"] == 50.0
+
+
 
 # =========================================================================
 # VisualizationService Integration Tests

@@ -380,11 +380,44 @@ class LayerDataCollector:
             )
 
         data.network_edges = []
+        graph = getattr(analysis, "graph", None)
+        
+        def get_edge_weight(src: str, dst: str, default_weight: float = 1.0) -> float:
+            if graph is None:
+                return default_weight
+            
+            src_type = graph.nodes.get(src, {}).get("type", "")
+            dst_type = graph.nodes.get(dst, {}).get("type", "")
+            
+            # Case 1: Either node is a Topic
+            if src_type == "Topic":
+                return float(graph.nodes[src].get("frequency", graph.nodes[src].get("topic_frequency", 0.0)) or 0.0)
+            if dst_type == "Topic":
+                return float(graph.nodes[dst].get("frequency", graph.nodes[dst].get("topic_frequency", 0.0)) or 0.0)
+            
+            # Case 2: One is Application, the other is Library (USES relation)
+            if (src_type == "Application" and dst_type == "Library") or (src_type == "Library" and dst_type == "Application"):
+                app_id = src if src_type == "Application" else dst
+                # Sum frequencies of all topics connected to this Application
+                total = 0.0
+                for nbr in graph[app_id]:
+                    if graph.nodes.get(nbr, {}).get("type") == "Topic":
+                        total += float(graph.nodes[nbr].get("frequency", graph.nodes[nbr].get("topic_frequency", 0.0)) or 0.0)
+                # If there are incoming edges from Topics (subscribers)
+                if hasattr(graph, "predecessors"):
+                    for pred in graph.predecessors(app_id):
+                        if graph.nodes.get(pred, {}).get("type") == "Topic":
+                            total += float(graph.nodes[pred].get("frequency", graph.nodes[pred].get("topic_frequency", 0.0)) or 0.0)
+                return total if total > 0.0 else default_weight
+            
+            return default_weight
+
         if hasattr(analysis.quality, "edges"):
             for edge in analysis.quality.edges:
-                weight = edge.weight if hasattr(edge, "weight") else 1.0
-                if weight != weight:  # NaN
-                    weight = 1.0
+                w_val = edge.weight if hasattr(edge, "weight") else 1.0
+                if w_val != w_val:  # NaN
+                    w_val = 1.0
+                weight = get_edge_weight(edge.source, edge.target, w_val)
                 dep_type = (
                     edge.dependency_type
                     if hasattr(edge, "dependency_type")
@@ -406,11 +439,13 @@ class LayerDataCollector:
                 raw_edges = self.repository.get_raw_edges(data.layer)
                 if raw_edges:
                     for edge in raw_edges:
+                        w_val = edge.get("weight", 1.0)
+                        weight = get_edge_weight(edge.get("source", ""), edge.get("target", ""), w_val)
                         data.network_edges.append(
                             {
                                 "source": edge.get("source", ""),
                                 "target": edge.get("target", ""),
-                                "weight": edge.get("weight", 1.0),
+                                "weight": weight,
                                 "relation_type": edge.get("type", "STRUCTURAL"),
                                 "dependency_type": edge.get("type", "structural"),
                             }
