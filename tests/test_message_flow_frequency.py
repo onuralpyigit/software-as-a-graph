@@ -1,4 +1,6 @@
 import pytest
+pytest.importorskip("simpy")
+
 import networkx as nx
 from saag.simulation.message_flow_simulator import MessageFlowSimulator
 
