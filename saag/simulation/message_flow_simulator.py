@@ -220,18 +220,22 @@ def _publisher_process(
     msg_counter: List[int],          # single-element list used as a mutable int
     rng: random.Random,
     processing_time_s: float = 0.0,
+    use_poisson: bool = False,
 ) -> Generator:
     """
     Publisher SimPy process.
 
-    Emits one message every 1/rate_hz simulated seconds.  Stops silently
-    when app_id is in failed_nodes.  Tracks pre/post-fault publish counts
-    for accurate delivery-rate estimation.
+    Emits one message periodically or stochastically (Poisson process) based on rate_hz.
+    Stops silently when app_id is in failed_nodes.
     """
-    interval = 1.0 / rate_hz if rate_hz > 0 else 1.0
-
     while True:
+        if use_poisson:
+            interval = rng.expovariate(rate_hz) if rate_hz > 0 else 1.0
+        else:
+            interval = 1.0 / rate_hz if rate_hz > 0 else 1.0
+
         yield env.timeout(interval)
+
 
         if app_id in failed_nodes:
             return
@@ -400,6 +404,33 @@ class MessageFlowSimulator:
 
     # ── Public API ──────────────────────────────────────────────────────────
 
+    def generate_workload(self, topic_id: str) -> float:
+        """Resolve the publish rate (frequency) for a given topic ID from the graph node's attributes.
+        Honors topic.frequency / topic_frequency as the Poisson/periodic rate.
+        If there are multiple publishers for this topic, the rate is divided equally
+        among them to ensure the aggregate topic traffic matches the frequency.
+        Falls back to default_publish_rate_hz.
+        """
+        base_rate = self.default_publish_rate_hz
+        if topic_id in self.graph.nodes:
+            topic_node = self.graph.nodes[topic_id]
+            freq = topic_node.get("frequency", topic_node.get("topic_frequency"))
+            if freq is not None:
+                try:
+                    base_rate = float(freq)
+                except (TypeError, ValueError):
+                    pass
+
+        # Count the number of active publishers publishing to this topic
+        num_pubs = 0
+        for src, tgt, data in self.graph.edges(data=True):
+            if data.get("type") == "PUBLISHES_TO" and tgt == topic_id:
+                num_pubs += 1
+
+        if num_pubs > 0:
+            return base_rate / num_pubs
+        return base_rate
+
     def run(self) -> MessageFlowResult:
         """Execute the simulation and return a MessageFlowResult."""
         rng = random.Random(self.seed)
@@ -489,11 +520,10 @@ class MessageFlowSimulator:
 
         for src, tgt, data in self.graph.edges(data=True):
             if data.get("type") == "PUBLISHES_TO" and tgt in fanouts:
-                rate_raw = data.get("rate_hz") or data.get("publish_rate_hz")
-                try:
-                    rate = float(rate_raw) if rate_raw else self.default_publish_rate_hz
-                except (TypeError, ValueError):
-                    rate = self.default_publish_rate_hz
+                rate = self.generate_workload(tgt)
+
+                topic_node = self.graph.nodes[tgt] if tgt in self.graph.nodes else {}
+                use_poisson = str(topic_node.get("workload_type", "")).lower() == "poisson"
 
                 env.process(
                     _publisher_process(
@@ -508,8 +538,10 @@ class MessageFlowSimulator:
                         msg_counter=msg_counter,
                         rng=rng,
                         processing_time_s=proc_time.get(src, self.default_processing_time_s),
+                        use_poisson=use_poisson,
                     )
                 )
+
 
         # ── Spawn subscriber processes ────────────────────────────────────
 
