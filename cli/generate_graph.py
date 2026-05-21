@@ -87,17 +87,23 @@ def main() -> None:
     validate_parser = subparsers.add_parser("validate", help="Topology-class validation for scenarios", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     add_validation_arguments(validate_parser)
     
-    # Handle positional output override (hack for user convenience: python cli/generate_graph.py dataset.json)
-    output_override = None
+# Handle positional output override (hack for user convenience:
+    #   python cli/generate_graph.py dataset.json
+    # vs
+    #   python cli/generate_graph.py --output dataset.json
     if len(sys.argv) > 1:
-        last_arg = sys.argv[-1]
-        # If the last arg is not a flag, not a subcommand, and not a help flag
-        if not last_arg.startswith('-') and last_arg not in ['batch', 'validate'] and last_arg != 'generate_graph.py':
-            output_override = sys.argv.pop()
-    
+        arg = sys.argv[-1]
+        # If last arg is a bare path (not a flag, subcommand, or script name)
+        if not arg.startswith('-') and arg not in ('batch', 'validate', 'generate_graph.py'):
+            prev = sys.argv[-2] if len(sys.argv) > 2 else None
+            # Only pop if the previous argument is NOT an option flag
+            # that requires a following value (e.g. --output, --scenario)
+            if prev is None or not prev.startswith('-'):
+                output_override = sys.argv.pop()
+
     args = parser.parse_args()
-    
-    if output_override:
+
+    if 'output_override' in dir() and output_override:
         args.output = Path(output_override)
     
     if getattr(args, "command", None) == "batch":

@@ -13,6 +13,32 @@ from typing import Dict, List, Any, Optional, ClassVar
 #: Minimum weight floor for any topic, preventing zero-importance components.
 MIN_TOPIC_WEIGHT: float = 0.01
 
+#: Topic frequency bins (Hz) indexed by reliability×priority score [0,1].
+#: The [0,1] range is split into 12 equal-width bins.
+TOPIC_FREQUENCY_HZ: list = [
+    1.0,     # [0.00, 0.08)
+    1.0,     # [0.08, 0.16)
+    1.0,     # [0.16, 0.25)
+    10.0,    # [0.25, 0.33)
+    10.0,    # [0.33, 0.41)
+    50.0,    # [0.41, 0.50)
+    100.0,   # [0.50, 0.58)
+    100.0,   # [0.58, 0.66)
+    200.0,   # [0.66, 0.75)
+    500.0,   # [0.75, 0.83)
+    1000.0,  # [0.83, 0.91)
+    1000.0,  # [0.91, 1.00]
+]
+#: Thresholds for classifying a QoS weight score into criticality levels.
+#: Sorted ascending; first threshold whose lower bound is exceeded wins.
+CRITICALITY_THRESHOLDS: list = [
+    (0.00, "minimal"),
+    (0.19, "low"),    # ≈ 1/5
+    (0.43, "medium"), # ≈ 3/7
+    (0.64, "high"),   # ≈ 7/11
+    (1.00, "critical"),
+]
+
 #: Convex combination factor (β) for topic weight: 0.85 QoS + 0.15 Size.
 #: Rationale: QoS semantics are the primary signal; payload size is a secondary amplifier.
 #: Note: Distinguish from AHP_SHRINKAGE_LAMBDA (λ) used for weight blending.
@@ -253,16 +279,48 @@ class Node(GraphEntity):
 
 @dataclass
 class Topic(GraphEntity):
-    """A named channel for message exchange with QoS policies."""
+    """A named channel for message exchange with QoS policies.
+    
+    Attributes:
+        size: Message size in bytes.
+        qos: QoS policy governing reliability, durability, and priority.
+        frequency: Derived message frequency in Hz, computed from
+            reliability × priority score using TOPIC_FREQUENCY_HZ bins.
+        criticality: Derived criticality string (critical / high / medium /
+            low / minimal), computed from the QoS weight score.
+    """
     size: int = 256
     qos: QoSPolicy = field(default_factory=QoSPolicy)
+    frequency: float = field(init=False, default=0.0)
+    criticality: str = field(init=False, default="minimal")
+
+    def __post_init__(self) -> None:
+        # Derive frequency from reliability × priority score (12 equal-width bins).
+        score_map = QoSPolicy.RELIABILITY_SCORES
+        r = score_map.get(self.qos.reliability, 0.0)
+        p = QoSPolicy.PRIORITY_SCORES.get(self.qos.transport_priority, 0.0)
+        combined = r * p  # range [0, 1]
+        bin_idx = int(combined * len(TOPIC_FREQUENCY_HZ))
+        bin_idx = max(0, min(bin_idx, len(TOPIC_FREQUENCY_HZ) - 1))
+        self.frequency = float(TOPIC_FREQUENCY_HZ[bin_idx])
+
+        # Derive criticality from combined QoS weight (durability + reliability + priority).
+        qos_score = self.qos.calculate_weight()
+        for threshold, label in CRITICALITY_THRESHOLDS:
+            if qos_score <= threshold:
+                self.criticality = label
+                break
+        else:
+            self.criticality = "critical"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
             "size": self.size,
-            "qos": self.qos.to_dict()
+            "qos": self.qos.to_dict(),
+            "frequency": self.frequency,
+            "criticality": self.criticality,
         }
     
     def calculate_weight(self) -> float:

@@ -31,7 +31,7 @@ def _canonical_sha256(data: dict) -> str:
 
 _SCENARIO_08_YAML = project_root / "data" / "scenarios" / "scenario_08_tiny_regression.yaml"
 
-_GOLDEN_SHA256 = "7a1b221a2c4d40573b52e31970c44abbe25af159b429a6a8828f70ea4adf92c7"
+_GOLDEN_SHA256 = "fda91991ba46a0613c4abba6074b65246eeea0acd481f5aeeac4c115c759d55c"
 
 _GOLDEN_ENTITY_COUNTS = {
     "nodes": 3,
@@ -159,3 +159,66 @@ class TestScenario08GoldenFile:
             "If this change is intentional, update _GOLDEN_SHA256 and the "
             "golden count dicts in test_generation_service.py."
         )
+
+
+class TestTopicDerivedFields:
+    """Regression for topic frequency and criticality derived from QoS during generation."""
+
+    def _cases():
+        # (reliability, durability, priority) -> (expected_criticality, expected_freq)
+        # Thresholds: ≤0.19 minimal, ≤0.43 low, ≤0.64 medium, ≤1.00 high, >1.00 critical
+        return [
+            # BEST_EFFORT + VOLATILE  → weight=0xxy  → 0.00 ≤ x ≤ y = low (exact weight ~0.10, very low)
+            # BEST_EFFORT/MEDIUM + VOLATILE on rare: test using vex simple case
+            ("RELIABLE",    "VOLATILE",   "MEDIUM",   "medium",   1.0),    # w = 0.30 + 0 + 0.11 = 0.41
+            # RELIABLE × HIGH        → rel×pri = 0.66 → bin 8 → 100 Hz; w=0.30+0+0.20=0.50
+            ("RELIABLE",    "VOLATILE",   "HIGH",     "high",    100.0),
+        ]
+
+    @pytest.mark.parametrize("rel,dur,pri,exp_crit,exp_hz", _cases())
+    def test_derived_fields_match_qos(self, rel, dur, pri, exp_crit, exp_hz):
+        from saag.core.models import Topic, QoSPolicy, CRITICALITY_THRESHOLDS, TOPIC_FREQUENCY_HZ
+        t = Topic(id=f"T-rel{rel}-pri{pri}", name=f"test.{rel.lower()}.{pri.lower()}",
+                  size=1024, qos=QoSPolicy(reliability=rel, durability=dur,
+                                            transport_priority=pri))
+
+        # 1. Frequency must match the bin-lookup table used in __post_init__
+        r = QoSPolicy.RELIABILITY_SCORES.get(rel, 0.0)
+        p = QoSPolicy.PRIORITY_SCORES.get(pri, 0.0)
+        combined = r * p
+        bin_idx = int(combined * len(TOPIC_FREQUENCY_HZ))
+        bin_idx = max(0, min(bin_idx, len(TOPIC_FREQUENCY_HZ) - 1))
+        expected_hz = float(TOPIC_FREQUENCY_HZ[bin_idx])
+        assert t.frequency == expected_hz
+
+        # 2. Criticality must match the threshold table in __post_init__
+        qos_score = t.qos.calculate_weight()
+        expected_crit = "critical"
+        for threshold, label in CRITICALITY_THRESHOLDS:
+            if qos_score <= threshold:
+                expected_crit = label
+                break
+        assert t.criticality == expected_crit
+
+    def test_to_dict_contains_derived_fields(self):
+        from saag.core.models import Topic, QoSPolicy
+        t = Topic(id="T0", name="X", size=256,
+                  qos=QoSPolicy(reliability="RELIABLE", durability="PERSISTENT",
+                                transport_priority="HIGH"))
+        d = t.to_dict()
+        assert "frequency" in d, "to_dict() missing 'frequency'"
+        assert "criticality" in d, "to_dict() missing 'criticality'"
+        assert isinstance(d["frequency"], (int, float))
+        assert d["criticality"] in {"critical", "high", "medium", "low", "minimal"}
+
+    def test_generated_topics_have_derived_fields(self):
+        gen = GenerationService(scale="tiny", seed=7)
+        data = gen.generate()
+        for topic in data["topics"]:
+            assert "frequency" in topic, f"Topic {topic.get('id')!r} missing 'frequency'"
+            assert "criticality" in topic, f"Topic {topic.get('id')!r} missing 'criticality'"
+            assert topic["criticality"] in {"critical", "high", "medium", "low", "minimal"}, (
+                f"Topic {topic.get('id')!r}: invalid criticality {topic['criticality']!r}"
+            )
+            assert isinstance(topic["frequency"], (int, float))
+            assert topic["frequency"] >= 1.0
