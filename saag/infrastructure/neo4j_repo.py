@@ -284,11 +284,13 @@ class Neo4jRepository:
         """, tx=tx)
 
     def _import_topics(self, topics_data: List[Dict[str, Any]], tx: Any = None) -> None:
-        """Import topics with QoS policies."""
+        """Import topics with QoS policies and derived fields."""
         topics = [serialization.flatten_component(t, "Topic") for t in topics_data]
         self._import_batch(topics, """
             MERGE (t:Topic {id: row.id})
             SET t.name = row.name, t.size = row.size,
+                t.topic_frequency = row.topic_frequency,
+                t.topic_criticality = row.topic_criticality,
                 t.qos_reliability = row.qos_reliability,
                 t.qos_durability = row.qos_durability,
                 t.qos_transport_priority = row.qos_transport_priority

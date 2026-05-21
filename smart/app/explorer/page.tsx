@@ -321,6 +321,9 @@ const PROP_DESCS: Record<string, string> = {
   // ── Queue / frequency ─────────────────────────────────────────────────────
   queue_size:              "Maximum number of messages this subscriber's queue can buffer before dropping",
   frequency:               "Publishing frequency in Hz (messages per second)",
+  topic_frequency:         "Publishing frequency in Hz (messages per second)",
+  criticality:             "Topic criticality level based on QoS weight",
+  topic_criticality:       "Topic criticality level based on QoS weight",
 }
 const EDGE_DESCS: Record<string, string> = {
   weight:     "QoS severity weight [0–1] — maximum weight of topics routed through this dependency",
@@ -502,6 +505,9 @@ function propUnit(key: string): string {
   if (/^coupling_/.test(key))                         return "[0–1]"
   if (key === "sqale_debt_ratio")                     return "%"
   if (key === "duplicated_lines_density")             return "%"
+
+  // ── Topic fields ───────────────────────────────────────────────────────────
+  if (key === "frequency" || key === "topic_frequency") return "Hz"
 
   // ── Centraliy / graph scores (all [0–1] normalised) ───────────────────────
   if (key === "pagerank")                             return "[0–1]"

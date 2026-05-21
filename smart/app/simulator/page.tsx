@@ -406,7 +406,7 @@ export default function TrafficSimulatorPage() {
                       variant="ghost"
                       size="sm"
                       className="text-muted-foreground"
-                      onClick={() => { setSelectedTopicIds([]); setTopicParams({}) }}
+                      onClick={() => { setSelectedTopicIds([]); setSelectedRoleKeys(new Set()); setTopicParams({}) }}
                     >
                       <X className="h-3.5 w-3.5 mr-1" />
                       Clear all

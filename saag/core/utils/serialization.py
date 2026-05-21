@@ -89,6 +89,12 @@ def reconstruct_component_dict(comp: ComponentData) -> Dict[str, Any]:
             "durability": props.get("qos_durability", "VOLATILE"),
             "transport_priority": props.get("qos_transport_priority", "MEDIUM"),
         }
+        # Restore derived fields if present; backend caller is responsible for
+        # ensuring they are populated (import backfill or frontend recompute).
+        if "topic_frequency" in props:
+            res["frequency"] = props["topic_frequency"]
+        if "topic_criticality" in props:
+            res["criticality"] = props["topic_criticality"]
     elif comp.component_type == "Application":
         res.update({
             "role": props.get("role", "pubsub"),
@@ -244,6 +250,8 @@ def flatten_component(comp: Dict[str, Any], comp_type: str) -> Dict[str, Any]:
         qos = comp.get("qos", comp.get("qos_policy", {}))
         res.update({
             "size": comp.get("size", 256),
+            "topic_frequency": comp.get("frequency", 0.0),
+            "topic_criticality": comp.get("criticality", "minimal"),
             "qos_reliability": qos.get("reliability", "BEST_EFFORT"),
             "qos_durability": qos.get("durability", "VOLATILE"),
             "qos_transport_priority": qos.get("transport_priority", "MEDIUM"),
