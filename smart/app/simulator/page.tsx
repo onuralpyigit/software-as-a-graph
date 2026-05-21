@@ -93,7 +93,6 @@ export default function TrafficSimulatorPage() {
   const [topicSort, setTopicSort] = useState<"name" | "pub" | "sub">("name")
 
   // ---- Parameters ----
-  const [frequencyHz, setFrequencyHz] = useState<number>(10)
   const [durationSec, setDurationSec] = useState<number>(60)
   const [messageSizeBytes, setMessageSizeBytes] = useState<number>(1024)
 
@@ -179,9 +178,10 @@ export default function TrafficSimulatorPage() {
     try {
       const data = await trafficClient.simulate({
         topic_ids: selectedTopicIds,
-        frequency_hz: frequencyHz,
+        frequency_hz: 10, // Fallback default (not used when per_topic_params provided)
         duration_sec: durationSec,
         message_size_bytes: messageSizeBytes,
+        per_topic_params: topicParams, // Always use per-topic frequencies
       })
       setResult(data)
     } catch (err: any) {
@@ -192,9 +192,26 @@ export default function TrafficSimulatorPage() {
   }
 
   function toggleTopic(id: string) {
+    const topic = topicById[id]
     setSelectedTopicIds(prev => {
       if (prev.includes(id)) {
+        // Remove topic and its params
+        setTopicParams(p => {
+          const next = { ...p }
+          delete next[id]
+          return next
+        })
         return prev.filter(t => t !== id)
+      }
+      // Initialize topic params with topic's default frequency
+      if (topic) {
+        setTopicParams(p => ({
+          ...p,
+          [id]: {
+            frequency_hz: topic.frequency,
+            duration_sec: durationSec,
+          },
+        }))
       }
       return [...prev, id]
     })
@@ -207,6 +224,20 @@ export default function TrafficSimulatorPage() {
       setSelectedTopicIds(prev => prev.filter(tid => !appTopicIds.includes(tid)))
     } else {
       setSelectedTopicIds(prev => Array.from(new Set([...prev, ...appTopicIds])))
+      // Initialize topic params for newly selected topics with their default frequencies
+      setTopicParams(prev => {
+        const next = { ...prev }
+        for (const tid of appTopicIds) {
+          if (!next[tid]) {
+            const t = topicById[tid]
+            next[tid] = {
+              frequency_hz: t ? t.frequency : 10.0, // Fallback to 10 Hz if not available
+              duration_sec: durationSec,
+            }
+          }
+        }
+        return next
+      })
     }
   }
 
@@ -216,10 +247,10 @@ export default function TrafficSimulatorPage() {
       id: Date.now().toString(),
       name,
       topic_ids: [...selectedTopicIds],
-      frequency_hz: frequencyHz,
+      frequency_hz: 0, // Deprecated - frequencies are now per-topic
       duration_sec: durationSec,
       message_size_bytes: messageSizeBytes,
-      topic_params: Object.keys(topicParams).length > 0 ? { ...topicParams } : undefined,
+      topic_params: { ...topicParams }, // Always save per-topic params
       created_at: new Date().toISOString(),
     }
     setSavedConfigs(prev => [cfg, ...prev])
@@ -228,9 +259,11 @@ export default function TrafficSimulatorPage() {
 
   function loadConfig(cfg: SavedConfig) {
     setSelectedTopicIds(cfg.topic_ids)
-    setFrequencyHz(cfg.frequency_hz)
     setDurationSec(cfg.duration_sec)
     setMessageSizeBytes(cfg.message_size_bytes)
+    if (cfg.topic_params) {
+      setTopicParams(cfg.topic_params)
+    }
   }
 
   function deleteConfig(id: string) {
@@ -384,15 +417,6 @@ export default function TrafficSimulatorPage() {
                 <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                   {/* Global simulation params */}
                   <div className="flex items-center gap-1.5">
-                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Hz</Label>
-                    <Input
-                      type="number" min={0.001} step={1}
-                      value={frequencyHz}
-                      onChange={e => setFrequencyHz(parseFloat(e.target.value) || 10)}
-                      className="h-8 w-24 text-xs"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5">
                     <Label className="text-xs text-muted-foreground whitespace-nowrap">Duration (s)</Label>
                     <Input
                       type="number" min={1} step={10}
@@ -471,7 +495,7 @@ export default function TrafficSimulatorPage() {
                       >
                         <span className="text-sm font-medium text-foreground truncate block">{cfg.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          {cfg.topic_ids.length} topics · {cfg.frequency_hz} Hz · {cfg.duration_sec}s
+                          {cfg.topic_ids.length} topics · {cfg.duration_sec}s{cfg.topic_params && Object.keys(cfg.topic_params).length > 0 ? ' · per-topic frequencies' : ''}
                         </span>
                       </button>
                       <button
@@ -652,7 +676,7 @@ export default function TrafficSimulatorPage() {
                                   </div>
                                   <div className="flex items-center gap-2 mt-0.5">
                                     <span className="text-xs text-muted-foreground">
-                                      {topic.publisher_count} pub · {topic.subscriber_count} sub{topic.size > 0 ? ` · ${topic.size >= 1024 ? `${(topic.size / 1024).toFixed(1)} KB` : `${topic.size} B`}` : ""}
+                                      {topic.publisher_count} pub · {topic.subscriber_count} sub{topic.size > 0 ? ` · ${topic.size >= 1024 ? `${(topic.size / 1024).toFixed(1)} KB` : `${topic.size} B`}` : ""}{topic.frequency ? ` · ${Math.round(topic.frequency)} Hz` : ""}
                                     </span>
                                     {topic.broker_names.length > 0 && (
                                       <span className="text-xs text-muted-foreground hidden sm:inline">
@@ -681,6 +705,41 @@ export default function TrafficSimulatorPage() {
                                         TP {topic.qos_transport_priority}
                                       </span>
                                     )}
+                                  </div>
+                                )}
+
+                                {/* Per-topic frequency input (when selected) */}
+                                {selected && (
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs text-muted-foreground whitespace-nowrap">Default:</span>
+                                      <span className="text-xs font-medium text-foreground">{Math.round(topic.frequency)}</span>
+                                      <span className="text-xs text-muted-foreground">Hz</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        type="number"
+                                        min={0.001}
+                                        step={1}
+                                        value={topicParams[topic.id]?.frequency_hz ?? topic.frequency}
+                                        onChange={e => {
+                                          const val = parseFloat(e.target.value)
+                                          if (!isNaN(val)) {
+                                            setTopicParams(prev => ({
+                                              ...prev,
+                                              [topic.id]: {
+                                                frequency_hz: val,
+                                                duration_sec: topicParams[topic.id]?.duration_sec ?? durationSec,
+                                              },
+                                            }))
+                                          }
+                                        }}
+                                        onClick={e => e.stopPropagation()}
+                                        className="h-6 w-16 text-xs px-1.5"
+                                        placeholder={Math.round(topic.frequency).toString()}
+                                      />
+                                      <span className="text-xs text-muted-foreground">Hz</span>
+                                    </div>
                                   </div>
                                 )}
                               </div>
