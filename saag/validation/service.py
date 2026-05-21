@@ -683,6 +683,61 @@ class ValidationService:
                 "passed": group_res.correlation.spearman >= target_rho
             }
 
+        # --- Frequency Decile Stratified Reporting ---
+        frequency_decile_stratified = {}
+        topic_data = []
+        graph = getattr(analysis_result, "graph", None)
+        if graph is not None:
+            for cid, pred_val in pred_scores.items():
+                if comp_types.get(cid) == "Topic" and cid in actual_scores:
+                    node_attrs = graph.nodes.get(cid, {})
+                    freq = float(node_attrs.get("frequency", node_attrs.get("topic_frequency", 0.0)) or 0.0)
+                    topic_data.append({
+                        "id": cid,
+                        "pred": float(pred_val),
+                        "act": float(actual_scores[cid]),
+                        "freq": freq
+                    })
+        
+        if topic_data:
+            topic_data = sorted(topic_data, key=lambda x: x["freq"])
+            n_topics = len(topic_data)
+            
+            import numpy as np
+            from saag.validation.metric_calculator import spearman_correlation
+            
+            for i in range(1, 11):
+                start_idx = int(round((i - 1) * n_topics / 10.0))
+                end_idx = int(round(i * n_topics / 10.0))
+                
+                decile_items = topic_data[start_idx:end_idx]
+                if not decile_items:
+                    continue
+                
+                decile_name = f"Decile {i}"
+                min_freq = min(x["freq"] for x in decile_items)
+                max_freq = max(x["freq"] for x in decile_items)
+                
+                pred_vals = [x["pred"] for x in decile_items]
+                act_vals = [x["act"] for x in decile_items]
+                
+                spearman_val = 0.0
+                p_val = 1.0
+                if len(decile_items) >= 3:
+                    try:
+                        spearman_val, p_val = spearman_correlation(pred_vals, act_vals)
+                        if np.isnan(spearman_val):
+                            spearman_val = 0.0
+                    except Exception:
+                        spearman_val = 0.0
+                
+                frequency_decile_stratified[decile_name] = {
+                    "n": len(decile_items),
+                    "frequency_range": (round(min_freq, 2), round(max_freq, 2)),
+                    "spearman": round(float(spearman_val), 4),
+                    "p_value": round(float(p_val), 6),
+                }
+
         return LayerValidationResult(
             layer=sim_layer.value,
             layer_name=layer_def.name,
@@ -691,6 +746,7 @@ class ValidationService:
             matched_components=validation_res.matched_count,
             validation_result=validation_res,
             node_type_stratified=stratified,
+            frequency_decile_stratified=frequency_decile_stratified,
 
             spearman=validation_res.overall.correlation.spearman,
             f1_score=validation_res.overall.classification.f1_score,

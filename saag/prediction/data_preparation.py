@@ -434,6 +434,15 @@ def _normalize_infra_features(
     # Normalise topic_qos_criticality_ord to [0, 1] (max value is 4.0).
     max_crit_ord = 4.0
 
+    # Dynamic masking (G4 covariate shift mitigation):
+    # If all topic criticalities in this graph are identical (zero variance),
+    # it means we cannot justify a real ground-truth distribution for this scenario
+    # and the field is flat (typically all minimal). We mask the field to a uniform 0.0
+    # to prevent inductive covariate shift when training/testing across scenarios.
+    crit_vals = list(topic_crit_ord.values())
+    if len(crit_vals) > 0 and len(set(crit_vals)) <= 1:
+        topic_crit_ord = {n: 0.0 for n in topic_crit_ord}
+
     infra: Dict[str, Dict[str, float]] = {}
     for n in node_cpu:
         infra[n] = {

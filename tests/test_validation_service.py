@@ -260,6 +260,41 @@ class TestValidationService:
         assert "Application" in layer_res.node_type_stratified
         assert layer_res.node_type_stratified["Application"]["target_rho"] == 0.75
 
+    def test_frequency_decile_stratified_in_output(self, validation_service, mock_analysis_service, mock_prediction_service, mock_simulation_service):
+        """Test frequency-decile stratified reporting for Topic nodes."""
+        import networkx as nx
+        g = nx.DiGraph()
+        g.add_node("A", type="Topic", frequency=10.0)
+        g.add_node("B", type="Topic", frequency=50.0)
+        g.add_node("C", type="Topic", frequency=100.0)
+        mock_analysis_service.analyze_layer.return_value.graph = g
+
+        ids = ['A', 'B', 'C']
+        scores = [0.9, 0.5, 0.1]
+        impacts = [0.9, 0.5, 0.1]
+        
+        comps = []
+        for cid, s in zip(ids, scores):
+            comp = self._make_comp(cid, s)
+            comp.type = "Topic"
+            comps.append(comp)
+            
+        sim_results = [self._make_sim(cid, im) for cid, im in zip(ids, impacts)]
+            
+        mock_quality = MagicMock(spec=QualityAnalysisResult)
+        mock_quality.components = comps
+        mock_prediction_service.predict_quality.return_value = mock_quality
+        mock_simulation_service.run_failure_simulation_exhaustive.return_value = sim_results
+
+        result = validation_service.validate_layers(layers=["app"])
+        layer_res = result.layers["app"]
+
+        assert layer_res.frequency_decile_stratified
+        # Since we have 3 topics, we should have binned them into deciles
+        # E.g., deciles with non-empty items should be populated
+        assert any("Decile" in k for k in layer_res.frequency_decile_stratified.keys())
+
+
     def test_perfect_rank_agreement(self, validation_service, mock_prediction_service, mock_simulation_service):
         """Q(v) and I(v) agree perfectly → Spearman ρ = 1.0."""
         scores = [0.9, 0.7, 0.5, 0.3, 0.1]

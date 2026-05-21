@@ -299,6 +299,7 @@ class LayerValidationResult:
     dimensional_validation: Dict[str, Any] = field(default_factory=dict)
     gates: Dict[str, bool] = field(default_factory=dict)
     node_type_stratified: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    frequency_decile_stratified: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     # New: Full scatter data per dimension for visualization
     # Dict mapping dimension name to List of (id, predicted_score, actual_impact, level)
     dimensional_scatter: Dict[str, List[Tuple[str, float, float, str]]] = field(default_factory=dict)
@@ -326,6 +327,7 @@ class LayerValidationResult:
             "validation_result": self.validation_result.to_dict() if self.validation_result else None,
             "gates": self.gates,
             "node_type_stratified": self.node_type_stratified,
+            "frequency_decile_stratified": self.frequency_decile_stratified,
             "warnings": self.warnings,
         }
 
