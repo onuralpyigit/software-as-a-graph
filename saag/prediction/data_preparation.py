@@ -23,6 +23,35 @@ Design principles
   (I*(v), IR(v), IM(v), IA(v), IV(v)) are stored as multi-column label
   tensors, enabling multi-task learning or single-task ablations.
 
+Architectural decision: Application.criticality vs Topic.topic_qos_criticality
+------------------------------------------------------------------------------
+Two fields named ``criticality`` exist in the system, and they are *not* the
+same concept.  They must NOT share a feature dimension:
+
+  ``Application.criticality`` (bool)
+      Process-level ground truth.  Set by the two-pass topology-aware
+      assignment in the generator (structurally central apps → True).
+      Represents whether the *service* is mission-critical.
+      Used as a classification label for the Application node type.
+
+  ``Topic.criticality`` (str: minimal/low/medium/high/critical)
+      QoS-channel urgency, derived from the QoS weight score
+      (0.3·Rel + 0.4·Dur + 0.3·Pri) with ≈17% label-noise injection
+      so the GNN must use graph context to resolve ambiguous cases.
+      Encoded as an ordinal integer 0–4 (``topic_qos_criticality_ord``).
+      Appears **only** in the Topic NodeStorage (dim 21) — it is absent
+      from Application, Broker, Node, and Library stores.
+
+Consequences:
+  * No feature-dimension collision in the heterograph.
+  * Attention heads on the PUBLISHES_TO / SUBSCRIBES_TO bipartite
+    subgraph can independently learn what frequency and QoS urgency
+    contribute to topic-level impact, without entangling the boolean
+    service-criticality signal from the Application store.
+  * Frequency normalization is always **per-scenario** (z-score of
+    log1p(Hz) over the Topic nodes present in the current graph) so
+    the normalizer does not leak scenario identity across LOSO folds.
+
 Node feature vector (heterogeneous)
 ------------------------------------
 Each node type HAS ITS OWN feature dimension.
@@ -55,14 +84,16 @@ Code Quality Metrics (dim = 5) - Application and Library ONLY (indices 18-22):
  22  Code Quality Penalty (CQP)
 
 Infrastructure/Runtime Extras:
-  Broker (index 18): max_connections_norm
-  Topic  (18, 19):   subscriber_count_norm, publisher_count_norm
-  Node   (18, 19):   cpu_cores_norm, memory_gb_norm
+  Broker (index 18):   max_connections_norm
+  Node   (18, 19):     cpu_cores_norm, memory_gb_norm
+  Topic  (18–21):      subscriber_count_norm, publisher_count_norm,
+                       log1p_frequency_norm (per-scenario z-score),
+                       topic_qos_criticality_ord (ordinal 0–4)
 
 Total dimensions:
   Application, Library: 23
   Broker:               19
-  Topic:                20
+  Topic:                22   ← +2 vs previous (frequency + QoS criticality)
   Node:                 20
 
 Edge feature vector (dim = 16)   [expanded for Middleware 2026 Q-HGL]
@@ -151,7 +182,27 @@ TOPOLOGICAL_METRIC_KEYS = BASE_METRIC_KEYS + CQ_METRIC_KEYS  # 23 dims for App/L
 # Infrastructure/runtime extra feature keys (appended to BASE_METRIC_KEYS per type)
 NODE_INFRA_KEYS: List[str] = ["cpu_cores_norm", "memory_gb_norm"]      # indices 18-19
 BROKER_EXTRA_KEYS: List[str] = ["max_connections_norm"]                  # index 18
-TOPIC_RUNTIME_KEYS: List[str] = ["subscriber_count_norm", "publisher_count_norm"]  # 18-19
+# Topic-type-only extras (indices 18-21).
+# IMPORTANT: these keys must NEVER appear in Application/Broker/Node/Library
+# feature dicts — doing so would create a spurious shared embedding dimension
+# between semantically distinct node types.  See the module docstring for the
+# Application.criticality vs Topic.topic_qos_criticality design decision.
+TOPIC_RUNTIME_KEYS: List[str] = [
+    "subscriber_count_norm",       # 18 — pub/sub fan-in (topology)
+    "publisher_count_norm",        # 19 — pub/sub fan-out (topology)
+    "log1p_frequency_norm",        # 20 — per-scenario z-score of log1p(Hz)
+    "topic_qos_criticality_ord",   # 21 — QoS urgency ordinal {0=minimal…4=critical}
+]
+
+# Ordinal mapping for Topic.criticality labels (5-level QoS urgency scale).
+# Separate from Application.criticality which is a bool (process-level ground truth).
+TOPIC_CRITICALITY_ORD: Dict[str, float] = {
+    "minimal":  0.0,
+    "low":      1.0,
+    "medium":   2.0,
+    "high":     3.0,
+    "critical": 4.0,
+}
 
 # Per-type feature key mapping used during feature extraction
 KEYS_BY_TYPE: Dict[str, List[str]] = {
@@ -166,7 +217,8 @@ NODE_TYPE_TO_DIM: Dict[str, int] = {
     "Application": 23,
     "Library":     23,
     "Broker":      19,   # +1: max_connections_norm
-    "Topic":       20,   # +2: subscriber_count_norm, publisher_count_norm
+    "Topic":       22,   # +4: subscriber_count_norm, publisher_count_norm,
+                         #      log1p_frequency_norm, topic_qos_criticality_ord
     "Node":        20,   # +2: cpu_cores_norm, memory_gb_norm
 }
 
@@ -300,14 +352,30 @@ def _normalize_infra_features(
     - Node: cpu_cores_norm, memory_gb_norm  (from graph attrs or structural_metrics)
     - Broker: max_connections_norm          (from graph attrs or structural_metrics)
     - Topic: subscriber_count_norm, publisher_count_norm  (from graph edge topology)
+    - Topic: log1p_frequency_norm (per-scenario z-score of log1p(Hz))
+    - Topic: topic_qos_criticality_ord (ordinal 0–4 of the 5-level QoS label)
 
-    All values are normalized to [0, 1] via per-graph max.
+    All values are normalized to [0, 1] via per-graph max, EXCEPT
+    log1p_frequency_norm which uses z-score normalization limited to the
+    Topic nodes present in *this* graph (per-scenario, not global).
+
+    Per-scenario frequency normalization rationale
+    -----------------------------------------------
+    Frequency spans ~5 orders of magnitude across domains (0.001 Hz healthcare
+    to 10 000 Hz HFT).  Normalizing globally (across all scenarios in the
+    training corpus) would encode the scenario's domain identity in the
+    standardised values, leaking label information into features across LOSO
+    folds.  Normalizing per-scenario ensures each graph's frequency distribution
+    is centred at 0 regardless of domain, preserving relative ordering within
+    a scenario while eliminating cross-scenario scale differences.
     """
     node_cpu: Dict[str, float] = {}
     node_mem: Dict[str, float] = {}
     broker_conn: Dict[str, float] = {}
     topic_subs: Dict[str, float] = {}
     topic_pubs: Dict[str, float] = {}
+    topic_freq_raw: Dict[str, float] = {}    # raw Hz values for all Topic nodes
+    topic_crit_ord: Dict[str, float] = {}   # ordinal criticality values
 
     for n, attrs in graph.nodes(data=True):
         nt = attrs.get("type") or attrs.get("component_type") or "Application"
@@ -320,6 +388,17 @@ def _normalize_infra_features(
         elif nt == "Broker":
             conn = float(attrs.get("max_connections", sm.get("max_connections", 0)) or 0)
             broker_conn[n] = conn
+        elif nt == "Topic":
+            # Collect raw frequency for per-scenario z-score (computed after this loop).
+            freq_raw = float(
+                attrs.get("frequency", attrs.get("topic_frequency", 0.0)) or 0.0
+            )
+            topic_freq_raw[n] = freq_raw
+            # Criticality ordinal (Topic.criticality, NOT Application.criticality).
+            crit_str = str(
+                attrs.get("criticality", attrs.get("topic_criticality", "minimal"))
+            ).lower()
+            topic_crit_ord[n] = TOPIC_CRITICALITY_ORD.get(crit_str, 0.0)
 
     # PUBLISHES_TO: Application → Topic; SUBSCRIBES_TO: Application → Topic.
     # Both counts are from the Topic's perspective (how many publishers/subscribers it has).
@@ -336,6 +415,25 @@ def _normalize_infra_features(
     max_subs = max(topic_subs.values(), default=1.0) or 1.0
     max_pubs = max(topic_pubs.values(), default=1.0) or 1.0
 
+    # --- Per-scenario log1p z-score for topic frequency -------------------
+    # Apply log1p first (compresses the 0.001–10 000 Hz span to ~0–9.2),
+    # then z-score within this graph so the distribution is centred at μ=0
+    # regardless of domain.  Clamp to [-3, 3] to bound outliers.
+    log1p_vals = {n: math.log1p(hz) for n, hz in topic_freq_raw.items()}
+    if log1p_vals:
+        mu = sum(log1p_vals.values()) / len(log1p_vals)
+        variance = sum((v - mu) ** 2 for v in log1p_vals.values()) / len(log1p_vals)
+        sigma = max(math.sqrt(variance), 1e-6)  # guard against zero-variance graphs
+        log1p_freq_norm: Dict[str, float] = {
+            n: max(-3.0, min(3.0, (v - mu) / sigma))
+            for n, v in log1p_vals.items()
+        }
+    else:
+        log1p_freq_norm = {}
+
+    # Normalise topic_qos_criticality_ord to [0, 1] (max value is 4.0).
+    max_crit_ord = 4.0
+
     infra: Dict[str, Dict[str, float]] = {}
     for n in node_cpu:
         infra[n] = {
@@ -344,11 +442,13 @@ def _normalize_infra_features(
         }
     for n, v in broker_conn.items():
         infra[n] = {"max_connections_norm": v / max_conn}
-    all_topic_nodes = set(topic_subs) | set(topic_pubs)
+    all_topic_nodes = set(topic_subs) | set(topic_pubs) | set(topic_freq_raw)
     for n in all_topic_nodes:
         infra[n] = {
             "subscriber_count_norm": topic_subs.get(n, 0.0) / max_subs,
             "publisher_count_norm": topic_pubs.get(n, 0.0) / max_pubs,
+            "log1p_frequency_norm": log1p_freq_norm.get(n, 0.0),
+            "topic_qos_criticality_ord": topic_crit_ord.get(n, 0.0) / max_crit_ord,
         }
     return infra
 

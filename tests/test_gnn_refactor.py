@@ -68,7 +68,7 @@ def test_node_type_dims_updated():
     assert NODE_TYPE_TO_DIM["Application"] == 23
     assert NODE_TYPE_TO_DIM["Library"] == 23
     assert NODE_TYPE_TO_DIM["Broker"] == 19
-    assert NODE_TYPE_TO_DIM["Topic"] == 20
+    assert NODE_TYPE_TO_DIM["Topic"] == 22
     assert NODE_TYPE_TO_DIM["Node"] == 20
 
 

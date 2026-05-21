@@ -28,7 +28,7 @@ def test_node_feature_dimensions():
     assert NODE_TYPE_TO_DIM["Application"] == 23
     assert NODE_TYPE_TO_DIM["Library"] == 23
     assert NODE_TYPE_TO_DIM["Broker"] == 19   # +1 max_connections_norm
-    assert NODE_TYPE_TO_DIM["Topic"] == 20    # +2 subscriber/publisher counts
+    assert NODE_TYPE_TO_DIM["Topic"] == 22    # +4 subscriber_count_norm, publisher_count_norm, log1p_frequency_norm, topic_qos_criticality_ord
     assert NODE_TYPE_TO_DIM["Node"] == 20     # +2 cpu_cores_norm, memory_gb_norm
 
 
