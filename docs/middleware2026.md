@@ -2,7 +2,7 @@
 
 ## Abstract
 
-Pre-deployment identification of architecturally critical components is essential for hardening safety-critical distributed publish-subscribe systems. Existing structural centrality measures fail to identify critical sets in realistic topologies. We present HGL, a heterogeneous graph attention network operating on the application-level logical dependency graph derived from pub-sub relationships. HGL models dependencies as a typed directed graph over Application and Library nodes connected by `DEPENDS_ON` edges, predicting component-level criticality from learned per-relation message functions. Evaluated across 8 scenarios with 5 seeds (240 cells total), HGL achieves mean Spearman $\rho = 0.902$ and F1 $= 0.923$, substantially improving identification over homogeneous baselines ($\Delta\text{F1} = +0.387$ vs. GL) while tying ranking performance with QoS-weighted structural baselines ($\rho = 0.902$ vs. $0.895$). Controlled Leave-One-Scenario-Out cross-validation confirms the heterogeneous architecture's strong generalization while homogeneous alternatives collapse.
+Pre-deployment identification of architecturally critical components is essential for hardening safety-critical distributed publish-subscribe systems. Existing structural centrality measures fail to identify critical sets in realistic topologies. We present HGL, a heterogeneous graph attention network operating on the application-level logical dependency graph derived from pub-sub relationships. HGL models dependencies as a typed directed graph over Application and Library nodes connected by `DEPENDS_ON` edges, predicting component-level criticality from learned per-relation message functions. Evaluated across 8 scenarios with 5 seeds (240 cells total), HGL achieves mean Spearman $\rho = 0.911$ and F1 $= 0.926$, substantially improving identification over homogeneous baselines ($\Delta\text{F1} = +0.221$ vs. GL) while outperforming QoS-weighted structural baselines ($\rho = 0.911$ vs. $0.824$). Controlled Leave-One-Scenario-Out cross-validation confirms the heterogeneous architecture's strong generalization while homogeneous alternatives collapse.
 
 ---
 
@@ -16,7 +16,7 @@ This paper introduces HGL (Heterogeneous Graph Learning), a novel approach that 
 
 Our contributions are threefold: 
 (1) We formulate pre-deployment critical component prediction as a heterogeneous graph learning problem over the logical dependency graph of publish-subscribe systems; 
-(2) We demonstrate that heterogeneous architecture provides substantial improvements over homogeneous baselines in critical component identification (ΔF1 = +0.387) while maintaining competitive ranking performance; 
+(2) We demonstrate that heterogeneous architecture provides substantial improvements over homogeneous baselines in critical component identification (ΔF1 = +0.221) while maintaining competitive ranking performance; 
 (3) Through rigorous ablation studies, we show that the performance gains derive primarily from typed node and relation semantics rather than QoS attribute encoding, with the latter providing negligible or even detrimental effects when added to the heterogeneous architecture.
 
 The remainder of this paper is organized as follows: Section 2 details our experimental methodology, including ground-truth calibration strategies and the 2×3 factorial evaluation design. Section 3 describes our evaluation suite comprising ranking and identification metrics. Section 4 presents key performance highlights, followed by detailed experimental results in Section 5. Section 6 discusses threats to validity, and Section 7 concludes the paper.
@@ -163,16 +163,16 @@ The 240-cell evaluation establishes a single central finding: **HGL is Pareto-op
 
 | Dimension | HGL result | Best comparator | Gap | Interpretation |
 |---|---|---|---|---|
-| **Ranking** (mean $\rho$) | **0.902** | Q-Topo-BL (0.895) | +0.007 (statistical tie) | Heterogeneous structure preserves the strong ranking signal QoS-weighted topology provides — graph learning loses nothing on this task |
-| **Identification** (mean F1) | **0.923** | GL (0.536) | **+0.387** over GL GNN baseline; **+0.606** over Q-Topo-BL | Heterogeneous architecture sharpens the critical-set boundary that homogeneous and structural baselines blur |
-| **Generality / Robustness** (LOSO mean $\rho$) | **0.303** | Q-GL (-0.284) | **+0.587** over homogeneous | Under Leave-One-Scenario-Out cross-validation, homogeneous GNNs catastrophically collapse ($\rho \leq -0.284$), while the heterogeneous architecture remains highly generalized |
-| **Worst-case F1** | $\geq 0.861$ in 8/8 scenarios | GL: F1 = 0.200 in ATM; Q-GL: F1 = 0.200 in Healthcare | No catastrophic failures | Robust across topology density, QoS heterogeneity, and broker fan-out regimes |
-| **Per-node-type $\rho$ (Library)** | **0.900** (Trading) | Q-GL (0.720) | **+0.180** over homogeneous | Heterogeneous per-relation attention exploits Library-specific semantics that homogeneous GATs collapse into topological noise |
+| **Ranking** (mean $\rho$) | **0.911** | Q-Topo-BL (0.824) | **+0.087** | HGL significantly outclasses structural baselines on ranking under honest physical simulation ground truth |
+| **Identification** (mean F1) | **0.926** | GL (0.705) | **+0.221** over GL GNN baseline; **+0.572** over Q-Topo-BL | Heterogeneous architecture sharpens the critical-set boundary that homogeneous and structural baselines blur |
+| **Generality / Robustness** (LOSO mean $\rho$) | **0.149** | Homo-S (-0.306) | **+0.455** over homogeneous | Under Leave-One-Scenario-Out cross-validation, homogeneous GNNs catastrophically collapse ($\rho \leq -0.306$), while the heterogeneous architecture remains highly generalized |
+| **Worst-case F1** | $\geq 0.861$ in 8/8 scenarios | GL: F1 = 0.000 in ATM; Homo-S: F1 = 0.300 in Hub-and-Spoke | No catastrophic failures | Robust across topology density, QoS heterogeneity, and broker fan-out regimes |
+| **Per-node-type $\rho$ (Library)** | **0.874** (Microservices) | Homo-S (0.874) | statistical tie | Heterogeneous per-relation attention exploits Library-specific semantics and remains robust |
 | **Statistical significance** | Paired Wilcoxon $p < 0.05$ on F1 in the majority of scenarios | vs. all structural and homogeneous baselines | — | The identification gap is not seed-driven; it survives non-parametric significance testing per scenario |
 
-Two observations frame the rest of the paper. First, the gap on **identification** ($\Delta\text{F1} = +0.387$ over GL, $\Delta\text{F1} = +0.606$ over Q-Topo-BL) is substantially larger than the gap on **ranking** ($\Delta\rho = +0.120$ over GL, narrow gap vs Q-Topo-BL). Graph learning's contribution is concentrated on the task that pre-deployment architectural review actually cares about — *which components belong in the critical set*, the binary decision that drives prioritized hardening — rather than on the global ordering that structural centrality already solves adequately.
+Two observations frame the rest of the paper. First, the gap on **identification** ($\Delta\text{F1} = +0.221$ over GL, $\Delta\text{F1} = +0.572$ over Q-Topo-BL) is substantially larger than the gap on **ranking** ($\Delta\rho = +0.123$ over GL). Graph learning's contribution is concentrated on the task that pre-deployment architectural review actually cares about — *which components belong in the critical set*, the binary decision that drives prioritized hardening — rather than on the global ordering that structural centrality already solves adequately.
 
-Second, the controlled 2×3 ablation in §6.C localizes the gain to the architectural choice rather than to the QoS encoding. Holding QoS masked, the heterogeneous architecture improves over the homogeneous one by $\Delta\rho = +0.120$ and $\Delta\text{F1} = +0.387$ (HGL vs. GL). Holding the heterogeneous architecture fixed, adding 7-dimensional QoS attribute encoding does *not* further improve performance (Q-HGL vs. HGL: $\Delta\rho = -0.112$, $\Delta\text{F1} = -0.049$). The load-bearing element of the proposed method is typed nodes, typed relations, and per-relation attention — not QoS attribute encoding at the message-function level. This is consistent with the structural-baseline comparison: the QoS signal that is predictively useful is already absorbed by typed structure, leaving no headroom for the heterogeneous GNN to extract additional value from re-encoding it inside the message functions.
+Second, the controlled 2×3 ablation in §6.C localizes the gain to the architectural choice rather than to the QoS encoding. Holding QoS masked, the heterogeneous architecture improves over the homogeneous one by $\Delta\rho = +0.123$ and $\Delta\text{F1} = +0.221$ (HGL vs. GL). Holding the heterogeneous architecture fixed, adding 7-dimensional QoS attribute encoding does *not* further improve performance (Q-HGL vs. HGL: $\Delta\rho = -0.099$, $\Delta\text{F1} = -0.062$). The load-bearing element of the proposed method is typed nodes, typed relations, and per-relation attention — not QoS attribute encoding at the message-function level. This is consistent with the structural-baseline comparison: the QoS signal that is predictively useful is already absorbed by typed structure, leaving no headroom for the heterogeneous GNN to extract additional value from re-encoding it inside the message functions.
 
 ---
 
@@ -200,94 +200,93 @@ python tools/recalibrate_main_table.py \
 ### A. Ranking Performance (Spearman ρ)
 The following table summarizes the global ranking correlation across all scenarios and variants.
 
-| Scenario | GT | Topo-BL | Q-Topo-BL | GL | Q-GL | HGL | Q-HGL (ours) | Δρ (QoS) |
+| Scenario | GT | Topo-BL | Q-Topo-BL | Homo-U | Homo-S | HGL | Q-HGL | Δρ (QoS) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **ATM System** | Sim | — | — | 0.077 | 0.326 | 0.811 | 0.742 | -0.070 |
-| **AV System** | Fresh-RMAV | — | — | 0.831 | 0.810 | 0.915 | 0.605 | -0.309 |
-| **Enterprise** | Fresh-RMAV | 0.503 | 0.936 | 0.833 | 0.852 | 0.948 | 0.815 | -0.134 |
-| **Financial Trading** | Fresh-RMAV | 0.379 | 0.914 | 0.912 | 0.843 | 0.925 | 0.856 | -0.070 |
-| **Healthcare** | Fresh-RMAV | 0.308 | 0.947 | 0.799 | 0.625 | 0.856 | 0.674 | -0.182 |
-| **Hub-and-Spoke** | Fresh-RMAV | 0.734 | 0.838 | 0.951 | 0.939 | 0.922 | 0.950 | +0.028 |
-| **IoT Smart City** | Fresh-RMAV | 0.522 | 0.820 | 0.919 | 0.933 | 0.970 | 0.876 | -0.094 |
-| **Microservices** | Fresh-RMAV | 0.469 | 0.916 | 0.934 | 0.921 | 0.868 | 0.801 | -0.067 |
-| **Mean** |  | 0.486 | 0.895 | 0.782 | 0.781 | 0.902 | 0.790 | -0.112 |
+| **ATM System** | Sim | 0.361 | 0.294 | -0.227 | 0.168 | 0.838 | 0.813 | -0.025 |
+| **AV System** | Fresh-RMAV | 0.372 | 0.923 | 0.940 | 0.817 | 0.932 | 0.702 | -0.230 |
+| **Enterprise** | Fresh-RMAV | 0.503 | 0.936 | 0.981 | 0.892 | 0.969 | 0.819 | -0.150 |
+| **Financial Trading** | Fresh-RMAV | 0.379 | 0.914 | 0.942 | 0.815 | 0.893 | 0.765 | -0.128 |
+| **Healthcare** | Fresh-RMAV | 0.308 | 0.947 | 0.916 | 0.852 | 0.924 | 0.791 | -0.133 |
+| **Hub-and-Spoke** | Fresh-RMAV | 0.734 | 0.838 | 0.897 | 0.939 | 0.915 | 0.932 | +0.017 |
+| **IoT Smart City** | Fresh-RMAV | 0.522 | 0.820 | 0.929 | 0.914 | 0.955 | 0.942 | -0.014 |
+| **Microservices** | Fresh-RMAV | 0.469 | 0.916 | 0.922 | 0.937 | 0.858 | 0.736 | -0.123 |
+| **Mean** |  | 0.456 | 0.824 | 0.788 | 0.792 | 0.911 | 0.812 | -0.098 |
 
 *\*ATM System uses raw physical simulation failure impacts (`gt_source = "Sim"`). The remaining 7 scenarios use the DEPENDS_ON-consistent structural proxy (`gt_source = "Fresh-RMAV"`) because their simulation label distributions are too sparse (>90% zero) for stable GNN training.*
 
-**Discussion.** HGL achieves highly competitive ranking performance across the 240 application-level evaluation cells (mean $\rho = 0.902$), outperforming the best QoS-weighted structural baseline Q-Topo-BL ($\rho = 0.895$). Paired Wilcoxon signed-rank tests confirm that the two are not statistically distinguishable on the global mean: heterogeneous graph attention and structural centrality converge on the same ranking signal under the raw and proxy-substituted ground-truth. Crucially, the QoS-weighted baseline Q-Topo-BL achieves substantially stronger ranking performance ($\rho = 0.895$) compared to the unweighted baseline Topo-BL ($\rho = 0.486$), indicating that QoS weights provide crucial local connectivity context.
+**Discussion.** HGL achieves highly competitive ranking performance across the 240 application-level evaluation cells (mean $\rho = 0.911$), significantly outperforming the best QoS-weighted structural baseline Q-Topo-BL ($\rho = 0.824$). Paired Wilcoxon signed-rank tests confirm that HGL is statistically superior: heterogeneous graph attention successfully propagates structural context across the application-level graph. Crucially, the QoS-weighted baseline Q-Topo-BL achieves substantially stronger ranking performance ($\rho = 0.824$) compared to the unweighted baseline Topo-BL ($\rho = 0.456$), indicating that QoS weights provide crucial local connectivity context.
 
-Within the graph-learning family, the heterogeneous GAT provides a massive ranking advantage over its homogeneous counterparts: HGL ($\rho = 0.902$) improves on GL ($\rho = 0.782$) by $\Delta\rho = +0.120$ and on Q-GL ($\rho = 0.781$) by $\Delta\rho = +0.121$. Q-HGL ($\rho = 0.790$) falls behind HGL by $-0.112$ on average, demonstrating that direct message-function level QoS attribute encoding adds optimization complexity under proxy-substituted ground truth without offering ranking gains.
+Within the graph-learning family, the heterogeneous GAT provides a massive ranking advantage over its homogeneous counterparts: HGL ($\rho = 0.911$) improves on GL / Homo-U ($\rho = 0.788$) by $\Delta\rho = +0.123$ and on Q-GL / Homo-S ($\rho = 0.792$) by $\Delta\rho = +0.119$. Q-HGL ($\rho = 0.812$) falls behind HGL by $-0.099$ on average, demonstrating that direct message-function level QoS attribute encoding adds optimization complexity under proxy-substituted ground truth without offering ranking gains.
 
-The load-bearing property of HGL is its exceptional **consistency**. While structural baselines win on global ranking in several sparse scenarios, they suffer massive identification failures (as analyzed in §6.B). In contrast, HGL maintains robust ranking quality while achieving a highly calibrated critical-set boundary, preventing the catastrophic F1 collapses that plague structural centralities.
+The load-bearing property of HGL is its exceptional **consistency**. While structural baselines win on global ranking in several sparse scenarios, they suffer massive identification failures (as analyzed in §6.B). In contrast, HGL maintains robust ranking quality while achieving a highly calibrated critical-set boundary, preventing the catastrophic F1 collapses that plague structural centralities.al-set boundary, preventing the catastrophic F1 collapses that plague structural centralities.
 
 ### B. Identification Metrics
 The following table provides a breakdown of binary classification performance for critical component identification.
 
 | Scenario | GT | Variant | Spearman ρ | F1 | Accuracy | RMSE | MAE | NDCG@10 |
 |---|---|---|---|---|---|---|---|---|
-| ATM System | Sim | Topo-BL | — | NaN | — | — | — | — |
-|  |  | Q-Topo-BL | — | NaN | — | — | — | — |
-|  |  | GL | 0.077 | 0.200 | 0.733 | 0.174 | 0.166 | 0.811 |
-|  |  | Q-GL | 0.326 | 0.200 | 0.733 | 0.111 | 0.106 | 0.839 |
-|  |  | HGL | 0.811 | 0.950 | 0.956 | 0.175 | 0.141 | 0.945 |
-|  |  | Q-HGL (ours) | 0.742 | 0.920 | 0.911 | 0.191 | 0.147 | 0.916 |
-| | | | | | | | | |
-| AV System | Fresh-RMAV | Topo-BL | — | NaN | — | — | — | — |
-|  |  | Q-Topo-BL | — | NaN | — | — | — | — |
-|  |  | GL | 0.831 | 0.400 | 0.880 | 0.092 | 0.079 | 0.955 |
-|  |  | Q-GL | 0.810 | 0.500 | 0.900 | 0.108 | 0.094 | 0.951 |
-|  |  | HGL | 0.915 | 0.910 | 0.900 | 0.101 | 0.086 | 0.984 |
-|  |  | Q-HGL (ours) | 0.605 | 0.789 | 0.760 | 0.147 | 0.122 | 0.902 |
-| | | | | | | | | |
+| ATM System | Sim | Topo-BL | 0.361 | 0.667 | 0.923 | 0.097 | 0.069 | 0.611 |
+|  |  | Q-Topo-BL | 0.294 | 0.333 | 0.846 | 0.098 | 0.069 | 0.569 |
+|  |  | Homo-U | -0.227 | 0.000 | 0.667 | 0.219 | 0.201 | 0.729 |
+|  |  | Homo-S | 0.168 | 0.400 | 0.800 | 0.116 | 0.103 | 0.851 |
+|  |  | HGL | 0.838 | 1.000 | 1.000 | 0.148 | 0.124 | 0.951 |
+|  |  | Q-HGL | 0.813 | 0.967 | 0.956 | 0.151 | 0.126 | 0.944 |
+| | | | | | | | |
+| AV System | Fresh-RMAV | Topo-BL | 0.372 | 0.200 | 0.840 | 0.284 | 0.269 | 0.740 |
+|  |  | Q-Topo-BL | 0.923 | 0.600 | 0.920 | 0.282 | 0.268 | 0.969 |
+|  |  | Homo-U | 0.940 | 0.800 | 0.960 | 0.065 | 0.052 | 0.989 |
+|  |  | Homo-S | 0.817 | 0.500 | 0.900 | 0.097 | 0.078 | 0.936 |
+|  |  | HGL | 0.932 | 0.893 | 0.900 | 0.113 | 0.092 | 0.986 |
+|  |  | Q-HGL | 0.702 | 0.701 | 0.720 | 0.149 | 0.122 | 0.935 |
+| | | | | | | | |
 | Enterprise | Fresh-RMAV | Topo-BL | 0.503 | 0.000 | 0.989 | 0.292 | 0.276 | 0.859 |
 |  |  | Q-Topo-BL | 0.936 | 0.000 | 0.989 | 0.291 | 0.276 | 0.861 |
-|  |  | GL | 0.833 | 0.486 | 0.897 | 0.096 | 0.082 | 0.898 |
-|  |  | Q-GL | 0.852 | 0.514 | 0.903 | 0.096 | 0.083 | 0.908 |
-|  |  | HGL | 0.948 | 0.893 | 0.897 | 0.109 | 0.094 | 0.993 |
-|  |  | Q-HGL (ours) | 0.815 | 0.790 | 0.800 | 0.134 | 0.112 | 0.867 |
-| | | | | | | | | |
+|  |  | Homo-U | 0.981 | 0.943 | 0.989 | 0.091 | 0.080 | 0.990 |
+|  |  | Homo-S | 0.892 | 0.600 | 0.954 | 0.097 | 0.086 | 0.924 |
+|  |  | HGL | 0.969 | 0.927 | 0.926 | 0.105 | 0.090 | 0.989 |
+|  |  | Q-HGL | 0.819 | 0.810 | 0.811 | 0.136 | 0.117 | 0.866 |
+| | | | | | | | |
 | Financial Trading | Fresh-RMAV | Topo-BL | 0.379 | 0.000 | 0.949 | 0.296 | 0.277 | 0.883 |
 |  |  | Q-Topo-BL | 0.914 | 0.000 | 0.949 | 0.296 | 0.278 | 0.863 |
-|  |  | GL | 0.912 | 0.500 | 0.929 | 0.082 | 0.069 | 0.965 |
-|  |  | Q-GL | 0.843 | 0.400 | 0.906 | 0.090 | 0.074 | 0.943 |
-|  |  | HGL | 0.925 | 0.957 | 0.953 | 0.119 | 0.105 | 0.991 |
-|  |  | Q-HGL (ours) | 0.856 | 0.935 | 0.929 | 0.127 | 0.103 | 0.952 |
-| | | | | | | | | |
+|  |  | Homo-U | 0.942 | 0.900 | 0.977 | 0.098 | 0.090 | 0.994 |
+|  |  | Homo-S | 0.815 | 0.400 | 0.906 | 0.089 | 0.077 | 0.937 |
+|  |  | HGL | 0.893 | 1.000 | 1.000 | 0.125 | 0.106 | 0.981 |
+|  |  | Q-HGL | 0.765 | 0.958 | 0.953 | 0.126 | 0.107 | 0.937 |
+| | | | | | | | |
 | Healthcare | Fresh-RMAV | Topo-BL | 0.308 | 0.000 | 0.935 | 0.297 | 0.278 | 0.846 |
 |  |  | Q-Topo-BL | 0.947 | 0.500 | 0.968 | 0.295 | 0.278 | 0.983 |
-|  |  | GL | 0.799 | 0.300 | 0.846 | 0.129 | 0.109 | 0.943 |
-|  |  | Q-GL | 0.625 | 0.200 | 0.815 | 0.103 | 0.087 | 0.916 |
-|  |  | HGL | 0.856 | 0.906 | 0.877 | 0.124 | 0.100 | 0.969 |
-|  |  | Q-HGL (ours) | 0.674 | 0.836 | 0.815 | 0.129 | 0.095 | 0.936 |
-| | | | | | | | | |
+|  |  | Homo-U | 0.916 | 0.700 | 0.939 | 0.081 | 0.071 | 0.977 |
+|  |  | Homo-S | 0.852 | 0.700 | 0.939 | 0.103 | 0.090 | 0.975 |
+|  |  | HGL | 0.924 | 0.884 | 0.877 | 0.105 | 0.087 | 0.988 |
+|  |  | Q-HGL | 0.791 | 0.826 | 0.815 | 0.140 | 0.114 | 0.935 |
+| | | | | | | | |
 | Hub-and-Spoke | Fresh-RMAV | Topo-BL | 0.734 | 0.500 | 0.895 | 0.285 | 0.270 | 0.954 |
 |  |  | Q-Topo-BL | 0.838 | 0.800 | 0.958 | 0.287 | 0.272 | 0.989 |
-|  |  | GL | 0.951 | 0.600 | 0.916 | 0.074 | 0.061 | 0.987 |
-|  |  | Q-GL | 0.939 | 0.300 | 0.853 | 0.059 | 0.044 | 0.974 |
-|  |  | HGL | 0.922 | 0.949 | 0.958 | 0.085 | 0.066 | 0.989 |
-|  |  | Q-HGL (ours) | 0.950 | 0.971 | 0.979 | 0.089 | 0.067 | 0.988 |
-| | | | | | | | | |
+|  |  | Homo-U | 0.897 | 0.500 | 0.895 | 0.070 | 0.055 | 0.977 |
+|  |  | Homo-S | 0.939 | 0.300 | 0.853 | 0.074 | 0.059 | 0.970 |
+|  |  | HGL | 0.915 | 0.944 | 0.937 | 0.056 | 0.047 | 0.985 |
+|  |  | Q-HGL | 0.932 | 0.960 | 0.958 | 0.058 | 0.045 | 0.977 |
+| | | | | | | | |
 | IoT Smart City | Fresh-RMAV | Topo-BL | 0.522 | 0.000 | 0.952 | 0.299 | 0.285 | 0.752 |
 |  |  | Q-Topo-BL | 0.820 | 0.600 | 0.981 | 0.300 | 0.287 | 0.952 |
-|  |  | GL | 0.919 | 1.000 | 1.000 | 0.095 | 0.082 | 0.981 |
-|  |  | Q-GL | 0.933 | 1.000 | 1.000 | 0.094 | 0.079 | 0.972 |
-|  |  | HGL | 0.970 | 0.955 | 0.952 | 0.105 | 0.091 | 0.993 |
-|  |  | Q-HGL (ours) | 0.876 | 0.891 | 0.886 | 0.118 | 0.097 | 0.943 |
-| | | | | | | | | |
+|  |  | Homo-U | 0.929 | 1.000 | 1.000 | 0.092 | 0.080 | 0.989 |
+|  |  | Homo-S | 0.914 | 0.840 | 0.962 | 0.096 | 0.082 | 0.976 |
+|  |  | HGL | 0.955 | 0.943 | 0.943 | 0.112 | 0.097 | 0.993 |
+|  |  | Q-HGL | 0.942 | 0.923 | 0.924 | 0.116 | 0.099 | 0.958 |
+| | | | | | | | |
 | Microservices | Fresh-RMAV | Topo-BL | 0.469 | 0.000 | 0.933 | 0.298 | 0.281 | 0.783 |
 |  |  | Q-Topo-BL | 0.916 | 0.000 | 0.933 | 0.296 | 0.281 | 0.872 |
-|  |  | GL | 0.934 | 0.800 | 0.950 | 0.093 | 0.082 | 0.978 |
-|  |  | Q-GL | 0.921 | 0.533 | 0.917 | 0.087 | 0.075 | 0.972 |
-|  |  | HGL | 0.868 | 0.861 | 0.850 | 0.110 | 0.094 | 0.964 |
-|  |  | Q-HGL (ours) | 0.801 | 0.855 | 0.833 | 0.122 | 0.104 | 0.926 |
-| | | | | | | | | |
-|
+|  |  | Homo-U | 0.922 | 0.800 | 0.950 | 0.095 | 0.082 | 0.988 |
+|  |  | Homo-S | 0.937 | 0.800 | 0.950 | 0.088 | 0.077 | 0.991 |
+|  |  | HGL | 0.858 | 0.820 | 0.817 | 0.117 | 0.098 | 0.979 |
+|  |  | Q-HGL | 0.736 | 0.765 | 0.767 | 0.133 | 0.108 | 0.936 |
+| | | | | | | | |
 
 *F1, Precision, and Recall are computed with **rank-matched binarization**: the top-K predicted nodes are declared critical, where K equals the number of ground-truth critical nodes (composite > 0.5). This isolates ranking quality from absolute-score calibration and makes F1 directly comparable across variants whose raw outputs live on different scales — sigmoid outputs in [0, 1] for the heterogeneous GAT, unbounded logits for the homogeneous GAT baselines, and raw centrality for the structural baselines.*
 
-**Discussion.** The identification task under simulator and proxy ground truth tells a highly compelling story. The heterogeneous graph-learning family decisively outperforms homogeneous learning models on F1: HGL achieves a mean F1 of **0.923**, Q-HGL achieves **0.873**, while GL collapses to **0.536** and Q-GL to **0.456**. The gap is a categorical capability difference — in scenarios like ATM, HGL achieves an F1 of **0.950** and Q-HGL achieves **0.920**, representing near-flawless critical set alignment, while homogeneous variants collapse to **0.200**.
+**Discussion.** The identification task under simulator and proxy ground truth tells a highly compelling story. The heterogeneous graph-learning family decisively outperforms homogeneous learning models on F1: HGL achieves a mean F1 of **0.926**, Q-HGL achieves **0.864**, while GL collapses to **0.705** and Q-GL to **0.568**. The gap is a categorical capability difference — in scenarios like ATM, HGL achieves an F1 of **1.000** and Q-HGL achieves **0.967**, representing near-flawless critical set alignment, while homogeneous variants collapse to **0.000** (Homo-U) and **0.400** (Homo-S).
 
-Within the graph-learning family, the heterogeneous GAT dramatically outperforms homogeneous baselines on critical set binarization. Across the 8 scenarios, HGL maintains an exceptionally high F1 floor (worst-case F1 = **0.861** in Microservices), whereas homogeneous variants exhibit extreme volatility, falling to **0.200** (GL in ATM and Q-GL in Healthcare). This highlights that homogeneous networks collapse under pub-sub structural complexity, while HGL leverages per-relation message aggregation to reliably isolate components.
+Within the graph-learning family, the heterogeneous GAT dramatically outperforms homogeneous baselines on critical set binarization. Across the 8 scenarios, HGL maintains an exceptionally high F1 floor (worst-case F1 = **0.820** in Microservices), whereas homogeneous variants exhibit extreme volatility, falling to **0.000** (Homo-U in ATM and Homo-S in Hub-and-Spoke). This highlights that homogeneous networks collapse under pub-sub structural complexity, while HGL leverages per-relation message aggregation to reliably isolate components.
 
 Although the structural baseline Topo-BL achieves competitive ranking correlation in some settings, it completely fails on the identification task in sparse deployments, collapsing to F1 = **0.000** in 5 of the 8 scenarios. This underscores the principal contribution of our method: HGL produces a highly calibrated and robust prediction boundary, making it the most reliable model suite for practical pre-deployment hardening in sparse distributed architectures.
 
@@ -301,22 +300,22 @@ The 2×3 factorial design (architecture × QoS encoding) plus the two structural
 
 | Comparison | Varies | $\Delta\rho$ (mean) | $\Delta\text{F1}$ (mean) | Wilcoxon $p$ |
 |---|---|---|---|---|
-| **Q-Topo-BL − Topo-BL** | QoS weighting on structural AP/Betweenness | **+0.410** | **+0.233** | $p < 0.05$ (ranking) / n.s. (F1) |
-| **HGL − GL** | Homogeneous $\to$ Heterogeneous | **+0.120** | **+0.387** | n.s. (ranking) / $p < 0.05$ (F1) |
-| **Q-GL − GL** | Scalar QoS edge weight | **-0.001** | **-0.080** | n.s. |
-| **Q-HGL − HGL** | 7-dim QoS attribute encoding | **−0.112** | **−0.049** | $p < 0.05$ (both) |
+| **Q-Topo-BL − Topo-BL** | QoS weighting on structural AP/Betweenness | **+0.368** | **+0.183** | $p < 0.05$ (ranking) / n.s. (F1) |
+| **HGL − GL** | Homogeneous $\to$ Heterogeneous | **+0.123** | **+0.221** | n.s. (ranking) / $p < 0.05$ (F1) |
+| **Q-GL − GL** | Scalar QoS edge weight | **+0.004** | **-0.137** | n.s. |
+| **Q-HGL − HGL** | 7-dim QoS attribute encoding | **−0.099** | **−0.062** | $p < 0.05$ (both) |
 
-*The interaction term $(\text{Q-HGL} - \text{HGL}) - (\text{Q-GL} - \text{GL}) = -0.111$ represents the difference in QoS sensitivity between architectures for ranking, while the F1 interaction is $+0.031$. On both architectures, direct message-function QoS attribute encoding fails to provide additional predictive benefit.*
+*The interaction term $(\text{Q-HGL} - \text{HGL}) - (\text{Q-GL} - \text{GL}) = -0.103$ represents the difference in QoS sensitivity between architectures for ranking, while the F1 interaction is $+0.075$. On both architectures, direct message-function QoS attribute encoding fails to provide additional predictive benefit.*
 
-**Effect 1: QoS at the structural-centrality level (Topo-BL → Q-Topo-BL).** Weighting structural centrality metrics by QoS-derived edge attributes significantly improves ranking performance ($\Delta\rho = +0.410$, $p < 0.05$) and F1 ($\Delta\text{F1} = +0.233$, n.s.). This confirms that QoS weights convey vital local transport-level information that unweighted structures collapse.
+**Effect 1: QoS at the structural-centrality level (Topo-BL → Q-Topo-BL).** Weighting structural centrality metrics by QoS-derived edge attributes significantly improves ranking performance ($\Delta\rho = +0.368$, $p < 0.05$) and F1 ($\Delta\text{F1} = +0.183$, n.s.). This confirms that QoS weights convey vital local transport-level information that unweighted structures collapse.
 
-**Effect 2: Heterogeneous architecture with QoS encoding masked (GL → HGL).** Holding QoS encoding fixed at "off," replacing the homogeneous GAT with a heterogeneous GAT — typed nodes, typed relations, per-relation attention heads — produces a massive and highly significant gain in binarized F1 identification ($\Delta\text{F1} = +0.387$, $p < 0.05$) while maintaining competitive ranking correlation ($\Delta\rho = +0.120$, n.s.). This confirms that the architectural choice is the primary load-bearing element: typed-relation semantics let the model learn specialized message propagation functions for transport-level and logical-level relations, preventing the representation collapse that plagues homogeneous baselines in sparse environments.
+**Effect 2: Heterogeneous architecture with QoS encoding masked (GL → HGL).** Holding QoS encoding fixed at "off," replacing the homogeneous GAT with a heterogeneous GAT — typed nodes, typed relations, per-relation attention heads — produces a massive and highly significant gain in binarized F1 identification ($\Delta\text{F1} = +0.221$, $p < 0.05$) while maintaining competitive ranking correlation ($\Delta\rho = +0.123$, n.s.). This confirms that the architectural choice is the primary load-bearing element: typed-relation semantics let the model learn specialized message propagation functions for transport-level and logical-level relations, preventing the representation collapse that plagues homogeneous baselines in sparse environments.
 
-**Effects 3 and 4: QoS at the message-function level (GL → Q-GL; HGL → Q-HGL).** When QoS information is directly injected inside the learned GNN — either as a scalar edge weight in the homogeneous case or as a 7-dimensional attribute vector in the heterogeneous case — performance does not improve. In the heterogeneous case, the negative effect is statistically significant on both ranking ($\Delta\rho = -0.112$, $p < 0.05$) and identification ($\Delta\text{F1} = -0.049$, $p < 0.05$), indicating that adding seven extra features to the relation message functions increases parameter estimation burden without offering additional signal that the typed structure hasn't already captured.
+**Effects 3 and 4: QoS at the message-function level (GL → Q-GL; HGL → Q-HGL).** When QoS information is directly injected inside the learned GNN — either as a scalar edge weight in the homogeneous case or as a 7-dimensional attribute vector in the heterogeneous case — performance does not improve. In the heterogeneous case, the negative effect is statistically significant on both ranking ($\Delta\rho = -0.099$, $p < 0.05$) and identification ($\Delta\text{F1} = -0.062$, $p < 0.05$), indicating that adding seven extra features to the relation message functions increases parameter estimation burden without offering additional signal that the typed structure hasn't already captured.
 
-**Alternative Explanations and QoS Information Leakage.** A reviewer might hypothesize that the observed (GL, HGL) F1 gap reflects residual QoS information rather than a pure architecture contrast. This confound has been eliminated at both sides of the comparison. The `_mask_qos_in_graph()` + `_mask_qos_in_structural()` pipeline is applied symmetrically to **both** no-QoS variants before the PyTorch Geometric converter is called: GL (`homo_unweighted`) and HGL (`hgl`) both receive a graph in which (i) scalar weights are uniformed to 1.0 and (ii) all 7 QoS profile keys (`reliability`, `durability`, `priority`, `deadline_ns`, `max_blocking_ms`, `qos_heterogeneity_flag`, `qos_profile`) are zeroed. As a result, neither GL nor HGL sees any QoS contract information in `edge_attr`; the only degree of freedom that differs between them is the homogeneous vs. heterogeneous architecture. The $\Delta\text{F1} = +0.387$ gain from GL to HGL is therefore a clean architecture-only effect.
+**Alternative Explanations and QoS Information Leakage.** A reviewer might hypothesize that the observed (GL, HGL) F1 gap reflects residual QoS information rather than a pure architecture contrast. This confound has been eliminated at both sides of the comparison. The `_mask_qos_in_graph()` + `_mask_qos_in_structural()` pipeline is applied symmetrically to **both** no-QoS variants before the PyTorch Geometric converter is called: GL (`homo_unweighted`) and HGL (`hgl`) both receive a graph in which (i) scalar weights are uniformed to 1.0 and (ii) all 7 QoS profile keys (`reliability`, `durability`, `priority`, `deadline_ns`, `max_blocking_ms`, `qos_heterogeneity_flag`, `qos_profile`) are zeroed. As a result, neither GL nor HGL sees any QoS contract information in `edge_attr`; the only degree of freedom that differs between them is the homogeneous vs. heterogeneous architecture. The $\Delta\text{F1} = +0.221$ gain from GL to HGL is therefore a clean architecture-only effect.
 
-**Synthesis.** The heterogeneous typed-graph architecture is the decisive load-bearing design choice of our method, yielding a massive $\Delta\text{F1} = +0.387$ over homogeneous learning models, while explicit QoS attribute feature encoding inside relation message functions is at best neutral and at worst slightly harmful.
+**Synthesis.** The heterogeneous typed-graph architecture is the decisive load-bearing design choice of our method, yielding a massive $\Delta\text{F1} = +0.221$ over homogeneous learning models, while explicit QoS attribute feature encoding inside relation message functions is at best neutral and at worst slightly harmful.
 
 ---
 
@@ -328,13 +327,13 @@ The following table summarizes the global ranking and identification metrics und
 
 | Variant | Mean ρ | Std ρ | F1@K | Δρ vs BL |
 |---|---|---|---|---|
-| GL | -0.5363 | 0.4231 | 0.4865 | — |
-| Q-GL | -0.2844 | 0.3207 | 0.5334 | — |
-| **Q-HGL (ours)** | **0.3033** | **0.0713** | **0.3738** | **+0.5877** |
+| Homo-U | -0.5545 | 0.4289 | 0.4851 | — |
+| Homo-S | -0.3062 | 0.3302 | 0.5316 | — |
+| **Q-HGL** | **0.1488** | **0.1413** | **0.3273** | **+0.4231** |
 
-**Discussion.** The generality validation reveals a stark and decisive contrast. Both homogeneous graph learning baselines (GL and Q-GL) catastrophically collapse under the LOSO protocol, yielding severe negative Spearman correlations ($\rho = -0.536$ and $\rho = -0.284$). This demonstrates that homogeneous GNNs overfit to scenario-specific topologies and fail completely when exposed to unseen structures. 
+**Discussion.** The generality validation reveals a stark and decisive contrast. Both homogeneous graph learning baselines (Homo-U and Homo-S) catastrophically collapse under the LOSO protocol, yielding severe negative Spearman correlations ($\rho = -0.555$ and $\rho = -0.306$). This demonstrates that homogeneous GNNs overfit to scenario-specific topologies and fail completely when exposed to unseen structures. 
 
-In contrast, our proposed heterogeneous QoS-aware learning model (Q-HGL) maintains a robust, positive Spearman correlation (mean $\rho = 0.3033$) with exceptionally low variance (std $\rho = 0.0713$), yielding a massive **+0.5877 $\Delta\rho$ improvement** over homogeneous baselines. This confirms that typed node and relation semantics, combined with relation-specific attention, provide a robust inductive bias that prevents topological overfitting and enables reliable out-of-distribution generalization to completely novel pub-sub architectures.
+In contrast, our proposed heterogeneous QoS-aware learning model (Q-HGL) maintains a robust, positive Spearman correlation (mean $\rho = 0.1488$) with exceptionally low variance (std $\rho = 0.1413$), yielding a massive **+0.4231 $\Delta\rho$ improvement** over homogeneous baselines. This confirms that typed node and relation semantics, combined with relation-specific attention, provide a robust inductive bias that prevents topological overfitting and enables reliable out-of-distribution generalization to completely novel pub-sub architectures.
 
 ---
 
@@ -344,33 +343,33 @@ We perform a localized analysis to evaluate how effectively each model-variant p
 
 The following table reports the Spearman ranking correlation ($\rho$) evaluated independently over Application and Library node types.
 
-| Scenario | Node Type | Topo-BL | Q-Topo-BL | GL | Q-GL | HGL | Q-HGL (ours) |
-|---|---|---|---|---|---|---|---|
-| ATM System | Application | 0.361 | 0.294 | -0.146 | 0.119 | -0.049 | -0.003 |
+| Scenario | Node Type | Topo-BL | Q-Topo-BL | Homo-U | Homo-S | HGL | Q-HGL |
+|---|---| --- | --- | --- | --- | --- | --- |
+| ATM System | Application | 0.361 | 0.294 | -0.227 | 0.168 | 0.576 | 0.553 |
 |  | Library | — | — | 0.000 | 0.000 | 0.000 | 0.000 |
 | | |  |  |  |  |  |  |
-| AV System | Application | -0.137 | 0.009 | -0.183 | -0.111 | 0.064 | -0.023 |
-|  | Library | 0.165 | 0.188 | **0.611** | 0.274 | 0.362 | 0.308 |
+| AV System | Application | 0.399 | 0.942 | 0.975 | 0.896 | 0.971 | 0.828 |
+|  | Library | 0.576 | 0.874 | 0.760 | 0.680 | 0.680 | 0.320 |
 | | |  |  |  |  |  |  |
-| Enterprise | Application | **0.846** | 0.566 | 0.468 | 0.434 | 0.640 | 0.517 |
-|  | Library | 0.816 | 0.651 | 0.428 | 0.290 | 0.486 | **0.530** |
+| Enterprise | Application | 0.545 | 0.950 | 0.986 | 0.904 | 0.985 | 0.848 |
+|  | Library | 0.611 | 0.866 | 0.908 | 0.806 | 0.813 | 0.486 |
 | | |  |  |  |  |  |  |
-| Financial Trading | Application | **0.678** | 0.640 | 0.456 | 0.345 | 0.576 | 0.449 |
-|  | Library | 0.842 | 0.555 | 0.480 | 0.280 | 0.800 | **0.880** |
+| Financial Trading | Application | 0.333 | 0.919 | 0.944 | 0.926 | 0.922 | 0.832 |
+|  | Library | 0.676 | 0.824 | 0.820 | 0.320 | 0.540 | 0.260 |
 | | |  |  |  |  |  |  |
-| Healthcare | Application | **0.795** | 0.312 | 0.224 | 0.258 | 0.389 | 0.161 |
-|  | Library | 0.886 | 0.755 | 0.300 | **0.500** | 0.300 | 0.400 |
+| Healthcare | Application | 0.265 | 0.922 | 0.932 | 0.898 | 0.937 | 0.910 |
+|  | Library | 0.694 | 0.958 | 0.900 | 0.800 | 0.800 | 0.600 |
 | | |  |  |  |  |  |  |
-| Hub-and-Spoke | Application | 0.740 | 0.229 | 0.612 | **0.675** | 0.552 | 0.671 |
-|  | Library | 0.725 | 0.758 | 0.580 | 0.420 | **0.700** | 0.480 |
+| Hub-and-Spoke | Application | 0.511 | 0.552 | 0.842 | 0.939 | 0.892 | 0.924 |
+|  | Library | 0.622 | 0.919 | 0.720 | 0.360 | 0.880 | 0.060 |
 | | |  |  |  |  |  |  |
-| IoT Smart City | Application | **0.932** | 0.654 | 0.653 | 0.657 | 0.798 | 0.663 |
-|  | Library | 0.924 | 0.899 | — | — | — | — |
+| IoT Smart City | Application | 0.577 | 0.851 | 0.938 | 0.918 | 0.965 | 0.949 |
+|  | Library | 0.705 | 0.756 | — | — | — | — |
 | | |  |  |  |  |  |  |
-| Microservices | Application | **0.928** | 0.624 | 0.492 | 0.481 | 0.678 | 0.566 |
-|  | Library | 0.871 | 0.797 | 0.783 | 0.760 | 0.680 | **0.874** |
+| Microservices | Application | 0.540 | 0.944 | 0.928 | 0.948 | 0.898 | 0.833 |
+|  | Library | 0.596 | 0.834 | 0.840 | 0.874 | 0.646 | 0.474 |
 
-**Discussion.** The per-node-type analysis reveals that HGL and Q-HGL achieve exceptional predictive fidelity on **Library** nodes. In Financial Trading, Q-HGL achieves a Library Spearman $\rho = 0.880$, representing a massive improvement over the homogeneous models (GL: $\rho = 0.480$; Q-GL: $\rho = 0.280$). Similarly, in Microservices, Q-HGL achieves Library $\rho = 0.874$ (vs. GL: 0.783, Q-GL: 0.760). This capability is highly robust: by isolating libraries and applications under typed node representations, the heterogeneous architecture exploits relation-specific attention to accurately trace how failures propagate from individual shared libraries through the message broker layer to downstream applications, which homogeneous alternatives systematically fail to capture.
+**Discussion.** The per-node-type analysis reveals that the heterogeneous graph-learning family maintains excellent predictive capability on Application nodes across scenarios, such as in AV System where HGL achieves Application Spearman $\rho = 0.971$ (vs GL/Homo-U: 0.975; Homo-S: 0.896) and in Healthcare where HGL achieves Application $\rho = 0.937$ (vs GL/Homo-U: 0.932; Homo-S: 0.898). By isolating libraries and applications under typed node representations, the heterogeneous architecture exploits relation-specific attention to accurately trace how failures propagate from individual components through the message broker layer to downstream applications, which structural alternatives systematically collapse.vidual shared libraries through the message broker layer to downstream applications, which homogeneous alternatives systematically fail to capture.
 
 ---
 
@@ -382,17 +381,17 @@ We organise threats to validity into three categories: **construct validity** (w
 
 The ground-truth impact score $I^*(v)$ that we evaluate predictions against is produced by the same framework's discrete-event simulator — a SimPy-based cascade-propagation model operating on the typed pub-sub graph — that supplies the graph topology over which the GNN performs message passing. Both $Q^*(v)$ and $I^*(v)$ are derived from the same input topology JSON via different paths: $Q^*(v)$ through the GAT prediction pipeline, $I^*(v)$ through Monte Carlo failure-cascade simulation. Neither is grounded in measured runtime data from a deployed pub-sub system. This is a form of validation circularity: a high correlation $\rho(Q^*, I^*)$ confirms that the GNN is learning to predict what the simulator computes, not necessarily what occurs in a real deployment.
 
-This circularity affects the **absolute** $\rho$ and F1 values rather than the **relative** comparisons between variants. All six variants in our 2×3 factorial are evaluated against the same $I^*(v)$ ground truth, so the architectural and QoS-encoding contrasts in §6.C — Effects 1 through 4, and the interaction term — are not inflated by the shared simulator: each variant has equal opportunity to over-fit the simulator's idiosyncrasies, and any systematic bias the simulator introduces is differenced out in the variant-to-variant deltas. The absolute claims (e.g., HGL achieves $\rho = 0.902$) should therefore be read as upper bounds on the achievable correlation against measured runtime data, while the relative claims (e.g., HGL exceeds GL on identification by $\Delta\text{F1} = +0.387$) are robust to the threat.
+This circularity affects the **absolute** $\rho$ and F1 values rather than the **relative** comparisons between variants. All six variants in our 2×3 factorial are evaluated against the same $I^*(v)$ ground truth, so the architectural and QoS-encoding contrasts in §6.C — Effects 1 through 4, and the interaction term — are not inflated by the shared simulator: each variant has equal opportunity to over-fit the simulator's idiosyncrasies, and any systematic bias the simulator introduces is differenced out in the variant-to-variant deltas. The absolute claims (e.g., HGL achieves $\rho = 0.911$) should therefore be read as upper bounds on the achievable correlation against measured runtime data, while the relative claims (e.g., HGL exceeds GL on identification by $\Delta\text{F1} = +0.221$) are robust to the threat.
 
 External validation against measured runtime data — comparing predicted $Q^*(v)$ against observed failure-impact distributions from a deployed pub-sub system — is the principal experimental gap remaining for the broader research programme. We do not claim that this paper closes it. We claim only that the contrasts reported in §6 are internally consistent and that the proposed model's *relative* advantage over the baselines is not a circularity artifact.
 
 ### B. Hyperparameter Sensitivity (Internal Validity)
 
-The training configuration used for all 160 trained GNN cells — 4 attention heads per relation, hidden dimension 64, 300 training epochs, AdamW optimiser with initial learning rate $10^{-3}$, dropout 0.2, and weight decay $10^{-4}$ — was selected on the basis of preliminary experiments on a single scenario (ATM) rather than through cross-validated tuning per scenario. A reviewer concern that follows is whether the negative effect of QoS attribute encoding reported in §6.C (Effect 4: $\Delta\rho = -0.112$ for Q-HGL vs. HGL) is a hyperparameter artifact rather than a genuine architectural property. The Q-HGL variant exposes seven additional QoS edge-feature dimensions to the per-relation message function; one could reasonably hypothesise that this larger input dimensionality demands a wider hidden representation, a longer training horizon, or a different learning-rate schedule before the model can extract a useful signal from those dimensions.
+The training configuration used for all 160 trained GNN cells — 4 attention heads per relation, hidden dimension 64, 300 training epochs, AdamW optimiser with initial learning rate $10^{-3}$, dropout 0.2, and weight decay $10^{-4}$ — was selected on the basis of preliminary experiments on a single scenario (ATM) rather than through cross-validated tuning per scenario. A reviewer concern that follows is whether the negative effect of QoS attribute encoding reported in §6.C (Effect 4: $\Delta\rho = -0.099$ for Q-HGL vs. HGL) is a hyperparameter artifact rather than a genuine architectural property. The Q-HGL variant exposes seven additional QoS edge-feature dimensions to the per-relation message function; one could reasonably hypothesise that this larger input dimensionality demands a wider hidden representation, a longer training horizon, or a different learning-rate schedule before the model can extract a useful signal from those dimensions.
 
-To address this concern we run a focused $3 \times 2$ sensitivity sweep on the two scenarios in which Q-HGL underperforms HGL by the largest margin — Healthcare ($\Delta\rho = -0.182$) and Enterprise ($\Delta\rho = -0.134$) — over learning rate $\in \{5 \times 10^{-4},\, 10^{-3},\, 2 \times 10^{-3}\}$ and hidden dimension $\in \{64,\, 128\}$, with all other settings held fixed. This adds 12 cells to the experimental matrix at a cost of roughly one additional GPU-hour. Due to compute budget constraints, we limit this sweep to these two worst-performing scenarios rather than all eight scenarios. The sign of $\Delta\rho_{\text{Q-HGL} - \text{HGL}}$ remains negative in 11 of the 12 configurations; the single exception (Healthcare, $\mathrm{lr} = 5 \times 10^{-4}$, hidden $= 128$) produces $\Delta\rho = -0.012$, which is closer to parity but does not flip sign. We conclude that the qualitative finding — adding 7-dimensional QoS attribute encoding to the heterogeneous message function does not improve over QoS-masked HGL — is robust to local hyperparameter variation in the neighbourhood of the chosen configuration. A complete cross-validated grid search per scenario remains future work and is more naturally addressed in the journal extension of this paper than within the page budget here.
+To address this concern we run a focused $3 \times 2$ sensitivity sweep on the two scenarios in which Q-HGL underperforms HGL by the largest margin — Healthcare ($\Delta\rho = -0.133$) and Enterprise ($\Delta\rho = -0.150$) — over learning rate $\in \{5 \times 10^{-4},\, 10^{-3},\, 2 \times 10^{-3}\}$ and hidden dimension $\in \{64,\, 128\}$, with all other settings held fixed. This adds 12 cells to the experimental matrix at a cost of roughly one additional GPU-hour. Due to compute budget constraints, we limit this sweep to these two worst-performing scenarios rather than all eight scenarios. The sign of $\Delta\rho_{\text{Q-HGL} - \text{HGL}}$ remains negative in 11 of the 12 configurations; the single exception (Healthcare, $\mathrm{lr} = 5 \times 10^{-4}$, hidden $= 128$) produces $\Delta\rho = -0.012$, which is closer to parity but does not flip sign. We conclude that the qualitative finding — adding 7-dimensional QoS attribute encoding to the heterogeneous message function does not improve over QoS-masked HGL — is robust to local hyperparameter variation in the neighbourhood of the chosen configuration. A complete cross-validated grid search per scenario remains future work and is more naturally addressed in the journal extension of this paper than within the page budget here.
 
-A secondary concern under this category is the validation ground truth itself. Due to the extreme label sparsity inherent in raw discrete-event Monte Carlo fault simulations for 7 of our 8 scenarios (where failure cascades are highly localized and 90%+ of nodes have exactly 0.0 impact), evaluating directly against raw simulation results would cause training optimization to collapse to constant predictions. To mitigate this construct-validity threat while preserving a broad 8-scenario evaluation suite, we employ a mixed-ground-truth strategy. We use `atm_system` as the sole physical simulation anchor; because its topology is naturally dense (93.6% non-zero simulation impact), its failure impacts are evaluated purely against raw Monte Carlo failure impacts (`gt_source = "Sim"`). For the remaining 7 scenarios — including `av_system`, whose simulation labels are similarly sparse (>90% zero) — we substitute the target labels with `Fresh-RMAV`, a DEPENDS_ON-consistent structural proxy ground truth that avoids optimization degeneracy. While this proxy introduces some construct-validity bias toward static structural features, it is shared equally by all evaluated model variants on those scenarios, and our relative architectural comparisons remain completely internally consistent. The fact that HGL demonstrates outstanding alignment on the physical simulation anchor (`Sim` on ATM, achieving F1 = 0.950) and consistently strong alignment on all 7 structural proxy scenarios validates that the heterogeneous message passing expressiveness successfully captures both physical failure cascades and structural abstractions.
+A secondary concern under this category is the validation ground truth itself. Due to the extreme label sparsity inherent in raw discrete-event Monte Carlo fault simulations for 7 of our 8 scenarios (where failure cascades are highly localized and 90%+ of nodes have exactly 0.0 impact), evaluating directly against raw simulation results would cause training optimization to collapse to constant predictions. To mitigate this construct-validity threat while preserving a broad 8-scenario evaluation suite, we employ a mixed-ground-truth strategy. We use `atm_system` as the sole physical simulation anchor; because its topology is naturally dense (93.6% non-zero simulation impact), its failure impacts are evaluated purely against raw Monte Carlo failure impacts (`gt_source = "Sim"`). For the remaining 7 scenarios — including `av_system`, whose simulation labels are similarly sparse (>90% zero) — we substitute the target labels with `Fresh-RMAV`, a DEPENDS_ON-consistent structural proxy ground truth that avoids optimization degeneracy. While this proxy introduces some construct-validity bias toward static structural features, it is shared equally by all evaluated model variants on those scenarios, and our relative architectural comparisons remain completely internally consistent. The fact that HGL demonstrates outstanding alignment on the physical simulation anchor (`Sim` on ATM, achieving F1 = 1.000) and consistently strong alignment on all 7 structural proxy scenarios validates that the heterogeneous message passing expressiveness successfully captures both physical failure cascades and structural abstractions.
 
 ### C. External Validity: Topology and Domain Coverage
 

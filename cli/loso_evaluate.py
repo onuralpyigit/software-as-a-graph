@@ -429,9 +429,14 @@ def run_one_fold(
                 create_node_splits(data, seed=seed)
                 model = build_baseline(variant, hidden_channels=hidden, num_heads=heads,
                                        num_layers=layers, dropout=dropout)
-                trainer = GNNTrainer(model=model, checkpoint_dir=str(ckpt_dir),
-                                     lr=lr, num_epochs=epochs, patience=30)
-                trainer.train(data)
+                best_path = ckpt_dir / "best_model.pt"
+                if best_path.exists():
+                    logger.info("  Found baseline checkpoint %s. Skipping training.", best_path)
+                    model.load_state_dict(torch.load(best_path, map_location="cpu"))
+                else:
+                    trainer = GNNTrainer(model=model, checkpoint_dir=str(ckpt_dir),
+                                         lr=lr, num_epochs=epochs, patience=30)
+                    trainer.train(data)
 
                 # Evaluate on holdout
                 conv_h = networkx_to_hetero_data(
@@ -470,26 +475,36 @@ def run_one_fold(
                 # hetero_qos (default) or topology_rmav → GNNService path
                 effective_mode = "rmav" if variant == "topology_rmav" else mode
                 effective_layers = 1 if primary.n_nodes <= 200 else (2 if primary.n_nodes <= 500 else layers)
-                service = GNNService(
-                    checkpoint_dir=str(ckpt_dir),
-                    hidden_channels=hidden,
-                    num_heads=heads,
-                    num_layers=effective_layers,
-                    dropout=dropout,
-                    predict_edges=False,
-                )
-                service.train(
-                    graph=primary.graph,
-                    structural_metrics=primary.structural,
-                    simulation_results=primary.simulation,
-                    rmav_scores=primary.rmav,
-                    inductive_graphs=[b.hetero_data for b in inductives],
-                    seeds=[seed],
-                    num_epochs=epochs,
-                    lr=lr,
-                    patience=30,
-                    layer=layer,
-                )
+                
+                best_path = ckpt_dir / "best_model.pt"
+                if best_path.exists():
+                    logger.info("  Found GNN checkpoint %s. Skipping training.", best_path)
+                    service = GNNService.from_checkpoint(
+                        str(ckpt_dir),
+                        graph=primary.graph,
+                        layer=layer,
+                    )
+                else:
+                    service = GNNService(
+                        checkpoint_dir=str(ckpt_dir),
+                        hidden_channels=hidden,
+                        num_heads=heads,
+                        num_layers=effective_layers,
+                        dropout=dropout,
+                        predict_edges=False,
+                    )
+                    service.train(
+                        graph=primary.graph,
+                        structural_metrics=primary.structural,
+                        simulation_results=primary.simulation,
+                        rmav_scores=primary.rmav,
+                        inductive_graphs=[b.hetero_data for b in inductives],
+                        seeds=[seed],
+                        num_epochs=1 if variant == "topology_rmav" else epochs,
+                        lr=lr,
+                        patience=30,
+                        layer=layer,
+                    )
                 result = service.predict(
                     graph=holdout.graph,
                     structural_metrics=holdout.structural,
