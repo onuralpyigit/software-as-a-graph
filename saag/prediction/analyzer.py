@@ -6,7 +6,10 @@
  Box-Plot method (adaptive, data-driven thresholds).
 
  Formulas (per component v):
-     R*(v) = 0.45×RPR + 0.30×DG_in + 0.25×CDPot             (Reliability v5)
+     R*(v) = 0.45×RPR + 0.30×DG_in + 0.25×CDPot             (Reliability v5, Application/Broker/Node/Library)
+     R_topic*(v) = 0.50×FOC_freq(v) + 0.50×CDPot_freq(v)     (Reliability v6, Topic nodes)
+                   where FOC_freq(t) = log1p(f(t))·s(t) / max_t[log1p(f(t))·s(t)],
+                   f(t) = message rate (Hz), s(t) = subscriber count
      M*(v) = 0.35×BT  + 0.30×w_out + 0.15×CQP + 0.12×CR + 0.08×(1–CC) (Maintainability v6)
      A*(v) = 0.35×AP_c_directed + 0.25×QSPOF + 0.25×BR + 0.10×CDI + 0.05×w(v) (Availability v3)
      V*(v) = 0.40×REV  + 0.35×RCL  + 0.25×QADS              (Vulnerability v2)

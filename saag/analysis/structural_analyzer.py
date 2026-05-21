@@ -221,6 +221,7 @@ class StructuralAnalyzer:
             mpci[nid] = raw_mpci / (n_nodes - 1) if n_nodes > 1 else 0.0
 
         foc: Dict[str, float] = {}
+        topic_freq_hz: Dict[str, float] = {}   # raw Hz per Topic node (0.0 for others)
         path_complexity: Dict[str, float] = {}
         for nid in G.nodes:
             # path_complexity(v) = mean(log2(1 + path_count(e))) for v -> * (efferent)
@@ -233,9 +234,35 @@ class StructuralAnalyzer:
 
         topic_nodes = [n for n, d in G.nodes(data=True) if d.get("component_type") == "Topic"]
         if topic_nodes:
-            max_sub = max((G.nodes[n].get("subscriber_count", 0) for n in topic_nodes), default=0)
+            # --- Frequency-Weighted Fan-Out Criticality (FOC_freq) ---
+            # FOC_freq(t) = log1p(f(t)) · s(t) / max_{t'} [ log1p(f(t')) · s(t') ]
+            #
+            # Rationale: impact now scales with message rate, not just structural
+            # reachability.  log1p compresses the 0.001–10000 Hz span to ~0–9.2
+            # while preserving strict monotonicity (log1p(0) == 0 so zero-Hz topics
+            # contribute zero regardless of subscriber count, as intended).
+            #
+            # When all topics share the same frequency the ranking is identical to
+            # the structural baseline because the shared log1p(f) factor cancels in
+            # normalisation.  Only heterogeneous-frequency scenarios are affected,
+            # which is exactly the Middleware 2026 QoS-amplified cascade claim.
+            #
+            # Q/I independence: frequency is a design-time scenario attribute, not
+            # a post-deployment measurement, so its presence in Q(v) does not
+            # violate the pre-deployment independence criterion.
+            raw_foc: Dict[str, float] = {}
             for n in topic_nodes:
-                foc[n] = G.nodes[n].get("subscriber_count", 0) / max_sub if max_sub > 0 else 0.0
+                sub = G.nodes[n].get("subscriber_count", 0)
+                # Accept both canonical keys for backward compatibility
+                hz = float(
+                    G.nodes[n].get("frequency",
+                    G.nodes[n].get("topic_frequency", 0.0)) or 0.0
+                )
+                topic_freq_hz[n] = hz
+                raw_foc[n] = math.log1p(hz) * sub
+            max_foc = max(raw_foc.values(), default=1.0) or 1.0
+            for n in topic_nodes:
+                foc[n] = raw_foc[n] / max_foc
         # For non-topic nodes, FOC stays 0.0 by default in StructuralMetrics
 
         # --- Continuous AP & CDI & Propagation Metrics ---
@@ -356,6 +383,7 @@ class StructuralAnalyzer:
                 broker_exposure=ps.get("broker_exposure", 0.0),
                 publisher_spof=ps.get("publisher_spof", 0.0),
                 fan_out_criticality=foc.get(nid, 0.0),
+                topic_frequency_hz=topic_freq_hz.get(nid, 0.0),
                 mpci=mpci.get(nid, 0.0),
                 path_complexity=path_complexity.get(nid, 0.0),
                 # Infrastructure Metrics

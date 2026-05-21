@@ -64,7 +64,8 @@ class StructuralMetrics:
     pubsub_degree: float = 0.0           # Topics this app publishes to OR subscribes to
     pubsub_betweenness: float = 0.0      # Betweenness in the pub-sub bipartite graph
     broker_exposure: float = 0.0         # Distinct brokers routing touched topics
-    fan_out_criticality: float = 0.0     # Topic fan-out (Topic nodes only)
+    fan_out_criticality: float = 0.0     # Topic fan-out (Topic nodes only): log1p(Hz)·sub_count / max
+    topic_frequency_hz: float = 0.0      # Raw message rate in Hz (Topic nodes only; 0.0 for all other types)
     mpci: float = 0.0                    # Multi-path coupling intensity
     path_complexity: float = 0.0         # Efferent path count complexity: mean(log2(1+path_count))
 
