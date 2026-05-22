@@ -301,9 +301,9 @@ class Neo4jRepository:
         apps = [serialization.flatten_component(a, "Application") for a in apps_data]
         self._import_batch(apps, """
             MERGE (a:Application {id: row.id})
-            SET a.name = row.name, a.role = row.role, a.app_type = row.app_type,
-                a.criticality = row.criticality, a.version = row.version,
-                a.csc_name = row.csc_name, a.csci_name = row.csci_name,
+        SET a.name = row.name, a.role = row.role, a.app_type = row.app_type,
+            a.criticality = row.criticality, a.priority = row.priority, a.hotstandby = row.hotstandby, a.version = row.version,
+            a.csc_name = row.csc_name, a.csci_name = row.csci_name,
                 a.css_name = row.css_name, a.csms_name = row.csms_name,
                 a.cm_total_loc = row.cm_total_loc, a.cm_total_classes = row.cm_total_classes,
                 a.cm_total_methods = row.cm_total_methods, a.cm_total_fields = row.cm_total_fields,
