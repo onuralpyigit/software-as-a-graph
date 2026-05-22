@@ -499,8 +499,8 @@ class TestTopicQoSFeaturesFlow:
         create_node_splits(data, train_ratio=0.6, val_ratio=0.2, seed=SEED)
 
         torch.manual_seed(SEED)
-        model = build_node_gnn(data.metadata(), hidden_channels=16, num_heads=2, num_layers=2)
-        model.train()
+        model = build_node_gnn(data.metadata(), hidden_channels=16, num_heads=2, num_layers=2, dropout=0.0)
+        model.eval()
 
         # Wrap Topic x feature matrix as differentiable to measure gradient w.r.t. freq and crit
         topic_x = data["Topic"].x.clone().detach().requires_grad_(True)
