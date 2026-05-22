@@ -22,6 +22,7 @@ from .models import (
     PRIORITY_OPTIONS,
     ROLE_OPTIONS,
     APP_TYPE_OPTIONS,
+    APP_PRIORITY_OPTIONS,
 )
 from .datasets import (
     DomainDataset,
@@ -731,12 +732,15 @@ class StatisticalGraphGenerator:
                 "css_name": _app_cluster_domain[i],
                 "csms_name": name_rng.choice(_hier_pool["system"]),
             }
+
+            priority = self.rng.choice(APP_PRIORITY_OPTIONS)
             apps.append(Application(
                 id=f"A{i}",
                 name=app_name,
                 role=role,
                 app_type=app_type,
                 criticality=False,  # assigned after topology by _assign_criticality_two_pass
+                priority=priority,
                 version=f"{self.rng.randint(1, 3)}.{self.rng.randint(0, 9)}.{self.rng.randint(0, 9)}",
                 system_hierarchy=hierarchy,
                 code_metrics=code_metrics,

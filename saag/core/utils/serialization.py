@@ -100,6 +100,7 @@ def reconstruct_component_dict(comp: ComponentData) -> Dict[str, Any]:
             "role": props.get("role", "pubsub"),
             "app_type": props.get("app_type", "service"),
             "criticality": props.get("criticality", "LOW"),
+            "priority": props.get("priority", "MEDIUM"),
         })
         if props.get("version"): res["version"] = props["version"]
     elif comp.component_type == "Library":
@@ -261,6 +262,7 @@ def flatten_component(comp: Dict[str, Any], comp_type: str) -> Dict[str, Any]:
             "role": comp.get("role", "pubsub"),
             "app_type": comp.get("app_type", "service"),
             "criticality": comp.get("criticality", "LOW"),
+            "priority": comp.get("priority", "MEDIUM"),
             "version": comp.get("version", ""),
         })
     elif comp_type == "Library":

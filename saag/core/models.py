@@ -216,6 +216,7 @@ class Application(GraphEntity):
     role: str = "pubsub"  # pub, sub, pubsub
     app_type: str = "service"
     criticality: bool = False
+    priority: str = "MEDIUM"  # HIGH, MEDIUM, LOW
     version: Optional[str] = None
     system_hierarchy: Optional[Dict[str, str]] = None
     code_metrics: Optional[Dict[str, Any]] = None
@@ -266,6 +267,7 @@ class Application(GraphEntity):
             "app_type": self.app_type,
             "role": self.role,
             "criticality": self.criticality,
+            "priority": self.priority,
             "system_hierarchy": self.system_hierarchy,
             "code_metrics": self.code_metrics,
         }
