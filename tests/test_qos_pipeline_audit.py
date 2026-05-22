@@ -502,6 +502,19 @@ class TestTopicQoSFeaturesFlow:
         model = build_node_gnn(data.metadata(), hidden_channels=16, num_heads=2, num_layers=2, dropout=0.0)
         model.eval()
 
+        # Deterministically initialize the first Linear layer weights of the Topic projection
+        # using a numpy-based generator to ensure robust, non-symmetric weights across all PyTorch versions and CPU architectures.
+        import numpy as np
+        np.random.seed(SEED)
+        w_shape = model.input_proj["Topic"][0].weight.shape
+        b_shape = model.input_proj["Topic"][0].bias.shape
+        weight_np = np.random.normal(0.0, 0.2, size=w_shape)
+        bias_np = np.random.normal(0.0, 0.2, size=b_shape)
+
+        with torch.no_grad():
+            model.input_proj["Topic"][0].weight.copy_(torch.from_numpy(weight_np).float())
+            model.input_proj["Topic"][0].bias.copy_(torch.from_numpy(bias_np).float())
+
         # Wrap Topic x feature matrix as differentiable to measure gradient w.r.t. freq and crit
         topic_x = data["Topic"].x.clone().detach().requires_grad_(True)
 
@@ -522,6 +535,15 @@ class TestTopicQoSFeaturesFlow:
         crit_idx = 21
 
         assert topic_x.grad is not None, "GNN did not compute gradients for Topic features!"
+        
+        # Diagnostic prints for the test runner's stdout
+        print("DIAGNOSTIC - topic_x[:, 20]:", topic_x[:, 20].tolist())
+        print("DIAGNOSTIC - topic_x[:, 21]:", topic_x[:, 21].tolist())
+        print("DIAGNOSTIC - topic_x.grad[:, 20]:", topic_x.grad[:, 20].tolist())
+        print("DIAGNOSTIC - topic_x.grad[:, 21]:", topic_x.grad[:, 21].tolist())
+        col_grads = [topic_x.grad[:, i].abs().sum().item() for i in range(topic_x.shape[-1])]
+        print("DIAGNOSTIC - topic_x.grad col-wise abs sums:", col_grads)
+
         freq_grads = topic_x.grad[:, freq_idx].abs().sum().item()
         crit_grads = topic_x.grad[:, crit_idx].abs().sum().item()
 
