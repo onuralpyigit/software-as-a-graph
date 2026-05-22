@@ -376,6 +376,7 @@ class AppInfoModel(BaseModel):
     weight: float
     role: Optional[str] = None
     priority: Optional[str] = None
+    hotstandby: bool = False
     pub_topic_ids: List[str]
     sub_topic_ids: List[str]
 

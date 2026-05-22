@@ -217,6 +217,7 @@ const PROP_DESCS: Record<string, string> = {
   role:                    "Functional role of this application within the system",
   criticality:             "Statically declared criticality tier (CRITICAL / HIGH / MEDIUM / LOW)",
   priority:                "Runtime priority tier of the application — HIGH, MEDIUM, or LOW",
+  hotstandby:              "True when this application has a warm-standby replication pair deployed on two distinct infrastructure nodes (published as two RUNS_ON edges in Neo4j)",
   version:                 "Software version string for this component",
   layer:                   "Architectural layer this component belongs to (app, infra, mw, system)",
   // ── Infrastructure node ────────────────────────────────────────────────────
@@ -1489,6 +1490,7 @@ const ConnEChartsGraph = memo(function ConnEChartsGraph({ graphData, dims, isDar
           if (typeLabel === "Application") {
             const role = get("role"); if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
             const priority = get("priority"); if (priority != null && priority !== "") extra += `<br/><span style="opacity:0.7">Priority: ${priority}</span>`
+            const hotstandby = get("hotstandby"); if (hotstandby) extra += `<br/><span style="opacity:0.7">Hot Standby: true</span>`
           } else if (typeLabel === "Topic") {
             const qr = get("qos_reliability"); if (qr != null && qr !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${qr}</span>`
             const qd = get("qos_durability");  if (qd != null && qd !== "") extra += `<br/><span style="opacity:0.7">Durability: ${qd}</span>`
@@ -2201,7 +2203,8 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
             const roleStr = (role != null && role !== "") ? `<br/><span style="opacity:0.7">Role: ${role}</span>` : ""
             const priority = app.priority ?? app.properties?.priority
             const priorityStr = (priority != null && priority !== "") ? `<br/><span style="opacity:0.7">Priority: ${priority}</span>` : ""
-            return `<div style="font-size:12px;line-height:1.7"><b>${name}</b><br/><span style="opacity:0.7">${levelLabel}</span>${roleStr}${priorityStr}</div>`
+            const hotstandbyStr = app.hotstandby || app.properties?.hotstandby ? `<br/><span style="opacity:0.7">Hot Standby: true</span>` : ""
+            return `<div style="font-size:12px;line-height:1.7"><b>${name}</b><br/><span style="opacity:0.7">${levelLabel}</span>${roleStr}${priorityStr}${hotstandbyStr}</div>`
           }
           if (d?._level && !d?._isConnLeaf) {
             const name = dispName(d.name)
@@ -2230,6 +2233,8 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
               if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
               const priority = n.properties?.priority ?? n.priority
               if (priority != null && priority !== "") extra += `<br/><span style="opacity:0.7">Priority: ${priority}</span>`
+              const hotstandby = n.properties?.hotstandby ?? n.hotstandby
+              if (hotstandby) extra += `<br/><span style="opacity:0.7">Hot Standby: true</span>`
             } else if (type === "Broker") {
               const bt = n.properties?.broker_type ?? n.broker_type
               if (bt != null && bt !== "") extra += `<br/><span style="opacity:0.7">Protocol: ${bt}</span>`
@@ -3856,6 +3861,7 @@ const GraphOverviewEChart = memo(function GraphOverviewEChart({
           if (type === "Application") {
             const role = get("role"); if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
             const priority = get("priority"); if (priority != null && priority !== "") extra += `<br/><span style="opacity:0.7">Priority: ${priority}</span>`
+            const hotstandby = get("hotstandby"); if (hotstandby) extra += `<br/><span style="opacity:0.7">Hot Standby: true</span>`
           }
           if (type === "Topic") {
             const qr = get("qos_reliability"); if (qr != null && qr !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${qr}</span>`
@@ -4251,7 +4257,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
                 }
               : undefined,
             nodeType: type as string,
-            ...(type === "Application" ? { _role: n.role ?? n.properties?.role ?? "", _priority: n.priority ?? n.properties?.priority ?? "" } : {}),
+            ...(type === "Application" ? { _role: n.role ?? n.properties?.role ?? "", _priority: n.priority ?? n.properties?.priority ?? "", _hotstandby: n.hotstandby ?? n.properties?.hotstandby ?? false } : {}),
             ...(type === "Topic" ? {
               _qos_reliability:        n.qos_reliability            ?? n.properties?.qos_reliability            ?? "",
               _qos_durability:         n.qos_durability             ?? n.properties?.qos_durability             ?? "",
@@ -4355,6 +4361,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
             let extra = ""
             if (type === "Application" && d._role) extra += `<br/><span style="opacity:0.7">Role: ${d._role}</span>`
             if (type === "Application" && d._priority) extra += `<br/><span style="opacity:0.7">Priority: ${d._priority}</span>`
+            if (type === "Application" && d._hotstandby) extra += `<br/><span style="opacity:0.7">Hot Standby: true</span>`
             if (type === "Topic") {
               if (d._qos_reliability        != null && d._qos_reliability        !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${d._qos_reliability}</span>`
               if (d._qos_durability         != null && d._qos_durability         !== "") extra += `<br/><span style="opacity:0.7">Durability: ${d._qos_durability}</span>`

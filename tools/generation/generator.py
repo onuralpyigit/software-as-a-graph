@@ -23,6 +23,7 @@ from .models import (
     ROLE_OPTIONS,
     APP_TYPE_OPTIONS,
     APP_PRIORITY_OPTIONS,
+    APP_HOTSTANDBY_OPTIONS,
 )
 from .datasets import (
     DomainDataset,
@@ -346,6 +347,9 @@ class StatisticalGraphGenerator:
     ) -> List[Dict[str, str]]:
         """Assign apps to nodes with cluster affinity.
 
+        Apps with hotstandby=True get a second RUNS_ON edge to a distinct
+        node, providing the "active + standby" infra pair.
+
         With probability *p_collocate* the host is drawn from the app's
         cluster node subset; otherwise it is drawn uniformly from all nodes.
         This makes node-level structural metrics (betweenness, SPOF
@@ -359,6 +363,12 @@ class StatisticalGraphGenerator:
             else:
                 host = self.rng.choice(nodes)
             runs_on.append(self._make_edge(app, host))
+            if app.hotstandby:
+                # Pick a second distinct node for the standby pair
+                candidates = [n for n in nodes if n.id != host.id]
+                if candidates:
+                    standby_host = self.rng.choice(candidates)
+                    runs_on.append(self._make_edge(app, standby_host))
         return runs_on
 
     def _partition_topics_by_qos_affinity(
@@ -734,6 +744,7 @@ class StatisticalGraphGenerator:
             }
 
             priority = self.rng.choice(APP_PRIORITY_OPTIONS)
+            hotstandby = self.rng.choice(APP_HOTSTANDBY_OPTIONS)
             apps.append(Application(
                 id=f"A{i}",
                 name=app_name,
@@ -741,6 +752,7 @@ class StatisticalGraphGenerator:
                 app_type=app_type,
                 criticality=False,  # assigned after topology by _assign_criticality_two_pass
                 priority=priority,
+                hotstandby=hotstandby,
                 version=f"{self.rng.randint(1, 3)}.{self.rng.randint(0, 9)}.{self.rng.randint(0, 9)}",
                 system_hierarchy=hierarchy,
                 code_metrics=code_metrics,

@@ -302,7 +302,7 @@ class Neo4jRepository:
         self._import_batch(apps, """
             MERGE (a:Application {id: row.id})
         SET a.name = row.name, a.role = row.role, a.app_type = row.app_type,
-            a.criticality = row.criticality, a.priority = row.priority, a.version = row.version,
+            a.criticality = row.criticality, a.priority = row.priority, a.hotstandby = row.hotstandby, a.version = row.version,
             a.csc_name = row.csc_name, a.csci_name = row.csci_name,
                 a.css_name = row.css_name, a.csms_name = row.csms_name,
                 a.cm_total_loc = row.cm_total_loc, a.cm_total_classes = row.cm_total_classes,

@@ -73,6 +73,7 @@ class TrafficSimulator:
                         COALESCE(a.weight, 0.5)    AS weight,
                         a.role                     AS role,
                         a.priority                 AS priority,
+                        a.hotstandby               AS hotstandby,
                         pub_ids,
                         sub_ids
                     ORDER BY name
@@ -87,6 +88,7 @@ class TrafficSimulator:
                             "weight": float(rec["weight"]),
                             "role": rec["role"],
                             "priority": rec["priority"],
+                            "hotstandby": rec["hotstandby"],
                             "pub_topic_ids": list(rec["pub_ids"]),
                             "sub_topic_ids": list(rec["sub_ids"]),
                         }

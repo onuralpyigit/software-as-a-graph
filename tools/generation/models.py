@@ -23,6 +23,7 @@ APP_PRIORITY_OPTIONS = ["HIGH", "MEDIUM", "LOW"]
 
 ROLE_OPTIONS = ["pub", "sub", "pubsub"]
 APP_TYPE_OPTIONS = ["sensor", "actuator", "controller", "monitor", "gateway", "processor"]
+APP_HOTSTANDBY_OPTIONS = [False, True]
 
 
 @dataclass
