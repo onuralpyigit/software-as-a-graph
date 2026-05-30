@@ -1,4 +1,4 @@
-# Reproducing Q-HGL (Middleware 2026)
+# Reproducing HGL-QoS (Middleware 2026)
 
 > **QoS-Aware Heterogeneous Graph Learning for Architectural Criticality Prediction**
 > Submitted to ACM Middleware 2026
@@ -108,11 +108,11 @@ make -f reproduce/Makefile smoke-test EPOCHS=50
 
 | Variant flag | Description |
 |---|---|
-| `hetero_qos` | **Q-HGL (Proposed)** — Heterogeneous GAT with 7-d edge features |
-| `hetero_unweighted` | **HGL (Proposed)** — Heterogeneous GAT with QoS attributes masked |
-| `homo_scalar` | **Homo-S** — Homogeneous GAT with scalar QoS weight per edge |
-| `homo_unweighted` | **Homo-U** — Homogeneous GAT with no edge weighting |
-| `q_topo_baseline` | **Q-Topo-BL** — QoS-weighted structural centrality baseline |
+| `hgl_qos` | **HGL-QoS (Proposed)** — Heterogeneous GAT with 7-d edge features |
+| `hgl` | **HGL** — Heterogeneous GAT with QoS attributes masked |
+| `gl_qos` | **GL-QoS** — Homogeneous GAT with scalar QoS weight per edge |
+| `gl` | **GL** — Homogeneous GAT with no edge weighting |
+| `topo_qos` | **Topo-QoS** — QoS-weighted structural centrality baseline |
 | `topo_baseline` | **Topo-BL** — Unweighted structural centrality baseline |
 
 ---

@@ -137,7 +137,7 @@ def _recompute_topo(
         cached_data = _load_scenario_data(scenario)
 
     nx_graph, structural_dict, simulation_dict, _, _ = cached_data
-    use_qos = (variant == "q_topo_baseline")
+    use_qos = (variant == "topo_qos")
 
     struct_pred = _compute_topo_baseline_scores(
         nx_graph, structural_dict, use_qos=use_qos
@@ -234,7 +234,7 @@ def _try_recompute_homo(
 
     # Mirror the ablation gate in _train_cell: GL must use the masked graph
     # so that inference runs on the same input distribution as training.
-    use_qos = (variant == "homo_scalar")
+    use_qos = (variant == "gl_qos")
     if use_qos:
         train_graph = nx_graph
         train_sm    = structural_dict
@@ -312,7 +312,7 @@ def _try_recompute_hetero(
         logger.debug("[%s|%s|s%d] checkpoint dir missing: %s", scenario, variant, seed, ckpt_dir)
         return None, cached_data
 
-    use_qos = (variant == "hetero_qos")
+    use_qos = (variant == "hgl_qos")
     train_graph = nx_graph if use_qos else _mask_qos_in_graph(nx_graph)
     train_sm    = structural_dict if use_qos else _mask_qos_in_structural(structural_dict)
 
@@ -459,13 +459,13 @@ def main():
             t0 = time.time()
             calib = None
             try:
-                if variant in ("topo_baseline", "q_topo_baseline"):
+                if variant in ("topo_baseline", "topo_qos"):
                     calib, scenario_data = _recompute_topo(
                         sc, variant, seed, cached_data=scenario_data
                     )
                     if calib is not None:
                         n_recal_topo += 1
-                elif variant in ("homo_unweighted", "homo_scalar"):
+                elif variant in ("gl", "gl_qos"):
                     calib, scenario_data = _try_recompute_homo(
                         sc, variant, seed,
                         args.hidden, args.heads, args.layers, args.dropout,
@@ -474,7 +474,7 @@ def main():
                     )
                     if calib is not None:
                         n_recal_gnn += 1
-                elif variant in ("hgl", "hetero_qos"):
+                elif variant in ("hgl", "hgl_qos"):
                     calib, scenario_data = _try_recompute_hetero(
                         sc, variant, seed,
                         args.hidden, args.heads, args.layers, args.dropout,

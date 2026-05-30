@@ -43,17 +43,19 @@ _NODE_TYPE_LABELS = {
     "Node":        "Node",
     "Library":     "Lib",
 }
-_VARIANT_ORDER = ["topology_rmav", "homo_unweighted", "homo_scalar", "hetero_qos"]
+_VARIANT_ORDER = ["topology_rmav", "gl", "gl_qos", "hgl", "hgl_qos"]
 _VARIANT_LABELS = {
-    "hetero_qos":      "Q-HGL (ours)",
-    "homo_scalar":     "Homo-Scalar",
-    "homo_unweighted": "Homo-Unweighted",
+    "hgl_qos":         "HGL-QoS (ours)",
+    "hgl":             "HGL",
+    "gl_qos":          "GL-QoS",
+    "gl":              "GL",
     "topology_rmav":   "RMAV baseline",
 }
 _VARIANT_COLORS = {
-    "hetero_qos":      "#4C72B0",
-    "homo_scalar":     "#DD8452",
-    "homo_unweighted": "#55A868",
+    "hgl_qos":         "#4C72B0",
+    "hgl":             "#55A868",
+    "gl_qos":          "#DD8452",
+    "gl":              "#8172B3",
     "topology_rmav":   "#C44E52",
 }
 
@@ -80,7 +82,7 @@ def _extract_from_main_table(path: Path) -> Dict[str, Dict[str, Dict[str, float]
         if "error" in cell:
             continue
         variant = cell.get("variant")
-        per_type = cell.get("per_node_type_rho", {})
+        per_type = cell.get("per_node_type_rho") or cell.get("per_node_type", {})
         if not variant or not per_type:
             continue
         buf.setdefault(variant, {})
@@ -228,7 +230,7 @@ def _make_figure(
     ax.set_ylabel("Spearman ρ (mean ± std)", fontsize=11)
     ax.set_title(
         "Figure 4: Per-Node-Type Spearman ρ by Variant\n"
-        "(Q-HGL gains most on QoS-bearing node types: App, Topic)",
+        "(HGL-QoS gains most on QoS-bearing node types: App, Topic)",
         fontsize=12, fontweight="bold",
     )
     ax.set_ylim(bottom=0.0)

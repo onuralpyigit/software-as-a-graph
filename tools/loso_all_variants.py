@@ -31,7 +31,7 @@ from typing import Dict, List, Optional
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-ALL_VARIANTS = ["topology_rmav", "homo_unweighted", "homo_scalar", "hetero_qos"]
+ALL_VARIANTS = ["topology_rmav", "gl", "gl_qos", "hgl", "hgl_qos"]
 DEFAULT_SEEDS = "42,123,456,789,2024"
 OUTPUT_BASE   = Path("output/loso")
 RESULTS_DIR   = Path("results")
@@ -93,9 +93,10 @@ def _run_variant(
 # ── Comparison table ──────────────────────────────────────────────────────────
 
 _VARIANT_LABELS = {
-    "hetero_qos":      "Q-HGL (ours)",
-    "homo_scalar":     "Homo-Scalar",
-    "homo_unweighted": "Homo-Unweighted",
+    "hgl_qos":         "HGL-QoS (ours)",
+    "hgl":             "HGL",
+    "gl_qos":          "GL-QoS",
+    "gl":              "GL",
     "topology_rmav":   "RMAV baseline",
 }
 
@@ -132,26 +133,26 @@ def _build_comparison_table(
             ],
         }
 
-    # Compute Δρ (hetero_qos vs best baseline)
-    if "hetero_qos" in table:
-        hq_rho = table["hetero_qos"].get("mean_rho", 0.0)
+    # Compute Δρ (hgl_qos vs best baseline)
+    if "hgl_qos" in table:
+        hq_rho = table["hgl_qos"].get("mean_rho", 0.0)
         baseline_rhos = [
             v.get("mean_rho", 0.0)
             for k, v in table.items()
-            if k != "hetero_qos" and v.get("mean_rho") is not None
+            if k != "hgl_qos" and v.get("mean_rho") is not None
         ]
         best_baseline = max(baseline_rhos, default=0.0)
-        table["hetero_qos"]["delta_vs_best_baseline"] = round(hq_rho - best_baseline, 4)
+        table["hgl_qos"]["delta_vs_best_baseline"] = round(hq_rho - best_baseline, 4)
 
     return table
 
 
 def _print_comparison_table(table: Dict):
     print("\n  ═══════════════════════════════════════════════════════════════")
-    print(f"  Table 4: LOSO Inductive Evaluation — 4 Variants")
+    print(f"  Table 4: LOSO Inductive Evaluation — 5 Variants")
     print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'F1@K':<8} {'Δρ vs best BL'}")
     print("  " + "─" * 65)
-    order = ["hetero_qos", "homo_scalar", "homo_unweighted", "topology_rmav"]
+    order = ["hgl_qos", "hgl", "gl_qos", "gl", "topology_rmav"]
     for variant in order:
         if variant not in table:
             continue

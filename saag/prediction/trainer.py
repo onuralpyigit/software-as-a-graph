@@ -134,6 +134,8 @@ class GNNTrainer:
             total = 0.0
             count = 0
             for nt, preds in node_preds.items():
+                if nt not in {"Application", "Library"}:
+                    continue
                 store = data[nt]
                 if not (hasattr(store, "y") and hasattr(store, "val_mask")):
                     continue
@@ -175,6 +177,8 @@ class GNNTrainer:
         """Accumulate loss over all *labelled* train nodes (|y_composite| > 0)."""
         total = torch.tensor(0.0, device=self.device, requires_grad=True)
         for nt, preds in node_preds.items():
+            if nt not in {"Application", "Library"}:
+                continue
             store = batch[nt]
             if not (hasattr(store, "y") and hasattr(store, "train_mask")):
                 continue
@@ -466,6 +470,8 @@ def _collect_samples(
     all_targets = []
 
     for nt, preds in node_preds.items():
+        if nt not in {"Application", "Library"}:
+            continue
         store = data[nt]
         if not (hasattr(store, "y") and hasattr(store, mask_name)):
             continue

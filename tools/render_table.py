@@ -46,24 +46,24 @@ _SCENARIO_LABELS = {
 
 _VARIANT_LABELS = {
     "topo_baseline":     r"\textsc{Topo-BL}",
-    "q_topo_baseline":   r"\textsc{Q-Topo-BL}",
-    "homo_unweighted":   r"\textsc{Homo-U}",
-    "homo_scalar":       r"\textsc{Homo-S}",
+    "topo_qos":          r"\textsc{Topo-QoS}",
+    "gl":                r"\textsc{GL}",
+    "gl_qos":            r"\textsc{GL-QoS}",
     "hgl":               r"\textsc{HGL}",
-    "hetero_qos":        r"\textbf{Q-HGL}",
+    "hgl_qos":           r"\textbf{HGL-QoS}",
 }
 _VARIANT_LABELS_PLAIN = {
     "topo_baseline":     "Topo-BL",
-    "q_topo_baseline":   "Q-Topo-BL",
-    "homo_unweighted":   "Homo-U",
-    "homo_scalar":       "Homo-S",
+    "topo_qos":          "Topo-QoS",
+    "gl":                "GL",
+    "gl_qos":            "GL-QoS",
     "hgl":               "HGL",
-    "hetero_qos":        "Q-HGL (ours)",
+    "hgl_qos":           "HGL-QoS (ours)",
 }
 _VARIANT_ORDER = [
-    "topo_baseline", "q_topo_baseline",
-    "homo_unweighted", "homo_scalar",
-    "hgl", "hetero_qos",
+    "topo_baseline", "topo_qos",
+    "gl", "gl_qos",
+    "hgl", "hgl_qos",
 ]
 
 _RESULTS_DIR = Path("results")
@@ -182,13 +182,13 @@ def render_table3_tex(data: Dict, output: Path):
             ci_hi  = stats.get("ci_hi")
             p_val  = stats.get("wilcoxon_p_vs_hetero")
             is_best = mean_r is not None and abs(mean_r - best_rho) < 0.001
-            cell = _format_rho(mean_r, ci_lo, ci_hi, bold=(is_best and var == "hetero_qos"))
-            if var != "hetero_qos" and p_val is not None:
+            cell = _format_rho(mean_r, ci_lo, ci_hi, bold=(is_best and var == "hgl_qos"))
+            if var != "hgl_qos" and p_val is not None:
                 cell += _pval_star(p_val)
             cells.append(cell)
 
-        # Delta column: hetero_qos - hgl
-        stats_qos = _get_cell_stats(agg, sc, "hetero_qos")
+        # Delta column: hgl_qos - hgl
+        stats_qos = _get_cell_stats(agg, sc, "hgl_qos")
         stats_none = _get_cell_stats(agg, sc, "hgl")
         r_qos = stats_qos.get("mean_rho")
         r_none = stats_none.get("mean_rho")
@@ -221,11 +221,11 @@ def render_table3_tex(data: Dict, output: Path):
     for i, var in enumerate(_VARIANT_ORDER):
         m = all_means[i]
         cell = f"{m:.3f}"
-        if abs(m - best_avg) < 0.001 and var == "hetero_qos":
+        if abs(m - best_avg) < 0.001 and var == "hgl_qos":
             cell = rf"\textbf{{{cell}}}"
         avg_cells.append(cell)
 
-    avg_delta = all_means[-1] - all_means[-2] # hetero_qos - hetero_no_qos
+    avg_delta = all_means[-1] - all_means[-2] # hgl_qos - hgl
     avg_cells.append(rf"{'+' if avg_delta >= 0 else ''}{avg_delta:.3f}")
 
     lines.append(rf"\textbf{{Mean}} & & {' & '.join(avg_cells)} \\")
@@ -246,7 +246,7 @@ def render_table3_csv(data: Dict, output: Path):
     rows = []
     header = ["scenario", "gt_source"] + [f"{v}_rho" for v in _VARIANT_ORDER] + \
              [f"{v}_ci_lo" for v in _VARIANT_ORDER] + [f"{v}_ci_hi" for v in _VARIANT_ORDER] + \
-             [f"{v}_pval" for v in _VARIANT_ORDER if v != "hetero_qos"]
+             [f"{v}_pval" for v in _VARIANT_ORDER if v != "hgl_qos"]
     for sc in scenarios:
         gt_source = agg.get(f"{sc}|topo_baseline", {}).get("gt_source", "Sim")
         row = {"scenario": sc, "gt_source": gt_source}
@@ -255,7 +255,7 @@ def render_table3_csv(data: Dict, output: Path):
             row[f"{v}_rho"]   = st.get("mean_rho", "")
             row[f"{v}_ci_lo"] = st.get("ci_lo", "")
             row[f"{v}_ci_hi"] = st.get("ci_hi", "")
-            if v != "hetero_qos":
+            if v != "hgl_qos":
                 row[f"{v}_pval"] = st.get("wilcoxon_p_vs_hetero", "")
         rows.append(row)
 
@@ -289,16 +289,16 @@ def render_table3_md(data: Dict, output: Path):
                 cell = "—"
             else:
                 cell = f"{r:.3f}"
-                if abs(r - best_rho) < 0.001 and var == "hetero_qos":
+                if abs(r - best_rho) < 0.001 and var == "hgl_qos":
                     cell = f"**{cell}**"
-                if var != "hetero_qos" and p is not None:
+                if var != "hgl_qos" and p is not None:
                     if p < 0.001: cell += "***"
                     elif p < 0.01: cell += "**"
                     elif p < 0.05: cell += "*"
             cells.append(cell)
             
         # Delta
-        r_qos = agg.get(f"{sc}|hetero_qos", {}).get("mean_rho")
+        r_qos = agg.get(f"{sc}|hgl_qos", {}).get("mean_rho")
         r_none = agg.get(f"{sc}|hgl", {}).get("mean_rho")
         p_delta = agg.get(f"{sc}|hgl", {}).get("wilcoxon_p_vs_hetero")
         if r_qos is not None and r_none is not None:
@@ -326,7 +326,7 @@ def render_table3_md(data: Dict, output: Path):
     for i, var in enumerate(_VARIANT_ORDER):
         m = all_means[i]
         cell = f"{m:.3f}"
-        if abs(m - best_avg) < 0.001 and var == "hetero_qos":
+        if abs(m - best_avg) < 0.001 and var == "hgl_qos":
             cell = f"**{cell}**"
         avg_cells.append(cell)
     
@@ -368,10 +368,10 @@ def print_table3_console(data: Dict):
                 cell = f"{r:.3f}"
                 if ci_lo is not None and ci_hi is not None:
                     cell += f" [{ci_lo:.3f}, {ci_hi:.3f}]"
-                if abs(r - best_rho) < 0.001 and v == "hetero_qos":
+                if abs(r - best_rho) < 0.001 and v == "hgl_qos":
                     cell = f"*{cell}*"
             
-            if v != "hetero_qos" and p_val is not None:
+            if v != "hgl_qos" and p_val is not None:
                 if p_val < 0.001: cell += "***"
                 elif p_val < 0.01: cell += "**"
                 elif p_val < 0.05: cell += "*"
@@ -379,7 +379,7 @@ def print_table3_console(data: Dict):
             row += cell.ljust(col_w)
         
         # Delta
-        r_qos = agg.get(f"{sc}|hetero_qos", {}).get("mean_rho")
+        r_qos = agg.get(f"{sc}|hgl_qos", {}).get("mean_rho")
         r_none = agg.get(f"{sc}|hgl", {}).get("mean_rho")
         p_delta = agg.get(f"{sc}|hgl", {}).get("wilcoxon_p_vs_hetero")
         if r_qos is not None and r_none is not None:
@@ -538,7 +538,7 @@ def render_table4_tex(loso_data: Dict, output: Path):
         f1_s    = f"{f1:.4f}" if f1 is not None else "—"
         delta_s = (f"+{delta:.4f}" if delta > 0 else f"{delta:.4f}") if delta is not None else "—"
 
-        if var == "hetero_qos":
+        if var == "hgl_qos":
             mean_s = rf"\textbf{{{mean_s}}}"
         lines.append(rf"{label} & {mean_s} & {std_s} & {f1_s} & {delta_s} \\")
 
@@ -573,7 +573,7 @@ def render_table4_md(loso_data: Dict, output: Path):
         f1_s    = f"{f1:.4f}" if f1 is not None else "—"
         delta_s = (f"+{delta:.4f}" if delta and delta > 0 else f"{delta:.4f}") if delta is not None else "—"
 
-        if var == "hetero_qos":
+        if var == "hgl_qos":
             mean_s = f"**{mean_s}**"
         rows.append(f"| {label} | {mean_s} | {std_s} | {f1_s} | {delta_s} |")
 

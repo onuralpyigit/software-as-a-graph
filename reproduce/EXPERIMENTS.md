@@ -6,7 +6,7 @@ This document provides a technical deep-dive into the reproducibility infrastruc
 
 ## 1. The Experimental Harness (`middleware26_main_table.py`)
 
-The primary harness orchestrates an **8 × 6 × 5 evaluation matrix** (8 scenarios, 6 variants, 5 seeds), totaling 240 cells (160 GNN training runs plus 80 closed-form structural baseline computations).
+The primary harness orchestrates the new **Attributable GNN Evaluation Ladder** over an **8 × 6 × 5 evaluation matrix** (8 scenarios, 6 variants, 5 seeds), totaling 240 cells (160 GNN training runs plus 80 closed-form structural baseline computations).
 
 ### A. Topology Refinement (`DEPENDS_ON` Edges)
 Raw pub-sub graphs often exhibit "feature degeneracy" where Application nodes lack structural centrality because they only possess high-level logical connections. The harness implements a custom edge derivation rule (Rule 1 & 5) before training:
@@ -48,7 +48,7 @@ Measures the intersection between the top $K$ most critical components in the gr
 
 ### D. Statistical Rigor
 - **Bootstrap 95% Confidence Intervals**: Computed using $B=2,000$ resamples for each mean Spearman ρ.
-- **Paired Wilcoxon Signed-Rank Test**: A non-parametric test used to prove that **Q-HGL** is statistically superior to the baselines (`RMAV`, `Homo-S`, `Homo-U`) across different seeds and scenarios ($p < 0.05$).
+- **Paired Wilcoxon Signed-Rank Test**: A non-parametric test used to prove that **HGL-QoS** is statistically superior to the baselines (`Topo-BL`, `Topo-QoS`, `GL`, `GL-QoS`, `HGL`) across different seeds and scenarios ($p < 0.05$).
 
 ---
 
@@ -56,12 +56,12 @@ Measures the intersection between the top $K$ most critical components in the gr
 
 | Variant | Logic |
 |---|---|
-| `topo_baseline` (`Topo-BL`) | **Baseline**: Structural centrality (Betweenness + Articulation Point) on refined unweighted topology. |
-| `q_topo_baseline` (`Q-Topo-BL`) | **Baseline**: Structural centrality weighted by local QoS edge features. |
-| `homo_unweighted` (`Homo-U`) | **Baseline**: Homogeneous GAT that ignores QoS metadata entirely (pure topology). |
-| `homo_scalar` (`Homo-S`) | **Baseline**: Homogeneous GAT that encodes QoS metadata as edge weights. |
-| `hetero_unweighted` (`HGL`) | **Factorial Variant**: Heterogeneous GAT with node/relation types but QoS attributes masked. |
-| `hetero_qos` (`Q-HGL`) | **Factorial Variant**: Heterogeneous GAT with explicit 7-dimensional QoS edge attributes. |
+| `topo_baseline` (`Topo-BL`) | **Baseline**: Structural centrality (Betweenness + Articulation Point) on unweighted `DEPENDS_ON` projection. |
+| `topo_qos` (`Topo-QoS`) | **Baseline**: Structural centrality weighted by local QoS edge features on `DEPENDS_ON` projection. |
+| `gl` (`GL`) | **Baseline**: Homogeneous GAT on unweighted `DEPENDS_ON` projection. |
+| `gl_qos` (`GL-QoS`) | **Baseline**: Homogeneous GAT over QoS-weighted `DEPENDS_ON` projection (edge weight = QoS-derived weight). |
+| `hgl` (`HGL`) | **Baseline/Ablation**: Heterogeneous GAT over native pub-sub graph substrate with QoS attributes masked (isolates heterogeneous structure). |
+| `hgl_qos` (`HGL-QoS`) | **Proposed Variant**: QoS-aware Heterogeneous GAT over native pub-sub graph substrate. |
 
 ---
 

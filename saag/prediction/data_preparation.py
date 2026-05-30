@@ -296,13 +296,14 @@ def _extract_qos_edge_features(
     attrs: Dict[str, Any],
     edge_type: str,
     heterogeneity_flag: float = 0.0,
+    qos_enabled: bool = True,
 ) -> List[float]:
     """Return the 7 QoS-specific edge feature values (dims 9-15).
 
     Non-zero only for PUBLISHES_TO / SUBSCRIBES_TO edges.
     All values are in [0, 1] or log-scaled to a bounded range.
     """
-    if edge_type not in _QOS_EDGE_TYPES:
+    if not qos_enabled or edge_type not in _QOS_EDGE_TYPES:
         return [0.0] * _QOS_EXTRA_DIM
 
     qp: Dict[str, Any] = attrs.get("qos_profile") or {}
@@ -345,6 +346,7 @@ def _extract_qos_edge_features(
 def _normalize_infra_features(
     graph: nx.DiGraph,
     structural_metrics: Optional[Dict[str, Dict[str, float]]] = None,
+    qos_enabled: bool = True,
 ) -> Dict[str, Dict[str, float]]:
     """Compute normalized infrastructure/runtime features per node.
 
@@ -398,7 +400,7 @@ def _normalize_infra_features(
             crit_str = str(
                 attrs.get("criticality", attrs.get("topic_criticality", "minimal"))
             ).lower()
-            topic_crit_ord[n] = TOPIC_CRITICALITY_ORD.get(crit_str, 0.0)
+            topic_crit_ord[n] = TOPIC_CRITICALITY_ORD.get(crit_str, 0.0) if qos_enabled else 0.0
 
     # PUBLISHES_TO: Application → Topic; SUBSCRIBES_TO: Application → Topic.
     # Both counts are from the Topic's perspective (how many publishers/subscribers it has).
@@ -488,6 +490,7 @@ def networkx_to_hetero_data(
     structural_metrics: Optional[Dict[str, Dict[str, float]]] = None,
     simulation_results: Optional[Dict[str, Dict[str, float]]] = None,
     rmav_scores: Optional[Dict[str, Dict[str, float]]] = None,
+    qos_enabled: bool = True,
 ) -> GraphConversionResult:
     """Convert a NetworkX DiGraph to a PyG HeteroData object.
 
@@ -550,7 +553,7 @@ def networkx_to_hetero_data(
             result.node_name_to_idx[name] = (node_type, local_idx)
 
     # Pre-compute infrastructure/runtime features (Topic counts, Node/Broker infra)
-    infra_features = _normalize_infra_features(graph, structural_metrics)
+    infra_features = _normalize_infra_features(graph, structural_metrics, qos_enabled=qos_enabled)
 
     # ── 2. Build node feature tensors per type ────────────────────────────────
     for node_type in result.present_node_types:
@@ -567,6 +570,8 @@ def networkx_to_hetero_data(
             for col, key in enumerate(keys_to_use):
                 # Base metrics come from structural_metrics; infra keys from infra_source
                 val = base_source.get(key, infra_source.get(key, 0.0))
+                if not qos_enabled and key in ("qos_weight", "qos_weight_in", "qos_weight_out"):
+                    val = 0.0
                 feat_matrix[local_idx, col] = float(val)
 
         data[node_type].x = torch.from_numpy(feat_matrix)
@@ -640,7 +645,7 @@ def networkx_to_hetero_data(
 
         # QoS decomposition dims 9-15 (non-zero only for pub/sub edges)
         hetero_flag = _hetero_flags.get((src, dst), 0.0)
-        qos_dims = _extract_qos_edge_features(attrs, edge_type, hetero_flag)
+        qos_dims = _extract_qos_edge_features(attrs, edge_type, hetero_flag, qos_enabled=qos_enabled)
 
         rel_edges[rel_key][2].append([weight, path_count_norm] + type_onehot + qos_dims)
 

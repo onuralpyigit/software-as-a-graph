@@ -416,18 +416,32 @@ def run_one_fold(
         ckpt_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            if variant in ("homo_unweighted", "homo_scalar"):
+            if variant in ("gl", "gl_qos"):
                 # Baseline variants use GNNTrainer directly
                 from saag.prediction.models.baselines import build_baseline
                 from saag.prediction.data_preparation import networkx_to_hetero_data, create_node_splits
                 from saag.prediction.trainer import GNNTrainer, evaluate
 
+                use_qos = (variant == "gl_qos")
+                if use_qos:
+                    train_graph = primary.graph
+                    train_sm    = primary.structural
+                    holdout_graph = holdout.graph
+                    holdout_sm    = holdout.structural
+                else:
+                    from tools.middleware26_main_table import _mask_qos_in_graph, _mask_qos_in_structural
+                    train_graph = _mask_qos_in_graph(primary.graph)
+                    train_sm    = _mask_qos_in_structural(primary.structural)
+                    holdout_graph = _mask_qos_in_graph(holdout.graph)
+                    holdout_sm    = _mask_qos_in_structural(holdout.structural)
+
                 conv = networkx_to_hetero_data(
-                    primary.graph, primary.structural, primary.simulation, primary.rmav
+                    train_graph, train_sm, primary.simulation, primary.rmav, qos_enabled=use_qos
                 )
                 data = conv.hetero_data
                 create_node_splits(data, seed=seed)
-                model = build_baseline(variant, hidden_channels=hidden, num_heads=heads,
+                baseline_name = "homo_unweighted" if variant == "gl" else "homo_scalar"
+                model = build_baseline(baseline_name, hidden_channels=hidden, num_heads=heads,
                                        num_layers=layers, dropout=dropout)
                 best_path = ckpt_dir / "best_model.pt"
                 if best_path.exists():
@@ -440,7 +454,7 @@ def run_one_fold(
 
                 # Evaluate on holdout
                 conv_h = networkx_to_hetero_data(
-                    holdout.graph, holdout.structural, holdout.simulation, holdout.rmav
+                    holdout_graph, holdout_sm, holdout.simulation, holdout.rmav, qos_enabled=use_qos
                 )
                 data_h = conv_h.hetero_data
                 create_node_splits(data_h, seed=seed)
@@ -472,16 +486,29 @@ def run_one_fold(
                             }
 
             else:
-                # hetero_qos (default) or topology_rmav → GNNService path
+                # hgl_qos (default) or hgl or topology_rmav → GNNService path
                 effective_mode = "rmav" if variant == "topology_rmav" else mode
                 effective_layers = 1 if primary.n_nodes <= 200 else (2 if primary.n_nodes <= 500 else layers)
+                use_qos = (variant == "hgl_qos")
+
+                if use_qos:
+                    train_graph = primary.graph
+                    train_sm    = primary.structural
+                    holdout_graph = holdout.graph
+                    holdout_sm    = holdout.structural
+                else:
+                    from tools.middleware26_main_table import _mask_qos_in_graph, _mask_qos_in_structural
+                    train_graph = _mask_qos_in_graph(primary.graph)
+                    train_sm    = _mask_qos_in_structural(primary.structural)
+                    holdout_graph = _mask_qos_in_graph(holdout.graph)
+                    holdout_sm    = _mask_qos_in_structural(holdout.structural)
                 
                 best_path = ckpt_dir / "best_model.pt"
                 if best_path.exists():
                     logger.info("  Found GNN checkpoint %s. Skipping training.", best_path)
                     service = GNNService.from_checkpoint(
                         str(ckpt_dir),
-                        graph=primary.graph,
+                        graph=train_graph,
                         layer=layer,
                     )
                 else:
@@ -494,23 +521,34 @@ def run_one_fold(
                         predict_edges=False,
                     )
                     service.train(
-                        graph=primary.graph,
-                        structural_metrics=primary.structural,
+                        graph=train_graph,
+                        structural_metrics=train_sm,
                         simulation_results=primary.simulation,
                         rmav_scores=primary.rmav,
-                        inductive_graphs=[b.hetero_data for b in inductives],
+                        inductive_graphs=[
+                            networkx_to_hetero_data(
+                                b.graph if use_qos else _mask_qos_in_graph(b.graph),
+                                b.structural if use_qos else _mask_qos_in_structural(b.structural),
+                                b.simulation,
+                                b.rmav,
+                                qos_enabled=use_qos
+                            ).hetero_data
+                            for b in inductives
+                        ],
                         seeds=[seed],
                         num_epochs=1 if variant == "topology_rmav" else epochs,
                         lr=lr,
                         patience=30,
                         layer=layer,
+                        qos_enabled=use_qos,
                     )
                 result = service.predict(
-                    graph=holdout.graph,
-                    structural_metrics=holdout.structural,
+                    graph=holdout_graph,
+                    structural_metrics=holdout_sm,
                     rmav_scores=holdout.rmav,
                     simulation_results=holdout.simulation,
                     mode=effective_mode,
+                    qos_enabled=use_qos,
                 )
                 pred_scores = {nid: float(ns.composite_score)
                                for nid, ns in result.node_scores.items()}
@@ -813,13 +851,14 @@ def parse_args() -> argparse.Namespace:
                    help="Prediction mode for evaluation (default: gnn)")
     p.add_argument(
         "--variant",
-        choices=["hetero_qos", "homo_unweighted", "homo_scalar", "topology_rmav"],
-        default="hetero_qos",
+        choices=["hgl_qos", "hgl", "gl_qos", "gl", "topology_rmav"],
+        default="hgl_qos",
         help=(
-            "Model architecture variant (default: hetero_qos). "
-            "hetero_qos = QoS-aware HeteroGAT; "
-            "homo_unweighted = flat GAT no edge_attr; "
-            "homo_scalar = flat GAT scalar weight; "
+            "Model architecture variant (default: hgl_qos). "
+            "hgl_qos = QoS-embedded HeteroGAT on native graph; "
+            "hgl     = QoS-masked HeteroGAT on native graph; "
+            "gl_qos  = QoS-weighted homogeneous GAT on projection; "
+            "gl      = unweighted homogeneous GAT on projection; "
             "topology_rmav = RMAV scores only (no GNN)."
         ),
     )

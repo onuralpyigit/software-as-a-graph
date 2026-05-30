@@ -356,6 +356,7 @@ class GNNService:
         seeds: Optional[List[int]] = None,
         mode: str = "gnn",
         layer: str = "app",
+        qos_enabled: bool = True,
     ) -> GNNAnalysisResult:
         """Process graphs and train the GNN model using a multi-seed approach.
 
@@ -394,7 +395,7 @@ class GNNService:
 
         # Convert to HeteroData
         conv = networkx_to_hetero_data(
-            graph, structural_metrics, simulation_results, rmav_scores
+            graph, structural_metrics, simulation_results, rmav_scores, qos_enabled=qos_enabled
         )
         self._conversion_result = conv
         data = conv.hetero_data
@@ -498,6 +499,7 @@ class GNNService:
         rmav_scores=None,
         simulation_results=None,
         mode: str = "gnn",
+        qos_enabled: bool = True,
     ) -> GNNAnalysisResult:
         """Run inference on a graph without training.
 
@@ -528,7 +530,7 @@ class GNNService:
         if rmav_scores is not None and not isinstance(rmav_scores, dict):
             rmav_scores = extract_rmav_scores_dict(rmav_scores)
 
-        conv = networkx_to_hetero_data(graph, structural_metrics, simulation_results, rmav_scores)
+        conv = networkx_to_hetero_data(graph, structural_metrics, simulation_results, rmav_scores, qos_enabled=qos_enabled)
         self._conversion_result = conv
         # ── Run prediction ────────────────────────────────────────────────────
         return self.predict_from_data(

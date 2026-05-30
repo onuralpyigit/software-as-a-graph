@@ -103,7 +103,7 @@ fi
 # ── Build arg arrays (so empty values do not emit stray flags) ────────────────
 RECAL_VARIANTS=()
 if [[ -n "$TOPO_ONLY" ]]; then
-    RECAL_VARIANTS=(--variants topo_baseline q_topo_baseline)
+    RECAL_VARIANTS=(--variants topo_baseline topo_qos)
 elif [[ -n "$VARIANTS" ]]; then
     RECAL_VARIANTS=(--variants $VARIANTS)
 fi

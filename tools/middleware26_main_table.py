@@ -77,12 +77,12 @@ ALL_SCENARIOS = [
 ]
 
 ALL_VARIANTS = [
-    "topo_baseline",      # Structural BL: betweenness + articulation point
-    "q_topo_baseline",    # Structural BL with QoS-weighted betweenness
-    "homo_unweighted",    # Homogeneous GAT, no edge weights
-    "homo_scalar",        # Homogeneous GAT with scalar QoS weight per edge
-    "hgl",                # Heterogeneous GAT, QoS dims masked
-    "hetero_qos",         # Heterogeneous GAT with full QoS edge features (Q-HGL)
+    "topo_baseline",        # Topo-BL: structural baseline (unweighted projection)
+    "topo_qos",             # Topo-QoS: structural baseline (QoS-weighted projection)
+    "gl",                   # GL: Homogeneous GAT (unweighted projection)
+    "gl_qos",               # GL-QoS: Homogeneous GAT (QoS-weighted projection)
+    "hgl",                  # HGL: Heterogeneous GAT (unweighted native)
+    "hgl_qos",              # HGL-QoS: Heterogeneous GAT (QoS-embedded native)
 ]
 
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
@@ -502,7 +502,7 @@ def _merge_structural_dicts(nx_features: Dict, cached: Dict) -> Dict:
     return merged
 
 
-def _load_scenario_data(scenario: str) -> Tuple[Any, Dict, Dict, Dict, bool]:
+def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[Any, Dict, Dict, Dict, bool]:
     """Load graph + structural/simulation/RMAV data for a scenario.
 
     Topology source priority: (1) LOSO cache topology.json, (2) data/scenarios/<name>.json.
@@ -567,27 +567,28 @@ def _load_scenario_data(scenario: str) -> Tuple[Any, Dict, Dict, Dict, bool]:
             rmav_dict = fresh_rmav
             gt_source = "Fresh-RMAV"
 
-        # Build DEPENDS_ON-only graph: Application + Library nodes, Rules 1 & 5.
-        # Node 'type' attribute is required by networkx_to_hetero_data to assign
-        # nodes to the correct type bucket (Application vs Library).
-        deps = _derive_depends_on_edges(topology)
-        app_ids = {a["id"] for a in topology.get("applications", [])}
-        lib_ids  = {lb["id"] for lb in topology.get("libraries", [])}
-        allowed  = app_ids | lib_ids
-        dep_graph = _nx.DiGraph()
-        for nid in app_ids:
-            dep_graph.add_node(nid, type="Application")
-        for nid in lib_ids:
-            dep_graph.add_node(nid, type="Library")
-        for e in deps:
-            src, dst = str(e["source"]), str(e["target"])
-            if src in allowed and dst in allowed:
-                dep_graph.add_edge(src, dst, weight=float(e.get("weight", 1.0)),
-                                   type="DEPENDS_ON",
-                                   dependency_type=e.get("type", "app_to_app"),
-                                   qos_profile=e.get("qos_profile", {}))
-        if dep_graph.number_of_nodes() > 0:
-            nx_graph = dep_graph
+        if substrate == "projection":
+            # Build DEPENDS_ON-only graph: Application + Library nodes, Rules 1 & 5.
+            # Node 'type' attribute is required by networkx_to_hetero_data to assign
+            # nodes to the correct type bucket (Application vs Library).
+            deps = _derive_depends_on_edges(topology)
+            app_ids = {a["id"] for a in topology.get("applications", [])}
+            lib_ids  = {lb["id"] for lb in topology.get("libraries", [])}
+            allowed  = app_ids | lib_ids
+            dep_graph = _nx.DiGraph()
+            for nid in app_ids:
+                dep_graph.add_node(nid, type="Application")
+            for nid in lib_ids:
+                dep_graph.add_node(nid, type="Library")
+            for e in deps:
+                src, dst = str(e["source"]), str(e["target"])
+                if src in allowed and dst in allowed:
+                    dep_graph.add_edge(src, dst, weight=float(e.get("weight", 1.0)),
+                                       type="DEPENDS_ON",
+                                       dependency_type=e.get("type", "app_to_app"),
+                                       qos_profile=e.get("qos_profile", {}))
+            if dep_graph.number_of_nodes() > 0:
+                nx_graph = dep_graph
     else:
         nx_features = _compute_nx_structural_features(nx_graph)
         structural_dict = _merge_structural_dicts(nx_features, structural_dict)
@@ -956,7 +957,9 @@ def _train_cell(
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    nx_graph, structural_dict, simulation_dict, rmav_dict, gt_source = _load_scenario_data(scenario)
+    # Decouple substrate per variant
+    substrate = "native" if variant in ("hgl", "hgl_qos") else "projection"
+    nx_graph, structural_dict, simulation_dict, rmav_dict, gt_source = _load_scenario_data(scenario, substrate=substrate)
 
     if nx_graph.number_of_nodes() == 0:
         return {"error": "empty_graph"}
@@ -965,11 +968,11 @@ def _train_cell(
     effective_layers = 1 if n_nodes <= 200 else (2 if n_nodes <= 500 else num_layers)
     start = time.time()
 
-    if variant in ("topo_baseline", "q_topo_baseline"):
+    if variant in ("topo_baseline", "topo_qos"):
         from saag.prediction.trainer import evaluate_scores
         import numpy as np
 
-        use_qos = (variant == "q_topo_baseline")
+        use_qos = (variant == "topo_qos")
         struct_pred = _compute_topo_baseline_scores(
             nx_graph, structural_dict, use_qos=use_qos
         )
@@ -1056,15 +1059,12 @@ def _train_cell(
             "per_node_type": per_node_type, "runtime_s": round(time.time() - start, 2),
         }
 
-    elif variant in ("homo_unweighted", "homo_scalar"):
+    elif variant in ("gl", "gl_qos"):
         from saag.prediction.models.baselines import build_baseline
         start = time.time()
 
-        # Ablation gate: GL (homo_unweighted) must receive a fully QoS-masked
-        # graph so that the (GL, HGL) column in the 2×3 factorial differs only
-        # on architecture, not on QoS signal.  Q-GL (homo_scalar) explicitly
-        # encodes scalar QoS weights and therefore uses the raw graph.
-        use_qos = (variant == "homo_scalar")
+        # gl is homogeneous unweighted projection; gl_qos is homogeneous QoS-weighted projection
+        use_qos = (variant == "gl_qos")
         if use_qos:
             train_graph = nx_graph
             train_sm    = structural_dict
@@ -1072,13 +1072,14 @@ def _train_cell(
             train_graph = _mask_qos_in_graph(nx_graph)
             train_sm    = _mask_qos_in_structural(structural_dict)
 
-        conv = networkx_to_hetero_data(train_graph, train_sm, simulation_dict, rmav_dict)
+        conv = networkx_to_hetero_data(train_graph, train_sm, simulation_dict, rmav_dict, qos_enabled=use_qos)
         data = conv.hetero_data
         create_node_splits(data, train_ratio, val_ratio, seed=seed)
         effective_lr = 1e-3
         effective_patience = max(patience, 60)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = build_baseline(variant, hidden_channels=hidden, num_heads=num_heads,
+        baseline_name = "homo_unweighted" if variant == "gl" else "homo_scalar"
+        model = build_baseline(baseline_name, hidden_channels=hidden, num_heads=num_heads,
                                num_layers=effective_layers, dropout=dropout)
         model.to(device)
         ckpt_dir = f"output/gnn_checkpoints/{scenario}_{variant}_s{seed}"
@@ -1096,12 +1097,12 @@ def _train_cell(
                   "gt_source": gt_source, "qos_enabled": use_qos})
         return d
 
-    elif variant in ("hgl", "hetero_qos"):
-        # HGL: heterogeneous GAT with QoS dimensions masked.
-        # Q-HGL (hetero_qos): full QoS-aware heterogeneous GAT.
+    elif variant in ("hgl", "hgl_qos"):
+        # hgl: heterogeneous GAT with QoS dimensions masked (unweighted native).
+        # hgl_qos: full QoS-aware heterogeneous GAT (QoS native).
         from saag.prediction.gnn_service import GNNService
 
-        use_qos = (variant == "hetero_qos")
+        use_qos = (variant == "hgl_qos")
 
         if use_qos:
             train_graph = nx_graph
@@ -1132,10 +1133,8 @@ def _train_cell(
             patience=patience,
             seeds=[seed],
             mode="gnn",
+            qos_enabled=use_qos,
         )
-        # Prefer native masking inside HeteroData when available.
-        if _NATIVE_QOS_FLAG_AVAILABLE:
-            train_kwargs["qos_enabled"] = use_qos
 
         result = svc.train(**train_kwargs)
         metrics = result.gnn_metrics
@@ -1257,13 +1256,13 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
             "n_needs_recalibration": sum(1 for c in cs if c.get("needs_recalibration")),
         }
 
-    # Per-scenario Wilcoxon p-values (hetero_qos vs each baseline)
+    # Per-scenario Wilcoxon p-values (hgl_qos vs each baseline)
     scenarios = sorted({sc for sc, _ in aggregate})
     for sc in scenarios:
-        ref_cells = [(sc, "hetero_qos")]
+        ref_cells = [(sc, "hgl_qos")]
         ref_rhos = aggregate.get(ref_cells[0], {}).get("rhos", [])
         for var in ALL_VARIANTS:
-            if var == "hetero_qos":
+            if var == "hgl_qos":
                 continue
             base_rhos = aggregate.get((sc, var), {}).get("rhos", [])
             p = _wilcoxon_p(ref_rhos, base_rhos)
@@ -1276,13 +1275,13 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
     # holding QoS fixed.  Paired Wilcoxon p over the 5 seeds.
 
     QOS_PAIRS = [
-        ("structural", "topo_baseline",   "q_topo_baseline"),
-        ("homo",       "homo_unweighted", "homo_scalar"),
-        ("hetero",     "hgl",             "hetero_qos"),
+        ("structural", "topo_baseline", "topo_qos"),
+        ("homo",       "gl",            "gl_qos"),
+        ("hetero",     "hgl",           "hgl_qos"),
     ]
     HETERO_PAIRS = [
-        ("qos_off", "homo_unweighted", "hgl"),
-        ("qos_on",  "homo_scalar",     "hetero_qos"),
+        ("qos_off", "gl",      "hgl"),
+        ("qos_on",  "gl_qos",  "hgl_qos"),
     ]
 
     contrasts: Dict[str, Dict] = {}
@@ -1322,10 +1321,10 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
                 }
 
         # Interaction effect: (Δρ_QoS | hetero) − (Δρ_QoS | homo)
-        r_hgl   = aggregate.get((sc, "hgl"),             {}).get("rhos", [])
-        r_qhgl  = aggregate.get((sc, "hetero_qos"),      {}).get("rhos", [])
-        r_homou = aggregate.get((sc, "homo_unweighted"), {}).get("rhos", [])
-        r_homos = aggregate.get((sc, "homo_scalar"),     {}).get("rhos", [])
+        r_hgl   = aggregate.get((sc, "hgl"),     {}).get("rhos", [])
+        r_qhgl  = aggregate.get((sc, "hgl_qos"), {}).get("rhos", [])
+        r_homou = aggregate.get((sc, "gl"),      {}).get("rhos", [])
+        r_homos = aggregate.get((sc, "gl_qos"),  {}).get("rhos", [])
         if all([r_hgl, r_qhgl, r_homou, r_homos]) and len({len(r_hgl), len(r_qhgl),
                                                             len(r_homou), len(r_homos)}) == 1:
             hetero_gain = [a - b for a, b in zip(r_qhgl, r_hgl)]

@@ -43,15 +43,15 @@ Options:
   -h, --help             Show this help and exit
   --                     Pass remaining arguments verbatim to the Python tool
 
-Variant names: topo_baseline, q_topo_baseline, homo_unweighted, homo_scalar,
-               hgl, hetero_qos
+Variant names: topo_baseline, topo_qos, gl, gl_qos,
+               hgl, hgl_qos
 
 Examples:
   # Smoke: 2 seeds, 3 scenarios, only the two hetero variants
   bash scripts/run_main_table.sh --epochs 50 \
        --seeds "42 123" \
        --scenarios "atm_system av_system iot_smart_city_system" \
-       --variants "hgl hetero_qos"
+       --variants "hgl hgl_qos"
 
   # Dry-run via pass-through
   bash scripts/run_main_table.sh -- --dry-run
