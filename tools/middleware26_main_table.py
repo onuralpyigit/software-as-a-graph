@@ -178,6 +178,21 @@ def _derive_depends_on_edges(topology: Dict) -> List[Dict]:
         if src and dst:
             topic_subscribers.setdefault(str(dst), set()).add(str(src))
 
+    # Collect qos_profiles from publishes_to and subscribes_to
+    pub_qos: Dict[Tuple[str, str], Dict] = {}
+    for r in rels.get("publishes_to", []):
+        src = r.get("source") or r.get("application_id") or r.get("from")
+        dst = r.get("target") or r.get("topic_id") or r.get("to")
+        if src and dst and "qos_profile" in r:
+            pub_qos[(str(src), str(dst))] = r["qos_profile"]
+
+    sub_qos: Dict[Tuple[str, str], Dict] = {}
+    for r in rels.get("subscribes_to", []):
+        src = r.get("source") or r.get("application_id") or r.get("from")
+        dst = r.get("target") or r.get("topic_id") or r.get("to")
+        if src and dst and "qos_profile" in r:
+            sub_qos[(str(src), str(dst))] = r["qos_profile"]
+
     edges: List[Dict] = []
     seen: set = set()
 
@@ -189,11 +204,14 @@ def _derive_depends_on_edges(topology: Dict) -> List[Dict]:
                     key = (subscriber, publisher)
                     if key not in seen:
                         seen.add(key)
+                        # Extract the qos_profile associated with this pub/sub connection
+                        qp = pub_qos.get((publisher, topic_id)) or sub_qos.get((subscriber, topic_id)) or {}
                         edges.append({
                             "source": subscriber,
                             "target": publisher,
                             "type": "app_to_app",
                             "weight": 1.0,
+                            "qos_profile": qp,
                         })
 
     # Rule 5 — app_to_lib: application depends on library (USES edge)
@@ -204,11 +222,13 @@ def _derive_depends_on_edges(topology: Dict) -> List[Dict]:
             key = (str(src), str(dst))
             if key not in seen:
                 seen.add(key)
+                qp = r.get("qos_profile") or {}
                 edges.append({
                     "source": str(src),
                     "target": str(dst),
                     "type": "app_to_lib",
                     "weight": 1.0,
+                    "qos_profile": qp,
                 })
 
     return edges
@@ -305,8 +325,8 @@ def _saag_structural_features(topology: Dict) -> Dict:
             "fan_out_criticality":    foc,
             "bridge_ratio":           float(bridge_ratio.get(node, 0.0)),
             "qos_weight":             1.0,
-            "qos_weight_in":          float(in_d_raw),
-            "qos_weight_out":         float(out_d_raw),
+            "qos_weight_in":          float(in_d_raw) / max(max_in, 1),
+            "qos_weight_out":         float(out_d_raw) / max(max_out, 1),
             "loc_norm":               0.0,
             "complexity_norm":        0.0,
             "instability_code":       0.0,
@@ -563,7 +583,9 @@ def _load_scenario_data(scenario: str) -> Tuple[Any, Dict, Dict, Dict, bool]:
             src, dst = str(e["source"]), str(e["target"])
             if src in allowed and dst in allowed:
                 dep_graph.add_edge(src, dst, weight=float(e.get("weight", 1.0)),
-                                   dependency_type=e.get("type", "app_to_app"))
+                                   type="DEPENDS_ON",
+                                   dependency_type=e.get("type", "app_to_app"),
+                                   qos_profile=e.get("qos_profile", {}))
         if dep_graph.number_of_nodes() > 0:
             nx_graph = dep_graph
     else:

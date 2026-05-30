@@ -251,7 +251,7 @@ _PRIORITY_SCORE: Dict[str, float] = {
 }
 
 # Edge types for which QoS attributes are semantically meaningful
-_QOS_EDGE_TYPES = {"PUBLISHES_TO", "SUBSCRIBES_TO"}
+_QOS_EDGE_TYPES = {"PUBLISHES_TO", "SUBSCRIBES_TO", "DEPENDS_ON"}
 
 
 def _compute_qos_heterogeneity_flags(
