@@ -58,7 +58,7 @@ _VARIANT_LABELS_PLAIN = {
     "gl":                "GL",
     "gl_qos":            "GL-QoS",
     "hgl":               "HGL",
-    "hgl_qos":           "HGL-QoS (ours)",
+    "hgl_qos":           "HGL-QoS",
 }
 _VARIANT_ORDER = [
     "topo_baseline", "topo_qos",

@@ -45,7 +45,7 @@ _NODE_TYPE_LABELS = {
 }
 _VARIANT_ORDER = ["topology_rmav", "gl", "gl_qos", "hgl", "hgl_qos"]
 _VARIANT_LABELS = {
-    "hgl_qos":         "HGL-QoS (ours)",
+    "hgl_qos":         "HGL-QoS",
     "hgl":             "HGL",
     "gl_qos":          "GL-QoS",
     "gl":              "GL",

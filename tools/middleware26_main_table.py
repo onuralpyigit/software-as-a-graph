@@ -560,8 +560,10 @@ def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[A
         structural_dict = _merge_structural_dicts(saag_features, structural_dict)
 
         # Fresh RMAV quality from DEPENDS_ON features — consistent with feature source.
+        # Skip this override for atm_system to preserve the raw simulation labels (Sim),
+        # as atm_system serves as our historical physical simulation anchor (gt_source = "Sim").
         fresh_rmav = _compute_rmav_from_structural(topology, saag_features)
-        if fresh_rmav:
+        if fresh_rmav and scenario != "atm_system":
             logger.info("Using fresh RMAV quality as simulation labels (DEPENDS_ON-consistent).")
             simulation_dict = fresh_rmav
             rmav_dict = fresh_rmav

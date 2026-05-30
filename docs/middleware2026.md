@@ -200,7 +200,7 @@ python tools/recalibrate_main_table.py \
 ### A. Ranking Performance (Spearman ρ)
 The following table summarizes the global ranking correlation across all scenarios and variants.
 
-| Scenario | GT | Topo-BL | Topo-QoS | GL | GL-QoS | HGL | HGL-QoS (ours) | Δρ (QoS) |
+| Scenario | GT | Topo-BL | Topo-QoS | GL | GL-QoS | HGL | HGL-QoS | Δρ (QoS) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | **ATM System** | Sim | 0.165 | 0.095 | 0.600 | 0.200 | 0.351 | 0.443 | +0.091 |
 | **AV System** | Fresh-RMAV | 0.484 | 0.930 | 0.944 | 0.852 | 0.926 | 0.866 | -0.060 |
@@ -230,56 +230,56 @@ The following table provides a breakdown of binary classification performance fo
 |  |  | GL | 0.600 | 0.800 | 0.800 | 0.055 | 0.054 | 0.972 |
 |  |  | GL-QoS | 0.200 | 0.600 | 0.600 | 0.120 | 0.119 | 0.966 |
 |  |  | HGL | 0.351 | NaN‡ | 0.000 | 0.156 | 0.126 | 0.941 |
-|  |  | HGL-QoS (ours) | 0.443 | NaN‡ | 0.000 | 0.171 | 0.133 | 0.935 |
+|  |  | HGL-QoS | 0.443 | NaN‡ | 0.000 | 0.171 | 0.133 | 0.935 |
 | | | | | | | | |
 | AV System | Fresh-RMAV | Topo-BL | 0.484 | 0.500 | 0.900 | 0.283 | 0.271 | 0.919 |
 |  |  | Topo-QoS | 0.930 | 0.900 | 0.980 | 0.281 | 0.270 | 0.983 |
 |  |  | GL | 0.944 | 0.900 | 0.980 | 0.071 | 0.062 | 0.991 |
 |  |  | GL-QoS | 0.852 | 0.400 | 0.880 | 0.096 | 0.088 | 0.957 |
 |  |  | HGL | 0.926 | 0.922 | 0.920 | 0.091 | 0.075 | 0.983 |
-|  |  | HGL-QoS (ours) | 0.866 | 0.884 | 0.880 | 0.110 | 0.093 | 0.967 |
+|  |  | HGL-QoS | 0.866 | 0.884 | 0.880 | 0.110 | 0.093 | 0.967 |
 | | | | | | | | |
 | Enterprise | Fresh-RMAV | Topo-BL | 0.444 | 0.571 | 0.914 | 0.288 | 0.275 | 0.964 |
 |  |  | Topo-QoS | 0.886 | 0.800 | 0.960 | 0.287 | 0.275 | 0.983 |
 |  |  | GL | 0.953 | 0.800 | 0.960 | 0.090 | 0.077 | 0.982 |
 |  |  | GL-QoS | 0.945 | 0.629 | 0.926 | 0.104 | 0.092 | 0.945 |
 |  |  | HGL | 0.967 | 0.955 | 0.954 | 0.116 | 0.097 | 0.995 |
-|  |  | HGL-QoS (ours) | 0.929 | 0.927 | 0.926 | 0.128 | 0.104 | 0.966 |
+|  |  | HGL-QoS | 0.929 | 0.927 | 0.926 | 0.128 | 0.104 | 0.966 |
 | | | | | | | | |
 | Financial Trading | Fresh-RMAV | Topo-BL | 0.187 | 0.375 | 0.872 | 0.284 | 0.269 | 0.844 |
 |  |  | Topo-QoS | 0.911 | 0.750 | 0.949 | 0.280 | 0.267 | 0.987 |
 |  |  | GL | 0.877 | 0.800 | 0.953 | 0.075 | 0.063 | 0.973 |
 |  |  | GL-QoS | 0.792 | 0.500 | 0.882 | 0.077 | 0.065 | 0.947 |
 |  |  | HGL | 0.920 | 0.924 | 0.906 | 0.067 | 0.053 | 0.985 |
-|  |  | HGL-QoS (ours) | 0.829 | 0.925 | 0.906 | 0.090 | 0.073 | 0.969 |
+|  |  | HGL-QoS | 0.829 | 0.925 | 0.906 | 0.090 | 0.073 | 0.969 |
 | | | | | | | | |
 | Healthcare | Fresh-RMAV | Topo-BL | 0.480 | 0.714 | 0.935 | 0.279 | 0.268 | 0.927 |
 |  |  | Topo-QoS | 0.915 | 0.857 | 0.968 | 0.276 | 0.266 | 0.995 |
 |  |  | GL | 0.778 | 0.800 | 0.939 | 0.085 | 0.073 | 0.981 |
 |  |  | GL-QoS | 0.756 | 0.400 | 0.815 | 0.086 | 0.071 | 0.951 |
 |  |  | HGL | 0.932 | 0.950 | 0.939 | 0.089 | 0.071 | 0.995 |
-|  |  | HGL-QoS (ours) | 0.879 | 0.899 | 0.877 | 0.100 | 0.082 | 0.978 |
+|  |  | HGL-QoS | 0.879 | 0.899 | 0.877 | 0.100 | 0.082 | 0.978 |
 | | | | | | | | |
 | Hub-and-Spoke | Fresh-RMAV | Topo-BL | 0.487 | 0.400 | 0.874 | 0.286 | 0.272 | 0.826 |
 |  |  | Topo-QoS | 0.934 | 0.900 | 0.979 | 0.282 | 0.269 | 0.995 |
 |  |  | GL | 0.849 | 0.700 | 0.937 | 0.075 | 0.066 | 0.970 |
 |  |  | GL-QoS | 0.838 | 0.400 | 0.874 | 0.084 | 0.073 | 0.958 |
 |  |  | HGL | 0.922 | 0.924 | 0.916 | 0.092 | 0.075 | 0.984 |
-|  |  | HGL-QoS (ours) | 0.935 | 0.947 | 0.937 | 0.089 | 0.077 | 0.984 |
+|  |  | HGL-QoS | 0.935 | 0.947 | 0.937 | 0.089 | 0.077 | 0.984 |
 | | | | | | | | |
 | IoT Smart City | Fresh-RMAV | Topo-BL | 0.418 | 0.000 | 0.962 | 0.299 | 0.289 | 0.706 |
 |  |  | Topo-QoS | 0.612 | 0.500 | 0.981 | 0.300 | 0.289 | 0.833 |
 |  |  | GL | 0.804 | 0.560 | 0.933 | 0.082 | 0.070 | 0.937 |
 |  |  | GL-QoS | 0.875 | 0.720 | 0.971 | 0.102 | 0.087 | 0.964 |
 |  |  | HGL | 0.944 | 0.947 | 0.943 | 0.113 | 0.099 | 0.969 |
-|  |  | HGL-QoS (ours) | 0.953 | 0.963 | 0.962 | 0.108 | 0.089 | 0.984 |
+|  |  | HGL-QoS | 0.953 | 0.963 | 0.962 | 0.108 | 0.089 | 0.984 |
 | | | | | | | | |
 | Microservices | Fresh-RMAV | Topo-BL | 0.518 | 0.000 | 0.983 | 0.286 | 0.275 | 0.857 |
 |  |  | Topo-QoS | 0.849 | 0.000 | 0.983 | 0.284 | 0.273 | 0.901 |
 |  |  | GL | 0.849 | 0.267 | 0.883 | 0.085 | 0.073 | 0.932 |
 |  |  | GL-QoS | 0.790 | 0.333 | 0.900 | 0.129 | 0.120 | 0.931 |
 |  |  | HGL | 0.847 | 0.885 | 0.883 | 0.115 | 0.097 | 0.948 |
-|  |  | HGL-QoS (ours) | 0.865 | 0.908 | 0.900 | 0.116 | 0.093 | 0.950 |
+|  |  | HGL-QoS | 0.865 | 0.908 | 0.900 | 0.116 | 0.093 | 0.950 |
 | | | | | | | | |
 
 *\*F1, Precision, and Recall are computed with **rank-matched binarization**: the top-K predicted nodes are declared critical, where K equals the number of ground-truth critical nodes (composite > 0.5). This isolates ranking quality from absolute-score calibration and makes F1 directly comparable across variants whose raw outputs live on different scales — sigmoid outputs in [0, 1] for the heterogeneous GAT, unbounded logits for the homogeneous GAT baselines, and raw centrality for the structural baselines.*
@@ -329,7 +329,7 @@ The following table summarizes the global ranking and identification metrics und
 |---|---|---|---|---|
 | GL | -0.0209 | 0.2407 | 0.6387 | — |
 | GL-QoS | -0.2665 | 0.3451 | 0.6016 | — |
-| HGL-QoS (ours) | **0.2912** | 0.0418 | 0.3447 | +0.3121 |
+| HGL-QoS | **0.2912** | 0.0418 | 0.3447 | +0.3121 |
 
 **Discussion.** The generality validation reveals a stark and decisive contrast. Both homogeneous graph learning baselines (GL and GL-QoS) catastrophically collapse or fail to generalize under the LOSO protocol, yielding near-zero or severe negative Spearman correlations ($\rho = -0.0209$ and $\rho = -0.2665$). This demonstrates that homogeneous GNNs overfit to scenario-specific topologies and fail completely when exposed to unseen structures. 
 
@@ -343,7 +343,7 @@ We perform a localized analysis to evaluate how effectively each model-variant p
 
 The following table reports the Spearman ranking correlation ($\rho$) evaluated independently over Application and Library node types.
 
-| Scenario | Node Type | Topo-BL | Topo-QoS | GL | GL-QoS | HGL | HGL-QoS (ours) |
+| Scenario | Node Type | Topo-BL | Topo-QoS | GL | GL-QoS | HGL | HGL-QoS |
 |---|---| --- | --- | --- | --- | --- | --- |
 | ATM System | Application | 0.165 | 0.095 | 0.054 | -0.176 | 0.141 | 0.291 |
 |  | Library | — | — | 0.000 | 0.000 | 0.000 | 0.000 |

@@ -93,7 +93,7 @@ def _run_variant(
 # ── Comparison table ──────────────────────────────────────────────────────────
 
 _VARIANT_LABELS = {
-    "hgl_qos":         "HGL-QoS (ours)",
+    "hgl_qos":         "HGL-QoS",
     "hgl":             "HGL",
     "gl_qos":          "GL-QoS",
     "gl":              "GL",

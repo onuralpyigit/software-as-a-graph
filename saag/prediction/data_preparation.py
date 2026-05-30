@@ -764,11 +764,11 @@ def create_node_splits(
 
 
 def normalize_labels_robust(hetero_data) -> None:
-    """In-place IQR normalization of .y label tensors across all node types.
+    """In-place IQR normalization of .y label tensors, preserving zeros.
 
-    Computes global median and IQR over all labelled nodes, then maps each
-    label through (x - median) / IQR, clamps to [-3, 3], and applies sigmoid
-    to keep values in (0, 1) for use with the sigmoid output heads.
+    Computes global median and IQR over non-zero labelled nodes, then maps non-zero
+    labels through (x - median) / IQR, clamps to [-3, 3], and applies sigmoid
+    to keep values in (0, 1) for use with the sigmoid output heads. Zeros remain 0.0.
     """
     all_labels = [
         hetero_data[nt].y
@@ -778,14 +778,27 @@ def normalize_labels_robust(hetero_data) -> None:
     if not all_labels:
         return
     concat = torch.cat(all_labels, dim=0)   # (N_total, 5)
-    q25 = torch.quantile(concat, 0.25, dim=0)
-    q75 = torch.quantile(concat, 0.75, dim=0)
+    
+    # Mask out original zeros to preserve zero structure
+    non_zero_mask = concat[:, 0].abs() > 1e-6
+    if not non_zero_mask.any():
+        return
+        
+    non_zero_concat = concat[non_zero_mask]
+    q25 = torch.quantile(non_zero_concat, 0.25, dim=0)
+    q75 = torch.quantile(non_zero_concat, 0.75, dim=0)
     iqr = (q75 - q25).clamp(min=1e-6)
-    median = torch.median(concat, dim=0).values
+    median = torch.median(non_zero_concat, dim=0).values
+    
     for nt in hetero_data.node_types:
         store = hetero_data[nt]
-        if hasattr(store, "y"):
-            store.y = torch.sigmoid(((store.y - median) / iqr).clamp(-3.0, 3.0))
+        if hasattr(store, "y") and store.y.numel() > 0:
+            nz = store.y[:, 0].abs() > 1e-6
+            if nz.any():
+                scaled = torch.sigmoid(((store.y[nz] - median) / iqr).clamp(-3.0, 3.0))
+                new_y = store.y.clone()
+                new_y[nz] = scaled
+                store.y = new_y
 
 
 # ── Extraction utilities ───────────────────────────────────────────────────────

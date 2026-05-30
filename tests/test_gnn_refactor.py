@@ -310,7 +310,7 @@ def test_update_best_detects_improvement():
 # ── Label normalization ───────────────────────────────────────────────────────
 
 def test_normalize_labels_robust_clips_outlier():
-    """normalize_labels_robust maps outliers toward center and keeps values in (0,1)."""
+    """normalize_labels_robust maps outliers toward center, keeps non-zeros in (0,1), and preserves zeros."""
     from saag.prediction.data_preparation import normalize_labels_robust
     from torch_geometric.data import HeteroData
 
@@ -324,9 +324,10 @@ def test_normalize_labels_robust_clips_outlier():
     normalize_labels_robust(data)
 
     out = data["Application"].y
-    assert out.min() > 0.0 and out.max() < 1.0, "All values should be in (0, 1) after normalization"
+    # Zero entries (like row 1) must remain exactly 0.0
+    assert out[1, 0] == 0.0
     # Outlier should be pulled back from the extreme
-    assert out[0, 0] < 1.0
+    assert 0.0 < out[0, 0] < 1.0
 
 
 # ── Default prediction mode ───────────────────────────────────────────────────
