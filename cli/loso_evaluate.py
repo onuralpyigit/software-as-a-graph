@@ -419,7 +419,7 @@ def run_one_fold(
             if variant in ("gl", "gl_qos"):
                 # Baseline variants use GNNTrainer directly
                 from saag.prediction.models.baselines import build_baseline
-                from saag.prediction.data_preparation import networkx_to_hetero_data, create_node_splits
+                from saag.prediction.data_preparation import create_node_splits
                 from saag.prediction.trainer import GNNTrainer, evaluate
 
                 use_qos = (variant == "gl_qos")
