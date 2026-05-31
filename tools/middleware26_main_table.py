@@ -558,15 +558,7 @@ def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[A
     if saag_features:
         structural_dict = _merge_structural_dicts(saag_features, structural_dict)
 
-        # Fresh RMAV quality from DEPENDS_ON features — consistent with feature source.
-        # Skip this override for atm_system to preserve the raw simulation labels (Sim),
-        # as atm_system serves as our historical physical simulation anchor (gt_source = "Sim").
-        fresh_rmav = _compute_rmav_from_structural(topology, saag_features)
-        if fresh_rmav and scenario != "atm_system" and _is_sparse(simulation_dict):
-            logger.info("Using fresh RMAV quality as simulation labels (DEPENDS_ON-consistent).")
-            simulation_dict = fresh_rmav
-            rmav_dict = fresh_rmav
-            gt_source = "Fresh-RMAV"
+
 
         if substrate == "projection":
             # Build DEPENDS_ON-only graph: Application + Library nodes, Rules 1 & 5.
@@ -1018,18 +1010,7 @@ def _train_cell(
         import numpy as np
         from saag.prediction.trainer import evaluate_scores
 
-        if gt_source == "Fresh-RMAV":
-            # RMAV is used as ground truth for this scenario -> 1.0 correlation is trivial.
-            # Mark as circular so renderer can handle it.
-            types = sorted({nx_graph.nodes[k].get("type", "Application") for k in simulation_dict})
-            return {
-                "scenario": scenario, "variant": variant, "seed": seed,
-                "gt_source": gt_source,
-                "spearman_rho": 1.0, "f1_score": 1.0, "ndcg_10": 1.0,
-                "precision": 1.0, "recall": 1.0,
-                "accuracy": 1.0, "rmse": 0.0, "mae": 0.0,
-                "per_node_type": {t: 1.0 for t in types}, "runtime_s": 0.01,
-            }
+
 
         keys = sorted(set(rmav_dict) & set(simulation_dict))
         if len(keys) < 3:

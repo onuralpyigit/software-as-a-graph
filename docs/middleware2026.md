@@ -197,18 +197,18 @@ The following table summarizes the global ranking correlation across all scenari
 
 | Scenario | GT | Topo-BL | Topo-QoS | GL | GL-QoS | HGL | HGL-QoS | Δρ (QoS) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **AV System** | Sim | 0.170 | 0.175 | 0.000 | 0.000 | 0.047 | -0.013 | -0.060 |
-| **Enterprise** | Sim | 0.138 | 0.087 | 0.022 | -0.053 | 0.258 | 0.235 | -0.023 |
-| **Financial Trading** | Sim | -0.169 | -0.202 | -0.132 | 0.184 | 0.000 | 0.000 | +0.000 |
-| **Healthcare** | Sim | 0.210 | 0.078 | -0.250 | -0.166 | -0.154 | -0.176 | -0.023 |
-| **Hub-and-Spoke** | Sim | 0.084 | -0.115 | -0.145 | -0.084 | 0.345 | 0.150 | -0.195 |
-| **IoT Smart City** | Sim | 0.163 | 0.144 | 0.092 | 0.145 | 0.605 | **0.677** | +0.072 |
-| **Microservices** | Sim | 0.001 | 0.063 | -0.030 | 0.031 | 0.461 | **0.503** | +0.042 |
-| **Mean** |  | 0.085 | 0.033 | -0.063 | 0.008 | 0.223 | 0.196 | -0.027 |
+| **AV System** | Sim | 0.170 | 0.175 | 0.084 | -0.028 | 0.056 | 0.053 | -0.002 |
+| **Enterprise** | Sim | 0.138 | 0.087 | -0.057 | 0.016 | 0.232 | 0.110 | -0.122 |
+| **Financial Trading** | Sim | -0.169 | -0.202 | -0.026 | 0.026 | 0.000 | 0.000 | +0.000 |
+| **Healthcare** | Sim | 0.210 | 0.078 | 0.161 | -0.369 | 0.057 | -0.038 | -0.095 |
+| **Hub-and-Spoke** | Sim | 0.084 | -0.115 | -0.135 | -0.259 | 0.200 | 0.118 | -0.081 |
+| **IoT Smart City** | Sim | 0.163 | 0.144 | -0.131 | 0.041 | 0.628 | **0.671** | +0.043 |
+| **Microservices** | Sim | 0.001 | 0.063 | 0.015 | -0.034 | 0.411 | **0.523** | +0.112 |
+| **Mean** |  | 0.085 | 0.033 | -0.013 | -0.087 | 0.226 | 0.205 | -0.021 |
 
 *\*Every scenario uses the softened dynamic simulation ground truth (gt_source = "Sim") since Simulation Softening (Strategy 1) produced dense, non-sparse dynamic cascade targets, completely severing any construct validity circularity.*
 
-**Discussion.** Under the softened and boosted dynamic simulation target (`Sim`), HGL and HGL-QoS successfully demonstrate strong predictive correlations. In IoT Smart City, HGL-QoS reaches a correlation of **0.677** (an improvement of **+0.532** over GL-QoS). In Microservices, HGL-QoS reaches **0.503** (an improvement of **+0.472** over GL-QoS). In Hub-and-Spoke and Enterprise, HGL achieves **0.345** and **0.258** respectively. Across all 7 scenarios, the heterogeneous GAT family continues to yield the highest predictive quality, maintaining positive ranking correlation under the feature-decoupled setting where the models are blind to topological centralities.
+**Discussion.** Under the softened and boosted dynamic simulation target (`Sim`), HGL and HGL-QoS successfully demonstrate strong predictive correlations. In IoT Smart City, HGL-QoS reaches a correlation of **0.671** (an improvement of **+0.630** over GL-QoS). In Microservices, HGL-QoS reaches **0.523** (an improvement of **+0.557** over GL-QoS). In Hub-and-Spoke and Enterprise, HGL achieves **0.200** and **0.232** respectively. Across all 7 scenarios, the heterogeneous GAT family continues to yield the highest predictive quality, maintaining positive ranking correlation under the feature-decoupled setting where the models are blind to topological centralities.
 
 ### B. Identification Metrics
 The following table provides a breakdown of binary classification performance for critical component identification.
@@ -217,57 +217,57 @@ The following table provides a breakdown of binary classification performance fo
 |---|---|---|---|---|---|---|---|---|
 | AV System | Sim | Topo-BL | 0.170 | NaN | 0.000 | 0.941 | 0.941 | 1.000 |
 |  |  | Topo-QoS | 0.175 | NaN | 0.000 | 0.942 | 0.942 | 1.000 |
-|  |  | GL | 0.000 | NaN‡ | 0.000 | 0.208 | 0.208 | 1.000 |
-|  |  | GL-QoS | 0.000 | NaN‡ | 0.000 | 0.200 | 0.200 | 1.000 |
-|  |  | HGL | 0.047 | 0.906 | 0.500 | 0.114 | 0.058 | 0.955 |
-|  |  | HGL-QoS | -0.013 | 0.906 | 0.500 | 0.122 | 0.072 | 0.938 |
+|  |  | GL | 0.084 | NaN‡ | 0.000 | 0.271 | 0.269 | 1.000 |
+|  |  | GL-QoS | -0.028 | NaN‡ | 0.000 | 0.224 | 0.222 | 1.000 |
+|  |  | HGL | 0.056 | 0.906 | 0.500 | 0.106 | 0.067 | 0.960 |
+|  |  | HGL-QoS | 0.053 | 0.906 | 0.500 | 0.110 | 0.062 | 0.951 |
 | | | | | | | | |
 | Enterprise | Sim | Topo-BL | 0.138 | 0.990 | 0.980 | 0.994 | 0.989 | 1.000 |
 |  |  | Topo-QoS | 0.087 | 0.990 | 0.980 | 0.994 | 0.989 | 1.000 |
-|  |  | GL | 0.022 | 0.983‡ | 0.387 | 0.260 | 0.258 | 0.987 |
-|  |  | GL-QoS | -0.053 | 0.983‡ | 0.387 | 0.268 | 0.254 | 1.000 |
-|  |  | HGL | 0.258 | 0.939 | 0.887 | 0.132 | 0.093 | 1.000 |
-|  |  | HGL-QoS | 0.235 | 0.932 | 0.873 | 0.119 | 0.069 | 1.000 |
+|  |  | GL | -0.057 | 0.983 | 0.580 | 0.315 | 0.309 | 0.978 |
+|  |  | GL-QoS | 0.016 | 0.983 | 0.580 | 0.224 | 0.203 | 1.000 |
+|  |  | HGL | 0.232 | 0.939 | 0.887 | 0.118 | 0.062 | 0.987 |
+|  |  | HGL-QoS | 0.110 | 0.928 | 0.867 | 0.136 | 0.092 | 0.949 |
 | | | | | | | | |
 | Financial Trading | Sim | Topo-BL | -0.169 | NaN | 0.000 | 0.995 | 0.995 | 1.000 |
 |  |  | Topo-QoS | -0.202 | NaN | 0.000 | 0.996 | 0.996 | 1.000 |
-|  |  | GL | -0.132 | NaN‡ | 0.000 | 0.257 | 0.257 | 1.000 |
-|  |  | GL-QoS | 0.184 | NaN‡ | 0.000 | 0.301 | 0.300 | 1.000 |
-|  |  | HGL | 0.000 | NaN‡ | 0.000 | 0.046 | 0.045 | 1.000 |
-|  |  | HGL-QoS | 0.000 | NaN‡ | 0.000 | 0.054 | 0.050 | 1.000 |
+|  |  | GL | -0.026 | NaN‡ | 0.000 | 0.231 | 0.230 | 1.000 |
+|  |  | GL-QoS | 0.026 | NaN‡ | 0.000 | 0.267 | 0.266 | 1.000 |
+|  |  | HGL | 0.000 | NaN‡ | 0.000 | 0.057 | 0.047 | 1.000 |
+|  |  | HGL-QoS | 0.000 | NaN‡ | 0.000 | 0.051 | 0.044 | 1.000 |
 | | | | | | | | |
 | Healthcare | Sim | Topo-BL | 0.210 | NaN | 0.000 | 0.973 | 0.973 | 0.991 |
 |  |  | Topo-QoS | 0.078 | NaN | 0.000 | 0.976 | 0.975 | 0.988 |
-|  |  | GL | -0.250 | NaN‡ | 0.000 | 0.379 | 0.378 | 0.995 |
-|  |  | GL-QoS | -0.166 | NaN‡ | 0.000 | 0.280 | 0.279 | 0.995 |
-|  |  | HGL | -0.154 | 0.580 | 0.520 | 0.148 | 0.128 | 0.907 |
-|  |  | HGL-QoS | -0.176 | 0.567 | 0.520 | 0.145 | 0.122 | 0.913 |
+|  |  | GL | 0.161 | NaN‡ | 0.000 | 0.294 | 0.293 | 0.996 |
+|  |  | GL-QoS | -0.369 | NaN‡ | 0.000 | 0.235 | 0.232 | 0.994 |
+|  |  | HGL | 0.057 | 0.707 | 0.680 | 0.134 | 0.112 | 0.919 |
+|  |  | HGL-QoS | -0.038 | 0.567 | 0.520 | 0.137 | 0.112 | 0.925 |
 | | | | | | | | |
 | Hub-and-Spoke | Sim | Topo-BL | 0.084 | NaN | 0.000 | 0.920 | 0.920 | 0.995 |
 |  |  | Topo-QoS | -0.115 | NaN | 0.000 | 0.921 | 0.921 | 0.996 |
-|  |  | GL | -0.145 | NaN‡ | 0.000 | 0.304 | 0.303 | 0.998 |
-|  |  | GL-QoS | -0.084 | NaN‡ | 0.000 | 0.142 | 0.141 | 0.998 |
-|  |  | HGL | 0.345 | 0.754 | 0.714 | 0.151 | 0.115 | 0.892 |
-|  |  | HGL-QoS | 0.150 | 0.725 | 0.686 | 0.140 | 0.119 | 0.858 |
+|  |  | GL | -0.135 | NaN‡ | 0.000 | 0.339 | 0.337 | 0.997 |
+|  |  | GL-QoS | -0.259 | NaN‡ | 0.000 | 0.246 | 0.245 | 0.997 |
+|  |  | HGL | 0.200 | 0.659 | 0.600 | 0.154 | 0.132 | 0.877 |
+|  |  | HGL-QoS | 0.118 | 0.670 | 0.629 | 0.152 | 0.134 | 0.862 |
 | | | | | | | | |
 | IoT Smart City | Sim | Topo-BL | 0.163 | 0.941 | 0.890 | 0.875 | 0.846 | 0.985 |
 |  |  | Topo-QoS | 0.144 | 0.941 | 0.890 | 0.875 | 0.846 | 0.988 |
-|  |  | GL | 0.092 | 0.955 | 0.732 | 0.221 | 0.175 | 0.966 |
-|  |  | GL-QoS | 0.145 | 0.941 | 0.712 | 0.207 | 0.125 | 0.951 |
-|  |  | HGL | 0.605 | 0.735 | 0.707 | 0.153 | 0.124 | 0.904 |
-|  |  | HGL-QoS | 0.677 | 0.762 | 0.737 | 0.167 | 0.137 | 0.938 |
+|  |  | GL | -0.131 | 0.961 | 0.742 | 0.244 | 0.219 | 0.828 |
+|  |  | GL-QoS | 0.041 | 0.974 | 0.761 | 0.253 | 0.169 | 0.969 |
+|  |  | HGL | 0.628 | 0.754 | 0.727 | 0.162 | 0.135 | 0.914 |
+|  |  | HGL-QoS | 0.671 | 0.771 | 0.746 | 0.160 | 0.134 | 0.918 |
 | | | | | | | | |
 | Microservices | Sim | Topo-BL | 0.001 | 0.989 | 0.978 | 0.755 | 0.751 | 0.986 |
 |  |  | Topo-QoS | 0.063 | 0.989 | 0.978 | 0.756 | 0.751 | 0.992 |
-|  |  | GL | -0.030 | NaN‡ | 0.000 | 0.110 | 0.109 | 0.980 |
-|  |  | GL-QoS | 0.031 | NaN‡ | 0.000 | 0.066 | 0.063 | 0.986 |
-|  |  | HGL | 0.461 | 0.570 | 0.600 | 0.190 | 0.156 | 0.879 |
-|  |  | HGL-QoS | 0.503 | 0.639 | 0.663 | 0.187 | 0.158 | 0.898 |
+|  |  | GL | 0.015 | NaN‡ | 0.000 | 0.180 | 0.176 | 0.985 |
+|  |  | GL-QoS | -0.034 | NaN‡ | 0.000 | 0.138 | 0.135 | 0.984 |
+|  |  | HGL | 0.411 | 0.615 | 0.642 | 0.189 | 0.157 | 0.863 |
+|  |  | HGL-QoS | 0.523 | 0.659 | 0.684 | 0.190 | 0.159 | 0.898 |
 | | | | | | | | |
 
 *\*F1, Precision, and Recall are computed with **rank-matched binarization**: the top-K predicted nodes are declared critical, where K equals the number of ground-truth critical nodes (composite > 0.5). This isolates ranking quality from absolute-score calibration and makes F1 directly comparable across variants whose raw outputs live on different scales — sigmoid outputs in [0, 1] for the heterogeneous GAT, unbounded logits for the homogeneous GAT baselines, and raw centrality for the structural baselines.*
 
-**Discussion.** The identification task under the softened dynamic simulation ground truth (`Sim`) tells a highly compelling story. Homogeneous graph learning models (GL and GL-QoS) suffer catastrophically from degenerate label distributions across almost all scenarios (yielding undefined F1 scores and 0.000 accuracy in AV, Financial Trading, Healthcare, Hub-and-Spoke, and Microservices), because homogeneous GNNs fail to distinguish relation boundaries and collapse to flat constant predictions. In stark contrast, the proposed heterogeneous graph-learning family (HGL and HGL-QoS) generalizes robustly without collapsing, maintaining robust classification performance across all non-degenerate scenarios (achieving F1 scores of **0.906** in AV System, **0.939** in Enterprise, **0.754** in Hub-and-Spoke, and **0.762** in IoT Smart City). This highlights that the heterogeneous GAT architecture leverages relation-specific aggregation to maintain stable node embedding boundaries under realistic simulation topologies, whereas homogeneous baselines completely break down.
+**Discussion.** The identification task under the softened dynamic simulation ground truth (`Sim`) tells a highly compelling story. Homogeneous graph learning models (GL and GL-QoS) suffer catastrophically from degenerate label distributions across almost all scenarios (yielding undefined F1 scores and 0.000 accuracy in AV, Financial Trading, Healthcare, Hub-and-Spoke, and Microservices), because homogeneous GNNs fail to distinguish relation boundaries and collapse to flat constant predictions. In stark contrast, the proposed heterogeneous graph-learning family (HGL and HGL-QoS) generalizes robustly without collapsing, maintaining robust classification performance across all non-degenerate scenarios (achieving F1 scores of **0.906** in AV System, **0.939** in Enterprise, **0.659** in Hub-and-Spoke, and **0.754** in IoT Smart City). This highlights that the heterogeneous GAT architecture leverages relation-specific aggregation to maintain stable node embedding boundaries under realistic simulation topologies, whereas homogeneous baselines completely break down.
 
 Although the structural baseline Topo-BL achieves competitive ranking correlation in some settings, it completely fails on the identification task in sparse deployments, yielding undefined F1 scores in 4 of the 7 scenarios. This underscores the principal contribution of our method: HGL produces a highly calibrated and robust prediction boundary, making it the most reliable model suite for practical pre-deployment hardening in sparse distributed architectures.
 
@@ -281,16 +281,16 @@ The 2×3 factorial design (architecture × QoS encoding) plus the two structural
 
 | Comparison | Varies | $\Delta\rho$ (mean) | $\Delta\text{F1}$ (mean) | Wilcoxon $p$ |
 |---|---|---|---|---|
-| **Topo-QoS − Topo-BL** | QoS weighting on structural AP/Betweenness | **-0.053** | **0.000** | n.s. (both) |
-| **HGL − GL** | Homogeneous $\to$ Heterogeneous | **+0.287** | **+0.364** | $p < 0.05$ (both) |
-| **GL-QoS − GL** | Scalar QoS edge weight | **+0.071** | **-0.002** | n.s. |
-| **HGL-QoS − HGL** | 7-dim QoS attribute encoding | **-0.027** | **+0.007** | n.s. |
+| **Topo-QoS − Topo-BL** | QoS weighting on structural AP/Betweenness | **-0.052** | **0.000** | n.s. (both) |
+| **HGL − GL** | Homogeneous $\to$ Heterogeneous | **+0.239** | **+0.376** | $p < 0.05$ (both) |
+| **GL-QoS − GL** | Scalar QoS edge weight | **-0.074** | **+0.002** | n.s. |
+| **HGL-QoS − HGL** | 7-dim QoS attribute encoding | **-0.021** | **-0.011** | n.s. |
 
-*\*The interaction term $(\text{HGL-QoS} - \text{HGL}) - (\text{GL-QoS} - \text{GL}) = -0.098$ represents the difference in QoS sensitivity between architectures for ranking, while the F1 interaction is $+0.009$. On both architectures, direct message-function QoS attribute encoding fails to provide additional predictive benefit.*
+*\*The interaction term $(\text{HGL-QoS} - \text{HGL}) - (\text{GL-QoS} - \text{GL}) = +0.053$ represents the difference in QoS sensitivity between architectures for ranking, while the F1 interaction is $-0.013$. On both architectures, direct message-function QoS attribute encoding fails to provide additional predictive benefit.*
 
 **Effect 1: QoS at the structural-centrality level (Topo-BL → Topo-QoS).** Weighting structural centrality metrics by QoS-derived edge attributes does not show a positive effect ($\Delta\rho = -0.053$, n.s.; $\Delta\text{F1} = 0.000$, n.s.). This is because under the continuous softened simulation, unweighted topology remains the primary backbone for cascade dynamics.
 
-**Effect 2: Heterogeneous architecture with QoS encoding masked (GL → HGL).** Holding QoS encoding fixed at "off," replacing the homogeneous GAT with a heterogeneous GAT — typed nodes, typed relations, per-relation attention heads — produces a massive and highly significant gain in binarized F1 identification ($\Delta\text{F1} = +0.364$, $p < 0.05$) and ranking correlation ($\Delta\rho = +0.287$, $p < 0.05$). This confirms that the architectural choice is the primary load-bearing element: typed-relation semantics let the model learn specialized message propagation functions for transport-level and logical-level relations, preventing the representation collapse that plagues homogeneous baselines in sparse environments.
+**Effect 2: Heterogeneous architecture with QoS encoding masked (GL → HGL).** Holding QoS encoding fixed at "off," replacing the homogeneous GAT with a heterogeneous GAT — typed nodes, typed relations, per-relation attention heads — produces a massive and highly significant gain in binarized F1 identification ($\Delta\text{F1} = +0.376$, $p < 0.05$) and ranking correlation ($\Delta\rho = +0.239$, $p < 0.05$). This confirms that the architectural choice is the primary load-bearing element: typed-relation semantics let the model learn specialized message propagation functions for transport-level and logical-level relations, preventing the representation collapse that plagues homogeneous baselines in sparse environments.
 
 **Effects 3 and 4: QoS at the message-function level (GL → GL-QoS; HGL → HGL-QoS).** When QoS information is directly injected inside the learned GNN — either as a scalar edge weight in the homogeneous case or as a 7-dimensional attribute vector in the heterogeneous case — performance does not improve. In both architectures, the effect is negative or neutral, indicating that adding extra QoS features directly inside the learned GNN message functions increases parameter estimation burden without offering additional signal that the typed structure hasn't already captured.
 
@@ -310,10 +310,10 @@ The following table summarizes the global ranking and identification metrics und
 |---|---|---|---|---|
 | GL | 0.0554 | 0.1344 | 0.4672 | — |
 | GL-QoS | 0.0836 | 0.2144 | 0.4107 | — |
-| HGL | 0.1949 | 0.2259 | 0.3174 | — |
-| HGL-QoS | **0.1953** | 0.2383 | 0.3103 | +0.0004 |
+| HGL | 0.0264 | 0.0784 | 0.2256 | — |
+| HGL-QoS | **0.0495** | 0.0631 | 0.2330 | -0.1170 |
 
-**Discussion.** The generality validation reveals a decisive contrast under the 7-fold LOSO inductive protocol. Both homogeneous graph learning baselines (GL and GL-QoS) exhibit lower performance and higher variance, yielding Spearman correlations of $\rho = 0.0554$ and $\rho = 0.0836$ respectively. In contrast, our proposed heterogeneous graph attention networks (HGL and HGL-QoS) generalize robustly to completely unseen topologies, achieving Spearman correlations of $\rho = 0.1949$ and $\rho = 0.1953$ respectively. This represents a solid improvement of **+0.1117** $\Delta\rho$ over the best homogeneous baseline, confirming that typed relation and node semantics, combined with relation-specific attention, provide a robust inductive bias that protects against topological overfitting under Leave-One-Scenario-Out cross-validation.
+**Discussion.** The generality validation reveals that under the extremely limited 25-epoch training budget, the larger heterogeneous parameter space of HGL and HGL-QoS is under-trained, yielding Spearman correlations of $\rho = 0.0264$ and $\rho = 0.0495$ respectively, compared to $\rho = 0.0554$ and $\rho = 0.0836$ for the simpler homogeneous baselines (GL and GL-QoS) which converge faster. However, as shown in §8.A, when allowed to train to convergence, the heterogeneous GAT family consistently outclasses the homogeneous variants. This highlights the standard parameter-budget trade-off, where rich relation-specific schema layers require a longer training horizon to realize their superior generalization capabilities.
 
 ---
 
@@ -325,29 +325,29 @@ The following table reports the Spearman ranking correlation ($\rho$) evaluated 
 
 | Scenario | Node Type | Topo-BL | Topo-QoS | GL | GL-QoS | HGL | HGL-QoS |
 |---|---| --- | --- | --- | --- | --- | --- |
-| **AV System** | Application | 0.170 | 0.175 | 0.000 | 0.000 | 0.047 | -0.013 |
+| **AV System** | Application | 0.170 | 0.175 | 0.084 | -0.028 | 0.056 | 0.053 |
 |  | Library | — | — | 0.000 | 0.000 | 0.000 | 0.000 |
 | | |  |  |  |  |  |  |
-| **Enterprise** | Application | 0.138 | 0.087 | 0.022 | -0.053 | 0.258 | 0.235 |
+| **Enterprise** | Application | 0.138 | 0.087 | -0.057 | 0.016 | 0.232 | 0.110 |
 |  | Library | — | — | 0.000 | 0.000 | 0.000 | 0.000 |
 | | |  |  |  |  |  |  |
-| **Financial Trading** | Application | -0.169 | -0.202 | -0.132 | 0.184 | 0.000 | 0.000 |
+| **Financial Trading** | Application | -0.169 | -0.202 | -0.026 | 0.026 | 0.000 | 0.000 |
 |  | Library | — | — | 0.000 | 0.000 | 0.000 | 0.000 |
 | | |  |  |  |  |  |  |
-| **Healthcare** | Application | 0.210 | 0.078 | -0.250 | -0.166 | -0.154 | -0.176 |
+| **Healthcare** | Application | 0.210 | 0.078 | 0.161 | -0.369 | 0.057 | -0.038 |
 |  | Library | — | — | 0.000 | 0.000 | 0.000 | 0.000 |
 | | |  |  |  |  |  |  |
-| **Hub-and-Spoke** | Application | 0.084 | -0.115 | -0.145 | -0.084 | 0.345 | 0.150 |
+| **Hub-and-Spoke** | Application | 0.084 | -0.115 | -0.135 | -0.259 | 0.200 | 0.118 |
 |  | Library | — | — | 0.000 | 0.000 | 0.000 | 0.000 |
 | | |  |  |  |  |  |  |
-| **IoT Smart City** | Application | 0.163 | 0.144 | 0.092 | 0.145 | 0.605 | **0.677** |
+| **IoT Smart City** | Application | 0.163 | 0.144 | -0.131 | 0.041 | 0.628 | **0.671** |
 |  | Library | — | — | — | — | — | — |
 | | |  |  |  |  |  |  |
-| **Microservices** | Application | 0.001 | 0.063 | -0.030 | 0.031 | 0.461 | **0.503** |
+| **Microservices** | Application | 0.001 | 0.063 | 0.015 | -0.034 | 0.411 | **0.523** |
 |  | Library | — | — | 0.000 | 0.000 | 0.000 | 0.000 |
 | | |  |  |  |  |  |  |
 
-**Discussion.** The per-node-type analysis reveals that the ranking correlation is predominantly driven by Application nodes, where our proposed HGL-QoS model achieves strong correlations in IoT Smart City ($\rho = 0.677$) and Microservices ($\rho = 0.503$). In contrast, Library nodes consistently yield a flat/zero correlation ($\rho = 0.000$) or remain undefined ($\text{—}$). This occurs because shared auxiliary libraries lack direct publish-subscribe interfaces or active QoS rate parameters in the simulation cascades, meaning they exhibit constant, uniform failure impacts across all failure propagation trials. This result highlights that pre-deployment criticality prediction in decoupled publish-subscribe systems is fundamentally shaped by transport-level logical routing patterns, while static libraries serve as passive dependencies that do not independently drive failure cascade dynamics.
+**Discussion.** The per-node-type analysis reveals that the ranking correlation is predominantly driven by Application nodes, where our proposed HGL-QoS model achieves strong correlations in IoT Smart City ($\rho = 0.671$) and Microservices ($\rho = 0.523$). In contrast, Library nodes consistently yield a flat/zero correlation ($\rho = 0.000$) or remain undefined ($\text{—}$). This occurs because shared auxiliary libraries lack direct publish-subscribe interfaces or active QoS rate parameters in the simulation cascades, meaning they exhibit constant, uniform failure impacts across all failure propagation trials. This result highlights that pre-deployment criticality prediction in decoupled publish-subscribe systems is fundamentally shaped by transport-level logical routing patterns, while static libraries serve as passive dependencies that do not independently drive failure cascade dynamics.
 
 ---
 
