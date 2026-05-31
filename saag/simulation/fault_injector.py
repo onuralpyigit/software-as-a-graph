@@ -167,6 +167,39 @@ class FaultInjector:
         propagation_threshold: float = 1.0,
     ) -> None:
         self.graph = graph
+        
+        # Derive DEPENDS_ON edges dynamically if they are missing
+        has_depends_on = any((d.get("type") or d.get("etype") or "").upper() == "DEPENDS_ON" for _, _, d in graph.edges(data=True))
+        if not has_depends_on:
+            from collections import defaultdict
+            topic_pubs = defaultdict(set)
+            topic_subs = defaultdict(set)
+            pub_qos = {}
+            sub_qos = {}
+            uses_rels = []
+            for src, tgt, d in graph.edges(data=True):
+                etype = (d.get("type") or d.get("etype") or "").upper()
+                if etype == "PUBLISHES_TO":
+                    topic_pubs[tgt].add(src)
+                    if "qos_profile" in d:
+                        pub_qos[(src, tgt)] = d["qos_profile"]
+                elif etype == "SUBSCRIBES_TO":
+                    topic_subs[tgt].add(src)
+                    if "qos_profile" in d:
+                        sub_qos[(src, tgt)] = d["qos_profile"]
+                elif etype == "USES":
+                    uses_rels.append((src, tgt))
+            # Subscriber depends on publisher (via shared topic)
+            for topic, publishers in topic_pubs.items():
+                for subscriber in topic_subs[topic]:
+                    for publisher in publishers:
+                        if subscriber != publisher:
+                            qp = pub_qos.get((publisher, topic)) or sub_qos.get((subscriber, topic)) or {}
+                            graph.add_edge(subscriber, publisher, type="DEPENDS_ON", dependency_type="app_to_app", weight=1.0, qos_profile=qp)
+            # App depends on library (uses relationship)
+            for app, lib in uses_rels:
+                graph.add_edge(app, lib, type="DEPENDS_ON", dependency_type="app_to_lib", weight=1.0)
+                
         self.seeds = seeds or [42]
         self.cascade_depth_limit = cascade_depth_limit
         self.propagation_threshold = max(0.0, min(1.0, propagation_threshold))
@@ -287,10 +320,10 @@ class FaultInjector:
 
     def _cascade(self, node_id: str, node_type: str, seed: int) -> "_SingleSeedResult":
         """
-        Run one cascade simulation with a specific seed using the two-phase model.
+        Run one softened cascade simulation with a specific seed.
         
         Phase A: Stochastic propagation through DEPENDS_ON edges.
-        Phase B: Stochastic propagation through topics that lost all publishers.
+        Phase B: QoS-weighted and rate-weighted soft propagation through pub-sub channels.
         """
         rng = random.Random(seed)
         idx = self._index
@@ -303,19 +336,33 @@ class FaultInjector:
         waves: List[CascadeWave] = []
         wave_idx = 0
 
+        # Helper to calculate publisher rate_hz
+        def get_rate_hz(pub, topic):
+            edge_data = self.graph.get_edge_data(pub, topic)
+            if edge_data:
+                return edge_data.get("rate_hz", 10.0)
+            return 10.0
+
+        # Helper to calculate QoS criticality factor of a topic
+        def get_qos_factor(topic):
+            node_data = self.graph.nodes.get(topic, {})
+            factor = 1.0
+            if node_data.get("qos_reliability", "").upper() == "RELIABLE":
+                factor *= 1.2
+            priority = node_data.get("qos_priority", "").upper()
+            if priority in ("HIGH", "CRITICAL", "URGENT"):
+                factor *= 1.15
+            elif priority == "MEDIUM":
+                factor *= 1.05
+            return factor
+
         frontier = [node_id]
-        
-        # To compute mean feed loss, we need to track what topics are actually 'lost'
-        orphaned_topics: Set[str] = set()
-        directly_orphaned: Set[str] = set()
 
         while frontier:
             if self.cascade_depth_limit and wave_idx >= self.cascade_depth_limit:
                 break
             
             # Stochastic dampening factor based on depth
-            # depth_damp = max(0.25, 1.0 - wave_idx * 0.15)
-            # Reusing the validated dampening from validate_graph.py
             depth_damp = max(0.25, 1.0 - wave_idx * 0.15)
 
             next_frontier = []
@@ -323,68 +370,80 @@ class FaultInjector:
             wave_new_impacted: Set[str] = set()
             wave_new_failed: List[str] = []
 
+            # --- Phase A: Direct DEPENDS_ON propagation ---
             for u in frontier:
-                # --- Phase A: Direct DEPENDS_ON propagation ---
-                # We use the raw graph edges for this
                 for _, v, data in self.graph.out_edges(u, data=True):
                     if v in failed_nodes:
                         continue
                     
-                    # Only propagate through dependency edges (or equivalent)
-                    # We check 'type' and 'etype' (used in validation CLI)
                     edge_type = (data.get("type") or data.get("etype") or "").upper()
                     if edge_type != "DEPENDS_ON":
                         continue
                         
-                    # Stochastic check
-                    # Probability of failure = depth_damp * edge_weight
+                    # Stochastic check scaled by edge weight & depth dampening
                     prob = data.get("weight", 1.0) * depth_damp
                     if rng.random() < prob:
                         failed_nodes.add(v)
                         wave_new_failed.append(v)
                         next_frontier.append(v)
 
-            # --- Phase B: Topic-mediated "Lost Source" propagation ---
-            # For each newly failed app, check topics they publish to
-            new_publishers = [n for n in (wave_new_failed + ([node_id] if wave_idx == 0 else [])) 
-                             if idx.node_type.get(n) in ("Application", "Library", "Broker")]
-            
-            for pub in new_publishers:
-                published_topics = idx.app_publishes.get(pub, set()) if idx.node_type.get(pub) != "Broker" else idx.broker_routes.get(pub, set())
-                
-                for topic in published_topics:
-                    if topic in orphaned_topics:
-                        continue
-                        
-                    # A topic is lost if all its publishers (or routers) have failed
-                    if idx.node_type.get(pub) == "Broker":
-                        remaining = idx.topic_routers.get(topic, set()) - failed_nodes
+            # --- Phase B: Topic-mediated Soft QoS/Rate-weighted Propagation ---
+            # 1. Compute soft topic feed loss based on failed publishers
+            topic_loss = {}
+            for topic in idx.all_topics:
+                publishers = idx.publishers_of(topic)
+                if not publishers:
+                    routers = idx.topic_routers.get(topic, set())
+                    if routers:
+                        failed_routers = routers & failed_nodes
+                        topic_loss[topic] = len(failed_routers) / len(routers)
                     else:
-                        remaining = idx.topic_publishers.get(topic, set()) - failed_nodes
-                        
-                    if not remaining:
-                        orphaned_topics.add(topic)
-                        wave_new_orphaned.add(topic)
-                        if wave_idx == 0:
-                            directly_orphaned.add(topic)
-                        
-                        # All subscribers of this lost topic are impacted
-                        for sub in idx.subscribers_of(topic):
-                            if sub in failed_nodes:
-                                continue
-                            
-                            subscriber_lost_feeds[sub].add(topic)
-                            if sub not in impacted_subscribers:
-                                wave_new_impacted.add(sub)
-                                impacted_subscribers.add(sub)
-                            
-                            # Stochastic failure due to feed loss
-                            # Phase B has a 0.5 reduction factor as discussed in Middleware 2026/Thesis
-                            # Probability = 0.5 * depth_damp
-                            if rng.random() < (0.5 * depth_damp):
-                                failed_nodes.add(sub)
-                                wave_new_failed.append(sub)
-                                next_frontier.append(sub)
+                        topic_loss[topic] = 0.0
+                else:
+                    total_rate = sum(get_rate_hz(p, topic) for p in publishers)
+                    if total_rate > 0:
+                        failed_rate = sum(get_rate_hz(p, topic) for p in publishers if p in failed_nodes)
+                        topic_loss[topic] = failed_rate / total_rate
+                    else:
+                        failed_pubs = publishers & failed_nodes
+                        topic_loss[topic] = len(failed_pubs) / len(publishers)
+                
+                # Apply QoS factor and clamp to [0, 1]
+                topic_loss[topic] = min(1.0, topic_loss[topic] * get_qos_factor(topic))
+
+            # 2. Update orphaned/directly_orphaned sets based on fractional feed loss
+            for topic, loss in topic_loss.items():
+                if loss > 1e-6 and topic not in orphaned_topics:
+                    orphaned_topics.add(topic)
+                    wave_new_orphaned.add(topic)
+                    if wave_idx == 0:
+                        directly_orphaned.add(topic)
+                    
+                    # Track impacted subscribers
+                    for sub in idx.subscribers_of(topic):
+                        if sub in failed_nodes:
+                            continue
+                        subscriber_lost_feeds[sub].add(topic)
+                        if sub not in impacted_subscribers:
+                            wave_new_impacted.add(sub)
+                            impacted_subscribers.add(sub)
+
+            # 3. Stochastic failure of impacted subscribers based on continuous average feed loss
+            for sub in idx.all_subscribers:
+                if sub in failed_nodes:
+                    continue
+                all_feeds = idx.app_subscribes.get(sub, set())
+                if not all_feeds:
+                    continue
+                sub_loss = sum(topic_loss.get(t, 0.0) for t in all_feeds) / len(all_feeds)
+                
+                if sub_loss > 1e-6:
+                    # Failure probability scaled by propagation_threshold
+                    prob = min(1.0, sub_loss / max(1e-6, self.propagation_threshold)) * depth_damp
+                    if rng.random() < prob:
+                        failed_nodes.add(sub)
+                        wave_new_failed.append(sub)
+                        next_frontier.append(sub)
 
             if not next_frontier and not wave_new_orphaned:
                 break
@@ -400,15 +459,16 @@ class FaultInjector:
             frontier = next_frontier
             wave_idx += 1
 
-        # --- I(v) computation: Mean feed loss across all subscribers ---
+        # --- I(v) computation: Mean continuous feed loss across all subscribers ---
         per_sub_loss: Dict[str, float] = {}
         for sub in idx.all_subscribers:
             all_feeds = idx.app_subscribes.get(sub, set())
             if not all_feeds:
                 per_sub_loss[sub] = 0.0
                 continue
-            lost = subscriber_lost_feeds.get(sub, set())
-            per_sub_loss[sub] = len(lost) / len(all_feeds)
+            # Store continuous QoS/rate-weighted feed loss
+            # topic_loss is calculated based on final failed_nodes state
+            per_sub_loss[sub] = sum(topic_loss.get(t, 0.0) for t in all_feeds) / len(all_feeds)
 
         total_subs = len(idx.all_subscribers)
         impact_score = sum(per_sub_loss.values()) / total_subs if total_subs else 0.0
