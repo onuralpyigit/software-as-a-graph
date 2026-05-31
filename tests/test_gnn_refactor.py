@@ -433,3 +433,35 @@ def test_bidirectional_flag_respected():
     model = build_node_gnn(data.metadata(), hidden_channels=16, num_heads=2,
                             num_layers=1, use_bidirectional=False)
     assert model.rev_conv is None
+
+
+def test_decouple_features_flag_respected():
+    """Setting DECOUPLE_FEATURES="true" zeroes out all structural/topological metrics."""
+    import os
+    from saag.prediction.data_preparation import networkx_to_hetero_data
+    
+    G = nx.DiGraph()
+    G.add_node("A1", type="Application")
+    
+    # Run normally first
+    os.environ["DECOUPLE_FEATURES"] = "false"
+    conv_normal = networkx_to_hetero_data(G, structural_metrics={"A1": {"pagerank": 0.5, "betweenness_centrality": 0.8, "qos_weight": 1.0, "loc_norm": 0.7}})
+    app_x_normal = conv_normal.hetero_data["Application"].x.numpy()[0]
+    
+    assert app_x_normal[0] == 0.5  # pagerank
+    assert app_x_normal[2] == 0.8  # betweenness_centrality
+    assert app_x_normal[10] == 1.0  # qos_weight
+    assert app_x_normal[18] == 0.7  # loc_norm
+    
+    # Run with decouple features
+    os.environ["DECOUPLE_FEATURES"] = "true"
+    try:
+        conv_decoupled = networkx_to_hetero_data(G, structural_metrics={"A1": {"pagerank": 0.5, "betweenness_centrality": 0.8, "qos_weight": 1.0, "loc_norm": 0.7}})
+        app_x_decoupled = conv_decoupled.hetero_data["Application"].x.numpy()[0]
+        
+        assert app_x_decoupled[0] == 0.0  # pagerank (decoupled!)
+        assert app_x_decoupled[2] == 0.0  # betweenness_centrality (decoupled!)
+        assert app_x_decoupled[10] == 1.0  # qos_weight (retained!)
+        assert app_x_decoupled[18] == 0.7  # loc_norm (retained!)
+    finally:
+        os.environ["DECOUPLE_FEATURES"] = "false"

@@ -564,6 +564,9 @@ def networkx_to_hetero_data(
 
         keys_to_use = KEYS_BY_TYPE.get(node_type, BASE_METRIC_KEYS)
 
+        import os
+        decouple_features = os.environ.get("DECOUPLE_FEATURES") in ("1", "true", "True")
+
         for local_idx, name in enumerate(nodes):
             base_source = (structural_metrics or {}).get(name, {})
             infra_source = infra_features.get(name, {})
@@ -571,6 +574,14 @@ def networkx_to_hetero_data(
                 # Base metrics come from structural_metrics; infra keys from infra_source
                 val = base_source.get(key, infra_source.get(key, 0.0))
                 if not qos_enabled and key in ("qos_weight", "qos_weight_in", "qos_weight_out"):
+                    val = 0.0
+                if decouple_features and key in (
+                    "pagerank", "reverse_pagerank", "betweenness_centrality",
+                    "closeness_centrality", "eigenvector_centrality",
+                    "in_degree_centrality", "out_degree_centrality",
+                    "clustering_coefficient", "ap_c_score", "ap_c_directed",
+                    "cdi", "mpci", "path_complexity", "fan_out_criticality", "bridge_ratio"
+                ):
                     val = 0.0
                 feat_matrix[local_idx, col] = float(val)
 
@@ -854,6 +865,8 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
 
 def extract_structural_metrics_dict(structural_result) -> Dict[str, Dict[str, float]]:
     """Normalise StructuralAnalyzer output to the flat dict expected by this module."""
+    if isinstance(structural_result, dict) and "structural_analysis" in structural_result:
+        structural_result = structural_result["structural_analysis"]
     out: Dict[str, Dict[str, float]] = {}
 
     def _from_component(comp):
