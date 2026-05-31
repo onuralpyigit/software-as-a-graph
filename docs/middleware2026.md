@@ -1,4 +1,19 @@
-# Graph Learning over Graph-Based System Models for Predicting Runtime Failure Cascades in Publish-Subscribe Middleware
+---
+title: "Graph Learning over Graph-Based System Models for Predicting Runtime Failure Cascades in Publish-Subscribe Middleware [Research]"
+subtitle: "Research Paper"
+conference: "ACM/IFIP International Middleware Conference (Middleware 2026)"
+format: "ACM SIGCONF Style (9pt font size)"
+anonymity: "Doubly Anonymous (Double-Blind Review)"
+page_limit: "12 pages of technical content (excluding references)"
+submission_portals:
+  cycle_1: "https://middleware26.hotcrp.com/"
+  cycle_2: "https://middleware2026c2.hotcrp.com/"
+---
+
+# Graph Learning over Graph-Based System Models for Predicting Runtime Failure Cascades in Publish-Subscribe Middleware [Research]
+
+**Anonymous Author(s)**  
+*Anonymous Institution(s)*  
 
 ## Abstract
 
