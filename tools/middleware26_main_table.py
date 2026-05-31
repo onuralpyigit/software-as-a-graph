@@ -66,7 +66,6 @@ except Exception:
 # ── Defaults ──────────────────────────────────────────────────────────────────
 
 ALL_SCENARIOS = [
-    "atm_system",
     "av_system",
     "iot_smart_city_system",
     "financial_trading_system",
