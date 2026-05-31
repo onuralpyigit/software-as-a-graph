@@ -449,7 +449,7 @@ def run_one_fold(
                     model.load_state_dict(torch.load(best_path, map_location="cpu"))
                 else:
                     trainer = GNNTrainer(model=model, checkpoint_dir=str(ckpt_dir),
-                                         lr=lr, num_epochs=epochs, patience=epochs)
+                                         lr=lr, num_epochs=epochs, patience=min(60, epochs))
                     trainer.train(data)
 
                 # Evaluate on holdout
@@ -538,7 +538,7 @@ def run_one_fold(
                         seeds=[seed],
                         num_epochs=1 if variant == "topology_rmav" else epochs,
                         lr=lr,
-                        patience=epochs,
+                        patience=min(60, epochs),
                         layer=layer,
                         qos_enabled=use_qos,
                     )

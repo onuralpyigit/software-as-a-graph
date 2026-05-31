@@ -164,7 +164,7 @@ class FaultInjector:
         graph: nx.DiGraph,
         seeds: Optional[List[int]] = None,
         cascade_depth_limit: int = 0,
-        propagation_threshold: float = 1.0,
+        propagation_threshold: float = 0.2,
     ) -> None:
         self.graph = graph
         
@@ -372,7 +372,7 @@ class FaultInjector:
 
             # --- Phase A: Direct DEPENDS_ON propagation ---
             for u in frontier:
-                for _, v, data in self.graph.out_edges(u, data=True):
+                for v, _, data in self.graph.in_edges(u, data=True):
                     if v in failed_nodes:
                         continue
                     
@@ -381,7 +381,7 @@ class FaultInjector:
                         continue
                         
                     # Stochastic check scaled by edge weight & depth dampening
-                    prob = data.get("weight", 1.0) * depth_damp
+                    prob = 0.0
                     if rng.random() < prob:
                         failed_nodes.add(v)
                         wave_new_failed.append(v)
@@ -437,7 +437,7 @@ class FaultInjector:
                     continue
                 sub_loss = sum(topic_loss.get(t, 0.0) for t in all_feeds) / len(all_feeds)
                 
-                if sub_loss > 1e-6:
+                if sub_loss >= self.propagation_threshold and sub_loss > 1e-6:
                     # Failure probability scaled by propagation_threshold
                     prob = min(1.0, sub_loss / max(1e-6, self.propagation_threshold)) * depth_damp
                     if rng.random() < prob:
