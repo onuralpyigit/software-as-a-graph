@@ -28,6 +28,8 @@ def _structural_analyze(client: Client, layer: str) -> SaagAnalysisResult:
     Run structural analysis directly via StructuralAnalyzer, bypassing AnalysisService
     which incorrectly passes StructuralAnalysisResult to AntiPatternDetector.detect().
     """
+    # Pre-analysis stage: derive DEPENDS_ON edges before reading graph data.
+    client.repo.derive_dependencies()
     graph_data = client.repo.get_graph_data()
     analyzer = StructuralAnalyzer()
     layer_enum = AnalysisLayer.from_string(layer)

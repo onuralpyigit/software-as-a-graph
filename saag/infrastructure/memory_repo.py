@@ -43,6 +43,16 @@ class MemoryRepository:
         """No-op for in-memory repository."""
         pass
 
+    def derive_dependencies(self) -> None:
+        """
+        No-op for the in-memory repository.
+
+        DEPENDS_ON edges are derived on-the-fly inside get_graph_data()
+        via the _dep_type_map mapping, so no separate pre-analysis step
+        is required for in-memory usage.
+        """
+        pass
+
     def save_graph(self, data: Dict[str, Any], clear: bool = False) -> None:
         """
         Save graph data to in-memory storage, performing normalization/flattening
