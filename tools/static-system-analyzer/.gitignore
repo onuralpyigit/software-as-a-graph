@@ -1,0 +1,24 @@
+# Python
+**/__pycache__
+*.pyc
+*.pyo
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Packaging
+dist/
+build/
+*.egg-info/
+
+# Project
+config/.env
+tmp/
+output/
+static-system-analyzer-offline.tar.gz

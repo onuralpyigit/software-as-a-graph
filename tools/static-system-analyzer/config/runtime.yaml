@@ -1,0 +1,44 @@
+analyzer:
+  import_domain_prefix: "test"
+  dependency_suffixes:
+    - "_lib"
+  dummy_topic_names:
+    - "dummytopic"
+  makefile_include_patterns:
+    - "include/Makefile_java.mk"
+  custom_topic_name: "topic"
+  codeql:
+    cli_path: "/usr/lib/codeql/codeql"
+    java_home: "/opt/sdk/infra/operational/jdk21"
+    build_command: "gmake clean all"
+    main_method_name: "main"
+    topic_name_pattern: "(.*)_class"
+    write_methods:
+      - class_name: "CustomWriter"
+        method_name: "custom_write"
+        topic_arg_index: 0
+    read_methods:
+      - class_name: "CustomReader"
+        method_name: "custom_read"
+        topic_arg_index: 0
+
+aggregator:
+  dummy_topic_names:
+    - "dummytopic"
+  qos_mappings:
+    durability:
+      custom_persistent: "PERSISTENT"
+      custom_transient_local: "TRANSIENT_LOCAL"
+      custom_transient: "TRANSIENT"
+      custom_volatile: "VOLATILE"
+    reliability:
+      custom_reliable: "RELIABLE"
+      custom_best_effort: "BEST_EFFORT"
+    transport_priority:
+      custom_urgent: "URGENT"
+      custom_high: "HIGH"
+      custom_medium: "MEDIUM"
+      custom_low: "LOW"
+    boolean:
+      custom_true: "True"
+      custom_false: "False"

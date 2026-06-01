@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<root>
+  <topic name="Alpha" role="pub"/>
+  <topic name="Beta" role="sub"/>
+</root>

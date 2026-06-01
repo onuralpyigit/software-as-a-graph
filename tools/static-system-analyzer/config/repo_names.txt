@@ -1,0 +1,8 @@
+# Sample repository names list
+# Add one repository name per line
+# Lines starting with # are comments
+
+# Example:
+# my_app_abc
+# my_app_xyz
+# common_lib
