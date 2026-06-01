@@ -1,0 +1,7 @@
+project_name,pkg_name,pkg_version
+avionics,flight_control_abc,v1.0.0
+avionics,flight_control_abc,v1.1.0
+avionics,navigation_abc,v2.0.0
+avionics,common_lib,v1.0.0
+maritime,radar_abc,v1.0.0
+maritime,sonar_abc,v1.5.0
