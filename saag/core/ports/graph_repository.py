@@ -29,6 +29,17 @@ class IGraphRepository(Protocol):
         """Persist graph data. Optionally clear existing data first."""
         ...
 
+    def derive_dependencies(self) -> None:
+        """
+        Derive DEPENDS_ON relationships from the structural graph.
+
+        This is a pre-analysis step that must be called after save_graph()
+        and before any analysis is performed.  It implements Definition 2,
+        Rules 1–6 (DEPENDS_ON derivation) and finalises edge weights that
+        depend on fully-computed component weights.
+        """
+        ...
+
     def get_graph_data(
         self,
         component_types: Optional[List[str]] = None,

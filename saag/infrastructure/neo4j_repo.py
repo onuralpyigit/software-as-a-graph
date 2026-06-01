@@ -143,12 +143,14 @@ class Neo4jRepository:
         """
         Import graph data into the repository within a single transaction.
         
-        Orchestrates all five construction phases:
+        Orchestrates three construction phases:
             1. Import entities (V) — Apps, Brokers, Nodes, Topics, Libraries
             2. Import structural relationships (E_S) — USES, RUNS_ON, etc.
             3. Compute intrinsic weights from QoS (Phase 3)
-            4. Derive DEPENDS_ON dependencies (Phase 4)
-            5. Compute aggregate component weights (Phase 5)
+            4. Compute aggregate component weights (Phase 4)
+
+        DEPENDS_ON derivation (formerly Phase 4) has been moved to the
+        pre-analysis stage and is performed by derive_dependencies().
         """
         self.logger.info(f"Starting import. Clear DB: {clear}")
         
@@ -174,10 +176,7 @@ class Neo4jRepository:
             # 3. Compute intrinsic weights
             self._calculate_intrinsic_weights(tx)
             
-            # 4. Derive dependencies
-            self._derive_dependencies(tx)
-            
-            # 5. Compute aggregate component weights (Phase 5)
+            # 4. Compute aggregate component weights
             self._calculate_aggregate_weights(tx)
             
             self.logger.info("Import completed successfully.")
@@ -190,6 +189,54 @@ class Neo4jRepository:
             )
             # Transaction will be rolled back by the session.execute_write context manager
             raise
+
+    def derive_dependencies(self) -> None:
+        """
+        Pre-analysis stage: derive DEPENDS_ON relationships and finalise
+        DEPENDS_ON edge weights.
+
+        Must be called after save_graph() and before any analysis step.
+        Implements Definition 2, Rules 1–6 from docs/graph-model.md and
+        subsequently updates the edge weights for app_to_lib (Rule 5) and
+        broker_to_broker (Rule 6) edges that depend on fully-computed
+        component weights.
+        """
+        self.logger.info("Pre-analysis: deriving DEPENDS_ON relationships.")
+        with self.driver.session(database=self.database) as session:
+            session.execute_write(self._derive_dependencies_tx)
+        self.logger.info("Pre-analysis: DEPENDS_ON derivation completed.")
+
+    def _derive_dependencies_tx(self, tx: Any) -> None:
+        """Transaction body for derive_dependencies."""
+        try:
+            self._derive_dependencies(tx)
+            self._finalize_dependency_weights(tx)
+        except Exception as e:
+            self.logger.error(f"Pre-analysis dependency derivation failed: {e}")
+            raise
+
+    def _finalize_dependency_weights(self, tx: Any = None) -> None:
+        """
+        Finalise DEPENDS_ON edge weights that depend on component weights
+        computed during import (Phase 4).
+
+        This is separated from _calculate_aggregate_weights so that component
+        weights remain available after import while DEPENDS_ON edge weights
+        are only set once the edges exist (i.e. after derive_dependencies).
+        """
+        # app_to_lib Edge Weights (inherits from App)
+        self._run_query("""
+            MATCH (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib:Library)
+            SET d.weight = coalesce(app.weight, 0.01)
+        """, tx=tx)
+
+        # broker_to_broker Edge Weights (inherits from Node)
+        self._run_query("""
+            MATCH (b1:Broker)-[d:DEPENDS_ON {dependency_type: 'broker_to_broker'}]->(b2:Broker)
+            MATCH (b1)-[:RUNS_ON]->(n:Node)<-[:RUNS_ON]-(b2)
+            WITH d, max(n.weight) as node_w
+            SET d.weight = coalesce(node_w, 0.01)
+        """, tx=tx)
 
     def _run_query(self, query: str, parameters: Dict = None, tx: Any = None) -> Any:
         """Execute a Cypher query, optionally within an existing transaction."""
@@ -566,21 +613,6 @@ class Neo4jRepository:
             SET n.weight = coalesce(hosted_max, 0.01)
         """, tx=tx)
         
-        # 5. app_to_lib Edge Weights (inherits from App)
-        self._run_query("""
-            MATCH (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib:Library)
-            SET d.weight = coalesce(app.weight, 0.01)
-        """, tx=tx)
-
-        # 6. broker_to_broker Edge Weights (inherits from Node)
-        # Step 6: Population of Rule 6 weights computed in Phase 5 from finalized Node weights.
-        self._run_query("""
-            MATCH (b1:Broker)-[d:DEPENDS_ON {dependency_type: 'broker_to_broker'}]->(b2:Broker)
-            MATCH (b1)-[:RUNS_ON]->(n:Node)<-[:RUNS_ON]-(b2)
-            WITH d, max(n.weight) as node_w
-            SET d.weight = coalesce(node_w, 0.01)
-        """, tx=tx)
-
     def _derive_dependencies(self, tx: Any = None) -> None:
         """
         Derive DEPENDS_ON relationships from structural edges (Phase 4).

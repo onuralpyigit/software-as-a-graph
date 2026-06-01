@@ -174,6 +174,9 @@ class AnalysisService:
     def analyze_layer(self, layer: str) -> LayerAnalysisResult:
         """
         Run analysis on a specific layer and return the full LayerAnalysisResult object.
+
+        Pre-analysis: DEPENDS_ON relationships are derived from the structural
+        graph before structural analysis begins.
         """
         try:
             layer_enum = AnalysisLayer.from_string(layer)
@@ -181,7 +184,10 @@ class AnalysisService:
             layer_enum = AnalysisLayer.SYSTEM
             
         layer_def = get_layer_definition(layer_enum)
-            
+
+        # Pre-analysis stage: derive DEPENDS_ON edges and finalise their weights.
+        self.repository.derive_dependencies()
+
         graph_data = self.repository.get_graph_data()
         structural_analyzer = StructuralAnalyzer()
         struct_result = structural_analyzer.analyze(graph_data, layer=layer_enum)

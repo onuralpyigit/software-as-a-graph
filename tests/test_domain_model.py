@@ -402,7 +402,8 @@ class TestNeo4jGraphImport:
             }
         }
         neo4j_repo.save_graph(graph_data, clear=True)
-        
+        neo4j_repo.derive_dependencies()
+
         edges = neo4j_repo.get_graph_data(dependency_types=["app_to_lib"]).edges
         assert len(edges) == 2
         sources = {e.source_id for e in edges}

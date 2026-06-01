@@ -255,7 +255,7 @@ export default function DashboardPage() {
                 <Network className="h-5 w-5 text-blue-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-blue-300 leading-tight">Graph Explorer</p>
+                <p className="text-sm font-semibold text-blue-300 leading-tight">Explorer</p>
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">
                   topology · dependencies · component drill-down
                 </p>
