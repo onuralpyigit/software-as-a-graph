@@ -10,6 +10,7 @@ import os
 import csv
 import json
 import re
+import random
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Any, Set, Optional
 
@@ -26,6 +27,77 @@ SYSTEM_HIERARCHY_FIELDS = (
     "css_name",
     "csms_name",
 )
+
+# ---------------------------------------------------------------------------
+# QoS-derived topic attributes (mirrored from saag/core/models.py)
+# ---------------------------------------------------------------------------
+# These constants and helpers are copied locally so the analyzer has no
+# dependency on the saag package while producing the same frequency and
+# criticality values it would.
+
+#: Topic frequency bins (Hz) indexed by reliability×priority score [0,1].
+TOPIC_FREQUENCY_HZ: List[float] = [
+    1.0, 1.0, 5.0, 10.0, 10.0, 20.0, 20.0, 50.0,
+    50.0, 100.0, 100.0, 150.0, 150.0, 200.0, 200.0, 200.0,
+]
+
+#: Thresholds for classifying a QoS weight score into criticality levels.
+CRITICALITY_THRESHOLDS: List[Tuple[float, str]] = [
+    (0.00, "minimal"),
+    (0.19, "low"),
+    (0.43, "medium"),
+    (0.64, "high"),
+    (1.00, "critical"),
+]
+
+#: QoS dimension scores (DDS string -> [0,1] score).
+_RELIABILITY_SCORES: Dict[str, float] = {"BEST_EFFORT": 0.0, "RELIABLE": 1.0}
+_DURABILITY_SCORES: Dict[str, float] = {
+    "VOLATILE": 0.0,
+    "TRANSIENT_LOCAL": 0.5,
+    "TRANSIENT": 0.6,
+    "PERSISTENT": 1.0,
+}
+_PRIORITY_SCORES: Dict[str, float] = {
+    "LOW": 0.0,
+    "MEDIUM": 0.33,
+    "HIGH": 0.66,
+    "URGENT": 1.0,
+}
+
+#: AHP-derived QoS weights: Durability(0.4) > Reliability(0.3) = Priority(0.3).
+_W_RELIABILITY: float = 0.30
+_W_DURABILITY: float = 0.40
+_W_PRIORITY: float = 0.30
+
+#: Random options for application attributes.
+_APP_PRIORITY_OPTIONS: List[str] = ["LOW", "MEDIUM", "HIGH"]
+_APP_HOTSTANDBY_OPTIONS: List[bool] = [False, True]
+
+
+def _derive_topic_frequency(reliability: str, transport_priority: str) -> float:
+    """Derive topic frequency (Hz) from reliability × priority score."""
+    r = _RELIABILITY_SCORES.get(reliability, 0.0)
+    p = _PRIORITY_SCORES.get(transport_priority, 0.0)
+    combined = r * p  # range [0, 1]
+    bin_idx = int(combined * len(TOPIC_FREQUENCY_HZ))
+    bin_idx = max(0, min(bin_idx, len(TOPIC_FREQUENCY_HZ) - 1))
+    return float(TOPIC_FREQUENCY_HZ[bin_idx])
+
+
+def _derive_topic_criticality(
+    durability: str, reliability: str, transport_priority: str
+) -> str:
+    """Derive topic criticality label from the AHP-weighted QoS score."""
+    qos_score = (
+        _W_RELIABILITY * _RELIABILITY_SCORES.get(reliability, 0.0)
+        + _W_DURABILITY * _DURABILITY_SCORES.get(durability, 0.0)
+        + _W_PRIORITY * _PRIORITY_SCORES.get(transport_priority, 0.0)
+    )
+    for threshold, label in CRITICALITY_THRESHOLDS:
+        if qos_score <= threshold:
+            return label
+    return "critical"
 
 
 @dataclass
@@ -246,12 +318,20 @@ def _create_topics(
             converted_rel = str(rel) if rel is not None else None
             converted_pri = str(pri) if pri is not None else None
         
+        qos_dur = converted_dur if converted_dur is not None else "NOT_FOUND"
+        qos_rel = converted_rel if converted_rel is not None else "NOT_FOUND"
+        qos_pri = converted_pri if converted_pri is not None else "NOT_FOUND"
+
         topic_data["qos"] = {
-            "durability": converted_dur if converted_dur is not None else "NOT_FOUND",
-            "reliability": converted_rel if converted_rel is not None else "NOT_FOUND",
-            "transport_priority": converted_pri if converted_pri is not None else "NOT_FOUND"
+            "durability": qos_dur,
+            "reliability": qos_rel,
+            "transport_priority": qos_pri
         }
-        
+
+        # Derive QoS-based attributes (mirrors saag/core/models.py Topic).
+        topic_data["frequency"] = _derive_topic_frequency(qos_rel, qos_pri)
+        topic_data["criticality"] = _derive_topic_criticality(qos_dur, qos_rel, qos_pri)
+
         topics.append(topic_data)
         topic_map[topic_name] = topic_id
     
@@ -391,6 +471,11 @@ def _create_apps_libs_and_relations(
         name_parts = name.rsplit('_', 1)
         derived_app_type = name_parts[1] if len(name_parts) == 2 and name_parts[1] else "NOT_FOUND"
 
+        # Random priority/hotstandby, seeded by app name for reproducible reruns.
+        app_rng = random.Random(name)
+        priority_value = app_rng.choice(_APP_PRIORITY_OPTIONS)
+        hotstandby_value = app_rng.choice(_APP_HOTSTANDBY_OPTIONS)
+
         app_data = {
             "id": app_map[name],
             "name": name,
@@ -398,6 +483,8 @@ def _create_apps_libs_and_relations(
             "app_type": app_types.get(name, derived_app_type),
             "role": app_role_map.get(name, "NOT_FOUND"),
             "criticality": criticality_value,
+            "priority": priority_value,
+            "hotstandby": hotstandby_value,
         }
         if system_hierarchy_map:
             app_data["system_hierarchy"] = dict(system_hierarchy_map.get(name, _default_system_hierarchy()))
