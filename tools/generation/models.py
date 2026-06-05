@@ -21,9 +21,9 @@ RELIABILITY_OPTIONS = list(QoSPolicy.RELIABILITY_SCORES.keys())
 PRIORITY_OPTIONS = list(QoSPolicy.PRIORITY_SCORES.keys())
 APP_PRIORITY_OPTIONS = ["HIGH", "MEDIUM", "LOW"]
 
-ROLE_OPTIONS = ["pub", "sub", "pubsub"]
 APP_TYPE_OPTIONS = ["sensor", "actuator", "controller", "monitor", "gateway", "processor"]
 APP_HOTSTANDBY_OPTIONS = [False, True]
+APP_USER_ROLE_OPTIONS = ["Operative", "Engineer", "Analyst", "Administrator", "Supervisor"]
 
 
 @dataclass
@@ -93,25 +93,6 @@ class CategoricalDistribution:
 
 
 @dataclass
-class AppRoleDistribution(CategoricalDistribution):
-    """Distribution of application roles."""
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "AppRoleDistribution":
-        base = CategoricalDistribution.from_dict(data)
-        return cls(
-            total_count=base.total_count,
-            category_counts=base.category_counts,
-            mode=base.mode,
-            mode_count=base.mode_count,
-            mode_percentage=base.mode_percentage,
-        )
-    
-    def to_weighted_list(self, default_options: List[str] = None) -> List[str]:
-        return super().to_weighted_list(default_options or ROLE_OPTIONS)
-
-
-@dataclass
 class AppCriticalityDistribution(CategoricalDistribution):
     """Distribution of application criticality."""
     
@@ -141,7 +122,6 @@ class ApplicationStats:
     direct_subscribe_count: StatisticalMetric = field(default_factory=StatisticalMetric)
     total_publish_count_including_libraries: StatisticalMetric = field(default_factory=StatisticalMetric)
     total_subscribe_count_including_libraries: StatisticalMetric = field(default_factory=StatisticalMetric)
-    app_role_distribution: Optional[AppRoleDistribution] = None
     app_criticality_distribution: Optional[AppCriticalityDistribution] = None
     
     @classmethod
@@ -155,9 +135,6 @@ class ApplicationStats:
             total_subscribe_count_including_libraries=StatisticalMetric.from_dict(
                 data.get("total_subscribe_count_including_libraries", {})
             ),
-            app_role_distribution=AppRoleDistribution.from_dict(
-                data.get("app_role_distribution", {})
-            ) if "app_role_distribution" in data else None,
             app_criticality_distribution=AppCriticalityDistribution.from_dict(
                 data.get("app_criticality_distribution", {})
             ) if "app_criticality_distribution" in data else None,

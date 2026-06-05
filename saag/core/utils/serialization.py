@@ -97,8 +97,8 @@ def reconstruct_component_dict(comp: ComponentData) -> Dict[str, Any]:
             res["criticality"] = props["topic_criticality"]
     elif comp.component_type == "Application":
         res.update({
-            "role": props.get("role", "pubsub"),
             "app_type": props.get("app_type", "service"),
+            "role": props.get("role", "Operative"),
             "criticality": props.get("criticality", "LOW"),
             "priority": props.get("priority", "MEDIUM"),
             "hotstandby": props.get("hotstandby", False),
@@ -265,8 +265,8 @@ def flatten_component(comp: Dict[str, Any], comp_type: str) -> Dict[str, Any]:
             res["topic_criticality"] = crit
     elif comp_type == "Application":
         res.update({
-            "role": comp.get("role", "pubsub"),
             "app_type": comp.get("app_type", "service"),
+            "role": comp.get("role", "Operative"),
             "version": comp.get("version", ""),
         })
         # Only include optional classification fields if explicitly present in the source data
