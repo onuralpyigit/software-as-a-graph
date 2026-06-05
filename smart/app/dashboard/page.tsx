@@ -317,7 +317,7 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-4">
 
-            {/* Row 1 — Component donut + Dependency bar (side by side on lg) */}
+            {/* Row 1 — Component donut + Dependency bar (or Structural if no deps) */}
             {(hasNodes || hasEdges) && (
               <div className="grid gap-4 lg:grid-cols-2">
 
@@ -348,7 +348,7 @@ export default function DashboardPage() {
                   </Card>
                 )}
 
-                {hasEdges && (
+                {hasEdges ? (
                   <Card className="bg-background">
                     <CardHeader className="pb-1 flex flex-row items-center justify-between space-y-0">
                       <div className="flex items-center gap-2.5">
@@ -373,13 +373,38 @@ export default function DashboardPage() {
                       />
                     </CardContent>
                   </Card>
+                ) : hasStruct && (
+                  <Card className="bg-background">
+                    <CardHeader className="pb-1 flex flex-row items-center justify-between space-y-0">
+                      <div className="flex items-center gap-2.5">
+                        <div className="rounded-lg bg-indigo-500/10 p-1.5">
+                          <Waypoints className="h-4 w-4 text-indigo-400" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-sm font-semibold">Structural Relationships</CardTitle>
+                          <p className="text-[11px] text-muted-foreground">Physical topology edges by type</p>
+                        </div>
+                      </div>
+                      <Badge className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 text-[11px] px-2">
+                        {structEntries.length} types
+                      </Badge>
+                    </CardHeader>
+                    <CardContent className="pt-1">
+                      <ReactECharts
+                        option={structOption}
+                        notMerge
+                        style={{ height: '300px', width: '100%' }}
+                        opts={{ renderer: 'canvas' }}
+                      />
+                    </CardContent>
+                  </Card>
                 )}
 
               </div>
             )}
 
-            {/* Row 2 — Structural Relationships (full width) */}
-            {hasStruct && (
+            {/* Row 2 — Structural Relationships full width (only when deps also present) */}
+            {hasStruct && hasEdges && (
               <Card className="bg-background">
                 <CardHeader className="pb-1 flex flex-row items-center justify-between space-y-0">
                   <div className="flex items-center gap-2.5">

@@ -361,7 +361,7 @@ class TopicInfoModel(BaseModel):
     qos_durability: Optional[str] = None
     qos_transport_priority: Optional[str] = None
     size: int = 0
-    frequency: float = 10.0
+    frequency: Optional[float] = None
 
 
 class TopicsListResponse(BaseModel):
@@ -376,7 +376,7 @@ class AppInfoModel(BaseModel):
     weight: float
     role: Optional[str] = None
     priority: Optional[str] = None
-    hotstandby: bool = False
+    hotstandby: Optional[bool] = None
     pub_topic_ids: List[str]
     sub_topic_ids: List[str]
 

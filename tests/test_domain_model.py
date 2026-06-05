@@ -211,7 +211,7 @@ class TestEntities:
 
     def test_application_defaults(self):
         app = Application(id="A1", name="Service")
-        assert app.role == "pubsub"
+        assert app.role == "Operative"
         assert app.app_type == "service"
         assert app.criticality is False
 

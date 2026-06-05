@@ -87,6 +87,8 @@ class TrafficSimulator:
                             "name": rec["name"],
                             "weight": float(rec["weight"]),
                             "role": rec["role"],
+                            # priority and hotstandby are optional — only include when
+                            # the property exists on the node (not null/missing)
                             "priority": rec["priority"],
                             "hotstandby": rec["hotstandby"],
                             "pub_topic_ids": list(rec["pub_ids"]),

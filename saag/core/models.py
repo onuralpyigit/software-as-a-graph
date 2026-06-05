@@ -213,8 +213,8 @@ class Application(GraphEntity):
         system_hierarchy: Decomposition (csms_name, css_name, csci_name, csc_name).
         code_metrics: Nested OO metrics (size, complexity, cohesion, coupling).
     """
-    role: str = "pubsub"  # pub, sub, pubsub
     app_type: str = "service"
+    role: str = "Operative"  # Operative, Engineer, Analyst, Administrator, Supervisor
     criticality: bool = False
     priority: str = "MEDIUM"  # HIGH, MEDIUM, LOW
     hotstandby: bool = False  # true = runs on 2 distinct nodes

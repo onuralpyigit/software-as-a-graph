@@ -20,10 +20,10 @@ from .models import (
     DURABILITY_OPTIONS,
     RELIABILITY_OPTIONS,
     PRIORITY_OPTIONS,
-    ROLE_OPTIONS,
     APP_TYPE_OPTIONS,
     APP_PRIORITY_OPTIONS,
     APP_HOTSTANDBY_OPTIONS,
+    APP_USER_ROLE_OPTIONS,
 )
 from .datasets import (
     DomainDataset,
@@ -118,6 +118,33 @@ _APP_TYPE_QOS_AFFINITY: Dict[str, Dict[str, List[str]]] = {
     "actuator":   {"reliability": ["RELIABLE"],                "priority": ["MEDIUM", "HIGH"]},
     "sensor":     {"reliability": ["BEST_EFFORT"],             "priority": ["LOW", "MEDIUM"]},
 }
+
+# Maps app_type → (can_publish, can_subscribe) messaging capability.
+# Derived from domain semantics:
+#   sensor    — originates data, never consumes
+#   actuator  — receives commands, never produces
+#   monitor   — observes data streams, never produces
+#   controller — issues commands and reads state feedback
+#   gateway   — bridges data flows in both directions
+#   processor — transforms and re-emits data
+#   service   — general-purpose; bidirectional by default
+_APP_TYPE_MESSAGING_CAPABILITY: Dict[str, tuple] = {
+    "sensor":     (True,  False),   # publish only
+    "actuator":   (False, True),    # subscribe only
+    "monitor":    (False, True),    # subscribe only
+    "controller": (True,  True),    # both
+    "gateway":    (True,  True),    # both
+    "processor":  (True,  True),    # both
+    "service":    (True,  True),    # both
+}
+
+def _can_publish(app_type: str) -> bool:
+    """Return True if an app of this type is allowed to publish to topics."""
+    return _APP_TYPE_MESSAGING_CAPABILITY.get(app_type, (True, True))[0]
+
+def _can_subscribe(app_type: str) -> bool:
+    """Return True if an app of this type is allowed to subscribe to topics."""
+    return _APP_TYPE_MESSAGING_CAPABILITY.get(app_type, (True, True))[1]
 
 # --- Criticality levels for statistical generation ---
 CRITICALITY_OPTIONS = [True, False]
@@ -439,14 +466,14 @@ class StatisticalGraphGenerator:
         publishes: List[Dict[str, str]],
         subscribes: List[Dict[str, str]],
     ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
-        """Remove edges that violate app role constraints.
+        """Remove edges that violate app messaging capability constraints.
 
-        Pure-publisher apps (role="pub") must not appear in *subscribes*;
-        pure-subscriber apps (role="sub") must not appear in *publishes*.
-        Library edges are not affected (libraries have no role field).
+        Apps whose app_type allows only publishing must not appear in *subscribes*;
+        apps whose app_type allows only subscribing must not appear in *publishes*.
+        Library edges are not affected (libraries have no app_type field).
         """
-        pub_only_ids = {a.id for a in apps if a.role == "pub"}
-        sub_only_ids = {a.id for a in apps if a.role == "sub"}
+        pub_only_ids = {a.id for a in apps if _can_publish(a.app_type) and not _can_subscribe(a.app_type)}
+        sub_only_ids = {a.id for a in apps if _can_subscribe(a.app_type) and not _can_publish(a.app_type)}
 
         clean_pub = [e for e in publishes if e["from"] not in sub_only_ids]
         clean_sub = [e for e in subscribes if e["from"] not in pub_only_ids]
@@ -455,7 +482,7 @@ class StatisticalGraphGenerator:
         removed_sub = len(subscribes) - len(clean_sub)
         if removed_pub or removed_sub:
             self.logger.debug(
-                "Role constraint enforcement: removed %d publish and %d subscribe edges.",
+                "Messaging capability enforcement: removed %d publish and %d subscribe edges.",
                 removed_pub, removed_sub,
             )
         return clean_pub, clean_sub
@@ -700,31 +727,16 @@ class StatisticalGraphGenerator:
             _topic_id_to_cluster[topic.id] = cluster_d
 
         apps: List[Application] = []
-        role_pool = None
         criticality_pool = None
         
         if c.application_stats:
-            if c.application_stats.app_role_distribution:
-                role_pool = c.application_stats.app_role_distribution.to_weighted_list()
-                self.rng.shuffle(role_pool)
             if c.application_stats.app_criticality_distribution:
                 criticality_pool = c.application_stats.app_criticality_distribution.to_weighted_list()
                 self.rng.shuffle(criticality_pool)
         
         _cluster_to_libs: Dict[str, List[Library]] = {d: [] for d in _cluster_domains}
-        role_warning_emitted = False
         
         for i in range(c.apps):
-            if role_pool and i < len(role_pool):
-                role = role_pool[i]
-            elif role_pool:
-                if not role_warning_emitted:
-                    self.logger.warning("Role pool exhausted; falling back to random sampling for remaining apps.")
-                    role_warning_emitted = True
-                role = self.rng.choice(role_pool)
-            else:
-                role = self.rng.choice(ROLE_OPTIONS)
-            
             # Criticality is assigned after topology is built (two-pass approach
             # in _assign_criticality_two_pass).  Use placeholder False here.
             app_name = domain_ds.get_app_name() if domain_ds else f"App-{i}"
@@ -745,11 +757,12 @@ class StatisticalGraphGenerator:
 
             priority = self.rng.choice(APP_PRIORITY_OPTIONS)
             hotstandby = self.rng.choice(APP_HOTSTANDBY_OPTIONS)
+            role = self.rng.choice(APP_USER_ROLE_OPTIONS)
             apps.append(Application(
                 id=f"A{i}",
                 name=app_name,
-                role=role,
                 app_type=app_type,
+                role=role,
                 criticality=False,  # assigned after topology by _assign_criticality_two_pass
                 priority=priority,
                 hotstandby=hotstandby,
@@ -913,9 +926,9 @@ class StatisticalGraphGenerator:
                 direct_pub_count = min(direct_pub_count, len(topics))
                 direct_sub_count = min(direct_sub_count, len(topics))
                 
-                # Enforce application role constraint
-                if app.role == "sub": direct_pub_count = 0
-                if app.role == "pub": direct_sub_count = 0
+                # Enforce messaging capability constraint derived from app_type
+                if not _can_publish(app.app_type): direct_pub_count = 0
+                if not _can_subscribe(app.app_type): direct_sub_count = 0
 
                 # Pass 2: use cluster-biased sampling so apps in the same
                 # hierarchy cluster preferentially share topics (p_intra=0.65).
@@ -951,7 +964,7 @@ class StatisticalGraphGenerator:
 
                 pub_count = self._sample_from_distribution(c.application_stats.direct_publish_count)
                 pub_count = min(pub_count, len(topics))
-                if app.role == "sub": pub_count = 0
+                if not _can_publish(app.app_type): pub_count = 0
 
                 if pub_count > 0:
                     pub_topics = self._sample_biased(pub_count, topics, _pub_pool, p_intra=c.intra_cluster_coupling)
@@ -961,7 +974,7 @@ class StatisticalGraphGenerator:
 
                 sub_count = self._sample_from_distribution(c.application_stats.direct_subscribe_count)
                 sub_count = min(sub_count, len(topics))
-                if app.role == "pub": sub_count = 0
+                if not _can_subscribe(app.app_type): sub_count = 0
 
                 if sub_count > 0:
                     sub_topics = self._sample_biased(sub_count, topics, _sub_pool, p_intra=c.intra_cluster_coupling)
@@ -970,12 +983,12 @@ class StatisticalGraphGenerator:
                     self._direct_sub_counts[app.id] = sub_count
                     
         elif c.topic_stats and c.topic_stats.applications_publishing_to_this_topic.mean > 0:
-            valid_pubs_all = [a for a in apps if a.role in ("pub", "pubsub")]
-            valid_subs_all = [a for a in apps if a.role in ("sub", "pubsub")]
+            valid_pubs_all = [a for a in apps if _can_publish(a.app_type)]
+            valid_subs_all = [a for a in apps if _can_subscribe(a.app_type)]
             for topic in topics:
                 _topic_cluster_apps = _cluster_to_apps[_topic_id_to_cluster[topic.id]]
-                _topic_cluster_pubs = [a for a in _topic_cluster_apps if a.role in ("pub", "pubsub")]
-                _topic_cluster_subs = [a for a in _topic_cluster_apps if a.role in ("sub", "pubsub")]
+                _topic_cluster_pubs = [a for a in _topic_cluster_apps if _can_publish(a.app_type)]
+                _topic_cluster_subs = [a for a in _topic_cluster_apps if _can_subscribe(a.app_type)]
                 
                 pub_count = self._sample_from_distribution(c.topic_stats.applications_publishing_to_this_topic)
                 pub_count = min(pub_count, len(valid_pubs_all))
@@ -993,12 +1006,12 @@ class StatisticalGraphGenerator:
                         subscribes.append(self._make_edge(s, topic))
                         self._direct_sub_counts[s.id] = self._direct_sub_counts.get(s.id, 0) + 1
         else:
-            valid_pubs_all_fb = [a for a in apps if a.role in ("pub", "pubsub")]
-            valid_subs_all_fb = [a for a in apps if a.role in ("sub", "pubsub")]
+            valid_pubs_all_fb = [a for a in apps if _can_publish(a.app_type)]
+            valid_subs_all_fb = [a for a in apps if _can_subscribe(a.app_type)]
             for topic in topics:
                 _topic_cluster_apps = _cluster_to_apps[_topic_id_to_cluster[topic.id]]
-                _topic_cluster_pubs = [a for a in _topic_cluster_apps if a.role in ("pub", "pubsub")]
-                _topic_cluster_subs = [a for a in _topic_cluster_apps if a.role in ("sub", "pubsub")]
+                _topic_cluster_pubs = [a for a in _topic_cluster_apps if _can_publish(a.app_type)]
+                _topic_cluster_subs = [a for a in _topic_cluster_apps if _can_subscribe(a.app_type)]
                 
                 k_pubs = self.rng.randint(1, max(2, min(5, len(valid_pubs_all_fb))))
                 k_subs = self.rng.randint(1, max(2, min(8, len(valid_subs_all_fb))))
@@ -1025,9 +1038,9 @@ class StatisticalGraphGenerator:
         isolated_apps = [a for a in apps if a.id not in connected_apps]
         for app in isolated_apps:
             t = self.rng.choice(topics)
-            if app.role in ("pub", "pubsub"):
+            if _can_publish(app.app_type):
                 publishes.append(self._make_edge(app, t))
-            elif app.role == "sub":
+            elif _can_subscribe(app.app_type):
                 subscribes.append(self._make_edge(app, t))
                 
         # Enforce role constraints: remove any edges that violate pub/sub role

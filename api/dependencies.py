@@ -8,7 +8,7 @@ Provides:
 """
 
 import logging
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Union
 
 from fastapi import Depends, Request, HTTPException
 from saag.infrastructure import create_repository
@@ -86,7 +86,7 @@ def get_prediction_service() -> PredictionService:
     return PredictionService()
 
 
-def get_generation_service(request: GenerateGraphRequest | GenerateGraphFileRequest) -> GenerationService:
+def get_generation_service(request: Union[GenerateGraphRequest, GenerateGraphFileRequest]) -> GenerationService:
     """
     Dependency to provide a configured GenerationService instance.
     """
