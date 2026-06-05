@@ -127,14 +127,14 @@ R(v) measures how broadly and deeply a component's failure propagates through th
 **Standard formula (v7)** — Application, Broker, Infrastructure Node, Library:
 
 ```
-R(v) = 0.60 × PR(v) × (1 + MPCI(v))  +  0.40 × DG_in(v)
+R(v) = 0.60 × RPR(v) × (1 + MPCI(v))  +  0.40 × DG_in(v)
 ```
 
 | Term | Weight | What it captures |
 |------|:------:|-----------------|
-| PR(v) | 0.60 | PageRank — global significance and reachability; higher score indicates the node is a more central propagator |
-| MPCI(v) | (Amp) | Multi-Path Coupling Intensity — amplifies PageRank importance when redundant or complex paths increase failure vector density |
-| DG_in(v) | 0.40 | In-degree — immediate blast radius; number of direct dependents |
+| RPR(v) | 0.60 | Reverse PageRank — global significance and reachability of the failure origin; higher score indicates the node is a more central propagator |
+| MPCI(v) | (Amp) | Multi-Path Coupling Intensity — amplifies RPR when redundant or complex paths increase failure vector density; multiplicative amplifier on RPR |
+| DG_in(v) | 0.40 | In-degree (normalised) — immediate blast radius; number of direct dependents |
 
 **Topic-type formula** — used exclusively for Topic nodes:
 
@@ -151,7 +151,7 @@ CDPot_topic(v) = FOC(v) × (1 − min(publisher_count_norm(v), 1))
 | FOC(v) | 0.50 | Fan-Out Criticality — how many subscribers simultaneously lose their data source |
 | CDPot_topic(v) | 0.50 | Fan-out depth — topics with many subscribers but few publishers are pure blast relays with no publisher-side redundancy to absorb the loss |
 
-> **Type dispatch.** The formula branch is resolved by `τ_V(v)` (the vertex type attribute on the graph node). `τ_V(v) = Topic` → Topic formula; all other node types → standard formula. This is justified because Topic failure semantics differ fundamentally from application/broker failure: a Topic failure is always a *simultaneous broadcast loss* to all subscribers, not a sequential cascade through the dependency graph.
+> **Type dispatch.** The formula branch is resolved by `τ_V(v)` (the vertex type attribute on the graph node). `τ_V(v) = Topic` → Topic formula; all other node types → standard formula.
 
 ---
 
@@ -188,19 +188,21 @@ These two often diverge: a library can have high static fan-out but only one con
 
 ---
 
-#### Availability A(v) — SPOF Risk (v4)
+#### Availability A(v) — SPOF Risk
 
-A(v) measures whether a component is a structural single point of failure, weighted by its sole-publisher risk and multi-path routing redundancy.
+A(v) measures whether a component is a structural single point of failure, weighted by its QoS priority, bridge redundancy, and path elongation.
 
 ```
-A(v) = AP_c_directed(v) × (1 + 0.30 × QSPOF(v)) + 0.20 × PSPOF(v)
+A(v) = 0.35 × AP_c_directed(v) + 0.25 × QSPOF(v) + 0.25 × BR(v) + 0.10 × CDI(v) + 0.05 × w(v)
 ```
 
 | Term | Weight | What it captures |
 |------|:------:|-----------------|
-| AP_c_directed(v) | 1.00 | Directed articulation point score — primary SPOF signal; removal partitions the graph flows |
-| QSPOF(v) | (0.3) | QoS-weighted SPOF severity — `AP_c_directed × w(v)`; amplifies critical SPOFs |
-| PSPOF(v) | 0.20 | Publisher SPOF — risk of orphaning subscribers if this node is the last remaining publisher for a topic |
+| AP_c_directed(v) | 0.35 | Directed articulation point score — primary SPOF signal; removal partitions the dependency graph flows |
+| QSPOF(v) | 0.25 | QoS-weighted SPOF severity — `AP_c_directed × w(v)`; amplifies critical SPOFs that serve high-priority traffic |
+| BR(v) | 0.25 | Bridge Ratio — fraction of edges that are non-redundant structural bridges |
+| CDI(v) | 0.10 | Connectivity Degradation Index — path elongation on removal; soft SPOF signal |
+| w(v) | 0.05 | QoS aggregate weight — direct priority bias on the component's own operational weight |
 
 > **AP_c_directed vs AP_c undirected.** The SPOF detection signal uses `AP_c_directed`, which is computed on the *directed* DEPENDS_ON graph using a worst-case out-reachability / in-reachability measure. This correctly captures directed cut vertices — nodes whose removal breaks directed reachability — rather than the undirected articulation point, which can both over-report (paths that are directionally irrelevant) and under-report (asymmetric directed SPOFs) in pub-sub systems.
 
@@ -500,21 +502,21 @@ Three cooperating modules:
 
 ```
     NetworkX DiGraph (Step 1 output)
-             │
-  ┌──────────▼───────────────────────┐
-  │   Data Preparation               │  Type-specific node features:
-  │   networkx_to_hetero_data()      │    App/Lib=23, Broker=19, Topic=20, Node=20
-  │   HeteroData + splits            │   9-dim edge features (weight, path_count_norm,
-  └──────────┬───────────────────────┘    7-bit type one-hot)
-             │                            5-dim simulation labels y = I*(v)
-             │                            5-dim RMAV scores  y_rmav = Q_RMAV(v)
-     ┌───────┼────────────┐
-     ▼       ▼            ▼
-  NodeGNN  EdgeGNN   EnsembleGNN
-  3L HGT   TypedEdge  α · Q_GNN     ← Step 3 output (default mode="gnn")
-  +EdgeFea  Encoder  +(1-α)·Q_RMAV ← Q_RMAV from Step 2
-  +BiDir   (E, 5)    (N, 5)
-  (N, 5)
+              │
+   ┌──────────▼───────────────────────┐
+   │   Data Preparation               │  Type-specific node features:
+   │   networkx_to_hetero_data()      │    App/Lib=23, Broker=19, Topic=22, Node=20
+   │   HeteroData + splits            │   16-dim edge features (weight, path_count_norm,
+   └──────────┬───────────────────────┘    7-bit type one-hot, 7 QoS decomposition dims)
+              │                            5-dim simulation labels y = I*(v)
+              │                            5-dim RMAV scores  y_rmav = Q_RMAV(v)
+      ┌───────┼────────────┐
+      ▼       ▼            ▼
+   NodeGNN  EdgeGNN   EnsembleGNN
+   3L HGT   TypedEdge  α · Q_GNN     ← Step 3 output (default mode="gnn")
+   +EdgeFea  Encoder  +(1-α)·Q_RMAV ← Q_RMAV from Step 2
+   +BiDir   (E, 16)   (N, 5)
+   (N, 5)
 ```
 
 All three modules are implemented in `saag/prediction/` and managed by `GNNService`.
@@ -534,10 +536,10 @@ Each node `v` is represented by a feature vector whose dimension depends on its 
 | Application | 23 | +5 code quality attributes (indices 18–22) |
 | Library | 23 | +5 code quality attributes (indices 18–22) |
 | Broker | 19 | +1 `max_connections_norm` (index 18) |
-| Topic | 20 | +2 `subscriber_count_norm`, `publisher_count_norm` (indices 18–19) |
+| Topic | 22 | +4 `subscriber_count_norm`, `publisher_count_norm` (indices 18–19), `log1p_frequency_norm` (index 20, per-scenario z-score), `topic_qos_criticality_ord` (index 21, ordinal 0–4) |
 | Node (infra) | 20 | +2 `cpu_cores_norm`, `memory_gb_norm` (indices 18–19) |
 
-> **Implementation note.** The HGT architecture handles type-specific projections internally, so a global one-hot node-type vector is **not required** and has been removed to reduce parameter bloat. The constant `NODE_TYPE_TO_DIM` in `data_preparation.py` defines the authoritative widths. Infrastructure extra features (`cpu_cores_norm`, `memory_gb_norm`, `max_connections_norm`) are derived by per-graph min-max normalization of node attributes in `_normalize_infra_features()`. Topic runtime features (`subscriber_count_norm`, `publisher_count_norm`) are derived by counting `SUBSCRIBES_TO`/`PUBLISHES_TO` edges per Topic node and dividing by the graph maximum.
+> **Implementation note.** The HGT architecture handles type-specific projections internally, so a global one-hot node-type vector is **not required** and has been removed to reduce parameter bloat. The constant `NODE_TYPE_TO_DIM` in `data_preparation.py` defines the authoritative widths. Infrastructure extra features (`cpu_cores_norm`, `memory_gb_norm`, `max_connections_norm`) are derived by per-graph min-max normalization of node attributes in `_normalize_infra_features()`. Topic runtime features (`subscriber_count_norm`, `publisher_count_norm`) are derived by counting `SUBSCRIBES_TO`/`PUBLISHES_TO` edges per Topic node and dividing by the graph maximum. `log1p_frequency_norm` uses per-scenario z-score of log1p(Hz) to avoid cross-domain leakage. `topic_qos_criticality_ord` is the ordinal encoding (0–4) of the 5-level QoS urgency label; when all topics in a graph share the same criticality (zero variance), the field is masked to 0.0 to prevent covariate shift across scenarios.
 
 **Topological metrics — indices 0–17 (base for all node types):**
 
@@ -582,13 +584,22 @@ Each node `v` is represented by a feature vector whose dimension depends on its 
 | 18 | cpu_cores_norm | Node | Node attribute, normalized per Node subgraph |
 | 19 | memory_gb_norm | Node | Node attribute, normalized per Node subgraph |
 
-#### Edge Features (9 dimensions)
+#### Edge Features (16 dimensions)
 
 | Index | Feature |
 |:-----:|---------|
 | 0 | QoS weight w(e) |
 | 1 | path_count_norm = log₂(1 + path_count) / log₂(17) — coupling intensity (capped at 16 paths) |
 | 2–8 | Edge-type one-hot (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, CONNECTS_TO, USES, DEPENDS_ON) |
+| 9 | reliability_score (0.0 BEST_EFFORT / 1.0 RELIABLE) — non-zero for PUBLISHES_TO, SUBSCRIBES_TO, DEPENDS_ON |
+| 10 | durability_score (VOLATILE=0.0 / TRANSIENT_LOCAL=0.5 / TRANSIENT=0.6 / PERSISTENT=1.0) — pub/sub only |
+| 11 | priority_score (LOW=0.0 / MEDIUM=0.33 / HIGH=0.66 / URGENT=1.0) — pub/sub only |
+| 12 | has_deadline (1.0 if finite deadline_ns is set, else 0.0) — pub/sub only |
+| 13 | deadline_ns_log = log10(1 + deadline_ns / 1e6), clamped to [0, 1] — pub/sub only |
+| 14 | max_blocking_ms_log = log10(1 + max_blocking_ms), clamped to [0, 1] — pub/sub only |
+| 15 | qos_heterogeneity_flag (1.0 if edge QoS profile differs from scenario-level modal profile, else 0.0) — pub/sub only |
+
+Dimensions 9–15 are non-zero only for PUBLISHES_TO / SUBSCRIBES_TO edges, where QoS profiles are semantically meaningful. All other edge types receive zeros for these dimensions, preserving backward numerical compatibility.
 
 **Node labels** (`data[type].y`, shape (n, 5)): simulation ground-truth per-dimension impact scores `[I*(v), IR(v), IM(v), IA(v), IV(v)]`.
 
@@ -607,7 +618,7 @@ Layer 0 — Type-specific input projection:
   h_v^(0) = GELU( LayerNorm( W_{type(v)} · x_v ) )
 
 Pre-layer edge injection (EdgeFeatureEncoder, applied per layer k):
-  e_v^(k) = scatter_mean_{u → v}( W_e · e_{uv} )     ← 9-dim edge → D-dim
+  e_v^(k) = scatter_mean_{u → v}( W_e · e_{uv} )     ← 16-dim edge → D-dim
   h_v^(k) ← h_v^(k) + e_v^(k)                        ← edge signal added before MP
 
 Layer k — HGT message passing per (src_type s, edge_type r, dst_type d):
@@ -648,15 +659,20 @@ score(u, v) = TypedEdgeEncoder_r( h_u, h_v, e_{uv} )
 e_{uv} ∈ ℝ^9: QoS weight + path_count_norm + 7-bit edge-type one-hot
 ```
 
-The `TypedEdgeEncoder` replaces the former shared MLP. Each relation type `r` has a dedicated linear projection `W_r ∈ ℝ^{9×D}` learned independently. The per-relation projected edge feature is fused with source and destination node embeddings via a shared `[h_src ‖ h_dst ‖ e_proj]` → LayerNorm → GELU layer before the output head. This ensures the model learns distinct edge-criticality semantics for PUBLISHES_TO vs DEPENDS_ON edges rather than forcing them through a common feature space.
+The `TypedEdgeEncoder` replaces the former shared MLP. Each relation type `r` has a dedicated linear projection `W_r ∈ ℝ^{16×D}` learned independently. The per-relation projected edge feature is fused with source and destination node embeddings via a shared `[h_src ‖ h_dst ‖ e_proj]` → LayerNorm → GELU layer before the output head. This ensures the model learns distinct edge-criticality semantics for PUBLISHES_TO vs DEPENDS_ON edges rather than forcing them through a common feature space.
 
-**Edge labels.** Training labels for edges are derived as:
+**GNN edge feature encoding (implementation detail).** The `EdgeFeatureEncoder` in `NodeCriticalityGNN` aggregates the full 16-dim edge attributes into destination-node embeddings via `scatter_mean` before each HGT layer. HGTConv does not accept `edge_attr` directly, so the encoder projects `e_uv` from 16 to `hidden_channels` and adds the result to the destination node embedding. The edge-specific `TypedEdgeEncoder` used by `EdgeCriticalityGNN` also consumes the full 16-dim vector.
+
+**Edge labels.** Training labels for edges are derived from simulation ground truth with a bridge-aware multiplier:
 
 ```
-I_edge(u, v) = max( I*(u), I*(v) )
+I_edge(u, v) = max( I*(u), I*(v) ) × bridge_multiplier
+
+bridge_multiplier = 1.0   if (u, v) is a structural bridge
+                   = 0.1   otherwise
 ```
 
-> **Known limitation.** This labeling is a node-impact proxy, not direct edge criticality. It assigns a CRITICAL label to every edge connected to a CRITICAL node, regardless of whether the edge is a structural bridge or has redundant alternatives. True edge criticality should reflect the marginal cascade damage caused by *removing that specific edge*, approximated as `I*(u) × bridge_indicator(e)` for bridge edges and near-zero for edges with alternative paths. The current labeling causes the edge model to learn node centrality by proxy rather than genuine edge-level structural risk. This is a known approximation that should be tightened in future work.
+This multiplier downweights edges that are not bridges, reducing label noise from redundant relationships. Labels are stored as `data[rel].y_edge` with shape `(E, 5)`, one column per RMAV dimension.
 
 ---
 
@@ -673,7 +689,7 @@ The ensemble is a thin `EnsembleGNN` module containing only the 5-dimensional `a
 
 > **Default mode.** The default prediction mode is `"gnn"` (GNN-only output) after a checkpoint exists. `"ensemble"` must be explicitly requested via `--mode ensemble`. RMAV remains the fallback when no checkpoint is found (`predict_quality_with_gnn()` in `PredictionService` detects checkpoint availability via `_has_checkpoint()`).
 
-> **Implementation note.** `EnsembleGNN.forward()` requires `y_rmav` to be present in the HeteroData object. At inference time, if `rmav_scores` are not passed to `networkx_to_hetero_data()`, `y_rmav` will be absent and the ensemble silently falls back to GNN-only output while still labelling the result as `ensemble_scores`. The `GNNAnalysisResult` should expose a `prediction_mode` field (`"ensemble"` | `"gnn_only"`) so callers can distinguish these cases. This is an open implementation gap.
+> **Implementation note.** When `mode="ensemble"` is requested but `y_rmav` is absent from the HeteroData or the ensemble module is not initialised, the result falls back to `prediction_mode="gnn_only"` and `ensemble_scores` is left empty. Callers should check `prediction_mode` and `ensemble_scores` to distinguish a true ensemble result from a fallback.
 
 ---
 
@@ -725,7 +741,7 @@ The following table tracks the technical hardening of the GNN pipeline. All high
 
 | ID | Issue | Severity | Status | Solution / Mitigation |
 |----|-------|:--------:|--------|-----------------------|
-| G1 | Node feature dim mismatch | High | **Resolved** | Per-type dims enforced (App/Lib=23, Broker=19, Topic=20, Node=20); `feature_version=2` in checkpoint config; old checkpoints load with `strict=False` + warning rather than hard error |
+| G1 | Node feature dim mismatch | High | **Resolved** | Per-type dims enforced (App/Lib=23, Broker=19, Topic=22, Node=20); `feature_version=3` in checkpoint config; old checkpoints load with `strict=False` + warning rather than hard error |
 | G2 | Edge labels as node proxies | Medium | Open | Current: `max(I*(u), I*(v))`. Future: direct removal impact per edge |
 | G3 | Redundant type encoding | Low | **Resolved** | Zero-padding removed; `KEYS_BY_TYPE` selects only type-appropriate features |
 | G4 | Transductive leakage | High | Open | Test nodes are present in MP graph. Requires pure inductive split for SoS claims |
@@ -769,6 +785,24 @@ The following table tracks the technical hardening of the GNN pipeline. All high
 
 **Step 2 metric vector inputs:**
 
+```
+Component        PR    DG_in  MPCI  FOC   BT    AP_c_dir  BR    CDI   REV   RCL   w_in
+──────────────────────────────────────────────────────────────────────────────────────────
+SensorApp        0.58  0.25   0.0   0.0   0.40  0.43     1.0   0.2   0.3   0.4   0.0
+MonitorApp       0.25  0.0    0.0   0.0   0.0   0.0      0.0   0.0   0.5   0.6   0.0
+MainBroker       0.65  0.50   0.0   0.0   0.60  0.65     1.0   0.5   0.6   0.7   0.71
+NavLib           0.72  0.50   0.0   0.0   0.50  0.50     1.0   0.4   0.4   0.5   0.71
+/temperature     0.0   0.0    0.0   1.0   0.0   0.0      0.0   0.0   0.0   0.0   0.0
+```
+
+**R(v) scores (v7 formula: 0.60 × PR × (1 + MPCI) + 0.40 × DG_in):**
+
+```
+SensorApp:    R = 0.60×0.58 + 0.40×0.25 = 0.348 + 0.100 = 0.448
+MonitorApp:   R = 0.60×0.25 + 0.40×0.0  = 0.150 + 0.000 = 0.150
+MainBroker:   R = 0.60×0.65 + 0.40×0.50 = 0.390 + 0.200 = 0.590
+NavLib:       R = 0.60×0.72 + 0.40×0.50 = 0.432 + 0.200 = 0.632
+/temperature: R_topic = 0.50×1.0 + 0.50×(1.0 × (1 − min(0.0, 1))) = 1.000  ← highest in system
 ```
 Component        RPR   DG_in  MPCI  FOC   BT    AP_c_dir  BR    CDI   REV   RCL   w_in
 ──────────────────────────────────────────────────────────────────────────────────────────
