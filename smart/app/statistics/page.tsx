@@ -12,7 +12,7 @@ import { apiClient } from "@/lib/api/client"
 import ReactECharts from "echarts-for-react"
 import {
   Activity, AlertTriangle, BarChart3, Layers, Network, Radio,
-  Shield, Box, Server, BookOpen, Zap, ChevronLeft, Wifi,
+  Shield, Box, Server, BookOpen, Zap, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Wifi,
 } from "lucide-react"
 import { TermTooltip } from "@/components/ui/term-tooltip"
 import { ItemTooltip } from "@/components/ui/item-tooltip"
@@ -147,6 +147,28 @@ interface ExtrasStats {
     outliers: [string, number, number, number][]
     iqr_upper: number
     summary: SummaryDict
+    topic_bandwidth?: Array<{
+      id: string
+      name: string
+      frequency_hz: number
+      size_bytes: number
+      pub_count: number
+      sub_count: number
+      bw_out: number
+      bw_in: number
+      bw_total: number
+    }>
+    app_bandwidth?: Array<{
+      id: string
+      name: string
+      node_id: string | null
+      node_name: string | null
+      role: string | null
+      criticality: boolean
+      bw_out: number
+      bw_in: number
+      bw_total: number
+    }>
   }
 }
 
@@ -457,6 +479,28 @@ function SummaryCards({ summary, keys }: { summary: SummaryDict; keys: { key: st
           </div>
         )
       })}
+    </div>
+  )
+}
+
+function TablePager({ page, totalPages, total, pageSize, label, onPage }: {
+  page: number; totalPages: number; total: number; pageSize: number; label: string; onPage: (p: number) => void
+}) {
+  if (totalPages <= 1) return null
+  // page is 0-based internally; display as 1-based
+  const p1 = page + 1
+  const from = page * pageSize + 1
+  const to = Math.min(p1 * pageSize, total)
+  return (
+    <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+      <span>Showing {from}–{to} of {total} {label}</span>
+      <div className="flex items-center gap-1">
+        <button onClick={() => onPage(0)} disabled={page === 0} className="p-1 rounded hover:bg-muted disabled:opacity-30"><ChevronsLeft className="h-3.5 w-3.5" /></button>
+        <button onClick={() => onPage(page - 1)} disabled={page === 0} className="p-1 rounded hover:bg-muted disabled:opacity-30"><ChevronLeft className="h-3.5 w-3.5" /></button>
+        <span className="px-2">{p1} / {totalPages}</span>
+        <button onClick={() => onPage(page + 1)} disabled={page >= totalPages - 1} className="p-1 rounded hover:bg-muted disabled:opacity-30"><ChevronRight className="h-3.5 w-3.5" /></button>
+        <button onClick={() => onPage(totalPages - 1)} disabled={page >= totalPages - 1} className="p-1 rounded hover:bg-muted disabled:opacity-30"><ChevronsRight className="h-3.5 w-3.5" /></button>
+      </div>
     </div>
   )
 }
@@ -1417,11 +1461,15 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
 // ── Network Usage Section ─────────────────────────────────────────────────
 
 type NetworkUsageMode = "total" | "out" | "in"
+type NetworkUsageView = "nodes" | "apps" | "topics"
+const NETWORK_TABLE_PAGE_SIZE = 10
 
 function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
+  const [view, setView] = useState<NetworkUsageView>("nodes")
   const [mode, setMode] = useState<NetworkUsageMode>("total")
+  const [tablePage, setTablePage] = useState(0)
 
-  const allItems = useMemo(() => (!data ? [] : data.sorted_labels.map((label, i) => ({
+  const nodeItems = useMemo(() => (!data ? [] : data.sorted_labels.map((label, i) => ({
     name: label,
     id: data.sorted_ids?.[i],
     outbound: data.sorted_out[i],
@@ -1433,7 +1481,42 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
     return b.total - a.total
   })), [data, mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const appItems = useMemo(() => (!data?.app_bandwidth ? [] : data.app_bandwidth.map((a) => ({
+    name: a.name,
+    id: a.id,
+    outbound: a.bw_out,
+    inbound: a.bw_in,
+    total: a.bw_total,
+    node_name: a.node_name,
+    role: a.role,
+    criticality: a.criticality,
+  })).sort((a, b) => {
+    if (mode === "out") return b.outbound - a.outbound
+    if (mode === "in") return b.inbound - a.inbound
+    return b.total - a.total
+  })), [data, mode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const topicItems = useMemo(() => (!data?.topic_bandwidth ? [] : data.topic_bandwidth.map((t) => ({
+    name: t.name,
+    id: t.id,
+    outbound: t.bw_out,
+    inbound: t.bw_in,
+    total: t.bw_total,
+    frequency_hz: t.frequency_hz,
+    size_bytes: t.size_bytes,
+    pub_count: t.pub_count,
+    sub_count: t.sub_count,
+  })).sort((a, b) => {
+    if (mode === "out") return b.outbound - a.outbound
+    if (mode === "in") return b.inbound - a.inbound
+    return b.total - a.total
+  })), [data, mode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const allItems = view === "nodes" ? nodeItems : view === "apps" ? appItems : topicItems
   const { search, handleSearch, filtered } = useFilteredSearch(allItems)
+
+  // Reset to first page whenever the active view or search term changes
+  useEffect(() => { setTablePage(0) }, [view, search])
 
   if (!data) return null
 
@@ -1446,28 +1529,28 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <MetricInsightCard
           label="Total Network Bandwidth"
-          value={fmtBytes(totalBw)}
-          description="Aggregate bytes flowing across the network per message cycle. Computed as Σ topic_size × (publishers + subscribers) across every topic in the topology."
-          formula="Σ size(t) × (pub_count(t) + sub_count(t))"
+          value={fmtBytes(totalBw) + "/s"}
+          description="Aggregate sustained bandwidth flowing across the network. Computed as Σ topic_size × topic_frequency × (publishers + subscribers) across every topic in the topology."
+          formula="Σ size(t) × freq(t) × (pub_count(t) + sub_count(t))"
         />
         <MetricInsightCard
           label="Total Outbound"
-          value={fmtBytes(totalOut)}
-          description="Sum of bytes produced by all application publishers across every physical node in one cycle. High values relative to inbound indicate a producer-heavy topology."
-          formula="Σ size(t) × pub_count(t)"
+          value={fmtBytes(totalOut) + "/s"}
+          description="Sustained bytes per second produced by all application publishers across every physical node. High values relative to inbound indicate a producer-heavy topology."
+          formula="Σ size(t) × freq(t) × pub_count(t)"
         />
         <MetricInsightCard
           label="Total Inbound"
-          value={fmtBytes(totalIn)}
-          description="Sum of bytes consumed by all application subscribers across every physical node in one cycle. High relative inbound traffic indicates many fan-out subscribers."
-          formula="Σ size(t) × sub_count(t)"
+          value={fmtBytes(totalIn) + "/s"}
+          description="Sustained bytes per second consumed by all application subscribers across every physical node. High relative inbound traffic indicates many fan-out subscribers."
+          formula="Σ size(t) × freq(t) × sub_count(t)"
         />
       </div>
       <SummaryCards summary={data.summary} keys={[
         { key: "node_count", label: "Nodes" },
         { key: "topic_count", label: "Topics" },
-        { key: "bw_mean", label: "Avg / Node", format: (v) => fmtBytes(Number(v)) },
-        { key: "bw_max", label: "Max Node", format: (v) => fmtBytes(Number(v)) },
+        { key: "bw_mean", label: "Avg / Node", format: (v) => fmtBytes(Number(v)) + "/s" },
+        { key: "bw_max", label: "Max Node", format: (v) => fmtBytes(Number(v)) + "/s" },
         { key: "cv", label: "CV%", format: (v) => Number(v).toFixed(1) + "%" },
         { key: "zero_bw_nodes", label: "Zero-BW Nodes" },
         { key: "outlier_count", label: "Outliers" },
@@ -1475,7 +1558,19 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
       <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">Network Usage per Node</CardTitle>
+            <div className="flex items-center gap-3">
+              <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">
+                {view === "nodes" ? "Network Usage per Node" : view === "apps" ? "Network Usage per App" : "Network Usage per Topic"}
+              </CardTitle>
+              <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
+                {(["nodes", "apps", "topics"] as NetworkUsageView[]).map((v) => (
+                  <button key={v} onClick={() => setView(v)}
+                    className={`px-2.5 py-0.5 text-xs rounded transition-colors ${view === v ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"}`}>
+                    {v === "nodes" ? "Nodes" : v === "apps" ? "Apps" : "Topics"}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
               <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
@@ -1514,6 +1609,95 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
           )}
         </CardContent>
       </Card>
+      {view === "apps" && appItems.length > 0 && (() => {
+        const totalPages = Math.max(1, Math.ceil(filtered.length / NETWORK_TABLE_PAGE_SIZE))
+        const page = Math.min(tablePage, totalPages - 1)
+        const pageItems = (filtered as typeof appItems).slice(page * NETWORK_TABLE_PAGE_SIZE, (page + 1) * NETWORK_TABLE_PAGE_SIZE)
+        return (
+          <Card className="bg-background">
+            <CardHeader>
+              <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">App Bandwidth Detail</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b text-muted-foreground">
+                      <th className="text-left py-1.5 pr-3 font-medium">Application</th>
+                      <th className="text-left py-1.5 px-3 font-medium">Node</th>
+                      <th className="text-left py-1.5 px-3 font-medium">Role</th>
+                      <th className="text-right py-1.5 px-3 font-medium">Outbound/s</th>
+                      <th className="text-right py-1.5 pl-3 font-medium">Inbound/s</th>
+                      <th className="text-right py-1.5 pl-3 font-medium">Total/s</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((a) => (
+                      <tr key={a.id} className="border-b border-border/40 hover:bg-muted/30 cursor-pointer" onClick={() => goToExplorer(a.id)}>
+                        <td className="py-1.5 pr-3 font-mono truncate max-w-[180px]">
+                          {a.criticality && <span className="mr-1 text-amber-400" title="Critical">●</span>}
+                          {a.name}
+                        </td>
+                        <td className="py-1.5 px-3 text-muted-foreground truncate max-w-[120px]">{a.node_name ?? "—"}</td>
+                        <td className="py-1.5 px-3 text-muted-foreground">{a.role ?? "—"}</td>
+                        <td className="text-right py-1.5 px-3 tabular-nums text-indigo-400">{fmtBytes(a.outbound)}/s</td>
+                        <td className="text-right py-1.5 pl-3 tabular-nums text-emerald-400">{fmtBytes(a.inbound)}/s</td>
+                        <td className="text-right py-1.5 pl-3 tabular-nums font-medium">{fmtBytes(a.total)}/s</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <TablePager page={page} totalPages={totalPages} total={filtered.length} pageSize={NETWORK_TABLE_PAGE_SIZE} label="applications" onPage={setTablePage} />
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
+      {view === "topics" && topicItems.length > 0 && (() => {
+        const totalPages = Math.max(1, Math.ceil(filtered.length / NETWORK_TABLE_PAGE_SIZE))
+        const page = Math.min(tablePage, totalPages - 1)
+        const pageItems = (filtered as typeof topicItems).slice(page * NETWORK_TABLE_PAGE_SIZE, (page + 1) * NETWORK_TABLE_PAGE_SIZE)
+        return (
+          <Card className="bg-background">
+            <CardHeader>
+              <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">Topic Frequency &amp; Size</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b text-muted-foreground">
+                      <th className="text-left py-1.5 pr-3 font-medium">Topic</th>
+                      <th className="text-right py-1.5 px-3 font-medium">Freq (Hz)</th>
+                      <th className="text-right py-1.5 px-3 font-medium">Size</th>
+                      <th className="text-right py-1.5 px-3 font-medium">Pubs</th>
+                      <th className="text-right py-1.5 px-3 font-medium">Subs</th>
+                      <th className="text-right py-1.5 px-3 font-medium">Outbound/s</th>
+                      <th className="text-right py-1.5 pl-3 font-medium">Inbound/s</th>
+                      <th className="text-right py-1.5 pl-3 font-medium">Total/s</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((t) => (
+                      <tr key={t.id} className="border-b border-border/40 hover:bg-muted/30 cursor-pointer" onClick={() => goToExplorer(t.id)}>
+                        <td className="py-1.5 pr-3 font-mono truncate max-w-[180px]">{t.name}</td>
+                        <td className="text-right py-1.5 px-3 tabular-nums">{t.frequency_hz.toFixed(1)}</td>
+                        <td className="text-right py-1.5 px-3 tabular-nums">{fmtBytes(t.size_bytes)}</td>
+                        <td className="text-right py-1.5 px-3 tabular-nums">{t.pub_count}</td>
+                        <td className="text-right py-1.5 px-3 tabular-nums">{t.sub_count}</td>
+                        <td className="text-right py-1.5 px-3 tabular-nums text-indigo-400">{fmtBytes(t.outbound)}/s</td>
+                        <td className="text-right py-1.5 pl-3 tabular-nums text-emerald-400">{fmtBytes(t.inbound)}/s</td>
+                        <td className="text-right py-1.5 pl-3 tabular-nums font-medium">{fmtBytes(t.total)}/s</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <TablePager page={page} totalPages={totalPages} total={filtered.length} pageSize={NETWORK_TABLE_PAGE_SIZE} label="topics" onPage={setTablePage} />
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
       {data.outliers.length > 0 && (
         <OutlierTable
           title="High-Bandwidth Nodes"
@@ -1765,7 +1949,7 @@ const TAB_CONFIG = [
   { id: "node_density", label: "Node Density", icon: Shield, color: "text-green-500", description: "Critical application density per physical node. Concentrated critical apps mean a single host failure causes outsized impact." },
   { id: "domain_div", label: "Segment Diversity", icon: Box, color: "text-orange-500", description: "Apps, topics, and I/O load per segment. Low diversity flags monolithic subsystems; high I/O flags communication hubs." },
   { id: "bottleneck", label: "Bottlenecks", icon: Zap, color: "text-yellow-500", description: "Composite structural score: betweenness, SPOF severity, blast radius, and bridge ratio. The top scorers are your highest-risk single points of failure." },
-  { id: "network_usage", label: "Network Usage", icon: Wifi, color: "text-sky-500", description: "Total network bandwidth consumed by the topology. Shows per-node outbound and inbound byte load so you can spot hosts that dominate raw network traffic." },
+  { id: "network_usage", label: "Network Usage", icon: Wifi, color: "text-sky-500", description: "Sustained network bandwidth (bytes/s) consumed by the topology. Shows per-node outbound and inbound B/s load, factoring in topic frequency, so you can spot hosts that dominate raw network traffic." },
 ] as const
 
 type TabId = typeof TAB_CONFIG[number]["id"]
