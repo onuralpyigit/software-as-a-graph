@@ -233,10 +233,13 @@ def extract_cross_cutting_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     topic_names = {t["id"]: t.get("name", t["id"]) for t in topics}
     topic_sizes: Dict[str, float] = {}
     topic_qos: Dict[str, Dict[str, str]] = {}
+    topic_frequencies: Dict[str, float] = {}
     for t in topics:
         size = t.get("size", 0)
         topic_sizes[t["id"]] = max(0, size) if size is not None else 0
         topic_qos[t["id"]] = t.get("qos", {})
+        freq = t.get("frequency")
+        topic_frequencies[t["id"]] = float(freq) if freq is not None and freq > 0 else 1.0
 
     app_pub_count: Dict[str, int] = {a["id"]: 0 for a in apps}
     app_sub_count: Dict[str, int] = {a["id"]: 0 for a in apps}
@@ -273,6 +276,7 @@ def extract_cross_cutting_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         "topic_names": topic_names,
         "topic_sizes": topic_sizes,
         "topic_qos": topic_qos,
+        "topic_frequencies": topic_frequencies,
         "app_pub_count": app_pub_count,
         "app_sub_count": app_sub_count,
         "topic_pub_count": topic_pub_count,
@@ -1540,19 +1544,24 @@ def to_serializable(obj: Any) -> Any:
 def compute_network_usage_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     """Compute per-node network bandwidth used by the topology.
 
-    For each physical node the function sums the message sizes of every topic
-    published *from* (outbound) and subscribed *to* (inbound) by the
-    applications hosted on that node.  The result shows how much raw network
-    traffic each host contributes in one message cycle and lets you spot nodes
-    that dominate total bandwidth.
+    For each physical node the function sums the message bandwidth of every
+    topic published *from* (outbound) and subscribed *to* (inbound) by the
+    applications hosted on that node.  Bandwidth is computed as::
+
+        bandwidth (B/s) = topic_size (bytes) × topic_frequency (Hz)
+
+    so the result is in **bytes per second** rather than bytes per cycle,
+    which lets you compare nodes with different topic-frequency profiles and
+    spot hosts that dominate sustained network load.
 
     The topology-level totals mirror what ``compute_topic_bandwidth_stats``
     already reports per topic, but aggregated to physical infrastructure
     (nodes / brokers) so operators can see *where* that traffic lands.
     """
     node_ids = [n["id"] for n in cc["nodes"]]
+    topic_frequencies: Dict[str, float] = cc.get("topic_frequencies", {})
 
-    # ── Per-node bandwidth accumulators ─────────────────────────────────
+    # ── Per-node bandwidth accumulators (bytes/s) ────────────────────────
     node_out_bw: Dict[str, float] = {nid: 0.0 for nid in node_ids}
     node_in_bw: Dict[str, float] = {nid: 0.0 for nid in node_ids}
 
@@ -1560,23 +1569,25 @@ def compute_network_usage_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         aid, tid = rel.get("from"), rel.get("to")
         nid = cc["app_node"].get(aid)
         if nid and nid in node_out_bw:
-            node_out_bw[nid] += cc["topic_sizes"].get(tid, 0)
+            freq = topic_frequencies.get(tid, 1.0)
+            node_out_bw[nid] += cc["topic_sizes"].get(tid, 0) * freq
 
     for rel in cc["subscribes_to"]:
         aid, tid = rel.get("from"), rel.get("to")
         nid = cc["app_node"].get(aid)
         if nid and nid in node_in_bw:
-            node_in_bw[nid] += cc["topic_sizes"].get(tid, 0)
+            freq = topic_frequencies.get(tid, 1.0)
+            node_in_bw[nid] += cc["topic_sizes"].get(tid, 0) * freq
 
-    # ── Topology-level totals (sum over all topics) ──────────────────────
+    # ── Topology-level totals (sum over all topics, in bytes/s) ─────────
     total_out = sum(node_out_bw.values())
     total_in = sum(node_in_bw.values())
-    # Total bytes flowing across the network per cycle:
-    # for each topic: size × (pub_connections + sub_connections)
+    # Total sustained bandwidth flowing across the network:
+    # for each topic: size × frequency × (pub_connections + sub_connections)
     total_bw = sum(
-        cc["topic_sizes"].get(tid, 0) * (
-            cc["topic_pub_count"].get(tid, 0) + cc["topic_sub_count"].get(tid, 0)
-        )
+        cc["topic_sizes"].get(tid, 0)
+        * topic_frequencies.get(tid, 1.0)
+        * (cc["topic_pub_count"].get(tid, 0) + cc["topic_sub_count"].get(tid, 0))
         for tid in cc["topic_sizes"]
     )
 
@@ -1598,6 +1609,64 @@ def compute_network_usage_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         for i, nid in enumerate(sorted_ids):
             if sorted_total[i] > iqr_upper:
                 outliers.append((sorted_labels[i], sorted_out[i], sorted_in[i], sorted_total[i]))
+
+    # ── Per-app bandwidth accumulators (bytes/s) ─────────────────────────
+    app_ids = [a["id"] for a in cc["apps"]]
+    app_out_bw: Dict[str, float] = {aid: 0.0 for aid in app_ids}
+    app_in_bw: Dict[str, float] = {aid: 0.0 for aid in app_ids}
+
+    for rel in cc["publishes_to"]:
+        aid, tid = rel.get("from"), rel.get("to")
+        if aid in app_out_bw:
+            freq = topic_frequencies.get(tid, 1.0)
+            app_out_bw[aid] += cc["topic_sizes"].get(tid, 0) * freq
+
+    for rel in cc["subscribes_to"]:
+        aid, tid = rel.get("from"), rel.get("to")
+        if aid in app_in_bw:
+            freq = topic_frequencies.get(tid, 1.0)
+            app_in_bw[aid] += cc["topic_sizes"].get(tid, 0) * freq
+
+    app_bw_list: List[Dict[str, Any]] = []
+    for aid in app_ids:
+        bw_out = app_out_bw[aid]
+        bw_in = app_in_bw[aid]
+        nid = cc["app_node"].get(aid)
+        app_bw_list.append({
+            "id": aid,
+            "name": cc["app_names"].get(aid, aid),
+            "node_id": nid,
+            "node_name": cc["node_names"].get(nid, nid) if nid else None,
+            "role": cc["app_role"].get(aid),
+            "criticality": cc["app_criticality"].get(aid, False),
+            "bw_out": bw_out,
+            "bw_in": bw_in,
+            "bw_total": bw_out + bw_in,
+        })
+    app_bw_list.sort(key=lambda x: x["bw_total"], reverse=True)
+
+    # ── Per-topic bandwidth breakdown (B/s) ─────────────────────────────
+    # Ordered by total bandwidth contribution descending.
+    topic_bw_list: List[Dict[str, Any]] = []
+    for tid in cc["topic_sizes"]:
+        freq = topic_frequencies.get(tid, 1.0)
+        size = cc["topic_sizes"].get(tid, 0)
+        pub_cnt = cc["topic_pub_count"].get(tid, 0)
+        sub_cnt = cc["topic_sub_count"].get(tid, 0)
+        bw_out = size * freq * pub_cnt
+        bw_in = size * freq * sub_cnt
+        topic_bw_list.append({
+            "id": tid,
+            "name": cc["topic_names"].get(tid, tid),
+            "frequency_hz": freq,
+            "size_bytes": size,
+            "pub_count": pub_cnt,
+            "sub_count": sub_cnt,
+            "bw_out": bw_out,
+            "bw_in": bw_in,
+            "bw_total": bw_out + bw_in,
+        })
+    topic_bw_list.sort(key=lambda x: x["bw_total"], reverse=True)
 
     # ── Summary ─────────────────────────────────────────────────────────
     summary: Dict[str, Any] = {
@@ -1628,6 +1697,8 @@ def compute_network_usage_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         "outliers": outliers,
         "iqr_upper": iqr_upper,
         "summary": summary,
+        "topic_bandwidth": topic_bw_list,
+        "app_bandwidth": app_bw_list,
     }
 
 
