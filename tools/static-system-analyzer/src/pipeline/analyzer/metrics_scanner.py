@@ -69,6 +69,13 @@ def _run_ck(source_path: str) -> Optional[List[Dict[str, str]]]:
         List of dicts (one per class) parsed from class.csv, or None on
         failure.
     """
+    # Resolve symlinks before handing the path to ck. Cloned projects are
+    # exposed to each platform via the shared-store symlink layout
+    # (<platform>/<repo> -> ../_shared/<repo>). ck's underlying Files.walk
+    # runs without FOLLOW_LINKS, so a symlinked start directory is treated
+    # as a file and never descended into, yielding zero classes.
+    source_path = os.path.realpath(source_path)
+
     tmp_dir = tempfile.mkdtemp(prefix="ck_out_")
     try:
         # ck treats the last arg as a file prefix; trailing '/' ensures
@@ -434,14 +441,19 @@ def scan_project(
     artifact = f"{versioned_name}_metrics.json"
     shared_target = shared_path(base_dir, artifact)
     if platform and shared_target.exists():
-        log_info(f"Reusing shared metrics for {versioned_name} ({shared_target})")
-        ensure_platform_link(base_dir, platform, artifact)
         try:
             with shared_target.open("r", encoding="utf-8") as fh:
                 cached = json.load(fh)
-            return cached if cached else None
         except (OSError, json.JSONDecodeError) as exc:
             log_warning(f"Could not load shared metrics {shared_target}: {exc}")
+            cached = None
+        # Only honour the cache when it holds real data. A previous failed
+        # run may have written an empty {}; treat that as a miss and re-scan
+        # rather than permanently serving the empty result.
+        if cached:
+            log_info(f"Reusing shared metrics for {versioned_name} ({shared_target})")
+            ensure_platform_link(base_dir, platform, artifact)
+            return cached
 
     log_info(f"Scanning project: {app_name} ({app_source_path})")
 
