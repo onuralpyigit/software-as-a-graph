@@ -26,6 +26,7 @@ import {
   MessageSquare,
   Search,
   ArrowUpDown,
+  Pencil,
 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
 import { trafficClient, type TopicInfo, type AppInfo, type TopicParams, type TrafficSimulationResult } from "@/lib/api/traffic-client"
@@ -87,6 +88,7 @@ export default function TrafficSimulatorPage() {
   const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([])
   const [selectedRoleKeys, setSelectedRoleKeys] = useState<Set<string>>(new Set())
   const [topicParams, setTopicParams] = useState<Record<string, TopicParams>>({})
+  const [editingFreqId, setEditingFreqId] = useState<string | null>(null)
   const [topicSearch, setTopicSearch] = useState("")
   const [roleSearch, setRoleSearch] = useState("")
   const [topicQosFilter, setTopicQosFilter] = useState<string>("all")
@@ -208,7 +210,7 @@ export default function TrafficSimulatorPage() {
         setTopicParams(p => ({
           ...p,
           [id]: {
-            frequency_hz: topic.frequency,
+            frequency_hz: topic.frequency ?? 10.0,
             duration_sec: durationSec,
           },
         }))
@@ -230,8 +232,8 @@ export default function TrafficSimulatorPage() {
         for (const tid of appTopicIds) {
           if (!next[tid]) {
             const t = topicById[tid]
-            next[tid] = {
-              frequency_hz: t ? t.frequency : 10.0, // Fallback to 10 Hz if not available
+              next[tid] = {
+                frequency_hz: t?.frequency ?? 10.0, // Fallback to 10 Hz if not available
               duration_sec: durationSec,
             }
           }
@@ -676,7 +678,7 @@ export default function TrafficSimulatorPage() {
                                   </div>
                                   <div className="flex items-center gap-2 mt-0.5">
                                     <span className="text-xs text-muted-foreground">
-                                      {topic.publisher_count} pub · {topic.subscriber_count} sub{topic.size > 0 ? ` · ${topic.size >= 1024 ? `${(topic.size / 1024).toFixed(1)} KB` : `${topic.size} B`}` : ""}{topic.frequency ? ` · ${Math.round(topic.frequency)} Hz` : ""}
+                                      {topic.publisher_count} pub · {topic.subscriber_count} sub{topic.size > 0 ? ` · ${topic.size >= 1024 ? `${(topic.size / 1024).toFixed(1)} KB` : `${topic.size} B`}` : ""}{topic.frequency != null && topic.frequency > 0 ? ` · ${Math.round(topic.frequency)} Hz` : ""}
                                     </span>
                                     {topic.broker_names.length > 0 && (
                                       <span className="text-xs text-muted-foreground hidden sm:inline">
@@ -708,38 +710,50 @@ export default function TrafficSimulatorPage() {
                                   </div>
                                 )}
 
-                                {/* Per-topic frequency input (when selected) */}
+                                {/* Per-topic frequency (when selected) */}
                                 {selected && (
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-muted-foreground whitespace-nowrap">Default:</span>
-                                      <span className="text-xs font-medium text-foreground">{Math.round(topic.frequency)}</span>
-                                      <span className="text-xs text-muted-foreground">Hz</span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      <Input
-                                        type="number"
-                                        min={0.001}
-                                        step={1}
-                                        value={topicParams[topic.id]?.frequency_hz ?? topic.frequency}
-                                        onChange={e => {
-                                          const val = parseFloat(e.target.value)
-                                          if (!isNaN(val)) {
-                                            setTopicParams(prev => ({
-                                              ...prev,
-                                              [topic.id]: {
-                                                frequency_hz: val,
-                                                duration_sec: topicParams[topic.id]?.duration_sec ?? durationSec,
-                                              },
-                                            }))
-                                          }
-                                        }}
-                                        onClick={e => e.stopPropagation()}
-                                        className="h-6 w-16 text-xs px-1.5"
-                                        placeholder={Math.round(topic.frequency).toString()}
-                                      />
-                                      <span className="text-xs text-muted-foreground">Hz</span>
-                                    </div>
+                                  <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                                    {editingFreqId === topic.id ? (
+                                      <>
+                                        <Input
+                                          type="number"
+                                          min={0.001}
+                                          step={1}
+                                          autoFocus
+                                          value={topicParams[topic.id]?.frequency_hz ?? (topic.frequency ?? 10.0)}
+                                          onChange={e => {
+                                            const val = parseFloat(e.target.value)
+                                            if (!isNaN(val)) {
+                                              setTopicParams(prev => ({
+                                                ...prev,
+                                                [topic.id]: {
+                                                  frequency_hz: val,
+                                                  duration_sec: topicParams[topic.id]?.duration_sec ?? durationSec,
+                                                },
+                                              }))
+                                            }
+                                          }}
+                                          onBlur={() => setEditingFreqId(null)}
+                                          onKeyDown={e => { if (e.key === "Enter" || e.key === "Escape") setEditingFreqId(null) }}
+                                          className="h-6 w-16 text-xs px-1.5"
+                                        />
+                                        <span className="text-xs text-muted-foreground">Hz</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span className="text-xs font-medium text-foreground tabular-nums">
+                                          {(topicParams[topic.id]?.frequency_hz ?? topic.frequency ?? 10.0).toFixed(1)}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">Hz</span>
+                                        <button
+                                          className="ml-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                                          onClick={() => setEditingFreqId(topic.id)}
+                                          title="Edit frequency"
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </button>
+                                      </>
+                                    )}
                                   </div>
                                 )}
                               </div>

@@ -252,21 +252,30 @@ def flatten_component(comp: Dict[str, Any], comp_type: str) -> Dict[str, Any]:
         qos = comp.get("qos", comp.get("qos_policy", {}))
         res.update({
             "size": comp.get("size", 256),
-            "topic_frequency": comp.get("frequency", 0.0),
-            "topic_criticality": comp.get("criticality", "minimal"),
             "qos_reliability": qos.get("reliability", "BEST_EFFORT"),
             "qos_durability": qos.get("durability", "VOLATILE"),
             "qos_transport_priority": qos.get("transport_priority", "MEDIUM"),
         })
+        # Only include derived/optional fields if explicitly present in the source data
+        freq = comp.get("frequency")
+        if freq is not None:
+            res["topic_frequency"] = freq
+        crit = comp.get("criticality")
+        if crit is not None:
+            res["topic_criticality"] = crit
     elif comp_type == "Application":
         res.update({
             "role": comp.get("role", "pubsub"),
             "app_type": comp.get("app_type", "service"),
-            "criticality": comp.get("criticality", "LOW"),
-            "priority": comp.get("priority", "MEDIUM"),
-            "hotstandby": comp.get("hotstandby", False),
             "version": comp.get("version", ""),
         })
+        # Only include optional classification fields if explicitly present in the source data
+        if "criticality" in comp:
+            res["criticality"] = comp["criticality"]
+        if "priority" in comp:
+            res["priority"] = comp["priority"]
+        if "hotstandby" in comp:
+            res["hotstandby"] = comp["hotstandby"]
     elif comp_type == "Library":
         res["version"] = comp.get("version", "")
     elif comp_type == "Node":

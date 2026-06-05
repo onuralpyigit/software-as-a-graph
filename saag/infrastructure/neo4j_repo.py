@@ -333,24 +333,32 @@ class Neo4jRepository:
     def _import_topics(self, topics_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import topics with QoS policies and derived fields."""
         topics = [serialization.flatten_component(t, "Topic") for t in topics_data]
+        # Always-present fields
         self._import_batch(topics, """
             MERGE (t:Topic {id: row.id})
             SET t.name = row.name, t.size = row.size,
-                t.topic_frequency = row.topic_frequency,
-                t.topic_criticality = row.topic_criticality,
                 t.qos_reliability = row.qos_reliability,
                 t.qos_durability = row.qos_durability,
                 t.qos_transport_priority = row.qos_transport_priority
+        """, tx=tx)
+        # Conditionally set optional fields only when present in the source data
+        self._import_batch(topics, """
+            MATCH (t:Topic {id: row.id})
+            FOREACH (_ IN CASE WHEN row.topic_frequency IS NOT NULL THEN [1] ELSE [] END |
+                SET t.topic_frequency = row.topic_frequency)
+            FOREACH (_ IN CASE WHEN row.topic_criticality IS NOT NULL THEN [1] ELSE [] END |
+                SET t.topic_criticality = row.topic_criticality)
         """, tx=tx)
 
     def _import_applications(self, apps_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import applications with code metrics and hierarchy."""
         apps = [serialization.flatten_component(a, "Application") for a in apps_data]
+        # Always-present fields
         self._import_batch(apps, """
             MERGE (a:Application {id: row.id})
-        SET a.name = row.name, a.role = row.role, a.app_type = row.app_type,
-            a.criticality = row.criticality, a.priority = row.priority, a.hotstandby = row.hotstandby, a.version = row.version,
-            a.csc_name = row.csc_name, a.csci_name = row.csci_name,
+            SET a.name = row.name, a.role = row.role, a.app_type = row.app_type,
+                a.version = row.version,
+                a.csc_name = row.csc_name, a.csci_name = row.csci_name,
                 a.css_name = row.css_name, a.csms_name = row.csms_name,
                 a.cm_total_loc = row.cm_total_loc, a.cm_total_classes = row.cm_total_classes,
                 a.cm_total_methods = row.cm_total_methods, a.cm_total_fields = row.cm_total_fields,
@@ -367,6 +375,16 @@ class Neo4jRepository:
                 a.coupling_afferent = row.coupling_afferent,
                 a.coupling_efferent = row.coupling_efferent,
                 a.lcom = row.lcom
+        """, tx=tx)
+        # Conditionally set optional classification fields only when present in the source data
+        self._import_batch(apps, """
+            MATCH (a:Application {id: row.id})
+            FOREACH (_ IN CASE WHEN row.criticality IS NOT NULL THEN [1] ELSE [] END |
+                SET a.criticality = row.criticality)
+            FOREACH (_ IN CASE WHEN row.priority IS NOT NULL THEN [1] ELSE [] END |
+                SET a.priority = row.priority)
+            FOREACH (_ IN CASE WHEN row.hotstandby IS NOT NULL THEN [1] ELSE [] END |
+                SET a.hotstandby = row.hotstandby)
         """, tx=tx)
 
     def _import_libraries(self, libs_data: List[Dict[str, Any]], tx: Any = None) -> None:

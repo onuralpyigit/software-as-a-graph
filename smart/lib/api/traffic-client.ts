@@ -18,7 +18,7 @@ export interface TopicInfo {
   qos_durability: string | null
   qos_transport_priority: string | null
   size: number
-  frequency: number
+  frequency: number | null
 }
 
 export interface AppInfo {
@@ -26,6 +26,8 @@ export interface AppInfo {
   name: string
   weight: number
   role: string | null
+  priority: string | null
+  hotstandby: boolean | null
   pub_topic_ids: string[]
   sub_topic_ids: string[]
 }
