@@ -346,14 +346,14 @@ SET d.weight = coalesce(node_w, 0.01)
 
 The graph supports four layer projections, each filtering vertices and DEPENDS_ON edges to a specific architectural concern.
 
-| Layer | CLI name | Vertex Types | `dependency_type` values |
-|-------|----------|-------------|--------------------------|
-| Application | `app` | Application, Library | `app_to_app`, `app_to_lib` |
-| Infrastructure | `infra` | Node | `node_to_node` |
-| Middleware | `mw` | Application, Broker, Node | `app_to_broker`, `node_to_broker`, `broker_to_broker` |
-| System | `system` | All five types | All six types |
+| Layer | CLI name | Vertex Types (component_types) | Analyzed Types (analyze_types) | `dependency_type` values |
+|-------|----------|------------------------------|------------------------------|--------------------------|
+| Application | `app` | Application, Library | Application, Library | `app_to_app`, `app_to_lib` |
+| Infrastructure | `infra` | Node | Node | `node_to_node` |
+| Middleware | `mw` | Application, Broker, Node | Broker | `app_to_broker`, `node_to_broker`, `broker_to_broker` |
+| System | `system` | All five types | All five types | All six types |
 
-> **`app_to_lib` and Library nodes:** These are available in the `system` layer and can be isolated by filtering `dependency_type = 'app_to_lib'`. They are intentionally excluded from the `app` layer to keep Application-layer analysis focused on pub-sub data flow. Library blast-radius analysis is performed at the `system` layer.
+> **`app_to_lib` and Library nodes:** These are available in the `app` layer. The `app` layer includes Library vertices and `app_to_lib` edges so shared-library blast-radius is visible without requiring `--layer system`. This preserves the intrinsic complexity signal for libraries even when analyzing at the service layer.
 
 **Legacy layer aliases** (backward compatible, resolved internally):
 

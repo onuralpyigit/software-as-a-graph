@@ -971,22 +971,9 @@ class StructuralAnalyzer:
             diameter=diameter,
             avg_path_length=avg_path,
             assortativity=assortativity,
-            node_types=node_types,
-            edge_types=edge_types,
-        )
-
-    @staticmethod
-    def _empty_result(layer: AnalysisLayer) -> StructuralAnalysisResult:
-        return StructuralAnalysisResult(
-            layer=layer,
-            components={},
-            edges={},
-            graph_summary=GraphSummary(
-                layer=layer.value,
-                nodes=0, edges=0, density=0.0,
-                num_components=0, diameter=0, avg_path_length=0.0,
-            ),
-        )
+node_types=node_types,
+             edge_types=edge_types,
+         )
 
     @staticmethod
     def _empty_result(layer: AnalysisLayer) -> StructuralAnalysisResult:
