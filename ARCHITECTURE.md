@@ -163,7 +163,19 @@ Compares prediction rankings to simulation ground truth and evaluates against st
 - `ValidationService` — Orchestrates multi-layer validation; evaluates against `ValidationTargets` tier gates.
 - `MetricCalculator` — Pure-function metric implementations.
 
-**Tier-1 gates:** Spearman ≥ 0.70, F1 ≥ 0.75, Precision ≥ 0.80, Top-5 Overlap ≥ 0.60.
+**Validation Gates (3-tiered system):**
+- **Tier 1 (Primary Gates):**
+  - **G1 (Spearman Correlation):** $\rho \ge 0.70$
+  - **G2 (F1 Score):** $F_1 \ge 0.75$
+  - **G3 (Precision):** $\text{Precision} \ge 0.80$
+  - **G4 (Top-5 Overlap):** $\text{Top-5} \ge 0.60$
+- **Tier 2 (Secondary Gates):**
+  - **G5 (Predictive Gain):** $\text{PG} > 0.03$ (composite $\rho - \max(\text{dimension } \rho)$)
+  - **G6 (Weighted Kappa CTA):** $\kappa_{\text{CTA}} \ge 0.70$
+  - **G7 (CDCC Max):** $\text{CDCC} < 0.30$
+- **Tier 3 (Dimension-Specific Specialist Gates):**
+  - **G8 (Bottleneck Precision):** $\text{BP} \ge 0.70$
+  - **G9 (FTR Max):** $\text{FTR} \le 0.20$
 
 **Output:** `ValidationResult` (per-layer metrics, gate pass/fail).
 
@@ -306,16 +318,16 @@ saag-generate     → cli.generate_graph:main
 | `/dashboard` | Main visualization hub |
 | `/analysis` | Structural metrics and RMAV scores |
 | `/data` | Import topology JSON, manage stored graphs |
-| `/dictionary` | Anti-pattern catalog and metrics glossary |
+| `/glossary` | Anti-pattern catalog and metrics glossary |
 | `/explorer` | Interactive graph viewer (`react-force-graph-2d/3d`) |
 | `/predict` | GNN criticality prediction results |
 | `/train` | GNN model training interface |
-| `/simulation` | Run and visualize failure cascades |
+| `/simulation` | BFS cascade failure and discrete-event simulation dashboard |
+| `/simulator` | Traffic simulator estimating network/broker load |
 | `/statistics` | Aggregate system statistics |
 | `/traffic` | Message flow visualization |
 | `/validation` | Prediction vs simulation comparison |
 | `/settings` | Neo4j connection configuration |
-| `/tutorial` | Guided onboarding walkthrough |
 
 ### Key Modules
 
