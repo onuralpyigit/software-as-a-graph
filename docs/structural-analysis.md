@@ -95,6 +95,12 @@ cli/analyze_graph.py          ← CLI entry point
 
 `AnalysisResult` (returned by `client.analyze()`) wraps `LayerAnalysisResult.raw`, which embeds both `StructuralAnalysisResult` and the immediate prediction derived from it. The CLI's `--output` flag calls `result.save(path)` to persist the full JSON.
 
+### Pre-Analysis Hook
+
+Before structural analysis begins, `AnalysisService.analyze_layer` automatically triggers the pre-analysis hook:
+`self.repository.derive_dependencies()`
+This derives the `DEPENDS_ON` edges and establishes their weights, ensuring that structural metrics are calculated on a fresh, fully-derived topology projection.
+
 ---
 
 ## Layer Projections
@@ -248,7 +254,7 @@ Phase 7  Assemble & normalize
          │  _compute_code_quality_metrics():
          │    Min-max normalize loc, cyclomatic_complexity, lcom independently
          │    per Application population and per Library population
-         │    CQP = 0.10·LOC_norm + 0.35·CC_norm + 0.30·instability + 0.25·LCOM_norm
+         │    CQP = 0.10·loc_norm + 0.35·complexity_norm + 0.30·instability_code + 0.25·lcom_norm
          │  Assemble EdgeMetrics per edge
          │  RCM ordering: reverse_cuthill_mckee for bandwidth minimization
          │  _build_summary() → GraphSummary S(G)
@@ -450,13 +456,13 @@ The undirected AP_c measures how badly an undirected graph fragments. For a dire
 ```
 Given G' = G_analysis(l) with vertex v and all incident edges removed:
 
-AP_c_out(v) = 1 − |largest weakly reachable set from any vertex in G'| / (|V| − 1)
-AP_c_in(v)  = 1 − |largest set that can reach any vertex in G'|         / (|V| − 1)
+AP_c_out(v) = 1 − |largest connected component in undirected (G_analysis(l) \ v)| / (|V| − 1)
+AP_c_in(v)  = 1 − |largest connected component in undirected (G_analysis(l)^T \ v)| / (|V| − 1)
 
 AP_c_directed(v) = max(AP_c_out(v), AP_c_in(v))
 
-AP_c_directed(v) = 0    → removing v does not fragment the directed dependency structure
-AP_c_directed(v) → 1    → removing v severs a large fraction of directed reachability
+AP_c_directed(v) = 0    → removing v does not fragment the undirected projection of the layer graph
+AP_c_directed(v) → 1    → removing v fragments the undirected projection into small components
 ```
 
 **Why max, not average:** The worst-case direction determines the availability risk. If removing v severs 80% of out-reachability but only 10% of in-reachability, the system loses 80% of its downstream propagation paths — the maximum governs the severity.
