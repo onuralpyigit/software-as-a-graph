@@ -17,8 +17,8 @@
 2. [The Methodology](#the-methodology)
    - [Core Insight](#core-insight)
    - [Graph Construction (Import)](#graph-construction-import)
-   - [Analysis](#analyze-stage-step-2)
-   - [Prediction](#predict-stage-step-3)
+   - [Analysis](#analysis)
+   - [Prediction](#prediction)
    - [Failure Simulation](#failure-simulation-step-4)
    - [Statistical Validation](#statistical-validation-step-5)
 3. [Empirical Results](#empirical-results)
@@ -108,9 +108,9 @@ Step 2 is **deterministic and interpretable**: given the same graph, it always p
 
 | Metric | Symbol | Theoretical family | RMAV role |
 |--------|--------|--------------------|-----------|
-| Reverse PageRank (on G^T) | RPR | Random walk | R(v) — cascade reach |
+| PageRank | PR | Random walk | R(v) — overall reachability |
 | In-Degree normalized | DG_in | Local degree | R(v) — immediate blast radius |
-| Multi-Path Coupling Index | MPCI | Structural coupling | R(v) — amplifier via CDPot_enh |
+| Multi-Path Coupling Index | MPCI | Structural coupling | R(v) — PageRank amplifier |
 | Fan-Out Criticality | FOC | Topic-specific | R(v) — Topic broadcast risk |
 | Betweenness Centrality | BT | Path-based | M(v) — structural bottleneck |
 | QoS-Weighted Out-Degree | w_out | QoS-weighted degree | M(v) — efferent coupling |
@@ -124,7 +124,7 @@ Step 2 is **deterministic and interpretable**: given the same graph, it always p
 
 **Sub-phase 2b — RMAV scoring.** Maps M(v) to four quality dimensions using AHP-derived weights. This is the rule-based model: a closed-form function of topology and metadata with no learned parameters. Anti-pattern detection (SPOF, FAILURE_HUB, GOD_COMPONENT, etc.) also runs here, on the RMAV scores.
 
-**Why thirteen metrics?** No single metric captures all structural risk dimensions. A component can be a wide cascade propagator (high RPR, low AP_c) but not a SPOF — or be the sole connector between two clusters (high AP_c) without having many direct dependents (low DG_in). The thirteen metrics are deliberately designed to be **orthogonal**: each feeds exactly one RMAV dimension, with no metric shared across dimensions.
+**Why thirteen metrics?** No single metric captures all structural risk dimensions. A component can be a wide cascade propagator (high PR, low AP_c) but not a SPOF — or be the sole connector between two clusters (high AP_c) without having many direct dependents (low DG_in). The thirteen metrics are deliberately designed to be **orthogonal**: each feeds exactly one RMAV dimension, with no metric shared across dimensions.
 
 **MPCI** is a novel metric introduced in this work. It uses the `path_count` attribute on DEPENDS_ON edges (the number of distinct shared topics mediating a dependency) to quantify *multi-channel coupling intensity*. When the same dependent pair shares three topics, each is an independent failure vector — the cascade depth is amplified accordingly.
 
@@ -143,15 +143,14 @@ The RMAV formulas below are part of the Analyze stage. They use AHP-derived weig
 #### Reliability — R(v): *How broadly does failure propagate?*
 
 ```
-R(v) = 0.45·RPR + 0.30·DG_in + 0.25·CDPot_enh
-
-CDPot_enh(v) = min( CDPot_base(v) × (1 + MPCI(v)), 1.0 )
-CDPot_base(v) = ((RPR + DG_in) / 2) × (1 − min(DG_out_raw / DG_in_raw, 1))
+R(v) = 0.60·PR(v)·(1 + MPCI(v)) + 0.40·DG_in(v)
 ```
 
 For Topic nodes (which have no DEPENDS_ON in-degree), a topic-specific formula is used:
 ```
-R_topic(v) = 0.50·FOC + 0.50·CDPot_topic
+R_topic(v) = 0.50·FOC(v) + 0.50·CDPot_topic(v)
+
+CDPot_topic(v) = FOC(v) × (1 − min(publisher_count_norm(v), 1.0))
 ```
 
 #### Maintainability — M(v): *How hard is this to change safely?*
@@ -556,16 +555,14 @@ Quality scores are computed per component v. AHP weights use a shrinkage factor 
 ### Reliability — R(v)
 
 ```
-R(v) = 0.45·RPR + 0.30·DG_in + 0.25·CDPot_enh
-
-CDPot_enh(v) = min( CDPot_base(v) × (1 + MPCI(v)), 1.0 )
+R(v) = 0.60·PR(v)·(1 + MPCI(v)) + 0.40·DG_in(v)
 ```
 
 | Term | Description |
 |------|-------------|
-| **RPR** | Reverse PageRank — fault propagation reach on G^T |
+| **PR** | PageRank — global dependency importance/reachability score on G |
+| **MPCI** | Multi-Path Coupling Index — amplifies PageRank when redundant shared channels exist |
 | **DG_in** | Normalised in-degree — direct dependent count |
-| **CDPot_enh** | Enhanced cascade depth potential; amplified by multi-path coupling |
 
 ### Maintainability — M(v)
 
