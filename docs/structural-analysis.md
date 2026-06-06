@@ -33,11 +33,25 @@
    - [Path Complexity (PC)](#path-complexity-pc)
    - [Diagnostic Metrics](#diagnostic-metrics)
 10. [Metric Catalogue Reference](#metric-catalogue-reference)
-11. [Output: M(v) and S(G)](#output-mv-and-sg)
-12. [Worked Example](#worked-example)
-13. [Complexity](#complexity)
-14. [Commands](#commands)
-15. [What Comes Next](#what-comes-next)
+11. [Analyze Stage — Rule-Based RMAV Scoring](#11-analyze-stage--rule-based-rmav-scoring)
+    - 11.1 [The Four Quality Dimensions](#111-the-four-quality-dimensions)
+    - 11.2 [RMAV Formulas](#112-rmav-formulas)
+      - [Reliability R(v)](#reliability-rv--fault-propagation-risk)
+      - [Maintainability M(v)](#maintainability-mv--coupling-complexity)
+      - [Availability A(v)](#availability-av--spof-risk)
+      - [Vulnerability V(v)](#vulnerability-vv--security-exposure)
+      - [Composite Score Q(v)](#composite-score-qv)
+    - 11.3 [Derived Terms](#113-derived-terms)
+    - 11.4 [Metric Orthogonality](#114-metric-orthogonality)
+    - 11.5 [AHP Weight Derivation](#115-ahp-weight-derivation)
+    - 11.6 [Weight Shrinkage Strategy](#116-weight-shrinkage-strategy)
+    - 11.7 [Criticality Classification](#117-criticality-classification)
+    - 11.8 [Interpretation Patterns](#118-interpretation-patterns)
+12. [Output: M(v) and S(G)](#12-output-mv-and-sg)
+13. [Worked Example](#13-worked-example)
+14. [Complexity](#14-complexity)
+15. [Commands](#15-commands)
+16. [What Comes Next](#16-what-comes-next)
 
 ---
 
@@ -621,7 +635,384 @@ Complete M(v) field listing. Every field has a tier, a RMAV dimension (or "—" 
 
 ---
 
-## Output: M(v) and S(G)
+## 11. Analyze Stage — Rule-Based RMAV Scoring
+
+### 11.1 The Four Quality Dimensions
+
+| Dimension | Question answered | High score means | Primary stakeholder |
+|-----------|------------------|-----------------|---------------------|
+| **R — Reliability** | How broadly and deeply does failure propagate? | Failure cascades widely and is hard to contain | Reliability Engineer |
+| **M — Maintainability** | How hard is this to change safely? | Tightly coupled; structural bottleneck | Software Architect |
+| **A — Availability** | Is this a structural single point of failure? | Removing it partitions the dependency graph | DevOps / SRE |
+| **V — Vulnerability** | How attractive a target is this for attack? | Central, reachable, high-value downstream | Security Engineer |
+
+The four dimensions are deliberately **orthogonal** in metric input: each raw metric feeds exactly one dimension (see [Metric Orthogonality](#114-metric-orthogonality)). This means a component's RMAV breakdown tells you *why* it is critical — a pure SPOF has high A but low R, M, V; a God Component has high M; a cascade hub has high R — enabling targeted remediation instead of blanket hardening.
+
+---
+
+### 11.2 RMAV Formulas
+
+All inputs are normalized to [0, 1] by Step 2's rank normalization unless otherwise noted. All RMAV scores are therefore in [0, 1]. Intra-dimension weights are derived from AHP; see [Section 11.5](#115-ahp-weight-derivation).
+
+---
+
+#### Reliability R(v) — Fault Propagation Risk
+
+R(v) measures how broadly and deeply a component's failure propagates through the DEPENDS_ON dependency graph.
+
+**Standard formula (v7)** — Application, Broker, Infrastructure Node, Library:
+
+```
+R(v) = 0.60 × PR(v) × (1 + MPCI(v))  +  0.40 × DG_in(v)
+```
+
+| Term | Weight | What it captures |
+|------|:------:|-----------------|
+| PR(v) | 0.60 | Standard PageRank — global significance and reachability of the failure origin (accumulated callee dependency weight); callee/dependency nodes are the ones whose failure propagates down to dependents |
+| MPCI(v) | (Amp) | Multi-Path Coupling Intensity — amplifies PageRank when redundant or complex paths increase failure vector density; multiplicative amplifier on PageRank |
+| DG_in(v) | 0.40 | In-degree (normalised) — immediate blast radius; number of direct dependents |
+
+**Topic-type formula** — used exclusively for Topic nodes:
+
+Topic nodes have DG_in = 0 in the DEPENDS_ON graph because Topics are not DEPENDS_ON endpoints. Their reliability risk is measured instead through subscriber fan-out:
+
+```
+R_topic(v) = 0.50 × FOC(v)  +  0.50 × CDPot_topic(v)
+
+CDPot_topic(v) = FOC(v) × (1 − min(publisher_count_norm(v), 1))
+```
+
+| Term | Weight | What it captures |
+|------|:------:|-----------------|
+| FOC(v) | 0.50 | Fan-Out Criticality — how many subscribers simultaneously lose their data source |
+| CDPot_topic(v) | 0.50 | Fan-out depth — topics with many subscribers but few publishers are pure blast relays with no publisher-side redundancy to absorb the loss |
+
+> **Type dispatch.** The formula branch is resolved by `τ_V(v)` (the vertex type attribute on the graph node). `τ_V(v) = Topic` → Topic formula; all other node types → standard formula.
+
+---
+
+#### Maintainability M(v) — Coupling Complexity
+
+M(v) measures how structurally embedded a component is in the system, making it fragile to change.
+
+```
+M(v) = 0.35 × BT(v)
+     + 0.30 × w_out(v)
+     + 0.15 × CQP(v)
+     + 0.12 × CouplingRisk_enh(v)
+     + 0.08 × (1 − CC(v))
+```
+
+| Term | Weight | What it captures |
+|------|:------:|-----------------|
+| BT(v) | 0.35 | Betweenness Centrality — fraction of shortest dependency paths that pass through v; the defining structural bottleneck signal |
+| w_out(v) | 0.30 | QoS-weighted out-degree — efferent coupling weighted by SLA priority; high-priority outgoing dependencies amplify change risk |
+| CQP(v) | 0.15 | Code Quality Penalty — composite of cyclomatic complexity, instability, and LCOM; zero for non-Application/Library types (formula degrades gracefully) |
+| CouplingRisk_enh(v) | 0.12 | Topology instability enriched by path complexity — peaks when DG_in ≈ DG_out; intensified when shared topics create complex multi-path coupling (see [Section 11.3](#113-derived-terms)) |
+| 1 − CC(v) | 0.08 | Inverse clustering coefficient — low local redundancy means each of v's connections is a structurally unique coupling path |
+
+**CQP formula** (Application and Library nodes only; CQP = 0 for all other node types):
+```
+CQP(v) = 0.40 × complexity_norm(v)  +  0.35 × instability_code(v)  +  0.25 × lcom_norm(v)
+```
+
+**Why two instability signals in M(v)?** M(v) contains two coupling-related terms that may appear redundant: `instability_code` (inside CQP) and `CouplingRisk_enh` (topological). They capture distinct architectural layers:
+- `instability_code` measures efferent coupling at the *static code level* (package imports, class dependencies) — technically fragile implementations.
+- `CouplingRisk_enh` measures efferent coupling at the *runtime topology level* (USES edges, pub-sub relationships) — structurally fragile deployment roles.
+
+These two often diverge: a library can have high static fan-out but only one consumer in the current deployment, or an application can have simple code but hundreds of pub-sub topics. Both signals are needed to capture the full maintenance risk picture.
+
+---
+
+#### Availability A(v) — SPOF Risk
+
+A(v) measures whether a component is a structural single point of failure, weighted by its QoS priority, bridge redundancy, and path elongation.
+
+```
+A(v) = 0.35 × AP_c_directed(v) + 0.25 × QSPOF(v) + 0.25 × BR(v) + 0.10 × CDI(v) + 0.05 × w(v)
+```
+
+| Term | Weight | What it captures |
+|------|:------:|-----------------|
+| AP_c_directed(v) | 0.35 | Directed articulation point score — primary SPOF signal; removal partitions the dependency graph flows |
+| QSPOF(v) | 0.25 | QoS-weighted SPOF severity — `AP_c_directed × w(v)`; amplifies critical SPOFs that serve high-priority traffic |
+| BR(v) | 0.25 | Bridge Ratio — fraction of edges that are non-redundant structural bridges |
+| CDI(v) | 0.10 | Connectivity Degradation Index — path elongation on removal; soft SPOF signal |
+| w(v) | 0.05 | QoS aggregate weight — direct priority bias on the component's own operational weight |
+
+> **AP_c_directed vs AP_c undirected.** The SPOF detection signal uses `AP_c_directed`, which is computed on the *directed* DEPENDS_ON graph using a worst-case out-reachability / in-reachability measure. This correctly captures directed cut vertices — nodes whose removal breaks directed reachability — rather than the undirected articulation point, which can both over-report (paths that are directionally irrelevant) and under-report (asymmetric directed SPOFs) in pub-sub systems.
+
+---
+
+#### Vulnerability V(v) — Security Exposure
+
+V(v) measures how attractive v is as an attack target and how far a compromise would propagate.
+
+```
+V(v) = 0.40 × REV(v)  +  0.35 × RCL(v)  +  0.25 × w_in(v)
+```
+
+| Term | Weight | What it captures |
+|------|:------:|-----------------|
+| REV(v) | 0.40 | Reverse Eigenvector Centrality — v's downstream dependents are themselves important hubs; compromise at v cascades into high-value targets |
+| RCL(v) | 0.35 | Reverse Closeness Centrality — many components can reach v quickly; adversarial paths to v are short |
+| w_in(v) | 0.25 | QoS-weighted in-degree (QADS) — direct high-SLA dependents make v attractive because compromising it disrupts the most operationally critical consumers |
+
+---
+
+#### Composite Score Q(v)
+
+```
+Q(v) = w_A × A(v)  +  w_R × R(v)  +  w_M × M(v)  +  w_V × V(v)
+```
+
+**AHP-derived weights (recommended):**
+
+| Dimension | Weight | Rationale |
+|-----------|:------:|-----------|
+| Availability (A) | **0.43** | Strongest structural alignment; SPOF severity dominates pre-deployment risk |
+| Reliability (R) | **0.24** | Cascade propagation reach; directly tied to blast radius |
+| Maintainability (M) | **0.17** | Coupling complexity; amplifies long-term fragility |
+| Vulnerability (V) | **0.16** | Security exposure surface; strategic but secondary to structural concerns |
+
+> **Cross-dimension weight derivation.** The 4×4 AHP matrix above gives CR ≈ 0.02 (well within the 0.10 acceptability threshold). The dominant position of A(v) reflects that SPOF failure is the most directly measurable structural risk in a pre-deployment topology: an articulation point with BR = 1.0 partitions the graph with certainty, whereas the cascade depth and coupling effects of R(v) and M(v) are probabilistic.
+
+**Baseline (equal weights).** An equal-weight alternative (0.25 each) can be activated via `--equal-weights` for sensitivity analysis or reproducibility. The AHP-derived weights produce a meaningfully different top-k ranking than equal weights; this difference is part of what the Step 5 validation measures.
+
+**Sensitivity of λ.** The AHP shrinkage factor λ ∈ [0, 1] blends raw AHP weights toward equal weights:
+```
+w_final(d) = λ × w_AHP(d) + (1 − λ) × 0.25
+```
+The default λ = 0.70 was selected based on a sensitivity sweep across λ ∈ {0.50, 0.60, 0.70, 0.80, 0.90, 1.00}. Spearman ρ plateaus around λ = 0.70, suggesting the AHP signal saturates beyond that point. The sensitivity sweep result should be reported in any paper submission that uses AHP weights (reviewers will ask).
+
+---
+
+### 11.3 Derived Terms
+
+These scalars are computed inline within the RMAV formulas at scoring time. They are derived from M(v) fields produced in Step 2; they are not stored as independent graph properties.
+
+#### CDPot_enh — Enhanced Cascade Depth Potential
+
+CDPot_enh captures how deeply a failure propagates in the absorber direction of the dependency graph, amplified by multi-path couplings.
+
+```
+CDPot_enh(v) = min( CDPot_base(v) × (1 + MPCI(v)),  1.0 )
+
+CDPot_base(v) = ((RPR(v) + DG_in(v)) / 2)  ×  (1 − min(DG_out_raw(v) / max(DG_in_raw(v), ε), 1))
+
+ε = 1e-9  (division guard)
+```
+
+Note: `DG_out_raw` and `DG_in_raw` are the raw integer degree counts, not the normalized versions. Using raw counts preserves the ratio semantics — a node with 10 in-edges and 2 out-edges should behave differently from one with 1 and 0.2, even though both have normalized ratio ≈ 0.2.
+
+| Factor | Interpretation |
+|--------|---------------|
+| `(RPR + DG_in) / 2` | Average cascade reach: global breadth (RPR) combined with immediate blast radius (DG_in) |
+| `1 − min(DG_out_raw / DG_in_raw, 1)` | Depth penalty: absorber nodes (DG_in >> DG_out) score high; fan-out hubs (DG_out >> DG_in) approach 0 |
+| `× (1 + MPCI)` | Multi-path amplifier: when the same dependents share multiple topics, each topic is an independent failure vector; cascade depth grows with coupling intensity |
+
+**Why MPCI amplifies depth, not breadth.** MPCI counts redundant channels between existing dependent pairs — it does not add new dependent nodes. The count of dependents (DG_in) and their transitive reach (RPR) are unchanged by MPCI. What changes is the *depth* of impact: when v fails, all `path_count` shared topics with each dependent fail simultaneously, making the cascade harder to absorb. This is a depth effect.
+
+**Behaviour reference:**
+
+| Node type | DG_in | DG_out | MPCI | CDPot_base | CDPot_enh | Interpretation |
+|-----------|:-----:|:------:|:----:|:----------:|:---------:|---------------|
+| Absorber hub | High | Low | 0 | High | High | Deep cascade, single-channel |
+| Absorber + multi-path | High | Low | High | High | Very high | Deep cascade, multiple independent vectors |
+| Fan-out hub | Low | High | 0 | ≈ 0 | ≈ 0 | Wide but shallow — quickly absorbed |
+| Isolated leaf | 0 | 0 | 0 | 0 | 0 | No cascade potential |
+
+---
+
+#### CouplingRisk_enh — Topology Instability with Path Complexity
+
+```
+Instability_topo(v) = DG_out_raw(v) / (DG_in_raw(v) + DG_out_raw(v) + ε)
+
+CouplingRisk_base(v) = 1 − |2 × Instability_topo(v) − 1|
+
+CouplingRisk_enh(v) = min(1.0,  CouplingRisk_base(v) × (1 + Δ × path_complexity(v)))
+
+Δ = 0.10 (COUPLING_PATH_DELTA)
+```
+
+| Topology role | Instability | CouplingRisk_base | Interpretation |
+|--------------|:-----------:|:-----------------:|---------------|
+| Pure source (DG_in = 0) | 1.0 | 0 | No afferent pressure — not fragile from above |
+| Pure sink (DG_out = 0) | 0.0 | 0 | No efferent pressure — not fragile from below |
+| Balanced (DG_in ≈ DG_out) | ≈ 0.5 | ≈ 1.0 | Maximum fragility — structural pressure from both directions |
+
+The `path_complexity` term is an intensifier: if a node is already coupling-balanced (fragile), having many redundant topics per dependency further increases synchronisation complexity, raising the effective maintenance risk. The result is capped at 1.0.
+
+---
+
+#### QSPOF — QoS-Weighted SPOF Severity
+
+```
+QSPOF(v) = AP_c_directed(v) × w(v)
+```
+
+Scales the directed articulation point score by the component's operational QoS weight. A component that is structurally a SPOF *and* handles high-priority traffic is a doubly severe availability risk: its removal is both certain to disconnect the graph and certain to affect the most critical data flows.
+
+---
+
+### 11.4 Metric Orthogonality
+
+Each raw metric from M(v) feeds **exactly one** RMAV dimension. No metric appears in more than one formula. Violations would inflate the effective weight of shared metrics relative to the AHP calibration.
+
+| Metric | Symbol | R | M | A | V | Notes |
+|--------|--------|:-:|:-:|:-:|:-:|-------|
+| Reverse PageRank | RPR | ✓ | | | | Global cascade reach |
+| In-Degree (norm) | DG_in | ✓ | | | | Immediate blast radius |
+| MPCI | MPCI | ✓ via CDPot | | | | Amplifier only; enters via derived term |
+| Fan-Out Criticality | FOC | ✓ Topics | | | | Substitutes for DG_in on Topic nodes |
+| Path Complexity | path_complexity | | ✓ via CouplingRisk | | | Structural coupling depth |
+| Betweenness | BT | | ✓ | | | Structural bottleneck |
+| QoS Out-Degree | w_out | | ✓ | | | Priority-weighted efferent coupling |
+| Code Quality Penalty | CQP | | ✓ | | | Complexity + instability + LCOM |
+| CouplingRisk_enh | CouplingRisk | | ✓ | | | Derived from DG_in_raw, DG_out_raw |
+| Clustering Coefficient | CC | | ✓ as 1−CC | | | Local path redundancy |
+| Directed AP Score | AP_c_directed | | | ✓ | | Directly in A(v) and via QSPOF |
+| Bridge Ratio | BR | | | ✓ | | Non-redundant edge fraction |
+| CDI | CDI | | | ✓ | | Path elongation on removal |
+| Reverse Eigenvector | REV | | | | ✓ | Strategic compromise reach |
+| Reverse Closeness | RCL | | | | ✓ | Adversarial reach speed |
+| QoS In-Degree (QADS) | w_in | | | | ✓ | High-SLA attack surface |
+| PageRank | PR | — | — | — | — | Diagnostic only (Tier 2) |
+| Closeness | CL | — | — | — | — | Diagnostic only (Tier 2) |
+| Eigenvector | EV | — | — | — | — | Diagnostic only (Tier 2) |
+
+---
+
+### 11.5 AHP Weight Derivation
+
+Intra-dimension weights are derived from the **Analytic Hierarchy Process (AHP)** using pairwise comparison matrices on Saaty's 1–9 scale.
+
+```
+Step 1 — Construct n×n matrix A:  A[i][j] = importance of criterion i relative to j
+          Reciprocal constraint:  A[j][i] = 1 / A[i][j]
+
+Step 2 — Geometric mean per row:  GM[i] = ( ∏_j A[i][j] )^(1/n)
+
+Step 3 — Normalise:  w[i] = GM[i] / Σ_j GM[j]
+
+Step 4 — Consistency check:
+          λ_max = average of ( (A·w)[i] / w[i] )  for all i
+          CI    = (λ_max − n) / (n − 1)
+          CR    = CI / RI[n]
+          Abort if CR > 0.10
+```
+
+Reference RI values (Saaty 1980): n=3 → 0.58, n=4 → 0.90, n=5 → 1.12, n=6 → 1.24.
+
+#### Reliability AHP (3×3: RPR, DG_in, CDPot_enh)
+
+```
+            RPR    DG_in  CDPot
+RPR      [ 1.00,  1.50,  2.00 ]   RPR: global reach is the primary cascade signal
+DG_in    [ 0.67,  1.00,  1.50 ]   DG_in: immediate dependents are secondary
+CDPot    [ 0.50,  0.67,  1.00 ]   CDPot: cascade depth is supplementary
+
+→ AHP raw weights:  [0.45,  0.30,  0.25]    CR ≈ 0.001
+```
+
+MPCIs enter R(v) indirectly through CDPot_enh and do not add a 4th AHP criterion. This preserves the 3×3 matrix and its near-zero CR while capturing the MPCI effect.
+
+#### Maintainability AHP (5×5: BT, w_out, CQP, CouplingRisk, CC_inv)
+
+```
+            BT     w_out  CQP    CR     CC_inv
+BT       [1.00,  1.17,  2.33,  2.92,  4.38]   BT: primary structural bottleneck
+w_out    [0.86,  1.00,  2.00,  2.50,  3.75]   w_out: QoS-weighted efferent coupling
+CQP      [0.43,  0.50,  1.00,  1.25,  1.88]   CQP: code-level coupling
+CR       [0.34,  0.40,  0.80,  1.00,  1.50]   CouplingRisk: topology instability
+CC_inv   [0.23,  0.27,  0.53,  0.67,  1.00]   CC_inv: local redundancy (supplementary)
+
+→ AHP raw weights:  [0.35,  0.30,  0.15,  0.12,  0.08]    CR ≈ 0.000
+```
+
+CQP and CouplingRisk receive equal AHP judgement because both measure coupling — CQP at the code level, CouplingRisk at the deployment topology level — and neither dominates the other a priori.
+
+#### Availability AHP (5×5: AP_c_directed, QSPOF, BR, CDI, w)
+
+```
+                AP_c   QSPOF    BR     CDI      w
+AP_c_directed [1.00,  1.40,  1.40,  3.50,  7.00]   AP_c: primary directed SPOF signal
+QSPOF         [0.71,  1.00,  1.00,  2.50,  5.00]   QSPOF: QoS-amplified SPOF severity
+BR            [0.71,  1.00,  1.00,  2.50,  5.00]   BR: bridge fraction
+CDI           [0.29,  0.40,  0.40,  1.00,  2.00]   CDI: soft SPOF / path elongation
+w             [0.14,  0.20,  0.20,  0.50,  1.00]   w: direct QoS priority weight
+
+→ AHP raw weights:  [0.35,  0.25,  0.25,  0.10,  0.05]    CR ≈ 0.001
+```
+
+#### Composite Q AHP (4×4: A, R, M, V)
+
+```
+        A      R      M      V
+A   [1.00,  1.50,  2.50,  2.67]   Availability: dominant (SPOF = certain graph partition)
+R   [0.67,  1.00,  1.67,  1.78]   Reliability: propagation reach is second priority
+M   [0.40,  0.60,  1.00,  1.07]   Maintainability: coupling fragility is tertiary
+V   [0.37,  0.56,  0.93,  1.00]   Vulnerability: security exposure is supplementary
+
+→ AHP raw weights:  [0.43,  0.24,  0.17,  0.16]    CR ≈ 0.02
+```
+
+---
+
+### 11.6 Weight Shrinkage Strategy
+
+Raw AHP weights can be extreme on small comparison sets. The shrinkage strategy formally blends them with a uniform prior:
+
+```
+w_final(d) = λ × w_AHP(d)  +  (1 − λ) × (1 / n_dimensions)
+```
+
+The default λ = 0.70 was selected from a sensitivity sweep across {0.50, 0.60, 0.70, 0.80, 0.90, 1.00}. Spearman ρ on the ATM validation dataset plateaus in the λ ∈ [0.65, 0.75] range. The empirical sensitivity sweep result must be included in any paper submission that cites AHP-derived weights (λ = 0.70 as a point estimate is not sufficient; reviewers will ask about sensitivity).
+
+---
+
+### 11.7 Criticality Classification
+
+RMAV scores are classified using an **adaptive box-plot classifier** that identifies components exceptional relative to the system's own distribution:
+
+```
+CRITICAL  :  score > Q3 + 1.5 × IQR   (structural outliers)
+HIGH      :  Q3 < score ≤ upper fence   (upper quartile, non-outlier)
+MEDIUM    :  median < score ≤ Q3
+LOW       :  Q1 < score ≤ median
+MINIMAL   :  score ≤ Q1
+```
+
+Classification is applied **independently per RMAV dimension and for the composite Q(v)**. A component can be CRITICAL on Availability (structural SPOF) but MINIMAL on Vulnerability — which is exactly the diagnostic information needed to direct remediation.
+
+**Small-sample fallback (n < 12).** Box-plot thresholds become unstable at small node counts. For graphs with fewer than 12 components, percentile thresholds are used instead: CRITICAL = top 10%, HIGH = 75th–90th, MEDIUM = 50th–75th, LOW = 25th–50th, MINIMAL = bottom 25%.
+
+**Typical distribution across validated scenarios:** CRITICAL ≈ 5–15%, HIGH ≈ 25%, MEDIUM ≈ 25%, LOW ≈ 25%, MINIMAL ≈ bottom 10–25%.
+
+---
+
+### 11.8 Interpretation Patterns
+
+The combination of RMAV dimension scores characterises the *type* of risk and directs remediation:
+
+| Pattern | R | M | A | V | Primary risk | Recommended action |
+|---------|:-:|:-:|:-:|:-:|-------------|-------------------|
+| **Full hub** | H | H | H | H | Catastrophic — all failure modes | Redundancy + circuit breakers + hardening |
+| **Reliability hub** | H | L | L | L | Wide cascade | Retry logic, graceful degradation, back-pressure |
+| **Bottleneck** | L | H | L | L | Change fragility | Reduce coupling; extract an interface or façade |
+| **SPOF** | L | L | H | L | Availability loss | Redundant instance, active-passive failover |
+| **High-value target** | L | L | L | H | Compromise propagation | Zero-trust boundaries, audit logs, network isolation |
+| **Compound: SPOF + hub** | H | H | H | H | Unreliable *and* unrefactorable | Architecture redesign required before any other mitigation |
+| **Multi-path sink** | H (MPCI>0) | M | M | L | Deep multi-channel cascade | Reduce shared-topic count between the same dependent pair |
+| **Maintenance debt** | M | H | M | L | Technical debt accumulation | Prioritise refactoring before the next feature sprint |
+| **Leaf** | L | L | L | L | None | Standard monitoring |
+
+> **Compound SPOF + God Component.** A component that is simultaneously an articulation point (high A) and a structural bottleneck with high total degree (high M) is the highest-priority compound risk in the catalog. It is unreliable (any failure partitions the graph) *and* untestable/unrefactorable (too many responsibilities to change safely). In the ATM system, `ConflictDetector` (Q ≈ 0.90, AP = true) is the primary compound risk candidate.
+
+---
+
+## 12. Output: M(v) and S(G)
 
 The `StructuralMetrics` dataclass stores all fields above per component. The graph-level summary `S(G)` (`GraphSummary`) provides aggregate topology statistics:
 
@@ -648,7 +1039,7 @@ The `StructuralMetrics` dataclass stores all fields above per component. The gra
 
 ---
 
-## Worked Example
+## 13. Worked Example
 
 **System:** SensorApp → `/temperature` ← MonitorApp; both → MainBroker; both → NavLib (after Step 1's Rule 5).
 
@@ -677,7 +1068,7 @@ num_articulation_points=3, num_bridges=5, diameter=2, avg_path_length=1.4
 assortativity=-0.5       ← negative: high-degree hubs connect to low-degree leaves
 ```
 
-Key observations:
+Key structural observations:
 - **NavLib** has the highest RPR and DG_in despite having no pub-sub connections. This is the Rule 5 effect — both applications failing simultaneously.
 - **MainBroker** has the highest BT, reflecting that dependency paths from both applications route through it.
 - **/temperature** has RPR = 0 and DG_in = 0 (Topic nodes are not DEPENDS_ON endpoints), but FOC = 1.0 (max fan-out for this system).
@@ -685,11 +1076,36 @@ Key observations:
 - MPCI = 0.0 everywhere because all dependencies in this small example are single-path. Multi-path MPCI would appear in larger systems where the same (App_sub, App_pub) pair shares multiple topics.
 - **Negative assortativity** indicates a hub-and-spoke topology: the two hub nodes (MainBroker, NavLib) connect to lower-degree leaf nodes (SensorApp, MonitorApp).
 
-These metric vectors become the input to Step 3's RMAV formula evaluation.
+**R(v) scores (v7 formula: 0.60 × PR × (1 + MPCI) + 0.40 × DG_in):**
+
+```
+SensorApp:    R = 0.60×0.58 + 0.40×0.25 = 0.348 + 0.100 = 0.448
+MonitorApp:   R = 0.60×0.25 + 0.40×0.0  = 0.150 + 0.000 = 0.150
+MainBroker:   R = 0.60×0.65 + 0.40×0.50 = 0.390 + 0.200 = 0.590
+NavLib:       R = 0.60×0.72 + 0.40×0.50 = 0.432 + 0.200 = 0.632
+/temperature: R_topic = 0.50×1.0 + 0.50×(1.0 × (1 − min(0.0, 1))) = 1.000  ← highest in system
+```
+
+Key reliability observations:
+- `/temperature` scores R = 1.0 because FOC = 1.0 (the only topic with active subscribers) and there is only one publisher. In a larger system with multiple topics, this would rank relative to peers.
+- **NavLib** outranks MainBroker on R because it is depended upon by both application nodes directly (via Rule 5 `app_to_lib` DEPENDS_ON edges), giving it higher PageRank.
+- **MonitorApp** has R = 0.150 — no components depend on it, so its failure cascades to no one.
+
+**A(v) scores (abbreviated):**
+
+```
+MainBroker: A = 0.35×0.65 + 0.25×(0.65×0.71) + 0.25×1.0 + 0.10×0.5 + 0.05×0.71
+              = 0.228 + 0.115 + 0.250 + 0.050 + 0.036 = 0.679   → [HIGH]
+
+NavLib:     A = 0.35×0.50 + 0.25×(0.50×0.71) + 0.25×1.0 + 0.10×0.4 + 0.05×0.71
+              = 0.175 + 0.089 + 0.250 + 0.040 + 0.036 = 0.590   → [HIGH]
+```
+
+Both MainBroker and NavLib are structural SPOFs with BR = 1.0. Adding redundancy for either would be the top remediation priority for this system.
 
 ---
 
-## Complexity
+## 14. Complexity
 
 | Algorithm | Complexity | Notes |
 |-----------|------------|-------|
@@ -711,7 +1127,7 @@ These metric vectors become the input to Step 3's RMAV formula evaluation.
 
 ---
 
-## Commands
+## 15. Commands
 
 ```bash
 # Analyze the system layer (default — includes all component types)
@@ -841,12 +1257,12 @@ Reading the output:
 
 ---
 
-## What Comes Next
+## 16. What Comes Next
 
-Step 2 produces M(v) — a structural fingerprint per component. The 13 Tier 1 metrics are precise but not actionable in isolation: "AP_c_directed = 0.62" does not tell an architect what to do.
+Step 2 produces structural metrics and deterministic RMAV quality scores Q_RMAV(v). These rule-based scores represent the baseline criticality of each component.
 
-Step 3 (Prediction) maps M(v) into four interpretable RMAV quality dimensions — Reliability, Maintainability, Availability, Vulnerability — using AHP-derived weights and box-plot adaptive thresholds. The RMAV decomposition explains *why* a component is critical, enabling targeted remediation rather than blanket "it's risky."
+To generalize these predictions beyond closed-form rules (e.g. learning nonlinear multi-hop motifs and predicting direct edge-level criticalities), the system uses an inductive Graph Neural Network in Step 3.
 
 ---
 
-← [Step 1: Import](graph-model.md) | → [Step 2–3: Analyze & Predict](prediction.md)
+← [Step 1: Import](graph-model.md) | → [Step 3: Predict](prediction.md)
