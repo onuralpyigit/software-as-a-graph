@@ -1,6 +1,6 @@
 # Reproducing HGL-QoS (Middleware 2026)
 
-> **QoS-Aware Heterogeneous Graph Learning for Architectural Criticality Prediction**
+> **Heterogeneous Graph Learning for Cascade Impact Prediction in Distributed Publish-Subscribe Middleware**
 > Submitted to ACM Middleware 2026
 
 This directory contains everything needed to reproduce the paper's results from scratch.
