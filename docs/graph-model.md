@@ -34,18 +34,19 @@
 
 Modeling takes a distributed publish-subscribe system — its applications, topics, brokers, infrastructure nodes, and shared libraries — and converts it into a formal weighted directed graph. This graph becomes the foundation for all subsequent steps.
 
-The process runs in five sequential phases inside `Neo4jRepository.save_graph()`:
+The process runs in five sequential phases partitioned between the **Import Stage** (`save_graph()`) and the **Pre-Analysis Stage** (`derive_dependencies()`):
 
 ```
-                Phase 1         Phase 2         Phase 3         Phase 4         Phase 5
-                  │               │               │               │               │
-System JSON ──▶  │  Entity    ──▶ │  Structural ──▶ │  Intrinsic ──▶ │  Dependency ──▶ │  Aggregate
-                 │  Modeling      │  Edges         │  Weights       │  Derivation     │  Weights
-                 │                │                │                │                 │
-                 │  5 vertex      │  6 edge types  │  Topic QoS     │  6 DEPENDS_ON   │  App, Broker,
-                 │  types         │  imported;     │  weights;      │  rules applied; │  Node, Library
-                 │  created       │  fan-out attrs │  edge weights  │  path_count     │  weights
-                 │                │  computed      │  inherited     │  recorded       │  propagated
+                        [ Import Stage (save_graph) ]                       [ Pre-Analysis Stage ]
+                  Phase 1         Phase 2         Phase 3         Phase 5 (Part A)   Phase 4          Phase 5 (Part B)
+                    │               │               │                    │              │               │
+System JSON ──▶  Entity  ──▶  Structural ──▶  Intrinsic  ──▶  Aggregate Vertex ──▶  Dependency  ──▶  Aggregate Edge
+                 Modeling        Edges           Weights           Weights          Derivation        Finalization
+                    │               │               │                    │              │               │
+                 5 vertex       6 edge types    Topic QoS          App, Broker,    6 DEPENDS_ON      app_to_lib &
+                 types          imported;       weights;           Node, Library   rules applied;    broker_to_broker
+                 created        fan-out attrs   edge weights       weights         path_count        weights
+                                computed        inherited          computed        recorded          finalized
 ```
 
 The output is two complementary graph views — **G_structural** for simulation and **G_analysis(l)** for analysis and prediction — described in [Two Graph Views](#two-graph-views).
@@ -211,6 +212,9 @@ MIN_WEIGHT = 0.01
 
 ### Phase 4 — Dependency Derivation
 
+> [!NOTE]
+> **Pre-Analysis Deferral:** Dependency derivation is decoupled from the main import transaction of `save_graph()`. Instead, it runs during the **Pre-Analysis Stage** as a separate step via `IGraphRepository.derive_dependencies()` (called automatically at the start of Step 2 Analyze). This ensures that structural models can be imported and cleared without immediately running the Cypher logic required to derive logical `DEPENDS_ON` edges.
+
 Structural edges reveal physical relationships but not logical dependencies. This phase derives **DEPENDS_ON** edges — directed edges meaning "if the target fails, the source is affected."
 
 **Edge direction:** DEPENDS_ON always points from the *dependent* to the *dependency* (e.g., subscriber → publisher, application → broker).
@@ -223,10 +227,10 @@ Six derivation rules are applied, producing six `dependency_type` values:
 | 2 | `app_to_broker` | App/Lib `PUBLISHES_TO` or `SUBSCRIBES_TO` → Topic ← `ROUTES` Broker; also transitive via `USES*1..3` chains | `max(t.weight)` over routed topics |
 | 3 | `node_to_node` | Lifted from `app_to_app` and `app_to_broker` DEPENDS_ON edges: Node_B → Node_A when their hosted apps share one of those dependency types | lifted `max(d.weight)` over matching edges |
 | 4 | `node_to_broker` | Lifted from Rule 2: Node → Broker when a hosted app has an `app_to_broker` edge | lifted `max(dep.weight)` |
-| 5 | `app_to_lib` | App/Lib `USES` → Library | `src.weight` (set in Phase 5, after aggregate propagation) |
-| 6 | `broker_to_broker` | Bidirectional colocation edge between two Brokers sharing a physical Node | `node.weight` (set in Phase 5) |
+| 5 | `app_to_lib` | App/Lib `USES` → Library | `app.weight` (finalized in pre-analysis edge weight finalization) |
+| 6 | `broker_to_broker` | Bidirectional colocation edge between two Brokers sharing a physical Node | `node.weight` (finalized in pre-analysis edge weight finalization) |
 
-> **Phase ordering note for Rules 5 and 6:** `app_to_lib` edge weights are set from `app.weight` and `broker_to_broker` edge weights are set from `node.weight`. Both of those vertex weights are computed in **Phase 5**, which runs after Phase 4. Rules 5 and 6 derivation queries therefore read placeholder weights (≈ 0.01) at derivation time; a second-pass update query in Phase 5 corrects the edge weights once vertex weights are finalized.
+> **Phase ordering note for Rules 5 and 6:** The vertex weights (`app.weight` and `node.weight`) are computed during the import stage. However, because `DEPENDS_ON` edges are only derived during the pre-analysis stage, the edge weights for `app_to_lib` and `broker_to_broker` are initialized with placeholder weights (`0.01`) during derivation, and then immediately finalized in a post-derivation pass (`_finalize_dependency_weights()`) before analysis starts.
 
 **Multi-path coupling:** When two applications communicate through multiple shared topics, a single DEPENDS_ON edge is created with:
 
@@ -274,7 +278,12 @@ After derivation:
 
 ### Phase 5 — Aggregate Weight Propagation
 
-Once topic weights are established (Phase 3) and DEPENDS_ON edges exist (Phase 4), vertex weights for Applications, Brokers, Nodes, and Libraries are computed by propagating topic weights upward through the component hierarchy. This phase also corrects the `app_to_lib` and `broker_to_broker` edge weights that could only be assigned a placeholder in Phase 4.
+> [!IMPORTANT]
+> **Two-Stage Execution:** Aggregate weight propagation is split into two stages:
+> 1. **Vertex Weights:** Computed during the import stage (`save_graph()`) under `_calculate_aggregate_weights()`.
+> 2. **Edge Weights:** Finalized during the pre-analysis stage (`derive_dependencies()`) under `_finalize_dependency_weights()`, after the `DEPENDS_ON` relationships have been derived.
+
+Once topic weights are established (Phase 3), vertex weights for Applications, Brokers, Nodes, and Libraries are computed by propagating topic weights upward through the component hierarchy. Later, once `DEPENDS_ON` edges are derived (Phase 4), the `app_to_lib` and `broker_to_broker` edge weights (which could only be assigned a placeholder initially) are finalized to match their corresponding source/node weights.
 
 #### Application Weight
 
@@ -580,7 +589,7 @@ The model maps naturally to different pub-sub middleware technologies:
 | Phase 4 | Rules 2–6 | O(&#124;E_S&#124;) | One pass per rule |
 | Phase 5 | Aggregate weight propagation | O(&#124;V&#124; + &#124;E_S&#124;) | One Cypher pass per vertex type |
 
-The dominant cost is Phase 4 `app_to_app` derivation. In practice, topic fan-out is bounded (typically 1–12 subscribers), so the effective cost is much lower than the worst case. Critically, all five phases run **once at design time**, with zero runtime monitoring overhead.
+The dominant cost is Phase 4 `app_to_app` derivation. In practice, topic fan-out is bounded (typically 1–12 subscribers), so the effective cost is much lower than the worst case. Critically, Phases 1, 2, 3, and 5 (vertex weights) run during the import stage, while Phase 4 and Phase 5 (edge weights) run as a pre-analysis step. All run **once at design time** before failure simulation or runtime metrics are collected, resulting in zero runtime monitoring overhead.
 
 ---
 
@@ -609,18 +618,29 @@ PYTHONPATH=. python cli/import_graph.py --input <file> [options]
 | `--quiet` / `-q` | flag | no | off | Suppress non-essential console output |
 | `--output` / `-o` | path | no | — | Write the returned import statistics to a JSON file |
 
-### Call Chain
+### Call Chains
 
+**Import Stage:**
 ```
 cli/import_graph.py
   └─ saag.Client.import_topology(filepath, clear)
-       └─ src.usecases.model_graph.ModelGraphUseCase.execute()
+       └─ saag.usecases.model_graph.ModelGraphUseCase.execute()
             └─ Neo4jRepository.save_graph()
                  ├─ Phase 1: _import_entities()
-                 ├─ Phase 2: _import_relationships()
+                 ├─ Phase 2: _import_relationships() (with fan-out augmentation)
                  ├─ Phase 3: _calculate_intrinsic_weights()
-                 ├─ Phase 4: _derive_dependencies()
-                 └─ Phase 5: _calculate_aggregate_weights()
+                 └─ Phase 5 (Vertex): _calculate_aggregate_weights()
+```
+
+**Pre-Analysis Stage (triggered before Step 2 Analyze):**
+```
+cli/analyze_graph.py (or AnalysisService)
+  └─ saag.Client.analyze(layer)
+       └─ saag.usecases.analyze_graph.AnalyzeGraphUseCase.execute()
+            └─ saag.analysis.service.AnalysisService.analyze()
+                 └─ Neo4jRepository.derive_dependencies()
+                      ├─ Phase 4: _derive_dependencies()
+                      └─ Phase 5 (Edge): _finalize_dependency_weights()
 ```
 
 ### Usage Examples
