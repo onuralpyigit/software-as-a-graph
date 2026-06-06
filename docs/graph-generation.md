@@ -39,10 +39,10 @@
 
 ## 1. Overview
 
-Graph generation is Step 1 of the six-step SaG methodology pipeline:
+Graph generation is Step 0 of the seven-step SaG methodology pipeline:
 
 ```
-Generate → Import → Analyze → Simulate → Validate → Visualize
+Generate (Step 0) → Model / Import (Step 1) → Analyze (Step 2) → Predict (Step 3, opt) → Simulate (Step 4) → Validate (Step 5) → Visualize (Step 6)
 ```
 
 Its role is to produce a **synthetic publish-subscribe system topology** in JSON format that can be loaded into Neo4j and subsequently subjected to structural analysis and failure simulation. The generator is self-contained: it requires no running database, no external service, and no runtime monitoring data. A single deterministic seed produces an identical dataset on every invocation.
@@ -83,7 +83,7 @@ A generated graph contains five node types and six structural edge types.
 |------|-----------|-------------|
 | `Application` (CSU) | `A{n}` | Software component that publishes and/or subscribes to topics |
 | `Broker` | `B{n}` | Message broker / DDS participant that routes topics |
-| `Topic` | `T{n}` | Named communication channel carrying typed messages |
+| `Topic` | `T{n}` | Named communication channel carrying typed messages; includes size, QoS policies, frequency (Hz), and ground-truth criticality |
 | `Node` (Infrastructure) | `N{n}` | Physical or virtual host running applications and brokers |
 | `Library` | `L{n}` | Shared software library used by one or more applications |
 
@@ -433,11 +433,17 @@ Located at `tools/generation/generator.py`. This class performs the actual graph
 
 The generator runs in two passes.
 
-**Pass 1 — Nodes.** All five node types are created first, before any edges. The order is: infrastructure nodes, brokers, topics, applications, libraries.
+**Pass 1 — Nodes and Attribute Initialization.** All five node types are created first, before any edges. The order is: infrastructure nodes, brokers, topics, applications, libraries.
 
-For each topic, QoS values (durability, reliability, transport priority) and message size are assigned. If a `domain` and `scenario` are configured, the domain-specific `get_qos_for_topic()` function maps topic names to QoS settings using keyword matching. Otherwise, values are drawn from the `qos_stats` categorical distributions.
+For each topic, the generator assigns QoS values (durability, reliability, transport priority) and message size. If a `domain` and `scenario` are configured, the domain-specific `get_qos_for_topic()` function maps topic names to QoS settings using keyword matching. Otherwise, values are drawn from the `qos_stats` categorical distributions.
 
-For each application, role, app type, system hierarchy, and code metrics are assigned. **Criticality is not assigned here** — it is deferred to the two-pass assignment after topology is built (see Pass 2, step 5 below). If a `domain` dataset is active, the app name is drawn from the domain's name pool and the app type is inferred from the name using `get_app_type_for_name()`. Otherwise, names are generic (`App-{n}`) and the app type is sampled uniformly from `APP_TYPE_OPTIONS`.
+During this pass, two critical topic properties are initialized using a dedicated, isolated random number generator (`topic_attr_rng`) to ensure topic attribute draws do not perturb the main topology generation stream, preserving exact reproducibility of other seeded structures:
+* **Topic Frequency:** Sampled via `_sample_topic_frequency()` from a per-domain log-uniform distribution. This captures the vast differences in domain-specific frequencies (e.g., 100–10,000 Hz tick feeds for financial trading vs. 0.01–5 Hz for environmental sensors). If no domain is active, it falls back to a deterministic bin-lookup based on the QoS score.
+* **Topic Criticality:** Derived from the topic's QoS score via `_derive_topic_criticality_with_noise()`. To prevent prediction leakage (where a GNN or machine learning model could trivially guess the criticality label through a simple lookup of QoS features), the generator injects controlled label noise (~17% flip rate), replacing the correct label with a random alternative. This forces the GNN to rely on structural, multi-hop context to resolve the label.
+
+Before edges are created, the generator also performs **hierarchy cluster pre-assignment**. Applications and topics are pre-assigned to hierarchy clusters keyed by `css_name` (the third level of the MIL-STD-498 hierarchy). Applications are assigned via `rng.choices()` (allowing natural skew), and topics are partitioned round-robin. This ensures that subsequent wiring (using `_sample_biased` with `p_intra = 0.65`) preferentially routes communication between applications in the same hierarchy cluster, making the system hierarchy signal structurally meaningful for coupling analysis rather than being an independent label.
+
+For each application, the role, app type, and code metrics are assigned. **Criticality is not assigned here** — it is deferred to the post-topology quality passes after wiring is completed (see Pass 2, step 5 below). If a `domain` dataset is active, the app name is drawn from the domain's name pool and the app type is inferred from the name using `get_app_type_for_name()`. Otherwise, names are generic (`App-{n}`) and the app type is sampled uniformly from `APP_TYPE_OPTIONS`.
 
 **Pass 2 — Relationships.** Edges are constructed in strict dependency order because library pub/sub counts must be known before inherited application counts can be computed:
 
@@ -540,7 +546,9 @@ The generator produces a single JSON file with the following top-level structure
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
-      }
+      },
+      "frequency": 10.0,
+      "criticality": "high"
     }
   ],
   "applications": [
@@ -651,7 +659,7 @@ This view provides a flattened, derived representation of the graph optimized fo
 
 ## 12. Known Limitations and Open Issues
 
-*Document last updated: April 2026. Maintained alongside `tools/generation/` and `cli/generate_graph.py`.*
+*Document last updated: June 2026. Maintained alongside `tools/generation/` and `cli/generate_graph.py`.*
 
 | # | Area | Description | Status |
 |---|------|-------------|--------|
@@ -665,3 +673,5 @@ This view provides a flattened, derived representation of the graph optimized fo
 | 8 | Criticality coherence | Criticality was previously sampled before topology was built, so critical apps could be structural leaf nodes. As of April 2026 `_assign_criticality_two_pass()` assigns `critical=True` after topology is built, biased toward high-degree (hub) applications. | **Resolved** |
 | 9 | Role constraint drift | The `topic_stats` pub/sub wiring path could assign subscribe edges to `pub`-only apps. As of April 2026 `_validate_role_constraints()` removes such violations before deduplication. | **Resolved** |
 | 10 | QoS–topology coherence | Topic selection during pub/sub wiring was cluster-biased but QoS-agnostic. As of April 2026 `_partition_topics_by_qos_affinity()` steers gateway/controller apps toward `RELIABLE`/`HIGH` topics and sensor apps toward `BEST_EFFORT`/`LOW` topics. | **Resolved** |
+| 11 | Topic attribute leakage | Deterministic QoS-to-criticality mappings allowed GNNs to bypass structural learning. The generator now samples topic frequency from log-uniform domain distributions and injects ~17% label noise into topic criticality, forcing GNNs to exploit multi-hop context. | **Resolved** |
+

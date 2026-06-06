@@ -66,7 +66,7 @@ def main() -> None:
         "--scenario",
         type=str,
         default=None,
-        choices=["av", "iot", "finance", "healthcare", "hub-and-spoke", "microservices", "enterprise"],
+        choices=["av", "iot", "finance", "healthcare", "hub-and-spoke", "microservices", "enterprise", "atm"],
         help="Scenario mapping for QoS generation",
     )
     
