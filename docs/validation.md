@@ -117,32 +117,49 @@ evaluate_gates(vr, topo_class)
 
 ### Simulation Mechanics
 
-For each node v, the `FaultInjector` runs a two-phase cascade:
+For each node v, the `FaultInjector` runs a BFS cascade simulation in two sequential phases per wave:
 
-**Phase A — Direct propagation:**  
-Failure spreads from v along `DEPENDS_ON` and `USES` edges stochastically.  
-Propagation probability decays with depth: `p(k) = p₀ × (1 − β)^k`.
+**Phase A — Direct propagation (Stochastic):**  
+Failure spreads from failed nodes along `DEPENDS_ON` and `USES` edges stochastically. The propagation probability in pure dependency edges is `prob * depth_damp`. By default, `prob` is set to `0.0` (disabled).
 
-**Phase B — Pub-sub orphaning:**  
-If the failed node is a publisher of a topic, and it is the last surviving publisher for that topic,
-all subscribers of that topic receive a downstream failure signal with dampened probability (0.5×
-the current propagation factor). This correctly models the broadcast semantics of pub-sub systems.
+**Phase B — Topic-mediated Soft QoS/Rate-weighted Propagation:**  
+1. **Continuous Topic Feed Loss**:
+   For each topic $t$, the feed loss $L(t) \in [0.0, 1.0]$ is calculated dynamically:
+   - If the topic has publishers:
+     $$L(t) = \frac{\sum_{p \in \text{failed\_publishers}(t)} \text{rate\_hz}(p, t)}{\sum_{p \in \text{all\_publishers}(t)} \text{rate\_hz}(p, t)}$$
+     where `rate_hz` is the publish rate. If the total rate is 0, it falls back to the fraction of failed publishers.
+   - If the topic has no publishers but has broker routers, the loss is the fraction of failed routers:
+     $$L(t) = \frac{|\text{failed\_routers}(t)|}{|\text{all\_routers}(t)|}$$
+   - The loss is then scaled by the topic's QoS criticality factor and capped at 1.0:
+     $$L(t) = \min(1.0, L(t) \times \text{QoS\_factor}(t))$$
+     where $\text{QoS\_factor}(t)$ is computed from reliability (`RELIABLE` multiplier `1.2`) and priority (`HIGH`/`CRITICAL`/`URGENT` multiplier `1.15`, `MEDIUM` multiplier `1.05`).
+2. **Orphaned Topic and Subscriber Impact Tracking**:
+   - If $L(t) > 10^{-6}$ and the topic was not previously orphaned, it is added to `orphaned_topics`.
+   - All subscriber applications of $t$ that are not already failed are marked as impacted.
+3. **Stochastic Subscriber Failure**:
+   For each subscriber application $s$, we compute its average feed loss across all its subscribed topics:
+   $$\text{sub\_loss}(s) = \frac{\sum_{t \in \text{subscribed\_topics}(s)} L(t)}{|\text{subscribed\_topics}(s)|}$$
+   If $\text{sub\_loss}(s) \ge \text{propagation\_threshold}$ (default `0.2`):
+   - The subscriber fails stochastically with probability:
+     $$P_{\text{fail}}(s) = \min\left(1.0, \frac{\text{sub\_loss}(s)}{\text{propagation\_threshold}}\right) \times \text{depth\_damp}$$
+     Where $\text{depth\_damp} = \max(0.25, 1.0 - \text{wave\_idx} \times 0.15)$ is a depth-based damping factor to prevent runaway cascade propagation.
 
 ### Ground Truth Derivation
 
+To obtain the ground truth, the validation pipeline runs the exhaustive fault injection across all candidate nodes:
+
 ```python
-rng_seeds = [seed + i × 37  for i in range(n_repeats)]   # default n_repeats = 5
+rng_seeds = [seed + i * 37 for i in range(n_repeats)]   # default n_repeats = 5
 
 for each node v:
     impacts = []
     for s in rng_seeds:
-        imp, depth, affected = FaultInjector._inject_node(v, seed=s)
+        imp, depth, affected = simulate_cascade(G, v, depth_limit, seed=s)
         impacts.append(imp)
     I(v) = mean(impacts)
 ```
 
-Averaging across `n_repeats` seeds dampens stochastic variance and yields a stable mean impact
-estimate. This is the value compared against Q(v) in all subsequent statistical tests.
+Averaging across `n_repeats` seeds dampens stochastic variance and yields a stable mean impact estimate. This is the value compared against Q(v) in all subsequent statistical tests.
 
 ### What I(v) Represents
 
@@ -161,41 +178,51 @@ Q(v) = w_A × A(v)  +  w_R × R(v)  +  w_M × M(v)  +  w_V × V(v)
 
 **AHP-derived weights (default):**
 
-| Dimension | Weight |
-|-----------|:------:|
-| Availability (A) | 0.43 |
-| Reliability (R) | 0.24 |
-| Maintainability (M) | 0.17 |
-| Vulnerability (V) | 0.16 |
+| Dimension | Weight | Rationale |
+|-----------|:------:|-----------|
+| Availability (A) | **0.43** | SPOF severity dominates pre-deployment risk |
+| Reliability (R) | **0.24** | Cascade propagation reach |
+| Maintainability (M) | **0.17** | Coupling complexity; long-term fragility |
+| Vulnerability (V) | **0.16** | Security exposure surface |
 
-**Latest formula versions (Middleware 2026):**
+### Latest formula versions (Middleware 2026):
 
-*Reliability R(v) — v7:*
-```
-R(v) = 0.60 × PR(v) × (1 + MPCI(v))  +  0.40 × DG_in(v)
-```
+#### Reliability R(v) — Fault Propagation Risk
+- **Standard formula** (Application, Broker, Node, Library):
+  $$R(v) = 0.60 \times PR(v) \times (1 + MPCI(v)) + 0.40 \times DG\_in(v)$$
+- **Topic formula** (Topic nodes only):
+  $$R_{\text{topic}}(v) = 0.50 \times FOC(v) + 0.50 \times CDPot\_topic(v)$$
+  Where $CDPot\_topic(v) = FOC(v) \times (1 - \min(publisher\_count\_norm(v), 1.0))$.
 
-*Availability A(v) — v4:*
-```
-A(v) = AP_c_directed(v) × (1 + 0.30 × QSPOF(v))  +  0.20 × PSPOF(v)
-```
+#### Maintainability M(v) — Coupling Complexity
+$$M(v) = 0.35 \times BT(v) + 0.30 \times w\_out(v) + 0.15 \times CQP(v) + 0.12 \times CouplingRisk\_enh(v) + 0.08 \times (1 - CC(v))$$
+Where CQP is the Code Quality Penalty (Application and Library nodes only):
+$$CQP(v) = 0.40 \times complexity\_norm(v) + 0.35 \times instability\_code(v) + 0.25 \times lcom\_norm(v)$$
 
+#### Availability A(v) — SPOF Risk
+$$A(v) = 0.35 \times AP\_c\_directed(v) + 0.25 \times QSPOF(v) + 0.25 \times BR(v) + 0.10 \times CDI(v) + 0.05 \times w(v)$$
 Where:
-- **PR(v)** — PageRank (global connectivity importance)
-- **MPCI(v)** — Multi-Path Coupling Intensity (betweenness-derived amplifier)
-- **DG_in(v)** — normalised in-degree (direct dependent count)
-- **AP_c_directed(v)** — Directed Articulation Point score (1.0 if structural SPOF, else 0)
-- **QSPOF(v)** — `AP_c_directed × w(v)` (QoS-amplified SPOF severity)
-- **PSPOF(v)** — Publisher SPOF score (> 0 if this node is the *sole* publisher of a topic with subscribers)
+- **AP_c_directed(v)** — Directed Articulation Point score (worst-case directed graph connectivity loss when $v$ is removed).
+- **QSPOF(v)** — QoS-amplified SPOF severity: `AP_c_directed(v) × w(v)`.
+- **BR(v)** — Bridge Ratio (fraction of edges incident to $v$ that are bridges).
+- **CDI(v)** — Connectivity Degradation Index (average path length increase when $v$ is removed).
+- **w(v)** — Component QoS weight from Step 1.
 
-See [docs/prediction.md](prediction.md) for the complete formula reference.
+#### Vulnerability V(v) — Security Exposure
+$$V(v) = 0.40 \times REV(v) + 0.35 \times RCL(v) + 0.25 \times w\_in(v)$$
+Where:
+- **REV(v)** — Reverse Eigenvector Centrality (downstream attack propagation reach).
+- **RCL(v)** — Reverse Closeness Centrality (adversarial entry proximity).
+- **w_in(v)** — QoS-weighted in-degree (QADS - QoS-weighted Attack-Dependent Surface).
+
+See [docs/structural-analysis.md](structural-analysis.md) for the complete formula reference.
 
 **Topology-only vs. QoS-enriched modes:**
 
 | Mode | `--qos` flag | PSPOF contribution |
 |------|:-----------:|--------------------|
 | Topology-only baseline | off (default) | `PSPOF = 0` for all nodes |
-| QoS-enriched | on | `PSPOF` computed from pub-sub topology |
+| QoS-enriched | on | `PSPOF` computed from pub-sub topology (used as diagnostic or GNN feature) |
 
 The ablation study (`compare` subcommand) measures the predictive lift from the QoS-enriched mode.
 
@@ -283,62 +310,103 @@ A low SPOF-F1 with a high overall ρ means the *global* ordering is correct but 
 classification threshold is misaligned with the simulation threshold (0.3). See
 [Interpreting Results](#12-interpreting-results).
 
-### 5.5 Specialist Metrics — ICR@K, BCE, FTR, PG
+### 5.5 Multi-Dimensional Validation Framework
 
-**ICR@K — In-Cluster Recall at K:**
+Instead of comparing all dimensions against a single global cascade score, the validation pipeline correlates each predictor against a dimension-specific ground truth derived from simulation metrics:
 
-```
-window = max(1, K // 2)
-ICR@K  = |{v ∈ gt_top_k : |rank_Q(v) − rank_I(v)| ≤ window}| / K
-```
+#### 1. Reliability Dimension Validation
+- **Predictor**: $R(v)$
+- **Ground Truth**: $IR(v)$ (Reliability Impact, representing the propagation potential of the node's failure).
+- **Core Metrics**:
+  - **Spearman correlation** $\rho(R(v), IR(v))$
+  - **Cascade Capture Rate @ 5 (CCR@5)**: The fraction of the top 5 most reliability-critical nodes correctly captured by the top 5 $R(v)$ predictions.
+  - **Cascade Magnitude Error (CME)**: Mean absolute difference between predicted reliability and actual reliability impact:
+    $$CME = \frac{1}{|V|} \sum_{v \in V} |R(v) - IR(v)|$$
 
-Measures whether true-critical components appear in the *neighbourhood* of their Q-rank, even if not
-exactly in the top-K. A high ICR with a low F1 indicates predictions are close but shifted by a few
-positions.
+#### 2. Maintainability Dimension Validation
+- **Predictor**: $M(v)$
+- **Ground Truth**: $IM(v)$ (Maintainability Impact, measuring the structural coupling fragility).
+- **Core Metrics**:
+  - **Spearman correlation** $\rho(M(v), IM(v))$
+  - **Coupling-Oriented Capture Rate @ 5 (COCR@5)**: The fraction of the top 5 most maintainability-critical nodes correctly captured by the top 5 $M(v)$ predictions.
+  - **Weighted Kappa Coupling Tier Agreement ($\kappa_{CTA}$)**: Cohen's Weighted Kappa comparing predicted maintainability tiers against actual impact tiers.
+  - **Bottleneck Precision (BP)**: Precision of bottleneck detection based on $BT(v)$ and $w_{out}(v)$ against actual maintainability impact.
 
-**BCE — Binary Classification Error:**
+#### 3. Availability Dimension Validation
+- **Predictor**: $A(v)$
+- **Ground Truth**: $IA(v)$ (Availability Impact, representing the structural graph partitioning effect).
+- **Core Metrics**:
+  - **Spearman correlation** $\rho(A(v), IA(v))$
+  - **SPOF-F1**: Articulation point detection F1 score comparing structural articulation points against nodes with actual availability impact exceeding `0.30`.
+  - **Directed Articulation Separation Agreement (DASA)**: Compares directional articulation point metrics (`ap_c_out`, `ap_c_in`) with actual directional simulation impacts (`ia_out`, `ia_in`).
+  - **Redundancy Recovery Index (RRI)**: Assesses the relationship between the Bridge Ratio ($BR(v)$) and availability recovery.
+  - **High-SLA Redundancy Recall (HSRR)**: Measures overlap between QoS-amplified SPOF predictions ($QSPOF$) and high-impact availability failures.
 
-```
-y_true[v] = 1 if v ∈ gt_top_k  else 0
-y_pred[v] = 1 if v ∈ pred_top_k else 0
-BCE = mean(y_true ≠ y_pred)
-```
+#### 4. Vulnerability Dimension Validation
+- **Predictor**: $V(v)$
+- **Ground Truth**: $IV(v)$ (Vulnerability Impact, representing strategic reach and propagation speed).
+- **Core Metrics**:
+  - **Spearman correlation** $\rho(V(v), IV(v))$
+  - **Attack Hub Capture Rate @ 5 (AHCR@5)**: Capture rate for the top 5 most vulnerable nodes.
+  - **False Top Rate (FTR)**: The fraction of predicted top-K vulnerable nodes that are false alarms (actual compromise reach is $< 10\%$).
+  - **Attack Path Adherence Rate (APAR)**: Measures overlap of high-vulnerability predictions with the simulation's observed critical attack paths.
+  - **Cross-Dimensional Contamination Check (CDCC)**: The Spearman correlation between $V(v)$ and $A(v)$. A high value indicates redundancy and path-coupling conflation.
 
-The fraction of all nodes misclassified as critical or non-critical. Lower is better; 0 is perfect.
+#### 5. Composite Validation and Predictive Gain (PG)
+- **Predictor**: $Q(v)$ (overall composite score)
+- **Ground Truth**: $I^*(v)$ (Composite Ground Truth, defined as the equal-weighted sum of the four dimensional ground truths):
+  $$I^*(v) = 0.25 \times IR(v) + 0.25 \times IM(v) + 0.25 \times IA(v) + 0.25 \times IV(v)$$
+- **Predictive Gain (PG)**: Measures whether the composite score outperforms the best single-dimension correlation:
+  $$PG = \rho(Q(v), I^*(v)) - \max(\rho(R, IR), \rho(M, IM), \rho(A, IA), \rho(V, IV))$$
+  A target of $PG \ge 0.03$ proves that multi-dimensional integration adds genuine predictive value.
 
-**FTR — False Top Rate:**
-
-```
-FTR = FP / K
-```
-
-The fraction of the predicted top-K that are *false alarms* (predicted critical, actually safe). A
-high FTR is dangerous operationally: engineers would spend hardening effort on low-risk components.
-
-**PG — Predictive Gain over degree-centrality baseline:**
-
-```
-ρ_DC     = spearmanr(degree_centrality(v), I(v))
-ρ_Q      = spearmanr(Q(v), I(v))
-PG       = |ρ_Q| − |ρ_DC|
-```
-
-PG > 0 means RMAV outperforms a naïve PageRank baseline. PG ≥ 0.03 is the gate threshold for
-confirming that the multi-dimensional RMAV formula adds genuine predictive value.
+---
 
 ### 5.6 Wilcoxon Signed-Rank Test
 
-Tests whether Q(v) ranks nodes *better* than degree centrality against ground truth I(v):
-
+Tests whether $Q(v)$ ranks nodes *better* than the degree centrality (or PageRank) baseline against ground truth $I(v)$:
 ```
 diff_scores = |Q(v) − I(v)| − |DC(v) − I(v)|     for all v
-
-Wilcoxon signed-rank test (one-sided: alternative='less', α=0.05)
 ```
+A one-sided Wilcoxon signed-rank test is conducted (alternative is 'less', significance level $\alpha = 0.05$). Significance ($p < 0.05$) means the absolute errors of $Q(v)$ are statistically smaller than the baseline. Requires at least 10 nodes; otherwise it defaults to $p = 1.0$.
 
-Significance (`p < 0.05`) means Q(v) is statistically closer to I(v) than degree centrality is.
-Requires at least 10 nodes for reliable results; otherwise the test is skipped and `p = 1.0` is
-reported.
+---
+
+### 5.7 Unified Validation Gates (G1-G9)
+
+The validation service implements a unified 9-gate checklist across three tiers to determine system validation success:
+
+| Gate ID | Metric | Type | Default Threshold | Description |
+|---|---|---|:---:|---|
+| **Tier 1** | **Primary Gates** | | | *(All must pass for overall validation success)* |
+| **G1** | Spearman $\rho$ | Correlation | $\ge 0.70$ | Global rank correlation of Application-type nodes |
+| **G2** | F1 @ K | Classification | $\ge 0.75$ | F1-score of the top-K critical set classification |
+| **G3** | Precision @ K | Classification | $\ge 0.80$ | Precision of the top-K critical set classification |
+| **G4** | Top-5 Overlap | Ranking | $\ge 0.60$ | Overlap of the top 5 predicted vs actual critical nodes |
+| **Tier 2** | **Secondary Gates** | | | |
+| **G5** | Predictive Gain (PG) | Gain | $> 0.03$ | Lift of composite $\rho$ over single-dimension correlations |
+| **G6** | $\kappa_{CTA}$ | Classification | $\ge 0.70$ | Weighted Kappa Coupling Tier Agreement |
+| **G7** | $CDCC$ | Correlation | $< 0.30$ | Cross-Dimensional Contamination Check |
+| **Tier 3** | **Specialist Gates** | | | |
+| **G8** | Bottleneck Precision | Specialist | $\ge 0.70$ | Precision of maintainability bottleneck detection |
+| **G9** | False Top Rate (FTR) | Specialist | $\le 0.20$ | FTR of vulnerability exposure |
+
+---
+
+### 5.8 System Health Metrics
+
+The validation service aggregates component-level predictions to calculate system-wide health and risk indicators (all metrics are weighted by the component QoS weights $w(v)$):
+
+1. **Dimensional Health ($H_R, H_M, H_A, H_V \in [0, 1]$)**:
+   Measures the system health in each quality dimension, where $1.0$ is perfect and lower scores represent degradation:
+   $$H_d = 1.0 - \frac{\sum_{v \in V} \text{score}_d(v) \times w(v)}{\sum_{v \in V} w(v)}$$
+2. **System Risk Index (SRI)**:
+   A composite risk index reflecting the overall structural vulnerability and instability:
+   $$SRI = 0.25 \times (1 - H_R) + 0.25 \times (1 - H_M) + 0.25 \times (1 - H_A) + 0.25 \times (1 - H_V)$$
+3. **Risk Concentration Index (RCI)**:
+   Computes the Gini coefficient of the composite $Q(v)$ scores to measure whether risk is concentrated in a few components or evenly distributed:
+   $$RCI = \frac{\sum_{i=1}^{n} (2i - n - 1) \times Q_{(i)}}{n \sum_{i=1}^{n} Q_{(i)}}$$
+   where $Q_{(i)}$ is the sorted overall quality score vector.
 
 ---
 
@@ -629,6 +697,77 @@ PYTHONPATH=. python cli/validate_graph.py single --input data/scenarios/atm_syst
   },
   "topology_class": "sparse",
   "gate_thresholds": [0.75, 0.65, 0.60, 0.30, 0.02]
+}
+```
+
+### Pipeline Result JSON (ValidationService)
+
+This is the schema produced by the core `ValidationService` (`validate_layers()`):
+
+```json
+{
+  "timestamp": "2026-06-06T21:40:00",
+  "all_passed": true,
+  "total_components": 14,
+  "layers_passed": 1,
+  "targets": {
+    "spearman": 0.70,
+    "f1_score": 0.75,
+    "precision": 0.80,
+    "top_5_overlap": 0.60,
+    "predictive_gain": 0.03,
+    "weighted_kappa_cta": 0.70,
+    "cdcc_max": 0.30,
+    "bottleneck_precision_target": 0.70,
+    "ftr_max": 0.20
+  },
+  "layers": {
+    "app": {
+      "layer": "app",
+      "layer_name": "Application Layer",
+      "passed": true,
+      "summary": {
+        "spearman": 0.8320,
+        "f1_score": 0.7143,
+        "top_5_overlap": 0.6000,
+        "rmse": 0.2432,
+        "reliability_spearman": 0.8120,
+        "maintainability_spearman": 0.7320,
+        "availability_spearman": 0.8420,
+        "vulnerability_spearman": 0.7120,
+        "composite_spearman": 0.8520,
+        "predictive_gain": 0.0400,
+        "system_health": {
+          "H_R": 0.8500,
+          "H_M": 0.7800,
+          "H_A": 0.9200,
+          "H_V": 0.8100,
+          "SRI": 0.1600,
+          "RCI": 0.1200
+        }
+      },
+      "gates": {
+        "G1_spearman": true,
+        "G2_f1": true,
+        "G3_precision": true,
+        "G4_top5": true,
+        "G5_predictive_gain": true,
+        "G6_kappa_cta": true,
+        "G7_cdcc": true,
+        "G8_bottleneck_precision": true,
+        "G9_ftr": true
+      },
+      "node_type_stratified": {
+        "Application": { "n": 26, "spearman": 0.8320, "target_rho": 0.75, "passed": true },
+        "Broker":      { "n": 5,  "spearman": 0.0000, "target_rho": 0.70, "passed": false }
+      },
+      "frequency_decile_stratified": {
+        "Decile 1": { "n": 3, "frequency_range": [0.1, 1.0], "spearman": 0.75, "p_value": 0.05 }
+      },
+      "warnings": []
+    }
+  },
+  "warnings": []
 }
 ```
 
