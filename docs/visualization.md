@@ -73,18 +73,24 @@ Six KPI cards summarizing the system at a glance:
 
 | Card | Value | Colour |
 |------|-------|--------|
-| Total components | Count in the analysis layer | Neutral |
-| Total dependencies | DEPENDS_ON edge count | Neutral |
-| CRITICAL components | Q(v) = CRITICAL | Red |
-| Structural SPOFs | AP_c_directed > 0 | Red |
-| Anti-patterns detected | Total across all 12 patterns | Orange (CRITICAL) / Yellow (HIGH) / Blue (MEDIUM) |
-| Validation status | PASS / FAIL | Green / Red |
+| Total Components | Sum of components across all layers | Neutral |
+| Total Dependencies | Sum of DEPENDS_ON and other edges across all layers | Neutral |
+| Critical Assets | Count of CRITICAL components (Q(v) in CRITICAL range) | Red (Danger) if > 0 else Green (Success) |
+| SPOFs Detected | Count of articulation points across layers | Orange (Warning) if > 0 else Green (Success) |
+| Anti-Patterns | Count of total anti-pattern instances detected | Orange (Warning) if > 0 else Green (Success) |
+| Validation \rho | Spearman correlation coefficient for the primary layer | Green (Success) if > 0.7 else Orange (Warning) |
 
-Below the KPI cards: a criticality distribution pie chart (CRITICAL / HIGH / MEDIUM / LOW / MINIMAL counts) and an RMAV dimension bar chart showing mean R, M, A, V across all components in the current layer. The RMAV bar chart reveals which quality dimension is most compromised system-wide — a useful first signal for determining which remediation dimension to prioritize.
+Below the KPI cards: a criticality distribution doughnut chart (CRITICAL / HIGH / MEDIUM / LOW / MINIMAL counts) and an AHP-weighted RMAV dimension stacked bar chart showing the breakdown (Availability, Reliability, Maintainability, Vulnerability) for the top-6 components.
 
 ### Section 2 — Layer Comparison
 
-A side-by-side bar chart comparing mean R(v), M(v), A(v), V(v) across all four analysis layers (`app`, `infra`, `mw`, `system`). This section answers the question: "Is our primary reliability concern in the application topology or the infrastructure topology?" A Reliability bar that is high in `infra` but low in `app` signals that the failure risk is concentrated at infrastructure nodes rather than pub-sub logic.
+A side-by-side grouped bar chart comparing key statistics across all analyzed layers (`app`, `infra`, `mw`, `system`). The chart compares:
+- **Density**: The graph density of the layer.
+- **Nodes/100**: Component count scaled by 100.
+- **Avg impact**: Simulation-derived average reachability loss.
+- **Val. \rho**: Spearman validation correlation coefficient.
+
+This allows architects to quickly compare scale, density, failure impact, and predictive accuracy across different topological representation layers.
 
 ### Section 3 — Component Details Table
 
@@ -143,38 +149,33 @@ The per-dimension scatter plots are the most diagnostic view for understanding w
 
 ### Section 5 — Interactive Network Graph
 
-A force-directed graph rendered with vis.js. The layout places high-betweenness components near the centre automatically — the layout itself is a qualitative criticality indicator before any colour coding is applied.
+An interactive multi-layer topology visualization rendered with **Cytoscape.js** (using the `cose-bilkent` layout). The layout groups components inside their respective logical layer compound boundaries (`Application Layer`, `Middleware Layer`, `Infrastructure Layer`).
 
-**Node interactions:**
+**Node interactions in the Static Dashboard:**
 
 | Action | Effect |
 |--------|--------|
-| Hover | Tooltip (see [Visual Encoding Reference](#visual-encoding-reference)) |
-| Click | Highlights all direct DEPENDS_ON neighbours; dims the rest; opens component panel |
-| Double-click | Centres and zooms to selected node |
-| Drag | Repositions node (layout adapts) |
-| Scroll | Zoom in/out |
+| Click / Tap | Opens a browser alert dialog showing component metadata (ID, Name, Type, Criticality level and score, MPCI, FOC, and active anti-pattern IDs). |
+| Drag | Repositions nodes to inspect dense local subgraphs. |
+| Zoom / Pan | Standard viewport zoom (mouse wheel / trackpad pinch) and pan to navigate large topologies. |
 
-**Component panel** (right-side drawer on click): full RMAV scores, I(v), criticality level, SPOF flag, MPCI value, FOC value (for Topics), cascade count/depth from simulation, direct dependency list with weights, any detected anti-pattern IDs with one-sentence descriptions.
+*Note: The live web application (Genieus) provides a richer Graph Explorer tab equipped with real-time searches, 2D/3D force-directed layout switches, dynamic overlay selection (Criticality / Type / R / M / A / V), and a dedicated right-side component detail panel.*
 
-**Overlay selector** (toolbar above graph): switch between *Criticality* overlay (default — colour by Q level), *Type* overlay (colour by node type), *RMAV:R* / *RMAV:M* / *RMAV:A* / *RMAV:V* overlays (colour by individual dimension score).
-
-Use the network graph for systems up to ~80 components. Above that threshold switch to the Dependency Matrix, which scales without visual saturation.
+Use the network graph for systems up to ~500 components (which is automatically gated in the visualizer). For larger systems, the dashboard automatically falls back to showing only the Dependency Matrix.
 
 ### Section 6 — Dependency Matrix
 
-A directed adjacency matrix A where A_{ij} = w(e) if a DEPENDS_ON edge exists from component i to component j. Components are ordered using the **Reverse Cuthill-McKee (RCM)** algorithm, which minimizes matrix bandwidth and brings tightly coupled clusters onto the diagonal.
+A directed adjacency matrix $A$ where $A_{ij} = w(e)$ if a `DEPENDS_ON` edge exists from component $i$ to component $j$. Components are ordered in descending order of their composite criticality score $Q(v)$, placing the most critical system components at the top-left of the matrix.
 
 **Reading the matrix:**
 
 | Pattern | Meaning |
 |---------|---------|
-| Dense diagonal block | Tightly coupled cluster — assess as a unit for redundancy planning |
-| Full row | High out-degree: many efferent couplings → M(v) risk |
-| Full column | High in-degree: many dependents → R(v) risk |
-| Off-diagonal dense block | Cross-cluster dependency — bridge component; inspect for SPOF |
+| Dense top-left block | Inter-coupling between high-criticality components — high failure coordination risk. |
+| Full row | High out-degree: many efferent couplings $\to$ high $M(v)$ maintenance risk. |
+| Full column | High in-degree: many dependents $\to$ high $R(v)$ blast risk. |
 
-The colour intensity of each cell encodes the QoS-derived edge weight w(e): dark cells represent high-priority, reliable, persistent flows; light cells represent low-priority best-effort flows. This lets an architect immediately see not just which dependencies exist but how critical each one is.
+The cell opacity encodes the QoS-derived edge weight $w(e)$: dark, highly opaque cells represent high-priority, reliable, persistent flows; lighter cells represent low-priority, best-effort flows. This allows architects to immediately assess the severity of dependencies.
 
 ### Section 7 — Validation Report
 
@@ -560,19 +561,22 @@ PYTHONPATH=. python cli/visualize_graph.py --demo --open
 ## Programmatic API
 
 ```python
-from saag.core import create_repository
+from saag.infrastructure import create_repository
 from saag.analysis import AnalysisService
+from saag.prediction import PredictionService
 from saag.simulation import SimulationService
 from saag.validation import ValidationService
 from saag.visualization import VisualizationService
 
 repo       = create_repository()
 analysis   = AnalysisService(repo)
+prediction = PredictionService()
 simulation = SimulationService(repo)
-validation = ValidationService(analysis, simulation, ndcg_k=10)
+validation = ValidationService(analysis, prediction, simulation)
 
 viz = VisualizationService(
     analysis_service=analysis,
+    prediction_service=prediction,
     simulation_service=simulation,
     validation_service=validation,
     repository=repo,
@@ -581,11 +585,12 @@ viz = VisualizationService(
 output_path = viz.generate_dashboard(
     output_file="output/dashboard.html",
     layers=["app", "system"],
-    include_network=True,      # set False for > 80 components
+    include_network=True,      # set False for > 500 components
     include_matrix=True,
     include_validation=True,
     include_per_dim_scatter=True,   # R/M/A/V scatter plots
-    antipatterns_report=None,       # pass SmellReport for Section 8
+    antipatterns_file=None,         # pass JSON path for Section 9
+    cascade_file=None,              # pass JSON path for Section 9a (QoS cascade risk)
 )
 
 print(f"Dashboard: {output_path}")
