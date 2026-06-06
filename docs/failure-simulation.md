@@ -84,9 +84,15 @@ The CLI uses a **subcommand pattern** so fault injection and message flow share 
 
 ### 3.1 Algorithm
 
-The fault injector runs a **BFS cascade simulation** on the pub-sub graph for every candidate node. The pub-sub graph is the projection of the SaG graph onto its PUBLISHES\_TO, SUBSCRIBES\_TO, and ROUTES edges — infrastructure (RUNS\_ON, CONNECTS\_TO) and derived (DEPENDS\_ON) edges are not used.
+The fault injector runs a **BFS cascade simulation** on the pub-sub graph for every candidate node. It operates over the pub-sub edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`, and `ROUTES`) as well as the derived dependency edges (`DEPENDS_ON`), which are dynamically derived during initialization if absent from the input graph.
 
-Before any injection begins, `_PubSubIndex` builds six lookup dictionaries from the graph in O(E):
+#### Dynamic DEPENDS_ON Derivation
+
+If the input graph does not contain any `DEPENDS_ON` edges, the `FaultInjector` derives them dynamically in its constructor based on other relationships:
+1. **App-to-App dependencies**: If an Application node $A_{sub}$ subscribes to a topic $T$ that is published to by Application $A_{pub}$, a `DEPENDS_ON` edge from $A_{sub}$ to $A_{pub}$ is created with `dependency_type="app_to_app"`, `weight=1.0`, and the QoS profile from the edges.
+2. **App-to-Library dependencies**: If an Application node $A$ uses a library/dependency $L$ (via `USES` relationship), a `DEPENDS_ON` edge from $A$ to $L$ is created with `dependency_type="app_to_lib"`, `weight=1.0`.
+
+Before any injection begins, `_PubSubIndex` builds six lookup dictionaries from the graph in $O(E)$:
 
 | Dictionary | Maps |
 |---|---|
@@ -97,57 +103,92 @@ Before any injection begins, `_PubSubIndex` builds six lookup dictionaries from 
 | `broker_routes` | broker → set of topic IDs it routes |
 | `topic_routers` | topic → set of broker IDs that route it (inverse of `broker_routes`) |
 
-For each candidate node v the cascade runs as follows:
+For each candidate node $v$ and seed, the cascade runs as follows:
 
-**Wave 0 — direct orphaning.**
-The node v is added to `failed_nodes`. For each topic t that v published to (or routed, for brokers), the algorithm checks whether any other live publisher (or live broker router) still serves t. If none remains, t is orphaned. All subscribers of each orphaned topic lose that feed.
+**Wave 0, 1, 2, ... — Cascade Waves**
 
-**Waves 1, 2, … — cascade propagation.**
-A subscriber is added to the next wave's propagation set when:
-- it has lost a fraction of its feeds ≥ `propagation_threshold` (default 1.0), **and**
-- it was itself a publisher on at least one topic.
+For each wave (starting with the injected node $v$ in wave 0), the simulator executes two sequential phases:
 
-In the next wave each propagation candidate is added to `failed_nodes`, then its published topics are re-evaluated for orphaning. This continues until no new orphaning occurs (fixpoint) or the `cascade_depth_limit` is reached.
+##### Phase A: Direct DEPENDS_ON Propagation (Stochastic)
+For each node $u$ in the current wave's frontier:
+1. Find all incoming edges $(v_{dep}, u)$ in the graph representing $v_{dep} \xrightarrow{\text{DEPENDS\_ON}} u$ (meaning $v_{dep}$ depends on $u$).
+2. If $v_{dep}$ is not already failed, it fails stochastically with probability:
+   $$P_{\text{dep}}(v_{dep}) = \text{prob} \times \text{depth\_damp}$$
+   Where:
+   - `prob` is currently set to `0.0` in the codebase (meaning stochastic propagation through pure dependency edges is disabled by default).
+   - $\text{depth\_damp} = \max(0.25, 1.0 - \text{wave\_idx} \times 0.15)$ is a wave-depth damping factor.
 
-A **set-based pending queue** (not a list) is used for propagation candidates so that a subscriber losing feeds from two topics in the same wave is not processed twice.
+##### Phase B: Topic-mediated Soft QoS/Rate-weighted Propagation
+1. **Continuous Topic Feed Loss**:
+   For each topic $t$, the feed loss $L(t) \in [0.0, 1.0]$ is calculated dynamically based on failed publishers or failed brokers:
+   - If the topic has publishers:
+     $$L(t) = \frac{\sum_{p \in \text{failed\_publishers}(t)} \text{rate\_hz}(p, t)}{\sum_{p \in \text{all\_publishers}(t)} \text{rate\_hz}(p, t)}$$
+     where `rate_hz` is the publish rate (defaults to 10.0 Hz). If the total rate is 0, it falls back to the fraction of failed publishers: $\frac{|\text{failed\_publishers}(t)|}{|\text{all\_publishers}(t)|}$.
+   - If the topic has no publishers but has broker routers, the loss is the fraction of failed routers:
+     $$L(t) = \frac{|\text{failed\_routers}(t)|}{|\text{all\_routers}(t)|}$$
+   - The loss is then scaled by the topic's QoS criticality factor and capped at 1.0:
+     $$L(t) = \min(1.0, L(t) \times \text{QoS\_factor}(t))$$
+     where $\text{QoS\_factor}(t)$ is:
+     - Starts at `1.0`.
+     - Multiplied by `1.2` if `qos_reliability` is `"RELIABLE"`.
+     - Multiplied by `1.15` if `qos_priority` is `"HIGH"`, `"CRITICAL"`, or `"URGENT"`.
+     - Multiplied by `1.05` if `qos_priority` is `"MEDIUM"`.
+
+2. **Orphaned Topic and Subscriber Impact Tracking**:
+   - If $L(t) > 10^{-6}$ and the topic was not previously orphaned, it is added to `orphaned_topics`. If this occurs during Wave 0, the topic is also added to `directly_orphaned_topics`.
+   - All subscriber applications of $t$ that are not already failed are marked as impacted.
+
+3. **Stochastic Subscriber Failure**:
+   For each subscriber application $s$, we compute its average feed loss across all its subscribed topics:
+   $$\text{sub\_loss}(s) = \frac{\sum_{t \in \text{subscribed\_topics}(s)} L(t)}{|\text{subscribed\_topics}(s)|}$$
+   If $\text{sub\_loss}(s) \ge \text{propagation\_threshold}$ (and $\text{sub\_loss}(s) > 10^{-6}$):
+   - The subscriber fails stochastically with probability:
+     $$P_{\text{fail}}(s) = \min\left(1.0, \frac{\text{sub\_loss}(s)}{\text{propagation\_threshold}}\right) \times \text{depth\_damp}$$
+     Where:
+     - $\text{depth\_damp} = \max(0.25, 1.0 - \text{wave\_idx} \times 0.15)$ is a depth-based damping factor to prevent runaway cascade propagation.
+   - If the random check succeeds, $s$ is added to the next wave's frontier.
+
+---
 
 ### 3.2 I(v) Formula
 
-For each subscriber application a, the **feed-loss fraction** is:
+At the end of the simulation cascade, the final ground-truth impact score $I(v)$ is computed as the mean continuous feed loss fraction across all subscriber applications:
 
-```
-feed_loss_fraction(a) = |lost_feeds(a)| / |all_subscribed_feeds(a)|
-```
+$$\text{feed\_loss\_fraction}(a) = \frac{\sum_{t \in \text{subscribed\_topics}(a)} L(t)}{|\text{subscribed\_topics}(a)|}$$
 
-The **proxy ground-truth impact score** I(v) is the mean over all subscriber applications:
+$$I(v) = \frac{1}{|\text{Subscribers}|} \sum_{a \in \text{Subscribers}} \text{feed\_loss\_fraction}(a)$$
 
-```
-I(v) = (1 / |Subscribers|) × Σ_{a ∈ Subscribers} feed_loss_fraction(a)
-```
+This is a graded score in $[0, 1]$ representing the overall service degradation of the system under the failure of node $v$.
 
-This is a graded score in [0, 1]. A subscriber that loses half its feeds contributes 0.5 to the sum, not 1.0. This more faithfully models partial degradation than a binary "is impacted?" measure.
+`Subscribers` is the set of Application nodes that have at least one `SUBSCRIBES_TO` edge; this denominator is fixed across all injections so scores are comparable.
 
-`Subscribers` is the set of Application nodes that have at least one SUBSCRIBES\_TO edge; this denominator is fixed across all injections so scores are comparable.
+> [!IMPORTANT]
+> **Start-Node Inclusion:** Unlike simple binary metrics, the starting node $v$ is *not* excluded from the final $I(v)$ average or the `per_subscriber_feed_loss` map in the implementation. If $v$ itself has subscriptions, its feed loss contributes to the mean $I(v)$ score.
 
-> **Note.** The failed node v is excluded from the impacted subscriber count even if it also has subscriptions. This avoids self-referential inflation of the score.
+---
 
 ### 3.3 Cascade Propagation
 
-The `propagation_threshold` parameter (default 1.0, range [0.0, 1.0]) controls how much feed loss is required before a subscriber is considered failed and begins spreading the cascade.
+The `propagation_threshold` parameter (default `0.2`, range $[0.0, 1.0]$) controls the minimum average feed loss required before a subscriber is eligible to fail stochastically and propagate the cascade.
 
 | `propagation_threshold` | Semantic |
 |---|---|
-| `1.0` (default) | A subscriber only cascades when it has lost **all** its feeds (completely starved). Conservative — minimises false cascades. |
-| `0.5` | A subscriber cascades when it has lost ≥ 50% of its feeds. |
-| `0.0` | Any single feed loss triggers a cascade. Aggressive — maximises spread. |
+| `0.2` (default) | A subscriber is eligible to fail when its average feed loss is $\ge 20\%$. |
+| `0.5` | A subscriber is eligible to fail when its average feed loss is $\ge 50\%$. |
+| `1.0` | A subscriber only cascades when it has lost $100\%$ of its feeds (completely starved). Conservative. |
+| `0.0` | Any single feed loss triggers eligibility to cascade. Aggressive. |
 
 For the ATM dataset, `ConflictDetector` requires both `T_radar` **and** `T_tracks` to function (both are mandatory inputs to the conflict algorithm). Setting `--propagation-threshold 0.5` will model this correctly: losing either feed alone is sufficient to silence `ConflictDetector`.
 
+---
+
 ### 3.4 Broker Failure Semantics
 
-When a Broker node fails, the injector uses the `topic_routers` inverse index to check whether any **other live broker** also routes each topic. A topic is only orphaned if all of its routing brokers are in `failed_nodes`.
+When a Broker node fails, the injector computes the continuous topic feed loss as the fraction of failed brokers that route each topic:
+$$L(t) = \frac{|\text{failed\_routers}(t)|}{|\text{all\_routers}(t)|}$$
+This correctly handles multi-broker redundancy: if a topic is routed by two brokers, the failure of one broker results in a continuous feed loss of $0.5$ (50%) rather than a complete binary failure ($1.0$ loss). If all routing brokers for a topic fail, the feed loss becomes $1.0$ (100%).
 
-This correctly handles multi-broker redundancy: in a deployment where `Broker-A` and `Broker-B` both route `T_radar`, failing `Broker-A` alone does not orphan `T_radar`. In single-broker topologies (typical for the ATM dataset), the behaviour is unchanged — the broker is always the sole router and every topic it routes is orphaned.
+---
 
 ### 3.5 Multi-Seed Stability
 
@@ -164,6 +205,7 @@ With N seeds:
 
 Recommended seeds for thesis experiments: `42,123,456,789,2024`.
 
+
 ---
 
 ## 4. Mode 2 — Message Flow Simulation
@@ -172,28 +214,32 @@ Recommended seeds for thesis experiments: `42,123,456,789,2024`.
 
 The message flow simulator uses **SimPy** (https://simpy.readthedocs.io) — a process-based discrete-event simulation library. Simulated time is in seconds, mapping 1-to-1 to the real-world time units of the modelled system.
 
-Three types of SimPy process are spawned for each edge in the graph:
+Three types of SimPy process are spawned for the topology:
 
-**Publisher process** (one per PUBLISHES\_TO edge):
-1. `yield env.timeout(1.0 / rate_hz)` — wait one publish interval.
-2. If `app_id in failed_nodes`, stop.
-3. Optionally yield a processing delay (from the `processing_time` node attribute).
-4. Create a `Message(msg_id, topic_id, publisher_id, created_at=env.now)`.
-5. Call `fanout.publish(msg, failed_nodes)` to fan the message to all live subscriber queues.
-6. Increment the appropriate time-window publish counter (`pre` or `post` fault).
+**Publisher process** (one per `PUBLISHES_TO` edge):
+1. **Determine Publish Interval**: The publish rate (`rate_hz`) is resolved using `generate_workload(topic_id)`. If multiple publishers publish to the same topic, the topic's configured frequency is divided equally among all active publishers to maintain the aggregate topic frequency:
+   $$\text{rate\_hz} = \frac{\text{base\_rate}}{\text{num\_publishers}}$$
+   The simulator yields a timeout interval:
+   - **Poisson Workload**: If `workload_type` on the Topic node is `"poisson"`, the interval is sampled stochastically from an exponential distribution: `rng.expovariate(rate_hz)`.
+   - **Periodic Workload**: Otherwise, the interval is deterministic: `1.0 / rate_hz`.
+2. **Failure Check**: If `app_id in failed_nodes`, the publisher process exits.
+3. **Processing Delay**: Yields a publisher-side compute delay if `processing_time` is configured.
+4. **Publish Message**: Creates a `Message` and calls `fanout.publish(msg, failed_nodes)` to place the message in all live subscriber queues.
+5. **Window Counters**: To track delivery rates before and after the fault, the publisher increments the appropriate time-window publish counter (`pre` or `post` fault) based on whether `env.now < fault_time`.
 
-**Subscriber process** (one per SUBSCRIBES\_TO edge):
-1. Check `app_id in failed_nodes` **before** issuing a `get()`. Exit if failed.
-2. `msg = yield sq.get()` — block until a message arrives in the private queue.
-3. Check `app_id in failed_nodes` again (may have been faulted during the wait).
-4. Optionally yield a subscriber-side processing delay.
-5. Compute end-to-end latency: `(env.now - msg.created_at) × 1000 ms`.
-6. Apply QoS checks (lifespan, deadline) using the end-to-end latency.
-7. If delivered: increment `total_delivered`, store latency sample.
+**Subscriber process** (one per `SUBSCRIBES_TO` edge):
+1. **Pre-dequeue Failure Check**: Checks `app_id in failed_nodes` **before** calling `get()`. If failed, it exits immediately.
+2. **Dequeue**: Dequeues a message from the subscriber's private queue: `msg = yield sq.get()`.
+3. **Post-dequeue Failure Check**: Checks `app_id in failed_nodes` again. If failed, the message is marked as missed and the process exits.
+4. **Subscriber Processing**: Yields a subscriber-side processing delay (models application compute overhead).
+5. **End-to-End Latency**: Calculates end-to-end latency *after* subscriber processing:
+   $$\text{e2e\_latency\_ms} = (\text{env.now} - \text{msg.created\_at}) \times 1000$$
+6. **QoS Verification**: Evaluates lifespan and deadline checks against `e2e_latency_ms`.
+7. **Delivery Logging**: If all QoS checks pass, increments topic delivery stats and logs the latency sample. Increments `pre` or `post` time-window delivery counters.
 
 **Fault process** (one per simulation, if `--fault-node` is set):
 1. `yield env.timeout(fault_time)`.
-2. Add `fault_node` to `failed_nodes`. Publisher and subscriber processes observe this on their next loop iteration.
+2. Adds `fault_node` to `failed_nodes` set. Publisher and subscriber processes observe this on their next loop iteration.
 
 All three process types share the same `failed_nodes: Set[str]` object, which serves as the inter-process fault broadcast channel.
 
@@ -230,15 +276,15 @@ system_delivery_rate = total_delivered / (Σ_topic total_published(topic) × num
 
 QoS attributes are read from two sources in priority order:
 
-1. The SUBSCRIBES\_TO edge (`qos_profile` attribute) — subscriber-side policy.
-2. The Topic node (`qos_profile` attribute) — topic-level policy; `deadline_ms` takes precedence over the edge-level value when set.
+1. The Topic node (`qos_profile` attribute) — topic-level policy; `deadline_ms` takes precedence over the edge-level value when set.
+2. The `SUBSCRIBES_TO` edge (`qos_profile` attribute) — subscriber-side policy.
 
 Both sources follow the same structure:
 
 ```json
 {
   "reliability": "RELIABLE",
-  "durability":  "TRANSIENT_LOCAL",
+  "durability":  "VOLATILE",
   "deadline_ms": 100,
   "lifespan_ms": null,
   "queue_size":  50,
@@ -257,6 +303,9 @@ if e2e_latency_ms > deadline_ms:
     → deadline violation; message counted as missed
 ```
 This matches the DDS definition: the deadline is the maximum acceptable age of a data sample at the point it is consumed by the application.
+
+> [!IMPORTANT]
+> **Topic-Level Overrides:** If a `deadline_ms` is set on the Topic node, it takes precedence and overrides any `deadline_ms` defined on the `SUBSCRIBES_TO` edge.
 
 **Lifespan** (`lifespan_ms`) is applied before the deadline check. Messages older than their lifespan at the time of dequeue are silently discarded.
 
@@ -774,7 +823,7 @@ injector = FaultInjector(
     graph=graph,
     seeds=[42, 123, 456, 789, 2024],
     cascade_depth_limit=0,          # 0 = unlimited
-    propagation_threshold=1.0,      # 1.0 = completely starved
+    propagation_threshold=0.2,      # default 0.2
 )
 
 # Inject all Application and Broker nodes
