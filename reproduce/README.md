@@ -167,7 +167,7 @@ If you use this code, please cite:
 
 ```bibtex
 @inproceedings{qhgl2026,
-  title     = {QoS-Aware Heterogeneous Graph Learning for Architectural Criticality Prediction},
+  title     = {Heterogeneous Graph Learning for Cascade Impact Prediction in Distributed Publish-Subscribe Middleware},
   booktitle = {Proceedings of the 27th ACM/IFIP International Middleware Conference},
   year      = {2026},
   note      = {Middleware 2026}
