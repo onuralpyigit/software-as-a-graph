@@ -111,18 +111,19 @@ class TestSimulateGraphCLI:
     def script_module(self):
         return cli.simulate_graph
 
-    def test_main(self, script_module):
-        if not hasattr(script_module, 'Client'):
-            pytest.skip("simulate_graph CLI is a standalone script (no Client/Pipeline injection)")
-        mock_client = MagicMock()
-        
-        with patch.object(sys, 'argv', ['simulate_graph.py', '--layer', 'system', '--mode', 'exhaustive']), \
-             patch.object(script_module, 'Client', return_value=mock_client) as MockClient:
+    def test_main_fault_inject(self, script_module):
+        with patch.object(sys, 'argv', ['simulate_graph.py', 'fault-inject', '--input', 'test.json']), \
+             patch.object(script_module, '_run_fault_inject') as mock_run:
             
-            ret = script_module.main()
+            script_module.main()
+            mock_run.assert_called_once()
+
+    def test_main_message_flow(self, script_module):
+        with patch.object(sys, 'argv', ['simulate_graph.py', 'message-flow', '--input', 'test.json']), \
+             patch.object(script_module, '_run_message_flow') as mock_run:
             
-            MockClient.assert_called_once()
-            mock_client.simulate.assert_called_once_with(layer='system', mode='exhaustive')
+            script_module.main()
+            mock_run.assert_called_once()
 
 
 class TestValidateGraphCLI:
@@ -132,18 +133,31 @@ class TestValidateGraphCLI:
     def script_module(self):
         return cli.validate_graph
 
-    def test_main(self, script_module):
-        if not hasattr(script_module, 'Client'):
-            pytest.skip("validate_graph CLI is a standalone script (no Client/Pipeline injection)")
-        mock_client = MagicMock()
-        
-        with patch.object(sys, 'argv', ['validate_graph.py', '--layer', 'app']), \
-             patch.object(script_module, 'Client', return_value=mock_client) as MockClient:
+    def test_main_single(self, script_module):
+        import networkx as nx
+        with patch.object(sys, 'argv', ['validate_graph.py', 'single', '--input', 'test.json']), \
+             patch('cli.validate_graph.load_graph', return_value=(nx.DiGraph(), {})), \
+             patch('cli.validate_graph.run_single', return_value=(MagicMock(), {})) as mock_run, \
+             patch('cli.validate_graph.print_single_report'):
             
-            ret = script_module.main()
+            try:
+                script_module.main()
+            except SystemExit:
+                pass
+            mock_run.assert_called_once()
+
+    def test_main_sweep(self, script_module):
+        import networkx as nx
+        with patch.object(sys, 'argv', ['validate_graph.py', 'sweep', '--input', 'test.json']), \
+             patch('cli.validate_graph.load_graph', return_value=(nx.DiGraph(), {})), \
+             patch('cli.validate_graph.run_sweep', return_value=MagicMock()) as mock_run, \
+             patch('cli.validate_graph.print_sweep_report'):
             
-            MockClient.assert_called_once()
-            mock_client.validate.assert_called_once()
+            try:
+                script_module.main()
+            except SystemExit:
+                pass
+            mock_run.assert_called_once()
 
 
 class TestVisualizeGraphCLI:
@@ -175,22 +189,20 @@ class TestExportGraphCLI:
     def script_module(self):
         return cli.export_graph
 
+    def test_main(self, script_module):
         mock_client = MagicMock()
         mock_data = {"nodes": [], "relationships": {}}
         mock_client.export_topology.return_value = mock_data
         
-        try:
-            with patch.object(sys, 'argv', ['export_graph.py', '--output', 'exported.json']), \
-                 patch.object(script_module, 'Client', return_value=mock_client) as MockClient, \
-                 patch('builtins.open', mock_open()) as m_open:
-                
-                script_module.main()
-                
-                MockClient.assert_called_once()
-                mock_client.export_topology.assert_called_once()
-                m_open.assert_called()
-        except FileNotFoundError:
-            pytest.skip("export_graph.py not found")
+        with patch.object(sys, 'argv', ['export_graph.py', '--output', 'exported.json']), \
+             patch.object(script_module, 'Client', return_value=mock_client) as MockClient, \
+             patch('builtins.open', mock_open()) as m_open:
+            
+            script_module.main()
+            
+            MockClient.assert_called_once()
+            mock_client.export_topology.assert_called_once()
+            m_open.assert_called()
 
 
 # =============================================================================

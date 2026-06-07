@@ -19,15 +19,34 @@ def memory_repo():
 
 @pytest.fixture
 def repo_with_topology(memory_repo):
-    """Seed the repo with A -> B topology."""
+    """Seed the repo with a valid App A -> Topic T -> App B topology hosted on NodeMain."""
     graph_data = {
         "applications": [
-            {"id": "A", "name": "App A"},
-            {"id": "B", "name": "App B"},
+            {"id": "A", "name": "App A", "role": "pub"},
+            {"id": "B", "name": "App B", "role": "sub"},
+        ],
+        "brokers": [
+            {"id": "BrokerMain", "name": "Broker Main"}
+        ],
+        "nodes": [
+            {"id": "NodeMain", "name": "Node Main"}
+        ],
+        "topics": [
+            {"id": "T", "name": "Topic T", "size": 1024}
         ],
         "relationships": {
             "publishes_to": [
-                {"source_id": "A", "target_id": "B", "weight": 0.8}
+                {"source": "A", "target": "T", "weight": 0.8}
+            ],
+            "subscribes_to": [
+                {"source": "B", "target": "T", "weight": 0.8}
+            ],
+            "routes": [
+                {"source": "BrokerMain", "target": "T", "weight": 1.0}
+            ],
+            "runs_on": [
+                {"source": "A", "target": "NodeMain", "weight": 1.0},
+                {"source": "BrokerMain", "target": "NodeMain", "weight": 1.0}
             ]
         }
     }
@@ -107,13 +126,9 @@ class TestUseCaseOrchestration:
     def test_simulate_graph_use_case(self, simulation_service):
         """Smoke test for SimulateGraphUseCase."""
         simulate_uc = SimulateGraphUseCase(simulation_service)
-
-        try:
-            result = simulate_uc.execute(layer="app", mode=SimulationMode.EXHAUSTIVE)
-        except (ValueError, RuntimeError) as e:
-            pytest.skip(f"Tiny topology cannot drive simulation: {e}")
-
+        result = simulate_uc.execute(layer="app", mode=SimulationMode.EXHAUSTIVE)
         assert result is not None
+        assert len(result) > 0
 
     def test_validate_graph_use_case(self, validation_service):
         """Smoke test for ValidateGraphUseCase."""
