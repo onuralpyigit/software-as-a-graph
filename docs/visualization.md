@@ -265,7 +265,7 @@ Components downstream of `RELIABLE` / tight-deadline topics appear with a larger
 
 ```bash
 # Generate cascade ablation results then embed in dashboard
-python tools/qos_ablation_experiment.py --layer mw --output results/cascade.json
+python reproduce/run_experiment.py --layer mw --output results/cascade.json
 PYTHONPATH=. python cli/visualize_graph.py --layer system \
     --cascade-file results/cascade.json \
     --output output/dashboard_cascade.html
@@ -517,7 +517,7 @@ PYTHONPATH=. python cli/visualize_graph.py \
     --output output/dashboard.html
 
 # ─── With QoS cascade risk (§9a) ──────────────────────────────────────────────
-python tools/qos_ablation_experiment.py --layer mw --output results/cascade.json
+python reproduce/run_experiment.py --layer mw --output results/cascade.json
 PYTHONPATH=. python cli/visualize_graph.py --layer system \
     --cascade-file results/cascade.json \
     --output output/dashboard_cascade.html

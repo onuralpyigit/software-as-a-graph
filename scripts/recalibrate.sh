@@ -128,7 +128,7 @@ echo ""
 # ── Step 1: Audit ─────────────────────────────────────────────────────────────
 if [[ -z "$SKIP_AUDIT" ]]; then
     echo "  [1/4] Audit ──────────────────────────────────────────────"
-    PYTHONPATH=. python tools/recalibrate_main_table.py \
+    PYTHONPATH=. python reproduce/recalibrate_main_table.py \
         --input "$INPUT" --audit \
         "${RECAL_VARIANTS[@]}" \
         "${RECAL_SCENARIOS[@]}"
@@ -147,7 +147,7 @@ fi
 
 # ── Step 2: Recalibrate ───────────────────────────────────────────────────────
 echo "  [2/4] Recalibrate ────────────────────────────────────────"
-PYTHONPATH=. python tools/recalibrate_main_table.py \
+PYTHONPATH=. python reproduce/recalibrate_main_table.py \
     --input  "$INPUT" \
     --output "$OUTPUT" \
     "${RECAL_VARIANTS[@]}" \
@@ -206,7 +206,7 @@ fi
 # ── Step 4: Re-render tables ──────────────────────────────────────────────────
 if [[ -z "$SKIP_RENDER" ]]; then
     echo "  [4/4] Re-render tables ───────────────────────────────────"
-    PYTHONPATH=. python tools/render_table.py \
+    PYTHONPATH=. python reproduce/render_table.py \
         --table3 "$OUTPUT" \
         --output-dir results/
     echo ""

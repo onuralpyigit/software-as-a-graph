@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-tools/render_attention_subgraph.py — Block G: ATM Attention Subgraph Visualiser
+reproduce/render_attention_subgraph.py — Block G: ATM Attention Subgraph Visualiser
 ================================================================================
 
 Reads output/atm_case_study/attention_weights.json and renders a styled
@@ -13,9 +13,9 @@ Outputs:
 
 Usage
 -----
-  python tools/render_attention_subgraph.py
-  python tools/render_attention_subgraph.py --layer layer_1 --top-k 15
-  python tools/render_attention_subgraph.py --table-only
+  python reproduce/render_attention_subgraph.py
+  python reproduce/render_attention_subgraph.py --layer layer_1 --top-k 15
+  python reproduce/render_attention_subgraph.py --table-only
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ def _load_attention(path: Path) -> Dict:
     if not path.exists():
         raise FileNotFoundError(
             f"Attention file not found: {path}\n"
-            "Run:  python tools/extract_attention.py"
+            "Run:  python reproduce/extract_attention.py"
         )
     return json.loads(path.read_text())
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-tools/render_table.py — Block C: Table 3 + Table 4 LaTeX/CSV/Markdown renderer
+reproduce/render_table.py — Block C: Table 3 + Table 4 LaTeX/CSV/Markdown renderer
 ===============================================================================
 
 Reads results/main_table.json (Block C) and/or results/loso_all_variants.json
@@ -13,9 +13,9 @@ Reads results/main_table.json (Block C) and/or results/loso_all_variants.json
 
 Usage
 -----
-  python tools/render_table.py
-  python tools/render_table.py --table3 results/main_table.json
-  python tools/render_table.py --table4 results/loso_all_variants.json --tex-only
+  python reproduce/render_table.py
+  python reproduce/render_table.py --table3 results/main_table.json
+  python reproduce/render_table.py --table4 results/loso_all_variants.json --tex-only
 """
 
 from __future__ import annotations
@@ -646,7 +646,7 @@ def main():
         print_id_metrics_console(data3)
     else:
         print(f"\n  [Table 3] Not found: {args.table3}")
-        print("  Run: python tools/middleware26_main_table.py")
+        print("  Run: python reproduce/middleware26_main_table.py")
 
     # ── Table 4 ───────────────────────────────────────────────────────────────
     if args.table4.exists():
@@ -675,7 +675,7 @@ def main():
             print(f"  {label:<25} {mean_s:<10} {std_s:<10} {delta_s}")
     else:
         print(f"\n  [Table 4] Not found: {args.table4}")
-        print("  Run: python tools/loso_all_variants.py")
+        print("  Run: python reproduce/loso_all_variants.py")
 
     print("\n  Done. Files written to:", out)
 

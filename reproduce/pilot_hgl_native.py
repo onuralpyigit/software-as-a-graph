@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-tools/pilot_hgl_native.py — HGL-native Pilot (Go / No-Go Gate G1)
+reproduce/pilot_hgl_native.py — HGL-native Pilot (Go / No-Go Gate G1)
 ================================================================
 
 Sanity checks that the HGL-native variant on the raw pub-sub graph:
@@ -24,7 +24,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("HGL-Native-Pilot")
 
-from tools.middleware26_main_table import _load_scenario_data
+from reproduce.middleware26_main_table import _load_scenario_data
 from saag.prediction.gnn_service import GNNService
 
 def run_pilot():

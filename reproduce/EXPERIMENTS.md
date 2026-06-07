@@ -71,10 +71,10 @@ To reproduce the full Table 3 with all identification metrics:
 
 ```bash
 # Run the harness
-python tools/middleware26_main_table.py --epochs 300 --seeds 42 123 456 789 2024
+python reproduce/middleware26_main_table.py --epochs 300 --seeds 42 123 456 789 2024
 
 # Render the report
-python tools/render_table.py --table3 results/main_table.json
+python reproduce/render_table.py --table3 results/main_table.json
 ```
 
 The resulting `results/table3_id_metrics.md` will contain the F1, Precision, Recall, and Top-K breakdown for each scenario.

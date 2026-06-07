@@ -70,12 +70,12 @@ block0:
 # ─────────────────────────────────────────────────────────────────────────────
 
 table3: block0
-	$(PYTHON) tools/middleware26_main_table.py \
+	$(PYTHON) reproduce/middleware26_main_table.py \
 	    --output $(RESULTS_DIR)/main_table.json \
 	    --seeds $(SEEDS) \
 	    --epochs $(EPOCHS) \
 	    --resume
-	$(PYTHON) tools/render_table.py \
+	$(PYTHON) reproduce/render_table.py \
 	    --table3 $(RESULTS_DIR)/main_table.json \
 	    --output-dir $(RESULTS_DIR)
 	@echo "✓ Table 3 ready: $(RESULTS_DIR)/table3_main_results.tex"
@@ -85,12 +85,12 @@ table3: block0
 # ─────────────────────────────────────────────────────────────────────────────
 
 table4:
-	$(PYTHON) tools/loso_all_variants.py \
+	$(PYTHON) reproduce/loso_all_variants.py \
 	    --cache-dir $(OUTPUT_DIR)/loso_cache \
 	    --epochs $(EPOCHS) \
 	    --output $(RESULTS_DIR)/loso_all_variants.json \
 	    --resume
-	$(PYTHON) tools/render_table.py \
+	$(PYTHON) reproduce/render_table.py \
 	    --table4 $(RESULTS_DIR)/loso_all_variants.json \
 	    --output-dir $(RESULTS_DIR)
 	@echo "✓ Table 4 ready: $(RESULTS_DIR)/table4_loso_results.tex"
@@ -100,7 +100,7 @@ table4:
 # ─────────────────────────────────────────────────────────────────────────────
 
 figure4:
-	$(PYTHON) tools/render_stratified_figure.py \
+	$(PYTHON) reproduce/render_stratified_figure.py \
 	    --source auto \
 	    --output $(RESULTS_DIR)/figure4_stratified_rho
 	@echo "✓ Figure 4 ready: $(RESULTS_DIR)/figure4_stratified_rho.[png|pdf]"
@@ -110,10 +110,10 @@ figure4:
 # ─────────────────────────────────────────────────────────────────────────────
 
 figure5:
-	$(PYTHON) tools/extract_attention.py \
+	$(PYTHON) reproduce/extract_attention.py \
 	    --scenario atm_system \
 	    --output-dir $(OUTPUT_DIR)/atm_case_study
-	$(PYTHON) tools/render_attention_subgraph.py \
+	$(PYTHON) reproduce/render_attention_subgraph.py \
 	    --input $(OUTPUT_DIR)/atm_case_study/attention_weights.json \
 	    --output $(OUTPUT_DIR)/atm_case_study/attention_subgraph
 	@echo "✓ Figure 5 ready: $(OUTPUT_DIR)/atm_case_study/attention_subgraph.[png|pdf]"
@@ -138,9 +138,9 @@ all: setup scenarios block0 table3 table4 figure4 figure5
 # ─────────────────────────────────────────────────────────────────────────────
 
 smoke-test: block0
-	$(PYTHON) tools/middleware26_main_table.py \
+	$(PYTHON) reproduce/middleware26_main_table.py \
 	    --scenarios atm_system av_system iot_smart_city_system \
-	    --seeds 42,123 \
+	    --seeds 42 123 \
 	    --epochs $(EPOCHS_FAST) \
 	    --output $(RESULTS_DIR)/smoke_main_table.json \
 	    --resume

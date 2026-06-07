@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-tools/qos_pipeline_inspect.py — Stage-by-stage QoS attribute trace
+reproduce/qos_pipeline_inspect.py — Stage-by-stage QoS attribute trace
 ===================================================================
 
 Block 0, Task 0.5: Generates source data for Figure 2 (paper §3.2).
@@ -13,8 +13,8 @@ Traces QoS attributes through every stage of the pipeline:
 
 Usage
 -----
-  python tools/qos_pipeline_inspect.py --scenario data/scenarios/atm_system.json
-  python tools/qos_pipeline_inspect.py --scenario data/scenarios/atm_system.json \\
+  python reproduce/qos_pipeline_inspect.py --scenario data/scenarios/atm_system.json
+  python reproduce/qos_pipeline_inspect.py --scenario data/scenarios/atm_system.json \\
       --checkpoint output/gnn_checkpoints/atm_hetero_qos/ --json
 """
 

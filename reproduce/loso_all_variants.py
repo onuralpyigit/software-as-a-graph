@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-tools/loso_all_variants.py — Block E: LOSO × 4 variants
+reproduce/loso_all_variants.py — Block E: LOSO × 4 variants
 =========================================================
 
 Runs cli/loso_evaluate.py for each of the 4 model variants and
@@ -9,13 +9,13 @@ aggregates results into a unified JSON for Table 4 (paper §6.5).
 Usage
 -----
   # Full sweep: 4 variants × 5 seeds × all cached scenarios
-  python tools/loso_all_variants.py
+  python reproduce/loso_all_variants.py
 
   # Smoke test: 1 variant, 2 seeds
-  python tools/loso_all_variants.py --variants hetero_qos homo_unweighted --seeds 42 123
+  python reproduce/loso_all_variants.py --variants hetero_qos homo_unweighted --seeds 42 123
 
   # Resume (skips variants whose output dir already has results.json)
-  python tools/loso_all_variants.py --resume
+  python reproduce/loso_all_variants.py --resume
 """
 
 from __future__ import annotations

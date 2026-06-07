@@ -129,13 +129,13 @@ The Go/No-Go test (`make block0`) verifies determinism via `test_prediction_delt
 To reproduce results for a subset of scenarios:
 
 ```bash
-python tools/middleware26_main_table.py \
+python reproduce/middleware26_main_table.py \
     --scenarios atm_system av_system iot_smart_city_system \
     --seeds 42,123 \
     --epochs 150 \
     --output results/partial_table.json
 
-python tools/render_table.py \
+python reproduce/render_table.py \
     --table3 results/partial_table.json \
     --output-dir results/
 ```
@@ -148,9 +148,8 @@ python tools/render_table.py \
 reproduce/
 ├── Makefile           — orchestration targets
 ├── Dockerfile         — exact environment (Python 3.11, PyG CPU)
-└── README.md          — this file
-
-tools/
+├── README.md          — this file
+├── __init__.py        — package initialization
 ├── middleware26_main_table.py   — Block C: 8×6×5 evaluation matrix
 ├── loso_all_variants.py         — Block E: LOSO × 4 variants
 ├── render_table.py              — Block C+E: LaTeX/CSV/MD table renderer

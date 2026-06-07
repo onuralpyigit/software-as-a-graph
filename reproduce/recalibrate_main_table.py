@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-tools/recalibrate_main_table.py — Post-hoc F1 recalibration for MW26
+reproduce/recalibrate_main_table.py — Post-hoc F1 recalibration for MW26
 =====================================================================
 
 Walks an existing results/main_table.json and replaces F1/Precision/Recall
@@ -29,22 +29,22 @@ run remains available for audit.
 Usage
 -----
   # Audit: print what would change, no writes
-  python tools/recalibrate_main_table.py \
+  python reproduce/recalibrate_main_table.py \
       --input results/main_table.json --audit
 
   # Recalibrate everything possible
-  python tools/recalibrate_main_table.py \
+  python reproduce/recalibrate_main_table.py \
       --input  results/main_table.json \
       --output results/main_table_recalibrated.json
 
   # Only the topo variants (safest, always works)
-  python tools/recalibrate_main_table.py \
+  python reproduce/recalibrate_main_table.py \
       --input  results/main_table.json \
       --output results/main_table_recalibrated.json \
       --variants topo_baseline q_topo_baseline
 
   # Constrain to a subset of scenarios
-  python tools/recalibrate_main_table.py \
+  python reproduce/recalibrate_main_table.py \
       --input  results/main_table.json \
       --output results/main_table_recalibrated.json \
       --scenarios atm_system financial_trading_system
@@ -67,7 +67,7 @@ if __name__ == "__main__" and __package__ is None:
 
 # Reuse the harness's data-prep + helpers so recalibration uses the exact
 # same DEPENDS_ON graph, RMAV substitution policy, and topo scoring formula.
-from tools.middleware26_main_table import (
+from reproduce.middleware26_main_table import (
     _load_scenario_data,
     _compute_topo_baseline_scores,
     _mask_qos_in_graph,
@@ -517,7 +517,7 @@ def main():
                   f"  ({dt:.1f}s)")
 
     # ── Re-aggregate so downstream renderers see the new F1 numbers ──────────
-    from tools.middleware26_main_table import _aggregate_cells
+    from reproduce.middleware26_main_table import _aggregate_cells
     aggregate = _aggregate_cells(new_cells)
 
     agg_serializable: Dict[str, Any] = {}
@@ -532,7 +532,7 @@ def main():
         "aggregate": agg_serializable,
         "config": raw.get("config", {}),
         "recalibration": {
-            "tool": "tools/recalibrate_main_table.py",
+            "tool": "reproduce/recalibrate_main_table.py",
             "input": str(args.input),
             "n_recal_topo": n_recal_topo,
             "n_recal_gnn":  n_recal_gnn,

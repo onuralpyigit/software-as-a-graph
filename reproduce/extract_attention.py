@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-tools/extract_attention.py — Block G: ATM Case Study — Attention Extraction
+reproduce/extract_attention.py — Block G: ATM Case Study — Attention Extraction
 ============================================================================
 
 Extracts HGT attention weights from a trained NodeCriticalityGNN and writes
@@ -24,8 +24,8 @@ Output: output/atm_case_study/attention_weights.json
 Usage
 -----
   # Use ATM checkpoint if available, otherwise train fresh on atm_system.json
-  python tools/extract_attention.py
-  python tools/extract_attention.py --scenario av_system --checkpoint output/my_ckpt
+  python reproduce/extract_attention.py
+  python reproduce/extract_attention.py --scenario av_system --checkpoint output/my_ckpt
 """
 
 from __future__ import annotations
@@ -292,7 +292,7 @@ def main():
         num_epochs=args.epochs,
     )
     _print_attention_summary(out_path)
-    print("\n  Done. Run: python tools/render_attention_subgraph.py")
+    print("\n  Done. Run: python reproduce/render_attention_subgraph.py")
 
 
 if __name__ == "__main__":

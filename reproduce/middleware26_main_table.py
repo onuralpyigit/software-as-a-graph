@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-tools/middleware26_main_table.py — Block C: Main Results Table Harness
+reproduce/middleware26_main_table.py — Block C: Main Results Table Harness
 ======================================================================
 
 Orchestrates the 8×6×5 evaluation matrix for Table 3 (paper §6.2):
@@ -22,13 +22,13 @@ Output: results/main_table.json + results/main_table.tex (via render_table.py)
 Usage
 -----
   # Full matrix (≈ 160 runs, 30-60 min on CPU)
-  python tools/middleware26_main_table.py
+  python reproduce/middleware26_main_table.py
 
   # Quick smoke test: 1 scenario, 2 seeds
-  python tools/middleware26_main_table.py --scenarios atm_system --seeds 42 123
+  python reproduce/middleware26_main_table.py --scenarios atm_system --seeds 42 123
 
   # Resume from partial results (skips completed cells)
-  python tools/middleware26_main_table.py --resume
+  python reproduce/middleware26_main_table.py --resume
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 
 # ── Capability detection ─────────────────────────────────────────────────────
 # GNNService.train() may accept a native `qos_enabled` flag (Change-1 from
-# the QoS-ablation work in tools/run_experiment.py).  When available, HGL
+# the QoS-ablation work in reproduce/run_experiment.py).  When available, HGL
 # masks edge_attr QoS dimensions inside HeteroData; when not, we mask the
 # upstream graph + structural metrics before calling train().
 try:
@@ -779,7 +779,7 @@ def _mask_qos_in_structural(structural_dict: Dict) -> Dict:
     """Return a copy of structural_dict with QoS-derived keys zeroed.
 
     Used by the HGL variant.  Mirrors mask_qos_in_structural_metrics in
-    tools/run_experiment.py but operates on the post-_parse_structural_metrics
+    reproduce/run_experiment.py but operates on the post-_parse_structural_metrics
     in-memory dict the harness already holds.
     """
     if not structural_dict:
@@ -1380,7 +1380,7 @@ def main():
     # Load existing results for --resume.
     #
     # Cells flagged with `needs_recalibration: true` by the post-hoc
-    # recalibration tool (tools/recalibrate_main_table.py) must be re-run,
+    # recalibration tool (reproduce/recalibrate_main_table.py) must be re-run,
     # so they are stripped from existing_cells *and* excluded from done_keys.
     # Stripping (rather than just excluding from done_keys) prevents stale
     # entries from accumulating as duplicates in the output JSON.
@@ -1483,7 +1483,7 @@ def main():
     print(f"  Results saved to: {args.output}")
 
     if n_fail == 0:
-        print("\n  ✓ All cells complete. Run tools/render_table.py to generate LaTeX.")
+        print("\n  ✓ All cells complete. Run reproduce/render_table.py to generate LaTeX.")
     else:
         print(f"\n  ⚠  {n_fail} cells failed. Check logs for details.")
 

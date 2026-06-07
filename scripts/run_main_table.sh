@@ -114,7 +114,7 @@ echo ""
 
 # ── Step 1: Training matrix ────────────────────────────────────────────────────
 echo "  [1/3] Training matrix ..."
-PYTHONPATH=. python tools/middleware26_main_table.py \
+PYTHONPATH=. python reproduce/middleware26_main_table.py \
     --output "$OUTPUT" \
     --seeds ${SEEDS} \
     --epochs "$EPOCHS" \
@@ -130,7 +130,7 @@ echo ""
 
 # ── Step 2: Render tables ─────────────────────────────────────────────────────
 echo "  [2/3] Rendering Table 3 (LaTeX / CSV / Markdown) ..."
-PYTHONPATH=. python tools/render_table.py \
+PYTHONPATH=. python reproduce/render_table.py \
     --table3 "$OUTPUT" \
     --output-dir results/
 echo ""

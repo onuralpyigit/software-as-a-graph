@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-tools/render_stratified_figure.py — Block F: Figure 4 generator
+reproduce/render_stratified_figure.py — Block F: Figure 4 generator
 ================================================================
 
 Reads EvalMetrics per_node_type data from training run JSON outputs and
 produces Figure 4: per-node-type Spearman ρ stratified by variant.
 
 Sources (tries each in order):
-  1. results/main_table.json  (from tools/middleware26_main_table.py)
+  1. results/main_table.json  (from reproduce/middleware26_main_table.py)
   2. output/loso/<variant>/results.json  (per-variant LOSO)
 
 Output:
@@ -16,10 +16,10 @@ Output:
 
 Usage
 -----
-  python tools/render_stratified_figure.py
-  python tools/render_stratified_figure.py --source main_table
-  python tools/render_stratified_figure.py --source loso
-  python tools/render_stratified_figure.py --table-only
+  python reproduce/render_stratified_figure.py
+  python reproduce/render_stratified_figure.py --source main_table
+  python reproduce/render_stratified_figure.py --source loso
+  python reproduce/render_stratified_figure.py --table-only
 """
 
 from __future__ import annotations
@@ -295,8 +295,8 @@ def main():
     data = _load_stratified_data(args.source, args.main_table, args.loso_dir)
     if data is None:
         print("\n  No stratified data found. Run one of:")
-        print("    python tools/middleware26_main_table.py   (for main_table.json)")
-        print("    python tools/loso_all_variants.py         (for LOSO results)")
+        print("    python reproduce/middleware26_main_table.py   (for main_table.json)")
+        print("    python reproduce/loso_all_variants.py         (for LOSO results)")
         sys.exit(0)
 
     _print_stratified_table(data)
