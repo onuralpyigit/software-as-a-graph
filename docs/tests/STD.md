@@ -4,7 +4,7 @@
 
 ### Graph-Based Critical Component Prediction for Distributed Publish-Subscribe Systems
 
-**Version 2.3** · **March 2026**
+**Version 3.0** · **June 2026**
 
 Istanbul Technical University, Computer Engineering Department
 
@@ -30,7 +30,7 @@ Istanbul Technical University, Computer Engineering Department
 
 ### 1.1 Purpose
 
-This document specifies how the Software-as-a-Graph framework is tested. It defines the test strategy, test cases, pass criteria, and procedures for verifying that the system meets the requirements in the SRS — from individual function correctness up through end-to-end pipeline accuracy and Genieus web application behaviour.
+This document specifies how the Software-as-a-Graph framework is tested. It defines the test strategy, test cases, pass criteria, and procedures for verifying that the system meets the requirements in the SRS — from individual function correctness up through end-to-end pipeline accuracy and GNN predictions to Genieus web application behaviour.
 
 ### 1.2 Scope
 
@@ -51,10 +51,11 @@ Coverage spans both delivery mechanisms: the **CLI pipeline** (`cli/`) and the *
 
 | Document | Description |
 |----------|-------------|
-| SRS v2.2 | Software Requirements Specification |
-| SDD v2.2 | Software Design Description |
-| IEEE 829-2008 | Standard for Software Test Documentation |
-| IEEE 1012-2016 | Standard for System and Software Verification and Validation |
+| SRS v3.0 | Software Requirements Specification |
+| SAD v3.0 | Software Architecture Description |
+| SDD v3.0 | Software Design Description |
+| ISO/IEC/IEEE 29119-3 | Software and systems engineering — Software testing — Part 3: Test documentation |
+| ISO/IEC/IEEE 12207:2026 | Systems and software engineering — Software life cycle processes |
 | IEEE RASSE 2025 | Published methodology paper (doi: 10.1109/RASSE64831.2025.11315354) |
 
 ### 1.4 Document Conventions
@@ -62,7 +63,7 @@ Coverage spans both delivery mechanisms: the **CLI pipeline** (`cli/`) and the *
 - Test IDs follow the pattern `<LEVEL>-<MODULE>-<NN>` (e.g., `UT-ANAL-01`, `IT-NEO-01`, `ST-E2E-01`, `VT-APP-01`, `AC-01`).
 - The marker `@pytest.mark.<tag>` indicates the pytest marker used to select or exclude the test.
 - Pass criteria use **shall** language matching the SRS requirement they verify.
-- Requirement cross-references use IDs from SRS v2.2 (e.g., REQ-GM-01).
+- Requirement cross-references use IDs from SRS v3.0 (e.g., REQ-GM-01).
 
 ### 1.5 Document Overview
 
@@ -80,6 +81,8 @@ Section 2 describes the overall test strategy and schedule. Section 3 defines th
 | CouplingRisk_enh | `min(1.0, (1 - |2·Instability - 1|) * (1 + Δ·path_complexity))` — enriched imbalance score |
 | CR | Consistency Ratio in AHP (must be < 0.10) |
 | Fixture | Predefined test data created before a test runs |
+| HeteroData | PyTorch Geometric class for heterogeneous graph representations |
+| HGTConv | Heterogeneous Graph Transformer convolutional message-passing layer |
 | Mock | Simulated object that isolates the code under test |
 | NDCG | Normalized Discounted Cumulative Gain — ranking quality metric |
 | QSPOF | QoS-weighted SPOF Severity — `AP_c_dir(v) × w(v)` |
@@ -95,11 +98,10 @@ Section 2 describes the overall test strategy and schedule. Section 3 defines th
 | Version | Date | Summary of Changes |
 |---------|------|--------------------|
 | 2.1 | February 2026 | Initial release |
-| 2.3 | March 2026 | Refactored backend architecture with thinner routers, presenters, and dependency injection; updated quality formulas to include CDPot_enh, CQP, QSPOF, and QADS; aligned weights with AHP v2.3; updated glossary and test case formula references |
-| 2.2 | February 2026 | Updated references to SRS/SDD v2.2; added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL to glossary (§1.6); corrected UT-ANAL-21 formula reference from PR to RPR; added unit tests for new derived terms (§4.3 UT-ANAL-33–43); added `api` marker to pytest config (§3.3); corrected IT-API-09 from POST to GET; updated coverage table (§4.9); raised validation primary targets to match SRS v2.2 (§8.1, §8.2, AC-25); updated achieved results to IEEE RASSE 2025 published figures (§8.3); extended traceability matrix for SRS v2.2 requirements (§10) |
-| 2.3 | March 2026 | Added `tests/test_api_graph.py` for comprehensive Graph module API verification; updated §3.5 with specific test command; refined REST API integration test descriptions (§5.5) |
-| 2.3 | March 2026 | Added `tests/test_api_graph.py` for comprehensive Graph module API verification; updated §3.5 with specific test command; refined REST API integration test descriptions (§5.5); removed legacy `analyzer.py` shim |
-| 2.4 | May 2026 | Aligned Python baseline to 3.11; corrected SDK package path from `src/` to `saag/`; documented in-memory `MemoryRepository` test fixture (no live Neo4j required for ~99% of unit suite); refreshed scenario_08 golden hash after generator update; clarified solitary-population CQP behaviour (zero-variance population yields norm=1.0, CQP=0.70); updated `test_usecases.py` to construct services (`AnalysisService`, `PredictionService`, `SimulationService`, `ValidationService`) instead of repositories; updated benchmark mocks to 3-tuple `_run_analysis` return; current suite: 587 passed, 5 skipped (Neo4j/example-script gated). |
+| 2.2 | February 2026 | Updated references to SRS/SDD v2.2; added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL to glossary (§1.6); raised validation targets; updated results to IEEE RASSE 2025 |
+| 2.3 | March 2026 | Refactored API architecture to use Presenters and thin dependency injection routers; updated formulas to include CDPot_enh, CQP, QSPOF, QADS. Added Graph API tests. |
+| 2.4 | May 2026 | Aligned Python baseline to 3.11; corrected SDK package path to `saag/`; documented `MemoryRepository` mock database fixture; current suite has 587 passed, 5 skipped. |
+| 3.0 | June 2026 | Conformed to ISO/IEC/IEEE 29119-3 test documentation and ISO/IEC/IEEE 12207:2026 Verification/Validation processes. Added unit, integration, and system/CLI test cases for Step 0 (Synthetic Graph Generation) and Step 3 (GNN Prediction and GNN Training). Expanded Coverage targets table and updated the Traceability Matrix to map GNN and Synthetic requirements. |
 
 ---
 
@@ -259,7 +261,16 @@ async def api_client():
         yield client
 ```
 
-All API tests use `@pytest.mark.asyncio` and `@pytest.mark.api`.
+### 5.6 GNN / Ensemble Prediction Integration Tests
+
+These tests verify that prediction services integrate GNN checkpoints and fallback cleanly.
+
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| IT-GNN-01 | Predict with GNN model checkpoint | Predictions include both GNN and RMAV scores; no fallback |
+| IT-GNN-02 | Predict with missing GNN model | System logs warning and falls back to RMAV automatically; exit code 0 |
+| IT-GNN-03 | Predict with mismatching checkpoint layer | System aborts with `CheckpointLayerMismatchError` |
+| IT-GNN-04 | GNN + RMAV Ensemble Blend | `EnsembleGNN` blends predictions using trained logit_α parameters |
 
 ---
 
@@ -594,7 +605,34 @@ def test_step_completion_logged(self, caplog, linear_graph):
     assert any("start" in r.message.lower() for r in caplog.records)
 ```
 
-### 4.9 Coverage Targets
+### 4.9 Synthetic Graph Generation (Step 0) Unit Tests
+
+These tests verify the correctness of the synthetic topology generator tools without external database connections.
+
+| Test ID | Module | Description | Expected Result |
+|---------|--------|-------------|-----------------|
+| UT-GEN-01 | `tools/generation/service.py` | Verify scale preset mappings (TINY $\rightarrow$ ENTERPRISE) | Correct component count bounds per scale |
+| UT-GEN-02 | `tools/generation/service.py` | Seed reproducibility test | Same seed yields identical JSON graphs |
+| UT-GEN-03 | `tools/generation/service.py` | Verify code quality parameters | Application node LOC, complexity, LCOM obey specified statistical bounds |
+| UT-GEN-04 | `tools/generation/service.py` | Verify QoS policy assignments | QoS profiles match selected scenario profiles |
+| UT-GEN-05 | `tools/generation/service.py` | Weak connectivity checker | Generated graphs DTO are weakly connected |
+
+### 4.10 GNN Prediction and Training (Step 3) Unit Tests
+
+These tests verify PyTorch Geometric heterogeneous data preparation, HGT Conv forward operations, and loss calculations.
+
+| Test ID | Module | Description | Expected Result |
+|---------|--------|-------------|-----------------|
+| UT-GNN-01 | `saag/prediction/data_preparation.py` | `networkx_to_hetero_data()` conversion | Correct `HeteroData` nodes and edges splits |
+| UT-GNN-02 | `saag/prediction/data_preparation.py` | Verify node feature width tensors | App=23, Broker=19, Topic=22, Node=20 dimensions |
+| UT-GNN-03 | `saag/prediction/data_preparation.py` | Verify 16-dimensional edge features | Edge QoS, path counts, type one-hot present |
+| UT-GNN-04 | `saag/prediction/gnn_service.py` | Verify HGTConv forward output shapes | Node representations hidden width = 64 |
+| UT-GNN-05 | `saag/prediction/gnn_service.py` | Verify `EdgeFeatureEncoder` mean aggregates | Destination node dimensions project correctly |
+| UT-GNN-06 | `saag/prediction/gnn_service.py` | Verify `TypedEdgeEncoder` output | Output edge criticality score $\in [0, 1]$ |
+| UT-GNN-07 | `saag/prediction/gnn_service.py` | GNN composite loss computation | ListMLE rank loss, pairwise margin, consistency regularizations compute correctly |
+| UT-GNN-08 | `saag/prediction/gnn_service.py` | Robust IQR-based label scaling | Normalized labels mapped cleanly to $[0, 1]$ sigmoidal bounds |
+
+### 4.11 Coverage Targets
 
 | Module | Unit Tests | Target Coverage |
 |--------|-----------|----------------|
@@ -603,11 +641,14 @@ def test_step_completion_logged(self, caplog, linear_graph):
 | `saag/core/memory_repo.py` | ~8 | 80% |
 | `saag/analysis/structural_analyzer.py` | ~20 | 85% |
 | `saag/analysis/quality_analyzer.py` | ~20 | 85% |
+| `saag/prediction/gnn_service.py` | ~15 | 80% |
+| `saag/prediction/data_preparation.py` | ~10 | 82% |
 | `saag/simulation/failure_simulator.py` | ~15 | 80% |
 | `saag/validation/validator.py` | ~12 | 82% |
 | `saag/visualization/dashboard.py` | ~8 | 75% |
+| `tools/generation/service.py` | ~8 | 80% |
 | `tools/benchmark/service.py` | ~5 | 70% |
-| **Total** | **~118** | **≥ 80%** |
+| **Total** | **~141** | **≥ 80%** |
 
 > **Note on path prefix:** Most modules are in `saag/`, while dev utilities are in `tools/`. Both packages are importable if the project root and `./` are in the Python path.
 
@@ -798,8 +839,11 @@ Each CLI tool is tested independently with its most common options.
 | ST-CLI-10 | `cli/run.py --all --layer system --verbose` | DEBUG log entries visible; timing logged per step |
 | ST-CLI-11 | `cli/run.py --generate --layer system --scale large` | Topology generated at large scale; import succeeds |
 | ST-CLI-12 | `cli/benchmark.py --scales small,medium --runs 3` | JSON benchmark output; timing within budget |
+| ST-CLI-13 | `cli/train_graph.py --layer system --seeds 42 123` | GNN training completes, checkpoint serialized in output |
+| ST-CLI-14 | `cli/predict_graph.py --gnn-model checkpoint` | Predictions generated; exit 0 for clean topology |
+| ST-CLI-15 | `cli/predict_graph.py --gnn-model checkpoint` (critical pattern) | Exit 2; blocks pipeline deployment |
 
-> **ST-CLI-10 and ST-CLI-11** cover REQ-CLI-07 (`--verbose`) and REQ-CLI-05 (`--generate`) + REQ-CLI-06 (`--scale`) from SRS v2.2.
+> **ST-CLI-10 to ST-CLI-15** cover CLI arguments, model training execution, and prediction exit code integrations from SRS v3.0.
 
 ### 6.3 Web Application System Tests
 
@@ -1070,8 +1114,18 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 
 Each SRS v2.2 requirement maps to one or more test cases. Requirements without explicit mapping are flagged.
 
+## 10. Traceability Matrix
+
+Each SRS v3.0 requirement maps to one or more test cases. Requirements without explicit mapping are flagged.
+
 | Requirement | Description | Test IDs |
 |-------------|-------------|----------|
+| REQ-GG-01 | Generate 5 Node Types | UT-GEN-01 |
+| REQ-GG-02 | Preset Scaling TINY-ENT | UT-GEN-01 |
+| REQ-GG-03 | Inject Domain QoS attributes | UT-GEN-04 |
+| REQ-GG-04 | Seed parameterization | UT-GEN-02, ST-CLI-08 |
+| REQ-GG-05 | Code quality metrics statistical sample | UT-GEN-03 |
+| REQ-GG-06 | Output schema JSON DTO | UT-GEN-05 |
 | REQ-GM-01 | Accept JSON topology | UT-CORE-07, ST-CLI-01, IT-NEO-01, AC-01 |
 | REQ-GM-02 | Accept GraphML topology | ST-CLI-03, IT-NEO-06, AC-02 |
 | REQ-GM-03 | Create 5 vertex types | IT-NEO-01 (roundtrip verifies all vertex types) |
@@ -1085,7 +1139,7 @@ Each SRS v2.2 requirement maps to one or more test cases. Requirements without e
 | REQ-SA-03 | Compute Betweenness Centrality | UT-ANAL-04 |
 | REQ-SA-04 | Compute Closeness Centrality | UT-ANAL-05 |
 | REQ-SA-05 | Compute Eigenvector Centrality | UT-ANAL-06 |
-| REQ-SA-06 | Compute In-Degree and Out-Degree | UT-ANAL-01 (all 16 fields present) |
+| REQ-SA-06 | Compute In-Degree and Out-Degree | UT-ANAL-01 (all 20 fields present) |
 | REQ-SA-07 | Compute Clustering Coefficient | UT-ANAL-01 |
 | REQ-SA-08 | Articulation point + AP\_c + AP\_c\_directed | UT-ANAL-07, UT-ANAL-08, UT-ANAL-09, UT-ANAL-40, AC-08 |
 | REQ-SA-09 | Bridge detection + Bridge Ratio | UT-ANAL-10, UT-ANAL-11 |
@@ -1102,6 +1156,23 @@ Each SRS v2.2 requirement maps to one or more test cases. Requirements without e
 | REQ-QS-08 | AHP consistency check → abort | UT-ANAL-25, UT-ANAL-26, AC-13 |
 | REQ-QS-09 | Box-plot classification | UT-ANAL-27 |
 | REQ-QS-10 | Small-sample percentile fallback | UT-ANAL-28 |
+| REQ-GNN-01 | Graph to PyG HeteroData | UT-GNN-01 |
+| REQ-GNN-02 | Type-specific node features X_t | UT-GNN-02 |
+| REQ-GNN-03 | 16-dim edge features | UT-GNN-03 |
+| REQ-GNN-04 | 3-layer HGTConv GNN | UT-GNN-04 |
+| REQ-GNN-05 | EdgeFeatureEncoder mean | UT-GNN-05 |
+| REQ-GNN-06 | Bidirectional conv pass | UT-GNN-04 |
+| REQ-GNN-07 | Multi-task prediction heads | UT-GNN-04, IT-GNN-01 |
+| REQ-GNN-08 | Composite head concatenation | UT-GNN-04 |
+| REQ-GNN-09 | TypedEdgeEncoder links | UT-GNN-06 |
+| REQ-GNN-ENS-01 | Ensemble blend learnable α | UT-GNN-06, IT-GNN-04 |
+| REQ-GNN-ENS-02 | Criticality Box-Plot levels | IT-GNN-01 |
+| REQ-GNN-ENS-03 | Missing checkpoint fallback | IT-GNN-02 |
+| REQ-GNN-TR-01 | Optimizer AdamW Cosine restarts | UT-GNN-07 |
+| REQ-GNN-TR-02 | Transductive/inductive splits | UT-GNN-01 |
+| REQ-GNN-TR-03 | Loss calculation MSE/ListMLE | UT-GNN-07, ST-CLI-13 |
+| REQ-GNN-TR-04 | Robust IQR-based label sigmoidal | UT-GNN-08 |
+| REQ-GNN-TR-05 | Multi-seed execution loops | ST-CLI-13 |
 | REQ-FS-01 | Simulate CRASH mode | UT-SIM-20, AC-15 |
 | REQ-FS-02 | DEGRADED, PARTITION, OVERLOAD modes | UT-SIM-27, UT-SIM-28, UT-SIM-29, AC-16 |
 | REQ-FS-03 | Cascade propagation rules (3 rules) | UT-SIM-21, UT-SIM-22, UT-SIM-23 |
@@ -1125,7 +1196,7 @@ Each SRS v2.2 requirement maps to one or more test cases. Requirements without e
 | REQ-VZ-06 | Dependency matrix heatmap | AC-27 (manual inspection) |
 | REQ-VZ-07 | Validation metrics with pass/fail | UT-VIZ-01, AC-27 |
 | REQ-VZ-08 | Multi-layer comparison views | AC-09, AC-33 |
-| REQ-CLI-01 | Individual CLI commands per step | ST-CLI-01–09 |
+| REQ-CLI-01 | Individual CLI commands per step | ST-CLI-01–09, ST-CLI-13, ST-CLI-14 |
 | REQ-CLI-02 | Pipeline orchestrator (`run.py`) | ST-E2E-01–03 |
 | REQ-CLI-03 | `--layer` flag | UT-ANAL-29, UT-ANAL-30, ST-CLI-04 |
 | REQ-CLI-04 | `--output` flag | ST-CLI-06 |
@@ -1161,6 +1232,9 @@ Each SRS v2.2 requirement maps to one or more test cases. Requirements without e
 | REQ-PORT-03 | Multi-stage Docker build | ST-WEB-01 (full stack build) |
 | REQ-MAINT-01–03 | Composition/strategy/repository patterns | IT-ANAL-03 (strategy swap), UT-ANAL-24 |
 | REQ-ACC-01–05 | Validation accuracy targets | §8.1–§8.3 validation tests |
+| REQ-MLOPS-01 | Checkpoint weights serialization | ST-CLI-13 |
+| REQ-MLOPS-02 | Multi-seed evaluation isolation | ST-CLI-13 |
+| REQ-MLOPS-03 | Early stopping combined metric | UT-GNN-07 |
 
 ---
 
