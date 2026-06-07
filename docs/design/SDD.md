@@ -4,7 +4,7 @@
 
 ### Graph-Based Critical Component Prediction for Distributed Publish-Subscribe Systems
 
-**Version 2.3** · **March 2026**
+**Version 3.0** · **June 2026**
 
 Istanbul Technical University, Computer Engineering Department
 
@@ -33,17 +33,17 @@ This document describes the technical design of the Software-as-a-Graph framewor
 
 ### 1.2 Scope
 
-The design covers the full pipeline: Import (graph model construction), Analyze (structural analysis + deterministic RMAV/Q scoring), Predict (optional inductive GNN forecasting), Simulate (failure simulation), Validate (statistical validation), and Visualize (interactive visualization). The system follows a **four-layer architecture** (Presentation, Web Application, Pipeline Components, Core) with dependency inversion at the repository boundary: the Core layer defines the `IGraphRepository` interface, and the Neo4j adapter implements it, keeping domain logic free of infrastructure dependencies.
-
-The system is delivered through two mechanisms — a **CLI pipeline** (`cli/`) and a **Genieus web application** (FastAPI backend + Next.js frontend) — both of which invoke the same underlying domain packages.
+The design covers the full pipeline: Generate (synthetic topology generation), Import (graph model construction), Analyze (structural analysis + deterministic RMAV/Q scoring), Predict (optional inductive GNN forecasting), Simulate (failure simulation), Validate (statistical validation), and Visualize (interactive visualization). The system follows a **four-layer architecture** (Presentation, Web Application, Pipeline Components, Core) with dependency inversion at the repository boundary: the Core layer defines the `IGraphRepository` interface, and the Neo4j adapter implements it, keeping domain logic free of infrastructure dependencies.
 
 ### 1.3 References
 
 | Reference | Description |
 |-----------|-------------|
-| IEEE 1016-2009 | IEEE Standard for Software Design Descriptions |
-| SRS v2.2 | Software Requirements Specification for this project |
-| STD v2.2 | Software and System Test Document for this project |
+| ISO/IEC/IEEE 1016-2009 | Systems and software engineering — Software design description |
+| ISO/IEC/IEEE 12207:2026 | Systems and software engineering — Software life cycle processes |
+| SRS v3.0 | Software Requirements Specification for this project |
+| SAD v3.0 | Software Architecture Description for this project |
+| STD v3.0 | Software and System Test Document for this project |
 | IEEE RASSE 2025 | Published methodology paper (doi: 10.1109/RASSE64831.2025.11315354) |
 | Neo4j Documentation | https://neo4j.com/docs/ |
 | NetworkX Documentation | https://networkx.org/documentation/ |
@@ -55,7 +55,7 @@ The system is delivered through two mechanisms — a **CLI pipeline** (`cli/`) a
 - Pseudocode uses indented block notation; `→` means "produces" or "returns."
 - Complexity annotations use standard Big-O notation.
 - All mathematical symbols are defined at first use or in the Glossary (§1.5).
-- Requirement cross-references use IDs from SRS v2.2 (e.g., REQ-GM-01).
+- Requirement cross-references use IDs from SRS v3.0 (e.g., REQ-GM-01).
 
 ### 1.5 Glossary
 
@@ -90,13 +90,16 @@ The system is delivered through two mechanisms — a **CLI pipeline** (`cli/`) a
 
 ### 1.6 Document Overview
 
-Section 2 describes the system context, design constraints, and guiding principles. Section 3 covers the four-layer architecture, module decomposition, design patterns, data flow, and deployment. Sections 4–5 address data structures and component design (service pipelines). Section 6 provides algorithmic pseudocode and complexity analysis for all non-trivial algorithms, including the full RMAV formula derivations. Section 7 covers the Neo4j database schema and key Cypher queries. Section 8 covers CLI and REST API interfaces with data exchange formats. Section 9 describes both visualization surfaces: the static HTML dashboard and the Genieus web application. Appendix A gives layer definitions, Appendix B the default AHP matrices, Appendix C the error handling strategy, and Appendix D provides SRS-to-design traceability.
+Section 2 describes the system context, design constraints, and guiding principles. Section 3 covers the four-layer architecture, module decomposition, design patterns, data flow, and deployment. Sections 4–5 address data structures and component design (service pipelines). Section 6 provides algorithmic pseudocode and complexity analysis for all non-trivial algorithms, including the GNN model equations and the full RMAV formula derivations. Section 7 covers the Neo4j database schema and key Cypher queries. Section 8 covers CLI and REST API interfaces with data exchange formats. Section 9 describes both visualization surfaces: the static HTML dashboard and the Genieus web application. Appendix A gives layer definitions, Appendix B the default AHP matrices, Appendix C the error handling strategy, and Appendix D provides SRS-to-design traceability.
 
 ### 1.7 Change History
 
+| Version | Date | Description |
+|---------|------|-------------|
 | 2.2 | February 2026 | Updated RMAV formulas to match implementation (§4.2, §5.2, §6, Appendix B); corrected architecture description to four-layer (§1.2, §3.1); fixed REST API endpoint paths to `/api/v1/` with correct HTTP methods (§8.2); added missing endpoints; added `benchmark/` to module decomposition (§3.2); added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL algorithmic descriptions (§6.13–§6.18); corrected metric-to-dimension orthogonality table (§4.2); updated Appendix A layer IDs; updated Appendix B AHP matrices; extended Appendix D traceability for SRS v2.2 requirements |
 | 2.3 | March 2026 | Refactored backend API to use **Presenters** for decoupled response formatting (§3.1, §3.2); updated module decomposition to include `api/presenters/`; enhanced dependency injection in `api/dependencies.py`; updated quality formulas to v2.3 (5-term Maintainability, QoS-weighted SPOF, CDPot_enh) |
 | 2.4 | April 2026 | Clarified pipeline stage semantics: **Analyze** (deterministic, closed-form RMAV/Q scoring + anti-patterns) and **Predict** (inductive GNN forecasting, optional) are now named distinct stages. Updated §1.2, §2.1, §2.3, §3.4, §4.2 to reflect Import → Analyze → Predict → Simulate → Validate → Visualize naming. Updated `saag.Pipeline`, `saag.Client`, `saag.AnalysisResult`, and `saag.PredictionResult` SDK contracts accordingly. |
+| 3.0 | June 2026 | Full alignment with ISO/IEC/IEEE 1016-2009 and ISO/IEC/IEEE 12207:2026. Added detailed designs for Step 0 (Synthetic Graph Generation) and Step 3 (GNN Prediction) components. Incorporated PyG HeteroData layout features, HGTConv forward equations, typed edge encoders, and multi-task loss pseudocodes in algorithmic design. Updated REST API endpoint table to cover train/predict routes. |
 
 ---
 
@@ -523,7 +526,29 @@ class GraphData:
 
 ## 5. Component Design
 
-### 5.1 Import Pipeline
+### 5.1 Synthetic Graph Generation Pipeline (Step 0)
+
+The synthetic generation component (`tools.generation.service.GenerationService`) produces topologically valid system models for evaluation.
+
+```
+CLI: generate_graph.py  (or FastAPI Depends(get_generation_service))
+         │
+         ▼
+  StatisticalGraphGenerator.generate(scale, seed, scenario)
+         │
+         Phase 1: Load QoS and Naming lookup tables based on Scenario
+         Phase 2: Calculate entity target counts based on Scale preset (TINY -> ENTERPRISE)
+         Phase 3: Sample Nodes and Broker instances, link CONNECTS_TO networks
+         Phase 4: Generate Application nodes, map code quality features (complexity, LOC, LCOM)
+         Phase 5: Sample Topic nodes with parameterized pub-sub frequency, QoS tags, size
+         Phase 6: Create structural associations (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, USES)
+         Phase 7: Verify weak connectivity of final graph DTO
+         │
+         ▼
+    Return GraphData DTO & Serialize to JSON file
+```
+
+### 5.2 Import Pipeline (Step 1)
 
 ```
 CLI: import_graph.py  (or FastAPI POST /api/v1/graph/import)
@@ -544,7 +569,7 @@ CLI: import_graph.py  (or FastAPI POST /api/v1/graph/import)
     Return import statistics (counts per entity type)
 ```
 
-### 5.2 Analysis Pipeline
+### 5.3 Analysis Pipeline (Step 2)
 
 ```
 saag.analysis.service.AnalysisService.analyze_layer(layer)
@@ -552,12 +577,12 @@ saag.analysis.service.AnalysisService.analyze_layer(layer)
          │
     1. Export G_analysis(layer) from Neo4j → NetworkX DiGraph
     2. StructuralAnalyzer.analyze(graph)
-         │  → Compute all 16 metric fields per component (§6.1–§6.6, §6.8)
+         │  → Compute all 20 metric fields per component (§6.1–§6.6, §6.8)
          │  → Compute reverse-graph metrics (RPR, REV, RCL) on G^T (§6.1, §6.18)
-         │  → Compute continuous AP_c scores via iterated removal (§6.5)
+         │  → Compute continuous AP_c scores via undirected/directed removals (§6.5, §6.16)
          │  → Detect bridge edges (§6.6)
          │  → Return StructuralAnalysisResult
-    3. PredictionEngine.analyze(structural_result)       ← RMAV + optional GNN
+    3. PredictionEngine.analyze(structural_result)       ← RMAV scoring baseline
          │  → Normalize metrics to [0, 1] via min-max (§6.8)
          │  → Compute derived terms: CDPot (§6.13), CouplingRisk (§6.14),
          │    QSPOF (§6.15), AP_c_directed (§6.16), CDI (§6.17)
@@ -566,7 +591,7 @@ saag.analysis.service.AnalysisService.analyze_layer(layer)
          │  → Classify via BoxPlotClassifier or percentile fallback (§6.9)
          │  → Score edges using endpoint-aware RMAV formulas
          │  → Return QualityAnalysisResult
-    4. ProblemDetector.detect(quality_result)        ← see §5.6
+    4. ProblemDetector.detect(quality_result)        ← see §5.8
          │  → Identify architectural anti-patterns
          │  → Return List[DetectedProblem]
          │
@@ -574,7 +599,33 @@ saag.analysis.service.AnalysisService.analyze_layer(layer)
     Return LayerAnalysisResult
 ```
 
-### 5.3 Simulation Pipeline
+### 5.4 GNN Prediction Pipeline (Step 3)
+
+The GNN prediction component (`saag.prediction.service.PredictionService`) uses a PyTorch Heterogeneous Graph Transformer model to predict node and edge criticality.
+
+```
+saag.prediction.service.PredictionService.predict_layer(structural_result, checkpoint_path)
+  (also exposed as FastAPI POST /api/v1/prediction/predict)
+         │
+    1. Check GNN model checkpoint path (fallback silently to RMAV on failure)
+    2. GNNService.load_model(checkpoint_path)
+    3. networkx_to_hetero_data(graph) -> PyG HeteroData DTO
+         │  → Build type-specific feature width tensors (§6.24)
+         │  → Inject 16-dim edge features (§6.24)
+    4. Model Inference Pass (GNNService.predict()):
+         │  → Feed edge features to EdgeFeatureEncoder
+         │  → Execute 3-layer HGTConv message passing (bidirectional optional) (§6.25)
+         │  → Run multi-task prediction heads (R/M/A/V and Composite)
+         │  → Execute TypedEdgeEncoder for link criticality scores (§6.26)
+    5. Ensemble Blending (EnsembleGNN):
+         │  → Fusion of GNN output and RMAV baseline via learnable α coefficients (§6.28)
+    6. BoxPlotClassifier.classify(ensemble_scores) -> Criticality levels
+         │
+         ▼
+    Return QualityAnalysisResult (containing GNN & Ensemble predictions)
+```
+
+### 5.5 Simulation Pipeline (Step 4)
 
 ```
 saag.simulation.service.SimulationService.run_failure_simulation(layer)
@@ -599,13 +650,13 @@ saag.simulation.service.SimulationService.run_failure_simulation(layer)
     Return List[FailureResult] with I(v) for every component
 ```
 
-### 5.4 Validation Pipeline
+### 5.6 Validation Pipeline (Step 5)
 
 ```
 saag.validation.service.ValidationService.validate_layer(analysis_result, simulation_results)
   (also exposed as FastAPI POST /api/v1/validation/run-pipeline)
          │
-    1. Extract Q(v) from QualityAnalysisResult
+    1. Extract Q(v) / Q_ens(v) from QualityAnalysisResult
     2. Extract I(v) from List[FailureResult]
     3. Align by component ID (warn on mismatches; require n ≥ 5)
     4. Compute (Validator):
@@ -619,7 +670,7 @@ saag.validation.service.ValidationService.validate_layer(analysis_result, simula
     Return ValidationGroupResult
 ```
 
-### 5.5 Visualization Pipeline
+### 5.7 Visualization Pipeline (Step 6)
 
 ```
 saag.visualization.service.VisualizationService.generate_dashboard(layers, output_file)
@@ -650,9 +701,9 @@ saag.visualization.service.VisualizationService.generate_dashboard(layers, outpu
     Write HTML file; optionally open in browser
 ```
 
-### 5.6 Anti-Pattern Detection Pipeline
+### 5.8 Anti-Pattern Detection Pipeline
 
-The `AntiPatternDetector` (consolidated from the legacy `SmellDetector` and `ProblemDetector`) is invoked at the end of the Analysis Pipeline (§5.2, Step 4). It identifies 12 categories of architectural anti-patterns from `QualityAnalysisResult` using box-plot classification levels (never static thresholds).
+The `AntiPatternDetector` is invoked at the end of the Analysis Pipeline (§5.3, Step 3). It identifies 13 categories of architectural anti-patterns from `QualityAnalysisResult` using box-plot classification levels (never static thresholds).
 
 | Category | Anti-Pattern | Detection Rule (Predicate) | Severity |
 |:---------|:-------------|:---------------------------|:---------|
@@ -1113,6 +1164,111 @@ Q(v) = w_R × R(v) + w_M × M(v) + w_A × A(v) + w_V × V(v)
 
 **Default weights:** w\_R = w\_M = w\_A = w\_V = 0.25 (equal weighting). The equal default reflects deliberate expert judgment — an AHP pairwise comparison matrix where all dimensions are rated equally important produces exactly this 0.25/0.25/0.25/0.25 split, with CR = 0.00. For domain-specific priorities (security-critical, high-availability, actively-developed systems), custom AHP matrices are supported via `--use-ahp` (see Appendix B for domain examples).
 
+### 6.24 GNN Heterogeneous Graph Layout Preparation
+
+Converts the structural and metric graph topology into PyTorch Geometric `HeteroData` representation.
+
+```
+Input:  NetworkX DiGraph G_structural
+Output: PyG HeteroData object containing type-specific node/edge features
+
+1. Partition nodes into lists by type: App, Broker, Topic, Node, Library
+2. For each node type t:
+     a. Initialize feature tensor X_t of dimensions (n_t, d_t)
+     b. Populate indices 0-17 of X_t with normalized base metrics M(v)
+     c. Populate indices 18+ of X_t with type-specific features:
+          App/Lib: LOC, Cyclomatic Complexity, Instability, LCOM, CQP (23-dim total)
+          Broker:  Max Connections Normalized (19-dim total)
+          Topic:   Subscribers Count, Publishers Count, Frequency z-score, QoS Criticality Ordinal (22-dim total)
+          Node:    CPU cores, Memory GB normalized (20-dim total)
+3. For each edge type (src_type, relation, dst_type) in graph:
+     a. Extract edge index connections matrix
+     b. Populate 16-dimensional feature vector:
+          Edge QoS weight, path count, relation one-hot, and deadline/QoS flags.
+4. Construct node target labels Y_t containing simulation metrics [I*(v), IR(v), IM(v), IA(v), IV(v)]
+```
+
+### 6.25 HGT Conv Layer Forward Pass & Message Passing
+
+Executes query/key/value heterogeneous projection operations.
+
+```
+Input: Node representations h^(k), edge feature representations e_uv
+Output: Updated representations h^(k+1)
+
+1. Run EdgeFeatureEncoder to project 16-dim edge features into destination space D:
+     e_proj^(k) = scatter_mean_{u → v}( W_e × e_{uv} )
+2. For each destination node type d:
+     a. Project destination queries: Q_d = h_d^(k) × W_Q^(d)
+     b. For each relation type r (src_type s, edge, dst_type d):
+          Project source keys:   K_s = h_s^(k) × W_K^(s)
+          Project source values: V_s = h_s^(k) × W_V^(s)
+          Compute relation attention weights:
+               ATT(u, v) = softmax( (K_s · W_ATT^(s,r,d) · Q_d^T) / sqrt(D) )
+          Generate message signals:
+               MSG(u, v) = V_s · W_MSG^(s,r,d)
+          Accumulate messages via destination nodes:
+               m_v^(k) = Σ_{u,r} ATT(u,v) × MSG(u,v) + e_proj^(k)
+3. Execute residual additions and layer normalization:
+     h_v^(k+1) = GELU( LayerNorm( W_agg × m_v^(k) + h_v^(k) ) )
+4. If use_bidirectional is enabled:
+     Execute reverse relationship convolutions and add to h^(k+1) with scale 0.5
+```
+
+### 6.26 Typed Edge Criticality Encoder
+
+Projects edge-specific links into criticality ranks.
+
+```
+Input: Source embedding h_u, destination embedding h_v, edge attributes e_uv
+Output: Edge criticality score score(u, v) ∈ [0, 1]
+
+1. Project 16-dimensional edge feature vector e_uv to hidden dimension:
+     e_proj = e_uv · W_r   [where W_r is a relation-specific linear layer]
+2. Concatenate node and edge embeddings:
+     z_edge = [ h_u || h_v || e_proj ]
+3. Forward through Edge Multi-Layer Perceptron (MLP):
+     score(u, v) = Sigmoid( GELU( LayerNorm( z_edge · W_1 ) ) · W_2 )
+```
+
+### 6.27 GNN Multi-Task Optimization Loss Function
+
+Calculates combined losses for composite rank regression and consistency constraint bounds.
+
+```
+Input: Predictions Ŷ, Ground truth labels Y, Unlabeled GNN scores Ŷ_unlabeled, Unlabeled RMAV scores Q_unlabeled
+Output: Scalar Loss L
+
+1. Calculate Composite Mean Squared Error:
+     L_composite = MSE( Ŷ_composite, Y_composite )
+2. Calculate Dimension-Specific Mean Squared Error:
+     L_dimension = Σ_d MSE( Ŷ_d, Y_d )
+3. Calculate ListMLE Ranking Loss:
+     Sort nodes by Ground Truth Y
+     L_rank = -Σ_i log( exp(Ŷ_i) / Σ_{j >= i} exp(Ŷ_j) )
+4. Calculate Pairwise Margin Loss:
+     Identify all pairs (u, v) where Y_u - Y_v > margin (m=0.05)
+     L_pairwise = Σ max(0, margin - (Ŷ_u - Ŷ_v)) / num_pairs
+5. Calculate RMAV Consistency Regularization (on unlabeled nodes):
+     L_consistency = MSE( Ŷ_unlabeled, Q_unlabeled )
+6. Combine loss values using scale coefficients:
+     L = L_composite + 0.5 × L_dimension + 0.3 × L_rank + 0.1 × L_pairwise + 0.1 × L_consistency
+```
+
+### 6.28 Ensemble Blend Score Fusion
+
+Fuses GNN predictions with closed-form RMAV scores.
+
+```
+Input: GNN predictions Q_GNN, RMAV baseline scores Q_RMAV, learnable parameters logit_α
+Output: Combined ensemble prediction Q_ens
+
+1. Calculate blend scale coefficients:
+     α = Sigmoid( logit_α )   [dimension-wise vectors of width 5]
+2. Blend scores:
+     Q_ens(v) = α × Q_GNN(v) + (1 - α) × Q_RMAV(v)
+
+
 ---
 
 ## 7. Database Design
@@ -1236,6 +1392,8 @@ The FastAPI backend exposes the pipeline as a versioned RESTful API (`/api/v1/` 
 | POST | `/api/v1/graph/import` | Import JSON or GraphML topology into Neo4j |
 | GET | `/api/v1/graph/search-nodes` | Search for nodes by name/type query parameter |
 | POST | `/api/v1/analysis/layer/{layer}` | Run structural analysis + quality scoring for a layer |
+| POST | `/api/v1/prediction/predict` | Run GNN or Ensemble criticality prediction for a layer |
+| POST | `/api/v1/prediction/train` | Train a GNN model checkpoint on failure simulation labels |
 | POST | `/api/v1/simulation/failure` | Run failure simulation for a layer |
 | POST | `/api/v1/validation/run-pipeline` | Run statistical validation for a layer |
 | GET | `/api/v1/validation/layers` | List available analysis layers with metadata |
