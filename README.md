@@ -16,11 +16,13 @@
 1. [The Problem](#the-problem)
 2. [The Methodology](#the-methodology)
    - [Core Insight](#core-insight)
-   - [Graph Construction (Import)](#graph-construction-import)
-   - [Analysis](#analysis)
-   - [Prediction](#prediction)
-   - [Failure Simulation](#failure-simulation-step-4)
-   - [Statistical Validation](#statistical-validation-step-5)
+   - [Graph Generation (Step 0)](#graph-generation-step-0)
+   - [Graph Construction (Step 1)](#graph-construction-step-1)
+   - [Analysis (Step 2)](#analysis-step-2)
+   - [Prediction (Step 3)](#prediction-step-3)
+   - [Failure Simulation (Step 4)](#failure-simulation-step-4)
+   - [Statistical Validation (Step 5)](#statistical-validation-step-5)
+   - [Dashboard Visualization (Step 6)](#dashboard-visualization-step-6)
 3. [Empirical Results](#empirical-results)
 4. [Supported Platforms](#supported-platforms)
 5. [Quick Start (Docker)](#quick-start-docker)
@@ -55,11 +57,17 @@ This reactive posture has two fundamental problems:
 
 > **A component's position in the dependency graph reliably predicts its real-world failure impact — without any runtime data.**
 
-Software-as-a-Graph (SaG) operationalises this insight into a six-step analytical pipeline. The fundamental claim is that **topological structure alone** — how components are connected, what they depend on, and how strongly — encodes enough information to rank components by their potential failure impact with high statistical fidelity (Spearman ρ > 0.87, F1 > 0.90).
+Software-as-a-Graph (SaG) operationalises this insight into a seven-step analytical pipeline (Step 0 to Step 6). The fundamental claim is that **topological structure alone** — how components are connected, what they depend on, and how strongly — encodes enough information to rank components by their potential failure impact with high statistical fidelity (Spearman ρ > 0.87, F1 > 0.90).
 
 ---
 
-### Graph Construction (Import)
+### Graph Generation (Step 0)
+
+Step 0 produces a synthetic publish-subscribe system topology in JSON format containing nodes (`Application`, `Broker`, `Topic`, `Node`, `Library`) and structural edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`, `USES`, `CONNECTS_TO`). It supports both uniform scale presets (`tiny` through `xlarge`) and statistical-config mode (via YAML) which samples properties like node loading and publish/subscribe counts from probability distributions to generate realistic topologies for benchmarks and validation studies.
+
+---
+
+### Graph Construction (Step 1)
 
 The first step converts a system architecture JSON into a formal weighted directed graph G = (V, E, τ_V, τ_E, w):
 
@@ -100,7 +108,7 @@ The first step converts a system architecture JSON into a formal weighted direct
 
 ---
 
-### Analysis
+### Analysis (Step 2)
 
 Step 2 is **deterministic and interpretable**: given the same graph, it always produces the same output. It has two sub-phases that run together as a single stage.
 
@@ -130,9 +138,9 @@ Step 2 is **deterministic and interpretable**: given the same graph, it always p
 
 ---
 
-### Prediction
+### Prediction (Step 3)
 
-Step 3 is **inductive**: a HeteroGAT trained on simulation ground truth learns patterns that the AHP-weighted composite cannot encode — nonlinear interactions, multi-hop motifs, cross-type embedding effects. It consumes the `StructuralAnalysisResult` produced by Step 2 (no repository access) and emits GNN-derived criticality ranks blended with RMAV via a learnable ensemble coefficient α.
+Step 3 is **inductive**: a Heterogeneous Graph Transformer (HGT) model trained on simulation ground truth learns patterns that the AHP-weighted composite cannot encode — nonlinear interactions, multi-hop motifs, cross-type embedding effects. It consumes the `StructuralAnalysisResult` produced by Step 2 (no repository access) and emits GNN-derived criticality ranks blended with RMAV via a learnable ensemble coefficient α.
 
 This stage is **optional**. The Analyze stage alone (Step 2) achieves Spearman ρ > 0.87 and F1 > 0.90. Step 3 refines those predictions after simulation-derived labels become available.
 
@@ -220,7 +228,7 @@ The Predict stage refines the Analyze-stage scores using a Graph Attention Netwo
 Q_ensemble(v) = α · Q_GNN(v) + (1−α) · Q_RMAV(v)    α ∈ ℝ⁵, learned per-dimension
 ```
 
-The HeteroGAT architecture processes 23-dimensional node feature vectors (18 topological + 5 code-quality for App/Library types), 8-dimensional edge features, and uses 3 message-passing layers with 4 attention heads. Multi-task prediction heads produce per-RMAV-dimension outputs; the composite head also receives the four dimension predictions as input.
+The HGT architecture processes type-specific node feature vectors (up to 23 dimensions: App/Lib=23, Broker=19, Topic=22, Node=20), 16-dimensional edge features, and uses 3 message-passing layers with 4 attention heads. Multi-task prediction heads produce per-RMAV-dimension outputs; the composite head also receives the four dimension predictions as input.
 
 ---
 
@@ -262,6 +270,12 @@ Step 5 closes the methodological loop. It measures the statistical agreement bet
 | Wilcoxon signed-rank | Q*(v) statistically closer to I*(v) than degree baseline | p < 0.05 |
 
 Gates are **topology-adaptive**: sparse 12-node systems face softer thresholds than dense hub-spoke architectures with 100+ components.
+
+---
+
+### Dashboard Visualization (Step 6)
+
+Step 6 synthesizes the quantitative analysis metrics, AHP-weighted RMAV criticality scores, failure simulation cascades, and statistical validation metrics into interactive visual layouts. It outputs both a **reproducible static HTML dashboard** (a self-contained research artifact embedding Cytoscape.js network topologies and Chart.js diagnostics) and feeds the **Genieus live web application** for real-time practitioner review, failure simulation animation, and CI/CD-integrated anti-pattern gating.
 
 ---
 
@@ -527,7 +541,7 @@ npm run dev
 | **0. Generate** | Produces a synthetic pub-sub topology for experiments, benchmarks, or CI regression tests | Topology JSON (`data/system.json`) | — |
 | **1. Model** | Converts topology JSON to a weighted directed graph G(V, E, w) in Neo4j; derives DEPENDS_ON edges via six rules; computes QoS-derived weights | G_structural and G_analysis(l) | [graph-model.md](docs/graph-model.md) |
 | **2. Analyze** | Deterministic, closed-form. Computes 13 structural metrics M(v); maps them to RMAV dimension scores and Q*(v) via AHP-weighted formulas; detects anti-patterns. Given the same graph, always produces the same output. | M(v) metric vector, RMAV/Q*(v) scores, five-level classification, anti-pattern report | [structural-analysis.md](docs/structural-analysis.md) · [prediction.md](docs/prediction.md) |
-| **3. Predict** | Inductive, optional. A HeteroGAT trained on simulation labels I(v) learns interactions the AHP composite cannot encode. Consumes Analyze output only — no repository access. | GNN criticality ranks, edge criticality, ensemble-blended Q_ens(v) | [prediction.md](docs/prediction.md) |
+| **3. Predict** | Inductive, optional. An HGT model trained on simulation labels I(v) learns interactions the AHP composite cannot encode. Consumes Analyze output only — no repository access. | GNN criticality ranks, edge criticality, ensemble-blended Q_ens(v) | [prediction.md](docs/prediction.md) |
 | **4. Simulate** | Runs four parallel simulators (cascade, change-propagation, connectivity-loss, compromise-propagation). Provides training labels for Step 3 and ground truth for Step 5. | Per-dimension ground-truth IR(v), IM(v), IA(v), IV(v) and composite I*(v) | [failure-simulation.md](docs/failure-simulation.md) |
 | **5. Validate** | Computes Spearman ρ and Kendall τ between Q*(v) (from Analyze) or Q_ens(v) (from Predict) and I*(v); evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
 | **6. Visualize** | Renders interactive dashboards with network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | `dashboard.html` (fully self-contained) | [visualization.md](docs/visualization.md) |
@@ -646,7 +660,7 @@ Availability is dominant (0.43) because SPOF failure in a dependency graph is th
 Q_ensemble(v) = α · Q_GNN(v) + (1−α) · Q_RMAV(v)
 ```
 
-α is a 5-dimensional per-RMAV-dimension learnable blending coefficient (α = sigmoid(logit), initialised at 0.5). The HeteroGAT model uses 3 layers, 4 attention heads, hidden dimension D = 64.
+α is a 5-dimensional per-RMAV-dimension learnable blending coefficient (α = sigmoid(logit), initialised at 0.5). The HGT model uses 3 layers, 4 attention heads, hidden dimension D = 64.
 
 ```bash
 # Train or retrain the GNN on the current dataset (requires Step 4 simulation results)
