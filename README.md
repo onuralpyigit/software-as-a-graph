@@ -802,7 +802,7 @@ Key methodological contributions:
 - **Empirical independence guarantee** — G_analysis(l) and G_structural are structurally separate, ensuring Q*(v) and I*(v) are genuinely independent.
 
 ---
-
+<!--
 ## Citation
 
 If you use this framework or methodology in your research, please cite:
@@ -818,8 +818,8 @@ If you use this framework or methodology in your research, please cite:
   doi       = {10.1109/RASSE64831.2025.11315354}
 }
 ```
-
 ---
+-->
 
 ## License
 
