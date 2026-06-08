@@ -713,7 +713,7 @@ M(v) = 0.35 × BT(v)
 
 **CQP formula** (Application and Library nodes only; CQP = 0 for all other node types):
 ```
-CQP(v) = 0.40 × complexity_norm(v)  +  0.35 × instability_code(v)  +  0.25 × lcom_norm(v)
+CQP(v) = 0.10 × loc_norm(v)  +  0.35 × complexity_norm(v)  +  0.30 × instability_code(v)  +  0.25 × lcom_norm(v)
 ```
 
 **Why two instability signals in M(v)?** M(v) contains two coupling-related terms that may appear redundant: `instability_code` (inside CQP) and `CouplingRisk_enh` (topological). They capture distinct architectural layers:

@@ -196,8 +196,7 @@ Q(v) = w_A × A(v)  +  w_R × R(v)  +  w_M × M(v)  +  w_V × V(v)
 
 #### Maintainability M(v) — Coupling Complexity
 $$M(v) = 0.35 \times BT(v) + 0.30 \times w\_out(v) + 0.15 \times CQP(v) + 0.12 \times CouplingRisk\_enh(v) + 0.08 \times (1 - CC(v))$$
-Where CQP is the Code Quality Penalty (Application and Library nodes only):
-$$CQP(v) = 0.40 \times complexity\_norm(v) + 0.35 \times instability\_code(v) + 0.25 \times lcom\_norm(v)$$
+$$CQP(v) = 0.10 \times loc\_norm(v) + 0.35 \times complexity\_norm(v) + 0.30 \times instability\_code(v) + 0.25 \times lcom\_norm(v)$$
 
 #### Availability A(v) — SPOF Risk
 $$A(v) = 0.35 \times AP\_c\_directed(v) + 0.25 \times QSPOF(v) + 0.25 \times BR(v) + 0.10 \times CDI(v) + 0.05 \times w(v)$$
