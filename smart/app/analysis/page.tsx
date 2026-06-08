@@ -838,7 +838,7 @@ export default function AnalysisPage() {
                         <div className={`h-3 w-3 shrink-0 rounded-full border ${indent ? 'border-muted-foreground/25' : 'border-muted-foreground/40'}`} />
                       )}
                       <span className={`${active ? (indent ? 'text-muted-foreground' : 'text-foreground') : 'text-muted-foreground'} ${indent ? '' : 'font-medium'}`}>
-                        {indent ? '' : `${id}/4 — `}{label}
+                        {label}
                       </span>
                     </div>
                   )
