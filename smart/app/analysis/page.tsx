@@ -48,7 +48,9 @@ import {
   Hash,
   Download,
   LayoutGrid,
-  Share2
+  Share2,
+  Terminal,
+  ChevronDown,
 } from "lucide-react"
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
@@ -117,6 +119,7 @@ interface AnalysisResult {
   components: ComponentAnalysis[]
   edges?: EdgeAnalysis[]
   problems: Problem[]
+  logs?: string[]
 }
 
 export default function AnalysisPage() {
@@ -132,6 +135,9 @@ export default function AnalysisPage() {
   const [error, setError] = useState<string | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [startTime, setStartTime] = useState<number | null>(null)
+
+  // Analysis log panel state
+  const [logsOpen, setLogsOpen] = useState(false)
 
   // Track dark mode so charts re-render on theme switch
   const [isDark, setIsDark] = useState(() =>
@@ -633,7 +639,7 @@ export default function AnalysisPage() {
                     variant="ghost"
                     size="sm"
                     className="text-muted-foreground"
-                    onClick={() => { clearAnalysis(); setError(null) }}
+                    onClick={() => { clearAnalysis(getCacheKey()); setError(null) }}
                   >
                     <XCircle className="h-3.5 w-3.5 mr-1" />
                     Clear
@@ -775,27 +781,112 @@ export default function AnalysisPage() {
         )}
 
         {/* Loading State */}
-        {isLoading && (
-          <div className="rounded-xl border border-border bg-muted/20 px-6 py-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <LoadingSpinner className="h-4 w-4" />
-                <span className="text-sm font-medium">Running analysis…</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" />
-                <span>{elapsedTime}s</span>
-                <div className="w-32 ml-2">
-                  <Progress value={Math.min((elapsedTime / estimatedDuration) * 100, 90)} className="h-1.5" />
+        {isLoading && (() => {
+          const STEPS = [
+            { id: "1",   indent: false, label: "Deriving dependency edges from graph relationships",              after: 2  },
+            { id: "2",   indent: false, label: "Running structural analysis",                                     after: 7  },
+            { id: "2a",  indent: true,  label: "Building layer subgraph",                                         after: 7  },
+            { id: "2b",  indent: true,  label: "PageRank & Reverse PageRank",                                     after: 8  },
+            { id: "2c",  indent: true,  label: "Betweenness centrality",                                          after: 9  },
+            { id: "2d",  indent: true,  label: "Harmonic closeness centrality",                                   after: 11 },
+            { id: "2e",  indent: true,  label: "Eigenvector centrality",                                          after: 13 },
+            { id: "2f",  indent: true,  label: "MPCI, fan-out criticality, path complexity",                      after: 14 },
+            { id: "2g",  indent: true,  label: "Articulation points, blast radius, cascade depth",                after: 15 },
+            { id: "2h",  indent: true,  label: "Clustering coefficients and bridges",                             after: 17 },
+            { id: "2i",  indent: true,  label: "Edge betweenness centrality",                                     after: 19 },
+            { id: "2j",  indent: true,  label: "Pub-sub topology metrics",                                        after: 21 },
+            { id: "2k",  indent: true,  label: "Assembling component metrics & code quality normalisation",       after: 22 },
+            { id: "2l",  indent: true,  label: "Edge metrics, RCM ordering & graph summary",                      after: 23 },
+            { id: "3",   indent: false, label: "Scoring RMAV quality dimensions",                                 after: 24 },
+            { id: "4",   indent: false, label: "Detecting architectural anti-patterns",                           after: 27 },
+          ]
+          const completedCount = STEPS.filter(s => elapsedTime > s.after).length
+          const progressValue = Math.min((completedCount / STEPS.length) * 100, 95)
+          const activeStep = [...STEPS].reverse().find(s => elapsedTime >= s.after)
+
+          return (
+            <div className="rounded-xl border border-border bg-muted/20 px-6 py-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <LoadingSpinner className="h-4 w-4" />
+                  <span className="text-sm font-medium">
+                    {activeStep ? activeStep.label : 'Starting…'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>{elapsedTime}s</span>
+                  <span className="text-muted-foreground/50">·</span>
+                  <span>{completedCount}/{STEPS.length}</span>
+                  <div className="w-32 ml-1">
+                    <Progress value={progressValue} className="h-1.5" />
+                  </div>
                 </div>
               </div>
+              {/* Animated step indicators */}
+              <div className="space-y-1 pl-1">
+                {STEPS.map(({ id, indent, label, after }) => {
+                  const active = elapsedTime >= after
+                  const current = elapsedTime >= after && elapsedTime < after + 3
+                  return (
+                    <div key={id} className={`flex items-center gap-2 text-xs transition-opacity duration-500 ${active ? 'opacity-100' : 'opacity-25'} ${indent ? 'pl-5' : ''}`}>
+                      {current ? (
+                        <LoadingSpinner className="h-3 w-3 shrink-0 text-blue-500" />
+                      ) : active ? (
+                        <CheckCircle2 className={`h-3 w-3 shrink-0 ${indent ? 'text-emerald-500' : 'text-green-500'}`} />
+                      ) : (
+                        <div className={`h-3 w-3 shrink-0 rounded-full border ${indent ? 'border-muted-foreground/25' : 'border-muted-foreground/40'}`} />
+                      )}
+                      <span className={`${active ? (indent ? 'text-muted-foreground' : 'text-foreground') : 'text-muted-foreground'} ${indent ? '' : 'font-medium'}`}>
+                        {indent ? '' : `${id}/4 — `}{label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* Analysis Results */}
         {!isLoading && analysisData && (
           <>
+            {/* Analysis Log Panel */}
+            {analysisData.logs && analysisData.logs.length > 0 && (
+              <div className="rounded-xl border border-border bg-muted/10 overflow-hidden">
+                <button
+                  onClick={() => setLogsOpen(o => !o)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-muted/20 transition-colors"
+                >
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Terminal className="h-3.5 w-3.5" />
+                    <span className="font-medium">Analysis Log</span>
+                    <span className="tabular-nums">({analysisData.logs.length} entries)</span>
+                  </div>
+                  <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${logsOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {logsOpen && (
+                  <div className="border-t border-border px-4 py-3">
+                    <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto space-y-0.5">
+                      {analysisData.logs.map((line, i) => {
+                        const isError = line.startsWith('ERROR')
+                        const isWarn = line.startsWith('WARNING')
+                        const isStep = /Step \d+\/\d+/.test(line)
+                        return (
+                          <div
+                            key={i}
+                            className={`${isError ? 'text-red-500 dark:text-red-400' : isWarn ? 'text-yellow-600 dark:text-yellow-400' : isStep ? 'text-foreground' : ''}`}
+                          >
+                            {line}
+                          </div>
+                        )
+                      })}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Classification Charts */}
             {analysisData.summary && (() => {
               const CRIT_COLORS: Record<string, string> = {

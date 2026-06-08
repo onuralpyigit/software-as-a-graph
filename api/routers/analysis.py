@@ -5,6 +5,7 @@ Analysis endpoints for system, type, and layer analysis.
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, List
 import logging
+import time
 
 from types import SimpleNamespace
 
@@ -22,6 +23,50 @@ from api.models import AnalysisEnvelope
 router = APIRouter(prefix="/api/v1/analysis", tags=["analysis"])
 logger = logging.getLogger(__name__)
 
+# Loggers whose records should be captured for the analysis log output.
+_CAPTURE_LOGGERS = [
+    "api.routers.analysis",
+    "saag.analysis.structural_analyzer",
+    "saag.analysis.service",
+    "saag.analysis.antipattern_detector",
+    "saag.prediction",
+]
+
+
+class _ListHandler(logging.Handler):
+    """Logging handler that appends formatted records to a list."""
+
+    def __init__(self, records: List[str]) -> None:
+        super().__init__(level=logging.DEBUG)
+        self._records = records
+        self.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            self._records.append(self.format(record))
+        except Exception:
+            pass
+
+
+class _AnalysisLogCapture:
+    """Context-manager that attaches a list handler to the analysis loggers."""
+
+    def __init__(self) -> None:
+        self.records: List[str] = []
+        self._handler = _ListHandler(self.records)
+        self._loggers: List[logging.Logger] = []
+
+    def __enter__(self) -> "_AnalysisLogCapture":
+        for name in _CAPTURE_LOGGERS:
+            lg = logging.getLogger(name)
+            lg.addHandler(self._handler)
+            self._loggers.append(lg)
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        for lg in self._loggers:
+            lg.removeHandler(self._handler)
+
 
 def _structural_analyze(client: Client, layer: str) -> SaagAnalysisResult:
     """
@@ -29,11 +74,26 @@ def _structural_analyze(client: Client, layer: str) -> SaagAnalysisResult:
     which incorrectly passes StructuralAnalysisResult to AntiPatternDetector.detect().
     """
     # Pre-analysis stage: derive DEPENDS_ON edges before reading graph data.
+    logger.info("Step 1/4 — Deriving dependency edges from graph relationships…")
+    t0 = time.perf_counter()
     client.repo.derive_dependencies()
     graph_data = client.repo.get_graph_data()
+    logger.info(
+        "Step 1/4 — Dependency derivation complete (%.2fs)",
+        time.perf_counter() - t0,
+    )
+
+    logger.info("Step 2/4 — Running structural analysis for layer '%s'…", layer)
+    t1 = time.perf_counter()
     analyzer = StructuralAnalyzer()
     layer_enum = AnalysisLayer.from_string(layer)
     raw = analyzer.analyze(graph_data, layer=layer_enum)
+    logger.info(
+        "Step 2/4 — Structural analysis complete: %d nodes, %d edges (%.2fs)",
+        raw.graph_summary.nodes,
+        raw.graph_summary.edges,
+        time.perf_counter() - t1,
+    )
     return SaagAnalysisResult(raw)
 
 
@@ -42,12 +102,18 @@ def _predict(analysis: SaagAnalysisResult) -> SaagPredictionResult:
     Run quality prediction using an already-computed structural analysis result,
     bypassing client.predict() which incorrectly expects a layer string.
     """
+    logger.info("Step 3/4 — Scoring RMAV quality dimensions (reliability, maintainability, availability, vulnerability)…")
+    t0 = time.perf_counter()
     prediction_service = PredictionService()
     predict_uc = _PredictGraphUseCase(prediction_service)
     quality, _ = predict_uc.execute(
         layer="system",
         structural_result=analysis.raw,
         detect_problems=False,
+    )
+    logger.info(
+        "Step 3/4 — Quality scoring complete (%.2fs)",
+        time.perf_counter() - t0,
     )
     return SaagPredictionResult(quality)
 
@@ -58,13 +124,21 @@ def _detect_antipatterns(prediction) -> list:
     includes the required 'components' attribute, bypassing the broken SimpleNamespace
     shim in ProblemDetector which omits 'components'.
     """
+    logger.info("Step 4/4 — Detecting architectural anti-patterns…")
+    t0 = time.perf_counter()
     quality = prediction.raw
     layer_name = getattr(quality, "layer", "system")
     if hasattr(layer_name, "value"):
         layer_name = layer_name.value
     shim = SimpleNamespace(quality=quality, components=quality.components, edges=quality.edges)
     detector = AntiPatternDetector()
-    return detector.detect(shim, layer_name)
+    problems = detector.detect(shim, layer_name)
+    logger.info(
+        "Step 4/4 — Anti-pattern detection complete: %d problem(s) found (%.2fs)",
+        len(problems),
+        time.perf_counter() - t0,
+    )
+    return problems
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────
@@ -82,15 +156,19 @@ async def analyze_full_system(
     try:
         logger.info("Running full system analysis via SDK Client")
         
-        # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
-        analysis = _structural_analyze(client, "system")
-        prediction = _predict(analysis)
-        problems = _detect_antipatterns(prediction)
+        with _AnalysisLogCapture() as cap:
+            cap.records.append("INFO api.routers.analysis: Starting full system analysis…")
+            # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
+            analysis = _structural_analyze(client, "system")
+            prediction = _predict(analysis)
+            problems = _detect_antipatterns(prediction)
+            cap.records.append("INFO api.routers.analysis: Analysis complete.")
         
         return analysis_presenter.build_analysis_response(
             analysis,
             prediction,
             problems,
+            logs=cap.records,
         )
     except Exception as e:
         logger.error(f"Full analysis failed: {str(e)}")
@@ -123,10 +201,13 @@ async def analyze_by_type(
     try:
         logger.info(f"Analyzing component type: {component_type} (normalized to {normalized_type})")
 
-        # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
-        analysis = _structural_analyze(client, "system")
-        prediction = _predict(analysis)
-        problems = _detect_antipatterns(prediction)
+        with _AnalysisLogCapture() as cap:
+            cap.records.append(f"INFO api.routers.analysis: Starting analysis for component type '{normalized_type}'…")
+            # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
+            analysis = _structural_analyze(client, "system")
+            prediction = _predict(analysis)
+            problems = _detect_antipatterns(prediction)
+            cap.records.append("INFO api.routers.analysis: Analysis complete.")
 
         return analysis_presenter.build_analysis_response(
             analysis,
@@ -135,6 +216,7 @@ async def analyze_by_type(
             context=f"{normalized_type} Components Analysis",
             description=f"Analysis filtered by component type: {normalized_type}",
             component_type=normalized_type,
+            logs=cap.records,
         )
     except Exception as e:
         logger.error(f"Type analysis failed: {str(e)}")
@@ -164,16 +246,20 @@ async def analyze_layer(
 
     try:
         logger.info(f"Analyzing layer: {layer_canonical} (input: {layer})")
-        
-        # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
-        analysis = _structural_analyze(client, layer_canonical)
-        prediction = _predict(analysis)
-        problems = _detect_antipatterns(prediction)
-        
+
+        with _AnalysisLogCapture() as cap:
+            cap.records.append(f"INFO api.routers.analysis: Starting analysis for layer '{layer_canonical}'…")
+            # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
+            analysis = _structural_analyze(client, layer_canonical)
+            prediction = _predict(analysis)
+            problems = _detect_antipatterns(prediction)
+            cap.records.append("INFO api.routers.analysis: Analysis complete.")
+
         return analysis_presenter.build_analysis_response(
             analysis,
             prediction,
             problems,
+            logs=cap.records,
         )
     except Exception as e:
         logger.error(f"Layer analysis failed: {str(e)}")

@@ -54,6 +54,7 @@ def build_analysis_response(
     context: str = "",
     description: str = "",
     component_type: Optional[str] = None,
+    logs: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
     Build a standardised analysis response envelope.
@@ -132,5 +133,6 @@ def build_analysis_response(
         "components": [serialize_component(c) for c in all_components],
         "edges": [serialize_edge(e, csc_names) for e in quality_edges],
         "problems": [serialize_problem(p) for p in problems],
+        "logs": logs or [],
     }
     return envelope

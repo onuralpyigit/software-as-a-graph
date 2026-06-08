@@ -127,6 +127,7 @@ class AnalysisDetailModel(BaseModel):
     components: List[ComponentResponse]
     edges: List[EdgeResponse]
     problems: List[ProblemResponse]
+    logs: List[str] = Field(default_factory=list, description="Step-by-step analysis log messages")
 
 
 class AnalysisEnvelope(BaseModel):
