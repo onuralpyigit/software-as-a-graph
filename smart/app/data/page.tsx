@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import {
@@ -23,6 +24,9 @@ import {
   BarChart3,
   Sliders,
   Layers,
+  Clock,
+  Terminal,
+  ChevronDown,
 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
@@ -63,12 +67,51 @@ export default function DataPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  // In-progress tracking for generate
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const [startTime, setStartTime] = useState<number | null>(null)
+  const [generateResult, setGenerateResult] = useState<any | null>(null)
+  const [logsOpen, setLogsOpen] = useState(false)
+
+  // In-progress tracking for import
+  const [importElapsedTime, setImportElapsedTime] = useState(0)
+  const [importStartTime, setImportStartTime] = useState<number | null>(null)
+  const [importResult, setImportResult] = useState<any | null>(null)
+  const [importLogsOpen, setImportLogsOpen] = useState(false)
+
   const isConnected = status === 'connected'
+
+  // Track elapsed time during generation
+  useEffect(() => {
+    if (isGenerating && startTime) {
+      const interval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - startTime) / 1000))
+      }, 1000)
+      return () => clearInterval(interval)
+    } else {
+      setElapsedTime(0)
+    }
+  }, [isGenerating, startTime])
+
+  // Track elapsed time during import
+  useEffect(() => {
+    if (isImporting && importStartTime) {
+      const interval = setInterval(() => {
+        setImportElapsedTime(Math.floor((Date.now() - importStartTime) / 1000))
+      }, 1000)
+      return () => clearInterval(interval)
+    } else {
+      setImportElapsedTime(0)
+    }
+  }, [isImporting, importStartTime])
 
   const handleGenerate = async () => {
     if (!isConnected) return
 
     setIsGenerating(true)
+    setStartTime(Date.now())
+    setGenerateResult(null)
+    setLogsOpen(false)
     setError(null)
     setSuccess(null)
 
@@ -79,6 +122,7 @@ export default function DataPage() {
         clear_first: clearFirst
       })
 
+      setGenerateResult(result)
       setSuccess('Graph generated and imported successfully!')
 
       // Refresh connection stats
@@ -101,6 +145,7 @@ export default function DataPage() {
       setError(errorMsg)
     } finally {
       setIsGenerating(false)
+      setStartTime(null)
     }
   }
 
@@ -146,6 +191,9 @@ export default function DataPage() {
     if (!file) return
 
     setIsImporting(true)
+    setImportStartTime(Date.now())
+    setImportResult(null)
+    setImportLogsOpen(false)
     setError(null)
     setSuccess(null)
 
@@ -153,10 +201,11 @@ export default function DataPage() {
       const fileContent = await file.text()
       const graphData = JSON.parse(fileContent)
       
-      await apiClient.importGraph(graphData, {
+      const result = await apiClient.importGraph(graphData, {
         clear_first: clearFirst
       })
 
+      setImportResult(result)
       setSuccess('Graph imported successfully!')
 
       // Refresh connection stats
@@ -179,6 +228,7 @@ export default function DataPage() {
       setError(errorMsg)
     } finally {
       setIsImporting(false)
+      setImportStartTime(null)
       // Reset file input
       event.target.value = ''
     }
@@ -425,6 +475,196 @@ export default function DataPage() {
               <p className="text-sm font-semibold text-emerald-400">Success</p>
               <p className="text-xs text-muted-foreground mt-0.5">{success}</p>
             </div>
+          </div>
+        )}
+
+        {/* ── Activity ──────────────────────────────────────────────────── */}
+
+        {/* Import in-progress indicator */}
+        {isImporting && (() => {
+          const STEPS = [
+            { id: "1",  indent: false, label: "Reading and parsing JSON file",      after: 0  },
+            { id: "2",  indent: false, label: "Importing graph into Neo4j",         after: 2  },
+            { id: "2a", indent: true,  label: "Clearing existing data",             after: 2  },
+            { id: "2b", indent: true,  label: "Writing nodes in batches",           after: 4  },
+            { id: "2c", indent: true,  label: "Writing relationships",              after: 7  },
+            { id: "3",  indent: false, label: "Deriving structural edges",          after: 10 },
+            { id: "4",  indent: false, label: "Finalising import",                  after: 13 },
+          ]
+          const completedCount = STEPS.filter(s => importElapsedTime > s.after).length
+          const progressValue = Math.min((completedCount / STEPS.length) * 100, 95)
+          const activeStep = [...STEPS].reverse().find(s => importElapsedTime >= s.after)
+
+          return (
+            <div className="rounded-xl border border-border bg-muted/20 px-6 py-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <LoadingSpinner className="h-4 w-4" />
+                  <span className="text-sm font-medium">
+                    {activeStep ? activeStep.label : 'Starting…'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>{importElapsedTime}s</span>
+                  <span className="text-muted-foreground/50">·</span>
+                  <span>{completedCount}/{STEPS.length}</span>
+                  <div className="w-32 ml-1">
+                    <Progress value={progressValue} className="h-1.5" />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-1 pl-1">
+                {STEPS.map(({ id, indent, label, after }) => {
+                  const active = importElapsedTime >= after
+                  const current = importElapsedTime >= after && importElapsedTime < after + 3
+                  return (
+                    <div key={id} className={`flex items-center gap-2 text-xs transition-opacity duration-500 ${active ? 'opacity-100' : 'opacity-25'} ${indent ? 'pl-5' : ''}`}>
+                      {current ? (
+                        <LoadingSpinner className="h-3 w-3 shrink-0 text-purple-500" />
+                      ) : active ? (
+                        <CheckCircle2 className={`h-3 w-3 shrink-0 ${indent ? 'text-emerald-500' : 'text-green-500'}`} />
+                      ) : (
+                        <div className={`h-3 w-3 shrink-0 rounded-full border ${indent ? 'border-muted-foreground/25' : 'border-muted-foreground/40'}`} />
+                      )}
+                      <span className={`${active ? (indent ? 'text-muted-foreground' : 'text-foreground') : 'text-muted-foreground'} ${indent ? '' : 'font-medium'}`}>
+                        {label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Import result log panel */}
+        {!isImporting && importResult && (
+          <div className="rounded-xl border border-border bg-muted/10 overflow-hidden">
+            <button
+              onClick={() => setImportLogsOpen(o => !o)}
+              className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-muted/20 transition-colors"
+            >
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Terminal className="h-3.5 w-3.5" />
+                <span className="font-medium">Import Log</span>
+                {importResult.stats && (
+                  <span className="tabular-nums">
+                    ({Object.keys(importResult.stats).length} entries)
+                  </span>
+                )}
+              </div>
+              <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${importLogsOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {importLogsOpen && (
+              <div className="border-t border-border px-4 py-3">
+                <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto space-y-0.5">
+                  {importResult.message && (
+                    <div className="text-foreground">{importResult.message}</div>
+                  )}
+                  {importResult.stats && Object.entries(importResult.stats).map(([k, v]) => (
+                    <div key={k}>{k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}</div>
+                  ))}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Generate in-progress indicator */}
+        {isGenerating && (() => {
+          const STEPS = [
+            { id: "1",  indent: false, label: "Generating synthetic graph topology",  after: 1  },
+            { id: "1a", indent: true,  label: "Seeding applications and services",    after: 1  },
+            { id: "1b", indent: true,  label: "Generating topics and brokers",        after: 3  },
+            { id: "1c", indent: true,  label: "Wiring dependency relationships",      after: 5  },
+            { id: "2",  indent: false, label: "Importing graph into Neo4j",           after: 7  },
+            { id: "2a", indent: true,  label: "Clearing existing data",               after: 7  },
+            { id: "2b", indent: true,  label: "Writing nodes in batches",             after: 9  },
+            { id: "2c", indent: true,  label: "Writing relationships",                after: 12 },
+            { id: "3",  indent: false, label: "Deriving structural edges",            after: 15 },
+            { id: "4",  indent: false, label: "Finalising import",                    after: 18 },
+          ]
+          const completedCount = STEPS.filter(s => elapsedTime > s.after).length
+          const progressValue = Math.min((completedCount / STEPS.length) * 100, 95)
+          const activeStep = [...STEPS].reverse().find(s => elapsedTime >= s.after)
+
+          return (
+            <div className="rounded-xl border border-border bg-muted/20 px-6 py-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <LoadingSpinner className="h-4 w-4" />
+                  <span className="text-sm font-medium">
+                    {activeStep ? activeStep.label : 'Starting…'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>{elapsedTime}s</span>
+                  <span className="text-muted-foreground/50">·</span>
+                  <span>{completedCount}/{STEPS.length}</span>
+                  <div className="w-32 ml-1">
+                    <Progress value={progressValue} className="h-1.5" />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-1 pl-1">
+                {STEPS.map(({ id, indent, label, after }) => {
+                  const active = elapsedTime >= after
+                  const current = elapsedTime >= after && elapsedTime < after + 3
+                  return (
+                    <div key={id} className={`flex items-center gap-2 text-xs transition-opacity duration-500 ${active ? 'opacity-100' : 'opacity-25'} ${indent ? 'pl-5' : ''}`}>
+                      {current ? (
+                        <LoadingSpinner className="h-3 w-3 shrink-0 text-blue-500" />
+                      ) : active ? (
+                        <CheckCircle2 className={`h-3 w-3 shrink-0 ${indent ? 'text-emerald-500' : 'text-green-500'}`} />
+                      ) : (
+                        <div className={`h-3 w-3 shrink-0 rounded-full border ${indent ? 'border-muted-foreground/25' : 'border-muted-foreground/40'}`} />
+                      )}
+                      <span className={`${active ? (indent ? 'text-muted-foreground' : 'text-foreground') : 'text-muted-foreground'} ${indent ? '' : 'font-medium'}`}>
+                        {label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Generate result log panel */}
+        {!isGenerating && generateResult && (
+          <div className="rounded-xl border border-border bg-muted/10 overflow-hidden">
+            <button
+              onClick={() => setLogsOpen(o => !o)}
+              className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-muted/20 transition-colors"
+            >
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Terminal className="h-3.5 w-3.5" />
+                <span className="font-medium">Generate Log</span>
+                {generateResult.import_stats && (
+                  <span className="tabular-nums">
+                    ({Object.keys(generateResult.import_stats).length} entries)
+                  </span>
+                )}
+              </div>
+              <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${logsOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {logsOpen && (
+              <div className="border-t border-border px-4 py-3">
+                <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto space-y-0.5">
+                  {generateResult.message && (
+                    <div className="text-foreground">{generateResult.message}</div>
+                  )}
+                  {generateResult.generation && Object.entries(generateResult.generation).map(([k, v]) => (
+                    <div key={k}>{k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}</div>
+                  ))}
+                  {generateResult.import_stats && Object.entries(generateResult.import_stats).map(([k, v]) => (
+                    <div key={k}>{k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}</div>
+                  ))}
+                </pre>
+              </div>
+            )}
           </div>
         )}
 
