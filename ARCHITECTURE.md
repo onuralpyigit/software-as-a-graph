@@ -2,7 +2,7 @@
 
 **saag** (Software-as-a-Graph) is a Python framework that predicts which components in a distributed publish-subscribe system will cause the most damage when they fail, using only the system's architecture. It models the topology as a weighted directed graph, applies topological analysis (RMAV quality scoring, centrality metrics), and validates predictions against cascade failure simulations.
 
-Published at IEEE RASSE 2025.
+<!-- Published at IEEE RASSE 2025. -->
 
 The framework is accessible in four ways: a Python SDK, a REST API, a set of CLI scripts, and the **SMART** web application (Genieus).
 

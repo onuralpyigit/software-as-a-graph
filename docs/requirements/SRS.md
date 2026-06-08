@@ -56,9 +56,9 @@ The framework implements a seven-step pipeline:
 | **6. Visualize**| Generate dashboard reports and interactive viewers | HTML Reports / Genieus Web App |
 
 The system is delivered through three interfaces:
-1. **Core SDK ([saag](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag))**: Hexagonal-architecture Python package.
-2. **CLI Utility Tools ([cli](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli))**: Scripts for automation and batch pipeline execution.
-3. **Genieus Web Application ([smart](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/smart))**: FastAPI backend + Next.js interactive frontend.
+1. **Core SDK ([saag])**: Hexagonal-architecture Python package.
+2. **CLI Utility Tools ([cli])**: Scripts for automation and batch pipeline execution.
+3. **Genieus Web Application ([smart])**: FastAPI backend + Next.js interactive frontend.
 
 ### 1.3 References
 

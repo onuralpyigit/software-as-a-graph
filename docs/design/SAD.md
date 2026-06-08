@@ -39,14 +39,11 @@
 This document provides a comprehensive architectural overview of the **Software-as-a-Graph (saag)** framework. It describes the design patterns, logical layers, structural views, data models, and deployment configurations of the system. This document is written in accordance with **ISO/IEC/IEEE 42010:2011** and supports the Architecture Definition process within **ISO/IEC/IEEE 12207:2026**.
 
 ### 1.2 Scope
-The scope of this architecture description covers the core Python SDK ([saag](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag)), the CLI pipeline controllers ([cli](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli)), the REST API layer ([api](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/api)), and the Genieus Next.js web application ([smart](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/smart)). It details how these components are organized to ingest distributed pub-sub topologies, compute metrics, predict critical nodes/edges via rule-based and GNN paths, run simulations, and validate results.
+The scope of this architecture description covers the core Python SDK ([saag]), the CLI pipeline controllers ([cli]), the REST API layer ([api]), and the Genieus Next.js web application ([smart]). It details how these components are organized to ingest distributed pub-sub topologies, compute metrics, predict critical nodes/edges via rule-based and GNN paths, run simulations, and validate results.
 
 ### 1.3 References
 - **ISO/IEC/IEEE 12207:2026**: Systems and software engineering — Software life cycle processes.
 - **ISO/IEC/IEEE 42010:2011**: Systems and software engineering — Architecture description.
-- **SRS v3.0 (Istanbul Technical University)**: Software Requirements Specification for this project.
-- **SDD v2.4 (Istanbul Technical University)**: Software Design Description for this project.
-- **IEEE RASSE 2025 Paper**: Published methodology description.
 
 ### 1.4 Architectural Design Principles
 The system architecture is governed by the following core design guidelines:

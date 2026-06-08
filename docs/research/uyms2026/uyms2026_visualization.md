@@ -15,7 +15,7 @@ authors:
 
 # Visualization of Distributed Publish-Subscribe Systems Using Graph Models for Analysis
 
-This document summarizes the research study and findings presented in the UYMS 2026 paper: *"Yayınla–Abone Ol Tabanlı Dağıtık Sistemlerin Analizine Yönelik Çizge Modeli ile Görselleştirilmesi"* (written in Turkish). The original publication PDF is available here: [Yayınla–Abone Ol Mimari Tabanlı Dağıtık Sistemlerin Çizge Modeli ile Görselleştirilmesi.pdf](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/docs/research/uyms2026/Yayınla–Abone%20Ol%20Mimari%20Tabanlı%20Dağıtık%20Sistemlerin%20Çizge%20Modeli%20ile%20Görselleştirilmesi.pdf).
+This document summarizes the research study and findings presented in the UYMS 2026 paper: *"Yayınla–Abone Ol Tabanlı Dağıtık Sistemlerin Analizine Yönelik Çizge Modeli ile Görselleştirilmesi"* (written in Turkish). The original publication PDF is available here: [Yayınla–Abone Ol Mimari Tabanlı Dağıtık Sistemlerin Çizge Modeli ile Görselleştirilmesi.pdf].
 
 ---
 
@@ -138,5 +138,5 @@ The platform maintains high interactive performance (60 FPS rendering) and scale
 ## 5. Research Evolution: From RASSE 2025 to Middleware 2026
 
 This visualization platform plays a key role in the research timeline:
-1. It translates the abstract graph abstractions and validation formulas from **RASSE 2025** ([rasse2025.md](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/docs/research/rasse2025/rasse2025.md)) into an interactive, visual tool suitable for real-world software engineering pipelines.
-2. The AHP-derived quality metrics ($R, M, A, V$) and BoxPlot classifiers provide a baseline comparison layer. This baseline is utilized in the GNN-based **Middleware 2026** ([middleware2026.md](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/docs/research/middleware2026/middleware2026.md)) study to evaluate the performance of Heterogeneous Graph Learning models against traditional centrality indicators.
+1. It translates the abstract graph abstractions and validation formulas from **RASSE 2025** ([rasse2025.md]) into an interactive, visual tool suitable for real-world software engineering pipelines.
+2. The AHP-derived quality metrics ($R, M, A, V$) and BoxPlot classifiers provide a baseline comparison layer. This baseline is utilized in the GNN-based **Middleware 2026** ([middleware2026.md]) study to evaluate the performance of Heterogeneous Graph Learning models against traditional centrality indicators.

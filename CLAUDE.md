@@ -4,7 +4,7 @@
 
 **Software-as-a-Graph** predicts which components in a distributed publish-subscribe system will cause the most damage when they fail, using only the system's architecture. It models system topology as a weighted directed graph and applies topological analysis (centrality metrics, quality scoring) to identify critical components — validated against cascade failure simulations (Spearman > 0.87, F1 > 0.90).
 
-Published at IEEE RASSE 2025.
+<!-- Published at IEEE RASSE 2025. -->
 
 ## Architecture
 

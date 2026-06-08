@@ -1,10 +1,10 @@
 # Architectural Anti-Patterns and Bad Smells in Distributed Publish-Subscribe Systems: Specification and Graph-Based Detection
-
+<!--
 **Graph-Based Modeling and Analysis of Distributed Publish-Subscribe Systems**
 Istanbul Technical University, Department of Computer Engineering
 
 *Ibrahim Onuralp Yigit · Advisor: Prof. Feza Buzluca*
-
+-->
 ---
 
 ## Table of Contents
@@ -43,7 +43,7 @@ These decisions have a name in classical software engineering: **architectural a
 
 This document proposes and formally specifies a **catalog of twelve architectural anti-patterns and bad smells** specific to distributed publish-subscribe systems, alongside a detection methodology grounded in **graph topology analysis**. The central claim is that each anti-pattern has a measurable topological signature — a pattern of graph-theoretic metric values that can be computed from the system's static architecture before deployment — and that this signature reliably predicts the presence of the corresponding runtime risk.
 
-The anti-pattern catalog presented here emerges from the broader *Software-as-a-Graph* methodology (Yigit & Buzluca, IEEE RASSE 2025), which models publish-subscribe systems as weighted directed multi-layer graphs and applies graph analysis to predict which components will have the greatest impact when they fail. Anti-pattern detection is positioned as a **complementary and explanatory contribution**: where criticality scoring answers *how much* risk exists, the anti-pattern catalog answers *what kind* of risk and *how to fix it*.
+The anti-pattern catalog presented here emerges from the broader *Software-as-a-Graph* methodology, which models publish-subscribe systems as weighted directed multi-layer graphs and applies graph analysis to predict which components will have the greatest impact when they fail. Anti-pattern detection is positioned as a **complementary and explanatory contribution**: where criticality scoring answers *how much* risk exists, the anti-pattern catalog answers *what kind* of risk and *how to fix it*.
 
 ---
 

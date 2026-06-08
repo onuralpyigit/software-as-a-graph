@@ -11,7 +11,7 @@ authors:
 
 # A Graph-Based Dependency Analysis Method for Identifying Critical Components in Distributed Publish-Subscribe Systems
 
-This document summarizes the research study and findings presented in the IEEE RASSE 2025 paper: [IEEE_RASSE_2025.pdf](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/docs/research/rasse2025/IEEE_RASSE_2025.pdf).
+This document summarizes the research study and findings presented in the IEEE RASSE 2025 paper: [IEEE_RASSE_2025.pdf].
 
 ---
 
@@ -193,7 +193,7 @@ The algorithms scale efficiently to large systems, allowing offline verification
 
 ## 7. Evolution: From RASSE 2025 to Middleware 2026
 
-The structural analysis proposed in RASSE 2025 laid the groundwork for the more advanced learning-based framework developed in the **Middleware 2026** study ([middleware2026.md](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/docs/research/middleware2026/middleware2026.md)).
+The structural analysis proposed in RASSE 2025 laid the groundwork for the more advanced learning-based framework developed in the **Middleware 2026** study ([middleware2026.md]).
 
 The table below illustrates this research evolution:
 
