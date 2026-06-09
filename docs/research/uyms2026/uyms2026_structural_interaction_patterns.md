@@ -13,7 +13,7 @@ authors:
 
 # A Graph-Based Static Analysis of Structural Interaction Patterns in Publish-Subscribe Based Distributed Systems
 
-This document summarizes the research study and findings presented in the UYMS 2026 paper: *"Yayınla-Abone Ol Tabanlı Dağıtık Sistemlerde Yapısal Etkileşim Örüntülerinin Çizge Tabanlı Statik Analiz ile İncelenmesi"* (written in Turkish). The original publication PDF is available here: [Yayınla-Abone Ol Tabanlı Dağıtık Sistemlerde Yapısal Etkileşim Örüntülerinin Çizge Tabanlı Statik Analiz ile İncelenmesi.pdf](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/docs/research/uyms2026/Yayınla-Abone%20Ol%20Tabanlı%20Dağıtık%20Sistemlerde%20Yapısal%20Etkileşim%20Örüntülerinin%20Çizge%20Tabanlı%20Statik%20Analiz%20ile%20İncelenmesi.pdf).
+This document summarizes the research study and findings presented in the UYMS 2026 paper: *"Yayınla-Abone Ol Tabanlı Dağıtık Sistemlerde Yapısal Etkileşim Örüntülerinin Çizge Tabanlı Statik Analiz ile İncelenmesi"* (written in Turkish). The original publication PDF is available here: [Yayınla-Abone Ol Tabanlı Dağıtık Sistemlerde Yapısal Etkileşim Örüntülerinin Çizge Tabanlı Statik Analiz ile İncelenmesi.pdf].
 
 ---
 
@@ -120,6 +120,6 @@ The top anomalies detected by the tool were evaluated by 5 domain experts (subje
 ## 6. Evolutionary Path: From RASSE 2025 to Middleware 2026
 
 This UYMS 2026 study represents a key milestone in this research trajectory:
-1. **RASSE 2025** ([rasse2025.md](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/docs/research/rasse2025/rasse2025.md)) established the core multi-layer graph model. This study extends it by integrating **shared code libraries (Library)** as first-class vertices.
+1. **RASSE 2025** ([rasse2025.md]) established the core multi-layer graph model. This study extends it by integrating **shared code libraries (Library)** as first-class vertices.
 2. Rather than relying on reachability simulation, this work introduces an automated relationship extraction layer using **CodeQL** directly against the static design-time code repository.
-3. This static structural analysis provides the structural, relation-specific schemas and features that feed into the GNN-based Heterogeneous Graph Learning (HGL) approach designed for **Middleware 2026** ([middleware2026.md](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/docs/research/middleware2026/middleware2026.md)).
+3. This static structural analysis provides the structural, relation-specific schemas and features that feed into the GNN-based Heterogeneous Graph Learning (HGL) approach designed for **Middleware 2026** ([middleware2026.md]).

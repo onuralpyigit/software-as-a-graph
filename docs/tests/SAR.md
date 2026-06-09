@@ -109,7 +109,7 @@ Where $p_o$ is the observed agreement (accuracy), and $p_e$ is the expected prob
 
 ## 3. Benchmark Datasets & Scenarios
 
-Validation is evaluated against 8 default publish-subscribe scenarios generated under the specifications of [SRS v3.0 Section 5.4](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/docs/requirements/SRS.md).
+Validation is evaluated against 8 default publish-subscribe scenarios generated under the specifications of [SRS Section 5.4].
 
 | Dataset | Scenario Domain | Middleware | Presets Scale | Node Count | Edge Count |
 |---------|-----------------|------------|---------------|------------|------------|

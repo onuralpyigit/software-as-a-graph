@@ -1,6 +1,6 @@
 # Experimental Harness & Evaluation Suite
 
-This document provides a technical deep-dive into the reproducibility infrastructure for the Middleware 2026 paper: **"QoS-Aware Heterogeneous Graph Learning for Architectural Criticality Prediction"**.
+This document provides a technical deep-dive into the reproducibility infrastructure for the Middleware 2026 paper: **"Heterogeneous Graph Learning for Cascade Impact Prediction in Distributed Publish-Subscribe Middleware"**.
 
 ---
 

@@ -145,7 +145,7 @@ Install the core library along with database, API, and GNN dependencies:
 pip install -e ".[all]"
 ```
 > [!NOTE]
-> This command installs PyTorch and PyTorch Geometric packages mapped to your system's hardware configuration (CPU/CUDA) as defined in [pyproject.toml](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/pyproject.toml).
+> This command installs PyTorch and PyTorch Geometric packages mapped to your system's hardware configuration (CPU/CUDA) as defined in [pyproject.toml].
 
 #### Step 3: Build Custom Neo4j Plugin
 Build the custom Neo4j plugin using Maven:
@@ -178,7 +178,7 @@ npm run build
 
 ## 4. Configuration Reference
 
-The application is configured using environment variables defined in the root [.env](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/.env) file or passed directly to container environments.
+The application is configured using environment variables defined in the root [.env] file or passed directly to container environments.
 
 ### 4.1 Environment Variables Matrix
 
@@ -207,7 +207,7 @@ The CLI scripts provide granular, sequential access to all stages of the Softwar
 
 ### 5.1 Step 0: Synthetic Graph Generation
 Generates synthetic topology JSON representing a pub-sub communication system (brokers, topics, applications, libraries).
-- **Script:** [cli/generate_graph.py](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/generate_graph.py) or `saag-generate`
+- **Script:** [cli/generate_graph.py] or `saag-generate`
 - **Arguments:**
   - `--scale`: Preset scale (`tiny`, `small`, `medium`, `large`, `jumbo`, `xlarge`).
   - `--output`: File path to save the generated topology JSON.
@@ -220,7 +220,7 @@ Generates synthetic topology JSON representing a pub-sub communication system (b
 
 ### 5.2 Step 1: Model Import & Export
 Imports a system topology JSON file into the Neo4j database, building nodes and deriving QoS-weighted `DEPENDS_ON` relationships.
-- **Script:** [cli/import_graph.py](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/import_graph.py) or `saag-import`
+- **Script:** [cli/import_graph.py] or `saag-import`
 - **Arguments:**
   - `--input`: Path to topology JSON file.
   - `--clear`: Clear database before import.
@@ -233,7 +233,7 @@ Imports a system topology JSON file into the Neo4j database, building nodes and 
 
 ### 5.3 Step 2: Structural Analysis
 Analyzes the imported graph in Neo4j to compute centrality metrics, anti-patterns, and baseline RMAV and Q(v) quality scores.
-- **Script:** [cli/analyze_graph.py](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/analyze_graph.py) or `saag-analyze`
+- **Script:** [cli/analyze_graph.py] or `saag-analyze`
 - **Arguments:**
   - `--layer`: Targets specific system layers (`app`, `infra`, `mw`, `system`).
   - `--use-ahp`: Use AHP-derived dimension weights instead of uniform weights.
@@ -249,7 +249,7 @@ Analyzes the imported graph in Neo4j to compute centrality metrics, anti-pattern
 
 #### GNN Model Training
 Trains the GAT (Graph Attention Network) on simulated fault labels to predict component criticality.
-- **Script:** [cli/train_graph.py](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/train_graph.py)
+- **Script:** [cli/train_graph.py]
 - **Arguments:**
   - `--layer`: Targets specific system layer (`app`, `infra`, `mw`, `system`).
   - `--epochs`: Maximum training epochs (default: 300).
@@ -263,7 +263,7 @@ Trains the GAT (Graph Attention Network) on simulated fault labels to predict co
 
 #### GNN Model Prediction (Inference)
 Executes inference on a Neo4j graph using a trained GNN checkpoint and combines it with structural scores via learnable ensemble blending.
-- **Script:** [cli/predict_graph.py](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/predict_graph.py) or `saag-predict`
+- **Script:** [cli/predict_graph.py] or `saag-predict`
 - **Arguments:**
   - `--gnn-model`: Path to model checkpoint directory.
   - `--layer`: Targets specific system layer.
@@ -277,7 +277,7 @@ Executes inference on a Neo4j graph using a trained GNN checkpoint and combines 
 
 ### 5.5 Step 4: Cascade Failure Simulation
 Injects synthetic failures and evaluates cascade propagation, change propagation, and service disruptions to compute ground-truth impact labels.
-- **Script:** [cli/simulate_graph.py](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/simulate_graph.py) or `saag-simulate`
+- **Script:** [cli/simulate_graph.py] or `saag-simulate`
 - **Arguments:**
   - `--layer`: Targets specific system layer.
   - `--sim-mode`: Simulation strategy (`exhaustive`, `monte_carlo`).
@@ -291,7 +291,7 @@ Injects synthetic failures and evaluates cascade propagation, change propagation
 
 ### 5.6 Step 5: Statistical Validation
 Compares analytical predictions (Step 3) against simulation ground-truth (Step 4) to verify validation gates (Spearman, F1-Score, NDCG@K, RMSE).
-- **Script:** [cli/validate_graph.py](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/validate_graph.py) or `saag-validate`
+- **Script:** [cli/validate_graph.py] or `saag-validate`
 - **Arguments:**
   - `--structural`: Path to analysis metrics JSON.
   - `--simulated`: Path to simulation results JSON.
@@ -306,7 +306,7 @@ Compares analytical predictions (Step 3) against simulation ground-truth (Step 4
 
 ### 5.7 Step 6: Interactive Dashboard Visualization
 Generates an interactive, standalone HTML report containing system visualizations, metrics charts, and validation matrices.
-- **Script:** [cli/visualize_graph.py](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/visualize_graph.py) or `saag-visualize`
+- **Script:** [cli/visualize_graph.py] or `saag-visualize`
 - **Arguments:**
   - `--output`: File path to save the generated HTML file (default: `dashboard.html`).
   - `--no-network`: Exclude force-directed network diagram (improves performance on large topologies).
@@ -319,7 +319,7 @@ Generates an interactive, standalone HTML report containing system visualization
 
 ### 5.8 Full Pipeline Orchestration
 Run the entire end-to-end pipeline from a single command:
-- **Script:** [cli/run.py](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/run.py) or `saag`
+- **Script:** [cli/run.py] or `saag`
 - **Arguments:**
   - `--all`: Runs all stages sequentially.
   - `--input`: Path to system topology JSON file.

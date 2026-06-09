@@ -5,8 +5,6 @@ echo "=========================================="
 echo "Starting Full Production Run (PARALLEL)"
 echo "=========================================="
 
-cd /home/onuralpyigit/Workspace/SoftwareAsAGraph
-
 # Set lower thread counts for parallel PyTorch runs
 export OMP_NUM_THREADS=4
 
