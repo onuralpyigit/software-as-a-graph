@@ -1361,35 +1361,27 @@ function CriticalityIOSection({ data }: { data: ExtrasStats["criticality_io"] })
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <MetricInsightCard
-          label="Critical App Fraction"
-          value={`${Number(data.summary.crit_pct ?? 0).toFixed(1)}%`}
-          description="Share of applications flagged as mission-critical. A higher fraction reduces the system's fault-tolerance margin — more components failing means wider impact."
-          formula="critical_apps / total_apps × 100"
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="crit_io" 
+          label="Critical I/O" 
+          description="Total pub/sub connections per critical application. High values compound failure impact."
+          formula="pub + sub for critical apps"
         />
-        <MetricInsightCard
-          label="Critical vs Normal I/O"
-          value={Number(data.summary.crit_norm_ratio ?? 0).toFixed(2)}
-          unit="×"
-          description="How much heavier critical apps' average I/O load is compared to normal apps. Values above 1× mean critical components are also the communication hotspots."
-          formula="mean_io(critical) / mean_io(normal)"
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="norm_io" 
+          label="Normal I/O" 
+          description="Total pub/sub connections per non-critical application, serving as the baseline."
+          formula="pub + sub for normal apps"
         />
-        <MetricInsightCard
-          label="Critical Avg I/O"
-          value={data.summary.crit_io_mean ?? 0}
-          description="Average number of pub/sub connections per critical application. High values compound failure impact — more dependencies are at risk when a critical component goes down."
-          formula="mean(pub + sub) for critical apps"
-        />
+        <StatCountCard label="Total Apps" value={data.summary.total_apps ?? 0} description="Total number of applications in the system." formula="count(apps)" />
+        <StatCountCard label="Critical" value={data.summary.crit_count ?? 0} description="Applications flagged as mission-critical." formula="count(critical = true)" />
+        <StatCountCard label="Critical %" value={`${Number(data.summary.crit_pct ?? 0).toFixed(1)}%`} description="Share of applications flagged as mission-critical. Higher fraction reduces fault-tolerance margin." formula="critical_apps / total_apps × 100" />
+        <StatCountCard label="Crit/Normal Ratio" value={Number(data.summary.crit_norm_ratio ?? 0).toFixed(2)} description="How much heavier critical apps' average I/O load is compared to normal apps." formula="mean_io(critical) / mean_io(normal)" />
+        <StatCountCard label="Outliers" value={data.summary.outlier_count ?? 0} description="Critical applications whose I/O load exceeds the IQR upper fence." formula="io > Q3 + 1.5 × IQR" />
       </div>
-      <SummaryCards summary={data.summary} keys={[
-        { key: "total_apps", label: "Total Apps" },
-        { key: "crit_count", label: "Critical" },
-        { key: "crit_pct", label: "Critical %", format: (v) => Number(v).toFixed(1) + "%" },
-        { key: "crit_io_mean", label: "Crit Avg I/O" },
-        { key: "norm_io_mean", label: "Normal Avg I/O" },
-        { key: "crit_norm_ratio", label: "Crit/Normal Ratio" },
-      ]} />
       {allItems.length > 0 && (
         <Card className="bg-background pb-3">
           <CardHeader>
@@ -1410,6 +1402,13 @@ function CriticalityIOSection({ data }: { data: ExtrasStats["criticality_io"] })
           </CardContent>
         </Card>
       )}
+      {data.outliers && data.outliers.length > 0 && (
+        <OutlierTable
+          title="Critical I/O Outliers"
+          headers={["Application", "Publishes", "Subscribes", "I/O Load"]}
+          rows={data.outliers.map(([label, p, s, io]) => [label, p, s, io])}
+        />
+      )}
     </div>
   )
 }
@@ -1428,35 +1427,27 @@ function LibDependencySection({ data }: { data: ExtrasStats["lib_dependency"] })
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <MetricInsightCard
-          label="Max Library In-Degree"
-          value={data.summary.in_max ?? 0}
-          description="The highest number of applications depending on a single library. This library is a shared-fate risk — its failure or API change affects all dependents simultaneously."
-          formula="max(count(apps depending on library))"
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="in" 
+          label="In-Degree" 
+          description="Number of applications depending on each library. High in-degree indicates a shared-fate risk."
+          formula="count(apps depending on library)"
         />
-        <MetricInsightCard
-          label="Avg In-Degree"
-          value={Number(data.summary.in_mean ?? 0).toFixed(1)}
-          description="Mean number of applications consuming each library. Higher averages indicate broadly shared libraries with larger collective blast radius."
-          formula="mean(in-degree) across active libraries"
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="out" 
+          label="Out-Degree" 
+          description="Number of libraries each application depends on."
+          formula="count(libraries used by app)"
         />
-        <MetricInsightCard
-          label="Total Dependencies"
-          value={data.summary.total_relations ?? 0}
-          description="Total application-to-library USES edges in the system. Measures overall coupling density between the application and library layers."
-          formula="count(USES relationships)"
-        />
+        <StatCountCard label="Total Relations" value={data.summary.total_relations ?? 0} description="Total application-to-library USES edges in the system." formula="count(USES relationships)" />
+        <StatCountCard label="Active Entities" value={data.summary.active_count ?? 0} description="Total number of apps and libraries involved in dependencies." formula="count(apps + libs with degree > 0)" />
+        <StatCountCard label="Apps" value={data.summary.app_count ?? 0} description="Number of applications with library dependencies." formula="count(apps)" />
+        <StatCountCard label="Libraries" value={data.summary.lib_count ?? 0} description="Number of libraries depended upon by applications." formula="count(libs)" />
+        <StatCountCard label="Outliers" value={data.summary.outlier_count ?? 0} description="Libraries whose in-degree exceeds the IQR upper fence." formula="in_degree > Q3 + 1.5 × IQR" />
       </div>
-      <SummaryCards summary={data.summary} keys={[
-        { key: "total_relations", label: "Total Relations" },
-        { key: "active_count", label: "Active Entities" },
-        { key: "app_count", label: "Apps" },
-        { key: "lib_count", label: "Libraries" },
-        { key: "in_mean", label: "Avg In-degree" },
-        { key: "in_max", label: "Max In-degree" },
-        { key: "outlier_count", label: "Outliers" },
-      ]} />
       <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
@@ -1496,34 +1487,27 @@ function NodeCriticalDensitySection({ data }: { data: ExtrasStats["node_critical
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <MetricInsightCard
-          label="System Critical %"
-          value={`${Number(data.summary.system_crit_pct ?? 0).toFixed(1)}%`}
-          description="Percentage of all applications across the system that are marked critical. High values reduce redundancy headroom and make the system more vulnerable to targeted failures."
-          formula="critical_apps / total_apps × 100"
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="crit_per_node" 
+          label="Critical per Node" 
+          description="Number of critical applications hosted on each physical node. High concentration creates blast-radius hotspots."
+          formula="count(critical apps) per node"
         />
-        <MetricInsightCard
-          label="Max Critical Apps / Node"
-          value={data.summary.crit_per_node_max ?? 0}
-          description="Highest concentration of critical apps on a single physical node. A node with many critical apps is a blast-radius hotspot — losing it collapses multiple mission-critical flows."
-          formula="max(critical_count per node)"
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="norm_per_node" 
+          label="Normal per Node" 
+          description="Number of non-critical applications hosted on each physical node."
+          formula="count(normal apps) per node"
         />
-        <MetricInsightCard
-          label="Nodes Without Critical Apps"
-          value={data.summary.zero_crit ?? 0}
-          description="Physical nodes hosting no critical applications. These nodes have inherently lower individual failure impact on mission-critical system behaviour."
-          formula="count(nodes where critical_count = 0)"
-        />
+        <StatCountCard label="Total Nodes" value={data.summary.node_count ?? 0} description="Total number of physical nodes in the system." formula="count(nodes)" />
+        <StatCountCard label="Total Critical" value={data.summary.total_crit ?? 0} description="Total number of critical applications across all nodes." formula="Σ critical_count" />
+        <StatCountCard label="Total Normal" value={data.summary.total_norm ?? 0} description="Total number of non-critical applications across all nodes." formula="Σ normal_count" />
+        <StatCountCard label="System Critical %" value={`${Number(data.summary.system_crit_pct ?? 0).toFixed(1)}%`} description="Percentage of all applications marked critical. High values reduce redundancy headroom." formula="total_crit / total_all × 100" />
+        <StatCountCard label="No Critical" value={data.summary.zero_crit ?? 0} description="Physical nodes hosting no critical applications, having lower individual failure impact." formula="count(critical_count = 0)" />
       </div>
-      <SummaryCards summary={data.summary} keys={[
-        { key: "node_count", label: "Nodes" },
-        { key: "total_crit", label: "Total Critical" },
-        { key: "total_norm", label: "Total Normal" },
-        { key: "system_crit_pct", label: "System Critical %", format: (v) => Number(v).toFixed(1) + "%" },
-        { key: "crit_per_node_max", label: "Max Crit/Node" },
-        { key: "zero_crit", label: "No Critical" },
-      ]} />
       <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
@@ -1560,34 +1544,30 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <MetricInsightCard
-          label="Avg Apps per Segment"
-          value={Number(data.summary.app_mean ?? 0).toFixed(1)}
-          description="Mean number of applications per segment. Very low values may indicate overly fragmented subsystems; very high values may signal monolithic segments with unclear boundaries."
-          formula="total_apps / segment_count"
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="app" 
+          label="Apps per Segment" 
+          description="Number of applications per segment. Low values may indicate fragmentation; high values may signal monolithic segments."
+          formula="count(apps) per segment"
         />
-        <MetricInsightCard
-          label="Avg Topics per Segment"
-          value={Number(data.summary.topic_mean ?? 0).toFixed(1)}
-          description="Mean number of topics owned or used per segment. Reflects how much communication surface each subsystem exposes to the rest of the architecture."
-          formula="total_topics_touched / segment_count"
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="topic" 
+          label="Topics per Segment" 
+          description="Number of topics owned or used per segment, reflecting communication surface exposure."
+          formula="count(topics) per segment"
         />
-        <MetricInsightCard
-          label="Avg I/O per Segment"
-          value={Number(data.summary.io_mean ?? 0).toFixed(1)}
-          description="Average pub/sub message load aggregated per segment. High I/O segments are communication hubs whose degradation has the widest downstream reach."
-          formula="mean(Σ pub + Σ sub per segment)"
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="io" 
+          label="I/O per Segment" 
+          description="Pub/sub message load aggregated per segment. High I/O segments are communication hubs."
+          formula="Σ pub + Σ sub per segment"
         />
+        <StatCountCard label="Segments" value={data.summary.css_count ?? 0} description="Total number of architectural segments (CSS) in the system." formula="count(segments)" />
       </div>
-      <SummaryCards summary={data.summary} keys={[
-        { key: "css_count", label: "Segments" },
-        { key: "app_mean", label: "Avg Apps/Segment" },
-        { key: "app_max", label: "Max Apps" },
-        { key: "topic_mean", label: "Avg Topics/Segment" },
-        { key: "io_mean", label: "Avg I/O" },
-        { key: "io_max", label: "Max I/O" },
-      ]} />
       <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
@@ -1678,35 +1658,24 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <MetricInsightCard
-          label="Total Network Bandwidth"
-          value={fmtBytes(totalBw) + "/s"}
-          description="Aggregate sustained bandwidth flowing across the network. Computed as Σ topic_size × topic_frequency × (publishers + subscribers) across every topic in the topology."
-          formula="Σ size(t) × freq(t) × (pub_count(t) + sub_count(t))"
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="bw" 
+          label="Bandwidth per Node" 
+          description="Sustained network bandwidth (bytes/s) consumed by the topology per physical node."
+          format={fmtBytes}
+          formula="Σ size × freq × (pub + sub) per node"
         />
-        <MetricInsightCard
-          label="Total Outbound"
-          value={fmtBytes(totalOut) + "/s"}
-          description="Sustained bytes per second produced by all application publishers across every physical node. High values relative to inbound indicate a producer-heavy topology."
-          formula="Σ size(t) × freq(t) × pub_count(t)"
-        />
-        <MetricInsightCard
-          label="Total Inbound"
-          value={fmtBytes(totalIn) + "/s"}
-          description="Sustained bytes per second consumed by all application subscribers across every physical node. High relative inbound traffic indicates many fan-out subscribers."
-          formula="Σ size(t) × freq(t) × sub_count(t)"
-        />
+        <StatCountCard label="Total Bandwidth" value={fmtBytes(totalBw) + "/s"} description="Aggregate sustained bandwidth flowing across the entire network." formula="Σ size(t) × freq(t) × (pub + sub)" />
+        <StatCountCard label="Total Outbound" value={fmtBytes(totalOut) + "/s"} description="Sustained bytes per second produced by all application publishers." formula="Σ size(t) × freq(t) × pub_count(t)" />
+        <StatCountCard label="Total Inbound" value={fmtBytes(totalIn) + "/s"} description="Sustained bytes per second consumed by all application subscribers." formula="Σ size(t) × freq(t) × sub_count(t)" />
+        <StatCountCard label="Nodes" value={data.summary.node_count ?? 0} description="Total number of physical nodes in the system." formula="count(nodes)" />
+        <StatCountCard label="Topics" value={data.summary.topic_count ?? 0} description="Total number of topics in the system." formula="count(topics)" />
+        <StatCountCard label="Load Variation (CV)" value={`${Number(data.summary.cv ?? 0).toFixed(1)}%`} description="Coefficient of variation of node bandwidth. High CV means uneven network load distribution." formula="std(bw) / mean(bw) × 100" />
+        <StatCountCard label="Zero-BW Nodes" value={data.summary.zero_bw_nodes ?? 0} description="Nodes with no network traffic, potentially indicating orphaned infrastructure." formula="count(bw = 0)" />
+        <StatCountCard label="Outliers" value={data.summary.outlier_count ?? 0} description="Nodes whose total bandwidth exceeds the IQR upper fence." formula="bw > Q3 + 1.5 × IQR" />
       </div>
-      <SummaryCards summary={data.summary} keys={[
-        { key: "node_count", label: "Nodes" },
-        { key: "topic_count", label: "Topics" },
-        { key: "bw_mean", label: "Avg / Node", format: (v) => fmtBytes(Number(v)) + "/s" },
-        { key: "bw_max", label: "Max Node", format: (v) => fmtBytes(Number(v)) + "/s" },
-        { key: "cv", label: "CV%", format: (v) => Number(v).toFixed(1) + "%" },
-        { key: "zero_bw_nodes", label: "Zero-BW Nodes" },
-        { key: "outlier_count", label: "Outliers" },
-      ]} />
       <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1980,31 +1949,18 @@ function BottleneckSection({ data }: { data: ExtrasStats["bottleneck"] }) {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <MetricInsightCard
-          label="Articulation Points"
-          value={s.articulation_point_count ?? 0}
-          description="Components whose removal disconnects the undirected graph. These are structural SPOFs — the most severe bottleneck class."
-          formula="is_articulation_point = True"
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <PrimaryStatsCard 
+          summary={s} 
+          prefix="score" 
+          label="Bottleneck Score" 
+          description="Composite structural score identifying highest-risk single points of failure."
+          formula={`${wNorm.bt.toFixed(2)}·BT + ${wNorm.ap.toFixed(2)}·AP + ${wNorm.br.toFixed(2)}·BR + ${wNorm.bridge.toFixed(2)}·bridge`}
         />
-        <MetricInsightCard
-          label="Directed APs"
-          value={s.directed_ap_count ?? 0}
-          description="Components that disconnect the directed reachable set. Directional SPOFs that may not appear in undirected analysis."
-          formula="is_directed_ap = True"
-        />
-        <MetricInsightCard
-          label="Score Outliers"
-          value={recomputedOutlierCount}
-          description="Components whose bottleneck score exceeds the IQR upper fence. These are statistically extreme relative to the rest of the system."
-          formula="score > Q3 + 1.5 × IQR"
-        />
-        <MetricInsightCard
-          label="Max Score"
-          value={fmtNum(recomputedMaxScore)}
-          description="Highest composite bottleneck score in the system. Values above 0.5 indicate a severe single-point bottleneck."
-          formula={`max(${wNorm.bt.toFixed(2)}·BT + ${wNorm.ap.toFixed(2)}·AP + ${wNorm.br.toFixed(2)}·BR + ${wNorm.bridge.toFixed(2)}·bridge)`}
-        />
+        <StatCountCard label="Articulation Points" value={s.articulation_point_count ?? 0} description="Components whose removal disconnects the undirected graph. Structural SPOFs." formula="is_articulation_point = True" />
+        <StatCountCard label="Directed APs" value={s.directed_ap_count ?? 0} description="Components that disconnect the directed reachable set. Directional SPOFs." formula="is_directed_ap = True" />
+        <StatCountCard label="Score Outliers" value={recomputedOutlierCount} description="Components whose bottleneck score exceeds the IQR upper fence." formula="score > Q3 + 1.5 × IQR" />
+        <StatCountCard label="Total Components" value={s.total ?? 0} description="Total number of components analyzed for bottleneck risk." formula="count(components)" />
       </div>
 
       {/* Bottleneck bar chart */}

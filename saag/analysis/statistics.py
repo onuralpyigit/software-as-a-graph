@@ -922,6 +922,7 @@ def compute_criticality_io_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "crit_io_mean": float(np.mean(crit_arr)),
             "crit_io_median": float(np.median(crit_arr)),
             "crit_io_max": int(np.max(crit_arr)),
+            "crit_io_min": int(np.min(crit_arr)),
         })
     norm_io = [p + s for p, s in zip(norm_pubs, norm_subs)]
     if norm_io:
@@ -930,6 +931,7 @@ def compute_criticality_io_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "norm_io_mean": float(np.mean(norm_arr)),
             "norm_io_median": float(np.median(norm_arr)),
             "norm_io_max": int(np.max(norm_arr)),
+            "norm_io_min": int(np.min(norm_arr)),
         })
     if crit_io and norm_io:
         crit_mean = float(np.mean(crit_io))
@@ -1008,10 +1010,14 @@ def compute_lib_dependency_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     }
     if nonzero_in:
         summary["in_mean"] = float(np.mean(nonzero_in))
+        summary["in_median"] = float(np.median(nonzero_in))
         summary["in_max"] = int(np.max(nonzero_in))
+        summary["in_min"] = int(np.min(nonzero_in))
     if nonzero_out:
         summary["out_mean"] = float(np.mean(nonzero_out))
+        summary["out_median"] = float(np.median(nonzero_out))
         summary["out_max"] = int(np.max(nonzero_out))
+        summary["out_min"] = int(np.min(nonzero_out))
 
     return {
         "active_ids": active_ids, "display_ids": display_ids,
@@ -1066,7 +1072,15 @@ def compute_node_critical_density_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     if crit_vals:
         crit_arr = np.array(crit_vals, dtype=float)
         summary["crit_per_node_mean"] = float(np.mean(crit_arr))
+        summary["crit_per_node_median"] = float(np.median(crit_arr))
         summary["crit_per_node_max"] = int(np.max(crit_arr))
+        summary["crit_per_node_min"] = int(np.min(crit_arr))
+    if norm_vals:
+        norm_arr = np.array(norm_vals, dtype=float)
+        summary["norm_per_node_mean"] = float(np.mean(norm_arr))
+        summary["norm_per_node_median"] = float(np.median(norm_arr))
+        summary["norm_per_node_max"] = int(np.max(norm_arr))
+        summary["norm_per_node_min"] = int(np.min(norm_arr))
     if crit_ratios and node_labels:
         summary["max_ratio_node"] = node_labels[max_ratio_idx]
         summary["max_ratio_pct"] = crit_ratios[max_ratio_idx]
@@ -1128,13 +1142,19 @@ def compute_segment_diversity_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     summary: Dict[str, Any] = {"css_count": len(labels)}
     if app_counts:
         summary["app_mean"] = float(np.mean(app_counts))
+        summary["app_median"] = float(np.median(app_counts))
         summary["app_max"] = int(np.max(app_counts))
+        summary["app_min"] = int(np.min(app_counts))
     if topic_counts:
         summary["topic_mean"] = float(np.mean(topic_counts))
+        summary["topic_median"] = float(np.median(topic_counts))
         summary["topic_max"] = int(np.max(topic_counts))
+        summary["topic_min"] = int(np.min(topic_counts))
     if io_vals:
         summary["io_mean"] = float(np.mean(io_vals))
+        summary["io_median"] = float(np.median(io_vals))
         summary["io_max"] = int(np.max(io_vals))
+        summary["io_min"] = int(np.min(io_vals))
 
     return {
         "domain_set": segment_set, "labels": labels,
@@ -1542,7 +1562,9 @@ def compute_bottleneck_stats_from_structural(components: Dict[str, Any]) -> Dict
         arr = np.array(scores, dtype=float)
         summary.update({
             "score_mean": round(float(np.mean(arr)), 4),
+            "score_median": round(float(np.median(arr)), 4),
             "score_max": round(float(np.max(arr)), 4),
+            "score_min": round(float(np.min(arr)), 4),
         })
 
     return {
