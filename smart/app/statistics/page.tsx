@@ -566,6 +566,98 @@ function MetricInsightCard({
   )
 }
 
+function PrimaryStatsCard({
+  summary,
+  prefix,
+  label,
+  format,
+  description,
+  formula,
+}: {
+  summary: SummaryDict
+  prefix: string
+  label: string
+  format?: (v: number) => string
+  description?: string
+  formula?: string
+}) {
+  const mean = summary[`${prefix}_mean`]
+  const median = summary[`${prefix}_median`]
+  const max = summary[`${prefix}_max`]
+  const min = summary[`${prefix}_min`]
+
+  if (mean === undefined && median === undefined && max === undefined && min === undefined) {
+    return null
+  }
+
+  const fmt = (val: number | string | undefined) => {
+    if (val === undefined) return "—"
+    return format ? format(Number(val)) : fmtNum(val)
+  }
+
+  return (
+    <div className="rounded-lg border bg-background p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 border-b border-border pb-2">
+        {label}
+      </p>
+      <div className="grid grid-cols-2 gap-4 mb-3">
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Mean</p>
+          <p className="text-lg font-bold text-foreground">{fmt(mean)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Median</p>
+          <p className="text-lg font-bold text-foreground">{fmt(median)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Maximum</p>
+          <p className="text-lg font-bold text-foreground">{fmt(max)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Minimum</p>
+          <p className="text-lg font-bold text-foreground">{fmt(min)}</p>
+        </div>
+      </div>
+      {description && (
+        <p className="text-xs text-muted-foreground leading-relaxed mb-1 flex-grow">
+          {description}
+        </p>
+      )}
+      {formula && (
+        <code className="text-[10px] font-mono bg-muted/80 rounded px-2 py-0.5 text-muted-foreground/90 self-start">
+          {formula}
+        </code>
+      )}
+    </div>
+  )
+}
+
+function StatCountCard({
+  label,
+  value,
+  description,
+}: {
+  label: string
+  value: number | string
+  description: string
+}) {
+  return (
+    <div className="rounded-lg border bg-background p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between h-full">
+      <div>
+        <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 border-b border-border pb-2">
+          {label}
+        </p>
+        <p className="text-3xl font-bold text-foreground mb-3">
+          {typeof value === "number" ? fmtNum(value) : value}
+        </p>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        {description}
+      </p>
+    </div>
+  )
+}
+
 // ── Sections ────────────────────────────────────────────────────────────
 
 type BandwidthMode = "sub" | "pub" | "pubsub"
@@ -598,33 +690,43 @@ function TopicBandwidthSection({ data }: { data: ExtrasStats["topic_bandwidth"] 
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <MetricInsightCard
-          label="Avg Subscriber Bandwidth"
-          value={fmtNum(data.summary.bw_mean ?? 0)}
-          unit="bytes"
-          description="Mean subscriber-side bandwidth per active topic. Measures how many bytes flow to all consumers per publish event. High values signal topics that strain network capacity."
-          formula="bandwidth_sub = size × sub_count"
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="size" 
+          label="Size" 
+          format={fmtBytes} 
+          description="Message payload size in bytes per topic."
+          formula="size_bytes"
         />
-        <MetricInsightCard
-          label="Zero-Subscriber Topics"
-          value={data.summary.zero_sub_count ?? 0}
-          description="Topics that are published to but never consumed. Dead channels waste publisher resources and typically indicate incomplete pub/sub wiring or stale topic definitions."
-          formula="count(topics where sub_count = 0)"
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="pub" 
+          label="Publishers" 
+          description="Number of applications publishing to each topic."
+          formula="count(publishers)"
         />
-        <MetricInsightCard
-          label="Bandwidth Outliers"
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="sub" 
+          label="Subscribers" 
+          description="Number of applications subscribing to each topic."
+          formula="count(subscribers)"
+        />
+        <PrimaryStatsCard
+          summary={data.summary}
+          prefix={mode === "pub" ? "bw_pub" : mode === "pubsub" ? "bw_pubsub" : "bw_sub"}
+          label={mode === "pub" ? "Publisher Bandwidth" : mode === "pubsub" ? "Pub+Sub Bandwidth" : "Subscriber Bandwidth"}
+          format={fmtBytes}
+          description={mode === "pub" ? "Total bytes per publish event produced by publishers." : mode === "pubsub" ? "Total bytes per publish event flowing through the topic." : "Total bytes per publish event consumed by subscribers."}
+          formula={mode === "pub" ? "size × pub_count" : mode === "pubsub" ? "size × (pub_count + sub_count)" : "size × sub_count"}
+        />
+        <StatCountCard
+          label="Outliers"
           value={data.summary.outlier_count ?? 0}
-          description="Topics whose bandwidth exceeds the IQR upper fence. A small number of outlier topics can dominate total network utilisation."
-          formula="outlier if bandwidth > Q3 + 1.5 × IQR"
+          description="Topics whose bandwidth exceeds the IQR upper fence (Q3 + 1.5 × IQR)."
         />
       </div>
-      <SummaryCards summary={data.summary} keys={[
-        { key: "total_topics", label: "Total Topics" },
-        { key: "size_mean", label: "Avg Size", format: (v) => fmtNum(v) + " bytes" },
-        { key: cfg.avgKey, label: cfg.avgLabel },
-        { key: "outlier_count", label: "Outliers" },
-      ]} />
       <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">

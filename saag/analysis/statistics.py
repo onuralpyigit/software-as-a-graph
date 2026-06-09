@@ -321,12 +321,15 @@ def compute_topic_bandwidth_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     # Keep legacy "bandwidth" as sub-based for backward compatibility
     bandwidth = bandwidth_sub
 
-    nonzero_bw = [b for b in bandwidth_sub if b > 0]
+    nonzero_bw_sub = [b for b in bandwidth_sub if b > 0]
+    nonzero_bw_pub = [b for b in bandwidth_pub if b > 0]
+    nonzero_bw_pubsub = [b for b in bandwidth_pubsub if b > 0]
+    
     outlier_indices: List[int] = []
     iqr_upper = 0.0
     iqr_val = 0.0
-    if len(nonzero_bw) >= 4:
-        _, iqr_upper, iqr_val = find_1d_outliers_iqr(nonzero_bw)
+    if len(nonzero_bw_sub) >= 4:
+        _, iqr_upper, iqr_val = find_1d_outliers_iqr(nonzero_bw_sub)
         outlier_indices = [
             i for i in range(len(bandwidth_sub))
             if bandwidth_sub[i] > iqr_upper and bandwidth_sub[i] > 0
@@ -343,15 +346,32 @@ def compute_topic_bandwidth_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "size_mean": float(np.mean(size_arr)),
             "size_median": float(np.median(size_arr)),
             "size_max": float(np.max(size_arr)),
+            "size_min": float(np.min(size_arr)),
             "sub_mean": float(np.mean(sub_arr)),
             "sub_median": float(np.median(sub_arr)),
             "sub_max": int(np.max(sub_arr)),
+            "sub_min": int(np.min(sub_arr)),
             "pub_mean": float(np.mean(pub_arr)),
             "pub_median": float(np.median(pub_arr)),
             "pub_max": int(np.max(pub_arr)),
+            "pub_min": int(np.min(pub_arr)),
             "zero_sub_count": sum(1 for s in subs if s == 0),
-            "bw_mean": float(np.mean(nonzero_bw)) if nonzero_bw else 0,
-            "bw_median": float(np.median(nonzero_bw)) if nonzero_bw else 0,
+            
+            "bw_sub_mean": float(np.mean(nonzero_bw_sub)) if nonzero_bw_sub else 0,
+            "bw_sub_median": float(np.median(nonzero_bw_sub)) if nonzero_bw_sub else 0,
+            "bw_sub_max": float(np.max(nonzero_bw_sub)) if nonzero_bw_sub else 0,
+            "bw_sub_min": float(np.min(nonzero_bw_sub)) if nonzero_bw_sub else 0,
+            
+            "bw_pub_mean": float(np.mean(nonzero_bw_pub)) if nonzero_bw_pub else 0,
+            "bw_pub_median": float(np.median(nonzero_bw_pub)) if nonzero_bw_pub else 0,
+            "bw_pub_max": float(np.max(nonzero_bw_pub)) if nonzero_bw_pub else 0,
+            "bw_pub_min": float(np.min(nonzero_bw_pub)) if nonzero_bw_pub else 0,
+            
+            "bw_pubsub_mean": float(np.mean(nonzero_bw_pubsub)) if nonzero_bw_pubsub else 0,
+            "bw_pubsub_median": float(np.median(nonzero_bw_pubsub)) if nonzero_bw_pubsub else 0,
+            "bw_pubsub_max": float(np.max(nonzero_bw_pubsub)) if nonzero_bw_pubsub else 0,
+            "bw_pubsub_min": float(np.min(nonzero_bw_pubsub)) if nonzero_bw_pubsub else 0,
+            
             "outlier_count": len(outlier_indices),
         }
 
@@ -359,7 +379,10 @@ def compute_topic_bandwidth_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         "sizes": sizes, "subs": subs, "pubs": pubs, "labels": labels, "ids": ids,
         "bandwidth": bandwidth, "bandwidth_sub": bandwidth_sub,
         "bandwidth_pub": bandwidth_pub, "bandwidth_pubsub": bandwidth_pubsub,
-        "nonzero_bw": nonzero_bw,
+        "nonzero_bw": nonzero_bw_sub,
+        "nonzero_bw_sub": nonzero_bw_sub,
+        "nonzero_bw_pub": nonzero_bw_pub,
+        "nonzero_bw_pubsub": nonzero_bw_pubsub,
         "outlier_indices": outlier_indices,
         "iqr_upper": iqr_upper, "iqr": iqr_val,
         "summary": summary,
@@ -471,9 +494,11 @@ def compute_app_balance_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "pub_mean": mean_p,
             "pub_median": float(np.median(pub_arr)),
             "pub_max": int(np.max(pub_arr)),
+            "pub_min": int(np.min(pub_arr)),
             "sub_mean": mean_s,
             "sub_median": float(np.median(sub_arr)),
             "sub_max": int(np.max(sub_arr)),
+            "sub_min": int(np.min(sub_arr)),
             "q_high_io": sum(1 for p, s in zip(pubs, subs) if p > mean_p and s > mean_s),
             "q_consumer": sum(1 for p, s in zip(pubs, subs) if p <= mean_p and s > mean_s),
             "q_producer": sum(1 for p, s in zip(pubs, subs) if p > mean_p and s <= mean_s),
@@ -522,9 +547,11 @@ def compute_topic_fanout_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "pub_mean": float(np.mean(pub_arr)),
             "pub_median": float(np.median(pub_arr)),
             "pub_max": int(np.max(pub_arr)),
+            "pub_min": int(np.min(pub_arr)),
             "sub_mean": float(np.mean(sub_arr)),
             "sub_median": float(np.median(sub_arr)),
             "sub_max": int(np.max(sub_arr)),
+            "sub_min": int(np.min(sub_arr)),
             "one_to_many": sum(1 for p, s in zip(pubs, subs) if p == 1 and s > 1),
             "many_to_one": sum(1 for p, s in zip(pubs, subs) if p > 1 and s == 1),
             "many_to_many": sum(1 for p, s in zip(pubs, subs) if p > 1 and s > 1),
