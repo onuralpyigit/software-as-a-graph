@@ -636,10 +636,12 @@ function StatCountCard({
   label,
   value,
   description,
+  formula,
 }: {
   label: string
   value: number | string
   description: string
+  formula?: string
 }) {
   return (
     <div className="rounded-lg border bg-background p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between h-full">
@@ -651,9 +653,16 @@ function StatCountCard({
           {typeof value === "number" ? fmtNum(value) : value}
         </p>
       </div>
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        {description}
-      </p>
+      <div>
+        <p className="text-xs text-muted-foreground leading-relaxed mb-2">
+          {description}
+        </p>
+        {formula && (
+          <code className="text-[10px] font-mono bg-muted/80 rounded px-2 py-0.5 text-muted-foreground/90 inline-block">
+            {formula}
+          </code>
+        )}
+      </div>
     </div>
   )
 }
@@ -803,35 +812,42 @@ function AppBalanceSection({ data }: { data: ExtrasStats["app_balance"] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <MetricInsightCard
-          label="High I/O Apps"
-          value={data.summary.q_high_io ?? 0}
-          description="Applications that both publish and subscribe above the system mean — the busiest communication hubs. Their failure disrupts both upstream and downstream flows."
-          formula="pub > avg_pub AND sub > avg_sub"
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="pub" 
+          label="Publishers" 
+          description="Number of topics each application publishes to."
+          formula="count(published_topics)"
         />
-        <MetricInsightCard
-          label="Consumer-Only Apps"
-          value={data.summary.q_consumer ?? 0}
-          description="Apps that subscribe above average but publish below average. Pure consumers: data enters but nothing is emitted. Upstream failures cascade directly into these endpoints."
-          formula="pub ≤ avg_pub AND sub > avg_sub"
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="sub" 
+          label="Subscribers" 
+          description="Number of topics each application subscribes to."
+          formula="count(subscribed_topics)"
         />
-        <MetricInsightCard
-          label="Producer-Only Apps"
-          value={data.summary.q_producer ?? 0}
-          description="Apps that publish above average but subscribe below average. Data sources whose failure causes downstream data loss across all dependent subscribers."
-          formula="pub > avg_pub AND sub ≤ avg_sub"
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="io" 
+          label="I/O Load" 
+          description="Total combined publish and subscribe connections per application."
+          formula="pub_count + sub_count"
+        />
+        <StatCountCard
+          label="Outliers"
+          value={data.summary.outlier_count ?? 0}
+          description="Applications whose I/O load exceeds the IQR upper fence."
         />
       </div>
-      <SummaryCards summary={data.summary} keys={[
-        { key: "total_apps", label: "Total Apps" },
-        { key: "q_high_io", label: "High I/O" },
-        { key: "q_consumer", label: "Consumers" },
-        { key: "q_producer", label: "Producers" },
-        { key: "q_low", label: "Low Activity" },
-        { key: "zero_activity", label: "Zero Activity" },
-        { key: "outlier_count", label: "Outliers" },
-      ]} />
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+        <StatCountCard label="Total Apps" value={data.summary.total_apps ?? 0} description="Total number of applications registered in the system topology." formula="count(applications)" />
+        <StatCountCard label="High I/O" value={data.summary.q_high_io ?? 0} description="Busiest communication hubs that publish and subscribe above average. Their failure disrupts both upstream and downstream flows." formula="pub > avg_pub AND sub > avg_sub" />
+        <StatCountCard label="Consumers" value={data.summary.q_consumer ?? 0} description="Pure data sinks that subscribe above average but publish below average. Upstream failures cascade directly into these endpoints." formula="pub ≤ avg_pub AND sub > avg_sub" />
+        <StatCountCard label="Producers" value={data.summary.q_producer ?? 0} description="Primary data sources that publish above average but subscribe below average. Their failure causes downstream data loss." formula="pub > avg_pub AND sub ≤ avg_sub" />
+        <StatCountCard label="Low Activity" value={data.summary.q_low ?? 0} description="Applications with connection counts at or below the system mean, contributing minimally to overall message flow." formula="pub ≤ avg_pub AND sub ≤ avg_sub" />
+        <StatCountCard label="Zero Activity" value={data.summary.zero_activity ?? 0} description="Applications with no publish or subscribe connections, potentially indicating stale or misconfigured components." formula="pub = 0 AND sub = 0" />
+      </div>
       <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -903,35 +919,41 @@ function TopicFanoutSection({ data }: { data: ExtrasStats["topic_fanout"] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <MetricInsightCard
-          label="Max Fanout"
-          value={data.summary.fanout_max ?? 0}
-          description="Highest message multiplication factor in the system. One publish event on this topic is delivered to this many subscribers simultaneously. High fanout amplifies failure blast radius."
-          formula="fanout = pub_count × sub_count"
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="pub" 
+          label="Publishers" 
+          description="Number of applications publishing to each topic."
+          formula="count(publishers)"
         />
-        <MetricInsightCard
-          label="Orphan Topics"
-          value={data.summary.orphan ?? 0}
-          description="Topics missing a publisher or subscriber — incomplete message flows that either produce data nobody receives, or await data that never arrives."
-          formula="count(pub_count = 0 OR sub_count = 0)"
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="sub" 
+          label="Subscribers" 
+          description="Number of applications subscribing to each topic."
+          formula="count(subscribers)"
         />
-        <MetricInsightCard
-          label="Broadcast Topics (1→N)"
-          value={data.summary.one_to_many ?? 0}
-          description="Topics with a single publisher and multiple subscribers. A publisher failure on any of these simultaneously silences all downstream consumers."
-          formula="count(pub_count = 1 AND sub_count > 1)"
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="fanout" 
+          label="Fanout" 
+          description="Message multiplication factor per topic. High fanout amplifies failure blast radius."
+          formula="pub_count × sub_count"
+        />
+        <StatCountCard
+          label="Outliers"
+          value={data.summary.outlier_count ?? 0}
+          description="Topics whose fanout exceeds the IQR upper fence."
         />
       </div>
-      <SummaryCards summary={data.summary} keys={[
-        { key: "total_topics", label: "Total Topics" },
-        { key: "one_to_many", label: "1→N" },
-        { key: "many_to_one", label: "N→1" },
-        { key: "many_to_many", label: "N→N" },
-        { key: "orphan", label: "Orphan" },
-        { key: "fanout_max", label: "Max Fanout" },
-        { key: "outlier_count", label: "Outliers" },
-      ]} />
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+        <StatCountCard label="Total Topics" value={data.summary.total_topics ?? 0} description="Total number of topics in the system." formula="count(topics)" />
+        <StatCountCard label="1→N (Broadcast)" value={data.summary.one_to_many ?? 0} description="Single publisher, multiple subscribers. Publisher failure silences all downstream consumers." formula="pub = 1 AND sub > 1" />
+        <StatCountCard label="N→1 (Aggregator)" value={data.summary.many_to_one ?? 0} description="Multiple publishers, single subscriber. Common in data aggregation or logging patterns." formula="pub > 1 AND sub = 1" />
+        <StatCountCard label="N→N (Mesh)" value={data.summary.many_to_many ?? 0} description="Multiple publishers and multiple subscribers. Highly interconnected communication patterns." formula="pub > 1 AND sub > 1" />
+        <StatCountCard label="Orphan" value={data.summary.orphan ?? 0} description="Topics missing a publisher or subscriber, indicating incomplete message flows." formula="pub = 0 OR sub = 0" />
+      </div>
       <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
@@ -964,7 +986,7 @@ function TopicFanoutSection({ data }: { data: ExtrasStats["topic_fanout"] }) {
 }
 
 
-function HeatmapSection({ data, title, modeToggle, insights }: {
+function HeatmapSection({ data, title, modeToggle }: {
   data: {
     labels: string[]
     node_ids?: string[]
@@ -978,7 +1000,6 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
   } | undefined
   title: string
   modeToggle?: boolean
-  insights?: React.ReactNode
 }) {
   const [showKb, setShowKb] = useState(false)
   const [search, setSearch] = useState("")
@@ -1146,15 +1167,21 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
 
   return (
     <div className="space-y-4">
-      {insights}
-      <SummaryCards summary={data.summary} keys={[
-        { key: "entity_count", label: "Entities" },
-        { key: "nonzero_count", label: "Active Cells" },
-        { key: "active_pct", label: "Active %", format: (v) => Number(v).toFixed(1) + "%" },
-        { key: "intra_total", label: "Intra-entity" },
-        { key: "inter_total", label: "Inter-entity" },
-        { key: "outlier_count", label: "Outliers" },
-      ]} />
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="cell" 
+          label="Connections" 
+          description="Number of topics shared between entity pairs."
+          formula="count(shared_topics)"
+        />
+        <StatCountCard label="Entities" value={data.summary.entity_count ?? 0} description="Total number of physical nodes or segments." formula="count(entities)" />
+        <StatCountCard label="Active Cells" value={data.summary.nonzero_count ?? 0} description="Entity pairs that exchange at least one topic." formula="count(nonzero_cells)" />
+        <StatCountCard label="Active %" value={`${Number(data.summary.active_pct ?? 0).toFixed(1)}%`} description="Fraction of total possible entity pairs that are actively communicating." formula="nonzero_cells / total_cells × 100" />
+        <StatCountCard label="Intra-entity" value={data.summary.intra_total ?? 0} description="Topics where publisher and subscriber reside on the same entity." formula="Σ matrix[i][i]" />
+        <StatCountCard label="Inter-entity" value={data.summary.inter_total ?? 0} description="Topics that cross entity boundaries, indicating interdependency." formula="Σ matrix[i][j] for i ≠ j" />
+        <StatCountCard label="Outliers" value={data.summary.outlier_count ?? 0} description="Entity pairs whose connection count exceeds the IQR upper fence." formula="count > Q3 + 1.5 × IQR" />
+      </div>
       <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1256,35 +1283,21 @@ function NodeCommLoadSection({ data }: { data: ExtrasStats["node_comm_load"] }) 
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <MetricInsightCard
-          label="Avg Node Load"
-          value={data.summary.load_mean ?? 0}
-          description="Average number of topic connections (publishes + subscribes) hosted on a single node. Represents typical communication pressure across all hosts."
-          formula="load(node) = Σ pub_count + Σ sub_count for hosted apps"
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+        <PrimaryStatsCard 
+          summary={data.summary} 
+          prefix="load" 
+          label="Node Load" 
+          description="Total combined publish and subscribe connections hosted per physical node."
+          formula="Σ pub_count + Σ sub_count"
         />
-        <MetricInsightCard
-          label="Load Variation (CV)"
-          value={`${Number(data.summary.cv ?? 0).toFixed(1)}%`}
-          description="Coefficient of variation of node load. High CV means uneven workload distribution — some nodes carry disproportionate traffic while others are nearly idle."
-          formula="CV = std(load) / mean(load) × 100"
-        />
-        <MetricInsightCard
-          label="Idle Nodes"
-          value={data.summary.zero_load ?? 0}
-          description="Nodes hosting no communicating applications. May indicate orphaned infrastructure, pure compute nodes, or deployment imbalances worth investigating."
-          formula="count(nodes where load = 0)"
-        />
+        <StatCountCard label="Total Nodes" value={data.summary.node_count ?? 0} description="Total number of physical nodes in the system." formula="count(nodes)" />
+        <StatCountCard label="Total Pub" value={data.summary.pub_total ?? 0} description="Aggregate number of publish connections across all nodes." formula="Σ pub_count" />
+        <StatCountCard label="Total Sub" value={data.summary.sub_total ?? 0} description="Aggregate number of subscribe connections across all nodes." formula="Σ sub_count" />
+        <StatCountCard label="Load Variation (CV)" value={`${Number(data.summary.cv ?? 0).toFixed(1)}%`} description="Coefficient of variation. High CV means uneven workload distribution across hosts." formula="std(load) / mean(load) × 100" />
+        <StatCountCard label="Zero Load" value={data.summary.zero_load ?? 0} description="Nodes hosting no communicating applications, potentially indicating orphaned infrastructure." formula="count(load = 0)" />
+        <StatCountCard label="Outliers" value={data.summary.outlier_count ?? 0} description="Nodes whose total load exceeds the IQR upper fence." formula="load > Q3 + 1.5 × IQR" />
       </div>
-      <SummaryCards summary={data.summary} keys={[
-        { key: "node_count", label: "Nodes" },
-        { key: "pub_total", label: "Total Pub" },
-        { key: "sub_total", label: "Total Sub" },
-        { key: "load_mean", label: "Avg Load" },
-        { key: "cv", label: "CV%", format: (v) => Number(v).toFixed(1) + "%" },
-        { key: "zero_load", label: "Zero Load" },
-        { key: "outlier_count", label: "Outliers" },
-      ]} />
       <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -2330,55 +2343,9 @@ export default function StatisticsPage() {
                       {selectedSection === "topic_bandwidth" && <TopicBandwidthSection data={tabData.topic_bandwidth} />}
                       {selectedSection === "app_balance" && <AppBalanceSection data={tabData.app_balance} />}
                       {selectedSection === "topic_fanout" && <TopicFanoutSection data={tabData.topic_fanout} />}
-                      {selectedSection === "cross_node" && <HeatmapSection data={tabData.cross_node_heatmap} title="Cross-Node" modeToggle insights={
-                        tabData.cross_node_heatmap && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            <MetricInsightCard
-                              label="Active Cell %"
-                              value={`${Number(tabData.cross_node_heatmap.summary.active_pct ?? 0).toFixed(1)}%`}
-                              description="Fraction of node pairs that exchange at least one topic. High density indicates tightly coupled physical infrastructure where many nodes share data paths."
-                              formula="nonzero_cells / total_cells × 100"
-                            />
-                            <MetricInsightCard
-                              label="Intra-Node Events"
-                              value={tabData.cross_node_heatmap.summary.intra_total ?? 0}
-                              description="Topics where both publisher and subscriber run on the same physical node. Local traffic is unaffected by inter-node network failures."
-                              formula="Σ matrix[i][i]  (diagonal sum)"
-                            />
-                            <MetricInsightCard
-                              label="Cross-Node Events"
-                              value={tabData.cross_node_heatmap.summary.inter_total ?? 0}
-                              description="Topics that cross node boundaries. High counts raise network dependency risk and increase the blast radius of any single node or link failure."
-                              formula="Σ matrix[i][j]  for i ≠ j"
-                            />
-                          </div>
-                        )
-                      } />}
+                      {selectedSection === "cross_node" && <HeatmapSection data={tabData.cross_node_heatmap} title="Cross-Node" modeToggle />}
                       {selectedSection === "node_load" && <NodeCommLoadSection data={tabData.node_comm_load} />}
-                      {selectedSection === "domain_comm" && <HeatmapSection data={tabData.domain_comm} title="Segment Communication" modeToggle insights={
-                        tabData.domain_comm && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            <MetricInsightCard
-                              label="Active Cell %"
-                              value={`${Number(tabData.domain_comm.summary.active_pct ?? 0).toFixed(1)}%`}
-                              description="Fraction of segment pairs with cross-segment message traffic. High values signal tight coupling between subsystems and potential dependency debt."
-                              formula="nonzero_cells / total_cells × 100"
-                            />
-                            <MetricInsightCard
-                              label="Intra-Segment Events"
-                              value={tabData.domain_comm.summary.intra_total ?? 0}
-                              description="Topic exchanges where publisher and subscriber belong to the same segment. High intra-segment traffic signals well-encapsulated, loosely coupled subsystems."
-                              formula="Σ matrix[i][i]  (diagonal sum)"
-                            />
-                            <MetricInsightCard
-                              label="Cross-Segment Events"
-                              value={tabData.domain_comm.summary.inter_total ?? 0}
-                              description="Topic flows that cross segment boundaries. High values indicate interdependency between subsystems and wider cascade paths under failure."
-                              formula="Σ matrix[i][j]  for i ≠ j"
-                            />
-                          </div>
-                        )
-                      } />}
+                      {selectedSection === "domain_comm" && <HeatmapSection data={tabData.domain_comm} title="Segment Communication" modeToggle />}
                       {selectedSection === "criticality" && <CriticalityIOSection data={tabData.criticality_io} />}
                       {selectedSection === "lib_deps" && <LibDependencySection data={tabData.lib_dependency} />}
                       {selectedSection === "node_density" && <NodeCriticalDensitySection data={tabData.node_critical_density} />}

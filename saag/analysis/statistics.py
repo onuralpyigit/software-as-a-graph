@@ -487,6 +487,7 @@ def compute_app_balance_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     if pubs:
         pub_arr = np.array(pubs, dtype=float)
         sub_arr = np.array(subs, dtype=float)
+        io_arr = np.array(io_load, dtype=float)
         mean_p = float(np.mean(pub_arr))
         mean_s = float(np.mean(sub_arr))
         summary = {
@@ -499,6 +500,10 @@ def compute_app_balance_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "sub_median": float(np.median(sub_arr)),
             "sub_max": int(np.max(sub_arr)),
             "sub_min": int(np.min(sub_arr)),
+            "io_mean": float(np.mean(io_arr)),
+            "io_median": float(np.median(io_arr)),
+            "io_max": int(np.max(io_arr)),
+            "io_min": int(np.min(io_arr)),
             "q_high_io": sum(1 for p, s in zip(pubs, subs) if p > mean_p and s > mean_s),
             "q_consumer": sum(1 for p, s in zip(pubs, subs) if p <= mean_p and s > mean_s),
             "q_producer": sum(1 for p, s in zip(pubs, subs) if p > mean_p and s <= mean_s),
@@ -557,7 +562,9 @@ def compute_topic_fanout_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "many_to_many": sum(1 for p, s in zip(pubs, subs) if p > 1 and s > 1),
             "orphan": sum(1 for p, s in zip(pubs, subs) if p == 0 or s == 0),
             "fanout_mean": float(np.mean(nonzero_fanout)) if nonzero_fanout else 0,
+            "fanout_median": float(np.median(nonzero_fanout)) if nonzero_fanout else 0,
             "fanout_max": int(np.max(nonzero_fanout)) if nonzero_fanout else 0,
+            "fanout_min": int(np.min(nonzero_fanout)) if nonzero_fanout else 0,
             "outlier_count": len(outlier_indices),
         }
 
@@ -658,6 +665,7 @@ def _compute_matrix_stats(
         summary["cell_mean"] = float(np.mean(nonzero_vals))
         summary["cell_median"] = float(np.median(nonzero_vals))
         summary["cell_max"] = int(np.max(nonzero_vals))
+        summary["cell_min"] = int(np.min(nonzero_vals))
 
     return {
         "outlier_pairs": outlier_pairs,
@@ -794,6 +802,8 @@ def compute_node_comm_load_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "pub_total": pub_total, "sub_total": sub_total,
             "load_mean": float(np.mean(total_arr)),
             "load_median": float(np.median(total_arr)),
+            "load_max": int(np.max(total_arr)),
+            "load_min": int(np.min(total_arr)),
             "load_std": float(np.std(total_arr)),
             "cv": float(np.std(total_arr) / np.mean(total_arr) * 100) if np.mean(total_arr) > 0 else 0,
             "zero_load": sum(1 for t in all_totals if t == 0),
