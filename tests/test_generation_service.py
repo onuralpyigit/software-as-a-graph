@@ -221,3 +221,74 @@ class TestTopicDerivedFields:
             )
             assert isinstance(topic["frequency"], (int, float))
             assert topic["frequency"] > 0.0
+
+
+class TestSchemaValidation:
+    """Tests for validate_and_clean_schema post-step."""
+
+    def test_validation_success(self):
+        from tools.generation.generator import validate_and_clean_schema
+        # Valid graph structure
+        graph = {
+            "metadata": {"seed": 42},
+            "nodes": [{"id": "N0", "name": "Node-0"}],
+            "brokers": [{"id": "B0", "name": "Broker-0"}],
+            "topics": [],
+            "applications": [{"id": "A0", "name": "App-0"}],
+            "libraries": [],
+            "relationships": {
+                "runs_on": [{"from": "A0", "to": "N0"}],
+                "routes": [],
+                "publishes_to": [],
+                "subscribes_to": [],
+                "connects_to": [],
+                "uses": []
+            }
+        }
+        res = validate_and_clean_schema(graph)
+        assert res["relationships"]["runs_on"] == [{"from": "A0", "to": "N0"}]
+
+    def test_validation_deduplicates(self):
+        from tools.generation.generator import validate_and_clean_schema
+        # Duplicate edge pairs in runs_on and uses
+        graph = {
+            "metadata": {"seed": 42},
+            "nodes": [{"id": "N0", "name": "Node-0"}],
+            "brokers": [],
+            "topics": [],
+            "applications": [{"id": "A0", "name": "App-0"}],
+            "libraries": [{"id": "L0", "name": "Lib-0"}],
+            "relationships": {
+                "runs_on": [{"from": "A0", "to": "N0"}, {"from": "A0", "to": "N0"}],
+                "routes": [],
+                "publishes_to": [],
+                "subscribes_to": [],
+                "connects_to": [],
+                "uses": [{"from": "A0", "to": "L0"}, {"from": "A0", "to": "L0"}]
+            }
+        }
+        res = validate_and_clean_schema(graph)
+        assert len(res["relationships"]["runs_on"]) == 1
+        assert len(res["relationships"]["uses"]) == 1
+
+    def test_validation_raises_on_dangling_reference(self):
+        from tools.generation.generator import validate_and_clean_schema
+        # Edge references non-existent node
+        graph = {
+            "metadata": {"seed": 42},
+            "nodes": [{"id": "N0", "name": "Node-0"}],
+            "brokers": [],
+            "topics": [],
+            "applications": [{"id": "A0", "name": "App-0"}],
+            "libraries": [],
+            "relationships": {
+                "runs_on": [{"from": "A0", "to": "NON_EXISTENT"}],
+                "routes": [],
+                "publishes_to": [],
+                "subscribes_to": [],
+                "connects_to": [],
+                "uses": []
+            }
+        }
+        with pytest.raises(ValueError, match="references non-existent target ID"):
+            validate_and_clean_schema(graph)

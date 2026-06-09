@@ -436,14 +436,19 @@ def _normalize_infra_features(
     # Normalise topic_qos_criticality_ord to [0, 1] (max value is 4.0).
     max_crit_ord = 4.0
 
+    all_topic_nodes = set(topic_subs) | set(topic_pubs) | set(topic_freq_raw)
+
     # Dynamic masking (G4 covariate shift mitigation):
     # If all topic criticalities in this graph are identical (zero variance),
     # it means we cannot justify a real ground-truth distribution for this scenario
     # and the field is flat (typically all minimal). We mask the field to a uniform 0.0
     # to prevent inductive covariate shift when training/testing across scenarios.
-    crit_vals = list(topic_crit_ord.values())
-    if len(crit_vals) > 0 and len(set(crit_vals)) <= 1:
-        topic_crit_ord = {n: 0.0 for n in topic_crit_ord}
+    crit_vals = [topic_crit_ord.get(n, 0.0) for n in all_topic_nodes]
+    if len(crit_vals) > 0:
+        mean_crit = sum(crit_vals) / len(crit_vals)
+        variance = sum((v - mean_crit) ** 2 for v in crit_vals) / len(crit_vals)
+        if variance < 1e-9:
+            topic_crit_ord = {n: 0.0 for n in all_topic_nodes}
 
     infra: Dict[str, Dict[str, float]] = {}
     for n in node_cpu:
@@ -453,7 +458,6 @@ def _normalize_infra_features(
         }
     for n, v in broker_conn.items():
         infra[n] = {"max_connections_norm": v / max_conn}
-    all_topic_nodes = set(topic_subs) | set(topic_pubs) | set(topic_freq_raw)
     for n in all_topic_nodes:
         infra[n] = {
             "subscriber_count_norm": topic_subs.get(n, 0.0) / max_subs,
