@@ -661,6 +661,19 @@ function TopicBandwidthSection({ data }: { data: ExtrasStats["topic_bandwidth"] 
           )}
         </CardContent>
       </Card>
+      {data.outlier_indices && data.outlier_indices.length > 0 && (
+        <OutlierTable
+          title="Bandwidth Outliers"
+          headers={["Topic", "Size (B)", "Publishers", "Subscribers", "Bandwidth (B/s)"]}
+          rows={data.outlier_indices.map((i) => [
+            data.labels[i],
+            data.sizes[i],
+            data.pubs[i],
+            data.subs[i],
+            data.bandwidth[i],
+          ])}
+        />
+      )}
     </div>
   )
 }
@@ -759,6 +772,18 @@ function AppBalanceSection({ data }: { data: ExtrasStats["app_balance"] }) {
           )}
         </CardContent>
       </Card>
+      {data.outlier_indices && data.outlier_indices.length > 0 && (
+        <OutlierTable
+          title="High I/O Outliers"
+          headers={["Application", "Publishes", "Subscribes", "I/O Load"]}
+          rows={data.outlier_indices.map((i) => [
+            data.labels[i],
+            data.pubs[i],
+            data.subs[i],
+            data.io_load[i],
+          ])}
+        />
+      )}
     </div>
   )
 }
@@ -820,6 +845,18 @@ function TopicFanoutSection({ data }: { data: ExtrasStats["topic_fanout"] }) {
           />
         </CardContent>
       </Card>
+      {data.outlier_indices && data.outlier_indices.length > 0 && (
+        <OutlierTable
+          title="Fanout Outliers"
+          headers={["Topic", "Publishers", "Subscribers", "Fanout"]}
+          rows={data.outlier_indices.map((i) => [
+            data.labels[i],
+            data.pubs[i],
+            data.subs[i],
+            data.fanout[i],
+          ])}
+        />
+      )}
     </div>
   )
 }
@@ -1931,6 +1968,20 @@ function BottleneckSection({ data }: { data: ExtrasStats["bottleneck"] }) {
           </table>
         </div>
       </div>
+      {allItems.filter((it) => it.outlier).length > 0 && (
+        <OutlierTable
+          title="Bottleneck Score Outliers"
+          headers={["Component", "Type", "Score", "Betweenness", "Blast Radius", "Bridge Ratio"]}
+          rows={allItems.filter((it) => it.outlier).map((it) => [
+            it.name,
+            it.type,
+            fmtNum(it.bottleneck_score),
+            fmtNum(it.betweenness),
+            it.blast_radius,
+            fmtNum(it.bridge_ratio),
+          ])}
+        />
+      )}
     </div>
   )
 }
