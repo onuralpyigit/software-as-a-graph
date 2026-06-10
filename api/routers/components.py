@@ -150,7 +150,7 @@ async def get_critical_edges(
                         "reliability": e.scores.reliability,
                         "maintainability": e.scores.maintainability,
                         "availability": e.scores.availability,
-                        "vulnerability": e.scores.vulnerability,
+                        "security": e.scores.security,
                         "overall": e.scores.overall
                     }
                 }

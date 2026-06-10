@@ -130,7 +130,7 @@ TOPOLOGY_CLASSES: Dict[str, TopoClass] = {
         id="anti_pattern",
         label="Anti-pattern / SPOF",
         scenarios=["scenario_05"],
-        primary_dimension="vulnerability",
+        primary_dimension="security",
         discriminating_signal="extreme broker overload ratio (2 brokers / 70 apps) → V(v) top-tier",
         spearman_min=0.87,   # tighter: deliberate signal is strong
         f1_min=0.90,
@@ -146,7 +146,7 @@ TOPOLOGY_CLASSES: Dict[str, TopoClass] = {
         id="sparse",
         label="Sparse / well-distributed",
         scenarios=["scenario_06"],
-        primary_dimension="vulnerability",
+        primary_dimension="security",
         discriminating_signal="low fan-in and fan-out per topic → classifier must not over-flag",
         spearman_min=0.78,   # slightly relaxed: weaker structural signal
         f1_min=0.82,
@@ -191,7 +191,7 @@ class ScenarioValidation:
     reliability_spearman:     float = 0.0
     availability_spearman:    float = 0.0
     maintainability_spearman: float = 0.0
-    vulnerability_spearman:   float = 0.0
+    security_spearman:        float = 0.0
     # Specialist metrics
     spof_f1:  float = 0.0
     ccr_5:    float = 0.0
@@ -345,14 +345,14 @@ def parse_validation_json(
         sv.reliability_spearman     = _safe_float(dim, "reliability",     "spearman")
         sv.availability_spearman    = _safe_float(dim, "availability",    "spearman")
         sv.maintainability_spearman = _safe_float(dim, "maintainability", "spearman")
-        sv.vulnerability_spearman   = _safe_float(dim, "vulnerability",   "spearman")
+        sv.security_spearman        = _safe_float(dim, "security",        "spearman")
 
         # Specialist metrics
         sv.spof_f1  = _safe_float(dim, "availability",    "spof_f1")
         sv.ccr_5    = _safe_float(dim, "reliability",     "ccr_5")
         sv.cocr_5   = _safe_float(dim, "maintainability", "cocr_5")
-        sv.ahcr_5   = _safe_float(dim, "vulnerability",   "ahcr_5")
-        sv.ftr      = _safe_float(dim, "vulnerability",   "ftr")
+        sv.ahcr_5   = _safe_float(dim, "security",        "ahcr_5")
+        sv.ftr      = _safe_float(dim, "security",        "ftr")
 
         # Gates
         sv.gates  = layer_data.get("gates") or {}
@@ -482,7 +482,7 @@ def aggregate_topo_class(
         "reliability":     [sv.reliability_spearman     for sv in valid],
         "availability":    [sv.availability_spearman     for sv in valid],
         "maintainability": [sv.maintainability_spearman  for sv in valid],
-        "vulnerability":   [sv.vulnerability_spearman    for sv in valid],
+        "security":        [sv.security_spearman        for sv in valid],
     }
     dim_means = {k: _mean(v) for k, v in dim_map.items()}
     if dim_means:

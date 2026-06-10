@@ -22,7 +22,7 @@ DEFAULT_DIMENSION_TEMPLATES = {
         "plain_meaning": "It is an articulation point in the architecture.",
         "risk_sentence": "If this component fails, sections of the system will be entirely disconnected.",
     },
-    "vulnerability": {
+    "security": {
         "driving_metric": "Reverse Eigenvector / Exposure",
         "plain_meaning": "It is transitively exposed to many other high-risk components.",
         "risk_sentence": "Security or performance issues here will rapidly compound.",
@@ -75,7 +75,7 @@ PATTERN_TEMPLATES = {
     },
     "Composite Risk": {
         "one_line": "{id} has elevated risk across multiple dimensions without a single dominant cause.",
-        "top_risk": "No one metric dominates, but the combination across R, M, A, V puts it "
+        "top_risk": "No one metric dominates, but the combination across R, M, A, S puts it "
                     "above the system's population threshold.",
         "priority_action": "Review coupling and redundancy together; no single fix resolves this.",
     },
@@ -86,7 +86,7 @@ STAKEHOLDER_MAPPING = {
         "Reliability": "SRE",
         "Maintainability": "Architect",
         "Availability": "DevOps",
-        "Vulnerability": "Security",
+        "Security": "Security",
     },
     # Maps specific patterns to stakeholder roles (overrides dimensions if needed)
     "patterns": {

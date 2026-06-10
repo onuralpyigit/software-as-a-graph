@@ -65,7 +65,7 @@ class ComponentFacade:
             "reliability": self._inner.levels.reliability.value if hasattr(self._inner.levels.reliability, 'value') else "unknown",
             "maintainability": self._inner.levels.maintainability.value if hasattr(self._inner.levels.maintainability, 'value') else "unknown",
             "availability": self._inner.levels.availability.value if hasattr(self._inner.levels.availability, 'value') else "unknown",
-            "vulnerability": self._inner.levels.vulnerability.value if hasattr(self._inner.levels.vulnerability, 'value') else "unknown",
+            "security": self._inner.levels.security.value if hasattr(self._inner.levels.security, 'value') else "unknown",
             "overall": self.criticality_level,
         }
 
@@ -76,7 +76,7 @@ class ComponentFacade:
             "reliability": self._inner.scores.reliability,
             "maintainability": self._inner.scores.maintainability,
             "availability": self._inner.scores.availability,
-            "vulnerability": self._inner.scores.vulnerability,
+            "security": self._inner.scores.security,
             "overall": self._inner.scores.overall,
         }
 

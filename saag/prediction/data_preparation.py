@@ -236,7 +236,7 @@ LABEL_COLS = {
     "reliability": 1,
     "maintainability": 2,
     "availability": 3,
-    "vulnerability": 4,
+    "security": 4,
 }
 
 # ── QoS edge feature helpers ───────────────────────────────────────────────────
@@ -509,10 +509,10 @@ def networkx_to_hetero_data(
         ``{node_name: {metric_key: value}}`` from ``StructuralAnalyzer``.
     simulation_results:
         ``{node_name: {composite, reliability, maintainability,
-                        availability, vulnerability}}`` training labels.
+                        availability, security}}`` training labels.
     rmav_scores:
         ``{node_name: {overall, reliability, maintainability,
-                        availability, vulnerability}}`` for ensemble blending.
+                        availability, security}}`` for ensemble blending.
 
     Returns
     -------
@@ -603,7 +603,7 @@ def networkx_to_hetero_data(
                     label_matrix[local_idx, 1] = float(sim.get("reliability", 0.0))
                     label_matrix[local_idx, 2] = float(sim.get("maintainability", 0.0))
                     label_matrix[local_idx, 3] = float(sim.get("availability", 0.0))
-                    label_matrix[local_idx, 4] = float(sim.get("vulnerability", 0.0))
+                    label_matrix[local_idx, 4] = float(sim.get("security", 0.0))
                     labelled_count += 1
             data[node_type].y = torch.from_numpy(label_matrix)
             result.num_labelled_nodes += labelled_count
@@ -618,7 +618,7 @@ def networkx_to_hetero_data(
                     rmav_matrix[local_idx, 1] = float(rmav.get("reliability", 0.0))
                     rmav_matrix[local_idx, 2] = float(rmav.get("maintainability", 0.0))
                     rmav_matrix[local_idx, 3] = float(rmav.get("availability", 0.0))
-                    rmav_matrix[local_idx, 4] = float(rmav.get("vulnerability", 0.0))
+                    rmav_matrix[local_idx, 4] = float(rmav.get("security", 0.0))
             data[node_type].y_rmav = torch.from_numpy(rmav_matrix)
 
     # ── 3. Build edge index and feature tensors per relation ──────────────────
@@ -681,7 +681,7 @@ def networkx_to_hetero_data(
                 bridge_multiplier = 1.0 if is_bridge else 0.1
                 s_sim = simulation_results.get(s_name, {})
                 for col, key in enumerate(
-                    ["composite", "reliability", "maintainability", "availability", "vulnerability"]
+                    ["composite", "reliability", "maintainability", "availability", "security"]
                 ):
                     edge_labels[i, col] = float(s_sim.get(key, 0.0)) * bridge_multiplier
             data[rel].y_edge = torch.from_numpy(edge_labels)
@@ -830,7 +830,7 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
                 "reliability": float(c.get("failure_impact", 0.0)),
                 "maintainability": 0.0,
                 "availability": float(c.get("failure_impact", 0.0)),
-                "vulnerability": 0.0,
+                "security": 0.0,
             }
         return out
 
@@ -850,7 +850,7 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
                 "reliability": float(impact.reliability_impact),
                 "maintainability": float(impact.maintainability_impact),
                 "availability": float(impact.availability_impact),
-                "vulnerability": float(impact.vulnerability_impact),
+                "security": float(impact.security_impact),
             }
         elif isinstance(r, dict):
             name = r.get("target_id")
@@ -862,7 +862,7 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
                 "reliability": float(impact.get("reliability_impact", 0.0)),
                 "maintainability": float(impact.get("maintainability_impact", 0.0)),
                 "availability": float(impact.get("availability_impact", 0.0)),
-                "vulnerability": float(impact.get("vulnerability_impact", 0.0)),
+                "security": float(impact.get("security_impact", 0.0)),
             }
     return out
 
@@ -948,7 +948,7 @@ def extract_rmav_scores_dict(quality_result) -> Dict[str, Dict[str, float]]:
                     "reliability": float(getattr(scores, "reliability", 0.0)),
                     "maintainability": float(getattr(scores, "maintainability", 0.0)),
                     "availability": float(getattr(scores, "availability", 0.0)),
-                    "vulnerability": float(getattr(scores, "vulnerability", 0.0)),
+                    "security": float(getattr(scores, "security", 0.0)),
                 }
     elif isinstance(quality_result, dict):
         components = quality_result.get("components", quality_result)
@@ -966,7 +966,7 @@ def extract_rmav_scores_dict(quality_result) -> Dict[str, Dict[str, float]]:
                         "reliability": float(getattr(scores, "reliability", 0.0) if not isinstance(scores, dict) else scores.get("reliability", 0.0)),
                         "maintainability": float(getattr(scores, "maintainability", 0.0) if not isinstance(scores, dict) else scores.get("maintainability", 0.0)),
                         "availability": float(getattr(scores, "availability", 0.0) if not isinstance(scores, dict) else scores.get("availability", 0.0)),
-                        "vulnerability": float(getattr(scores, "vulnerability", 0.0) if not isinstance(scores, dict) else scores.get("vulnerability", 0.0)),
+                        "security": float(getattr(scores, "security", 0.0) if not isinstance(scores, dict) else scores.get("security", 0.0)),
                     }
         elif isinstance(components, dict):
             for name, scores in components.items():
@@ -976,7 +976,7 @@ def extract_rmav_scores_dict(quality_result) -> Dict[str, Dict[str, float]]:
                         "reliability": float(scores.get("reliability", 0.0)),
                         "maintainability": float(scores.get("maintainability", 0.0)),
                         "availability": float(scores.get("availability", 0.0)),
-                        "vulnerability": float(scores.get("vulnerability", 0.0)),
+                        "security": float(scores.get("security", 0.0)),
                     }
 
     return out

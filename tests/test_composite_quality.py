@@ -71,7 +71,7 @@ class TestRStarV5:
         """Q*(v) overall weights must sum to ~1.0."""
         proc = AHPProcessor()
         w = proc.compute_weights()
-        total = w.q_reliability + w.q_maintainability + w.q_availability + w.q_vulnerability
+        total = w.q_reliability + w.q_maintainability + w.q_availability + w.q_security
         assert total == pytest.approx(1.0, abs=0.02)
 
 
@@ -87,7 +87,7 @@ class TestCriticalityProfile:
         assert not p.r_crit
         assert not p.m_crit
         assert not p.a_crit
-        assert not p.v_crit
+        assert not p.s_crit
         assert not p.q_crit
 
     def test_default_pattern_is_composite_risk(self):
@@ -96,7 +96,7 @@ class TestCriticalityProfile:
 
     def test_total_hub_pattern(self):
         """All four dimension flags → Total Hub."""
-        p = CriticalityProfile(r_crit=True, m_crit=True, a_crit=True, v_crit=True)
+        p = CriticalityProfile(r_crit=True, m_crit=True, a_crit=True, s_crit=True)
         assert p.pattern == "Total Hub"
 
     def test_reliability_hub_pattern(self):
@@ -115,8 +115,8 @@ class TestCriticalityProfile:
         assert p.pattern == "SPOF"
 
     def test_attack_target_pattern(self):
-        """Only V flag → Attack Target."""
-        p = CriticalityProfile(v_crit=True)
+        """Only S flag → Attack Target."""
+        p = CriticalityProfile(s_crit=True)
         assert p.pattern == "Attack Target"
 
     def test_fragile_hub_pattern(self):
@@ -125,20 +125,20 @@ class TestCriticalityProfile:
         assert p.pattern == "Fragile Hub"
 
     def test_exposed_bottleneck_pattern(self):
-        """M+V flags → Exposed Bottleneck."""
-        p = CriticalityProfile(m_crit=True, v_crit=True)
+        """M+S flags → Exposed Bottleneck."""
+        p = CriticalityProfile(m_crit=True, s_crit=True)
         assert p.pattern == "Exposed Bottleneck"
 
     def test_q_crit_independent(self):
         """q_crit is independent — composite outlier with no single dominant dimension."""
         p = CriticalityProfile(q_crit=True)
         assert p.q_crit
-        assert p.pattern == "Composite Risk"  # no RMAV flags set
+        assert p.pattern == "Composite Risk"  # no RMAS flags set
 
     def test_to_dict_keys(self):
         """to_dict must include all five flags and pattern."""
         d = CriticalityProfile(r_crit=True, q_crit=True).to_dict()
-        assert set(d.keys()) == {"r_crit", "m_crit", "a_crit", "v_crit", "q_crit", "pattern"}
+        assert set(d.keys()) == {"r_crit", "m_crit", "a_crit", "s_crit", "q_crit", "pattern"}
         assert d["r_crit"] is True
         assert d["m_crit"] is False
         assert d["pattern"] == "Reliability Hub"
@@ -149,12 +149,12 @@ class TestCriticalityProfile:
 # ===========================================================================
 
 class TestIStarComposite:
-    """White-box tests for the I*(v) = 0.25×IR + 0.25×IM + 0.25×IA + 0.25×IV formula."""
+    """White-box tests for the I*(v) = 0.25×IR + 0.25×IM + 0.25×IA + 0.25×IS formula."""
 
     @staticmethod
-    def _compute_i_star(ir, im, ia, iv, weights=None):
-        w = weights or dict(r=0.25, m=0.25, a=0.25, v=0.25)
-        return w["r"] * ir + w["m"] * im + w["a"] * ia + w["v"] * iv
+    def _compute_i_star(ir, im, ia, is_, weights=None):
+        w = weights or dict(r=0.25, m=0.25, a=0.25, s=0.25)
+        return w["r"] * ir + w["m"] * im + w["a"] * ia + w["s"] * is_
 
     def test_equal_weights_mean(self):
         """Equal weights: I*(v) is the arithmetic mean of the four sub-scores."""
@@ -173,14 +173,14 @@ class TestIStarComposite:
 
     def test_custom_weights_sum_to_one(self):
         """Custom weights that sum to 1.0 must produce a value in [0,1]."""
-        w = dict(r=0.45, m=0.30, a=0.15, v=0.10)
+        w = dict(r=0.45, m=0.30, a=0.15, s=0.10)
         val = self._compute_i_star(0.3, 0.5, 0.7, 0.2, weights=w)
         assert 0.0 <= val <= 1.0
 
     def test_custom_weights_correctly_weight_dominant_dim(self):
         """Higher weight on IR should increase I*(v) when IR is high."""
-        equal = self._compute_i_star(1.0, 0, 0, 0, weights=dict(r=0.25, m=0.25, a=0.25, v=0.25))
-        skewed = self._compute_i_star(1.0, 0, 0, 0, weights=dict(r=0.50, m=0.20, a=0.20, v=0.10))
+        equal = self._compute_i_star(1.0, 0, 0, 0, weights=dict(r=0.25, m=0.25, a=0.25, s=0.25))
+        skewed = self._compute_i_star(1.0, 0, 0, 0, weights=dict(r=0.50, m=0.20, a=0.20, s=0.10))
         assert skewed > equal
 
 
@@ -191,10 +191,10 @@ class TestIStarComposite:
 class TestSystemHealth:
 
     @staticmethod
-    def _sri(h_r, h_m, h_a, h_v, w=None):
+    def _sri(h_r, h_m, h_a, h_s, w=None):
         """SRI = Σ w_d × (1 − H_d)."""
-        w = w or dict(r=0.25, m=0.25, a=0.25, v=0.25)
-        return w["r"] * (1 - h_r) + w["m"] * (1 - h_m) + w["a"] * (1 - h_a) + w["v"] * (1 - h_v)
+        w = w or dict(r=0.25, m=0.25, a=0.25, s=0.25)
+        return w["r"] * (1 - h_r) + w["m"] * (1 - h_m) + w["a"] * (1 - h_a) + w["s"] * (1 - h_s)
 
     @staticmethod
     def _gini(scores):
@@ -216,7 +216,7 @@ class TestSystemHealth:
 
     def test_sri_partial_risk(self):
         """Partial health: SRI = weighted risk contribution."""
-        sri = self._sri(h_r=0.5, h_m=1.0, h_a=0.5, h_v=1.0)
+        sri = self._sri(h_r=0.5, h_m=1.0, h_a=0.5, h_s=1.0)
         assert sri == pytest.approx(0.25, abs=1e-9)
 
     def test_sri_in_unit_interval(self):

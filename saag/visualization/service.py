@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .models import LayerData, LAYER_DEFINITIONS
-from .charts import ChartGenerator, RMAV_COLORS
+from .charts import ChartGenerator, RMAS_COLORS
 from .dashboard import DashboardGenerator
 from .collector import LayerDataCollector
 from saag.core.ports.graph_repository import IGraphRepository
@@ -284,11 +284,11 @@ class VisualizationService:
         """
         gen.start_section("Component Details", "details")
 
-        RMAV_STYLE = (
-            f'style="background:{RMAV_COLORS["availability"]}"',
-            f'style="background:{RMAV_COLORS["reliability"]}"',
-            f'style="background:{RMAV_COLORS["maintainability"]}"',
-            f'style="background:{RMAV_COLORS["vulnerability"]}"',
+        RMAS_STYLE = (
+            f'style="background:{RMAS_COLORS["availability"]}"',
+            f'style="background:{RMAS_COLORS["reliability"]}"',
+            f'style="background:{RMAS_COLORS["maintainability"]}"',
+            f'style="background:{RMAS_COLORS["security"]}"',
         )
 
         headers = [
@@ -297,12 +297,12 @@ class VisualizationService:
         ]
         rows = []
         for c in data.component_details[:100]:
-            rmav_bar = (
-                f'<div class="rmav-bar">'
-                f'<div class="rmav-seg" {RMAV_STYLE[0]} style="width:{c.availability*25:.0f}%;background:{RMAV_COLORS["availability"]}"></div>'
-                f'<div class="rmav-seg" {RMAV_STYLE[1]} style="width:{c.reliability*25:.0f}%;background:{RMAV_COLORS["reliability"]}"></div>'
-                f'<div class="rmav-seg" {RMAV_STYLE[2]} style="width:{c.maintainability*25:.0f}%;background:{RMAV_COLORS["maintainability"]}"></div>'
-                f'<div class="rmav-seg" {RMAV_STYLE[3]} style="width:{c.vulnerability*25:.0f}%;background:{RMAV_COLORS["vulnerability"]}"></div>'
+            rmas_bar = (
+                f'<div class="rmas-bar">'
+                f'<div class="rmas-seg" {RMAS_STYLE[0]} style="width:{c.availability*25:.0f}%;background:{RMAS_COLORS["availability"]}"></div>'
+                f'<div class="rmas-seg" {RMAS_STYLE[1]} style="width:{c.reliability*25:.0f}%;background:{RMAS_COLORS["reliability"]}"></div>'
+                f'<div class="rmas-seg" {RMAS_STYLE[2]} style="width:{c.maintainability*25:.0f}%;background:{RMAS_COLORS["maintainability"]}"></div>'
+                f'<div class="rmas-seg" {RMAS_STYLE[3]} style="width:{c.security*25:.0f}%;background:{RMAS_COLORS["security"]}"></div>'
                 f'</div>'
             )
             spof_html = '<span class="badge badge-spof">SPOF</span>' if c.spof else ""
@@ -316,8 +316,8 @@ class VisualizationService:
                 f"{c.reliability:.2f}",
                 f"{c.maintainability:.2f}",
                 f"{c.availability:.2f}",
-                f"{c.vulnerability:.2f}",
-                rmav_bar,
+                f"{c.security:.2f}",
+                rmas_bar,
                 spof_html,
             ])
 
@@ -386,7 +386,7 @@ class VisualizationService:
             ("reliability",     "reliability_scatter",     "reliability_spearman",     "reliability_ci"),
             ("maintainability", "maintainability_scatter",  "maintainability_spearman", "maintainability_ci"),
             ("availability",    "availability_scatter",     "availability_spearman",    "availability_ci"),
-            ("vulnerability",   "vulnerability_scatter",    "vulnerability_spearman",   "vulnerability_ci"),
+            ("security",        "security_scatter",         "security_spearman",        "security_ci"),
         ]
         dim_charts = []
         for key, scatter_attr, rho_attr, ci_attr in dim_configs:

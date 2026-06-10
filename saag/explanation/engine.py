@@ -125,7 +125,7 @@ DIMENSION_DRIVERS = {
         ("bridge_ratio", "Bridge ratio", "fraction of its connections that are irreplaceable"),
         ("cdi", "Connectivity Degradation Index", "increase in average path length without it"),
     ],
-    "Vulnerability": [
+    "Security": [
         ("dependency_weight_in", "QoS-weighted in-degree (QADS)", "attack surface — high-priority traffic flowing into it"),
         ("reverse_closeness", "Reverse Closeness", "how quickly compromise propagates to its dependents"),
         ("reverse_eigenvector", "Reverse Eigenvector", "connection quality to high-value downstream targets"),
@@ -177,7 +177,7 @@ class ExplanationEngine:
             "reliability": (quality.scores.reliability, quality.levels.reliability.value.upper()),
             "maintainability": (quality.scores.maintainability, quality.levels.maintainability.value.upper()),
             "availability": (quality.scores.availability, quality.levels.availability.value.upper()),
-            "vulnerability": (quality.scores.vulnerability, quality.levels.vulnerability.value.upper()),
+            "security": (quality.scores.security, quality.levels.security.value.upper()),
         }
         
         for dim, (score, level_str) in dimension_map.items():

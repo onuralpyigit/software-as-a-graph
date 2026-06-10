@@ -51,7 +51,7 @@ class CriticalityLevelsModel(BaseModel):
     reliability: str
     maintainability: str
     availability: str
-    vulnerability: str
+    security: str
     overall: str
 
 
@@ -59,7 +59,7 @@ class ScoresModel(BaseModel):
     reliability: float
     maintainability: float
     availability: float
-    vulnerability: float
+    security: float
     overall: float
 
 
@@ -211,11 +211,11 @@ class AvailabilityImpactModel(BaseModel):
     ia_in: float
 
 
-class VulnerabilityImpactModel(BaseModel):
+class SecurityImpactModel(BaseModel):
     attack_reach: float
     weighted_attack_impact: float
     high_value_contamination: float
-    vulnerability_impact: float
+    security_impact: float
 
 
 class AffectedDetail(BaseModel):
@@ -235,7 +235,7 @@ class FailureImpactModel(BaseModel):
     reliability: ReliabilityImpactModel
     maintainability: MaintainabilityImpactModel
     availability: AvailabilityImpactModel
-    vulnerability: VulnerabilityImpactModel
+    security: SecurityImpactModel
 
 
 class CascadeSequenceEvent(BaseModel):

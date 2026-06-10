@@ -108,7 +108,7 @@ class ValidationService:
         pred_scores = {c.id: c.scores.overall for c in prediction_result.components}
         pred_reliability   = {c.id: c.scores.reliability   for c in prediction_result.components}
         pred_availability  = {c.id: c.scores.availability  for c in prediction_result.components}
-        pred_vulnerability = {c.id: c.scores.vulnerability for c in prediction_result.components}
+        pred_security      = {c.id: c.scores.security      for c in prediction_result.components}
         comp_types = {c.id: c.type for c in prediction_result.components}
         comp_names = {c.id: c.structural.name for c in prediction_result.components}
         
@@ -147,7 +147,7 @@ class ValidationService:
         pred_reliability   = {c.id: c.scores.reliability    for c in analysis_result.quality.components}
         pred_maintainability = {c.id: c.scores.maintainability for c in analysis_result.quality.components}
         pred_availability  = {c.id: c.scores.availability  for c in analysis_result.quality.components}
-        pred_vulnerability = {c.id: c.scores.vulnerability for c in analysis_result.quality.components}
+        pred_security      = {c.id: c.scores.security      for c in analysis_result.quality.components}
         comp_types = {c.id: c.type for c in analysis_result.quality.components}
         comp_names = {c.id: c.structural.name for c in analysis_result.quality.components}
         
@@ -318,90 +318,90 @@ class ValidationService:
             self.logger.debug("Maintainability-specific validation skipped: %s", e)
             maintainability_spearman = 0.0
 
-        # 5. Vulnerability-specific validation — ρ(V(v), IV(v)) + AHCR@5 + FTR + APAR + CDCC
-        self.logger.info("Computing vulnerability-specific validation (IV(v) ground truth)...")
-        vulnerability_spearman = 0.0
+        # 5. Security-specific validation — ρ(S(v), IS(v)) + AHCR@5 + FTR + APAR + CDCC
+        self.logger.info("Computing security-specific validation (IS(v) ground truth)...")
+        security_spearman = 0.0
 
         from saag.validation.metric_calculator import (
             calculate_ahcr_at_k, calculate_ftr, calculate_apar
         )
 
-        actual_vulnerability_impact = {
-            r.target_id: r.impact.vulnerability_impact for r in sim_results
+        actual_security_impact = {
+            r.target_id: r.impact.security_impact for r in sim_results
         }
         actual_attack_reach = {
             r.target_id: r.impact.attack_reach for r in sim_results
         }
 
         try:
-            common_v = sorted(set(pred_vulnerability) & set(actual_vulnerability_impact))
-            if len(common_v) >= 3:
-                p_v_vals  = [float(pred_vulnerability[k]) for k in common_v]
-                a_iv_vals = [float(actual_vulnerability_impact[k]) for k in common_v]
-                v_corr = calculate_correlation(p_v_vals, a_iv_vals)
-                vulnerability_spearman = v_corr.spearman
+            common_s = sorted(set(pred_security) & set(actual_security_impact))
+            if len(common_s) >= 3:
+                p_s_vals  = [float(pred_security[k]) for k in common_s]
+                a_is_vals = [float(actual_security_impact[k]) for k in common_s]
+                s_corr = calculate_correlation(p_s_vals, a_is_vals)
+                security_spearman = s_corr.spearman
 
-                pred_v_dict = {k: pred_vulnerability[k] for k in common_v}
-                act_iv_dict = {k: actual_vulnerability_impact[k] for k in common_v}
+                pred_s_dict = {k: pred_security[k] for k in common_s}
+                act_is_dict = {k: actual_security_impact[k] for k in common_s}
                 
                 # AHCR@5
-                ahcr_5 = calculate_ahcr_at_k(pred_v_dict, act_iv_dict, k=5)
+                ahcr_5 = calculate_ahcr_at_k(pred_s_dict, act_is_dict, k=5)
                 
                 # FTR
-                act_reach_dict = {k: actual_attack_reach[k] for k in common_v}
-                ftr = calculate_ftr(pred_v_dict, act_reach_dict, v_threshold=0.60, reach_threshold=0.10)
+                act_reach_dict = {k: actual_attack_reach[k] for k in common_s}
+                ftr = calculate_ftr(pred_s_dict, act_reach_dict, v_threshold=0.60, reach_threshold=0.10)
                 
                 # APAR
                 paths_all = []
                 for r in sim_results:
                     if hasattr(r.impact, 'critical_paths') and r.impact.critical_paths:
                         paths_all.extend(r.impact.critical_paths)
-                apar = calculate_apar(pred_v_dict, paths_all, v_threshold=0.60)
+                apar = calculate_apar(pred_s_dict, paths_all, v_threshold=0.60)
                 
-                # CDCC: Cross-Dimensional Contamination Check (Rank divergence V vs A)
-                p_a_vals_for_cdcc = [float(pred_availability[k]) for k in common_v if k in pred_availability]
-                p_v_vals_for_cdcc = [float(pred_vulnerability[k]) for k in common_v if k in pred_availability]
+                # CDCC: Cross-Dimensional Contamination Check (Rank divergence S vs A)
+                p_a_vals_for_cdcc = [float(pred_availability[k]) for k in common_s if k in pred_availability]
+                p_s_vals_for_cdcc = [float(pred_security[k]) for k in common_s if k in pred_availability]
                 
                 cdcc = 0.0
                 if len(p_a_vals_for_cdcc) >= 3:
                     from saag.validation.metric_calculator import spearman_correlation
-                    cdcc_res, _ = spearman_correlation(p_v_vals_for_cdcc, p_a_vals_for_cdcc)
+                    cdcc_res, _ = spearman_correlation(p_s_vals_for_cdcc, p_a_vals_for_cdcc)
                     cdcc = cdcc_res
 
-                dimensional_validation["vulnerability"] = {
-                    "spearman": round(v_corr.spearman, 4),
-                    "spearman_p": round(v_corr.spearman_p, 6),
+                dimensional_validation["security"] = {
+                    "spearman": round(s_corr.spearman, 4),
+                    "spearman_p": round(s_corr.spearman_p, 6),
                     "ahcr_5": round(ahcr_5, 4),
                     "ftr": round(ftr, 4),
                     "apar": round(apar, 4),
                     "cdcc": round(cdcc, 4),
-                    "n": len(common_v),
-                    "ground_truth": "IV(v)",
+                    "n": len(common_s),
+                    "ground_truth": "IS(v)",
                 }
                 
                 # Full scatter points
-                data_v = []
-                for cid in common_v:
+                data_s = []
+                for cid in common_s:
                     level = "MINIMAL"
                     comp = next((c for c in analysis_result.quality.components if c.id == cid), None)
                     if comp:
                         level = getattr(comp.levels.overall, 'name', str(comp.levels.overall))
-                    data_v.append((cid, float(pred_vulnerability[cid]), float(actual_vulnerability_impact[cid]), level))
+                    data_s.append((cid, float(pred_security[cid]), float(actual_security_impact[cid]), level))
                 
-                dimensional_scatter["vulnerability"] = data_v
-                confidence_intervals["vulnerability"] = (v_corr.spearman_ci_lower, v_corr.spearman_ci_upper)
+                dimensional_scatter["security"] = data_s
+                confidence_intervals["security"] = (s_corr.spearman_ci_lower, s_corr.spearman_ci_upper)
                 
                 self.logger.info(
-                    "Vulnerability dim [%s]: ρ(V,IV)=%.3f (n=%d), "
+                    "Security dim [%s]: ρ(S,IS)=%.3f (n=%d), "
                     "AHCR@5=%.3f, FTR=%.3f, APAR=%.3f, CDCC=%.3f",
-                    sim_layer.value, v_corr.spearman, len(common_v),
+                    sim_layer.value, s_corr.spearman, len(common_s),
                     ahcr_5, ftr, apar, cdcc
                 )
             else:
-                vulnerability_spearman = 0.0
+                security_spearman = 0.0
         except Exception as e:
-            self.logger.debug("Vulnerability-specific validation skipped: %s", e)
-            vulnerability_spearman = 0.0
+            self.logger.debug("Security-specific validation skipped: %s", e)
+            security_spearman = 0.0
 
         # — 6. Availability-specific validation — ρ(A, IA) + SPOF_F1 + RRI + HSRR + DASA
         self.logger.info("Computing availability-specific validation (IA(v) ground truth)...")
@@ -489,19 +489,19 @@ class ValidationService:
 
         try:
             # Build composite ground truth I*(v) = equal-weighted sum of dimension ground truths
-            dim_weights = dict(r=0.25, m=0.25, a=0.25, v=0.25)
+            dim_weights = dict(r=0.25, m=0.25, a=0.25, s=0.25)
             composite_i_star: dict = {}
             for cid in (
                 set(actual_reliability_impact)
                 & set(actual_maintainability_impact)
                 & set(actual_availability_impact)
-                & set(actual_vulnerability_impact)
+                & set(actual_security_impact)
             ):
                 composite_i_star[cid] = (
                     dim_weights["r"] * actual_reliability_impact.get(cid, 0.0)
                     + dim_weights["m"] * actual_maintainability_impact.get(cid, 0.0)
                     + dim_weights["a"] * actual_availability_impact.get(cid, 0.0)
-                    + dim_weights["v"] * actual_vulnerability_impact.get(cid, 0.0)
+                    + dim_weights["s"] * actual_security_impact.get(cid, 0.0)
                 )
 
             # ρ(Q*(v), I*(v))
@@ -531,7 +531,7 @@ class ValidationService:
                     "Reliability": reliability_spearman,
                     "Maintainability": maintainability_spearman,
                     "Availability": availability_spearman,
-                    "Vulnerability": vulnerability_spearman
+                    "Security": security_spearman
                 }
                 try:
                     best_dim_label = max(dims_map, key=dims_map.get)
@@ -553,16 +553,16 @@ class ValidationService:
             pred_r_all = {c.id: c.scores.reliability    for c in analysis_result.quality.components}
             pred_m_all = {c.id: c.scores.maintainability for c in analysis_result.quality.components}
             pred_a_all = {c.id: c.scores.availability   for c in analysis_result.quality.components}
-            pred_v_all = {c.id: c.scores.vulnerability  for c in analysis_result.quality.components}
+            pred_s_all = {c.id: c.scores.security       for c in analysis_result.quality.components}
 
             from saag.validation.metric_calculator import spearman_correlation
             pairs = [
                 ("R*vsM*", pred_r_all, pred_m_all),
                 ("R*vsA*", pred_r_all, pred_a_all),
-                ("R*vsV*", pred_r_all, pred_v_all),
+                ("R*vsS*", pred_r_all, pred_s_all),
                 ("M*vsA*", pred_m_all, pred_a_all),
-                ("M*vsV*", pred_m_all, pred_v_all),
-                ("A*vsV*", pred_a_all, pred_v_all),
+                ("M*vsS*", pred_m_all, pred_s_all),
+                ("A*vsS*", pred_a_all, pred_s_all),
             ]
             interdim_rhos: dict = {}
             for label, d1, d2 in pairs:
@@ -597,19 +597,19 @@ class ValidationService:
                 r_scores = [float(c.scores.reliability)    for c in all_comps]
                 m_scores = [float(c.scores.maintainability) for c in all_comps]
                 a_scores = [float(c.scores.availability)   for c in all_comps]
-                v_scores = [float(c.scores.vulnerability)  for c in all_comps]
+                s_scores = [float(c.scores.security)       for c in all_comps]
                 q_scores = [float(c.scores.overall)        for c in all_comps]
 
                 h_r = _h(r_scores)
                 h_m = _h(m_scores)
                 h_a = _h(a_scores)
-                h_v = _h(v_scores)
+                h_s = _h(s_scores)
 
                 sri = (
                     dim_weights["r"] * (1 - h_r)
                     + dim_weights["m"] * (1 - h_m)
                     + dim_weights["a"] * (1 - h_a)
-                    + dim_weights["v"] * (1 - h_v)
+                    + dim_weights["s"] * (1 - h_s)
                 )
 
                 q_sorted = sorted(q_scores)
@@ -623,7 +623,7 @@ class ValidationService:
                     "H_R": round(h_r, 4),
                     "H_M": round(h_m, 4),
                     "H_A": round(h_a, 4),
-                    "H_V": round(h_v, 4),
+                    "H_S": round(h_s, 4),
                     "SRI": round(sri, 4),
                     "RCI": round(rci, 4),
                 }
@@ -660,11 +660,11 @@ class ValidationService:
         except:
             gates["G5_predictive_gain"] = False
         gates["G6_kappa_cta"] = float(dimensional_validation.get("maintainability", {}).get("weighted_kappa_cta", 0.0)) >= float(self.targets.weighted_kappa_cta)
-        gates["G7_cdcc"] = float(dimensional_validation.get("vulnerability", {}).get("cdcc", 1.0)) < float(self.targets.cdcc_max)
+        gates["G7_cdcc"] = float(dimensional_validation.get("security", {}).get("cdcc", 1.0)) < float(self.targets.cdcc_max)
 
         # Tier 3: G8-G9
         gates["G8_bottleneck_precision"] = dimensional_validation.get("maintainability", {}).get("bottleneck_precision", 0.0) >= self.targets.bottleneck_precision_target
-        gates["G9_ftr"] = dimensional_validation.get("vulnerability", {}).get("ftr", 1.0) <= self.targets.ftr_max
+        gates["G9_ftr"] = dimensional_validation.get("security", {}).get("ftr", 1.0) <= self.targets.ftr_max
 
         # Node-type Stratified Reporting (G1 per node-type)
         stratified = {}
@@ -758,7 +758,7 @@ class ValidationService:
             reliability_spearman=reliability_spearman,
             maintainability_spearman=maintainability_spearman,
             availability_spearman=availability_spearman,
-            vulnerability_spearman=vulnerability_spearman,
+            security_spearman=security_spearman,
             composite_spearman=composite_spearman,
             predictive_gain=predictive_gain,
             system_health=system_health,

@@ -309,7 +309,7 @@ class ConsoleDisplay:
                 level_str = c.levels.overall.name if hasattr(c.levels.overall, 'name') else str(c.levels.overall)
                 color = self.level_color(c.levels.overall)
                 ap_flag = self.colored("●", Colors.RED) if c.structural.is_articulation_point else " "
-                print(f"  {c.id:<20} {c.structural.name[:20]:<20} {c.type:<10} {c.scores.reliability:.3f}  {c.scores.maintainability:.3f}  {c.scores.availability:.3f}  {c.scores.vulnerability:.3f}  {self.colored(f'{c.scores.overall:.3f}', color)}  {self.colored(level_str, color):<10} {ap_flag}")
+                print(f"  {c.id:<20} {c.structural.name[:20]:<20} {c.type:<10} {c.scores.reliability:.3f}  {c.scores.maintainability:.3f}  {c.scores.availability:.3f}  {c.scores.security:.3f}  {self.colored(f'{c.scores.overall:.3f}', color)}  {self.colored(level_str, color):<10} {ap_flag}")
                 
                 # Show direct affected/related components
                 related = []
@@ -341,7 +341,7 @@ class ConsoleDisplay:
             box=box.MINIMAL_HEAVY_HEAD, 
             header_style="bold white", 
             padding=(0, 1),
-            caption="[grey50]R: Reliability | M: Maintainability | A: Availability | V: Vulnerability | Q: Overall | S: SPOF[/]",
+            caption="[grey50]R: Reliability | M: Maintainability | A: Availability | S: Security | Q: Overall | S: SPOF[/]",
             caption_justify="left"
         )
         table.add_column("Rank", justify="center", style="grey70")
@@ -369,7 +369,7 @@ class ConsoleDisplay:
                 f"{c.scores.reliability:.3f}",
                 f"{c.scores.maintainability:.3f}",
                 f"{c.scores.availability:.3f}",
-                f"{c.scores.vulnerability:.3f}",
+                f"{c.scores.security:.3f}",
                 Text(f"{c.scores.overall:.4f}", style=color),
                 Text(level_str.capitalize(), style=color),
                 spof
@@ -631,7 +631,7 @@ class ConsoleDisplay:
                 level = s.get("criticality_level", "MINIMAL")
                 color = self.level_color(level)
                 score_str = f"{s.get('composite_score', 0):>7.4f}"
-                print(f"  {i:<4} {s.get('component', '')[:29]:<30} {self.colored(score_str, color)} {self.colored(level[:10], color):<10} {s.get('reliability_score', 0):>6.3f} {s.get('maintainability_score', 0):>6.3f} {s.get('availability_score', 0):>6.3f} {s.get('vulnerability_score', 0):>6.3f}")
+                print(f"  {i:<4} {s.get('component', '')[:29]:<30} {self.colored(score_str, color)} {self.colored(level[:10], color):<10} {s.get('reliability_score', 0):>6.3f} {s.get('maintainability_score', 0):>6.3f} {s.get('availability_score', 0):>6.3f} {s.get('security_score', 0):>6.3f}")
             if len(sorted_nodes) > limit: print(f"\n  {self.colored(f'... and {len(sorted_nodes) - limit} more components', Colors.GRAY)}")
             return
 
@@ -667,7 +667,7 @@ class ConsoleDisplay:
                 f"{s.get('reliability_score', 0):.3f}",
                 f"{s.get('maintainability_score', 0):.3f}",
                 f"{s.get('availability_score', 0):.3f}",
-                f"{s.get('vulnerability_score', 0):.3f}"
+                f"{s.get('security_score', 0):.3f}"
             )
         self.console.print(table)
 
@@ -993,16 +993,16 @@ class ConsoleDisplay:
                 r_s = s.scores.get("reliability", 0.0)
                 m_s = s.scores.get("maintainability", 0.0)
                 a_s = s.scores.get("availability", 0.0)
-                v_s = s.scores.get("vulnerability", 0.0)
+                v_s = s.scores.get("security", 0.0)
             else:
                 comp_s = getattr(s, "composite_score", 0.0)
                 r_s = getattr(s, "reliability_score", 0.0)
                 m_s = getattr(s, "maintainability_score", 0.0)
                 a_s = getattr(s, "availability_score", 0.0)
-                v_s = getattr(s, "vulnerability_score", 0.0)
+                v_s = getattr(s, "security_score", 0.0)
             
             # Dominant dimension logic
-            dims = {"R": r_s, "M": m_s, "A": a_s, "V": v_s}
+            dims = {"R": r_s, "M": m_s, "A": a_s, "S": v_s}
             dominant = max(dims, key=dims.get)
             
             # Structural info (blast radius, depth, SPOF)
@@ -1329,9 +1329,9 @@ class ConsoleDisplay:
         if a := dimensional_validation.get("availability"):
             print(f"  {self.colored('Availability [IA(v)]:', Colors.CYAN):<30} ρ={a['spearman']:.4f}, SPOF_F1={a['spof_f1']:.3f}, RRI={a['rri']:.3f}")
             
-        # Vulnerability
-        if v := dimensional_validation.get("vulnerability"):
-            print(f"  {self.colored('Vulnerability [IV(v)]:', Colors.CYAN):<30} ρ={v['spearman']:.4f}, AHCR@5={v['ahcr_5']:.3f}, FTR={v['ftr']:.3f}")
+        # Security
+        if v := dimensional_validation.get("security"):
+            print(f"  {self.colored('Security [IV(v)]:', Colors.CYAN):<30} ρ={v['spearman']:.4f}, AHCR@5={v['ahcr_5']:.3f}, FTR={v['ftr']:.3f}")
 
         # Composite
         if c := dimensional_validation.get("composite"):

@@ -72,14 +72,14 @@ interface ComponentAnalysis {
     reliability: string
     maintainability: string
     availability: string
-    vulnerability: string
+    security: string
     overall: string
   }
   scores: {
     reliability: number
     maintainability: number
     availability: number
-    vulnerability: number
+    security: number
     overall: number
   }
 }
@@ -95,7 +95,7 @@ interface EdgeAnalysis {
     reliability: number
     maintainability: number
     availability: number
-    vulnerability: number
+    security: number
     overall: number
   }
 }
@@ -268,7 +268,7 @@ export default function AnalysisPage() {
   // Calculate aggregate scores
   const calculateAggregateScores = () => {
     if (!analysisData || !analysisData.components || analysisData.components.length === 0) {
-      return { reliability: 0, maintainability: 0, availability: 0, vulnerability: 0, overall: 0 }
+      return { reliability: 0, maintainability: 0, availability: 0, security: 0, overall: 0 }
     }
 
     const components = analysisData.components
@@ -278,7 +278,7 @@ export default function AnalysisPage() {
     const allEntities = [...components, ...edges]
 
     if (allEntities.length === 0) {
-      return { reliability: 0, maintainability: 0, availability: 0, vulnerability: 0, overall: 0 }
+      return { reliability: 0, maintainability: 0, availability: 0, security: 0, overall: 0 }
     }
 
     // Invert raw risk scores so that high display score = good quality
@@ -289,7 +289,7 @@ export default function AnalysisPage() {
       reliability: avg('reliability'),
       maintainability: avg('maintainability'),
       availability: avg('availability'),
-      vulnerability: avg('vulnerability'),
+      security: avg('security'),
       overall: avg('overall'),
     }
   }
@@ -490,7 +490,7 @@ export default function AnalysisPage() {
                 reliability: c.criticality_level,
                 maintainability: c.criticality_level,
                 availability: c.criticality_level,
-                vulnerability: c.criticality_level,
+                security: c.criticality_level,
                 overall: c.criticality_level,
               },
               scores: c.scores,
@@ -556,7 +556,7 @@ export default function AnalysisPage() {
     return (
       <AppLayout
         title="Analysis"
-        description="RMAV quality scoring by architectural layer"
+        description="RMAS quality scoring by architectural layer"
       >
         <div className="space-y-6">
           {/* Layer selection card skeleton */}
@@ -595,7 +595,7 @@ export default function AnalysisPage() {
     return (
       <AppLayout
         title="Analysis"
-        description="RMAV quality scoring by architectural layer"
+        description="RMAS quality scoring by architectural layer"
       >
         <NoConnectionInfo description="Connect to your Neo4j database to run quality analysis" />
       </AppLayout>
@@ -605,7 +605,7 @@ export default function AnalysisPage() {
   return (
     <AppLayout
       title="Analysis"
-      description="RMAV quality scoring by architectural layer"
+      description="RMAS quality scoring by architectural layer"
     >
       <div className="space-y-6">
 
@@ -858,13 +858,13 @@ export default function AnalysisPage() {
               const hasEdges  = analysisData.edges && analysisData.edges.length > 0
 
               const comps = analysisData.components || []
-              const avgDim = (key: 'reliability' | 'maintainability' | 'availability' | 'vulnerability') =>
+              const avgDim = (key: 'reliability' | 'maintainability' | 'availability' | 'security') =>
                 comps.length ? parseFloat((comps.reduce((s: number, c: any) => s + (c.scores?.[key] ?? 0), 0) / comps.length).toFixed(3)) : 0
               const radarDims = [
                 { name: 'Reliability',     value: avgDim('reliability') },
                 { name: 'Maintainability', value: avgDim('maintainability') },
                 { name: 'Availability',    value: avgDim('availability') },
-                { name: 'Vulnerability',   value: avgDim('vulnerability') },
+                { name: 'Security',        value: avgDim('security') },
               ]
               const radarMax = parseFloat((Math.max(...radarDims.map(d => d.value)) * 1.25).toFixed(3))
               const radarOption = {
@@ -1081,7 +1081,7 @@ export default function AnalysisPage() {
                         <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Reliability</th>
                         <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Maintainability</th>
                         <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Availability</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Vulnerability</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Security</th>
 
                       </tr>
 
@@ -1136,7 +1136,7 @@ export default function AnalysisPage() {
                           </td>
 
                           <td className="px-3 py-2 text-right font-mono text-xs">
-                            <span className={getScoreColor(component.scores.vulnerability)}>{component.scores.vulnerability.toFixed(3)}</span>
+                            <span className={getScoreColor(component.scores.security)}>{component.scores.security.toFixed(3)}</span>
                           </td>
 
                         </tr>

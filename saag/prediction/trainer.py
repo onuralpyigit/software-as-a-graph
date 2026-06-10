@@ -95,6 +95,35 @@ class EvalMetrics:
         return "\n".join(lines)
 
 
+def get_inductive_subgraph(data: 'HeteroData', mask_name: str) -> 'HeteroData':
+    """Isolate graph nodes by partition to enforce the Inductive Split Protocol."""
+    has_mask = False
+    for nt in data.node_types:
+        store = data[nt]
+        if hasattr(store, mask_name) and store[mask_name].sum() > 0:
+            has_mask = True
+            break
+    if not has_mask:
+        return data
+
+    idx_dict = {}
+    for nt in data.node_types:
+        store = data[nt]
+        if hasattr(store, mask_name):
+            idx_dict[nt] = torch.where(store[mask_name])[0]
+        else:
+            device = None
+            if hasattr(store, "x") and isinstance(store.x, Tensor):
+                device = store.x.device
+            else:
+                for k, val in store.items():
+                    if isinstance(val, Tensor):
+                        device = val.device
+                        break
+            idx_dict[nt] = torch.arange(store.num_nodes, device=device)
+    return data.subgraph(idx_dict)
+
+
 class GNNTrainer:
     """Manages the training process for HGT models with early stopping."""
 
@@ -125,9 +154,11 @@ class GNNTrainer:
         """Compute loss on validation-masked *labelled* nodes (no grad)."""
         self.model.eval()
         with torch.no_grad():
-            x_dict = {nt: data[nt].x for nt in data.node_types if hasattr(data[nt], "x")}
-            ei_dict = {rel: data[rel].edge_index for rel in data.edge_types}
-            ea_dict = {rel: data[rel].edge_attr for rel in data.edge_types if hasattr(data[rel], "edge_attr")}
+            val_data = get_inductive_subgraph(data, "val_mask")
+            val_data = val_data.to(self.device)
+            x_dict = {nt: val_data[nt].x for nt in val_data.node_types if hasattr(val_data[nt], "x")}
+            ei_dict = {rel: val_data[rel].edge_index for rel in val_data.edge_types}
+            ea_dict = {rel: val_data[rel].edge_attr for rel in val_data.edge_types if hasattr(val_data[rel], "edge_attr")}
             output = self.model(x_dict, ei_dict, ea_dict)
             node_preds = output[0] if isinstance(output, tuple) else output
 
@@ -136,7 +167,7 @@ class GNNTrainer:
             for nt, preds in node_preds.items():
                 if nt not in {"Application", "Library"}:
                     continue
-                store = data[nt]
+                store = val_data[nt]
                 if not (hasattr(store, "y") and hasattr(store, "val_mask")):
                     continue
                 mask = store.val_mask
@@ -160,12 +191,16 @@ class GNNTrainer:
         for batch in loader:
             batch = batch.to(self.device)
             optimizer.zero_grad()
-            x_dict = {nt: batch[nt].x for nt in batch.node_types if hasattr(batch[nt], "x")}
-            ei_dict = {rel: batch[rel].edge_index for rel in batch.edge_types}
-            ea_dict = {rel: batch[rel].edge_attr for rel in batch.edge_types if hasattr(batch[rel], "edge_attr")}
+            
+            # Enforce Inductive Split Protocol by isolating training subgraph
+            train_batch = get_inductive_subgraph(batch, "train_mask")
+            
+            x_dict = {nt: train_batch[nt].x for nt in train_batch.node_types if hasattr(train_batch[nt], "x")}
+            ei_dict = {rel: train_batch[rel].edge_index for rel in train_batch.edge_types}
+            ea_dict = {rel: train_batch[rel].edge_attr for rel in train_batch.edge_types if hasattr(train_batch[rel], "edge_attr")}
             output = self.model(x_dict, ei_dict, ea_dict)
             node_preds = output[0] if isinstance(output, tuple) else output
-            batch_loss = self._node_loss(node_preds, batch)
+            batch_loss = self._node_loss(node_preds, train_batch)
             batch_loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
             optimizer.step()
@@ -294,7 +329,7 @@ def evaluate(
     mask_name: str,
     device: torch.device,
 ) -> EvalMetrics:
-    """Compute validation/test metrics, including per-node-type Spearman ρ.
+    """Compute validation/test metrics, including per-node-type Spearman ρ under Inductive Split Protocol.
 
     Parameters
     ----------
@@ -308,23 +343,26 @@ def evaluate(
         Torch device.
     """
     model.eval()
-    data = data.to(device)
+    
+    # Enforce Inductive Split Protocol by isolating evaluation subgraph
+    sub_data = get_inductive_subgraph(data, mask_name)
+    sub_data = sub_data.to(device)
 
     with torch.no_grad():
-        x_dict = {nt: data[nt].x for nt in data.node_types if hasattr(data[nt], "x")}
-        ei_dict = {rel: data[rel].edge_index for rel in data.edge_types}
-        ea_dict = {rel: data[rel].edge_attr for rel in data.edge_types if hasattr(data[rel], "edge_attr")}
+        x_dict = {nt: sub_data[nt].x for nt in sub_data.node_types if hasattr(sub_data[nt], "x")}
+        ei_dict = {rel: sub_data[rel].edge_index for rel in sub_data.edge_types}
+        ea_dict = {rel: sub_data[rel].edge_attr for rel in sub_data.edge_types if hasattr(sub_data[rel], "edge_attr")}
 
         if hasattr(model, "predict_edges") and getattr(model, "predict_edges", False):
             node_preds, _ = model(x_dict, ei_dict, ea_dict)
         else:
             node_preds = model(x_dict, ei_dict, ea_dict)
 
-    y_pred, y_true = _collect_samples(node_preds, data, mask_name)
+    y_pred, y_true = _collect_samples(node_preds, sub_data, mask_name)
     metrics = evaluate_scores(y_pred, y_true)
 
     # Populate per-node-type Spearman ρ (Block F prerequisite)
-    metrics.per_node_type = _compute_per_type_rho(node_preds, data, mask_name)
+    metrics.per_node_type = _compute_per_type_rho(node_preds, sub_data, mask_name)
 
     return metrics
 

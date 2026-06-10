@@ -36,12 +36,12 @@ CRITICALITY_COLORS: Dict[str, str] = {
     "MINIMAL":  "#5F5E5A",   # gray-800
 }
 
-# RMAV: AHP-calibrated semantics. Weights: A=0.43, R=0.24, M=0.17, V=0.16
-RMAV_COLORS: Dict[str, str] = {
+# RMAS: AHP-calibrated semantics. Weights: A=0.43, R=0.24, M=0.17, S=0.16
+RMAS_COLORS: Dict[str, str] = {
     "reliability":     "#534AB7",   # purple
     "maintainability": "#0F6E56",   # teal
     "availability":    "#993C1D",   # coral
-    "vulnerability":   "#993556",   # pink
+    "security":        "#993556",   # pink
 }
 
 # AHP dimension weights — used in rmav_breakdown for weighted bar segments
@@ -49,7 +49,7 @@ AHP_WEIGHTS: Dict[str, float] = {
     "availability":    0.43,
     "reliability":     0.24,
     "maintainability": 0.17,
-    "vulnerability":   0.16,
+    "security":        0.16,
 }
 
 TYPE_COLORS: Dict[str, str] = {
@@ -184,14 +184,14 @@ class ChartGenerator:
             ("availability",    "Availability (×0.43)"),
             ("reliability",     "Reliability (×0.24)"),
             ("maintainability", "Maintainability (×0.17)"),
-            ("vulnerability",   "Vulnerability (×0.16)"),
+            ("security",        "Security (×0.16)"),
         ]:
             w = AHP_WEIGHTS[dim_key]
             values = [round(getattr(c, dim_key, 0.0) * w, 4) for c in top]
             datasets.append({
                 "label": dim_label,
                 "data": values,
-                "backgroundColor": RMAV_COLORS[dim_key],
+                "backgroundColor": RMAS_COLORS[dim_key],
                 "borderWidth": 0,
             })
         config = {
@@ -556,10 +556,10 @@ class ChartGenerator:
                  vulnerability, and optionally infrastructure.
         """
         rows = [
-            ("Availability (A)",    "availability",    RMAV_COLORS["availability"]),
-            ("Reliability (R)",     "reliability",     RMAV_COLORS["reliability"]),
-            ("Maintainability (M)", "maintainability", RMAV_COLORS["maintainability"]),
-            ("Vulnerability (V)",   "vulnerability",   RMAV_COLORS["vulnerability"]),
+            ("Availability (A)",    "availability",    RMAS_COLORS["availability"]),
+            ("Reliability (R)",     "reliability",     RMAS_COLORS["reliability"]),
+            ("Maintainability (M)", "maintainability", RMAS_COLORS["maintainability"]),
+            ("Security (S)",        "security",        RMAS_COLORS["security"]),
         ]
         if include_infra:
             rows.append(("Infrastructure", "infrastructure", "#B4B2A9"))

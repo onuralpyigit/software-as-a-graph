@@ -116,7 +116,7 @@ def _build_simulation_results(graph: nx.DiGraph) -> Dict[str, Any]:
     return {
         node: {
             "composite": 0.5, "reliability": 0.5,
-            "maintainability": 0.3, "availability": 0.6, "vulnerability": 0.2,
+            "maintainability": 0.3, "availability": 0.6, "security": 0.2,
         }
         for node in graph.nodes()
     }

@@ -66,7 +66,7 @@ def run_demo(output_file: str, open_browser: bool) -> int:
         max_impact=0.734,
         # Per-dimension ρ
         reliability_spearman=0.841, maintainability_spearman=0.793,
-        availability_spearman=0.882, vulnerability_spearman=0.714,
+        availability_spearman=0.882, security_spearman=0.714,
         composite_spearman=0.876,
         composite_ci=(0.831, 0.921),
         # Multi-seed stability (§6.4.6)
@@ -80,32 +80,32 @@ def run_demo(output_file: str, open_browser: bool) -> int:
         ComponentDetail(
             "sensor_fusion", "Sensor Fusion", "Application",
             reliability=0.82, maintainability=0.88, availability=0.90,
-            vulnerability=0.75, overall=0.84, level="CRITICAL",
+            security=0.75, overall=0.84, level="CRITICAL",
             impact=0.79, cascade_risk=0.81, cascade_risk_topo=0.71,
         ),
         ComponentDetail(
             "planning_engine", "Planning Engine", "Application",
             reliability=0.75, maintainability=0.81, availability=0.85,
-            vulnerability=0.60, overall=0.72, level="HIGH",
+            security=0.60, overall=0.72, level="HIGH",
             impact=0.65, cascade_risk=0.68, cascade_risk_topo=0.59,
         ),
         ComponentDetail(
             "main_broker", "Main Broker", "Broker",
             reliability=0.88, maintainability=0.79, availability=0.93,
-            vulnerability=0.65, overall=0.80, level="CRITICAL",
+            security=0.65, overall=0.80, level="CRITICAL",
             impact=0.76, cascade_risk=0.75, cascade_risk_topo=0.66,
             spof=True,
         ),
         ComponentDetail(
             "nav_lib", "NavLib", "Library",
             reliability=0.62, maintainability=0.70, availability=0.78,
-            vulnerability=0.55, overall=0.61, level="MEDIUM",
+            security=0.55, overall=0.61, level="MEDIUM",
             impact=0.52, cascade_risk=0.49, cascade_risk_topo=0.44,
         ),
         ComponentDetail(
             "telemetry_topic", "Telemetry", "Topic",
             reliability=0.44, maintainability=0.55, availability=0.60,
-            vulnerability=0.40, overall=0.40, level="LOW",
+            security=0.40, overall=0.40, level="LOW",
             impact=0.30, cascade_risk=0.28, cascade_risk_topo=0.25,
         ),
     ]
@@ -168,12 +168,12 @@ def run_demo(output_file: str, open_browser: bool) -> int:
     # ── Tab 2: Component Table ─────────────────────────────────────────────
     dash.add_tab("Component table", "components")
     dash.start_section("Detailed component analysis")
-    headers = ["Component", "Type", "R", "M", "A", "V", "Q(v)", "Impact", "Level", "SPOF"]
+    headers = ["Component", "Type", "R", "M", "A", "S", "Q(v)", "Impact", "Level", "SPOF"]
     rows = []
     for c in demo_data.component_details:
         rows.append([
             c.name, c.type, f"{c.reliability:.2f}", f"{c.maintainability:.2f}", 
-            f"{c.availability:.2f}", f"{c.vulnerability:.2f}", f"{c.overall:.3f}", 
+            f"{c.availability:.2f}", f"{c.security:.2f}", f"{c.overall:.3f}", 
             f"{c.impact:.3f}", f'<span class="badge badge-{c.level.lower()}">{c.level}</span>',
             '<span class="badge badge-spof">SPOF</span>' if c.spof else ""
         ])

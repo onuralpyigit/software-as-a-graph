@@ -48,13 +48,13 @@ def mock_analysis_result():
     comp.levels.reliability = CriticalityLevel.LOW
     comp.levels.maintainability = CriticalityLevel.MEDIUM
     comp.levels.availability = CriticalityLevel.HIGH
-    comp.levels.vulnerability = CriticalityLevel.MINIMAL
+    comp.levels.security = CriticalityLevel.MINIMAL
     
     comp.scores = MagicMock(spec=QualityScores)
     comp.scores.reliability = 0.2
     comp.scores.maintainability = 0.5
     comp.scores.availability = 0.8
-    comp.scores.vulnerability = 0.1
+    comp.scores.security = 0.1
     comp.scores.overall = 0.4
     
     comp.to_dict.return_value = {
@@ -68,14 +68,14 @@ def mock_analysis_result():
             "reliability": "low",
             "maintainability": "medium",
             "availability": "high",
-            "vulnerability": "minimal",
+            "security": "minimal",
             "overall": "medium"
         },
         "scores": {
             "reliability": 0.2,
             "maintainability": 0.5,
             "availability": 0.8,
-            "vulnerability": 0.1,
+            "security": 0.1,
             "overall": 0.4
         },
         "structural": {

@@ -96,7 +96,7 @@ def _make_simulation_results(graph):
             "reliability": rng.uniform(0.1, 0.9),
             "maintainability": rng.uniform(0.1, 0.9),
             "availability": rng.uniform(0.1, 0.9),
-            "vulnerability": rng.uniform(0.1, 0.9),
+            "security": rng.uniform(0.1, 0.9),
         }
         for node in graph.nodes()
     }

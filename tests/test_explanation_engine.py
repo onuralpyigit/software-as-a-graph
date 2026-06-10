@@ -18,13 +18,13 @@ from saag.explanation.engine import ExplanationEngine
 def sample_quality():
     """Create a sample ComponentQuality object with 'Total Hub' profile."""
     scores = QualityScores(
-        reliability=0.9, maintainability=0.85, availability=0.88, vulnerability=0.92, overall=0.9
+        reliability=0.9, maintainability=0.85, availability=0.88, security=0.92, overall=0.9
     )
     levels = QualityLevels(
         reliability=CriticalityLevel.CRITICAL,
         maintainability=CriticalityLevel.CRITICAL,
         availability=CriticalityLevel.CRITICAL,
-        vulnerability=CriticalityLevel.CRITICAL,
+        security=CriticalityLevel.CRITICAL,
         overall=CriticalityLevel.CRITICAL
     )
     structural = StructuralMetrics(
@@ -39,7 +39,7 @@ def sample_quality():
         reverse_eigenvector=0.95,
         bridge_ratio=0.75
     )
-    profile = CriticalityProfile(r_crit=True, m_crit=True, a_crit=True, v_crit=True, q_crit=True)
+    profile = CriticalityProfile(r_crit=True, m_crit=True, a_crit=True, s_crit=True, q_crit=True)
     
     return ComponentQuality(
         id="App_Controller",
@@ -55,13 +55,13 @@ def sample_quality():
 def sample_quality_high():
     """Create a sample ComponentQuality object with HIGH level."""
     scores = QualityScores(
-        reliability=0.75, maintainability=0.7, availability=0.72, vulnerability=0.78, overall=0.75
+        reliability=0.75, maintainability=0.7, availability=0.72, security=0.78, overall=0.75
     )
     levels = QualityLevels(
         reliability=CriticalityLevel.HIGH,
         maintainability=CriticalityLevel.HIGH,
         availability=CriticalityLevel.HIGH,
-        vulnerability=CriticalityLevel.HIGH,
+        security=CriticalityLevel.HIGH,
         overall=CriticalityLevel.HIGH
     )
     structural = StructuralMetrics(
@@ -76,7 +76,7 @@ def sample_quality_high():
         reverse_eigenvector=0.4,
         bridge_ratio=0.1
     )
-    profile = CriticalityProfile(r_crit=False, m_crit=False, a_crit=True, v_crit=False, q_crit=False)
+    profile = CriticalityProfile(r_crit=False, m_crit=False, a_crit=True, s_crit=False, q_crit=False)
     
     return ComponentQuality(
         id="Aux_Service",

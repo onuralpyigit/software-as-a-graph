@@ -53,8 +53,8 @@ class ValidationTargets:
     dasa: float = 0.70
     rri: float = 0.80
 
-    # Vulnerability-specific
-    vulnerability_spearman: float = 0.70
+    # Security-specific
+    security_spearman: float = 0.70
     apar: float = 0.60
     cdcc: float = 0.40  # default label
     cdcc: float = 0.40  # default / general
@@ -286,12 +286,12 @@ class LayerValidationResult:
     reliability_spearman: float = 0.0  # ρ(R(v), IR(v)) — reliability-specific correlation
     maintainability_spearman: float = 0.0  # ρ(M(v), IM(v)) — maintainability-specific correlation
     availability_spearman: float = 0.0  # ρ(A(v), IA(v)) — availability-specific correlation
-    vulnerability_spearman: float = 0.0  # ρ(V(v), IV(v)) — vulnerability-specific correlation
+    security_spearman: float = 0.0  # ρ(S(v), IS(v)) — security-specific correlation
     # Composite Q*(v) vs I*(v)
     composite_spearman: float = 0.0     # ρ(Q*(v), I*(v)) — the primary composite validation gate
     predictive_gain: float = 0.0        # PG = ρ_composite − max(dim ρ) > 0.03
     system_health: Dict[str, float] = field(default_factory=dict)
-    # system_health keys: H_R, H_M, H_A, H_V, SRI, RCI
+    # system_health keys: H_R, H_M, H_A, H_S, SRI, RCI
     passed: bool = False
     comparisons: List[ComponentComparison] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -319,7 +319,7 @@ class LayerValidationResult:
                 "reliability_spearman": round(self.reliability_spearman, 4),
                 "maintainability_spearman": round(self.maintainability_spearman, 4),
                 "availability_spearman": round(self.availability_spearman, 4),
-                "vulnerability_spearman": round(self.vulnerability_spearman, 4),
+                "security_spearman": round(self.security_spearman, 4),
                 "composite_spearman": round(self.composite_spearman, 4),
                 "predictive_gain": round(self.predictive_gain, 4),
                 "system_health": {k: round(v, 4) for k, v in self.system_health.items()},

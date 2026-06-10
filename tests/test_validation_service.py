@@ -105,7 +105,7 @@ class TestValidationService:
             fail_res.impact = MagicMock(spec=ImpactMetrics)
             fail_res.impact.composite_impact = values[i]
             fail_res.impact.availability_impact = values[i]
-            fail_res.impact.vulnerability_impact = values[i]
+            fail_res.impact.security_impact = values[i]
             fail_res.impact.attack_reach = values[i]
             fail_res.impact.reachability_loss = values[i]
             fail_res.impact.fragmentation = values[i]
@@ -113,7 +113,7 @@ class TestValidationService:
             fail_res.impact.reliability_impact = values[i]
             fail_res.impact.maintainability_impact = values[i]
             fail_res.impact.availability_impact = values[i]
-            fail_res.impact.vulnerability_impact = values[i]
+            fail_res.impact.security_impact = values[i]
             fail_res.impact.ia_out = values[i]
             fail_res.impact.ia_in = values[i]
             sim_results.append(fail_res)
@@ -136,7 +136,7 @@ class TestValidationService:
         # Verify data passed to validator (implicitly via result checks)
         assert layer_res.csc_names["A"] == "App A"
 
-    def _make_comp(self, id, overall, reliability=0.5, maintainability=0.5, availability=0.5, vulnerability=0.5):
+    def _make_comp(self, id, overall, reliability=0.5, maintainability=0.5, availability=0.5, security=0.5):
         """Build a complex MagicMock for a component."""
         comp = MagicMock()
         comp.id = id
@@ -146,7 +146,7 @@ class TestValidationService:
         comp.scores.reliability = reliability
         comp.scores.maintainability = maintainability
         comp.scores.availability = availability
-        comp.scores.vulnerability = vulnerability
+        comp.scores.security = security
         comp.metrics = {
             "ap_c_out": 0.5, 
             "ap_c_in": 0.5, 
@@ -161,7 +161,7 @@ class TestValidationService:
         comp.structural.weight = 1.0
         return comp
 
-    def _make_sim(self, id, composite, reliability=0.5, maintainability=0.5, availability=0.5, vulnerability=0.5):
+    def _make_sim(self, id, composite, reliability=0.5, maintainability=0.5, availability=0.5, security=0.5):
         """Build a mock failure result."""
         fail_res = MagicMock(spec=FailureResult)
         fail_res.target_id = id
@@ -176,7 +176,7 @@ class TestValidationService:
         fail_res.impact.reliability_impact = reliability
         fail_res.impact.maintainability_impact = maintainability
         fail_res.impact.availability_impact = availability
-        fail_res.impact.vulnerability_impact = vulnerability
+        fail_res.impact.security_impact = security
         
         # Specialist metrics used in validation
         fail_res.impact.ia_out = 0.5
@@ -234,8 +234,8 @@ class TestValidationService:
         assert "dasa" in avl
         assert "rri" in avl
         
-        # Check Vulnerability
-        vul = layer_res.dimensional_validation["vulnerability"]
+        # Check Security
+        vul = layer_res.dimensional_validation["security"]
         assert "ahcr_5" in vul
         assert "ftr" in vul
         assert "apar" in vul

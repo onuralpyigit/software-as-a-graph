@@ -124,7 +124,7 @@ def _require_pyg():
 
 
 NODE_TYPES: List[str] = ["Application", "Broker", "Topic", "Node", "Library"]
-NUM_LABEL_DIMS = 5  # composite, reliability, maintainability, availability, vulnerability
+NUM_LABEL_DIMS = 5  # composite, reliability, maintainability, availability, security
 
 
 class ResidualMLP(nn.Module):
@@ -154,7 +154,7 @@ class EdgeFeatureEncoder(nn.Module):
 
     def __init__(self, edge_feat_dim: int, hidden_channels: int):
         super().__init__()
-        self.proj = nn.Linear(edge_feat_dim, hidden_channels)
+        self.proj = nn.Linear(hidden_channels * 2 + edge_feat_dim, hidden_channels)
 
     def forward(
         self,
@@ -175,14 +175,19 @@ class EdgeFeatureEncoder(nn.Module):
 
         augmented = {k: v.clone() for k, v in h_dict.items()}
         for rel, edge_index in edge_index_dict.items():
-            _, _, dst_type = rel
-            if rel not in edge_attr_dict or dst_type not in h_dict:
+            src_type, _, dst_type = rel
+            if rel not in edge_attr_dict or dst_type not in h_dict or src_type not in h_dict:
                 continue
-            e = self.proj(edge_attr_dict[rel])          # (E, hidden)
+            h_src = h_dict[src_type][edge_index[0]]
+            h_dst = h_dict[dst_type][edge_index[1]]
+            e_feat = edge_attr_dict[rel]
+            fused = torch.cat([h_src, h_dst, e_feat], dim=-1)
+            e = self.proj(fused)                        # (E, hidden)
             n_dst = h_dict[dst_type].size(0)
             aggr = scatter_mean(e, edge_index[1], dim=0, dim_size=n_dst)
             augmented[dst_type] = augmented[dst_type] + aggr
         return augmented
+
 
 
 class TypedEdgeEncoder(nn.Module):
@@ -304,9 +309,9 @@ class NodeCriticalityGNN(nn.Module):
             self.rev_conv = None
 
         # Output heads (unchanged from prior architecture)
-        self.rmav_heads = nn.ModuleDict({
+        self.rmas_heads = nn.ModuleDict({
             dim: ResidualMLP(hidden_channels, hidden_channels // 2, 1, dropout)
-            for dim in ["reliability", "maintainability", "availability", "vulnerability"]
+            for dim in ["reliability", "maintainability", "availability", "security"]
         })
         self.composite_head = ResidualMLP(hidden_channels + 4, hidden_channels // 2, 1, dropout)
 
@@ -356,13 +361,13 @@ class NodeCriticalityGNN(nn.Module):
     def decode(self, h_dict: Dict[str, Tensor]) -> Dict[str, Tensor]:
         out: Dict[str, Tensor] = {}
         for nt, h in h_dict.items():
-            r = torch.sigmoid(self.rmav_heads["reliability"](h))
-            m = torch.sigmoid(self.rmav_heads["maintainability"](h))
-            a = torch.sigmoid(self.rmav_heads["availability"](h))
-            v = torch.sigmoid(self.rmav_heads["vulnerability"](h))
-            composite_in = torch.cat([h, r, m, a, v], dim=-1)
+            r = torch.sigmoid(self.rmas_heads["reliability"](h))
+            m = torch.sigmoid(self.rmas_heads["maintainability"](h))
+            a = torch.sigmoid(self.rmas_heads["availability"](h))
+            s = torch.sigmoid(self.rmas_heads["security"](h))
+            composite_in = torch.cat([h, r, m, a, s], dim=-1)
             composite = torch.sigmoid(self.composite_head(composite_in))
-            out[nt] = torch.cat([composite, r, m, a, v], dim=-1)
+            out[nt] = torch.cat([composite, r, m, a, s], dim=-1)
         return out
 
     def forward(self, x_dict, edge_index_dict, edge_attr_dict=None):

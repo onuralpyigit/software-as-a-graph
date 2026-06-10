@@ -103,11 +103,11 @@ class NodeScores:
     node_id: str
     node_type: str                # Application | Broker | Topic | InfraNode | Library
 
-    # RMAV dimensions (topology-only baseline when qos=False)
+    # RMAS dimensions (topology-only baseline when qos=False)
     R: float = 0.0                # Reliability exposure  (PageRank + in-degree)
     M: float = 0.0                # Maintainability proxy (betweenness + closeness)
     A: float = 0.0                # Availability risk     (articulation × QoS_SPOF)
-    V: float = 0.0                # Vulnerability         (out-degree + dep-density)
+    S: float = 0.0                # Security              (out-degree + dep-density)
     Q: float = 0.0                # Composite Q(v)
 
     # Simulation ground truth
@@ -322,7 +322,7 @@ def compute_rmav(G: nx.DiGraph, qos: bool = True, normalization: str = "robust")
             R=q.scores.reliability,
             M=q.scores.maintainability,
             A=q.scores.availability,
-            V=q.scores.vulnerability,
+            S=q.scores.security,
             I=0.0,
             degree_centrality=pagerank.get(q.id, 0.0),
             is_articulation_point=(q.id in art_points)
@@ -1010,14 +1010,14 @@ def write_csv(node_scores: Dict[str, NodeScores], path: str):
     rows = sorted(node_scores.values(), key=lambda ns: ns.Q, reverse=True)
     with open(path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["rank", "node_id", "node_type", "Q", "R", "M", "A", "V",
+        w.writerow(["rank", "node_id", "node_type", "Q", "R", "M", "A", "S",
                     "I", "cascade_depth", "nodes_affected",
                     "is_articulation_point", "degree_centrality"])
         for rank, ns in enumerate(rows, 1):
             w.writerow([
                 rank, ns.node_id, ns.node_type,
                 round(ns.Q, 5), round(ns.R, 5), round(ns.M, 5),
-                round(ns.A, 5), round(ns.V, 5),
+                round(ns.A, 5), round(ns.S, 5),
                 round(ns.I, 5), ns.cascade_depth, ns.nodes_affected,
                 ns.is_articulation_point, round(ns.degree_centrality, 5),
             ])

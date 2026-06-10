@@ -113,7 +113,7 @@ CATALOG: Dict[str, PatternSpec] = {
         name="High Value Target",
         severity="CRITICAL",
         category="Security",
-        description="Highly connected component with critical vulnerability classification.",
+        description="Highly connected component with critical security classification.",
         risk="A breach here provides an attacker with high reachability into the system.",
         recommendation="Zero Trust policies, audit logging, and network isolation."
     ),
@@ -273,7 +273,7 @@ class AntiPatternDetector:
         overall_scores = [c.scores.overall for c in components]
         avail_scores = [c.scores.availability for c in components]
         rel_scores = [c.scores.reliability for c in components]
-        vuln_scores = [c.scores.vulnerability for c in components]
+        sec_scores = [c.scores.security for c in components]
         total_degrees = [getattr(c.structural, 'in_degree_raw', 0) + getattr(c.structural, 'out_degree_raw', 0) for c in components]
         out_degrees = [getattr(c.structural, 'out_degree_raw', 0) for c in components]
 
@@ -281,13 +281,13 @@ class AntiPatternDetector:
         _, _, q3_deg, fence_deg = _boxplot_fence(total_degrees)
         _, _, q3_rel, fence_rel = _boxplot_fence(rel_scores)
         _, _, q3_avail, fence_avail = _boxplot_fence(avail_scores)
-        _, _, q3_vuln, fence_vuln = _boxplot_fence(vuln_scores)
+        _, _, q3_sec, fence_sec = _boxplot_fence(sec_scores)
         
         median_out = statistics.median(out_degrees) if out_degrees else 0
 
         return {
             "fence_q": fence_q, "q3_degree": q3_deg, "fence_degree": fence_deg,
-            "fence_rel": fence_rel, "fence_avail": fence_avail, "fence_vuln": fence_vuln,
+            "fence_rel": fence_rel, "fence_avail": fence_avail, "fence_sec": fence_sec,
             "median_out": median_out, "total_count": len(components)
         }
 
@@ -364,8 +364,8 @@ class AntiPatternDetector:
         out = []
         from saag.core.criticality import CriticalityLevel
         for c in lr.components:
-            if c.levels.vulnerability >= CriticalityLevel.CRITICAL:
-                out.append(self._make_problem("TARGET", c.id, {"vulnerability": c.scores.vulnerability}))
+            if c.levels.security >= CriticalityLevel.CRITICAL:
+                out.append(self._make_problem("TARGET", c.id, {"security": c.scores.security}))
         return out
 
     def _detect_exposure(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
@@ -373,7 +373,7 @@ class AntiPatternDetector:
         from saag.core.criticality import CriticalityLevel
         for c in lr.components:
             closeness = getattr(c.structural, 'closeness', 0)
-            if c.levels.vulnerability == CriticalityLevel.HIGH and closeness > 0.6:
+            if c.levels.security == CriticalityLevel.HIGH and closeness > 0.6:
                 out.append(self._make_problem("EXPOSURE", c.id, {"closeness": closeness}))
         return out
 

@@ -11,14 +11,14 @@ interface ComponentAnalysis {
     reliability: string
     maintainability: string
     availability: string
-    vulnerability: string
+    security: string
     overall: string
   }
   scores: {
     reliability: number
     maintainability: number
     availability: number
-    vulnerability: number
+    security: number
     overall: number
   }
 }
@@ -34,7 +34,7 @@ interface EdgeAnalysis {
     reliability: number
     maintainability: number
     availability: number
-    vulnerability: number
+    security: number
     overall: number
   }
 }

@@ -249,7 +249,7 @@ class QualityScores:
     reliability: float = 0.0        # Fault propagation risk
     maintainability: float = 0.0    # Change/coupling complexity
     availability: float = 0.0       # Single point of failure risk
-    vulnerability: float = 0.0      # Exposure and attack surface risk
+    security: float = 0.0          # Exposure and attack surface risk
     overall: float = 0.0            # Combined criticality
     
     def to_dict(self) -> Dict[str, float]:
@@ -257,7 +257,7 @@ class QualityScores:
             "reliability": round(self.reliability, 4),
             "maintainability": round(self.maintainability, 4),
             "availability": round(self.availability, 4),
-            "vulnerability": round(self.vulnerability, 4),
+            "security": round(self.security, 4),
             "overall": round(self.overall, 4),
         }
 
@@ -273,7 +273,7 @@ class QualityLevels:
     reliability: CriticalityLevel = CriticalityLevel.MINIMAL
     maintainability: CriticalityLevel = CriticalityLevel.MINIMAL
     availability: CriticalityLevel = CriticalityLevel.MINIMAL
-    vulnerability: CriticalityLevel = CriticalityLevel.MINIMAL
+    security: CriticalityLevel = CriticalityLevel.MINIMAL
     overall: CriticalityLevel = CriticalityLevel.MINIMAL
     
     def to_dict(self) -> Dict[str, str]:
@@ -281,14 +281,14 @@ class QualityLevels:
             "reliability": self.reliability.value,
             "maintainability": self.maintainability.value,
             "availability": self.availability.value,
-            "vulnerability": self.vulnerability.value,
+            "security": self.security.value,
             "overall": self.overall.value,
         }
     
     def max_level(self) -> CriticalityLevel:
         """Return the highest criticality level across all dimensions."""
         return max(
-            [self.reliability, self.maintainability, self.availability, self.vulnerability],
+            [self.reliability, self.maintainability, self.availability, self.security],
             key=lambda x: x.numeric
         )
     

@@ -97,7 +97,7 @@ class GNNCriticalityScore:
     reliability_score: float
     maintainability_score: float
     availability_score: float
-    vulnerability_score: float
+    security_score: float
     source: str = "GNN"           # "GNN", "RMAV", or "Ensemble"
 
     criticality_level: str = "MINIMAL"    # Calculated via adaptive thresholds
@@ -109,7 +109,7 @@ class GNNCriticalityScore:
             "reliability_score": round(self.reliability_score, 4),
             "maintainability_score": round(self.maintainability_score, 4),
             "availability_score": round(self.availability_score, 4),
-            "vulnerability_score": round(self.vulnerability_score, 4),
+            "security_score": round(self.security_score, 4),
             "criticality_level": self.criticality_level,
             "source": self.source,
         }
@@ -125,7 +125,7 @@ class GNNEdgeCriticalityScore:
     reliability_score: float
     maintainability_score: float
     availability_score: float
-    vulnerability_score: float
+    security_score: float
 
     @property
     def criticality_level(self) -> str:
@@ -146,7 +146,7 @@ class GNNEdgeCriticalityScore:
             "reliability_score": round(self.reliability_score, 4),
             "maintainability_score": round(self.maintainability_score, 4),
             "availability_score": round(self.availability_score, 4),
-            "vulnerability_score": round(self.vulnerability_score, 4),
+            "security_score": round(self.security_score, 4),
             "criticality_level": self.criticality_level,
         }
 
@@ -189,7 +189,7 @@ class GNNAnalysisResult:
                 reliability=score.reliability_score,
                 maintainability=score.maintainability_score,
                 availability=score.availability_score,
-                vulnerability=score.vulnerability_score,
+                security=score.security_score,
                 overall=score.composite_score
             )
             def _to_level(val: float) -> CriticalityLevel:
@@ -202,7 +202,7 @@ class GNNAnalysisResult:
                 reliability=_to_level(qs.reliability),
                 maintainability=_to_level(qs.maintainability),
                 availability=_to_level(qs.availability),
-                vulnerability=_to_level(qs.vulnerability),
+                security=_to_level(qs.security),
                 overall=_to_level(qs.overall)
             )
             s_dict = self._structural_cache.get(node_id, {})
@@ -220,7 +220,7 @@ class GNNAnalysisResult:
         eqs = []
         for es in self.edge_scores:
             qs = QualityScores(reliability=es.reliability_score, maintainability=es.maintainability_score, 
-                               availability=es.availability_score, vulnerability=es.vulnerability_score, 
+                               availability=es.availability_score, security=es.security_score, 
                                overall=es.composite_score)
             def _to_level(val: float) -> CriticalityLevel:
                 if val >= 0.75: return CriticalityLevel.CRITICAL
@@ -596,7 +596,7 @@ class GNNService:
                     reliability_score=float(preds_cpu[i, 1]),
                     maintainability_score=float(preds_cpu[i, 2]),
                     availability_score=float(preds_cpu[i, 3]),
-                    vulnerability_score=float(preds_cpu[i, 4]),
+                    security_score=float(preds_cpu[i, 4]),
                     source="GNN",
                 )
 
@@ -619,7 +619,7 @@ class GNNService:
                         reliability_score=float(e_preds_cpu[i, 1]),
                         maintainability_score=float(e_preds_cpu[i, 2]),
                         availability_score=float(e_preds_cpu[i, 3]),
-                        vulnerability_score=float(e_preds_cpu[i, 4]),
+                        security_score=float(e_preds_cpu[i, 4]),
                     )
                 )
 
@@ -718,7 +718,7 @@ class GNNService:
                     reliability_score=float(preds_cpu[i, 1]),
                     maintainability_score=float(preds_cpu[i, 2]),
                     availability_score=float(preds_cpu[i, 3]),
-                    vulnerability_score=float(preds_cpu[i, 4]),
+                    security_score=float(preds_cpu[i, 4]),
                     source="GNN",
                 )
 
@@ -737,7 +737,7 @@ class GNNService:
                     reliability_score=float(rmav_cpu[i, 1]),
                     maintainability_score=float(rmav_cpu[i, 2]),
                     availability_score=float(rmav_cpu[i, 3]),
-                    vulnerability_score=float(rmav_cpu[i, 4]),
+                    security_score=float(rmav_cpu[i, 4]),
                     source="RMAV",
                 )
 
@@ -759,7 +759,7 @@ class GNNService:
                         reliability_score=float(e_preds_cpu[i, 1]),
                         maintainability_score=float(e_preds_cpu[i, 2]),
                         availability_score=float(e_preds_cpu[i, 3]),
-                        vulnerability_score=float(e_preds_cpu[i, 4]),
+                        security_score=float(e_preds_cpu[i, 4]),
                     )
                 )
 
@@ -775,7 +775,7 @@ class GNNService:
                     s = scores[name]
                     type_scores.append([
                         s.composite_score, s.reliability_score, s.maintainability_score, 
-                        s.availability_score, s.vulnerability_score
+                        s.availability_score, s.security_score
                     ])
                 else:
                     type_scores.append([0.0] * 5)
@@ -839,7 +839,7 @@ class GNNService:
 
         alpha_vals = self._ensemble.alpha.detach().cpu().tolist()
         logger.info(
-            "Ensemble alpha (composite/R/M/A/V): %s",
+            "Ensemble alpha (composite/R/M/A/S): %s",
             [f"{a:.3f}" for a in alpha_vals],
         )
 
@@ -864,7 +864,7 @@ class GNNService:
                     reliability_score=float(blended[i, 1]),
                     maintainability_score=float(blended[i, 2]),
                     availability_score=float(blended[i, 3]),
-                    vulnerability_score=float(blended[i, 4]),
+                    security_score=float(blended[i, 4]),
                     source="Ensemble",
                 )
         return out
