@@ -363,7 +363,7 @@ class QualityAnalyzer:
         mpci = m.mpci
         foc = m.fan_out_criticality
 
-        # --- Reliability: R*(v) v7 = PR*(1+MPCI) + DG_in ---
+        # --- Reliability: R*(v) v6 = RPR + DG_in + CDPot_enh ---
         if m.type == "Topic":
             # R_topic(v) = 0.50 × FOC(v) + 0.50 × CDPot_topic(v)
             # CDPot_topic(v) = FOC(v) × (1 − min(publisher_count_norm(v), 1))
@@ -373,11 +373,18 @@ class QualityAnalyzer:
             R = 0.50 * foc + 0.50 * cdpot_topic
         else:
             # Standard Reliability formula (Application, Broker, Node, Library)
-            # R(v) v7: 0.60 * PR * (1 + MPCI) + 0.40 * ID
-            # Rationale: Direct dependency count + reachability amplified by multi-path criticality.
+            # R(v) v6: RPR + DG_in + CDPot_enh (see §11.2 of structural-analysis.md)
+            # DEPENDS_ON edges point dependent→dependency; failure propagates against edge
+            # direction, so RPR on G^T is the correct cascade-reach estimator.
+            _eps_r = 1e-9
+            _id_raw = float(m.in_degree_raw)
+            _od_raw = float(m.out_degree_raw)
+            cdpot_base = ((rpr + id_n) / 2.0) * (1.0 - min(_od_raw / max(_id_raw, _eps_r), 1.0))
+            cdpot_enh = min(cdpot_base * (1.0 + mpci), 1.0)
             R = (
-                0.60 * pr * (1.0 + mpci)
-                + 0.40 * id_n
+                self.weights.r_reverse_pagerank * rpr
+                + getattr(self.weights, 'r_in_degree', 0.30) * id_n
+                + getattr(self.weights, 'r_cdpot', 0.25) * cdpot_enh
             )
 
         # Maintainability: M(v) v6 — adds CQP as 5th signal
