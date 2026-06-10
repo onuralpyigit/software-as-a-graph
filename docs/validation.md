@@ -107,9 +107,9 @@ classify_topology(G)    →   "sparse" | "medium" | "dense" | "hub_spoke"
 evaluate_gates(vr, topo_class)
 ```
 
-> **Independence guarantee.** Q(v) uses only the graph structure (PageRank, betweenness, degree,
-> articulation points) and optionally QoS contract attributes. I(v) is produced by a stochastic
-> forward simulation that has no access to Q(v). The two pipelines are strictly independent.
+> **Independence guarantee (composite and R/A dimensions).** Q(v) uses only the graph structure (PageRank, betweenness, degree, articulation points) and optionally QoS contract attributes. The composite I(v), IR(v), and IA(v) are produced by simulations that operate on G_structural (raw pub-sub edges) and have no access to Q(v). Measuring ρ(Q\*, I\*), ρ(R, IR), and ρ(A, IA) is a genuine empirical test — not a consistency check.
+>
+> IM(v) and IV(v) are derived from the same DEPENDS_ON graph as M(v) and V(v) (`ChangePropagationSimulator` traverses G^T of DEPENDS_ON with an `instability`-based stop condition shared with M(v)'s CouplingRisk; `CompromisePropagationSimulator` traverses the same G^T with a trust-threshold on DEPENDS_ON edge weights used by V(v)'s QADS). ρ(M, IM) and ρ(V, IV) are therefore **internal consistency checks**: they confirm structural alignment between the RMAV predictor and a simulation proxy that shares the same graph substrate. This does not invalidate them — alignment on a shared substrate still provides useful signal — but they cannot claim the same methodological independence as the composite or R/A correlations.
 
 ---
 
@@ -325,9 +325,9 @@ Instead of comparing all dimensions against a single global cascade score, the v
   - **Cascade Magnitude Error (CME)**: Mean absolute difference between predicted reliability and actual reliability impact:
     $$CME = \frac{1}{|V|} \sum_{v \in V} |R(v) - IR(v)|$$
 
-#### 2. Maintainability Dimension Validation
+#### 2. Maintainability Dimension Validation *(internal consistency check)*
 - **Predictor**: $M(v)$
-- **Ground Truth**: $IM(v)$ (Maintainability Impact, measuring the structural coupling fragility).
+- **Ground Truth**: $IM(v)$ (Maintainability Impact, measuring the structural coupling fragility). Both $M(v)$ and $IM(v)$ are derived from the DEPENDS_ON graph; this correlation measures structural alignment, not empirical independence.
 - **Core Metrics**:
   - **Spearman correlation** $\rho(M(v), IM(v))$
   - **Coupling-Oriented Capture Rate @ 5 (COCR@5)**: The fraction of the top 5 most maintainability-critical nodes correctly captured by the top 5 $M(v)$ predictions.
@@ -344,9 +344,9 @@ Instead of comparing all dimensions against a single global cascade score, the v
   - **Redundancy Recovery Index (RRI)**: Assesses the relationship between the Bridge Ratio ($BR(v)$) and availability recovery.
   - **High-SLA Redundancy Recall (HSRR)**: Measures overlap between QoS-amplified SPOF predictions ($QSPOF$) and high-impact availability failures.
 
-#### 4. Vulnerability Dimension Validation
+#### 4. Vulnerability Dimension Validation *(internal consistency check)*
 - **Predictor**: $V(v)$
-- **Ground Truth**: $IV(v)$ (Vulnerability Impact, representing strategic reach and propagation speed).
+- **Ground Truth**: $IV(v)$ (Vulnerability Impact, representing strategic reach and propagation speed). Both $V(v)$ and $IV(v)$ are derived from the DEPENDS_ON graph; this correlation measures structural alignment, not empirical independence.
 - **Core Metrics**:
   - **Spearman correlation** $\rho(V(v), IV(v))$
   - **Attack Hub Capture Rate @ 5 (AHCR@5)**: Capture rate for the top 5 most vulnerable nodes.
