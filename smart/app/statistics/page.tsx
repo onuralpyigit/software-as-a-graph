@@ -170,6 +170,12 @@ interface ExtrasStats {
       bw_total: number
     }>
   }
+  qos_distribution?: {
+    total_topics: number
+    durability: Record<string, number>
+    reliability: Record<string, number>
+    transport_priority: Record<string, number>
+  }
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -181,6 +187,7 @@ function getPrimaryLength(data: unknown): number {
   if (Array.isArray(d.sorted_labels)) return d.sorted_labels.length
   if (Array.isArray(d.crit_labels)) return d.crit_labels.length
   if (Array.isArray(d.items)) return d.items.length
+  if (d.total_topics !== undefined) return 1 // For qos_distribution
   return 0
 }
 
@@ -2057,6 +2064,94 @@ function BottleneckSection({ data }: { data: ExtrasStats["bottleneck"] }) {
   )
 }
 
+function QoSDistributionSection({ data }: { data: ExtrasStats["qos_distribution"] }) {
+  if (!data) return null
+
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme !== "light"
+
+  const COLORS = ["#818cf8", "#34d399", "#fbbf24", "#fb7185", "#a78bfa", "#2dd4bf", "#f472b6", "#60a5fa", "#38bdf8", "#facc15"]
+
+  const renderChart = (title: string, counts: Record<string, number>) => {
+    const items = Object.entries(counts).map(([name, value]) => ({ name, value }))
+    const option = {
+      tooltip: {
+        trigger: "item" as const,
+        formatter: "{b}: {c} ({d}%)",
+        backgroundColor: isDark ? "#1c1c1e" : "#ffffff",
+        borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+        textStyle: { color: isDark ? "#fafafa" : "#09090b", fontSize: 12 },
+      },
+      legend: {
+        orient: "vertical" as const,
+        left: "left",
+        textStyle: { color: isDark ? "#e2e8f0" : "#1e293b" },
+      },
+      series: [
+        {
+          name: title,
+          type: "pie" as const,
+          radius: "50%",
+          data: items.map((item, index) => ({
+            value: item.value,
+            name: item.name,
+            itemStyle: { color: COLORS[index % COLORS.length] },
+          })),
+          emphasis: {
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: "rgba(0, 0, 0, 0.5)",
+            },
+          },
+        },
+      ],
+    }
+
+    return (
+      <Card className="bg-background">
+        <CardHeader>
+          <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="h-64">
+              <ReactECharts option={option} notMerge={true} style={{ height: "100%", width: "100%" }} />
+            </div>
+            <div className="space-y-2">
+              {items.map((item, index) => (
+                <div key={item.name} className="flex justify-between items-center p-2 rounded bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                    <span className="text-sm font-medium">{item.name}</span>
+                  </div>
+                  <span className="text-sm font-mono">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCountCard label="Total Topics" value={data.total_topics ?? 0} description="Total number of topics in the system." formula="count(topics)" />
+        <StatCountCard label="Durability Variants" value={Object.keys(data.durability || {}).length} description="Number of unique QoS durability values." formula="count(distinct durability)" />
+        <StatCountCard label="Reliability Variants" value={Object.keys(data.reliability || {}).length} description="Number of unique QoS reliability values." formula="count(distinct reliability)" />
+        <StatCountCard label="Transport Priority Variants" value={Object.keys(data.transport_priority || {}).length} description="Number of unique QoS transport priority values." formula="count(distinct transport_priority)" />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {renderChart("QoS Durability Distribution", data.durability || {})}
+        {renderChart("QoS Reliability Distribution", data.reliability || {})}
+        {renderChart("QoS Transport Priority Distribution", data.transport_priority || {})}
+      </div>
+    </div>
+  )
+}
+
 // ── Tab config ──────────────────────────────────────────────────────────
 
 const TAB_CONFIG = [
@@ -2072,6 +2167,7 @@ const TAB_CONFIG = [
   { id: "domain_div", label: "Segment Diversity", icon: Box, color: "text-orange-500", description: "Apps, topics, and I/O load per segment. Low diversity flags monolithic subsystems; high I/O flags communication hubs." },
   { id: "bottleneck", label: "Bottlenecks", icon: Zap, color: "text-yellow-500", description: "Composite structural score: betweenness, SPOF severity, blast radius, and bridge ratio. The top scorers are your highest-risk single points of failure." },
   { id: "network_usage", label: "Network Usage", icon: Wifi, color: "text-sky-500", description: "Sustained network bandwidth (bytes/s) consumed by the topology. Shows per-node outbound and inbound B/s load, factoring in topic frequency, so you can spot hosts that dominate raw network traffic." },
+  { id: "qos_distribution", label: "QoS Distribution", icon: BarChart3, color: "text-indigo-500", description: "Distribution of QoS durability, reliability, and transport priority across all topics. Visualizes the policy landscape." },
 ] as const
 
 type TabId = typeof TAB_CONFIG[number]["id"]
@@ -2090,6 +2186,7 @@ const TAB_TO_CHART_ID: Record<TabId, keyof ExtrasStats> = {
   domain_div: "domain_diversity",
   bottleneck: "bottleneck",
   network_usage: "network_usage",
+  qos_distribution: "qos_distribution",
 }
 
 // ── Main page ───────────────────────────────────────────────────────────
@@ -2308,6 +2405,7 @@ export default function StatisticsPage() {
                       {selectedSection === "domain_div" && <DomainDiversitySection data={tabData.domain_diversity} />}
                       {selectedSection === "bottleneck" && <BottleneckSection data={tabData.bottleneck} />}
                       {selectedSection === "network_usage" && <NetworkUsageSection data={tabData.network_usage} />}
+                      {selectedSection === "qos_distribution" && <QoSDistributionSection data={tabData.qos_distribution} />}
                     </>
                   )}
                 </div>

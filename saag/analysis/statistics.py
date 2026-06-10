@@ -1761,6 +1761,31 @@ def compute_network_usage_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def compute_qos_distribution_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute distribution of QoS fields for topic items."""
+    durability_counts: Dict[str, int] = {}
+    reliability_counts: Dict[str, int] = {}
+    transport_priority_counts: Dict[str, int] = {}
+    
+    total_topics = 0
+    for tid, qos in cc["topic_qos"].items():
+        total_topics += 1
+        dur = str(qos.get("durability", "NOT_FOUND"))
+        rel = str(qos.get("reliability", "NOT_FOUND"))
+        tp = str(qos.get("transport_priority", "NOT_FOUND"))
+        
+        durability_counts[dur] = durability_counts.get(dur, 0) + 1
+        reliability_counts[rel] = reliability_counts.get(rel, 0) + 1
+        transport_priority_counts[tp] = transport_priority_counts.get(tp, 0) + 1
+        
+    return {
+        "total_topics": total_topics,
+        "durability": durability_counts,
+        "reliability": reliability_counts,
+        "transport_priority": transport_priority_counts,
+    }
+
+
 def compute_all_extras_statistics(
     cc: Dict[str, Any],
     risk_weight_fn: Optional[Callable[[str, str], float]] = None,
@@ -1794,6 +1819,7 @@ def compute_all_extras_statistics(
         "node_critical_density": compute_node_critical_density_stats(cc),
         "domain_diversity": compute_segment_diversity_stats(cc),
         "network_usage": compute_network_usage_stats(cc),
+        "qos_distribution": compute_qos_distribution_stats(cc),
     }
 
     if risk_weight_fn is not None:
