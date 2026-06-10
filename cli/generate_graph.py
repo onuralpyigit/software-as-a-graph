@@ -59,7 +59,8 @@ def main() -> None:
         "--domain",
         type=str,
         default=None,
-        help="Domain for realistic naming (e.g. e-commerce, robotics)",
+        choices=["av", "iot", "finance", "healthcare", "hub-and-spoke", "microservices", "enterprise", "atm"],
+        help="Domain for realistic naming (one of av, iot, finance, healthcare, hub-and-spoke, microservices, enterprise, atm)",
     )
     
     parser.add_argument(
@@ -86,25 +87,42 @@ def main() -> None:
     
     validate_parser = subparsers.add_parser("validate", help="Topology-class validation for scenarios", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     add_validation_arguments(validate_parser)
-    
-# Handle positional output override (hack for user convenience:
-    #   python cli/generate_graph.py dataset.json
-    # vs
-    #   python cli/generate_graph.py --output dataset.json
-    if len(sys.argv) > 1:
-        arg = sys.argv[-1]
-        # If last arg is a bare path (not a flag, subcommand, or script name)
-        if not arg.startswith('-') and arg not in ('batch', 'validate', 'generate_graph.py'):
-            prev = sys.argv[-2] if len(sys.argv) > 2 else None
-            # Only pop if the previous argument is NOT an option flag
-            # that requires a following value (e.g. --output, --scenario)
-            if prev is None or not prev.startswith('-'):
-                output_override = sys.argv.pop()
+
+    # Support positional output path so users can run either:
+    #   python cli/generate_graph.py --output result.json --scale medium
+    #   python cli/generate_graph.py result.json --scale medium
+    # We synchronously rewrite sys.argv before argparse sees it, mirroring
+    # the original convenience behaviour with corrected flag awareness.
+    _value_flags = {
+        "--output", "--domain", "--scenario", "--config", "--seed",
+        "--connection-density", "--scale", "--input-dir", "--output-dir",
+        "--seeds", "--manifest", "--report", "--layer", "--neo4j-uri",
+        "--neo4j-user", "--neo4j-password", "--from-results",
+        "-o", "-u", "-p",
+    }
+    _skip_next_flag = False
+    _output_path_idx = None
+    for _i, _arg in enumerate(sys.argv):
+        if _skip_next_flag:
+            _skip_next_flag = False
+            continue
+        if _output_path_idx is not None:
+            break
+        if _arg.startswith("-"):
+            if _arg in _value_flags:
+                _skip_next_flag = True
+            continue
+        if _arg in ("batch", "validate") or _arg == sys.argv[0]:
+            continue
+        _prev = sys.argv[_i - 1] if _i > 0 else None
+        if _prev is not None and _prev in _value_flags:
+            continue
+        _output_path_idx = _i
+
+    if _output_path_idx is not None:
+        sys.argv.insert(_output_path_idx, "--output")
 
     args = parser.parse_args()
-
-    if 'output_override' in dir() and output_override:
-        args.output = Path(output_override)
     
     if getattr(args, "command", None) == "batch":
         sys.exit(run_batch_generation(args))

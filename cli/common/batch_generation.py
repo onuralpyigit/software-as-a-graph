@@ -180,8 +180,8 @@ def generate_from_yaml(
     scenario_name = yaml_path.stem  # e.g. scenario_01_autonomous_vehicle
     record = DatasetRecord(
         scenario_name=scenario_name,
-        source_config=str(yaml_path.relative_to(_PROJECT_ROOT)),
-        output_path=str(output_path.relative_to(_PROJECT_ROOT)),
+        source_config=yaml_path.as_posix(),
+        output_path=output_path.as_posix(),
         seed=0,
         generation_mode="statistical",
     )
@@ -246,7 +246,7 @@ def generate_from_scale(
     record = DatasetRecord(
         scenario_name=label,
         source_config=f"scale:{scale}",
-        output_path=str(output_path.relative_to(_PROJECT_ROOT)),
+        output_path=output_path.as_posix(),
         seed=seed,
         generation_mode="scale",
     )
@@ -334,8 +334,8 @@ def generate_multi_seed_variants(
         if out_path.exists() and not force:
             _warn(f"  {label:<50s}  exists, skipping")
             r = DatasetRecord(
-                scenario_name=label, source_config=str(yaml_path.relative_to(_PROJECT_ROOT)),
-                output_path=str(out_path.relative_to(_PROJECT_ROOT)), seed=seed,
+                scenario_name=label, source_config=yaml_path.as_posix(),
+                output_path=out_path.as_posix(), seed=seed,
                 generation_mode="statistical", status="skipped",
             )
             records.append(r)
@@ -344,8 +344,8 @@ def generate_multi_seed_variants(
         if dry_run:
             _info(f"  {label:<50s}  [dry-run]")
             r = DatasetRecord(
-                scenario_name=label, source_config=str(yaml_path.relative_to(_PROJECT_ROOT)),
-                output_path=str(out_path.relative_to(_PROJECT_ROOT)), seed=seed,
+                scenario_name=label, source_config=yaml_path.as_posix(),
+                output_path=out_path.as_posix(), seed=seed,
                 generation_mode="statistical", status="skipped",
             )
             records.append(r)
@@ -366,8 +366,8 @@ def generate_multi_seed_variants(
 
             r = DatasetRecord(
                 scenario_name=label,
-                source_config=str(yaml_path.relative_to(_PROJECT_ROOT)),
-                output_path=str(out_path.relative_to(_PROJECT_ROOT)),
+                source_config=yaml_path.as_posix(),
+                output_path=out_path.as_posix(),
                 seed=seed,
                 generation_mode="statistical",
                 counts=_count_nodes(data),
@@ -386,8 +386,8 @@ def generate_multi_seed_variants(
         except Exception as exc:
             _err(f"  {label:<50s}  FAILED: {exc}")
             r = DatasetRecord(
-                scenario_name=label, source_config=str(yaml_path.relative_to(_PROJECT_ROOT)),
-                output_path=str(out_path.relative_to(_PROJECT_ROOT)), seed=seed,
+                scenario_name=label, source_config=yaml_path.as_posix(),
+                output_path=out_path.as_posix(), seed=seed,
                 generation_mode="statistical", status="error", error=str(exc),
             )
             records.append(r)
@@ -454,7 +454,7 @@ def _write_manifest(records: List[DatasetRecord], manifest_path: Path) -> None:
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
-    _ok(f"Manifest written → {manifest_path.relative_to(_PROJECT_ROOT)}")
+    _ok(f"Manifest written → {manifest_path.as_posix()}")
 
 
 # ---------------------------------------------------------------------------
