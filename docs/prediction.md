@@ -165,27 +165,27 @@ Dimensions 9–15 are non-zero only for PUBLISHES_TO / SUBSCRIBES_TO edges, wher
 
 ### 2.4 HGT Model (Heterogeneous Graph Transformer)
 
-The model uses a **3-layer Heterogeneous Graph Transformer (HGTConv)** with type-dependent key/query/value projections. For each `(src_type, edge_type, dst_type)` triple, HGT learns separate attention parameters.
+The model uses a **3-layer Heterogeneous Graph Transformer with native edge features (EdgeAwareHGTConv)** with type-dependent key/query/value projections. For each `(src_type, edge_type, dst_type)` triple, EdgeAwareHGTConv learns separate attention parameters.
 
-**HGTConv does not accept raw edge_attr tensors.** A dedicated `EdgeFeatureEncoder` bridges this gap by aggregating edge features into destination-node embeddings via scatter-mean before each HGT layer.
+**Standard HGTConv does not accept raw edge_attr tensors.** To avoid information smoothing caused by aggregating edge patterns across incoming paths indiscriminately (as was done by the legacy `EdgeFeatureEncoder`), `EdgeAwareHGTConv` projects the 16-dimensional edge attributes directly into the Key and Value representations of each individual edge before computing the multi-head attention and message-passing aggregates.
 
 ```
 Layer 0 — Type-specific input projection:
   h_v^(0) = GELU( LayerNorm( W_{type(v)} · x_v ) )
 
-Pre-layer edge injection (EdgeFeatureEncoder, applied per layer k):
-  e_v^(k) = scatter_mean_{u → v}( W_e · e_{uv} )     ← 16-dim edge → D-dim
-  h_v^(k) ← h_v^(k) + e_v^(k)                        ← edge signal added before MP
+Layer k — Edge-Aware HGT message passing per (src_type s, edge_type r, dst_type d):
+  k_uv = K_s^(k) · h_u + K_edge^(s,r,d,k) · e_uv      ← native edge key projection
+  v_uv = V_s^(k) · h_u + V_edge^(s,r,d,k) · e_uv      ← native edge value projection
+  q_v  = Q_d^(k) · h_v
 
-Layer k — HGT message passing per (src_type s, edge_type r, dst_type d):
-  ATT(u,v) = softmax( (K_s^(k) h_u)^T · (Q_d^(k) h_v) / √D_h · W_{ATT}^(s,r,d) )
-  MSG(u,v) = V_s^(k) h_u · W_{MSG}^(s,r,d)
+  ATT(u,v) = softmax_u( (q_v)^T · k_uv / √D_head · μ_(s,r,d) )
+  MSG(u,v) = W_{MSG}^(s,r,d) · v_uv
   m_v^(k)  = Σ_{u,r} ATT(u,v) · MSG(u,v)
   h_v^(k+1) = GELU( LayerNorm( W_{agg} · m_v^(k)  +  h_v^(k) ) )   ← residual
 
 Reverse pass (use_bidirectional=True, computed on-the-fly within encode()):
   rev_ei = { (dst, "rev_"+etype, src) : flip(edge_index) }  for each relation
-  h_rev  = rev_conv(h, rev_ei)
+  h_rev  = rev_conv(h, rev_ei, rev_ea)
   h_v   ← h_v + 0.5 · h_rev[v]                              ← upstream signal
 ```
 
@@ -275,7 +275,7 @@ Multi-seed training runs the full train loop independently for each seed in `{42
 | G1 | Node feature dim mismatch | High | **Resolved** | Per-type dims enforced; feature version check in config |
 | G2 | Edge labels as node proxies | Medium | Open | Current: bridge-multiplier-based downweighting |
 | G3 | Redundant type encoding | Low | **Resolved** | Zero-padding removed; type-appropriate indices selected |
-| G4 | Transductive leakage | High | Open | Test nodes present in MP graph. Requires pure inductive split |
+| G4 | Transductive leakage | High | **Resolved** | Inductive subgraphs isolated via get_inductive_subgraph during training, validation, and ensemble evaluation |
 | G5 | Best seed weight saving | High | **Resolved** | `best_state` restored before `train()` returns |
 | G6 | Ensemble α bias | Medium | Open | α is a global blend; cannot correct local directional GNN errors |
 | G7 | Prediction seed overwrite | High | **Resolved** | `predict_from_data()` uses persisted best seed for mask consistency |
@@ -283,7 +283,7 @@ Multi-seed training runs the full train loop independently for each seed in `{42
 | G9 | Silent ensemble fallback | Medium | **Resolved** | Added `prediction_mode` field and explicit fallback logging |
 | G10 | Layer compatibility check | Medium | **Resolved** | `from_checkpoint()` validates layer alias against metadata |
 | G11 | Edge feature dim mismatch | Medium | **Resolved** | Edge dimension changed 8→9 to add `path_count_norm`; retrained |
-| G12 | HGTConv edge_attr incompatibility | Medium | **Resolved** | `EdgeFeatureEncoder` injects edge signals into node embeddings |
+| G12 | HGTConv edge_attr incompatibility | Medium | **Resolved** | EdgeAwareHGTConv projects edge features into relation-specific Key and Value spaces |
 | G13 | Single-cycle LR decay | Low | **Resolved** | `CosineAnnealingWarmRestarts` with T_0, T_mult=2 |
 | G14 | Spearman-only early stopping | Low | **Resolved** | Combined score `0.6×ρ + 0.4×loss_improvement` |
 
@@ -303,7 +303,7 @@ Multi-seed training runs the full train loop independently for each seed in `{42
 | Generalises to unseen systems | Immediately | Requires fine-tuning | Requires fine-tuning |
 | Spearman ρ (ATM, validated) | 0.876 overall; 0.943 large-scale | Pending | Pending |
 | F1-score (ATM, validated) | 0.893 | Pending | Pending |
-| Transductive leakage risk | None (formula-based) | Present (G4) | Present |
+| Transductive leakage risk | None (formula-based) | None (Resolved) | None (Resolved) |
 | Primary use | First analysis; interpretable; CI gate; fallback when no checkpoint | Default predictor after training; RMAV = fallback | Research comparison; use `--mode ensemble` |
 
 ---

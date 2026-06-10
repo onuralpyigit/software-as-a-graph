@@ -664,9 +664,39 @@ class GNNService:
             result.gnn_metrics = evaluate(self._node_model, data_dev, "test_mask", self.device)
             
             # 2. Ensemble Validation (G10)
-            if result.ensemble_scores:
-                ens_pred_dict = self._format_scores_as_dict(result.ensemble_scores, conv)
-                y_ens, y_true = _collect_samples(ens_pred_dict, data_dev, "test_mask")
+            if result.ensemble_scores and has_rmav:
+                from .trainer import get_inductive_subgraph
+                # Get the isolated test subgraph to prevent transductive leakage (G4)
+                test_sub_data = get_inductive_subgraph(data_dev, "test_mask")
+                test_sub_data = test_sub_data.to(self.device)
+                
+                # Run GNN on the isolated test subgraph
+                self._node_model.eval()
+                if self._edge_model:
+                    self._edge_model.eval()
+                with torch.no_grad():
+                    test_x_dict = {nt: test_sub_data[nt].x for nt in test_sub_data.node_types if hasattr(test_sub_data[nt], "x")}
+                    test_ei_dict = {rel: test_sub_data[rel].edge_index for rel in test_sub_data.edge_types}
+                    test_ea_dict = {rel: test_sub_data[rel].edge_attr for rel in test_sub_data.edge_types if hasattr(test_sub_data[rel], "edge_attr")}
+                    if self._edge_model:
+                        test_pred_dict, _ = self._edge_model(test_x_dict, test_ei_dict, test_ea_dict)
+                    else:
+                        test_pred_dict = self._node_model(test_x_dict, test_ei_dict, test_ea_dict)
+                
+                # Construct a test conversion mapping to map offsets back to node names
+                test_conv = GraphConversionResult(hetero_data=test_sub_data)
+                for nt in test_sub_data.node_types:
+                    if conv is not None and nt in conv.node_id_map:
+                        store = data_dev[nt]
+                        if hasattr(store, "test_mask"):
+                            indices = torch.where(store.test_mask)[0].cpu().tolist()
+                            test_conv.node_id_map[nt] = [conv.node_id_map[nt][idx] for idx in indices]
+                        else:
+                            test_conv.node_id_map[nt] = conv.node_id_map[nt][:]
+                
+                test_ens_scores = self._compute_ensemble_scores(test_sub_data, test_pred_dict, test_conv)
+                test_ens_pred_dict = self._format_scores_as_dict(test_ens_scores, test_conv)
+                y_ens, y_true = _collect_samples(test_ens_pred_dict, test_sub_data, "test_mask")
                 result.ensemble_metrics = evaluate_scores(y_ens, y_true)
                 logger.info("Ensemble test metrics:\n%s", result.ensemble_metrics)
             
