@@ -3099,7 +3099,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
           </div>
 
           {/* Legend — matches Force Graph tab */}
-          <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background/70 px-3 py-2 text-xs backdrop-blur pointer-events-auto">
+          <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2 text-xs pointer-events-auto">
             <button
               onClick={() => setGraphLegendVisible(!graphLegendVisible)}
               className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
@@ -4521,7 +4521,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
       </div>
 
       {(nodeTypesInView.length > 0 || edgeTypesInView.length > 0) && (
-        <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background/80 px-3 py-2 text-xs backdrop-blur max-h-[60%] overflow-y-auto">
+        <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2 text-xs max-h-[60%] overflow-y-auto">
           {nodeTypesInView.length > 0 && (
             <>
               <span className="font-medium text-muted-foreground mb-0.5">Nodes</span>
