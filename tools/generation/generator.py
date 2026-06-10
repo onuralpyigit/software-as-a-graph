@@ -1052,20 +1052,7 @@ class StatisticalGraphGenerator:
         # the target count from the scenario YAML's criticality distribution.
         self._assign_criticality_two_pass(apps, publishes, subscribes, criticality_pool)
 
-        def _deduplicate_edges(edge_list: List[Dict[str, str]]) -> List[Dict[str, str]]:
-            seen = set()
-            dedup = []
-            for e in edge_list:
-                tup = (e["from"], e["to"])
-                if tup not in seen:
-                    seen.add(tup)
-                    dedup.append(e)
-            return dedup
-
-        publishes = _deduplicate_edges(publishes)
-        subscribes = _deduplicate_edges(subscribes)
-
-        return {
+        graph_dict = {
             "metadata": {
                 "scale": c.to_scale_dict(),
                 "seed": c.seed,
@@ -1087,3 +1074,68 @@ class StatisticalGraphGenerator:
                 "uses": uses
             }
         }
+        return validate_and_clean_schema(graph_dict)
+
+
+def validate_and_clean_schema(graph_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate the schema of the generated graph and clean up duplicate edges.
+    
+    Ensures all necessary top-level fields are present, deduplicates all edges
+    in the relationships block, and validates that all edge references point
+    to existing entities.
+    """
+    # 1. Verify top-level structure
+    required_keys = {"metadata", "nodes", "brokers", "topics", "applications", "libraries", "relationships"}
+    for k in required_keys:
+        if k not in graph_data:
+            raise ValueError(f"Generated graph is missing required top-level key: '{k}'")
+            
+    # 2. Collect all valid entity IDs to check for duplicates and dangling edges
+    valid_ids = set()
+    categories = ["nodes", "brokers", "topics", "applications", "libraries"]
+    for category in categories:
+        for entity in graph_data[category]:
+            entity_id = entity.get("id")
+            if not entity_id:
+                raise ValueError(f"Entity in '{category}' is missing 'id' attribute: {entity}")
+            if entity_id in valid_ids:
+                raise ValueError(f"Duplicate entity ID found in generated graph: '{entity_id}'")
+            valid_ids.add(entity_id)
+            
+    # 3. Deduplicate and validate relationships
+    relationships = graph_data["relationships"]
+    required_rels = {"runs_on", "routes", "publishes_to", "subscribes_to", "connects_to", "uses"}
+    for rel_type in required_rels:
+        if rel_type not in relationships:
+            raise ValueError(f"Relationships dict is missing required key: '{rel_type}'")
+            
+        edges = relationships[rel_type]
+        if not isinstance(edges, list):
+            raise ValueError(f"Relationship key '{rel_type}' must map to a list of edges")
+            
+        seen_edges = set()
+        deduped_edges = []
+        for idx, edge in enumerate(edges):
+            if not isinstance(edge, dict):
+                raise ValueError(f"Edge at index {idx} in '{rel_type}' is not a dictionary")
+            if "from" not in edge or "to" not in edge:
+                raise ValueError(f"Edge at index {idx} in '{rel_type}' is missing 'from' or 'to' key")
+                
+            from_id = edge["from"]
+            to_id = edge["to"]
+            
+            # Check for dangling reference
+            if from_id not in valid_ids:
+                raise ValueError(f"Edge '{from_id}' -> '{to_id}' in '{rel_type}' references non-existent source ID '{from_id}'")
+            if to_id not in valid_ids:
+                raise ValueError(f"Edge '{from_id}' -> '{to_id}' in '{rel_type}' references non-existent target ID '{to_id}'")
+                
+            # Deduplicate edge pair
+            edge_key = (from_id, to_id)
+            if edge_key not in seen_edges:
+                seen_edges.add(edge_key)
+                deduped_edges.append(edge)
+                
+        relationships[rel_type] = deduped_edges
+        
+    return graph_data
