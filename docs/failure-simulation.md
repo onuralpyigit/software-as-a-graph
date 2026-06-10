@@ -152,18 +152,20 @@ For each node $u$ in the current wave's frontier:
 
 ### 3.2 I(v) Formula
 
-At the end of the simulation cascade, the final ground-truth impact score $I(v)$ is computed as the mean continuous feed loss fraction across all subscriber applications:
+At the end of the simulation cascade, the final ground-truth impact score $I(v)$ is a four-component weighted composite returned by `ImpactMetrics.composite_impact`:
 
-$$\text{feed\_loss\_fraction}(a) = \frac{\sum_{t \in \text{subscribed\_topics}(a)} L(t)}{|\text{subscribed\_topics}(a)|}$$
+$$I(v) = 0.35 \cdot \text{reachability\_loss} + 0.25 \cdot \text{fragmentation} + 0.25 \cdot \text{throughput\_loss} + 0.15 \cdot \text{flow\_disruption}$$
 
-$$I(v) = \frac{1}{|\text{Subscribers}|} \sum_{a \in \text{Subscribers}} \text{feed\_loss\_fraction}(a)$$
+Where:
+- **reachability\_loss**: fraction of weighted pub-sub paths (publisher → topic → subscriber) that are broken.
+- **fragmentation**: graph partition severity after removing $v$ (weighted connected-component disruption).
+- **throughput\_loss**: fraction of total topic-weight throughput disrupted.
+- **flow\_disruption**: fraction of complete Pub→Topic→Sub flow triples broken.
 
-This is a graded score in $[0, 1]$ representing the overall service degradation of the system under the failure of node $v$.
+This is a graded score in $[0, 1]$ representing the overall service degradation of the system under the failure of node $v$. Weights are AHP-derived (see `saag/prediction/weight_calculator.py` `criteria_impact`).
 
-`Subscribers` is the set of Application nodes that have at least one `SUBSCRIBES_TO` edge; this denominator is fixed across all injections so scores are comparable.
-
-> [!IMPORTANT]
-> **Start-Node Inclusion:** Unlike simple binary metrics, the starting node $v$ is *not* excluded from the final $I(v)$ average or the `per_subscriber_feed_loss` map in the implementation. If $v$ itself has subscriptions, its feed loss contributes to the mean $I(v)$ score.
+> [!NOTE]
+> **`feed_loss_fraction` is an internal cascade-propagation signal**, not the final I(v). It is computed per subscriber application (§3.1, Stochastic Subscriber Failure) to decide whether a subscriber is eligible to fail and propagate to the next wave. It is stored in `per_subscriber_feed_loss` for diagnostics but is not aggregated as the ground-truth impact score.
 
 ---
 
@@ -570,7 +572,7 @@ output/simulation/
 | `cascade_depth` | int | Number of cascade waves that fired (0 = no cascade). |
 | `directly_orphaned_topics` | list | Topics orphaned by removing v alone (wave 0). |
 | `all_orphaned_topics` | list | All topics orphaned, including cascaded waves. |
-| `per_subscriber_feed_loss` | dict | Per-subscriber feed-loss fraction contributing to I(v). |
+| `per_subscriber_feed_loss` | dict | Per-subscriber feed-loss fraction (diagnostic; drives cascade propagation, not aggregated as I(v)). |
 | `cascade_waves` | list | Full per-wave trace for debugging and visualisation. |
 
 ### 6.2 `message_flow_results.json`

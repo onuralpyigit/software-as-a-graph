@@ -88,10 +88,11 @@ class QualityWeights:
     q_security: float = 0.16
     
     # Impact score weights I(v) (sum should be 1.0)
-    # Formally derived via AHP: Reachability > Fragmentation = Throughput
-    i_reachability: float = 0.40      
-    i_fragmentation: float = 0.30     
-    i_throughput: float = 0.30        
+    # Formally derived via AHP: Reachability > Fragmentation = Throughput > FlowDisruption
+    i_reachability: float = 0.35
+    i_fragmentation: float = 0.25
+    i_throughput: float = 0.25
+    i_flow_disruption: float = 0.15
     
     # Edge quality weights (sum should be 1.0)
     e_betweenness: float = 0.35      # Path importance
@@ -150,8 +151,8 @@ class AHPMatrices:
     # Justifies the 0.30/0.40/0.30 split used in Phase 4 modeling.
     criteria_topic_qos: List[List[float]] = None
 
-    # Impact (I(v)): Reachability (RL), Fragmentation (FR), Throughput (TL)
-    # Justifies the 0.40/0.30/0.30 split used in failure simulation.
+    # Impact (I(v)): Reachability (RL), Fragmentation (FR), Throughput (TL), Flow Disruption (FD)
+    # Justifies the 0.35/0.25/0.25/0.15 split used in composite_impact.
     criteria_impact: List[List[float]] = None
 
     def __post_init__(self):
@@ -222,13 +223,14 @@ class AHPMatrices:
             
         if self.criteria_impact is None:
             self.criteria_impact = [
-                # RL    FR    TL
-                [1.0, 1.33, 1.33],  # RL (Reachability loss: most direct failure)
-                [0.75, 1.0, 1.0],   # FR
-                [0.75, 1.0, 1.0],   # TL (FR and TL equal weight)
+                # RL    FR    TL    FD
+                [1.0,  1.5,  1.5,  4.0],   # RL: most direct connectivity loss
+                [0.67, 1.0,  1.0,  2.5],   # FR: graph partition severity
+                [0.67, 1.0,  1.0,  2.5],   # TL: topic-weight disruption (equal to FR)
+                [0.25, 0.4,  0.4,  1.0],   # FD: flow-triple breakage (secondary signal)
             ]
-            # Matrix check: RL/FR = 1.33, FR/RL = 0.75. 
-            # Calculated weights: [0.40, 0.30, 0.30]
+            # Raw AHP weights (geometric mean): ≈ [0.393, 0.25, 0.25, 0.107]
+            # After λ=0.7 shrinkage toward uniform (0.25): ≈ [0.35, 0.25, 0.25, 0.15]
 
 
 class AHPProcessor:

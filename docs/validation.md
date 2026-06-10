@@ -92,7 +92,7 @@ load_graph(system.json)
     │
     └── derive_ground_truth(G, seed, n_repeats=5)  →  I(v)
             uses FaultInjector._inject_node() per node
-            I(v) = mean of n_repeats stochastic cascade runs
+            I(v) = mean(composite_impact) over n_repeats seeds
             │
 run_statistical_tests(node_scores, top_k)
     │
@@ -163,8 +163,11 @@ Averaging across `n_repeats` seeds dampens stochastic variance and yields a stab
 
 ### What I(v) Represents
 
-`I(v)` is the **normalised cascade impact score** ∈ [0, 1].  
-It measures: *how much of the system becomes unreachable or impaired when node v fails?*
+`I(v)` is the **normalised cascade impact score** ∈ [0, 1] measuring how much of the system becomes unreachable or impaired when node $v$ fails. It is the `composite_impact` property of `ImpactMetrics`:
+
+$$I(v) = 0.35 \cdot \text{reachability\_loss} + 0.25 \cdot \text{fragmentation} + 0.25 \cdot \text{throughput\_loss} + 0.15 \cdot \text{flow\_disruption}$$
+
+Weights are AHP-derived (see `saag/prediction/weight_calculator.py` `criteria_impact`).
 
 ---
 
