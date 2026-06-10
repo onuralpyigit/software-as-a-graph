@@ -2057,12 +2057,12 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
   const W = dims.width || 800
   const H = dims.height || 600
 
-  // ECharts instance ref for PNG export
+  // ECharts instance ref for PNG export (stores the echarts instance directly via onChartReady)
   const echartsRef = useRef<any>(null)
   useEffect(() => {
     if (!exportFnRef) return
     exportFnRef.current = () => {
-      const ec = echartsRef.current?.getEchartsInstance?.()
+      const ec = echartsRef.current
       if (!ec) return
       const dataUrl = ec.getDataURL({ type: "png", backgroundColor: isDark ? "#09090b" : "#ffffff", pixelRatio: 2 })
       const a = document.createElement("a")
@@ -2293,8 +2293,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
     <div style={{ width: W, height: H, position: "relative" }}>
       {W > 0 && H > 0 && (
         <ReactECharts
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          {...({ ref: echartsRef } as any)}
+          onChartReady={(instance: any) => { echartsRef.current = instance }}
           key={isDark ? "dark" : "light"}
           option={option}
           style={{ width: W, height: H }}
@@ -3682,11 +3681,12 @@ const GraphOverviewEChart = memo(function GraphOverviewEChart({
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
 
   // ECharts instance ref — used to dispatch downplay on edge hover and for PNG export
+  // Stores the echarts instance directly via onChartReady (avoids passing ref to LoadableComponent)
   const echartsRef = useRef<any>(null)
   useEffect(() => {
     if (!exportFnRef) return
     exportFnRef.current = () => {
-      const ec = echartsRef.current?.getEchartsInstance?.()
+      const ec = echartsRef.current
       if (!ec) return
       const dataUrl = ec.getDataURL({ type: "png", backgroundColor: isDark ? "#09090b" : "#ffffff", pixelRatio: 2 })
       const a = document.createElement("a")
@@ -3700,7 +3700,7 @@ const GraphOverviewEChart = memo(function GraphOverviewEChart({
   const onEvents = useMemo(() => ({
     mouseover: (params: any) => {
       if (params.dataType === "edge") {
-        echartsRef.current?.getEchartsInstance?.()?.dispatchAction({ type: "downplay" })
+        echartsRef.current?.dispatchAction({ type: "downplay" })
       }
     },
   }), [])
@@ -4001,7 +4001,7 @@ const GraphOverviewEChart = memo(function GraphOverviewEChart({
         </div>
       ) : (
         <ReactECharts
-          ref={echartsRef}
+          onChartReady={(instance: any) => { echartsRef.current = instance }}
           option={option}
           style={{ flex: 1, width: "100%", minHeight: 0 }}
           opts={{ renderer: "canvas" }}
@@ -4061,12 +4061,12 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
   const selectedId = selectedKey ? selectedKey.replace(/^[^:]+:/, "") : null
 
-  // ECharts instance ref for PNG export
+  // ECharts instance ref for PNG export (stores the echarts instance directly via onChartReady)
   const echartsRef = useRef<any>(null)
   useEffect(() => {
     if (!exportFnRef) return
     exportFnRef.current = () => {
-      const ec = echartsRef.current?.getEchartsInstance?.()
+      const ec = echartsRef.current
       if (!ec) return
       const dataUrl = ec.getDataURL({ type: "png", backgroundColor: isDark ? "#09090b" : "#ffffff", pixelRatio: 2 })
       const a = document.createElement("a")
@@ -4566,8 +4566,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
         </div>
       )}
       <ReactECharts
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        {...({ ref: echartsRef } as any)}
+        onChartReady={(instance: any) => { echartsRef.current = instance }}
         option={option}
         onEvents={onEvents}
         style={{ width: "100%", height: "100%" }}
