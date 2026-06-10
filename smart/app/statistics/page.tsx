@@ -475,7 +475,7 @@ function goToExplorer(id: string | undefined) {
 
 function SummaryCards({ summary, keys }: { summary: SummaryDict; keys: { key: string; label: string; format?: (v: number | string) => string }[] }) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
       {keys.map(({ key, label, format }) => {
         const val = summary[key]
         if (val === undefined) return null
@@ -706,7 +706,7 @@ function TopicBandwidthSection({ data }: { data: ExtrasStats["topic_bandwidth"] 
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <PrimaryStatsCard 
           summary={data.summary} 
           prefix="size" 
@@ -819,7 +819,7 @@ function AppBalanceSection({ data }: { data: ExtrasStats["app_balance"] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <PrimaryStatsCard 
           summary={data.summary} 
           prefix="pub" 
@@ -847,7 +847,7 @@ function AppBalanceSection({ data }: { data: ExtrasStats["app_balance"] }) {
           description="Applications whose I/O load exceeds the IQR upper fence."
         />
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
         <StatCountCard label="Total Apps" value={data.summary.total_apps ?? 0} description="Total number of applications registered in the system topology." formula="count(applications)" />
         <StatCountCard label="High I/O" value={data.summary.q_high_io ?? 0} description="Busiest communication hubs that publish and subscribe above average. Their failure disrupts both upstream and downstream flows." formula="pub > avg_pub AND sub > avg_sub" />
         <StatCountCard label="Consumers" value={data.summary.q_consumer ?? 0} description="Pure data sinks that subscribe above average but publish below average. Upstream failures cascade directly into these endpoints." formula="pub ≤ avg_pub AND sub > avg_sub" />
@@ -926,7 +926,7 @@ function TopicFanoutSection({ data }: { data: ExtrasStats["topic_fanout"] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <PrimaryStatsCard 
           summary={data.summary} 
           prefix="pub" 
@@ -954,7 +954,7 @@ function TopicFanoutSection({ data }: { data: ExtrasStats["topic_fanout"] }) {
           description="Topics whose fanout exceeds the IQR upper fence."
         />
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
         <StatCountCard label="Total Topics" value={data.summary.total_topics ?? 0} description="Total number of topics in the system." formula="count(topics)" />
         <StatCountCard label="1→N (Broadcast)" value={data.summary.one_to_many ?? 0} description="Single publisher, multiple subscribers. Publisher failure silences all downstream consumers." formula="pub = 1 AND sub > 1" />
         <StatCountCard label="N→1 (Aggregator)" value={data.summary.many_to_one ?? 0} description="Multiple publishers, single subscriber. Common in data aggregation or logging patterns." formula="pub > 1 AND sub = 1" />
@@ -1174,7 +1174,7 @@ function HeatmapSection({ data, title, modeToggle }: {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <PrimaryStatsCard 
           summary={data.summary} 
           prefix="cell" 
@@ -1290,7 +1290,7 @@ function NodeCommLoadSection({ data }: { data: ExtrasStats["node_comm_load"] }) 
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <PrimaryStatsCard 
           summary={data.summary} 
           prefix="load" 
@@ -1368,7 +1368,7 @@ function CriticalityIOSection({ data }: { data: ExtrasStats["criticality_io"] })
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <PrimaryStatsCard 
           summary={data.summary} 
           prefix="crit_io" 
@@ -1434,7 +1434,7 @@ function LibDependencySection({ data }: { data: ExtrasStats["lib_dependency"] })
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <PrimaryStatsCard 
           summary={data.summary} 
           prefix="in" 
@@ -1494,7 +1494,7 @@ function NodeCriticalDensitySection({ data }: { data: ExtrasStats["node_critical
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <PrimaryStatsCard 
           summary={data.summary} 
           prefix="crit_per_node" 
@@ -1551,7 +1551,7 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <PrimaryStatsCard 
           summary={data.summary} 
           prefix="app" 
@@ -1665,7 +1665,7 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <PrimaryStatsCard 
           summary={data.summary} 
           prefix="bw" 
@@ -1677,8 +1677,7 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
         <StatCountCard label="Total Bandwidth" value={fmtBytes(totalBw) + "/s"} description="Aggregate sustained bandwidth flowing across the entire network." formula="Σ size(t) × freq(t) × (pub + sub)" />
         <StatCountCard label="Total Outbound" value={fmtBytes(totalOut) + "/s"} description="Sustained bytes per second produced by all application publishers." formula="Σ size(t) × freq(t) × pub_count(t)" />
         <StatCountCard label="Total Inbound" value={fmtBytes(totalIn) + "/s"} description="Sustained bytes per second consumed by all application subscribers." formula="Σ size(t) × freq(t) × sub_count(t)" />
-        <StatCountCard label="Nodes" value={data.summary.node_count ?? 0} description="Total number of physical nodes in the system." formula="count(nodes)" />
-        <StatCountCard label="Topics" value={data.summary.topic_count ?? 0} description="Total number of topics in the system." formula="count(topics)" />
+        <StatCountCard label="System Size" value={`${data.summary.node_count ?? 0} Nodes, ${data.summary.topic_count ?? 0} Topics`} description="Total number of physical nodes and topics in the system topology." formula="count(nodes + topics)" />
         <StatCountCard label="Load Variation (CV)" value={`${Number(data.summary.cv ?? 0).toFixed(1)}%`} description="Coefficient of variation of node bandwidth. High CV means uneven network load distribution." formula="std(bw) / mean(bw) × 100" />
         <StatCountCard label="Zero-BW Nodes" value={data.summary.zero_bw_nodes ?? 0} description="Nodes with no network traffic, potentially indicating orphaned infrastructure." formula="count(bw = 0)" />
         <StatCountCard label="Outliers" value={data.summary.outlier_count ?? 0} description="Nodes whose total bandwidth exceeds the IQR upper fence." formula="bw > Q3 + 1.5 × IQR" />
@@ -1956,7 +1955,7 @@ function BottleneckSection({ data }: { data: ExtrasStats["bottleneck"] }) {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <PrimaryStatsCard 
           summary={s} 
           prefix="score" 
@@ -2137,7 +2136,7 @@ function QoSDistributionSection({ data }: { data: ExtrasStats["qos_distribution"
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <StatCountCard label="Total Topics" value={data.total_topics ?? 0} description="Total number of topics in the system." formula="count(topics)" />
         <StatCountCard label="Durability Variants" value={Object.keys(data.durability || {}).length} description="Number of unique QoS durability values." formula="count(distinct durability)" />
         <StatCountCard label="Reliability Variants" value={Object.keys(data.reliability || {}).length} description="Number of unique QoS reliability values." formula="count(distinct reliability)" />
