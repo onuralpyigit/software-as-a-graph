@@ -3062,7 +3062,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
               <Search className="absolute left-2 h-3 w-3 text-muted-foreground/50 pointer-events-none" />
               <Input
                 ref={searchRef}
-                className="h-7 pl-6 pr-6 text-xs bg-background/90 rounded-md border-border shadow-sm focus-visible:ring-1 focus-visible:ring-primary/50 backdrop-blur"
+                className="h-7 pl-6 pr-6 text-xs bg-background rounded-md border-border shadow-sm focus-visible:ring-1 focus-visible:ring-primary/50"
                 placeholder="Search hierarchy…"
                 value={appSearch}
                 onChange={e => { setAppSearch(e.target.value); setSearchOpen(true) }}
@@ -4448,7 +4448,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
         <div className="relative flex items-center mb-2">
           <Search className="absolute left-2 h-3 w-3 text-muted-foreground/50 pointer-events-none" />
           <Input
-            className="h-7 pl-6 pr-6 text-xs bg-background/90 rounded-md border-border shadow-sm focus-visible:ring-1 focus-visible:ring-primary/50 backdrop-blur"
+            className="h-7 pl-6 pr-6 text-xs bg-background rounded-md border-border shadow-sm focus-visible:ring-1 focus-visible:ring-primary/50"
             placeholder="Search nodes…"
             value={graphSearch}
             onChange={e => setGraphSearch(e.target.value)}
