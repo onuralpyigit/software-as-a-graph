@@ -48,6 +48,11 @@ class EvalMetrics:
     # Calibration metadata — MW26 disclosure fields
     calibration: str = "rank_matched"
     n_critical_in_truth: int = 0
+    macro_f1: float = 0.0
+    bce_loss: float = 0.0
+    regression_slope: float = 0.0
+    regression_intercept: float = 0.0
+    regression_r2: float = 0.0
 
     def __post_init__(self):
         if self.per_node_type is None:
@@ -57,6 +62,11 @@ class EvalMetrics:
         d = {
             "spearman_rho": round(self.spearman_rho, 4),
             "f1_score":     self.f1_score if self.f1_score is None or not _isnan_f(self.f1_score) else None,
+            "macro_f1":     round(self.macro_f1, 4),
+            "bce_loss":     round(self.bce_loss, 4),
+            "regression_slope": round(self.regression_slope, 4),
+            "regression_intercept": round(self.regression_intercept, 4),
+            "regression_r2": round(self.regression_r2, 4),
             "rmse":         round(self.rmse, 4),
             "mae":          round(self.mae, 4),
             "top_5_overlap":  round(self.top_5_overlap, 4),
@@ -81,6 +91,11 @@ class EvalMetrics:
         lines = [
             f"  Spearman ρ: {self.spearman_rho:.4f}",
             f"  F1 Score:   {self.f1_score:.4f}",
+            f"  Macro F1:   {self.macro_f1:.4f}",
+            f"  BCE Loss:   {self.bce_loss:.4f}",
+            f"  Slope:      {self.regression_slope:.4f}",
+            f"  Intercept:  {self.regression_intercept:.4f}",
+            f"  R2 Coeff:   {self.regression_r2:.4f}",
             f"  Precision:  {self.precision:.4f}",
             f"  Recall:     {self.recall:.4f}",
             f"  Accuracy:   {self.accuracy:.4f}",
@@ -381,7 +396,7 @@ def evaluate_scores(
     y_true: np.ndarray,
     calibration: str = "rank_matched",
 ) -> EvalMetrics:
-    """Compute metrics from pre-collected arrays (N, 5).
+    """Compute metrics from pre-collected arrays (N, 5) with robust scaling normalization.
 
     Parameters
     ----------
@@ -399,6 +414,16 @@ def evaluate_scores(
     if y_pred.shape[0] == 0:
         return EvalMetrics(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                            calibration=calibration, n_critical_in_truth=0)
+
+    # ── Label Normalization Hardening: Robust scaling transform on ground-truth ──
+    if y_true.shape[0] > 0:
+        for col in range(y_true.shape[1]):
+            t_col = y_true[:, col]
+            t_median = np.median(t_col)
+            t_q75, t_q25 = np.percentile(t_col, [75, 25])
+            t_iqr = t_q75 - t_q25
+            t_scaled = (t_col - t_median) / (t_iqr + 1e-9)
+            y_true[:, col] = 1.0 / (1.0 + np.exp(-t_scaled))
 
     # Composite scores (column 0)
     p_comp = y_pred[:, 0]
@@ -423,6 +448,7 @@ def evaluate_scores(
     n_critical = int(y_true_bin.sum())
 
     # ── Classification metrics ─────────────────────────────────────────────────
+    macro_f1_val = 0.0
     if n_critical == 0 or n_critical == n:
         # Degenerate label distribution: F1 is undefined.
         f1 = prec = rec = float("nan")
@@ -461,10 +487,37 @@ def evaluate_scores(
         rec  = float(recall_score(y_true_bin, y_pred_bin, zero_division=0))
         acc  = float(accuracy_score(y_true_bin, y_pred_bin))
         calib_label = "rank_matched"  # both branches now enforce rank-matched cardinality
+        macro_f1_val = float(f1_score(y_true_bin, y_pred_bin, average='macro', zero_division=0))
+
+    # ── Continuous BCE (Soft Labels) ───────────────────────────────────────────
+    p_clipped = np.clip(p_comp, 1e-7, 1 - 1e-7)
+    bce = -np.mean(t_comp * np.log(p_clipped) + (1.0 - t_comp) * np.log(1.0 - p_clipped))
+    bce_loss = float(bce) if not np.isnan(bce) else 0.0
 
     # ── Regression metrics ─────────────────────────────────────────────────────
     rmse = float(np.sqrt(np.mean((p_comp - t_comp) ** 2)))
     mae  = float(np.mean(np.abs(p_comp - t_comp)))
+
+    # ── Regression Curve ───────────────────────────────────────────────────────
+    if n > 1:
+        mean_p = np.mean(p_comp)
+        mean_t = np.mean(t_comp)
+        num = np.sum((p_comp - mean_p) * (t_comp - mean_t))
+        den = np.sum((p_comp - mean_p) ** 2)
+        if den > 1e-12:
+            slope = num / den
+            intercept = mean_t - slope * mean_p
+            ss_res = np.sum((t_comp - (slope * p_comp + intercept)) ** 2)
+            ss_tot = np.sum((t_comp - mean_t) ** 2)
+            r2 = 1.0 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
+        else:
+            slope = 0.0
+            intercept = mean_t
+            r2 = 0.0
+    else:
+        slope = 0.0
+        intercept = 0.0
+        r2 = 0.0
 
     # ── Top-K overlaps and NDCG ────────────────────────────────────────────────
     top_5_pred = np.argsort(p_comp)[-5:]
@@ -490,6 +543,11 @@ def evaluate_scores(
         accuracy=acc,
         calibration=calib_label,
         n_critical_in_truth=n_critical,
+        macro_f1=macro_f1_val,
+        bce_loss=bce_loss,
+        regression_slope=float(slope),
+        regression_intercept=float(intercept),
+        regression_r2=float(r2),
     )
 
 

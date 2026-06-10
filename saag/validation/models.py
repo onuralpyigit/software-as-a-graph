@@ -120,6 +120,7 @@ class ClassificationMetrics:
     false_positives: int = 0
     true_negatives: int = 0
     false_negatives: int = 0
+    macro_f1: float = 0.0
 
     @property
     def confusion_matrix(self) -> Dict[str, int]:
@@ -135,6 +136,7 @@ class ClassificationMetrics:
             "precision": round(self.precision, 4),
             "recall": round(self.recall, 4),
             "f1_score": round(self.f1_score, 4),
+            "macro_f1": round(self.macro_f1, 4),
             "f1_ci": [round(self.f1_ci_lower, 4), round(self.f1_ci_upper, 4)],
             "accuracy": round(self.accuracy, 4),
             "cohens_kappa": round(self.cohens_kappa, 4),
@@ -305,6 +307,8 @@ class LayerValidationResult:
     dimensional_scatter: Dict[str, List[Tuple[str, float, float, str]]] = field(default_factory=dict)
     # New: Confidence intervals per dimension
     confidence_intervals: Dict[str, Tuple[float, float]] = field(default_factory=dict)
+    gnn_forecasting_metrics: Optional[Dict[str, Any]] = None
+    rule_based_baseline_metrics: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -329,6 +333,8 @@ class LayerValidationResult:
             "node_type_stratified": self.node_type_stratified,
             "frequency_decile_stratified": self.frequency_decile_stratified,
             "warnings": self.warnings,
+            "gnn_forecasting_metrics": self.gnn_forecasting_metrics,
+            "rule_based_baseline_metrics": self.rule_based_baseline_metrics,
         }
 
 

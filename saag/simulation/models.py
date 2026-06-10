@@ -66,6 +66,8 @@ class ComponentInfo:
     state: ComponentState = ComponentState.ACTIVE
     weight: float = 1.0
     properties: Dict[str, Any] = field(default_factory=dict)
+    # Custom continuous performance value override
+    custom_performance: Optional[float] = None
     
     # Runtime metrics (accumulated during simulation)
     messages_sent: int = 0
@@ -81,6 +83,7 @@ class ComponentInfo:
         self.messages_dropped = 0
         self.messages_routed = 0
         self.total_latency = 0.0
+        self.custom_performance = None
     
     @property
     def avg_latency(self) -> float:
@@ -92,6 +95,8 @@ class ComponentInfo:
     @property
     def performance(self) -> float:
         """Performance level (1.0 = healthy, 0.5 = degraded, 0.0 = failed)."""
+        if self.custom_performance is not None:
+            return self.custom_performance
         if self.state == ComponentState.FAILED:
             return 0.0
         elif self.state == ComponentState.DEGRADED:

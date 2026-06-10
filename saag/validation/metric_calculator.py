@@ -65,6 +65,21 @@ def calculate_error(predicted: Sequence[float], actual: Sequence[float]) -> Erro
     return ErrorMetrics(rmse=rmse, nrmse=nrmse, mae=mae, mse=mse, max_error=max_error)
 
 
+def calculate_macro_f1(tp: int, fp: int, tn: int, fn: int) -> float:
+    """Computes Macro F1-score for binary classification."""
+    # Positive class F1
+    prec_pos = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    rec_pos = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    f1_pos = 2 * prec_pos * rec_pos / (prec_pos + rec_pos) if (prec_pos + rec_pos) > 0 else 0.0
+    
+    # Negative class F1
+    prec_neg = tn / (tn + fn) if (tn + fn) > 0 else 0.0
+    rec_neg = tn / (tn + fp) if (tn + fp) > 0 else 0.0
+    f1_neg = 2 * prec_neg * rec_neg / (prec_neg + rec_neg) if (prec_neg + rec_neg) > 0 else 0.0
+    
+    return (f1_pos + f1_neg) / 2.0
+
+
 def calculate_classification(
     predicted_critical: Sequence[bool],
     actual_critical: Sequence[bool],
@@ -90,6 +105,7 @@ def calculate_classification(
     accuracy = (tp + tn) / (tp + fp + tn + fn) if (tp + fp + tn + fn) > 0 else 0.0
 
     kappa = cohens_kappa(predicted_critical, actual_critical)
+    macro_f1 = calculate_macro_f1(tp, fp, tn, fn)
 
     f1_ci_lower, f1_ci_upper = 0.0, 0.0
     n = len(predicted_critical)
@@ -115,6 +131,7 @@ def calculate_classification(
         false_positives=fp,
         true_negatives=tn,
         false_negatives=fn,
+        macro_f1=macro_f1,
     )
 
 

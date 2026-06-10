@@ -590,36 +590,91 @@ class FailureSimulator:
         performance: Dict[str, float]
     ) -> int:
         """
-        Propagate failure cascade from multiple initial targets.
+        Propagate failure cascade from multiple initial targets using continuous-valued
+        state reduction with state attenuation.
         """
+        # 1. Initialize impact metrics (I(v) = 1.0 - performance[v])
+        impact: Dict[str, float] = {cid: 0.0 for cid in self.graph.components}
+        
+        # Set initial target impacts
+        for tid in initial_targets:
+            if scenario.failure_mode == FailureMode.DEGRADED:
+                impact[tid] = self.DEGRADED_PERFORMANCE # 0.5
+            else:
+                impact[tid] = 1.0
+                
+        # 2. Shared Library Blast Semantics (step-function failure at T0)
+        if scenario.cascade_rule in (CascadeRule.LIBRARY, CascadeRule.ALL) and scenario.failure_mode != FailureMode.DEGRADED:
+            failed_libs = [tid for tid in initial_targets if self.graph.components[tid].type == "Library" and impact[tid] >= 1.0]
+            if failed_libs:
+                to_blast = set(failed_libs)
+                visited = set()
+                queue_blast = [(lid, lid) for lid in failed_libs]
+                while queue_blast:
+                    curr, cause = queue_blast.pop(0)
+                    if curr in visited:
+                        continue
+                    visited.add(curr)
+                    consumers = self.graph.get_uses_consumers(curr)
+                    for consumer in consumers:
+                        if consumer not in to_blast:
+                            to_blast.add(consumer)
+                            impact[consumer] = 1.0
+                            comp = self.graph.components.get(consumer)
+                            cascade_sequence.append(CascadeEvent(
+                                component_id=consumer,
+                                component_type=comp.type if comp else "Application",
+                                cause=f"uses_library:{curr}",
+                                depth=0
+                            ))
+                            queue_blast.append((consumer, curr))
+
+        # 3. Synchronize performance, states and failed_set
+        for cid, imp in impact.items():
+            if imp > 0.0:
+                comp = self.graph.components[cid]
+                comp.custom_performance = 1.0 - imp
+                performance[cid] = 1.0 - imp
+                if imp >= 1.0:
+                    self.graph.fail_component(cid)
+                    failed_set.add(cid)
+                else:
+                    self.graph.set_degraded(cid)
+                    
+        # 4. Initialize bounded queue
+        queue: List[Tuple[str, int]] = [(cid, 0) for cid, imp in impact.items() if imp > 0.0]
         max_depth = 0
-        queue: List[Tuple[str, int]] = [(tid, 0) for tid in initial_targets]
         
         while queue:
             current_id, depth = queue.pop(0)
             
             if depth >= scenario.max_cascade_depth:
                 continue
-            
+                
             max_depth = max(max_depth, depth)
             current_comp = self.graph.components.get(current_id)
             if not current_comp:
                 continue
-            
+                
             current_type = current_comp.type
+            current_impact = impact[current_id]
             
             # === Physical Cascade (Rule 1: Node -> Hosted Components) ===
-            # SKIPPED if failure_mode is PARTITION (affects logical/app only)
             if scenario.cascade_rule in (CascadeRule.PHYSICAL, CascadeRule.ALL) and scenario.failure_mode != FailureMode.PARTITION:
-                if current_type == "Node" and performance.get(current_id, 1.0) == 0.0:
+                if current_type == "Node":
                     hosted = self.graph.get_hosted_components(current_id)
                     for comp_id in hosted:
-                        if comp_id not in failed_set:
-                            if self._rng.random() < scenario.cascade_probability:
-                                failed_set.add(comp_id)
-                                performance[comp_id] = 0.0
-                                self.graph.fail_component(comp_id)
-                                comp = self.graph.components.get(comp_id)
+                        if self._rng.random() < scenario.cascade_probability:
+                            if current_impact > impact[comp_id]:
+                                impact[comp_id] = current_impact
+                                comp = self.graph.components[comp_id]
+                                comp.custom_performance = 1.0 - current_impact
+                                performance[comp_id] = 1.0 - current_impact
+                                if current_impact >= 1.0:
+                                    self.graph.fail_component(comp_id)
+                                    failed_set.add(comp_id)
+                                else:
+                                    self.graph.set_degraded(comp_id)
                                 cascade_sequence.append(CascadeEvent(
                                     component_id=comp_id,
                                     component_type=comp.type if comp else "Unknown",
@@ -627,19 +682,23 @@ class FailureSimulator:
                                     depth=depth + 1
                                 ))
                                 queue.append((comp_id, depth + 1))
-            
+                            
             # === Library Cascade (Rule 4: Library -> Using Applications) ===
             if scenario.cascade_rule in (CascadeRule.LIBRARY, CascadeRule.ALL):
-                if current_type == "Library" and performance.get(current_id, 1.0) == 0.0:
-                    # Get applications that USE this library
+                if current_type == "Library":
                     users = self.graph.get_uses_consumers(current_id)
                     for app_id in users:
-                        if app_id not in failed_set:
-                            if self._rng.random() < scenario.cascade_probability:
-                                failed_set.add(app_id)
-                                performance[app_id] = 0.0
-                                self.graph.fail_component(app_id)
-                                comp = self.graph.components.get(app_id)
+                        if self._rng.random() < scenario.cascade_probability:
+                            if current_impact > impact[app_id]:
+                                impact[app_id] = current_impact
+                                comp = self.graph.components[app_id]
+                                comp.custom_performance = 1.0 - current_impact
+                                performance[app_id] = 1.0 - current_impact
+                                if current_impact >= 1.0:
+                                    self.graph.fail_component(app_id)
+                                    failed_set.add(app_id)
+                                else:
+                                    self.graph.set_degraded(app_id)
                                 cascade_sequence.append(CascadeEvent(
                                     component_id=app_id,
                                     component_type=comp.type if comp else "Application",
@@ -647,115 +706,138 @@ class FailureSimulator:
                                     depth=depth + 1
                                 ))
                                 queue.append((app_id, depth + 1))
-            
+                            
             # === Logical Cascade ===
             if scenario.cascade_rule in (CascadeRule.LOGICAL, CascadeRule.ALL):
-                # Broker failure -> Topics with no remaining routing brokers
-                if current_type == "Broker" and performance.get(current_id, 1.0) == 0.0:
-                    for topic_id, brokers in self.graph._routing.items():
-                        if any(b[0] == current_id for b in brokers):
-                            # Check if topic still has active brokers
-                            active_brokers = [
-                                b[0] for b in brokers 
-                                if b[0] not in failed_set and self.graph.is_active(b[0])
-                            ]
-                            
-                            if not active_brokers:
-                                # Topic has no routing path — mark as failed
-                                if topic_id not in failed_set:
-                                    if self._rng.random() < scenario.cascade_probability:
-                                        failed_set.add(topic_id)
-                                        performance[topic_id] = 0.0
-                                        self.graph.fail_component(topic_id)
-                                        cascade_sequence.append(CascadeEvent(
-                                            component_id=topic_id,
-                                            component_type="Topic",
-                                            cause=f"no_active_brokers:{current_id}",
-                                            depth=depth + 1
-                                        ))
-                                        queue.append((topic_id, depth + 1))
-                
-                # Performance change (Failure or Degradation) -> check Topic Service Level
+                # Publisher (Application) -> Topic
                 if current_type == "Application":
                     publishes_to, _ = self.graph.get_app_topics(current_id)
-                    
                     for topic_id in publishes_to:
-                        if topic_id in failed_set:
+                        topic_info = self.graph.topics.get(topic_id)
+                        if not topic_info:
                             continue
-                            
-                        # Calculate Topic Service Level (SL)
-                        publishers = self.graph._publishers.get(topic_id, [])
-                        if not publishers:
-                            continue
-                            
-                        sl = sum(performance.get(p[0], 1.0) for p in publishers) / len(publishers)
+                        w_topic = getattr(topic_info, 'weight', 1.0)
                         
-                        if sl < self.STARVATION_THRESHOLD:
-                            # SL is too low — Topic fails
-                            if self._rng.random() < scenario.cascade_probability:
-                                failed_set.add(topic_id)
-                                performance[topic_id] = 0.0
-                                self.graph.fail_component(topic_id)
+                        publishers = self.graph._publishers.get(topic_id, [])
+                        if publishers:
+                            avg_pub_impact = sum(impact.get(p[0], 0.0) for p in publishers) / len(publishers)
+                        else:
+                            avg_pub_impact = current_impact
+                            
+                        if avg_pub_impact >= (1.0 - self.STARVATION_THRESHOLD):
+                            effective_pub_impact = 1.0
+                        else:
+                            effective_pub_impact = avg_pub_impact
+                            
+                        attenuated_impact = effective_pub_impact * w_topic
+                        
+                        if self._rng.random() < scenario.cascade_probability:
+                            if attenuated_impact > impact[topic_id]:
+                                impact[topic_id] = attenuated_impact
+                                comp = self.graph.components[topic_id]
+                                comp.custom_performance = 1.0 - attenuated_impact
+                                performance[topic_id] = 1.0 - attenuated_impact
+                                if attenuated_impact >= 1.0:
+                                    self.graph.fail_component(topic_id)
+                                    failed_set.add(topic_id)
+                                else:
+                                    self.graph.set_degraded(topic_id)
                                 cascade_sequence.append(CascadeEvent(
                                     component_id=topic_id,
                                     component_type="Topic",
-                                    cause=f"sl_starvation:{sl:.2f} (via {current_id})",
+                                    cause=f"sl_starvation:{avg_pub_impact:.2f} (via {current_id})",
                                     depth=depth + 1
                                 ))
                                 queue.append((topic_id, depth + 1))
-                
-                # Topic failure -> Subscriber starvation
-                if current_type == "Topic" and performance.get(current_id, 1.0) == 0.0:
+                            
+                # Broker -> Topics routed by this broker (and others)
+                elif current_type == "Broker":
+                    for topic_id, brokers in self.graph._routing.items():
+                        if any(b[0] == current_id for b in brokers):
+                            topic_info = self.graph.topics.get(topic_id)
+                            w_topic = getattr(topic_info, 'weight', 1.0) if topic_info else 1.0
+                            if brokers:
+                                routing_impact = min(impact.get(b[0], 0.0) for b in brokers)
+                            else:
+                                routing_impact = current_impact
+                            attenuated_impact = routing_impact * w_topic
+                            if self._rng.random() < scenario.cascade_probability:
+                                if attenuated_impact > impact[topic_id]:
+                                    impact[topic_id] = attenuated_impact
+                                    comp = self.graph.components[topic_id]
+                                    comp.custom_performance = 1.0 - attenuated_impact
+                                    performance[topic_id] = 1.0 - attenuated_impact
+                                    if attenuated_impact >= 1.0:
+                                        self.graph.fail_component(topic_id)
+                                        failed_set.add(topic_id)
+                                    else:
+                                        self.graph.set_degraded(topic_id)
+                                    cascade_sequence.append(CascadeEvent(
+                                        component_id=topic_id,
+                                        component_type="Topic",
+                                        cause=f"no_active_brokers:{current_id}",
+                                        depth=depth + 1
+                                    ))
+                                    queue.append((topic_id, depth + 1))
+                                
+                # Topic -> Subscribers (Application)
+                elif current_type == "Topic":
                     subscribers = self.graph._subscribers.get(current_id, [])
                     for sub in subscribers:
                         sub_id = sub[0]
-                        if sub_id in failed_set:
-                            continue
-                            
-                        # Check if subscriber is now source-less
                         _, subscribed_to = self.graph.get_app_topics(sub_id)
-                        active_sources = [t for t in subscribed_to if t not in failed_set]
-                        
-                        if not active_sources:
-                            if self._rng.random() < scenario.cascade_probability:
-                                failed_set.add(sub_id)
-                                performance[sub_id] = 0.0
-                                self.graph.fail_component(sub_id)
+                        if subscribed_to:
+                            sub_impact = min(impact.get(t, 0.0) for t in subscribed_to)
+                        else:
+                            sub_impact = current_impact
+                        if self._rng.random() < scenario.cascade_probability:
+                            if sub_impact > impact[sub_id]:
+                                impact[sub_id] = sub_impact
+                                comp = self.graph.components[sub_id]
+                                comp.custom_performance = 1.0 - sub_impact
+                                performance[sub_id] = 1.0 - sub_impact
+                                if sub_impact >= 1.0:
+                                    self.graph.fail_component(sub_id)
+                                    failed_set.add(sub_id)
+                                else:
+                                    self.graph.set_degraded(sub_id)
                                 cascade_sequence.append(CascadeEvent(
                                     component_id=sub_id,
-                                    component_type="Application",
+                                    component_type=comp.type if comp else "Application",
                                     cause=f"subscriber_starvation:{current_id}",
                                     depth=depth + 1
                                 ))
                                 queue.append((sub_id, depth + 1))
-            
+                            
             # === Network Cascade (Node -> Connected Nodes) ===
             if scenario.cascade_rule in (CascadeRule.NETWORK, CascadeRule.ALL):
-                if current_type == "Node" and performance.get(current_id, 1.0) == 0.0:
+                if current_type == "Node":
                     connected = self.graph.get_connected_nodes(current_id)
                     for neighbor_id in connected:
-                        if neighbor_id not in failed_set:
-                            # Check if neighbor becomes isolated (no remaining connections)
-                            neighbor_connections = self.graph.get_connected_nodes(neighbor_id)
-                            remaining = [
-                                n for n in neighbor_connections 
-                                if n not in failed_set and n != current_id
-                                and performance.get(n, 1.0) > 0.0
-                            ]
-                            if not remaining:
-                                # Neighbor is isolated — mark as partitioned
-                                if self._rng.random() < scenario.cascade_probability:
-                                    failed_set.add(neighbor_id)
-                                    performance[neighbor_id] = 0.0
+                        all_connections = [c[0] for c in self.graph._connections.get(neighbor_id, [])]
+                        other_impacts = [impact.get(c, 0.0) for c in all_connections if c != current_id]
+                        if other_impacts:
+                            isolation_impact = min(current_impact, min(other_impacts))
+                        else:
+                            isolation_impact = current_impact
+                        if self._rng.random() < scenario.cascade_probability:
+                            if isolation_impact > impact[neighbor_id]:
+                                impact[neighbor_id] = isolation_impact
+                                comp = self.graph.components[neighbor_id]
+                                comp.custom_performance = 1.0 - isolation_impact
+                                performance[neighbor_id] = 1.0 - isolation_impact
+                                if isolation_impact >= 1.0:
                                     self.graph.fail_component(neighbor_id)
-                                    cascade_sequence.append(CascadeEvent(
-                                        component_id=neighbor_id,
-                                        component_type="Node",
-                                        cause=f"network_partition:{current_id}",
-                                        depth=depth + 1
-                                    ))
-                                    queue.append((neighbor_id, depth + 1))
-        
+                                    failed_set.add(neighbor_id)
+                                else:
+                                    self.graph.set_degraded(neighbor_id)
+                                cascade_sequence.append(CascadeEvent(
+                                    component_id=neighbor_id,
+                                    component_type="Node",
+                                    cause=f"network_partition:{current_id}",
+                                    depth=depth + 1
+                                ))
+                                queue.append((neighbor_id, depth + 1))
         return max_depth
     
     def _calculate_impact(

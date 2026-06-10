@@ -151,10 +151,12 @@ class ValidationService:
         comp_types = {c.id: c.type for c in analysis_result.quality.components}
         comp_names = {c.id: c.structural.name for c in analysis_result.quality.components}
         
-        actual_scores        = {r.target_id: r.impact.composite_impact  for r in sim_results}
-        actual_reachability  = {r.target_id: r.impact.reachability_loss for r in sim_results}
-        actual_fragmentation = {r.target_id: r.impact.fragmentation     for r in sim_results}
-        actual_throughput    = {r.target_id: r.impact.throughput_loss   for r in sim_results}
+        from saag.validation.validator import robust_sigmoid_scale_dict
+
+        actual_scores        = robust_sigmoid_scale_dict({r.target_id: r.impact.composite_impact  for r in sim_results})
+        actual_reachability  = robust_sigmoid_scale_dict({r.target_id: r.impact.reachability_loss for r in sim_results})
+        actual_fragmentation = robust_sigmoid_scale_dict({r.target_id: r.impact.fragmentation     for r in sim_results})
+        actual_throughput    = robust_sigmoid_scale_dict({r.target_id: r.impact.throughput_loss   for r in sim_results})
 
         # 3. Overall validation
         self.logger.info("Validating...")
@@ -166,6 +168,66 @@ class ValidationService:
             layer=sim_layer.value,
             context=layer_def.name
         )
+
+        # Rule-Based Baseline Verification
+        rule_based_spearman = float(validation_res.overall.correlation.spearman)
+        rule_based_macro_f1 = float(validation_res.overall.classification.macro_f1)
+        rule_based_ndcg_10 = float(validation_res.overall.ranking.ndcg_10)
+        
+        rule_based_passed = (
+            rule_based_spearman >= 0.85 and
+            rule_based_macro_f1 >= 0.88 and
+            rule_based_ndcg_10 >= 0.90
+        )
+        
+        rule_based_baseline_metrics = {
+            "spearman": round(rule_based_spearman, 4),
+            "macro_f1": round(rule_based_macro_f1, 4),
+            "ndcg_10": round(rule_based_ndcg_10, 4),
+            "passed": rule_based_passed,
+            "targets": {"spearman": 0.85, "macro_f1": 0.88, "ndcg_10": 0.90}
+        }
+
+        # GNN Forecasting Evaluation
+        gnn_forecasting_metrics = None
+        gnn_result = None
+        if hasattr(self.prediction, "predict_quality_with_gnn") and getattr(self.prediction, "gnn_checkpoint_dir", None):
+            try:
+                graph = getattr(analysis_result, "graph", None)
+                if graph is not None:
+                    gnn_result = self.prediction.predict_quality_with_gnn(
+                        analysis_result.structural,
+                        graph,
+                        sim_results
+                    )
+            except Exception as e:
+                self.logger.warning(f"GNN prediction for validation failed: {e}")
+
+        if gnn_result is not None and getattr(gnn_result, "gnn_metrics", None) is not None:
+            gnn_metrics = gnn_result.gnn_metrics
+            gnn_spearman = float(gnn_metrics.spearman_rho)
+            gnn_macro_f1 = float(gnn_metrics.macro_f1)
+            gnn_ndcg_10 = float(gnn_metrics.ndcg_10)
+            
+            gnn_passed = (
+                gnn_spearman >= 0.85 and
+                gnn_macro_f1 >= 0.88 and
+                gnn_ndcg_10 >= 0.90
+            )
+            
+            gnn_forecasting_metrics = {
+                "spearman": round(gnn_spearman, 4),
+                "macro_f1": round(gnn_macro_f1, 4),
+                "ndcg_10": round(gnn_ndcg_10, 4),
+                "bce_loss": round(float(gnn_metrics.bce_loss), 4),
+                "regression_curve": {
+                    "slope": round(float(gnn_metrics.regression_slope), 4),
+                    "intercept": round(float(gnn_metrics.regression_intercept), 4),
+                    "r2": round(float(gnn_metrics.regression_r2), 4),
+                },
+                "passed": gnn_passed,
+                "targets": {"spearman": 0.85, "macro_f1": 0.88, "ndcg_10": 0.90}
+            }
 
         # 4. Per-dimension correlation — Reliability uses IR(v) ground truth
         # (ρ(R(v), IR(v)) instead of ρ(R(v), reachability_loss))
@@ -179,9 +241,9 @@ class ValidationService:
         )
 
         # Build reliability-specific ground truth IR(v)
-        actual_reliability_impact = {
+        actual_reliability_impact = robust_sigmoid_scale_dict({
             r.target_id: r.impact.reliability_impact for r in sim_results
-        }
+        })
 
         # ρ(R(v), IR(v)): reliability predictor vs cascade-specific ground truth
         try:
@@ -251,9 +313,9 @@ class ValidationService:
         maintainability_spearman = 0.0
 
         pred_maintainability = {c.id: c.scores.maintainability for c in analysis_result.quality.components}
-        actual_maintainability_impact = {
+        actual_maintainability_impact = robust_sigmoid_scale_dict({
             r.target_id: r.impact.maintainability_impact for r in sim_results
-        }
+        })
 
         try:
             common_m = sorted(set(pred_maintainability) & set(actual_maintainability_impact))
@@ -326,12 +388,12 @@ class ValidationService:
             calculate_ahcr_at_k, calculate_ftr, calculate_apar
         )
 
-        actual_security_impact = {
+        actual_security_impact = robust_sigmoid_scale_dict({
             r.target_id: r.impact.security_impact for r in sim_results
-        }
-        actual_attack_reach = {
+        })
+        actual_attack_reach = robust_sigmoid_scale_dict({
             r.target_id: r.impact.attack_reach for r in sim_results
-        }
+        })
 
         try:
             common_s = sorted(set(pred_security) & set(actual_security_impact))
@@ -411,11 +473,11 @@ class ValidationService:
             calculate_spof_f1, calculate_rri, calculate_hsrr, calculate_dasa
         )
 
-        actual_availability_impact = {
+        actual_availability_impact = robust_sigmoid_scale_dict({
             r.target_id: r.impact.availability_impact for r in sim_results
-        }
-        actual_ia_out = {r.target_id: r.impact.ia_out for r in sim_results}
-        actual_ia_in  = {r.target_id: r.impact.ia_in  for r in sim_results}
+        })
+        actual_ia_out = robust_sigmoid_scale_dict({r.target_id: r.impact.ia_out for r in sim_results})
+        actual_ia_in  = robust_sigmoid_scale_dict({r.target_id: r.impact.ia_in  for r in sim_results})
 
         try:
             common_a = sorted(set(pred_availability) & set(actual_availability_impact))
@@ -771,6 +833,8 @@ class ValidationService:
             dimensional_validation=dimensional_validation,
             dimensional_scatter=dimensional_scatter,
             confidence_intervals=confidence_intervals,
+            gnn_forecasting_metrics=gnn_forecasting_metrics,
+            rule_based_baseline_metrics=rule_based_baseline_metrics,
         )
 
     def validate_from_data(self, predicted, actual) -> ValidationResult:
