@@ -307,7 +307,7 @@ function EBarChart({
         }
         const serRows = ps.map(p => {
           const ser = series.find(s => s.label === p.seriesName)
-          const val = ser?.fmt ? ser.fmt(p.value) : (p.value?.toLocaleString(undefined, { maximumFractionDigits: 3 }) ?? "—")
+          const val = ser?.fmt ? ser.fmt(p.value) : (p.value?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? "—")
           return (
             `<div style="display:flex;justify-content:space-between;gap:12px;margin:2px 0">` +
             `<div style="display:flex;align-items:center;gap:6px">` +
