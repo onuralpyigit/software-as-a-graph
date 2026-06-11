@@ -142,6 +142,7 @@ output/
 results/
 models/
 scratch/
+evaluation/
 
 # Genieus (Next.js frontend)
 genieus/node_modules/
