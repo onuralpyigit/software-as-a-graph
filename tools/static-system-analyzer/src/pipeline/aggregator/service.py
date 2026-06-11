@@ -343,7 +343,7 @@ def _create_apps_libs_and_relations(
     app_node_relations: List[Tuple[str, str]],
     csv_data: List[Tuple[List[str], str, str]],
     topic_map: Dict[str, str],
-    app_role_map: Dict[str, str],
+    app_role_map: Dict[str, List[str]],
     app_criticality_map: Dict[str, bool],
     system_hierarchy_map: Optional[Dict[str, Dict[str, str]]] = None,
     dds_mask: bool = True
@@ -355,7 +355,7 @@ def _create_apps_libs_and_relations(
         app_node_relations: List of (app_name, node_name) tuples
         csv_data: (row, version, app_type) tuples read from CSV
         topic_map: {topic_name: topic_id} mapping
-        app_role_map: {app_name: role} mapping from SystemRepoParser
+        app_role_map: {app_name: [role, ...]} mapping from SystemRepoParser
         app_criticality_map: {app_name: criticality} mapping from SystemRepoParser
         system_hierarchy_map: Optional {csu_name: system_hierarchy} mapping from csci_info.csv
         dds_mask: Enable DDS QoS conversion (True) or skip conversion (False)
@@ -481,7 +481,7 @@ def _create_apps_libs_and_relations(
             "name": name,
             "version": app_versions.get(name, "NOT_FOUND"),
             "app_type": app_types.get(name, derived_app_type),
-            "role": app_role_map.get(name, "NOT_FOUND"),
+            "role": list(app_role_map.get(name, ["NOT_FOUND"])),
             "criticality": criticality_value,
             "priority": priority_value,
             "hotstandby": hotstandby_value,

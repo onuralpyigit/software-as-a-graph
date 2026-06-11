@@ -812,17 +812,24 @@ def _analyze_apps(
     ))
     
     # Role distribution analysis
+    # An application may carry multiple roles; each role is counted once
+    # per app, so totals can exceed the number of applications.
     role_counts: Dict[str, int] = {}
     role_entities: Dict[str, List[str]] = {}  # role -> [app_name, ...]
     for app in apps:
-        role = app.get("role", "NOT_FOUND")
+        raw_roles = app.get("role", ["NOT_FOUND"])
+        if isinstance(raw_roles, str):
+            roles = [raw_roles]
+        else:
+            roles = list(raw_roles) if raw_roles else ["NOT_FOUND"]
         app_name = app.get("name", app["id"])
         app_version = entity_versions.get(app["id"], "")
         display_name = f"{app_name} ({app_version})" if app_version and app_version != "NOT_FOUND" else app_name
-        role_counts[role] = role_counts.get(role, 0) + 1
-        if role not in role_entities:
-            role_entities[role] = []
-        role_entities[role].append(display_name)
+        for role in roles:
+            role_counts[role] = role_counts.get(role, 0) + 1
+            if role not in role_entities:
+                role_entities[role] = []
+            role_entities[role].append(display_name)
     
     role_ranked = [{"id": k, "name": k, "value": v, "entities": role_entities.get(k, [])} for k, v in sorted(role_counts.items(), key=lambda x: x[1], reverse=True)]
     role_stats = calculate_categorical_stats(role_counts)
