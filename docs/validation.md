@@ -119,7 +119,13 @@ evaluate_gates(vr, topo_class)
 
 For each node v, the `FaultInjector` runs a BFS cascade simulation in two sequential phases per wave:
 
-**Phase A — Direct propagation (Stochastic):**  
+**Phase A — Direct propagation (Stochastic):** *(optional extension — **disabled by default**)*
+
+> [!NOTE]
+> **Phase A is a no-op in the default configuration.** The propagation probability for pure `DEPENDS_ON` / `USES` edges is `prob = 0.0` (see `saag/simulation/fault_injector.py`). When `prob = 0.0`, no node ever fails through a bare dependency edge — Phase A contributes zero cascade events. This means the independence claim (§2 note, H5) holds: $I(v)$ is derived entirely from pub-sub topology (Phase B), which shares no computational path with the RMAV predictor $Q(v)$.
+>
+> Phase A exists as an extension point for future work where a non-zero `prob` is desirable — e.g. modelling compile-time dependency chains or shared-library ABI breaks. To activate it, set `prob > 0` in the `FaultInjector` constructor. Doing so changes the independence character of ρ(M, IM) and ρ(V, IV) from a consistency check to a partially-coupled measurement; this should be disclosed in any publication.
+
 Failure spreads from failed nodes along `DEPENDS_ON` and `USES` edges stochastically. The propagation probability in pure dependency edges is `prob * depth_damp`. By default, `prob` is set to `0.0` (disabled).
 
 **Phase B — Topic-mediated Soft QoS/Rate-weighted Propagation:**  

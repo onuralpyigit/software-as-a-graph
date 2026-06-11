@@ -25,21 +25,24 @@ from saag.core.models import AHP_SHRINKAGE_LAMBDA
 class QualityWeights:
     """
     Configurable weights for quality score computation.
-    
+
     All weights should sum to 1.0 within each dimension.
-    
-    Design principles (v2):
-        - Metric orthogonality: No raw metric appears in more than two dimensions.
-          In-Degree is exclusive to Reliability. Out-Degree is shared between
-          Maintainability (efferent coupling) and Vulnerability (attack surface).
-        - Continuous scoring: AP uses continuous fragmentation score, not binary.
-    
+
+    Design principles (v5+):
+        - Metric orthogonality: Each raw structural metric is assigned to
+          **exactly one** quality dimension. No metric is double-counted.
+          (Prior to v5, In-Degree was shared across two dimensions; this was
+          resolved by reassigning w_in exclusively to the Security dimension as
+          QADS, and reinstating count-based in-degree solely in Reliability.)
+        - Continuous scoring: AP uses continuous fragmentation score (AP_c),
+          not a binary articulation-point flag.
+
     Note on Overall Weights (q_* parameters):
-        Default equal weights (0.25 each) represent a balanced approach where
-        all four dimensions are considered equally important. Adjust these
-        based on system priorities:
-        - Security-critical systems: Increase q_vulnerability
-        - High-availability systems: Increase q_availability
+        Default weights are **AHP-derived**: A(0.43) > R(0.24) > M(0.17) ≈ S(0.16).
+        Availability dominates because SPOF-induced outages are the primary
+        failure mode in pub-sub architectures. Adjust based on system priorities:
+        - Security-critical systems: Increase q_security
+        - High-availability systems: Increase q_availability (already highest)
         - Fast-iteration systems: Increase q_maintainability
         - Mission-critical systems: Increase q_reliability
     """

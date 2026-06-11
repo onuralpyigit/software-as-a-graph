@@ -81,8 +81,8 @@ E_dependency ⊆ V × V    (DEPENDS_ON edges — derived by 6 derivation rules)
 τ_V : V → {App, Broker, Topic, Node, Library}                    (vertex type function)
 τ_E : E → {structural edge types} ∪ {DEPENDS_ON}                 (edge type function)
 
-w : E → [0, 1]    (QoS-derived edge weight)
-w : V → [0, 1]    (QoS-derived vertex weight, propagated from incident edges)
+w_E : E → [0, 1]    (QoS-derived edge weight)
+w_V : V → [0, 1]    (QoS-derived vertex weight, propagated from incident edges; written w(v) in metric formulae)
 ```
 
 **Selected vertex attributes relevant to reliability prediction:**
@@ -292,7 +292,7 @@ w(app) = 0.80 × max{ w(t) : app PUBLISHES_TO t OR app SUBSCRIBES_TO t }
        + 0.20 × mean{ w(t) : app PUBLISHES_TO t OR app SUBSCRIBES_TO t }
 ```
 
-The hybrid formula reflects that an application's criticality is primarily bounded by its most critical data stream (0.80 × max), but a dense subscription footprint of medium-weight topics adds cumulative risk (0.20 × mean). When `max = mean` (single-topic app), the formula collapses to `w = w(t)`.
+The hybrid formula reflects that an application's criticality is primarily bounded by its most critical data stream (0.80 × max), but a dense subscription footprint of medium-weight topics adds cumulative risk (0.20 × mean). The max coefficient is **0.80** (higher than the 0.70 used for brokers) because an application is a direct *originator or consumer* — its failure severs only the topics it personally publishes or subscribes to, so the single most critical channel dominates. When `max = mean` (single-topic app), the formula collapses to `w = w(t)`.
 
 **Library-mediated pass (step 1.5):** The formula above only counts topics directly connected to the application via `PUBLISHES_TO` or `SUBSCRIBES_TO`. Applications that communicate exclusively through shared libraries (no direct topic edges) would receive `w(app) = 0.01` from the first pass — making them invisible to RMAV scoring even if they indirectly handle high-weight data.
 
@@ -323,7 +323,7 @@ w(broker) = 0.70 × max{ w(t) : broker ROUTES t }
            + 0.30 × mean{ w(t) : broker ROUTES t }
 ```
 
-A broker routing 20 medium-weight topics carries more cumulative risk than one routing a single high-weight topic. The hybrid captures both worst-case exposure and accumulated routing load.
+A broker routing 20 medium-weight topics carries more cumulative risk than one routing a single high-weight topic. The hybrid captures both worst-case exposure and accumulated routing load. The mean coefficient is **0.30** (higher than the 0.20 used for applications) because a broker is a *router*, not an originator — its failure affects every topic it routes simultaneously, so cumulative routing throughput risk deserves more weight than the equivalent footprint on a single application that directly handles only its own subscribed topics.
 
 #### Node Weight
 

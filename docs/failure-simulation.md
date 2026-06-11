@@ -167,6 +167,9 @@ This is a graded score in $[0, 1]$ representing the overall service degradation 
 > [!NOTE]
 > **`feed_loss_fraction` is an internal cascade-propagation signal**, not the final I(v). It is computed per subscriber application (§3.1, Stochastic Subscriber Failure) to decide whether a subscriber is eligible to fail and propagate to the next wave. It is stored in `per_subscriber_feed_loss` for diagnostics but is not aggregated as the ground-truth impact score.
 
+> [!NOTE]
+> **Start-node inclusion in `reachability_loss`.** The failed node $v$ itself is counted as a lost subscriber in the reachability loss calculation, which could give subscriber-heavy nodes a modest advantage in I(v). To quantify this, we ran an exclusion sweep on `data/system.json`: excluding $v$ from its own feed-loss denominator shifts the system-layer Spearman $\rho$ by $+0.0077$ (0.7856 → 0.7933) and leaves the top-5 critical-node ranking identical (minor rank swaps only). The bias is therefore negligible and the current behaviour is retained for implementation simplicity.
+
 ---
 
 ### 3.3 Cascade Propagation
@@ -182,6 +185,9 @@ The `propagation_threshold` parameter (default `0.2`, range $[0.0, 1.0]$) contro
 
 For the ATM dataset, `ConflictDetector` requires both `T_radar` **and** `T_tracks` to function (both are mandatory inputs to the conflict algorithm). Setting `--propagation-threshold 0.5` will model this correctly: losing either feed alone is sufficient to silence `ConflictDetector`.
 
+> [!NOTE]
+> **$P_{\text{fail}}$ step-function discontinuity at `propagation_threshold`.** Because eligibility is gated by `sub_loss >= propagation_threshold`, the cascade probability function is a **step function**: it is exactly $0.0$ for any `sub_loss` below the threshold, then jumps immediately to $P = (\text{sub\_loss} / \text{threshold}) \times \text{depth\_damp} \ge 1.0 \times \text{depth\_damp}$ at and above the threshold (since `sub_loss / threshold ≥ 1` at the boundary). This means there is no gradual ramp in the $[0, \text{threshold})$ region — a subscriber is either completely ineligible or immediately assigned probability ≥ depth_damp. An alternative design would use a **linear ramp** (no guard condition; `prob = sub_loss / threshold * depth_damp` for all `sub_loss > 0`) or a **sigmoid** to produce smooth eligibility. The current step-function is a deliberate conservative choice: partial feed loss below the threshold is treated as recoverable degradation, not a cascade trigger. Reviewers who prefer the linear ramp may pass `--propagation-threshold 0.0` to approximate it.
+
 ---
 
 ### 3.4 Broker Failure Semantics
@@ -192,7 +198,22 @@ This correctly handles multi-broker redundancy: if a topic is routed by two brok
 
 ---
 
-### 3.5 Multi-Seed Stability
+### 3.5 Library Blast-Radius Asymmetry
+
+Libraries occupy an asymmetric position between $Q(v)$ (structural quality prediction) and $I(v)$ (simulation ground truth):
+
+**Visible to $Q(v)$:** The structural analyzer creates `app_to_lib` (`DEPENDS_ON`) edges from every consuming Application to the Library. These edges contribute to the Library's in-degree, betweenness, and Reliability dimension score. A widely-used library therefore scores high on the $R(v)$ dimension — its blast radius is structurally significant.
+
+**Near-zero in $I(v)$:** The fault injector models library failure as a **$T_0$ step-function collapse**: all consuming Applications that `USES` the library are immediately marked as failed in wave 0 alongside the library itself (Rule 4, `TestLibraryCascade`). However, the injector does *not* then propagate those Application failures forward through the pub-sub topic graph as sequential BFS cascade waves in the same way it would for an Application or Broker seed. This means libraries tend to receive low `reachability_loss` and `throughput_loss` scores despite their potentially large structural footprint — they are visible to $Q$ but near-constant near-zero in $I$.
+
+This is a **known design asymmetry**, not a bug. The rationale is that library failures manifest as compile-time or startup failures in practice — the cascading effect is captured at $T_0$ (immediate knock-on) rather than the pub-sub propagation model used for runtime failures. When a Library's $Q(v)$ rank is meaningfully higher than its $I(v)$ rank in the validation scatter plot, this is the expected explanation.
+
+> [!NOTE]
+> The `docs/structural-analysis.md` §11.6 table lists the Library's $R(v)$ formula, which already applies a fan-out amplification factor ($\gamma \cdot \log_2(1 + \text{DG\_in})$) to boost its weight proportional to its number of consumers. This is the correct place to tune the Library's structural influence if the asymmetry is considered too large.
+
+---
+
+### 3.6 Multi-Seed Stability
 
 The cascade propagation order within a wave is non-deterministic when multiple nodes are eligible to propagate simultaneously (tie-breaking). Each seed produces a different shuffle of the wave candidates, testing whether I(v) depends on this ordering.
 

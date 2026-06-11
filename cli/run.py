@@ -26,7 +26,13 @@ def main():
     
     # Stage flags
     group = parser.add_argument_group("Pipeline Stages")
-    group.add_argument("--all", action="store_true", help="Run all stages (generate -> import -> analyze -> simulate -> validate -> visualize)")
+    group.add_argument("--all", action="store_true",
+                       help=("Run all stages sequentially: generate → import → analyze → "
+                             "simulate → predict → validate → visualize. "
+                             "NOTE: the predict stage requires a pre-trained GNN checkpoint "
+                             "(--gnn-model). On a first run, omit --predict/--all and train "
+                             "the model first with: python cli/train_graph.py --layer system "
+                             "--output <checkpoint_dir>"))
     group.add_argument("--generate", action="store_true", help="Run graph generation stage")
     group.add_argument("--input", "-i", metavar="FILE", help="System topology JSON file (input for import, output for generate)")
     group.add_argument("--analyze", action="store_true", help="Run analysis stage (structural metrics, RMAV/Q scores, anti-patterns)")
@@ -62,6 +68,27 @@ def main():
     if not any(stages):
         parser.error("No stages selected. Use --all or specific stage flags.")
         return 1
+
+    # First-run guard: --all (or explicit --predict) requires a trained GNN checkpoint.
+    # Without it the predict stage will fail with a cryptic FileNotFoundError.
+    if (args.all or args.predict) and not args.gnn_model:
+        import os
+        _default_ckpt = "output/gnn_checkpoints/best_model"
+        if not os.path.isdir(_default_ckpt):
+            print(
+                "\n[WARNING] --all / --predict requires a pre-trained GNN checkpoint.\n"
+                f"  No checkpoint found at default path '{_default_ckpt}' and\n"
+                "  no --gnn-model path was supplied.\n\n"
+                "  First-run sequence:\n"
+                "    1. python cli/run.py --input system.json --analyze --simulate\n"
+                "    2. PYTHONPATH=. python cli/train_graph.py --layer system \\\n"
+                "           --output output/gnn_checkpoints/best_model\n"
+                "    3. python cli/run.py --all --gnn-model output/gnn_checkpoints/best_model\n\n"
+                "  The predict stage will be skipped this run to avoid a crash.\n",
+                file=sys.stderr,
+            )
+            args.predict = False   # neutralise predict in --all mode for this run
+            # Note: args.all stays True so all other stages still execute.
         
     # 0. Generation Stage (Pre-Pipeline)
     # If using --all, we assume generation is desired if --config or --scale provided

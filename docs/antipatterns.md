@@ -182,7 +182,10 @@ Step 2 computes a 13-element metric vector `M(v)` for each component. These metr
 | w_in(v) | Weighted In-Degree | Sum of QoS weights on incoming edges |
 | w_out(v) | Weighted Out-Degree | Sum of QoS weights on outgoing edges |
 
-All metrics are normalized to `[0, 1]` via min-max scaling before quality scoring and anti-pattern detection.
+All metrics are normalized to `[0, 1]` before quality scoring and anti-pattern detection, using one of two methods depending on the metric type:
+
+- **Topological metrics** (PageRank, Betweenness, Closeness, Eigenvector, Degree, AP_c, Bridge Ratio, QoS weights): **rank-based normalization** (default `--norm robust`). Each component's raw value is replaced by its rank position divided by N, producing a uniform distribution in [0, 1]. This is the default because topological metrics are highly skewed in real systems — a single hub-broker may have betweenness 50× the median — and min-max would compress all non-hub values near 0.
+- **Linear properties** (LOC, Cyclomatic Complexity, LCOM, CPU cores, memory): **min-max normalization** (`value / population_max`). These properties have meaningful absolute magnitude differences that should be preserved; a component twice as large is genuinely twice as costly.
 
 ### 4.3 Adaptive Box-Plot Thresholds
 
