@@ -1742,6 +1742,7 @@ def compute_network_usage_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         summary["bw_mean"] = float(np.mean(arr))
         summary["bw_median"] = float(np.median(arr))
         summary["bw_max"] = float(np.max(arr))
+        summary["bw_min"] = float(np.min(arr))
         summary["bw_std"] = float(np.std(arr))
         summary["cv"] = (
             float(np.std(arr) / np.mean(arr) * 100) if np.mean(arr) > 0 else 0.0

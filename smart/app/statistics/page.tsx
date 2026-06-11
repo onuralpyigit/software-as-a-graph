@@ -1741,43 +1741,41 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
         const page = Math.min(tablePage, totalPages - 1)
         const pageItems = (filtered as typeof appItems).slice(page * NETWORK_TABLE_PAGE_SIZE, (page + 1) * NETWORK_TABLE_PAGE_SIZE)
         return (
-          <Card className="bg-background">
-            <CardHeader>
-              <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">App Bandwidth Detail</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b text-muted-foreground">
-                      <th className="text-left py-1.5 pr-3 font-medium">Application</th>
-                      <th className="text-left py-1.5 px-3 font-medium">Node</th>
-                      <th className="text-left py-1.5 px-3 font-medium">Role</th>
-                      <th className="text-right py-1.5 px-3 font-medium">Outbound/s</th>
-                      <th className="text-right py-1.5 pl-3 font-medium">Inbound/s</th>
-                      <th className="text-right py-1.5 pl-3 font-medium">Total/s</th>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">App Bandwidth Detail</p>
+            <div className="max-h-96 overflow-auto rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Application</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Node</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Role</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Outbound/s</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Inbound/s</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Total/s</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageItems.map((a) => (
+                    <tr key={a.id} className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => goToExplorer(a.id)}>
+                      <td className="px-3 py-2 text-left font-medium">
+                        {a.criticality && <span className="mr-1 text-amber-400" title="Critical">●</span>}
+                        {a.name}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground truncate max-w-[120px]">{a.node_name ?? "—"}</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{a.role ?? "—"}</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmtBytes(a.outbound)}/s</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmtBytes(a.inbound)}/s</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmtBytes(a.total)}/s</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {pageItems.map((a) => (
-                      <tr key={a.id} className="border-b border-border/40 hover:bg-muted/30 cursor-pointer" onClick={() => goToExplorer(a.id)}>
-                        <td className="py-1.5 pr-3 font-mono truncate max-w-[180px]">
-                          {a.criticality && <span className="mr-1 text-amber-400" title="Critical">●</span>}
-                          {a.name}
-                        </td>
-                        <td className="py-1.5 px-3 text-muted-foreground truncate max-w-[120px]">{a.node_name ?? "—"}</td>
-                        <td className="py-1.5 px-3 text-muted-foreground">{a.role ?? "—"}</td>
-                        <td className="text-right py-1.5 px-3 tabular-nums text-indigo-400">{fmtBytes(a.outbound)}/s</td>
-                        <td className="text-right py-1.5 pl-3 tabular-nums text-emerald-400">{fmtBytes(a.inbound)}/s</td>
-                        <td className="text-right py-1.5 pl-3 tabular-nums font-medium">{fmtBytes(a.total)}/s</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  ))}
+                </tbody>
+              </table>
+              <div className="px-3 py-2">
                 <TablePager page={page} totalPages={totalPages} total={filtered.length} pageSize={NETWORK_TABLE_PAGE_SIZE} label="applications" onPage={setTablePage} />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )
       })()}
       {view === "topics" && topicItems.length > 0 && (() => {
@@ -1785,44 +1783,42 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
         const page = Math.min(tablePage, totalPages - 1)
         const pageItems = (filtered as typeof topicItems).slice(page * NETWORK_TABLE_PAGE_SIZE, (page + 1) * NETWORK_TABLE_PAGE_SIZE)
         return (
-          <Card className="bg-background">
-            <CardHeader>
-              <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">Topic Frequency &amp; Size</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b text-muted-foreground">
-                      <th className="text-left py-1.5 pr-3 font-medium">Topic</th>
-                      <th className="text-right py-1.5 px-3 font-medium">Freq (Hz)</th>
-                      <th className="text-right py-1.5 px-3 font-medium">Size</th>
-                      <th className="text-right py-1.5 px-3 font-medium">Pubs</th>
-                      <th className="text-right py-1.5 px-3 font-medium">Subs</th>
-                      <th className="text-right py-1.5 px-3 font-medium">Outbound/s</th>
-                      <th className="text-right py-1.5 pl-3 font-medium">Inbound/s</th>
-                      <th className="text-right py-1.5 pl-3 font-medium">Total/s</th>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Topic Bandwidth Detail</p>
+            <div className="max-h-96 overflow-auto rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Topic</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Freq (Hz)</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Size</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Pubs</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Subs</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Outbound/s</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Inbound/s</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Total/s</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageItems.map((t) => (
+                    <tr key={t.id} className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => goToExplorer(t.id)}>
+                      <td className="px-3 py-2 text-left font-medium truncate max-w-[180px]">{t.name}</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{t.frequency_hz.toFixed(1)}</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmtBytes(t.size_bytes)}</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{t.pub_count}</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{t.sub_count}</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmtBytes(t.outbound)}/s</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmtBytes(t.inbound)}/s</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmtBytes(t.total)}/s</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {pageItems.map((t) => (
-                      <tr key={t.id} className="border-b border-border/40 hover:bg-muted/30 cursor-pointer" onClick={() => goToExplorer(t.id)}>
-                        <td className="py-1.5 pr-3 font-mono truncate max-w-[180px]">{t.name}</td>
-                        <td className="text-right py-1.5 px-3 tabular-nums">{t.frequency_hz.toFixed(1)}</td>
-                        <td className="text-right py-1.5 px-3 tabular-nums">{fmtBytes(t.size_bytes)}</td>
-                        <td className="text-right py-1.5 px-3 tabular-nums">{t.pub_count}</td>
-                        <td className="text-right py-1.5 px-3 tabular-nums">{t.sub_count}</td>
-                        <td className="text-right py-1.5 px-3 tabular-nums text-indigo-400">{fmtBytes(t.outbound)}/s</td>
-                        <td className="text-right py-1.5 pl-3 tabular-nums text-emerald-400">{fmtBytes(t.inbound)}/s</td>
-                        <td className="text-right py-1.5 pl-3 tabular-nums font-medium">{fmtBytes(t.total)}/s</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  ))}
+                </tbody>
+              </table>
+              <div className="px-3 py-2">
                 <TablePager page={page} totalPages={totalPages} total={filtered.length} pageSize={NETWORK_TABLE_PAGE_SIZE} label="topics" onPage={setTablePage} />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )
       })()}
       {data.outliers.length > 0 && (
