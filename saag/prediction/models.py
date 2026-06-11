@@ -124,7 +124,7 @@ def _require_pyg():
 
 
 NODE_TYPES: List[str] = ["Application", "Broker", "Topic", "Node", "Library"]
-NUM_LABEL_DIMS = 5  # composite, reliability, maintainability, availability, vulnerability
+NUM_LABEL_DIMS = 5  # composite, reliability, maintainability, availability, security
 
 
 class ResidualMLP(nn.Module):
@@ -154,7 +154,7 @@ class EdgeFeatureEncoder(nn.Module):
 
     def __init__(self, edge_feat_dim: int, hidden_channels: int):
         super().__init__()
-        self.proj = nn.Linear(edge_feat_dim, hidden_channels)
+        self.proj = nn.Linear(hidden_channels * 2 + edge_feat_dim, hidden_channels)
 
     def forward(
         self,
@@ -175,14 +175,19 @@ class EdgeFeatureEncoder(nn.Module):
 
         augmented = {k: v.clone() for k, v in h_dict.items()}
         for rel, edge_index in edge_index_dict.items():
-            _, _, dst_type = rel
-            if rel not in edge_attr_dict or dst_type not in h_dict:
+            src_type, _, dst_type = rel
+            if rel not in edge_attr_dict or dst_type not in h_dict or src_type not in h_dict:
                 continue
-            e = self.proj(edge_attr_dict[rel])          # (E, hidden)
+            h_src = h_dict[src_type][edge_index[0]]
+            h_dst = h_dict[dst_type][edge_index[1]]
+            e_feat = edge_attr_dict[rel]
+            fused = torch.cat([h_src, h_dst, e_feat], dim=-1)
+            e = self.proj(fused)                        # (E, hidden)
             n_dst = h_dict[dst_type].size(0)
             aggr = scatter_mean(e, edge_index[1], dim=0, dim_size=n_dst)
             augmented[dst_type] = augmented[dst_type] + aggr
         return augmented
+
 
 
 class TypedEdgeEncoder(nn.Module):
@@ -225,12 +230,159 @@ class TypedEdgeEncoder(nn.Module):
         return torch.sigmoid(self.out_head(fused))
 
 
+class EdgeAwareHGTConv(nn.Module):
+    """Heterogeneous Graph Transformer Convolution with native edge feature injection.
+
+    Instead of pre-aggregating edge features into destination nodes, this layer
+    projects edge features directly into the Key and Value spaces of each individual
+    edge before message passing. This avoids information smoothing in dense networks.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        metadata: Tuple[List[str], List[Tuple[str, str, str]]],
+        heads: int = 4,
+        edge_feat_dim: int = 16,
+    ):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.node_types, self.edge_types = metadata
+        self.heads = heads
+        self.head_dim = out_channels // heads
+        
+        # Projections for each node type
+        self.k_proj = nn.ModuleDict({
+            nt: nn.Linear(in_channels, out_channels) for nt in self.node_types
+        })
+        self.q_proj = nn.ModuleDict({
+            nt: nn.Linear(in_channels, out_channels) for nt in self.node_types
+        })
+        self.v_proj = nn.ModuleDict({
+            nt: nn.Linear(in_channels, out_channels) for nt in self.node_types
+        })
+        
+        # Projections for each relation type (edges)
+        self.k_edge_proj = nn.ModuleDict({
+            self._rel_key(rel): nn.Linear(edge_feat_dim, out_channels) for rel in self.edge_types
+        })
+        self.v_edge_proj = nn.ModuleDict({
+            self._rel_key(rel): nn.Linear(edge_feat_dim, out_channels) for rel in self.edge_types
+        })
+        
+        # Relation-specific query-key attention projection and message projection
+        self.relation_att = nn.ParameterDict({
+            self._rel_key(rel): nn.Parameter(torch.ones(heads)) for rel in self.edge_types
+        })
+        self.relation_msg = nn.ModuleDict({
+            self._rel_key(rel): nn.Linear(out_channels, out_channels) for rel in self.edge_types
+        })
+        
+        # Output projections to combine heads
+        self.out_proj = nn.ModuleDict({
+            nt: nn.Linear(out_channels, out_channels) for nt in self.node_types
+        })
+
+    @staticmethod
+    def _rel_key(rel: Tuple[str, str, str]) -> str:
+        return "__".join(rel)
+
+    def forward(
+        self,
+        x_dict: Dict[str, Tensor],
+        edge_index_dict: Dict[Tuple[str, str, str], Tensor],
+        edge_attr_dict: Optional[Dict[Tuple[str, str, str], Tensor]] = None,
+    ) -> Dict[str, Tensor]:
+        try:
+            from torch_scatter import scatter_add
+        except ImportError:
+            # Fallback scatter_add
+            def scatter_add(src, index, dim, dim_size):
+                out = torch.zeros(dim_size, src.size(1), device=src.device, dtype=src.dtype)
+                out.index_add_(0, index, src)
+                return out
+
+        from torch_geometric.utils import softmax
+        import math
+
+        # Project node features to Query, Key, Value spaces
+        k_dict = {nt: self.k_proj[nt](x) for nt, x in x_dict.items() if nt in self.k_proj}
+        q_dict = {nt: self.q_proj[nt](x) for nt, x in x_dict.items() if nt in self.q_proj}
+        v_dict = {nt: self.v_proj[nt](x) for nt, x in x_dict.items() if nt in self.v_proj}
+        
+        # Initialize output dict with zeros
+        out_dict = {nt: torch.zeros_like(x) for nt, x in x_dict.items()}
+        
+        # Loop over relations
+        for rel, edge_index in edge_index_dict.items():
+            src_type, _, dst_type = rel
+            if src_type not in k_dict or dst_type not in q_dict:
+                continue
+            if edge_index.numel() == 0:
+                continue
+                
+            rel_k = self._rel_key(rel)
+            
+            # 1. Fetch keys/queries/values for the edges
+            k_src = k_dict[src_type][edge_index[0]]  # (E, out_channels)
+            v_src = v_dict[src_type][edge_index[0]]  # (E, out_channels)
+            q_dst = q_dict[dst_type][edge_index[1]]  # (E, out_channels)
+            
+            # 2. Inject edge features (if provided) directly into the Key and Value of the specific edge
+            if edge_attr_dict and rel in edge_attr_dict and rel_k in self.k_edge_proj:
+                e_feat = edge_attr_dict[rel]
+                k_src = k_src + self.k_edge_proj[rel_k](e_feat)
+                v_src = v_src + self.v_edge_proj[rel_k](e_feat)
+                
+            # 3. Reshape for multi-head attention
+            # (E, out_channels) -> (E, heads, head_dim)
+            k_src = k_src.view(-1, self.heads, self.head_dim)
+            v_src = v_src.view(-1, self.heads, self.head_dim)
+            q_dst = q_dst.view(-1, self.heads, self.head_dim)
+            
+            # 4. Compute attention coefficients: (q * k).sum(dim=-1) / sqrt(head_dim)
+            # alpha shape: (E, heads)
+            alpha = (q_dst * k_src).sum(dim=-1) / math.sqrt(self.head_dim)
+            
+            # Scale by relation-specific attention multiplier
+            alpha = alpha * self.relation_att[rel_k].unsqueeze(0)
+            
+            # Softmax attention coefficients over incoming edges for each destination node
+            # alpha shape: (E, heads)
+            alpha = softmax(alpha, edge_index[1], num_nodes=x_dict[dst_type].size(0))
+            
+            # 5. Compute relation-specific message transformation
+            # Project value back from head space to transform it
+            v_src = v_src.view(-1, self.out_channels)
+            msg = self.relation_msg[rel_k](v_src)  # (E, out_channels)
+            msg = msg.view(-1, self.heads, self.head_dim)
+            
+            # Apply attention weights to message
+            msg = msg * alpha.unsqueeze(-1)  # (E, heads, head_dim)
+            msg = msg.reshape(-1, self.out_channels)  # (E, out_channels)
+            
+            # 6. Scatter-add message to destination nodes
+            n_dst = x_dict[dst_type].size(0)
+            dst_msg = scatter_add(msg, edge_index[1], dim=0, dim_size=n_dst)
+            
+            out_dict[dst_type] = out_dict[dst_type] + dst_msg
+            
+        # Post-process node aggregations (run through out_proj)
+        for nt, h in out_dict.items():
+            if nt in self.out_proj:
+                out_dict[nt] = self.out_proj[nt](h)
+                
+        return out_dict
+
+
 class NodeCriticalityGNN(nn.Module):
     """Heterogeneous Graph Transformer (HGT) for node-level criticality prediction.
 
     Architecture:
     - Per-type input projections → hidden_channels
-    - N layers of HGTConv with EdgeFeatureEncoder injecting edge info before each layer
+    - N layers of EdgeAwareHGTConv with native edge features
     - Optional bidirectional pass (forward + reverse) for upstream/downstream awareness
     - Four RMAV output heads + one composite head (all sigmoid-activated)
     """
@@ -246,7 +398,6 @@ class NodeCriticalityGNN(nn.Module):
     ):
         _require_pyg()
         super().__init__()
-        from torch_geometric.nn import HGTConv
 
         node_types, edge_types = metadata
         self.node_types = node_types
@@ -267,16 +418,18 @@ class NodeCriticalityGNN(nn.Module):
             for nt in node_types
         })
 
-        # HGTConv layers with edge feature injection and per-layer residual norms
+        # EdgeAwareHGTConv layers with native edge feature injection and per-layer residual norms
         self.convs = nn.ModuleList([
-            HGTConv(
+            EdgeAwareHGTConv(
                 in_channels=hidden_channels,
                 out_channels=hidden_channels,
                 metadata=metadata,
                 heads=num_heads,
+                edge_feat_dim=EDGE_FEATURE_DIM,
             )
             for _ in range(num_layers)
         ])
+        # Unused, kept for backward compatibility and parameter inspection scripts
         self.edge_encoders = nn.ModuleList([
             EdgeFeatureEncoder(EDGE_FEATURE_DIM, hidden_channels)
             for _ in range(num_layers)
@@ -287,31 +440,32 @@ class NodeCriticalityGNN(nn.Module):
         ])
         self.dropouts = nn.ModuleList([nn.Dropout(dropout) for _ in range(num_layers)])
 
-        # Optional reverse-direction HGTConv for bidirectional awareness
+        # Optional reverse-direction EdgeAwareHGTConv for bidirectional awareness
         if use_bidirectional:
             rev_edge_types = [
                 (dst, "rev__" + etype, src)
                 for (src, etype, dst) in edge_types
             ]
             rev_metadata = (node_types, rev_edge_types)
-            self.rev_conv = HGTConv(
+            self.rev_conv = EdgeAwareHGTConv(
                 in_channels=hidden_channels,
                 out_channels=hidden_channels,
                 metadata=rev_metadata,
                 heads=num_heads,
+                edge_feat_dim=EDGE_FEATURE_DIM,
             )
         else:
             self.rev_conv = None
 
         # Output heads (unchanged from prior architecture)
-        self.rmav_heads = nn.ModuleDict({
+        self.rmas_heads = nn.ModuleDict({
             dim: ResidualMLP(hidden_channels, hidden_channels // 2, 1, dropout)
-            for dim in ["reliability", "maintainability", "availability", "vulnerability"]
+            for dim in ["reliability", "maintainability", "availability", "security"]
         })
         self.composite_head = ResidualMLP(hidden_channels + 4, hidden_channels // 2, 1, dropout)
 
     def _apply_reverse_pass(
-        self, h: Dict[str, Tensor], edge_index_dict: Dict
+        self, h: Dict[str, Tensor], edge_index_dict: Dict, edge_attr_dict: Optional[Dict] = None
     ) -> Dict[str, Tensor]:
         """Single reverse-direction HGTConv pass for upstream signal propagation."""
         rev_ei = {
@@ -320,7 +474,14 @@ class NodeCriticalityGNN(nn.Module):
         }
         if not rev_ei:
             return h
-        h_rev = self.rev_conv(h, rev_ei)
+        rev_ea = None
+        if edge_attr_dict:
+            rev_ea = {
+                (dst, "rev__" + etype, src): edge_attr_dict[(src, etype, dst)]
+                for (src, etype, dst) in edge_index_dict.keys()
+                if (src, etype, dst) in edge_attr_dict
+            }
+        h_rev = self.rev_conv(h, rev_ei, rev_ea)
         for nt, h_r in h_rev.items():
             if nt in h:
                 h[nt] = h[nt] + 0.5 * h_r
@@ -338,31 +499,29 @@ class NodeCriticalityGNN(nn.Module):
             if nt in self.input_proj
         }
 
-        for conv, edge_enc, norm_d, drop in zip(
-            self.convs, self.edge_encoders, self.norms, self.dropouts
+        for conv, norm_d, drop in zip(
+            self.convs, self.norms, self.dropouts
         ):
-            if edge_attr_dict:
-                h = edge_enc(h, edge_index_dict, edge_attr_dict)
-            h_new = conv(h, edge_index_dict)
+            h_new = conv(h, edge_index_dict, edge_attr_dict)
             for nt, h_n in h_new.items():
                 residual = h.get(nt, torch.zeros_like(h_n))
                 h[nt] = drop(F.gelu(norm_d[nt](h_n + residual)))
 
         if self.use_bidirectional and self.rev_conv is not None:
-            h = self._apply_reverse_pass(h, edge_index_dict)
+            h = self._apply_reverse_pass(h, edge_index_dict, edge_attr_dict)
 
         return h
 
     def decode(self, h_dict: Dict[str, Tensor]) -> Dict[str, Tensor]:
         out: Dict[str, Tensor] = {}
         for nt, h in h_dict.items():
-            r = torch.sigmoid(self.rmav_heads["reliability"](h))
-            m = torch.sigmoid(self.rmav_heads["maintainability"](h))
-            a = torch.sigmoid(self.rmav_heads["availability"](h))
-            v = torch.sigmoid(self.rmav_heads["vulnerability"](h))
-            composite_in = torch.cat([h, r, m, a, v], dim=-1)
+            r = torch.sigmoid(self.rmas_heads["reliability"](h))
+            m = torch.sigmoid(self.rmas_heads["maintainability"](h))
+            a = torch.sigmoid(self.rmas_heads["availability"](h))
+            s = torch.sigmoid(self.rmas_heads["security"](h))
+            composite_in = torch.cat([h, r, m, a, s], dim=-1)
             composite = torch.sigmoid(self.composite_head(composite_in))
-            out[nt] = torch.cat([composite, r, m, a, v], dim=-1)
+            out[nt] = torch.cat([composite, r, m, a, s], dim=-1)
         return out
 
     def forward(self, x_dict, edge_index_dict, edge_attr_dict=None):

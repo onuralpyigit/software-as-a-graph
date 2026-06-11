@@ -81,7 +81,7 @@ class CriticalityProfile:
     r_crit: bool = False
     m_crit: bool = False
     a_crit: bool = False
-    v_crit: bool = False
+    s_crit: bool = False
     q_crit: bool = False
 
     _PATTERNS = {
@@ -96,8 +96,8 @@ class CriticalityProfile:
 
     @property
     def pattern(self) -> str:
-        """Named pattern from (R_crit, M_crit, A_crit, V_crit) tuple."""
-        flag = (self.r_crit, self.m_crit, self.a_crit, self.v_crit)
+        """Named pattern from (R_crit, M_crit, A_crit, S_crit) tuple."""
+        flag = (self.r_crit, self.m_crit, self.a_crit, self.s_crit)
         return self._PATTERNS.get(flag, "Composite Risk")
 
     def to_dict(self) -> Dict[str, Any]:
@@ -105,7 +105,7 @@ class CriticalityProfile:
             "r_crit": self.r_crit,
             "m_crit": self.m_crit,
             "a_crit": self.a_crit,
-            "v_crit": self.v_crit,
+            "s_crit": self.s_crit,
             "q_crit": self.q_crit,
             "pattern": self.pattern,
         }
@@ -161,7 +161,7 @@ class QualityAnalyzer:
             weights.q_reliability = 0.25
             weights.q_maintainability = 0.25
             weights.q_availability = 0.25
-            weights.q_vulnerability = 0.25
+            weights.q_security = 0.25
 
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
         self.weights = (
@@ -277,7 +277,7 @@ class QualityAnalyzer:
             ))
 
         # Classify each dimension with box-plot (or percentile fallback)
-        dim_keys = ["reliability", "maintainability", "availability", "vulnerability", "overall"]
+        dim_keys = ["reliability", "maintainability", "availability", "security", "overall"]
         level_maps: Dict[str, Dict[str, CriticalityLevel]] = {}
         upper_fences: Dict[str, float] = {}  # per-dimension upper-fence for CriticalityProfile
 
@@ -302,7 +302,7 @@ class QualityAnalyzer:
                 reliability=level_maps["reliability"].get(c.id, CriticalityLevel.MINIMAL),
                 maintainability=level_maps["maintainability"].get(c.id, CriticalityLevel.MINIMAL),
                 availability=level_maps["availability"].get(c.id, CriticalityLevel.MINIMAL),
-                vulnerability=level_maps["vulnerability"].get(c.id, CriticalityLevel.MINIMAL),
+                security=level_maps["security"].get(c.id, CriticalityLevel.MINIMAL),
                 overall=level_maps["overall"].get(c.id, CriticalityLevel.MINIMAL),
             )
             # CriticalityProfile: True iff score > upper_fence for that dimension
@@ -310,7 +310,7 @@ class QualityAnalyzer:
                 r_crit=c.scores.reliability     > upper_fences.get("reliability",     1.0),
                 m_crit=c.scores.maintainability > upper_fences.get("maintainability", 1.0),
                 a_crit=c.scores.availability    > upper_fences.get("availability",    1.0),
-                v_crit=c.scores.vulnerability   > upper_fences.get("vulnerability",   1.0),
+                s_crit=c.scores.security        > upper_fences.get("security",        1.0),
                 q_crit=c.scores.overall         > upper_fences.get("overall",         1.0),
             )
 
@@ -363,7 +363,7 @@ class QualityAnalyzer:
         mpci = m.mpci
         foc = m.fan_out_criticality
 
-        # --- Reliability: R*(v) v7 = PR*(1+MPCI) + DG_in ---
+        # --- Reliability: R*(v) v6 = RPR + DG_in + CDPot_enh ---
         if m.type == "Topic":
             # R_topic(v) = 0.50 × FOC(v) + 0.50 × CDPot_topic(v)
             # CDPot_topic(v) = FOC(v) × (1 − min(publisher_count_norm(v), 1))
@@ -373,11 +373,18 @@ class QualityAnalyzer:
             R = 0.50 * foc + 0.50 * cdpot_topic
         else:
             # Standard Reliability formula (Application, Broker, Node, Library)
-            # R(v) v7: 0.60 * PR * (1 + MPCI) + 0.40 * ID
-            # Rationale: Direct dependency count + reachability amplified by multi-path criticality.
+            # R(v) v6: RPR + DG_in + CDPot_enh (see §11.2 of structural-analysis.md)
+            # DEPENDS_ON edges point dependent→dependency; failure propagates against edge
+            # direction, so RPR on G^T is the correct cascade-reach estimator.
+            _eps_r = 1e-9
+            _id_raw = float(m.in_degree_raw)
+            _od_raw = float(m.out_degree_raw)
+            cdpot_base = ((rpr + id_n) / 2.0) * (1.0 - min(_od_raw / max(_id_raw, _eps_r), 1.0))
+            cdpot_enh = min(cdpot_base * (1.0 + mpci), 1.0)
             R = (
-                0.60 * pr * (1.0 + mpci)
-                + 0.40 * id_n
+                self.weights.r_reverse_pagerank * rpr
+                + getattr(self.weights, 'r_in_degree', 0.30) * id_n
+                + getattr(self.weights, 'r_cdpot', 0.25) * cdpot_enh
             )
 
         # Maintainability: M(v) v6 — adds CQP as 5th signal
@@ -409,21 +416,21 @@ class QualityAnalyzer:
             + w.a_qos_weight  * qw
         )
 
-        # Vulnerability: strategic dependent reach + propagation speed + QoS attack surface
+        # Security: strategic dependent reach + propagation speed + QoS attack surface
         w_in_n = _n(m.dependency_weight_in, "w_in")
-        V = (
-            getattr(w, 'v_reverse_eigenvector', 0.40) * rev
-            + getattr(w, 'v_reverse_closeness', 0.35) * rcl
-            + getattr(w, 'v_qads', 0.25) * w_in_n
+        S = (
+            getattr(w, 's_reverse_eigenvector', 0.40) * rev
+            + getattr(w, 's_reverse_closeness', 0.35) * rcl
+            + getattr(w, 's_qads', 0.25) * w_in_n
         )
 
-        Q = w.q_reliability * R + w.q_maintainability * M + w.q_availability * A + w.q_vulnerability * V
+        Q = w.q_reliability * R + w.q_maintainability * M + w.q_availability * A + w.q_security * S
 
         return QualityScores(
             reliability=R,
             maintainability=M,
             availability=A,
-            vulnerability=V,
+            security=S,
             overall=Q,
         )
 
@@ -462,10 +469,10 @@ class QualityAnalyzer:
             tgt_r = tgt_q.scores.reliability if tgt_q else 0.0
             src_a = src_q.scores.availability if src_q else 0.0
             tgt_a = tgt_q.scores.availability if tgt_q else 0.0
-            src_v = src_q.scores.vulnerability if src_q else 0.0
-            tgt_v = tgt_q.scores.vulnerability if tgt_q else 0.0
+            src_s = src_q.scores.security if src_q else 0.0
+            tgt_s = tgt_q.scores.security if tgt_q else 0.0
 
-            # Edge RMAV
+            # Edge RMAS
             e_reliability = (
                 w.e_betweenness * bt_norm
                 + w.e_bridge * edge_weight
@@ -474,22 +481,22 @@ class QualityAnalyzer:
             e_maintainability = (
                 w.e_betweenness * bt_norm
                 + w.e_bridge * bridge_factor
-                + w.e_vulnerability * edge_weight
+                + w.e_security * edge_weight
             )
             e_availability = (
                 w.e_bridge * bridge_factor
                 + w.e_endpoint * min(src_a, tgt_a)
             )
-            e_vulnerability = (
-                w.e_vulnerability * edge_weight
-                + w.e_endpoint * max(src_v, tgt_v)
+            e_security = (
+                w.e_security * edge_weight
+                + w.e_endpoint * max(src_s, tgt_s)
             )
 
             overall = (
                 w.q_reliability * e_reliability
                 + w.q_maintainability * e_maintainability
                 + w.q_availability * e_availability
-                + w.q_vulnerability * e_vulnerability
+                + w.q_security * e_security
             )
 
             edges.append(EdgeQuality(
@@ -502,7 +509,7 @@ class QualityAnalyzer:
                     reliability=e_reliability,
                     maintainability=e_maintainability,
                     availability=e_availability,
-                    vulnerability=e_vulnerability,
+                    security=e_security,
                     overall=overall,
                 ),
                 structural=em,
@@ -645,13 +652,13 @@ class QualityAnalyzer:
             getattr(w, 'a_ap_c_directed', 0.15),
             getattr(w, 'a_cdi', 0.10),
         )
-        v_weights = _perturb_group(
-            getattr(w, 'v_reverse_eigenvector', 0.40),
-            getattr(w, 'v_reverse_closeness', 0.35),
-            getattr(w, 'v_qads', 0.25)
+        s_weights = _perturb_group(
+            getattr(w, 's_reverse_eigenvector', 0.40),
+            getattr(w, 's_reverse_closeness', 0.35),
+            getattr(w, 's_qads', 0.25)
         )
         q_weights = _perturb_group(
-            w.q_reliability, w.q_maintainability, w.q_availability, w.q_vulnerability
+            w.q_reliability, w.q_maintainability, w.q_availability, w.q_security
         )
 
         return QualityWeights(
@@ -664,10 +671,10 @@ class QualityAnalyzer:
             a_qspof=a_weights[0], a_bridge_ratio=a_weights[1],
             a_ap_c_directed=a_weights[2], a_cdi=a_weights[3],
             a_articulation=0.0, a_qos_weight=0.0, a_importance=0.0,
-            v_reverse_eigenvector=v_weights[0], v_reverse_closeness=v_weights[1], v_qads=v_weights[2],
-            v_eigenvector=0.0, v_closeness=0.0, v_out_degree=0.0,
+            s_reverse_eigenvector=s_weights[0], s_reverse_closeness=s_weights[1], s_qads=s_weights[2],
+            s_eigenvector=0.0, s_closeness=0.0, s_out_degree=0.0,
             q_reliability=q_weights[0], q_maintainability=q_weights[1],
-            q_availability=q_weights[2], q_vulnerability=q_weights[3],
+            q_availability=q_weights[2], q_security=q_weights[3],
         )
 
     def _compute_rmav_with_weights(
@@ -906,14 +913,14 @@ class QualityAnalyzer:
             q_r = w.q_reliability + delta
             q_a = w.q_availability + delta * 0.5
             q_m = w.q_maintainability - delta * 0.75
-            q_v = w.q_vulnerability - delta * 0.75
+            q_s = w.q_security - delta * 0.75
         elif rel_signal <= 0.4:
-            # Volatile/best-effort: emphasise maintainability and vulnerability
+            # Volatile/best-effort: emphasise maintainability and security
             delta = min(0.15, (0.5 - rel_signal) * 0.30)
             q_r = w.q_reliability - delta * 0.75
             q_a = w.q_availability - delta * 0.75
             q_m = w.q_maintainability + delta
-            q_v = w.q_vulnerability + delta * 0.5
+            q_s = w.q_security + delta * 0.5
         else:
             # Balanced — keep defaults
             return w
@@ -922,13 +929,13 @@ class QualityAnalyzer:
         q_r = max(0.05, q_r)
         q_a = max(0.05, q_a)
         q_m = max(0.05, q_m)
-        q_v = max(0.05, q_v)
-        total_q = q_r + q_a + q_m + q_v
+        q_s = max(0.05, q_s)
+        total_q = q_r + q_a + q_m + q_s
 
         w.q_reliability     = q_r / total_q
         w.q_availability     = q_a / total_q
         w.q_maintainability  = q_m / total_q
-        w.q_vulnerability    = q_v / total_q
+        w.q_security        = q_s / total_q
 
         return w
 

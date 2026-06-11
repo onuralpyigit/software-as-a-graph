@@ -46,7 +46,7 @@ interface GNNScore {
   reliability_score: number
   maintainability_score: number
   availability_score: number
-  vulnerability_score: number
+  security_score: number
   criticality_level: string
   source: string
 }
@@ -123,10 +123,10 @@ function ScoreBar({ value, dim }: { value: number; dim: string }) {
     R: "bg-blue-500",
     M: "bg-purple-500",
     A: "bg-green-500",
-    V: "bg-red-500",
+    S: "bg-red-500",
   }
   const termMap: Record<string, string> = {
-    R: "R(v)", M: "M(v)", A: "A(v)", V: "V(v)",
+    R: "R(v)", M: "M(v)", A: "A(v)", S: "S(v)",
   }
   return (
     <div className="flex items-center gap-2">
@@ -208,7 +208,7 @@ export default function TrainPage() {
     }, 3000)
 
     try {
-      const response = await axios.post(`${apiClient.getBaseURL()}/api/v1/prediction/train`, {
+      const response = await axios.post(`${apiClient.getBaseURL()}/api/v1/graph/prediction/train`, {
         credentials: config,
         layer,
         checkpoint_name: checkpointName.trim(),
@@ -429,7 +429,7 @@ export default function TrainPage() {
                     <div className={`grid grid-cols-1 gap-4 ${result.gnn_metrics && result.ensemble_metrics ? "sm:grid-cols-2" : ""}`}>
                       {[
                         { label: "GNN", metrics: result.gnn_metrics },
-                        { label: "Ensemble (GNN + RMAV)", metrics: result.ensemble_metrics },
+                        { label: "Ensemble (GNN + RMAS)", metrics: result.ensemble_metrics },
                       ].map(({ label, metrics }) => metrics && (
                         <div key={label} className="rounded-lg border p-4 space-y-2">
                           <p className="font-medium text-sm">{label}</p>
@@ -452,7 +452,7 @@ export default function TrainPage() {
                     </div>
                     {result.ensemble_alpha && (
                       <p className="mt-3 text-xs text-muted-foreground">
-                        Ensemble α (per RMAV dim):&nbsp;
+                        Ensemble α (per RMAS dim):&nbsp;
                         {result.ensemble_alpha.map(a => a.toFixed(3)).join(", ")}
                       </p>
                     )}
@@ -491,7 +491,7 @@ export default function TrainPage() {
                           <ScoreBar value={s.reliability_score} dim="R" />
                           <ScoreBar value={s.maintainability_score} dim="M" />
                           <ScoreBar value={s.availability_score} dim="A" />
-                          <ScoreBar value={s.vulnerability_score} dim="V" />
+                          <ScoreBar value={s.security_score} dim="S" />
                         </div>
                       </div>
                     ))}

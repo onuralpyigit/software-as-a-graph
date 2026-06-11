@@ -105,7 +105,7 @@ class TestValidationService:
             fail_res.impact = MagicMock(spec=ImpactMetrics)
             fail_res.impact.composite_impact = values[i]
             fail_res.impact.availability_impact = values[i]
-            fail_res.impact.vulnerability_impact = values[i]
+            fail_res.impact.security_impact = values[i]
             fail_res.impact.attack_reach = values[i]
             fail_res.impact.reachability_loss = values[i]
             fail_res.impact.fragmentation = values[i]
@@ -113,7 +113,7 @@ class TestValidationService:
             fail_res.impact.reliability_impact = values[i]
             fail_res.impact.maintainability_impact = values[i]
             fail_res.impact.availability_impact = values[i]
-            fail_res.impact.vulnerability_impact = values[i]
+            fail_res.impact.security_impact = values[i]
             fail_res.impact.ia_out = values[i]
             fail_res.impact.ia_in = values[i]
             sim_results.append(fail_res)
@@ -136,7 +136,7 @@ class TestValidationService:
         # Verify data passed to validator (implicitly via result checks)
         assert layer_res.csc_names["A"] == "App A"
 
-    def _make_comp(self, id, overall, reliability=0.5, maintainability=0.5, availability=0.5, vulnerability=0.5):
+    def _make_comp(self, id, overall, reliability=0.5, maintainability=0.5, availability=0.5, security=0.5):
         """Build a complex MagicMock for a component."""
         comp = MagicMock()
         comp.id = id
@@ -146,7 +146,7 @@ class TestValidationService:
         comp.scores.reliability = reliability
         comp.scores.maintainability = maintainability
         comp.scores.availability = availability
-        comp.scores.vulnerability = vulnerability
+        comp.scores.security = security
         comp.metrics = {
             "ap_c_out": 0.5, 
             "ap_c_in": 0.5, 
@@ -161,7 +161,7 @@ class TestValidationService:
         comp.structural.weight = 1.0
         return comp
 
-    def _make_sim(self, id, composite, reliability=0.5, maintainability=0.5, availability=0.5, vulnerability=0.5):
+    def _make_sim(self, id, composite, reliability=0.5, maintainability=0.5, availability=0.5, security=0.5):
         """Build a mock failure result."""
         fail_res = MagicMock(spec=FailureResult)
         fail_res.target_id = id
@@ -176,7 +176,7 @@ class TestValidationService:
         fail_res.impact.reliability_impact = reliability
         fail_res.impact.maintainability_impact = maintainability
         fail_res.impact.availability_impact = availability
-        fail_res.impact.vulnerability_impact = vulnerability
+        fail_res.impact.security_impact = security
         
         # Specialist metrics used in validation
         fail_res.impact.ia_out = 0.5
@@ -234,8 +234,8 @@ class TestValidationService:
         assert "dasa" in avl
         assert "rri" in avl
         
-        # Check Vulnerability
-        vul = layer_res.dimensional_validation["vulnerability"]
+        # Check Security
+        vul = layer_res.dimensional_validation["security"]
         assert "ahcr_5" in vul
         assert "ftr" in vul
         assert "apar" in vul
@@ -920,3 +920,135 @@ class TestRealisticScale:
         # CI should be populated and reasonable
         assert result.overall.correlation.spearman_ci_lower < result.overall.correlation.spearman
         assert result.overall.correlation.spearman_ci_upper > result.overall.correlation.spearman
+
+
+# =============================================================================
+# Step 5 Validation Features (Empirical Validation) Tests
+# =============================================================================
+
+class TestStep5ValidationFeatures:
+    """Tests specifically targeting changes made for Step 5: Empirical Validation."""
+
+    def test_robust_scaling_transform(self):
+        """Test that robust scaling successfully normalizes values and maps to [0,1]."""
+        from saag.validation.validator import robust_sigmoid_scale_dict
+        import numpy as np
+
+        # Extremely skewed data typical of cascade outputs: mostly 0s, with a few high impact nodes
+        raw_data = {"n1": 0.0, "n2": 0.0, "n3": 0.0, "n4": 0.0, "n5": 0.0, "n6": 1.0}
+        scaled = robust_sigmoid_scale_dict(raw_data)
+        
+        # All outputs must be within [0, 1] due to the sigmoid
+        for val in scaled.values():
+            assert 0.0 <= val <= 1.0
+
+        # Skewed outlier should be closer to 1.0, and median values should be mapped to 0.5
+        assert scaled["n6"] > scaled["n1"]
+        assert scaled["n1"] == pytest.approx(0.5, abs=0.01)
+
+    def test_macro_f1_calculation(self):
+        """Test the macro F1 computation is class-balanced and accurate."""
+        from saag.validation.metric_calculator import calculate_macro_f1
+        
+        # Perfect classification
+        assert calculate_macro_f1(10, 0, 10, 0) == pytest.approx(1.0)
+        
+        # Complete disagreement
+        assert calculate_macro_f1(0, 10, 0, 10) == pytest.approx(0.0)
+
+        # Imbalanced case
+        # tp=2, fp=1, tn=1, fn=1
+        # Positive class: prec=2/3, rec=2/3, F1 = 2/3
+        # Negative class: prec=1/2, rec=1/2, F1 = 1/2
+        # Macro F1 = (2/3 + 1/2) / 2 = 0.5833
+        macro_f1 = calculate_macro_f1(2, 1, 1, 1)
+        assert macro_f1 == pytest.approx(0.5833, abs=0.001)
+
+    def test_validation_layer_result_profiles(self):
+        """Verify baseline and forecasting metrics are correctly populated in layer result."""
+        # Setup mocks
+        mock_analysis = MagicMock()
+        mock_pred = MagicMock()
+        mock_sim = MagicMock()
+        
+        # Set gnn_checkpoint_dir to look like GNN is present
+        mock_pred.gnn_checkpoint_dir = "test_ckpt"
+        mock_pred.prefer_gnn = True
+
+        service = ValidationService(
+            analysis_service=mock_analysis,
+            prediction_service=mock_pred,
+            simulation_service=mock_sim
+        )
+
+        # Build analysis result mock
+        mock_comp_rmav = MagicMock()
+        mock_comp_rmav.id = "c1"
+        mock_comp_rmav.type = "Application"
+        mock_comp_rmav.scores.overall = 0.8
+        mock_comp_rmav.scores.reliability = 0.8
+        mock_comp_rmav.scores.maintainability = 0.8
+        mock_comp_rmav.scores.availability = 0.8
+        mock_comp_rmav.scores.security = 0.8
+        mock_comp_rmav.structural.name = "c1"
+        mock_comp_rmav.structural.is_articulation_point = False
+        mock_comp_rmav.structural.betweenness = 0.1
+        mock_comp_rmav.structural.dependency_weight_out = 0.1
+        mock_comp_rmav.structural.weight = 1.0
+
+        mock_quality = MagicMock(spec=QualityAnalysisResult)
+        mock_quality.components = [mock_comp_rmav]
+        mock_pred.predict_quality.return_value = mock_quality
+
+        # Build GNN prediction result mock
+        mock_gnn_res = MagicMock()
+        mock_gnn_metrics = MagicMock()
+        mock_gnn_metrics.spearman_rho = 0.88
+        mock_gnn_metrics.macro_f1 = 0.90
+        mock_gnn_metrics.ndcg_10 = 0.92
+        mock_gnn_metrics.bce_loss = 0.15
+        mock_gnn_metrics.regression_slope = 0.95
+        mock_gnn_metrics.regression_intercept = 0.05
+        mock_gnn_metrics.regression_r2 = 0.85
+        mock_gnn_res.gnn_metrics = mock_gnn_metrics
+        mock_pred.predict_quality_with_gnn.return_value = mock_gnn_res
+
+        # Build simulation result mock
+        mock_sim_res = MagicMock(spec=FailureResult)
+        mock_sim_res.target_id = "c1"
+        mock_sim_res.impact = MagicMock(spec=ImpactMetrics)
+        mock_sim_res.impact.composite_impact = 0.85
+        mock_sim_res.impact.reliability_impact = 0.85
+        mock_sim_res.impact.maintainability_impact = 0.85
+        mock_sim_res.impact.availability_impact = 0.85
+        mock_sim_res.impact.security_impact = 0.85
+        mock_sim_res.impact.attack_reach = 0.85
+        mock_sim_res.impact.reachability_loss = 0.85
+        mock_sim_res.impact.fragmentation = 0.85
+        mock_sim_res.impact.throughput_loss = 0.85
+        mock_sim_res.impact.ia_out = 0.85
+        mock_sim_res.impact.ia_in = 0.85
+
+        mock_analysis_layer_res = MagicMock()
+        mock_analysis_layer_res.quality = mock_quality
+        mock_analysis_layer_res.graph = MagicMock()
+
+        # Run validate_single_layer_from_results
+        res = service.validate_single_layer_from_results(
+            mock_analysis_layer_res,
+            [mock_sim_res],
+            layer="app"
+        )
+
+        assert res.rule_based_baseline_metrics is not None
+        assert res.gnn_forecasting_metrics is not None
+        
+        # Verify GNN forecasting metrics mapped correctly
+        gnn_prof = res.gnn_forecasting_metrics
+        assert gnn_prof["spearman"] == 0.88
+        assert gnn_prof["macro_f1"] == 0.90
+        assert gnn_prof["ndcg_10"] == 0.92
+        assert gnn_prof["bce_loss"] == 0.15
+        assert gnn_prof["regression_curve"]["slope"] == 0.95
+        assert gnn_prof["regression_curve"]["r2"] == 0.85
+        assert gnn_prof["passed"] is True

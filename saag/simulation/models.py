@@ -66,6 +66,8 @@ class ComponentInfo:
     state: ComponentState = ComponentState.ACTIVE
     weight: float = 1.0
     properties: Dict[str, Any] = field(default_factory=dict)
+    # Custom continuous performance value override
+    custom_performance: Optional[float] = None
     
     # Runtime metrics (accumulated during simulation)
     messages_sent: int = 0
@@ -81,6 +83,7 @@ class ComponentInfo:
         self.messages_dropped = 0
         self.messages_routed = 0
         self.total_latency = 0.0
+        self.custom_performance = None
     
     @property
     def avg_latency(self) -> float:
@@ -92,6 +95,8 @@ class ComponentInfo:
     @property
     def performance(self) -> float:
         """Performance level (1.0 = healthy, 0.5 = degraded, 0.0 = failed)."""
+        if self.custom_performance is not None:
+            return self.custom_performance
         if self.state == ComponentState.FAILED:
             return 0.0
         elif self.state == ComponentState.DEGRADED:
@@ -467,7 +472,7 @@ class ImpactMetrics:
         )
 
     # -----------------------------------------------------------------------
-    # IV(v): Vulnerability-specific ground truth (compromise propagation)
+    # IS(v): Security-specific ground truth (compromise propagation)
     # -----------------------------------------------------------------------
     # Populated by CompromisePropagationSimulator post-pass.
     # attack_reach = fraction of reachable components via G^T paths over threshold
@@ -478,21 +483,21 @@ class ImpactMetrics:
     high_value_contamination: float = 0.0
     critical_paths: List[List[str]] = field(default_factory=list)
 
-    vulnerability_weights: Dict[str, float] = field(default_factory=lambda: {
+    security_weights: Dict[str, float] = field(default_factory=lambda: {
         "attack_reach": 0.40,
         "weighted_attack_impact": 0.35,
         "high_value_contamination": 0.25,
     })
 
     @property
-    def vulnerability_impact(self) -> float:
-        """IV(v) — Vulnerability-specific ground truth from compromise propagation.
+    def security_impact(self) -> float:
+        """IS(v) — Security-specific ground truth from compromise propagation.
 
         Measures the security impact if v is compromised, computing adversarial
         reach over the trusted G^T topology. Only meaningful after the
         CompromisePropagationSimulator completes its pass. Defaults to 0.0.
         """
-        w = self.vulnerability_weights
+        w = self.security_weights
         return (
             w.get("attack_reach", 0.40) * self.attack_reach +
             w.get("weighted_attack_impact", 0.35) * self.weighted_attack_impact +
@@ -540,11 +545,11 @@ class ImpactMetrics:
                 "ia_out": round(self.ia_out, 4),
                 "ia_in": round(self.ia_in, 4),
             },
-            "vulnerability": {
+            "security": {
                 "attack_reach": round(self.attack_reach, 4),
                 "weighted_attack_impact": round(self.weighted_attack_impact, 4),
                 "high_value_contamination": round(self.high_value_contamination, 4),
-                "vulnerability_impact": round(self.vulnerability_impact, 4),
+                "security_impact": round(self.security_impact, 4),
             },
         }
 

@@ -278,7 +278,7 @@ class AnalysisService:
                     "reliability": c.levels.reliability.value,
                     "maintainability": c.levels.maintainability.value,
                     "availability": c.levels.availability.value,
-                    "vulnerability": c.levels.vulnerability.value,
+                    "security": c.levels.security.value,
                     "overall": c.levels.overall.value
                 },
                 "overall_score": c.scores.overall,
@@ -286,7 +286,7 @@ class AnalysisService:
                     "reliability": c.scores.reliability,
                     "maintainability": c.scores.maintainability,
                     "availability": c.scores.availability,
-                    "vulnerability": c.scores.vulnerability
+                    "security": c.scores.security
                 }
             }
             for c in components
@@ -313,7 +313,7 @@ class AnalysisService:
                     "reliability": e.scores.reliability,
                     "maintainability": e.scores.maintainability,
                     "availability": e.scores.availability,
-                    "vulnerability": e.scores.vulnerability
+                    "security": e.scores.security
                 }
             }
             for e in edges

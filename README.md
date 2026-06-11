@@ -250,7 +250,7 @@ The `FaultInjector` runs exhaustive BFS for every candidate node: Wave 0 directl
 
 A complementary `MessageFlowSimulator` (SimPy discrete-event) models real-time delivery rates, QoS enforcement (deadline, lifespan, reliability policy), and per-subscriber queue dynamics.
 
-**Methodological independence guarantee:** Q*(v) is computed using only G_analysis(l) (DEPENDS_ON graph topology). I(v) is computed using only G_structural (raw pub-sub edges, no DEPENDS_ON). The two pipelines have no shared data path. Measuring their agreement in Step 5 is a genuine empirical test — not a consistency check.
+**Methodological independence guarantee:** The composite I(v) and the reliability/availability ground truths (IR, IA) are computed on G_structural (raw pub-sub edges, no DEPENDS_ON). Q*(v) is computed on G_analysis (DEPENDS_ON topology). Measuring ρ(Q*, I*), ρ(R, IR), and ρ(A, IA) is therefore a genuine empirical test — not a consistency check. The maintainability and vulnerability ground truths (IM, IV) are derived from the same DEPENDS_ON graph as M(v) and V(v); ρ(M, IM) and ρ(V, IV) are **internal consistency checks** — they confirm structural alignment between predictor and a simulation-derived proxy that shares the same graph substrate.
 
 ---
 
@@ -734,7 +734,7 @@ result2 = (
 | `saag.PredictionResult` | Predict stage output: GNN criticality ranks, ensemble-blended scores |
 | `saag.ValidationResult` | Validate stage output: Spearman ρ, F1-score, and per-RMAV correlations |
 
-**Independence guarantee:** `Q*(v)` (RMAV, from the Analyze stage) is computed using only graph topology. `I*(v)` (from the Simulate stage) is computed using only cascade propagation rules and never reads `Q*(v)`. Measuring their agreement in the Validate stage is therefore a genuine empirical test — not a consistency check.
+**Independence guarantee (composite and R/A dimensions):** `Q*(v)` (RMAV, from the Analyze stage) is computed using only graph topology. The composite `I*(v)` and the reliability/availability ground truths (IR, IA) are computed using only cascade/structural propagation rules on G_structural and never read `Q*(v)`. Measuring ρ(Q*, I*), ρ(R, IR), and ρ(A, IA) is therefore a genuine empirical test — not a consistency check. The maintainability and vulnerability ground truths (IM, IV) operate on the same DEPENDS_ON graph as M(v) and V(v); ρ(M, IM) and ρ(V, IV) are **internal consistency checks** that confirm structural alignment on a shared graph substrate.
 
 ---
 
@@ -815,7 +815,7 @@ Key methodological contributions:
 - **The MPCI metric** (Multi-Path Coupling Index) — a novel measure of intensified coupling through redundant shared channels.
 - **The directed AP_c score** — a continuous articulation-point measure on directed graphs that correctly captures asymmetric SPOF risk.
 - **Adaptive box-plot classification** — system-relative criticality thresholds that remain meaningful across all system sizes.
-- **Empirical independence guarantee** — G_analysis(l) and G_structural are structurally separate, ensuring Q*(v) and I*(v) are genuinely independent.
+- **Empirical independence guarantee** — G_analysis(l) and G_structural are structurally separate. This guarantees independence for the composite, reliability, and availability correlations; per-dimension M/V correlations are internal consistency checks on a shared DEPENDS_ON substrate.
 
 ---
 <!--

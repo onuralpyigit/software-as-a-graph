@@ -275,30 +275,6 @@ class SimulationGraph:
                     if not active_only or capacity > 0:
                         paths.append((p_id, topic_id, s_id, capacity))
                         
-        # 2. Virtual paths via DEPENDS_ON
-        # Rule 1: subscriber -[DEPENDS_ON {dependency_type: 'app_to_app'}]-> publisher
-        # These represent the functional flow from publisher to subscriber.
-        if self._graph_data:
-            for edge in self._graph_data.edges:
-                if edge.relation_type == "DEPENDS_ON" and getattr(edge, 'dependency_type', '') == "app_to_app":
-                    p_id = edge.target_id  # publisher is the target of dependency
-                    s_id = edge.source_id  # subscriber is the source of dependency
-                    
-                    if p_id not in self.components or s_id not in self.components:
-                        continue
-                    
-                    # Check performance (active_only)
-                    p_perf = self.components[p_id].performance
-                    s_perf = self.components[s_id].performance
-                    
-                    if active_only and (p_perf <= 0 or s_perf <= 0):
-                        continue
-                    
-                    # Capacity is minimum of performance and edge weight
-                    capacity = min(p_perf, s_perf, edge.weight)
-                    if not active_only or capacity > 0:
-                        paths.append((p_id, f"vtopic:{edge.dependency_type}", s_id, capacity))
-                    
         return paths
 
     def count_active_connected_components(self):  # -> int

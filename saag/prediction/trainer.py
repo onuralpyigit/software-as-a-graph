@@ -48,6 +48,11 @@ class EvalMetrics:
     # Calibration metadata — MW26 disclosure fields
     calibration: str = "rank_matched"
     n_critical_in_truth: int = 0
+    macro_f1: float = 0.0
+    bce_loss: float = 0.0
+    regression_slope: float = 0.0
+    regression_intercept: float = 0.0
+    regression_r2: float = 0.0
 
     def __post_init__(self):
         if self.per_node_type is None:
@@ -57,6 +62,11 @@ class EvalMetrics:
         d = {
             "spearman_rho": round(self.spearman_rho, 4),
             "f1_score":     self.f1_score if self.f1_score is None or not _isnan_f(self.f1_score) else None,
+            "macro_f1":     round(self.macro_f1, 4),
+            "bce_loss":     round(self.bce_loss, 4),
+            "regression_slope": round(self.regression_slope, 4),
+            "regression_intercept": round(self.regression_intercept, 4),
+            "regression_r2": round(self.regression_r2, 4),
             "rmse":         round(self.rmse, 4),
             "mae":          round(self.mae, 4),
             "top_5_overlap":  round(self.top_5_overlap, 4),
@@ -81,6 +91,11 @@ class EvalMetrics:
         lines = [
             f"  Spearman ρ: {self.spearman_rho:.4f}",
             f"  F1 Score:   {self.f1_score:.4f}",
+            f"  Macro F1:   {self.macro_f1:.4f}",
+            f"  BCE Loss:   {self.bce_loss:.4f}",
+            f"  Slope:      {self.regression_slope:.4f}",
+            f"  Intercept:  {self.regression_intercept:.4f}",
+            f"  R2 Coeff:   {self.regression_r2:.4f}",
             f"  Precision:  {self.precision:.4f}",
             f"  Recall:     {self.recall:.4f}",
             f"  Accuracy:   {self.accuracy:.4f}",
@@ -93,6 +108,35 @@ class EvalMetrics:
             for nt, r in sorted(self.per_node_type.items()):
                 lines.append(f"    {nt:<20} {r:.4f}")
         return "\n".join(lines)
+
+
+def get_inductive_subgraph(data: 'HeteroData', mask_name: str) -> 'HeteroData':
+    """Isolate graph nodes by partition to enforce the Inductive Split Protocol."""
+    has_mask = False
+    for nt in data.node_types:
+        store = data[nt]
+        if hasattr(store, mask_name) and store[mask_name].sum() > 0:
+            has_mask = True
+            break
+    if not has_mask:
+        return data
+
+    idx_dict = {}
+    for nt in data.node_types:
+        store = data[nt]
+        if hasattr(store, mask_name):
+            idx_dict[nt] = torch.where(store[mask_name])[0]
+        else:
+            device = None
+            if hasattr(store, "x") and isinstance(store.x, Tensor):
+                device = store.x.device
+            else:
+                for k, val in store.items():
+                    if isinstance(val, Tensor):
+                        device = val.device
+                        break
+            idx_dict[nt] = torch.arange(store.num_nodes, device=device)
+    return data.subgraph(idx_dict)
 
 
 class GNNTrainer:
@@ -125,9 +169,11 @@ class GNNTrainer:
         """Compute loss on validation-masked *labelled* nodes (no grad)."""
         self.model.eval()
         with torch.no_grad():
-            x_dict = {nt: data[nt].x for nt in data.node_types if hasattr(data[nt], "x")}
-            ei_dict = {rel: data[rel].edge_index for rel in data.edge_types}
-            ea_dict = {rel: data[rel].edge_attr for rel in data.edge_types if hasattr(data[rel], "edge_attr")}
+            val_data = get_inductive_subgraph(data, "val_mask")
+            val_data = val_data.to(self.device)
+            x_dict = {nt: val_data[nt].x for nt in val_data.node_types if hasattr(val_data[nt], "x")}
+            ei_dict = {rel: val_data[rel].edge_index for rel in val_data.edge_types}
+            ea_dict = {rel: val_data[rel].edge_attr for rel in val_data.edge_types if hasattr(val_data[rel], "edge_attr")}
             output = self.model(x_dict, ei_dict, ea_dict)
             node_preds = output[0] if isinstance(output, tuple) else output
 
@@ -136,7 +182,7 @@ class GNNTrainer:
             for nt, preds in node_preds.items():
                 if nt not in {"Application", "Library"}:
                     continue
-                store = data[nt]
+                store = val_data[nt]
                 if not (hasattr(store, "y") and hasattr(store, "val_mask")):
                     continue
                 mask = store.val_mask
@@ -160,12 +206,16 @@ class GNNTrainer:
         for batch in loader:
             batch = batch.to(self.device)
             optimizer.zero_grad()
-            x_dict = {nt: batch[nt].x for nt in batch.node_types if hasattr(batch[nt], "x")}
-            ei_dict = {rel: batch[rel].edge_index for rel in batch.edge_types}
-            ea_dict = {rel: batch[rel].edge_attr for rel in batch.edge_types if hasattr(batch[rel], "edge_attr")}
+            
+            # Enforce Inductive Split Protocol by isolating training subgraph
+            train_batch = get_inductive_subgraph(batch, "train_mask")
+            
+            x_dict = {nt: train_batch[nt].x for nt in train_batch.node_types if hasattr(train_batch[nt], "x")}
+            ei_dict = {rel: train_batch[rel].edge_index for rel in train_batch.edge_types}
+            ea_dict = {rel: train_batch[rel].edge_attr for rel in train_batch.edge_types if hasattr(train_batch[rel], "edge_attr")}
             output = self.model(x_dict, ei_dict, ea_dict)
             node_preds = output[0] if isinstance(output, tuple) else output
-            batch_loss = self._node_loss(node_preds, batch)
+            batch_loss = self._node_loss(node_preds, train_batch)
             batch_loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
             optimizer.step()
@@ -294,7 +344,7 @@ def evaluate(
     mask_name: str,
     device: torch.device,
 ) -> EvalMetrics:
-    """Compute validation/test metrics, including per-node-type Spearman ρ.
+    """Compute validation/test metrics, including per-node-type Spearman ρ under Inductive Split Protocol.
 
     Parameters
     ----------
@@ -308,23 +358,26 @@ def evaluate(
         Torch device.
     """
     model.eval()
-    data = data.to(device)
+    
+    # Enforce Inductive Split Protocol by isolating evaluation subgraph
+    sub_data = get_inductive_subgraph(data, mask_name)
+    sub_data = sub_data.to(device)
 
     with torch.no_grad():
-        x_dict = {nt: data[nt].x for nt in data.node_types if hasattr(data[nt], "x")}
-        ei_dict = {rel: data[rel].edge_index for rel in data.edge_types}
-        ea_dict = {rel: data[rel].edge_attr for rel in data.edge_types if hasattr(data[rel], "edge_attr")}
+        x_dict = {nt: sub_data[nt].x for nt in sub_data.node_types if hasattr(sub_data[nt], "x")}
+        ei_dict = {rel: sub_data[rel].edge_index for rel in sub_data.edge_types}
+        ea_dict = {rel: sub_data[rel].edge_attr for rel in sub_data.edge_types if hasattr(sub_data[rel], "edge_attr")}
 
         if hasattr(model, "predict_edges") and getattr(model, "predict_edges", False):
             node_preds, _ = model(x_dict, ei_dict, ea_dict)
         else:
             node_preds = model(x_dict, ei_dict, ea_dict)
 
-    y_pred, y_true = _collect_samples(node_preds, data, mask_name)
+    y_pred, y_true = _collect_samples(node_preds, sub_data, mask_name)
     metrics = evaluate_scores(y_pred, y_true)
 
     # Populate per-node-type Spearman ρ (Block F prerequisite)
-    metrics.per_node_type = _compute_per_type_rho(node_preds, data, mask_name)
+    metrics.per_node_type = _compute_per_type_rho(node_preds, sub_data, mask_name)
 
     return metrics
 
@@ -343,7 +396,7 @@ def evaluate_scores(
     y_true: np.ndarray,
     calibration: str = "rank_matched",
 ) -> EvalMetrics:
-    """Compute metrics from pre-collected arrays (N, 5).
+    """Compute metrics from pre-collected arrays (N, 5) with robust scaling normalization.
 
     Parameters
     ----------
@@ -361,6 +414,16 @@ def evaluate_scores(
     if y_pred.shape[0] == 0:
         return EvalMetrics(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                            calibration=calibration, n_critical_in_truth=0)
+
+    # ── Label Normalization Hardening: Robust scaling transform on ground-truth ──
+    if y_true.shape[0] > 0:
+        for col in range(y_true.shape[1]):
+            t_col = y_true[:, col]
+            t_median = np.median(t_col)
+            t_q75, t_q25 = np.percentile(t_col, [75, 25])
+            t_iqr = t_q75 - t_q25
+            t_scaled = (t_col - t_median) / (t_iqr + 1e-9)
+            y_true[:, col] = 1.0 / (1.0 + np.exp(-t_scaled))
 
     # Composite scores (column 0)
     p_comp = y_pred[:, 0]
@@ -385,6 +448,7 @@ def evaluate_scores(
     n_critical = int(y_true_bin.sum())
 
     # ── Classification metrics ─────────────────────────────────────────────────
+    macro_f1_val = 0.0
     if n_critical == 0 or n_critical == n:
         # Degenerate label distribution: F1 is undefined.
         f1 = prec = rec = float("nan")
@@ -423,10 +487,37 @@ def evaluate_scores(
         rec  = float(recall_score(y_true_bin, y_pred_bin, zero_division=0))
         acc  = float(accuracy_score(y_true_bin, y_pred_bin))
         calib_label = "rank_matched"  # both branches now enforce rank-matched cardinality
+        macro_f1_val = float(f1_score(y_true_bin, y_pred_bin, average='macro', zero_division=0))
+
+    # ── Continuous BCE (Soft Labels) ───────────────────────────────────────────
+    p_clipped = np.clip(p_comp, 1e-7, 1 - 1e-7)
+    bce = -np.mean(t_comp * np.log(p_clipped) + (1.0 - t_comp) * np.log(1.0 - p_clipped))
+    bce_loss = float(bce) if not np.isnan(bce) else 0.0
 
     # ── Regression metrics ─────────────────────────────────────────────────────
     rmse = float(np.sqrt(np.mean((p_comp - t_comp) ** 2)))
     mae  = float(np.mean(np.abs(p_comp - t_comp)))
+
+    # ── Regression Curve ───────────────────────────────────────────────────────
+    if n > 1:
+        mean_p = np.mean(p_comp)
+        mean_t = np.mean(t_comp)
+        num = np.sum((p_comp - mean_p) * (t_comp - mean_t))
+        den = np.sum((p_comp - mean_p) ** 2)
+        if den > 1e-12:
+            slope = num / den
+            intercept = mean_t - slope * mean_p
+            ss_res = np.sum((t_comp - (slope * p_comp + intercept)) ** 2)
+            ss_tot = np.sum((t_comp - mean_t) ** 2)
+            r2 = 1.0 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
+        else:
+            slope = 0.0
+            intercept = mean_t
+            r2 = 0.0
+    else:
+        slope = 0.0
+        intercept = 0.0
+        r2 = 0.0
 
     # ── Top-K overlaps and NDCG ────────────────────────────────────────────────
     top_5_pred = np.argsort(p_comp)[-5:]
@@ -452,6 +543,11 @@ def evaluate_scores(
         accuracy=acc,
         calibration=calib_label,
         n_critical_in_truth=n_critical,
+        macro_f1=macro_f1_val,
+        bce_loss=bce_loss,
+        regression_slope=float(slope),
+        regression_intercept=float(intercept),
+        regression_r2=float(r2),
     )
 
 

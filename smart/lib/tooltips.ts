@@ -5,17 +5,17 @@
  */
 
 export const TERM_TOOLTIPS: Record<string, string> = {
-  // ── RMAV Dimensions ────────────────────────────────────────────────────────
-  "RMAV": "Reliability · Maintainability · Availability · Vulnerability — the four quality dimensions scored for every component.",
+  // ── RMAS Dimensions ────────────────────────────────────────────────────────
+  "RMAS": "Reliability · Maintainability · Availability · Security — the four quality dimensions scored for every component.",
   "R(v)": "Reliability score — measures fault-propagation reach using Reverse PageRank, in-degree, and cascade depth potential. Higher = more likely to cause cascading failures.",
   "M(v)": "Maintainability score — measures structural bottleneck risk using betweenness centrality, efferent coupling, code quality, and clustering. Higher = harder to change safely.",
   "A(v)": "Availability score — measures connectivity disruption when this component fails, using articulation-point analysis, bridge ratio, and QoS-weighted SPOF severity. Higher = more likely to partition the network.",
-  "V(v)": "Vulnerability score — measures adversarial attack reach using reverse eigenvector and closeness centrality on the transposed graph. Higher = higher-value attack target.",
-  "Q(v)": "Overall quality score — weighted combination of R(v), M(v), A(v), V(v). Represents the component's total predicted impact if it fails. Q = 0.24·R + 0.17·M + 0.43·A + 0.16·V.",
+  "S(v)": "Security score — measures adversarial attack reach using reverse eigenvector and closeness centrality on the transposed graph. Higher = higher-value attack target.",
+  "Q(v)": "Overall quality score — weighted combination of R(v), M(v), A(v), S(v). Represents the component's total predicted impact if it fails. Q = 0.24·R + 0.17·M + 0.43·A + 0.16·S.",
   "Reliability": "Fault-propagation dimension — how far failures originating at this component spread through the system. Computed as R(v) = 0.45·RPR + 0.30·DG_in + 0.25·CDPot.",
   "Maintainability": "Change-impact dimension — how much a code or configuration change here ripples to other components. Computed as M(v) = 0.35·BT + 0.30·w_out + 0.15·CQP + 0.12·CouplingRisk + 0.08·(1−CC).",
   "Availability": "Connectivity-disruption dimension — how severely the network is partitioned when this component is removed. Computed as A(v) = 0.35·AP_c + 0.25·QSPOF + 0.25·BR + 0.10·CDI + 0.05·w(v).",
-  "Vulnerability": "Attack-surface dimension — how accessible and influential this component is to adversarial compromise propagation. Computed as V(v) = 0.40·REV + 0.35·RCL + 0.25·QADS.",
+  "Security": "Attack-surface dimension — how accessible and influential this component is to adversarial compromise propagation. Computed as S(v) = 0.40·REV + 0.35·RCL + 0.25·QADS.",
 
   // ── Criticality Levels ─────────────────────────────────────────────────────
   "CRITICAL": "Score exceeds Q3 + 0.75×IQR of all components — statistically extreme risk. Treat as a top-priority architectural concern.",
@@ -40,10 +40,10 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   "CCR@5": "Cascade Capture Rate at 5 — fraction of the top-5 cascade-critical components correctly identified by R(v).",
   "COCR@5": "Change Overlap Capture Rate at 5 — fraction of the top-5 change-impact components correctly identified by M(v).",
   "SPOF_F1": "Single Point of Failure classification F1 — measures how accurately A(v) identifies true network SPOF components.",
-  "RRI": "Robustness Rank Improvement — how much the RMAV ranking improves upon a random baseline in availability prediction.",
-  "AHCR@5": "Attack Hit Capture Rate at 5 — fraction of the top-5 adversarial targets correctly identified by V(v).",
-  "FTR": "False Trust Rate — fraction of components incorrectly classified as low-vulnerability when they are high-value attack targets.",
-  "APAR": "Attack Path Agreement Rate — alignment between predicted vulnerability ranking and actual compromise propagation paths.",
+  "RRI": "Robustness Rank Improvement — how much the RMAS ranking improves upon a random baseline in availability prediction.",
+  "AHCR@5": "Attack Hit Capture Rate at 5 — fraction of the top-5 adversarial targets correctly identified by S(v).",
+  "FTR": "False Trust Rate — fraction of components incorrectly classified as low security risk when they are high-value attack targets.",
+  "APAR": "Attack Path Agreement Rate — alignment between predicted security ranking and actual compromise propagation paths.",
 
   // ── Graph Metrics ──────────────────────────────────────────────────────────
   "Reverse PageRank": "PageRank computed on the transposed graph G^T — assigns higher scores to components with many downstream dependents, capturing fault propagation reach.",
@@ -75,9 +75,9 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   "SPOF": "Single Point of Failure — a component whose removal would disrupt service for a significant portion of the system.",
   "FAILURE_HUB": "Anti-pattern: a component with extremely high reliability risk — too many downstream dependents that would cascade-fail on its outage.",
   "GOD_COMPONENT": "Anti-pattern: a component that is both heavily connected and a structural bottleneck (high M(v) + high betweenness) — a maintenance nightmare.",
-  "TARGET": "Anti-pattern: a component with critically high vulnerability score — a high-value adversarial target.",
+  "TARGET": "Anti-pattern: a component with critically high security risk score — a high-value adversarial target.",
   "BRIDGE_EDGE": "Anti-pattern: an edge whose removal disconnects the graph — a structural weak link.",
-  "EXPOSURE": "Anti-pattern: a component with high vulnerability and high closeness centrality — easy to reach and compromise.",
+  "EXPOSURE": "Anti-pattern: a component with high security risk and high closeness centrality — easy to reach and compromise.",
   "CYCLE": "Anti-pattern: a strongly-connected component (SCC) of size ≥ 2 — circular dependencies that cause coupled failure and maintenance issues.",
   "HUB_AND_SPOKE": "Anti-pattern: a low-clustering, high-degree node — everything connects through this hub, creating a single bottleneck.",
   "CHAIN": "Anti-pattern: a long linear dependency chain (≥ 4 hops) — deep chains amplify cascade failures.",
@@ -116,7 +116,7 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   "Fan-out Multiplier": "subscriber_count / publisher_count per topic. A high fan-out (e.g. 10×) means one publisher drives significant broker outbound load. The delivered count in the summary reflects cumulative fan-out across all selected topics.",
   "Peak Topic Bandwidth": "Highest single-topic bandwidth in the simulation set. Useful as a reference for the colour scale — the busiest topic is always red.",
   "Broker Load": "Sum of inbound + outbound traffic across all topics routed by this broker. A topic routed by multiple brokers is counted in full for each — this is intentional: each broker independently carries the full load for every topic it routes.",
-  "IV(v)": "Vulnerability ground truth — adversarial compromise propagation reach via BFS on G^T with trust threshold θ=0.30.",
+  "IS(v)": "Security ground truth — adversarial compromise propagation reach via BFS on G^T with trust threshold θ=0.30.",
   "reachability_loss": "Fraction of node-to-node shortest paths that are broken when this component is removed.",
   "fragmentation": "Percentage of components that become disconnected from the main component when this node is removed.",
   "throughput_loss": "Estimated percentage drop in message-routing throughput due to this component's failure.",
@@ -136,7 +136,7 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   "GNN": "Graph Neural Network — learns node criticality directly from the graph topology using message-passing between neighbours.",
   "HeteroGAT": "Heterogeneous Graph Attention Network — a GNN variant that handles multiple node types (Application, Node, Broker, etc.) and learns separate attention weights per edge type.",
   "GAT": "Graph Attention Network — a GNN that uses learned attention weights to determine how much each neighbour influences a node's representation.",
-  "ensemble_alpha": "α blending coefficient — weight given to GNN predictions vs. RMAV rule-based scores. Q_ensemble = α·Q_GNN + (1−α)·Q_RMAV.",
+  "ensemble_alpha": "α blending coefficient — weight given to GNN predictions vs. RMAS rule-based scores. Q_ensemble = α·Q_GNN + (1−α)·Q_RMAS.",
   "Hidden Dim": "Number of hidden features per node in each GNN layer — larger values capture more complex patterns but require more data.",
   "Attn Heads": "Number of parallel attention heads in the GAT layers — more heads allow the model to attend to different neighbourhood aspects simultaneously.",
   "GNN Layers": "Number of message-passing hops — each layer aggregates information from 1 hop further away in the graph.",
@@ -177,7 +177,7 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   "CONNECTS_TO": "A physical connectivity edge between infrastructure nodes.",
 
   // ── AHP ───────────────────────────────────────────────────────────────────
-  "AHP": "Analytic Hierarchy Process — a structured method for deriving relative weights (e.g., RMAV dimension weights) from pairwise importance comparisons.",
+  "AHP": "Analytic Hierarchy Process — a structured method for deriving relative weights (e.g., RMAS dimension weights) from pairwise importance comparisons.",
   "AHP Shrinkage": "Blends AHP-derived weights with a uniform prior using factor λ=0.7 — prevents extreme weight assignments and improves robustness.",
 
   // ── Statistics sub-pages ──────────────────────────────────────────────────

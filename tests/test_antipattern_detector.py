@@ -15,8 +15,8 @@ def mock_quality_result():
     comp_a = ComponentQuality(
         id="A",
         type="Application",
-        scores=QualityScores(overall=0.8, reliability=0.8, maintainability=0.8, availability=0.8, vulnerability=0.2),
-        levels=QualityLevels(overall=CriticalityLevel.HIGH, reliability=CriticalityLevel.HIGH, maintainability=CriticalityLevel.HIGH, availability=CriticalityLevel.HIGH, vulnerability=CriticalityLevel.LOW),
+        scores=QualityScores(overall=0.8, reliability=0.8, maintainability=0.8, availability=0.8, security=0.2),
+        levels=QualityLevels(overall=CriticalityLevel.HIGH, reliability=CriticalityLevel.HIGH, maintainability=CriticalityLevel.HIGH, availability=CriticalityLevel.HIGH, security=CriticalityLevel.LOW),
         structural=StructuralMetrics(id="A", name="A", type="Application", is_articulation_point=True, betweenness=0.4, pagerank=0.2, in_degree_raw=5, out_degree_raw=5)
     )
     
@@ -24,8 +24,8 @@ def mock_quality_result():
     comp_b = ComponentQuality(
         id="B",
         type="Application",
-        scores=QualityScores(overall=0.4, reliability=0.4, maintainability=0.4, availability=0.4, vulnerability=0.2),
-        levels=QualityLevels(overall=CriticalityLevel.MEDIUM, reliability=CriticalityLevel.MEDIUM, maintainability=CriticalityLevel.MEDIUM, availability=CriticalityLevel.MEDIUM, vulnerability=CriticalityLevel.LOW),
+        scores=QualityScores(overall=0.4, reliability=0.4, maintainability=0.4, availability=0.4, security=0.2),
+        levels=QualityLevels(overall=CriticalityLevel.MEDIUM, reliability=CriticalityLevel.MEDIUM, maintainability=CriticalityLevel.MEDIUM, availability=CriticalityLevel.MEDIUM, security=CriticalityLevel.LOW),
         structural=StructuralMetrics(id="B", name="B", type="Application", is_articulation_point=False, betweenness=0.1, pagerank=0.1, in_degree_raw=1, out_degree_raw=1)
     )
     

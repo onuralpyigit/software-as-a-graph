@@ -110,7 +110,7 @@ class ComponentDetail:
     reliability: float = 0.0
     maintainability: float = 0.0
     availability: float = 0.0
-    vulnerability: float = 0.0
+    security: float = 0.0
     overall: float = 0.0
     level: str = "MINIMAL"
     impact: float = 0.0
@@ -130,7 +130,7 @@ class ComponentDetail:
             "reliability": self.reliability,
             "maintainability": self.maintainability,
             "availability": self.availability,
-            "vulnerability": self.vulnerability,
+            "security": self.security,
             "overall": self.overall, "level": self.level,
             "impact": self.impact, "cascade_depth": self.cascade_depth,
             "anti_patterns": self.anti_patterns,
@@ -190,7 +190,7 @@ class LayerData:
     reliability_spearman: float = 0.0
     maintainability_spearman: float = 0.0
     availability_spearman: float = 0.0
-    vulnerability_spearman: float = 0.0
+    security_spearman: float = 0.0
     composite_spearman: float = 0.0
     predictive_gain: float = 0.0
 
@@ -211,13 +211,13 @@ class LayerData:
     reliability_scatter: List[Tuple[str, float, float, str]] = field(default_factory=list)
     maintainability_scatter: List[Tuple[str, float, float, str]] = field(default_factory=list)
     availability_scatter: List[Tuple[str, float, float, str]] = field(default_factory=list)
-    vulnerability_scatter: List[Tuple[str, float, float, str]] = field(default_factory=list)
+    security_scatter: List[Tuple[str, float, float, str]] = field(default_factory=list)
 
     # Bootstrap confidence intervals per dimension
     reliability_ci: Optional[Tuple[float, float]] = None
     maintainability_ci: Optional[Tuple[float, float]] = None
     availability_ci: Optional[Tuple[float, float]] = None
-    vulnerability_ci: Optional[Tuple[float, float]] = None
+    security_ci: Optional[Tuple[float, float]] = None
     composite_ci: Optional[Tuple[float, float]] = None
 
     # Top-K overlap
@@ -304,6 +304,6 @@ class LayerData:
             "availability":    self.availability_spearman,
             "reliability":     self.reliability_spearman,
             "maintainability": self.maintainability_spearman,
-            "vulnerability":   self.vulnerability_spearman,
+            "security":        self.security_spearman,
             "infrastructure":  getattr(self, "infrastructure_spearman", 0.0),
         }

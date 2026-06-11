@@ -137,7 +137,7 @@ class LayerDataCollector:
                     reliability=_safe_float(c.scores.reliability),
                     maintainability=_safe_float(c.scores.maintainability),
                     availability=_safe_float(c.scores.availability),
-                    vulnerability=_safe_float(c.scores.vulnerability),
+                    security=_safe_float(c.scores.security),
                     overall=overall,
                     level=level,
                     mpci=_safe_float(getattr(c.scores, "mpci", 0.0)),
@@ -231,7 +231,7 @@ class LayerDataCollector:
                 data.reliability_spearman = getattr(val_result, "reliability_spearman", 0.0)
                 data.maintainability_spearman = getattr(val_result, "maintainability_spearman", 0.0)
                 data.availability_spearman = getattr(val_result, "availability_spearman", 0.0)
-                data.vulnerability_spearman = getattr(val_result, "vulnerability_spearman", 0.0)
+                data.security_spearman = getattr(val_result, "security_spearman", 0.0)
                 data.composite_spearman = getattr(val_result, "composite_spearman", 0.0)
                 data.predictive_gain = getattr(val_result, "predictive_gain", 0.0)
                 
@@ -243,7 +243,7 @@ class LayerDataCollector:
                     data.reliability_scatter = val_result.dimensional_scatter.get("reliability", [])
                     data.maintainability_scatter = val_result.dimensional_scatter.get("maintainability", [])
                     data.availability_scatter = val_result.dimensional_scatter.get("availability", [])
-                    data.vulnerability_scatter = val_result.dimensional_scatter.get("vulnerability", [])
+                    data.security_scatter = val_result.dimensional_scatter.get("security", [])
                     # The composite scatter is also in dimensional_scatter["composite"]
                     if "composite" in val_result.dimensional_scatter:
                         data.scatter_data = val_result.dimensional_scatter["composite"]
@@ -253,7 +253,7 @@ class LayerDataCollector:
                     data.reliability_ci = val_result.confidence_intervals.get("reliability")
                     data.maintainability_ci = val_result.confidence_intervals.get("maintainability")
                     data.availability_ci = val_result.confidence_intervals.get("availability")
-                    data.vulnerability_ci = val_result.confidence_intervals.get("vulnerability")
+                    data.security_ci = val_result.confidence_intervals.get("security")
                     data.composite_ci = val_result.confidence_intervals.get("composite")
 
         except Exception as e:

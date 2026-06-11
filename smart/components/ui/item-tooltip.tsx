@@ -10,7 +10,7 @@ export interface ItemScores {
   reliability: number
   maintainability: number
   availability: number
-  vulnerability: number
+  security: number
   overall: number
 }
 
@@ -18,7 +18,7 @@ export interface ItemCriticalityLevels {
   reliability: string
   maintainability: string
   availability: string
-  vulnerability: string
+  security: string
   overall: string
 }
 
@@ -27,7 +27,7 @@ export interface ItemTooltipData {
   type: string
   /** Display name (falls back to id if absent) */
   name?: string
-  /** Raw RMAV quality scores [0–1], where lower = better (risk scale) */
+  /** Raw RMAS quality scores [0–1], where lower = better (risk scale) */
   scores?: ItemScores
   /** Per-dimension criticality labels */
   criticality_levels?: ItemCriticalityLevels
@@ -221,7 +221,7 @@ export function ItemTooltipContent({ data }: { data: ItemTooltipData }) {
         <div className="text-foreground/90 font-medium truncate max-w-[240px] leading-tight">{data.name}</div>
       )}
 
-      {/* RMAV score bars */}
+      {/* RMAS score bars */}
       {scores && (
         <>
           <div className="h-px bg-border/50 my-1.5" />
@@ -229,11 +229,11 @@ export function ItemTooltipContent({ data }: { data: ItemTooltipData }) {
             <ScoreBar score={scores.reliability}    dim="R" />
             <ScoreBar score={scores.maintainability} dim="M" />
             <ScoreBar score={scores.availability}   dim="A" />
-            <ScoreBar score={scores.vulnerability}  dim="V" />
+            <ScoreBar score={scores.security}       dim="S" />
           </div>
           {criticality_levels && (
             <div className="flex gap-1.5 justify-between">
-              {(["reliability","maintainability","availability","vulnerability"] as const).map(d => (
+              {(["reliability","maintainability","availability","security"] as const).map(d => (
                 <div key={d} className="flex-1 flex justify-center">
                   <CritBadge level={criticality_levels[d]} />
                 </div>

@@ -16,6 +16,21 @@ from .metric_calculator import (
 from saag.prediction.classifier import BoxPlotClassifier
 
 
+def robust_sigmoid_scale_dict(d: Dict[str, float], epsilon: float = 1e-9) -> Dict[str, float]:
+    """Applies robust scaling and sigmoid to dictionary values to normalize labels."""
+    import numpy as np
+    if not d:
+        return {}
+    keys = list(d.keys())
+    vals = np.array([float(d[k]) for k in keys])
+    median_val = np.median(vals)
+    q75, q25 = np.percentile(vals, [75, 25])
+    iqr_val = q75 - q25
+    scaled_vals = (vals - median_val) / (iqr_val + epsilon)
+    scaled_sigmoid = 1.0 / (1.0 + np.exp(-scaled_vals))
+    return {k: float(v) for k, v in zip(keys, scaled_sigmoid)}
+
+
 class Validator:
     """
     Validates graph analysis predictions against simulation results.
@@ -43,6 +58,7 @@ class Validator:
         layer: str = "system",
         context: str = "Validation",
     ) -> ValidationResult:
+        actual_scores = robust_sigmoid_scale_dict(actual_scores)
         timestamp = datetime.now().isoformat()
         warnings: List[str] = []
         impact_data = impact_data or []

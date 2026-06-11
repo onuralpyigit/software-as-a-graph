@@ -22,7 +22,7 @@ from saag.visualization import (
 )
 from saag.visualization.models import ChartOutput, ColorTheme, DEFAULT_THEME
 from saag.visualization.charts import (
-    ChartGenerator, CRITICALITY_COLORS, RMAV_COLORS,
+    ChartGenerator, CRITICALITY_COLORS, RMAS_COLORS,
 )
 from saag.visualization.dashboard import DashboardGenerator
 from saag.visualization.collector import LayerDataCollector
@@ -140,7 +140,7 @@ class TestComponentDetail:
             reliability=0.82,
             maintainability=0.88,
             availability=0.90,
-            vulnerability=0.75,
+            security=0.75,
             overall=0.84,
             level="CRITICAL",
             impact=0.79,
@@ -302,7 +302,7 @@ def mock_analysis_service():
     mock_comp.scores.reliability = 0.82
     mock_comp.scores.maintainability = 0.88
     mock_comp.scores.availability = 0.90
-    mock_comp.scores.vulnerability = 0.75
+    mock_comp.scores.security = 0.75
     mock_comp.levels.overall.name = "CRITICAL"
 
     # Build mock analysis result
@@ -367,7 +367,7 @@ def mock_prediction_service():
     mock_comp.scores.reliability = 0.82
     mock_comp.scores.maintainability = 0.88
     mock_comp.scores.availability = 0.90
-    mock_comp.scores.vulnerability = 0.75
+    mock_comp.scores.security = 0.75
     mock_comp.levels.overall.name = "CRITICAL"
     mock_comp.levels.overall.__str__.return_value = "CRITICAL"
     
@@ -426,7 +426,7 @@ class TestLayerDataCollector:
         assert detail.reliability == pytest.approx(0.82)
         assert detail.maintainability == pytest.approx(0.88)
         assert detail.availability == pytest.approx(0.90)
-        assert detail.vulnerability == pytest.approx(0.75)
+        assert detail.security == pytest.approx(0.75)
         assert detail.overall == pytest.approx(0.84)
         assert detail.level == "CRITICAL"
 
@@ -673,12 +673,12 @@ class TestColorConstants:
             assert level in CRITICALITY_COLORS
             assert CRITICALITY_COLORS[level].startswith("#")
 
-    def test_all_rmav_dimensions_have_colors(self):
-        """Every RMAV dimension has a defined color."""
-        dims = ["reliability", "maintainability", "availability", "vulnerability"]
+    def test_all_rmas_dimensions_have_colors(self):
+        """Every RMAS dimension has a defined color."""
+        dims = ["reliability", "maintainability", "availability", "security"]
         for dim in dims:
-            assert dim in RMAV_COLORS
-            assert RMAV_COLORS[dim].startswith("#")
+            assert dim in RMAS_COLORS
+            assert RMAS_COLORS[dim].startswith("#")
 
     def test_layer_definitions_complete(self):
         """All four layers are defined with required fields."""

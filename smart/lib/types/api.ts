@@ -66,14 +66,14 @@ export interface ComprehensiveAnalysisResponse {
   reliability?: QualityAnalysisResponse;
   maintainability?: QualityAnalysisResponse;
   availability?: QualityAnalysisResponse;
-  vulnerability?: QualityAnalysisResponse;
+  security?: QualityAnalysisResponse;
 }
 
 export interface AnalysisRequest {
   analyze_reliability?: boolean;
   analyze_maintainability?: boolean;
   analyze_availability?: boolean;
-  analyze_vulnerability?: boolean;
+  analyze_security?: boolean;
   dependency_types?: string[];
   use_weights?: boolean;
   weight_property?: string;
@@ -94,7 +94,7 @@ export interface GraphNode {
     reliability: string;
     maintainability: string;
     availability: string;
-    vulnerability: string;
+    security: string;
     overall: string;
   };
 }

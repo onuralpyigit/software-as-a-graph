@@ -591,8 +591,8 @@ function propUnit(key: string): string {
  * higher = worse / more risky.  These keys get a colour-coded level badge.
  */
 function isRiskKey(key: string): boolean {
-  // RMAV quality / dimension scores
-  if (/^(reliability|maintainability|availability|vulnerability|quality_score|rmav_score|overall)$/.test(key)) return true
+  // RMAS quality / dimension scores
+  if (/^(reliability|maintainability|availability|security|quality_score|rmav_score|rmas_score|overall)$/.test(key)) return true
   // Structural centrality metrics (all normalised to [0–1])
   if (/^(reverse_pagerank|betweenness_centrality|betweenness|bridge_ratio|bridge_score|reverse_eigenvector|reverse_closeness|ap_score|directed_ap_score|qspof)$/.test(key)) return true
   // Code quality [0–1] penalty inputs

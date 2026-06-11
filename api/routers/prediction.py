@@ -14,7 +14,7 @@ import logging
 from api.dependencies import get_client
 from saag import Client
 
-router = APIRouter(prefix="/api/v1/prediction", tags=["prediction"])
+router = APIRouter(prefix="/api/v1/graph/prediction", tags=["prediction"])
 logger = logging.getLogger(__name__)
 
 
@@ -55,7 +55,7 @@ class GNNScoreModel(BaseModel):
     reliability_score: float
     maintainability_score: float
     availability_score: float
-    vulnerability_score: float
+    security_score: float
     criticality_level: str
     source: str
 
@@ -139,7 +139,7 @@ def _node_score_model(s, name_lookup: dict = {}) -> GNNScoreModel:
         reliability_score=d["reliability_score"],
         maintainability_score=d["maintainability_score"],
         availability_score=d["availability_score"],
-        vulnerability_score=d["vulnerability_score"],
+        security_score=d["security_score"],
         criticality_level=d["criticality_level"].upper(),
         source=d.get("source", "GNN"),
     )

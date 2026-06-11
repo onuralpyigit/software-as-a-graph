@@ -70,34 +70,35 @@ class QualityWeights:
     a_cdi: float = 0.10            # Connectivity Degradation Index
     a_qos_weight: float = 0.05     # Operational weight contribution w(v) (Issue 5: decoupling)
 
-    # Vulnerability weights (exposure risk) — V(v) v2
+    # Security weights (exposure risk) — S(v) v2
     # Formula: 0.40*REV + 0.35*RCL + 0.25*QADS
-    v_reverse_eigenvector: float = 0.40 # AHP primary: G^T eigenvector (strategic attack reach)
-    v_reverse_closeness: float = 0.35   # AHP secondary: G^T closeness (propagation speed)
-    v_qads: float = 0.25                # QoS-weighted dependent surface (w_in)
+    s_reverse_eigenvector: float = 0.40 # AHP primary: G^T eigenvector (strategic attack reach)
+    s_reverse_closeness: float = 0.35   # AHP secondary: G^T closeness (propagation speed)
+    s_qads: float = 0.25                # QoS-weighted dependent surface (w_in)
     # Deprecated in v2 — kept at 0.0 for backward-compat serialisation only
-    v_eigenvector: float = 0.0
-    v_closeness: float = 0.0
-    v_out_degree: float = 0.0
+    s_eigenvector: float = 0.0
+    s_closeness: float = 0.0
+    s_out_degree: float = 0.0
     
     # Overall quality weights (sum should be 1.0)
-    # Formally derived via AHP: A(0.43) > R(0.24) > M(0.17) ≈ V(0.16)
+    # Formally derived via AHP: A(0.43) > R(0.24) > M(0.17) ≈ S(0.16)
     q_reliability: float = 0.24
     q_maintainability: float = 0.17
     q_availability: float = 0.43
-    q_vulnerability: float = 0.16
+    q_security: float = 0.16
     
     # Impact score weights I(v) (sum should be 1.0)
-    # Formally derived via AHP: Reachability > Fragmentation = Throughput
-    i_reachability: float = 0.40      
-    i_fragmentation: float = 0.30     
-    i_throughput: float = 0.30        
+    # Formally derived via AHP: Reachability > Fragmentation = Throughput > FlowDisruption
+    i_reachability: float = 0.35
+    i_fragmentation: float = 0.25
+    i_throughput: float = 0.25
+    i_flow_disruption: float = 0.15
     
     # Edge quality weights (sum should be 1.0)
     e_betweenness: float = 0.35      # Path importance
     e_bridge: float = 0.30           # SPOF risk
     e_endpoint: float = 0.20         # Connected node importance
-    e_vulnerability: float = 0.15    # Endpoint vulnerability exposure
+    e_security: float = 0.15    # Endpoint security exposure
 
 
 # Scale of Relative Importance (Saaty's Scale)
@@ -139,19 +140,19 @@ class AHPMatrices:
     # CDI — connectivity degradation for non-AP hubs
     criteria_availability: List[List[float]] = None
     
-    # Vulnerability v2: Reverse Eigenvector (REV), Reverse Closeness (RCL), QADS
+    # Security v2: Reverse Eigenvector (REV), Reverse Closeness (RCL), QADS
     # Strategic reach + propagation speed + QoS attack surface
-    criteria_vulnerability: List[List[float]] = None
+    criteria_security: List[List[float]] = None
     
-    # Overall Quality: Reliability (R), Maintainability (M), Availability (A), Vulnerability (V)
+    # Overall Quality: Reliability (R), Maintainability (M), Availability (A), Security (S)
     criteria_overall: List[List[float]] = None
 
     # Topic QoS Importance: Reliability (Rel), Durability (Dur), Priority (Pri)
     # Justifies the 0.30/0.40/0.30 split used in Phase 4 modeling.
     criteria_topic_qos: List[List[float]] = None
 
-    # Impact (I(v)): Reachability (RL), Fragmentation (FR), Throughput (TL)
-    # Justifies the 0.40/0.30/0.30 split used in failure simulation.
+    # Impact (I(v)): Reachability (RL), Fragmentation (FR), Throughput (TL), Flow Disruption (FD)
+    # Justifies the 0.35/0.25/0.25/0.15 split used in composite_impact.
     criteria_impact: List[List[float]] = None
 
     def __post_init__(self):
@@ -189,8 +190,8 @@ class AHPMatrices:
             # Geometric mean → approx [0.35, 0.25, 0.25, 0.10, 0.05] before shrinkage
             # With shrinkage λ=0.7, weighted toward uniform (0.2)
 
-        if self.criteria_vulnerability is None:
-            self.criteria_vulnerability = [
+        if self.criteria_security is None:
+            self.criteria_security = [
                 # REV   RCL   QADS
                 [1.0,  1.14,  1.6],  # REV (Strategic dependent reach)
                 [0.88, 1.0,   1.4],  # RCL (Propagation speed)
@@ -200,14 +201,14 @@ class AHPMatrices:
             
         if self.criteria_overall is None:
             self.criteria_overall = [
-                # R     M     A     V
-                # Theoretically motivated: structural alignment A > R > M > V
+                # R     M     A     S
+                # Theoretically motivated: structural alignment A > R > M > S
                 # with prediction strength based on each dimension's simulation ground truth.
                 # CR ≈ 0.02 → AHP weights ≈ [0.24, 0.17, 0.43, 0.16]
-                [1.0,  1.5,  0.5,  2.0],   # R: strong vs M/V; weaker vs A
+                [1.0,  1.5,  0.5,  2.0],   # R: strong vs M/S; weaker vs A
                 [0.67, 1.0,  0.33, 1.5],   # M: weakest overall
                 [2.0,  3.0,  1.0,  3.0],   # A: dominant (highest structural alignment)
-                [0.5,  0.67, 0.33, 1.0],   # V: second-weakest (G^T metric alignment)
+                [0.5,  0.67, 0.33, 1.0],   # S: second-weakest (G^T metric alignment)
             ]
         
         if self.criteria_topic_qos is None:
@@ -222,13 +223,14 @@ class AHPMatrices:
             
         if self.criteria_impact is None:
             self.criteria_impact = [
-                # RL    FR    TL
-                [1.0, 1.33, 1.33],  # RL (Reachability loss: most direct failure)
-                [0.75, 1.0, 1.0],   # FR
-                [0.75, 1.0, 1.0],   # TL (FR and TL equal weight)
+                # RL    FR    TL    FD
+                [1.0,  1.5,  1.5,  4.0],   # RL: most direct connectivity loss
+                [0.67, 1.0,  1.0,  2.5],   # FR: graph partition severity
+                [0.67, 1.0,  1.0,  2.5],   # TL: topic-weight disruption (equal to FR)
+                [0.25, 0.4,  0.4,  1.0],   # FD: flow-triple breakage (secondary signal)
             ]
-            # Matrix check: RL/FR = 1.33, FR/RL = 0.75. 
-            # Calculated weights: [0.40, 0.30, 0.30]
+            # Raw AHP weights (geometric mean): ≈ [0.393, 0.25, 0.25, 0.107]
+            # After λ=0.7 shrinkage toward uniform (0.25): ≈ [0.35, 0.25, 0.25, 0.15]
 
 
 class AHPProcessor:
@@ -321,15 +323,15 @@ class AHPProcessor:
         w_avail = self._calculate_priority_vector(self.matrices.criteria_availability)
         w_avail = self._shrink_weights(w_avail)
         
-        # 4. Vulnerability Weights v2 (REV, RCL, QADS)
-        w_vuln = self._calculate_priority_vector(self.matrices.criteria_vulnerability)
-        w_vuln = self._shrink_weights(w_vuln)
+        # 4. Security Weights v2 (REV, RCL, QADS)
+        w_sec = self._calculate_priority_vector(self.matrices.criteria_security)
+        w_sec = self._shrink_weights(w_sec)
 
         # 5. Impact Weights (RL, FR, TL) - Added for formal derivation
         w_impact = self._calculate_priority_vector(self.matrices.criteria_impact)
         w_impact = self._shrink_weights(w_impact)
         
-        # 6. Overall Weights (R, M, A, V)
+        # 6. Overall Weights (R, M, A, S)
         w_over = self._calculate_priority_vector(self.matrices.criteria_overall)
         w_over = self._shrink_weights(w_over)
         
@@ -356,14 +358,14 @@ class AHPProcessor:
             a_cdi=w_avail[3],               # Path elongation (0.10)
             a_qos_weight=w_avail[4],        # Pure operational priority (0.05)
             
-            # Vulnerability v2: (REV, RCL, QADS)
-            v_reverse_eigenvector=w_vuln[0],
-            v_reverse_closeness=w_vuln[1],
-            v_qads=w_vuln[2],
+            # Security v2: (REV, RCL, QADS)
+            s_reverse_eigenvector=w_sec[0],
+            s_reverse_closeness=w_sec[1],
+            s_qads=w_sec[2],
             # Deprecated
-            v_eigenvector=0.0,
-            v_closeness=0.0,
-            v_out_degree=0.0,
+            s_eigenvector=0.0,
+            s_closeness=0.0,
+            s_out_degree=0.0,
             
             # Impact
             i_reachability=w_impact[0],
@@ -374,5 +376,5 @@ class AHPProcessor:
             q_reliability=w_over[0],
             q_maintainability=w_over[1],
             q_availability=w_over[2],
-            q_vulnerability=w_over[3]
+            q_security=w_over[3]
         )

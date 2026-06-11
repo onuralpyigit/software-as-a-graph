@@ -21,9 +21,9 @@ def test_bridge_aware_edge_labels():
     
     # Simulation results: node 1 is critical
     simulation = {
-        "1": {"composite": 1.0, "reliability": 0.8, "maintainability": 0.0, "availability": 0.0, "vulnerability": 0.0},
-        "2": {"composite": 0.5, "reliability": 0.4, "maintainability": 0.0, "availability": 0.0, "vulnerability": 0.0},
-        "3": {"composite": 0.1, "reliability": 0.1, "maintainability": 0.0, "availability": 0.0, "vulnerability": 0.0},
+        "1": {"composite": 1.0, "reliability": 0.8, "maintainability": 0.0, "availability": 0.0, "security": 0.0},
+        "2": {"composite": 0.5, "reliability": 0.4, "maintainability": 0.0, "availability": 0.0, "security": 0.0},
+        "3": {"composite": 0.1, "reliability": 0.1, "maintainability": 0.0, "availability": 0.0, "security": 0.0},
     }
     
     # 1. Test Bridge (Line Graph)

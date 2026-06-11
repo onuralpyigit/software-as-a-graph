@@ -97,7 +97,7 @@ class GNNCriticalityScore:
     reliability_score: float
     maintainability_score: float
     availability_score: float
-    vulnerability_score: float
+    security_score: float
     source: str = "GNN"           # "GNN", "RMAV", or "Ensemble"
 
     criticality_level: str = "MINIMAL"    # Calculated via adaptive thresholds
@@ -109,7 +109,7 @@ class GNNCriticalityScore:
             "reliability_score": round(self.reliability_score, 4),
             "maintainability_score": round(self.maintainability_score, 4),
             "availability_score": round(self.availability_score, 4),
-            "vulnerability_score": round(self.vulnerability_score, 4),
+            "security_score": round(self.security_score, 4),
             "criticality_level": self.criticality_level,
             "source": self.source,
         }
@@ -125,7 +125,7 @@ class GNNEdgeCriticalityScore:
     reliability_score: float
     maintainability_score: float
     availability_score: float
-    vulnerability_score: float
+    security_score: float
 
     @property
     def criticality_level(self) -> str:
@@ -146,7 +146,7 @@ class GNNEdgeCriticalityScore:
             "reliability_score": round(self.reliability_score, 4),
             "maintainability_score": round(self.maintainability_score, 4),
             "availability_score": round(self.availability_score, 4),
-            "vulnerability_score": round(self.vulnerability_score, 4),
+            "security_score": round(self.security_score, 4),
             "criticality_level": self.criticality_level,
         }
 
@@ -189,7 +189,7 @@ class GNNAnalysisResult:
                 reliability=score.reliability_score,
                 maintainability=score.maintainability_score,
                 availability=score.availability_score,
-                vulnerability=score.vulnerability_score,
+                security=score.security_score,
                 overall=score.composite_score
             )
             def _to_level(val: float) -> CriticalityLevel:
@@ -202,7 +202,7 @@ class GNNAnalysisResult:
                 reliability=_to_level(qs.reliability),
                 maintainability=_to_level(qs.maintainability),
                 availability=_to_level(qs.availability),
-                vulnerability=_to_level(qs.vulnerability),
+                security=_to_level(qs.security),
                 overall=_to_level(qs.overall)
             )
             s_dict = self._structural_cache.get(node_id, {})
@@ -220,7 +220,7 @@ class GNNAnalysisResult:
         eqs = []
         for es in self.edge_scores:
             qs = QualityScores(reliability=es.reliability_score, maintainability=es.maintainability_score, 
-                               availability=es.availability_score, vulnerability=es.vulnerability_score, 
+                               availability=es.availability_score, security=es.security_score, 
                                overall=es.composite_score)
             def _to_level(val: float) -> CriticalityLevel:
                 if val >= 0.75: return CriticalityLevel.CRITICAL
@@ -596,7 +596,7 @@ class GNNService:
                     reliability_score=float(preds_cpu[i, 1]),
                     maintainability_score=float(preds_cpu[i, 2]),
                     availability_score=float(preds_cpu[i, 3]),
-                    vulnerability_score=float(preds_cpu[i, 4]),
+                    security_score=float(preds_cpu[i, 4]),
                     source="GNN",
                 )
 
@@ -619,7 +619,7 @@ class GNNService:
                         reliability_score=float(e_preds_cpu[i, 1]),
                         maintainability_score=float(e_preds_cpu[i, 2]),
                         availability_score=float(e_preds_cpu[i, 3]),
-                        vulnerability_score=float(e_preds_cpu[i, 4]),
+                        security_score=float(e_preds_cpu[i, 4]),
                     )
                 )
 
@@ -664,9 +664,39 @@ class GNNService:
             result.gnn_metrics = evaluate(self._node_model, data_dev, "test_mask", self.device)
             
             # 2. Ensemble Validation (G10)
-            if result.ensemble_scores:
-                ens_pred_dict = self._format_scores_as_dict(result.ensemble_scores, conv)
-                y_ens, y_true = _collect_samples(ens_pred_dict, data_dev, "test_mask")
+            if result.ensemble_scores and has_rmav:
+                from .trainer import get_inductive_subgraph
+                # Get the isolated test subgraph to prevent transductive leakage (G4)
+                test_sub_data = get_inductive_subgraph(data_dev, "test_mask")
+                test_sub_data = test_sub_data.to(self.device)
+                
+                # Run GNN on the isolated test subgraph
+                self._node_model.eval()
+                if self._edge_model:
+                    self._edge_model.eval()
+                with torch.no_grad():
+                    test_x_dict = {nt: test_sub_data[nt].x for nt in test_sub_data.node_types if hasattr(test_sub_data[nt], "x")}
+                    test_ei_dict = {rel: test_sub_data[rel].edge_index for rel in test_sub_data.edge_types}
+                    test_ea_dict = {rel: test_sub_data[rel].edge_attr for rel in test_sub_data.edge_types if hasattr(test_sub_data[rel], "edge_attr")}
+                    if self._edge_model:
+                        test_pred_dict, _ = self._edge_model(test_x_dict, test_ei_dict, test_ea_dict)
+                    else:
+                        test_pred_dict = self._node_model(test_x_dict, test_ei_dict, test_ea_dict)
+                
+                # Construct a test conversion mapping to map offsets back to node names
+                test_conv = GraphConversionResult(hetero_data=test_sub_data)
+                for nt in test_sub_data.node_types:
+                    if conv is not None and nt in conv.node_id_map:
+                        store = data_dev[nt]
+                        if hasattr(store, "test_mask"):
+                            indices = torch.where(store.test_mask)[0].cpu().tolist()
+                            test_conv.node_id_map[nt] = [conv.node_id_map[nt][idx] for idx in indices]
+                        else:
+                            test_conv.node_id_map[nt] = conv.node_id_map[nt][:]
+                
+                test_ens_scores = self._compute_ensemble_scores(test_sub_data, test_pred_dict, test_conv)
+                test_ens_pred_dict = self._format_scores_as_dict(test_ens_scores, test_conv)
+                y_ens, y_true = _collect_samples(test_ens_pred_dict, test_sub_data, "test_mask")
                 result.ensemble_metrics = evaluate_scores(y_ens, y_true)
                 logger.info("Ensemble test metrics:\n%s", result.ensemble_metrics)
             
@@ -718,7 +748,7 @@ class GNNService:
                     reliability_score=float(preds_cpu[i, 1]),
                     maintainability_score=float(preds_cpu[i, 2]),
                     availability_score=float(preds_cpu[i, 3]),
-                    vulnerability_score=float(preds_cpu[i, 4]),
+                    security_score=float(preds_cpu[i, 4]),
                     source="GNN",
                 )
 
@@ -737,7 +767,7 @@ class GNNService:
                     reliability_score=float(rmav_cpu[i, 1]),
                     maintainability_score=float(rmav_cpu[i, 2]),
                     availability_score=float(rmav_cpu[i, 3]),
-                    vulnerability_score=float(rmav_cpu[i, 4]),
+                    security_score=float(rmav_cpu[i, 4]),
                     source="RMAV",
                 )
 
@@ -759,7 +789,7 @@ class GNNService:
                         reliability_score=float(e_preds_cpu[i, 1]),
                         maintainability_score=float(e_preds_cpu[i, 2]),
                         availability_score=float(e_preds_cpu[i, 3]),
-                        vulnerability_score=float(e_preds_cpu[i, 4]),
+                        security_score=float(e_preds_cpu[i, 4]),
                     )
                 )
 
@@ -775,7 +805,7 @@ class GNNService:
                     s = scores[name]
                     type_scores.append([
                         s.composite_score, s.reliability_score, s.maintainability_score, 
-                        s.availability_score, s.vulnerability_score
+                        s.availability_score, s.security_score
                     ])
                 else:
                     type_scores.append([0.0] * 5)
@@ -839,7 +869,7 @@ class GNNService:
 
         alpha_vals = self._ensemble.alpha.detach().cpu().tolist()
         logger.info(
-            "Ensemble alpha (composite/R/M/A/V): %s",
+            "Ensemble alpha (composite/R/M/A/S): %s",
             [f"{a:.3f}" for a in alpha_vals],
         )
 
@@ -864,7 +894,7 @@ class GNNService:
                     reliability_score=float(blended[i, 1]),
                     maintainability_score=float(blended[i, 2]),
                     availability_score=float(blended[i, 3]),
-                    vulnerability_score=float(blended[i, 4]),
+                    security_score=float(blended[i, 4]),
                     source="Ensemble",
                 )
         return out

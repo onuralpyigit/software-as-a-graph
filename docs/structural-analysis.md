@@ -660,17 +660,19 @@ All inputs are normalized to [0, 1] by Step 2's rank normalization unless otherw
 
 R(v) measures how broadly and deeply a component's failure propagates through the DEPENDS_ON dependency graph.
 
-**Standard formula (v7)** — Application, Broker, Infrastructure Node, Library:
+**Standard formula (v6)** — Application, Broker, Infrastructure Node, Library:
 
 ```
-R(v) = 0.60 × PR(v) × (1 + MPCI(v))  +  0.40 × DG_in(v)
+R(v) = 0.45 × RPR(v) + 0.30 × DG_in(v) + 0.25 × CDPot_enh(v)
 ```
 
 | Term | Weight | What it captures |
 |------|:------:|-----------------|
-| PR(v) | 0.60 | Standard PageRank — global significance and reachability of the failure origin (accumulated callee dependency weight); callee/dependency nodes are the ones whose failure propagates down to dependents |
-| MPCI(v) | (Amp) | Multi-Path Coupling Intensity — amplifies PageRank when redundant or complex paths increase failure vector density; multiplicative amplifier on PageRank |
-| DG_in(v) | 0.40 | In-degree (normalised) — immediate blast radius; number of direct dependents |
+| RPR(v) | 0.45 | Reverse PageRank on G^T — transitive cascade reach in the failure-propagation direction (primary signal) |
+| DG_in(v) | 0.30 | In-degree (normalised) — immediate blast radius; number of direct dependents |
+| CDPot_enh(v) | 0.25 | Enhanced Cascade Depth Potential — depth × breadth of the cascade, amplified by multi-path coupling (see [§11.3](#113-derived-terms)) |
+
+> **Direction argument.** DEPENDS_ON edges point `dependent → dependency` (App_sub → App_pub). A failure at v propagates *against* edge direction — to nodes that depend on v (v's in-neighbours in the DEPENDS_ON graph). RPR reverses G to produce edges `dependency → dependent`, making the failure-propagation path the natural traversal direction. RPR(v) therefore accumulates rank from the nodes v would transitively impair when it fails. Forward PageRank on the DEPENDS_ON graph measures how much accumulated weight v *receives* from its own dependencies — it captures importance as a callee, not cascade reach as a failure origin. This is the answer to "why reverse?" in the committee review.
 
 **Topic-type formula** — used exclusively for Topic nodes:
 

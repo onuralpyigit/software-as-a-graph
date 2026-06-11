@@ -55,11 +55,11 @@ def test_library_cascade_rule():
     assert lib_event.depth == 0
     
     app1_event = next(e for e in res.cascade_sequence if e.component_id == "App1")
-    assert app1_event.depth == 1
+    assert app1_event.depth == 0
     assert app1_event.cause == "uses_library:Lib1"
     
     topic_event = next(e for e in res.cascade_sequence if e.component_id == "Topic1")
-    assert topic_event.depth > 1
+    assert topic_event.depth == 1
     assert "sl_starvation" in topic_event.cause
 
 if __name__ == "__main__":

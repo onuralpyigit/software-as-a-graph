@@ -279,11 +279,11 @@ def run_gnn_inference(client: Client, nx_graph, analysis, layer: str, gnn_model:
 # RMAV dimension display helper  (Issue #4)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_RMAV_LABELS = {
+_RMAS_LABELS = {
     "reliability":      ("R", "Cascade / reliability risk"),
     "maintainability":  ("M", "Coupling / change fragility"),
     "availability":     ("A", "SPOF / availability loss"),
-    "vulnerability":    ("V", "Outbound blast radius"),
+    "security":         ("S", "Outbound blast radius"),
 }
 
 def display_rmav_breakdown(components: list, top_n: int = 10) -> None:
@@ -299,7 +299,7 @@ def display_rmav_breakdown(components: list, top_n: int = 10) -> None:
     ranked = sorted(components, key=lambda c: c.scores.overall, reverse=True)[:top_n]
 
     print()
-    print(f"  {'Rank':<4} {'Component':<32} {'Q':>5}  {'R':>5}  {'M':>5}  {'A':>5}  {'V':>5}  {'Dominant risk':<28}  {'SPOF'}")
+    print(f"  {'Rank':<4} {'Component':<32} {'Q':>5}  {'R':>5}  {'M':>5}  {'A':>5}  {'S':>5}  {'Dominant risk':<28}  {'SPOF'}")
     print(f"  {'─'*4} {'─'*32} {'─'*5}  {'─'*5}  {'─'*5}  {'─'*5}  {'─'*5}  {'─'*28}  {'─'*4}")
 
     for rank, comp in enumerate(ranked, 1):
@@ -308,17 +308,17 @@ def display_rmav_breakdown(components: list, top_n: int = 10) -> None:
             "reliability":     s.reliability,
             "maintainability": s.maintainability,
             "availability":    s.availability,
-            "vulnerability":   s.vulnerability,
+            "security":        s.security,
         }
         dominant_dim = max(dim_scores, key=dim_scores.get)
-        _, dominant_label = _RMAV_LABELS[dominant_dim]
+        _, dominant_label = _RMAS_LABELS[dominant_dim]
         is_spof = getattr(comp.structural, "is_articulation_point", False)
         spof_mark = "  ✗" if is_spof else ""
 
         print(
             f"  {rank:<4} {str(comp.id)[:31]:<32} "
             f"{s.overall:>5.3f}  {s.reliability:>5.3f}  {s.maintainability:>5.3f}  "
-            f"{s.availability:>5.3f}  {s.vulnerability:>5.3f}  "
+            f"{s.availability:>5.3f}  {s.security:>5.3f}  "
             f"{dominant_label:<28}  {spof_mark}"
         )
     print()
@@ -433,8 +433,8 @@ def main() -> None:
             ahp_shrinkage=args.ahp_shrinkage,
         )
 
-        # ── RMAV prediction ──────────────────────────────────────────────────
-        display.print_step(f"[{layer.upper()}] RMAV quality scoring…")
+        # ── RMAS prediction ──────────────────────────────────────────────────
+        display.print_step(f"[{layer.upper()}] RMAS quality scoring…")
         # Quality scores are already computed inside client.analyze(); wrap for uniform access.
         prediction = PredictionResult(analysis.raw.quality)
 
@@ -448,8 +448,8 @@ def main() -> None:
             display.print_step(f"[{layer.upper()}] Computing failure propagation metrics…")
             prop_metrics = compute_propagation_metrics(nx_graph)
 
-        # ── RMAV breakdown display  (Issue #4) ───────────────────────────────
-        display.print_step(f"[{layer.upper()}] Top components by RMAV score:")
+        # ── RMAS breakdown display  (Issue #4) ───────────────────────────────
+        display.print_step(f"[{layer.upper()}] Top components by RMAS score:")
         display_rmav_breakdown(components, top_n=10)
 
         # ── Propagation metrics display  (Issue #2) ──────────────────────────
@@ -466,18 +466,18 @@ def main() -> None:
                 top_nodes = gnn_result.top_critical_nodes(n=10)
                 print()
                 print(f"  GNN / ensemble top-10 components:")
-                print(f"  {'Rank':<4} {'Component':<32} {'Q_ens':>6}  {'R':>6}  {'M':>6}  {'A':>6}  {'V':>6}  {'Source'}")
+                print(f"  {'Rank':<4} {'Component':<32} {'Q_ens':>6}  {'R':>6}  {'M':>6}  {'A':>6}  {'S':>6}  {'Source'}")
                 print(f"  {'─'*4} {'─'*32} {'─'*6}  {'─'*6}  {'─'*6}  {'─'*6}  {'─'*6}  {'─'*10}")
                 for rank, ns in enumerate(top_nodes, 1):
                     print(
                         f"  {rank:<4} {str(ns.component)[:31]:<32} "
                         f"{ns.composite_score:>6.3f}  {ns.reliability_score:>6.3f}  "
                         f"{ns.maintainability_score:>6.3f}  {ns.availability_score:>6.3f}  "
-                        f"{ns.vulnerability_score:>6.3f}  {ns.source}"
+                        f"{ns.security_score:>6.3f}  {ns.source}"
                     )
                     if gnn_result.ensemble_alpha:
                         alpha_str = "  ".join(f"{a:.2f}" for a in gnn_result.ensemble_alpha)
-                        print(f"\n  Ensemble α per dimension (Q R M A V): {alpha_str}")
+                        print(f"\n  Ensemble α per dimension (Q R M A S): {alpha_str}")
                 print()
 
         # ── Anti-pattern detection  (Issue #1, #5, #6, #7) ───────────────────
@@ -505,7 +505,7 @@ def main() -> None:
                     "reliability":      c.scores.reliability,
                     "maintainability":  c.scores.maintainability,
                     "availability":     c.scores.availability,
-                    "vulnerability":    c.scores.vulnerability,
+                    "security":         c.scores.security,
                     "is_spof":          getattr(c.structural, "is_articulation_point", False),
                     **prop_metrics.get(c.id, {}),
                 }

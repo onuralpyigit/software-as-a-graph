@@ -71,9 +71,9 @@ def mock_failure_result():
                 "path_breaking_throughput_loss": 0.1, "availability_impact": 0.7,
                 "ia_out": 0.5, "ia_in": 0.4
             },
-            "vulnerability": {
+            "security": {
                 "attack_reach": 0.3, "weighted_attack_impact": 0.4, 
-                "high_value_contamination": 0.2, "vulnerability_impact": 0.35
+                "high_value_contamination": 0.2, "security_impact": 0.35
             },
         },
         "cascaded_failures": ["c2"],

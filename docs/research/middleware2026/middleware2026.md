@@ -110,7 +110,9 @@ where $V$ is the set of architectural components and $E \subseteq V \times V$ is
 
 $$T_V=\{\text{Application}, \text{Library}, \text{Topic}, \text{Broker}, \text{Node}\}$$
 
-$$T_E=\{\text{PUBLISHES\_TO}, \text{SUBSCRIBES\_TO}, \text{USES}, \text{DEPENDS\_ON}, \text{RUNS\_ON}, \text{CONNECTS\_TO}\}$$
+$$T_E=\{\text{PUBLISHES\_TO}, \text{SUBSCRIBES\_TO}, \text{ROUTES}, \text{RUNS\_ON}, \text{CONNECTS\_TO}, \text{USES}, \text{DEPENDS\_ON}\}$$
+
+Of these seven types, six are **structural** — imported directly from the topology JSON: PUBLISHES\_TO, SUBSCRIBES\_TO, ROUTES, RUNS\_ON, CONNECTS\_TO, and USES. ROUTES (Broker → Topic) captures broker routing responsibility; a broker's criticality is visible in the heterogeneous graph only through this edge type, because broker failure impacts every topic it routes. DEPENDS\_ON is **derived**: it is not imported from the topology but added by six derivation rules in the pre-analysis step (see paragraph below); it is listed in $T_E$ because the HGL model consumes it alongside the structural edges, yielding the seven relation types reflected in the 7-dimensional one-hot edge encoding (§3.1, edge features).
 
 The maps $\tau_V : V \to T_V$ and $\tau_E : E \to T_E$ assign these types to nodes and edges, respectively. The scalar weight $w:E\to\mathbb{R}_+$ captures structural intensity derived from publication frequency, message size, and subscriber fan-out. The QoS map $\text{QoS}:E\to\mathcal{Q}$ assigns reliability, durability, and transport-priority attributes to pub-sub edges where those attributes are meaningful.
 
@@ -123,7 +125,7 @@ graph TD
         a1[a1] -- pub --> t(t)
         a2[a2] -- sub --> t
         a3[a3] -- sub --> t
-        t -- conn --> b[[b]]
+        b[[b]] -- routes --> t
         b -- runs --> n(n)
         a2 -- uses --> l[l]
         a3 -- uses --> l
@@ -151,7 +153,7 @@ graph TD
     end
 ```
 
-**Figure 1**: The two graph representations consumed by the learned models. (a) HGL ingests the *heterogeneous* architecture model, which preserves the full five-type components—Applications ($a_i$, plain boxes), a Library ($\ell$, shaded rounded box), a Topic ($t$, ellipse), a Broker ($b$, double box), and a compute Node ($n$, cylinder)—and the typed relationships (pub, sub, uses, conn, runs). (b) The homogeneous baseline GL ingests the lifted logical dependency subgraph, in which the transport tier is collapsed into derived `DEPENDS_ON` edges and *all node and edge types are flattened into a single graph view* (uniform circles, untyped edges). The contrast between the two panels isolates the central design question: whether retaining node and relation *type* (a) yields better cascade prediction than reasoning over connectivity alone (b). In this example, $a_1$'s fan-out to $a_2$ and $a_3$ denotes a critical publisher as well as the shared library $\ell$ concentrates a multi-application blast radius—signals that are explicit in (a) but indistinguishable from ordinary edges in (b).
+**Figure 1**: The two graph representations consumed by the learned models. (a) HGL ingests the *heterogeneous* architecture model, which preserves the full five-type components—Applications ($a_i$, plain boxes), a Library ($\ell$, shaded rounded box), a Topic ($t$, ellipse), a Broker ($b$, double box), and a compute Node ($n$, cylinder)—and the typed relationships (pub, sub, routes, uses, conn, runs). (b) The homogeneous baseline GL ingests the lifted logical dependency subgraph, in which the transport tier is collapsed into derived `DEPENDS_ON` edges and *all node and edge types are flattened into a single graph view* (uniform circles, untyped edges). The contrast between the two panels isolates the central design question: whether retaining node and relation *type* (a) yields better cascade prediction than reasoning over connectivity alone (b). In this example, $a_1$'s fan-out to $a_2$ and $a_3$ denotes a critical publisher as well as the shared library $\ell$ concentrates a multi-application blast radius—signals that are explicit in (a) but indistinguishable from ordinary edges in (b).
 
 Each edge is encoded as a 16-dimensional feature vector: this includes a scalar structural weight, a normalized path-count feature, a 7-dimensional one-hot encoding for edge type, and 7 QoS-derived features (covering reliability, durability, transport priority, deadline, and lifespan). QoS features are set to zero for non-pub/sub edges. The `HGL` variant masks QoS features on pub-sub edges, while `HGL-QoS` exposes them, thereby isolating the value added by explicit QoS attributes.
 

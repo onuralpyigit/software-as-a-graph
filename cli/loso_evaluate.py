@@ -482,7 +482,7 @@ def run_one_fold(
                                 "reliability":     float(preds[local_idx, 1]),
                                 "maintainability": float(preds[local_idx, 2]),
                                 "availability":    float(preds[local_idx, 3]),
-                                "vulnerability":   float(preds[local_idx, 4]),
+                                "security":        float(preds[local_idx, 4]),
                             }
 
             else:
@@ -558,7 +558,7 @@ def run_one_fold(
                         "reliability":     float(ns.reliability_score),
                         "maintainability": float(ns.maintainability_score),
                         "availability":    float(ns.availability_score),
-                        "vulnerability":   float(ns.vulnerability_score),
+                        "security":        float(ns.security_score),
                     }
                     for nid, ns in result.node_scores.items()
                 }
@@ -589,7 +589,7 @@ def run_one_fold(
     for m in seed_metrics:
         all_nodes.update(m["_full_scores"].keys())
     
-    score_keys = ["overall", "reliability", "maintainability", "availability", "vulnerability"]
+    score_keys = ["overall", "reliability", "maintainability", "availability", "security"]
     node_agg: Dict[str, Dict[str, float]] = {}
     
     for nid in all_nodes:
