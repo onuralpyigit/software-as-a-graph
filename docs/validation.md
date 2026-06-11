@@ -249,12 +249,29 @@ where  dᵢ = rank(Q(vᵢ)) − rank(I(vᵢ))
 
 Significance test: two-tailed t-distribution with df = n − 2.
 
+The interpretation of an absolute ρ value depends on the **ground-truth source regime**. Two regimes apply:
+
+**Regime A — RMAV pipeline against simulation labels (Q(v) vs. I(v), composite or IA/IR).**
+Ground truth is a stochastic cascade simulator; achievable ρ is bounded by simulator noise and topology decoupling. The primary criterion in this regime is G1 (§5.7): pass if ρ ≥ 0.70. Absolute levels above that are informative but not a quality gate.
+
 | ρ Range | Interpretation |
 |---------|---------------|
-| ≥ 0.85 | Very strong agreement |
-| 0.80–0.85 | Strong — primary gate passes |
-| 0.75–0.80 | Moderate — gate fails for dense/hub-spoke classes |
-| < 0.75 | Weak — investigation required |
+| ≥ 0.85  | Very strong — well above G1 |
+| 0.70–0.85 | Acceptable — G1 passes |
+| 0.60–0.70 | Borderline — G1 fails; check topology class and node-type filter |
+| < 0.60  | Weak — investigation required |
+
+**Regime B — Learned/GNN models against simulation labels (Q*(v) vs. I*(v), Middleware evaluation).**
+Against stochastic Sim labels in decoupled pub-sub topologies, absolute ρ is constrained by simulator noise independent of model quality. The meaningful criterion is **lift over the structural baseline** (Δρ = ρ(model) − ρ(Topo-BL)), not the absolute level.
+
+| Δρ vs. Topo-BL | Interpretation |
+|---------|---------------|
+| ≥ +0.15 | Substantial lift — heterogeneous/learned model adds clear value |
+| +0.05 to +0.15 | Meaningful lift — model outperforms structural baseline |
+| −0.05 to +0.05 | No clear improvement over structural baseline |
+| < −0.05 | Regression — model underperforms structural baseline |
+
+> **Why two regimes?** Absolute thresholds (0.80, 0.75) were calibrated when validation targets shared structural basis with predictors (ρ ≈ 0.94 against reachability proxies). Against honest Sim labels — where the target is produced by a stochastic forward simulation fully decoupled from the predictor graph — the same absolute values are unattainable regardless of model quality. Applying Regime A thresholds to Regime B results condemns results for the wrong reason. Conversely, applying Regime B (relative) bands to RMAV pipeline results masks absolute weakness. Use the regime that matches the ground-truth source.
 
 **Kendall τ** is the conservative cross-check:
 
