@@ -54,7 +54,7 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "r
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { useConnection } from "@/lib/stores/connection-store"
 import { useAnalysis } from "@/lib/stores/analysis-store"
-import { apiClient } from "@/lib/api/client"
+import { apiClient, type ComponentExplanation } from "@/lib/api/client"
 import dynamic from "next/dynamic"
 import { TermTooltip } from "@/components/ui/term-tooltip"
 import { ScoreTooltip } from "@/components/ui/score-tooltip"
@@ -171,6 +171,44 @@ export default function AnalysisPage() {
 
   const isConnected = status === 'connected'
 
+  // Generate cache key for current analysis configuration
+  const getCacheKey = () => `layer:${selectedLayer}`
+
+  // Get current analysis data from cache
+  const analysisData = getAnalysis(getCacheKey())
+
+  // Criticality graph: fetch topology + overlay RMAV scores for the graph view
+  const [critGraphLinks, setCritGraphLinks] = useState<Array<{ source: string; target: string; type?: string }>>([])
+  const [critExplanations, setCritExplanations] = useState<Record<string, ComponentExplanation>>({})
+  const [critGraphLoading, setCritGraphLoading] = useState(false)
+  const critGraphFetchedRef = React.useRef(false)
+  const lastAnalysisDataRef = React.useRef<any>(null)
+
+  useEffect(() => {
+    if (analysisData !== lastAnalysisDataRef.current) {
+      lastAnalysisDataRef.current = analysisData
+      critGraphFetchedRef.current = false
+    }
+  }, [analysisData])
+
+  // Fetch topology links + explanations for the CriticalityForceGraph when analysis data is available
+  useEffect(() => {
+    if (!analysisData || !isConnected || critGraphFetchedRef.current) return
+    critGraphFetchedRef.current = true
+    setCritGraphLoading(true)
+    Promise.all([
+      apiClient.getLimitedGraphData({ node_limit: 500, edge_limit: 1000 }).catch(() => ({ nodes: [], links: [] })),
+      apiClient.explainComponents([]).catch(() => ({})),
+    ]).then(([graphData, explanations]) => {
+      setCritGraphLinks(((graphData as any).links ?? []).map((e: any) => ({
+        source: String(e.source ?? e.from ?? ''),
+        target: String(e.target ?? e.to ?? ''),
+        type: e.type ?? '',
+      })))
+      setCritExplanations(explanations as Record<string, ComponentExplanation>)
+    }).finally(() => setCritGraphLoading(false))
+  }, [analysisData, isConnected])
+
   // Fetch raw node properties once when connected
   useEffect(() => {
     if (!isConnected) return
@@ -181,11 +219,6 @@ export default function AnalysisPage() {
     }).catch(() => {})
   }, [isConnected])
 
-  // Generate cache key for current analysis configuration
-  const getCacheKey = () => `layer:${selectedLayer}`
-
-  // Get current analysis data from cache
-  const analysisData = getAnalysis(getCacheKey())
 
   // Track elapsed time during analysis
   useEffect(() => {
@@ -1429,6 +1462,131 @@ export default function AnalysisPage() {
                 </Card>
               </div>
             )}
+            {/* ── CriticalityForceGraph ── */}
+            <Card className="border-border bg-background mt-4">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="rounded-lg bg-blue-500/10 p-1.5">
+                      <Share2 className="h-4 w-4 text-blue-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-sm font-semibold">Risk Topology Graph</CardTitle>
+                      <CardDescription className="text-[11px] text-muted-foreground">Nodes colored and sized by RMAV criticality</CardDescription>
+                    </div>
+                  </div>
+                  {/* Legend */}
+                  <div className="hidden sm:flex items-center gap-3">
+                    {([['critical','#ef4444'],['high','#f97316'],['medium','#eab308'],['low','#22c55e'],['minimal','#6b7280']] as [string,string][]).map(([lvl, col]) => (
+                      <div key={lvl} className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: col }} />
+                        <span className="text-[10px] text-muted-foreground capitalize">{lvl}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {critGraphLoading ? (
+                  <div className="flex items-center justify-center h-64">
+                    <LoadingSpinner className="h-6 w-6" />
+                  </div>
+                ) : analysisData?.components?.length ? (
+                  <ReactECharts
+                    key={isDark ? 'dark' : 'light'}
+                    notMerge
+                    style={{ height: '480px', width: '100%' }}
+                    opts={{ renderer: 'canvas' }}
+                    option={(() => {
+                      const CRIT_COLORS: Record<string, string> = {
+                        critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e', minimal: '#6b7280',
+                      }
+                      const nodes = analysisData.components.map(c => {
+                        const lvl = c.criticality_level ?? 'minimal'
+                        const color = CRIT_COLORS[lvl] ?? '#6b7280'
+                        const riskPct = c.scores.overall ?? 0
+                        const exp = critExplanations[c.id]
+                        const lvlColor = CRIT_COLORS[exp?.level ?? lvl] ?? color
+                        return {
+                          id: c.id,
+                          name: c.name ?? c.id,
+                          symbolSize: 10 + riskPct * 30,
+                          itemStyle: {
+                            color: lvlColor,
+                            borderWidth: lvl === 'critical' ? 2.5 : 0,
+                            borderColor: lvl === 'critical' ? '#fff' : undefined,
+                            shadowBlur: lvl === 'critical' ? 12 : lvl === 'high' ? 6 : 0,
+                            shadowColor: lvlColor + '88',
+                          },
+                          _exp: exp,
+                          _lvl: lvl,
+                        }
+                      })
+                      const nodeIds = new Set(nodes.map(n => n.id))
+                      const links = critGraphLinks
+                        .filter(l => nodeIds.has(l.source) && nodeIds.has(l.target))
+                        .slice(0, 800)
+                        .map(l => ({
+                          source: l.source,
+                          target: l.target,
+                          lineStyle: { opacity: 0.25, width: 0.8, color: isDark ? '#4b5563' : '#d1d5db' },
+                        }))
+                      return {
+                        backgroundColor: 'transparent',
+                        animation: false,
+                        tooltip: {
+                          trigger: 'item',
+                          backgroundColor: isDark ? '#1c1c1e' : '#ffffff',
+                          borderColor: isDark ? '#3f3f46' : '#e4e4e7',
+                          textStyle: { color: isDark ? '#fafafa' : '#09090b', fontSize: 12 },
+                          formatter: (p: any) => {
+                            if (p.dataType !== 'node') return ''
+                            const d = p.data
+                            const c = analysisData.components.find(c => c.id === d.id)
+                            if (!c) return `<b>${d.name}</b>`
+                            const exp = d._exp as ComponentExplanation | undefined
+                            const lvlColor = CRIT_COLORS[d._lvl] ?? '#6b7280'
+                            let html = `<div style="font-size:12px;line-height:1.7;max-width:260px">`
+                            html += `<b>${d.name}</b>`
+                            html += `<br/><span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:${lvlColor}22;color:${lvlColor};text-transform:uppercase">${d._lvl}</span>`
+                            if (exp?.one_line) html += `<br/><span style="opacity:0.7;font-size:11px">${exp.one_line}</span>`
+                            html += `<br/><span style="opacity:0.6;font-size:10px">R: ${((1 - c.scores.reliability) * 100).toFixed(0)}% · M: ${((1 - c.scores.maintainability) * 100).toFixed(0)}% · A: ${((1 - c.scores.availability) * 100).toFixed(0)}% · V: ${((1 - c.scores.security) * 100).toFixed(0)}%</span>`
+                            html += `</div>`
+                            return html
+                          },
+                        },
+                        series: [{
+                          type: 'graph',
+                          layout: 'force',
+                          data: nodes,
+                          links,
+                          roam: true,
+                          force: {
+                            repulsion: 200,
+                            gravity: 0.1,
+                            edgeLength: [60, 150],
+                            friction: 0.95,
+                            layoutAnimation: false,
+                            initLayout: 'circular',
+                            iterations: 40,
+                          },
+                          label: { show: false },
+                          emphasis: {
+                            label: { show: true, formatter: '{b}', fontSize: 11, color: isDark ? '#fff' : '#000' },
+                            itemStyle: { borderWidth: 3, borderColor: '#fff' },
+                          },
+                        }],
+                      }
+                    })()}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-40">
+                    <p className="text-sm text-muted-foreground">Run an analysis to see the risk topology graph</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
           </>
         )}
       </div>

@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { ComponentExplanation } from '@/lib/api/client'
 
 interface ComponentAnalysis {
   id: string
@@ -51,6 +52,7 @@ interface Problem {
 
 interface AnalysisResult {
   context?: string
+  description?: string
   summary: any
   stats: any
   components: ComponentAnalysis[]
@@ -60,6 +62,7 @@ interface AnalysisResult {
 
 interface AnalysisState {
   cache: Record<string, AnalysisResult>
+  explanations: Record<string, ComponentExplanation>
 }
 
 interface AnalysisContextType extends AnalysisState {
@@ -67,6 +70,8 @@ interface AnalysisContextType extends AnalysisState {
   getAnalysis: (key: string) => AnalysisResult | null
   clearAnalysis: (key?: string) => void
   clearAll: () => void
+  setExplanations: (exps: Record<string, ComponentExplanation>) => void
+  getExplanation: (id: string) => ComponentExplanation | null
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined)
@@ -82,6 +87,7 @@ const storage = typeof window !== 'undefined' ? sessionStorage : null
 const compressAnalysisResult = (result: AnalysisResult): AnalysisResult => {
   return {
     context: result.context,
+    description: result.description,
     summary: result.summary,
     stats: result.stats,
     components: result.components || [],
@@ -138,14 +144,15 @@ const loadFromStorage = (): Record<string, AnalysisResult> => {
 
 export function AnalysisProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AnalysisState>({
-    cache: {}
+    cache: {},
+    explanations: {}
   })
 
   // Load cache from localStorage on mount
   useEffect(() => {
     const loadedCache = loadFromStorage()
     if (Object.keys(loadedCache).length > 0) {
-      setState({ cache: loadedCache })
+      setState(prev => ({ ...prev, cache: loadedCache }))
     }
   }, [])
 
@@ -157,7 +164,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
       }
       // Save to localStorage after state update
       saveToStorage(newCache)
-      return { cache: newCache }
+      return { ...prev, cache: newCache }
     })
   }
 
@@ -171,18 +178,32 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         const newCache = { ...prev.cache }
         delete newCache[key]
         saveToStorage(newCache)
-        return { cache: newCache }
+        return { ...prev, cache: newCache }
       })
     } else {
       // Clear all
-      setState({ cache: {} })
+      setState({ cache: {}, explanations: {} })
       if (storage) storage.removeItem(STORAGE_KEY)
     }
   }
 
   const clearAll = () => {
-    setState({ cache: {} })
+    setState({ cache: {}, explanations: {} })
     if (storage) storage.removeItem(STORAGE_KEY)
+  }
+
+  const setExplanations = (exps: Record<string, ComponentExplanation>) => {
+    setState(prev => ({
+      ...prev,
+      explanations: {
+        ...prev.explanations,
+        ...exps
+      }
+    }))
+  }
+
+  const getExplanation = (id: string): ComponentExplanation | null => {
+    return state.explanations[id] || null
   }
 
   return (
@@ -192,7 +213,9 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         setAnalysis,
         getAnalysis,
         clearAnalysis,
-        clearAll
+        clearAll,
+        setExplanations,
+        getExplanation
       }}
     >
       {children}
