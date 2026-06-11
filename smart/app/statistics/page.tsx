@@ -226,8 +226,8 @@ const PAGE_SIZE = 20
 const _nodeById = new Map<string, { type: string; properties: Record<string, unknown> }>()
 
 function fmtBytes(n: number): string {
-  if (n < 1024) return `${n} B`
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  if (n < 1024) return `${Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 })} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(2)} KB`
   return `${(n / 1024 ** 2).toFixed(2)} MB`
 }
 
