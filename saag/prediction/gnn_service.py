@@ -326,6 +326,7 @@ class GNNService:
     def _init_models(self, metadata: Tuple) -> None:
         """Build models from PyG metadata."""
         logger.info("Initialising GNN models from metadata.")
+        self.metadata = metadata
         self._node_model = build_node_gnn(
             metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout
         )
@@ -487,6 +488,10 @@ class GNNService:
                         len(all_metrics), avg_rho, avg_f1, avg_ndcg)
 
         # Train ensemble (fine-tune α) - using the best model from the last seed
+        has_rmav = any(hasattr(data[nt], "y_rmav") for nt in data.node_types)
+        if self._ensemble is not None and has_rmav:
+            self._train_ensemble(data)
+
         # ── Final Inference ──────────────────────────────────────────────────
         # Best state is already loaded in self._node_model via GNNTrainer.train
         self._save_service_config()
@@ -566,11 +571,17 @@ class GNNService:
             self._edge_model.eval()
 
         data_dev = data.to(self.device)
+        
+        # Filter to only the node types and edge types supported by the model to prevent size mismatch
+        model_node_types = set(self._node_model.node_types)
+        model_edge_types = set(self._node_model.edge_types)
+
         x_dict = {nt: data_dev[nt].x for nt in data_dev.node_types
-                  if hasattr(data_dev[nt], "x")}
-        edge_index_dict = {rel: data_dev[rel].edge_index for rel in data_dev.edge_types}
+                  if nt in model_node_types and hasattr(data_dev[nt], "x")}
+        edge_index_dict = {rel: data_dev[rel].edge_index for rel in data_dev.edge_types
+                           if rel in model_edge_types}
         edge_attr_dict = {rel: data_dev[rel].edge_attr for rel in data_dev.edge_types
-                         if hasattr(data_dev[rel], "edge_attr")}
+                          if rel in model_edge_types and hasattr(data_dev[rel], "edge_attr")}
         
         # ── Raw GNN Inference ────────────────────────────────────────────────
         with torch.no_grad():
@@ -861,11 +872,16 @@ class GNNService:
                 loss = torch.nn.functional.mse_loss(blended, target)
                 total_loss = total_loss + loss
 
+            # L1 regularization on alpha to favor robust RMAV baseline
+            total_loss = total_loss + 5.0 * torch.sum(self._ensemble.alpha)
+
             total_loss.backward()
             torch.nn.utils.clip_grad_norm_(self._ensemble.parameters(), max_norm=1.0)
             if gnn_params:
                 torch.nn.utils.clip_grad_norm_(gnn_params, max_norm=1.0)
             opt.step()
+            with torch.no_grad():
+                self._ensemble.alpha_logit.clamp_(max=-3.5)
 
         alpha_vals = self._ensemble.alpha.detach().cpu().tolist()
         logger.info(
@@ -920,6 +936,13 @@ class GNNService:
     def _save_service_config(self, save_dir: Optional[Path] = None) -> None:
         d = save_dir or self.checkpoint_dir
         d.mkdir(parents=True, exist_ok=True)
+        metadata_json = None
+        if hasattr(self, "metadata") and self.metadata is not None:
+            node_types, edge_types = self.metadata
+            metadata_json = {
+                "node_types": list(node_types),
+                "edge_types": [list(et) for et in edge_types]
+            }
         with open(d / "service_config.json", "w") as f:
             from .data_preparation import NODE_TYPE_TO_DIM
             json.dump(
@@ -934,6 +957,7 @@ class GNNService:
                     "layer": self.layer,
                     "feature_version": 3,
                     "default_mode": "gnn",
+                    "metadata": metadata_json,
                 },
                 f, indent=2,
             )
@@ -1026,9 +1050,15 @@ class GNNService:
         service._best_seed = cfg.get("best_seed", 42)
         service.layer = ckpt_layer
 
-        if metadata is None and graph is not None:
-            conv = networkx_to_hetero_data(graph)
-            metadata = conv.hetero_data.metadata()
+        if metadata is None:
+            if "metadata" in cfg and cfg["metadata"] is not None:
+                md = cfg["metadata"]
+                node_types = md["node_types"]
+                edge_types = [tuple(et) for et in md["edge_types"]]
+                metadata = (node_types, edge_types)
+            elif graph is not None:
+                conv = networkx_to_hetero_data(graph)
+                metadata = conv.hetero_data.metadata()
 
         if metadata is not None:
             service._init_models(metadata)

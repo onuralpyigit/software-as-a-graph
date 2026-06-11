@@ -122,7 +122,8 @@ class Client:
         from saag.validation.service import ValidationService
         
         analysis_service = AnalysisService(self.repo)
-        prediction_service = PredictionService()
+        gnn_checkpoint = kwargs.get("gnn_checkpoint") or kwargs.get("gnn_checkpoint_dir")
+        prediction_service = PredictionService(gnn_checkpoint_dir=gnn_checkpoint)
         simulation_service = SimulationService(self.repo)
         validation_service = ValidationService(
             analysis_service=analysis_service,

@@ -207,7 +207,15 @@ def _run_fault_inject(args: argparse.Namespace) -> None:
     from saag.simulation.fault_injector import FaultInjector
 
     input_path = Path(args.input)
-    output_dir = Path(args.output)
+    
+    is_direct_file = args.output.endswith(".json")
+    if is_direct_file:
+        out_json = Path(args.output)
+        output_dir = out_json.parent
+    else:
+        output_dir = Path(args.output)
+        out_json = output_dir / "impact_scores.json"
+        
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if not input_path.exists():
@@ -225,7 +233,7 @@ def _run_fault_inject(args: argparse.Namespace) -> None:
     logger.info("═" * 60)
     logger.info("FAULT INJECTION")
     logger.info("  Input      : %s", input_path)
-    logger.info("  Output     : %s", output_dir)
+    logger.info("  Output     : %s", args.output)
     logger.info("  Node types : %s", node_types)
     logger.info("  Node IDs   : %s", node_ids or "all")
     logger.info("  Seeds      : %s", seeds)
@@ -247,8 +255,7 @@ def _run_fault_inject(args: argparse.Namespace) -> None:
     _print_fault_inject_summary(result, elapsed)
 
     # ── Export ────────────────────────────────────────────────────────────
-    if args.export_json:
-        out_json = output_dir / "impact_scores.json"
+    if args.export_json or is_direct_file:
         result.save(out_json)
         logger.info("Impact scores written → %s", out_json)
 
@@ -470,8 +477,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # ── Shared arguments factory ──────────────────────────────────────────
     def _add_shared(p: argparse.ArgumentParser) -> None:
-        p.add_argument("--input", required=True,
+        p.add_argument("--input", default=None,
                        help="Path to graph JSON file.")
+        p.add_argument("--layer", default=None,
+                       help="System layer name (resolves to data/<layer>.json if --input is missing).")
         p.add_argument("--output", default="output/simulation/",
                        help="Output directory.  Created if absent.  "
                             "Default: output/simulation/")
@@ -598,9 +607,22 @@ def _build_parser() -> argparse.ArgumentParser:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    # Check if a subcommand is specified; if not, default to "fault-inject"
+    subcommands = {"fault-inject", "message-flow", "combined"}
+    has_subcommand = any(arg in subcommands for arg in sys.argv[1:] if not arg.startswith("-"))
+    if not has_subcommand:
+        sys.argv.insert(1, "fault-inject")
+
     parser = _build_parser()
     args = parser.parse_args()
     setup_logging(args)
+
+    if not args.input and getattr(args, "layer", None):
+        args.input = f"data/{args.layer}.json"
+
+    if not args.input:
+        logger.error("Either --input or --layer must be specified.")
+        sys.exit(1)
 
     dispatch = {
         "fault-inject": _run_fault_inject,

@@ -585,7 +585,7 @@ class EnsembleGNN(nn.Module):
 
     def __init__(self, num_dims: int = NUM_LABEL_DIMS):
         super().__init__()
-        self.alpha_logit = nn.Parameter(torch.zeros(num_dims))
+        self.alpha_logit = nn.Parameter(torch.full((num_dims,), -3.0))
 
     @property
     def alpha(self) -> Tensor:

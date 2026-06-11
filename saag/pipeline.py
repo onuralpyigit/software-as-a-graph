@@ -140,7 +140,8 @@ class Pipeline:
         if self._do_validate:
             logger.info("Validating against simulation ground truth...")
             validate_layers = getattr(self, "_validate_layers", [self._layer]) or [self._layer]
-            result.validation = self.client.validate(layers=validate_layers)
+            gnn_checkpoint = self._predict_kwargs.get("gnn_checkpoint")
+            result.validation = self.client.validate(layers=validate_layers, gnn_checkpoint=gnn_checkpoint)
 
         # 6. Visualize
         if self._do_visualize:
