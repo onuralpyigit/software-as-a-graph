@@ -69,36 +69,8 @@ def dispatch_import(repo, args: argparse.Namespace, graph_data: Optional[Dict[st
 
 def dispatch_analyze(repo, args: argparse.Namespace):
     """Dispatch structural analysis stage."""
-    from saag.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
-    from saag.analysis.models import LayerAnalysisResult, MultiLayerAnalysisResult
-    from saag.prediction import PredictionService, ProblemDetector
-    from datetime import datetime
-
-    # Initialize services with CLI arguments
-    pred_svc = PredictionService(
-        use_ahp=getattr(args, 'use_ahp', False),
-        normalization_method=getattr(args, 'norm', 'robust'),
-        winsorize=getattr(args, 'winsorize', True),
-        winsorize_limit=getattr(args, 'winsorize_limit', 0.05)
-    )
+    from saag.usecases.multi_layer_analysis import MultiLayerAnalysisUseCase
     
-    analyze_uc = AnalyzeGraphUseCase(repo)
-    predict_uc = PredictGraphUseCase(repo, prediction_service=pred_svc)
-    detector = ProblemDetector()
-    
-    def run_gnn_for_layer(layer_res, model_path):
-        from saag.prediction import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict
-        try:
-            gnn_svc = GNNService.from_checkpoint(model_path, graph=layer_res.structural.graph)
-            prediction_result = gnn_svc.predict(
-                graph=layer_res.structural.graph,
-                structural_metrics=extract_structural_metrics_dict(layer_res.structural),
-                rmav_scores=extract_rmav_scores_dict(layer_res.quality)
-            )
-            layer_res.prediction = prediction_result.to_dict()
-        except Exception as e:
-            logging.error(f"GNN prediction for {layer_res.layer} failed: {e}")
-
     layers_arg = getattr(args, 'layers', None)
     if layers_arg:
         layers = [l.strip() for l in layers_arg.split(",")]
@@ -107,30 +79,17 @@ def dispatch_analyze(repo, args: argparse.Namespace):
     else:
         layers = [getattr(args, 'layer', 'system')]
 
-    results_map = {}
-    for l in layers:
-        s_res = analyze_uc.execute(l)
-        q_res, problems = predict_uc.execute(l, s_res, detect_problems=True)
-        problem_summary = detector.summarize(problems)
-        
-        layer_res = LayerAnalysisResult(
-            layer=l,
-            layer_name=l.capitalize(),
-            description=f"{l.capitalize()} layer analysis",
-            structural=s_res,
-            quality=q_res,
-            problems=problems,
-            problem_summary=problem_summary
-        )
-        gnn_model = getattr(args, 'gnn_model', None)
-        if gnn_model:
-            run_gnn_for_layer(layer_res, gnn_model)
-        results_map[l] = layer_res
-        
-    analysis_result = MultiLayerAnalysisResult(
-        timestamp=datetime.now().isoformat(),
-        layers=results_map,
-        cross_layer_insights=[]
+    use_case = MultiLayerAnalysisUseCase(repo)
+    analysis_result = use_case.execute(
+        layers=layers,
+        use_ahp=getattr(args, 'use_ahp', False),
+        normalization_method=getattr(args, 'norm', 'robust'),
+        winsorize=getattr(args, 'winsorize', True),
+        winsorize_limit=getattr(args, 'winsorize_limit', 0.05),
+        gnn_model=getattr(args, 'gnn_model', None),
+        equal_weights=getattr(args, 'equal_weights', False),
+        ahp_shrinkage=getattr(args, 'ahp_shrinkage', 0.7),
+        run_sensitivity=getattr(args, 'sensitivity', False)
     )
 
     if getattr(args, 'output', None):
@@ -179,14 +138,12 @@ def dispatch_predict(repo, args: argparse.Namespace):
         else:
             rmav_dict = extract_rmav_scores_dict(rmav_raw)
     else:
-        # Simplified for now: just run the inference if we have inputs
-        # In a real scenario, we'd need to convert the JSON back to proper objects or dicts
-        structural_dict = extract_structural_metrics_dict(structural_raw)
-        rmav_dict = extract_rmav_scores_dict(rmav_raw)
-        import networkx as nx
-        nx_graph = nx.DiGraph()
-        for name in (structural_dict or {}).keys():
-            nx_graph.add_node(name, type="Application")
+        raise ValueError(
+            "GNN prediction requires a real NetworkX graph source containing actual "
+            "topology and relationships. Running prediction solely from pre-computed "
+            "structural/RMAV JSON files is not supported because GNN message passing "
+            "requires edge connections and node types."
+        )
 
     service = GNNService.from_checkpoint(checkpoint, graph=nx_graph)
     result = service.predict(

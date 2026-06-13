@@ -831,7 +831,7 @@ This distinguishes the catalog from expert-opinion-based smell collections and m
 
 The most important practical implication of the topology-based detection approach is that **anti-patterns can be detected before deployment** — from the system's configuration, launch files, or infrastructure-as-code — without any runtime instrumentation. This shifts the discovery moment from "after the production incident" to "before the first deployment," dramatically reducing the cost of addressing architectural problems.
 
-The CLI tool `detect_antipatterns.py` implements this directly: it reads the graph from Neo4j, runs all twelve detectors, and exits with code 2 if any CRITICAL patterns are found. Integrated into a CI/CD pipeline, this makes CRITICAL anti-pattern detection a build-breaking check, analogous to a failing unit test.
+The CLI tool `detect_antipatterns.py` implements this directly: it reads the graph from Neo4j, runs all twelve detectors, and exits with code 2 if any CRITICAL or HIGH severity patterns are found, exit code 1 if only warnings or smells (MEDIUM severity) are found, and exit code 0 if the system is completely clean. Integrated into a CI/CD pipeline, this makes CRITICAL or HIGH anti-pattern detection a build-breaking check, analogous to a failing unit test.
 
 ### 9.2 The Catalog as an Architecture Review Checklist
 

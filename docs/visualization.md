@@ -24,7 +24,7 @@
    - [Section 9a — Cascade Risk / QoS Ablation](#section-9a--cascade-risk--qos-ablation)
    - [Section 10 — MIL-STD-498 Hierarchy](#section-10--mil-std-498-hierarchy)
 4. [Visual Encoding Reference](#visual-encoding-reference)
-5. [Genieus: Live Web Application](#genieus-live-web-application)
+5. [SMART: Live Web Application](#smart-live-web-application)
 6. [Anti-Pattern Detection and CI/CD Integration](#anti-pattern-detection-and-cicd-integration)
 7. [From Dashboard to Decisions](#from-dashboard-to-decisions)
 8. [Performance](#performance)
@@ -43,7 +43,7 @@ Steps 2–5 Outputs                    Visualization              Output
 ─────────────────────────────        ─────────────              ──────
 M(v)  — 13 Tier 1 metrics            Pipeline         →   Static HTML dashboard
 Q(v)  — R, M, A, V, composite            │                (archivable research artifact)
-I(v), IR, IM, IA, IV — ground truths     │            →   Genieus live web app
+I(v), IR, IM, IA, IV — ground truths     │            →   SMART live web app
 ρ, F1, PG, specialist metrics    ────────┘                (operational practitioner tool)
 Anti-pattern report (12 patterns)
 ```
@@ -57,7 +57,7 @@ The dashboard design follows one principle: every visual element should answer a
 | Surface | Use Case | Output |
 |---------|---------|--------|
 | **Static HTML dashboard** | Reproducible research artifact; sharing with stakeholders who have no infrastructure; archiving validation results for thesis or paper submission | Single self-contained `.html` file (~1–4 MB), embeds all data and charts |
-| **Genieus web application** | Interactive real-time exploration; triggering pipeline steps from a browser; collaborative review sessions | Next.js frontend at `http://localhost:7000` communicating with FastAPI backend at `:8000` |
+| **SMART web application** | Interactive real-time exploration; triggering pipeline steps from a browser; collaborative review sessions | Next.js frontend at `http://localhost:7000` communicating with FastAPI backend at `:8000` |
 
 Both surfaces share the same visual encoding, the same data source (Neo4j + pipeline outputs), and the same anti-pattern detection results.
 
@@ -159,7 +159,7 @@ An interactive multi-layer topology visualization rendered with **Cytoscape.js**
 | Drag | Repositions nodes to inspect dense local subgraphs. |
 | Zoom / Pan | Standard viewport zoom (mouse wheel / trackpad pinch) and pan to navigate large topologies. |
 
-*Note: The live web application (Genieus) provides a richer Graph Explorer tab equipped with real-time searches, 2D/3D force-directed layout switches, dynamic overlay selection (Criticality / Type / R / M / A / V), and a dedicated right-side component detail panel.*
+*Note: The live web application (SMART) provides a richer Graph Explorer tab equipped with real-time searches, 2D/3D force-directed layout switches, dynamic overlay selection (Criticality / Type / R / M / A / V), and a dedicated right-side component detail panel.*
 
 Use the network graph for systems up to ~500 components (which is automatically gated in the visualizer). For larger systems, the dashboard automatically falls back to showing only the Dependency Matrix.
 
@@ -361,7 +361,7 @@ FOC:           0.83   subscriber_count=10
 
 ---
 
-## Genieus: Live Web Application
+## SMART: Live Web Application
 
 A Next.js 16 / React 19 application at `http://localhost:7000`, backed by FastAPI at `:8000` and Neo4j at `:7687`.
 
@@ -609,7 +609,7 @@ Step 6 completes the six-step methodology loop.
 
 **For ICSA 2026 submission:** Generate dashboards for all eight validated scenarios and include them as supplementary material. The anti-pattern catalog (Section 8) and the Predictive Gain PG metric in the validation report are the two novel claims that distinguish this submission from the RASSE 2025 paper.
 
-**For production deployment:** Use Genieus as the operational interface. The Dashboard tab provides the real-time health view; the Simulation tab enables pre-deployment what-if analysis; the `detect_antipatterns.py` CI/CD integration ensures that CRITICAL patterns block deployment automatically.
+**For production deployment:** Use SMART as the operational interface. The Dashboard tab provides the real-time health view; the Simulation tab enables pre-deployment what-if analysis; the `detect_antipatterns.py` CI/CD integration ensures that CRITICAL patterns block deployment automatically.
 
 ---
 

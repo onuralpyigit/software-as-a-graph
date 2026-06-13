@@ -9,8 +9,20 @@ from .statistics import (
     analyze_for_bottleneck,
     compute_bottleneck_stats_from_structural,
 )
-from .models import StructuralAnalysisResult, LayerAnalysisResult, MultiLayerAnalysisResult
+from .models import (
+    StructuralAnalysisResult,
+    LayerAnalysisResult,
+    MultiLayerAnalysisResult,
+    QualityAnalysisResult,
+    DetectedProblem,
+    ProblemSummary,
+)
 from .antipattern_detector import AntiPatternDetector, CATALOG, PatternSpec
+from .analyzer import QualityAnalyzer, CriticalityProfile
+from .classifier import BoxPlotClassifier
+from .weight_calculator import AHPProcessor, QualityWeights
+from .problem_detector import ProblemDetector
+from .quality_scoring_service import QualityScoringService
 
 __all__ = [
     "AnalysisService",
@@ -21,4 +33,14 @@ __all__ = [
     "AntiPatternDetector",
     "CATALOG",
     "PatternSpec",
+    "QualityAnalyzer",
+    "CriticalityProfile",
+    "BoxPlotClassifier",
+    "AHPProcessor",
+    "QualityWeights",
+    "ProblemDetector",
+    "QualityScoringService",
+    "QualityAnalysisResult",
+    "DetectedProblem",
+    "ProblemSummary",
 ]

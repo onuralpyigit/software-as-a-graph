@@ -120,39 +120,44 @@ def test_analyze_full_system(mock_analysis_result):
     # Setup mock client
     mock_client_instance = MagicMock()
     
-    # Client returns facades
-    mock_analysis = MagicMock()
-    mock_analysis.raw = mock_analysis_result.structural
-    mock_layer_enum_structural = MagicMock()
-    mock_layer_enum_structural.value = "system"
-    mock_analysis.raw.layer = mock_layer_enum_structural
-    
-    mock_prediction = MagicMock()
-    mock_prediction.all_components = mock_analysis_result.quality.components
-    
-    # Needs to be a string, not a mock, for pydantic validation
-    mock_layer_enum = MagicMock()
-    mock_layer_enum.value = "system"
-    mock_prediction.raw.layer = mock_layer_enum
-    mock_prediction.raw.edges = {}
-    
-    mock_client_instance.analyze.return_value = mock_analysis
-    mock_client_instance.predict.return_value = mock_prediction
-    mock_client_instance.detect_antipatterns.return_value = mock_analysis_result.problems
-    
-    # Override dependencies
-    app.dependency_overrides[get_client] = lambda: mock_client_instance
-    
-    try:
-        response = client.post("/api/v1/analysis/full", json={
-            "credentials": {"uri": "bolt://localhost", "user": "n", "password": "p"}
-        })
+    with patch("saag.usecases.multi_layer_analysis.MultiLayerAnalysisUseCase") as MockUseCaseClass:
+        mock_usecase = MagicMock()
+        MockUseCaseClass.return_value = mock_usecase
         
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "analysis" in data
-        # NOTE: Endpoint bypasses client.analyze() and runs StructuralAnalyzer directly
-        # against client.repo.get_graph_data() — see api/routers/analysis.py::_structural_analyze
-    finally:
-        app.dependency_overrides = {}
+        mock_layer_enum = MagicMock()
+        mock_layer_enum.value = "system"
+        mock_analysis_result.layer = mock_layer_enum
+        mock_analysis_result.prediction = None  # fallback to quality
+        
+        mock_analysis_result.graph_summary = mock_analysis_result.structural.graph_summary
+        mock_analysis_result.structural.graph_summary.avg_clustering = 0.0
+        mock_analysis_result.structural.graph_summary.is_connected = True
+        mock_analysis_result.structural.graph_summary.num_components = 1
+        mock_analysis_result.structural.graph_summary.num_articulation_points = 0
+        mock_analysis_result.structural.graph_summary.num_bridges = 0
+        mock_analysis_result.structural.graph_summary.connectivity_health = "HEALTHY"
+        mock_analysis_result.structural.graph_summary.node_types = {}
+        mock_analysis_result.structural.graph_summary.edge_types = {}
+        
+        mock_result = MagicMock()
+        mock_result.layers = {"system": mock_analysis_result}
+        mock_usecase.execute.return_value = mock_result
+        
+        # Override dependencies
+        app.dependency_overrides[get_client] = lambda: mock_client_instance
+        
+        try:
+            response = client.post("/api/v1/analysis/full", json={
+                "credentials": {"uri": "bolt://localhost", "user": "n", "password": "p"}
+            })
+            
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert "analysis" in data
+            
+            # Verify that MultiLayerAnalysisUseCase was instantiated with the repo and executed
+            MockUseCaseClass.assert_called_with(mock_client_instance.repo)
+            mock_usecase.execute.assert_called_with(layers=["system"])
+        finally:
+            app.dependency_overrides = {}

@@ -1,4 +1,4 @@
-# Genieus
+# SMART
 
 A [Next.js](https://nextjs.org) project for visualizing Software-as-a-Graph.
 
@@ -13,7 +13,7 @@ A [Next.js](https://nextjs.org) project for visualizing Software-as-a-Graph.
 
 1.  Navigate to the project directory:
     ```bash
-    cd genieus
+    cd smart
     ```
 
 2.  Install dependencies:

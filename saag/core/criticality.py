@@ -178,3 +178,42 @@ class ClassificationResult:
     def requires_attention(self) -> int:
         """Count of items requiring attention (CRITICAL + HIGH)."""
         return self.critical_count + self.high_count
+
+
+class CompatNamespace:
+    """Namespace that supports both attribute access and dict-like item access/methods."""
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+    def __getitem__(self, key):
+        return getattr(self, key)
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+    def keys(self):
+        return self.__dict__.keys()
+    def values(self):
+        return self.__dict__.values()
+    def items(self):
+        return self.__dict__.items()
+    def __iter__(self):
+        return iter(self.__dict__)
+    def to_dict(self) -> dict:
+        return self.__dict__.copy()
+    def __repr__(self) -> str:
+        return f"CompatNamespace({self.__dict__})"
+
+
+@dataclass
+class CriticalityRanking:
+    """Unified Data Transfer Object representing a component's criticality score."""
+    id: str
+    type: str
+    scores: Dict[str, float]  # reliability, maintainability, availability, security, overall
+    levels: Dict[str, str]    # reliability, maintainability, availability, security, overall
+    overall: float
+    level: str
+    provenance: str           # "rmav", "gnn", "ensemble"
+    name: str = ""
+    blast_radius: int = 0
+    cascade_depth: int = 0
+    is_articulation_point: bool = False
+

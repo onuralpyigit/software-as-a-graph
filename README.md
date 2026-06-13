@@ -16,7 +16,7 @@
 1. [The Problem](#the-problem)
 2. [The Methodology](#the-methodology)
    - [Core Insight](#core-insight)
-   - [Graph Generation (Step 0)](#graph-generation-step-0)
+   - [Offline Input Preparation (Generate)](#offline-input-preparation-generate)
    - [Graph Construction (Step 1)](#graph-construction-step-1)
    - [Analysis (Step 2)](#analysis-step-2)
    - [Prediction (Step 3)](#prediction-step-3)
@@ -26,7 +26,7 @@
 3. [Empirical Results](#empirical-results)
 4. [Supported Platforms](#supported-platforms)
 5. [Quick Start (Docker)](#quick-start-docker)
-6. [Web Interface — Genieus](#web-interface--genieus)
+6. [Web Interface — SMART](#web-interface--smart)
 7. [Development Setup (CLI)](#development-setup-cli)
 8. [Local Development](#local-development)
 9. [The Pipeline](#the-pipeline)
@@ -57,13 +57,13 @@ This reactive posture has two fundamental problems:
 
 > **A component's position in the dependency graph reliably predicts its real-world failure impact — without any runtime data.**
 
-Software-as-a-Graph (SaG) operationalises this insight into a seven-step analytical pipeline (Step 0 to Step 6). The fundamental claim is that **topological structure alone** — how components are connected, what they depend on, and how strongly — encodes enough information to rank components by their potential failure impact with high statistical fidelity (Spearman ρ > 0.87, F1 > 0.90).
+Software-as-a-Graph (SaG) operationalises this insight into a 6-step core analytical pipeline (Step 1 to Step 6), supported by an offline input preparation stage (Generate). The fundamental claim is that **topological structure alone** — how components are connected, what they depend on, and how strongly — encodes enough information to rank components by their potential failure impact with high statistical fidelity (Spearman ρ > 0.87, F1 > 0.90).
 
 ---
 
-### Graph Generation (Step 0)
+### Offline Input Preparation (Generate)
 
-Step 0 produces a synthetic publish-subscribe system topology in JSON format containing nodes (`Application`, `Broker`, `Topic`, `Node`, `Library`) and structural edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`, `USES`, `CONNECTS_TO`). It supports both uniform scale presets (`tiny` through `xlarge`) and statistical-config mode (via YAML) which samples properties like node loading and publish/subscribe counts from probability distributions to generate realistic topologies for benchmarks and validation studies.
+The offline generation stage produces a synthetic publish-subscribe system topology in JSON format containing nodes (`Application`, `Broker`, `Topic`, `Node`, `Library`) and structural edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`, `USES`, `CONNECTS_TO`). It supports both uniform scale presets (`tiny` through `xlarge`) and statistical-config mode (via YAML) which samples properties like node loading and publish/subscribe counts from probability distributions to generate realistic topologies for benchmarks and validation studies.
 
 ---
 
@@ -275,7 +275,7 @@ Gates are **topology-adaptive**: sparse 12-node systems face softer thresholds t
 
 ### Dashboard Visualization (Step 6)
 
-Step 6 synthesizes the quantitative analysis metrics, AHP-weighted RMAV criticality scores, failure simulation cascades, and statistical validation metrics into interactive visual layouts. It outputs both a **reproducible static HTML dashboard** (a self-contained research artifact embedding Cytoscape.js network topologies and Chart.js diagnostics) and feeds the **Genieus live web application** for real-time practitioner review, failure simulation animation, and CI/CD-integrated anti-pattern gating.
+Step 6 synthesizes the quantitative analysis metrics, AHP-weighted RMAV criticality scores, failure simulation cascades, and statistical validation metrics into interactive visual layouts. It outputs both a **reproducible static HTML dashboard** (a self-contained research artifact embedding Cytoscape.js network topologies and Chart.js diagnostics) and feeds the **SMART live web application** for real-time practitioner review, failure simulation animation, and CI/CD-integrated anti-pattern gating.
 
 ---
 
@@ -328,7 +328,7 @@ Once running, open:
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| Web Dashboard (Genieus) | http://localhost:7000 | — |
+| Web Dashboard (smart) | http://localhost:7000 | — |
 | REST API (FastAPI docs) | http://localhost:8000/docs | — |
 | Neo4j Browser | http://localhost:7474 | `neo4j` / `password` |
 
@@ -337,16 +337,16 @@ Once running, open:
 ### Running a Pre-Built Image
 
 ```bash
-docker run --name genieus --network host genieus:1.0.0
+docker run --name smart --network host smart:1.0.0
 ```
 
 `--network host` allows the container to connect to Neo4j running on the host (port 7687).
 
 ---
 
-## Web Interface — Genieus
+## Web Interface — SMART
 
-The **Genieus** dashboard (Next.js 16, React 19, TypeScript, Tailwind CSS 4) provides an interactive frontend for the full analysis pipeline:
+The **SMART** dashboard (Next.js 16, React 19, TypeScript, Tailwind CSS 4) provides an interactive frontend for the full analysis pipeline:
 
 1. **Dashboard** — High-level KPIs, criticality distribution heatmap, and top critical component list.
 2. **Graph Explorer** — Interactive 2D/3D force-directed graph. Filter by layer (app / infra / mw / system), search components, and inspect dependency details.
@@ -393,7 +393,7 @@ npm run generate-client
 Each step has its own CLI script in `cli/`. All scripts must be run from the repo root:
 
 ```bash
-# Step 0 — Generate: produce a synthetic pub-sub topology
+# Offline Preparation — Generate: produce a synthetic pub-sub topology
 python cli/generate_graph.py --scale medium --output data/system.json
 
 # Step 1 — Model: import topology into Neo4j and derive DEPENDS_ON edges
@@ -434,9 +434,6 @@ python cli/benchmark.py
 
 # Run the full pipeline across all 8 domain scenarios
 bash cli/run_scenarios.sh
-
-# Ground the SPOF threshold empirically across all 8 scenarios
-python cli/ground_threshold.py
 
 # Statistics dashboard (CLI): topology & communication pattern analytics
 python cli/statistics_graph.py --layer system
@@ -512,7 +509,7 @@ npm run dev
 
 ```
         ┌─────────────┐
-        │  Step 0     │
+        │  Offline    │
         │  Generate   │  (synthetic topologies for experiments & benchmarks)
         └──────┬──────┘
                │ topology JSON
@@ -538,7 +535,7 @@ npm run dev
 
 | Step | What It Does | Key Output | Docs |
 |------|-------------|------------|------|
-| **0. Generate** | Produces a synthetic pub-sub topology for experiments, benchmarks, or CI regression tests | Topology JSON (`data/system.json`) | — |
+| **Offline Prep: Generate** | Produces a synthetic pub-sub topology for experiments, benchmarks, or CI regression tests | Topology JSON (`data/system.json`) | — |
 | **1. Model** | Converts topology JSON to a weighted directed graph G(V, E, w) in Neo4j; derives DEPENDS_ON edges via six rules; computes QoS-derived weights | G_structural and G_analysis(l) | [graph-model.md](docs/graph-model.md) |
 | **2. Analyze** | Deterministic, closed-form. Computes 13 structural metrics M(v); maps them to RMAV dimension scores and Q*(v) via AHP-weighted formulas; detects anti-patterns. Given the same graph, always produces the same output. | M(v) metric vector, RMAV/Q*(v) scores, five-level classification, anti-pattern report | [structural-analysis.md](docs/structural-analysis.md) · [prediction.md](docs/prediction.md) |
 | **3. Predict** | Inductive, optional. An HGT model trained on simulation labels I(v) learns interactions the AHP composite cannot encode. Consumes Analyze output only — no repository access. | GNN criticality ranks, edge criticality, ensemble-blended Q_ens(v) | [prediction.md](docs/prediction.md) |
@@ -546,7 +543,7 @@ npm run dev
 | **5. Validate** | Computes Spearman ρ and Kendall τ between Q*(v) (from Analyze) or Q_ens(v) (from Predict) and I*(v); evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
 | **6. Visualize** | Renders interactive dashboards with network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | `dashboard.html` (fully self-contained) | [visualization.md](docs/visualization.md) |
 
-> **Step 0 vs real deployments.** The `cli/generate_graph.py` script produces synthetic pub-sub topologies for evaluation, benchmarking, and reproducible experiments. Real deployments start at Step 1 (Model) with an actual architecture description. The published Spearman and F1 results use the eight domain-scenario topologies in `data/`, not generated data.
+> **Offline Generation vs real deployments.** The `cli/generate_graph.py` script produces synthetic pub-sub topologies for evaluation, benchmarking, and reproducible experiments. Real deployments start at Step 1 (Model) with an actual architecture description. The published Spearman and F1 results use the eight domain-scenario topologies in `data/`, not generated data.
 
 ### Scale Presets
 
@@ -689,7 +686,7 @@ After RMAV scoring, the `AntiPatternDetector` audits results and flags architect
 | **HUB_AND_SPOKE** | Clustering < 0.1 and degree > 3 | MEDIUM |
 | **CHAIN** | Weakly connected sequence ≥ 4 nodes | MEDIUM |
 
-Anti-pattern results carry CI-ready exit codes (0 = clean, 1 = smells detected), making them suitable as pre-merge quality gates.
+Anti-pattern results carry CI-ready exit codes (0 = clean, 1 = medium/low warnings/smells detected, 2 = critical or high severity patterns detected), making them suitable as pre-merge quality gates.
 
 ---
 
@@ -744,21 +741,21 @@ result2 = (
 .
 ├── cli/                        # CLI pipeline scripts
 │   ├── run.py                  #   Master pipeline orchestrator (--all flag)
-│   ├── generate_graph.py       #   Step 0: Generate — synthetic pub-sub topology
-│   ├── import_graph.py         #   Step 1: Model — Neo4j import & dependency derivation
-│   ├── export_graph.py         #   Step 1: Model — export graph from Neo4j to JSON
+│   ├── generate_graph.py       #   Offline Prep: Generate — synthetic pub-sub topology
+│   ├── import_graph.py         #   Step 1a: Model (Import) — Neo4j import & dependency derivation
+│   ├── export_graph.py         #   Step 1b: Model (Export) — export graph from Neo4j to JSON
 │   ├── analyze_graph.py        #   Step 2: Analyze — structural metrics + RMAV/Q scoring + anti-patterns
-│   ├── train_graph.py          #   Step 3: Predict — GNN training (optional; requires Step 4 labels)
-│   ├── predict_graph.py        #   Step 3: Predict — GNN inference on a new graph
+│   ├── train_graph.py          #   Step 3a: Predict (Train) — GNN training (optional; requires Step 4 labels)
+│   ├── predict_graph.py        #   Step 3b: Predict (Inference) — GNN inference on a new graph
 │   ├── detect_antipatterns.py  #   Standalone anti-pattern / CI gate
 │   ├── simulate_graph.py       #   Step 4: Simulate — fault-inject | message-flow | combined
 │   ├── validate_graph.py       #   Step 5: Validate — single | sweep | report | compare
 │   ├── visualize_graph.py      #   Step 6: Visualize — interactive HTML dashboard
 │   ├── statistics_graph.py     #   Statistics dashboard (topology & communication analytics)
-│   ├── export_graph.py         #   Export graph data from Neo4j
 │   ├── benchmark.py            #   Benchmark across scale presets
-│   ├── run_scenarios.sh        #   Full pipeline across 8 domain scenarios
-│   └── ground_threshold.py     #   Empirical SPOF threshold grounding
+│   ├── loso_evaluate.py        #   Leave-One-Scenario-Out GNN validation protocol
+│   ├── multi_seed_summary.py   #   Aggregate results across seeds
+│   └── run_scenarios.sh        #   Full pipeline across 8 domain scenarios
 │
 ├── tools/                      # Standalone tooling (no Neo4j dependency)
 │   └── generation/             #   Statistical pub-sub topology generator
@@ -784,7 +781,7 @@ result2 = (
 │   ├── routers/                #   REST endpoints (thin layer)
 │   └── dependencies.py         #   Service & Repository injection
 │
-├── smart/                      # Web Frontend (Genieus - Next.js)
+├── smart/                      # Web Frontend (SMART - Next.js)
 ├── tests/                      # Pytest unit & integration tests
 ├── examples/                   # Annotated Python usage examples
 ├── data/                       # Topology JSON & YAML scenario configs

@@ -1,5 +1,5 @@
 # Software Installation & User Manual (SUM)
-## Software-as-a-Graph (saag) Framework & Genieus Toolkit
+## Software-as-a-Graph (saag) Framework & SMART Web Toolkit
 
 **Standard Alignment:** Conforming to **ISO/IEC/IEEE 26511:2018** (Requirements for managers of user documentation) and aligned with the Software Operation and Maintenance processes of **ISO/IEC/IEEE 12207:2026**.
 
@@ -12,16 +12,16 @@
 ## 1. Introduction & System Overview
 
 ### 1.1 Document Purpose
-This Software Installation & User Manual (SUM) provides instructions for installing, configuring, administering, and operating the Software-as-a-Graph (saag) framework, the command line interface (CLI) pipeline, the FastAPI REST API, and the Next.js web application (Genieus).
+This Software Installation & User Manual (SUM) provides instructions for installing, configuring, administering, and operating the Software-as-a-Graph (saag) framework, the command line interface (CLI) pipeline, the FastAPI REST API, and the Next.js web application, the SMART web application (smart).
 
 ### 1.2 System Overview
-The **Software-as-a-Graph (saag)** framework models pub-sub software system topologies as weighted directed graphs in Neo4j, executing a 7-stage analytical and simulation pipeline to predict critical components (Single Points of Failure, cascade hubs, bottleneck nodes) that present the highest risk of systemic failure if compromised or disrupted.
+The **Software-as-a-Graph (saag)** framework models pub-sub software system topologies as weighted directed graphs in Neo4j, executing a 6-stage analytical and simulation pipeline (preceded by an offline input preparation stage) to predict critical components (Single Points of Failure, cascade hubs, bottleneck nodes) that present the highest risk of systemic failure if compromised or disrupted.
 
 The system is structured as four core components:
 1. **Core SDK (`saag/`):** Python library containing domain models, graph traversal heuristics, simulation engines, and GNN estimators.
 2. **CLI Scripts (`cli/`):** Console pipeline entry points allowing researchers and operators to execute pipeline stages independently or as an orchestrated batch.
 3. **REST API (`api/`):** FastAPI application acting as a gateway for programmatically triggering analysis, GNN training, and failure cascades.
-4. **Genieus Web Toolkit (`smart/`):** A Next.js 16 + React 19 interactive single-page web dashboard offering force-directed graph rendering, metrics visualization, and validation reports.
+4. **SMART Web Toolkit (`smart/`):** A Next.js 16 + React 19 interactive single-page web dashboard offering force-directed graph rendering, metrics visualization, and validation reports.
 
 ---
 
@@ -71,7 +71,7 @@ The entire full-stack application (Next.js, FastAPI, Neo4j, and GNN libraries) i
 ```
        Host Machine Port Maps
  ┌────────────────────────────────────────────────────────┐
- │   7000 (HTTP)  -->  Next.js Frontend (Genieus)         │
+ │   7000 (HTTP)  -->  Next.js Frontend (smart)            │
  │   8000 (HTTP)  -->  FastAPI REST API                   │
  │   7474 (HTTP)  -->  Neo4j Browser Console              │
  │   7687 (Bolt)  -->  Neo4j Bolt Database Endpoint       │
@@ -107,7 +107,7 @@ docker compose up --build -d
 #### Step 4: Verify Deployment Health
 Check the startup logs and verify container execution:
 ```bash
-docker compose logs -f genieus
+docker compose logs -f smart
 ```
 You should see output indicating that all ports (7000, 8000, 7474, 7687) are open and running. Test the API health endpoint:
 ```bash
@@ -197,15 +197,21 @@ The application is configured using environment variables defined in the root [.
 The CLI scripts provide granular, sequential access to all stages of the Software-as-a-Graph pipeline. All scripts must be run from the root workspace directory with the virtual environment activated.
 
 ```
-┌───────────┐     ┌───────┐     ┌─────────┐     ┌─────────┐     ┌──────────┐     ┌──────────┐     ┌───────────┐
-│ Generate  │ ──> │ Model │ ──> │ Analyze │ ──> │ Predict │ ──> │ Simulate │ ──> │ Validate │ ──> │ Visualize │
-│  Step 0   │     │  Step 1   │     │  Step 2 │     │  Step 3 │     │  Step 4  │     │  Step 5  │     │  Step 6   │
-└───────────┘     └───────┘     └─────────┘     └─────────┘     └──────────┘     └──────────┘     └───────────┘
+Offline Input Preparation
+┌──────────┐
+│ Generate │
+└────┬─────┘
+     │ (input topology)
+     ▼
+┌──────────┐     ┌─────────┐     ┌─────────┐     ┌──────────┐     ┌──────────┐     ┌───────────┐
+│  Model   │ ──> │ Analyze │ ──> │ Predict │ ──> │ Simulate │ ──> │ Validate │ ──> │ Visualize │
+│  Step 1  │     │ Step 2  │     │ Step 3  │     │  Step 4  │     │  Step 5  │     │  Step 6   │
+└──────────┘     └─────────┘     └─────────┘     └──────────┘     └──────────┘     └───────────┘
 ```
 
 ---
 
-### 5.1 Step 0: Synthetic Graph Generation
+### 5.1 Offline Input Preparation: Synthetic Graph Generation
 Generates synthetic topology JSON representing a pub-sub communication system (brokers, topics, applications, libraries).
 - **Script:** [cli/generate_graph.py] or `saag-generate`
 - **Arguments:**
@@ -384,9 +390,9 @@ The server will start on port `8000`. You can access the Swagger UI documentatio
 
 ---
 
-## 7. SMART Web Toolkit (Genieus) User Guide
+## 7. SMART Web Toolkit (smart) User Guide
 
-Genieus is the web-based visual interface for interacting with the Software-as-a-Graph framework.
+SMART is the web-based visual interface for interacting with the Software-as-a-Graph framework.
 
 ### 7.1 Launching the Web Application Natively
 Navigate to the frontend directory and start the Next.js development server:
@@ -442,13 +448,13 @@ Refer to the table below to diagnose and resolve issues encountered during insta
 When running via Docker Compose, retrieve individual service logs:
 ```bash
 # FastAPI Backend logs
-docker compose exec genieus cat /tmp/backend.log
+docker compose exec smart cat /tmp/backend.log
 
 # Next.js Frontend logs
-docker compose exec genieus cat /tmp/frontend.log
+docker compose exec smart cat /tmp/frontend.log
 
 # Neo4j Database logs
-docker compose exec genieus tail -n 100 /var/lib/neo4j/logs/neo4j.log
+docker compose exec smart tail -n 100 /var/lib/neo4j/logs/neo4j.log
 ```
 
 For native installations, standard log directories or console stdout contain execution details. The FastAPI server uses log records stored under `/tmp/backend.log` by default.

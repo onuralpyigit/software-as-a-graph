@@ -23,50 +23,6 @@ router = APIRouter(prefix="/api/v1/analysis", tags=["analysis"])
 logger = logging.getLogger(__name__)
 
 
-def _structural_analyze(client: Client, layer: str) -> SaagAnalysisResult:
-    """
-    Run structural analysis directly via StructuralAnalyzer, bypassing AnalysisService
-    which incorrectly passes StructuralAnalysisResult to AntiPatternDetector.detect().
-    """
-    # Pre-analysis stage: derive DEPENDS_ON edges before reading graph data.
-    client.repo.derive_dependencies()
-    graph_data = client.repo.get_graph_data()
-    analyzer = StructuralAnalyzer()
-    layer_enum = AnalysisLayer.from_string(layer)
-    raw = analyzer.analyze(graph_data, layer=layer_enum)
-    return SaagAnalysisResult(raw)
-
-
-def _predict(analysis: SaagAnalysisResult) -> SaagPredictionResult:
-    """
-    Run quality prediction using an already-computed structural analysis result,
-    bypassing client.predict() which incorrectly expects a layer string.
-    """
-    prediction_service = PredictionService()
-    predict_uc = _PredictGraphUseCase(prediction_service)
-    quality, _ = predict_uc.execute(
-        layer="system",
-        structural_result=analysis.raw,
-        detect_problems=False,
-    )
-    return SaagPredictionResult(quality)
-
-
-def _detect_antipatterns(prediction) -> list:
-    """
-    Detect antipatterns by calling AntiPatternDetector directly with a shim that
-    includes the required 'components' attribute, bypassing the broken SimpleNamespace
-    shim in ProblemDetector which omits 'components'.
-    """
-    quality = prediction.raw
-    layer_name = getattr(quality, "layer", "system")
-    if hasattr(layer_name, "value"):
-        layer_name = layer_name.value
-    shim = SimpleNamespace(quality=quality, components=quality.components, edges=quality.edges)
-    detector = AntiPatternDetector()
-    return detector.detect(shim, layer_name)
-
-
 # ── Endpoints ────────────────────────────────────────────────────────────
 
 @router.post("/full", response_model=AnalysisEnvelope)
@@ -80,17 +36,20 @@ async def analyze_full_system(
     - Problem detection
     """
     try:
-        logger.info("Running full system analysis via SDK Client")
+        logger.info("Running full system analysis via MultiLayerAnalysisUseCase")
+        from saag.usecases.multi_layer_analysis import MultiLayerAnalysisUseCase
         
-        # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
-        analysis = _structural_analyze(client, "system")
-        prediction = _predict(analysis)
-        problems = _detect_antipatterns(prediction)
+        use_case = MultiLayerAnalysisUseCase(client.repo)
+        res = use_case.execute(layers=["system"])
+        layer_res = res.layers["system"]
+        
+        analysis = SaagAnalysisResult(layer_res)
+        prediction = SaagPredictionResult(layer_res.prediction or layer_res.quality)
         
         return analysis_presenter.build_analysis_response(
             analysis,
             prediction,
-            problems,
+            layer_res.problems,
         )
     except Exception as e:
         logger.error(f"Full analysis failed: {str(e)}")
@@ -122,16 +81,19 @@ async def analyze_by_type(
 
     try:
         logger.info(f"Analyzing component type: {component_type} (normalized to {normalized_type})")
+        from saag.usecases.multi_layer_analysis import MultiLayerAnalysisUseCase
 
-        # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
-        analysis = _structural_analyze(client, "system")
-        prediction = _predict(analysis)
-        problems = _detect_antipatterns(prediction)
+        use_case = MultiLayerAnalysisUseCase(client.repo)
+        res = use_case.execute(layers=["system"])
+        layer_res = res.layers["system"]
+        
+        analysis = SaagAnalysisResult(layer_res)
+        prediction = SaagPredictionResult(layer_res.prediction or layer_res.quality)
 
         return analysis_presenter.build_analysis_response(
             analysis,
             prediction,
-            problems,
+            layer_res.problems,
             context=f"{normalized_type} Components Analysis",
             description=f"Analysis filtered by component type: {normalized_type}",
             component_type=normalized_type,
@@ -139,10 +101,6 @@ async def analyze_by_type(
     except Exception as e:
         logger.error(f"Type analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-
-
-
-
 
 
 @router.post("/layer/{layer}", response_model=AnalysisEnvelope)
@@ -164,16 +122,19 @@ async def analyze_layer(
 
     try:
         logger.info(f"Analyzing layer: {layer_canonical} (input: {layer})")
+        from saag.usecases.multi_layer_analysis import MultiLayerAnalysisUseCase
         
-        # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
-        analysis = _structural_analyze(client, layer_canonical)
-        prediction = _predict(analysis)
-        problems = _detect_antipatterns(prediction)
+        use_case = MultiLayerAnalysisUseCase(client.repo)
+        res = use_case.execute(layers=[layer_canonical])
+        layer_res = res.layers[layer_canonical]
+        
+        analysis = SaagAnalysisResult(layer_res)
+        prediction = SaagPredictionResult(layer_res.prediction or layer_res.quality)
         
         return analysis_presenter.build_analysis_response(
             analysis,
             prediction,
-            problems,
+            layer_res.problems,
         )
     except Exception as e:
         logger.error(f"Layer analysis failed: {str(e)}")

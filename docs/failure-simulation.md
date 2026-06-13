@@ -1,6 +1,6 @@
 # Failure Simulation
 
-This document describes the two simulation modes available in `simulate_graph.py` and the Python modules that back them: `src/simulation/fault_injector.py` and `src/simulation/message_flow_simulator.py`.
+This document describes the two simulation modes available in `simulate_graph.py` and the Python modules that back them: `saag/simulation/fault_injector.py` and `saag/simulation/message_flow_simulator.py`.
 
 ---
 
@@ -55,13 +55,13 @@ Both modes are **pre-deployment** — they require only the static graph JSON, n
 ```
 simulate_graph.py  (CLI entry point)
 ├── fault-inject  subcommand
-│   └── src/simulation/fault_injector.py
+│   └── saag/simulation/fault_injector.py
 │       ├── _PubSubIndex          (O(1) lookup structures over PUBLISHES_TO / SUBSCRIBES_TO / ROUTES)
 │       ├── FaultInjector.run()   (iterates over candidate nodes)
 │       └── FaultInjector._cascade()  (BFS wave propagation per node per seed)
 │
 ├── message-flow  subcommand
-│   └── src/simulation/message_flow_simulator.py
+│   └── saag/simulation/message_flow_simulator.py
 │       ├── TopicFanout           (per-topic fan-out manager)
 │       ├── SubscriberQueue       (per-(topic, subscriber) SimPy Store)
 │       ├── _publisher_process()  (SimPy generator: emits messages at rate_hz)
@@ -71,7 +71,7 @@ simulate_graph.py  (CLI entry point)
 └── combined  subcommand
     (runs fault-inject then message-flow in sequence)
 
-src/simulation/simulation_results.py  (shared dataclasses for both modes)
+saag/simulation/simulation_results.py  (shared dataclasses for both modes)
 ├── FaultInjectionResult / FaultInjectionRecord / CascadeWave
 └── MessageFlowResult / TopicFlowStats / SubscriberFlowStats / FaultEventRecord
 ```
@@ -797,7 +797,7 @@ Validation report
 
 The `--input` file must be a JSON file compatible with the SaG schema. The CLI loader handles two paths automatically:
 
-**Path 1 (preferred):** If `src/core/graph_builder.py` and `src/core/graph_exporter.py` are importable, they are used. This supports the full schema including MIL-STD-498 hierarchy metadata, Jira enrichment, and code metrics.
+**Path 1 (preferred):** If `saag/core/graph_builder.py` and `saag/core/graph_exporter.py` are importable, they are used. This supports the full schema including MIL-STD-498 hierarchy metadata, Jira enrichment, and code metrics.
 
 **Path 2 (fallback):** A lightweight inline loader reads these keys directly from either the top-level of the JSON or a nested `"relationships"` object (to support exported schemas like the ATM dataset):
 

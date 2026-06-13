@@ -4,7 +4,7 @@
 
 <!-- Published at IEEE RASSE 2025. -->
 
-The framework is accessible in four ways: a Python SDK, a REST API, a set of CLI scripts, and the **SMART** web application (Genieus).
+The framework is accessible in four ways: a Python SDK, a REST API, a set of CLI scripts, and the **SMART** web application (smart).
 
 ---
 
@@ -14,7 +14,7 @@ The framework is accessible in four ways: a Python SDK, a REST API, a set of CLI
 saag/          # Core SDK — domain models, services, use cases, infrastructure
 api/           # FastAPI REST layer — routers, presenters, dependency injection
 cli/           # Pipeline CLI scripts (one per stage) + shared utilities
-smart/         # Next.js web application (Genieus) — port 7000
+smart/         # Next.js web application (smart) — port 7000
 tools/         # Synthetic graph generation and benchmarking
 data/          # Topology JSONs, scenario YAMLs, simulation results
 models/        # Trained GNN checkpoints
@@ -26,11 +26,11 @@ docs/          # Methodology and research documentation
 
 ## The Pipeline
 
-Seven stages run in sequence. Each stage consumes the output of the previous one.
+The pipeline is structured as a Directed Acyclic Graph (DAG) rather than a linear chain. Step 2 (Analyze) feeds its structural metrics to both Step 3 (Predict) and Step 4 (Simulate), which run independently. Step 5 (Validate) then compares prediction outcomes against the simulation ground-truth labels.
 
 | Step | Name | CLI Script | Description |
 |------|------|-----------|-------------|
-| 0 | **Generate** | `generate_graph.py` | Produce a synthetic pub-sub topology (StatisticalGraphGenerator) |
+| Offline Prep | **Generate** | `generate_graph.py` | Produce a synthetic pub-sub topology (StatisticalGraphGenerator) |
 | 1 | **Model** | `import_graph.py` / `export_graph.py` | Load topology JSON → Neo4j; derive DEPENDS_ON edges |
 | 2 | **Analyze** | `analyze_graph.py` | Compute structural metrics → RMAV dimension scores via AHP |
 | 3 | **Predict** | `train_graph.py` / `predict_graph.py` | Train or run GNN; ensemble RMAV + GNN for criticality rankings |
@@ -41,13 +41,43 @@ Seven stages run in sequence. Each stage consumes the output of the previous one
 **Data flow:**
 
 ```
-Topology JSON
-    └─[Step 1]→ Neo4j Graph
-                  └─[Step 2]→ StructuralAnalysisResult
-                               └─[Step 3]→ QualityAnalysisResult
-                                            └─[Step 4]→ SimulationResult
-                                                          └─[Step 5]→ ValidationResult
-                                                                        └─[Step 6]→ Dashboard
+                  ┌──────────────┐
+                  │ Topology JSON│
+                  └──────┬───────┘
+                         │
+                         ▼ [Step 1: Model]
+                  ┌──────────────┐
+                  │ Neo4j Graph  │
+                  └──────┬───────┘
+                         │
+                         ▼ [Step 2: Analyze]
+             ┌─────────────────────────┐
+             │ StructuralAnalysisResult│
+             └───────────┬─────────────┘
+                         │
+        ┌────────────────┴────────────────┐
+        ▼ [Step 3: Predict]               ▼ [Step 4: Simulate]
+  ┌───────────┐                     ┌───────────┐
+  │  Quality  │                     │Simulation │
+  │  Analysis │                     │  Result   │
+  │  Result   │                     │  (Labels) │
+  └─────┬─────┘                     └─────┬─────┘
+        │                                 │
+        │      - - - (trains) - - - >     │
+        │     [Simulate ground-truth]     │
+        │                                 │
+        └────────────────┬────────────────┘
+                         │
+                         ▼ [Step 5: Validate]
+                  ┌──────────────┐
+                  │  Validation  │
+                  │    Result    │
+                  └──────┬───────┘
+                         │
+                         ▼ [Step 6: Visualize]
+                  ┌──────────────┐
+                  │  Dashboard   │
+                  └──────────────┘
 ```
 
 **Orchestration:**
@@ -267,20 +297,21 @@ FastAPI `Depends()` providers:
 ```
 cli/
 ├── run.py                  # Orchestrator — runs any combination of stages
-├── generate_graph.py       # Step 0: generate synthetic topology
-├── import_graph.py         # Step 1a: import JSON → Neo4j
-├── export_graph.py         # Step 1b: export Neo4j → JSON
-├── analyze_graph.py        # Step 2: structural analysis
-├── train_graph.py          # Step 3a: train HeteroGAT
-├── predict_graph.py        # Step 3b: RMAV + GNN prediction
-├── simulate_graph.py       # Step 4: cascade failure simulation
-├── validate_graph.py       # Step 5: validation
-├── visualize_graph.py      # Step 6: dashboard generation
-├── detect_antipatterns.py  # Standalone anti-pattern scan
-├── statistics_graph.py     # Standalone statistics
-├── benchmark.py            # Benchmarking across scales
+├── generate_graph.py       # Offline Prep: Generate — synthetic pub-sub topology
+├── import_graph.py         # Step 1a: Model (Import) — Neo4j import & dependency derivation
+├── export_graph.py         # Step 1b: Model (Export) — export Neo4j → JSON
+├── analyze_graph.py        # Step 2: Analyze — structural metrics + RMAV/Q scoring + anti-patterns
+├── train_graph.py          # Step 3a: Predict (Train) — GNN training (optional; requires Step 4 labels)
+├── predict_graph.py        # Step 3b: Predict (Inference) — GNN inference on a new graph
+├── simulate_graph.py       # Step 4: Simulate — fault-inject | message-flow | combined
+├── validate_graph.py       # Step 5: Validate — single | sweep | report | compare
+├── visualize_graph.py      # Step 6: Visualize — interactive HTML dashboard
+├── detect_antipatterns.py  # Standalone anti-pattern scan / CI gate
+├── statistics_graph.py     # Statistics dashboard (topology & communication analytics)
+├── benchmark.py            # Benchmark across scale presets
+├── loso_evaluate.py        # Leave-One-Scenario-Out GNN validation protocol
 ├── multi_seed_summary.py   # Aggregate results across seeds
-├── run_scenarios.sh        # Run all 8 domain scenarios
+├── run_scenarios.sh        # Full pipeline across 8 domain scenarios
 └── common/                 # Shared utilities
     ├── arguments.py        # Reusable argparse helpers
     ├── dispatcher.py       # Command dispatch routing
@@ -309,7 +340,7 @@ saag-generate     → cli.generate_graph:main
 
 ## Web Application (`smart/`)
 
-**Genieus** — Next.js 16 + React 19 + TypeScript frontend served on port **7000**.
+**SMART (smart)** — Next.js 16 + React 19 + TypeScript frontend served on port **7000**.
 
 ### Pages (App Router)
 

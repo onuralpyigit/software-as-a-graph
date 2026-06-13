@@ -154,7 +154,7 @@ pytest -k "test_name"  # Run by test name pattern
 - **OpenAPI schema:** served at `/docs`; static copy at `api/openapi.json`.
 
 #### 3. Web Application (`smart/`)
-- **Name:** Genieus
+- **Name:** SMART
 - **Framework:** Next.js 16 with React 19, TypeScript
 - **Styling:** Tailwind CSS 4
 - **UI components:** Radix UI primitives, shadcn/ui pattern (`components.json`)
@@ -166,8 +166,8 @@ pytest -k "test_name"  # Run by test name pattern
 #### 4. CLI (`cli/`)
 Pipeline scripts that can run independently or via the orchestrator. All run from the repo root:
 - `run.py` — End-to-end pipeline orchestrator (`--all` flag, or any combination of stage flags).
-- `generate_graph.py` — Step 0: synthetic topology generation.
-- `import_graph.py` / `export_graph.py` — Step 1: Model — import JSON into Neo4j; export back to JSON.
+- `generate_graph.py` — Offline Prep: Generate — synthetic topology generation.
+- `import_graph.py` / `export_graph.py` — Step 1: Model — import JSON into Neo4j (import); export back to JSON (export).
 - `analyze_graph.py` — Step 2: structural metrics + RMAV/Q scoring + anti-patterns.
 - `train_graph.py` / `predict_graph.py` — Step 3: GNN training and inference.
 - `simulate_graph.py` — Step 4: cascade failure simulation (`--mode exhaustive|monte_carlo|single|pairwise`).
@@ -224,12 +224,12 @@ Pipeline scripts that can run independently or via the orchestrator. All run fro
 │   └── presenters/             #   Decoupled response formatters
 ├── cli/                        # CLI pipeline scripts (run from repo root)
 │   ├── run.py                  #   Orchestrator — --all or individual stage flags
-│   ├── generate_graph.py       #   Step 0: Generate
-│   ├── import_graph.py         #   Step 1: Model (import)
-│   ├── export_graph.py         #   Step 1: Model (export)
+│   ├── generate_graph.py       #   Offline Prep: Generate
+│   ├── import_graph.py         #   Step 1a: Model (import)
+│   ├── export_graph.py         #   Step 1b: Model (export)
 │   ├── analyze_graph.py        #   Step 2: Analyze
-│   ├── train_graph.py          #   Step 3: Predict (GNN training)
-│   ├── predict_graph.py        #   Step 3: Predict (inference)
+│   ├── train_graph.py          #   Step 3a: Predict (GNN training)
+│   ├── predict_graph.py        #   Step 3b: Predict (inference)
 │   ├── simulate_graph.py       #   Step 4: Simulate
 │   ├── validate_graph.py       #   Step 5: Validate
 │   ├── visualize_graph.py      #   Step 6: Visualize
@@ -240,7 +240,7 @@ Pipeline scripts that can run independently or via the orchestrator. All run fro
 │   ├── neo4j-plugin/           #   Neo4j plugins and Makefile scripts
 │   └── static-system-analyzer/ #   Repository cloner, XML/CodeQL analyzer, and reporter
 ├── reproduce/                  # Research reproducibility scripts (Makefile, scripts)
-├── smart/                      # Next.js web application (Genieus) — port 7000
+├── smart/                      # Next.js web application (smart) — port 7000
 ├── tests/                      # Pytest test suite (uses MemoryRepository — no Neo4j needed)
 ├── data/                       # Topology JSONs and scenario YAMLs (8 domain scenarios)
 ├── models/                     # Trained GNN checkpoints
@@ -284,10 +284,11 @@ Pipeline scripts that can run independently or via the orchestrator. All run fro
 
 ```
 Generate → Model  → Analyze → Predict → Simulate → Validate → Visualize
- Step 0    Step 1   Step 2    Step 3    Step 4      Step 5      Step 6
+Offline    Step 1   Step 2    Step 3    Step 4      Step 5      Step 6
+Prep
 ```
 
-0. **Generate** — Produces a synthetic pub-sub topology JSON using `StatisticalGraphGenerator`.
+Offline Prep: Generate — Produces a synthetic pub-sub topology JSON using `StatisticalGraphGenerator`.
 1. **Model** — Converts topology JSON to a weighted directed graph in Neo4j; derives `DEPENDS_ON` edges.
 2. **Analyze** — Deterministic structural scoring (RPR, Betweenness, Bridge Ratio, etc.), RMAV dimension mapping, and anti-pattern scans.
 3. **Predict** — Inductive forecasting using HeteroGAT GNN training and inference, blending GNN predictions and rule-based RMAV scores.

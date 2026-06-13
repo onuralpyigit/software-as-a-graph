@@ -301,7 +301,7 @@ Every field in M(v) belongs to exactly one of three tiers. This taxonomy is the 
 
 **Why PR, CL, EV are Tier 2:** The *forward* variants (PageRank, Closeness, Eigenvector) measure how much a component itself is influenced by others — they are informative for dependency visualization but do not directly capture failure propagation outward. Their reverse counterparts (RPR, RCL, REV), computed on G^T, capture how failures at v spread to v's dependents — the reliability-relevant direction. Computing both gives the full picture for dashboards while the RMAV formulas use only the reverse variants.
 
-**Why pubsub_degree, pubsub_betweenness, broker_exposure are Tier 2:** These are computed on the raw bipartite app-topic graph (using PUBLISHES_TO / SUBSCRIBES_TO edges, not DEPENDS_ON edges). They enrich the Genieus visualization dashboard and serve as GNN features, but the RMAV formulas operate on the DEPENDS_ON graph where the same information is captured via DG_in, BT, and RPR respectively.
+**Why pubsub_degree, pubsub_betweenness, broker_exposure are Tier 2:** These are computed on the raw bipartite app-topic graph (using PUBLISHES_TO / SUBSCRIBES_TO edges, not DEPENDS_ON edges). They enrich the SMART visualization dashboard and serve as GNN features, but the RMAV formulas operate on the DEPENDS_ON graph where the same information is captured via DG_in, BT, and RPR respectively.
 
 ---
 

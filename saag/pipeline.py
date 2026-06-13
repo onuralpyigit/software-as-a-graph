@@ -73,8 +73,9 @@ class Pipeline:
     def predict(self, mode: str = "ensemble", gnn_checkpoint: Optional[str] = None) -> "Pipeline":
         """Stage 3: Inductive prediction — GNN criticality ranks and ensemble-blended scores.
 
-        Runs a HeteroGAT over the topology to learn patterns that the AHP-weighted
-        RMAV composite cannot encode (nonlinear interactions, multi-hop motifs).
+        Runs a Heterogeneous Graph Transformer (HGT / HGTConv) over the topology to
+        learn patterns that the AHP-weighted RMAV composite cannot encode (nonlinear
+        interactions, multi-hop motifs).
         Requires analyze() to have been configured first.
 
         Parameters
@@ -121,20 +122,36 @@ class Pipeline:
             logger.info(f"Analyzing layer '{self._layer}': structural metrics + RMAV/Q scores + anti-patterns")
             result.analysis = self.client.analyze(layer=self._layer, **self._analyze_kwargs)
 
-        # 3. Predict — inductive: GNN criticality ranks + ensemble blend
+        # 3. Simulate — counterfactual cascade engine; generates ground-truth labels
+        if self._do_simulate:
+            logger.info("Running fault simulation (cascade ground truth)...")
+            result.simulation = self.client.simulate(layer=self._layer, **self._simulate_kwargs)
+
+        # 4. Predict — inductive: GNN criticality ranks + ensemble blend
         if self._do_predict:
             if result.analysis is None:
                 raise RuntimeError(
                     "predict() requires an AnalysisResult. "
                     "Either call analyze() in this pipeline or pass a stored result via client.predict()."
                 )
+
+            # Fail-fast check for GNN checkpoint / simulation labels
+            checkpoint_dir = self._predict_kwargs.get("gnn_checkpoint") or "output/gnn_checkpoints"
+            from pathlib import Path
+            p = Path(checkpoint_dir)
+            has_ckpt = p.exists() and (p / "service_config.json").exists() and (
+                (p / "node_model.pt").exists() or (p / "best_model.pt").exists()
+            )
+            if not has_ckpt and not self._do_simulate:
+                raise RuntimeError(
+                    f"GNN Prediction requested but no trained GNN checkpoint was found at '{checkpoint_dir}' "
+                    "and no fault simulation was run to generate training labels. "
+                    "To run GNN prediction, you must either provide a valid checkpoint or run the simulate stage "
+                    "first to generate labels for training."
+                )
+
             logger.info("Running GNN prediction (inductive stage)...")
             result.prediction = self.client.predict(result.analysis, **self._predict_kwargs)
-
-        # 4. Simulate — counterfactual cascade engine; generates ground-truth labels
-        if self._do_simulate:
-            logger.info("Running fault simulation (cascade ground truth)...")
-            result.simulation = self.client.simulate(layer=self._layer, **self._simulate_kwargs)
 
         # 5. Validate — compare Predict/Analyze output against Simulate ground truth
         if self._do_validate:

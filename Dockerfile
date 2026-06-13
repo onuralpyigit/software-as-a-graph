@@ -191,7 +191,7 @@ check_port() {\n\
 }\n\
 \n\
 echo -e "\\n${CYAN}${BOLD}╔════════════════════════════════════════════════════════╗${RESET}"\n\
-echo -e "${CYAN}${BOLD}║                      🌟 Genieus 🌟                     ║${RESET}"\n\
+echo -e "${CYAN}${BOLD}║                       🌟 SMART 🌟                      ║${RESET}"\n\
 echo -e "${CYAN}${BOLD}║        Graph-Based Distributed System Analysis        ║${RESET}"\n\
 echo -e "${CYAN}${BOLD}╚════════════════════════════════════════════════════════╝${RESET}\\n"\n\
 \n\

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Statistics - Genieus",
+  title: "Statistics - SMART",
   description: "Structural and communication statistics for a pub-sub system: topic bandwidth, fanout, node load, domain coupling, critical-component ratios, and library dependency density.",
 }
 

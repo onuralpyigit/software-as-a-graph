@@ -502,9 +502,10 @@ class GNNService:
         graph,
         structural_metrics=None,
         rmav_scores=None,
-        simulation_results=None,
+        eval_labels=None,
         mode: str = "gnn",
         qos_enabled: bool = True,
+        **kwargs,
     ) -> GNNAnalysisResult:
         """Run inference on a graph without training.
 
@@ -518,11 +519,16 @@ class GNNService:
             Structural analysis results (for node features).
         rmav_scores:
             Existing RMAV predictions (for ensemble blending).
-        simulation_results:
+        eval_labels:
             Optional: if provided, validation metrics are computed.
         mode:
             Ablation mode: 'rmav', 'gnn', or 'ensemble'.
         """
+        # Backward compatibility with simulation_results parameter
+        simulation_results = kwargs.pop("simulation_results", None)
+        if eval_labels is None:
+            eval_labels = simulation_results
+
         if self._node_model is None:
             raise RuntimeError(
                 "Models not initialised. Call train() or from_checkpoint() first."
@@ -530,17 +536,17 @@ class GNNService:
 
         if structural_metrics is not None and not isinstance(structural_metrics, dict):
             structural_metrics = extract_structural_metrics_dict(structural_metrics)
-        if simulation_results is not None and isinstance(simulation_results, list):
-            simulation_results = extract_simulation_dict(simulation_results)
+        if eval_labels is not None and isinstance(eval_labels, list):
+            eval_labels = extract_simulation_dict(eval_labels)
         if rmav_scores is not None and not isinstance(rmav_scores, dict):
             rmav_scores = extract_rmav_scores_dict(rmav_scores)
 
-        conv = networkx_to_hetero_data(graph, structural_metrics, simulation_results, rmav_scores, qos_enabled=qos_enabled)
+        conv = networkx_to_hetero_data(graph, structural_metrics, eval_labels, rmav_scores, qos_enabled=qos_enabled)
         self._conversion_result = conv
         # ── Run prediction ────────────────────────────────────────────────────
         return self.predict_from_data(
             conv.hetero_data, 
-            simulation_results, 
+            eval_labels, 
             mode=mode, 
             structural_metrics=structural_metrics,
             layer=getattr(graph, "layer", "system") if hasattr(graph, "layer") else "system"
@@ -549,19 +555,25 @@ class GNNService:
     def predict_from_data(
         self, 
         data, 
-        simulation_results=None, 
+        eval_labels=None, 
         mode: str = "gnn",
         structural_metrics: Optional[Dict[str, Any]] = None,
-        layer: str = "system"
+        layer: str = "system",
+        **kwargs,
     ) -> GNNAnalysisResult:
         """Run inference directly on a HeteroData object.
         
         Parameters
         ----------
         data: HeteroData
-        simulation_results: Optional dict
+        eval_labels: Optional dict
         mode: 'rmav', 'gnn', or 'ensemble'
         """
+        # Support backward compatibility with simulation_results parameter
+        simulation_results = kwargs.pop("simulation_results", None)
+        if eval_labels is None:
+            eval_labels = simulation_results
+
         if self._node_model is None:
             raise RuntimeError("Models not initialised.")
 
@@ -583,6 +595,18 @@ class GNNService:
         edge_attr_dict = {rel: data_dev[rel].edge_attr for rel in data_dev.edge_types
                           if rel in model_edge_types and hasattr(data_dev[rel], "edge_attr")}
         
+        # ── STRICT INDEPENDENCE INVARIANT ASSERTIONS ──────────────────────────
+        # Ensure that during inference (forward pass), no evaluation/simulation labels (y)
+        # are ever passed to or consumed by the GNN models.
+        for nt, x in x_dict.items():
+            assert not hasattr(x, "y"), f"Violation of Independence Guarantee: Feature tensor for '{nt}' contains target label attribute 'y'."
+            assert x.shape[1] != 5 or nt == "Broker" or nt == "Node", (
+                f"Violation of Independence Guarantee: Input features for '{nt}' has 5 dimensions "
+                "which matches the label dimension, indicating potential leak of target labels."
+            )
+        for k in x_dict:
+            assert k != "y" and k != "y_edge", "Violation of Independence Guarantee: Target label key present in input dict."
+
         # ── Raw GNN Inference ────────────────────────────────────────────────
         with torch.no_grad():
             if self._edge_model:
@@ -602,13 +626,13 @@ class GNNService:
             preds_cpu = preds.cpu().numpy()
             for i, name in enumerate(node_names):
                 result.node_scores[name] = GNNCriticalityScore(
-                    component=name,
-                    composite_score=float(preds_cpu[i, 0]),
-                    reliability_score=float(preds_cpu[i, 1]),
-                    maintainability_score=float(preds_cpu[i, 2]),
-                    availability_score=float(preds_cpu[i, 3]),
-                    security_score=float(preds_cpu[i, 4]),
-                    source="GNN",
+                     component=name,
+                     composite_score=float(preds_cpu[i, 0]),
+                     reliability_score=float(preds_cpu[i, 1]),
+                     maintainability_score=float(preds_cpu[i, 2]),
+                     availability_score=float(preds_cpu[i, 3]),
+                     security_score=float(preds_cpu[i, 4]),
+                     source="GNN",
                 )
 
         # ── Edge scores ───────────────────────────────────────────────────────
@@ -666,7 +690,7 @@ class GNNService:
         self._populate_edge_scores(result, edge_pred_dict, conv)
 
         # ── Validation metrics (Issue G9, G10) ────────────────────────────────
-        if simulation_results:
+        if eval_labels:
             from .trainer import evaluate_scores, _collect_samples
             # Use persisted best seed (G9)
             create_node_splits(data_dev, seed=self._best_seed)

@@ -24,11 +24,11 @@ class AnalysisService:
         self._smell_detector = AntiPatternDetector()
         
         # Local imports to break circular dependencies
-        from saag.prediction.service import PredictionService
+        from saag.analysis.quality_scoring_service import QualityScoringService
         from saag.explanation.engine import ExplanationEngine
         
         pred_kwargs = {k: v for k, v in kwargs.items() if k in ["use_ahp", "normalization_method", "winsorize", "winsorize_limit", "equal_weights", "ahp_shrinkage"]}
-        self._quality_analyzer = PredictionService(**pred_kwargs)
+        self._quality_analyzer = QualityScoringService(**pred_kwargs)
         self._explanation_engine = ExplanationEngine()
         self._analysis_kwargs = kwargs
 

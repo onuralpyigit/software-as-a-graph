@@ -144,8 +144,8 @@ models/
 scratch/
 evaluation/
 
-# Genieus (Next.js frontend)
-genieus/node_modules/
-genieus/.next/
-genieus/out/
-genieus/.env*
+# SMART (smart frontend)
+smart/node_modules/
+smart/.next/
+smart/out/
+smart/.env*

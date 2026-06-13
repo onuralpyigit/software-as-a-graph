@@ -39,10 +39,10 @@
 
 ## 1. Overview
 
-Graph generation is Step 0 of the seven-step SaG methodology pipeline:
+Synthetic graph generation is an offline input preparation stage that supports the core 6-step Software-as-a-Graph (SaG) analytical pipeline:
 
 ```
-Generate (Step 0) → Model / Import (Step 1) → Analyze (Step 2) → Predict (Step 3, opt) → Simulate (Step 4) → Validate (Step 5) → Visualize (Step 6)
+Offline Input Preparation (Generate) → Model / Import (Step 1) → Analyze (Step 2) → Predict (Step 3) → Simulate (Step 4) → Validate (Step 5) → Visualize (Step 6)
 ```
 
 Its role is to produce a **synthetic publish-subscribe system topology** in JSON format that can be loaded into Neo4j and subsequently subjected to structural analysis and failure simulation. The generator is self-contained: it requires no running database, no external service, and no runtime monitoring data. A single deterministic seed produces an identical dataset on every invocation.

@@ -68,12 +68,20 @@ def test_analysis_layer_resolution(layer_input, expected_canonical, mock_client)
     """Verify that various layer aliases resolve to the correct canonical layer in Analysis Router."""
     app.dependency_overrides[get_client] = lambda: mock_client
     
-    with patch("api.routers.analysis._structural_analyze") as mock_sa:
-        mock_sa.return_value = MagicMock()
-        with patch("api.routers.analysis._predict") as mock_p:
-            mock_p.return_value = MagicMock()
-            with patch("api.routers.analysis._detect_antipatterns") as mock_da:
-                mock_da.return_value = []
+    with patch("saag.usecases.multi_layer_analysis.MultiLayerAnalysisUseCase") as MockUseCaseClass:
+        mock_usecase = MagicMock()
+        MockUseCaseClass.return_value = mock_usecase
+        
+        mock_layer_res = MagicMock()
+        mock_layer_res.prediction = MagicMock()
+        mock_layer_res.problems = []
+        
+        mock_result = MagicMock()
+        mock_result.layers = {expected_canonical: mock_layer_res}
+        mock_usecase.execute.return_value = mock_result
+        
+        with patch("api.routers.analysis.SaagAnalysisResult") as mock_sa_class:
+            with patch("api.routers.analysis.SaagPredictionResult") as mock_pr_class:
                 with patch("api.routers.analysis.analysis_presenter.build_analysis_response") as mock_presenter:
                     mock_resp = VALID_ANALYSIS_RESPONSE.copy()
                     mock_resp["layer"] = expected_canonical
@@ -83,8 +91,9 @@ def test_analysis_layer_resolution(layer_input, expected_canonical, mock_client)
                         response = client.post(f"/api/v1/analysis/layer/{layer_input}")
                         assert response.status_code == 200, f"Failed for {layer_input}: {response.text}"
                         
-                        # Verify that _structural_analyze was called with the CANONICAL name
-                        mock_sa.assert_called_with(mock_client, expected_canonical)
+                        # Verify that MultiLayerAnalysisUseCase was instantiated with the repo and executed
+                        MockUseCaseClass.assert_called_with(mock_client.repo)
+                        mock_usecase.execute.assert_called_with(layers=[expected_canonical])
                     finally:
                         app.dependency_overrides = {}
 

@@ -789,7 +789,7 @@ PYTHONPATH=. python cli/export_graph.py \
 
 One difference from the input: the persistence export adds a `"depends_on"` key inside `"relationships"` containing a snapshot of the currently derived DEPENDS_ON edges. This key is **informational only** — `import_graph.py` ignores it and always re-derives DEPENDS_ON from structural edges. The export summary reports these separately as "Derived (DEPENDS_ON)" to avoid inflating the structural edge count.
 
-**Analysis format** (`--format analysis`): outputs `{ "components": [...], "edges": [...] }`. This format is consumed by the Genieus frontend and downstream analysis scripts. It is **not re-importable** by `import_graph.py`.
+**Analysis format** (`--format analysis`): outputs `{ "components": [...], "edges": [...] }`. This format is consumed by the SMART frontend and downstream analysis scripts. It is **not re-importable** by `import_graph.py`.
 
 ### Notes and Caveats
 
@@ -800,10 +800,10 @@ See [Export–Import Roundtrip](#exportimport-roundtrip) below for a full accoun
 | Endpoint | Method | Output shape | Re-importable? |
 |----------|--------|-------------|----------------|
 | `POST /api/v1/graph/export-neo4j-data` | `repo.export_json()` | Input-file shape | **Yes** |
-| `POST /api/v1/graph/export` | `repo.get_graph_data()` | `components`/`edges` analysis shape | No — analysis view only |
+| `POST /api/v1/graph/export` | `repo.get_graph_data()` | `components`/`edges` analysis shape | No |
 | `POST /api/v1/graph/export-limited` | `repo.get_limited_graph_data()` | Truncated analysis shape | No |
 
-Use `/export-neo4j-data` (not `/export`) when a re-importable snapshot is required. The `/export` endpoint produces an analysis-layer view for the Genieus frontend — its `components`/`edges` envelope is not accepted by `import_graph.py`.
+Use `/export-neo4j-data` (not `/export`) when a re-importable snapshot is required. The `/export` endpoint produces an analysis-layer view for the SMART frontend — its `components`/`edges` envelope is not accepted by `import_graph.py`.
 
 ---
 

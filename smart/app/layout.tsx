@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Genieus",
+  title: "SMART",
   description: "Distributed system graph analysis using Neo4j GDS",
 };
 

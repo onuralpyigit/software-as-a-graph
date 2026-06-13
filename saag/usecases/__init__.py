@@ -5,6 +5,7 @@ from .predict_graph import PredictGraphUseCase
 from .simulate_graph import SimulateGraphUseCase
 from .validate_graph import ValidateGraphUseCase
 from .visualize_graph import VisualizeGraphUseCase
+from .multi_layer_analysis import MultiLayerAnalysisUseCase
 
 __all__ = [
     "ImportStats",
@@ -16,4 +17,5 @@ __all__ = [
     "SimulateGraphUseCase",
     "ValidateGraphUseCase",
     "VisualizeGraphUseCase",
+    "MultiLayerAnalysisUseCase",
 ]

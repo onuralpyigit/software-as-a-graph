@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Settings - Genieus",
+  title: "Settings - SMART",
   description: "Application settings and configuration",
 }
 

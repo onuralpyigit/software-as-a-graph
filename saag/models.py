@@ -11,11 +11,12 @@ from saag.analysis.models import LayerAnalysisResult as _LayerAnalysisResult, St
 from saag.prediction.models import QualityAnalysisResult as _QualityAnalysisResult, ComponentQuality as _ComponentQuality, DetectedProblem as _DetectedProblem
 from saag.validation.models import LayerValidationResult as _LayerValidationResult
 from saag.usecases.models import ImportStats as _ImportStats
+from saag.core.criticality import CriticalityRanking, CompatNamespace
 
 
 class ComponentFacade:
     """A developer-friendly wrapper around a component's quality metrics."""
-    def __init__(self, inner: _ComponentQuality):
+    def __init__(self, inner: CriticalityRanking):
         self._inner = inner
 
     @property
@@ -26,7 +27,7 @@ class ComponentFacade:
     @property
     def rmav_score(self) -> float:
         """The overall RMAV criticality score."""
-        return self._inner.scores.overall
+        return self._inner.overall
         
     @property
     def type(self) -> str:
@@ -36,49 +37,52 @@ class ComponentFacade:
     @property
     def is_critical(self) -> bool:
         """Is this component deemed critical?"""
-        return self._inner.is_critical
+        return self._inner.level.lower() == "critical"
 
     @property
     def name(self) -> str:
         """The logical name of the component."""
-        return getattr(self._inner.structural, 'name', self.id) if hasattr(self._inner, 'structural') and self._inner.structural else self.id
+        return self._inner.name or self._inner.id
 
     @property
     def blast_radius(self) -> int:
         """How many nodes become unreachable if this node is removed."""
-        return getattr(self._inner.structural, 'blast_radius', 0) if hasattr(self._inner, 'structural') and self._inner.structural else 0
+        return self._inner.blast_radius
 
     @property
     def cascade_depth(self) -> int:
         """Length of the longest reachable propagation path from this node."""
-        return getattr(self._inner.structural, 'cascade_depth', 0) if hasattr(self._inner, 'structural') and self._inner.structural else 0
+        return self._inner.cascade_depth
 
     @property
     def criticality_level(self) -> str:
         """The overall risk classification level as a string."""
-        return self._inner.levels.overall.value if hasattr(self._inner.levels.overall, 'value') else str(self._inner.levels.overall)
+        return self._inner.level
 
     @property
     def criticality_levels(self) -> dict:
         """The breakdown of criticality levels by dimension."""
-        return {
-            "reliability": self._inner.levels.reliability.value if hasattr(self._inner.levels.reliability, 'value') else "unknown",
-            "maintainability": self._inner.levels.maintainability.value if hasattr(self._inner.levels.maintainability, 'value') else "unknown",
-            "availability": self._inner.levels.availability.value if hasattr(self._inner.levels.availability, 'value') else "unknown",
-            "security": self._inner.levels.security.value if hasattr(self._inner.levels.security, 'value') else "unknown",
-            "overall": self.criticality_level,
-        }
+        return dict(self._inner.levels)
 
     @property
     def scores(self) -> dict:
         """The breakdown of quality predicted scores."""
-        return {
-            "reliability": self._inner.scores.reliability,
-            "maintainability": self._inner.scores.maintainability,
-            "availability": self._inner.scores.availability,
-            "security": self._inner.scores.security,
-            "overall": self._inner.scores.overall,
-        }
+        return dict(self._inner.scores)
+
+    @property
+    def levels(self) -> dict:
+        """Alias for criticality_levels to support backward compatibility."""
+        return self.criticality_levels
+
+    @property
+    def structural(self) -> CompatNamespace:
+        """Structural metrics mock/facade for backward compatibility."""
+        return CompatNamespace(
+            name=self.name,
+            is_articulation_point=self._inner.is_articulation_point,
+            blast_radius=self.blast_radius,
+            cascade_depth=self.cascade_depth
+        )
 
     def to_dict(self) -> dict:
         return {
@@ -113,12 +117,46 @@ class AnalysisResult:
     @property
     def critical_components(self) -> List["ComponentFacade"]:
         """Components classified as CRITICAL by the RMAV/Q scoring."""
-        return [ComponentFacade(c) for c in self._inner.quality.get_critical_components()]
+        return [c for c in self.all_components if c.criticality_level.lower() == "critical"]
 
     @property
     def all_components(self) -> List["ComponentFacade"]:
         """All assessed components with their RMAV scores and criticality levels."""
-        return [ComponentFacade(c) for c in self._inner.quality.components]
+        from saag.core.criticality import CriticalityRanking
+        rankings = []
+        for cq in self._inner.quality.components:
+            scores = {
+                "reliability": cq.scores.reliability,
+                "maintainability": cq.scores.maintainability,
+                "availability": cq.scores.availability,
+                "security": cq.scores.security,
+                "overall": cq.scores.overall,
+            }
+            levels = {
+                "reliability": cq.levels.reliability.name if hasattr(cq.levels.reliability, "name") else str(cq.levels.reliability).upper(),
+                "maintainability": cq.levels.maintainability.name if hasattr(cq.levels.maintainability, "name") else str(cq.levels.maintainability).upper(),
+                "availability": cq.levels.availability.name if hasattr(cq.levels.availability, "name") else str(cq.levels.availability).upper(),
+                "security": cq.levels.security.name if hasattr(cq.levels.security, "name") else str(cq.levels.security).upper(),
+                "overall": cq.levels.overall.name if hasattr(cq.levels.overall, "name") else str(cq.levels.overall).upper(),
+            }
+            name = getattr(cq.structural, "name", cq.id) if cq.structural else cq.id
+            blast_radius = getattr(cq.structural, "blast_radius", 0) if cq.structural else 0
+            cascade_depth = getattr(cq.structural, "cascade_depth", 0) if cq.structural else 0
+            is_articulation_point = getattr(cq.structural, "is_articulation_point", False) if cq.structural else False
+            rankings.append(CriticalityRanking(
+                id=cq.id,
+                type=cq.type,
+                scores=scores,
+                levels=levels,
+                overall=cq.scores.overall,
+                level=levels["overall"],
+                provenance="rmav",
+                name=name,
+                blast_radius=blast_radius,
+                cascade_depth=cascade_depth,
+                is_articulation_point=is_articulation_point
+            ))
+        return [ComponentFacade(r) for r in rankings]
 
     @property
     def problems(self) -> List[_DetectedProblem]:
@@ -136,6 +174,9 @@ class AnalysisResult:
             json.dump(data, f, indent=2, default=str)
 
 
+from types import SimpleNamespace
+
+
 class PredictionResult:
     """Result of the inductive Predict stage: GNN-derived criticality ranks, attention weights, and ensemble-blended scores.
 
@@ -144,27 +185,171 @@ class PredictionResult:
     RMAV/Q scores (deterministic) are available on AnalysisResult, not here.
     """
     def __init__(self, inner: Any):
-        self._inner = inner
+        if isinstance(inner, dict):
+            # Parse from dictionary
+            self._inner = SimpleNamespace(
+                prediction_mode=inner.get("prediction_mode", "gnn_only"),
+                node_scores={
+                    k: SimpleNamespace(
+                        component=v.get("component", k),
+                        composite_score=v.get("composite_score", 0.0),
+                        reliability_score=v.get("reliability_score", 0.0),
+                        maintainability_score=v.get("maintainability_score", 0.0),
+                        availability_score=v.get("availability_score", 0.0),
+                        security_score=v.get("security_score", 0.0),
+                        criticality_level=v.get("criticality_level", "MINIMAL"),
+                    )
+                    for k, v in inner.get("node_scores", {}).items()
+                },
+                ensemble_scores={
+                    k: SimpleNamespace(
+                        component=v.get("component", k),
+                        composite_score=v.get("composite_score", 0.0),
+                        reliability_score=v.get("reliability_score", 0.0),
+                        maintainability_score=v.get("maintainability_score", 0.0),
+                        availability_score=v.get("availability_score", 0.0),
+                        security_score=v.get("security_score", 0.0),
+                        criticality_level=v.get("criticality_level", "MINIMAL"),
+                    )
+                    for k, v in inner.get("ensemble_scores", {}).items()
+                },
+                edges=[
+                    SimpleNamespace(
+                        source=e.get("source"),
+                        target=e.get("target"),
+                        dependency_type=e.get("edge_type", "DEPENDS_ON"),
+                        level=SimpleNamespace(value=e.get("criticality_level", "minimal")),
+                        scores=SimpleNamespace(
+                            reliability=e.get("reliability_score", 0.0),
+                            maintainability=e.get("maintainability_score", 0.0),
+                            availability=e.get("availability_score", 0.0),
+                            security=e.get("security_score", 0.0),
+                            overall=e.get("composite_score", 0.0),
+                        )
+                    )
+                    for e in inner.get("edge_scores", [])
+                ],
+                _structural_cache=inner.get("_structural_cache", {})
+            )
+        else:
+            self._inner = inner
 
     @property
     def critical_components(self) -> List[ComponentFacade]:
-        """Components identified as CRITICAL by the GNN/ensemble model."""
-        source_dict = getattr(self._inner, "ensemble_scores", getattr(self._inner, "node_scores", {}))
-        return [
-            ComponentFacade(score)
-            for score in source_dict.values()
-            if getattr(score, "criticality_level", "") == "CRITICAL"
-        ]
+        """Components identified as CRITICAL by the prediction model."""
+        return [c for c in self.all_components if c.criticality_level.lower() == "critical"]
 
     @property
     def all_components(self) -> List[ComponentFacade]:
-        """All components ranked by GNN/ensemble criticality."""
-        source_dict = getattr(self._inner, "ensemble_scores", getattr(self._inner, "node_scores", {}))
-        return [ComponentFacade(score) for score in source_dict.values()]
+        """All components ranked by criticality."""
+        from saag.core.criticality import CriticalityRanking
+        
+        # Helper to map scores to level strings
+        def _score_to_level_str(val: float) -> str:
+            if val >= 0.75: return "critical"
+            if val >= 0.55: return "high"
+            if val >= 0.35: return "medium"
+            return "low" if val >= 0.15 else "minimal"
+
+        if hasattr(self._inner, "prediction_mode") or hasattr(self._inner, "node_scores"):
+            # GNN path (GNNAnalysisResult or SimpleNamespace)
+            source_dict = getattr(self._inner, "ensemble_scores", getattr(self._inner, "node_scores", {}))
+            if not source_dict:
+                source_dict = getattr(self._inner, "node_scores", {})
+            provenance = getattr(self._inner, "prediction_mode", "gnn_only")
+            if provenance == "gnn_only":
+                provenance = "gnn"
+            elif provenance == "rmav_only":
+                provenance = "rmav"
+                
+            struct_cache = getattr(self._inner, "_structural_cache", {})
+            rankings = []
+            for score in source_dict.values():
+                scores = {
+                    "reliability": score.reliability_score,
+                    "maintainability": score.maintainability_score,
+                    "availability": score.availability_score,
+                    "security": score.security_score,
+                    "overall": score.composite_score,
+                }
+                levels = {
+                    "reliability": _score_to_level_str(score.reliability_score).upper(),
+                    "maintainability": _score_to_level_str(score.maintainability_score).upper(),
+                    "availability": _score_to_level_str(score.availability_score).upper(),
+                    "security": _score_to_level_str(score.security_score).upper(),
+                    "overall": score.criticality_level.upper(),
+                }
+                s_dict = struct_cache.get(score.component, {}) if struct_cache else {}
+                rankings.append(CriticalityRanking(
+                    id=score.component,
+                    type=s_dict.get("type", "Application"),
+                    scores=scores,
+                    levels=levels,
+                    overall=score.composite_score,
+                    level=levels["overall"],
+                    provenance=provenance,
+                    name=s_dict.get("name", score.component),
+                    blast_radius=s_dict.get("blast_radius", 0),
+                    cascade_depth=s_dict.get("cascade_depth", 0),
+                    is_articulation_point=s_dict.get("is_articulation_point", False),
+                ))
+            # Sort by overall score descending
+            rankings.sort(key=lambda x: x.overall, reverse=True)
+            return [ComponentFacade(r) for r in rankings]
+        else:
+            # RMAV path (QualityAnalysisResult)
+            rankings = []
+            for cq in getattr(self._inner, "components", []):
+                scores = {
+                    "reliability": cq.scores.reliability,
+                    "maintainability": cq.scores.maintainability,
+                    "availability": cq.scores.availability,
+                    "security": cq.scores.security,
+                    "overall": cq.scores.overall,
+                }
+                levels = {
+                    "reliability": cq.levels.reliability.name if hasattr(cq.levels.reliability, "name") else str(cq.levels.reliability).upper(),
+                    "maintainability": cq.levels.maintainability.name if hasattr(cq.levels.maintainability, "name") else str(cq.levels.maintainability).upper(),
+                    "availability": cq.levels.availability.name if hasattr(cq.levels.availability, "name") else str(cq.levels.availability).upper(),
+                    "security": cq.levels.security.name if hasattr(cq.levels.security, "name") else str(cq.levels.security).upper(),
+                    "overall": cq.levels.overall.name if hasattr(cq.levels.overall, "name") else str(cq.levels.overall).upper(),
+                }
+                name = getattr(cq.structural, "name", cq.id) if cq.structural else cq.id
+                blast_radius = getattr(cq.structural, "blast_radius", 0) if cq.structural else 0
+                cascade_depth = getattr(cq.structural, "cascade_depth", 0) if cq.structural else 0
+                is_articulation_point = getattr(cq.structural, "is_articulation_point", False) if cq.structural else False
+                rankings.append(CriticalityRanking(
+                    id=cq.id,
+                    type=cq.type,
+                    scores=scores,
+                    levels=levels,
+                    overall=cq.scores.overall,
+                    level=levels["overall"],
+                    provenance="rmav",
+                    name=name,
+                    blast_radius=blast_radius,
+                    cascade_depth=cascade_depth,
+                    is_articulation_point=is_articulation_point
+                ))
+            # Sort by overall score descending
+            rankings.sort(key=lambda x: x.overall, reverse=True)
+            return [ComponentFacade(r) for r in rankings]
+
+    @property
+    def components(self) -> List[ComponentFacade]:
+        """Alias for all_components to support backward compatibility."""
+        return self.all_components
+
+    @property
+    def edges(self) -> List[Any]:
+        """All prediction edges."""
+        if hasattr(self._inner, "edges"):
+            return list(self._inner.edges)
+        return []
 
     @property
     def raw(self) -> Any:
-        """Access the underlying GNNAnalysisResult."""
+        """Access the underlying result."""
         return self._inner
 
     def save(self, filepath: str) -> None:
@@ -173,8 +358,12 @@ class PredictionResult:
         from pathlib import Path
         out = Path(filepath)
         out.parent.mkdir(parents=True, exist_ok=True)
+        if hasattr(self._inner, "to_dict"):
+            data = self._inner.to_dict()
+        else:
+            data = getattr(self._inner, "__dict__", self._inner)
         with out.open("w") as f:
-            json.dump(self._inner.to_dict(), f, indent=2, default=str)
+            json.dump(data, f, indent=2, default=str)
 
 
 class ValidationResult:
