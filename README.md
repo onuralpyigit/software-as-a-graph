@@ -124,13 +124,13 @@ Where:
 - $\text{DG-in}(v)$ is the normalized in-degree (immediate blast radius).
 - $\text{CDPot-enh}(v)$ is the Enhanced Cascade Depth Potential:
 
-  $$
-  \text{CDPot-enh}(v) = \min\left(\text{CDPot-base}(v) \times (1 + \text{MPCI}(v)), 1.0\right)
-  $$
+$$
+\text{CDPot-enh}(v) = \min\left(\text{CDPot-base}(v) \times (1 + \text{MPCI}(v)), 1.0\right)
+$$
 
-  $$
-  \text{CDPot-base}(v) = \frac{\text{RPR}(v) + \text{DG-in}(v)}{2} \times \left(1 - \min\left(\frac{\text{DG-out-raw}(v)}{\max(\text{DG-in-raw}(v), \epsilon)}, 1\right)\right)
-  $$
+$$
+\text{CDPot-base}(v) = \frac{\text{RPR}(v) + \text{DG-in}(v)}{2} \times \left(1 - \min\left(\frac{\text{DG-out-raw}(v)}{\max(\text{DG-in-raw}(v), \epsilon)}, 1\right)\right)
+$$
 
   with $\text{MPCI}(v)$ as the Multi-Path Coupling Index, and $\text{DG-out-raw}(v)$ / $\text{DG-in-raw}(v)$ as the raw integer degree metrics.
 
@@ -159,23 +159,23 @@ Where:
 - $w\text{-out}(v)$ is the QoS-weighted out-degree (efferent coupling).
 - $\text{CQP}(v)$ is the Code Quality Penalty (only for Application and Library nodes; 0 otherwise):
 
-  $$
-  \text{CQP}(v) = 0.10 \times \text{loc-norm}(v) + 0.35 \times \text{complexity-norm}(v) + 0.30 \times \text{instability-code}(v) + 0.25 \times \text{lcom-norm}(v)
-  $$
+$$
+\text{CQP}(v) = 0.10 \times \text{loc-norm}(v) + 0.35 \times \text{complexity-norm}(v) + 0.30 \times \text{instability-code}(v) + 0.25 \times \text{lcom-norm}(v)
+$$
 
 - $\text{CouplingRisk-enh}(v)$ is the Enhanced Coupling Risk:
 
-  $$
-  \text{CouplingRisk-enh}(v) = \min\left(1.0, \text{CouplingRisk-base}(v) \times (1 + \Delta \times \text{path-complexity}(v))\right)
-  $$
+$$
+\text{CouplingRisk-enh}(v) = \min\left(1.0, \text{CouplingRisk-base}(v) \times (1 + \Delta \times \text{path-complexity}(v))\right)
+$$
 
-  $$
-  \text{CouplingRisk-base}(v) = 1 - |2 \times \text{Instability-topo}(v) - 1|
-  $$
+$$
+\text{CouplingRisk-base}(v) = 1 - |2 \times \text{Instability-topo}(v) - 1|
+$$
 
-  $$
-  \text{Instability-topo}(v) = \frac{\text{DG-out-raw}(v)}{\text{DG-in-raw}(v) + \text{DG-out-raw}(v) + \epsilon}
-  $$
+$$
+\text{Instability-topo}(v) = \frac{\text{DG-out-raw}(v)}{\text{DG-in-raw}(v) + \text{DG-out-raw}(v) + \epsilon}
+$$
 
   with the coupling path delta $\Delta = 0.10$.
 - $\text{CC}(v)$ is the clustering coefficient (measuring local redundancy).
