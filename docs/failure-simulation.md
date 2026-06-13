@@ -1,6 +1,9 @@
 # Failure Simulation
 
-This document describes the two simulation modes available in `simulate_graph.py` and the Python modules that back them: `saag/simulation/fault_injector.py` and `saag/simulation/message_flow_simulator.py`.
+This document describes the two simulation **CLI modes** available in `simulate_graph.py` and the Python modules that back them: `saag/simulation/fault_injector.py` and `saag/simulation/message_flow_simulator.py`.
+
+> [!NOTE]
+> **Scope of this document.** `simulate_graph.py` exposes a two-subcommand CLI surface (`fault-inject` and `message-flow`) aimed at pre-deployment ground-truth collection and message-timing analysis. The full `saag/simulation/` package additionally contains `ChangePropagationSimulator` (produces IM(v)) and `CompromisePropagationSimulator` (produces IV(v)), which are invoked by `saag.simulation.SimulationService` in EXHAUSTIVE / MONTE_CARLO / PAIRWISE modes. The README Step 4 row and SRS REQ-FS-03 refer to these **four simulation engines** in aggregate; this document covers only the two that are exposed through `simulate_graph.py`. See `ARCHITECTURE.md §simulation/` for the full engine inventory.
 
 ---
 

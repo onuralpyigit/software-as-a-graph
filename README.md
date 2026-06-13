@@ -112,13 +112,13 @@ The first step converts a system architecture JSON into a formal weighted direct
 
 Step 2 is **deterministic and interpretable**: given the same graph, it always produces the same output. It has two sub-phases that run together as a single stage.
 
-**Sub-phase 2a — Structural metrics.** Computes a structural metric vector **M(v)** for every component in the layer-projected DEPENDS_ON graph. Thirteen metrics are computed across four theoretical families:
+**Sub-phase 2a — Structural metrics.** Computes a structural metric vector **M(v)** for every component in the layer-projected DEPENDS_ON graph. Fourteen Tier-1 metrics are computed across four theoretical families:
 
 | Metric | Symbol | Theoretical family | RMAV role |
 |--------|--------|--------------------|-----------|
-| PageRank | PR | Random walk | R(v) — overall reachability |
+| Reverse PageRank | RPR | Random walk | R(v) — cascade-reach reachability |
 | In-Degree normalized | DG_in | Local degree | R(v) — immediate blast radius |
-| Multi-Path Coupling Index | MPCI | Structural coupling | R(v) — PageRank amplifier |
+| Multi-Path Coupling Index | MPCI | Structural coupling | R(v) — multi-channel amplifier |
 | Fan-Out Criticality | FOC | Topic-specific | R(v) — Topic broadcast risk |
 | Betweenness Centrality | BT | Path-based | M(v) — structural bottleneck |
 | QoS-Weighted Out-Degree | w_out | QoS-weighted degree | M(v) — efferent coupling |
@@ -129,10 +129,11 @@ Step 2 is **deterministic and interpretable**: given the same graph, it always p
 | Reverse Eigenvector Centrality | REV | Random walk | V(v) — downstream value of dependents |
 | Reverse Closeness Centrality | RCL | Path-based | V(v) — adversarial propagation speed |
 | QoS-Weighted In-Degree | w_in | QoS-weighted degree | V(v) — attack-surface weight |
+| Path Complexity | PC | Structural coupling | CouplingRisk enhancement |
 
 **Sub-phase 2b — RMAV scoring.** Maps M(v) to four quality dimensions using AHP-derived weights. This is the rule-based model: a closed-form function of topology and metadata with no learned parameters. Anti-pattern detection (SPOF, FAILURE_HUB, GOD_COMPONENT, etc.) also runs here, on the RMAV scores.
 
-**Why thirteen metrics?** No single metric captures all structural risk dimensions. A component can be a wide cascade propagator (high PR, low AP_c) but not a SPOF — or be the sole connector between two clusters (high AP_c) without having many direct dependents (low DG_in). The thirteen metrics are deliberately designed to be **orthogonal**: each feeds exactly one RMAV dimension, with no metric shared across dimensions.
+**Why fourteen metrics?** No single metric captures all structural risk dimensions. A component can be a wide cascade propagator (high RPR, low AP_c) but not a SPOF — or be the sole connector between two clusters (high AP_c) without many direct dependents (low DG_in). The fourteen Tier-1 RMAV-input metrics are drawn from four theoretical families (random walk, local topology, resilience, QoS-weighted degree) and are **orthogonal**: each feeds exactly one RMAV dimension. An additional six Tier-2 diagnostic metrics (PR, CL, EV, pubsub_degree, pubsub_betweenness, broker_exposure) are stored in M(v) for dashboards and GNN features but do not enter RMAV formulas. M(v) therefore has up to 20 stored fields in total.
 
 **MPCI** is a novel metric introduced in this work. It uses the `path_count` attribute on DEPENDS_ON edges (the number of distinct shared topics mediating a dependency) to quantify *multi-channel coupling intensity*. When the same dependent pair shares three topics, each is an independent failure vector — the cascade depth is amplified accordingly.
 
@@ -140,7 +141,7 @@ Step 2 is **deterministic and interpretable**: given the same graph, it always p
 
 ### Prediction (Step 3)
 
-Step 3 is **inductive**: a Heterogeneous Graph Transformer (HGT) model trained on simulation ground truth learns patterns that the AHP-weighted composite cannot encode — nonlinear interactions, multi-hop motifs, cross-type embedding effects. It consumes the `StructuralAnalysisResult` produced by Step 2 (no repository access) and emits GNN-derived criticality ranks blended with RMAV via a learnable ensemble coefficient α.
+Step 3 is **inductive**: a 3-layer **EdgeAwareHGTConv** (Heterogeneous Graph Transformer with native edge-feature injection) model trained on simulation ground truth learns patterns that the AHP-weighted composite cannot encode — nonlinear interactions, multi-hop motifs, cross-type embedding effects. It consumes the `StructuralAnalysisResult` produced by Step 2 (no repository access) and emits GNN-derived criticality ranks blended with RMAV via a learnable ensemble coefficient α.
 
 This stage is **optional**. The Analyze stage alone (Step 2) achieves Spearman ρ > 0.87 and F1 > 0.90. Step 3 refines those predictions after simulation-derived labels become available.
 
@@ -537,8 +538,8 @@ npm run dev
 |------|-------------|------------|------|
 | **Offline Prep: Generate** | Produces a synthetic pub-sub topology for experiments, benchmarks, or CI regression tests | Topology JSON (`data/system.json`) | — |
 | **1. Model** | Converts topology JSON to a weighted directed graph G(V, E, w) in Neo4j; derives DEPENDS_ON edges via six rules; computes QoS-derived weights | G_structural and G_analysis(l) | [graph-model.md](docs/graph-model.md) |
-| **2. Analyze** | Deterministic, closed-form. Computes 13 structural metrics M(v); maps them to RMAV dimension scores and Q*(v) via AHP-weighted formulas; detects anti-patterns. Given the same graph, always produces the same output. | M(v) metric vector, RMAV/Q*(v) scores, five-level classification, anti-pattern report | [structural-analysis.md](docs/structural-analysis.md) · [prediction.md](docs/prediction.md) |
-| **3. Predict** | Inductive, optional. An HGT model trained on simulation labels I(v) learns interactions the AHP composite cannot encode. Consumes Analyze output only — no repository access. | GNN criticality ranks, edge criticality, ensemble-blended Q_ens(v) | [prediction.md](docs/prediction.md) |
+| **2. Analyze** | Deterministic, closed-form. Computes 14 Tier-1 structural metrics M(v); maps them to RMAV dimension scores and Q*(v) via AHP-weighted formulas; detects anti-patterns. Given the same graph, always produces the same output. | M(v) metric vector (14 Tier-1 + 6 Tier-2 = 20 stored fields), RMAV/Q*(v) scores, five-level classification, anti-pattern report | [structural-analysis.md](docs/structural-analysis.md) · [prediction.md](docs/prediction.md) |
+| **3. Predict** | Inductive, optional. A 3-layer **EdgeAwareHGTConv** (HGT) model trained on simulation labels I(v) learns interactions the AHP composite cannot encode. Consumes Analyze output only — no repository access. | GNN criticality ranks, edge criticality, ensemble-blended Q_ens(v) | [prediction.md](docs/prediction.md) |
 | **4. Simulate** | Runs four parallel simulators (cascade, change-propagation, connectivity-loss, compromise-propagation). Provides training labels for Step 3 and ground truth for Step 5. | Per-dimension ground-truth IR(v), IM(v), IA(v), IV(v) and composite I*(v) | [failure-simulation.md](docs/failure-simulation.md) |
 | **5. Validate** | Computes Spearman ρ and Kendall τ between Q*(v) (from Analyze) or Q_ens(v) (from Predict) and I*(v); evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
 | **6. Visualize** | Renders interactive dashboards with network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | `dashboard.html` (fully self-contained) | [visualization.md](docs/visualization.md) |
@@ -657,7 +658,7 @@ Availability is dominant (0.43) because SPOF failure in a dependency graph is th
 Q_ensemble(v) = α · Q_GNN(v) + (1−α) · Q_RMAV(v)
 ```
 
-α is a 5-dimensional per-RMAV-dimension learnable blending coefficient (α = sigmoid(logit), initialised at 0.5). The HGT model uses 3 layers, 4 attention heads, hidden dimension D = 64.
+α is a 5-dimensional per-RMAV-dimension learnable blending coefficient (α = sigmoid(logit), initialised at 0.5). The **EdgeAwareHGTConv (HGT)** backbone uses 3 message-passing layers, 4 attention heads, hidden dimension D = 64, with edge features projected directly into relation-specific K/V spaces.
 
 ```bash
 # Train or retrain the GNN on the current dataset (requires Step 4 simulation results)

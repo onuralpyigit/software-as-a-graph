@@ -173,7 +173,7 @@ Hosts the **implementation** of RMAV scoring and the optional Step 3 GNN layer. 
 - `QualityAnalyzer` — Applies closed-form RMAV formulas with AHP-derived weights (shrinkage λ=0.70). Produces R(v), M(v), A(v), V(v) and overall Q*(v) per component. Called by both `AnalysisService` (Step 2) and `PredictionService` (Step 3 regularisation baseline).
 - `QualityScoringService` — Thin service wrapper around `QualityAnalyzer`; adds sensitivity analysis support. Called directly by `AnalysisService`.
 - `PredictionService` — Step 3 orchestrator. Extends `QualityScoringService`; adds optional GNN inference and ensemble blending. Falls back to RMAV scores when no checkpoint is available.
-- `GNNService` — Loads a pre-trained HeteroGAT checkpoint; runs inductive inference; returns per-component criticality ranks and attention weights.
+- `GNNService` — Loads a pre-trained **EdgeAwareHGTConv (HGT)** checkpoint; runs inductive inference; returns per-component criticality ranks and attention weights. (The checkpoint contains a `NodeCriticalityGNN` — three stacked `EdgeAwareHGTConv` layers with native edge-feature injection into K/V spaces — plus four RMAV output heads and one composite head.)
 - `BoxPlotClassifier` — Assigns `CriticalityLevel` using box-plot thresholds (Q3 + k·IQR).
 - `ProblemDetector` — Converts quality scores into `DetectedProblem` entries for reporting.
 - `WeightCalculator` — AHP weight derivation with shrinkage toward the uniform prior.

@@ -291,7 +291,7 @@ Prep
 Offline Prep: Generate — Produces a synthetic pub-sub topology JSON using `StatisticalGraphGenerator`.
 1. **Model** — Converts topology JSON to a weighted directed graph in Neo4j; derives `DEPENDS_ON` edges.
 2. **Analyze** — Deterministic structural scoring (RPR, Betweenness, Bridge Ratio, etc.), RMAV dimension mapping, and anti-pattern scans.
-3. **Predict** — Inductive forecasting using HeteroGAT GNN training and inference, blending GNN predictions and rule-based RMAV scores.
+3. **Predict** — Inductive forecasting using a 3-layer **EdgeAwareHGTConv (HGT)** GNN: training and inference, blending GNN predictions and rule-based RMAV scores.
 4. **Simulate** — Counterfactual cascade simulation engine injecting faults to calculate ground truth impact metrics.
 5. **Validate** — Evaluates quality scores against simulation-derived ground truths using Spearman correlation, F1, and NDCG@K.
 6. **Visualize** — Generates dashboards (web dashboard and static HTML).
@@ -376,7 +376,7 @@ Integrates GNN predictions via an ensemble approach:
 ```
 Q_ensemble(v) = α · Q_GNN + (1 - α) · Q_RMAV
 ```
-- **Q_GNN**: Criticality learned via GAT message passing across types.
+- **Q_GNN**: Criticality learned via **EdgeAwareHGTConv (HGT)** message passing across heterogeneous node and edge types.
 - **α**: Blending coefficient (learned per dimension during training, typically 0.6-0.8).
 
 #### Classification (Box-Plot)
