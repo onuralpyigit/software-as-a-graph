@@ -14,7 +14,7 @@
 
 1. [The Problem](#the-problem)
 2. [Core Methodology & Pipeline](#core-methodology--pipeline)
-3. [RMAV Quality Model & Formulas Reference](#rmav-quality-model--formulas-reference)
+3. [RMAV Quality Model](#rmav-quality-model)
 4. [Empirical Results](#empirical-results)
 5. [Supported Platforms](#supported-platforms)
 6. [Web Interface — SMART](#web-interface--smart)
@@ -98,9 +98,9 @@ The offline synthetic generator supports six scale presets for rapid experimenta
 
 ---
 
-## RMAV Quality Model & Formulas Reference
+## RMAV Quality Model
 
-The RMAV quality model decomposes criticality into four orthogonal, actionable dimensions. It operates on the derived dependency graph $G_{\text{analysis}}(l)$ where edges point from *dependent* to *dependency* (e.g., subscriber $\rightarrow$ publisher, application $\rightarrow$ broker).
+The RMAV quality model decomposes criticality into four orthogonal, actionable dimensions. It operates on the derived dependency graph where edges point from *dependent* to *dependency* (e.g., subscriber $\rightarrow$ publisher, application $\rightarrow$ broker).
 
 | Dimension | Question Answered | High Score Means | Primary Stakeholder |
 |:---|:---|:---|:---|
@@ -109,73 +109,77 @@ The RMAV quality model decomposes criticality into four orthogonal, actionable d
 | **A — Availability** | Is this a structural single point of failure? | Removing it partitions the dependency graph | DevOps / SRE |
 | **V — Vulnerability** | How attractive a target is this for attack? | Central, reachable, high-value downstream | Security Engineer |
 
-Quality scores are computed per component $v$. Individual input metrics are normalized to $[0, 1]$ using rank-based robust normalization. AHP-derived weights are blended with a uniform prior using a shrinkage factor $\lambda = 0.70$.
+### Reliability
 
-### Reliability — $R(v)$
+Reliability measures how broadly and deeply a component's failure propagates. Standard components (Applications, Brokers, Nodes, Libraries) are evaluated based on Reverse PageRank, normalized in-degree, and Enhanced Cascade Depth Potential. Topic components are evaluated using Fan-Out Criticality (FOC) and topic-specific cascade potential.
 
-Reliability measures how broadly and deeply a component's failure propagates. Because Topic nodes have no in-degree in the dependency graph, a topic-specific formula is applied:
-
-- **Standard Formula** (Application, Broker, Node, Library):
-  $$R(v) = 0.45 \times \text{RPR}(v) + 0.30 \times \text{DG}_{\text{in}}(v) + 0.25 \times \text{CDPot}_{\text{enh}}(v)$$
-  Where:
-  - $\text{RPR}(v)$ — Reverse PageRank computed on $G^T$ (captures global cascade reach in the failure propagation direction).
-  - $\text{DG}_{\text{in}}(v)$ — Normalized in-degree (captures immediate blast radius / direct dependents).
-  - $\text{CDPot}_{\text{enh}}(v)$ — Enhanced Cascade Depth Potential, tracking depth $\times$ breadth of the cascade:
-    $$\text{CDPot}_{\text{base}}(v) = \frac{\text{RPR}(v) + \text{DG}_{\text{in}}(v)}{2} \times \left(1 - \min\left(\frac{\text{DG}_{\text{out,raw}}(v)}{\max(\text{DG}_{\text{in,raw}}(v), 10^{-9})}, 1.0\right)\right)$$
-    $$\text{CDPot}_{\text{enh}}(v) = \min\left(\text{CDPot}_{\text{base}}(v) \times (1 + \text{MPCI}(v)), 1.0\right)$$
-  - $\text{MPCI}(v)$ — Multi-Path Coupling Index, summing extra shared message channels establishing dependencies:
-    $$\text{MPCI}(v) = \frac{1}{|V|-1} \sum_{e \in \text{InEdges}(v)} \max(\text{path-count}(e) - 1, 0)$$
-
-- **Topic Formula** (Topic nodes only):
-  $$R_{\text{topic}}(v) = 0.50 \times \text{FOC}(v) + 0.50 \times \text{CDPot}_{\text{topic}}(v)$$
-  Where:
-  - $\text{FOC}(v)$ — Fan-Out Criticality (log-scaled message frequency modulated by subscriber count).
-  - $\text{CDPot}_{\text{topic}}(v)$ — Topic-specific cascade potential, penalizing topics with many subscribers but low publisher redundancy:
-    $$\text{CDPot}_{\text{topic}}(v) = \text{FOC}(v) \times (1 - \min(\text{publisher}_{\text{count,norm}}(v), 1.0))$$
-
-### Maintainability — $M(v)$
-
-Maintainability measures how structurally embedded a component is in the topology, capturing static code fragility and deployment-coupling risk:
-$$M(v) = 0.35 \times \text{BT}(v) + 0.30 \times \text{w}_{\text{out}}(v) + 0.15 \times \text{CQP}(v) + 0.12 \times \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \times (1 - \text{CC}(v))$$
-
+**Standard Formula (Applications, Brokers, Nodes, Libraries):**
+$$R(v) = 0.45 \times \text{RPR}(v) + 0.30 \times \text{DG}_{\text{in}}(v) + 0.25 \times \text{CDPot}_{\text{enh}}(v)$$
 Where:
-- $\text{BT}(v)$ — Betweenness centrality computed using inverted weights ($1/w$) as path distances.
-- $\text{w}_{\text{out}}(v)$ — QoS-weighted efferent coupling (sum of outgoing dependency weights).
-- $\text{CQP}(v)$ — Code Quality Penalty, incorporating cyclomatic complexity, lines of code, LCOM, and package imports:
+- $\text{RPR}(v)$ is the Reverse PageRank (transitive cascade reach).
+- $\text{DG}_{\text{in}}(v)$ is the normalized in-degree (immediate blast radius).
+- $\text{CDPot}_{\text{enh}}(v)$ is the Enhanced Cascade Depth Potential:
+  $$\text{CDPot}_{\text{enh}}(v) = \min\left(\text{CDPot}_{\text{base}}(v) \times (1 + \text{MPCI}(v)), 1.0\right)$$
+  $$\text{CDPot}_{\text{base}}(v) = \frac{\text{RPR}(v) + \text{DG}_{\text{in}}(v)}{2} \times \left(1 - \min\left(\frac{\text{DG}_{\text{out\_raw}}(v)}{\max(\text{DG}_{\text{in\_raw}}(v), \epsilon)}, 1\right)\right)$$
+  with $\text{MPCI}(v)$ as the Multi-Path Coupling Index, and $\text{DG}_{\text{out\_raw}}(v)$/$\text{DG}_{\text{in\_raw}}(v)$ as the raw integer degree metrics.
+
+**Topic Formula:**
+$$R_{\text{topic}}(v) = 0.50 \times \text{FOC}(v) + 0.50 \times \text{CDPot}_{\text{topic}}(v)$$
+Where:
+- $\text{FOC}(v)$ is the Fan-Out Criticality (log1p of message frequency $\times$ subscriber count).
+- $\text{CDPot}_{\text{topic}}(v) = \text{FOC}(v) \times (1 - \min(\text{publisher\_count\_norm}(v), 1))$ represents topic fan-out depth.
+
+### Maintainability
+
+Maintainability measures how structurally embedded a component is in the topology, capturing static code fragility and deployment-coupling risk. It integrates betweenness centrality, efferent coupling, a Code Quality Penalty (CQP—incorporating cyclomatic complexity, lines of code, LCOM, and imports), topological instability, and the clustering coefficient.
+
+**Formula:**
+$$M(v) = 0.35 \times \text{BT}(v) + 0.30 \times w_{\text{out}}(v) + 0.15 \times \text{CQP}(v) + 0.12 \times \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \times (1 - \text{CC}(v))$$
+Where:
+- $\text{BT}(v)$ is the betweenness centrality (fraction of shortest dependency paths passing through $v$).
+- $w_{\text{out}}(v)$ is the QoS-weighted out-degree (efferent coupling).
+- $\text{CQP}(v)$ is the Code Quality Penalty (only for Application and Library nodes; 0 otherwise):
   $$\text{CQP}(v) = 0.10 \times \text{loc}_{\text{norm}}(v) + 0.35 \times \text{complexity}_{\text{norm}}(v) + 0.30 \times \text{instability}_{\text{code}}(v) + 0.25 \times \text{lcom}_{\text{norm}}(v)$$
-  *(CQP is zero for non-Application/Library types, degrading gracefully).*
-- $\text{CouplingRisk}_{\text{enh}}(v)$ — Topological instability index modulated by path complexity ($\text{PC}(v)$):
-  $$\text{CouplingRisk}_{\text{enh}}(v) = \min\left(1.0, \left(1 - |2 \cdot \text{Instability}(v) - 1|\right) \times \left(1 + 0.10 \times \text{PC}(v)\right)\right)$$
-- $\text{CC}(v)$ — Clustering coefficient computed on the undirected projection of the layer graph.
+- $\text{CouplingRisk}_{\text{enh}}(v)$ is the Enhanced Coupling Risk:
+  $$\text{CouplingRisk}_{\text{enh}}(v) = \min\left(1.0, \text{CouplingRisk}_{\text{base}}(v) \times (1 + \Delta \times \text{path\_complexity}(v))\right)$$
+  $$\text{CouplingRisk}_{\text{base}}(v) = 1 - |2 \times \text{Instability}_{\text{topo}}(v) - 1|$$
+  $$\text{Instability}_{\text{topo}}(v) = \frac{\text{DG}_{\text{out\_raw}}(v)}{\text{DG}_{\text{in\_raw}}(v) + \text{DG}_{\text{out\_raw}}(v) + \epsilon}$$
+  with the coupling path delta $\Delta = 0.10$.
+- $\text{CC}(v)$ is the clustering coefficient (measuring local redundancy).
 
-### Availability — $A(v)$
+### Availability
 
-Availability measures whether a component is a structural single point of failure (SPOF):
-$$A(v) = 0.35 \times \text{AP}_{\text{c,directed}}(v) + 0.25 \times \text{QSPOF}(v) + 0.25 \times \text{BR}(v) + 0.10 \times \text{CDI}(v) + 0.05 \times w(v)$$
+Availability measures whether a component is a structural single point of failure (SPOF). It combines directed articulation point scores, QoS-scaled SPOF severity, bridge ratios, connectivity degradation, and operational priority weights.
 
+**Formula:**
+$$A(v) = 0.35 \times \text{AP}_{\text{c\_directed}}(v) + 0.25 \times \text{QSPOF}(v) + 0.25 \times \text{BR}(v) + 0.10 \times \text{CDI}(v) + 0.05 \times w(v)$$
 Where:
-- $\text{AP}_{\text{c,directed}}(v)$ — Directed Articulation Point score, capturing graph fragmentation when $v$ is removed.
-- $\text{QSPOF}(v)$ — QoS-scaled SPOF severity: $\text{AP}_{\text{c,directed}}(v) \times w(v)$.
-- $\text{BR}(v)$ — Bridge Ratio (fraction of incident edges that are graph bridges).
-- $\text{CDI}(v)$ — Connectivity Degradation Index, measuring average path length elongation in the surviving graph.
-- $w(v)$ — Pure operational priority weight derived from QoS properties (Reliability, Durability, Priority).
+- $\text{AP}_{\text{c\_directed}}(v)$ is the directed articulation point score (reachability-based SPOF signal).
+- $\text{QSPOF}(v) = \text{AP}_{\text{c\_directed}}(v) \times w(v)$ is the QoS-weighted SPOF severity.
+- $\text{BR}(v)$ is the bridge ratio (fraction of non-redundant edges).
+- $\text{CDI}(v)$ is the Connectivity Degradation Index (path elongation on removal).
+- $w(v)$ is the component's operational QoS weight.
 
-### Vulnerability — $V(v)$
+### Vulnerability
 
-Vulnerability measures how attractive a component is as an adversarial target:
-$$V(v) = 0.40 \times \text{REV}(v) + 0.35 \times \text{RCL}(v) + 0.25 \times \text{w}_{\text{in}}(v)$$
+Vulnerability measures how attractive a component is as an adversarial target. It is calculated using reverse eigenvector centrality, reverse closeness centrality, and QoS-weighted in-degree (QADS).
 
+**Formula:**
+$$V(v) = 0.40 \times \text{REV}(v) + 0.35 \times \text{RCL}(v) + 0.25 \times w_{\text{in}}(v)$$
 Where:
-- $\text{REV}(v)$ — Reverse eigenvector centrality computed on $G^T$ (captures downstream reach into other important components).
-- $\text{RCL}(v)$ — Reverse closeness centrality computed on $G^T$ (captures entry propagation speed).
-- $\text{w}_{\text{in}}(v)$ — QoS-weighted in-degree (QADS - QoS-weighted Attack-Dependent Surface).
+- $\text{REV}(v)$ is the Reverse Eigenvector Centrality (transitive compromise reach on $G^T$).
+- $\text{RCL}(v)$ is the Reverse Closeness Centrality (adversarial reach speed via harmonic centrality on $G^T$).
+- $w_{\text{in}}(v)$ is the QoS-weighted in-degree (QADS: QoS-weighted Attack-Dependent Surface).
 
-### Overall Quality Score — $Q^*(v)$
+### Overall Criticality Score
 
-The overall criticality score combines the four dimensions:
-$$Q^*(v) = 0.43 \times A(v) + 0.24 \times R(v) + 0.17 \times M(v) + 0.16 \times V(v)$$
+The overall criticality score combines the four dimensions. Availability dominates because structural SPOF failure partitions the graph with certainty, whereas cascade propagation and coupling risks are probabilistic.
 
-Availability dominates ($0.43$) because structural SPOF failure partitions the graph with certainty, whereas cascade propagation and coupling risks are probabilistic.
+**AHP-Weighted Composite Formula:**
+$$Q(v) = 0.43 \times A(v) + 0.24 \times R(v) + 0.17 \times M(v) + 0.16 \times V(v)$$
+Alternatively, an equal-weight baseline (0.25 each) can be activated for baseline comparisons:
+$$Q_{\text{equal}}(v) = 0.25 \times A(v) + 0.25 \times R(v) + 0.25 \times M(v) + 0.25 \times V(v)$$
+
 
 ### Criticality Classification (Adaptive Box-Plot)
 
@@ -183,11 +187,11 @@ Scores are mapped to five criticality tiers using adaptive box-plot thresholding
 
 | Level | Threshold |
 |:---|:---|
-| **CRITICAL** | $score > Q3 + 1.5 \times IQR$ |
-| **HIGH** | $Q3 < score \le upper\ fence$ |
-| **MEDIUM** | $Median < score \le Q3$ |
-| **LOW** | $Q1 < score \le Median$ |
-| **MINIMAL** | $score \le Q1$ |
+| **CRITICAL** | Score > Q3 + 1.5 * IQR |
+| **HIGH** | Q3 < Score <= Upper Fence |
+| **MEDIUM** | Median < Score <= Q3 |
+| **LOW** | Q1 < Score <= Median |
+| **MINIMAL** | Score <= Q1 |
 
 > [!NOTE]
 > For small topologies (fewer than 12 components), the box-plot method falls back to fixed-percentile classification (top 10% $\rightarrow$ CRITICAL).
@@ -208,9 +212,7 @@ The four-dimensional criticality signature profiles the exact nature of architec
 
 ### GNN Ensemble (Step 3 Predict)
 
-The optional inductive Predict stage refines the deterministic RMAV scores using a Graph Attention Network trained on simulation ground-truth impact $I(v)$:
-$$Q_{\text{ensemble}}(v) = \alpha \cdot Q_{\text{GNN}}(v) + (1 - \alpha) \cdot Q_{\text{RMAV}}(v)$$
-Where $\alpha \in \mathbb{R}^5$ is a learned blending coefficient vector initialized at $0.5$.
+The optional inductive Predict stage refines the deterministic RMAV scores by combining GNN prediction scores (trained on simulation ground-truth impact) with the deterministic RMAV baseline using a learned blending coefficient vector.
 
 ---
 
