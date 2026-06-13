@@ -117,7 +117,7 @@ pytest -k "reliability"
 
 ### Architecture & Design Patterns
 - **Hexagonal Architecture** — The core SDK in [saag/](saag/) isolates business logic from databases and clients. Use Cases in [saag/usecases/](saag/usecases/) act as the boundary interface between presentation layers (FastAPI, CLI) and core domain services.
-- **Repository Pattern** — Data operations are mapped to the `IGraphRepository` interface. Production runs use [Neo4jRepository](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/infrastructure/Neo4jRepository), whereas unit tests use the mock [MemoryRepository](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/infrastructure/MemoryRepository). Core services must never depend directly on Neo4j classes.
+- **Repository Pattern** — Data operations are mapped to the `IGraphRepository` interface. Production runs use [Neo4jRepository](saag/infrastructure/neo4j_repo.py), whereas unit tests use the mock [MemoryRepository](saag/infrastructure/memory_repo.py). Core services must never depend directly on Neo4j classes.
 - **REST Presenters** — API routers in [api/routers/](api/routers/) must delegate serialization formatting to presenters in [api/presenters/](api/presenters/) to isolate response schemas from domain models.
 
 ### Layer Projections & Dependency Derivation
@@ -126,5 +126,5 @@ pytest -k "reliability"
 - **Simulation Substrate** — Failure simulations in [saag/simulation/](saag/simulation/) operate strictly on raw structural edges ($G_{\text{structural}}$), not derived dependency edges ($G_{\text{analysis}}$).
 
 ### Documentation Hyperlinking Standards
-- **Relative Portability** — When referencing files, folders, or code elements inside documentation, always use standard relative Markdown links. Avoid using absolute absolute `file:///` URLs to maintain portability across different workspaces and Git hosting systems.
+- **Relative Portability** — When referencing files, folders, or code elements inside documentation, always use standard relative Markdown links. Avoid using absolute `file:///` URLs to maintain portability across different workspaces and Git hosting systems.
 - **Line Ranges** — Link directly to symbol line boundaries (e.g. `[Pipeline](saag/pipeline.py#L12)`) when referencing code elements to assist LLM navigation.

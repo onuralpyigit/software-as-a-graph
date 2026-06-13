@@ -212,7 +212,7 @@ Libraries occupy an asymmetric position between $Q(v)$ (structural quality predi
 This is a **known design asymmetry**, not a bug. The rationale is that library failures manifest as compile-time or startup failures in practice — the cascading effect is captured at $T_0$ (immediate knock-on) rather than the pub-sub propagation model used for runtime failures. When a Library's $Q(v)$ rank is meaningfully higher than its $I(v)$ rank in the validation scatter plot, this is the expected explanation.
 
 > [!NOTE]
-> The `docs/structural-analysis.md` §11.6 table lists the Library's $R(v)$ formula, which already applies a fan-out amplification factor ($\gamma \cdot \log_2(1 + \text{DG\_in})$) to boost its weight proportional to its number of consumers. This is the correct place to tune the Library's structural influence if the asymmetry is considered too large.
+> The standard Reliability $R(v)$ formula (documented in [structural-analysis.md](structural-analysis.md#reliability-rv--fault-propagation-risk)) already includes the normalized in-degree term $DG\_in(v)$, which captures the number of direct consumers (blast radius) for both Applications and Libraries. This is the correct place to tune the Library's structural influence if the asymmetry is considered too large.
 
 ---
 

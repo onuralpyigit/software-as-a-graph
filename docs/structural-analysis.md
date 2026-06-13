@@ -1078,20 +1078,20 @@ Key structural observations:
 - MPCI = 0.0 everywhere because all dependencies in this small example are single-path. Multi-path MPCI would appear in larger systems where the same (App_sub, App_pub) pair shares multiple topics.
 - **Negative assortativity** indicates a hub-and-spoke topology: the two hub nodes (MainBroker, NavLib) connect to lower-degree leaf nodes (SensorApp, MonitorApp).
 
-**R(v) scores (v7 formula: 0.60 × PR × (1 + MPCI) + 0.40 × DG_in):**
+**R(v) scores (standard v6 formula: R(v) = 0.45 × RPR + 0.30 × DG_in + 0.25 × CDPot_enh):**
 
 ```
-SensorApp:    R = 0.60×0.58 + 0.40×0.25 = 0.348 + 0.100 = 0.448
-MonitorApp:   R = 0.60×0.25 + 0.40×0.0  = 0.150 + 0.000 = 0.150
-MainBroker:   R = 0.60×0.65 + 0.40×0.50 = 0.390 + 0.200 = 0.590
-NavLib:       R = 0.60×0.72 + 0.40×0.50 = 0.432 + 0.200 = 0.632
+SensorApp:    R = 0.45×0.58 + 0.30×0.25 + 0.25×0.0   = 0.261 + 0.075 + 0.0   = 0.336
+MonitorApp:   R = 0.45×0.25 + 0.30×0.0  + 0.25×0.0   = 0.113 + 0.0   + 0.0   = 0.113
+MainBroker:   R = 0.45×0.65 + 0.30×0.50 + 0.25×0.575 = 0.293 + 0.150 + 0.144 = 0.587
+NavLib:       R = 0.45×0.72 + 0.30×0.50 + 0.25×0.61  = 0.324 + 0.150 + 0.153 = 0.627
 /temperature: R_topic = 0.50×1.0 + 0.50×(1.0 × (1 − min(0.0, 1))) = 1.000  ← highest in system
 ```
 
 Key reliability observations:
 - `/temperature` scores R = 1.0 because FOC = 1.0 (the only topic with active subscribers) and there is only one publisher. In a larger system with multiple topics, this would rank relative to peers.
 - **NavLib** outranks MainBroker on R because it is depended upon by both application nodes directly (via Rule 5 `app_to_lib` DEPENDS_ON edges), giving it higher PageRank.
-- **MonitorApp** has R = 0.150 — no components depend on it, so its failure cascades to no one.
+- **MonitorApp** has R = 0.113 — no components depend on it, so its failure cascades to no one.
 
 **A(v) scores (abbreviated):**
 

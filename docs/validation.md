@@ -198,7 +198,12 @@ Q(v) = w_A × A(v)  +  w_R × R(v)  +  w_M × M(v)  +  w_V × V(v)
 
 #### Reliability R(v) — Fault Propagation Risk
 - **Standard formula** (Application, Broker, Node, Library):
-  $$R(v) = 0.60 \times PR(v) \times (1 + MPCI(v)) + 0.40 \times DG\_in(v)$$
+  $$R(v) = 0.45 \times RPR(v) + 0.30 \times DG\_in(v) + 0.25 \times CDPot\_enh(v)$$
+  Where:
+  - $RPR(v)$ — Reverse PageRank on $G^T$ (transitive cascade reach).
+  - $DG\_in(v)$ — Normalized in-degree (immediate blast radius).
+  - $CDPot\_enh(v) = \min(CDPot\_base(v) \times (1 + MPCI(v)), 1.0)$.
+  - $CDPot\_base(v) = \frac{RPR(v) + DG\_in(v)}{2} \times \left(1 - \min\left(\frac{DG\_out\_raw(v)}{\max(DG\_in\_raw(v), 1e-9)}, 1.0\right)\right)$.
 - **Topic formula** (Topic nodes only):
   $$R_{\text{topic}}(v) = 0.50 \times FOC(v) + 0.50 \times CDPot\_topic(v)$$
   Where $CDPot\_topic(v) = FOC(v) \times (1 - \min(publisher\_count\_norm(v), 1.0))$.
