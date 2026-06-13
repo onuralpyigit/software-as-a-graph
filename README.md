@@ -121,17 +121,17 @@ Reliability measures how broadly and deeply a component's failure propagates. Be
   - $\text{RPR}(v)$ — Reverse PageRank computed on $G^T$ (captures global cascade reach in the failure propagation direction).
   - $\text{DG}_{\text{in}}(v)$ — Normalized in-degree (captures immediate blast radius / direct dependents).
   - $\text{CDPot}_{\text{enh}}(v)$ — Enhanced Cascade Depth Potential, tracking depth $\times$ breadth of the cascade:
-    $$\text{CDPot}_{\text{base}}(v) = \frac{\text{RPR}(v) + \text{DG}_{\text{in}}(v)}{2} \times \left(1 - \min\left(\frac{\text{DG}_{\text{out\_raw}}(v)}{\max(\text{DG}_{\text{in\_raw}}(v), 10^{-9})}, 1.0\right)\right)$$
+    $$\text{CDPot}_{\text{base}}(v) = \frac{\text{RPR}(v) + \text{DG}_{\text{in}}(v)}{2} \times \left(1 - \min\left(\frac{\text{DG}_{\text{out,raw}}(v)}{\max(\text{DG}_{\text{in,raw}}(v), 10^{-9})}, 1.0\right)\right)$$
     $$\text{CDPot}_{\text{enh}}(v) = \min\left(\text{CDPot}_{\text{base}}(v) \times (1 + \text{MPCI}(v)), 1.0\right)$$
   - $\text{MPCI}(v)$ — Multi-Path Coupling Index, summing extra shared message channels establishing dependencies:
-    $$\text{MPCI}(v) = \frac{1}{|V|-1} \sum_{e \in \text{InEdges}(v)} \max(\text{path\_count}(e) - 1, 0)$$
+    $$\text{MPCI}(v) = \frac{1}{|V|-1} \sum_{e \in \text{InEdges}(v)} \max(\text{path-count}(e) - 1, 0)$$
 
 - **Topic Formula** (Topic nodes only):
   $$R_{\text{topic}}(v) = 0.50 \times \text{FOC}(v) + 0.50 \times \text{CDPot}_{\text{topic}}(v)$$
   Where:
   - $\text{FOC}(v)$ — Fan-Out Criticality (log-scaled message frequency modulated by subscriber count).
   - $\text{CDPot}_{\text{topic}}(v)$ — Topic-specific cascade potential, penalizing topics with many subscribers but low publisher redundancy:
-    $$\text{CDPot}_{\text{topic}}(v) = \text{FOC}(v) \times (1 - \min(\text{publisher}_{\text{count\_norm}}(v), 1.0))$$
+    $$\text{CDPot}_{\text{topic}}(v) = \text{FOC}(v) \times (1 - \min(\text{publisher}_{\text{count,norm}}(v), 1.0))$$
 
 ### Maintainability — $M(v)$
 
@@ -151,11 +151,11 @@ Where:
 ### Availability — $A(v)$
 
 Availability measures whether a component is a structural single point of failure (SPOF):
-$$A(v) = 0.35 \times \text{AP}_{\text{c\_directed}}(v) + 0.25 \times \text{QSPOF}(v) + 0.25 \times \text{BR}(v) + 0.10 \times \text{CDI}(v) + 0.05 \times w(v)$$
+$$A(v) = 0.35 \times \text{AP}_{\text{c,directed}}(v) + 0.25 \times \text{QSPOF}(v) + 0.25 \times \text{BR}(v) + 0.10 \times \text{CDI}(v) + 0.05 \times w(v)$$
 
 Where:
-- $\text{AP}_{\text{c\_directed}}(v)$ — Directed Articulation Point score, capturing graph fragmentation when $v$ is removed.
-- $\text{QSPOF}(v)$ — QoS-scaled SPOF severity: $\text{AP}_{\text{c\_directed}}(v) \times w(v)$.
+- $\text{AP}_{\text{c,directed}}(v)$ — Directed Articulation Point score, capturing graph fragmentation when $v$ is removed.
+- $\text{QSPOF}(v)$ — QoS-scaled SPOF severity: $\text{AP}_{\text{c,directed}}(v) \times w(v)$.
 - $\text{BR}(v)$ — Bridge Ratio (fraction of incident edges that are graph bridges).
 - $\text{CDI}(v)$ — Connectivity Degradation Index, measuring average path length elongation in the surviving graph.
 - $w(v)$ — Pure operational priority weight derived from QoS properties (Reliability, Durability, Priority).
