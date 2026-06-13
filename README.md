@@ -114,17 +114,25 @@ The RMAV quality model decomposes criticality into four orthogonal, actionable d
 Reliability measures how broadly and deeply a component's failure propagates. Standard components (Applications, Brokers, Nodes, Libraries) are evaluated based on Reverse PageRank, normalized in-degree, and Enhanced Cascade Depth Potential. Topic components are evaluated using Fan-Out Criticality (FOC) and topic-specific cascade potential.
 
 **Standard Formula (Applications, Brokers, Nodes, Libraries):**
-$$R(v) = 0.45 \times \text{RPR}(v) + 0.30 \times \text{DG}_{\text{in}}(v) + 0.25 \times \text{CDPot}_{\text{enh}}(v)$$
+$$
+R(v) = 0.45 \times \text{RPR}(v) + 0.30 \times \text{DG}_{\text{in}}(v) + 0.25 \times \text{CDPot}_{\text{enh}}(v)
+$$
 Where:
 - $\text{RPR}(v)$ is the Reverse PageRank (transitive cascade reach).
 - $\text{DG}_{\text{in}}(v)$ is the normalized in-degree (immediate blast radius).
 - $\text{CDPot}_{\text{enh}}(v)$ is the Enhanced Cascade Depth Potential:
-  $$\text{CDPot}_{\text{enh}}(v) = \min\left(\text{CDPot}_{\text{base}}(v) \times (1 + \text{MPCI}(v)), 1.0\right)$$
-  $$\text{CDPot}_{\text{base}}(v) = \frac{\text{RPR}(v) + \text{DG}_{\text{in}}(v)}{2} \times \left(1 - \min\left(\frac{\text{DG}_{\text{out\_raw}}(v)}{\max(\text{DG}_{\text{in\_raw}}(v), \epsilon)}, 1\right)\right)$$
+  $$
+  \text{CDPot}_{\text{enh}}(v) = \min\left(\text{CDPot}_{\text{base}}(v) \times (1 + \text{MPCI}(v)), 1.0\right)
+  $$
+  $$
+  \text{CDPot}_{\text{base}}(v) = \frac{\text{RPR}(v) + \text{DG}_{\text{in}}(v)}{2} \times \left(1 - \min\left(\frac{\text{DG}_{\text{out\_raw}}(v)}{\max(\text{DG}_{\text{in\_raw}}(v), \epsilon)}, 1\right)\right)
+  $$
   with $\text{MPCI}(v)$ as the Multi-Path Coupling Index, and $\text{DG}_{\text{out\_raw}}(v)$/$\text{DG}_{\text{in\_raw}}(v)$ as the raw integer degree metrics.
 
 **Topic Formula:**
-$$R_{\text{topic}}(v) = 0.50 \times \text{FOC}(v) + 0.50 \times \text{CDPot}_{\text{topic}}(v)$$
+$$
+R_{\text{topic}}(v) = 0.50 \times \text{FOC}(v) + 0.50 \times \text{CDPot}_{\text{topic}}(v)
+$$
 Where:
 - $\text{FOC}(v)$ is the Fan-Out Criticality (log1p of message frequency $\times$ subscriber count).
 - $\text{CDPot}_{\text{topic}}(v) = \text{FOC}(v) \times (1 - \min(\text{publisher\_count\_norm}(v), 1))$ represents topic fan-out depth.
@@ -134,16 +142,26 @@ Where:
 Maintainability measures how structurally embedded a component is in the topology, capturing static code fragility and deployment-coupling risk. It integrates betweenness centrality, efferent coupling, a Code Quality Penalty (CQP—incorporating cyclomatic complexity, lines of code, LCOM, and imports), topological instability, and the clustering coefficient.
 
 **Formula:**
-$$M(v) = 0.35 \times \text{BT}(v) + 0.30 \times w_{\text{out}}(v) + 0.15 \times \text{CQP}(v) + 0.12 \times \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \times (1 - \text{CC}(v))$$
+$$
+M(v) = 0.35 \times \text{BT}(v) + 0.30 \times w_{\text{out}}(v) + 0.15 \times \text{CQP}(v) + 0.12 \times \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \times (1 - \text{CC}(v))
+$$
 Where:
 - $\text{BT}(v)$ is the betweenness centrality (fraction of shortest dependency paths passing through $v$).
 - $w_{\text{out}}(v)$ is the QoS-weighted out-degree (efferent coupling).
 - $\text{CQP}(v)$ is the Code Quality Penalty (only for Application and Library nodes; 0 otherwise):
-  $$\text{CQP}(v) = 0.10 \times \text{loc}_{\text{norm}}(v) + 0.35 \times \text{complexity}_{\text{norm}}(v) + 0.30 \times \text{instability}_{\text{code}}(v) + 0.25 \times \text{lcom}_{\text{norm}}(v)$$
+  $$
+  \text{CQP}(v) = 0.10 \times \text{loc}_{\text{norm}}(v) + 0.35 \times \text{complexity}_{\text{norm}}(v) + 0.30 \times \text{instability}_{\text{code}}(v) + 0.25 \times \text{lcom}_{\text{norm}}(v)
+  $$
 - $\text{CouplingRisk}_{\text{enh}}(v)$ is the Enhanced Coupling Risk:
-  $$\text{CouplingRisk}_{\text{enh}}(v) = \min\left(1.0, \text{CouplingRisk}_{\text{base}}(v) \times (1 + \Delta \times \text{path\_complexity}(v))\right)$$
-  $$\text{CouplingRisk}_{\text{base}}(v) = 1 - |2 \times \text{Instability}_{\text{topo}}(v) - 1|$$
-  $$\text{Instability}_{\text{topo}}(v) = \frac{\text{DG}_{\text{out\_raw}}(v)}{\text{DG}_{\text{in\_raw}}(v) + \text{DG}_{\text{out\_raw}}(v) + \epsilon}$$
+  $$
+  \text{CouplingRisk}_{\text{enh}}(v) = \min\left(1.0, \text{CouplingRisk}_{\text{base}}(v) \times (1 + \Delta \times \text{path\_complexity}(v))\right)
+  $$
+  $$
+  \text{CouplingRisk}_{\text{base}}(v) = 1 - |2 \times \text{Instability}_{\text{topo}}(v) - 1|
+  $$
+  $$
+  \text{Instability}_{\text{topo}}(v) = \frac{\text{DG}_{\text{out\_raw}}(v)}{\text{DG}_{\text{in\_raw}}(v) + \text{DG}_{\text{out\_raw}}(v) + \epsilon}
+  $$
   with the coupling path delta $\Delta = 0.10$.
 - $\text{CC}(v)$ is the clustering coefficient (measuring local redundancy).
 
@@ -152,7 +170,9 @@ Where:
 Availability measures whether a component is a structural single point of failure (SPOF). It combines directed articulation point scores, QoS-scaled SPOF severity, bridge ratios, connectivity degradation, and operational priority weights.
 
 **Formula:**
-$$A(v) = 0.35 \times \text{AP}_{\text{c\_directed}}(v) + 0.25 \times \text{QSPOF}(v) + 0.25 \times \text{BR}(v) + 0.10 \times \text{CDI}(v) + 0.05 \times w(v)$$
+$$
+A(v) = 0.35 \times \text{AP}_{\text{c\_directed}}(v) + 0.25 \times \text{QSPOF}(v) + 0.25 \times \text{BR}(v) + 0.10 \times \text{CDI}(v) + 0.05 \times w(v)
+$$
 Where:
 - $\text{AP}_{\text{c\_directed}}(v)$ is the directed articulation point score (reachability-based SPOF signal).
 - $\text{QSPOF}(v) = \text{AP}_{\text{c\_directed}}(v) \times w(v)$ is the QoS-weighted SPOF severity.
@@ -165,7 +185,9 @@ Where:
 Vulnerability measures how attractive a component is as an adversarial target. It is calculated using reverse eigenvector centrality, reverse closeness centrality, and QoS-weighted in-degree (QADS).
 
 **Formula:**
-$$V(v) = 0.40 \times \text{REV}(v) + 0.35 \times \text{RCL}(v) + 0.25 \times w_{\text{in}}(v)$$
+$$
+V(v) = 0.40 \times \text{REV}(v) + 0.35 \times \text{RCL}(v) + 0.25 \times w_{\text{in}}(v)
+$$
 Where:
 - $\text{REV}(v)$ is the Reverse Eigenvector Centrality (transitive compromise reach on $G^T$).
 - $\text{RCL}(v)$ is the Reverse Closeness Centrality (adversarial reach speed via harmonic centrality on $G^T$).
@@ -176,9 +198,14 @@ Where:
 The overall criticality score combines the four dimensions. Availability dominates because structural SPOF failure partitions the graph with certainty, whereas cascade propagation and coupling risks are probabilistic.
 
 **AHP-Weighted Composite Formula:**
-$$Q(v) = 0.43 \times A(v) + 0.24 \times R(v) + 0.17 \times M(v) + 0.16 \times V(v)$$
+$$
+Q(v) = 0.43 \times A(v) + 0.24 \times R(v) + 0.17 \times M(v) + 0.16 \times V(v)
+$$
 Alternatively, an equal-weight baseline (0.25 each) can be activated for baseline comparisons:
-$$Q_{\text{equal}}(v) = 0.25 \times A(v) + 0.25 \times R(v) + 0.25 \times M(v) + 0.25 \times V(v)$$
+$$
+Q_{\text{equal}}(v) = 0.25 \times A(v) + 0.25 \times R(v) + 0.25 \times M(v) + 0.25 \times V(v)
+$$
+
 
 
 ### Criticality Classification (Adaptive Box-Plot)
