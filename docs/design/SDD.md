@@ -765,7 +765,7 @@ saag.visualization.service.VisualizationService.generate_dashboard(layers, outpu
 
 ### 5.8 Anti-Pattern Detection Pipeline
 
-The `AntiPatternDetector` is invoked at the end of the Analysis Pipeline (§5.3, Step 3). It identifies 13 categories of architectural anti-patterns from `QualityAnalysisResult` using box-plot classification levels (never static thresholds).
+The `AntiPatternDetector` is invoked at the end of the Analysis Pipeline (§5.3, Step 2). It identifies 13 categories of architectural anti-patterns from `QualityAnalysisResult` using box-plot classification levels (never static thresholds).
 
 | Category | Anti-Pattern | Detection Rule (Predicate) | Severity |
 |:---------|:-------------|:---------------------------|:---------|

@@ -104,7 +104,7 @@ w_V : V → [0, 1]    (QoS-derived vertex weight, propagated from incident edges
 | `dependency_type` | string | One of: `app_to_app`, `app_to_broker`, `node_to_node`, `node_to_broker`, `app_to_lib`, `broker_to_broker` |
 | `path_count` | int ≥ 1 | Number of shared topics (for `app_to_app`) or shared nodes (for `broker_to_broker`) establishing this dependency |
 
-> **On `path_count`:** When two components are connected through multiple shared topics, `path_count` captures coupling intensity. A `path_count = 3` dependency means three simultaneous failure vectors between the same pair — structurally more fragile than three independent single-topic links. Step 3 uses this to refine cascade depth potential (CDPot) computations.
+> **On `path_count`:** When two components are connected through multiple shared topics, `path_count` captures coupling intensity. A `path_count = 3` dependency means three simultaneous failure vectors between the same pair — structurally more fragile than three independent single-topic links. Step 2 (Analyze, RMAV sub-phase) uses this to refine cascade depth potential (CDPot) computations.
 
 ---
 
@@ -134,7 +134,7 @@ Each entity in the topology JSON becomes a vertex in G. Five vertex types are cr
 | `cm_avg_fanin` | float | Average afferent coupling (Library: internal static analysis) |
 | `cm_avg_fanout` | float | Average efferent coupling (Library: internal static analysis) |
 
-These attributes feed the **Code Quality Penalty (CQP)** composite used in Step 3's Maintainability M(v) term. When absent, M(v) falls back to the topology-only formula.
+These attributes feed the **Code Quality Penalty (CQP)** composite used in Step 2 (Analyze, RMAV sub-phase) Maintainability M(v) term. When absent, M(v) falls back to the topology-only formula.
 
 > **Why `subscriber_count` and `publisher_count` are listed under Phase 1 but computed in Phase 2:** These are properties of Topic vertices, but their values depend on SUBSCRIBES_TO and PUBLISHES_TO edges which don't exist until Phase 2. They are computed at the end of Phase 2 and written back onto each Topic vertex.
 
@@ -241,7 +241,7 @@ edge.path_count  = len(shared_topics)                  # coupling intensity
 
 `path_count` is not folded into the weight to preserve the `w ∈ [0,1]` contract.
 
-**Library blast semantics vs. pub-sub cascade:** Rule 5 captures a qualitatively different failure mode. A library failure causes a *simultaneous* blast — all consuming applications fail at once. This contrasts with pub-sub cascade propagation (Rule 1), which flows step-by-step through topics and brokers. Step 4 (Simulation) handles this distinction at the cascade propagation layer. Rule 5 simply records the structural dependency so that `DG_in(Library)` is non-zero and visible to R(v) in Step 3.
+**Library blast semantics vs. pub-sub cascade:** Rule 5 captures a qualitatively different failure mode. A library failure causes a *simultaneous* blast — all consuming applications fail at once. This contrasts with pub-sub cascade propagation (Rule 1), which flows step-by-step through topics and brokers. Step 4 (Simulation) handles this distinction at the cascade propagation layer. Rule 5 simply records the structural dependency so that `DG_in(Library)` is non-zero and visible to R(v) in Step 2 (Analyze, RMAV sub-phase).
 
 **Derivation trace example:**
 

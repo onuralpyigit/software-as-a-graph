@@ -32,11 +32,13 @@ The pipeline is structured as a Directed Acyclic Graph (DAG) rather than a linea
 |------|------|-----------|-------------|
 | Offline Prep | **Generate** | `generate_graph.py` | Produce a synthetic pub-sub topology (StatisticalGraphGenerator) |
 | 1 | **Model** | `import_graph.py` / `export_graph.py` | Load topology JSON → Neo4j; derive DEPENDS_ON edges |
-| 2 | **Analyze** | `analyze_graph.py` | Compute structural metrics → RMAV dimension scores via AHP |
-| 3 | **Predict** | `train_graph.py` / `predict_graph.py` | Train or run GNN; ensemble RMAV + GNN for criticality rankings |
-| 4 | **Simulate** | `simulate_graph.py` | Inject cascade failures to generate per-component ground-truth labels |
-| 5 | **Validate** | `validate_graph.py` | Compare prediction rankings to simulation ground truth (Spearman, F1) |
+| 2 | **Analyze** | `analyze_graph.py` | Compute structural metrics **and** RMAV dimension scores (rule-based, deterministic); detect anti-patterns |
+| 3 | **Predict** | `train_graph.py` / `predict_graph.py` | *Optional.* Train GNN on Step 4 labels; run inductive GNN inference; ensemble-blend with RMAV |
+| 4 | **Simulate** | `simulate_graph.py` | Inject cascade failures to generate per-component ground-truth labels I(v) |
+| 5 | **Validate** | `validate_graph.py` | Compare prediction rankings to simulation ground truth (Spearman ρ, F1) |
 | 6 | **Visualize** | `visualize_graph.py` | Render interactive HTML dashboards |
+
+> **First-run sequencing note:** Step 3 (Predict) depends on simulation-derived training labels for GNN training. On the first run, execute Steps 1 → 2 → 4 to generate those labels, then train the GNN (`train_graph.py`), and finally run Step 3 inference. The Analyze stage (Step 2) is fully self-contained and produces valid RMAV Q*(v) scores without any GNN checkpoint.
 
 **Data flow:**
 
@@ -83,10 +85,18 @@ The pipeline is structured as a Directed Acyclic Graph (DAG) rather than a linea
 **Orchestration:**
 
 ```bash
-# Full pipeline via CLI
+# Full pipeline via CLI (inference mode — requires a trained GNN checkpoint)
 python cli/run.py --all --layer system
 
-# Full pipeline via SDK
+# First-run training sequence (no checkpoint yet)
+python cli/run.py --input data/system.json --analyze --simulate     # Steps 2 + 4
+python cli/train_graph.py --layer system --output models/checkpoint  # GNN training
+python cli/run.py --all --gnn-model models/checkpoint                # Full pipeline
+
+# Programmatic: Analyze-only (no GNN required — produces valid RMAV Q*(v))
+result = Pipeline.from_json("topology.json").analyze().simulate().validate().visualize().run()
+
+# Programmatic: Full pipeline with GNN ensemble (requires trained checkpoint)
 result = Pipeline.from_json("topology.json").analyze().predict().simulate().validate().visualize().run()
 ```
 
@@ -142,27 +152,33 @@ Domain models and the persistence port. Nothing here depends on Neo4j, NetworkX,
 
 ### `analysis/`
 
-Converts a raw graph into per-component structural metrics and detects anti-patterns.
+Step 2 (Analyze) — converts a raw graph into per-component structural metrics, applies the closed-form RMAV quality formulas, and detects anti-patterns. This is the **methodological home of RMAV scoring**: given the same graph, `AnalysisService` always produces the same `QualityAnalysisResult` with zero learned parameters.
 
-- `StructuralAnalyzer` — NetworkX-based computation: PageRank, Betweenness, Harmonic Closeness, Eigenvector, Reverse PageRank, clustering, articulation points, bridges, pub-sub–specific metrics.
-- `AnalysisService` — Orchestrates single-layer and multi-layer analysis; calls `AntiPatternDetector`.
+- `StructuralAnalyzer` — NetworkX-based computation: PageRank, Betweenness, Harmonic Closeness, Eigenvector, Reverse PageRank, clustering, articulation points, bridges, pub-sub–specific metrics (MPCI, FOC, CDI, PC). Emits `StructuralAnalysisResult`.
+- `AnalysisService` — Orchestrates single-layer and multi-layer analysis. After structural analysis it calls `QualityScoringService` (from `prediction/`) to apply AHP-weighted RMAV formulas, then calls `AntiPatternDetector` for smell detection, and finally `ExplanationEngine` for human-readable summaries. Emits `LayerAnalysisResult` (structural + quality + problems + explanation).
+- `QualityScoringService` *(imported from `prediction/`)* — Called here as a pure closed-form scorer; see `prediction/` for implementation details.
 - `AntiPatternDetector` — Identifies SPOF, FAILURE_HUB, GOD_COMPONENT, TARGET, BRIDGE_EDGE, EXPOSURE, CYCLE, HUB_AND_SPOKE, CHAIN, SYSTEMIC_RISK.
 - `StatisticsService` — Aggregate distribution statistics over components.
 
-**Output:** `StructuralAnalysisResult` (metrics per component and edge, per layer).
+**Outputs:**
+- `StructuralAnalysisResult` — 13-metric M(v) vector per component and edge.
+- `QualityAnalysisResult` — RMAV dimension scores R(v)/M(v)/A(v)/V(v), overall Q*(v), five-level criticality classification, detected anti-patterns.
 
 ### `prediction/`
 
-Maps structural metrics to RMAV quality scores and optionally refines them with a GNN.
+Hosts the **implementation** of RMAV scoring and the optional Step 3 GNN layer. The RMAV classes (`QualityAnalyzer`, `QualityScoringService`) are instantiated by `AnalysisService` (Step 2) as deterministic scorers, and again by `PredictionService` (Step 3) as the RMAV regularisation baseline for the GNN. This dual use is intentional: keeping RMAV in `prediction/` avoids circular imports between `analysis/` and `prediction/`.
 
-- `QualityAnalyzer` — Applies closed-form RMAV formulas with AHP-derived weights (shrinkage λ=0.70). Produces R(v), M(v), A(v), V(v) and overall Q(v) per component.
-- `PredictionService` — Orchestrates quality scoring + optional GNN inference + anti-pattern detection.
+> **Methodological note:** RMAV scoring is Step 2 (Analyze). It is deterministic and produces the same output for the same input graph — it has no learned parameters. The GNN is Step 3 (Predict) and requires simulation-derived labels for training. Readers should treat `QualityAnalyzer` / `QualityScoringService` as belonging to the Analyze stage even though they reside in this package.
+
+- `QualityAnalyzer` — Applies closed-form RMAV formulas with AHP-derived weights (shrinkage λ=0.70). Produces R(v), M(v), A(v), V(v) and overall Q*(v) per component. Called by both `AnalysisService` (Step 2) and `PredictionService` (Step 3 regularisation baseline).
+- `QualityScoringService` — Thin service wrapper around `QualityAnalyzer`; adds sensitivity analysis support. Called directly by `AnalysisService`.
+- `PredictionService` — Step 3 orchestrator. Extends `QualityScoringService`; adds optional GNN inference and ensemble blending. Falls back to RMAV scores when no checkpoint is available.
 - `GNNService` — Loads a pre-trained HeteroGAT checkpoint; runs inductive inference; returns per-component criticality ranks and attention weights.
 - `BoxPlotClassifier` — Assigns `CriticalityLevel` using box-plot thresholds (Q3 + k·IQR).
 - `ProblemDetector` — Converts quality scores into `DetectedProblem` entries for reporting.
 - `WeightCalculator` — AHP weight derivation with shrinkage toward the uniform prior.
 
-**Ensemble blending:**
+**Ensemble blending (Step 3 only):**
 ```
 Q_ensemble(v) = α · Q_GNN + (1 − α) · Q_RMAV      (α typically 0.6–0.8)
 ```
