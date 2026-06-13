@@ -7,7 +7,7 @@ domain scenario for validating the six-step methodology.
 
 ---
 
-## Quick Reference
+## 1. Quick Reference
 
 | File | Domain | Scale | Key Stress | Seed |
 |------|--------|-------|-----------|------|
@@ -35,19 +35,19 @@ domain scenario for validating the six-step methodology.
 
 ---
 
-## Usage
+## 2. Usage
 
 ```bash
 # Generate a single scenario
 PYTHONPATH=. python cli/generate_graph.py \
-  --config data/scenario_01_autonomous_vehicle.yaml \
+  --config data/scenarios/scenario_01_autonomous_vehicle.yaml \
   --output output/av_system.json
 
 # Run the full pipeline on a generated dataset
 PYTHONPATH=. python cli/run.py --all --input output/av_system.json
 
 # Run all scenarios in sequence (bash)
-for cfg in data/scenario_*.yaml; do
+for cfg in data/scenarios/scenario_*.yaml; do
   name=$(basename "$cfg" .yaml)
   PYTHONPATH=. python cli/generate_graph.py --config "$cfg" --output "output/${name}.json"
   PYTHONPATH=. python cli/run.py --all --input "output/${name}.json" --output-dir "output/${name}_results"
@@ -56,7 +56,7 @@ done
 
 ---
 
-## Scale Presets Reference
+## 3. Scale Presets Reference
 
 The named `--scale` presets and their component counts:
 
@@ -75,9 +75,9 @@ with uniform random QoS and topology.
 
 ---
 
-## Design Rationale
+## 4. Design Rationale
 
-### Topology Coverage
+### 4.1 Topology Coverage
 
 The eleven scenarios collectively cover six topology classes:
 
@@ -101,7 +101,7 @@ The eleven scenarios collectively cover six topology classes:
    relative to topics (ratio 0.8); validates that Availability scoring
    correctly suppresses SPOF classification when redundancy is present.
 
-### QoS Weight Variation
+### 4.2 QoS Weight Variation
 
 | Scenario | Dominant Durability | Dominant Reliability | Dominant Priority |
 |----------|--------------------|--------------------|------------------|
@@ -117,7 +117,7 @@ The eleven scenarios collectively cover six topology classes:
 | 10 ATM   | VOLATILE           | RELIABLE           | HIGH/CRITICAL    |
 | 11 Redundancy | PERSISTENT    | RELIABLE           | HIGH             |
 
-### Expected Validation Thresholds
+### 4.3 Expected Validation Thresholds
 
 All scenarios should satisfy the core thesis validation targets:
 
@@ -131,7 +131,7 @@ Scenario 08 (tiny) is the CI smoke test and should always pass first.
 
 ---
 
-## Adding New Scenarios
+## 5. Adding New Scenarios
 
 Copy any existing file and adjust:
 

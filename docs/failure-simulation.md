@@ -16,7 +16,8 @@ This document describes the two simulation **CLI modes** available in `simulate_
    - [I(v) Formula](#32-iv-formula)
    - [Cascade Propagation](#33-cascade-propagation)
    - [Broker Failure Semantics](#34-broker-failure-semantics)
-   - [Multi-Seed Stability](#35-multi-seed-stability)
+   - [Library Blast-Radius Asymmetry](#35-library-blast-radius-asymmetry)
+   - [Multi-Seed Stability](#36-multi-seed-stability)
 4. [Mode 2 — Message Flow Simulation](#4-mode-2--message-flow-simulation)
    - [Discrete-Event Model](#41-discrete-event-model)
    - [Fan-Out Queue Architecture](#42-fan-out-queue-architecture)
@@ -709,7 +710,7 @@ MeteoService ──PUBLISHES_TO──▶  T_meteo  (no subscribers)
 ASTERIX_Broker ──ROUTES──▶  T_radar, T_tracks, T_conflicts, T_meteo, T_fpa
 ```
 
-### Expected fault-inject results
+### 7.1 Expected fault-inject results
 
 | Node | I(v) | Cascade depth | Why |
 |------|------|---------------|-----|
@@ -722,7 +723,7 @@ ASTERIX_Broker ──ROUTES──▶  T_radar, T_tracks, T_conflicts, T_meteo, T
 
 > With `propagation_threshold=0.5`: ConflictDetector losing T_radar alone (1/2 feeds = 50%) would trigger a cascade to T_conflicts → ATCWorkstation also loses T_conflicts → ConflictDetector's I(v) rises.
 
-### Running the full validation workflow
+### 7.2 Running the full validation workflow
 
 ```bash
 # Step 1: Generate ground-truth I(v)
@@ -747,7 +748,7 @@ PYTHONPATH=. python cli/validate_topology_classes.py \
     --impact   output/simulation/impact_scores.json
 ```
 
-### Message flow: observing the ConflictDetector fault
+### 7.3 Message flow: observing the ConflictDetector fault
 
 ```bash
 python simulate_graph.py message-flow \
@@ -838,7 +839,7 @@ All QoS fields are optional; defaults are `RELIABLE`, `VOLATILE`, no deadline, n
 
 Both simulators can be used as Python libraries without going through the CLI.
 
-### FaultInjector
+### 10.1 FaultInjector
 
 ```python
 from saag.simulation.fault_injector import FaultInjector
@@ -871,7 +872,7 @@ for row in result.top_k_by_impact:
     print(f"#{row['rank']}  {row['node_id']}  {row['impact_score']:.4f}")
 ```
 
-### MessageFlowSimulator
+### 10.2 MessageFlowSimulator
 
 ```python
 from saag.simulation.message_flow_simulator import MessageFlowSimulator

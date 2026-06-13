@@ -6,7 +6,7 @@ Comprises two distinct layers for analyzing system topology and communication pa
 
 ---
 
-## Quick Start (Visualization Layer)
+## 1. Quick Start (Visualization Layer)
 
 ```python
 import json
@@ -19,7 +19,7 @@ cc = extract_cross_cutting_data(data)
 stats = compute_all_extras_statistics(cc)
 ```
 
-## Module Ownership Policy
+## 2. Module Ownership Policy
 
 | Module | Scope | Input | Typical Use Case |
 |---|---|---|---|
@@ -31,16 +31,16 @@ stats = compute_all_extras_statistics(cc)
 
 ---
 
-## 1. Visualization Statistics (API Layer)
+## 3. Visualization Statistics (API Layer)
 
-### Data Classes
+### 3.1 Data Classes
 
 | Class | Purpose |
 |---|---|
 | `DescriptiveStats` | Numeric statistics: count, mean, median, std, min/max, quartiles, IQR, upper fence |
 | `CategoricalStats` | Distribution statistics: total count, category count, mode, mode percentage |
 
-### Per-Chart Statistics
+### 3.2 Per-Chart Statistics
 
 | Function | Chart | Key Outputs |
 |---|---|---|
@@ -56,7 +56,7 @@ stats = compute_all_extras_statistics(cc)
 | `compute_node_critical_density_stats` | Node Critical Density| critical vs. normal app counts per node |
 | `compute_segment_diversity_stats` | Segment Diversity | app count, topic count, and I/O per segment |
 
-### Architectural Interpretations & Insights
+### 3.3 Architectural Interpretations & Insights
 
 The metrics computed by the API layer provide actionable insights into the system's architectural health, helping identify anti-patterns, bottlenecks, and deployment risks.
 
@@ -72,11 +72,11 @@ The metrics computed by the API layer provide actionable insights into the syste
 
 ---
 
-## 2. Core Structural Statistics (Analysis Layer)
+## 4. Core Structural Statistics (Analysis Layer)
 
 Accessed via `saag.analysis.statistics_service.StatisticsService` which delegates to functions inside `saag/analysis/statistics.py`. These metrics operate on the live graph structure.
 
-### Topological Metrics
+### 4.1 Topological Metrics
 
 | Metric | Function | Description |
 |---|---|---|
@@ -87,7 +87,7 @@ Accessed via `saag.analysis.statistics_service.StatisticsService` which delegate
 | **Component Isolation** | `get_component_isolation`| Classifies components as Source, Sink, Bidirectional, or Isolated. |
 | **Redundancy & SPOF** | `get_component_redundancy`| Identifies Single Points of Failure and bridge components. |
 
-### Topological Interpretations & Insights
+### 4.2 Topological Interpretations & Insights
 
 - **Degree Distribution**: Identifies structural hubs. Nodes with degree > mean + 2σ are structural bottlenecks.
 - **Connectivity Density**: A measure of overall system coupling. Sparse graphs (< 0.05) are highly decoupled, while very dense graphs (> 0.30) indicate a "big ball of mud" architecture where everything is connected to everything.
@@ -97,7 +97,7 @@ Accessed via `saag.analysis.statistics_service.StatisticsService` which delegate
 
 ---
 
-## 3. REST API Reference
+## 5. REST API Reference
 
 All endpoints return a `{"success": bool, "stats": {...}, "computation_time_ms": float}` envelope.
 
@@ -110,11 +110,11 @@ All endpoints return a `{"success": bool, "stats": {...}, "computation_time_ms":
 | `/api/v1/stats/dependency-depth` | `POST` | `DependencyDepthResponse` |
 ---
 
-## 4. CLI Usage
+## 6. CLI Usage
 
 The `cli/statistics_graph.py` script provides a command-line interface for both live and file-based analysis.
 
-### Examples
+### 6.1 Examples
 
 | Usage | Command |
 |---|---|
@@ -123,7 +123,7 @@ The `cli/statistics_graph.py` script provides a command-line interface for both 
 | **Filtered Charts** | `PYTHONPATH=. python cli/statistics_graph.py --chart topic_fanout qos_risk` |
 | **JSON Export** | `PYTHONPATH=. python cli/statistics_graph.py --format json --output stats.json` |
 
-### Key Flags
+### 6.2 Key Flags
 - `--chart`: Select specific chart IDs (e.g., `topic_bandwidth`, `qos_risk`).
 - `--format`: Choose output format: `table` (rich), `minimal` (compact), or `json`.
 - `--input`: Read from a pre-exported JSON file instead of connecting to Neo4j.
@@ -131,7 +131,7 @@ The `cli/statistics_graph.py` script provides a command-line interface for both 
 
 ---
 
-## 5. Expected Input Format (Visualization)
+## 7. Expected Input Format (Visualization)
 
 `extract_cross_cutting_data` expects a JSON dict with:
 
@@ -166,7 +166,7 @@ The `cli/statistics_graph.py` script provides a command-line interface for both 
 > [!NOTE]
 > The `applications` objects must include the `role` and `system_hierarchy.css_name` keys to ensure that segment-based charts like segment communication and diversity are generated correctly and do not silently fall back to `NOT_FOUND`.
 
-## Dependencies
+## 8. Dependencies
 
 - `numpy` — array operations, percentiles
 - Python stdlib: `math`, `statistics`, `dataclasses`, `collections`

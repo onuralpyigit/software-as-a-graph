@@ -261,17 +261,6 @@ async def api_client():
         yield client
 ```
 
-### 5.6 GNN / Ensemble Prediction Integration Tests
-
-These tests verify that prediction services integrate GNN checkpoints and fallback cleanly.
-
-| Test ID | Description | Expected Result |
-|---------|-------------|-----------------|
-| IT-GNN-01 | Predict with GNN model checkpoint | Predictions include both GNN and RMAV scores; no fallback |
-| IT-GNN-02 | Predict with missing GNN model | System logs warning and falls back to RMAV automatically; exit code 0 |
-| IT-GNN-03 | Predict with mismatching checkpoint layer | System aborts with `CheckpointLayerMismatchError` |
-| IT-GNN-04 | GNN + RMAV Ensemble Blend | `EnsembleGNN` blends predictions using trained logit_α parameters |
-
 ---
 
 ## 4. Unit Tests
@@ -789,6 +778,17 @@ async def test_analysis_endpoint_returns_scores(api_client):
         for dim in ("reliability", "maintainability", "availability", "vulnerability"):
             assert dim in c["scores"], f"Missing {dim} in component {c.get('id')}"
 ```
+
+### 5.6 GNN / Ensemble Prediction Integration Tests
+
+These tests verify that prediction services integrate GNN checkpoints and fallback cleanly.
+
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| IT-GNN-01 | Predict with GNN model checkpoint | Predictions include both GNN and RMAV scores; no fallback |
+| IT-GNN-02 | Predict with missing GNN model | System logs warning and falls back to RMAV automatically; exit code 0 |
+| IT-GNN-03 | Predict with mismatching checkpoint layer | System aborts with `CheckpointLayerMismatchError` |
+| IT-GNN-04 | GNN + RMAV Ensemble Blend | `EnsembleGNN` blends predictions using trained logit_α parameters |
 
 ---
 

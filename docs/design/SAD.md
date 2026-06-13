@@ -365,14 +365,14 @@ Each node $v$ receives a feature vector composed of an 18-dimensional base topol
 
 ## 5. Architectural Decisions & Rationale
 
-### Decision 1: Hexagonal Ports & Adapters Structure
+### 5.1 Decision 1: Hexagonal Ports & Adapters Structure
 - **Rationale**: Isolating domain calculation logic from infrastructure packages allows us to maintain stable, testable code. By defining `IGraphRepository`, we can execute unit tests using `MemoryRepository` in milliseconds without launching Neo4j. If we transition to another database (e.g., Neptune) in the future, the core SDK remains unchanged.
 
-### Decision 2: Decoupling Static Prediction from Failure Simulation
+### 5.2 Decision 2: Decoupling Static Prediction from Failure Simulation
 - **Rationale**: The core evaluation methodology requires validating structural predictions against cascade simulation results. If the prediction engine (RMAV/GNN) had access to simulation telemetry during execution, it would result in validation leakage. Decooupling them guarantees that predictions are computed purely statically (pre-deployment), matching operational constraints.
 
-### Decision 3: Heterogeneous Graph Transformer (HGT) Backbone
+### 5.3 Decision 3: Heterogeneous Graph Transformer (HGT) Backbone
 - **Rationale**: Publish-subscribe systems are inherently heterogeneous (applications publish to topics, brokers route topics, apps run on physical nodes). Standard homogeneous GNN models (like GCN or GAT) wash out these semantic differences. HGTConv learns separate query/key/value projection matrices per relation type, accurately capturing pub-sub routing patterns.
 
-### Decision 4: API-First Decoupled Frontend (Next.js & FastAPI)
+### 5.4 Decision 4: API-First Decoupled Frontend (Next.js & FastAPI)
 - **Rationale**: Separating the frontend and backend enables independent scaling. The FastAPI layer acts as a pure calculation server, which can be deployed close to the Neo4j database or run in batch mode. The Next.js frontend delivers the SMART web application (smart) that runs entirely in the user's browser, calling the backend asynchronously without blocking UI interactions.

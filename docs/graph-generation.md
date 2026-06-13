@@ -61,7 +61,7 @@ The same service layer is exposed via the FastAPI router at `POST /api/v1/graph/
 
 A generated graph contains five node types and six structural edge types.
 
-### Node Types
+### 3.1 Node Types
 
 | Type | ID Prefix | Description |
 |:---|:---|:---|
@@ -71,7 +71,7 @@ A generated graph contains five node types and six structural edge types.
 | `Node` (Infrastructure) | `N{n}` | Physical or virtual host running applications and brokers |
 | `Topic` | `T{n}` | Named communication channel carrying typed messages; includes size, QoS policies, frequency (Hz), and ground-truth criticality |
 
-### Structural Edge Types
+### 3.2 Structural Edge Types
 
 | Edge | From → To | Meaning |
 |:---|:---|:---|
@@ -119,7 +119,7 @@ The primary mode for validation work. A YAML configuration file fully specifies:
 When a YAML config is loaded, the generator uses `StatisticalMetric` sampling (clamped Gaussian via `random.gauss`) for continuous quantities and weighted-list sampling for categorical quantities. This produces topologies whose structural properties closely match the declared distributions, enabling repeatable validation experiments.
 
 ```bash
-PYTHONPATH=. python cli/generate_graph.py --config data/scenario_01_autonomous_vehicle.yaml \
+PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_01_autonomous_vehicle.yaml \
        --output output/av_system.json
 ```
 
@@ -167,12 +167,12 @@ PYTHONPATH=. python cli/generate_graph.py --scale small --seed 123 --output outp
 
 # Autonomous vehicle scenario from YAML config
 PYTHONPATH=. python cli/generate_graph.py \
-    --config data/scenario_01_autonomous_vehicle.yaml \
+    --config data/scenarios/scenario_01_autonomous_vehicle.yaml \
     --output output/av_system.json
 
 # IoT scenario with domain naming
 PYTHONPATH=. python cli/generate_graph.py \
-    --config data/scenario_02_iot_smart_city.yaml \
+    --config data/scenarios/scenario_02_iot_smart_city.yaml \
     --domain iot \
     --output output/iot_system.json
 
@@ -183,7 +183,7 @@ PYTHONPATH=. python cli/generate_graph.py --scale large --seed 2024 --output out
 PYTHONPATH=. python cli/run.py --all --input output/av_system.json
 
 # Generation as stage 1 of run.py orchestrator
-PYTHONPATH=. python cli/run.py --all --config data/scenario_01_autonomous_vehicle.yaml \
+PYTHONPATH=. python cli/run.py --all --config data/scenarios/scenario_01_autonomous_vehicle.yaml \
     --input output/av_system.json --output-dir output/av_results
 ```
 
@@ -209,7 +209,7 @@ Invoked as `PYTHONPATH=. python cli/generate_graph.py batch`. Generates all scen
 
 | Argument | Default | Description |
 |:---|:---|:---|
-| `--input-dir` | `data/` | Directory containing `scenario_*.yaml` files. |
+| `--input-dir` | `data/scenarios/` | Directory containing `scenario_*.yaml` files. |
 | `--output-dir` | `output/` | Output directory for generated JSON files. |
 | `--refresh-legacy` | off | Regenerate `data/system.json` (medium, seed=42) and `data/dataset.json` (small, seed=42) using the current generator, adding `code_metrics` and `system_hierarchy`. |
 | `--multi-seed` | off | Generate per-seed variants for scenarios 01–06 using all seeds in `--seeds`. Scenarios 07–09 are excluded. |
@@ -275,7 +275,7 @@ The manifest JSON records metadata details (`scenario_name`, `source_config`, `o
 
 ## 7. Scenario Configuration Files
 
-Each `data/scenario_*.yaml` configuration file is a self-contained specification for one validation scenario. The file is passed directly to the generator via `cli/generate_graph.py --config`.
+Each `data/scenarios/scenario_*.yaml` configuration file is a self-contained specification for one validation scenario. The file is passed directly to the generator via `cli/generate_graph.py --config`.
 
 > [!NOTE]
 > For a full list of available validation scenarios, details on their stress parameters, seed presets, and topology configurations, refer to the central scenario guide: [scenario.md](scenario.md).
@@ -522,7 +522,7 @@ from tools.generation.models import GraphConfig, SCALE_PRESETS
 data = generate_graph(scale="medium", seed=42, connection_density=0.15)
 
 # Load configuration from a YAML file
-config = load_config(Path("data/scenario_01_autonomous_vehicle.yaml"))
+config = load_config(Path("data/scenarios/scenario_01_autonomous_vehicle.yaml"))
 service = GenerationService(config=config)
 data = service.generate()
 

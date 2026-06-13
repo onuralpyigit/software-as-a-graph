@@ -218,7 +218,7 @@ Evaluating the reported RMAV predictions against the 3-Tier validation gate conf
 | **Tier 3** | **G8 (Bottleneck Precision)** | $\ge 0.70$ | Not claimed in this SAR | — |
 | **Tier 3** | **G9 (FTR Max)** | $\le 0.20$ | Not claimed in this SAR | — |
 
-### Conclusions
+### 6.1 Conclusions
 The validation gate checks demonstrate that the Software-as-a-Graph framework satisfies the reported RMAV primary accuracy constraints on the **Application layer** and **System layer**. The SAR does not claim current ensemble validation; GNN evidence is limited to the external Middleware HGL-QoS LOSO reference and cross-seed training stability, with best-seed restoration treated as a deployment convenience.
 
 **Recommendation**: Future development cycles should focus on incorporating hardware-level redundancy mappings and link latency metrics to bring the **Infrastructure layer** up to Tier 1 validation passage.
