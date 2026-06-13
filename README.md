@@ -90,7 +90,7 @@ The first step converts a system architecture JSON into a formal weighted direct
 |------|----------------|----------------|----------------|
 | **1** | `app_to_app` | App_sub → App_pub via shared Topic | Subscriber depends on publisher; losing the publisher starves the subscriber |
 | **2** | `app_to_broker` | App → Broker routing its topics | App depends on its broker; broker failure silences all its topics |
-| **3** | `node_to_node` | Lifted from Rule 1 — host-level | Two hosts inherit their apps' pub-sub dependency |
+| **3** | `node_to_node` | Lifted from `app_to_app` and `app_to_broker` DEPENDS_ON edges — host-level | Two hosts inherit their apps' pub-sub and broker dependencies |
 | **4** | `node_to_broker` | Lifted from Rule 2 — host-level | A host inherits its apps' broker dependency |
 | **5** | `app_to_lib` | App → Library (USES edge) | Shared-library failure is a *simultaneous blast*, not a cascade — all consumers fail in one event |
 | **6** | `broker_to_broker` | Bidirectional between co-located brokers | Two brokers sharing a physical node share the same hardware fate |
@@ -152,7 +152,7 @@ The RMAV formulas below are part of the Analyze stage. They use AHP-derived weig
 #### Reliability — R(v): *How broadly does failure propagate?*
 
 ```
-R(v) = 0.60·PR(v)·(1 + MPCI(v)) + 0.40·DG_in(v)
+R(v) = 0.60·RPR(v)·(1 + MPCI(v)) + 0.40·DG_in(v)
 ```
 
 For Topic nodes (which have no DEPENDS_ON in-degree), a topic-specific formula is used:
@@ -283,6 +283,8 @@ Step 6 synthesizes the quantitative analysis metrics, AHP-weighted RMAV critical
 ## Empirical Results
 
 Validated across 8 domain scenario datasets:
+
+> **Scenario count note:** the current repository contains eight domain-scenario topologies in `data/`; the Middleware paper reports seven pub-sub scenarios because its evaluation used the seven scenarios available in that study, before the additional ATM scenario was added.
 
 | Metric | Target | Achieved |
 |--------|--------|----------|
@@ -548,7 +550,7 @@ npm run dev
 
 ### Scale Presets
 
-The synthetic generator supports five scale presets for rapid experimentation:
+The synthetic generator supports six scale presets for rapid experimentation:
 
 | Preset | Apps | Topics | Brokers | Nodes | Libs | Typical Use |
 |--------|------|--------|---------|-------|------|-------------|
@@ -556,6 +558,7 @@ The synthetic generator supports five scale presets for rapid experimentation:
 | `small` | 15 | 10 | 2 | 4 | 5 | Quick checks |
 | `medium` | 50 | 30 | 3 | 8 | 10 | Development |
 | `large` | 150 | 100 | 6 | 20 | 30 | Integration tests |
+| `jumbo` | 300 | 120 | 10 | 40 | 50 | Large-scale benchmarks |
 | `xlarge` | 500 | 300 | 10 | 50 | 100 | Performance benchmarks |
 
 ---
@@ -567,13 +570,13 @@ Quality scores are computed per component v. AHP weights use a shrinkage factor 
 ### Reliability — R(v)
 
 ```
-R(v) = 0.60·PR(v)·(1 + MPCI(v)) + 0.40·DG_in(v)
+R(v) = 0.60·RPR(v)·(1 + MPCI(v)) + 0.40·DG_in(v)
 ```
 
 | Term | Description |
 |------|-------------|
-| **PR** | PageRank — global dependency importance/reachability score on G |
-| **MPCI** | Multi-Path Coupling Index — amplifies PageRank when redundant shared channels exist |
+| **RPR** | Reverse PageRank on G^T — global cascade reach |
+| **MPCI** | Multi-Path Coupling Index — amplifies RPR when redundant shared channels exist |
 | **DG_in** | Normalised in-degree — direct dependent count |
 
 ### Maintainability — M(v)

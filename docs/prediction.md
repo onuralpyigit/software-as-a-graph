@@ -282,7 +282,7 @@ Multi-seed training runs the full train loop independently for each seed in `{42
 | G8 | Ensemble validation gap | High | **Resolved** | `ensemble_metrics` computed via `evaluate_scores` in prediction path |
 | G9 | Silent ensemble fallback | Medium | **Resolved** | Added `prediction_mode` field and explicit fallback logging |
 | G10 | Layer compatibility check | Medium | **Resolved** | `from_checkpoint()` validates layer alias against metadata |
-| G11 | Edge feature dim mismatch | Medium | **Resolved** | Edge dimension changed 8→9 to add `path_count_norm`; retrained |
+| G11 | Edge feature dim mismatch | Medium | **Resolved** | Historical 8→9 mismatch superseded; active schema is 16 dimensions (`weight`, `path_count_norm`, 7-bit edge type, 7 QoS dims). |
 | G12 | HGTConv edge_attr incompatibility | Medium | **Resolved** | EdgeAwareHGTConv projects edge features into relation-specific Key and Value spaces |
 | G13 | Single-cycle LR decay | Low | **Resolved** | `CosineAnnealingWarmRestarts` with T_0, T_mult=2 |
 | G14 | Spearman-only early stopping | Low | **Resolved** | Combined score `0.6×ρ + 0.4×loss_improvement` |
@@ -301,10 +301,12 @@ Multi-seed training runs the full train loop independently for each seed in `{42
 | Topic-type branching | ✓ Explicit | Learned | Learned |
 | MPCI amplification | ✓ Explicit (CDPot_enh) | Learned | Learned |
 | Generalises to unseen systems | Immediately | Requires fine-tuning | Requires fine-tuning |
-| Spearman ρ (ATM, validated) | 0.876 overall; 0.943 large-scale | Pending | Pending |
-| F1-score (ATM, validated) | 0.893 | Pending | Pending |
+| Spearman ρ (published validation) | 0.876 overall; 0.943 large-scale | 0.4009 (HGL-QoS LOSO) | Pending |
+| F1@K / F1-score (published validation) | 0.893 | 0.4326 (HGL-QoS LOSO) | Pending |
 | Transductive leakage risk | None (formula-based) | None (Resolved) | None (Resolved) |
 | Primary use | First analysis; interpretable; CI gate; fallback when no checkpoint | Default predictor after training; RMAV = fallback | Research comparison; use `--mode ensemble` |
+
+> **Validation-source note:** the GNN values above are the Middleware HGL-QoS Leave-One-Scenario-Out results using simulation labels across seven scenarios (`ρ = 0.4009`, `F1@K = 0.4326`). Ensemble LOSO is not reported in that work and remains Pending in this document.
 
 ---
 
@@ -428,8 +430,6 @@ PYTHONPATH=. python cli/predict_graph.py --gnn-model output/gnn_checkpoints/best
 
 ## 6. What Comes Next
 
-Step 3 utilizes the GNN and ensemble models to predict component and relationship criticalities from topology.
-
-To evaluate these predictions against ground truth, we proceed to Step 4 to run runtime failure cascades and simulate message flows under node/broker failure scenarios.
+Step 3 has two operational modes. For inference, a trained checkpoint lets Step 3 run after Step 2 and emit GNN/ensemble predictions; Step 4 and Step 5 are then used to validate those predictions against simulation ground truth. For GNN training, Step 4 must come first because simulation labels `I(v)` are required, followed by Step 5 validation to measure GNN/ensemble performance.
 
 → [Step 4: Simulate](failure-simulation.md)

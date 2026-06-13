@@ -785,7 +785,7 @@ Q(v) = w_A × A(v)  +  w_R × R(v)  +  w_M × M(v)  +  w_V × V(v)
 ```
 w_final(d) = λ × w_AHP(d) + (1 − λ) × 0.25
 ```
-The default λ = 0.70 was selected based on a sensitivity sweep across λ ∈ {0.50, 0.60, 0.70, 0.80, 0.90, 1.00}. Spearman ρ plateaus around λ = 0.70, suggesting the AHP signal saturates beyond that point. The sensitivity sweep result should be reported in any paper submission that uses AHP weights (reviewers will ask).
+The default λ = 0.70 was selected from a sensitivity sweep across λ ∈ {0.50, 0.60, 0.70, 0.80, 0.90, 1.00}. Spearman ρ plateaus in the λ ∈ [0.65, 0.75] range, indicating that the AHP signal saturates near the default value. Traceability: the shrinkage implementation is `saag/analysis/weight_calculator.py`; the sweep artifact is tracked in `docs/internal/TODO.md#ahp-shrinkage-sweep-artifact` until committed to `output/`.
 
 ---
 
@@ -970,7 +970,7 @@ Raw AHP weights can be extreme on small comparison sets. The shrinkage strategy 
 w_final(d) = λ × w_AHP(d)  +  (1 − λ) × (1 / n_dimensions)
 ```
 
-The default λ = 0.70 was selected from a sensitivity sweep across {0.50, 0.60, 0.70, 0.80, 0.90, 1.00}. Spearman ρ on the ATM validation dataset plateaus in the λ ∈ [0.65, 0.75] range. The empirical sensitivity sweep result must be included in any paper submission that cites AHP-derived weights (λ = 0.70 as a point estimate is not sufficient; reviewers will ask about sensitivity).
+The default λ = 0.70 was selected from a sensitivity sweep across λ ∈ {0.50, 0.60, 0.70, 0.80, 0.90, 1.00}. Spearman ρ on the ATM validation dataset plateaus in the λ ∈ [0.65, 0.75] range. Traceability: `saag/analysis/weight_calculator.py` implements the shrinkage formula; the sweep artifact is tracked in `docs/internal/TODO.md#ahp-shrinkage-sweep-artifact` until committed to `output/`.
 
 ---
 

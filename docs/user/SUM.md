@@ -3,7 +3,7 @@
 
 **Standard Alignment:** Conforming to **ISO/IEC/IEEE 26511:2018** (Requirements for managers of user documentation) and aligned with the Software Operation and Maintenance processes of **ISO/IEC/IEEE 12207:2026**.
 
-**Document Version:** 1.0  
+**Document Version:** 3.0
 **Release Date:** June 2026  
 **Target Systems:** core SDK (`saag/`), REST API (`api/`), CLI Pipeline (`cli/`), and SMART Web Toolkit (`smart/`).
 
@@ -254,7 +254,7 @@ Analyzes the imported graph in Neo4j to compute centrality metrics, anti-pattern
 ### 5.4 Step 3: GNN Training & Prediction
 
 #### GNN Model Training
-Trains the GAT (Graph Attention Network) on simulated fault labels to predict component criticality.
+Trains the EdgeAwareHGTConv (HGT) GNN on simulated fault labels to predict component criticality.
 - **Script:** [cli/train_graph.py]
 - **Arguments:**
   - `--layer`: Targets specific system layer (`app`, `infra`, `mw`, `system`).

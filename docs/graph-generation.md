@@ -108,14 +108,14 @@ These six edge types constitute the **structural graph G_structural**, which is 
 
 The fastest way to generate a graph. Six named presets are built in:
 
-| Preset | Applications | Topics | Brokers | Nodes | Libraries | Total nodes |
-|--------|-------------|--------|---------|-------|-----------|-------------|
-| `tiny` | 5 | 5 | 1 | 2 | 2 | 15 |
-| `small` | 15 | 10 | 2 | 4 | 5 | 36 |
-| `medium` | 50 | 30 | 3 | 8 | 10 | 101 |
-| `large` | 150 | 100 | 6 | 20 | 30 | 306 |
-| `jumbo` | 300 | 120 | 10 | 40 | 50 | 520 |
-| `xlarge` | 500 | 300 | 10 | 50 | 100 | 960 |
+| Preset | Applications | Topics | Brokers | Nodes | Libraries | Total nodes | Typical Use |
+|--------|-------------|--------|---------|-------|-----------|-------------|-------------|
+| `tiny` | 5 | 5 | 1 | 2 | 2 | 15 | Unit tests |
+| `small` | 15 | 10 | 2 | 4 | 5 | 36 | Quick checks |
+| `medium` | 50 | 30 | 3 | 8 | 10 | 101 | Development |
+| `large` | 150 | 100 | 6 | 20 | 30 | 306 | Integration tests |
+| `jumbo` | 300 | 120 | 10 | 40 | 50 | 520 | Large-scale benchmarks |
+| `xlarge` | 500 | 300 | 10 | 50 | 100 | 960 | Performance benchmarks |
 
 In scale-preset mode, QoS values for each topic are sampled uniformly from the full option space. Node placement, publish/subscribe wiring, and library usage are assigned using simple random selection without statistical distributions. This mode is suitable for benchmarking and quick smoke tests. Total edge counts are seed-dependent; for scale-preset graphs expect roughly 4–10× the total node count in edges.
 
