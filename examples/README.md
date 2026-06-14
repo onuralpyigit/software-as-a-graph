@@ -239,3 +239,58 @@ The script outputs the static dashboard to `output/worked_example_dashboard.html
 10. **QoS Cascade Risk (QoS Ablation)**: dual-bar chart comparing QoS-enriched vs topology-only cascade risks, with QoS Gini, Wilcoxon p-value, and $\Delta\rho$ metrics.
 11. **MIL-STD-498 Hierarchy**: Recursive tree view rolling up computed criticality (Q) and cross-boundary coupling index (CBCI) from CSS down to CSCI, CSC, and CSU.
 
+
+---
+
+## Realistic Safety-Critical ATM System Examples
+
+These examples run structural analysis, failure simulation, validation, and visualization on the realistic 26-app, 27-topic Air Traffic Management (ATM) system dataset located at `data/scenarios/atm_system.json`. 
+
+This topology models the safety-critical ICAO SWIM concepts, utilizing realistic components such as radar trackers, conflict detectors, trajectory predictors, and flight plans.
+
+### 1. ATM Structural Analysis & Quality Scoring
+To run structural centrality, articulation points, and RMAV quality scoring on the ATM system:
+```bash
+python examples/run_atm_structural_analysis.py
+```
+This prints:
+- **ATM Layer Normalized Structural Metrics**: RPR, degrees, and centrality scores for critical ATM modules.
+- **ATM Component Criticality Scores and Levels (RMAV)**: Safety-critical elements like `conflict-detector` and `radar-tracker` are correctly flagged in the high/critical overall Q(v) tiers.
+- **ATM Graph Summary**: Detailed topological summary ($S(G)$) of the 74-component graph.
+
+### 2. ATM Failure Simulation
+To run stochastic fault propagation (BFS-based cascade) and discrete-event SimPy message queue flow simulation on the ATM system:
+```bash
+python examples/run_atm_failure_simulation.py
+```
+This runs:
+- **Fault Injection**: Simulates node failures for Application and Broker nodes and measures cascade reach.
+- **Message Flow Simulation**: Compares baseline delivery rates and latencies to a faulted run where a `radar-tracker` is failed at $t=5.0\text{ s}$.
+- Saves results to `output/atm_system_impact_scores.json` and `output/atm_system_message_flow_results.json`.
+
+### 3. ATM Validation Pipeline
+To run the validation checks comparing predicted quality metrics against simulation-derived actuals:
+```bash
+python examples/run_atm_validation.py
+```
+This prints statistical metrics showing strong GNN model alignment for safety-critical components (such as an application-stratified Spearman $\rho \approx 0.8870$), checks unified validation gates (G1-G9), and computes health indices.
+
+### 4. ATM Visualization Dashboard
+To compile all ATM analysis steps and output an interactive HTML dashboard:
+```bash
+python examples/run_atm_visualization.py
+```
+This generates a single, self-contained dashboard at `output/atm_system_dashboard.html` that showcases all 10 required sections (including cytoscape network graphs, D3 adjacency matrices, multi-seed stability, and the MIL-STD-498 system hierarchy drill-down).
+
+### 5. ATM GNN & Ensemble Prediction
+To run the inductive machine learning and ensemble prediction pipeline on the ATM system:
+```bash
+python examples/run_atm_prediction.py
+```
+This script loads the pre-trained Heterogeneous Graph Transformer (HGT) model checkpoints from `models/gnn_checkpoints/`, executes the forward pass on the ATM Application layer, and prints:
+- **Ensemble Blend Coefficients ($\alpha$)**: The learnable blend parameter vectors showing how GNN predictions are combined with deterministic RMAV rules.
+- **ATM Component Criticality Ranks**: The top-10 ranked application and library components sorted by composite/ensemble score $Q_{ens}$.
+- **ATM Edge Criticality Ranks**: The top-10 ranked directed dependencies (interaction edges) sorted by direct GNN-predicted criticality.
+- Saves the predictions to `output/atm_system_predictions.json`.
+
+
