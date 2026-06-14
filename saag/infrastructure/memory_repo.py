@@ -586,9 +586,22 @@ class MemoryRepository:
                 }
                 self.data["relationships"][key].append(rel)
 
+        # 3.5. Fan-out augmentation for Topics (parity with Neo4j)
+        topic_subs = {}
+        for rel in self.data["relationships"]["subscribes_to"]:
+            topic_subs.setdefault(rel["to"], set()).add(rel["from"])
+        topic_pubs = {}
+        for rel in self.data["relationships"]["publishes_to"]:
+            topic_pubs.setdefault(rel["to"], set()).add(rel["from"])
+
+        for topic in self.data["topics"]:
+            topic["subscriber_count"] = len(topic_subs.get(topic["id"], []))
+            topic["publisher_count"] = len(topic_pubs.get(topic["id"], []))
+
         # 4. Compute weights
         self._calculate_intrinsic_weights()
         self._calculate_aggregate_weights()
+
 
     def get_graph_data(
         self,

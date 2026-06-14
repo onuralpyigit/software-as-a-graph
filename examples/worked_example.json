@@ -1,0 +1,108 @@
+{
+  "metadata": {
+    "scale": {
+      "apps": 2,
+      "topics": 1,
+      "brokers": 1,
+      "nodes": 2,
+      "libs": 1
+    },
+    "seed": 42,
+    "generation_mode": "manual",
+    "domain": "sensing",
+    "scenario": "worked_example"
+  },
+  "nodes": [
+    { "id": "N0", "name": "ComputeNode1" },
+    { "id": "N1", "name": "ComputeNode2" }
+  ],
+  "brokers": [
+    { "id": "B0", "name": "MainBroker" }
+  ],
+  "topics": [
+    {
+      "id": "T0",
+      "name": "/temperature",
+      "size": 64,
+      "frequency": 10.0,
+      "qos": {
+        "reliability": "RELIABLE",
+        "durability": "TRANSIENT_LOCAL",
+        "transport_priority": "HIGH"
+      }
+    }
+  ],
+  "applications": [
+    {
+      "id": "A0",
+      "name": "SensorApp",
+      "role": "pub",
+      "app_type": "sensor",
+      "version": "1.0.0",
+      "criticality": true,
+      "system_hierarchy": {
+        "csc_name": "Sensor Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Environmental Sensing",
+        "csms_name": "Temperature Monitor"
+      },
+      "code_metrics": {
+        "size":       { "total_loc": 1200, "total_classes": 12, "total_methods": 95, "total_fields": 30 },
+        "complexity": { "total_wmc": 120,  "avg_wmc": 10.0, "max_wmc": 22 },
+        "cohesion":   { "avg_lcom": 18.4,  "max_lcom": 42.0 },
+        "coupling":   { "avg_cbo": 5.2, "max_cbo": 9, "avg_rfc": 22.1, "max_rfc": 38,
+                        "avg_fanin": 3.1, "max_fanin": 7, "avg_fanout": 4.8, "max_fanout": 11 }
+      }
+    },
+    {
+      "id": "A1",
+      "name": "MonitorApp",
+      "role": "sub",
+      "app_type": "monitor",
+      "version": "2.1.0",
+      "criticality": false
+    }
+  ],
+  "libraries": [
+    {
+      "id": "L0",
+      "name": "NavLib",
+      "version": "3.2.1",
+      "system_hierarchy": {
+        "csc_name": "Navigation Platform",
+        "csci_name": "Navigation Software",
+        "css_name": "Path Planning",
+        "csms_name": "Core Navigation"
+      },
+      "code_metrics": {
+        "size":       { "total_loc": 4500, "total_classes": 42, "total_methods": 360, "total_fields": 128 },
+        "complexity": { "avg_wmc": 14.2, "max_wmc": 38 },
+        "cohesion":   { "avg_lcom": 29.3, "max_lcom": 87.1 },
+        "coupling":   { "avg_cbo": 8.1, "avg_rfc": 31.4, "avg_fanin": 7.2, "avg_fanout": 5.6 }
+      }
+    }
+  ],
+  "relationships": {
+    "runs_on": [
+      { "from": "A0", "to": "N0" },
+      { "from": "A1", "to": "N1" },
+      { "from": "B0", "to": "N0" }
+    ],
+    "routes": [
+      { "from": "B0", "to": "T0" }
+    ],
+    "publishes_to": [
+      { "from": "A0", "to": "T0" }
+    ],
+    "subscribes_to": [
+      { "from": "A1", "to": "T0" }
+    ],
+    "connects_to": [
+      { "from": "N0", "to": "N1" }
+    ],
+    "uses": [
+      { "from": "A0", "to": "L0" },
+      { "from": "A1", "to": "L0" }
+    ]
+  }
+}
