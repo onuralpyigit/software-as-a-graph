@@ -174,6 +174,7 @@ class Client:
         if "include_validation" in kwargs: options.include_validation = kwargs["include_validation"]
         if "antipatterns_file" in kwargs: options.antipatterns_file = kwargs["antipatterns_file"]
         if "multi_seed" in kwargs: options.multi_seed = kwargs["multi_seed"]
+        if "cascade_file" in kwargs: options.cascade_file = kwargs["cascade_file"]
         
         return uc.execute(layers=layers, output_file=output, options=options)
 

@@ -44,3 +44,4 @@ class VisOptions:
     include_per_dim_scatter: bool = True
     antipatterns_file: Optional[str] = None
     multi_seed: int = 0
+    cascade_file: Optional[str] = None

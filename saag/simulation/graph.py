@@ -72,6 +72,14 @@ class SimulationGraph:
             comp_type = comp.component_type if hasattr(comp, 'component_type') else comp.get('type')
             props = comp.properties if hasattr(comp, 'properties') else {}
             
+            comp_weight = 1.0
+            if hasattr(comp, "weight"):
+                comp_weight = comp.weight
+            elif isinstance(comp, dict):
+                comp_weight = comp.get("weight", 1.0)
+            else:
+                comp_weight = props.get("weight", 1.0)
+
             if comp_type == "Topic":
                 self.topics[comp_id] = TopicInfo(
                     id=comp_id,
@@ -80,13 +88,13 @@ class SimulationGraph:
                     qos_reliability=props.get("qos_reliability", "BEST_EFFORT"),
                     qos_durability=props.get("qos_durability", "VOLATILE"),
                     qos_priority=props.get("qos_priority", "LOW"),
-                    weight=props.get("weight", 1.0),
+                    weight=comp_weight,
                 )
             
             self.components[comp_id] = ComponentInfo(
                 id=comp_id,
                 type=comp_type,
-                weight=props.get("weight", 1.0),
+                weight=comp_weight,
                 properties=props
             )
             self.graph.add_node(comp_id, type=comp_type)
