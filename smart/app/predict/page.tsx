@@ -365,7 +365,7 @@ export default function PredictPage() {
   const levels = ["ALL", "CRITICAL", "HIGH", "MEDIUM", "LOW", "MINIMAL"]
 
   const filteredScores = result?.scores.filter(
-    s => filterLevel === "ALL" || s.criticality_level === filterLevel
+    s => filterLevel === "ALL" || (s.criticality_level || "").toUpperCase() === filterLevel
   ) ?? []
 
   const pagedScores = filteredScores.slice((compPage - 1) * PAGE_SIZE, compPage * PAGE_SIZE)

@@ -12,23 +12,6 @@ import type {
   ClassificationResponse,
 } from '@/lib/types/api';
 
-export interface ComponentExplanation {
-  component_id: string;
-  pattern: string;
-  level: string;
-  one_line: string;
-  top_risk: string;
-  dimensions: Record<string, {
-    score: number;
-    level: string;
-    driving_metric?: string;
-    plain_meaning?: string;
-    risk_sentence?: string;
-  }>;
-  priority_action: string;
-  anti_patterns: string[];
-}
-
 class GraphAnalysisAPI {
   private client: AxiosInstance;
   private baseURL: string;
@@ -242,9 +225,9 @@ class GraphAnalysisAPI {
           // Check dimension-specific criticality if available, otherwise fall back to overall
           if (c.criticality_levels) {
             const level = c.criticality_levels[attr as keyof typeof c.criticality_levels];
-            return level === 'critical' || level === 'high';
+            return (level || '').toLowerCase() === 'critical' || (level || '').toLowerCase() === 'high';
           }
-          return c.criticality_level === 'critical' || c.criticality_level === 'high';
+          return (c.criticality_level || '').toLowerCase() === 'critical' || (c.criticality_level || '').toLowerCase() === 'high';
         })
         .map(c => ({
           id: c.id,
@@ -346,9 +329,9 @@ class GraphAnalysisAPI {
         // Check reliability-specific criticality if available
         if (c.criticality_levels) {
           const level = c.criticality_levels.reliability;
-          return level === 'critical' || level === 'high';
+          return (level || '').toLowerCase() === 'critical' || (level || '').toLowerCase() === 'high';
         }
-        return c.criticality_level === 'critical' || c.criticality_level === 'high';
+        return (c.criticality_level || '').toLowerCase() === 'critical' || (c.criticality_level || '').toLowerCase() === 'high';
       })
       .map(c => ({
         id: c.id,
@@ -422,9 +405,9 @@ class GraphAnalysisAPI {
         // Check maintainability-specific criticality if available
         if (c.criticality_levels) {
           const level = c.criticality_levels.maintainability;
-          return level === 'critical' || level === 'high';
+          return (level || '').toLowerCase() === 'critical' || (level || '').toLowerCase() === 'high';
         }
-        return c.criticality_level === 'critical' || c.criticality_level === 'high';
+        return (c.criticality_level || '').toLowerCase() === 'critical' || (c.criticality_level || '').toLowerCase() === 'high';
       })
       .map(c => ({
         id: c.id,
@@ -498,9 +481,9 @@ class GraphAnalysisAPI {
         // Check availability-specific criticality if available
         if (c.criticality_levels) {
           const level = c.criticality_levels.availability;
-          return level === 'critical' || level === 'high';
+          return (level || '').toLowerCase() === 'critical' || (level || '').toLowerCase() === 'high';
         }
-        return c.criticality_level === 'critical' || c.criticality_level === 'high';
+        return (c.criticality_level || '').toLowerCase() === 'critical' || (c.criticality_level || '').toLowerCase() === 'high';
       })
       .map(c => ({
         id: c.id,
@@ -1329,14 +1312,6 @@ class GraphAnalysisAPI {
       params: { component_type: type, limit: 100000 },
     });
     return response.data.components ?? [];
-  }
-
-  async explainComponents(componentIds: string[]): Promise<Record<string, ComponentExplanation>> {
-    if (!this.credentials) {
-      throw new Error('No credentials set. Please connect first.');
-    }
-    const response = await this.client.post('/api/v1/analysis/explain', componentIds);
-    return response.data.explanations || {};
   }
 
   async exportPersistenceData(): Promise<Blob> {

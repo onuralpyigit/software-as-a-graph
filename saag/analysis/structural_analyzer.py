@@ -168,12 +168,16 @@ class StructuralAnalyzer:
             6. Assemble component metrics with all fields populated
             7. Build graph-level summary
         """
+        import time as _time
         defn = get_layer_definition(layer)
-        G = extract_layer_subgraph(graph_data, layer)
 
+        # --- 2a. Build layer subgraph ---
+        self._logger.info("  2a. Building layer subgraph for '%s'…", layer.value)
+        _t = _time.perf_counter()
+        G = extract_layer_subgraph(graph_data, layer)
         self._logger.info(
-            "Structural analysis [%s]: %d nodes, %d edges",
-            layer.value, G.number_of_nodes(), G.number_of_edges(),
+            "  2a. Subgraph ready: %d nodes, %d edges (%.2fs)",
+            G.number_of_nodes(), G.number_of_edges(), _time.perf_counter() - _t,
         )
 
         if G.number_of_nodes() == 0:
@@ -186,32 +190,45 @@ class StructuralAnalyzer:
         # --- Build inverted-weight graph for distance-based metrics ---
         G_dist = self._build_distance_graph(G)
 
-        # --- Centrality metrics on the directed graph ---
-        # PageRank: weights as importance (raw)
+        # --- 2b. PageRank centrality ---
+        self._logger.info("  2b. Computing PageRank and Reverse PageRank…")
+        _t = _time.perf_counter()
         pagerank = nx.pagerank(G, alpha=self.damping_factor, weight="weight")
         G_rev = G.reverse()
         reverse_pagerank = nx.pagerank(G_rev, alpha=self.damping_factor, weight="weight")
+        self._logger.info("  2b. PageRank done (%.2fs)", _time.perf_counter() - _t)
 
-        # Betweenness: weights as distance (inverted)
+        # --- 2c. Betweenness centrality ---
+        self._logger.info("  2c. Computing betweenness centrality…")
+        _t = _time.perf_counter()
         betweenness = nx.betweenness_centrality(G_dist, weight="weight", normalized=True)
+        self._logger.info("  2c. Betweenness done (%.2fs)", _time.perf_counter() - _t)
 
-        # Harmonic closeness: no weights (topological proximity)
+        # --- 2d. Harmonic closeness centrality ---
+        self._logger.info("  2d. Computing harmonic closeness centrality…")
+        _t = _time.perf_counter()
         closeness = nx.harmonic_centrality(G)
         reverse_closeness = nx.harmonic_centrality(G_rev)
         # Normalize harmonic centrality to [0, 1] by dividing by (n-1)
         if n_nodes > 1:
             closeness = {v: c / (n_nodes - 1) for v, c in closeness.items()}
             reverse_closeness = {v: c / (n_nodes - 1) for v, c in reverse_closeness.items()}
+        self._logger.info("  2d. Harmonic closeness done (%.2fs)", _time.perf_counter() - _t)
 
-        # Eigenvector with Katz fallback
+        # --- 2e. Eigenvector centrality (Katz fallback) ---
+        self._logger.info("  2e. Computing eigenvector centrality…")
+        _t = _time.perf_counter()
         eigenvector = self._safe_eigenvector(G)
         reverse_eigenvector = self._safe_eigenvector(G_rev)
+        self._logger.info("  2e. Eigenvector centrality done (%.2fs)", _time.perf_counter() - _t)
 
         # --- Degree ---
         in_deg = dict(G.in_degree())
         out_deg = dict(G.out_degree())
 
-        # --- MPCI & FOC (Tier 1 New) ---
+        # --- 2f. MPCI, Fan-Out Criticality, path complexity ---
+        self._logger.info("  2f. Computing MPCI, fan-out criticality, path complexity…")
+        _t = _time.perf_counter()
         mpci: Dict[str, float] = {}
         for nid in G.nodes:
             # MPCI(v) = Σ_{e ∈ InEdges(v)} max(path_count(e) − 1, 0) / (|V| − 1)
@@ -264,8 +281,11 @@ class StructuralAnalyzer:
             for n in topic_nodes:
                 foc[n] = raw_foc[n] / max_foc
         # For non-topic nodes, FOC stays 0.0 by default in StructuralMetrics
+        self._logger.info("  2f. MPCI / FOC / path complexity done (%.2fs)", _time.perf_counter() - _t)
 
-        # --- Continuous AP & CDI & Propagation Metrics ---
+        # --- 2g. Articulation points, blast radius, cascade depth ---
+        self._logger.info("  2g. Computing articulation points, blast radius, cascade depth…")
+        _t = _time.perf_counter()
         ap_scores = self._compute_continuous_ap_scores(G)
         
         # Blast radius and cascade depth
@@ -285,8 +305,11 @@ class StructuralAnalyzer:
                 # If cycles exist, fall back to BFS-based depth (max shortest path from root)
                 depths = nx.single_source_shortest_path_length(ego_G, nid)
                 cascade_depth[nid] = max(depths.values()) if depths else 0
+        self._logger.info("  2g. Articulation points / blast radius done (%.2fs)", _time.perf_counter() - _t)
 
-        # --- Resilience (on undirected view) ---
+        # --- 2h. Clustering, bridges (undirected resilience) ---
+        self._logger.info("  2h. Computing clustering coefficients and bridges…")
+        _t = _time.perf_counter()
         U = G.to_undirected()
         clustering = nx.clustering(U)
         art_points = set(nx.articulation_points(U)) if nx.is_connected(U) else self._art_points_disconnected(U)
@@ -295,6 +318,10 @@ class StructuralAnalyzer:
         directed_aps = self._compute_directed_articulation_points(G)
         
         bridges = set(nx.bridges(U)) if nx.is_connected(U) else self._bridges_disconnected(U)
+        self._logger.info(
+            "  2h. Clustering / bridges done: %d articulation points, %d bridges (%.2fs)",
+            len(art_points), len(bridges), _time.perf_counter() - _t,
+        )
 
         # --- Bridge count per node ---
         node_bridge_count: Dict[str, int] = {}
@@ -302,8 +329,11 @@ class StructuralAnalyzer:
             node_bridge_count[u] = node_bridge_count.get(u, 0) + 1
             node_bridge_count[v] = node_bridge_count.get(v, 0) + 1
 
-        # --- Edge betweenness (inverted weights) ---
+        # --- 2i. Edge betweenness ---
+        self._logger.info("  2i. Computing edge betweenness centrality…")
+        _t = _time.perf_counter()
         edge_betweenness = nx.edge_betweenness_centrality(G_dist, weight="weight", normalized=True)
+        self._logger.info("  2i. Edge betweenness done (%.2fs)", _time.perf_counter() - _t)
 
         # --- Dependency weights per node ---
         dep_weight_in: Dict[str, float] = {nid: 0.0 for nid in G.nodes}
@@ -313,15 +343,20 @@ class StructuralAnalyzer:
             dep_weight_out[u] += w
             dep_weight_in[v] += w
 
-        # --- Pub-sub topology metrics (raw PUBLISHES_TO / SUBSCRIBES_TO) ---
+        # --- 2j. Pub-sub topology metrics ---
+        self._logger.info("  2j. Computing pub-sub topology metrics…")
+        _t = _time.perf_counter()
         # allowed_ids = all component IDs in the layer subgraph
         allowed_ids: Set[str] = set(G.nodes)
         pubsub_metrics = self._compute_pubsub_metrics(graph_data, allowed_ids)
+        self._logger.info("  2j. Pub-sub metrics done (%.2fs)", _time.perf_counter() - _t)
 
         # --- QoS profile from topic nodes ---
         qos_profile = self._collect_qos_profile(graph_data)
 
-        # --- Assemble component metrics ---
+        # --- 2k. Assemble component metrics + code quality normalisation ---
+        self._logger.info("  2k. Assembling component metrics and normalising code quality…")
+        _t = _time.perf_counter()
         components: Dict[str, StructuralMetrics] = {}
         for nid in G.nodes:
             ntype = G.nodes[nid].get("component_type", "Unknown")
@@ -416,7 +451,14 @@ class StructuralAnalyzer:
         # Min-max scales loc_norm, complexity_norm, lcom_norm across each type's population,
         # then computes code_quality_penalty = 0.40·CC + 0.35·instability + 0.25·LCOM
         self._compute_code_quality_metrics(components)
+        self._logger.info(
+            "  2k. Component metrics assembled: %d components (%.2fs)",
+            len(components), _time.perf_counter() - _t,
+        )
 
+        # --- 2l. Assemble edge metrics, RCM ordering, graph summary ---
+        self._logger.info("  2l. Assembling edge metrics and graph summary…")
+        _t = _time.perf_counter()
         # --- Assemble edge metrics ---
         edge_metrics: Dict[Tuple[str, str], EdgeMetrics] = {}
         for (u, v), data in G.edges.items():
@@ -448,6 +490,7 @@ class StructuralAnalyzer:
 
         # --- Graph-level summary ---
         summary = self._build_summary(G, layer, art_points, bridges)
+        self._logger.info("  2l. Edge metrics and graph summary done (%.2fs)", _time.perf_counter() - _t)
 
         from saag.core.layers import AnalysisLayer
         try:
@@ -760,157 +803,202 @@ class StructuralAnalyzer:
                 br.update(nx.bridges(sub))
         return br
 
-    def _compute_directed_articulation_points(self, G: nx.DiGraph) -> Set[str]:
+    @staticmethod
+    def _compute_directed_articulation_points(G: nx.DiGraph) -> Set[str]:
         """
-        Identify directed articulation points (SPOFs).
-        A node v is a directed AP if its removal makes any other node 
-        unreachable from the system 'roots' (in-degree 0 nodes).
+        Identify directed articulation points (SPOFs) via BFS with node exclusion.
+
+        A node v is a directed AP if its removal reduces the set of nodes
+        reachable from all in-degree-0 roots.  Uses explicit exclusion in BFS
+        rather than graph copies, eliminating the O(V+E) allocation per node.
+
+        Complexity: O(|base_reachable| * (V+E)) vs the old O(V * (V+E)).
         """
-        roots = [n for n in G.nodes if n in G and G.in_degree(n) == 0]
+        roots = [n for n in G.nodes if G.in_degree(n) == 0]
         if not roots:
             return set()
-            
-        # Initial reachable set from all roots
-        def get_reachable(graph, root_nodes):
-            reachable = set()
-            for r in root_nodes:
-                if r in graph:
-                    reachable.update(nx.descendants(graph, r) | {r})
-            return reachable
 
-        base_reachable = get_reachable(G, roots)
-        directed_aps = set()
-        
-        for v in G.nodes:
-            # We only care about nodes that are themselves reachable from roots
-            if v not in base_reachable:
-                continue
-                
-            # Copy graph and remove node v
-            H = G.copy()
-            H.remove_node(v)
-            
-            # New roots are old roots minus v
-            current_roots = [r for r in roots if r != v]
-            new_reachable = get_reachable(H, current_roots)
-            
-            # If removing v makes ANY other node unreachable, it's a directed AP
-            # (Note: len(base_reachable - {v}) is the max possible new size)
-            if len(new_reachable) < len(base_reachable - {v}):
+        # One BFS from all roots to establish the baseline reachable set
+        base_reachable: Set[str] = set()
+        for r in roots:
+            if r not in base_reachable:
+                stack = [r]
+                base_reachable.add(r)
+                while stack:
+                    curr = stack.pop()
+                    for nb in G.successors(curr):
+                        if nb not in base_reachable:
+                            base_reachable.add(nb)
+                            stack.append(nb)
+
+        if not base_reachable:
+            return set()
+
+        target = len(base_reachable) - 1
+        directed_aps: Set[str] = set()
+
+        for v in base_reachable:
+            # BFS from roots, skipping v — no graph copy needed
+            reachable: Set[str] = set()
+            stack = []
+            for r in roots:
+                if r != v and r not in reachable:
+                    reachable.add(r)
+                    stack.append(r)
+            while stack:
+                curr = stack.pop()
+                for nb in G.successors(curr):
+                    if nb != v and nb not in reachable:
+                        reachable.add(nb)
+                        stack.append(nb)
+            if len(reachable) < target:
                 directed_aps.add(v)
-                
+
         return directed_aps
 
+    @staticmethod
     def _compute_continuous_ap_scores(
-        self, G_dir: nx.DiGraph
+        G_dir: nx.DiGraph,
     ) -> Dict[str, Dict[str, float]]:
         """
-        Compute continuous AP scores, directed AP scores, and CDI per component.
-        Migrated from QualityAnalyzer for better performance (one-pass pipeline).
+        Compute continuous AP scores (AP_c) and CDI per node without graph copies.
+
+        Key idea: run nx.articulation_points (Tarjan, O(V+E)) first to identify
+        which nodes can actually fragment the graph.  Non-APs are assigned 0.0
+        immediately — no BFS needed.  For actual APs, a BFS component walk that
+        skips the removed node finds component sizes without copying the graph.
+
+        CDI uses BFS from a fixed 32-node sample rather than
+        nx.average_shortest_path_length on each residual graph (which was O(V²)
+        per node in the old code).
+
+        Complexity: O(V+E) for Tarjan + O(|AP| * avg_BFS) for ap_c
+                    vs old O(V * (V+E)) due to per-node graph copies.
         """
-        import networkx as nx
-        ap_scores: Dict[str, Dict[str, float]] = {}
-        
+        from collections import deque as _deque
+
         n = G_dir.number_of_nodes()
         if n <= 1:
             return {nid: {"ap_c_dir": 0.0, "cdi": 0.0} for nid in G_dir.nodes}
 
-        # Undirected version for standard AP_c
         G_undir = G_dir.to_undirected()
-        # Transposed version for in-SPOF
-        G_T_undir = G_dir.reverse(copy=True).to_undirected()
+        G_T_undir = G_dir.reverse(copy=False).to_undirected()
 
-        # Optimization: For large graphs use degree-ranked deterministic sampling instead of
-        # random selection. Sorting by total degree (in+out) ensures the most structurally
-        # significant nodes are always included, making CDI estimates stable across runs.
-        use_sampling = n > 300
-        sample_size = 50 if use_sampling else n
+        # ------------------------------------------------------------------ #
+        # Identify undirected APs via Tarjan (O(V+E)) so non-APs             #
+        # short-circuit to 0.0 without any further work.                      #
+        # ------------------------------------------------------------------ #
+        def _find_art_points(G_u: nx.Graph) -> Set[str]:
+            if nx.is_connected(G_u):
+                return set(nx.articulation_points(G_u))
+            pts: Set[str] = set()
+            for comp in nx.connected_components(G_u):
+                sub = G_u.subgraph(comp)
+                if len(sub) >= 3:
+                    pts.update(nx.articulation_points(sub))
+            return pts
 
-        if use_sampling:
-            core_types = {"Application", "Broker", "Node"}
-            core_nodes = [nd for nd in G_dir.nodes if G_dir.nodes[nd].get("component_type") in core_types]
-            other_nodes = [nd for nd in G_dir.nodes if G_dir.nodes[nd].get("component_type") not in core_types]
+        art_points_fwd = _find_art_points(G_undir)
+        art_points_rev = _find_art_points(G_T_undir)
+        all_aps = art_points_fwd | art_points_rev
 
-            # Rank each group by total degree (descending) for deterministic selection
-            core_nodes_ranked = sorted(
-                core_nodes,
-                key=lambda nd: G_dir.in_degree(nd) + G_dir.out_degree(nd),
+        # ------------------------------------------------------------------ #
+        # BFS component walk with one node excluded — no graph copy.          #
+        # Returns the size of the largest CC after removing `excluded`.       #
+        # ------------------------------------------------------------------ #
+        def _largest_cc_excluding(G_u: nx.Graph, excluded: str) -> int:
+            visited: Set[str] = {excluded}
+            largest = 0
+            for start in G_u.nodes:
+                if start in visited:
+                    continue
+                visited.add(start)
+                size = 1
+                queue: deque = _deque([start])
+                while queue:
+                    curr = queue.popleft()
+                    for nb in G_u.neighbors(curr):
+                        if nb not in visited:
+                            visited.add(nb)
+                            queue.append(nb)
+                            size += 1
+                if size > largest:
+                    largest = size
+            return largest
+
+        # ------------------------------------------------------------------ #
+        # CDI baseline: BFS from top-32 degree nodes in the largest CC.      #
+        # Fixed sample size keeps cost constant regardless of graph size.     #
+        # ------------------------------------------------------------------ #
+        _CDI_SAMPLE = 32
+        ccs = list(nx.connected_components(G_undir))
+        largest_cc_nodes = max(ccs, key=len) if ccs else set()
+        G_main = G_undir.subgraph(largest_cc_nodes)
+
+        def _avg_bfs_length(G_u: nx.Graph, sources: List[str]) -> float:
+            total, count = 0, 0
+            for s in sources:
+                if s not in G_u:
+                    continue
+                lengths = nx.single_source_shortest_path_length(G_u, s)
+                total += sum(lengths.values())
+                count += len(lengths)
+            return total / count if count else 0.0
+
+        sample_nodes: List[str] = []
+        baseline_avg = 0.0
+        if len(largest_cc_nodes) > 1:
+            sample_nodes = sorted(
+                largest_cc_nodes,
+                key=lambda v: G_main.degree(v),
                 reverse=True,
-            )
-            if len(core_nodes_ranked) >= sample_size:
-                random_nodes = core_nodes_ranked[:sample_size]
-            else:
-                other_nodes_ranked = sorted(
-                    other_nodes,
-                    key=lambda nd: G_dir.in_degree(nd) + G_dir.out_degree(nd),
-                    reverse=True,
-                )
-                fill_size = min(sample_size - len(core_nodes_ranked), len(other_nodes_ranked))
-                random_nodes = core_nodes_ranked + other_nodes_ranked[:fill_size]
-        else:
-            random_nodes = list(G_dir.nodes)
-        
-        # Pre-compute baseline average shortest path length (undirected)
-        # Using largest CC to avoid infinity issues
-        cc = list(nx.connected_components(G_undir))
-        largest_cc = max(cc, key=len) if cc else set()
-        baseline_avg_path = 0.0
-        if len(largest_cc) > 1:
-            G_sub = G_undir.subgraph(largest_cc)
-            try:
-                baseline_avg_path = nx.average_shortest_path_length(G_sub)
-            except (nx.NetworkXError, ZeroDivisionError):
-                baseline_avg_path = 0.0
+            )[:_CDI_SAMPLE]
+            baseline_avg = _avg_bfs_length(G_main, sample_nodes)
 
-        cdi_raw: Dict[str, float] = {}
+        # ------------------------------------------------------------------ #
+        # Main loop — BFS cost only paid for actual APs                      #
+        # Non-APs get 0.0 for both ap_c_dir and cdi: a non-AP cannot        #
+        # fragment the graph so both measures are structurally 0.            #
+        # ------------------------------------------------------------------ #
+        ap_scores: Dict[str, Dict[str, float]] = {}
 
         for nid in G_dir.nodes:
-            # --- AP_c_out (undirected removal) ---
-            G_out = G_undir.copy()
-            G_out.remove_node(nid)
-            out_cc = list(nx.connected_components(G_out))
-            largest_out = max(len(c) for c in out_cc) if out_cc else 0
-            ap_c_out = 1.0 - (largest_out / (n - 1)) if n > 1 else 0.0
+            if nid not in all_aps:
+                ap_scores[nid] = {"ap_c_dir": 0.0, "cdi": 0.0}
+                continue
 
-            # --- AP_c_in (transposed removal) ---
-            G_in = G_T_undir.copy()
-            G_in.remove_node(nid)
-            in_cc = list(nx.connected_components(G_in))
-            largest_in = max(len(c) for c in in_cc) if in_cc else 0
-            ap_c_in = 1.0 - (largest_in / (n - 1)) if n > 1 else 0.0
+            # ap_c_out (forward undirected view)
+            if nid in art_points_fwd:
+                largest_out = _largest_cc_excluding(G_undir, nid)
+                ap_c_out = 1.0 - largest_out / (n - 1)
+            else:
+                ap_c_out = 0.0
+
+            # ap_c_in (transposed undirected view)
+            if nid in art_points_rev:
+                largest_in = _largest_cc_excluding(G_T_undir, nid)
+                ap_c_in = 1.0 - largest_in / (n - 1)
+            else:
+                ap_c_in = 0.0
 
             ap_c_dir = max(ap_c_out, ap_c_in)
 
-            # --- CDI (Connectivity Degradation Index) ---
+            # CDI — only APs can fragment the graph
             cdi_val = 0.0
-            if baseline_avg_path > 0 and len(out_cc) > 0:
-                # Removal may have fragmented the graph
-                # If disconnected, CDI = 1.0 (worst case)
-                if len(out_cc) > len(cc):
-                    cdi_val = 1.0
+            if baseline_avg > 0.0 and nid in art_points_fwd:
+                post_nodes = [v for v in G_undir.nodes if v != nid]
+                post_ccs = list(nx.connected_components(G_undir.subgraph(post_nodes)))
+                if len(post_ccs) > len(ccs):
+                    cdi_val = 1.0  # fragmentation — worst case
                 else:
-                    try:
-                        G_out_main = G_out.subgraph(max(out_cc, key=len)).copy()
-                        if G_out_main.number_of_nodes() > 1:
-                            # Use sampling if requested
-                            if use_sampling:
-                                # Simple approximation for average path length increase
-                                # BFS from sample of nodes
-                                lengths = []
-                                for s in random_nodes:
-                                    if s == nid or s not in G_out_main: continue
-                                    d = nx.single_source_shortest_path_length(G_out_main, s)
-                                    lengths.extend(d.values())
-                                after_avg = sum(lengths) / len(lengths) if lengths else baseline_avg_path
-                            else:
-                                after_avg = nx.average_shortest_path_length(G_out_main)
-                            
-                            cdi_val = min(max(0.0, (after_avg - baseline_avg_path) / baseline_avg_path), 1.0)
-                    except (nx.NetworkXError, ZeroDivisionError):
-                        cdi_val = 0.0
-            
+                    post_main = max(post_ccs, key=len) if post_ccs else set()
+                    G_post = G_undir.subgraph(post_main)
+                    post_sources = [s for s in sample_nodes if s != nid and s in G_post]
+                    if post_sources and G_post.number_of_nodes() > 1:
+                        after_avg = _avg_bfs_length(G_post, post_sources)
+                        cdi_val = min(max(0.0, (after_avg - baseline_avg) / baseline_avg), 1.0)
+
             ap_scores[nid] = {"ap_c_dir": ap_c_dir, "cdi": cdi_val}
-            cdi_raw[nid] = cdi_val
 
         return ap_scores
 

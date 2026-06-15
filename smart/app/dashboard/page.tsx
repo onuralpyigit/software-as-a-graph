@@ -97,8 +97,8 @@ export default function DashboardPage() {
       : 0
     const qualityScale = (1 - avgRisk) * 100
 
-    const criticalCount = systemAnalysis.summary?.critical_count ?? comps.filter(c => c.criticality_level === 'critical').length
-    const highCount = systemAnalysis.summary?.high_count ?? comps.filter(c => c.criticality_level === 'high').length
+    const criticalCount = systemAnalysis.summary?.critical_count ?? comps.filter(c => (c.criticality_level || '').toLowerCase() === 'critical').length
+    const highCount = systemAnalysis.summary?.high_count ?? comps.filter(c => (c.criticality_level || '').toLowerCase() === 'high').length
     const antiPatternsCount = systemAnalysis.summary?.total_problems ?? systemAnalysis.problems?.length ?? 0
     const criticalProblems = systemAnalysis.summary?.critical_problems ?? systemAnalysis.problems?.filter(p => p.severity === 'CRITICAL').length ?? 0
     const isBlocked = criticalCount > 0 || criticalProblems > 0

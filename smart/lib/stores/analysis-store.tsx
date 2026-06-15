@@ -1,7 +1,6 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { ComponentExplanation } from '@/lib/api/client'
 
 interface ComponentAnalysis {
   id: string
@@ -58,11 +57,11 @@ interface AnalysisResult {
   components: ComponentAnalysis[]
   edges?: EdgeAnalysis[]
   problems: Problem[]
+  logs?: string[]
 }
 
 interface AnalysisState {
   cache: Record<string, AnalysisResult>
-  explanations: Record<string, ComponentExplanation>
 }
 
 interface AnalysisContextType extends AnalysisState {
@@ -70,18 +69,21 @@ interface AnalysisContextType extends AnalysisState {
   getAnalysis: (key: string) => AnalysisResult | null
   clearAnalysis: (key?: string) => void
   clearAll: () => void
-  setExplanations: (exps: Record<string, ComponentExplanation>) => void
-  getExplanation: (id: string) => ComponentExplanation | null
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined)
 
 const STORAGE_KEY = 'analysis-cache'
-const CACHE_VERSION = 2 // Bump when API stats shape changes to auto-bust stale data
-const MAX_CACHE_ITEMS = 3 // Limit number of cached analyses
+const CACHE_VERSION = 3
+const MAX_CACHE_ITEMS = 4 // one per layer: system, application, infrastructure, middleware
 
-// Use sessionStorage instead of localStorage - larger quota and persists during session
-const storage = typeof window !== 'undefined' ? sessionStorage : null
+// Access localStorage lazily so this module works during SSR (window is undefined server-side).
+// Never capture it at module evaluation time — Next.js evaluates modules on the server where
+// window doesn't exist, and a captured null would persist into the browser runtime.
+const getStorage = (): Storage | null => {
+  if (typeof window === 'undefined') return null
+  return window.localStorage
+}
 
 // Helper to compress data by keeping only essential fields
 const compressAnalysisResult = (result: AnalysisResult): AnalysisResult => {
@@ -92,42 +94,55 @@ const compressAnalysisResult = (result: AnalysisResult): AnalysisResult => {
     stats: result.stats,
     components: result.components || [],
     edges: result.edges || [],
-    problems: result.problems || []
+    problems: result.problems || [],
+    logs: result.logs || [],
   }
 }
 
 // Safe storage operations with error handling
 const saveToStorage = (cache: Record<string, AnalysisResult>) => {
+  const storage = getStorage()
   if (!storage) return
 
+  // Keep only the most recent MAX_CACHE_ITEMS
+  const keys = Object.keys(cache)
+  const trimmedCache: Record<string, AnalysisResult> = {}
+  const keysToKeep = keys.length > MAX_CACHE_ITEMS ? keys.slice(-MAX_CACHE_ITEMS) : keys
+  keysToKeep.forEach(key => { trimmedCache[key] = cache[key] })
+
+  const tryWrite = (payload: object) => {
+    storage.setItem(STORAGE_KEY, JSON.stringify({ v: CACHE_VERSION, data: payload }))
+  }
+
   try {
-    // Keep only the most recent MAX_CACHE_ITEMS
-    const keys = Object.keys(cache)
-    const trimmedCache: Record<string, AnalysisResult> = {}
-    const keysToKeep = keys.length > MAX_CACHE_ITEMS ? keys.slice(-MAX_CACHE_ITEMS) : keys
-    keysToKeep.forEach(key => {
-      trimmedCache[key] = cache[key]
-    })
-    storage.setItem(STORAGE_KEY, JSON.stringify({ v: CACHE_VERSION, data: trimmedCache }))
-  } catch (error: any) {
-    // If quota exceeded, clear everything and just keep in memory
-    if (error.name === 'QuotaExceededError') {
-      console.warn('Storage quota exceeded, keeping analysis in memory only')
+    tryWrite(trimmedCache)
+  } catch (e1: any) {
+    if (e1.name !== 'QuotaExceededError') {
+      console.error('Failed to save analysis cache:', e1)
+      return
+    }
+    // Quota exceeded — strip logs from each entry and retry once
+    try {
+      const slim: Record<string, AnalysisResult> = {}
+      Object.entries(trimmedCache).forEach(([k, v]) => {
+        slim[k] = { ...v, logs: [] }
+      })
+      tryWrite(slim)
+    } catch (e2: any) {
+      console.warn('Storage quota exceeded even after stripping logs; cache not persisted')
       storage.removeItem(STORAGE_KEY)
-    } else {
-      console.error('Failed to save analysis cache:', error)
     }
   }
 }
 
 const loadFromStorage = (): Record<string, AnalysisResult> => {
+  const storage = getStorage()
   if (!storage) return {}
 
   try {
     const saved = storage.getItem(STORAGE_KEY)
     if (saved) {
       const parsed = JSON.parse(saved)
-      // Bust cache on version mismatch (e.g. API stats shape changed)
       if (parsed.v !== CACHE_VERSION) {
         storage.removeItem(STORAGE_KEY)
         return {}
@@ -136,7 +151,6 @@ const loadFromStorage = (): Record<string, AnalysisResult> => {
     }
   } catch (error) {
     console.error('Failed to load analysis cache:', error)
-    // Clear corrupted data
     storage.removeItem(STORAGE_KEY)
   }
   return {}
@@ -144,11 +158,10 @@ const loadFromStorage = (): Record<string, AnalysisResult> => {
 
 export function AnalysisProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AnalysisState>({
-    cache: {},
-    explanations: {}
+    cache: {}
   })
 
-  // Load cache from localStorage on mount
+  // Load from localStorage on mount (client-only — window is unavailable during SSR)
   useEffect(() => {
     const loadedCache = loadFromStorage()
     if (Object.keys(loadedCache).length > 0) {
@@ -182,28 +195,16 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
       })
     } else {
       // Clear all
-      setState({ cache: {}, explanations: {} })
+      setState({ cache: {} })
+      const storage = getStorage()
       if (storage) storage.removeItem(STORAGE_KEY)
     }
   }
 
   const clearAll = () => {
-    setState({ cache: {}, explanations: {} })
+    setState({ cache: {} })
+    const storage = getStorage()
     if (storage) storage.removeItem(STORAGE_KEY)
-  }
-
-  const setExplanations = (exps: Record<string, ComponentExplanation>) => {
-    setState(prev => ({
-      ...prev,
-      explanations: {
-        ...prev.explanations,
-        ...exps
-      }
-    }))
-  }
-
-  const getExplanation = (id: string): ComponentExplanation | null => {
-    return state.explanations[id] || null
   }
 
   return (
@@ -213,9 +214,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         setAnalysis,
         getAnalysis,
         clearAnalysis,
-        clearAll,
-        setExplanations,
-        getExplanation
+        clearAll
       }}
     >
       {children}

@@ -5,6 +5,7 @@ Analysis endpoints for system, type, and layer analysis.
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, List
 import logging
+import time
 
 from types import SimpleNamespace
 
@@ -21,6 +22,50 @@ from api.models import AnalysisEnvelope
 
 router = APIRouter(prefix="/api/v1/analysis", tags=["analysis"])
 logger = logging.getLogger(__name__)
+
+# Loggers whose records should be captured for the analysis log output.
+_CAPTURE_LOGGERS = [
+    "api.routers.analysis",
+    "saag.analysis.structural_analyzer",
+    "saag.analysis.service",
+    "saag.analysis.antipattern_detector",
+    "saag.prediction",
+]
+
+
+class _ListHandler(logging.Handler):
+    """Logging handler that appends formatted records to a list."""
+
+    def __init__(self, records: List[str]) -> None:
+        super().__init__(level=logging.DEBUG)
+        self._records = records
+        self.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            self._records.append(self.format(record))
+        except Exception:
+            pass
+
+
+class _AnalysisLogCapture:
+    """Context-manager that attaches a list handler to the analysis loggers."""
+
+    def __init__(self) -> None:
+        self.records: List[str] = []
+        self._handler = _ListHandler(self.records)
+        self._loggers: List[logging.Logger] = []
+
+    def __enter__(self) -> "_AnalysisLogCapture":
+        for name in _CAPTURE_LOGGERS:
+            lg = logging.getLogger(name)
+            lg.addHandler(self._handler)
+            self._loggers.append(lg)
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        for lg in self._loggers:
+            lg.removeHandler(self._handler)
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────
@@ -97,6 +142,7 @@ async def analyze_by_type(
             context=f"{normalized_type} Components Analysis",
             description=f"Analysis filtered by component type: {normalized_type}",
             component_type=normalized_type,
+            logs=cap.records,
         )
     except Exception as e:
         logger.error(f"Type analysis failed: {str(e)}")

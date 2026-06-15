@@ -321,12 +321,15 @@ def compute_topic_bandwidth_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     # Keep legacy "bandwidth" as sub-based for backward compatibility
     bandwidth = bandwidth_sub
 
-    nonzero_bw = [b for b in bandwidth_sub if b > 0]
+    nonzero_bw_sub = [b for b in bandwidth_sub if b > 0]
+    nonzero_bw_pub = [b for b in bandwidth_pub if b > 0]
+    nonzero_bw_pubsub = [b for b in bandwidth_pubsub if b > 0]
+    
     outlier_indices: List[int] = []
     iqr_upper = 0.0
     iqr_val = 0.0
-    if len(nonzero_bw) >= 4:
-        _, iqr_upper, iqr_val = find_1d_outliers_iqr(nonzero_bw)
+    if len(nonzero_bw_sub) >= 4:
+        _, iqr_upper, iqr_val = find_1d_outliers_iqr(nonzero_bw_sub)
         outlier_indices = [
             i for i in range(len(bandwidth_sub))
             if bandwidth_sub[i] > iqr_upper and bandwidth_sub[i] > 0
@@ -343,15 +346,32 @@ def compute_topic_bandwidth_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "size_mean": float(np.mean(size_arr)),
             "size_median": float(np.median(size_arr)),
             "size_max": float(np.max(size_arr)),
+            "size_min": float(np.min(size_arr)),
             "sub_mean": float(np.mean(sub_arr)),
             "sub_median": float(np.median(sub_arr)),
             "sub_max": int(np.max(sub_arr)),
+            "sub_min": int(np.min(sub_arr)),
             "pub_mean": float(np.mean(pub_arr)),
             "pub_median": float(np.median(pub_arr)),
             "pub_max": int(np.max(pub_arr)),
+            "pub_min": int(np.min(pub_arr)),
             "zero_sub_count": sum(1 for s in subs if s == 0),
-            "bw_mean": float(np.mean(nonzero_bw)) if nonzero_bw else 0,
-            "bw_median": float(np.median(nonzero_bw)) if nonzero_bw else 0,
+            
+            "bw_sub_mean": float(np.mean(nonzero_bw_sub)) if nonzero_bw_sub else 0,
+            "bw_sub_median": float(np.median(nonzero_bw_sub)) if nonzero_bw_sub else 0,
+            "bw_sub_max": float(np.max(nonzero_bw_sub)) if nonzero_bw_sub else 0,
+            "bw_sub_min": float(np.min(nonzero_bw_sub)) if nonzero_bw_sub else 0,
+            
+            "bw_pub_mean": float(np.mean(nonzero_bw_pub)) if nonzero_bw_pub else 0,
+            "bw_pub_median": float(np.median(nonzero_bw_pub)) if nonzero_bw_pub else 0,
+            "bw_pub_max": float(np.max(nonzero_bw_pub)) if nonzero_bw_pub else 0,
+            "bw_pub_min": float(np.min(nonzero_bw_pub)) if nonzero_bw_pub else 0,
+            
+            "bw_pubsub_mean": float(np.mean(nonzero_bw_pubsub)) if nonzero_bw_pubsub else 0,
+            "bw_pubsub_median": float(np.median(nonzero_bw_pubsub)) if nonzero_bw_pubsub else 0,
+            "bw_pubsub_max": float(np.max(nonzero_bw_pubsub)) if nonzero_bw_pubsub else 0,
+            "bw_pubsub_min": float(np.min(nonzero_bw_pubsub)) if nonzero_bw_pubsub else 0,
+            
             "outlier_count": len(outlier_indices),
         }
 
@@ -359,7 +379,10 @@ def compute_topic_bandwidth_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         "sizes": sizes, "subs": subs, "pubs": pubs, "labels": labels, "ids": ids,
         "bandwidth": bandwidth, "bandwidth_sub": bandwidth_sub,
         "bandwidth_pub": bandwidth_pub, "bandwidth_pubsub": bandwidth_pubsub,
-        "nonzero_bw": nonzero_bw,
+        "nonzero_bw": nonzero_bw_sub,
+        "nonzero_bw_sub": nonzero_bw_sub,
+        "nonzero_bw_pub": nonzero_bw_pub,
+        "nonzero_bw_pubsub": nonzero_bw_pubsub,
         "outlier_indices": outlier_indices,
         "iqr_upper": iqr_upper, "iqr": iqr_val,
         "summary": summary,
@@ -464,6 +487,7 @@ def compute_app_balance_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     if pubs:
         pub_arr = np.array(pubs, dtype=float)
         sub_arr = np.array(subs, dtype=float)
+        io_arr = np.array(io_load, dtype=float)
         mean_p = float(np.mean(pub_arr))
         mean_s = float(np.mean(sub_arr))
         summary = {
@@ -471,9 +495,15 @@ def compute_app_balance_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "pub_mean": mean_p,
             "pub_median": float(np.median(pub_arr)),
             "pub_max": int(np.max(pub_arr)),
+            "pub_min": int(np.min(pub_arr)),
             "sub_mean": mean_s,
             "sub_median": float(np.median(sub_arr)),
             "sub_max": int(np.max(sub_arr)),
+            "sub_min": int(np.min(sub_arr)),
+            "io_mean": float(np.mean(io_arr)),
+            "io_median": float(np.median(io_arr)),
+            "io_max": int(np.max(io_arr)),
+            "io_min": int(np.min(io_arr)),
             "q_high_io": sum(1 for p, s in zip(pubs, subs) if p > mean_p and s > mean_s),
             "q_consumer": sum(1 for p, s in zip(pubs, subs) if p <= mean_p and s > mean_s),
             "q_producer": sum(1 for p, s in zip(pubs, subs) if p > mean_p and s <= mean_s),
@@ -522,15 +552,19 @@ def compute_topic_fanout_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "pub_mean": float(np.mean(pub_arr)),
             "pub_median": float(np.median(pub_arr)),
             "pub_max": int(np.max(pub_arr)),
+            "pub_min": int(np.min(pub_arr)),
             "sub_mean": float(np.mean(sub_arr)),
             "sub_median": float(np.median(sub_arr)),
             "sub_max": int(np.max(sub_arr)),
+            "sub_min": int(np.min(sub_arr)),
             "one_to_many": sum(1 for p, s in zip(pubs, subs) if p == 1 and s > 1),
             "many_to_one": sum(1 for p, s in zip(pubs, subs) if p > 1 and s == 1),
             "many_to_many": sum(1 for p, s in zip(pubs, subs) if p > 1 and s > 1),
             "orphan": sum(1 for p, s in zip(pubs, subs) if p == 0 or s == 0),
             "fanout_mean": float(np.mean(nonzero_fanout)) if nonzero_fanout else 0,
+            "fanout_median": float(np.median(nonzero_fanout)) if nonzero_fanout else 0,
             "fanout_max": int(np.max(nonzero_fanout)) if nonzero_fanout else 0,
+            "fanout_min": int(np.min(nonzero_fanout)) if nonzero_fanout else 0,
             "outlier_count": len(outlier_indices),
         }
 
@@ -631,6 +665,7 @@ def _compute_matrix_stats(
         summary["cell_mean"] = float(np.mean(nonzero_vals))
         summary["cell_median"] = float(np.median(nonzero_vals))
         summary["cell_max"] = int(np.max(nonzero_vals))
+        summary["cell_min"] = int(np.min(nonzero_vals))
 
     return {
         "outlier_pairs": outlier_pairs,
@@ -767,6 +802,8 @@ def compute_node_comm_load_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "pub_total": pub_total, "sub_total": sub_total,
             "load_mean": float(np.mean(total_arr)),
             "load_median": float(np.median(total_arr)),
+            "load_max": int(np.max(total_arr)),
+            "load_min": int(np.min(total_arr)),
             "load_std": float(np.std(total_arr)),
             "cv": float(np.std(total_arr) / np.mean(total_arr) * 100) if np.mean(total_arr) > 0 else 0,
             "zero_load": sum(1 for t in all_totals if t == 0),
@@ -885,6 +922,7 @@ def compute_criticality_io_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "crit_io_mean": float(np.mean(crit_arr)),
             "crit_io_median": float(np.median(crit_arr)),
             "crit_io_max": int(np.max(crit_arr)),
+            "crit_io_min": int(np.min(crit_arr)),
         })
     norm_io = [p + s for p, s in zip(norm_pubs, norm_subs)]
     if norm_io:
@@ -893,6 +931,7 @@ def compute_criticality_io_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "norm_io_mean": float(np.mean(norm_arr)),
             "norm_io_median": float(np.median(norm_arr)),
             "norm_io_max": int(np.max(norm_arr)),
+            "norm_io_min": int(np.min(norm_arr)),
         })
     if crit_io and norm_io:
         crit_mean = float(np.mean(crit_io))
@@ -971,10 +1010,14 @@ def compute_lib_dependency_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     }
     if nonzero_in:
         summary["in_mean"] = float(np.mean(nonzero_in))
+        summary["in_median"] = float(np.median(nonzero_in))
         summary["in_max"] = int(np.max(nonzero_in))
+        summary["in_min"] = int(np.min(nonzero_in))
     if nonzero_out:
         summary["out_mean"] = float(np.mean(nonzero_out))
+        summary["out_median"] = float(np.median(nonzero_out))
         summary["out_max"] = int(np.max(nonzero_out))
+        summary["out_min"] = int(np.min(nonzero_out))
 
     return {
         "active_ids": active_ids, "display_ids": display_ids,
@@ -1029,7 +1072,15 @@ def compute_node_critical_density_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     if crit_vals:
         crit_arr = np.array(crit_vals, dtype=float)
         summary["crit_per_node_mean"] = float(np.mean(crit_arr))
+        summary["crit_per_node_median"] = float(np.median(crit_arr))
         summary["crit_per_node_max"] = int(np.max(crit_arr))
+        summary["crit_per_node_min"] = int(np.min(crit_arr))
+    if norm_vals:
+        norm_arr = np.array(norm_vals, dtype=float)
+        summary["norm_per_node_mean"] = float(np.mean(norm_arr))
+        summary["norm_per_node_median"] = float(np.median(norm_arr))
+        summary["norm_per_node_max"] = int(np.max(norm_arr))
+        summary["norm_per_node_min"] = int(np.min(norm_arr))
     if crit_ratios and node_labels:
         summary["max_ratio_node"] = node_labels[max_ratio_idx]
         summary["max_ratio_pct"] = crit_ratios[max_ratio_idx]
@@ -1091,13 +1142,19 @@ def compute_segment_diversity_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     summary: Dict[str, Any] = {"css_count": len(labels)}
     if app_counts:
         summary["app_mean"] = float(np.mean(app_counts))
+        summary["app_median"] = float(np.median(app_counts))
         summary["app_max"] = int(np.max(app_counts))
+        summary["app_min"] = int(np.min(app_counts))
     if topic_counts:
         summary["topic_mean"] = float(np.mean(topic_counts))
+        summary["topic_median"] = float(np.median(topic_counts))
         summary["topic_max"] = int(np.max(topic_counts))
+        summary["topic_min"] = int(np.min(topic_counts))
     if io_vals:
         summary["io_mean"] = float(np.mean(io_vals))
+        summary["io_median"] = float(np.median(io_vals))
         summary["io_max"] = int(np.max(io_vals))
+        summary["io_min"] = int(np.min(io_vals))
 
     return {
         "domain_set": segment_set, "labels": labels,
@@ -1505,7 +1562,9 @@ def compute_bottleneck_stats_from_structural(components: Dict[str, Any]) -> Dict
         arr = np.array(scores, dtype=float)
         summary.update({
             "score_mean": round(float(np.mean(arr)), 4),
+            "score_median": round(float(np.median(arr)), 4),
             "score_max": round(float(np.max(arr)), 4),
+            "score_min": round(float(np.min(arr)), 4),
         })
 
     return {
@@ -1683,6 +1742,7 @@ def compute_network_usage_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         summary["bw_mean"] = float(np.mean(arr))
         summary["bw_median"] = float(np.median(arr))
         summary["bw_max"] = float(np.max(arr))
+        summary["bw_min"] = float(np.min(arr))
         summary["bw_std"] = float(np.std(arr))
         summary["cv"] = (
             float(np.std(arr) / np.mean(arr) * 100) if np.mean(arr) > 0 else 0.0
@@ -1699,6 +1759,31 @@ def compute_network_usage_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         "summary": summary,
         "topic_bandwidth": topic_bw_list,
         "app_bandwidth": app_bw_list,
+    }
+
+
+def compute_qos_distribution_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute distribution of QoS fields for topic items."""
+    durability_counts: Dict[str, int] = {}
+    reliability_counts: Dict[str, int] = {}
+    transport_priority_counts: Dict[str, int] = {}
+    
+    total_topics = 0
+    for tid, qos in cc["topic_qos"].items():
+        total_topics += 1
+        dur = str(qos.get("durability", "NOT_FOUND"))
+        rel = str(qos.get("reliability", "NOT_FOUND"))
+        tp = str(qos.get("transport_priority", "NOT_FOUND"))
+        
+        durability_counts[dur] = durability_counts.get(dur, 0) + 1
+        reliability_counts[rel] = reliability_counts.get(rel, 0) + 1
+        transport_priority_counts[tp] = transport_priority_counts.get(tp, 0) + 1
+        
+    return {
+        "total_topics": total_topics,
+        "durability": durability_counts,
+        "reliability": reliability_counts,
+        "transport_priority": transport_priority_counts,
     }
 
 
@@ -1735,6 +1820,7 @@ def compute_all_extras_statistics(
         "node_critical_density": compute_node_critical_density_stats(cc),
         "domain_diversity": compute_segment_diversity_stats(cc),
         "network_usage": compute_network_usage_stats(cc),
+        "qos_distribution": compute_qos_distribution_stats(cc),
     }
 
     if risk_weight_fn is not None:

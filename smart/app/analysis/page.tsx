@@ -48,13 +48,15 @@ import {
   Hash,
   Download,
   LayoutGrid,
-  Share2
+  Share2,
+  Terminal,
+  ChevronDown,
 } from "lucide-react"
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { useConnection } from "@/lib/stores/connection-store"
 import { useAnalysis } from "@/lib/stores/analysis-store"
-import { apiClient, type ComponentExplanation } from "@/lib/api/client"
+import { apiClient } from "@/lib/api/client"
 import dynamic from "next/dynamic"
 import { TermTooltip } from "@/components/ui/term-tooltip"
 import { ScoreTooltip } from "@/components/ui/score-tooltip"
@@ -117,6 +119,7 @@ interface AnalysisResult {
   components: ComponentAnalysis[]
   edges?: EdgeAnalysis[]
   problems: Problem[]
+  logs?: string[]
 }
 
 export default function AnalysisPage() {
@@ -132,6 +135,9 @@ export default function AnalysisPage() {
   const [error, setError] = useState<string | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [startTime, setStartTime] = useState<number | null>(null)
+
+  // Analysis log panel state
+  const [logsOpen, setLogsOpen] = useState(false)
 
   // Track dark mode so charts re-render on theme switch
   const [isDark, setIsDark] = useState(() =>
@@ -179,7 +185,6 @@ export default function AnalysisPage() {
 
   // Criticality graph: fetch topology + overlay RMAV scores for the graph view
   const [critGraphLinks, setCritGraphLinks] = useState<Array<{ source: string; target: string; type?: string }>>([])
-  const [critExplanations, setCritExplanations] = useState<Record<string, ComponentExplanation>>({})
   const [critGraphLoading, setCritGraphLoading] = useState(false)
   const critGraphFetchedRef = React.useRef(false)
   const lastAnalysisDataRef = React.useRef<any>(null)
@@ -191,21 +196,17 @@ export default function AnalysisPage() {
     }
   }, [analysisData])
 
-  // Fetch topology links + explanations for the CriticalityForceGraph when analysis data is available
+  // Fetch topology links for the CriticalityForceGraph when analysis data is available
   useEffect(() => {
     if (!analysisData || !isConnected || critGraphFetchedRef.current) return
     critGraphFetchedRef.current = true
     setCritGraphLoading(true)
-    Promise.all([
-      apiClient.getLimitedGraphData({ node_limit: 500, edge_limit: 1000 }).catch(() => ({ nodes: [], links: [] })),
-      apiClient.explainComponents([]).catch(() => ({})),
-    ]).then(([graphData, explanations]) => {
+    apiClient.getLimitedGraphData({ node_limit: 500, edge_limit: 1000 }).catch(() => ({ nodes: [], links: [] })).then((graphData) => {
       setCritGraphLinks(((graphData as any).links ?? []).map((e: any) => ({
         source: String(e.source ?? e.from ?? ''),
         target: String(e.target ?? e.to ?? ''),
         type: e.type ?? '',
       })))
-      setCritExplanations(explanations as Record<string, ComponentExplanation>)
     }).finally(() => setCritGraphLoading(false))
   }, [analysisData, isConnected])
 
@@ -338,7 +339,7 @@ export default function AnalysisPage() {
   const getCriticalEdges = () => {
     if (!analysisData?.edges) return []
     return analysisData.edges
-      .filter(e => e.criticality_level === 'critical' || e.criticality_level === 'high')
+      .filter(e => (e.criticality_level || '').toLowerCase() === 'critical' || (e.criticality_level || '').toLowerCase() === 'high')
       .sort((a, b) => b.scores.overall - a.scores.overall)
   }
 
@@ -431,7 +432,7 @@ export default function AnalysisPage() {
   const allCriticalComponents = useMemo(() => {
     let comps = getCriticalComponents()
     if (compTypeFilter !== 'all') comps = comps.filter(c => c.type === compTypeFilter)
-    if (compLevelFilter !== 'all') comps = comps.filter(c => c.criticality_level === compLevelFilter)
+    if (compLevelFilter !== 'all') comps = comps.filter(c => (c.criticality_level || '').toLowerCase() === compLevelFilter)
     if (compSearchQuery.trim()) {
       const q = compSearchQuery.toLowerCase()
       comps = comps.filter(c => (c.name || c.id).toLowerCase().includes(q) || c.type.toLowerCase().includes(q))
@@ -447,7 +448,7 @@ export default function AnalysisPage() {
   const availableCompLevels = useMemo(() => {
     const order = ['critical', 'high', 'medium', 'low', 'minimal']
     if (!analysisData?.components) return []
-    const present = new Set(analysisData.components.map((c: any) => c.criticality_level))
+    const present = new Set(analysisData.components.map((c: any) => (c.criticality_level || '').toLowerCase()))
     return order.filter(l => present.has(l))
   }, [analysisData?.components])
 
@@ -666,7 +667,7 @@ export default function AnalysisPage() {
                     variant="ghost"
                     size="sm"
                     className="text-muted-foreground"
-                    onClick={() => { clearAnalysis(); setError(null) }}
+                    onClick={() => { clearAnalysis(getCacheKey()); setError(null) }}
                   >
                     <XCircle className="h-3.5 w-3.5 mr-1" />
                     Clear
@@ -808,27 +809,112 @@ export default function AnalysisPage() {
         )}
 
         {/* Loading State */}
-        {isLoading && (
-          <div className="rounded-xl border border-border bg-muted/20 px-6 py-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <LoadingSpinner className="h-4 w-4" />
-                <span className="text-sm font-medium">Running analysis…</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" />
-                <span>{elapsedTime}s</span>
-                <div className="w-32 ml-2">
-                  <Progress value={Math.min((elapsedTime / estimatedDuration) * 100, 90)} className="h-1.5" />
+        {isLoading && (() => {
+          const STEPS = [
+            { id: "1",   indent: false, label: "Deriving dependency edges from graph relationships",              after: 2  },
+            { id: "2",   indent: false, label: "Running structural analysis",                                     after: 7  },
+            { id: "2a",  indent: true,  label: "Building layer subgraph",                                         after: 7  },
+            { id: "2b",  indent: true,  label: "PageRank & Reverse PageRank",                                     after: 8  },
+            { id: "2c",  indent: true,  label: "Betweenness centrality",                                          after: 9  },
+            { id: "2d",  indent: true,  label: "Harmonic closeness centrality",                                   after: 11 },
+            { id: "2e",  indent: true,  label: "Eigenvector centrality",                                          after: 13 },
+            { id: "2f",  indent: true,  label: "MPCI, fan-out criticality, path complexity",                      after: 14 },
+            { id: "2g",  indent: true,  label: "Articulation points, blast radius, cascade depth",                after: 15 },
+            { id: "2h",  indent: true,  label: "Clustering coefficients and bridges",                             after: 17 },
+            { id: "2i",  indent: true,  label: "Edge betweenness centrality",                                     after: 19 },
+            { id: "2j",  indent: true,  label: "Pub-sub topology metrics",                                        after: 21 },
+            { id: "2k",  indent: true,  label: "Assembling component metrics & code quality normalisation",       after: 22 },
+            { id: "2l",  indent: true,  label: "Edge metrics, RCM ordering & graph summary",                      after: 23 },
+            { id: "3",   indent: false, label: "Scoring RMAV quality dimensions",                                 after: 24 },
+            { id: "4",   indent: false, label: "Detecting architectural anti-patterns",                           after: 27 },
+          ]
+          const completedCount = STEPS.filter(s => elapsedTime > s.after).length
+          const progressValue = Math.min((completedCount / STEPS.length) * 100, 95)
+          const activeStep = [...STEPS].reverse().find(s => elapsedTime >= s.after)
+
+          return (
+            <div className="rounded-xl border border-border bg-muted/20 px-6 py-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <LoadingSpinner className="h-4 w-4" />
+                  <span className="text-sm font-medium">
+                    {activeStep ? activeStep.label : 'Starting…'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>{elapsedTime}s</span>
+                  <span className="text-muted-foreground/50">·</span>
+                  <span>{completedCount}/{STEPS.length}</span>
+                  <div className="w-32 ml-1">
+                    <Progress value={progressValue} className="h-1.5" />
+                  </div>
                 </div>
               </div>
+              {/* Animated step indicators */}
+              <div className="space-y-1 pl-1">
+                {STEPS.map(({ id, indent, label, after }) => {
+                  const active = elapsedTime >= after
+                  const current = elapsedTime >= after && elapsedTime < after + 3
+                  return (
+                    <div key={id} className={`flex items-center gap-2 text-xs transition-opacity duration-500 ${active ? 'opacity-100' : 'opacity-25'} ${indent ? 'pl-5' : ''}`}>
+                      {current ? (
+                        <LoadingSpinner className="h-3 w-3 shrink-0 text-blue-500" />
+                      ) : active ? (
+                        <CheckCircle2 className={`h-3 w-3 shrink-0 ${indent ? 'text-emerald-500' : 'text-green-500'}`} />
+                      ) : (
+                        <div className={`h-3 w-3 shrink-0 rounded-full border ${indent ? 'border-muted-foreground/25' : 'border-muted-foreground/40'}`} />
+                      )}
+                      <span className={`${active ? (indent ? 'text-muted-foreground' : 'text-foreground') : 'text-muted-foreground'} ${indent ? '' : 'font-medium'}`}>
+                        {label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* Analysis Results */}
         {!isLoading && analysisData && (
           <>
+            {/* Analysis Log Panel */}
+            {analysisData.logs && analysisData.logs.length > 0 && (
+              <div className="rounded-xl border border-border bg-muted/10 overflow-hidden">
+                <button
+                  onClick={() => setLogsOpen(o => !o)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-muted/20 transition-colors"
+                >
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Terminal className="h-3.5 w-3.5" />
+                    <span className="font-medium">Analysis Log</span>
+                    <span className="tabular-nums">({analysisData.logs.length} entries)</span>
+                  </div>
+                  <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${logsOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {logsOpen && (
+                  <div className="border-t border-border px-4 py-3">
+                    <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto space-y-0.5">
+                      {analysisData.logs.map((line, i) => {
+                        const isError = line.startsWith('ERROR')
+                        const isWarn = line.startsWith('WARNING')
+                        const isStep = /Step \d+\/\d+/.test(line)
+                        return (
+                          <div
+                            key={i}
+                            className={`${isError ? 'text-red-500 dark:text-red-400' : isWarn ? 'text-yellow-600 dark:text-yellow-400' : isStep ? 'text-foreground' : ''}`}
+                          >
+                            {line}
+                          </div>
+                        )
+                      })}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Classification Charts */}
             {analysisData.summary && (() => {
               const CRIT_COLORS: Record<string, string> = {
@@ -1056,7 +1142,7 @@ export default function AnalysisPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mr-1">Level</span>
                   {['all', ...availableCompLevels].map(l => {
-                    const count = l === 'all' ? (analysisData?.components?.length ?? 0) : (analysisData?.components?.filter((c: any) => c.criticality_level === l).length ?? 0)
+                    const count = l === 'all' ? (analysisData?.components?.length ?? 0) : (analysisData?.components?.filter((c: any) => (c.criticality_level || '').toLowerCase() === l).length ?? 0)
                     const active = compLevelFilter === l
                     const colors: Record<string, string> = { critical: 'bg-red-500 text-white', high: 'bg-orange-500 text-white', medium: 'bg-yellow-500 text-white', low: 'bg-green-500 text-white', minimal: 'bg-slate-500 text-white' }
                     return (
@@ -1472,12 +1558,12 @@ export default function AnalysisPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <CardTitle className="text-sm font-semibold">Risk Topology Graph</CardTitle>
-                      <CardDescription className="text-[11px] text-muted-foreground">Nodes colored and sized by RMAV criticality</CardDescription>
+                      <CardDescription className="text-[11px] text-muted-foreground">Nodes colored and sized by criticality level</CardDescription>
                     </div>
                   </div>
                   {/* Legend */}
-                  <div className="hidden sm:flex items-center gap-3">
-                    {([['critical','#ef4444'],['high','#f97316'],['medium','#eab308'],['low','#22c55e'],['minimal','#6b7280']] as [string,string][]).map(([lvl, col]) => (
+                  <div className="hidden sm:flex items-center gap-3 flex-wrap">
+                    {([['critical', '#ef4444'], ['high', '#f97316'], ['medium', '#eab308'], ['low', '#22c55e'], ['minimal', '#6b7280']] as [string, string][]).map(([lvl, col]) => (
                       <div key={lvl} className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: col }} />
                         <span className="text-[10px] text-muted-foreground capitalize">{lvl}</span>
@@ -1502,23 +1588,21 @@ export default function AnalysisPage() {
                         critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e', minimal: '#6b7280',
                       }
                       const nodes = analysisData.components.map(c => {
-                        const lvl = c.criticality_level ?? 'minimal'
-                        const color = CRIT_COLORS[lvl] ?? '#6b7280'
+                        const lvl = (c.criticality_level ?? 'minimal').toLowerCase()
+                        const lvlColor = CRIT_COLORS[lvl] ?? '#6b7280'
                         const riskPct = c.scores.overall ?? 0
-                        const exp = critExplanations[c.id]
-                        const lvlColor = CRIT_COLORS[exp?.level ?? lvl] ?? color
+
                         return {
                           id: c.id,
                           name: c.name ?? c.id,
-                          symbolSize: 10 + riskPct * 30,
+                          symbolSize: 12 + riskPct * 28,
                           itemStyle: {
                             color: lvlColor,
-                            borderWidth: lvl === 'critical' ? 2.5 : 0,
-                            borderColor: lvl === 'critical' ? '#fff' : undefined,
-                            shadowBlur: lvl === 'critical' ? 12 : lvl === 'high' ? 6 : 0,
+                            borderWidth: lvl === 'critical' ? 2 : 0,
+                            borderColor: lvl === 'critical' ? '#ffffff' : undefined,
+                            shadowBlur: lvl === 'critical' ? 10 : 4,
                             shadowColor: lvlColor + '88',
                           },
-                          _exp: exp,
                           _lvl: lvl,
                         }
                       })
@@ -1542,14 +1626,12 @@ export default function AnalysisPage() {
                           formatter: (p: any) => {
                             if (p.dataType !== 'node') return ''
                             const d = p.data
-                            const c = analysisData.components.find(c => c.id === d.id)
+                            const c = analysisData.components.find((comp: any) => comp.id === d.id)
                             if (!c) return `<b>${d.name}</b>`
-                            const exp = d._exp as ComponentExplanation | undefined
                             const lvlColor = CRIT_COLORS[d._lvl] ?? '#6b7280'
                             let html = `<div style="font-size:12px;line-height:1.7;max-width:260px">`
                             html += `<b>${d.name}</b>`
                             html += `<br/><span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:${lvlColor}22;color:${lvlColor};text-transform:uppercase">${d._lvl}</span>`
-                            if (exp?.one_line) html += `<br/><span style="opacity:0.7;font-size:11px">${exp.one_line}</span>`
                             html += `<br/><span style="opacity:0.6;font-size:10px">R: ${((1 - c.scores.reliability) * 100).toFixed(0)}% · M: ${((1 - c.scores.maintainability) * 100).toFixed(0)}% · A: ${((1 - c.scores.availability) * 100).toFixed(0)}% · V: ${((1 - c.scores.security) * 100).toFixed(0)}%</span>`
                             html += `</div>`
                             return html
