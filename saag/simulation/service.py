@@ -40,29 +40,13 @@ class SimulationService:
         source_app: str,
         num_messages: int = 100,
         duration: float = 10.0,
-        # [POISSON] Poisson failure-injection parameters
         failure_rate: float = 0.0,
         failure_targets: list = None,
         mean_recovery_time: float = 0.0,
         poisson_arrivals: bool = False,
         **kwargs,
     ) -> Any:
-        """Run event simulation from a source application.
-
-        Args:
-            source_app: Publisher application ID.
-            num_messages: Number of messages to publish.
-            duration: Simulation wall-clock duration (sim-seconds).
-            failure_rate: Poisson failure rate λ (failures/sim-second).
-                0.0 disables Poisson injection (default).
-                MTTF = 1 / failure_rate when > 0.
-            failure_targets: Component IDs eligible for Poisson injection.
-                None (default) = all components.
-            mean_recovery_time: Mean sim-seconds before a Poisson-failed
-                component recovers.  0.0 = no recovery (default).
-            poisson_arrivals: If True, replace fixed-interval message
-                scheduling with Poisson inter-arrivals (M/G/1 model).
-        """
+        """Run event simulation from a source application."""
         graph = self._get_graph()
         simulator = EventSimulator(graph)
 
@@ -76,15 +60,13 @@ class SimulationService:
             poisson_arrivals=poisson_arrivals,
         )
 
-        result = simulator.simulate(scenario)
-        return result
+        return simulator.simulate(scenario)
 
     def run_event_simulation_all(
         self,
         num_messages: int = 100,
         duration: float = 10.0,
         layer: str = "system",
-        # [POISSON] forwarded to each per-publisher scenario
         failure_rate: float = 0.0,
         failure_targets: list = None,
         mean_recovery_time: float = 0.0,
@@ -105,8 +87,7 @@ class SimulationService:
             poisson_arrivals=poisson_arrivals,
         )
 
-        results = simulator.simulate_all_publishers(template)
-        return results
+        return simulator.simulate_all_publishers(template)
 
     def run_failure_simulation(self, target_id: str, layer: str = "system", 
                               cascade_rule: CascadeRule = CascadeRule.ALL,
@@ -142,19 +123,12 @@ class SimulationService:
 
     def run_failure_simulation_exhaustive(self, layer: str = "system", cascade_probability: float = 1.0, 
                                          failure_mode: FailureMode = FailureMode.CRASH, **kwargs) -> List[Any]:
-        """Run exhaustive failure analysis for all components in a layer.
-        
-        Follows the Step 4 architecture:
-        Stage A: Establish baseline flows via event simulation (for FD(v))
-        Stage B: Run exhaustive failure loop (Main Loop)
-        Stage C: Run four post-passes (IR, IM, IA, IV)
-        """
+        """Run exhaustive failure analysis for all components in a layer."""
         graph = self._get_graph()
         fail_sim = FailureSimulator(graph)
         
         # --- Stage A: Discrete-event baseline flows ---
         event_sim = EventSimulator(graph)
-        # Run event simulation once for all publishers in the layer
         event_results = event_sim.simulate_all_publishers(
             EventScenario(source_app="all", num_messages=50, duration=5.0)
         )
@@ -164,12 +138,10 @@ class SimulationService:
         fail_sim.set_baseline_flows(all_flows)
         
         # --- Stage B + C: Main loop and Post-passes ---
-        # FailureSimulator.simulate_exhaustive handles Stage B loop AND 
-        # triggers Stage C post-passes (IR, IM, IA, IV) internally.
         n_trials = kwargs.get("n_trials", 1)
-        results = fail_sim.simulate_exhaustive(
+        return fail_sim.simulate_exhaustive(
             scenario_template=FailureScenario(
-                target_ids=["template"], # ignored by simulate_exhaustive
+                target_ids=["template"],
                 failure_mode=failure_mode,
                 cascade_probability=cascade_probability,
                 cascade_rule=CascadeRule.ALL
@@ -177,7 +149,6 @@ class SimulationService:
             layer=layer,
             n_trials=n_trials
         )
-        return results
 
     def run_failure_simulation_pairwise(self, layer: str = "system", cascade_probability: float = 1.0,
                                       failure_mode: FailureMode = FailureMode.CRASH) -> List[Any]:
@@ -185,71 +156,47 @@ class SimulationService:
         graph = self._get_graph()
         sim = FailureSimulator(graph)
         
-        results = sim.simulate_pairwise(
+        return sim.simulate_pairwise(
             scenario_template=FailureScenario(
-                target_ids=["template"], # ignored
+                target_ids=["template"],
                 failure_mode=failure_mode,
                 cascade_probability=cascade_probability,
                 cascade_rule=CascadeRule.ALL
             ),
             layer=layer
         )
-        return results
 
     def generate_report(self, layers: List[str] = ["app", "infra", "mw", "system"], classify_edges: bool = False) -> SimulationReport:
-        """Generate comprehensive simulation report."""
+        """Generate comprehensive simulation report across layers without redundant execution passes."""
         graph = self._get_graph()
         fail_sim = FailureSimulator(graph)
         event_sim = EventSimulator(graph)
         
         report_timestamp = datetime.now().isoformat()
-        
-        # 1. Graph Summary
         graph_summary = graph.get_summary()
         
-        # 2. Per-layer analysis
         layer_metrics_map = {}
         all_comp_criticality = []
-        all_edge_criticality = [] # Simulation doesn't explicitly score edges yet, keeping empty or inferred
+        all_edge_criticality = []
         
-        for layer in layers:
-            logger.info(f"Generating simulation report for layer: {layer}")
-            
-            # --- Failure Simulation ---
-            fail_results = fail_sim.simulate_exhaustive(layer=layer)
-            
-            # --- Event Simulation ---
-            # Run a standard event scenario for all publishers in this layer to gauge throughput/latency
-            # Only relevant if layer has publishers (app, mw, system)
-            event_results_map = {}
-            if layer in ["app", "mw", "system"]:
-                event_template = EventScenario(source_app="template", num_messages=50, duration=5.0)
-                # Filter to run only for publishers IN this layer? 
-                # simulate_all_publishers runs for ALL in graph. We can filter results later.
-                # To save time, we might want to run it once for the whole graph and reuse.
-                # For now, let's run it once per layer loop but that's inefficient.
-                # Better: Run once outside loop.
-                pass 
-
-        # Optimization: Run event sim once for the whole system
+        # Step 1: Establish baseline flows via discrete-event simulation ONCE globally
         event_metrics_system = event_sim.simulate_all_publishers(
              EventScenario(source_app="template", num_messages=50, duration=5.0)
         )
         
-        # Discover baseline flows for the whole system once
         all_flows = []
         for res in event_metrics_system.values():
             all_flows.extend(res.successful_flows)
         fail_sim.set_baseline_flows(all_flows)
         
-        # Now populate layer metrics
+        # Step 2: Loop layers and calculate execution profiles exactly once per scope
         for layer in layers:
-            # Failure metrics aggregation
-            fail_results = fail_sim.simulate_exhaustive(layer=layer)
+            logger.info(f"Generating simulation metrics for layer scope: {layer}")
             
+            # Canonical single-pass exhaustive failure sweep
+            fail_results = fail_sim.simulate_exhaustive(layer=layer)
             l_metrics = LayerMetrics(layer=layer)
             
-            # Failure aggregates
             if fail_results:
                 l_metrics.total_components = len(fail_results)
                 l_metrics.max_impact = max((r.impact.composite_impact for r in fail_results), default=0.0)
@@ -260,7 +207,6 @@ class SimulationService:
                 l_metrics.avg_fragmentation = sum(r.impact.fragmentation for r in fail_results) / len(fail_results)
                 l_metrics.avg_throughput_loss = sum(r.impact.throughput_loss for r in fail_results) / len(fail_results)
                 
-                # Criticality counts based on failure impact thresholds (approximate)
                 for r in fail_results:
                     imp = r.impact.composite_impact
                     if imp > 0.8: l_metrics.critical_count += 1
@@ -269,11 +215,10 @@ class SimulationService:
                     elif imp > 0.2: l_metrics.low_count += 1
                     else: l_metrics.minimal_count += 1
                     
-                    # SPOF check (fragmentation > 0 means it broke the graph)
                     if r.impact.fragmentation > 0.01:
                         l_metrics.spof_count += 1
                         
-            # Event aggregates (filter system results by layer)
+            # Aggregate event parameters by layer boundaries
             layer_comps = set(graph.get_components_by_layer(layer))
             layer_event_results = [res for app, res in event_metrics_system.items() if app in layer_comps]
             
@@ -282,42 +227,29 @@ class SimulationService:
                 l_metrics.event_delivered = sum(r.metrics.messages_delivered for r in layer_event_results)
                 l_metrics.event_dropped = sum(r.metrics.messages_dropped for r in layer_event_results)
                 
-                avg_delivery = sum(r.metrics.delivery_rate for r in layer_event_results) / len(layer_event_results)
-                l_metrics.event_delivery_rate = avg_delivery
-                
-                avg_drop = sum(r.metrics.drop_rate for r in layer_event_results) / len(layer_event_results)
-                l_metrics.event_drop_rate = avg_drop
-                
-                # Latency averages
-                total_latency = sum(r.metrics.avg_latency for r in layer_event_results)
-                l_metrics.event_avg_latency_ms = (total_latency / len(layer_event_results)) * 1000
-                
-                total_p99 = sum(r.metrics.p99_latency for r in layer_event_results)
-                l_metrics.event_p99_latency_ms = (total_p99 / len(layer_event_results)) * 1000
-                
+                l_metrics.event_delivery_rate = sum(r.metrics.delivery_rate for r in layer_event_results) / len(layer_event_results)
+                l_metrics.event_drop_rate = sum(r.metrics.drop_rate for r in layer_event_results) / len(layer_event_results)
+                l_metrics.event_avg_latency_ms = (sum(r.metrics.avg_latency for r in layer_event_results) / len(layer_event_results)) * 1000
+                l_metrics.event_p99_latency_ms = (sum(r.metrics.p99_latency for r in layer_event_results) / len(layer_event_results)) * 1000
                 l_metrics.event_throughput_per_sec = sum(r.metrics.throughput for r in layer_event_results)
 
             layer_metrics_map[layer] = l_metrics
             
-            # Build Component Criticality objects
-            # We map failure results -> ComponentCriticality
+            # Map failure profiles directly to global criteria metrics safely
             for r in fail_results:
                 comp_id = r.target_id
+                if any(c.id == comp_id for c in all_comp_criticality):
+                    continue  # Ensure idempotency across layered metrics definitions
                 
-                # Find corresponding event result
                 ev_res = event_metrics_system.get(comp_id)
                 ev_impact = 0.0
                 throughput = 0
                 if ev_res:
-                    # Normalize event impact based on message volume/throughput relative to others?
-                    # For now just use delivery rate as inverse impact? No, that's quality.
-                    # Impact is "how important is this component".
-                    # In simulation, importance is how many messages it handles.
                     throughput = ev_res.metrics.messages_published
-                    ev_impact = min(1.0, throughput / 1000.0) # Normalize arbitrary cap
+                    ev_impact = min(1.0, throughput / 1000.0)
                 
                 fail_imp = r.impact.composite_impact
-                combined = (fail_imp * 0.7) + (ev_impact * 0.3) # Heavy weight on failure impact
+                combined = (fail_imp * 0.7) + (ev_impact * 0.3)
                 
                 crit_level = "minimal"
                 if combined > 0.8: crit_level = "critical"
@@ -325,7 +257,7 @@ class SimulationService:
                 elif combined > 0.4: crit_level = "medium"
                 elif combined > 0.2: crit_level = "low"
                 
-                cc = ComponentCriticality(
+                all_comp_criticality.append(ComponentCriticality(
                     id=comp_id,
                     type=r.target_type,
                     event_impact=ev_impact,
@@ -339,13 +271,8 @@ class SimulationService:
                     throughput_loss=r.impact.throughput_loss,
                     affected_topics=r.impact.affected_topics,
                     affected_subscribers=r.impact.affected_subscribers
-                )
-                
-                # Avoid duplicates if component appears in multiple layers (unlikely with sets but possible)
-                if not any(c.id == comp_id for c in all_comp_criticality):
-                    all_comp_criticality.append(cc)
+                ))
 
-        # Sort top critical
         all_comp_criticality.sort(key=lambda c: c.combined_impact, reverse=True)
         top_critical = [c.to_dict() for c in all_comp_criticality[:10]]
         
@@ -364,12 +291,12 @@ class SimulationService:
             edge_criticality=all_edge_criticality,
             top_critical=top_critical,
             recommendations=recommendations,
-            # Auxiliary data
             csc_names={c.id: c.properties.get("name", c.id) for c in graph.components.values()},
             library_usage=graph.get_library_usage(),
             node_allocations=graph.get_node_allocations(),
             broker_routing=graph.get_broker_routing()
         )
+
     def analyze_layer(self, layer: str) -> LayerMetrics:
         """Alias for generate_report for a single layer, for visualization compatibility."""
         report = self.generate_report(layers=[layer])
