@@ -371,6 +371,11 @@ d = damping factor (0.85), max iterations = 100, tolerance = 1e-6
 
 > **Directional note:** In the DEPENDS_ON graph, edges point from dependent to dependency (App_sub → App_pub). Reversing the graph therefore gives edges pointing *from* publisher to subscribers — the natural failure-propagation direction. RPR on G^T thus counts how many nodes a failure would reach if it propagated outward from v through subscribers.
 
+**Literature Citation:** Reversing graph edges ($G^T$) in directed networks to analyze "hub" behavior or start points is referred to as **CheiRank** in complex network studies of software call graphs. See Page et al. (1999) for the foundational PageRank algorithm, and Chepelianskii (2010) or Gleich (2015) for CheiRank / Reverse PageRank applications.
+- Page, L., Brin, S., Motwani, R., & Winograd, T. (1999). *The PageRank Citation Ranking: Bringing Order to the Web*. Stanford InfoLab.
+- Chepelianskii, A. D. (2010). *Towards physical laws for software architecture*. arXiv:1003.5455.
+- Gleich, D. F. (2015). *PageRank beyond the web*. SIAM Review, 57(3), 321-378.
+
 ### 9.2 In-Degree (DG_in)
 
 *Tier 1 → R(v)*
@@ -380,6 +385,9 @@ DG_in(v) = in_degree(v) / (|V| − 1)     (normalized)
 ```
 
 **High DG_in(v) means:** Many components directly depend on v — the immediate blast radius if v fails. DG_in measures *local* propagation; RPR measures *global* propagation. Both are needed because a highly-central hub may have a small local blast radius but a large transitive one.
+
+**Literature Citation:** Degree centrality is the most fundamental local measure of node importance in social and communication networks.
+- Freeman, L. C. (1978). *Centrality in social networks conceptual clarification*. Social Networks, 1(3), 215-239.
 
 ### 9.3 Multi-Path Coupling Index (MPCI)
 
@@ -405,6 +413,10 @@ MPCI(v) > 0    → v has multi-channel coupling; higher values = greater couplin
 
 > **Library nodes benefit most from MPCI:** After Step 1's Rule 5 (app_to_lib), libraries now appear as DEPENDS_ON targets. A library used by 10 applications via a single USES edge each has high DG_in but MPCI = 0 (single-channel per dependency). The MPCI signal is non-zero only when the same (App, Lib) pair has multiple USES edges — currently rare — or when (App, App) pairs share multiple topics.
 
+**Literature Citation:** While MPCI is a project-derived metric capturing runtime topic redundancy, structural coupling metrics in software engineering trace back to foundational work on structural information flow and Object-Oriented coupling complexity.
+- Henry, S., & Kafura, D. (1981). *Software structure metrics based on information flow*. IEEE Transactions on Software Engineering, (5), 510-518.
+- Chidamber, S. R., & Kemerer, C. F. (1994). *A metrics suite for object oriented design*. IEEE Transactions on Software Engineering, 20(6), 476-493.
+
 ### 9.4 Fan-Out Criticality (FOC)
 
 *Tier 1 → R(v) for Topic nodes*
@@ -424,6 +436,9 @@ where `f(t)` = topic message frequency in Hz, `s(t)` = subscriber count.
 >
 > **Layer restriction:** FOC is non-zero only when `--layer system` is used. Topic nodes are excluded from the `app` and `mw` subgraphs. The CLI will emit a warning when the active layer has no Topic nodes.
 
+**Literature Citation:** Outbound information flow complexity and its impact on architectural modularity is defined in:
+- Henry, S., & Kafura, D. (1981). *Software structure metrics based on information flow*. IEEE Transactions on Software Engineering, (5), 510-518.
+
 ### 9.5 Betweenness Centrality (BT)
 
 *Tier 1 → M(v)*
@@ -438,6 +453,10 @@ Normalized by (|V|−1)(|V|−2). Shortest paths use inverted weights (1/w) as d
 ```
 
 **High BT(v) means:** v is a structural bottleneck — many dependency chains route through it. Changes to v risk disrupting many other components. The inversion of weights for distance computation means that high-QoS edges (strong dependencies) contribute less to the shortest-path distance — the algorithm preferentially routes through critical edges, making BT sensitive to high-weight dependency chains.
+
+**Literature Citation:** Betweenness centrality was defined by Freeman (1977). This implementation leverages Brandes' fast $O(|V||E|)$ algorithm for weighted networks.
+- Freeman, L. C. (1977). *A set of measures of centrality based on betweenness*. Sociometry, 35-41.
+- Brandes, U. (2001). *A faster algorithm for betweenness centrality*. Journal of Mathematical Sociology, 25(2), 163-177.
 
 ### 9.6 QoS-Weighted Out-Degree (w_out)
 
@@ -461,6 +480,9 @@ Computed on undirected projection of G_analysis(l). CC(v) = 0 if deg(v) < 2.
 
 **High CC(v) means:** v's neighbors are well-connected among themselves — the local topology is redundant. Low CC (via the `1 − CC` term in M(v)) indicates each of v's couplings is unique and non-redundant, making v harder to safely modify.
 
+**Literature Citation:** Introduced by Watts and Strogatz (1998) to characterize network clustering and small-world properties.
+- Watts, D. J., & Strogatz, S. H. (1998). *Collective dynamics of ‘small-world’ networks*. Nature, 393(6684), 440-442.
+
 ### 9.8 Directed AP Score (AP_c_directed)
 
 *Tier 1 → A(v). Stored in M(v) (previously inline-computed in Step 2 (Analyze, RMAV sub-phase)).*
@@ -483,6 +505,9 @@ AP_c_directed(v) → 1    → removing v fragments the undirected projection int
 
 > **Implementation note:** AP_c_directed was previously computed inside QualityAnalyzer (_compute_continuous_ap_scores). It is now computed in StructuralAnalyzer and stored in M(v) as `ap_c_directed`. This eliminates duplicate O(|V|²) computation and makes the field available to the GNN feature vector and to Step 5 validation.
 
+**Literature Citation:** Graph articulation points, biconnectivity, and depth-first search (DFS) structural decomposition algorithms are defined in Tarjan (1972).
+- Tarjan, R. (1972). *Depth-first search and linear graph algorithms*. SIAM Journal on Computing, 1(2), 146-160.
+
 ### 9.9 Bridge Ratio (BR)
 
 *Tier 1 → A(v)*
@@ -495,6 +520,9 @@ BR(v) = 0 if degree(v) = 0
 ```
 
 **High BR(v) means:** A large fraction of v's connections are non-redundant bridges. Losing any bridge edge disconnects a subgraph from the rest of the system.
+
+**Literature Citation:** Graph bridges (or cut-edges) represent the most critical single links between subgraphs.
+- Tarjan, R. (1972). *Depth-first search and linear graph algorithms*. SIAM Journal on Computing, 1(2), 146-160.
 
 ### 9.10 Connectivity Degradation Index (CDI)
 
@@ -522,6 +550,10 @@ path length, making them the most informative BFS sources for CDI estimation.
 
 > **Implementation note:** CDI was previously computed inside QualityAnalyzer alongside AP_c_directed. Both are now computed together in StructuralAnalyzer and stored in M(v). The combined computation saves one full graph traversal pass.
 
+**Literature Citation:** Connectivity degradation upon node/edge percolation is a classic benchmark for network error and attack tolerance.
+- Albert, R., Jeong, H., & Barabási, A. L. (2000). *Error and attack tolerance of complex networks*. Nature, 406(6794), 378-382.
+- Callaway, D. S., Newman, M. E., Strogatz, S. H., & Watts, D. J. (2000). *Network robustness and fragility: Percolation on random graphs*. Physical Review Letters, 85(25), 5468.
+
 ### 9.11 Reverse Eigenvector Centrality (REV)
 
 *Tier 1 → V(v)*
@@ -537,6 +569,9 @@ Fallback chain: eigenvector_centrality → katz_centrality(α=0.01) → zeros.
 
 > **Convergence note:** Eigenvector centrality may fail on directed acyclic graphs (DAGs) or nearly-acyclic graphs because the dominant eigenvalue does not exist. The Katz fallback with attenuation factor α = 0.01 handles these cases gracefully. If both fail, zeros are returned and a WARNING is logged.
 
+**Literature Citation:** Eigenvector centrality was introduced by Bonacich (1987). REV computes this on the transposed graph $G^T$.
+- Bonacich, P. (1987). *Power and centrality: A family of measures*. American Journal of Sociology, 92(5), 1170-1182.
+
 ### 9.12 Reverse Closeness Centrality (RCL)
 
 *Tier 1 → V(v)*
@@ -548,6 +583,11 @@ Harmonic closeness is used for robustness to disconnected graphs.
 ```
 
 **High RCL(v) means:** In G^T, v can reach many other components quickly — meaning, in the original graph, many components can propagate to v in few hops. Adversarial paths from dependents to v are short, amplifying exposure.
+
+**Literature Citation:** Closeness centrality was defined by Bavelas (1950). To handle disconnected networks, this implementation uses the reciprocal distance definition (Harmonic Closeness) formulated by Marchiori and Latora (2000).
+- Bavelas, A. (1950). *Communication patterns in task-oriented groups*. The Journal of the Acoustical Society of America, 22(6), 725-730.
+- Marchiori, M., & Latora, V. (2000). *Harmony in the small world*. arXiv:cond-mat/0008350.
+- Latora, V., & Marchiori, M. (2001). *Efficient behavior of small-world networks*. Physical Review Letters, 87(19), 198701.
 
 ### 9.13 QoS-Weighted In-Degree (w_in / QADS)
 
