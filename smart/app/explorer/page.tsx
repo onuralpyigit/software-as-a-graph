@@ -4513,7 +4513,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
       )}
 
       {/* Search bar and spread slider overlay */}
-      <div className="absolute top-2 left-3 z-20 w-64">
+      <div className="absolute top-12 left-3 z-20 w-64">
         <div className="relative flex items-center mb-2">
           <Search className="absolute left-2 h-3 w-3 text-muted-foreground/50 pointer-events-none" />
           <Input
@@ -4589,65 +4589,71 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
         </span>
       </div>
 
-      {(nodeTypesInView.length > 0 || edgeTypesInView.length > 0) && (
-        <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2 text-xs max-h-[60%] overflow-y-auto">
-          {nodeTypesInView.length > 0 && (
-            <>
-              <span className="font-medium text-muted-foreground mb-0.5">Nodes</span>
-              {nodeTypesInView.map(c => {
-                const hidden = hiddenNodeTypes.has(c.name)
-                return (
-                  <button key={c.name} onClick={() => toggleNodeType(c.name)}
-                    className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity">
-                    <svg width="12" height="12" className="shrink-0">
-                      <circle cx="6" cy="6" r="5" fill={hidden ? "transparent" : c.color} stroke={c.color} strokeWidth="1.5" />
-                    </svg>
-                    <span style={{ color: hidden ? (isDark ? "#71717a" : "#a1a1aa") : (isDark ? "#e4e4e7" : "#3f3f46") }}
-                      className={hidden ? "line-through" : ""}>{c.name}</span>
-                  </button>
-                )
-              })}
-            </>
-          )}
-          {nodeTypesInView.length > 0 && edgeTypesInView.length > 0 && (
-            <hr className="my-1 border-border" />
-          )}
-          {edgeTypesInView.length > 0 && (
-            <>
-              <span className="font-medium text-muted-foreground mb-0.5">Relationships</span>
+      {/* Unified Legend — single horizontal line */}
+      <div className="absolute top-2 left-3 right-3 z-10 flex items-center gap-3 text-xs overflow-x-auto pointer-events-auto shrink-0">
+        {nodeTypesInView.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground mr-1 font-medium">Nodes:</span>
+            {nodeTypesInView.map(c => {
+              const hidden = hiddenNodeTypes.has(c.name)
+              return (
+                <button key={c.name} onClick={() => toggleNodeType(c.name)}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border transition-opacity shrink-0"
+                  style={{
+                    borderColor: c.color,
+                    color: hidden ? (isDark ? "#71717a" : "#a1a1aa") : c.color,
+                    opacity: hidden ? 0.4 : 1,
+                    background: hidden ? "transparent" : `${c.color}18`,
+                  }}>
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: hidden ? "transparent" : c.color, border: hidden ? `1px solid ${c.color}` : "none" }} />
+                  <span className={hidden ? "line-through" : ""}>{c.name}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {edgeTypesInView.length > 0 && (
+          <>
+            {nodeTypesInView.length > 0 && <div className="w-px h-4 bg-border shrink-0" />}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground mr-1 font-medium">Relationships:</span>
               {edgeTypesInView.map(t => {
                 const hidden = hiddenEdgeTypes.has(t)
                 const color = EDGE_COLORS[t] ?? EDGE_COLOR_FALLBACK
                 return (
                   <button key={t} onClick={() => toggleEdgeType(t)}
-                    className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity">
-                    <svg width="22" height="10" className="shrink-0">
-                      <line x1="0" y1="5" x2="22" y2="5" stroke={hidden ? (isDark ? "#52525b" : "#d4d4d8") : color} strokeWidth="2"
-                        strokeDasharray={hidden ? "3 2" : undefined} />
-                    </svg>
-                    <span style={{ color: hidden ? (isDark ? "#71717a" : "#a1a1aa") : (isDark ? "#e4e4e7" : "#3f3f46") }}
-                      className={hidden ? "line-through" : ""}>{t}</span>
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border transition-opacity shrink-0"
+                    style={{
+                      borderColor: color,
+                      color: hidden ? (isDark ? "#71717a" : "#a1a1aa") : color,
+                      opacity: hidden ? 0.4 : 1,
+                      background: hidden ? "transparent" : `${color}18`,
+                    }}>
+                    <span className="w-3 h-px shrink-0" style={{ background: hidden ? (isDark ? "#52525b" : "#d4d4d8") : color }} />
+                    <span className={hidden ? "line-through" : ""}>{t}</span>
                   </button>
                 )
               })}
-            </>
-          )}
-          <hr className="my-1 border-border" />
-          <span className="font-medium text-muted-foreground mb-0.5">Criticality</span>
+            </div>
+          </>
+        )}
+        <div className="w-px h-4 bg-border shrink-0" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground mr-1 font-medium">Criticality:</span>
           {(["critical", "high", "medium", "low", "minimal"] as const).map(lvl => {
             const CRIT_COLORS: Record<string, string> = {
               critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e', minimal: '#6b7280'
             }
             const col = CRIT_COLORS[lvl]
             return (
-              <div key={lvl} className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-background/25" style={{ backgroundColor: col }} />
+              <div key={lvl} className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-border bg-background/50 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: col }} />
                 <span className="capitalize text-muted-foreground">{lvl}</span>
               </div>
             )
           })}
         </div>
-      )}
+      </div>
       <ReactECharts
         onChartReady={(instance: any) => { echartsRef.current = instance }}
         option={option}
