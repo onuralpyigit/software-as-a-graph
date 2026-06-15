@@ -1563,12 +1563,12 @@ export default function AnalysisPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <CardTitle className="text-sm font-semibold">Risk Topology Graph</CardTitle>
-                      <CardDescription className="text-[11px] text-muted-foreground">Nodes colored and sized by RMAV criticality</CardDescription>
+                      <CardDescription className="text-[11px] text-muted-foreground">Nodes colored and sized by criticality level</CardDescription>
                     </div>
                   </div>
                   {/* Legend */}
-                  <div className="hidden sm:flex items-center gap-3">
-                    {([['critical','#ef4444'],['high','#f97316'],['medium','#eab308'],['low','#22c55e'],['minimal','#6b7280']] as [string,string][]).map(([lvl, col]) => (
+                  <div className="hidden sm:flex items-center gap-3 flex-wrap">
+                    {([['critical', '#ef4444'], ['high', '#f97316'], ['medium', '#eab308'], ['low', '#22c55e'], ['minimal', '#6b7280']] as [string, string][]).map(([lvl, col]) => (
                       <div key={lvl} className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: col }} />
                         <span className="text-[10px] text-muted-foreground capitalize">{lvl}</span>
@@ -1593,24 +1593,25 @@ export default function AnalysisPage() {
                         critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e', minimal: '#6b7280',
                       }
                       const nodes = analysisData.components.map(c => {
-                        const lvl = c.criticality_level ?? 'minimal'
-                        const color = CRIT_COLORS[lvl] ?? '#6b7280'
-                        const riskPct = c.scores.overall ?? 0
+                        const lvl = (c.criticality_level ?? 'minimal').toLowerCase()
                         const exp = critExplanations[c.id]
-                        const lvlColor = CRIT_COLORS[exp?.level ?? lvl] ?? color
+                        const effLvl = (exp?.level ?? lvl).toLowerCase()
+                        const lvlColor = CRIT_COLORS[effLvl] ?? '#6b7280'
+                        const riskPct = c.scores.overall ?? 0
+
                         return {
                           id: c.id,
                           name: c.name ?? c.id,
-                          symbolSize: 10 + riskPct * 30,
+                          symbolSize: 12 + riskPct * 28,
                           itemStyle: {
                             color: lvlColor,
-                            borderWidth: lvl === 'critical' ? 2.5 : 0,
-                            borderColor: lvl === 'critical' ? '#fff' : undefined,
-                            shadowBlur: lvl === 'critical' ? 12 : lvl === 'high' ? 6 : 0,
+                            borderWidth: effLvl === 'critical' ? 2 : 0,
+                            borderColor: effLvl === 'critical' ? '#ffffff' : undefined,
+                            shadowBlur: effLvl === 'critical' ? 10 : 4,
                             shadowColor: lvlColor + '88',
                           },
                           _exp: exp,
-                          _lvl: lvl,
+                          _lvl: effLvl,
                         }
                       })
                       const nodeIds = new Set(nodes.map(n => n.id))
@@ -1633,7 +1634,7 @@ export default function AnalysisPage() {
                           formatter: (p: any) => {
                             if (p.dataType !== 'node') return ''
                             const d = p.data
-                            const c = analysisData.components.find(c => c.id === d.id)
+                            const c = analysisData.components.find((comp: any) => comp.id === d.id)
                             if (!c) return `<b>${d.name}</b>`
                             const exp = d._exp as ComponentExplanation | undefined
                             const lvlColor = CRIT_COLORS[d._lvl] ?? '#6b7280'
