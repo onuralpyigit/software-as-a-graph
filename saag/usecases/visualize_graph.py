@@ -22,5 +22,6 @@ class VisualizeGraphUseCase:
             include_validation=options.include_validation,
             include_per_dim_scatter=options.include_per_dim_scatter,
             antipatterns_file=options.antipatterns_file,
-            multi_seed=options.multi_seed
+            multi_seed=options.multi_seed,
+            cascade_file=options.cascade_file
         )

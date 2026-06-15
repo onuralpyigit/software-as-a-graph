@@ -533,7 +533,8 @@ def networkx_to_hetero_data(
     type_to_nodes: Dict[str, List[str]] = {t: [] for t in NODE_TYPES}
 
     for node, attrs in graph.nodes(data=True):
-        node_type = attrs.get("type") or attrs.get("component_type")
+        comp_type = attrs.get("component_type")
+        node_type = comp_type if comp_type in NODE_TYPES else attrs.get("type")
         if node_type is None:
             logger.warning(
                 "Node '%s' has no 'type' or 'component_type'; defaulting to 'Application'.",

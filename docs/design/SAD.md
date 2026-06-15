@@ -19,8 +19,9 @@
    - 1.4 [Architectural Design Principles](#14-architectural-design-principles)
 2. [Architectural Representation (Hexagonal Architecture)](#2-architectural-representation-hexagonal-architecture)
    - 2.1 [Overview](#21-overview)
-   - 2.2 [Ports and Adapters](#22-ports-and-adapters)
-   - 2.3 [Entry Points (Driving Adapters)](#23-entry-points-driving-adapters)
+   - 2.2 [Mapping the Four-Layer Architecture to the Hexagonal Model](#22-mapping-the-four-layer-architecture-to-the-hexagonal-model)
+   - 2.3 [Ports and Adapters](#23-ports-and-adapters)
+   - 2.4 [Entry Points (Driving Adapters)](#24-entry-points-driving-adapters)
 3. [Architectural Views](#3-architectural-views)
    - 3.1 [Logical View](#31-logical-view)
    - 3.2 [Process View](#32-process-view)
@@ -39,7 +40,7 @@
 This document provides a comprehensive architectural overview of the **Software-as-a-Graph (saag)** framework. It describes the design patterns, logical layers, structural views, data models, and deployment configurations of the system. This document is written in accordance with **ISO/IEC/IEEE 42010:2011** and supports the Architecture Definition process within **ISO/IEC/IEEE 12207:2026**.
 
 ### 1.2 Scope
-The scope of this architecture description covers the core Python SDK ([saag]), the CLI pipeline controllers ([cli]), the REST API layer ([api]), and the Genieus Next.js web application ([smart]). It details how these components are organized to ingest distributed pub-sub topologies, compute metrics, predict critical nodes/edges via rule-based and GNN paths, run simulations, and validate results.
+The scope of this architecture description covers the core Python SDK ([saag]), the CLI pipeline controllers ([cli]), the REST API layer ([api]), and the SMART web application (smart). It details how these components are organized to ingest distributed pub-sub topologies, compute metrics, predict critical nodes/edges via rule-based and GNN paths, run simulations, and validate results.
 
 ### 1.3 References
 - **ISO/IEC/IEEE 12207:2026**: Systems and software engineering — Software life cycle processes.
@@ -91,13 +92,22 @@ graph TD
     RepoPort --> MemoryAdapter
 ```
 
-### 2.2 Ports and Adapters
+### 2.2 Mapping the Four-Layer Architecture to the Hexagonal Model
+While the system is sometimes described in terms of a classic **four-layer architecture** (Presentation, Web Application, Pipeline Components, and Core) to project a traditional layered perspective, these layers map directly onto the hexagonal ports-and-adapters model:
+- **Presentation Layer** maps to the Driving Adapters that run CLI commands (e.g., `cli/` scripts).
+- **Web Application Layer** maps to the driving adapters of the FastAPI REST API (`api/`) and the SMART web application (smart).
+- **Pipeline Components Layer** maps to the Use Cases (`saag/usecases/`) and Application Services (e.g., `saag/analysis/`, `saag/simulation/`) within the Application Core.
+- **Core Layer** maps to the Domain Models (`saag/core/models.py`) and Port Interfaces (e.g., `IGraphRepository` in `saag/core/ports/`) at the center of the Application Core. Meanwhile, the concrete infrastructure adapters (e.g., `saag/infrastructure/`) reside on the outer boundary of the hexagon as Driven Adapters.
+
+This mapping reconciles the flattened layered description with the hexagonal structure, emphasizing that dependency inversion at the Core boundary prevents infrastructure details from leaking into domain logic.
+
+### 2.3 Ports and Adapters
 - **Output Port (Abstraction)**: `IGraphRepository` (defined in `saag.core.ports.graph_repository`). This protocol outlines the persistence capabilities: saving topologies, retrieving layers, exporting JSON, and extracting connectivity matrices.
 - **Driven Adapter (Implementation)**:
   - `Neo4jRepository` (Production): Connects to the Neo4j database using the Bolt protocol. Executes Cypher queries to load raw graphs, derive dependencies, and project layers.
   - `MemoryRepository` (Testing): An in-memory graph repository implementing `IGraphRepository` using Python dictionaries. It requires no external database, enabling fast, isolated unit testing.
 
-### 2.3 Entry Points (Driving Adapters)
+### 2.4 Entry Points (Driving Adapters)
 The domain layer is driven via thin boundary layers:
 - **CLI Pipeline**: Execution commands (e.g., `saag-analyze`, `saag-predict`) read arguments, instantiate adapters, invoke domain use cases, and display formatted outputs.
 - **REST API**: FastAPI routers receive HTTP payloads, inject scoped repositories, execute use cases, and pass results to presenters.
@@ -209,7 +219,7 @@ software-as-a-graph/                  # Workspace Root
 │   ├── validation/                   #   Spearman ρ and classification evaluation
 │   ├── visualization/                #   Plotly chart and static HTML builders
 │   └── infrastructure/               #   Neo4j and Memory adapters (implementing ports)
-├── smart/                            # Next.js 16 Genieus web application (React, TypeScript)
+├── smart/                            # Next.js 16 SMART web application (React, TypeScript)
 ├── tools/                            # Synthetic topology generation and benchmark tools
 ├── tests/                            # Pytest suite (24 files, unit & integration tests)
 └── pyproject.toml                    # PEP 621 packaging, dependencies, and CLI entry points
@@ -233,7 +243,7 @@ The system is deployed as a single, multi-container stack using **Docker Compose
                   │                 Host Machine                 │
                   │                                              │
                   │   ┌──────────────────────────────────────┐   │
-                  │   │        Genieus Web Application       │   │
+                  │   │         SMART Web Application        │   │
                   │   │        Next.js Node Container        │   │
                   │   │        Port 7000 (Internal/Ext)      │   │
                   │   └──────────────────┬───────────────────┘   │
@@ -355,14 +365,14 @@ Each node $v$ receives a feature vector composed of an 18-dimensional base topol
 
 ## 5. Architectural Decisions & Rationale
 
-### Decision 1: Hexagonal Ports & Adapters Structure
+### 5.1 Decision 1: Hexagonal Ports & Adapters Structure
 - **Rationale**: Isolating domain calculation logic from infrastructure packages allows us to maintain stable, testable code. By defining `IGraphRepository`, we can execute unit tests using `MemoryRepository` in milliseconds without launching Neo4j. If we transition to another database (e.g., Neptune) in the future, the core SDK remains unchanged.
 
-### Decision 2: Decoupling Static Prediction from Failure Simulation
+### 5.2 Decision 2: Decoupling Static Prediction from Failure Simulation
 - **Rationale**: The core evaluation methodology requires validating structural predictions against cascade simulation results. If the prediction engine (RMAV/GNN) had access to simulation telemetry during execution, it would result in validation leakage. Decooupling them guarantees that predictions are computed purely statically (pre-deployment), matching operational constraints.
 
-### Decision 3: Heterogeneous Graph Transformer (HGT) Backbone
+### 5.3 Decision 3: Heterogeneous Graph Transformer (HGT) Backbone
 - **Rationale**: Publish-subscribe systems are inherently heterogeneous (applications publish to topics, brokers route topics, apps run on physical nodes). Standard homogeneous GNN models (like GCN or GAT) wash out these semantic differences. HGTConv learns separate query/key/value projection matrices per relation type, accurately capturing pub-sub routing patterns.
 
-### Decision 4: API-First Decoupled Frontend (Next.js & FastAPI)
-- **Rationale**: Separating the frontend and backend enables independent scaling. The FastAPI layer acts as a pure calculation server, which can be deployed close to the Neo4j database or run in batch mode. The Next.js frontend delivers a modern web application (Genieus) that runs entirely in the user's browser, calling the backend asynchronously without blocking UI interactions.
+### 5.4 Decision 4: API-First Decoupled Frontend (Next.js & FastAPI)
+- **Rationale**: Separating the frontend and backend enables independent scaling. The FastAPI layer acts as a pure calculation server, which can be deployed close to the Neo4j database or run in batch mode. The Next.js frontend delivers the SMART web application (smart) that runs entirely in the user's browser, calling the backend asynchronously without blocking UI interactions.

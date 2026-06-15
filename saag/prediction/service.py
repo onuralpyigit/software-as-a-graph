@@ -7,17 +7,14 @@ Orchestrates the quality prediction pipeline (Step 3).
 from typing import Dict, Any, List, Optional, Union
 import logging
 from pathlib import Path
-from datetime import datetime
+
+from saag.analysis.quality_scoring_service import QualityScoringService
+from saag.analysis.models import QualityAnalysisResult, DetectedProblem, ProblemSummary, StructuralAnalysisResult
 
 logger = logging.getLogger(__name__)
 
-from .analyzer import QualityAnalyzer
-from .problem_detector import ProblemDetector
-from .models import QualityAnalysisResult, DetectedProblem, ProblemSummary
-from saag.analysis.models import StructuralAnalysisResult
 
-
-class PredictionService:
+class PredictionService(QualityScoringService):
     """
     Service for running quality prediction and problem detection.
 
@@ -38,40 +35,16 @@ class PredictionService:
         gnn_checkpoint_dir: Optional[str] = None,
         prefer_gnn: bool = True,
     ):
-        self.use_ahp = use_ahp
-        self.normalization_method = normalization_method
-        self.winsorize = winsorize
-        self.winsorize_limit = winsorize_limit
-        self.equal_weights = equal_weights
-        self.ahp_shrinkage = ahp_shrinkage
+        super().__init__(
+            use_ahp=use_ahp,
+            normalization_method=normalization_method,
+            winsorize=winsorize,
+            winsorize_limit=winsorize_limit,
+            equal_weights=equal_weights,
+            ahp_shrinkage=ahp_shrinkage,
+        )
         self.gnn_checkpoint_dir = gnn_checkpoint_dir
         self.prefer_gnn = prefer_gnn
-
-    def predict_quality(
-        self, 
-        structural_result: StructuralAnalysisResult,
-        run_sensitivity: bool = False,
-        sensitivity_perturbations: int = 200,
-        sensitivity_noise: float = 0.05
-    ) -> QualityAnalysisResult:
-        """
-        Run quality prediction on a structural analysis result.
-        """
-        analyzer = QualityAnalyzer(
-            normalization_method=self.normalization_method,
-            winsorize=self.winsorize,
-            winsorize_limit=self.winsorize_limit,
-            use_ahp=self.use_ahp,
-            equal_weights=self.equal_weights,
-            ahp_shrinkage=self.ahp_shrinkage,
-        )
-        
-        return analyzer.analyze(
-            structural_result,
-            run_sensitivity=run_sensitivity,
-            sensitivity_perturbations=sensitivity_perturbations,
-            sensitivity_noise=sensitivity_noise,
-        )
 
     @staticmethod
     def _has_checkpoint(directory: str) -> bool:
@@ -123,17 +96,3 @@ class PredictionService:
             "No GNN checkpoint at '%s'; returning RMAV scores.", self.gnn_checkpoint_dir
         )
         return rmav_result
-
-    def detect_problems(self, quality_result: QualityAnalysisResult, active_patterns: Optional[List[str]] = None) -> List[DetectedProblem]:
-        """
-        Detect architectural problems from quality results.
-        """
-        detector = ProblemDetector(active_patterns=active_patterns)
-        return detector.detect(quality_result)
-
-    def summarize_problems(self, problems: List[DetectedProblem]) -> ProblemSummary:
-        """
-        Summarize detected problems.
-        """
-        detector = ProblemDetector()
-        return detector.summarize(problems)

@@ -114,7 +114,10 @@ def load_json(path: Optional[str]) -> Optional[dict]:
 
 
 def main() -> None:
+    import json
     args = parse_args()
+    if args.output and not args.output.endswith(".json"):
+        args.checkpoint = args.output
     display = ConsoleDisplay()
     display.print_header(f"GNN Training: {args.layer.upper()} Layer")
 
@@ -230,7 +233,6 @@ def main() -> None:
         if args.output:
             out_path = Path(args.output)
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            import json
             with open(out_path, "w") as f:
                 json.dump({"variant": "topology_rmav", "rmav_scores": rmav_dict}, f, indent=2)
             print(f"  RMAV output saved to: {out_path}")
@@ -311,7 +313,10 @@ def main() -> None:
 
     if args.output:
         out_path = Path(args.output)
-        out_path.parent.mkdir(parents=True, exist_ok=True)
+        if out_path.is_dir():
+            out_path = out_path / "training_results.json"
+        else:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w") as f:
             json.dump(result.to_dict(), f, indent=2)
         print(f"\n  {display.colored('Results exported to:', display.Colors.GREEN)} {out_path}")

@@ -10,6 +10,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from pipeline.aggregator.models import Topic
+from pipeline.aggregator.parsers import SystemRepoParser
 from pipeline.aggregator.service import (
     _APP_HOTSTANDBY_OPTIONS,
     _APP_PRIORITY_OPTIONS,
@@ -128,6 +129,65 @@ def test_app_attributes_are_reproducible_by_name():
     first = {a["name"]: (a["priority"], a["hotstandby"]) for a in _build_apps()}
     second = {a["name"]: (a["priority"], a["hotstandby"]) for a in _build_apps()}
     assert first == second
+
+
+# --- application role (multi-role support) ----------------------------------
+
+def _apps_with_roles(app_role_map):
+    app_node_rel = [("App-0", "Node-0"), ("App-1", "Node-1"), ("App-2", "Node-0")]
+    apps, *_ = _create_apps_libs_and_relations(
+        app_node_relations=app_node_rel,
+        csv_data=[],
+        topic_map={},
+        app_role_map=app_role_map,
+        app_criticality_map={},
+        dds_mask=False,
+    )
+    return {a["name"]: a["role"] for a in apps}
+
+
+def test_app_role_defaults_to_not_found_list_when_missing():
+    roles_by_app = _apps_with_roles({})
+    for name, roles in roles_by_app.items():
+        assert isinstance(roles, list), f"{name}: role must be a list"
+        assert roles == ["NOT_FOUND"]
+
+
+def test_app_role_preserves_single_role_as_list():
+    roles_by_app = _apps_with_roles({"App-0": ["publisher"]})
+    assert roles_by_app["App-0"] == ["publisher"]
+    assert roles_by_app["App-1"] == ["NOT_FOUND"]
+
+
+def test_app_role_preserves_multiple_roles():
+    mapping = {
+        "App-0": ["publisher", "monitor"],
+        "App-2": ["publisher", "logger", "monitor"],
+    }
+    roles_by_app = _apps_with_roles(mapping)
+    assert roles_by_app["App-0"] == ["publisher", "monitor"]
+    assert roles_by_app["App-2"] == ["publisher", "logger", "monitor"]
+    assert roles_by_app["App-1"] == ["NOT_FOUND"]
+
+
+def test_app_role_is_copied_not_aliased():
+    shared = ["publisher", "monitor"]
+    mapping = {"App-0": shared}
+    roles_by_app = _apps_with_roles(mapping)
+    roles_by_app["App-0"].append("mutated")
+    assert shared == ["publisher", "monitor"]
+
+
+def test_system_repo_parser_get_app_role_relation_returns_lists():
+    parser = SystemRepoParser(platform_name="mock-platform")
+    result = parser.get_app_role_relation()
+    assert isinstance(result, dict)
+    assert result, "mock data should not be empty"
+    for app_name, roles in result.items():
+        assert isinstance(app_name, str)
+        assert isinstance(roles, list)
+        assert all(isinstance(r, str) for r in roles)
+        assert roles, f"{app_name}: role list must not be empty"
 
 
 if __name__ == "__main__":

@@ -8,33 +8,33 @@
 
 ## Table of Contents
 
-1. [What This Step Does](#what-this-step-does)
-2. [Two Visualization Surfaces](#two-visualization-surfaces)
-3. [Static HTML Dashboard](#static-html-dashboard)
-   - [Section 1 — Executive Overview](#section-1--executive-overview)
-   - [Section 2 — Layer Comparison](#section-2--layer-comparison)
-   - [Section 3 — Component Details Table](#section-3--component-details-table)
-   - [Section 3.5 — Architectural Explanations](#section-35--architectural-explanations)
-   - [Section 4 — Validation Diagnostics](#section-4--validation-diagnostics)
-   - [Section 5 — Interactive Network Graph](#section-5--interactive-network-graph)
-   - [Section 6 — Dependency Matrix](#section-6--dependency-matrix)
-   - [Section 7 — Validation Report](#section-7--validation-report)
-   - [Section 8 — Multi-Seed Stability](#section-8--multi-seed-stability)
-   - [Section 9 — Anti-Pattern Catalog](#section-9--anti-pattern-catalog)
-   - [Section 9a — Cascade Risk / QoS Ablation](#section-9a--cascade-risk--qos-ablation)
-   - [Section 10 — MIL-STD-498 Hierarchy](#section-10--mil-std-498-hierarchy)
-4. [Visual Encoding Reference](#visual-encoding-reference)
-5. [Genieus: Live Web Application](#genieus-live-web-application)
-6. [Anti-Pattern Detection and CI/CD Integration](#anti-pattern-detection-and-cicd-integration)
-7. [From Dashboard to Decisions](#from-dashboard-to-decisions)
-8. [Performance](#performance)
-9. [Commands](#commands)
-10. [Programmatic API](#programmatic-api)
-11. [What Comes Next](#what-comes-next)
+1. [What This Step Does](#1-what-this-step-does)
+2. [Two Visualization Surfaces](#2-two-visualization-surfaces)
+3. [Static HTML Dashboard](#3-static-html-dashboard)
+   - [Section 1 — Executive Overview](#31-section-1--executive-overview)
+   - [Section 2 — Layer Comparison](#32-section-2--layer-comparison)
+   - [Section 3 — Component Details Table](#33-section-3--component-details-table)
+   - [Section 3.5 — Architectural Explanations](#34-section-35--architectural-explanations)
+   - [Section 4 — Validation Diagnostics](#35-section-4--validation-diagnostics)
+   - [Section 5 — Interactive Network Graph](#36-section-5--interactive-network-graph)
+   - [Section 6 — Dependency Matrix](#37-section-6--dependency-matrix)
+   - [Section 7 — Validation Report](#38-section-7--validation-report)
+   - [Section 8 — Multi-Seed Stability](#39-section-8--multi-seed-stability)
+   - [Section 9 — Anti-Pattern Catalog](#310-section-9--anti-pattern-catalog)
+   - [Section 9a — Cascade Risk / QoS Ablation](#311-section-9a--cascade-risk--qos-ablation)
+   - [Section 10 — MIL-STD-498 Hierarchy](#312-section-10--mil-std-498-hierarchy)
+4. [Visual Encoding Reference](#4-visual-encoding-reference)
+5. [SMART: Live Web Application](#5-smart-live-web-application)
+6. [Anti-Pattern Detection and CI/CD Integration](#6-anti-pattern-detection-and-cicd-integration)
+7. [From Dashboard to Decisions](#7-from-dashboard-to-decisions)
+8. [Performance](#8-performance)
+9. [Commands](#9-commands)
+10. [Programmatic API](#10-programmatic-api)
+11. [What Comes Next](#11-what-comes-next)
 
 ---
 
-## What This Step Does
+## 1. What This Step Does
 
 Visualization is the final step. It takes all outputs from Steps 2–5 — structural metric vectors M(v), RMAV prediction scores Q(v), simulation impact scores I(v), and validation metrics — and synthesizes them into interactive dashboards. The goal is to move from numbers to decisions.
 
@@ -43,31 +43,31 @@ Steps 2–5 Outputs                    Visualization              Output
 ─────────────────────────────        ─────────────              ──────
 M(v)  — 13 Tier 1 metrics            Pipeline         →   Static HTML dashboard
 Q(v)  — R, M, A, V, composite            │                (archivable research artifact)
-I(v), IR, IM, IA, IV — ground truths     │            →   Genieus live web app
+I(v), IR, IM, IA, IV — ground truths     │            →   SMART live web app
 ρ, F1, PG, specialist metrics    ────────┘                (operational practitioner tool)
 Anti-pattern report (12 patterns)
 ```
 
-The dashboard design follows one principle: every visual element should answer a specific stakeholder question. Each view corresponds to a row in the [From Dashboard to Decisions](#from-dashboard-to-decisions) table.
+The dashboard design follows one principle: every visual element should answer a specific stakeholder question. Each view corresponds to a row in the [From Dashboard to Decisions](#7-from-dashboard-to-decisions) table.
 
 ---
 
-## Two Visualization Surfaces
+## 2. Two Visualization Surfaces
 
 | Surface | Use Case | Output |
 |---------|---------|--------|
 | **Static HTML dashboard** | Reproducible research artifact; sharing with stakeholders who have no infrastructure; archiving validation results for thesis or paper submission | Single self-contained `.html` file (~1–4 MB), embeds all data and charts |
-| **Genieus web application** | Interactive real-time exploration; triggering pipeline steps from a browser; collaborative review sessions | Next.js frontend at `http://localhost:7000` communicating with FastAPI backend at `:8000` |
+| **SMART web application** | Interactive real-time exploration; triggering pipeline steps from a browser; collaborative review sessions | Next.js frontend at `http://localhost:7000` communicating with FastAPI backend at `:8000` |
 
 Both surfaces share the same visual encoding, the same data source (Neo4j + pipeline outputs), and the same anti-pattern detection results.
 
 ---
 
-## Static HTML Dashboard
+## 3. Static HTML Dashboard
 
 The dashboard is structured as ten sections (plus one conditional sub-section). All sections except Section 5 (network graph) render quickly even at xlarge scale. Sections are navigable via a fixed top navbar.
 
-### Section 1 — Executive Overview
+### 3.1 Section 1 — Executive Overview
 
 Six KPI cards summarizing the system at a glance:
 
@@ -82,7 +82,7 @@ Six KPI cards summarizing the system at a glance:
 
 Below the KPI cards: a criticality distribution doughnut chart (CRITICAL / HIGH / MEDIUM / LOW / MINIMAL counts) and an AHP-weighted RMAV dimension stacked bar chart showing the breakdown (Availability, Reliability, Maintainability, Vulnerability) for the top-6 components.
 
-### Section 2 — Layer Comparison
+### 3.2 Section 2 — Layer Comparison
 
 A side-by-side grouped bar chart comparing key statistics across all analyzed layers (`app`, `infra`, `mw`, `system`). The chart compares:
 - **Density**: The graph density of the layer.
@@ -92,7 +92,7 @@ A side-by-side grouped bar chart comparing key statistics across all analyzed la
 
 This allows architects to quickly compare scale, density, failure impact, and predictive accuracy across different topological representation layers.
 
-### Section 3 — Component Details Table
+### 3.3 Section 3 — Component Details Table
 
 A sortable, filterable table with one row per component in the selected layer. Columns:
 
@@ -117,12 +117,12 @@ Below the table, an **AHP-weighted RMAV stacked bar chart** shows the per-dimens
 
 **MPCI column guidance:** A non-zero MPCI identifies the "Multi-path Sink" pattern introduced in Step 3. These components have multiple independent failure vectors from the same dependents. Sorting by MPCI descending surfaces the highest multi-channel coupling risk. Components with MPCI > 0.10 warrant investigation of their topic sharing structure.
 
-### Section 3.5 — Architectural Explanations
+### 3.4 Section 3.5 — Architectural Explanations
 
 Rendered only when the analysis service produces a system-level explanation (e.g. when `--explain` is passed to `analyze_graph.py`). Shows a card per component with automated risk narrative and triage guidance derived from the RMAV pattern match.
 
 
-### Section 4 — Validation Diagnostics
+### 3.5 Section 4 — Validation Diagnostics
 
 **Composite scatter: Q*(v) vs I*(v)**
 
@@ -147,7 +147,7 @@ Four additional scatter plots, one per RMAV dimension, using the dimension-speci
 
 The per-dimension scatter plots are the most diagnostic view for understanding which RMAV dimension is driving the overall correlation and which dimensions have systematic bias.
 
-### Section 5 — Interactive Network Graph
+### 3.6 Section 5 — Interactive Network Graph
 
 An interactive multi-layer topology visualization rendered with **Cytoscape.js** (using the `cose-bilkent` layout). The layout groups components inside their respective logical layer compound boundaries (`Application Layer`, `Middleware Layer`, `Infrastructure Layer`).
 
@@ -159,11 +159,11 @@ An interactive multi-layer topology visualization rendered with **Cytoscape.js**
 | Drag | Repositions nodes to inspect dense local subgraphs. |
 | Zoom / Pan | Standard viewport zoom (mouse wheel / trackpad pinch) and pan to navigate large topologies. |
 
-*Note: The live web application (Genieus) provides a richer Graph Explorer tab equipped with real-time searches, 2D/3D force-directed layout switches, dynamic overlay selection (Criticality / Type / R / M / A / V), and a dedicated right-side component detail panel.*
+*Note: The live web application (SMART) provides a richer Graph Explorer tab equipped with real-time searches, 2D/3D force-directed layout switches, dynamic overlay selection (Criticality / Type / R / M / A / V), and a dedicated right-side component detail panel.*
 
 Use the network graph for systems up to ~500 components (which is automatically gated in the visualizer). For larger systems, the dashboard automatically falls back to showing only the Dependency Matrix.
 
-### Section 6 — Dependency Matrix
+### 3.7 Section 6 — Dependency Matrix
 
 A directed adjacency matrix $A$ where $A_{ij} = w(e)$ if a `DEPENDS_ON` edge exists from component $i$ to component $j$. Components are ordered in descending order of their composite criticality score $Q(v)$, placing the most critical system components at the top-left of the matrix.
 
@@ -177,7 +177,7 @@ A directed adjacency matrix $A$ where $A_{ij} = w(e)$ if a `DEPENDS_ON` edge exi
 
 The cell opacity encodes the QoS-derived edge weight $w(e)$: dark, highly opaque cells represent high-priority, reliable, persistent flows; lighter cells represent low-priority, best-effort flows. This allows architects to immediately assess the severity of dependencies.
 
-### Section 7 — Validation Report
+### 3.8 Section 7 — Validation Report
 
 The validation report answers: "Can I trust the Q(v) predictions in this dashboard?" It is organized in one metrics box.
 
@@ -192,7 +192,7 @@ The validation report answers: "Can I trust the Q(v) predictions in this dashboa
 
 If any primary gate fails, each sub-panel provides an interpretation hint (e.g., "ρ(A, IA) below target — check AP_c_directed storage in Step 2").
 
-### Section 8 — Multi-Seed Stability
+### 3.9 Section 8 — Multi-Seed Stability
 
 Rendered when `--multi-seed` is given (with one or more validation JSON paths). Shows:
 
@@ -208,7 +208,7 @@ PYTHONPATH=. python cli/visualize_graph.py --layer app \
 
 > This section is the primary evidence for the multi-seed reproducibility claim in Definition G5 / §6.2 Section 8 of the thesis.
 
-### Section 9 — Anti-Pattern Catalog
+### 3.10 Section 9 — Anti-Pattern Catalog
 
 A dedicated dashboard section surfacing the results of `detect_antipatterns.py`. Organized in three expandable severity tiers.
 
@@ -245,7 +245,7 @@ For each detected instance the section shows: pattern name and severity badge, t
 
 > **Note on CHATTY_PAIR:** This pattern uses the `path_count` attribute on DEPENDS_ON edges introduced in Step 1. Two applications that share three or more topics have MPCI > 0 on each other's in-degree, identifying them as multi-channel coupled. The detection threshold is path_count ≥ 3 on any single DEPENDS_ON edge.
 
-### Section 9a — Cascade Risk / QoS Ablation
+### 3.11 Section 9a — Cascade Risk / QoS Ablation
 
 Rendered when `--cascade-file` is given. Shows the QoS-enriched cascade risk contribution — the primary novel Middleware 2026 claim.
 
@@ -271,7 +271,7 @@ PYTHONPATH=. python cli/visualize_graph.py --layer system \
     --output output/dashboard_cascade.html
 ```
 
-### Section 10 — MIL-STD-498 Hierarchy
+### 3.12 Section 10 — MIL-STD-498 Hierarchy
 
 Rendered when the analysis service produces hierarchy data (requires structurally grounded hierarchy assignment — not random pool selection). Shows a recursive tree:
 
@@ -290,7 +290,7 @@ This section is relevant for MIL-STD-498 compliance reviews and for projects tha
 
 ---
 
-## Visual Encoding Reference
+## 4. Visual Encoding Reference
 
 ### Node Shape (by vertex type)
 
@@ -361,7 +361,7 @@ FOC:           0.83   subscriber_count=10
 
 ---
 
-## Genieus: Live Web Application
+## 5. SMART: Live Web Application
 
 A Next.js 16 / React 19 application at `http://localhost:7000`, backed by FastAPI at `:8000` and Neo4j at `:7687`.
 
@@ -404,7 +404,7 @@ Triggers Step 4:
 
 ---
 
-## Anti-Pattern Detection and CI/CD Integration
+## 6. Anti-Pattern Detection and CI/CD Integration
 
 The `detect_antipatterns.py` tool runs the full 12-pattern catalog against any analyzed system. It is designed to integrate directly into CI/CD pipelines as a deployment gate.
 
@@ -464,7 +464,7 @@ Without `--antipatterns`, Section 8 shows a "No anti-pattern report available" p
 
 ---
 
-## From Dashboard to Decisions
+## 7. From Dashboard to Decisions
 
 | Stakeholder Question | Primary View | Secondary View |
 |---------------------|-------------|----------------|
@@ -485,7 +485,7 @@ Without `--antipatterns`, Section 8 shows a "No anti-pattern report available" p
 
 ---
 
-## Performance
+## 8. Performance
 
 | Scale | Dashboard Generation Time | Recommended Settings |
 |-------|--------------------------|---------------------|
@@ -501,7 +501,7 @@ For system-layer analysis with all five node types (Application, Library, Broker
 
 ---
 
-## Commands
+## 9. Commands
 
 ```bash
 # ─── Standard dashboard generation ───────────────────────────────────────────
@@ -558,7 +558,7 @@ PYTHONPATH=. python cli/visualize_graph.py --demo --open
 
 ---
 
-## Programmatic API
+## 10. Programmatic API
 
 ```python
 from saag.infrastructure import create_repository
@@ -601,7 +601,7 @@ See `examples/example_visualization.py` for a complete runnable example.
 
 ---
 
-## What Comes Next
+## 11. What Comes Next
 
 Step 6 completes the six-step methodology loop.
 
@@ -609,7 +609,7 @@ Step 6 completes the six-step methodology loop.
 
 **For ICSA 2026 submission:** Generate dashboards for all eight validated scenarios and include them as supplementary material. The anti-pattern catalog (Section 8) and the Predictive Gain PG metric in the validation report are the two novel claims that distinguish this submission from the RASSE 2025 paper.
 
-**For production deployment:** Use Genieus as the operational interface. The Dashboard tab provides the real-time health view; the Simulation tab enables pre-deployment what-if analysis; the `detect_antipatterns.py` CI/CD integration ensures that CRITICAL patterns block deployment automatically.
+**For production deployment:** Use SMART as the operational interface. The Dashboard tab provides the real-time health view; the Simulation tab enables pre-deployment what-if analysis; the `detect_antipatterns.py` CI/CD integration ensures that CRITICAL patterns block deployment automatically.
 
 ---
 

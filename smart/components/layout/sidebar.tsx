@@ -103,13 +103,13 @@ export function Sidebar() {
       )}>
         <Image
           src="/smart.png"
-          alt="Genieus Logo"
+          alt="SMART Logo"
           width={32}
           height={32}
           className="rounded-lg shrink-0"
         />
         {!collapsed && (
-          <span className="ml-3 text-lg font-bold bg-gradient-to-r from-cyan-500 to-blue-700 dark:from-cyan-400 dark:to-blue-500 bg-clip-text text-transparent whitespace-nowrap overflow-hidden">Genieus</span>
+          <span className="ml-3 text-lg font-bold bg-gradient-to-r from-cyan-500 to-blue-700 dark:from-cyan-400 dark:to-blue-500 bg-clip-text text-transparent whitespace-nowrap overflow-hidden">SMART</span>
         )}
       </div>
 

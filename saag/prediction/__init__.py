@@ -2,12 +2,12 @@
 Prediction Package
 """
 from .service import PredictionService
-from .analyzer import QualityAnalyzer
-from .models import QualityAnalysisResult, DetectedProblem, ProblemSummary
-from .classifier import BoxPlotClassifier
-from .weight_calculator import AHPProcessor, QualityWeights
-from .problem_detector import ProblemDetector
-from .antipattern_detector import AntiPatternDetector
+from saag.analysis.analyzer import QualityAnalyzer
+from saag.analysis.models import QualityAnalysisResult, DetectedProblem, ProblemSummary
+from saag.analysis.classifier import BoxPlotClassifier
+from saag.analysis.weight_calculator import AHPProcessor, QualityWeights
+from saag.analysis.problem_detector import ProblemDetector
+from saag.analysis.antipattern_detector import AntiPatternDetector
 from .gnn_service import GNNService, GNNAnalysisResult, GNNCriticalityScore
 from .data_preparation import (
     extract_structural_metrics_dict,

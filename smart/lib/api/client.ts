@@ -12,6 +12,23 @@ import type {
   ClassificationResponse,
 } from '@/lib/types/api';
 
+export interface ComponentExplanation {
+  component_id: string;
+  pattern: string;
+  level: string;
+  one_line: string;
+  top_risk: string;
+  dimensions: Record<string, {
+    score: number;
+    level: string;
+    driving_metric?: string;
+    plain_meaning?: string;
+    risk_sentence?: string;
+  }>;
+  priority_action: string;
+  anti_patterns: string[];
+}
+
 class GraphAnalysisAPI {
   private client: AxiosInstance;
   private baseURL: string;
@@ -1312,6 +1329,26 @@ class GraphAnalysisAPI {
       params: { component_type: type, limit: 100000 },
     });
     return response.data.components ?? [];
+  }
+
+  async explainComponents(componentIds: string[]): Promise<Record<string, ComponentExplanation>> {
+    if (!this.credentials) {
+      throw new Error('No credentials set. Please connect first.');
+    }
+    const response = await this.client.post('/api/v1/analysis/explain', componentIds);
+    return response.data.explanations || {};
+  }
+
+  async exportPersistenceData(): Promise<Blob> {
+    if (!this.credentials) {
+      throw new Error('No credentials set. Please connect first.');
+    }
+    const response = await this.client.post('/api/v1/graph/export-persistence', this.credentials);
+    const graphData = response.data.graph_data;
+    const blob = new Blob([JSON.stringify(graphData, null, 2)], {
+      type: 'application/json'
+    });
+    return blob;
   }
 
   // Update base URL

@@ -306,3 +306,10 @@ def get_lib_archetype_for_name(lib_name: str) -> str:
         return "framework"
         
     return "utility"
+
+
+# Add aliases for air_traffic_management
+SYSTEM_HIERARCHY_POOLS["air_traffic_management"] = SYSTEM_HIERARCHY_POOLS["atm"]
+DOMAIN_DATASETS["air_traffic_management"] = DOMAIN_DATASETS["atm"]
+QOS_MAPPINGS["air_traffic_management"] = QOS_MAPPINGS["atm"]
+

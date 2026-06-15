@@ -12,8 +12,10 @@ import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import {
   Waypoints, Database, TrendingUp,
   Network, ArrowRight, Layers, BarChart3,
+  ShieldAlert, CheckCircle2, Activity,
 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
+import { useAnalysis } from "@/lib/stores/analysis-store"
 import ReactECharts from "echarts-for-react"
 
 // ── shared chart constants ────────────────────────────────────────────────────
@@ -83,6 +85,32 @@ export default function DashboardPage() {
   const router = useRouter()
   const { status, stats, initialLoadComplete } = useConnection()
   const isConnected = status === 'connected'
+
+  const { cache } = useAnalysis()
+  const systemAnalysis = cache['layer:system']
+
+  const rmavData = useMemo(() => {
+    if (!systemAnalysis) return null
+    const comps = systemAnalysis.components || []
+    const avgRisk = comps.length > 0 
+      ? comps.reduce((sum, c) => sum + (c.scores?.overall ?? 0), 0) / comps.length 
+      : 0
+    const qualityScale = (1 - avgRisk) * 100
+
+    const criticalCount = systemAnalysis.summary?.critical_count ?? comps.filter(c => c.criticality_level === 'critical').length
+    const highCount = systemAnalysis.summary?.high_count ?? comps.filter(c => c.criticality_level === 'high').length
+    const antiPatternsCount = systemAnalysis.summary?.total_problems ?? systemAnalysis.problems?.length ?? 0
+    const criticalProblems = systemAnalysis.summary?.critical_problems ?? systemAnalysis.problems?.filter(p => p.severity === 'CRITICAL').length ?? 0
+    const isBlocked = criticalCount > 0 || criticalProblems > 0
+
+    return {
+      qualityScale,
+      criticalCount,
+      highCount,
+      antiPatternsCount,
+      isBlocked
+    }
+  }, [systemAnalysis])
 
   // derived
   const nodeEntries   = useMemo(() => Object.entries(stats?.node_counts   ?? {}), [stats])
@@ -243,6 +271,147 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+
+        {/* ── RMAV Quality KPI row ────────────────────────────────────── */}
+        {rmavData ? (
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+            {/* RMAV Quality */}
+            <div className={`relative overflow-hidden rounded-xl border p-4 bg-background/50 backdrop-blur-sm ${
+              rmavData.qualityScale >= 80 ? 'border-green-500/20 shadow-green-500/5' :
+              rmavData.qualityScale >= 60 ? 'border-amber-500/20 shadow-amber-500/5' :
+              'border-red-500/20 shadow-red-500/5'
+            } shadow-sm`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium truncate">RMAV Quality</p>
+                  <p className={`text-[1.65rem] font-bold leading-tight tracking-tight ${
+                    rmavData.qualityScale >= 80 ? 'text-green-400' :
+                    rmavData.qualityScale >= 60 ? 'text-amber-400' :
+                    'text-red-400'
+                  }`}>{rmavData.qualityScale.toFixed(0)}%</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">System overall health</p>
+                </div>
+                <div className={`shrink-0 rounded-lg p-2 ${
+                  rmavData.qualityScale >= 80 ? 'bg-green-500/10' :
+                  rmavData.qualityScale >= 60 ? 'bg-amber-500/10' :
+                  'bg-red-500/10'
+                }`}>
+                  <Activity className={`h-4 w-4 ${
+                    rmavData.qualityScale >= 80 ? 'text-green-400' :
+                    rmavData.qualityScale >= 60 ? 'text-amber-400' :
+                    'text-red-400'
+                  }`} />
+                </div>
+              </div>
+            </div>
+
+            {/* Critical Components */}
+            <div className={`relative overflow-hidden rounded-xl border p-4 bg-background/50 backdrop-blur-sm ${
+              rmavData.criticalCount > 0 ? 'border-red-500/20 shadow-red-500/5' : 'border-border'
+            } shadow-sm`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium truncate">Critical Components</p>
+                  <p className={`text-[1.65rem] font-bold leading-tight tracking-tight ${
+                    rmavData.criticalCount > 0 ? 'text-red-400' : 'text-foreground'
+                  }`}>{rmavData.criticalCount}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">Immediate failure risks</p>
+                </div>
+                <div className="shrink-0 rounded-lg bg-red-500/10 p-2">
+                  <ShieldAlert className="h-4 w-4 text-red-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* High Risk Components */}
+            <div className={`relative overflow-hidden rounded-xl border p-4 bg-background/50 backdrop-blur-sm ${
+              rmavData.highCount > 0 ? 'border-orange-500/20 shadow-orange-500/5' : 'border-border'
+            } shadow-sm`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium truncate">High Risk</p>
+                  <p className={`text-[1.65rem] font-bold leading-tight tracking-tight ${
+                    rmavData.highCount > 0 ? 'text-orange-400' : 'text-foreground'
+                  }`}>{rmavData.highCount}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">Elevated failure risks</p>
+                </div>
+                <div className="shrink-0 rounded-lg bg-orange-500/10 p-2">
+                  <ShieldAlert className="h-4 w-4 text-orange-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* Active Anti-Patterns */}
+            <div className={`relative overflow-hidden rounded-xl border p-4 bg-background/50 backdrop-blur-sm ${
+              rmavData.antiPatternsCount > 0 ? 'border-amber-500/20 shadow-amber-500/5' : 'border-border'
+            } shadow-sm`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium truncate">Anti-Patterns</p>
+                  <p className={`text-[1.65rem] font-bold leading-tight tracking-tight ${
+                    rmavData.antiPatternsCount > 0 ? 'text-amber-400' : 'text-foreground'
+                  }`}>{rmavData.antiPatternsCount}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">Smells & vulnerabilities</p>
+                </div>
+                <div className="shrink-0 rounded-lg bg-amber-500/10 p-2">
+                  <Layers className="h-4 w-4 text-amber-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* Deployment Status */}
+            <div className={`relative overflow-hidden rounded-xl border p-4 bg-background/50 backdrop-blur-sm ${
+              rmavData.isBlocked ? 'border-red-500/20 shadow-red-500/5' : 'border-green-500/20 shadow-green-500/5'
+            } shadow-sm`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-muted-foreground font-medium truncate">Deployment Status</p>
+                  <div className="mt-1">
+                    <Badge variant={rmavData.isBlocked ? "destructive" : "default"} className={`text-xs px-2.5 py-0.5 font-bold ${
+                      !rmavData.isBlocked ? "bg-green-500/15 text-green-400 border-green-500/35 hover:bg-green-500/25" : ""
+                    }`}>
+                      {rmavData.isBlocked ? "BLOCKED" : "CLEAR"}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-2 truncate">
+                    {rmavData.isBlocked ? "Critical issues found" : "No blocking issues"}
+                  </p>
+                </div>
+                <div className={`shrink-0 rounded-lg p-2 ${rmavData.isBlocked ? 'bg-red-500/10' : 'bg-green-500/10'}`}>
+                  {rmavData.isBlocked ? (
+                    <ShieldAlert className="h-4 w-4 text-red-400" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-green-400" />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="group flex items-center justify-between gap-4 rounded-xl border border-dashed border-border bg-muted/5 px-5 py-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="shrink-0 rounded-lg bg-muted p-2">
+                <Activity className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-muted-foreground leading-tight">No RMAV analysis data</p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                  Run a full system analysis to inspect risk profile, reliability, and deployment status.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 border-dashed border-muted hover:border-foreground hover:bg-muted/10 transition-colors"
+              onClick={() => router.push('/analysis')}
+            >
+              Analyze
+              <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+
 
         {/* ── Explorer & Statistics CTA banners ────────────────────── */}
         <div className="flex flex-col gap-3">

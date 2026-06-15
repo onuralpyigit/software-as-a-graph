@@ -8,29 +8,29 @@
 
 ## Table of Contents
 
-1. [What This Step Does](#what-this-step-does)
-2. [Why a Graph?](#why-a-graph)
-3. [Formal Graph Definition](#formal-graph-definition)
-4. [Construction Phases](#construction-phases)
-   - [Phase 1 — Entity Modeling](#phase-1--entity-modeling)
-   - [Phase 2 — Structural Graph](#phase-2--structural-graph)
-   - [Phase 3 — Intrinsic Weight Computation](#phase-3--intrinsic-weight-computation)
-   - [Phase 4 — Dependency Derivation](#phase-4--dependency-derivation)
-   - [Phase 5 — Aggregate Weight Propagation](#phase-5--aggregate-weight-propagation)
-5. [Layer Projections](#layer-projections)
-6. [Two Graph Views](#two-graph-views)
-7. [Input Format](#input-format)
-8. [Worked Example](#worked-example)
-9. [Domain Mapping](#domain-mapping)
-10. [Complexity](#complexity)
-11. [CLI Reference: Importing Graph Data](#cli-reference-importing-graph-data)
-12. [CLI Reference: Exporting Graph Data](#cli-reference-exporting-graph-data)
-13. [Export–Import Roundtrip](#exportimport-roundtrip)
-14. [What Comes Next](#what-comes-next)
+1. [What This Step Does](#1-what-this-step-does)
+2. [Why a Graph?](#2-why-a-graph)
+3. [Formal Graph Definition](#3-formal-graph-definition)
+4. [Construction Phases](#4-construction-phases)
+   - [Phase 1 — Entity Modeling](#41-phase-1--entity-modeling)
+   - [Phase 2 — Structural Graph](#42-phase-2--structural-graph)
+   - [Phase 3 — Intrinsic Weight Computation](#43-phase-3--intrinsic-weight-computation)
+   - [Phase 4 — Dependency Derivation](#44-phase-4--dependency-derivation)
+   - [Phase 5 — Aggregate Weight Propagation](#45-phase-5--aggregate-weight-propagation)
+5. [Layer Projections](#5-layer-projections)
+6. [Two Graph Views](#6-two-graph-views)
+7. [Input Format](#7-input-format)
+8. [Worked Example](#8-worked-example)
+9. [Domain Mapping](#9-domain-mapping)
+10. [Complexity](#10-complexity)
+11. [CLI Reference: Importing Graph Data](#11-cli-reference-importing-graph-data)
+12. [CLI Reference: Exporting Graph Data](#12-cli-reference-exporting-graph-data)
+13. [Export–Import Roundtrip](#13-exportimport-roundtrip)
+14. [What Comes Next](#14-what-comes-next)
 
 ---
 
-## What This Step Does
+## 1. What This Step Does
 
 Modeling takes a distributed publish-subscribe system — its applications, topics, brokers, infrastructure nodes, and shared libraries — and converts it into a formal weighted directed graph. This graph becomes the foundation for all subsequent steps.
 
@@ -49,11 +49,11 @@ System JSON ──▶  Entity  ──▶  Structural ──▶  Intrinsic  ─�
                                 computed        inherited          computed        recorded          finalized
 ```
 
-The output is two complementary graph views — **G_structural** for simulation and **G_analysis(l)** for analysis and prediction — described in [Two Graph Views](#two-graph-views).
+The output is two complementary graph views — **G_structural** for simulation and **G_analysis(l)** for analysis and prediction — described in [Two Graph Views](#6-two-graph-views).
 
 ---
 
-## Why a Graph?
+## 2. Why a Graph?
 
 In a pub-sub system, applications don't call each other directly — they communicate through topics and brokers. A raw architecture diagram doesn't reveal the true dependency chains. By deriving logical DEPENDS_ON relationships, we make hidden dependencies explicit:
 
@@ -67,7 +67,7 @@ These derived dependencies are what make the graph useful for predicting failure
 
 ---
 
-## Formal Graph Definition
+## 3. Formal Graph Definition
 
 ```
 G = (V, E, τ_V, τ_E, w) where:
@@ -81,8 +81,8 @@ E_dependency ⊆ V × V    (DEPENDS_ON edges — derived by 6 derivation rules)
 τ_V : V → {App, Broker, Topic, Node, Library}                    (vertex type function)
 τ_E : E → {structural edge types} ∪ {DEPENDS_ON}                 (edge type function)
 
-w : E → [0, 1]    (QoS-derived edge weight)
-w : V → [0, 1]    (QoS-derived vertex weight, propagated from incident edges)
+w_E : E → [0, 1]    (QoS-derived edge weight)
+w_V : V → [0, 1]    (QoS-derived vertex weight, propagated from incident edges; written w(v) in metric formulae)
 ```
 
 **Selected vertex attributes relevant to reliability prediction:**
@@ -104,13 +104,13 @@ w : V → [0, 1]    (QoS-derived vertex weight, propagated from incident edges)
 | `dependency_type` | string | One of: `app_to_app`, `app_to_broker`, `node_to_node`, `node_to_broker`, `app_to_lib`, `broker_to_broker` |
 | `path_count` | int ≥ 1 | Number of shared topics (for `app_to_app`) or shared nodes (for `broker_to_broker`) establishing this dependency |
 
-> **On `path_count`:** When two components are connected through multiple shared topics, `path_count` captures coupling intensity. A `path_count = 3` dependency means three simultaneous failure vectors between the same pair — structurally more fragile than three independent single-topic links. Step 3 uses this to refine cascade depth potential (CDPot) computations.
+> **On `path_count`:** When two components are connected through multiple shared topics, `path_count` captures coupling intensity. A `path_count = 3` dependency means three simultaneous failure vectors between the same pair — structurally more fragile than three independent single-topic links. Step 2 (Analyze, RMAV sub-phase) uses this to refine cascade depth potential (CDPot) computations.
 
 ---
 
-## Construction Phases
+## 4. Construction Phases
 
-### Phase 1 — Entity Modeling
+### 4.1 Phase 1 — Entity Modeling
 
 Each entity in the topology JSON becomes a vertex in G. Five vertex types are created in this order: infrastructure nodes, brokers, topics, applications, libraries.
 
@@ -134,7 +134,7 @@ Each entity in the topology JSON becomes a vertex in G. Five vertex types are cr
 | `cm_avg_fanin` | float | Average afferent coupling (Library: internal static analysis) |
 | `cm_avg_fanout` | float | Average efferent coupling (Library: internal static analysis) |
 
-These attributes feed the **Code Quality Penalty (CQP)** composite used in Step 3's Maintainability M(v) term. When absent, M(v) falls back to the topology-only formula.
+These attributes feed the **Code Quality Penalty (CQP)** composite used in Step 2 (Analyze, RMAV sub-phase) Maintainability M(v) term. When absent, M(v) falls back to the topology-only formula.
 
 > **Why `subscriber_count` and `publisher_count` are listed under Phase 1 but computed in Phase 2:** These are properties of Topic vertices, but their values depend on SUBSCRIBES_TO and PUBLISHES_TO edges which don't exist until Phase 2. They are computed at the end of Phase 2 and written back onto each Topic vertex.
 
@@ -142,7 +142,7 @@ These attributes feed the **Code Quality Penalty (CQP)** composite used in Step 
 
 ---
 
-### Phase 2 — Structural Graph
+### 4.2 Phase 2 — Structural Graph
 
 Six structural edge types are imported directly from the topology JSON. Each edge represents an explicit, observable relationship in the system.
 
@@ -168,7 +168,7 @@ publisher_count(t)  = |{ a ∈ V_app ∪ V_lib : (a, t) ∈ PUBLISHES_TO  }|
 
 ---
 
-### Phase 3 — Intrinsic Weight Computation
+### 4.3 Phase 3 — Intrinsic Weight Computation
 
 Topic weights are computed from QoS properties and message size. These weights are the foundational signal for all downstream weight propagation.
 
@@ -210,7 +210,7 @@ MIN_WEIGHT = 0.01
 
 ---
 
-### Phase 4 — Dependency Derivation
+### 4.4 Phase 4 — Dependency Derivation
 
 > [!NOTE]
 > **Pre-Analysis Deferral:** Dependency derivation is decoupled from the main import transaction of `save_graph()`. Instead, it runs during the **Pre-Analysis Stage** as a separate step via `IGraphRepository.derive_dependencies()` (called automatically at the start of Step 2 Analyze). This ensures that structural models can be imported and cleared without immediately running the Cypher logic required to derive logical `DEPENDS_ON` edges.
@@ -241,7 +241,7 @@ edge.path_count  = len(shared_topics)                  # coupling intensity
 
 `path_count` is not folded into the weight to preserve the `w ∈ [0,1]` contract.
 
-**Library blast semantics vs. pub-sub cascade:** Rule 5 captures a qualitatively different failure mode. A library failure causes a *simultaneous* blast — all consuming applications fail at once. This contrasts with pub-sub cascade propagation (Rule 1), which flows step-by-step through topics and brokers. Step 4 (Simulation) handles this distinction at the cascade propagation layer. Rule 5 simply records the structural dependency so that `DG_in(Library)` is non-zero and visible to R(v) in Step 3.
+**Library blast semantics vs. pub-sub cascade:** Rule 5 captures a qualitatively different failure mode. A library failure causes a *simultaneous* blast — all consuming applications fail at once. This contrasts with pub-sub cascade propagation (Rule 1), which flows step-by-step through topics and brokers. Step 4 (Simulation) handles this distinction at the cascade propagation layer. Rule 5 simply records the structural dependency so that `DG_in(Library)` is non-zero and visible to R(v) in Step 2 (Analyze, RMAV sub-phase).
 
 **Derivation trace example:**
 
@@ -276,7 +276,7 @@ After derivation:
 
 ---
 
-### Phase 5 — Aggregate Weight Propagation
+### 4.5 Phase 5 — Aggregate Weight Propagation
 
 > [!IMPORTANT]
 > **Two-Stage Execution:** Aggregate weight propagation is split into two stages:
@@ -292,7 +292,7 @@ w(app) = 0.80 × max{ w(t) : app PUBLISHES_TO t OR app SUBSCRIBES_TO t }
        + 0.20 × mean{ w(t) : app PUBLISHES_TO t OR app SUBSCRIBES_TO t }
 ```
 
-The hybrid formula reflects that an application's criticality is primarily bounded by its most critical data stream (0.80 × max), but a dense subscription footprint of medium-weight topics adds cumulative risk (0.20 × mean). When `max = mean` (single-topic app), the formula collapses to `w = w(t)`.
+The hybrid formula reflects that an application's criticality is primarily bounded by its most critical data stream (0.80 × max), but a dense subscription footprint of medium-weight topics adds cumulative risk (0.20 × mean). The max coefficient is **0.80** (higher than the 0.70 used for brokers) because an application is a direct *originator or consumer* — its failure severs only the topics it personally publishes or subscribes to, so the single most critical channel dominates. When `max = mean` (single-topic app), the formula collapses to `w = w(t)`.
 
 **Library-mediated pass (step 1.5):** The formula above only counts topics directly connected to the application via `PUBLISHES_TO` or `SUBSCRIBES_TO`. Applications that communicate exclusively through shared libraries (no direct topic edges) would receive `w(app) = 0.01` from the first pass — making them invisible to RMAV scoring even if they indirectly handle high-weight data.
 
@@ -323,7 +323,7 @@ w(broker) = 0.70 × max{ w(t) : broker ROUTES t }
            + 0.30 × mean{ w(t) : broker ROUTES t }
 ```
 
-A broker routing 20 medium-weight topics carries more cumulative risk than one routing a single high-weight topic. The hybrid captures both worst-case exposure and accumulated routing load.
+A broker routing 20 medium-weight topics carries more cumulative risk than one routing a single high-weight topic. The hybrid captures both worst-case exposure and accumulated routing load. The mean coefficient is **0.30** (higher than the 0.20 used for applications) because a broker is a *router*, not an originator — its failure affects every topic it routes simultaneously, so cumulative routing throughput risk deserves more weight than the equivalent footprint on a single application that directly handles only its own subscribed topics.
 
 #### Node Weight
 
@@ -351,7 +351,7 @@ SET d.weight = coalesce(node_w, 0.01)
 
 ---
 
-## Layer Projections
+## 5. Layer Projections
 
 The graph supports four layer projections, each filtering vertices and DEPENDS_ON edges to a specific architectural concern.
 
@@ -375,7 +375,7 @@ The graph supports four layer projections, each filtering vertices and DEPENDS_O
 
 ---
 
-## Two Graph Views
+## 6. Two Graph Views
 
 | Graph | Contains | Used By |
 |-------|----------|---------|
@@ -386,7 +386,7 @@ The separation is deliberate and methodologically essential: **prediction and si
 
 ---
 
-## Input Format
+## 7. Input Format
 
 The topology JSON uses a **dict-of-lists** structure for relationships. Each key under `"relationships"` is the snake_case name of a structural edge type, and the value is a list of `{ "from": id, "to": id }` objects.
 
@@ -496,7 +496,7 @@ The topology JSON uses a **dict-of-lists** structure for relationships. Each key
 
 ---
 
-## Worked Example
+## 8. Worked Example
 
 **Given topology:** SensorApp publishes to `/temperature`; MonitorApp subscribes. Both use NavLib. MainBroker routes `/temperature`. `/temperature` has QoS `RELIABLE / TRANSIENT_LOCAL / HIGH`.
 
@@ -558,7 +558,7 @@ app_to_lib edge weights corrected:
 
 ---
 
-## Domain Mapping
+## 9. Domain Mapping
 
 The model maps naturally to different pub-sub middleware technologies:
 
@@ -575,7 +575,7 @@ The model maps naturally to different pub-sub middleware technologies:
 
 ---
 
-## Complexity
+## 10. Complexity
 
 | Phase | Operation | Complexity | Notes |
 |-------|-----------|------------|-------|
@@ -593,7 +593,7 @@ The dominant cost is Phase 4 `app_to_app` derivation. In practice, topic fan-out
 
 ---
 
-## CLI Reference: Importing Graph Data
+## 11. CLI Reference: Importing Graph Data
 
 `cli/import_graph.py` reads a topology JSON file and runs all five construction phases against a Neo4j instance.
 
@@ -708,7 +708,7 @@ On success, the console prints an import summary. The returned statistics dict (
 
 ---
 
-## CLI Reference: Exporting Graph Data
+## 12. CLI Reference: Exporting Graph Data
 
 `cli/export_graph.py` reads the current Neo4j database and writes a topology JSON file that mirrors the input format, suitable for archiving, sharing, or re-importing into a fresh database.
 
@@ -785,29 +785,29 @@ PYTHONPATH=. python cli/export_graph.py \
 
 ### Output Format
 
-**Persistence format** (default): the exported file uses the same dict-of-lists structure as the input and is suitable for direct re-import with `import_graph.py`. See [Input Format](#input-format) for the full schema.
+**Persistence format** (default): the exported file uses the same dict-of-lists structure as the input and is suitable for direct re-import with `import_graph.py`. See [Input Format](#7-input-format) for the full schema.
 
 One difference from the input: the persistence export adds a `"depends_on"` key inside `"relationships"` containing a snapshot of the currently derived DEPENDS_ON edges. This key is **informational only** — `import_graph.py` ignores it and always re-derives DEPENDS_ON from structural edges. The export summary reports these separately as "Derived (DEPENDS_ON)" to avoid inflating the structural edge count.
 
-**Analysis format** (`--format analysis`): outputs `{ "components": [...], "edges": [...] }`. This format is consumed by the Genieus frontend and downstream analysis scripts. It is **not re-importable** by `import_graph.py`.
+**Analysis format** (`--format analysis`): outputs `{ "components": [...], "edges": [...] }`. This format is consumed by the SMART frontend and downstream analysis scripts. It is **not re-importable** by `import_graph.py`.
 
 ### Notes and Caveats
 
-See [Export–Import Roundtrip](#exportimport-roundtrip) below for a full accounting of what is and is not preserved.
+See [Export–Import Roundtrip](#13-exportimport-roundtrip) below for a full accounting of what is and is not preserved.
 
 **The REST API equivalents** are:
 
 | Endpoint | Method | Output shape | Re-importable? |
 |----------|--------|-------------|----------------|
 | `POST /api/v1/graph/export-neo4j-data` | `repo.export_json()` | Input-file shape | **Yes** |
-| `POST /api/v1/graph/export` | `repo.get_graph_data()` | `components`/`edges` analysis shape | No — analysis view only |
+| `POST /api/v1/graph/export` | `repo.get_graph_data()` | `components`/`edges` analysis shape | No |
 | `POST /api/v1/graph/export-limited` | `repo.get_limited_graph_data()` | Truncated analysis shape | No |
 
-Use `/export-neo4j-data` (not `/export`) when a re-importable snapshot is required. The `/export` endpoint produces an analysis-layer view for the Genieus frontend — its `components`/`edges` envelope is not accepted by `import_graph.py`.
+Use `/export-neo4j-data` (not `/export`) when a re-importable snapshot is required. The `/export` endpoint produces an analysis-layer view for the SMART frontend — its `components`/`edges` envelope is not accepted by `import_graph.py`.
 
 ---
 
-## Export–Import Roundtrip
+## 13. Export–Import Roundtrip
 
 Running `export_graph.py` (persistence format) followed by `import_graph.py` on the output is a faithful roundtrip for all user-supplied data. The following table documents what is preserved and what is intentionally re-computed.
 
@@ -853,7 +853,7 @@ A full roundtrip integration test that asserts identical node/edge counts, ident
 
 ---
 
-## What Comes Next
+## 14. What Comes Next
 
 Step 1 produces two graph views: G_structural (for simulation) and G_analysis(l) (for analysis). Step 2 operates on G_analysis(l) to compute a structural metric vector M(v) for every component.
 

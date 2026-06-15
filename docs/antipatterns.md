@@ -89,48 +89,60 @@ A distributed publish-subscribe system is modeled as a weighted directed multi-l
 
 Six structural edge types `E` capture the relationships between component types:
 
-| Edge | Meaning |
-|------|---------|
-| `PUBLISHES_TO` | Application → Topic |
-| `SUBSCRIBES_TO` | Topic → Application |
-| `ROUTES` | Broker → Topic |
-| `RUNS_ON` | Application → Node |
-| `CONNECTS_TO` | Node → Broker |
-| `USES` | Application → Library |
+| Edge | Direction | Meaning |
+|------|-----------|--------|
+| `PUBLISHES_TO` | Application / Library → Topic | Component produces messages on this topic |
+| `SUBSCRIBES_TO` | Application / Library → Topic | Component receives messages from this topic |
+| `ROUTES` | Broker → Topic | Broker is responsible for routing this topic |
+| `RUNS_ON` | Application / Broker → Node | Component is hosted on this infrastructure node |
+| `CONNECTS_TO` | Node → Node | Direct network link between two infrastructure hosts |
+| `USES` | Application → Library | Application depends on this shared library |
+
+> **Authoritative source:** The full edge schema, QoS weight derivation, and DEPENDS_ON rules are specified and maintained in [`docs/graph-model.md`](graph-model.md). This section provides a reader-oriented summary; consult graph-model.md for Cypher patterns, Phase ordering, and edge weight inheritance rules.
 
 ### 3.2 QoS-Aware Edge Weights
 
-Edge weights `w(e)` are derived from the Quality-of-Service policies of each publish-subscribe relationship. Four QoS dimensions are combined:
+Edge weights `w(e)` are derived from the Quality-of-Service policies of each publish-subscribe relationship. The canonical formula is a two-stage computation:
 
 ```
-w(e) = α · w_reliability + β · w_durability + γ · w_priority + δ · w_message_size
+QoS_score  = 0.30 × reliability_score + 0.40 × durability_score + 0.30 × priority_score
+size_norm  = min(log₂(1 + size_kb) / 50, 1.0)    (size_kb = payload_bytes / 1024)
+w(e)       = β × QoS_score + (1 − β) × size_norm  where β = 0.85
 ```
 
-Where each dimension maps semantic QoS values to numerical weights:
+AHP sub-weight justification: durability (0.40) outweighs reliability and priority (0.30 each) because durability governs message state survival — the fundamental precondition for resilience — while reliability and priority govern transient delivery quality.
 
-| QoS Dimension | Value | Weight |
-|---------------|-------|--------|
-| Reliability | RELIABLE | 1.0 |
-| Reliability | BEST_EFFORT | 0.4 |
-| Durability | TRANSIENT_LOCAL | 1.0 |
-| Durability | VOLATILE | 0.2 |
-| Priority | CRITICAL | 1.0 |
-| Priority | HIGH | 0.75 |
-| Priority | MEDIUM | 0.5 |
-| Priority | LOW | 0.25 |
+| QoS Dimension | Symbolic Value | Score |
+|---------------|---------------|-------|
+| **reliability_score** | `RELIABLE` | 1.0 |
+| | `BEST_EFFORT` | 0.0 |
+| **durability_score** | `PERSISTENT` | 1.0 |
+| | `TRANSIENT` | 0.6 |
+| | `TRANSIENT_LOCAL` | 0.5 |
+| | `VOLATILE` | 0.0 |
+| **priority_score** | `HIGHEST` / `CRITICAL` / `URGENT` | 1.0 |
+| | `HIGH` | 0.66 |
+| | `MEDIUM` | 0.33 |
+| | `LOW` | 0.0 |
 
-This QoS-aware weighting is critical for anti-pattern detection. Two topologically identical systems with different QoS policies can have very different structural risk profiles: a BEST_EFFORT publisher feeding a RELIABLE subscriber creates a qualitatively different problem than two BEST_EFFORT endpoints.
+This QoS-aware weighting is critical for anti-pattern detection. Two topologically identical systems with different QoS policies can have very different structural risk profiles: a BEST_EFFORT publisher feeding a RELIABLE subscriber creates a qualitatively different problem than two BEST_EFFORT endpoints. A minimum weight floor of 0.01 is applied so that even zero-QoS components remain visible to RMAV scoring.
 
 ### 3.3 The DEPENDS_ON Projection
 
-For structural analysis, six structural edge types are projected into a single semantic relationship: `DEPENDS_ON`. The derivation rules encode the asymmetric dependency semantics of publish-subscribe systems:
+For structural analysis, the six structural edge types are projected into a single semantic relationship: `DEPENDS_ON`. The direction always points from *dependent* to *dependency* (e.g., subscriber → publisher). Six derivation rules are applied:
 
-- **app_to_app**: A subscribing application depends on the publishing application for its data. Subscriber → Publisher.
-- **app_to_broker**: Both publishers and subscribers depend on the broker for routing. Application → Broker.
-- **node_to_node**: A node that hosts an application transitively depends on nodes hosting its publishers. Consumer Node → Producer Node.
-- **node_to_broker**: Nodes hosting applications depend on the broker nodes that route their messages.
+| Rule | Type | Dependency Semantic |
+|------|------|--------------------|
+| 1 | `app_to_app` | Subscriber depends on publisher for its data (App/Lib → App/Lib via shared Topic) |
+| 2 | `app_to_broker` | Both publishers and subscribers depend on the Broker routing their topics (App/Lib → Broker) |
+| 3 | `node_to_node` | Infrastructure node depends on nodes hosting its applications' upstream publishers |
+| 4 | `node_to_broker` | Infrastructure node depends on Broker nodes routing its hosted applications' topics |
+| 5 | `app_to_lib` | Application depends on the Library it uses — encodes **library blast-radius risk** (App → Library) |
+| 6 | `broker_to_broker` | Two Brokers sharing a physical Node have a bidirectional colocation dependency |
 
-This projection produces `G_analysis(layer)` — a layer-specific directed graph in which each edge `(u, v)` means "u is operationally dependent on v." It is this projected graph on which all structural metrics and anti-pattern detection algorithms operate.
+Rules 5 and 6 are essential for anti-pattern detection: Rule 5 enables the SYSTEMIC_RISK and GOD_COMPONENT patterns to surface library-mediated coupling, and Rule 6 allows BROKER_OVERLOAD to detect co-location risk across co-resident broker pairs.
+
+This projection produces `G_analysis(layer)` — a layer-specific directed graph in which each edge `(u, v)` means "u is operationally dependent on v." All structural metrics and anti-pattern detection algorithms operate on this projected graph.
 
 ### 3.4 Architectural Layers
 
@@ -182,7 +194,10 @@ Step 2 computes a 13-element metric vector `M(v)` for each component. These metr
 | w_in(v) | Weighted In-Degree | Sum of QoS weights on incoming edges |
 | w_out(v) | Weighted Out-Degree | Sum of QoS weights on outgoing edges |
 
-All metrics are normalized to `[0, 1]` via min-max scaling before quality scoring and anti-pattern detection.
+All metrics are normalized to `[0, 1]` before quality scoring and anti-pattern detection, using one of two methods depending on the metric type:
+
+- **Topological metrics** (PageRank, Betweenness, Closeness, Eigenvector, Degree, AP_c, Bridge Ratio, QoS weights): **rank-based normalization** (default `--norm robust`). Each component's raw value is replaced by its rank position divided by N, producing a uniform distribution in [0, 1]. This is the default because topological metrics are highly skewed in real systems — a single hub-broker may have betweenness 50× the median — and min-max would compress all non-hub values near 0.
+- **Linear properties** (LOC, Cyclomatic Complexity, LCOM, CPU cores, memory): **min-max normalization** (`value / population_max`). These properties have meaningful absolute magnitude differences that should be preserved; a component twice as large is genuinely twice as costly.
 
 ### 4.3 Adaptive Box-Plot Thresholds
 
@@ -828,7 +843,7 @@ This distinguishes the catalog from expert-opinion-based smell collections and m
 
 The most important practical implication of the topology-based detection approach is that **anti-patterns can be detected before deployment** — from the system's configuration, launch files, or infrastructure-as-code — without any runtime instrumentation. This shifts the discovery moment from "after the production incident" to "before the first deployment," dramatically reducing the cost of addressing architectural problems.
 
-The CLI tool `detect_antipatterns.py` implements this directly: it reads the graph from Neo4j, runs all twelve detectors, and exits with code 2 if any CRITICAL patterns are found. Integrated into a CI/CD pipeline, this makes CRITICAL anti-pattern detection a build-breaking check, analogous to a failing unit test.
+The CLI tool `detect_antipatterns.py` implements this directly: it reads the graph from Neo4j, runs all twelve detectors, and exits with code 2 if any CRITICAL or HIGH severity patterns are found, exit code 1 if only warnings or smells (MEDIUM severity) are found, and exit code 0 if the system is completely clean. Integrated into a CI/CD pipeline, this makes CRITICAL or HIGH anti-pattern detection a build-breaking check, analogous to a failing unit test.
 
 ### 9.2 The Catalog as an Architecture Review Checklist
 

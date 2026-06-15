@@ -14,7 +14,8 @@ import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { useConnection } from "@/lib/stores/connection-store"
-import { apiClient } from "@/lib/api/client"
+import { useAnalysis } from "@/lib/stores/analysis-store"
+import { apiClient, type ComponentExplanation } from "@/lib/api/client"
 import { ReactFlow, ReactFlowProvider, Background, BackgroundVariant, Handle, Position, getBezierPath, applyNodeChanges, useViewport, useReactFlow, MarkerType, type NodeProps, type EdgeProps, type NodeChange } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { cn } from "@/lib/utils"
@@ -33,6 +34,8 @@ import {
   X,
   Share2,
   Download,
+  Eye,
+  EyeOff,
 } from "lucide-react"
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false })
@@ -2992,6 +2995,40 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 
   return (
     <div className="flex flex-col gap-3 h-full">
+      {/* ── Layer projection toggle strip ──────────────────────────────── */}
+      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/60 bg-muted/20 shrink-0 flex-wrap">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mr-1">Layers</span>
+        {(["csms", "css", "csci", "csc", "app"] as HGLevel[]).map(lvl => {
+          const hidden = hiddenLevels.has(lvl)
+          const color = NODE_COLORS[lvl]
+          return (
+            <button
+              key={lvl}
+              onClick={() => toggleLevel(lvl)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-all duration-150 border"
+              style={{
+                borderColor: hidden ? 'rgba(100,100,100,0.3)' : `${color}55`,
+                backgroundColor: hidden ? 'transparent' : `${color}18`,
+                color: hidden ? 'rgba(100,100,100,0.5)' : color,
+                textDecoration: hidden ? 'line-through' : 'none',
+                opacity: hidden ? 0.5 : 1,
+              }}
+            >
+              {hidden ? <EyeOff className="h-2.5 w-2.5" /> : <Eye className="h-2.5 w-2.5" />}
+              {LEVEL_LABELS[lvl].split(' ')[0]}
+            </button>
+          )
+        })}
+        {hiddenLevels.size > 0 && (
+          <button
+            onClick={() => setHiddenLevels(new Set())}
+            className="text-[10px] text-muted-foreground hover:text-foreground ml-auto transition-colors"
+          >
+            Show all
+          </button>
+        )}
+      </div>
+
       {/* Main row */}
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Canvas — merged hierarchy + connections tree */}
@@ -3163,7 +3200,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 // ── Graph Tab Side Panel ─────────────────────────────────────────────────────
 
 function GraphTabSidePanel({ selectedNode, links, nodeLabels, onSelect, loading = false }: {
-  selectedNode: SelectedNodeInfo | null
+  selectedNode: SelectedNode | null
   links: any[]
   nodeLabels: Map<string, { label: string; type: string }>
   onSelect: (id: string) => void
@@ -4045,6 +4082,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
   selectedKey,
   onNodeClick,
   exportFnRef,
+  explanationMap,
 }: {
   nodesList: any[]
   appsList: any[]
@@ -4056,6 +4094,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
   selectedKey: string | null
   onNodeClick: (rawNode: any, nodeType: SwimlaneType) => void
   exportFnRef?: React.MutableRefObject<(() => void) | null>
+  explanationMap: Record<string, ComponentExplanation>
 }) {
   const { theme, systemTheme } = useTheme()
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
@@ -4247,16 +4286,48 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
             name,
             category: catIdx[type],
             symbolSize: sel ? nodeSizeConfig.selected : nodeSizeConfig.normal,
-            itemStyle: sel
-              ? {
-                  borderWidth: graphComplexity.isLarge ? 2 : 4, // Thinner border for large graphs
-                  borderColor: "#f97316",
-                  borderType: "solid",
-                  shadowBlur: graphComplexity.isLarge ? 10 : 18, // Reduced shadow for performance
-                  shadowColor: "rgba(249,115,22,0.7)",
+            itemStyle: (() => {
+              const exp = explanationMap?.[id]
+              const lvl = exp?.level?.toLowerCase() || n.criticality_level?.toLowerCase() || "minimal"
+              const CRIT_COLORS: Record<string, string> = {
+                critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e', minimal: '#6b7280'
+              }
+              const isCritical = lvl === 'critical'
+              const isHigh = lvl === 'high'
+
+              let borderW = sel ? (graphComplexity.isLarge ? 2 : 4) : 0
+              let borderC = sel ? "#f97316" : undefined
+              let shadowB = sel ? (graphComplexity.isLarge ? 10 : 18) : 0
+              let shadowC = sel ? "rgba(249,115,22,0.7)" : undefined
+
+              if (isCritical || isHigh) {
+                borderW = isCritical ? 2.5 : 1.5
+                borderC = CRIT_COLORS[lvl]
+                shadowB = isCritical ? 12 : 6
+                shadowC = CRIT_COLORS[lvl] + '88'
+              }
+
+              if (sel) {
+                borderW = graphComplexity.isLarge ? 3 : 5
+                borderC = "#ffffff"
+                shadowB = 20
+                shadowC = isCritical ? "#ef4444" : "#f97316"
+              }
+
+              if (borderW > 0) {
+                return {
+                  borderWidth: borderW,
+                  borderColor: borderC,
+                  borderType: "solid" as const,
+                  shadowBlur: shadowB,
+                  shadowColor: shadowC,
                 }
-              : undefined,
+              }
+              return undefined
+            })(),
             nodeType: type as string,
+            _exp: explanationMap?.[id],
+            _lvl: explanationMap?.[id]?.level?.toLowerCase() || n.criticality_level?.toLowerCase() || "minimal",
             ...(type === "Application" ? { _role: n.role ?? n.properties?.role ?? "", _priority: n.priority ?? n.properties?.priority ?? "", _hotstandby: n.hotstandby ?? n.properties?.hotstandby ?? false } : {}),
             ...(type === "Topic" ? {
               _qos_reliability:        n.qos_reliability            ?? n.properties?.qos_reliability            ?? "",
@@ -4358,20 +4429,44 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
             const d = p.data ?? {}
             const name = d.name ?? p.name ?? ""
             const type: string = d.nodeType ?? ""
-            let extra = ""
-            if (type === "Application" && d._role) extra += `<br/><span style="opacity:0.7">Role: ${d._role}</span>`
-            if (type === "Application" && d._priority) extra += `<br/><span style="opacity:0.7">Priority: ${d._priority}</span>`
-            if (type === "Application" && d._hotstandby) extra += `<br/><span style="opacity:0.7">Hot Standby: true</span>`
-            if (type === "Topic") {
-              if (d._qos_reliability        != null && d._qos_reliability        !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${d._qos_reliability}</span>`
-              if (d._qos_durability         != null && d._qos_durability         !== "") extra += `<br/><span style="opacity:0.7">Durability: ${d._qos_durability}</span>`
-              if (d._qos_transport_priority != null && d._qos_transport_priority !== "") extra += `<br/><span style="opacity:0.7">Transport Priority: ${d._qos_transport_priority}</span>`
-              if (d._size != null && d._size !== "") { const szN = Number(d._size); const szFmt = isFinite(szN) ? (szN >= 1048576 ? `${(szN/1048576).toFixed(2)} MB` : szN >= 1024 ? `${(szN/1024).toFixed(1)} KB` : `${szN} B`) : String(d._size); extra += `<br/><span style="opacity:0.7">Size: ${szFmt}</span>` }
+            const exp = d._exp as ComponentExplanation | undefined
+            const lvl = d._lvl as string | undefined
+
+            let html = `<div style="font-size:12px;line-height:1.7;max-width:260px">`
+            html += `<b>${name}</b>`
+            if (type) html += ` <span style="opacity:0.6;font-size:10px">(${type})</span>`
+
+            if (lvl) {
+              const CRIT_COLORS: Record<string, string> = {
+                critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e', minimal: '#6b7280'
+              }
+              const col = CRIT_COLORS[lvl] || '#6b7280'
+              html += `<br/><span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:${col}20;color:${col};text-transform:uppercase">${lvl}</span>`
             }
-            if (type === "Library" && d._version) extra += `<br/><span style="opacity:0.7">Version: ${d._version}</span>`
-            if (type === "Broker" && d._broker_type) extra += `<br/><span style="opacity:0.7">Protocol: ${d._broker_type}</span>`
-            const typeStr = type ? `<br/><span style="opacity:0.7">${type}</span>` : ""
-            return `<div style="font-size:12px;line-height:1.7"><b>${name}</b>${typeStr}${extra}</div>`
+
+            if (exp) {
+              if (exp.pattern) html += `<br/><span style="font-size:11px">Pattern: <b>${exp.pattern}</b></span>`
+              if (exp.one_line) html += `<br/><span style="opacity:0.85;font-size:11px">${exp.one_line}</span>`
+              if (exp.priority_action) html += `<br/><span style="color:#60a5fa;font-size:10.5px">Action: ${exp.priority_action}</span>`
+              if (exp.anti_patterns && exp.anti_patterns.length > 0) {
+                html += `<br/><span style="opacity:0.5;font-size:9.5px">Anti-patterns: ${exp.anti_patterns.join(", ")}</span>`
+              }
+            } else {
+              let extra = ""
+              if (type === "Application" && d._role) extra += `<br/>Role: ${d._role}`
+              if (type === "Application" && d._priority) extra += `<br/>Priority: ${d._priority}`
+              if (type === "Topic") {
+                if (d._qos_reliability) extra += `<br/>Reliability: ${d._qos_reliability}`
+                if (d._qos_durability) extra += `<br/>Durability: ${d._qos_durability}`
+                if (d._qos_transport_priority) extra += `<br/>Transport: ${d._qos_transport_priority}`
+              }
+              if (type === "Library" && d._version) extra += `<br/>Version: ${d._version}`
+              if (type === "Broker" && d._broker_type) extra += `<br/>Protocol: ${d._broker_type}`
+              html += `<br/><span style="opacity:0.7;font-size:11px">${extra}</span>`
+            }
+
+            html += `</div>`
+            return html
           }
           if (p.dataType === "edge") {
             const edgeType = p.data?.edgeType ?? ""
@@ -4563,6 +4658,20 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
               })}
             </>
           )}
+          <hr className="my-1 border-border" />
+          <span className="font-medium text-muted-foreground mb-0.5">Criticality</span>
+          {(["critical", "high", "medium", "low", "minimal"] as const).map(lvl => {
+            const CRIT_COLORS: Record<string, string> = {
+              critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e', minimal: '#6b7280'
+            }
+            const col = CRIT_COLORS[lvl]
+            return (
+              <div key={lvl} className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-background/25" style={{ backgroundColor: col }} />
+                <span className="capitalize text-muted-foreground">{lvl}</span>
+              </div>
+            )
+          })}
         </div>
       )}
       <ReactECharts
@@ -4580,6 +4689,114 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
     </div>
   )
 })
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+// ── NodeExplanationPanel ──────────────────────────────────────────────────────
+interface NodeExplanationPanelProps {
+  componentId: string
+  componentName: string
+  explanation: ComponentExplanation | null
+  componentAnalysis: any | null
+}
+
+function NodeExplanationPanel({ componentId, componentName, explanation, componentAnalysis }: NodeExplanationPanelProps) {
+  if (!componentAnalysis && !explanation) return null
+
+  const CRIT_COLORS: Record<string, string> = {
+    critical: 'bg-red-500/10 text-red-400 border-red-500/20',
+    high: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+    medium: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+    low: 'bg-green-500/10 text-green-400 border-green-500/20',
+    minimal: 'bg-muted/30 text-muted-foreground border-border',
+  }
+
+  const CRIT_TEXT_COLORS: Record<string, string> = {
+    critical: 'text-red-400',
+    high: 'text-orange-400',
+    medium: 'text-yellow-400',
+    low: 'text-green-400',
+    minimal: 'text-muted-foreground',
+  }
+
+  const lvl = explanation?.level?.toLowerCase() || componentAnalysis?.criticality_level?.toLowerCase() || "minimal"
+  const scores = componentAnalysis?.scores
+
+  return (
+    <div className="flex flex-col gap-3 p-3 border-b border-border bg-muted/10 shrink-0">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h4 className="text-[11px] font-semibold truncate text-foreground">{componentName}</h4>
+          <span className="text-[9px] text-muted-foreground truncate block">{componentId}</span>
+        </div>
+        <Badge className={`text-[8px] px-1 py-0 font-bold uppercase border ${CRIT_COLORS[lvl] ?? CRIT_COLORS.minimal}`}>
+          {lvl}
+        </Badge>
+      </div>
+
+      {explanation?.pattern && (
+        <div className="text-[9.5px] text-muted-foreground">
+          <span className="font-semibold text-foreground">Pattern: </span>
+          {explanation.pattern}
+        </div>
+      )}
+
+      {scores && (
+        <div className="space-y-1">
+          <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider">RMAV Quality</div>
+          {(['reliability', 'maintainability', 'availability', 'security'] as const).map(dim => {
+            const val = scores[dim] ?? 0
+            const pct = Math.round((1 - val) * 100)
+            const dimLvl = explanation?.dimensions?.[dim]?.level?.toLowerCase() || 
+                           (val >= 0.8 ? "critical" : val >= 0.6 ? "high" : val >= 0.4 ? "medium" : val >= 0.2 ? "low" : "minimal")
+            return (
+              <div key={dim} className="space-y-0.5">
+                <div className="flex justify-between text-[8.5px]">
+                  <span className="capitalize text-muted-foreground">{dim}</span>
+                  <span className={`font-semibold ${CRIT_TEXT_COLORS[dimLvl] ?? 'text-foreground'}`}>{pct}%</span>
+                </div>
+                <div className="h-1 w-full bg-muted rounded-full overflow-hidden border border-border/40">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      dimLvl === 'critical' ? 'bg-red-500' :
+                      dimLvl === 'high' ? 'bg-orange-500' :
+                      dimLvl === 'medium' ? 'bg-yellow-500' :
+                      dimLvl === 'low' ? 'bg-green-500' :
+                      'bg-muted-foreground'
+                    }`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {explanation?.priority_action && (
+        <div className="space-y-1 rounded border border-blue-500/10 bg-blue-500/[0.03] p-1">
+          <div className="flex items-center gap-1 text-[8.5px] font-semibold text-blue-400">
+            ⚡ Priority Action
+          </div>
+          <p className="text-[9px] text-blue-300/95 leading-relaxed">{explanation.priority_action}</p>
+        </div>
+      )}
+
+      {explanation?.anti_patterns && explanation.anti_patterns.length > 0 && (
+        <div className="space-y-1">
+          <div className="text-[8.5px] font-semibold text-muted-foreground uppercase tracking-wider">Anti-Patterns</div>
+          <div className="flex flex-wrap gap-1">
+            {explanation.anti_patterns.map(ap => (
+              <Badge key={ap} variant="outline" className="text-[8px] px-1 py-0 border-red-500/20 bg-red-500/5 text-red-400">
+                {ap}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -4607,6 +4824,30 @@ function BrowserPageContent() {
   const [layerGraphLinks, setLayerGraphLinks] = useState<Array<{ source: string; target: string; type: string; weight?: number }>>([])
   const [layerLinksLoading, setLayerLinksLoading] = useState(false)
   const layerLinksLoadedRef = useRef(false)
+
+  // RMAV analysis-store hooks
+  const { cache: explanationsCache, getExplanation, setExplanations, explanations } = useAnalysis()
+  const systemAnalysis = explanationsCache['layer:system']
+  const selectedId = (selectedNode?.payload as any)?.id ? String((selectedNode.payload as any).id) : null
+  const componentAnalysis = systemAnalysis?.components?.find(c => c.id === selectedId)
+  const explanation = selectedId ? getExplanation(selectedId) : null
+
+  // Lazy load explanations on demand
+  useEffect(() => {
+    if (!selectedId || !isConnected) return
+    if (getExplanation(selectedId)) return // already cached
+
+    const compInAnalysis = systemAnalysis?.components?.find(c => c.id === selectedId)
+    if (!compInAnalysis) return
+
+    apiClient.explainComponents([selectedId])
+      .then(exps => {
+        if (exps && Object.keys(exps).length > 0) {
+          setExplanations(exps)
+        }
+      })
+      .catch(err => console.error("Failed to lazy-load explanation:", err))
+  }, [selectedId, isConnected, systemAnalysis, getExplanation, setExplanations])
 
   // Export-to-PNG refs — populated by child graph components
   const forceGraphExportRef = useRef<(() => void) | null>(null)
@@ -5126,9 +5367,16 @@ function BrowserPageContent() {
                       selectedKey={selectedNode?.key ?? null}
                       onNodeClick={handleLayersNodeClick}
                       exportFnRef={forceGraphExportRef}
+                      explanationMap={explanations}
                     />
                   </div>
                   <div className="w-64 shrink-0 border-l border-border flex flex-col overflow-hidden">
+                    <NodeExplanationPanel
+                      componentId={selectedId || ""}
+                      componentName={selectedNode?.label || ""}
+                      explanation={explanation}
+                      componentAnalysis={componentAnalysis}
+                    />
                     <ConnectionsColumn
                       selectedNode={selectedNode}
                       links={layerGraphLinks}

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Simulator - Genieus",
+  title: "Simulator - SMART",
   description: "Estimate pub-sub network and broker load for selected topics",
 }
 

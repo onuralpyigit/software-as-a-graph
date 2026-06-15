@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Dashboard - Genieus",
+  title: "Dashboard - SMART",
   description: "System overview and statistics",
 }
 

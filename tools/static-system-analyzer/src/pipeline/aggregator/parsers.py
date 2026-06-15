@@ -47,15 +47,24 @@ class SystemRepoParser:
             ("App-3", "Node-1"),
         ]
 
-    def get_app_role_relation(self) -> Dict[str, str]:
+    def get_app_role_relation(self) -> Dict[str, List[str]]:
         """
         Returns application role information.
-        
+
+        An application may have more than one role; each value is a list of
+        role names.  Applications that are absent from the returned mapping
+        are treated as having no role by the aggregator.
+
         Returns:
-            Dictionary mapping app_name to role
+            Dictionary mapping app_name to list of role names
         """
         log_info(f"SystemRepoParser: Retrieving app-role relationships for '{self.platform_name}'.")
-        return {}
+        # Example mock data:
+        return {
+            "App-0": ["publisher", "monitor"],
+            "App-1": ["subscriber"],
+            "App-2": ["publisher", "logger", "monitor"],
+        }
 
     def get_app_criticality_relation(self) -> Dict[str, bool]:
         """

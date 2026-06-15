@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Explorer - Genieus",
+  title: "Explorer - SMART",
   description: "Explore and visualize the system graph",
 }
 

@@ -30,7 +30,7 @@ Istanbul Technical University, Computer Engineering Department
 
 ### 1.1 Purpose
 
-This document specifies how the Software-as-a-Graph framework is tested. It defines the test strategy, test cases, pass criteria, and procedures for verifying that the system meets the requirements in the SRS — from individual function correctness up through end-to-end pipeline accuracy and GNN predictions to Genieus web application behaviour.
+This document specifies how the Software-as-a-Graph framework is tested. It defines the test strategy, test cases, pass criteria, and procedures for verifying that the system meets the requirements in the SRS — from individual function correctness up through end-to-end pipeline accuracy and GNN predictions to SMART web application behaviour.
 
 ### 1.2 Scope
 
@@ -45,7 +45,7 @@ Testing spans six levels, each targeting a different concern:
 | Validation | Predictions statistically match simulation ground truth | [§8](#8-validation-tests) |
 | Acceptance | All user-facing requirements are satisfied | [§9](#9-acceptance-criteria) |
 
-Coverage spans both delivery mechanisms: the **CLI pipeline** (`cli/`) and the **Genieus web application** (FastAPI backend + Next.js frontend).
+Coverage spans both delivery mechanisms: the **CLI pipeline** (`cli/`) and the **SMART web application** (FastAPI backend + Next.js frontend).
 
 ### 1.3 References
 
@@ -67,7 +67,7 @@ Coverage spans both delivery mechanisms: the **CLI pipeline** (`cli/`) and the *
 
 ### 1.5 Document Overview
 
-Section 2 describes the overall test strategy and schedule. Section 3 defines the test environment including software stack, database setup, and API test configuration. Sections 4–6 specify unit, integration, and system tests respectively. Section 7 covers performance and benchmark tests. Section 8 is the validation test suite — the most important section for the research contribution. Section 9 defines acceptance criteria for all user-facing capabilities including the Genieus web application. Section 10 provides the full SRS-to-test traceability matrix. Appendices cover scale specifications, CI/CD configuration, and defect severity classification.
+Section 2 describes the overall test strategy and schedule. Section 3 defines the test environment including software stack, database setup, and API test configuration. Sections 4–6 specify unit, integration, and system tests respectively. Section 7 covers performance and benchmark tests. Section 8 is the validation test suite — the most important section for the research contribution. Section 9 defines acceptance criteria for all user-facing capabilities including the SMART web application. Section 10 provides the full SRS-to-test traceability matrix. Appendices cover scale specifications, CI/CD configuration, and defect severity classification.
 
 ### 1.6 Glossary
 
@@ -101,7 +101,7 @@ Section 2 describes the overall test strategy and schedule. Section 3 defines th
 | 2.2 | February 2026 | Updated references to SRS/SDD v2.2; added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL to glossary (§1.6); raised validation targets; updated results to IEEE RASSE 2025 |
 | 2.3 | March 2026 | Refactored API architecture to use Presenters and thin dependency injection routers; updated formulas to include CDPot_enh, CQP, QSPOF, QADS. Added Graph API tests. |
 | 2.4 | May 2026 | Aligned Python baseline to 3.11; corrected SDK package path to `saag/`; documented `MemoryRepository` mock database fixture; current suite has 587 passed, 5 skipped. |
-| 3.0 | June 2026 | Conformed to ISO/IEC/IEEE 29119-3 test documentation and ISO/IEC/IEEE 12207:2026 Verification/Validation processes. Added unit, integration, and system/CLI test cases for Step 0 (Synthetic Graph Generation) and Step 3 (GNN Prediction and GNN Training). Expanded Coverage targets table and updated the Traceability Matrix to map GNN and Synthetic requirements. |
+| 3.0 | June 2026 | Conformed to ISO/IEC/IEEE 29119-3 test documentation and ISO/IEC/IEEE 12207:2026 Verification/Validation processes. Added unit, integration, and system/CLI test cases for Offline Synthetic Graph Generation and Step 3 (GNN Prediction and GNN Training). Expanded Coverage targets table and updated the Traceability Matrix to map GNN and Synthetic requirements. |
 
 ---
 
@@ -260,17 +260,6 @@ async def api_client():
                 await asyncio.sleep(2)
         yield client
 ```
-
-### 5.6 GNN / Ensemble Prediction Integration Tests
-
-These tests verify that prediction services integrate GNN checkpoints and fallback cleanly.
-
-| Test ID | Description | Expected Result |
-|---------|-------------|-----------------|
-| IT-GNN-01 | Predict with GNN model checkpoint | Predictions include both GNN and RMAV scores; no fallback |
-| IT-GNN-02 | Predict with missing GNN model | System logs warning and falls back to RMAV automatically; exit code 0 |
-| IT-GNN-03 | Predict with mismatching checkpoint layer | System aborts with `CheckpointLayerMismatchError` |
-| IT-GNN-04 | GNN + RMAV Ensemble Blend | `EnsembleGNN` blends predictions using trained logit_α parameters |
 
 ---
 
@@ -605,7 +594,7 @@ def test_step_completion_logged(self, caplog, linear_graph):
     assert any("start" in r.message.lower() for r in caplog.records)
 ```
 
-### 4.9 Synthetic Graph Generation (Step 0) Unit Tests
+### 4.9 Synthetic Graph Generation (Offline Tool) Unit Tests
 
 These tests verify the correctness of the synthetic topology generator tools without external database connections.
 
@@ -637,8 +626,8 @@ These tests verify PyTorch Geometric heterogeneous data preparation, HGT Conv fo
 | Module | Unit Tests | Target Coverage |
 |--------|-----------|----------------|
 | `saag/core/models.py` | ~15 | 85% |
-| `saag/core/neo4j_repo.py` | ~10 (mocked) | 75% |
-| `saag/core/memory_repo.py` | ~8 | 80% |
+| `saag/infrastructure/neo4j_repo.py` | ~10 (mocked) | 75% |
+| `saag/infrastructure/memory_repo.py` | ~8 | 80% |
 | `saag/analysis/structural_analyzer.py` | ~20 | 85% |
 | `saag/analysis/quality_analyzer.py` | ~20 | 85% |
 | `saag/prediction/gnn_service.py` | ~15 | 80% |
@@ -789,6 +778,17 @@ async def test_analysis_endpoint_returns_scores(api_client):
         for dim in ("reliability", "maintainability", "availability", "vulnerability"):
             assert dim in c["scores"], f"Missing {dim} in component {c.get('id')}"
 ```
+
+### 5.6 GNN / Ensemble Prediction Integration Tests
+
+These tests verify that prediction services integrate GNN checkpoints and fallback cleanly.
+
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| IT-GNN-01 | Predict with GNN model checkpoint | Predictions include both GNN and RMAV scores; no fallback |
+| IT-GNN-02 | Predict with missing GNN model | System logs warning and falls back to RMAV automatically; exit code 0 |
+| IT-GNN-03 | Predict with mismatching checkpoint layer | System aborts with `CheckpointLayerMismatchError` |
+| IT-GNN-04 | GNN + RMAV Ensemble Blend | `EnsembleGNN` blends predictions using trained logit_α parameters |
 
 ---
 
@@ -1058,11 +1058,11 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 | AC-29 | Network graph interactive | Manual | vis.js: hover, click, drag, zoom all work |
 | AC-30 | Correlation scatter plot present | Manual | Q(v) vs. I(v) plot visible with data points |
 
-#### Genieus Web Application
+#### SMART Web Application (smart)
 
 | ID | Criterion | Method | Pass If |
 |----|-----------|--------|---------|
-| AC-31 | Docker stack starts cleanly | Auto | The genieus service healthy within 60 s |
+| AC-31 | Docker stack starts cleanly | Auto | The smart service healthy within 60 s |
 | AC-32 | Dashboard tab loads | Manual | KPI cards and criticality chart visible |
 | AC-33 | Graph Explorer: layer filter works | Manual | Switching layers updates node set |
 | AC-34 | Graph Explorer: node click shows detail | Manual | Side panel opens with RMAV scores |
@@ -1084,7 +1084,7 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 
 | ID | Criterion | Method | Pass If |
 |----|-----------|--------|---------|
-| AC-39 | Neo4j credentials not in source | Auto | `grep -r "password" src/` finds no hardcoded values |
+| AC-39 | Neo4j credentials not in source | Auto | `grep -r "password" saag/` finds no hardcoded values |
 | AC-40 | Credentials read from environment | Auto | `NEO4J_PASSWORD` env var controls connection |
 | AC-41 | Logging verbosity configurable | Auto | `--verbose` produces DEBUG entries; `--quiet` suppresses INFO |
 | AC-42 | Each pipeline step logs timing | Auto | INFO log entries with start/end times per step |
@@ -1100,7 +1100,7 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 | ACC-05 | Failure simulation | AC-15, AC-16, AC-17, AC-18 | ☐ |
 | ACC-06 | Validation accuracy (v2.2 targets) | AC-20 – AC-25 | ☐ |
 | ACC-07 | Static HTML dashboard | AC-26 – AC-30 | ☐ |
-| ACC-08 | Genieus web application | AC-31 – AC-38 | ☐ |
+| ACC-08 | SMART web application (smart) | AC-31 – AC-38 | ☐ |
 | ACC-09 | Security and logging | AC-39 – AC-42 | ☐ |
 | ACC-10 | Performance (all SRS v2.2 targets) | §7.1 timing targets | ☐ |
 | ACC-11 | Multi-layer analysis | AC-09 | ☐ |
@@ -1281,7 +1281,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '${{ matrix.python-version }}' }
       - run: pip install -r ./requirements.txt -r ./requirements-test.txt
-      - run: cd backend && pytest tests/ -m "not integration and not api" --cov=src --cov-report=xml
+      - run: pytest tests/ -m "not integration and not api" --cov=saag --cov-report=xml
       - uses: codecov/codecov-action@v4
 
   integration-tests:

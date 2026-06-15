@@ -15,7 +15,7 @@
 1. [Introduction](#1-introduction)
 2. [Overall Description](#2-overall-description)
 3. [Functional Requirements](#3-functional-requirements)
-   - 3.1 [Synthetic Graph Generation (Step 0)](#31-synthetic-graph-generation-step-0)
+   - 3.1 [Synthetic Graph Generation (Offline Input Preparation)](#31-synthetic-graph-generation-offline-input-preparation)
    - 3.2 [Graph Model Construction (Step 1)](#32-graph-model-construction-step-1)
    - 3.3 [Structural Analysis (Step 2)](#33-structural-analysis-step-2)
    - 3.4 [Quality Scoring and GNN Prediction (Step 3)](#34-quality-scoring-and-gnn-prediction-step-3)
@@ -43,22 +43,22 @@ This specification is aligned with **ISO/IEC/IEEE 29148:2018** for requirements 
 ### 1.2 Scope
 Software-as-a-Graph transforms a distributed publish-subscribe system's topology description into a weighted heterogeneous directed graph, evaluates its structural characteristics, and applies both rule-based (RMAV) and machine-learning (Heterogeneous Graph Transformer - GNN) approaches to forecast component and link criticality before deployment, without requiring runtime telemetry.
 
-The framework implements a seven-step pipeline:
+The framework implements a 6-step core analytical pipeline, preceded by an offline input preparation stage:
 
 | Step | Function | Output |
 |------|----------|--------|
-| **0. Generate** | Produce synthetic pub-sub topologies for evaluation | Topology JSON |
+| **Offline Prep: Generate** | Produce synthetic pub-sub topologies for evaluation | Topology JSON |
 | **1. Model** | Load topology JSON into Neo4j; derive logical dependencies | Heterogeneous Graph $G(V, E)$ |
 | **2. Analyze** | Compute 18+ topological metrics per component | Metric vectors $\mathbf{M}(v)$ |
 | **3. Predict** | Forecast criticality via rule-based (RMAV) and learning-based (GNN) models | Node $Q(v)$ & Edge $Q(e)$ scores |
 | **4. Simulate** | Inject cascade failure scenarios to generate labels | Ground-truth labels $\mathbf{I}(v)$ |
 | **5. Validate** | Compare predictions $Q$ against simulation results $\mathbf{I}$ | Spearman $\rho$, F1-score, NDCG |
-| **6. Visualize**| Generate dashboard reports and interactive viewers | HTML Reports / Genieus Web App |
+| **6. Visualize**| Generate dashboard reports and interactive viewers | HTML Reports / SMART Web App |
 
 The system is delivered through three interfaces:
 1. **Core SDK ([saag])**: Hexagonal-architecture Python package.
 2. **CLI Utility Tools ([cli])**: Scripts for automation and batch pipeline execution.
-3. **Genieus Web Application ([smart])**: FastAPI backend + Next.js interactive frontend.
+3. **SMART Web Application (smart)**: FastAPI backend + Next.js interactive frontend.
 
 ### 1.3 References
 
@@ -71,7 +71,7 @@ The system is delivered through three interfaces:
 | **Neo4j DBMS** | 5.x | Primary graph database and GDS engine |
 | **NetworkX** | $\ge 3.0$ | Topological analysis library |
 | **FastAPI** | $\ge 0.100$ | REST API backend framework |
-| **Next.js** | 16.x | Genieus web interface framework |
+| **Next.js** | 16.x | SMART web interface framework |
 
 ### 1.4 Document Conventions
 - **Shall** denotes a mandatory requirement.
@@ -80,7 +80,7 @@ The system is delivered through three interfaces:
 - Identifiers follow the pattern **REQ-\<STAGE\>-\<NN\>** (e.g., `REQ-GG-01` for Graph Generation, `REQ-GNN-01` for GNN Prediction).
 
 ### 1.5 Change History
-- **v2.2 (Feb 2026):** Added FastAPI backend, Genieus Next.js web application interfaces, and increased target accuracy bounds.
+- **v2.2 (Feb 2026):** Added FastAPI backend, SMART Next.js web application interfaces, and increased target accuracy bounds.
 - **v2.3 (Mar 2026):** Refactored backend architecture to follow presenter patterns and updated quality formulations to align with expert weight shifts.
 - **v3.0 (Jun 2026 - Current):** Full alignment with **ISO/IEC/IEEE 12207:2026** and **ISO/IEC/IEEE 29148:2018**. Expanded GNN details (Heterogeneous Graph Transformers, bidirectional propagation, custom edge projections, multi-task losses, robust normalization) and added Step 0 (Synthetic Graph Generation) functional requirements. Added ML Operational NFRs and the process mapping matrix.
 
@@ -94,7 +94,7 @@ Software-as-a-Graph is a standalone, pre-deployment static analysis tool. It rea
 ### 2.2 System Interfaces
 - **Graph Database**: Neo4j 5.x reachable via Bolt protocol on port 7687.
 - **REST API**: FastAPI server listening on port 8000.
-- **Interactive Web App**: Next.js App Router (Genieus) serving on port 7000.
+- **Interactive Web App**: Next.js App Router (smart) serving on port 7000.
 - **Topology Input**: JSON or GraphML format files describing components and QoS properties.
 
 ### 2.3 User Characteristics
@@ -120,14 +120,14 @@ Software-as-a-Graph is a standalone, pre-deployment static analysis tool. It rea
 - **Python $\ge 3.9$**
 - **PyTorch $\ge 2.0$ & PyTorch Geometric $\ge 2.3$** (for HGTConv and HeteroData operations)
 - **FastAPI / Uvicorn** (REST API)
-- **Node.js $\ge 20$ / React 19 / Next.js 16** (Genieus)
+- **Node.js $\ge 20$ / React 19 / Next.js 16** (smart)
 - **Neo4j 5.x with GDS Plugin** (Persistence and centrality algorithms)
 
 ---
 
 ## 3. Functional Requirements
 
-### 3.1 Synthetic Graph Generation (Step 0)
+### 3.1 Synthetic Graph Generation (Offline Input Preparation)
 The system must generate synthetically parameterized topologies representing diverse publish-subscribe environments to enable benchmarking and training.
 
 | ID | Requirement |
@@ -178,8 +178,8 @@ The system must forecast node and edge criticality using rule-based metrics and 
 | **REQ-GNN-01** | The system shall convert NetworkX topology representations into PyTorch Geometric `HeteroData` representations with type-partitioned nodes and edges. |
 | **REQ-GNN-02** | The system shall construct node feature tensors consisting of an 18-dimensional base topological vector augmented by type-specific properties (Application/Library: 23-dim, Broker: 19-dim, Topic: 22-dim, Node: 20-dim). |
 | **REQ-GNN-03** | The system shall construct 16-dimensional edge feature tensors containing QoS metrics, path counts, and edge-type one-hot encodings (see Appendix A.7). |
-| **REQ-GNN-04** | The system shall implement a 3-layer Heterogeneous Graph Transformer (HGTConv) GNN backbone to learn type-specific projection weights. |
-| **REQ-GNN-05** | The system shall process edge attributes through an `EdgeFeatureEncoder` to aggregate relationship features into destination node embeddings via scatter-mean aggregation before each HGTConv layer. |
+| **REQ-GNN-04** | The system shall implement a 3-layer **EdgeAwareHGTConv (HGT)** backbone (`NodeCriticalityGNN`) with relation-specific Key/Query/Value projection matrices to learn type-specific attention weights. |
+| **REQ-GNN-05** | The system shall inject 16-dimensional edge attributes directly into the Key and Value representation of each individual edge before multi-head attention, via `EdgeAwareHGTConv`'s edge projection layers (`k_edge_proj`, `v_edge_proj`). The legacy `EdgeFeatureEncoder` (scatter-mean pre-aggregation) is retained for backward checkpoint compatibility but is not used in the active forward pass. |
 | **REQ-GNN-06** | The system shall support a bidirectional pass option (`use_bidirectional=True`) to capture upstream and downstream architectural signals during graph convolution. |
 | **REQ-GNN-07** | The system shall deploy multi-task prediction heads (MLPs with Sigmoid activations) to predict dimension scores ($\hat{R}$, $\hat{M}$, $\hat{A}$, $\hat{V}$) and a composite score $\hat{I}^*$ concurrently. |
 | **REQ-GNN-08** | The system shall feed the outputs of the four dimension heads directly into the composite head alongside the node representation to learn non-linear dimension interactions. |
@@ -230,7 +230,7 @@ The system must generate visual reports for end-user analysis.
 |----|-------------|
 | **REQ-VZ-01** | The system shall output a self-contained HTML dashboard report containing all extracted metrics, criticality scores, and validation results. |
 | **REQ-VZ-02** | The system shall display interactive network graphs (vis.js) with dynamic node coloring based on criticality. |
-| **REQ-VZ-03** | The Genieus web interface shall provide a Dashboard view, an interactive Graph Explorer (2D/3D force-directed layouts), an Analysis interface, and a Failure Simulator panel. |
+| **REQ-VZ-03** | The SMART web application (smart) shall provide a Dashboard view, an interactive Graph Explorer (2D/3D force-directed layouts), an Analysis interface, and a Failure Simulator panel. |
 | **REQ-VZ-04** | The Graph Explorer side panel shall display detailed node metrics, direct dependency links, and active anti-pattern flags upon component selection. |
 
 ### 3.8 Multi-Layer Analysis
@@ -438,7 +438,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \times \mathcal{L}_{\text{d
 - **GDS**: Graph Data Science—Neo4j's algorithm framework.
 - **GNN**: Graph Neural Network—neural network operating directly on graphs.
 - **HeteroData**: PyTorch Geometric's data object containing heterogeneous nodes and edges.
-- **HGT / HGTConv**: Heterogeneous Graph Transformer—GNN layers using type-specific attention.
+- **HGT / HGTConv / EdgeAwareHGTConv**: Heterogeneous Graph Transformer—GNN layers using type-specific attention. `EdgeAwareHGTConv` is the project’s custom extension that projects edge features directly into relation-specific Key and Value spaces before message passing, avoiding information smoothing.
 - **ListMLE**: Listwise maximum likelihood loss for ranking data.
 - **RMAV**: Reliability, Maintainability, Availability, and Vulnerability.
 - **SPOF**: Single Point of Failure—an active articulation point component.

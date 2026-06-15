@@ -1,6 +1,9 @@
 # Failure Simulation
 
-This document describes the two simulation modes available in `simulate_graph.py` and the Python modules that back them: `src/simulation/fault_injector.py` and `src/simulation/message_flow_simulator.py`.
+This document describes the two simulation **CLI modes** available in `simulate_graph.py` and the Python modules that back them: `saag/simulation/fault_injector.py` and `saag/simulation/message_flow_simulator.py`.
+
+> [!NOTE]
+> **Scope of this document.** `simulate_graph.py` exposes a two-subcommand CLI surface (`fault-inject` and `message-flow`) aimed at pre-deployment ground-truth collection and message-timing analysis. The full `saag/simulation/` package additionally contains `ChangePropagationSimulator` (produces IM(v)) and `CompromisePropagationSimulator` (produces IV(v)), which are invoked by `saag.simulation.SimulationService` in EXHAUSTIVE / MONTE_CARLO / PAIRWISE modes. The README Step 4 row and SRS REQ-FS-03 refer to these **four simulation engines** in aggregate; this document covers only the two that are exposed through `simulate_graph.py`. See `ARCHITECTURE.md §simulation/` for the full engine inventory.
 
 ---
 
@@ -13,7 +16,8 @@ This document describes the two simulation modes available in `simulate_graph.py
    - [I(v) Formula](#32-iv-formula)
    - [Cascade Propagation](#33-cascade-propagation)
    - [Broker Failure Semantics](#34-broker-failure-semantics)
-   - [Multi-Seed Stability](#35-multi-seed-stability)
+   - [Library Blast-Radius Asymmetry](#35-library-blast-radius-asymmetry)
+   - [Multi-Seed Stability](#36-multi-seed-stability)
 4. [Mode 2 — Message Flow Simulation](#4-mode-2--message-flow-simulation)
    - [Discrete-Event Model](#41-discrete-event-model)
    - [Fan-Out Queue Architecture](#42-fan-out-queue-architecture)
@@ -55,13 +59,13 @@ Both modes are **pre-deployment** — they require only the static graph JSON, n
 ```
 simulate_graph.py  (CLI entry point)
 ├── fault-inject  subcommand
-│   └── src/simulation/fault_injector.py
+│   └── saag/simulation/fault_injector.py
 │       ├── _PubSubIndex          (O(1) lookup structures over PUBLISHES_TO / SUBSCRIBES_TO / ROUTES)
 │       ├── FaultInjector.run()   (iterates over candidate nodes)
 │       └── FaultInjector._cascade()  (BFS wave propagation per node per seed)
 │
 ├── message-flow  subcommand
-│   └── src/simulation/message_flow_simulator.py
+│   └── saag/simulation/message_flow_simulator.py
 │       ├── TopicFanout           (per-topic fan-out manager)
 │       ├── SubscriberQueue       (per-(topic, subscriber) SimPy Store)
 │       ├── _publisher_process()  (SimPy generator: emits messages at rate_hz)
@@ -71,7 +75,7 @@ simulate_graph.py  (CLI entry point)
 └── combined  subcommand
     (runs fault-inject then message-flow in sequence)
 
-src/simulation/simulation_results.py  (shared dataclasses for both modes)
+saag/simulation/simulation_results.py  (shared dataclasses for both modes)
 ├── FaultInjectionResult / FaultInjectionRecord / CascadeWave
 └── MessageFlowResult / TopicFlowStats / SubscriberFlowStats / FaultEventRecord
 ```
@@ -167,6 +171,9 @@ This is a graded score in $[0, 1]$ representing the overall service degradation 
 > [!NOTE]
 > **`feed_loss_fraction` is an internal cascade-propagation signal**, not the final I(v). It is computed per subscriber application (§3.1, Stochastic Subscriber Failure) to decide whether a subscriber is eligible to fail and propagate to the next wave. It is stored in `per_subscriber_feed_loss` for diagnostics but is not aggregated as the ground-truth impact score.
 
+> [!NOTE]
+> **Start-node inclusion in `reachability_loss`.** The failed node $v$ itself is counted as a lost subscriber in the reachability loss calculation, which could give subscriber-heavy nodes a modest advantage in I(v). To quantify this, we ran an exclusion sweep on `data/system.json`: excluding $v$ from its own feed-loss denominator shifts the system-layer Spearman $\rho$ by $+0.0077$ (0.7856 → 0.7933) and leaves the top-5 critical-node ranking identical (minor rank swaps only). The bias is therefore negligible and the current behaviour is retained for implementation simplicity.
+
 ---
 
 ### 3.3 Cascade Propagation
@@ -182,6 +189,9 @@ The `propagation_threshold` parameter (default `0.2`, range $[0.0, 1.0]$) contro
 
 For the ATM dataset, `ConflictDetector` requires both `T_radar` **and** `T_tracks` to function (both are mandatory inputs to the conflict algorithm). Setting `--propagation-threshold 0.5` will model this correctly: losing either feed alone is sufficient to silence `ConflictDetector`.
 
+> [!NOTE]
+> **$P_{\text{fail}}$ step-function discontinuity at `propagation_threshold`.** Because eligibility is gated by `sub_loss >= propagation_threshold`, the cascade probability function is a **step function**: it is exactly $0.0$ for any `sub_loss` below the threshold, then jumps immediately to $P = (\text{sub\_loss} / \text{threshold}) \times \text{depth\_damp} \ge 1.0 \times \text{depth\_damp}$ at and above the threshold (since `sub_loss / threshold ≥ 1` at the boundary). This means there is no gradual ramp in the $[0, \text{threshold})$ region — a subscriber is either completely ineligible or immediately assigned probability ≥ depth_damp. An alternative design would use a **linear ramp** (no guard condition; `prob = sub_loss / threshold * depth_damp` for all `sub_loss > 0`) or a **sigmoid** to produce smooth eligibility. The current step-function is a deliberate conservative choice: partial feed loss below the threshold is treated as recoverable degradation, not a cascade trigger. Reviewers who prefer the linear ramp may pass `--propagation-threshold 0.0` to approximate it.
+
 ---
 
 ### 3.4 Broker Failure Semantics
@@ -192,7 +202,22 @@ This correctly handles multi-broker redundancy: if a topic is routed by two brok
 
 ---
 
-### 3.5 Multi-Seed Stability
+### 3.5 Library Blast-Radius Asymmetry
+
+Libraries occupy an asymmetric position between $Q(v)$ (structural quality prediction) and $I(v)$ (simulation ground truth):
+
+**Visible to $Q(v)$:** The structural analyzer creates `app_to_lib` (`DEPENDS_ON`) edges from every consuming Application to the Library. These edges contribute to the Library's in-degree, betweenness, and Reliability dimension score. A widely-used library therefore scores high on the $R(v)$ dimension — its blast radius is structurally significant.
+
+**Near-zero in $I(v)$:** The fault injector models library failure as a **$T_0$ step-function collapse**: all consuming Applications that `USES` the library are immediately marked as failed in wave 0 alongside the library itself (Rule 4, `TestLibraryCascade`). However, the injector does *not* then propagate those Application failures forward through the pub-sub topic graph as sequential BFS cascade waves in the same way it would for an Application or Broker seed. This means libraries tend to receive low `reachability_loss` and `throughput_loss` scores despite their potentially large structural footprint — they are visible to $Q$ but near-constant near-zero in $I$.
+
+This is a **known design asymmetry**, not a bug. The rationale is that library failures manifest as compile-time or startup failures in practice — the cascading effect is captured at $T_0$ (immediate knock-on) rather than the pub-sub propagation model used for runtime failures. When a Library's $Q(v)$ rank is meaningfully higher than its $I(v)$ rank in the validation scatter plot, this is the expected explanation.
+
+> [!NOTE]
+> The standard Reliability $R(v)$ formula (documented in [structural-analysis.md](structural-analysis.md#reliability-rv--fault-propagation-risk)) already includes the normalized in-degree term $DG\_in(v)$, which captures the number of direct consumers (blast radius) for both Applications and Libraries. This is the correct place to tune the Library's structural influence if the asymmetry is considered too large.
+
+---
+
+### 3.6 Multi-Seed Stability
 
 The cascade propagation order within a wave is non-deterministic when multiple nodes are eligible to propagate simultaneously (tie-breaking). Each seed produces a different shuffle of the wave candidates, testing whether I(v) depends on this ordering.
 
@@ -685,7 +710,7 @@ MeteoService ──PUBLISHES_TO──▶  T_meteo  (no subscribers)
 ASTERIX_Broker ──ROUTES──▶  T_radar, T_tracks, T_conflicts, T_meteo, T_fpa
 ```
 
-### Expected fault-inject results
+### 7.1 Expected fault-inject results
 
 | Node | I(v) | Cascade depth | Why |
 |------|------|---------------|-----|
@@ -698,7 +723,7 @@ ASTERIX_Broker ──ROUTES──▶  T_radar, T_tracks, T_conflicts, T_meteo, T
 
 > With `propagation_threshold=0.5`: ConflictDetector losing T_radar alone (1/2 feeds = 50%) would trigger a cascade to T_conflicts → ATCWorkstation also loses T_conflicts → ConflictDetector's I(v) rises.
 
-### Running the full validation workflow
+### 7.2 Running the full validation workflow
 
 ```bash
 # Step 1: Generate ground-truth I(v)
@@ -723,7 +748,7 @@ PYTHONPATH=. python cli/validate_topology_classes.py \
     --impact   output/simulation/impact_scores.json
 ```
 
-### Message flow: observing the ConflictDetector fault
+### 7.3 Message flow: observing the ConflictDetector fault
 
 ```bash
 python simulate_graph.py message-flow \
@@ -776,7 +801,7 @@ Validation report
 
 The `--input` file must be a JSON file compatible with the SaG schema. The CLI loader handles two paths automatically:
 
-**Path 1 (preferred):** If `src/core/graph_builder.py` and `src/core/graph_exporter.py` are importable, they are used. This supports the full schema including MIL-STD-498 hierarchy metadata, Jira enrichment, and code metrics.
+**Path 1 (preferred):** If `saag/core/graph_builder.py` and `saag/core/graph_exporter.py` are importable, they are used. This supports the full schema including MIL-STD-498 hierarchy metadata, Jira enrichment, and code metrics.
 
 **Path 2 (fallback):** A lightweight inline loader reads these keys directly from either the top-level of the JSON or a nested `"relationships"` object (to support exported schemas like the ATM dataset):
 
@@ -814,7 +839,7 @@ All QoS fields are optional; defaults are `RELIABLE`, `VOLATILE`, no deadline, n
 
 Both simulators can be used as Python libraries without going through the CLI.
 
-### FaultInjector
+### 10.1 FaultInjector
 
 ```python
 from saag.simulation.fault_injector import FaultInjector
@@ -847,7 +872,7 @@ for row in result.top_k_by_impact:
     print(f"#{row['rank']}  {row['node_id']}  {row['impact_score']:.4f}")
 ```
 
-### MessageFlowSimulator
+### 10.2 MessageFlowSimulator
 
 ```python
 from saag.simulation.message_flow_simulator import MessageFlowSimulator

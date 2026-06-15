@@ -1,12 +1,12 @@
 version: '3.8'
 
 services:
-  genieus:
+  smart:
     build:
       context: .
       dockerfile: Dockerfile
-    image: genieus:1.0.0
-    container_name: genieus
+    image: smart:1.0.0
+    container_name: smart
     ports:
       - "7474:7474"
       - "7687:7687"

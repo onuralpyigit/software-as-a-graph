@@ -66,7 +66,7 @@ def main():
     if args.pattern:
         active_patterns = [p.strip().upper() for p in args.pattern.split(",")]
         
-    problems = client.detect_antipatterns(prediction, active_patterns=active_patterns)
+    problems = client.detect_antipatterns(analysis, active_patterns=active_patterns)
     
     # Apply severity filter
     if args.severity:
@@ -74,7 +74,7 @@ def main():
         problems = [p for p in problems if p.severity.upper() in allowed_sevs]
     
     # Report results
-    total_components = len(analysis.raw.components)
+    total_components = len(analysis.all_components)
     display.display_antipatterns(problems, [args.layer], total_components)
     
     if args.output:

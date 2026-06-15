@@ -511,6 +511,36 @@ class MemoryRepository:
                 shared_weights = [comp_weights.get(n, 0.01) for n in shared]
                 d["weight"] = max(shared_weights) if shared_weights else 0.01
 
+        # Safety assertion: no DEPENDS_ON edge should carry the 0.01 placeholder
+        # after finalization.  Rules 1–4 set real weights from topic/component
+        # data; Rules 5–6 are finalized just above.  A remaining 0.01 means a
+        # code path reached here before _calculate_aggregate_weights() ran, or
+        # a new rule was added without a finalization step.
+        _PLACEHOLDER = 0.01
+        _PLACEHOLDER_RULES = {"app_to_lib", "broker_to_broker"}
+        stale_edges = [
+            (d["from"], d["to"], d["dependency_type"])
+            for d in self.data["relationships"].get("depends_on", [])
+            if d.get("dependency_type") in _PLACEHOLDER_RULES
+            and abs(d.get("weight", 0.01) - _PLACEHOLDER) < 1e-9
+            and d.get("weight", 0.01) <= _PLACEHOLDER  # allow float rounding above floor
+        ]
+        # Note: broker_to_broker edges sharing *only* nodes with weight 0.01 are
+        # legitimately 0.01 (the node floor), so we only raise when an app_to_lib
+        # edge is still at 0.01 — that means the consuming app itself has the
+        # placeholder weight, indicating _calculate_aggregate_weights() did not
+        # set a real weight for that app.
+        stale_app_to_lib = [
+            e for e in stale_edges if e[2] == "app_to_lib"
+        ]
+        if stale_app_to_lib:
+            raise ValueError(
+                f"_finalize_dependency_weights: {len(stale_app_to_lib)} app_to_lib "
+                f"edge(s) still carry the 0.01 placeholder weight after finalization. "
+                f"This means _calculate_aggregate_weights() did not set a real weight "
+                f"for the consuming application. Affected edges: {stale_app_to_lib[:5]}"
+            )
+
     def save_graph(self, data: Dict[str, Any], clear: bool = False) -> None:
         """
         Save graph data to in-memory storage, performing normalization/flattening
@@ -556,9 +586,22 @@ class MemoryRepository:
                 }
                 self.data["relationships"][key].append(rel)
 
+        # 3.5. Fan-out augmentation for Topics (parity with Neo4j)
+        topic_subs = {}
+        for rel in self.data["relationships"]["subscribes_to"]:
+            topic_subs.setdefault(rel["to"], set()).add(rel["from"])
+        topic_pubs = {}
+        for rel in self.data["relationships"]["publishes_to"]:
+            topic_pubs.setdefault(rel["to"], set()).add(rel["from"])
+
+        for topic in self.data["topics"]:
+            topic["subscriber_count"] = len(topic_subs.get(topic["id"], []))
+            topic["publisher_count"] = len(topic_pubs.get(topic["id"], []))
+
         # 4. Compute weights
         self._calculate_intrinsic_weights()
         self._calculate_aggregate_weights()
+
 
     def get_graph_data(
         self,

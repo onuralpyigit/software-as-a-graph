@@ -90,7 +90,7 @@ The design covers the full pipeline: Generate (synthetic topology generation), I
 
 ### 1.6 Document Overview
 
-Section 2 describes the system context, design constraints, and guiding principles. Section 3 covers the four-layer architecture, module decomposition, design patterns, data flow, and deployment. Sections 4–5 address data structures and component design (service pipelines). Section 6 provides algorithmic pseudocode and complexity analysis for all non-trivial algorithms, including the GNN model equations and the full RMAV formula derivations. Section 7 covers the Neo4j database schema and key Cypher queries. Section 8 covers CLI and REST API interfaces with data exchange formats. Section 9 describes both visualization surfaces: the static HTML dashboard and the Genieus web application. Appendix A gives layer definitions, Appendix B the default AHP matrices, Appendix C the error handling strategy, and Appendix D provides SRS-to-design traceability.
+Section 2 describes the system context, design constraints, and guiding principles. Section 3 covers the four-layer architecture, module decomposition, design patterns, data flow, and deployment. Sections 4–5 address data structures and component design (service pipelines). Section 6 provides algorithmic pseudocode and complexity analysis for all non-trivial algorithms, including the GNN model equations and the full RMAV formula derivations. Section 7 covers the Neo4j database schema and key Cypher queries. Section 8 covers CLI and REST API interfaces with data exchange formats. Section 9 describes both visualization surfaces: the static HTML dashboard and the SMART web application. Appendix A gives layer definitions, Appendix B the default AHP matrices, Appendix C the error handling strategy, and Appendix D provides SRS-to-design traceability.
 
 ### 1.7 Change History
 
@@ -99,7 +99,7 @@ Section 2 describes the system context, design constraints, and guiding principl
 | 2.2 | February 2026 | Updated RMAV formulas to match implementation (§4.2, §5.2, §6, Appendix B); corrected architecture description to four-layer (§1.2, §3.1); fixed REST API endpoint paths to `/api/v1/` with correct HTTP methods (§8.2); added missing endpoints; added `benchmark/` to module decomposition (§3.2); added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL algorithmic descriptions (§6.13–§6.18); corrected metric-to-dimension orthogonality table (§4.2); updated Appendix A layer IDs; updated Appendix B AHP matrices; extended Appendix D traceability for SRS v2.2 requirements |
 | 2.3 | March 2026 | Refactored backend API to use **Presenters** for decoupled response formatting (§3.1, §3.2); updated module decomposition to include `api/presenters/`; enhanced dependency injection in `api/dependencies.py`; updated quality formulas to v2.3 (5-term Maintainability, QoS-weighted SPOF, CDPot_enh) |
 | 2.4 | April 2026 | Clarified pipeline stage semantics: **Analyze** (deterministic, closed-form RMAV/Q scoring + anti-patterns) and **Predict** (inductive GNN forecasting, optional) are now named distinct stages. Updated §1.2, §2.1, §2.3, §3.4, §4.2 to reflect Import → Analyze → Predict → Simulate → Validate → Visualize naming. Updated `saag.Pipeline`, `saag.Client`, `saag.AnalysisResult`, and `saag.PredictionResult` SDK contracts accordingly. |
-| 3.0 | June 2026 | Full alignment with ISO/IEC/IEEE 1016-2009 and ISO/IEC/IEEE 12207:2026. Added detailed designs for Step 0 (Synthetic Graph Generation) and Step 3 (GNN Prediction) components. Incorporated PyG HeteroData layout features, HGTConv forward equations, typed edge encoders, and multi-task loss pseudocodes in algorithmic design. Updated REST API endpoint table to cover train/predict routes. |
+| 3.0 | June 2026 | Full alignment with ISO/IEC/IEEE 1016-2009 and ISO/IEC/IEEE 12207:2026. Added detailed designs for the offline Synthetic Graph Generation tool and Step 3 (GNN Prediction) components. Incorporated PyG HeteroData layout features, HGTConv forward equations, typed edge encoders, and multi-task loss pseudocodes in algorithmic design. Updated REST API endpoint table to cover train/predict routes. |
 
 ---
 
@@ -107,7 +107,7 @@ Section 2 describes the system context, design constraints, and guiding principl
 
 ### 2.1 System Context
 
-The framework offers two usage modes: a **CLI pipeline** for batch analysis and scripting, and a **Genieus web application** for interactive exploration. Both share the same Python domain logic and Neo4j storage.
+The framework offers two usage modes: a **CLI pipeline** for batch analysis and scripting, and a **SMART web application** for interactive exploration. Both share the same Python domain logic and Neo4j storage.
 
 ```
                               ┌──────────────────┐
@@ -117,7 +117,7 @@ The framework offers two usage modes: a **CLI pipeline** for batch analysis and 
                          CLI commands│      │Browser (HTTP)
                                     │      │
              ┌──────────────────────▼──┐  ┌▼───────────────────────┐
-             │   CLI Pipeline (cli/)   │  │  Genieus Web App        │
+             │   CLI Pipeline (cli/)   │  │  SMART Web App          │
              │                        │  │                         │
              │  Import → Analyze →    │  │  Next.js Frontend       │
              │  Predict → Simulate →  │  │  (port 7000)            │
@@ -175,7 +175,7 @@ The system follows SOLID principles with emphasis on three key decisions:
 │  External CLI entry points that parse arguments and invoke          │
 │  pipeline components.                                               │
 ├─────────────────────────────────────────────────────────────────────┤
-│                    WEB APPLICATION LAYER (Genieus)                  │
+│                     WEB APPLICATION LAYER (SMART)                   │
 │                                                                     │
 │  smart/           (Next.js 16, port 7000)                           │
 │  api/     (FastAPI, port 8000, /api/v1/ prefix)             │
@@ -221,61 +221,123 @@ software-as-a-graph/
 │   ├── import_graph.py               #   Neo4j import
 │   ├── analyze_graph.py              #   Analysis + quality scoring
 │   ├── simulate_graph.py             #   Failure simulation
+│   ├── predict_graph.py              #   GNN prediction
 │   ├── validate_graph.py             #   Statistical validation
 │   ├── visualize_graph.py            #   Dashboard generation
 │   ├── export_graph.py               #   Export graph data from Neo4j
 │   ├── benchmark.py                  #   Benchmarking across scales
+│   ├── train_graph.py                #   GNN model training
+│   ├── statistics_graph.py           #   Descriptive topology statistics
+│   ├── detect_antipatterns.py        #   Anti-pattern detection utility
+│   ├── loso_evaluate.py              #   Leave-One-System-Out evaluation
 │   ├── common/                       #   Shared CLI Utilities
 │   │   ├── console.py                #     ConsoleDisplay (shared output formatting)
 │   │   ├── dispatcher.py             #     Command dispatch logic
-│   │   └── arguments.py              #     Shared argparse logic
+│   │   ├── arguments.py              #     Shared argparse logic
+│   │   ├── dataset_validation.py     #     Dataset verification criteria
+│   │   └── batch_generation.py       #     Batch topology runner
 │   └── run_scenarios.sh              #   Batch-run all scenario configs
 │
-├── smart/                         # Web Application Layer — Next.js 16
+├── smart/                            # Web Application Layer — Next.js SMART Web App
 │   ├── app/                          #   Next.js App Router pages
 │   ├── components/                   #   React UI components
 │   └── package.json                  #   Node.js dependencies
 │
-├── ./
-│   ├── api/                          # Web Application Layer — FastAPI
-│   │   ├── main.py                   #   FastAPI app, CORS, health endpoint
-│   │   ├── routers/                  #   REST endpoints (thin layer)
-│   │   ├── presenters/               #   Response formatting & API translation
-│   │   ├── dependencies.py           #   Service & Repository injection
-│   │   └── models.py                 #   Pydantic request/response models
-│   └── src/                          # Pipeline Components + Core (shared with CLI)
-│       ├── core/                     #   Core Layer
-│       │   ├── models.py             #     Domain entities (GraphData, ComponentData, EdgeData)
-│       │   ├── interfaces.py         #     IGraphRepository interface
-│       │   ├── neo4j_repo.py         #     Graph database adapter (Neo4j)
-│       │   ├── memory_repo.py        #     In-memory adapter (testing)
-│       │   └── layers.py             #     Layer definitions and projection rules
-│       │
-│       ├── analysis/                 #   Analysis Package
-│       │   ├── analyzer.py           #     Backward-compatible AnalysisService wrapper
-│       │   ├── service.py            #     AnalysisService pipeline orchestrator
-│       │   ├── structural_analyzer.py#     StructuralAnalyzer (16-field metric computation)
-│       │   └── quality_analyzer.py   #     QualityAnalyzer (RMAV scoring + classification)
-│       │
-│       ├── simulation/               #   Simulation Package
-│       │   ├── service.py            #     SimulationService orchestrator
-│       │   ├── failure_simulator.py  #     FailureSimulator (cascade propagation)
-│       │   └── event_simulator.py    #     EventSimulator (message flow simulation)
-│       │
-│       ├── validation/               #   Validation Package
-│       │   ├── service.py            #     ValidationService orchestrator
-│       │   └── validator.py          #     Statistical validator (Spearman, F1, NDCG, …)
-│       │
-│       ├── visualization/            #   Visualization Package
-│       │   ├── service.py            #     VisualizationService orchestrator
-│       │   └── dashboard.py          #     DashboardGenerator (HTML builder)
-│       │
-│       ├── generation/               #   Generation Package
-│       │   └── service.py            #     GenerationService (synthetic topology)
-│       │
-│       ├── benchmark/                #   Benchmark Package
-│       │   └── service.py            #     BenchmarkService (scale performance testing)
-│       │
+├── api/                              # Web Application Layer — FastAPI Backend
+│   ├── main.py                       #   FastAPI entrypoint, health endpoint, CORS
+│   ├── routers/                      #   REST endpoints (thin orchestration layer)
+│   │   ├── graph.py                  #     Graph import and search routes
+│   │   ├── analysis.py               #     Layer-based structural analysis routes
+│   │   ├── prediction.py             #     GNN prediction execution routes
+│   │   ├── simulation.py             #     Cascade simulation execution routes
+│   │   ├── validation.py             #     Statistical verification routes
+│   │   └── health.py                 #     Health check router
+│   ├── presenters/                   #   Hexagonal presenters (response format adapters)
+│   │   ├── graph_presenter.py        #     Graph DTO response formatting
+│   │   ├── analysis_presenter.py     #     Structural analysis JSON formatting
+│   │   └── simulation_presenter.py   #     Cascade simulation results formatting
+│   ├── dependencies.py               #   Service and Repository dependency injection
+│   └── models.py                     #   Pydantic request/response schemas
+│
+├── saag/                             # Pipeline Components + Core Layer (Core Python SDK)
+│   ├── pipeline.py                   #   Pipeline orchestration class
+│   ├── client.py                     #   Fluent API orchestrator wrapper
+│   ├── models.py                     #   High-level validation and pipeline DTOs
+│   │
+│   ├── core/                         #   Core Domain Layer
+│   │   ├── models.py                 #     Domain entities (GraphData, ComponentData, EdgeData)
+│   │   ├── layers.py                 #     Analysis layer separation logic and rules
+│   │   ├── metrics.py                #     Structural and quality metrics definitions
+│   │   ├── criticality.py            #     Node/Edge criticality thresholds
+│   │   ├── graph_generator.py        #     Core topological generator logic
+│   │   ├── file_exporter.py          #     Graph export utility functions
+│   │   ├── ports/                    #     Domain interface ports
+│   │   │   ├── graph_repository.py   #       IGraphRepository protocol definition
+│   │   │   └── file_store.py         #       IFileStore protocol definition
+│   │   └── utils/                    #     Helper utilities
+│   │       └── serialization.py      #       JSON / GraphML serializers
+│   │
+│   ├── infrastructure/               #   Infrastructure Layer (Concrete adapters implementing ports)
+│   │   ├── neo4j_repo.py             #     Graph database adapter (Neo4j driver + Cypher queries)
+│   │   ├── memory_repo.py            #     In-memory mock adapter for unit testing
+│   │   └── config.py                 #     Database credentials and config parser
+│   │
+│   ├── usecases/                     #   Use Case Boundary Layer
+│   │   ├── analyze_graph.py          #     Graph analysis orchestration usecase
+│   │   ├── predict_graph.py          #     GNN prediction orchestration usecase
+│   │   ├── simulate_graph.py         #     Cascade simulation orchestration usecase
+│   │   └── validate_graph.py         #     Validation execution usecase
+│   │
+│   ├── analysis/                     #   Structural Metrics & RMAV Analysis Package
+│   │   ├── service.py                #     AnalysisService pipeline orchestrator
+│   │   ├── analyzer.py               #     AnalysisService backwards compatibility wrapper
+│   │   ├── structural_analyzer.py    #     StructuralAnalyzer (20-field NetworkX metric computation)
+│   │   ├── quality_scoring_service.py#     RMAV scoring formulas engine
+│   │   ├── antipattern_detector.py   #     Architectural smells / anti-pattern rules
+│   │   ├── classifier.py             #     BoxPlotClassifier / Percentile classifier
+│   │   ├── weight_calculator.py      #     AHPProcessor consistency checks and weights
+│   │   ├── problem_detector.py       #     Problem detector driver
+│   │   └── models.py                 #     Analysis result data structures
+│   │
+│   ├── prediction/                   #   Optional Inductive GNN Prediction Package
+│   │   ├── service.py                #     PredictionService pipeline orchestrator
+│   │   ├── gnn_service.py            #     PyG HeteroData GNN model inference engine
+│   │   ├── data_preparation.py       #     NetworkX-to-HeteroData layout converters
+│   │   ├── trainer.py                #     GNN model training lifecycle manager
+│   │   ├── classifier.py             #     Prediction criticality level classifier
+│   │   ├── models/                   #     PyTorch GNN models
+│   │   │   ├── core.py               #       HGTConv architecture and predictors
+│   │   │   └── baselines.py          #       Linear / shallow model baselines
+│   │   └── models.py                 #     Prediction result DTOs
+│   │
+│   ├── simulation/                   #   Simulation Package (Ground truth generators)
+│   │   ├── service.py                #     SimulationService pipeline orchestrator
+│   │   ├── failure_simulator.py      #     FailureSimulator (BFS cascade fault propagation)
+│   │   ├── event_simulator.py        #     EventSimulator (SimPy discrete-event queue modeller)
+│   │   ├── traffic_simulator.py      #     Message traffic generator
+│   │   ├── processor.py              #     Failure result processor
+│   │   └── models.py                 #     Simulation model state and failure metrics
+│   │
+│   ├── validation/                   #   Statistical Validation Package
+│   │   ├── service.py                #     ValidationService pipeline orchestrator
+│   │   ├── validator.py              #     Spearman, F1, and NDCG validation matcher
+│   │   └── models.py                 #     Validation score metric result DTOs
+│   │
+│   ├── visualization/                #   Visualization Package
+│   │   ├── service.py                #     VisualizationService pipeline orchestrator
+│   │   ├── dashboard.py              #     DashboardGenerator (static HTML dashboard builder)
+│   │   └── charts.py                 #     Plotly chart rendering functions
+│   │
+│   └── explanation/                  #   Explainability Package
+│       ├── engine.py                 #     Feature attribution calculations
+│       └── cli.py                    #     CLI interface for explanation outputs
+│
+├── tools/                            # Developer and Research Tools
+│   ├── generation/                   #   Synthetic topology generator
+│   │   └── generator.py              #     Scenario-based scale generator script
+│   ├── benchmark/                    #   Benchmarking suite
+│   │   └── runner.py                 #     Scale performance and regression runner
+│   └── static-system-analyzer/       #   Static code metrics collector (CodeQL + XML)
 │
 ├── config/                           # YAML scale presets and scenario configs
 ├── data/                            # Topology JSON & YAML scenario configs (8 scenarios)
@@ -350,7 +412,7 @@ The full stack is containerized in a single multi-stage Docker image that starts
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│                   Docker Container (genieus:x.y.z)            │
+│                   Docker Container (smart:x.y.z)              │
 │                                                               │
 │   ┌─────────────────┐   ┌─────────────────────────────────┐  │
 │   │   Neo4j 5.x     │   │      Python Environment         │  │
@@ -526,9 +588,9 @@ class GraphData:
 
 ## 5. Component Design
 
-### 5.1 Synthetic Graph Generation Pipeline (Step 0)
+### 5.1 Synthetic Graph Generation (Offline Tool)
 
-The synthetic generation component (`tools.generation.service.GenerationService`) produces topologically valid system models for evaluation.
+The offline synthetic generation component (`tools.generation.service.GenerationService`) produces topologically valid system models for evaluation.
 
 ```
 CLI: generate_graph.py  (or FastAPI Depends(get_generation_service))
@@ -703,7 +765,7 @@ saag.visualization.service.VisualizationService.generate_dashboard(layers, outpu
 
 ### 5.8 Anti-Pattern Detection Pipeline
 
-The `AntiPatternDetector` is invoked at the end of the Analysis Pipeline (§5.3, Step 3). It identifies 13 categories of architectural anti-patterns from `QualityAnalysisResult` using box-plot classification levels (never static thresholds).
+The `AntiPatternDetector` is invoked at the end of the Analysis Pipeline (§5.3, Step 2). It identifies 13 categories of architectural anti-patterns from `QualityAnalysisResult` using box-plot classification levels (never static thresholds).
 
 | Category | Anti-Pattern | Detection Rule (Predicate) | Severity |
 |:---------|:-------------|:---------------------------|:---------|
@@ -1383,7 +1445,7 @@ PYTHONPATH=. python cli/run.py --all --layer system --verbose
 
 ### 8.2 REST API Interface (FastAPI)
 
-The FastAPI backend exposes the pipeline as a versioned RESTful API (`/api/v1/` prefix), consumed by the Genieus frontend. The full interactive documentation is available at `http://localhost:8000/docs` (Swagger UI) when the container is running.
+The FastAPI backend exposes the pipeline as a versioned RESTful API (`/api/v1/` prefix), consumed by the SMART frontend. The full interactive documentation is available at `http://localhost:8000/docs` (Swagger UI) when the container is running.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -1492,7 +1554,7 @@ Generated by `cli/visualize_graph.py`. A single self-contained file (~1–3 MB) 
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### 9.2 Genieus Web Application
+### 9.2 SMART Web Application (smart)
 
 Launched via `docker compose up`. A Next.js 16 frontend (port 7000) communicating with the FastAPI backend (port 8000). All pipeline operations can be triggered and viewed from the browser.
 
@@ -1674,7 +1736,7 @@ criteria_overall = [
 | REQ-API-09 | §8.2 REST API: `GET /api/v1/components` |
 | REQ-API-10 | §8.2 HTTP 422 error handling; Appendix C error strategy |
 | REQ-API-11 | §8.2 Swagger UI at `/docs` |
-| REQ-WEB-01–10 | §9.2 Genieus Web Application design |
+| REQ-WEB-01–10 | §9.2 SMART Web Application (smart) design |
 | REQ-SEC-01–03 | §2.2 Design Constraints; Appendix C (Neo4j connection error handling) |
 | REQ-LOG-01–03 | Appendix C (logging strategy per error type) |
 | REQ-PERF-01–04 | §3.5 Deployment Architecture (uvicorn 2 workers); §6.1–§6.12 complexity annotations |
@@ -1686,5 +1748,5 @@ criteria_overall = [
 
 ---
 
-*Software-as-a-Graph Framework v2.3 · March 2026*
+*Software-as-a-Graph Framework v3.0 · June 2026*
 *Istanbul Technical University, Computer Engineering Department*

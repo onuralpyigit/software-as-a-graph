@@ -9,7 +9,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from saag.prediction.models import DetectedProblem
+from saag.analysis.models import DetectedProblem
 
 logger = logging.getLogger("antipattern_detector")
 

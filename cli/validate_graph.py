@@ -197,7 +197,8 @@ def load_graph(path: str) -> Tuple[nx.DiGraph, dict]:
     def _add(collection, ntype):
         for item in raw.get(collection, []):
             nid = item.get("id") or item.get("name")
-            G.add_node(nid, ntype=ntype, label=item.get("name", nid), raw=item)
+            model_type = "Node" if ntype == "InfraNode" else ntype
+            G.add_node(nid, ntype=ntype, type=model_type, label=item.get("name", nid), raw=item)
 
     _add("applications", "Application")
     _add("brokers",      "Broker")
@@ -219,7 +220,7 @@ def load_graph(path: str) -> Tuple[nx.DiGraph, dict]:
             s = e.get(src_field) or e.get("from") or e.get("app") or e.get("src")
             t = e.get(tgt_field) or e.get("to") or e.get("topic") or e.get("tgt")
             if s and t and G.has_node(s) and G.has_node(t):
-                G.add_edge(s, t, etype=etype)
+                G.add_edge(s, t, etype=etype, type=etype)
 
     _edges("publishes",    "app", "topic", "PUBLISHES_TO")
     _edges("subscribes",   "app", "topic", "SUBSCRIBES_TO")
@@ -243,8 +244,8 @@ def load_graph(path: str) -> Tuple[nx.DiGraph, dict]:
     for topic, pubs in pub_map.items():
         for sub in sub_map.get(topic, []):
             for pub in pubs:
-                if pub != sub and not G.has_edge(pub, sub):
-                    G.add_edge(pub, sub, etype="DEPENDS_ON", via=topic)
+                if pub != sub and not G.has_edge(sub, pub):
+                    G.add_edge(sub, pub, etype="DEPENDS_ON", type="DEPENDS_ON", via=topic)
 
     return G, raw
 
@@ -265,11 +266,25 @@ def compute_rmav(G: nx.DiGraph, qos: bool = True, normalization: str = "robust")
     reverse_pagerank = nx.pagerank(G.reverse(), alpha=0.85)
     betweenness = nx.betweenness_centrality(G, normalized=True)
     try:
-        art_points = set(nx.articulation_points(G.to_undirected()))
+        G_depends = G.copy()
+        other_edges = [(u, v) for u, v, d in G_depends.edges(data=True) if d.get("etype") != "DEPENDS_ON"]
+        G_depends.remove_edges_from(other_edges)
+        non_apps = [n for n, d in G_depends.nodes(data=True) if d.get("ntype") != "Application"]
+        G_depends.remove_nodes_from(non_apps)
+        art_points = set(nx.articulation_points(G_depends.to_undirected()))
     except:
         art_points = set()
     in_deg = dict(G.in_degree())
     out_deg = dict(G.out_degree())
+    
+    # Calculate degree centrality on physical G (without DEPENDS_ON edges)
+    try:
+        G_phys = G.copy()
+        dep_edges = [(u, v) for u, v, d in G_phys.edges(data=True) if d.get("etype") == "DEPENDS_ON"]
+        G_phys.remove_edges_from(dep_edges)
+        deg_cent_phys = nx.degree_centrality(G_phys)
+    except Exception:
+        deg_cent_phys = {}
     
     pub_count = defaultdict(int)
     sub_count = defaultdict(int)
@@ -324,7 +339,7 @@ def compute_rmav(G: nx.DiGraph, qos: bool = True, normalization: str = "robust")
             A=q.scores.availability,
             S=q.scores.security,
             I=0.0,
-            degree_centrality=pagerank.get(q.id, 0.0),
+            degree_centrality=deg_cent_phys.get(q.id, 0.0),
             is_articulation_point=(q.id in art_points)
         )
     return results
@@ -438,8 +453,8 @@ def run_statistical_tests(
     # ── classification: top-K by I (ground truth) vs top-K by Q ──────────────
     n = len(items)
     actual_k = min(top_k, n)
-    gt_top_k  = set(sorted(node_scores, key=lambda v: node_scores[v].I,  reverse=True)[:actual_k])
-    pred_top_k= set(sorted(node_scores, key=lambda v: node_scores[v].Q, reverse=True)[:actual_k])
+    gt_top_k  = set(sorted((ns.node_id for ns in items), key=lambda v: node_scores[v].I,  reverse=True)[:actual_k])
+    pred_top_k= set(sorted((ns.node_id for ns in items), key=lambda v: node_scores[v].Q, reverse=True)[:actual_k])
 
     tp = len(gt_top_k & pred_top_k)
     fp = len(pred_top_k - gt_top_k)
@@ -451,14 +466,17 @@ def run_statistical_tests(
     ftr   = fp / actual_k if actual_k > 0 else 0.0
 
     # ── SPOF-F1 ───────────────────────────────────────────────────────────────
-    spof_actual = {v for v, ns in node_scores.items() if ns.is_articulation_point and ns.I > 0.3}
-    spof_pred   = {v for v, ns in node_scores.items() if ns.is_articulation_point}
-    sp_tp = len(spof_actual & spof_pred)
-    sp_fp = len(spof_pred - spof_actual)
-    sp_fn = len(spof_actual - spof_pred)
-    sp_p  = sp_tp / (sp_tp + sp_fp) if (sp_tp + sp_fp) > 0 else 0.0
-    sp_r  = sp_tp / (sp_tp + sp_fn) if (sp_tp + sp_fn) > 0 else 0.0
-    spof_f1 = 2 * sp_p * sp_r / (sp_p + sp_r) if (sp_p + sp_r) > 0 else 0.0
+    spof_actual = {ns.node_id for ns in items if ns.is_articulation_point and ns.I > 0.3}
+    spof_pred   = {ns.node_id for ns in items if ns.is_articulation_point}
+    if len(spof_actual) == 0 and len(spof_pred) == 0:
+        spof_f1 = 1.0
+    else:
+        sp_tp = len(spof_actual & spof_pred)
+        sp_fp = len(spof_pred - spof_actual)
+        sp_fn = len(spof_actual - spof_pred)
+        sp_p  = sp_tp / (sp_tp + sp_fp) if (sp_tp + sp_fp) > 0 else 0.0
+        sp_r  = sp_tp / (sp_tp + sp_fn) if (sp_tp + sp_fn) > 0 else 0.0
+        spof_f1 = 2 * sp_p * sp_r / (sp_p + sp_r) if (sp_p + sp_r) > 0 else 0.0
 
     # ── ICR@K (In-Cluster Recall): fraction of true-top-K that are "clustered"
     #    with a correct prediction in Q-rank neighbourhood ±K/2 ─────────────
@@ -566,12 +584,16 @@ GATE_THRESHOLDS = {
 
 def classify_topology(G: nx.DiGraph) -> str:
     """Heuristic topology class from degree distribution."""
-    n = G.number_of_nodes()
-    m = G.number_of_edges()
+    G_phys = G.copy()
+    dep_edges = [(u, v) for u, v, d in G_phys.edges(data=True) if d.get("etype") == "DEPENDS_ON"]
+    G_phys.remove_edges_from(dep_edges)
+    
+    n = G_phys.number_of_nodes()
+    m = G_phys.number_of_edges()
     if n == 0:
         return "sparse"
     density = m / (n * (n - 1)) if n > 1 else 0
-    degrees = [d for _, d in G.degree()]
+    degrees = [d for _, d in G_phys.degree()]
     max_d = max(degrees) if degrees else 0
     avg_d = np.mean(degrees) if degrees else 0
     hub_ratio = max_d / (avg_d + 1e-9)
@@ -639,6 +661,125 @@ def rank_consistency_rate(per_seed_scores: List[Dict[str, NodeScores]]) -> float
 # HIGH-LEVEL RUNNERS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def compute_gnn_scores(G: nx.DiGraph, gnn_model: str, qos: bool = True) -> Dict[str, NodeScores]:
+    from saag.prediction.gnn_service import GNNService
+    from collections import defaultdict
+    
+    # 1. First compute the baseline metrics and RMAV (just like compute_rmav)
+    rmav_node_scores = compute_rmav(G, qos=qos)
+    
+    # Format them as the dicts GNNService.predict expects:
+    rmav_dict = {}
+    for nid, ns in rmav_node_scores.items():
+        rmav_dict[nid] = {
+            "overall": ns.Q,
+            "reliability": ns.R,
+            "maintainability": ns.M,
+            "availability": ns.A,
+            "security": ns.S
+        }
+        
+    # Extract structural metrics dict.
+    pagerank = nx.pagerank(G, alpha=0.85)
+    reverse_pagerank = nx.pagerank(G.reverse(), alpha=0.85)
+    betweenness = nx.betweenness_centrality(G, normalized=True)
+    try:
+        G_depends = G.copy()
+        other_edges = [(u, v) for u, v, d in G_depends.edges(data=True) if d.get("etype") != "DEPENDS_ON"]
+        G_depends.remove_edges_from(other_edges)
+        non_apps = [n for n, d in G_depends.nodes(data=True) if d.get("ntype") != "Application"]
+        G_depends.remove_nodes_from(non_apps)
+        art_points = set(nx.articulation_points(G_depends.to_undirected()))
+    except:
+        art_points = set()
+    in_deg = dict(G.in_degree())
+    out_deg = dict(G.out_degree())
+    
+    # Calculate degree centrality on physical G (without DEPENDS_ON edges)
+    try:
+        G_phys = G.copy()
+        dep_edges = [(u, v) for u, v, d in G_phys.edges(data=True) if d.get("etype") == "DEPENDS_ON"]
+        G_phys.remove_edges_from(dep_edges)
+        deg_cent_phys = nx.degree_centrality(G_phys)
+    except Exception:
+        deg_cent_phys = {}
+    
+    pub_count = defaultdict(int)
+    sub_count = defaultdict(int)
+    for u, v, d in G.edges(data=True):
+        et = d.get("etype", "")
+        if et == "PUBLISHES_TO":
+            pub_count[v] += 1
+        elif et == "SUBSCRIBES_TO":
+            sub_count[v] += 1
+            
+    pspof_vals = defaultdict(float)
+    for u, topic, d in G.edges(data=True):
+        if d.get("etype") == "PUBLISHES_TO":
+            if pub_count[topic] == 1 and sub_count[topic] >= 1:
+                pspof_vals[u] = max(pspof_vals[u], 0.5 * min(sub_count[topic] / 5.0, 1.0))
+                
+    structural_metrics = {}
+    for nid, ndata in G.nodes(data=True):
+        max_bc = max(betweenness.values()) if betweenness.values() else 1.0
+        node_mpci = betweenness.get(nid, 0.0) / (max_bc + 1e-12)
+        structural_metrics[nid] = {
+            "pagerank": pagerank.get(nid, 0.0),
+            "reverse_pagerank": reverse_pagerank.get(nid, 0.0),
+            "betweenness_centrality": betweenness.get(nid, 0.0),
+            "closeness_centrality": 0.0,
+            "eigenvector_centrality": 0.0,
+            "in_degree_centrality": in_deg.get(nid, 0),
+            "out_degree_centrality": out_deg.get(nid, 0),
+            "clustering_coefficient": 0.0,
+            "ap_c_score": 1.0 if nid in art_points else 0.0,
+            "ap_c_directed": 1.0 if nid in art_points else 0.0,
+            "cdi": 0.0,
+            "mpci": node_mpci,
+            "path_complexity": 0.0,
+            "fan_out_criticality": 0.0,
+            "bridge_ratio": 0.0,
+            "qos_weight": 0.5,
+            "qos_weight_in": 0.0,
+            "qos_weight_out": pspof_vals.get(nid, 0.0) if qos else 0.0,
+        }
+        
+    # Load GNN Service
+    service = GNNService.from_checkpoint(gnn_model, graph=G)
+    
+    # Run GNN predict
+    gnn_result = service.predict(
+        graph=G,
+        structural_metrics=structural_metrics,
+        rmav_scores=rmav_dict,
+        mode="ensemble",
+        qos_enabled=qos
+    )
+    
+    # Use ensemble_scores if available, otherwise node_scores
+    scores_map = gnn_result.ensemble_scores or gnn_result.node_scores
+    
+    # Convert back to Dict[str, NodeScores]
+    results = {}
+    for nid, score in scores_map.items():
+        node_type = "Application"
+        if nid in G.nodes:
+            node_type = G.nodes[nid].get("ntype", "Application")
+            
+        results[nid] = NodeScores(
+            node_id=nid,
+            node_type=node_type,
+            Q=score.composite_score,
+            R=score.reliability_score,
+            M=score.maintainability_score,
+            A=score.availability_score,
+            S=score.security_score,
+            I=0.0,
+            degree_centrality=deg_cent_phys.get(nid, 0.0),
+            is_articulation_point=(nid in art_points)
+        )
+    return results
+
 def run_single(
     G: nx.DiGraph,
     raw: dict,
@@ -648,12 +789,16 @@ def run_single(
     depth_limit: int,
     B: int,
     alpha: float,
+    gnn_model: Optional[str] = None,
 ) -> Tuple[ValidationResult, Dict[str, NodeScores]]:
     """Run one full validation pass and return (ValidationResult, node_scores)."""
     random.seed(seed)
     np.random.seed(seed)
 
-    scores = compute_rmav(G, qos=qos)
+    if gnn_model:
+        scores = compute_gnn_scores(G, gnn_model, qos=qos)
+    else:
+        scores = compute_rmav(G, qos=qos)
     scores = derive_ground_truth(G, scores, depth_limit=depth_limit, seed=seed)
 
     n = len(scores)
@@ -686,6 +831,7 @@ def run_sweep(
     depth_limit: int,
     B: int,
     alpha: float,
+    gnn_model: Optional[str] = None,
 ) -> SweepReport:
     """Run multi-seed sweep and compute aggregate stability metrics."""
     results = []
@@ -693,7 +839,7 @@ def run_sweep(
 
     for s in seeds:
         vr, sc = run_single(G, raw, seed=s, qos=qos, top_k_frac=top_k_frac,
-                            depth_limit=depth_limit, B=B, alpha=alpha)
+                            depth_limit=depth_limit, B=B, alpha=alpha, gnn_model=gnn_model)
         results.append(vr)
         all_scores.append(sc)
 
@@ -1034,11 +1180,12 @@ def _parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    sub = p.add_subparsers(dest="command", required=True)
+    sub = p.add_subparsers(dest="command", required=False)
 
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--input",   required=True, help="Path to system.json")
     common.add_argument("--qos",     action="store_true", help="Enable QoS-enriched scoring")
+    common.add_argument("--gnn-model", default=None, help="Path to GNN checkpoint directory")
     common.add_argument("--top-k",   type=int, default=None,
                         help="K for classification metrics (default: 20%% of nodes)")
     common.add_argument("--seeds",   default="42,123,456,789,2024",
@@ -1063,6 +1210,12 @@ def _parse_args():
 
 
 def main():
+    # Check if a subcommand is specified; if not, default to "single"
+    subcommands = {"single", "sweep", "report", "compare"}
+    has_subcommand = any(arg in subcommands for arg in sys.argv[1:] if not arg.startswith("-"))
+    if not has_subcommand:
+        sys.argv.insert(1, "single")
+
     args = _parse_args()
     setup_logging(args)
     use_color = not args.no_color
@@ -1074,11 +1227,14 @@ def main():
     top_k_frac = 0.20 if args.top_k is None else max(0.01, args.top_k / max(n_total, 1))
     topo_class = classify_topology(G)
 
+    gnn_model = getattr(args, "gnn_model", None)
+
     if args.command == "single":
         vr, node_scores = run_single(
             G, raw, seed=seeds[0], qos=args.qos,
             top_k_frac=top_k_frac, depth_limit=args.cascade,
             B=args.bootstrap, alpha=args.alpha,
+            gnn_model=gnn_model,
         )
         print_single_report(vr, topo_class, use_color)
 
@@ -1106,6 +1262,7 @@ def main():
             G, raw, seeds=seeds, qos=args.qos,
             top_k_frac=top_k_frac, depth_limit=args.cascade,
             B=args.bootstrap, alpha=args.alpha,
+            gnn_model=gnn_model,
         )
         print_sweep_report(sr, use_color)
 
@@ -1120,6 +1277,7 @@ def main():
             G, raw, seeds=seeds, qos=args.qos,
             top_k_frac=top_k_frac, depth_limit=args.cascade,
             B=args.bootstrap, alpha=args.alpha,
+            gnn_model=gnn_model,
         )
         print_sweep_report(sr, use_color)
         if sr.per_seed:

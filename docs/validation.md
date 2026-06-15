@@ -17,8 +17,10 @@
    - 5.2 [Bootstrap Confidence Interval](#52-bootstrap-confidence-interval)
    - 5.3 [Classification Metrics — Precision, Recall, F1 @ K](#53-classification-metrics--precision-recall-f1--k)
    - 5.4 [SPOF-F1](#54-spof-f1)
-   - 5.5 [Specialist Metrics — ICR@K, BCE, FTR, PG](#55-specialist-metrics--icrk-bce-ftr-pg)
+   - 5.5 [Multi-Dimensional Validation Framework](#55-multi-dimensional-validation-framework)
    - 5.6 [Wilcoxon Signed-Rank Test](#56-wilcoxon-signed-rank-test)
+   - 5.7 [Unified Validation Gates (G1-G9)](#57-unified-validation-gates-g1-g9)
+   - 5.8 [System Health Metrics](#58-system-health-metrics)
 6. [Node-Type Stratified Reporting](#6-node-type-stratified-reporting)
 7. [Topology-Class Gate System](#7-topology-class-gate-system)
 8. [Multi-Seed Stability Sweep](#8-multi-seed-stability-sweep)
@@ -115,11 +117,17 @@ evaluate_gates(vr, topo_class)
 
 ## 3. Ground Truth: I(v) from Cascade Simulation
 
-### Simulation Mechanics
+### 3.1 Simulation Mechanics
 
 For each node v, the `FaultInjector` runs a BFS cascade simulation in two sequential phases per wave:
 
-**Phase A — Direct propagation (Stochastic):**  
+**Phase A — Direct propagation (Stochastic):** *(optional extension — **disabled by default**)*
+
+> [!NOTE]
+> **Phase A is a no-op in the default configuration.** The propagation probability for pure `DEPENDS_ON` / `USES` edges is `prob = 0.0` (see `saag/simulation/fault_injector.py`). When `prob = 0.0`, no node ever fails through a bare dependency edge — Phase A contributes zero cascade events. This means the independence claim (§2 note, H5) holds: $I(v)$ is derived entirely from pub-sub topology (Phase B), which shares no computational path with the RMAV predictor $Q(v)$.
+>
+> Phase A exists as an extension point for future work where a non-zero `prob` is desirable — e.g. modelling compile-time dependency chains or shared-library ABI breaks. To activate it, set `prob > 0` in the `FaultInjector` constructor. Doing so changes the independence character of ρ(M, IM) and ρ(V, IV) from a consistency check to a partially-coupled measurement; this should be disclosed in any publication.
+
 Failure spreads from failed nodes along `DEPENDS_ON` and `USES` edges stochastically. The propagation probability in pure dependency edges is `prob * depth_damp`. By default, `prob` is set to `0.0` (disabled).
 
 **Phase B — Topic-mediated Soft QoS/Rate-weighted Propagation:**  
@@ -144,7 +152,7 @@ Failure spreads from failed nodes along `DEPENDS_ON` and `USES` edges stochastic
      $$P_{\text{fail}}(s) = \min\left(1.0, \frac{\text{sub\_loss}(s)}{\text{propagation\_threshold}}\right) \times \text{depth\_damp}$$
      Where $\text{depth\_damp} = \max(0.25, 1.0 - \text{wave\_idx} \times 0.15)$ is a depth-based damping factor to prevent runaway cascade propagation.
 
-### Ground Truth Derivation
+### 3.2 Ground Truth Derivation
 
 To obtain the ground truth, the validation pipeline runs the exhaustive fault injection across all candidate nodes:
 
@@ -161,7 +169,7 @@ for each node v:
 
 Averaging across `n_repeats` seeds dampens stochastic variance and yields a stable mean impact estimate. This is the value compared against Q(v) in all subsequent statistical tests.
 
-### What I(v) Represents
+### 3.3 What I(v) Represents
 
 `I(v)` is the **normalised cascade impact score** ∈ [0, 1] measuring how much of the system becomes unreachable or impaired when node $v$ fails. It is the `composite_impact` property of `ImpactMetrics`:
 
@@ -188,21 +196,26 @@ Q(v) = w_A × A(v)  +  w_R × R(v)  +  w_M × M(v)  +  w_V × V(v)
 | Maintainability (M) | **0.17** | Coupling complexity; long-term fragility |
 | Vulnerability (V) | **0.16** | Security exposure surface |
 
-### Latest formula versions (Middleware 2026):
+### 4.1 Latest formula versions (Middleware 2026):
 
 #### Reliability R(v) — Fault Propagation Risk
 - **Standard formula** (Application, Broker, Node, Library):
-  $$R(v) = 0.60 \times PR(v) \times (1 + MPCI(v)) + 0.40 \times DG\_in(v)$$
+  $$R(v) = 0.45 \times \text{RPR}(v) + 0.30 \times \text{DG}_{\text{in}}(v) + 0.25 \times \text{CDPot}_{\text{enh}}(v)$$
+  Where:
+  - $\text{RPR}(v)$ — Reverse PageRank on $G^T$ (transitive cascade reach).
+  - $\text{DG}_{\text{in}}(v)$ — Normalized in-degree (immediate blast radius).
+  - $\text{CDPot}_{\text{enh}}(v) = \min(\text{CDPot}_{\text{base}}(v) \times (1 + \text{MPCI}(v)), 1.0)$.
+  - $\text{CDPot}_{\text{base}}(v) = \frac{\text{RPR}(v) + \text{DG}_{\text{in}}(v)}{2} \times \left(1 - \min\left(\frac{\text{DG}_{\text{out\_raw}}(v)}{\max(\text{DG}_{\text{in\_raw}}(v), 1e-9)}, 1.0\right)\right)$.
 - **Topic formula** (Topic nodes only):
-  $$R_{\text{topic}}(v) = 0.50 \times FOC(v) + 0.50 \times CDPot\_topic(v)$$
-  Where $CDPot\_topic(v) = FOC(v) \times (1 - \min(publisher\_count\_norm(v), 1.0))$.
+  $$R_{\text{topic}}(v) = 0.50 \times \text{FOC}(v) + 0.50 \times \text{CDPot}_{\text{topic}}(v)$$
+  Where $\text{CDPot}_{\text{topic}}(v) = \text{FOC}(v) \times (1 - \min(\text{publisher}_{\text{count\_norm}}(v), 1.0))$.
 
 #### Maintainability M(v) — Coupling Complexity
-$$M(v) = 0.35 \times BT(v) + 0.30 \times w\_out(v) + 0.15 \times CQP(v) + 0.12 \times CouplingRisk\_enh(v) + 0.08 \times (1 - CC(v))$$
-$$CQP(v) = 0.10 \times loc\_norm(v) + 0.35 \times complexity\_norm(v) + 0.30 \times instability\_code(v) + 0.25 \times lcom\_norm(v)$$
+$$M(v) = 0.35 \times \text{BT}(v) + 0.30 \times \text{w}_{\text{out}}(v) + 0.15 \times \text{CQP}(v) + 0.12 \times \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \times (1 - \text{CC}(v))$$
+$$\text{CQP}(v) = 0.10 \times \text{loc}_{\text{norm}}(v) + 0.35 \times \text{complexity}_{\text{norm}}(v) + 0.30 \times \text{instability}_{\text{code}}(v) + 0.25 \times \text{lcom}_{\text{norm}}(v)$$
 
 #### Availability A(v) — SPOF Risk
-$$A(v) = 0.35 \times AP\_c\_directed(v) + 0.25 \times QSPOF(v) + 0.25 \times BR(v) + 0.10 \times CDI(v) + 0.05 \times w(v)$$
+$$A(v) = 0.35 \times \text{AP}_{\text{c\_directed}}(v) + 0.25 \times \text{QSPOF}(v) + 0.25 \times \text{BR}(v) + 0.10 \times \text{CDI}(v) + 0.05 \times w(v)$$
 Where:
 - **AP_c_directed(v)** — Directed Articulation Point score (worst-case directed graph connectivity loss when $v$ is removed).
 - **QSPOF(v)** — QoS-amplified SPOF severity: `AP_c_directed(v) × w(v)`.
@@ -211,7 +224,7 @@ Where:
 - **w(v)** — Component QoS weight from Step 1.
 
 #### Vulnerability V(v) — Security Exposure
-$$V(v) = 0.40 \times REV(v) + 0.35 \times RCL(v) + 0.25 \times w\_in(v)$$
+$$V(v) = 0.40 \times \text{REV}(v) + 0.35 \times \text{RCL}(v) + 0.25 \times \text{w}_{\text{in}}(v)$$
 Where:
 - **REV(v)** — Reverse Eigenvector Centrality (downstream attack propagation reach).
 - **RCL(v)** — Reverse Closeness Centrality (adversarial entry proximity).
@@ -249,12 +262,29 @@ where  dᵢ = rank(Q(vᵢ)) − rank(I(vᵢ))
 
 Significance test: two-tailed t-distribution with df = n − 2.
 
+The interpretation of an absolute ρ value depends on the **ground-truth source regime**. Two regimes apply:
+
+**Regime A — RMAV pipeline against simulation labels (Q(v) vs. I(v), composite or IA/IR).**
+Ground truth is a stochastic cascade simulator; achievable ρ is bounded by simulator noise and topology decoupling. The primary criterion in this regime is G1 (§5.7): pass if ρ ≥ 0.70. Absolute levels above that are informative but not a quality gate.
+
 | ρ Range | Interpretation |
 |---------|---------------|
-| ≥ 0.85 | Very strong agreement |
-| 0.80–0.85 | Strong — primary gate passes |
-| 0.75–0.80 | Moderate — gate fails for dense/hub-spoke classes |
-| < 0.75 | Weak — investigation required |
+| ≥ 0.85  | Very strong — well above G1 |
+| 0.70–0.85 | Acceptable — G1 passes |
+| 0.60–0.70 | Borderline — G1 fails; check topology class and node-type filter |
+| < 0.60  | Weak — investigation required |
+
+**Regime B — Learned/GNN models against simulation labels (Q*(v) vs. I*(v), Middleware evaluation).**
+Against stochastic Sim labels in decoupled pub-sub topologies, absolute ρ is constrained by simulator noise independent of model quality. The meaningful criterion is **lift over the structural baseline** (Δρ = ρ(model) − ρ(Topo-BL)), not the absolute level.
+
+| Δρ vs. Topo-BL | Interpretation |
+|---------|---------------|
+| ≥ +0.15 | Substantial lift — heterogeneous/learned model adds clear value |
+| +0.05 to +0.15 | Meaningful lift — model outperforms structural baseline |
+| −0.05 to +0.05 | No clear improvement over structural baseline |
+| < −0.05 | Regression — model underperforms structural baseline |
+
+> **Why two regimes?** Absolute thresholds (0.80, 0.75) were calibrated when validation targets shared structural basis with predictors (ρ ≈ 0.94 against reachability proxies). Against honest Sim labels — where the target is produced by a stochastic forward simulation fully decoupled from the predictor graph — the same absolute values are unattainable regardless of model quality. Applying Regime A thresholds to Regime B results condemns results for the wrong reason. Conversely, applying Regime B (relative) bands to RMAV pipeline results masks absolute weakness. Use the regime that matches the ground-truth source.
 
 **Kendall τ** is the conservative cross-check:
 
@@ -414,7 +444,7 @@ The validation service aggregates component-level predictions to calculate syste
 
 ## 6. Node-Type Stratified Reporting
 
-### Node-Type Stratification
+### 6.1 Node-Type Stratification
 
 Spearman ρ and F1@K are computed independently for each node type:
 
@@ -443,7 +473,7 @@ Topics and Brokers are expected to show constant signal: the cascade simulation 
 *source* node's failure, not from a topic. Topic-layer reliability is captured through pub-sub
 orphaning (Phase B), but the score accrues to the publisher application, not the topic node itself.
 
-### Topic Frequency-Decile Stratification (Simpson's Paradox Mitigation)
+### 6.2 Topic Frequency-Decile Stratification (Simpson's Paradox Mitigation)
 
 Because distributed systems exhibit highly skewed topic messaging rates (spanning several orders of magnitude), aggregate validation metrics can be subject to **Simpson's paradox**—where global correlations mask strong or weak associations within specific frequency bands.
 
@@ -459,7 +489,7 @@ To address this, the validation pipeline automatically performs **frequency-deci
 Gates are **adaptive** — a sparse 12-node system faces less stringent thresholds than a dense 80-node
 hub-spoke architecture.
 
-### Topology Classification
+### 7.1 Topology Classification
 
 ```python
 density   = edges / (nodes × (nodes − 1))
@@ -471,7 +501,7 @@ hub_ratio = max_degree / mean_degree
 "medium"    otherwise
 ```
 
-### Gate Thresholds
+### 7.2 Gate Thresholds
 
 | Class | ρ ≥ | F1 ≥ | SPOF-F1 ≥ | FTR ≤ | PG ≥ |
 |-------|:---:|:----:|:---------:|:-----:|:----:|
@@ -562,7 +592,7 @@ for CI gates guarding research claims.
 
 ## 10. CLI Reference
 
-### Subcommands
+### 10.1 Subcommands
 
 | Subcommand | Description |
 |-----------|-------------|
@@ -571,7 +601,7 @@ for CI gates guarding research claims.
 | `report` | Full sweep + per-seed detail + gate JSON output |
 | `compare` | Ablation study: topology-only vs. QoS-enriched |
 
-### Options
+### 10.2 Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -588,7 +618,7 @@ for CI gates guarding research claims.
 | `--verbose` | off | Print per-node Q(v)/I(v) scores ranked by Q |
 | `--no-color` | off | Disable ANSI colours in console output |
 
-### Examples
+### 10.3 Examples
 
 ```bash
 # ── Quick sanity check (topology-only, single seed) ──────────────────────────
@@ -773,7 +803,7 @@ This is the schema produced by the core `ValidationService` (`validate_layers()`
 }
 ```
 
-### CSV Output (`--csv` flag)
+### 11.1 CSV Output (`--csv` flag)
 
 When `--csv` is specified, a file `<output>_nodes.csv` is written with one row per node, ranked
 by Q(v) descending:
@@ -788,7 +818,7 @@ rank, node_id, node_type, Q, R, M, A, V, I, cascade_depth, nodes_affected, is_ar
 
 ## 12. Interpreting Results
 
-### ρ is high (≥ gate) but F1@K fails
+### 12.1 ρ is high (≥ gate) but F1@K fails
 
 The global rank ordering is correct, but the binary threshold for "critical" is misaligned.
 Check the distribution of Q(v) and I(v):
@@ -797,7 +827,7 @@ Check the distribution of Q(v) and I(v):
 - Consider increasing `--top-k` to use a larger critical set, or reviewing whether the gate
   threshold is appropriate for this system's size.
 
-### ρ is negative
+### 12.2 ρ is negative
 
 This is the **Inverse Criticality** effect, observed in mission-critical systems where the most
 central nodes are the most heavily hardened. High PageRank components have redundant publishers and
@@ -810,7 +840,7 @@ Possible causes:
   hubs; increase to `--cascade 10` or `--cascade 15`.
 - The `--qos` flag is off: PSPOF is zero, so sole-publisher nodes are not penalised.
 
-### PG ≤ 0 (RMAV no better than degree centrality)
+### 12.3 PG ≤ 0 (RMAV no better than degree centrality)
 
 RMAV is not adding value beyond the naïve baseline:
 - If the graph has very few Application nodes (< 10), the statistical test has high variance.
@@ -818,18 +848,18 @@ RMAV is not adding value beyond the naïve baseline:
   to 0 if the upstream analyzer did not run Step 2 first).
 - Run `--verbose` to inspect per-node Q(v) vs I(v) to identify systematic mispredictions.
 
-### Wilcoxon not significant with high ρ
+### 12.4 Wilcoxon not significant with high ρ
 
 This is expected when n < 10. The Wilcoxon test requires at least 10 nodes for reliable results. On
 small graphs, treat ρ as the primary evidence and Wilcoxon as inconclusive.
 
-### Strata show "constant signal" for Topics and Brokers
+### 12.5 Strata show "constant signal" for Topics and Brokers
 
 This is the expected and correct behaviour. Topics and Brokers do not generate cascade failures as
 *origin* nodes in the `FaultInjector` simulation — their impact accrues to connected Application
 nodes via Phase B orphaning. Constant I(v) = 0 for these types does not indicate a bug.
 
-### Large |ρ − τ| gap (> 0.15)
+### 12.6 Large |ρ − τ| gap (> 0.15)
 
 Agreement is driven by a small number of extreme outliers. Inspect the top 2–3 CRITICAL components:
 one may be a global hub with disproportionate cascade reach. This is not necessarily a failure — it
