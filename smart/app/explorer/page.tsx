@@ -15,7 +15,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { useConnection } from "@/lib/stores/connection-store"
 import { useAnalysis } from "@/lib/stores/analysis-store"
-import { apiClient, type ComponentExplanation } from "@/lib/api/client"
+import { apiClient } from "@/lib/api/client"
 import { ReactFlow, ReactFlowProvider, Background, BackgroundVariant, Handle, Position, getBezierPath, applyNodeChanges, useViewport, useReactFlow, MarkerType, type NodeProps, type EdgeProps, type NodeChange } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { cn } from "@/lib/utils"
@@ -2503,8 +2503,8 @@ const HierEChartsTree = memo(function HierEChartsTree({
 function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, syncKey = null, onNodeSelect, onSelectInfo, exportFnRef }: { hierarchy: Record<string, CsmsGroup>; extraNodes?: any[]; initialNodeId?: string | null; syncKey?: string | null; onNodeSelect?: (key: string) => void; onSelectInfo?: (pathKey: string, name: string, nodeType?: string) => void; exportFnRef?: React.MutableRefObject<(() => void) | null> }) {
   const { theme, systemTheme } = useTheme()
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
+  const textMuted = isDark ? "#71717a" : "#a1a1aa"
 
-  const [graphLegendVisible, setGraphLegendVisible] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const [dims, setDims] = useState({ width: 800, height: 580 })
@@ -2995,40 +2995,6 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 
   return (
     <div className="flex flex-col gap-3 h-full">
-      {/* ── Layer projection toggle strip ──────────────────────────────── */}
-      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/60 bg-muted/20 shrink-0 flex-wrap">
-        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mr-1">Layers</span>
-        {(["csms", "css", "csci", "csc", "app"] as HGLevel[]).map(lvl => {
-          const hidden = hiddenLevels.has(lvl)
-          const color = NODE_COLORS[lvl]
-          return (
-            <button
-              key={lvl}
-              onClick={() => toggleLevel(lvl)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-all duration-150 border"
-              style={{
-                borderColor: hidden ? 'rgba(100,100,100,0.3)' : `${color}55`,
-                backgroundColor: hidden ? 'transparent' : `${color}18`,
-                color: hidden ? 'rgba(100,100,100,0.5)' : color,
-                textDecoration: hidden ? 'line-through' : 'none',
-                opacity: hidden ? 0.5 : 1,
-              }}
-            >
-              {hidden ? <EyeOff className="h-2.5 w-2.5" /> : <Eye className="h-2.5 w-2.5" />}
-              {LEVEL_LABELS[lvl].split(' ')[0]}
-            </button>
-          )
-        })}
-        {hiddenLevels.size > 0 && (
-          <button
-            onClick={() => setHiddenLevels(new Set())}
-            className="text-[10px] text-muted-foreground hover:text-foreground ml-auto transition-colors"
-          >
-            Show all
-          </button>
-        )}
-      </div>
-
       {/* Main row */}
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Canvas — merged hierarchy + connections tree */}
@@ -3093,7 +3059,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
           />
 
           {/* Search overlay */}
-          <div className="absolute top-2 left-3 z-20 w-56">
+          <div className="absolute top-12 left-3 z-20 w-56">
             <div className="relative flex items-center">
               <Search className="absolute left-2 h-3 w-3 text-muted-foreground/50 pointer-events-none" />
               <Input
@@ -3134,62 +3100,84 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
             )}
           </div>
 
-          {/* Legend — matches Force Graph tab */}
-          <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2 text-xs pointer-events-auto">
-            <button
-              onClick={() => setGraphLegendVisible(!graphLegendVisible)}
-              className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-            >
-              <svg
-                width="14"
-                height="10"
-                viewBox="0 0 14 10"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ transform: graphLegendVisible ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 200ms", flexShrink: 0 }}
-                className="text-muted-foreground"
+          {/* Unified Legend — single horizontal line */}
+          <div className="absolute top-2 left-3 right-3 z-10 flex items-center gap-3 text-xs overflow-x-auto pointer-events-auto shrink-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground mr-1 font-medium">Levels:</span>
+              {(["csms", "css", "csci", "csc", "app"] as const).map(lvl => {
+                const hidden = hiddenLevels.has(lvl)
+                const color = NODE_COLORS[lvl]
+                return (
+                  <button
+                    key={lvl}
+                    onClick={() => toggleLevel(lvl)}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border transition-opacity shrink-0"
+                    style={{
+                      borderColor: color,
+                      color: hidden ? textMuted : color,
+                      opacity: hidden ? 0.4 : 1,
+                      background: hidden ? "transparent" : `${color}18`,
+                    }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+                    {LEVEL_LABELS[lvl].split(' ')[0]}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground mr-1 font-medium">Nodes:</span>
+              {(Object.entries(CONN_NODE_TYPE_COLORS_DARK) as [string, string][]).map(([t, color]) => {
+                const hidden = hiddenNodeTypes.has(t)
+                return (
+                  <button
+                    key={t}
+                    onClick={() => toggleNodeType(t)}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border transition-opacity shrink-0"
+                    style={{
+                      borderColor: color,
+                      color: hidden ? textMuted : color,
+                      opacity: hidden ? 0.4 : 1,
+                      background: hidden ? "transparent" : `${color}18`,
+                    }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+                    {t}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground mr-1 font-medium">Edges:</span>
+              {(Object.entries(CONN_LINK_TYPE_COLORS_DARK) as [string, string][])
+                .filter(([type]) => type !== "DEPENDS_ON" && type !== "CONNECTS_TO")
+                .map(([t, color]) => {
+                  const hidden = hiddenEdgeTypes.has(t)
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => toggleEdgeType(t)}
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border transition-opacity shrink-0"
+                      style={{
+                        borderColor: color,
+                        color: hidden ? textMuted : color,
+                        opacity: hidden ? 0.4 : 1,
+                        background: hidden ? "transparent" : `${color}18`,
+                      }}
+                    >
+                      <span className="w-3 h-px" style={{ background: color }} />
+                      {t.replace(/_/g, " ")}
+                    </button>
+                  )
+                })}
+            </div>
+            {hiddenLevels.size > 0 && (
+              <button
+                onClick={() => setHiddenLevels(new Set())}
+                className="text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0 ml-2"
               >
-                <polyline points="5 1 9 5 5 9" />
-              </svg>
-              <span className="font-medium text-muted-foreground">Legend</span>
-            </button>
-            {graphLegendVisible && (
-              <>
-                <span className="font-medium text-muted-foreground mb-0.5 mt-1">Hierarchy Nodes</span>
-                {(["csms", "css", "csci", "csc", "app"] as const).map(lvl => (
-                  <div key={lvl} className="flex items-center gap-2">
-                    <svg width="12" height="12" className="shrink-0">
-                      <circle cx="6" cy="6" r="5" fill={NODE_COLORS[lvl]} />
-                    </svg>
-                    <span style={{ color: isDark ? "#e4e4e7" : "#3f3f46" }}>{LEVEL_LABELS[lvl]}</span>
-                  </div>
-                ))}
-                <hr className="my-1 border-border" />
-                <span className="font-medium text-muted-foreground mb-0.5">Nodes</span>
-                {(Object.entries(CONN_NODE_TYPE_COLORS_DARK) as [string, string][]).map(([name, color]) => (
-                  <div key={name} className="flex items-center gap-2">
-                    <svg width="12" height="12" className="shrink-0">
-                      <circle cx="6" cy="6" r="5" fill={color} />
-                    </svg>
-                    <span style={{ color: isDark ? "#e4e4e7" : "#3f3f46" }}>{name}</span>
-                  </div>
-                ))}
-                <hr className="my-1 border-border" />
-                <span className="font-medium text-muted-foreground mb-0.5">Relationships</span>
-                {(Object.entries(CONN_LINK_TYPE_COLORS_DARK) as [string, string][])
-                  .filter(([type]) => type !== "DEPENDS_ON" && type !== "CONNECTS_TO")
-                  .map(([type, color]) => (
-                  <div key={type} className="flex items-center gap-2">
-                    <svg width="22" height="10" className="shrink-0">
-                      <line x1="0" y1="5" x2="22" y2="5" stroke={color} strokeWidth="2" />
-                    </svg>
-                    <span style={{ color: isDark ? "#e4e4e7" : "#3f3f46" }}>{type}</span>
-                  </div>
-                ))}
-              </>
+                Reset layers
+              </button>
             )}
           </div>
         </div>
@@ -4082,7 +4070,6 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
   selectedKey,
   onNodeClick,
   exportFnRef,
-  explanationMap,
 }: {
   nodesList: any[]
   appsList: any[]
@@ -4094,7 +4081,6 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
   selectedKey: string | null
   onNodeClick: (rawNode: any, nodeType: SwimlaneType) => void
   exportFnRef?: React.MutableRefObject<(() => void) | null>
-  explanationMap: Record<string, ComponentExplanation>
 }) {
   const { theme, systemTheme } = useTheme()
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
@@ -4287,8 +4273,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
             category: catIdx[type],
             symbolSize: sel ? nodeSizeConfig.selected : nodeSizeConfig.normal,
             itemStyle: (() => {
-              const exp = explanationMap?.[id]
-              const lvl = exp?.level?.toLowerCase() || n.criticality_level?.toLowerCase() || "minimal"
+              const lvl = n.criticality_level?.toLowerCase() || "minimal"
               const CRIT_COLORS: Record<string, string> = {
                 critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e', minimal: '#6b7280'
               }
@@ -4326,8 +4311,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
               return undefined
             })(),
             nodeType: type as string,
-            _exp: explanationMap?.[id],
-            _lvl: explanationMap?.[id]?.level?.toLowerCase() || n.criticality_level?.toLowerCase() || "minimal",
+            _lvl: n.criticality_level?.toLowerCase() || "minimal",
             ...(type === "Application" ? { _role: n.role ?? n.properties?.role ?? "", _priority: n.priority ?? n.properties?.priority ?? "", _hotstandby: n.hotstandby ?? n.properties?.hotstandby ?? false } : {}),
             ...(type === "Topic" ? {
               _qos_reliability:        n.qos_reliability            ?? n.properties?.qos_reliability            ?? "",
@@ -4429,7 +4413,6 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
             const d = p.data ?? {}
             const name = d.name ?? p.name ?? ""
             const type: string = d.nodeType ?? ""
-            const exp = d._exp as ComponentExplanation | undefined
             const lvl = d._lvl as string | undefined
 
             let html = `<div style="font-size:12px;line-height:1.7;max-width:260px">`
@@ -4444,26 +4427,17 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
               html += `<br/><span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:${col}20;color:${col};text-transform:uppercase">${lvl}</span>`
             }
 
-            if (exp) {
-              if (exp.pattern) html += `<br/><span style="font-size:11px">Pattern: <b>${exp.pattern}</b></span>`
-              if (exp.one_line) html += `<br/><span style="opacity:0.85;font-size:11px">${exp.one_line}</span>`
-              if (exp.priority_action) html += `<br/><span style="color:#60a5fa;font-size:10.5px">Action: ${exp.priority_action}</span>`
-              if (exp.anti_patterns && exp.anti_patterns.length > 0) {
-                html += `<br/><span style="opacity:0.5;font-size:9.5px">Anti-patterns: ${exp.anti_patterns.join(", ")}</span>`
-              }
-            } else {
-              let extra = ""
-              if (type === "Application" && d._role) extra += `<br/>Role: ${d._role}`
-              if (type === "Application" && d._priority) extra += `<br/>Priority: ${d._priority}`
-              if (type === "Topic") {
-                if (d._qos_reliability) extra += `<br/>Reliability: ${d._qos_reliability}`
-                if (d._qos_durability) extra += `<br/>Durability: ${d._qos_durability}`
-                if (d._qos_transport_priority) extra += `<br/>Transport: ${d._qos_transport_priority}`
-              }
-              if (type === "Library" && d._version) extra += `<br/>Version: ${d._version}`
-              if (type === "Broker" && d._broker_type) extra += `<br/>Protocol: ${d._broker_type}`
-              html += `<br/><span style="opacity:0.7;font-size:11px">${extra}</span>`
+            let extra = ""
+            if (type === "Application" && d._role) extra += `<br/>Role: ${d._role}`
+            if (type === "Application" && d._priority) extra += `<br/>Priority: ${d._priority}`
+            if (type === "Topic") {
+              if (d._qos_reliability) extra += `<br/>Reliability: ${d._qos_reliability}`
+              if (d._qos_durability) extra += `<br/>Durability: ${d._qos_durability}`
+              if (d._qos_transport_priority) extra += `<br/>Transport: ${d._qos_transport_priority}`
             }
+            if (type === "Library" && d._version) extra += `<br/>Version: ${d._version}`
+            if (type === "Broker" && d._broker_type) extra += `<br/>Protocol: ${d._broker_type}`
+            html += `<br/><span style="opacity:0.7;font-size:11px">${extra}</span>`
 
             html += `</div>`
             return html
@@ -4696,12 +4670,11 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
 interface NodeExplanationPanelProps {
   componentId: string
   componentName: string
-  explanation: ComponentExplanation | null
   componentAnalysis: any | null
 }
 
-function NodeExplanationPanel({ componentId, componentName, explanation, componentAnalysis }: NodeExplanationPanelProps) {
-  if (!componentAnalysis && !explanation) return null
+function NodeExplanationPanel({ componentId, componentName, componentAnalysis }: NodeExplanationPanelProps) {
+  if (!componentAnalysis) return null
 
   const CRIT_COLORS: Record<string, string> = {
     critical: 'bg-red-500/10 text-red-400 border-red-500/20',
@@ -4719,7 +4692,7 @@ function NodeExplanationPanel({ componentId, componentName, explanation, compone
     minimal: 'text-muted-foreground',
   }
 
-  const lvl = explanation?.level?.toLowerCase() || componentAnalysis?.criticality_level?.toLowerCase() || "minimal"
+  const lvl = componentAnalysis?.criticality_level?.toLowerCase() || "minimal"
   const scores = componentAnalysis?.scores
 
   return (
@@ -4734,21 +4707,13 @@ function NodeExplanationPanel({ componentId, componentName, explanation, compone
         </Badge>
       </div>
 
-      {explanation?.pattern && (
-        <div className="text-[9.5px] text-muted-foreground">
-          <span className="font-semibold text-foreground">Pattern: </span>
-          {explanation.pattern}
-        </div>
-      )}
-
       {scores && (
         <div className="space-y-1">
           <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider">RMAV Quality</div>
           {(['reliability', 'maintainability', 'availability', 'security'] as const).map(dim => {
             const val = scores[dim] ?? 0
             const pct = Math.round((1 - val) * 100)
-            const dimLvl = explanation?.dimensions?.[dim]?.level?.toLowerCase() || 
-                           (val >= 0.8 ? "critical" : val >= 0.6 ? "high" : val >= 0.4 ? "medium" : val >= 0.2 ? "low" : "minimal")
+            const dimLvl = val >= 0.8 ? "critical" : val >= 0.6 ? "high" : val >= 0.4 ? "medium" : val >= 0.2 ? "low" : "minimal"
             return (
               <div key={dim} className="space-y-0.5">
                 <div className="flex justify-between text-[8.5px]">
@@ -4770,28 +4735,6 @@ function NodeExplanationPanel({ componentId, componentName, explanation, compone
               </div>
             )
           })}
-        </div>
-      )}
-
-      {explanation?.priority_action && (
-        <div className="space-y-1 rounded border border-blue-500/10 bg-blue-500/[0.03] p-1">
-          <div className="flex items-center gap-1 text-[8.5px] font-semibold text-blue-400">
-            ⚡ Priority Action
-          </div>
-          <p className="text-[9px] text-blue-300/95 leading-relaxed">{explanation.priority_action}</p>
-        </div>
-      )}
-
-      {explanation?.anti_patterns && explanation.anti_patterns.length > 0 && (
-        <div className="space-y-1">
-          <div className="text-[8.5px] font-semibold text-muted-foreground uppercase tracking-wider">Anti-Patterns</div>
-          <div className="flex flex-wrap gap-1">
-            {explanation.anti_patterns.map(ap => (
-              <Badge key={ap} variant="outline" className="text-[8px] px-1 py-0 border-red-500/20 bg-red-500/5 text-red-400">
-                {ap}
-              </Badge>
-            ))}
-          </div>
         </div>
       )}
     </div>
@@ -4826,28 +4769,10 @@ function BrowserPageContent() {
   const layerLinksLoadedRef = useRef(false)
 
   // RMAV analysis-store hooks
-  const { cache: explanationsCache, getExplanation, setExplanations, explanations } = useAnalysis()
+  const { cache: explanationsCache } = useAnalysis()
   const systemAnalysis = explanationsCache['layer:system']
   const selectedId = (selectedNode?.payload as any)?.id ? String((selectedNode.payload as any).id) : null
   const componentAnalysis = systemAnalysis?.components?.find(c => c.id === selectedId)
-  const explanation = selectedId ? getExplanation(selectedId) : null
-
-  // Lazy load explanations on demand
-  useEffect(() => {
-    if (!selectedId || !isConnected) return
-    if (getExplanation(selectedId)) return // already cached
-
-    const compInAnalysis = systemAnalysis?.components?.find(c => c.id === selectedId)
-    if (!compInAnalysis) return
-
-    apiClient.explainComponents([selectedId])
-      .then(exps => {
-        if (exps && Object.keys(exps).length > 0) {
-          setExplanations(exps)
-        }
-      })
-      .catch(err => console.error("Failed to lazy-load explanation:", err))
-  }, [selectedId, isConnected, systemAnalysis, getExplanation, setExplanations])
 
   // Export-to-PNG refs — populated by child graph components
   const forceGraphExportRef = useRef<(() => void) | null>(null)
@@ -5367,14 +5292,12 @@ function BrowserPageContent() {
                       selectedKey={selectedNode?.key ?? null}
                       onNodeClick={handleLayersNodeClick}
                       exportFnRef={forceGraphExportRef}
-                      explanationMap={explanations}
                     />
                   </div>
                   <div className="w-64 shrink-0 border-l border-border flex flex-col overflow-hidden">
                     <NodeExplanationPanel
                       componentId={selectedId || ""}
                       componentName={selectedNode?.label || ""}
-                      explanation={explanation}
                       componentAnalysis={componentAnalysis}
                     />
                     <ConnectionsColumn

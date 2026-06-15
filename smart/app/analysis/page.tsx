@@ -56,7 +56,7 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "r
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { useConnection } from "@/lib/stores/connection-store"
 import { useAnalysis } from "@/lib/stores/analysis-store"
-import { apiClient, type ComponentExplanation } from "@/lib/api/client"
+import { apiClient } from "@/lib/api/client"
 import dynamic from "next/dynamic"
 import { TermTooltip } from "@/components/ui/term-tooltip"
 import { ScoreTooltip } from "@/components/ui/score-tooltip"
@@ -185,7 +185,6 @@ export default function AnalysisPage() {
 
   // Criticality graph: fetch topology + overlay RMAV scores for the graph view
   const [critGraphLinks, setCritGraphLinks] = useState<Array<{ source: string; target: string; type?: string }>>([])
-  const [critExplanations, setCritExplanations] = useState<Record<string, ComponentExplanation>>({})
   const [critGraphLoading, setCritGraphLoading] = useState(false)
   const critGraphFetchedRef = React.useRef(false)
   const lastAnalysisDataRef = React.useRef<any>(null)
@@ -197,21 +196,17 @@ export default function AnalysisPage() {
     }
   }, [analysisData])
 
-  // Fetch topology links + explanations for the CriticalityForceGraph when analysis data is available
+  // Fetch topology links for the CriticalityForceGraph when analysis data is available
   useEffect(() => {
     if (!analysisData || !isConnected || critGraphFetchedRef.current) return
     critGraphFetchedRef.current = true
     setCritGraphLoading(true)
-    Promise.all([
-      apiClient.getLimitedGraphData({ node_limit: 500, edge_limit: 1000 }).catch(() => ({ nodes: [], links: [] })),
-      apiClient.explainComponents([]).catch(() => ({})),
-    ]).then(([graphData, explanations]) => {
+    apiClient.getLimitedGraphData({ node_limit: 500, edge_limit: 1000 }).catch(() => ({ nodes: [], links: [] })).then((graphData) => {
       setCritGraphLinks(((graphData as any).links ?? []).map((e: any) => ({
         source: String(e.source ?? e.from ?? ''),
         target: String(e.target ?? e.to ?? ''),
         type: e.type ?? '',
       })))
-      setCritExplanations(explanations as Record<string, ComponentExplanation>)
     }).finally(() => setCritGraphLoading(false))
   }, [analysisData, isConnected])
 
@@ -1594,9 +1589,7 @@ export default function AnalysisPage() {
                       }
                       const nodes = analysisData.components.map(c => {
                         const lvl = (c.criticality_level ?? 'minimal').toLowerCase()
-                        const exp = critExplanations[c.id]
-                        const effLvl = (exp?.level ?? lvl).toLowerCase()
-                        const lvlColor = CRIT_COLORS[effLvl] ?? '#6b7280'
+                        const lvlColor = CRIT_COLORS[lvl] ?? '#6b7280'
                         const riskPct = c.scores.overall ?? 0
 
                         return {
@@ -1605,13 +1598,12 @@ export default function AnalysisPage() {
                           symbolSize: 12 + riskPct * 28,
                           itemStyle: {
                             color: lvlColor,
-                            borderWidth: effLvl === 'critical' ? 2 : 0,
-                            borderColor: effLvl === 'critical' ? '#ffffff' : undefined,
-                            shadowBlur: effLvl === 'critical' ? 10 : 4,
+                            borderWidth: lvl === 'critical' ? 2 : 0,
+                            borderColor: lvl === 'critical' ? '#ffffff' : undefined,
+                            shadowBlur: lvl === 'critical' ? 10 : 4,
                             shadowColor: lvlColor + '88',
                           },
-                          _exp: exp,
-                          _lvl: effLvl,
+                          _lvl: lvl,
                         }
                       })
                       const nodeIds = new Set(nodes.map(n => n.id))
@@ -1636,12 +1628,10 @@ export default function AnalysisPage() {
                             const d = p.data
                             const c = analysisData.components.find((comp: any) => comp.id === d.id)
                             if (!c) return `<b>${d.name}</b>`
-                            const exp = d._exp as ComponentExplanation | undefined
                             const lvlColor = CRIT_COLORS[d._lvl] ?? '#6b7280'
                             let html = `<div style="font-size:12px;line-height:1.7;max-width:260px">`
                             html += `<b>${d.name}</b>`
                             html += `<br/><span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:${lvlColor}22;color:${lvlColor};text-transform:uppercase">${d._lvl}</span>`
-                            if (exp?.one_line) html += `<br/><span style="opacity:0.7;font-size:11px">${exp.one_line}</span>`
                             html += `<br/><span style="opacity:0.6;font-size:10px">R: ${((1 - c.scores.reliability) * 100).toFixed(0)}% · M: ${((1 - c.scores.maintainability) * 100).toFixed(0)}% · A: ${((1 - c.scores.availability) * 100).toFixed(0)}% · V: ${((1 - c.scores.security) * 100).toFixed(0)}%</span>`
                             html += `</div>`
                             return html

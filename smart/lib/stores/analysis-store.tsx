@@ -1,7 +1,6 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { ComponentExplanation } from '@/lib/api/client'
 
 interface ComponentAnalysis {
   id: string
@@ -63,7 +62,6 @@ interface AnalysisResult {
 
 interface AnalysisState {
   cache: Record<string, AnalysisResult>
-  explanations: Record<string, ComponentExplanation>
 }
 
 interface AnalysisContextType extends AnalysisState {
@@ -71,8 +69,6 @@ interface AnalysisContextType extends AnalysisState {
   getAnalysis: (key: string) => AnalysisResult | null
   clearAnalysis: (key?: string) => void
   clearAll: () => void
-  setExplanations: (exps: Record<string, ComponentExplanation>) => void
-  getExplanation: (id: string) => ComponentExplanation | null
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined)
@@ -162,8 +158,7 @@ const loadFromStorage = (): Record<string, AnalysisResult> => {
 
 export function AnalysisProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AnalysisState>({
-    cache: {},
-    explanations: {}
+    cache: {}
   })
 
   // Load from localStorage on mount (client-only — window is unavailable during SSR)
@@ -200,28 +195,16 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
       })
     } else {
       // Clear all
-      setState({ cache: {}, explanations: {} })
+      setState({ cache: {} })
+      const storage = getStorage()
       if (storage) storage.removeItem(STORAGE_KEY)
     }
   }
 
   const clearAll = () => {
-    setState({ cache: {}, explanations: {} })
+    setState({ cache: {} })
+    const storage = getStorage()
     if (storage) storage.removeItem(STORAGE_KEY)
-  }
-
-  const setExplanations = (exps: Record<string, ComponentExplanation>) => {
-    setState(prev => ({
-      ...prev,
-      explanations: {
-        ...prev.explanations,
-        ...exps
-      }
-    }))
-  }
-
-  const getExplanation = (id: string): ComponentExplanation | null => {
-    return state.explanations[id] || null
   }
 
   return (
@@ -231,9 +214,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         setAnalysis,
         getAnalysis,
         clearAnalysis,
-        clearAll,
-        setExplanations,
-        getExplanation
+        clearAll
       }}
     >
       {children}
