@@ -76,21 +76,21 @@ def build_analysis_response(
 
     summary = {
         "total_components": len(all_components),
-        "critical_count": sum(1 for c in all_components if c.criticality_level == "critical"),
-        "high_count": sum(1 for c in all_components if c.criticality_level == "high"),
+        "critical_count": sum(1 for c in all_components if (c.criticality_level or "").lower() == "critical"),
+        "high_count": sum(1 for c in all_components if (c.criticality_level or "").lower() == "high"),
         "total_problems": len(problems),
         "critical_problems": sum(
             1 for p in problems
             if (p.severity == "CRITICAL" or (hasattr(p.severity, 'value') and p.severity.value == "CRITICAL"))
         ),
         "components": {
-            level: sum(1 for c in all_components if c.criticality_level == level)
+            level: sum(1 for c in all_components if (c.criticality_level or "").lower() == level)
             for level in ["critical", "high", "medium", "low", "minimal"]
         },
         "edges": {
             level: sum(
                 1 for e in quality_edges
-                if (e.level.value if hasattr(e.level, 'value') else str(e.level)) == level
+                if ((e.level.value if hasattr(e.level, 'value') else str(e.level)) or "").lower() == level
             )
             for level in ["critical", "high", "medium", "low", "minimal"]
         },

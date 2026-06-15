@@ -344,7 +344,7 @@ export default function AnalysisPage() {
   const getCriticalEdges = () => {
     if (!analysisData?.edges) return []
     return analysisData.edges
-      .filter(e => e.criticality_level === 'critical' || e.criticality_level === 'high')
+      .filter(e => (e.criticality_level || '').toLowerCase() === 'critical' || (e.criticality_level || '').toLowerCase() === 'high')
       .sort((a, b) => b.scores.overall - a.scores.overall)
   }
 
@@ -437,7 +437,7 @@ export default function AnalysisPage() {
   const allCriticalComponents = useMemo(() => {
     let comps = getCriticalComponents()
     if (compTypeFilter !== 'all') comps = comps.filter(c => c.type === compTypeFilter)
-    if (compLevelFilter !== 'all') comps = comps.filter(c => c.criticality_level === compLevelFilter)
+    if (compLevelFilter !== 'all') comps = comps.filter(c => (c.criticality_level || '').toLowerCase() === compLevelFilter)
     if (compSearchQuery.trim()) {
       const q = compSearchQuery.toLowerCase()
       comps = comps.filter(c => (c.name || c.id).toLowerCase().includes(q) || c.type.toLowerCase().includes(q))
@@ -453,7 +453,7 @@ export default function AnalysisPage() {
   const availableCompLevels = useMemo(() => {
     const order = ['critical', 'high', 'medium', 'low', 'minimal']
     if (!analysisData?.components) return []
-    const present = new Set(analysisData.components.map((c: any) => c.criticality_level))
+    const present = new Set(analysisData.components.map((c: any) => (c.criticality_level || '').toLowerCase()))
     return order.filter(l => present.has(l))
   }, [analysisData?.components])
 
@@ -1147,7 +1147,7 @@ export default function AnalysisPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mr-1">Level</span>
                   {['all', ...availableCompLevels].map(l => {
-                    const count = l === 'all' ? (analysisData?.components?.length ?? 0) : (analysisData?.components?.filter((c: any) => c.criticality_level === l).length ?? 0)
+                    const count = l === 'all' ? (analysisData?.components?.length ?? 0) : (analysisData?.components?.filter((c: any) => (c.criticality_level || '').toLowerCase() === l).length ?? 0)
                     const active = compLevelFilter === l
                     const colors: Record<string, string> = { critical: 'bg-red-500 text-white', high: 'bg-orange-500 text-white', medium: 'bg-yellow-500 text-white', low: 'bg-green-500 text-white', minimal: 'bg-slate-500 text-white' }
                     return (

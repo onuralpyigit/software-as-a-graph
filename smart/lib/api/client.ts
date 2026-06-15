@@ -242,9 +242,9 @@ class GraphAnalysisAPI {
           // Check dimension-specific criticality if available, otherwise fall back to overall
           if (c.criticality_levels) {
             const level = c.criticality_levels[attr as keyof typeof c.criticality_levels];
-            return level === 'critical' || level === 'high';
+            return (level || '').toLowerCase() === 'critical' || (level || '').toLowerCase() === 'high';
           }
-          return c.criticality_level === 'critical' || c.criticality_level === 'high';
+          return (c.criticality_level || '').toLowerCase() === 'critical' || (c.criticality_level || '').toLowerCase() === 'high';
         })
         .map(c => ({
           id: c.id,
@@ -346,9 +346,9 @@ class GraphAnalysisAPI {
         // Check reliability-specific criticality if available
         if (c.criticality_levels) {
           const level = c.criticality_levels.reliability;
-          return level === 'critical' || level === 'high';
+          return (level || '').toLowerCase() === 'critical' || (level || '').toLowerCase() === 'high';
         }
-        return c.criticality_level === 'critical' || c.criticality_level === 'high';
+        return (c.criticality_level || '').toLowerCase() === 'critical' || (c.criticality_level || '').toLowerCase() === 'high';
       })
       .map(c => ({
         id: c.id,
@@ -422,9 +422,9 @@ class GraphAnalysisAPI {
         // Check maintainability-specific criticality if available
         if (c.criticality_levels) {
           const level = c.criticality_levels.maintainability;
-          return level === 'critical' || level === 'high';
+          return (level || '').toLowerCase() === 'critical' || (level || '').toLowerCase() === 'high';
         }
-        return c.criticality_level === 'critical' || c.criticality_level === 'high';
+        return (c.criticality_level || '').toLowerCase() === 'critical' || (c.criticality_level || '').toLowerCase() === 'high';
       })
       .map(c => ({
         id: c.id,
@@ -498,9 +498,9 @@ class GraphAnalysisAPI {
         // Check availability-specific criticality if available
         if (c.criticality_levels) {
           const level = c.criticality_levels.availability;
-          return level === 'critical' || level === 'high';
+          return (level || '').toLowerCase() === 'critical' || (level || '').toLowerCase() === 'high';
         }
-        return c.criticality_level === 'critical' || c.criticality_level === 'high';
+        return (c.criticality_level || '').toLowerCase() === 'critical' || (c.criticality_level || '').toLowerCase() === 'high';
       })
       .map(c => ({
         id: c.id,
