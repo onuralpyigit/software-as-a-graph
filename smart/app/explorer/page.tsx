@@ -2769,13 +2769,11 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     return () => { ro.disconnect(); if (rafId) cancelAnimationFrame(rafId) }
   }, [])
 
-  // Reset scenario and filters when the selected node changes
+  // Reset scenario when the selected node changes
   useEffect(() => {
     if (!selectedApp) return
     const scenarios = getScenariosForType(selectedApp.nodeType ?? "Application")
     setConnScenario(scenarios[0].id)
-    setHiddenNodeTypes(new Set())
-    setHiddenEdgeTypes(new Set())
   }, [selectedApp?.pathKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch connections whenever selected app or scenario changes
