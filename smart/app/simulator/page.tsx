@@ -130,6 +130,7 @@ export default function TrafficSimulatorPage() {
   const [failureResult, setFailureResult] = useState<FailureResult | null>(null)
   const [failureLoading, setFailureLoading] = useState(false)
   const [failureError, setFailureError] = useState<string | null>(null)
+  const [cascadedSearch, setCascadedSearch] = useState<string>("")
 
   // ------------------------------------------------------------------
   // Effects
@@ -236,6 +237,11 @@ export default function TrafficSimulatorPage() {
   function getComponentName(id: string): string {
     const comp = components.find(c => c.id === id)
     return comp ? comp.name : id
+  }
+
+  function getComponentType(id: string): string {
+    const comp = components.find(c => c.id === id)
+    return comp ? comp.type : "Unknown"
   }
 
   function getImpactColor(impact: number): string {
@@ -476,10 +482,10 @@ export default function TrafficSimulatorPage() {
       <div className="space-y-6">
 
         {/* ── Simulation Mode Toggle ──────────────────────────────── */}
-        <div className="flex items-center gap-3 p-1 bg-muted rounded-lg w-fit">
+        <div className="flex items-center gap-3 p-1 bg-black border border-zinc-800 rounded-lg w-fit">
           <button
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              simMode === "traffic" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              simMode === "traffic" ? "bg-zinc-800 shadow-sm text-white" : "text-zinc-400 hover:text-white"
             }`}
             onClick={() => setSimMode("traffic")}
           >
@@ -488,7 +494,7 @@ export default function TrafficSimulatorPage() {
           </button>
           <button
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              simMode === "failure" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              simMode === "failure" ? "bg-zinc-800 shadow-sm text-white" : "text-zinc-400 hover:text-white"
             }`}
             onClick={() => setSimMode("failure")}
           >
@@ -1333,7 +1339,7 @@ export default function TrafficSimulatorPage() {
         </div>
 
         {/* ── Results ─────────────────────────────────────────────── */}
-        {result && (() => {
+        {simMode === "traffic" && result && (() => {
           const usedMbps = result.summary.total_network_mbps
           const utilPct = Math.min((usedMbps / networkCapacityMbps) * 100, 100)
           const gaugeColor = utilPct > 85 ? "#ef4444" : utilPct > 60 ? "#f97316" : "#22c55e"
@@ -1474,7 +1480,21 @@ export default function TrafficSimulatorPage() {
         })()}
 
         {/* ── Failure Simulation Results ──────────────────────────── */}
-        {simMode === "failure" && failureResult && (
+        {simMode === "failure" && failureResult && (() => {
+          const impactScore = failureResult.impact.composite_impact || 0;
+          const gaugePct = Math.min(impactScore * 100, 100);
+          const gaugeColor = impactScore > 0.5 ? "#ef4444" : impactScore > 0.25 ? "#f97316" : "#22c55e";
+
+          const cascadeTypes = Object.keys(failureResult.impact.cascade?.by_type || {});
+          const cascadeValues = Object.values(failureResult.impact.cascade?.by_type || {});
+
+          const layerKeys = Object.keys(failureResult.layer_impacts || {});
+          const layerValues = Object.values(failureResult.layer_impacts || {}).map((v: number) => parseFloat((v * 100).toFixed(1)));
+          const sortedLayers = layerKeys.map((k, i) => ({ key: k, value: layerValues[i] })).sort((a, b) => b.value - a.value);
+          const layerNames = sortedLayers.map(l => l.key.charAt(0).toUpperCase() + l.key.slice(1));
+          const layerData = sortedLayers.map(l => l.value);
+
+          return (
           <Card className="border-border bg-background">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between flex-wrap gap-3">
@@ -1491,97 +1511,177 @@ export default function TrafficSimulatorPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Top Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                    Composite Impact
-                    <TermTooltip description="Overall ground-truth impact of removing this component" iconOnly side="top" />
-                  </div>
-                  <div className={`text-2xl font-bold ${getImpactColor(failureResult.impact.composite_impact || 0)}`}>
-                    {(failureResult.impact.composite_impact || 0).toFixed(3)}
+              {/* Gauge + summary stats */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                {/* Gauge */}
+                <div className="flex flex-col items-center">
+                  <ReactECharts
+                    option={{
+                      series: [{
+                        type: "gauge",
+                        startAngle: 210,
+                        endAngle: -30,
+                        min: 0,
+                        max: 100,
+                        radius: "85%",
+                        progress: { show: true, width: 14, itemStyle: { color: gaugeColor } },
+                        axisLine: { lineStyle: { width: 14, color: [[1, "#27272a"]] } },
+                        axisTick: { show: false },
+                        splitLine: { show: false },
+                        axisLabel: { show: false },
+                        pointer: { show: false },
+                        detail: {
+                          valueAnimation: true,
+                          formatter: (v: number) => v.toFixed(1),
+                          color: gaugeColor,
+                          fontSize: 22,
+                          fontWeight: "bold",
+                          offsetCenter: [0, "10%"],
+                        },
+                        title: { show: true, offsetCenter: [0, "38%"], fontSize: 12, color: "#71717a" },
+                        data: [{ value: parseFloat(gaugePct.toFixed(1)), name: "Composite Impact" }],
+                      }],
+                      backgroundColor: "transparent",
+                    }}
+                    style={{ height: 200, width: "100%" }}
+                  />
+                  <div className="text-center -mt-4">
+                    <div className={`text-lg font-bold ${getImpactColor(impactScore)}`}>
+                      {impactScore.toFixed(3)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">normalized impact score</div>
                   </div>
                 </div>
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                    Reachability Loss
-                    <TermTooltip description="Percentage of broken pub-sub paths" iconOnly side="top" />
-                  </div>
-                  <div className="text-2xl font-bold text-red-500">
-                    {parseFloat((failureResult.impact.reachability?.loss_percent || 0).toFixed(1))}%
-                  </div>
-                </div>
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                    Throughput Loss
-                    <TermTooltip description="QoS-weighted reduction in message delivery capacity" iconOnly side="top" />
-                  </div>
-                  <div className="text-2xl font-bold text-orange-500">
-                    {parseFloat((failureResult.impact.throughput?.loss_percent || 0).toFixed(1))}%
-                  </div>
-                </div>
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                    Cascade Count
-                    <TermTooltip description="Number of additional components affected by the failure" iconOnly side="top" />
-                  </div>
-                  <div className="text-2xl font-bold text-yellow-500">
-                    {failureResult.impact.cascade?.count || 0}
-                  </div>
+
+                {/* Stats */}
+                <div className="sm:col-span-2 grid grid-cols-2 gap-3">
+                  {[
+                    { label: "Reachability Loss", value: `${(failureResult.impact.reachability?.loss_percent || 0).toFixed(1)}%`, tip: "Percentage of broken pub-sub paths due to this failure." },
+                    { label: "Throughput Loss", value: `${(failureResult.impact.throughput?.loss_percent || 0).toFixed(1)}%`, tip: "QoS-weighted reduction in message delivery capacity." },
+                    { label: "Flow Disruption", value: `${(failureResult.impact.flow_disruption?.loss_percent || 0).toFixed(1)}%`, tip: "Percentage of data flow paths disrupted by this failure." },
+                    { label: "Cascade Count", value: `${failureResult.impact.cascade?.count || 0}`, tip: "Number of additional components affected by the cascading failure." },
+                    { label: "Max Cascade Depth", value: `${failureResult.impact.cascade?.depth || 0}`, tip: "Longest chain of dependent failures triggered by this component." },
+                    { label: "Topics Affected", value: `${failureResult.impact.affected?.topics || 0}`, tip: "Number of pub/sub topics that lose connectivity or capacity." },
+                    { label: "Publishers Affected", value: `${failureResult.impact.affected?.publishers || 0}`, tip: "Number of publisher applications disconnected or degraded." },
+                    { label: "Subscribers Affected", value: `${failureResult.impact.affected?.subscribers || 0}`, tip: "Number of subscriber applications disconnected or degraded." },
+                  ].map(({ label, value, tip }) => (
+                    <div key={label} className="rounded-md border border-border bg-muted/30 px-3 py-2">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        {label}
+                        <TermTooltip description={tip} iconOnly side="top" />
+                      </div>
+                      <div className="text-sm font-semibold mt-0.5">{value}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Cascade Details */}
-              {failureResult.impact.cascade?.by_type && Object.keys(failureResult.impact.cascade.by_type).length > 0 && (
+              {/* Cascade by Component Type */}
+              {cascadeTypes.length > 0 && (
                 <div>
-                  <div className="text-xs font-medium text-muted-foreground mb-2">Cascade by Component Type</div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {Object.entries(failureResult.impact.cascade.by_type).map(([type, count]) => (
-                      <div key={type} className="rounded-md border border-border bg-muted/30 px-3 py-2">
-                        <div className="text-xs text-muted-foreground">{type}</div>
-                        <div className="text-lg font-semibold">{count}</div>
-                      </div>
-                    ))}
-                  </div>
+                  <div className="text-xs font-medium text-muted-foreground mb-2">Cascaded Failures by Component Type</div>
+                  <ReactECharts
+                    option={{
+                      tooltip: { trigger: "axis", formatter: (p: any) => `${p[0].name}<br/>${p[0].value} components` },
+                      grid: { top: 8, bottom: 40, left: 12, right: 12, containLabel: true },
+                      xAxis: { type: "category", data: cascadeTypes, axisLabel: { fontSize: 11, color: "#a1a1aa", rotate: cascadeTypes.length > 5 ? 30 : 0 } },
+                      yAxis: { type: "value", name: "Count", nameTextStyle: { color: "#a1a1aa", fontSize: 11 }, axisLabel: { color: "#a1a1aa", fontSize: 11 } },
+                      series: [{ type: "bar", data: cascadeValues, itemStyle: { color: "#ef4444", borderRadius: [3, 3, 0, 0] } }],
+                      backgroundColor: "transparent",
+                    }}
+                    style={{ height: 200, width: "100%" }}
+                  />
                 </div>
               )}
 
-              {/* Layer Impacts */}
-              {failureResult.layer_impacts && Object.keys(failureResult.layer_impacts).length > 0 && (
+              {/* Impact by Layer */}
+              {layerKeys.length > 0 && (
                 <div>
-                  <div className="text-xs font-medium text-muted-foreground mb-2">Impact by Layer</div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {Object.entries(failureResult.layer_impacts)
-                      .sort(([, a], [, b]) => b - a)
-                      .map(([layer, impact]) => (
-                        <div key={layer} className="rounded-md border border-border bg-muted/30 px-3 py-2">
-                          <div className="text-xs text-muted-foreground capitalize">{layer}</div>
-                          <div className="text-lg font-semibold">{(impact * 100).toFixed(1)}%</div>
-                        </div>
-                      ))}
-                  </div>
+                  <div className="text-xs font-medium text-muted-foreground mb-2">Impact by Architectural Layer</div>
+                  <ReactECharts
+                    option={{
+                      tooltip: { trigger: "axis", formatter: (p: any) => `${p[0].name}<br/>${p[0].value}% impact` },
+                      grid: { top: 8, bottom: 8, left: 70, right: 12, containLabel: true },
+                      xAxis: { type: "value", name: "Impact %", nameTextStyle: { color: "#a1a1aa", fontSize: 11 }, axisLabel: { color: "#a1a1aa", fontSize: 11 } },
+                      yAxis: { type: "category", data: layerNames, axisLabel: { fontSize: 11, color: "#a1a1aa" } },
+                      series: [{ 
+                        type: "bar", 
+                        data: layerData, 
+                        itemStyle: { color: "#f97316", borderRadius: [0, 3, 3, 0] } 
+                      }],
+                      backgroundColor: "transparent",
+                    }}
+                    style={{ height: Math.max(150, layerNames.length * 40), width: "100%" }}
+                  />
                 </div>
               )}
 
               {/* Cascaded Failures List */}
-              {failureResult.cascaded_failures && failureResult.cascaded_failures.length > 0 && (
+              {failureResult.cascaded_failures && failureResult.cascaded_failures.length > 0 && (() => {
+                const filteredCascaded = failureResult.cascaded_failures.filter(id => {
+                  const name = getComponentName(id).toLowerCase()
+                  const type = getComponentType(id).toLowerCase()
+                  const searchLower = cascadedSearch.toLowerCase()
+                  return name.includes(searchLower) || type.includes(searchLower) || id.toLowerCase().includes(searchLower)
+                })
+                const getTypeColor = (type: string) => {
+                  const t = type.toLowerCase()
+                  if (t.includes("app")) return "border-blue-500/40 text-blue-600 dark:text-blue-400 bg-blue-500/5"
+                  if (t.includes("broker")) return "border-purple-500/40 text-purple-600 dark:text-purple-400 bg-purple-500/5"
+                  if (t.includes("host") || t.includes("node") || t.includes("system")) return "border-green-500/40 text-green-600 dark:text-green-400 bg-green-500/5"
+                  return "border-gray-500/40 text-gray-600 dark:text-gray-400 bg-gray-500/5"
+                }
+
+                return (
                 <div>
-                  <div className="text-xs font-medium text-muted-foreground mb-2">
-                    Cascaded Failures ({failureResult.cascaded_failures.length})
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs font-medium text-muted-foreground">
+                      Detailed Cascaded Failures ({filteredCascaded.length}{failureResult.cascaded_failures.length > filteredCascaded.length ? ` / ${failureResult.cascaded_failures.length}` : ''})
+                    </div>
+                    <div className="relative w-48">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                      <Input 
+                        placeholder="Search failures..." 
+                        value={cascadedSearch} 
+                        onChange={e => setCascadedSearch(e.target.value)}
+                        className="h-7 pl-7 text-xs"
+                      />
+                      {cascadedSearch && (
+                        <button
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          onClick={() => setCascadedSearch("")}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="max-h-48 overflow-y-auto rounded-md border border-border bg-muted/30 p-3 space-y-1">
-                    {failureResult.cascaded_failures.map((id) => (
-                      <div key={id} className="text-sm flex items-center justify-between">
-                        <span className="font-mono text-xs">{id}</span>
-                        <span className="text-xs text-muted-foreground">{getComponentName(id)}</span>
-                      </div>
-                    ))}
+                  <div className="max-h-64 overflow-y-auto rounded-md border border-border bg-muted/30 p-2 space-y-1.5">
+                    {filteredCascaded.length === 0 ? (
+                      <div className="text-xs text-muted-foreground text-center py-4">No matching failures found.</div>
+                    ) : (
+                      filteredCascaded.map((id) => {
+                        const type = getComponentType(id)
+                        const name = getComponentName(id)
+                        return (
+                          <div key={id} className="flex items-center gap-2 p-2 rounded-md bg-background/50 border border-border/50 hover:border-border transition-colors">
+                            <Badge variant="outline" className={`text-[10px] h-5 px-1.5 font-mono uppercase shrink-0 ${getTypeColor(type)}`}>
+                              {type}
+                            </Badge>
+                            <span className="flex-1 text-sm font-medium truncate" title={name}>{name}</span>
+                            <span className="text-xs text-muted-foreground font-mono truncate max-w-[120px]" title={id}>{id}</span>
+                          </div>
+                        )
+                      })
+                    )}
                   </div>
                 </div>
-              )}
+                )
+              })()}
             </CardContent>
           </Card>
-        )}
+          );
+        })()}
       </div>
     </AppLayout>
   )
