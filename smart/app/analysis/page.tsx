@@ -1592,10 +1592,15 @@ export default function AnalysisPage() {
                         const lvlColor = CRIT_COLORS[lvl] ?? '#6b7280'
                         const riskPct = c.scores.overall ?? 0
 
+                        const r = 250 * Math.sqrt(Math.random())
+                        const theta = Math.random() * 2 * Math.PI
+
                         return {
                           id: c.id,
                           name: c.name ?? c.id,
-                          symbolSize: 12 + riskPct * 28,
+                          x: 500 + r * Math.cos(theta),
+                          y: 300 + r * Math.sin(theta),
+                          symbolSize: 6 + riskPct * 14,
                           itemStyle: {
                             color: lvlColor,
                             borderWidth: lvl === 'critical' ? 2 : 0,
@@ -1613,7 +1618,7 @@ export default function AnalysisPage() {
                         .map(l => ({
                           source: l.source,
                           target: l.target,
-                          lineStyle: { opacity: 0.25, width: 0.8, color: isDark ? '#4b5563' : '#d1d5db' },
+                          lineStyle: { opacity: 0.25, width: 1.5, color: isDark ? '#4b5563' : '#d1d5db' }
                         }))
                       return {
                         backgroundColor: 'transparent',
@@ -1639,23 +1644,20 @@ export default function AnalysisPage() {
                         },
                         series: [{
                           type: 'graph',
-                          layout: 'force',
+                          layout: 'none',
                           data: nodes,
                           links,
                           roam: true,
-                          force: {
-                            repulsion: 200,
-                            gravity: 0.1,
-                            edgeLength: [60, 150],
-                            friction: 0.95,
-                            layoutAnimation: false,
-                            initLayout: 'circular',
-                            iterations: 40,
-                          },
                           label: { show: false },
                           emphasis: {
-                            label: { show: true, formatter: '{b}', fontSize: 11, color: isDark ? '#fff' : '#000' },
+                            focus: 'adjacency',
+                            label: { show: false },
                             itemStyle: { borderWidth: 3, borderColor: '#fff' },
+                            lineStyle: { width: 3, opacity: 1 },
+                          },
+                          blur: {
+                            itemStyle: { opacity: 0.1 },
+                            lineStyle: { opacity: 0.05, width: 0.5 },
                           },
                         }],
                       }
