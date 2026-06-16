@@ -2348,7 +2348,6 @@ const HierEChartsTree = memo(function HierEChartsTree({
   isDark: boolean
   onNodeClick?: (level: HGLevel, pathKey: string, name: string) => void
 }) {
-  const [legendVisible, setLegendVisible] = useState(true)
   const treeData = useMemo(() => buildEChartsTree(hierarchy), [hierarchy])
 
   const option = useMemo(() => ({
@@ -2447,38 +2446,15 @@ const HierEChartsTree = memo(function HierEChartsTree({
         color: isDark ? "#94a3b8" : "#64748b",
         pointerEvents: "auto",
       }}>
-        <button
-          onClick={() => setLegendVisible(!legendVisible)}
-          style={{
-            background: "none", border: "none", padding: 0, cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 4, color: "inherit", fontSize: "inherit",
-          }}
-        >
-          <svg
-            width="14"
-            height="10"
-            viewBox="0 0 14 10"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ transform: legendVisible ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 200ms", flexShrink: 0 }}
-          >
-            <polyline points="5 1 9 5 5 9" />
-          </svg>
-          <span style={{ fontWeight: 600 }}>Legend</span>
-        </button>
-        {legendVisible && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 14px" }}>
-            {(["csms", "css", "csci", "csc", "app"] as const).map(lvl => (
-              <span key={lvl} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: NODE_COLORS[lvl], flexShrink: 0 }} />
-                {LEVEL_LABELS[lvl]}
-              </span>
-            ))}
-          </div>
-        )}
+        <span style={{ fontWeight: 600, marginBottom: 2, display: "block" }}>Legend</span>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 14px" }}>
+          {(["csms", "css", "csci", "csc", "app"] as const).map(lvl => (
+            <span key={lvl} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: NODE_COLORS[lvl], flexShrink: 0 }} />
+              {LEVEL_LABELS[lvl]}
+            </span>
+          ))}
+        </div>
       </div>
       {/* Hint */}
       <div style={{
@@ -2524,13 +2500,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 
   const isSyncingRef = useRef(false)
 
-  const [hiddenLevels, setHiddenLevels] = useState<Set<HGLevel>>(new Set())
-  const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set())
-  const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<string>>(new Set())
 
-  const toggleLevel = (lvl: HGLevel) => setHiddenLevels(prev => { const s = new Set(prev); s.has(lvl) ? s.delete(lvl) : s.add(lvl); return s })
-  const toggleNodeType = (t: string) => setHiddenNodeTypes(prev => { const s = new Set(prev); s.has(t) ? s.delete(t) : s.add(t); return s })
-  const toggleEdgeType = (t: string) => setHiddenEdgeTypes(prev => { const s = new Set(prev); s.has(t) ? s.delete(t) : s.add(t); return s })
 
   const [selectedLink, setSelectedLink] = useState<{ link: any; x: number; y: number } | null>(null)
 
@@ -2646,14 +2616,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 
   const graphData = useMemo(() => buildDrillData(hierarchy, drillNode), [hierarchy, drillNode])
 
-  const filteredGraphData = useMemo(() => {
-    if (hiddenLevels.size === 0) return graphData
-    const hiddenIds = new Set(graphData.nodes.filter(n => hiddenLevels.has(n.level)).map(n => n.id))
-    return {
-      nodes: graphData.nodes.filter(n => !hiddenLevels.has(n.level)),
-      links: graphData.links.filter(l => !hiddenIds.has((l.source as any)?.id ?? l.source) && !hiddenIds.has((l.target as any)?.id ?? l.target)),
-    }
-  }, [graphData, hiddenLevels])
+  const filteredGraphData = useMemo(() => graphData, [graphData])
 
   const connGraphData = useMemo(() => {
     if (!connData) return { nodes: [], links: [] }
@@ -2670,10 +2633,8 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
       const allowedSet = new Set(activeScenario.allowedEdgeTypes)
       links = links.filter(l => allowedSet.has(l.type))
     }
-    // 2. Manual edge type hide overlay
-    if (hiddenEdgeTypes.size > 0) links = links.filter(l => !hiddenEdgeTypes.has(l.type))
 
-    // 3. Strict BFS hop-by-hop reachability (prevents transitive leakage)
+    // 2. Strict BFS hop-by-hop reachability (prevents transitive leakage)
     //    e.g. Node→App→Topic→OtherApp: OtherApp is NOT on this node and must be excluded
     if (activeScenario.strictBFS && centerPathKey) {
       const visited = new Set<string>([centerPathKey])
@@ -2704,7 +2665,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     ])
     let nodes = connData.nodes.filter(n => referencedIds.has(n.id))
 
-    // 4. Scenario-based node type filter
+    // 3. Scenario-based node type filter
     if (activeScenario.allowedNodeTypes) {
       const allowedSet = new Set(activeScenario.allowedNodeTypes)
       const removedIds = new Set(nodes.filter(n => !allowedSet.has(n.type) && n.id !== centerPathKey).map(n => n.id))
@@ -2713,15 +2674,9 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
         links = links.filter(l => !removedIds.has(l.source?.id ?? l.source) && !removedIds.has(l.target?.id ?? l.target))
       }
     }
-    // 5. Manual node type hide overlay
-    if (hiddenNodeTypes.size > 0) {
-      const removedIds = new Set(nodes.filter(n => hiddenNodeTypes.has(n.type) && n.id !== centerPathKey).map(n => n.id))
-      nodes = nodes.filter(n => !removedIds.has(n.id))
-      links = links.filter(l => !removedIds.has(l.source?.id ?? l.source) && !removedIds.has(l.target?.id ?? l.target))
-    }
 
     return { nodes, links }
-  }, [connData, selectedApp, connScenario, hiddenEdgeTypes, hiddenNodeTypes])
+  }, [connData, selectedApp, connScenario])
 
   // Direct neighbor id sets (relative to selected app node)
   const directOutIds = useMemo(() =>
@@ -3100,85 +3055,64 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
             )}
           </div>
 
-          {/* Unified Legend — single horizontal line */}
-          <div className="absolute top-2 left-3 right-3 z-10 flex items-center gap-3 text-xs overflow-x-auto pointer-events-auto shrink-0">
+          {/* Unified Legend — single horizontal line (static, no toggling) */}
+          <div className="absolute top-2 left-3 right-3 z-10 flex items-center gap-3 text-xs overflow-x-auto pointer-events-none shrink-0 select-none">
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-muted-foreground mr-1 font-medium">Levels:</span>
               {(["csms", "css", "csci", "csc", "app"] as const).map(lvl => {
-                const hidden = hiddenLevels.has(lvl)
                 const color = NODE_COLORS[lvl]
                 return (
-                  <button
+                  <span
                     key={lvl}
-                    onClick={() => toggleLevel(lvl)}
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border transition-opacity shrink-0"
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border shrink-0 cursor-default"
                     style={{
                       borderColor: color,
-                      color: hidden ? textMuted : color,
-                      opacity: hidden ? 0.4 : 1,
-                      background: hidden ? "transparent" : `${color}18`,
+                      color: color,
+                      background: `${color}18`,
                     }}
                   >
                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
                     {LEVEL_LABELS[lvl].split(' ')[0]}
-                  </button>
+                  </span>
                 )
               })}
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-muted-foreground mr-1 font-medium">Nodes:</span>
-              {(Object.entries(CONN_NODE_TYPE_COLORS_DARK) as [string, string][]).map(([t, color]) => {
-                const hidden = hiddenNodeTypes.has(t)
-                return (
-                  <button
-                    key={t}
-                    onClick={() => toggleNodeType(t)}
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border transition-opacity shrink-0"
-                    style={{
-                      borderColor: color,
-                      color: hidden ? textMuted : color,
-                      opacity: hidden ? 0.4 : 1,
-                      background: hidden ? "transparent" : `${color}18`,
-                    }}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
-                    {t}
-                  </button>
-                )
-              })}
+              {(Object.entries(CONN_NODE_TYPE_COLORS_DARK) as [string, string][]).map(([t, color]) => (
+                <span
+                  key={t}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border shrink-0 cursor-default"
+                  style={{
+                    borderColor: color,
+                    color: color,
+                    background: `${color}18`,
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+                  {t}
+                </span>
+              ))}
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-muted-foreground mr-1 font-medium">Edges:</span>
               {(Object.entries(CONN_LINK_TYPE_COLORS_DARK) as [string, string][])
                 .filter(([type]) => type !== "DEPENDS_ON" && type !== "CONNECTS_TO")
-                .map(([t, color]) => {
-                  const hidden = hiddenEdgeTypes.has(t)
-                  return (
-                    <button
-                      key={t}
-                      onClick={() => toggleEdgeType(t)}
-                      className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border transition-opacity shrink-0"
-                      style={{
-                        borderColor: color,
-                        color: hidden ? textMuted : color,
-                        opacity: hidden ? 0.4 : 1,
-                        background: hidden ? "transparent" : `${color}18`,
-                      }}
-                    >
-                      <span className="w-3 h-px" style={{ background: color }} />
-                      {t.replace(/_/g, " ")}
-                    </button>
-                  )
-                })}
+                .map(([t, color]) => (
+                  <span
+                    key={t}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border shrink-0 cursor-default"
+                    style={{
+                      borderColor: color,
+                      color: color,
+                      background: `${color}18`,
+                    }}
+                  >
+                    <span className="w-3 h-px" style={{ background: color }} />
+                    {t.replace(/_/g, " ")}
+                  </span>
+                ))}
             </div>
-            {hiddenLevels.size > 0 && (
-              <button
-                onClick={() => setHiddenLevels(new Set())}
-                className="text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0 ml-2"
-              >
-                Reset layers
-              </button>
-            )}
           </div>
         </div>
       </div>
