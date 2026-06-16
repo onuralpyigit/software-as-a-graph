@@ -27,10 +27,15 @@ import {
   Search,
   ArrowUpDown,
   Pencil,
+  ShieldAlert,
+  Layers,
 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
 import { trafficClient, type TopicInfo, type AppInfo, type TopicParams, type TrafficSimulationResult } from "@/lib/api/traffic-client"
+import { simulationClient, type FailureResult } from "@/lib/api/simulation-client"
+import { apiClient } from "@/lib/api/client"
 import { TermTooltip } from "@/components/ui/term-tooltip"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import ReactECharts from "echarts-for-react"
 
 // ============================================================================
@@ -108,6 +113,19 @@ export default function TrafficSimulatorPage() {
   const [savedConfigs, setSavedConfigs] = useState<SavedConfig[]>([])
   const [newConfigName, setNewConfigName] = useState("")
 
+  // ---- Simulation Mode ----
+  const [simMode, setSimMode] = useState<"traffic" | "failure">("traffic")
+  const [components, setComponents] = useState<Array<{ id: string; name: string; type: string }>>([])
+  const [componentsLoading, setComponentsLoading] = useState(false)
+
+  // ---- Failure Simulation ----
+  const [failureTargetId, setFailureTargetId] = useState<string>("")
+  const [failureLayer, setFailureLayer] = useState<string>("system")
+  const [failureCascadeProb, setFailureCascadeProb] = useState<number>(1.0)
+  const [failureResult, setFailureResult] = useState<FailureResult | null>(null)
+  const [failureLoading, setFailureLoading] = useState(false)
+  const [failureError, setFailureError] = useState<string | null>(null)
+
   // ------------------------------------------------------------------
   // Effects
   // ------------------------------------------------------------------
@@ -117,6 +135,7 @@ export default function TrafficSimulatorPage() {
     if (status === "connected") {
       loadTopics()
       loadApps()
+      loadComponents()
     } else {
       setTopics([])
       setApps([])
@@ -168,6 +187,57 @@ export default function TrafficSimulatorPage() {
     } finally {
       setAppsLoading(false)
     }
+  }
+
+  async function loadComponents() {
+    setComponentsLoading(true)
+    try {
+      const data = await apiClient.getGraphData()
+      const comps = data.nodes.map((node: any) => ({
+        id: node.id,
+        name: node.label || node.id,
+        type: node.type,
+      }))
+      setComponents(comps)
+    } catch (err: any) {
+      console.error("Failed to load components:", err)
+    } finally {
+      setComponentsLoading(false)
+    }
+  }
+
+  async function runFailureSimulation() {
+    if (!failureTargetId.trim()) {
+      setFailureError("Please select a target component.")
+      return
+    }
+    setFailureLoading(true)
+    setFailureError(null)
+    setFailureResult(null)
+    try {
+      const result = await simulationClient.runFailureSimulation({
+        target_id: failureTargetId,
+        layer: failureLayer,
+        cascade_probability: failureCascadeProb,
+      })
+      setFailureResult(result)
+    } catch (err: any) {
+      setFailureError(err.message || "Failure simulation failed")
+    } finally {
+      setFailureLoading(false)
+    }
+  }
+
+  function getComponentName(id: string): string {
+    const comp = components.find(c => c.id === id)
+    return comp ? comp.name : id
+  }
+
+  function getImpactColor(impact: number): string {
+    if (impact > 0.5) return "text-red-500"
+    if (impact > 0.3) return "text-orange-500"
+    if (impact > 0.1) return "text-yellow-500"
+    return "text-green-500"
   }
 
   async function runSimulation() {
@@ -394,13 +464,39 @@ export default function TrafficSimulatorPage() {
   }
 
   return (
-    <AppLayout title="Simulator" description="Estimate pub-sub network and broker load for selected topics">
+    <AppLayout 
+      title="Simulator" 
+      description={simMode === "traffic" ? "Estimate pub-sub network and broker load for selected topics" : "Analyze the impact of component failures and cascades"}
+    >
       <div className="space-y-6">
+
+        {/* ── Simulation Mode Toggle ──────────────────────────────── */}
+        <div className="flex items-center gap-3 p-1 bg-muted rounded-lg w-fit">
+          <button
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              simMode === "traffic" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setSimMode("traffic")}
+          >
+            <Network className="h-4 w-4" />
+            Traffic Simulation
+          </button>
+          <button
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              simMode === "failure" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setSimMode("failure")}
+          >
+            <ShieldAlert className="h-4 w-4" />
+            Failure Simulation
+          </button>
+        </div>
 
         {/* ── Configuration Panel ─────────────────────────────────── */}
         <div className="space-y-6">
 
-          {/* Topic/App Selection */}
+          {/* Traffic Simulation Configuration */}
+          {simMode === "traffic" && (
           <Card className="border-border bg-background">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -1090,6 +1186,102 @@ export default function TrafficSimulatorPage() {
               )}
             </CardContent>
           </Card>
+          )}
+
+          {/* Failure Simulation Configuration */}
+          {simMode === "failure" && (
+          <Card className="border-border bg-background">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <ShieldAlert className="h-6 w-6 text-red-500 mb-3" />
+                  <CardTitle className="font-semibold text-sm mb-1">Failure Simulation</CardTitle>
+                  <CardDescription className="text-sm">
+                    Analyze the impact of component failures and cascade propagation.
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={runFailureSimulation}
+                  disabled={failureLoading || !failureTargetId.trim()}
+                  size="sm"
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {failureLoading ? (
+                    <><LoadingSpinner className="h-4 w-4 mr-2" />Simulating…</>
+                  ) : (
+                    <><Play className="h-4 w-4 mr-2" />Run Failure Simulation</>
+                  )}
+                </Button>
+              </div>
+              {failureError && (
+                <div className="flex items-start gap-2 text-destructive text-sm mt-2">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  {failureError}
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="failure-target">Target Component</Label>
+                  <Select 
+                    value={failureTargetId} 
+                    onValueChange={(val) => { setFailureTargetId(val); setFailureResult(null); setFailureError(null); }}
+                    disabled={failureLoading || componentsLoading}
+                  >
+                    <SelectTrigger id="failure-target">
+                      <SelectValue placeholder={componentsLoading ? "Loading components..." : failureTargetId ? getComponentName(failureTargetId) : "Select a component"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {components.map((comp) => (
+                        <SelectItem key={comp.id} value={comp.id}>
+                          <div className="flex flex-col">
+                            <span>{comp.name}</span>
+                            <span className="text-xs text-muted-foreground">{comp.id} ({comp.type})</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Component to simulate failure for</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="failure-layer">Analysis Layer</Label>
+                  <Select 
+                    value={failureLayer} 
+                    onValueChange={setFailureLayer} 
+                    disabled={failureLoading}
+                  >
+                    <SelectTrigger id="failure-layer">
+                      <SelectValue placeholder="Select layer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="app">Application</SelectItem>
+                      <SelectItem value="infra">Infrastructure</SelectItem>
+                      <SelectItem value="mw">Middleware</SelectItem>
+                      <SelectItem value="system">System</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Architectural layer to analyze failure impact</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="failure-cascade">Cascade Probability</Label>
+                  <Input
+                    id="failure-cascade"
+                    type="number"
+                    min={0.0}
+                    max={1.0}
+                    step={0.1}
+                    value={failureCascadeProb}
+                    onChange={e => setFailureCascadeProb(parseFloat(e.target.value) || 1.0)}
+                    disabled={failureLoading}
+                  />
+                  <p className="text-xs text-muted-foreground">Probability of failure cascading (0.0-1.0)</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          )}
         </div>
 
         {/* ── Results ─────────────────────────────────────────────── */}
@@ -1232,6 +1424,116 @@ export default function TrafficSimulatorPage() {
             </Card>
           )
         })()}
+
+        {/* ── Failure Simulation Results ──────────────────────────── */}
+        {simMode === "failure" && failureResult && (
+          <Card className="border-border bg-background">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <ShieldAlert className="h-6 w-6 text-red-500 mb-3" />
+                  <CardTitle className="font-semibold text-sm mb-1">Failure Simulation Results</CardTitle>
+                  <CardDescription className="text-sm">
+                    Impact analysis for {getComponentName(failureResult.target_id)} ({failureResult.target_type})
+                  </CardDescription>
+                </div>
+                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setFailureResult(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Top Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                    Composite Impact
+                    <TermTooltip description="Overall ground-truth impact of removing this component" iconOnly side="top" />
+                  </div>
+                  <div className={`text-2xl font-bold ${getImpactColor(failureResult.impact.composite_impact || 0)}`}>
+                    {(failureResult.impact.composite_impact || 0).toFixed(3)}
+                  </div>
+                </div>
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                    Reachability Loss
+                    <TermTooltip description="Percentage of broken pub-sub paths" iconOnly side="top" />
+                  </div>
+                  <div className="text-2xl font-bold text-red-500">
+                    {parseFloat((failureResult.impact.reachability?.loss_percent || 0).toFixed(1))}%
+                  </div>
+                </div>
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                    Throughput Loss
+                    <TermTooltip description="QoS-weighted reduction in message delivery capacity" iconOnly side="top" />
+                  </div>
+                  <div className="text-2xl font-bold text-orange-500">
+                    {parseFloat((failureResult.impact.throughput?.loss_percent || 0).toFixed(1))}%
+                  </div>
+                </div>
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                    Cascade Count
+                    <TermTooltip description="Number of additional components affected by the failure" iconOnly side="top" />
+                  </div>
+                  <div className="text-2xl font-bold text-yellow-500">
+                    {failureResult.impact.cascade?.count || 0}
+                  </div>
+                </div>
+              </div>
+
+              {/* Cascade Details */}
+              {failureResult.impact.cascade?.by_type && Object.keys(failureResult.impact.cascade.by_type).length > 0 && (
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground mb-2">Cascade by Component Type</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {Object.entries(failureResult.impact.cascade.by_type).map(([type, count]) => (
+                      <div key={type} className="rounded-md border border-border bg-muted/30 px-3 py-2">
+                        <div className="text-xs text-muted-foreground">{type}</div>
+                        <div className="text-lg font-semibold">{count}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Layer Impacts */}
+              {failureResult.layer_impacts && Object.keys(failureResult.layer_impacts).length > 0 && (
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground mb-2">Impact by Layer</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {Object.entries(failureResult.layer_impacts)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([layer, impact]) => (
+                        <div key={layer} className="rounded-md border border-border bg-muted/30 px-3 py-2">
+                          <div className="text-xs text-muted-foreground capitalize">{layer}</div>
+                          <div className="text-lg font-semibold">{(impact * 100).toFixed(1)}%</div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Cascaded Failures List */}
+              {failureResult.cascaded_failures && failureResult.cascaded_failures.length > 0 && (
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground mb-2">
+                    Cascaded Failures ({failureResult.cascaded_failures.length})
+                  </div>
+                  <div className="max-h-48 overflow-y-auto rounded-md border border-border bg-muted/30 p-3 space-y-1">
+                    {failureResult.cascaded_failures.map((id) => (
+                      <div key={id} className="text-sm flex items-center justify-between">
+                        <span className="font-mono text-xs">{id}</span>
+                        <span className="text-xs text-muted-foreground">{getComponentName(id)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AppLayout>
   )
