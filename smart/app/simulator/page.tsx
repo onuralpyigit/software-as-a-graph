@@ -518,7 +518,7 @@ export default function TrafficSimulatorPage() {
                 <TabsList className="bg-background border border-border">
                   <TabsTrigger value="roles" className="flex items-center gap-2">
                     <Zap className="h-4 w-4" />Roles
-                    {apps.length > 0 && <span className="text-xs text-muted-foreground">({new Set(apps.map(a => a.role ?? "(unset)")).size})</span>}
+                    {apps.length > 0 && <span className="text-xs text-muted-foreground">({new Set(apps.flatMap(a => (a.role && a.role.length > 0) ? a.role : ["(unset)"])).size})</span>}
                   </TabsTrigger>
                   <TabsTrigger value="apps" className="flex items-center gap-2">
                     <Server className="h-4 w-4" />Applications
@@ -944,12 +944,14 @@ export default function TrafficSimulatorPage() {
                     <Button variant="ghost" size="sm" onClick={loadApps}>Retry</Button>
                   </div>
                 ) : (() => {
-                  // Group apps by their `role` field; apps with null role go under "(unset)"
+                  // Group apps by their individual roles; apps with multiple roles appear in multiple groups
                   const roleMap = new Map<string, AppInfo[]>()
                   for (const app of apps) {
-                    const key = app.role ?? "(unset)"
-                    if (!roleMap.has(key)) roleMap.set(key, [])
-                    roleMap.get(key)!.push(app)
+                    const roles = (app.role && app.role.length > 0) ? app.role : ["(unset)"]
+                    for (const r of roles) {
+                      if (!roleMap.has(r)) roleMap.set(r, [])
+                      roleMap.get(r)!.push(app)
+                    }
                   }
                   const roleKeys = Array.from(roleMap.keys()).sort().filter(k =>
                     k.toLowerCase().includes(roleSearch.toLowerCase())

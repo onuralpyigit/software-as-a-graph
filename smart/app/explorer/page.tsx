@@ -483,9 +483,18 @@ function formatBytes(n: number): string {
 
 /** Formatted display value for a property (applies byte/etc formatting where meaningful) */
 function propValue(key: string, v: unknown): string {
+  if (Array.isArray(v)) {
+    return v.map((item) => propValue(key, item)).join(", ")
+  }
   const n = typeof v === "number" ? v : (typeof v === "string" && v !== "" && !isNaN(Number(v)) ? Number(v) : null)
   if (n !== null && isBytesKey(key)) return formatBytes(n)
   if (n !== null && !Number.isInteger(n)) return n.toFixed(2)
+  return String(v)
+}
+
+function formatRole(v: unknown): string {
+  if (!v) return ""
+  if (Array.isArray(v)) return v.filter(Boolean).join(", ")
   return String(v)
 }
 
@@ -1491,7 +1500,7 @@ const ConnEChartsGraph = memo(function ConnEChartsGraph({ graphData, dims, isDar
           const get = (key: string) => n.properties?.[key] ?? n[key]
           let extra = ""
           if (typeLabel === "Application") {
-            const role = get("role"); if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
+            const role = formatRole(get("role")); if (role) extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
             const priority = get("priority"); if (priority != null && priority !== "") extra += `<br/><span style="opacity:0.7">Priority: ${priority}</span>`
             const hotstandby = get("hotstandby"); if (hotstandby) extra += `<br/><span style="opacity:0.7">Hot Standby: true</span>`
           } else if (typeLabel === "Topic") {
@@ -2202,8 +2211,8 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
             const app = d._app
             const name = dispName(d.name)
             const levelLabel = LEVEL_LABELS[d._level] ?? "Application"
-            const role = app.role ?? app.properties?.role
-            const roleStr = (role != null && role !== "") ? `<br/><span style="opacity:0.7">Role: ${role}</span>` : ""
+            const role = formatRole(app.role ?? app.properties?.role)
+            const roleStr = role ? `<br/><span style="opacity:0.7">Role: ${role}</span>` : ""
             const priority = app.priority ?? app.properties?.priority
             const priorityStr = (priority != null && priority !== "") ? `<br/><span style="opacity:0.7">Priority: ${priority}</span>` : ""
             const hotstandbyStr = app.hotstandby || app.properties?.hotstandby ? `<br/><span style="opacity:0.7">Hot Standby: true</span>` : ""
@@ -2232,8 +2241,8 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
               const ver = n.properties?.version ?? n.version
               if (ver != null && ver !== "") extra += `<br/><span style="opacity:0.7">Version: ${ver}</span>`
             } else if (type === "Application") {
-              const role = n.properties?.role ?? n.role
-              if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
+              const role = formatRole(n.properties?.role ?? n.role)
+              if (role) extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
               const priority = n.properties?.priority ?? n.priority
               if (priority != null && priority !== "") extra += `<br/><span style="opacity:0.7">Priority: ${priority}</span>`
               const hotstandby = n.properties?.hotstandby ?? n.hotstandby
@@ -3254,8 +3263,9 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
     const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$|^lcom(_norm)?$/.test(k)
     const isCmCoupling = (k: string) => /^cm_(avg_|max_)(cbo|rfc|fanin|fanout)$|^coupling_/.test(k)
     const isCm         = (k: string) => /^cm_|^cyclomatic_complexity$|^coupling_|^loc$|^duplicated_lines_density$|^lcom(_norm)?$|^sqale_debt_ratio$/.test(k)
-
-    const primitives = entries.filter(([k, v]) => typeof v !== "object" && !HIER_KEYS.has(k) && !isCm(k))
+    
+    const isPrimitiveArray = (v: unknown) => Array.isArray(v) && v.every((item) => typeof item === "string" || typeof item === "number" || typeof item === "boolean")
+    const primitives = entries.filter(([k, v]) => (typeof v !== "object" || isPrimitiveArray(v)) && !HIER_KEYS.has(k) && !isCm(k))
     const hierarchyEntries = entries.filter(([k]) => HIER_KEYS.has(k))
     const cmSize     = entries.filter(([k]) => isCmSize(k))
     const cmComplex  = entries.filter(([k]) => isCmComplex(k))
@@ -3264,7 +3274,8 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
     const cmOther    = entries.filter(([k, v]) => isCm(k) && !isCmSize(k) && !isCmComplex(k) && !isCmCohesion(k) && !isCmCoupling(k))
 
     const PrimRow = ({ k, v, indent = false }: { k: string; v: unknown; indent?: boolean }) => {
-      const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
+      const isPrim = typeof v !== "object" || Array.isArray(v)
+      const unit = isPrim ? propUnit(k) : ""
       const desc = PROP_DESCS[k]
       return (
         <tr className="border-b border-border/40 hover:bg-muted/20 transition-colors">
@@ -3816,7 +3827,7 @@ const GraphOverviewEChart = memo(function GraphOverviewEChart({
           const name = d.name || d.id
           let extra = ""
           if (type === "Application") {
-            const role = get("role"); if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
+            const role = formatRole(get("role")); if (role) extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
             const priority = get("priority"); if (priority != null && priority !== "") extra += `<br/><span style="opacity:0.7">Priority: ${priority}</span>`
             const hotstandby = get("hotstandby"); if (hotstandby) extra += `<br/><span style="opacity:0.7">Hot Standby: true</span>`
           }
@@ -4244,7 +4255,7 @@ const ForceGraphEChart = memo(function ForceGraphEChart({
             })(),
             nodeType: type as string,
             _lvl: n.criticality_level?.toLowerCase() || "minimal",
-            ...(type === "Application" ? { _role: n.role ?? n.properties?.role ?? "", _priority: n.priority ?? n.properties?.priority ?? "", _hotstandby: n.hotstandby ?? n.properties?.hotstandby ?? false } : {}),
+            ...(type === "Application" ? { _role: formatRole(n.role ?? n.properties?.role), _priority: n.priority ?? n.properties?.priority ?? "", _hotstandby: n.hotstandby ?? n.properties?.hotstandby ?? false } : {}),
             ...(type === "Topic" ? {
               _qos_reliability:        n.qos_reliability            ?? n.properties?.qos_reliability            ?? "",
               _qos_durability:         n.qos_durability             ?? n.properties?.qos_durability             ?? "",

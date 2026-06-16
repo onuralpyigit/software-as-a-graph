@@ -214,7 +214,7 @@ class Application(GraphEntity):
         code_metrics: Nested OO metrics (size, complexity, cohesion, coupling).
     """
     app_type: str = "service"
-    role: str = "Operative"  # Operative, Engineer, Analyst, Administrator, Supervisor
+    role: List[str] = field(default_factory=lambda: ["Operative"])
     criticality: bool = False
     priority: str = "MEDIUM"  # HIGH, MEDIUM, LOW
     hotstandby: bool = False  # true = runs on 2 distinct nodes

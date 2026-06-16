@@ -25,7 +25,7 @@ export interface AppInfo {
   id: string
   name: string
   weight: number
-  role: string | null
+  role: string[] | null
   priority: string | null
   hotstandby: boolean | null
   pub_topic_ids: string[]

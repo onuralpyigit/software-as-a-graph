@@ -757,7 +757,8 @@ class StatisticalGraphGenerator:
 
             priority = self.rng.choice(APP_PRIORITY_OPTIONS)
             hotstandby = self.rng.choice(APP_HOTSTANDBY_OPTIONS)
-            role = self.rng.choice(APP_USER_ROLE_OPTIONS)
+            num_roles = self.rng.randint(1, 3)
+            role = sorted(self.rng.sample(APP_USER_ROLE_OPTIONS, num_roles))
             apps.append(Application(
                 id=f"A{i}",
                 name=app_name,

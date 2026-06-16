@@ -1004,12 +1004,14 @@ export default function TrafficSimulatorPage() {
                     <Button variant="ghost" size="sm" onClick={loadApps}>Retry</Button>
                   </div>
                 ) : (() => {
-                  // Group apps by their `role` field; apps with null role go under "(unset)"
+                  // Group apps by their individual roles; apps with multiple roles appear in multiple groups
                   const roleMap = new Map<string, AppInfo[]>()
                   for (const app of apps) {
-                    const key = app.role ?? "(unset)"
-                    if (!roleMap.has(key)) roleMap.set(key, [])
-                    roleMap.get(key)!.push(app)
+                    const roles = (app.role && app.role.length > 0) ? app.role : ["(unset)"]
+                    for (const r of roles) {
+                      if (!roleMap.has(r)) roleMap.set(r, [])
+                      roleMap.get(r)!.push(app)
+                    }
                   }
                   const roleKeys = Array.from(roleMap.keys()).sort()
 

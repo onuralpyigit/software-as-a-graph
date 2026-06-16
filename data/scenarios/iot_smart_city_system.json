@@ -1128,7 +1128,9 @@
       "name": "air-quality-sensor",
       "version": "1.9.8",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -1169,7 +1171,9 @@
       "name": "alert-manager",
       "version": "1.1.2",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -1210,7 +1214,9 @@
       "name": "alert-manager-1",
       "version": "1.2.5",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -1251,7 +1257,9 @@
       "name": "power-meter",
       "version": "2.0.6",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -1292,7 +1300,9 @@
       "name": "alert-manager-2",
       "version": "1.9.1",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -1333,7 +1343,9 @@
       "name": "power-meter-1",
       "version": "2.6.8",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -1374,7 +1386,9 @@
       "name": "data-aggregator",
       "version": "3.5.7",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -1415,7 +1429,9 @@
       "name": "power-meter-2",
       "version": "1.6.2",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -1456,7 +1472,9 @@
       "name": "data-aggregator-1",
       "version": "3.8.9",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -1497,7 +1515,9 @@
       "name": "air-quality-sensor-1",
       "version": "3.7.3",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -1538,7 +1558,9 @@
       "name": "alert-manager-3",
       "version": "3.3.9",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -1579,7 +1601,9 @@
       "name": "smart-light-controller",
       "version": "1.0.5",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -1620,7 +1644,9 @@
       "name": "alert-manager-4",
       "version": "2.6.1",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -1661,7 +1687,9 @@
       "name": "data-aggregator-2",
       "version": "3.4.4",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -1702,7 +1730,9 @@
       "name": "air-quality-sensor-2",
       "version": "3.3.6",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -1743,7 +1773,9 @@
       "name": "alert-manager-5",
       "version": "3.6.9",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -1784,7 +1816,9 @@
       "name": "traffic-monitor",
       "version": "1.3.7",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -1825,7 +1859,9 @@
       "name": "power-meter-3",
       "version": "3.8.8",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -1866,7 +1902,9 @@
       "name": "data-aggregator-3",
       "version": "1.9.8",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -1907,7 +1945,9 @@
       "name": "traffic-monitor-1",
       "version": "3.4.9",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -1948,7 +1988,9 @@
       "name": "power-meter-4",
       "version": "1.4.6",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -1989,7 +2031,9 @@
       "name": "air-quality-sensor-3",
       "version": "2.8.7",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -2030,7 +2074,9 @@
       "name": "data-aggregator-4",
       "version": "1.5.2",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -2071,7 +2117,9 @@
       "name": "smart-light-controller-1",
       "version": "2.7.6",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -2112,7 +2160,9 @@
       "name": "alert-manager-6",
       "version": "1.9.6",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -2153,7 +2203,9 @@
       "name": "power-meter-5",
       "version": "2.4.9",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -2194,7 +2246,9 @@
       "name": "power-meter-6",
       "version": "2.1.6",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -2235,7 +2289,9 @@
       "name": "air-quality-sensor-4",
       "version": "2.1.5",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -2276,7 +2332,9 @@
       "name": "data-aggregator-5",
       "version": "3.6.2",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -2317,7 +2375,9 @@
       "name": "power-meter-7",
       "version": "1.2.0",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -2358,7 +2418,9 @@
       "name": "power-meter-8",
       "version": "3.5.2",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -2399,7 +2461,9 @@
       "name": "power-meter-9",
       "version": "1.4.1",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -2440,7 +2504,9 @@
       "name": "air-quality-sensor-5",
       "version": "3.2.9",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -2481,7 +2547,9 @@
       "name": "alert-manager-7",
       "version": "3.7.2",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -2522,7 +2590,9 @@
       "name": "data-aggregator-6",
       "version": "3.3.7",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -2563,7 +2633,9 @@
       "name": "power-meter-10",
       "version": "2.4.2",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -2604,7 +2676,9 @@
       "name": "smart-light-controller-2",
       "version": "2.9.5",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -2645,7 +2719,9 @@
       "name": "data-aggregator-7",
       "version": "3.9.7",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -2686,7 +2762,9 @@
       "name": "air-quality-sensor-6",
       "version": "1.9.5",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -2727,7 +2805,9 @@
       "name": "traffic-monitor-2",
       "version": "1.9.7",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -2768,7 +2848,9 @@
       "name": "power-meter-11",
       "version": "2.4.9",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -2809,7 +2891,9 @@
       "name": "traffic-monitor-3",
       "version": "3.8.8",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -2850,7 +2934,9 @@
       "name": "smart-light-controller-3",
       "version": "1.0.7",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -2891,7 +2977,9 @@
       "name": "air-quality-sensor-7",
       "version": "2.6.4",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -2932,7 +3020,9 @@
       "name": "data-aggregator-8",
       "version": "3.8.0",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -2973,7 +3063,9 @@
       "name": "data-aggregator-9",
       "version": "2.7.4",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -3014,7 +3106,9 @@
       "name": "data-aggregator-10",
       "version": "3.6.4",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3055,7 +3149,9 @@
       "name": "data-aggregator-11",
       "version": "2.6.3",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3096,7 +3192,9 @@
       "name": "traffic-monitor-4",
       "version": "3.6.7",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -3137,7 +3235,9 @@
       "name": "alert-manager-8",
       "version": "3.8.2",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -3178,7 +3278,9 @@
       "name": "alert-manager-9",
       "version": "1.5.4",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -3219,7 +3321,9 @@
       "name": "data-aggregator-12",
       "version": "2.6.1",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3260,7 +3364,9 @@
       "name": "alert-manager-10",
       "version": "2.3.1",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -3301,7 +3407,9 @@
       "name": "air-quality-sensor-8",
       "version": "3.4.5",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3342,7 +3450,9 @@
       "name": "alert-manager-11",
       "version": "1.9.2",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3383,7 +3493,9 @@
       "name": "power-meter-12",
       "version": "2.4.5",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -3424,7 +3536,9 @@
       "name": "traffic-monitor-5",
       "version": "2.6.5",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3465,7 +3579,9 @@
       "name": "data-aggregator-13",
       "version": "2.4.2",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -3506,7 +3622,9 @@
       "name": "alert-manager-12",
       "version": "1.5.9",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3547,7 +3665,9 @@
       "name": "traffic-monitor-6",
       "version": "1.1.1",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -3588,7 +3708,9 @@
       "name": "air-quality-sensor-9",
       "version": "2.9.5",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -3629,7 +3751,9 @@
       "name": "air-quality-sensor-10",
       "version": "1.5.2",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3670,7 +3794,9 @@
       "name": "power-meter-13",
       "version": "1.7.2",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3711,7 +3837,9 @@
       "name": "air-quality-sensor-11",
       "version": "3.7.1",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3752,7 +3880,9 @@
       "name": "alert-manager-13",
       "version": "3.3.4",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3793,7 +3923,9 @@
       "name": "alert-manager-14",
       "version": "1.9.7",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3834,7 +3966,9 @@
       "name": "air-quality-sensor-12",
       "version": "3.5.2",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -3875,7 +4009,9 @@
       "name": "power-meter-14",
       "version": "1.0.5",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3916,7 +4052,9 @@
       "name": "air-quality-sensor-13",
       "version": "3.0.4",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -3957,7 +4095,9 @@
       "name": "air-quality-sensor-14",
       "version": "1.3.6",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -3998,7 +4138,9 @@
       "name": "air-quality-sensor-15",
       "version": "1.2.3",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -4039,7 +4181,9 @@
       "name": "smart-light-controller-4",
       "version": "2.8.2",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -4080,7 +4224,9 @@
       "name": "power-meter-15",
       "version": "1.4.8",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -4121,7 +4267,9 @@
       "name": "traffic-monitor-7",
       "version": "3.7.1",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -4162,7 +4310,9 @@
       "name": "traffic-monitor-8",
       "version": "3.6.9",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -4203,7 +4353,9 @@
       "name": "power-meter-16",
       "version": "2.5.5",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -4244,7 +4396,9 @@
       "name": "data-aggregator-14",
       "version": "1.0.8",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -4285,7 +4439,9 @@
       "name": "smart-light-controller-5",
       "version": "3.1.5",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -4326,7 +4482,9 @@
       "name": "traffic-monitor-9",
       "version": "1.6.2",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -4367,7 +4525,9 @@
       "name": "air-quality-sensor-16",
       "version": "3.2.3",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -4408,7 +4568,9 @@
       "name": "traffic-monitor-10",
       "version": "2.8.4",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -4449,7 +4611,9 @@
       "name": "alert-manager-15",
       "version": "3.1.3",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -4490,7 +4654,9 @@
       "name": "traffic-monitor-11",
       "version": "2.1.2",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -4531,7 +4697,9 @@
       "name": "power-meter-17",
       "version": "1.3.9",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -4572,7 +4740,9 @@
       "name": "data-aggregator-15",
       "version": "3.1.9",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -4613,7 +4783,9 @@
       "name": "traffic-monitor-12",
       "version": "1.2.9",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -4654,7 +4826,9 @@
       "name": "power-meter-18",
       "version": "2.3.0",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -4695,7 +4869,9 @@
       "name": "smart-light-controller-6",
       "version": "2.3.4",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -4736,7 +4912,9 @@
       "name": "data-aggregator-16",
       "version": "3.5.7",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -4777,7 +4955,9 @@
       "name": "power-meter-19",
       "version": "2.5.3",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -4818,7 +4998,9 @@
       "name": "power-meter-20",
       "version": "3.5.3",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -4859,7 +5041,9 @@
       "name": "smart-light-controller-7",
       "version": "1.7.5",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -4900,7 +5084,9 @@
       "name": "alert-manager-16",
       "version": "3.8.7",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -4941,7 +5127,9 @@
       "name": "traffic-monitor-13",
       "version": "1.2.2",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -4982,7 +5170,9 @@
       "name": "traffic-monitor-14",
       "version": "1.8.1",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -5023,7 +5213,9 @@
       "name": "data-aggregator-17",
       "version": "1.4.8",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -5064,7 +5256,9 @@
       "name": "power-meter-21",
       "version": "1.5.0",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -5105,7 +5299,9 @@
       "name": "traffic-monitor-15",
       "version": "2.8.3",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -5146,7 +5342,9 @@
       "name": "air-quality-sensor-17",
       "version": "3.3.1",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -5187,7 +5385,9 @@
       "name": "air-quality-sensor-18",
       "version": "3.0.5",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -5228,7 +5428,9 @@
       "name": "alert-manager-17",
       "version": "3.0.1",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -5269,7 +5471,9 @@
       "name": "air-quality-sensor-19",
       "version": "1.4.6",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -5310,7 +5514,9 @@
       "name": "alert-manager-18",
       "version": "1.8.4",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -5351,7 +5557,9 @@
       "name": "alert-manager-19",
       "version": "3.4.4",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -5392,7 +5600,9 @@
       "name": "power-meter-22",
       "version": "2.9.1",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -5433,7 +5643,9 @@
       "name": "data-aggregator-18",
       "version": "3.0.0",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -5474,7 +5686,9 @@
       "name": "traffic-monitor-16",
       "version": "2.5.5",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -5515,7 +5729,9 @@
       "name": "traffic-monitor-17",
       "version": "2.7.9",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -5556,7 +5772,9 @@
       "name": "air-quality-sensor-20",
       "version": "1.6.1",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -5597,7 +5815,9 @@
       "name": "power-meter-23",
       "version": "2.2.3",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -5638,7 +5858,9 @@
       "name": "smart-light-controller-8",
       "version": "2.4.4",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -5679,7 +5901,9 @@
       "name": "power-meter-24",
       "version": "3.1.5",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -5720,7 +5944,9 @@
       "name": "alert-manager-20",
       "version": "2.6.5",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -5761,7 +5987,9 @@
       "name": "data-aggregator-19",
       "version": "1.9.7",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -5802,7 +6030,9 @@
       "name": "smart-light-controller-9",
       "version": "3.3.3",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -5843,7 +6073,9 @@
       "name": "traffic-monitor-18",
       "version": "1.7.4",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -5884,7 +6116,9 @@
       "name": "traffic-monitor-19",
       "version": "3.9.8",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -5925,7 +6159,9 @@
       "name": "traffic-monitor-20",
       "version": "3.3.8",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -5966,7 +6202,9 @@
       "name": "data-aggregator-20",
       "version": "1.2.2",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -6007,7 +6245,9 @@
       "name": "data-aggregator-21",
       "version": "1.7.8",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -6048,7 +6288,9 @@
       "name": "smart-light-controller-10",
       "version": "3.9.7",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -6089,7 +6331,9 @@
       "name": "air-quality-sensor-21",
       "version": "2.4.1",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -6130,7 +6374,9 @@
       "name": "traffic-monitor-21",
       "version": "1.6.3",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -6171,7 +6417,9 @@
       "name": "alert-manager-21",
       "version": "3.8.3",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -6212,7 +6460,9 @@
       "name": "power-meter-25",
       "version": "2.3.7",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -6253,7 +6503,9 @@
       "name": "traffic-monitor-22",
       "version": "3.3.4",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -6294,7 +6546,9 @@
       "name": "air-quality-sensor-22",
       "version": "3.3.1",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -6335,7 +6589,9 @@
       "name": "alert-manager-22",
       "version": "3.1.0",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -6376,7 +6632,9 @@
       "name": "air-quality-sensor-23",
       "version": "2.2.8",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -6417,7 +6675,9 @@
       "name": "traffic-monitor-23",
       "version": "3.3.2",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -6458,7 +6718,9 @@
       "name": "alert-manager-23",
       "version": "2.5.4",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -6499,7 +6761,9 @@
       "name": "air-quality-sensor-24",
       "version": "2.3.2",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -6540,7 +6804,9 @@
       "name": "air-quality-sensor-25",
       "version": "2.5.6",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -6581,7 +6847,9 @@
       "name": "traffic-monitor-24",
       "version": "3.6.8",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -6622,7 +6890,9 @@
       "name": "smart-light-controller-11",
       "version": "3.1.9",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -6663,7 +6933,9 @@
       "name": "air-quality-sensor-26",
       "version": "3.4.6",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -6704,7 +6976,9 @@
       "name": "air-quality-sensor-27",
       "version": "3.9.3",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -6745,7 +7019,9 @@
       "name": "traffic-monitor-25",
       "version": "3.8.2",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -6786,7 +7062,9 @@
       "name": "power-meter-26",
       "version": "2.6.4",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -6827,7 +7105,9 @@
       "name": "alert-manager-24",
       "version": "3.4.5",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -6868,7 +7148,9 @@
       "name": "power-meter-27",
       "version": "1.2.9",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -6909,7 +7191,9 @@
       "name": "air-quality-sensor-28",
       "version": "2.7.5",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -6950,7 +7234,9 @@
       "name": "air-quality-sensor-29",
       "version": "3.1.4",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -6991,7 +7277,9 @@
       "name": "traffic-monitor-26",
       "version": "3.5.4",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -7032,7 +7320,9 @@
       "name": "air-quality-sensor-30",
       "version": "3.4.0",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -7073,7 +7363,9 @@
       "name": "alert-manager-25",
       "version": "1.2.8",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -7114,7 +7406,9 @@
       "name": "air-quality-sensor-31",
       "version": "3.7.0",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -7155,7 +7449,9 @@
       "name": "power-meter-28",
       "version": "3.7.0",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -7196,7 +7492,9 @@
       "name": "data-aggregator-22",
       "version": "1.8.1",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -7237,7 +7535,9 @@
       "name": "power-meter-29",
       "version": "1.2.5",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -7278,7 +7578,9 @@
       "name": "data-aggregator-23",
       "version": "2.2.3",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -7319,7 +7621,9 @@
       "name": "traffic-monitor-27",
       "version": "2.3.1",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -7360,7 +7664,9 @@
       "name": "data-aggregator-24",
       "version": "3.0.1",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -7401,7 +7707,9 @@
       "name": "data-aggregator-25",
       "version": "3.5.6",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -7442,7 +7750,9 @@
       "name": "air-quality-sensor-32",
       "version": "3.7.7",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -7483,7 +7793,9 @@
       "name": "traffic-monitor-28",
       "version": "3.8.4",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -7524,7 +7836,9 @@
       "name": "data-aggregator-26",
       "version": "1.7.2",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -7565,7 +7879,9 @@
       "name": "traffic-monitor-29",
       "version": "3.2.6",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -7606,7 +7922,9 @@
       "name": "alert-manager-26",
       "version": "1.1.0",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -7647,7 +7965,9 @@
       "name": "smart-light-controller-12",
       "version": "2.6.7",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -7688,7 +8008,9 @@
       "name": "alert-manager-27",
       "version": "1.9.7",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -7729,7 +8051,9 @@
       "name": "data-aggregator-27",
       "version": "3.4.6",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -7770,7 +8094,9 @@
       "name": "traffic-monitor-30",
       "version": "3.1.8",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -7811,7 +8137,9 @@
       "name": "power-meter-30",
       "version": "3.8.8",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -7852,7 +8180,9 @@
       "name": "alert-manager-28",
       "version": "3.8.2",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -7893,7 +8223,9 @@
       "name": "power-meter-31",
       "version": "2.8.7",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -7934,7 +8266,9 @@
       "name": "smart-light-controller-13",
       "version": "3.9.9",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -7975,7 +8309,9 @@
       "name": "power-meter-32",
       "version": "3.9.0",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -8016,7 +8352,9 @@
       "name": "smart-light-controller-14",
       "version": "2.9.5",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -8057,7 +8395,9 @@
       "name": "smart-light-controller-15",
       "version": "1.4.7",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -8098,7 +8438,9 @@
       "name": "air-quality-sensor-33",
       "version": "2.1.4",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -8139,7 +8481,9 @@
       "name": "smart-light-controller-16",
       "version": "1.2.1",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -8180,7 +8524,9 @@
       "name": "power-meter-33",
       "version": "3.2.5",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -8221,7 +8567,9 @@
       "name": "power-meter-34",
       "version": "1.6.6",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -8262,7 +8610,9 @@
       "name": "data-aggregator-28",
       "version": "1.6.9",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -8303,7 +8653,9 @@
       "name": "alert-manager-29",
       "version": "3.9.8",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -8344,7 +8696,9 @@
       "name": "power-meter-35",
       "version": "1.1.3",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -8385,7 +8739,9 @@
       "name": "power-meter-36",
       "version": "3.3.6",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -8426,7 +8782,9 @@
       "name": "power-meter-37",
       "version": "3.3.6",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -8467,7 +8825,9 @@
       "name": "data-aggregator-29",
       "version": "2.2.6",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -8508,7 +8868,9 @@
       "name": "smart-light-controller-17",
       "version": "1.2.5",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -8549,7 +8911,9 @@
       "name": "air-quality-sensor-34",
       "version": "3.1.4",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -8590,7 +8954,9 @@
       "name": "power-meter-38",
       "version": "2.2.0",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -8631,7 +8997,9 @@
       "name": "traffic-monitor-31",
       "version": "3.5.6",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -8672,7 +9040,9 @@
       "name": "alert-manager-30",
       "version": "3.2.3",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -8713,7 +9083,9 @@
       "name": "traffic-monitor-32",
       "version": "3.8.3",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -8754,7 +9126,9 @@
       "name": "air-quality-sensor-35",
       "version": "1.4.7",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -8795,7 +9169,9 @@
       "name": "air-quality-sensor-36",
       "version": "1.4.5",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -8836,7 +9212,9 @@
       "name": "traffic-monitor-33",
       "version": "1.3.7",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -8877,7 +9255,9 @@
       "name": "alert-manager-31",
       "version": "3.1.4",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -8918,7 +9298,9 @@
       "name": "air-quality-sensor-37",
       "version": "3.5.3",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -8959,7 +9341,9 @@
       "name": "air-quality-sensor-38",
       "version": "3.0.0",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -9000,7 +9384,9 @@
       "name": "power-meter-39",
       "version": "3.4.2",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -9041,7 +9427,9 @@
       "name": "alert-manager-32",
       "version": "3.3.7",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -9082,7 +9470,9 @@
       "name": "data-aggregator-30",
       "version": "3.9.5",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -9123,7 +9513,9 @@
       "name": "smart-light-controller-18",
       "version": "1.8.7",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "IoT Infrastructure",
@@ -9164,7 +9556,9 @@
       "name": "air-quality-sensor-39",
       "version": "2.1.5",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -9205,7 +9599,9 @@
       "name": "smart-light-controller-19",
       "version": "2.3.9",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Edge Computing System",
@@ -9246,7 +9642,9 @@
       "name": "traffic-monitor-34",
       "version": "2.1.4",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",
@@ -9287,7 +9685,9 @@
       "name": "traffic-monitor-35",
       "version": "2.7.5",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Smart City Platform",

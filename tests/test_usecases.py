@@ -22,8 +22,8 @@ def repo_with_topology(memory_repo):
     """Seed the repo with a valid App A -> Topic T -> App B topology hosted on NodeMain."""
     graph_data = {
         "applications": [
-            {"id": "A", "name": "App A", "role": "pub"},
-            {"id": "B", "name": "App B", "role": "sub"},
+            {"id": "A", "name": "App A", "role": ["pub"]},
+            {"id": "B", "name": "App B", "role": ["sub"]},
         ],
         "brokers": [
             {"id": "BrokerMain", "name": "Broker Main"}

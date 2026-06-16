@@ -163,7 +163,7 @@ interface ExtrasStats {
       name: string
       node_id: string | null
       node_name: string | null
-      role: string | null
+       role: string[] | null
       criticality: boolean
       bw_out: number
       bw_in: number
@@ -1763,7 +1763,7 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
                         {a.name}
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground truncate max-w-[120px]">{a.node_name ?? "—"}</td>
-                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{a.role ?? "—"}</td>
+                       <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{(a.role && a.role.length > 0) ? a.role.join(", ") : "—"}</td>
                       <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmtBytes(a.outbound)}/s</td>
                       <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmtBytes(a.inbound)}/s</td>
                       <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmtBytes(a.total)}/s</td>

@@ -1664,7 +1664,9 @@
       "name": "inventory-tracker",
       "version": "1.4.3",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -1705,7 +1707,9 @@
       "name": "hr-portal",
       "version": "1.7.8",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -1746,7 +1750,9 @@
       "name": "invoice-service",
       "version": "2.6.8",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -1787,7 +1793,9 @@
       "name": "crm-manager",
       "version": "2.3.9",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -1828,7 +1836,9 @@
       "name": "hr-portal-1",
       "version": "1.4.8",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -1869,7 +1879,9 @@
       "name": "crm-manager-1",
       "version": "2.7.2",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -1910,7 +1922,9 @@
       "name": "crm-manager-2",
       "version": "3.1.2",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -1951,7 +1965,9 @@
       "name": "erp-sync",
       "version": "1.7.9",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -1992,7 +2008,9 @@
       "name": "hr-portal-2",
       "version": "3.3.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -2033,7 +2051,9 @@
       "name": "esb-router",
       "version": "1.9.8",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -2074,7 +2094,9 @@
       "name": "invoice-service-1",
       "version": "2.1.0",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -2115,7 +2137,9 @@
       "name": "invoice-service-2",
       "version": "3.6.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -2156,7 +2180,9 @@
       "name": "erp-sync-1",
       "version": "1.6.3",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -2197,7 +2223,9 @@
       "name": "crm-manager-3",
       "version": "1.7.4",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -2238,7 +2266,9 @@
       "name": "crm-manager-4",
       "version": "1.1.8",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -2279,7 +2309,9 @@
       "name": "hr-portal-3",
       "version": "3.6.3",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -2320,7 +2352,9 @@
       "name": "crm-manager-5",
       "version": "3.4.1",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -2361,7 +2395,9 @@
       "name": "hr-portal-4",
       "version": "2.0.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -2402,7 +2438,9 @@
       "name": "esb-router-1",
       "version": "3.2.1",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -2443,7 +2481,9 @@
       "name": "erp-sync-2",
       "version": "3.2.6",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -2484,7 +2524,9 @@
       "name": "esb-router-2",
       "version": "2.8.8",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -2525,7 +2567,9 @@
       "name": "crm-manager-6",
       "version": "3.1.8",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -2566,7 +2610,9 @@
       "name": "inventory-tracker-1",
       "version": "3.1.0",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -2607,7 +2653,9 @@
       "name": "invoice-service-3",
       "version": "2.8.2",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -2648,7 +2696,9 @@
       "name": "crm-manager-7",
       "version": "1.2.1",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -2689,7 +2739,9 @@
       "name": "inventory-tracker-2",
       "version": "1.2.8",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -2730,7 +2782,9 @@
       "name": "hr-portal-5",
       "version": "2.7.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -2771,7 +2825,9 @@
       "name": "invoice-service-4",
       "version": "1.3.9",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -2812,7 +2868,9 @@
       "name": "inventory-tracker-3",
       "version": "3.1.6",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -2853,7 +2911,9 @@
       "name": "hr-portal-6",
       "version": "2.8.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -2894,7 +2954,9 @@
       "name": "esb-router-3",
       "version": "2.4.1",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -2935,7 +2997,9 @@
       "name": "hr-portal-7",
       "version": "3.1.2",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -2976,7 +3040,9 @@
       "name": "erp-sync-3",
       "version": "1.5.9",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -3017,7 +3083,9 @@
       "name": "inventory-tracker-4",
       "version": "1.9.1",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -3058,7 +3126,9 @@
       "name": "erp-sync-4",
       "version": "1.1.6",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -3099,7 +3169,9 @@
       "name": "invoice-service-5",
       "version": "1.1.8",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -3140,7 +3212,9 @@
       "name": "erp-sync-5",
       "version": "2.6.0",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -3181,7 +3255,9 @@
       "name": "invoice-service-6",
       "version": "1.0.4",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -3222,7 +3298,9 @@
       "name": "crm-manager-8",
       "version": "1.6.9",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -3263,7 +3341,9 @@
       "name": "hr-portal-8",
       "version": "1.8.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -3304,7 +3384,9 @@
       "name": "inventory-tracker-5",
       "version": "3.9.7",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -3345,7 +3427,9 @@
       "name": "erp-sync-6",
       "version": "1.5.4",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -3386,7 +3470,9 @@
       "name": "erp-sync-7",
       "version": "3.9.4",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -3427,7 +3513,9 @@
       "name": "erp-sync-8",
       "version": "1.9.6",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -3468,7 +3556,9 @@
       "name": "invoice-service-7",
       "version": "2.8.8",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -3509,7 +3599,9 @@
       "name": "esb-router-4",
       "version": "1.0.0",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -3550,7 +3642,9 @@
       "name": "crm-manager-9",
       "version": "3.4.4",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -3591,7 +3685,9 @@
       "name": "crm-manager-10",
       "version": "1.6.8",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -3632,7 +3728,9 @@
       "name": "crm-manager-11",
       "version": "2.7.0",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -3673,7 +3771,9 @@
       "name": "hr-portal-9",
       "version": "3.1.7",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -3714,7 +3814,9 @@
       "name": "inventory-tracker-6",
       "version": "3.0.9",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -3755,7 +3857,9 @@
       "name": "crm-manager-12",
       "version": "2.5.6",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -3796,7 +3900,9 @@
       "name": "esb-router-5",
       "version": "1.7.6",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -3837,7 +3943,9 @@
       "name": "hr-portal-10",
       "version": "3.8.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -3878,7 +3986,9 @@
       "name": "crm-manager-13",
       "version": "3.3.0",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -3919,7 +4029,9 @@
       "name": "invoice-service-8",
       "version": "3.3.8",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -3960,7 +4072,9 @@
       "name": "hr-portal-11",
       "version": "3.9.5",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -4001,7 +4115,9 @@
       "name": "crm-manager-14",
       "version": "1.7.6",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -4042,7 +4158,9 @@
       "name": "esb-router-6",
       "version": "1.2.0",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -4083,7 +4201,9 @@
       "name": "invoice-service-9",
       "version": "2.8.5",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -4124,7 +4244,9 @@
       "name": "erp-sync-9",
       "version": "3.7.9",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -4165,7 +4287,9 @@
       "name": "crm-manager-15",
       "version": "1.1.6",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -4206,7 +4330,9 @@
       "name": "invoice-service-10",
       "version": "2.5.1",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -4247,7 +4373,9 @@
       "name": "inventory-tracker-7",
       "version": "3.3.9",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -4288,7 +4416,9 @@
       "name": "inventory-tracker-8",
       "version": "1.6.1",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -4329,7 +4459,9 @@
       "name": "erp-sync-10",
       "version": "2.5.8",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -4370,7 +4502,9 @@
       "name": "hr-portal-12",
       "version": "3.4.6",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -4411,7 +4545,9 @@
       "name": "esb-router-7",
       "version": "2.7.3",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -4452,7 +4588,9 @@
       "name": "invoice-service-11",
       "version": "2.6.3",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -4493,7 +4631,9 @@
       "name": "invoice-service-12",
       "version": "3.1.8",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -4534,7 +4674,9 @@
       "name": "hr-portal-13",
       "version": "1.6.0",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -4575,7 +4717,9 @@
       "name": "esb-router-8",
       "version": "2.9.4",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -4616,7 +4760,9 @@
       "name": "crm-manager-16",
       "version": "3.4.1",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -4657,7 +4803,9 @@
       "name": "invoice-service-13",
       "version": "3.6.7",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -4698,7 +4846,9 @@
       "name": "hr-portal-14",
       "version": "2.7.3",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -4739,7 +4889,9 @@
       "name": "erp-sync-11",
       "version": "3.9.3",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -4780,7 +4932,9 @@
       "name": "hr-portal-15",
       "version": "2.7.5",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -4821,7 +4975,9 @@
       "name": "invoice-service-14",
       "version": "3.0.5",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -4862,7 +5018,9 @@
       "name": "invoice-service-15",
       "version": "3.8.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -4903,7 +5061,9 @@
       "name": "crm-manager-17",
       "version": "1.5.6",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -4944,7 +5104,9 @@
       "name": "invoice-service-16",
       "version": "1.4.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -4985,7 +5147,9 @@
       "name": "erp-sync-12",
       "version": "2.1.4",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -5026,7 +5190,9 @@
       "name": "invoice-service-17",
       "version": "1.7.6",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -5067,7 +5233,9 @@
       "name": "invoice-service-18",
       "version": "1.8.6",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -5108,7 +5276,9 @@
       "name": "inventory-tracker-9",
       "version": "3.5.9",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -5149,7 +5319,9 @@
       "name": "hr-portal-16",
       "version": "2.5.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -5190,7 +5362,9 @@
       "name": "inventory-tracker-10",
       "version": "2.9.1",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -5231,7 +5405,9 @@
       "name": "inventory-tracker-11",
       "version": "3.3.4",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -5272,7 +5448,9 @@
       "name": "invoice-service-19",
       "version": "1.9.7",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -5313,7 +5491,9 @@
       "name": "esb-router-9",
       "version": "3.9.2",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -5354,7 +5534,9 @@
       "name": "crm-manager-18",
       "version": "2.0.6",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -5395,7 +5577,9 @@
       "name": "erp-sync-13",
       "version": "3.0.7",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -5436,7 +5620,9 @@
       "name": "hr-portal-17",
       "version": "3.0.3",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -5477,7 +5663,9 @@
       "name": "erp-sync-14",
       "version": "2.0.6",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -5518,7 +5706,9 @@
       "name": "esb-router-10",
       "version": "2.9.5",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -5559,7 +5749,9 @@
       "name": "esb-router-11",
       "version": "2.3.1",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -5600,7 +5792,9 @@
       "name": "erp-sync-15",
       "version": "1.5.7",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -5641,7 +5835,9 @@
       "name": "crm-manager-19",
       "version": "2.6.0",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -5682,7 +5878,9 @@
       "name": "inventory-tracker-12",
       "version": "1.0.0",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -5723,7 +5921,9 @@
       "name": "inventory-tracker-13",
       "version": "2.3.9",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -5764,7 +5964,9 @@
       "name": "crm-manager-20",
       "version": "1.8.7",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -5805,7 +6007,9 @@
       "name": "crm-manager-21",
       "version": "3.4.6",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -5846,7 +6050,9 @@
       "name": "invoice-service-20",
       "version": "1.0.2",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -5887,7 +6093,9 @@
       "name": "hr-portal-18",
       "version": "1.4.7",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -5928,7 +6136,9 @@
       "name": "hr-portal-19",
       "version": "3.1.3",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -5969,7 +6179,9 @@
       "name": "invoice-service-21",
       "version": "1.2.5",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -6010,7 +6222,9 @@
       "name": "crm-manager-22",
       "version": "3.2.7",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -6051,7 +6265,9 @@
       "name": "hr-portal-20",
       "version": "2.4.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -6092,7 +6308,9 @@
       "name": "crm-manager-23",
       "version": "3.2.9",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -6133,7 +6351,9 @@
       "name": "hr-portal-21",
       "version": "1.3.1",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -6174,7 +6394,9 @@
       "name": "inventory-tracker-14",
       "version": "3.7.9",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -6215,7 +6437,9 @@
       "name": "inventory-tracker-15",
       "version": "1.1.7",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -6256,7 +6480,9 @@
       "name": "invoice-service-22",
       "version": "1.4.3",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -6297,7 +6523,9 @@
       "name": "esb-router-12",
       "version": "1.9.9",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -6338,7 +6566,9 @@
       "name": "crm-manager-24",
       "version": "2.7.4",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -6379,7 +6609,9 @@
       "name": "invoice-service-23",
       "version": "2.9.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -6420,7 +6652,9 @@
       "name": "hr-portal-22",
       "version": "2.7.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -6461,7 +6695,9 @@
       "name": "esb-router-13",
       "version": "1.8.5",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -6502,7 +6738,9 @@
       "name": "inventory-tracker-16",
       "version": "3.7.5",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -6543,7 +6781,9 @@
       "name": "invoice-service-24",
       "version": "1.4.3",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -6584,7 +6824,9 @@
       "name": "esb-router-14",
       "version": "1.0.1",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -6625,7 +6867,9 @@
       "name": "erp-sync-16",
       "version": "1.9.9",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -6666,7 +6910,9 @@
       "name": "hr-portal-23",
       "version": "1.7.7",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -6707,7 +6953,9 @@
       "name": "crm-manager-25",
       "version": "1.7.2",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -6748,7 +6996,9 @@
       "name": "erp-sync-17",
       "version": "2.1.4",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -6789,7 +7039,9 @@
       "name": "inventory-tracker-17",
       "version": "1.2.1",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -6830,7 +7082,9 @@
       "name": "crm-manager-26",
       "version": "3.4.4",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -6871,7 +7125,9 @@
       "name": "inventory-tracker-18",
       "version": "2.8.1",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -6912,7 +7168,9 @@
       "name": "inventory-tracker-19",
       "version": "1.5.4",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -6953,7 +7211,9 @@
       "name": "inventory-tracker-20",
       "version": "1.9.0",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -6994,7 +7254,9 @@
       "name": "inventory-tracker-21",
       "version": "3.1.5",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -7035,7 +7297,9 @@
       "name": "invoice-service-25",
       "version": "1.0.8",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -7076,7 +7340,9 @@
       "name": "inventory-tracker-22",
       "version": "2.4.7",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -7117,7 +7383,9 @@
       "name": "erp-sync-18",
       "version": "3.1.6",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -7158,7 +7426,9 @@
       "name": "esb-router-15",
       "version": "1.2.0",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -7199,7 +7469,9 @@
       "name": "erp-sync-19",
       "version": "1.5.3",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -7240,7 +7512,9 @@
       "name": "esb-router-16",
       "version": "1.6.6",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -7281,7 +7555,9 @@
       "name": "invoice-service-26",
       "version": "2.6.8",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -7322,7 +7598,9 @@
       "name": "hr-portal-24",
       "version": "1.8.2",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -7363,7 +7641,9 @@
       "name": "esb-router-17",
       "version": "1.9.9",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -7404,7 +7684,9 @@
       "name": "hr-portal-25",
       "version": "1.4.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -7445,7 +7727,9 @@
       "name": "hr-portal-26",
       "version": "2.0.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -7486,7 +7770,9 @@
       "name": "inventory-tracker-23",
       "version": "2.4.5",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -7527,7 +7813,9 @@
       "name": "erp-sync-20",
       "version": "1.5.7",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -7568,7 +7856,9 @@
       "name": "invoice-service-27",
       "version": "1.8.5",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -7609,7 +7899,9 @@
       "name": "invoice-service-28",
       "version": "1.8.7",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -7650,7 +7942,9 @@
       "name": "erp-sync-21",
       "version": "2.2.3",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -7691,7 +7985,9 @@
       "name": "esb-router-18",
       "version": "2.6.2",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -7732,7 +8028,9 @@
       "name": "erp-sync-22",
       "version": "1.9.1",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -7773,7 +8071,9 @@
       "name": "invoice-service-29",
       "version": "3.7.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -7814,7 +8114,9 @@
       "name": "inventory-tracker-24",
       "version": "1.5.5",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -7855,7 +8157,9 @@
       "name": "inventory-tracker-25",
       "version": "2.9.2",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -7896,7 +8200,9 @@
       "name": "invoice-service-30",
       "version": "3.1.2",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -7937,7 +8243,9 @@
       "name": "erp-sync-23",
       "version": "3.9.5",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -7978,7 +8286,9 @@
       "name": "invoice-service-31",
       "version": "2.5.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -8019,7 +8329,9 @@
       "name": "erp-sync-24",
       "version": "3.7.0",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -8060,7 +8372,9 @@
       "name": "esb-router-19",
       "version": "2.5.6",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -8101,7 +8415,9 @@
       "name": "crm-manager-27",
       "version": "1.6.4",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -8142,7 +8458,9 @@
       "name": "hr-portal-27",
       "version": "2.9.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -8183,7 +8501,9 @@
       "name": "hr-portal-28",
       "version": "2.2.4",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -8224,7 +8544,9 @@
       "name": "crm-manager-28",
       "version": "1.0.7",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -8265,7 +8587,9 @@
       "name": "crm-manager-29",
       "version": "2.9.5",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -8306,7 +8630,9 @@
       "name": "crm-manager-30",
       "version": "1.8.4",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -8347,7 +8673,9 @@
       "name": "esb-router-20",
       "version": "2.0.9",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -8388,7 +8716,9 @@
       "name": "inventory-tracker-26",
       "version": "2.0.5",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -8429,7 +8759,9 @@
       "name": "hr-portal-29",
       "version": "2.5.6",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -8470,7 +8802,9 @@
       "name": "inventory-tracker-27",
       "version": "1.4.6",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -8511,7 +8845,9 @@
       "name": "crm-manager-31",
       "version": "2.6.6",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -8552,7 +8888,9 @@
       "name": "invoice-service-32",
       "version": "3.3.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -8593,7 +8931,9 @@
       "name": "inventory-tracker-28",
       "version": "3.3.3",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -8634,7 +8974,9 @@
       "name": "esb-router-21",
       "version": "1.8.5",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -8675,7 +9017,9 @@
       "name": "invoice-service-33",
       "version": "2.9.5",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -8716,7 +9060,9 @@
       "name": "esb-router-22",
       "version": "3.0.4",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -8757,7 +9103,9 @@
       "name": "inventory-tracker-29",
       "version": "2.0.7",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -8798,7 +9146,9 @@
       "name": "esb-router-23",
       "version": "3.5.0",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -8839,7 +9189,9 @@
       "name": "crm-manager-32",
       "version": "1.5.8",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -8880,7 +9232,9 @@
       "name": "hr-portal-30",
       "version": "3.2.3",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -8921,7 +9275,9 @@
       "name": "esb-router-24",
       "version": "3.3.6",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -8962,7 +9318,9 @@
       "name": "inventory-tracker-30",
       "version": "3.1.5",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -9003,7 +9361,9 @@
       "name": "crm-manager-33",
       "version": "3.8.5",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -9044,7 +9404,9 @@
       "name": "erp-sync-25",
       "version": "3.7.0",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -9085,7 +9447,9 @@
       "name": "erp-sync-26",
       "version": "1.3.7",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -9126,7 +9490,9 @@
       "name": "hr-portal-31",
       "version": "1.4.6",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -9167,7 +9533,9 @@
       "name": "erp-sync-27",
       "version": "2.2.7",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -9208,7 +9576,9 @@
       "name": "crm-manager-34",
       "version": "3.6.9",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -9249,7 +9619,9 @@
       "name": "inventory-tracker-31",
       "version": "2.6.8",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -9290,7 +9662,9 @@
       "name": "esb-router-25",
       "version": "1.8.8",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -9331,7 +9705,9 @@
       "name": "inventory-tracker-32",
       "version": "2.2.6",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -9372,7 +9748,9 @@
       "name": "hr-portal-32",
       "version": "1.2.7",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -9413,7 +9791,9 @@
       "name": "esb-router-26",
       "version": "1.3.2",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -9454,7 +9834,9 @@
       "name": "inventory-tracker-33",
       "version": "1.7.1",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -9495,7 +9877,9 @@
       "name": "esb-router-27",
       "version": "2.1.5",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -9536,7 +9920,9 @@
       "name": "inventory-tracker-34",
       "version": "2.2.4",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -9577,7 +9963,9 @@
       "name": "esb-router-28",
       "version": "3.2.5",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -9618,7 +10006,9 @@
       "name": "inventory-tracker-35",
       "version": "2.6.5",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -9659,7 +10049,9 @@
       "name": "esb-router-29",
       "version": "1.2.2",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -9700,7 +10092,9 @@
       "name": "inventory-tracker-36",
       "version": "3.4.1",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -9741,7 +10135,9 @@
       "name": "crm-manager-35",
       "version": "3.3.8",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -9782,7 +10178,9 @@
       "name": "erp-sync-28",
       "version": "2.9.2",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -9823,7 +10221,9 @@
       "name": "invoice-service-34",
       "version": "3.9.6",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -9864,7 +10264,9 @@
       "name": "esb-router-30",
       "version": "2.1.8",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -9905,7 +10307,9 @@
       "name": "esb-router-31",
       "version": "1.2.9",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -9946,7 +10350,9 @@
       "name": "crm-manager-36",
       "version": "3.7.4",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -9987,7 +10393,9 @@
       "name": "inventory-tracker-37",
       "version": "3.3.6",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -10028,7 +10436,9 @@
       "name": "crm-manager-37",
       "version": "1.2.0",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -10069,7 +10479,9 @@
       "name": "esb-router-32",
       "version": "3.2.8",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -10110,7 +10522,9 @@
       "name": "invoice-service-35",
       "version": "2.3.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -10151,7 +10565,9 @@
       "name": "crm-manager-38",
       "version": "1.1.4",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -10192,7 +10608,9 @@
       "name": "crm-manager-39",
       "version": "3.8.7",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -10233,7 +10651,9 @@
       "name": "esb-router-33",
       "version": "3.5.9",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -10274,7 +10694,9 @@
       "name": "crm-manager-40",
       "version": "3.2.3",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -10315,7 +10737,9 @@
       "name": "hr-portal-33",
       "version": "3.6.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -10356,7 +10780,9 @@
       "name": "hr-portal-34",
       "version": "2.2.3",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -10397,7 +10823,9 @@
       "name": "inventory-tracker-38",
       "version": "3.3.4",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -10438,7 +10866,9 @@
       "name": "inventory-tracker-39",
       "version": "3.1.6",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -10479,7 +10909,9 @@
       "name": "inventory-tracker-40",
       "version": "2.5.8",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -10520,7 +10952,9 @@
       "name": "crm-manager-41",
       "version": "1.7.5",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -10561,7 +10995,9 @@
       "name": "erp-sync-29",
       "version": "1.5.2",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -10602,7 +11038,9 @@
       "name": "invoice-service-36",
       "version": "2.5.3",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -10643,7 +11081,9 @@
       "name": "crm-manager-42",
       "version": "1.9.1",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -10684,7 +11124,9 @@
       "name": "inventory-tracker-41",
       "version": "1.2.3",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -10725,7 +11167,9 @@
       "name": "esb-router-34",
       "version": "1.9.2",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -10766,7 +11210,9 @@
       "name": "inventory-tracker-42",
       "version": "2.9.1",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -10807,7 +11253,9 @@
       "name": "hr-portal-35",
       "version": "3.3.1",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -10848,7 +11296,9 @@
       "name": "crm-manager-43",
       "version": "3.3.2",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -10889,7 +11339,9 @@
       "name": "esb-router-35",
       "version": "2.5.0",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -10930,7 +11382,9 @@
       "name": "invoice-service-37",
       "version": "2.2.1",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -10971,7 +11425,9 @@
       "name": "erp-sync-30",
       "version": "3.3.5",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -11012,7 +11468,9 @@
       "name": "erp-sync-31",
       "version": "2.3.3",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -11053,7 +11511,9 @@
       "name": "esb-router-36",
       "version": "2.0.7",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -11094,7 +11554,9 @@
       "name": "inventory-tracker-43",
       "version": "3.8.8",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -11135,7 +11597,9 @@
       "name": "erp-sync-32",
       "version": "1.1.9",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -11176,7 +11640,9 @@
       "name": "inventory-tracker-44",
       "version": "2.0.7",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -11217,7 +11683,9 @@
       "name": "crm-manager-44",
       "version": "3.8.3",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -11258,7 +11726,9 @@
       "name": "inventory-tracker-45",
       "version": "2.8.5",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -11299,7 +11769,9 @@
       "name": "inventory-tracker-46",
       "version": "1.9.8",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -11340,7 +11812,9 @@
       "name": "crm-manager-45",
       "version": "1.2.1",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -11381,7 +11855,9 @@
       "name": "inventory-tracker-47",
       "version": "2.4.2",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -11422,7 +11898,9 @@
       "name": "esb-router-37",
       "version": "3.3.0",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -11463,7 +11941,9 @@
       "name": "inventory-tracker-48",
       "version": "1.8.7",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -11504,7 +11984,9 @@
       "name": "erp-sync-33",
       "version": "3.8.8",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -11545,7 +12027,9 @@
       "name": "esb-router-38",
       "version": "3.9.7",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -11586,7 +12070,9 @@
       "name": "hr-portal-36",
       "version": "3.7.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -11627,7 +12113,9 @@
       "name": "inventory-tracker-49",
       "version": "3.5.6",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -11668,7 +12156,9 @@
       "name": "invoice-service-38",
       "version": "1.0.5",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -11709,7 +12199,9 @@
       "name": "hr-portal-37",
       "version": "1.2.7",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -11750,7 +12242,9 @@
       "name": "crm-manager-46",
       "version": "3.5.7",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -11791,7 +12285,9 @@
       "name": "crm-manager-47",
       "version": "2.9.7",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -11832,7 +12328,9 @@
       "name": "crm-manager-48",
       "version": "3.5.3",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -11873,7 +12371,9 @@
       "name": "invoice-service-39",
       "version": "3.1.9",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -11914,7 +12414,9 @@
       "name": "esb-router-39",
       "version": "2.9.9",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -11955,7 +12457,9 @@
       "name": "erp-sync-34",
       "version": "2.0.6",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -11996,7 +12500,9 @@
       "name": "hr-portal-38",
       "version": "2.6.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -12037,7 +12543,9 @@
       "name": "inventory-tracker-50",
       "version": "2.0.3",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -12078,7 +12586,9 @@
       "name": "inventory-tracker-51",
       "version": "3.8.0",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -12119,7 +12629,9 @@
       "name": "crm-manager-49",
       "version": "2.7.2",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -12160,7 +12672,9 @@
       "name": "crm-manager-50",
       "version": "2.9.3",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -12201,7 +12715,9 @@
       "name": "hr-portal-39",
       "version": "2.0.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -12242,7 +12758,9 @@
       "name": "crm-manager-51",
       "version": "3.9.4",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -12283,7 +12801,9 @@
       "name": "esb-router-40",
       "version": "2.8.7",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -12324,7 +12844,9 @@
       "name": "crm-manager-52",
       "version": "3.8.4",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -12365,7 +12887,9 @@
       "name": "esb-router-41",
       "version": "3.5.1",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -12406,7 +12930,9 @@
       "name": "hr-portal-40",
       "version": "1.8.3",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -12447,7 +12973,9 @@
       "name": "invoice-service-40",
       "version": "1.2.7",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -12488,7 +13016,9 @@
       "name": "erp-sync-35",
       "version": "1.0.3",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -12529,7 +13059,9 @@
       "name": "crm-manager-53",
       "version": "2.7.0",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -12570,7 +13102,9 @@
       "name": "inventory-tracker-52",
       "version": "1.2.5",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -12611,7 +13145,9 @@
       "name": "erp-sync-36",
       "version": "3.8.5",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -12652,7 +13188,9 @@
       "name": "inventory-tracker-53",
       "version": "3.5.3",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -12693,7 +13231,9 @@
       "name": "inventory-tracker-54",
       "version": "2.2.0",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -12734,7 +13274,9 @@
       "name": "inventory-tracker-55",
       "version": "3.1.4",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -12775,7 +13317,9 @@
       "name": "esb-router-42",
       "version": "3.2.3",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -12816,7 +13360,9 @@
       "name": "invoice-service-41",
       "version": "1.7.6",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -12857,7 +13403,9 @@
       "name": "invoice-service-42",
       "version": "3.6.3",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -12898,7 +13446,9 @@
       "name": "inventory-tracker-56",
       "version": "2.0.0",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -12939,7 +13489,9 @@
       "name": "invoice-service-43",
       "version": "3.7.0",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -12980,7 +13532,9 @@
       "name": "esb-router-43",
       "version": "2.6.0",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -13021,7 +13575,9 @@
       "name": "crm-manager-54",
       "version": "1.2.7",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -13062,7 +13618,9 @@
       "name": "erp-sync-37",
       "version": "1.3.1",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -13103,7 +13661,9 @@
       "name": "inventory-tracker-57",
       "version": "1.8.4",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -13144,7 +13704,9 @@
       "name": "hr-portal-41",
       "version": "2.3.7",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -13185,7 +13747,9 @@
       "name": "inventory-tracker-58",
       "version": "2.4.4",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -13226,7 +13790,9 @@
       "name": "hr-portal-42",
       "version": "1.3.3",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -13267,7 +13833,9 @@
       "name": "crm-manager-55",
       "version": "3.6.9",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -13308,7 +13876,9 @@
       "name": "erp-sync-38",
       "version": "1.7.2",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -13349,7 +13919,9 @@
       "name": "esb-router-44",
       "version": "2.6.5",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -13390,7 +13962,9 @@
       "name": "esb-router-45",
       "version": "2.5.0",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -13431,7 +14005,9 @@
       "name": "invoice-service-44",
       "version": "1.1.0",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -13472,7 +14048,9 @@
       "name": "esb-router-46",
       "version": "2.6.9",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -13513,7 +14091,9 @@
       "name": "invoice-service-45",
       "version": "2.8.7",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -13554,7 +14134,9 @@
       "name": "esb-router-47",
       "version": "3.2.0",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -13595,7 +14177,9 @@
       "name": "invoice-service-46",
       "version": "2.6.3",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -13636,7 +14220,9 @@
       "name": "crm-manager-56",
       "version": "2.7.3",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -13677,7 +14263,9 @@
       "name": "hr-portal-43",
       "version": "3.2.8",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -13718,7 +14306,9 @@
       "name": "inventory-tracker-59",
       "version": "1.2.4",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
@@ -13759,7 +14349,9 @@
       "name": "hr-portal-44",
       "version": "3.5.4",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -13800,7 +14392,9 @@
       "name": "invoice-service-47",
       "version": "2.0.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -13841,7 +14435,9 @@
       "name": "esb-router-48",
       "version": "3.9.4",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -13882,7 +14478,9 @@
       "name": "inventory-tracker-60",
       "version": "2.6.3",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -13923,7 +14521,9 @@
       "name": "crm-manager-57",
       "version": "1.0.1",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",

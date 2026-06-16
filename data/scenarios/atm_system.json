@@ -400,7 +400,9 @@
       "name": "conflict-detector",
       "version": "1.1.0",
       "app_type": "sensor",
-      "role": "Operative",
+      "role": [
+        "Operative"
+      ],
       "criticality": false,
       "priority": "HIGH",
       "hotstandby": false,
@@ -443,7 +445,9 @@
       "name": "weather-analyzer",
       "version": "3.5.1",
       "app_type": "service",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": false,
@@ -486,7 +490,9 @@
       "name": "conflict-detector-1",
       "version": "1.6.0",
       "app_type": "sensor",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": false,
       "priority": "MEDIUM",
       "hotstandby": true,
@@ -529,7 +535,9 @@
       "name": "weather-analyzer-1",
       "version": "2.8.8",
       "app_type": "service",
-      "role": "Supervisor",
+      "role": [
+        "Supervisor"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": false,
@@ -572,7 +580,9 @@
       "name": "conflict-detector-2",
       "version": "3.4.7",
       "app_type": "sensor",
-      "role": "Engineer",
+      "role": [
+        "Engineer"
+      ],
       "criticality": false,
       "priority": "MEDIUM",
       "hotstandby": true,
@@ -615,7 +625,9 @@
       "name": "trajectory-predictor",
       "version": "2.1.2",
       "app_type": "service",
-      "role": "Supervisor",
+      "role": [
+        "Supervisor"
+      ],
       "criticality": true,
       "priority": "LOW",
       "hotstandby": false,
@@ -658,7 +670,9 @@
       "name": "weather-analyzer-2",
       "version": "3.7.8",
       "app_type": "service",
-      "role": "Engineer",
+      "role": [
+        "Engineer"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": true,
@@ -701,7 +715,9 @@
       "name": "conflict-detector-3",
       "version": "3.6.9",
       "app_type": "sensor",
-      "role": "Analyst",
+      "role": [
+        "Analyst"
+      ],
       "criticality": false,
       "priority": "HIGH",
       "hotstandby": false,
@@ -744,7 +760,9 @@
       "name": "clearance-router",
       "version": "1.7.5",
       "app_type": "gateway",
-      "role": "Engineer",
+      "role": [
+        "Engineer"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": true,
@@ -787,7 +805,9 @@
       "name": "weather-analyzer-3",
       "version": "1.9.6",
       "app_type": "service",
-      "role": "Operative",
+      "role": [
+        "Operative"
+      ],
       "criticality": true,
       "priority": "LOW",
       "hotstandby": true,
@@ -830,7 +850,9 @@
       "name": "radar-tracker",
       "version": "2.1.4",
       "app_type": "monitor",
-      "role": "Supervisor",
+      "role": [
+        "Supervisor"
+      ],
       "criticality": true,
       "priority": "LOW",
       "hotstandby": true,
@@ -873,7 +895,9 @@
       "name": "clearance-router-1",
       "version": "2.7.3",
       "app_type": "gateway",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": true,
       "priority": "LOW",
       "hotstandby": true,
@@ -916,7 +940,9 @@
       "name": "radar-tracker-1",
       "version": "3.9.3",
       "app_type": "monitor",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": true,
@@ -959,7 +985,9 @@
       "name": "flight-plan-processor",
       "version": "3.8.6",
       "app_type": "processor",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": true,
       "priority": "LOW",
       "hotstandby": true,
@@ -1002,7 +1030,9 @@
       "name": "radar-tracker-2",
       "version": "3.2.3",
       "app_type": "monitor",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": false,
@@ -1045,7 +1075,9 @@
       "name": "flight-plan-processor-1",
       "version": "1.4.6",
       "app_type": "processor",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": true,
       "priority": "MEDIUM",
       "hotstandby": false,
@@ -1088,7 +1120,9 @@
       "name": "conflict-detector-4",
       "version": "2.5.5",
       "app_type": "sensor",
-      "role": "Engineer",
+      "role": [
+        "Engineer"
+      ],
       "criticality": true,
       "priority": "MEDIUM",
       "hotstandby": true,
@@ -1131,7 +1165,9 @@
       "name": "trajectory-predictor-1",
       "version": "1.7.1",
       "app_type": "service",
-      "role": "Engineer",
+      "role": [
+        "Engineer"
+      ],
       "criticality": true,
       "priority": "LOW",
       "hotstandby": false,
@@ -1174,7 +1210,9 @@
       "name": "flight-plan-processor-2",
       "version": "3.4.9",
       "app_type": "processor",
-      "role": "Operative",
+      "role": [
+        "Operative"
+      ],
       "criticality": true,
       "priority": "LOW",
       "hotstandby": false,
@@ -1217,7 +1255,9 @@
       "name": "conflict-detector-5",
       "version": "3.7.7",
       "app_type": "sensor",
-      "role": "Supervisor",
+      "role": [
+        "Supervisor"
+      ],
       "criticality": false,
       "priority": "LOW",
       "hotstandby": true,
@@ -1260,7 +1300,9 @@
       "name": "radar-tracker-3",
       "version": "1.8.3",
       "app_type": "monitor",
-      "role": "Supervisor",
+      "role": [
+        "Supervisor"
+      ],
       "criticality": false,
       "priority": "MEDIUM",
       "hotstandby": true,
@@ -1303,7 +1345,9 @@
       "name": "weather-analyzer-4",
       "version": "3.7.4",
       "app_type": "service",
-      "role": "Analyst",
+      "role": [
+        "Analyst"
+      ],
       "criticality": true,
       "priority": "LOW",
       "hotstandby": true,
@@ -1346,7 +1390,9 @@
       "name": "trajectory-predictor-2",
       "version": "3.8.2",
       "app_type": "service",
-      "role": "Operative",
+      "role": [
+        "Operative"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": true,
@@ -1389,7 +1435,9 @@
       "name": "conflict-detector-6",
       "version": "3.0.2",
       "app_type": "sensor",
-      "role": "Supervisor",
+      "role": [
+        "Supervisor"
+      ],
       "criticality": false,
       "priority": "MEDIUM",
       "hotstandby": false,
@@ -1432,7 +1480,9 @@
       "name": "flight-plan-processor-3",
       "version": "3.3.4",
       "app_type": "processor",
-      "role": "Engineer",
+      "role": [
+        "Engineer"
+      ],
       "criticality": true,
       "priority": "LOW",
       "hotstandby": false,
@@ -1475,7 +1525,9 @@
       "name": "weather-analyzer-5",
       "version": "3.3.2",
       "app_type": "service",
-      "role": "Operative",
+      "role": [
+        "Operative"
+      ],
       "criticality": false,
       "priority": "HIGH",
       "hotstandby": true,

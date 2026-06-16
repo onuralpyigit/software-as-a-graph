@@ -31,7 +31,7 @@ def _canonical_sha256(data: dict) -> str:
 
 _SCENARIO_08_YAML = project_root / "data" / "scenarios" / "scenario_08_tiny_regression.yaml"
 
-_GOLDEN_SHA256 = "5127b17a3ac25e317873d269d066bb43ce4a41a92d845c36660f9d3c2f7b6c3b"
+_GOLDEN_SHA256 = "695dd089db99663f2f6ed1db6a97ff4302fa17ae1c130728d87badd72c73d7a1"
 
 _GOLDEN_ENTITY_COUNTS = {
     "nodes": 3,
@@ -42,11 +42,11 @@ _GOLDEN_ENTITY_COUNTS = {
 }
 
 _GOLDEN_RELATIONSHIP_COUNTS = {
-    "runs_on": 20,
+    "runs_on": 21,
     "routes": 12,
-    "publishes_to": 31,
-    "subscribes_to": 35,
-    "uses": 15,
+    "publishes_to": 28,
+    "subscribes_to": 28,
+    "uses": 12,
     "connects_to": 1,
 }
 
