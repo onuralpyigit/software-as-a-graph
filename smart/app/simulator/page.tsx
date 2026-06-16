@@ -29,6 +29,8 @@ import {
   Pencil,
   ShieldAlert,
   Layers,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
 import { trafficClient, type TopicInfo, type AppInfo, type TopicParams, type TrafficSimulationResult } from "@/lib/api/traffic-client"
@@ -36,6 +38,8 @@ import { simulationClient, type FailureResult } from "@/lib/api/simulation-clien
 import { apiClient } from "@/lib/api/client"
 import { TermTooltip } from "@/components/ui/term-tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import ReactECharts from "echarts-for-react"
 
 // ============================================================================
@@ -120,6 +124,7 @@ export default function TrafficSimulatorPage() {
 
   // ---- Failure Simulation ----
   const [failureTargetId, setFailureTargetId] = useState<string>("")
+  const [failureTargetOpen, setFailureTargetOpen] = useState(false)
   const [failureLayer, setFailureLayer] = useState<string>("system")
   const [failureCascadeProb, setFailureCascadeProb] = useState<number>(1.0)
   const [failureResult, setFailureResult] = useState<FailureResult | null>(null)
@@ -1224,25 +1229,68 @@ export default function TrafficSimulatorPage() {
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="failure-target">Target Component</Label>
-                  <Select 
-                    value={failureTargetId} 
-                    onValueChange={(val) => { setFailureTargetId(val); setFailureResult(null); setFailureError(null); }}
-                    disabled={failureLoading || componentsLoading}
-                  >
-                    <SelectTrigger id="failure-target">
-                      <SelectValue placeholder={componentsLoading ? "Loading components..." : failureTargetId ? getComponentName(failureTargetId) : "Select a component"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {components.map((comp) => (
-                        <SelectItem key={comp.id} value={comp.id}>
-                          <div className="flex flex-col">
-                            <span>{comp.name}</span>
-                            <span className="text-xs text-muted-foreground">{comp.id} ({comp.type})</span>
+                  <Popover open={failureTargetOpen} onOpenChange={setFailureTargetOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="failure-target"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={failureTargetOpen}
+                        disabled={failureLoading || componentsLoading}
+                        className="w-full justify-between font-normal"
+                      >
+                        {failureTargetId ? (
+                          <div className="flex items-center gap-2 w-full overflow-hidden">
+                            <span className="truncate">
+                              {getComponentName(failureTargetId)}
+                            </span>
+                            <span className="text-xs text-muted-foreground truncate shrink-0">
+                              {failureTargetId}
+                            </span>
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            {componentsLoading ? "Loading..." : "Select a component"}
+                          </span>
+                        )}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search component..." className="h-9" />
+                        <CommandList>
+                          <CommandEmpty>No component found.</CommandEmpty>
+                          <CommandGroup className="max-h-[300px] overflow-y-auto">
+                            {components.map((comp) => (
+                              <CommandItem
+                                key={comp.id}
+                                value={`${comp.name} ${comp.id} ${comp.type}`}
+                                onSelect={() => {
+                                  setFailureTargetId(comp.id)
+                                  setFailureTargetOpen(false)
+                                  setFailureResult(null)
+                                  setFailureError(null)
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 shrink-0 ${
+                                    failureTargetId === comp.id ? "opacity-100" : "opacity-0"
+                                  }`}
+                                />
+                                <div className="flex flex-1 flex-col min-w-0">
+                                  <span className="truncate text-sm">{comp.name}</span>
+                                  <span className="text-xs text-muted-foreground truncate">
+                                    {comp.id} ({comp.type})
+                                  </span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <p className="text-xs text-muted-foreground">Component to simulate failure for</p>
                 </div>
                 <div className="space-y-2">
