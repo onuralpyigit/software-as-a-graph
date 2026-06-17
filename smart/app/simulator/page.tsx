@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,7 +30,12 @@ import {
   ShieldAlert,
   Layers,
   Check,
-  ChevronsUpDown,
+  Cpu,
+  Box,
+  Database,
+  Cloud,
+  HardDrive,
+  Router,
 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
 import { trafficClient, type TopicInfo, type AppInfo, type TopicParams, type TrafficSimulationResult } from "@/lib/api/traffic-client"
@@ -38,8 +43,6 @@ import { simulationClient, type FailureResult } from "@/lib/api/simulation-clien
 import { apiClient } from "@/lib/api/client"
 import { TermTooltip } from "@/components/ui/term-tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import ReactECharts from "echarts-for-react"
 
 // ============================================================================
@@ -123,14 +126,33 @@ export default function TrafficSimulatorPage() {
   const [componentsLoading, setComponentsLoading] = useState(false)
 
   // ---- Failure Simulation ----
-  const [failureTargetId, setFailureTargetId] = useState<string>("")
-  const [failureTargetOpen, setFailureTargetOpen] = useState(false)
+  const [failureTargetIds, setFailureTargetIds] = useState<string[]>([])
+  const [failureSearch, setFailureSearch] = useState("")
+  const [failureTypeTab, setFailureTypeTab] = useState<string>("")
   const [failureLayer, setFailureLayer] = useState<string>("system")
   const [failureCascadeProb, setFailureCascadeProb] = useState<number>(1.0)
-  const [failureResult, setFailureResult] = useState<FailureResult | null>(null)
+  const [failureResults, setFailureResults] = useState<FailureResult[] | null>(null)
   const [failureLoading, setFailureLoading] = useState(false)
   const [failureError, setFailureError] = useState<string | null>(null)
   const [cascadedSearch, setCascadedSearch] = useState<string>("")
+
+  // Group components by type for better UX
+  const availableTypes = useMemo(() => {
+    const types = new Set(components.map(c => c.type || "Unknown"))
+    return Array.from(types).sort()
+  }, [components])
+
+  const groupedComponents = useMemo(() => {
+    const groups: Record<string, typeof components> = {}
+    for (const comp of components) {
+      const type = comp.type || "Unknown"
+      if (!groups[type]) {
+        groups[type] = []
+      }
+      groups[type].push(comp)
+    }
+    return groups
+  }, [components])
 
   // ------------------------------------------------------------------
   // Effects
@@ -212,21 +234,32 @@ export default function TrafficSimulatorPage() {
     }
   }
 
+  function toggleFailureTarget(id: string) {
+    setFailureTargetIds(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(tid => tid !== id)
+      }
+      return [...prev, id]
+    })
+    setFailureResults(null)
+    setFailureError(null)
+  }
+
   async function runFailureSimulation() {
-    if (!failureTargetId.trim()) {
-      setFailureError("Please select a target component.")
+    if (failureTargetIds.length === 0) {
+      setFailureError("Please select at least one target component.")
       return
     }
     setFailureLoading(true)
     setFailureError(null)
-    setFailureResult(null)
+    setFailureResults(null)
     try {
-      const result = await simulationClient.runFailureSimulation({
-        target_id: failureTargetId,
+      const results = await simulationClient.runFailureSimulation({
+        target_ids: failureTargetIds,
         layer: failureLayer,
         cascade_probability: failureCascadeProb,
       })
-      setFailureResult(result)
+      setFailureResults(results)
     } catch (err: any) {
       setFailureError(err.message || "Failure simulation failed")
     } finally {
@@ -1196,23 +1229,76 @@ export default function TrafficSimulatorPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <ShieldAlert className="h-6 w-6 text-red-500 mb-3" />
-                  <CardTitle className="font-semibold text-sm mb-1">Failure Simulation</CardTitle>
+                  <CardTitle className="font-semibold text-sm mb-1">
+                    Selection
+                    {failureTargetIds.length > 0 && (
+                      <Badge className="ml-2">{failureTargetIds.length} component{failureTargetIds.length !== 1 ? "s" : ""} selected</Badge>
+                    )}
+                  </CardTitle>
                   <CardDescription className="text-sm">
-                    Analyze the impact of component failures and cascade propagation.
+                    Pick components to analyze their failure impact and cascade propagation.
                   </CardDescription>
                 </div>
-                <Button
-                  onClick={runFailureSimulation}
-                  disabled={failureLoading || !failureTargetId.trim()}
-                  size="sm"
-                  className="bg-red-600 hover:bg-red-700 text-white"
-                >
-                  {failureLoading ? (
-                    <><LoadingSpinner className="h-4 w-4 mr-2" />Simulating…</>
-                  ) : (
-                    <><Play className="h-4 w-4 mr-2" />Run Failure Simulation</>
+                <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Layer</Label>
+                    <Select 
+                      value={failureLayer} 
+                      onValueChange={setFailureLayer} 
+                      disabled={failureLoading}
+                    >
+                      <SelectTrigger className="h-8 w-32 text-xs">
+                        <SelectValue placeholder="Layer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="app">Application</SelectItem>
+                        <SelectItem value="infra">Infrastructure</SelectItem>
+                        <SelectItem value="mw">Middleware</SelectItem>
+                        <SelectItem value="system">System</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Cascade</Label>
+                    <Input
+                      type="number"
+                      min={0.0}
+                      max={1.0}
+                      step={0.1}
+                      value={failureCascadeProb}
+                      onChange={e => setFailureCascadeProb(parseFloat(e.target.value) || 1.0)}
+                      disabled={failureLoading}
+                      className="h-8 w-20 text-xs"
+                    />
+                  </div>
+                  {failureTargetIds.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground"
+                      onClick={() => {
+                        setFailureTargetIds([])
+                        setFailureResults(null)
+                        setFailureError(null)
+                      }}
+                    >
+                      <X className="h-3.5 w-3.5 mr-1" />
+                      Clear all
+                    </Button>
                   )}
-                </Button>
+                  <Button
+                    onClick={runFailureSimulation}
+                    disabled={failureLoading || failureTargetIds.length === 0}
+                    size="sm"
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    {failureLoading ? (
+                      <><LoadingSpinner className="h-4 w-4 mr-2" />Simulating…</>
+                    ) : (
+                      <><Play className="h-4 w-4 mr-2" />Run Simulation</>
+                    )}
+                  </Button>
+                </div>
               </div>
               {failureError && (
                 <div className="flex items-start gap-2 text-destructive text-sm mt-2">
@@ -1221,108 +1307,121 @@ export default function TrafficSimulatorPage() {
                 </div>
               )}
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="failure-target">Target Component</Label>
-                  <Popover open={failureTargetOpen} onOpenChange={setFailureTargetOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="failure-target"
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={failureTargetOpen}
-                        disabled={failureLoading || componentsLoading}
-                        className="w-full justify-between font-normal"
-                      >
-                        {failureTargetId ? (
-                          <div className="flex items-center gap-2 w-full overflow-hidden">
-                            <span className="truncate">
-                              {getComponentName(failureTargetId)}
-                            </span>
-                            <span className="text-xs text-muted-foreground truncate shrink-0">
-                              {failureTargetId}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">
-                            {componentsLoading ? "Loading..." : "Select a component"}
-                          </span>
-                        )}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search component..." className="h-9" />
-                        <CommandList>
-                          <CommandEmpty>No component found.</CommandEmpty>
-                          <CommandGroup className="max-h-[300px] overflow-y-auto">
-                            {components.map((comp) => (
-                              <CommandItem
-                                key={comp.id}
-                                value={`${comp.name} ${comp.id} ${comp.type}`}
-                                onSelect={() => {
-                                  setFailureTargetId(comp.id)
-                                  setFailureTargetOpen(false)
-                                  setFailureResult(null)
-                                  setFailureError(null)
-                                }}
-                              >
-                                <Check
-                                  className={`mr-2 h-4 w-4 shrink-0 ${
-                                    failureTargetId === comp.id ? "opacity-100" : "opacity-0"
-                                  }`}
-                                />
-                                <div className="flex flex-1 flex-col min-w-0">
-                                  <span className="truncate text-sm">{comp.name}</span>
-                                  <span className="text-xs text-muted-foreground truncate">
-                                    {comp.id} ({comp.type})
-                                  </span>
+            <CardContent className="space-y-3">
+              {/* Sub-tabs for component types */}
+              <Tabs value={failureTypeTab || availableTypes[0]} onValueChange={setFailureTypeTab} className="w-full">
+                <TabsList className="bg-background border border-border w-fit flex-wrap h-auto justify-start">
+                  {availableTypes.map(type => {
+                    const typeLower = type.toLowerCase()
+                    let Icon = Box
+                    if (typeLower.includes("app") || typeLower === "application") Icon = Server
+                    else if (typeLower.includes("infra") || typeLower.includes("network")) Icon = Network
+                    else if (typeLower.includes("mw") || typeLower.includes("middleware")) Icon = Layers
+                    else if (typeLower.includes("system") || typeLower.includes("host") || typeLower.includes("node")) Icon = Cpu
+                    else if (typeLower.includes("topic") || typeLower.includes("message")) Icon = MessageSquare
+                    else if (typeLower.includes("broker") || typeLower.includes("database")) Icon = Database
+                    else if (typeLower.includes("cloud") || typeLower.includes("aws") || typeLower.includes("azure")) Icon = Cloud
+                    else if (typeLower.includes("hardware") || typeLower.includes("disk") || typeLower.includes("storage")) Icon = HardDrive
+                    else if (typeLower.includes("router") || typeLower.includes("switch")) Icon = Router
+                    
+                    return (
+                      <TabsTrigger key={type} value={type} className="flex items-center gap-2 capitalize">
+                        <Icon className="h-4 w-4" />
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                        <span className="text-xs text-muted-foreground">
+                          ({(groupedComponents[type] || []).filter(c => 
+                            c.name.toLowerCase().includes(failureSearch.toLowerCase()) || 
+                            c.id.toLowerCase().includes(failureSearch.toLowerCase())
+                          ).length})
+                        </span>
+                      </TabsTrigger>
+                    )
+                  })}
+                </TabsList>
+
+                <div>
+                  {/* Search bar */}
+                  <div className="flex flex-wrap gap-2">
+                    <div className="relative flex-1 min-w-[180px]">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                      <Input
+                        placeholder="Search components…"
+                        value={failureSearch}
+                        onChange={e => setFailureSearch(e.target.value)}
+                        className="pl-8 h-8 text-sm"
+                      />
+                      {failureSearch && (
+                        <button
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          onClick={() => setFailureSearch("")}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {availableTypes.map(type => {
+                    const filtered = (groupedComponents[type] || []).filter(comp => 
+                      comp.name.toLowerCase().includes(failureSearch.toLowerCase()) || 
+                      comp.id.toLowerCase().includes(failureSearch.toLowerCase())
+                    )
+                    const total = (groupedComponents[type] || []).length
+                    return (
+                      <TabsContent key={type} value={type} className="mt-0">
+                        <div className="text-xs text-muted-foreground py-3">
+                          {filtered.length} component{filtered.length !== 1 ? "s" : ""}
+                          {failureSearch && total !== filtered.length ? ` (filtered from ${total})` : ""}
+                          {" · Selecting a component simulates its failure impact on the system."}
+                        </div>
+                        <div className="border rounded-lg overflow-hidden">
+                          <div className="max-h-96 overflow-y-auto divide-y">
+                            {filtered.map((comp) => {
+                              const selected = failureTargetIds.includes(comp.id)
+                              return (
+                                <div
+                                  key={comp.id}
+                                  className={`flex items-center gap-3 px-3 transition-colors ${selected ? "bg-primary/5 dark:bg-primary/10 py-2" : "py-2.5 hover:bg-muted/60"}`}
+                                >
+                                  <button
+                                    onClick={() => toggleFailureTarget(comp.id)}
+                                    className="shrink-0"
+                                  >
+                                    <div className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors ${selected ? "bg-primary border-primary" : "border-muted-foreground/40"}`}>
+                                      {selected && (
+                                        <svg className="h-2.5 w-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 12 12">
+                                          <path d="M10.28 2.28L3.989 8.575 1.695 6.28A1 1 0 00.28 7.695l3 3a1 1 0 001.414 0l7-7A1 1 0 0010.28 2.28z" />
+                                        </svg>
+                                      )}
+                                    </div>
+                                  </button>
+                                  <button
+                                    onClick={() => toggleFailureTarget(comp.id)}
+                                    className="flex-1 min-w-0 text-left"
+                                  >
+                                    <div className={`text-sm truncate ${selected ? "text-primary" : ""}`}>
+                                      <span className={`font-medium ${selected ? "text-primary" : ""}`}>{comp.name}</span>
+                                      <span className="text-xs text-muted-foreground ml-2">{comp.id}</span>
+                                    </div>
+                                  </button>
+                                  {selected && (
+                                    <Badge variant="secondary" className="shrink-0 text-xs">Selected</Badge>
+                                  )}
                                 </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <p className="text-xs text-muted-foreground">Component to simulate failure for</p>
+                              )
+                            })}
+                          {filtered.length === 0 && (
+                            <div className="py-8 text-center text-sm text-muted-foreground">
+                              No components match your search.
+                            </div>
+                          )}
+                        </div>
+                        </div>
+                      </TabsContent>
+                    )
+                  })}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="failure-layer">Analysis Layer</Label>
-                  <Select 
-                    value={failureLayer} 
-                    onValueChange={setFailureLayer} 
-                    disabled={failureLoading}
-                  >
-                     <SelectTrigger id="failure-layer" className="w-full">
-                       <SelectValue placeholder="Select layer" />
-                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="app">Application</SelectItem>
-                      <SelectItem value="infra">Infrastructure</SelectItem>
-                      <SelectItem value="mw">Middleware</SelectItem>
-                      <SelectItem value="system">System</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">Architectural layer to analyze failure impact</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="failure-cascade">Cascade Probability</Label>
-                  <Input
-                    id="failure-cascade"
-                    type="number"
-                    min={0.0}
-                    max={1.0}
-                    step={0.1}
-                    value={failureCascadeProb}
-                    onChange={e => setFailureCascadeProb(parseFloat(e.target.value) || 1.0)}
-                    disabled={failureLoading}
-                  />
-                  <p className="text-xs text-muted-foreground">Probability of failure cascading (0.0-1.0)</p>
-                </div>
-              </div>
+              </Tabs>
             </CardContent>
           </Card>
           )}
@@ -1470,145 +1569,24 @@ export default function TrafficSimulatorPage() {
         })()}
 
         {/* ── Failure Simulation Results ──────────────────────────── */}
-        {simMode === "failure" && failureResult && (() => {
-          const impactScore = failureResult.impact.composite_impact || 0;
-          const gaugePct = Math.min(impactScore * 100, 100);
-          const gaugeColor = impactScore > 0.5 ? "#ef4444" : impactScore > 0.25 ? "#f97316" : "#22c55e";
-
-          const cascadeTypes = Object.keys(failureResult.impact.cascade?.by_type || {});
-          const cascadeValues = Object.values(failureResult.impact.cascade?.by_type || {});
-
-          const layerKeys = Object.keys(failureResult.layer_impacts || {});
-          const layerValues = Object.values(failureResult.layer_impacts || {}).map((v: number) => parseFloat((v * 100).toFixed(1)));
-          const sortedLayers = layerKeys.map((k, i) => ({ key: k, value: layerValues[i] })).sort((a, b) => b.value - a.value);
-          const layerNames = sortedLayers.map(l => l.key.charAt(0).toUpperCase() + l.key.slice(1));
-          const layerData = sortedLayers.map(l => l.value);
-
+        {simMode === "failure" && failureResults && failureResults.length > 0 && (() => {
           return (
-          <Card className="border-border bg-background">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div>
-                  <ShieldAlert className="h-6 w-6 text-red-500 mb-3" />
-                  <CardTitle className="font-semibold text-sm mb-1">Failure Simulation Results</CardTitle>
-                  <CardDescription className="text-sm">
-                    Impact analysis for {getComponentName(failureResult.target_id)} ({failureResult.target_type})
-                  </CardDescription>
-                </div>
-                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setFailureResult(null)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Gauge + summary stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
-                {/* Gauge */}
-                <div className="flex flex-col items-center">
-                  <ReactECharts
-                    option={{
-                      series: [{
-                        type: "gauge",
-                        startAngle: 210,
-                        endAngle: -30,
-                        min: 0,
-                        max: 100,
-                        radius: "85%",
-                        progress: { show: true, width: 14, itemStyle: { color: gaugeColor } },
-                        axisLine: { lineStyle: { width: 14, color: [[1, "#27272a"]] } },
-                        axisTick: { show: false },
-                        splitLine: { show: false },
-                        axisLabel: { show: false },
-                        pointer: { show: false },
-                        detail: {
-                          valueAnimation: true,
-                          formatter: (v: number) => v.toFixed(1),
-                          color: gaugeColor,
-                          fontSize: 22,
-                          fontWeight: "bold",
-                          offsetCenter: [0, "10%"],
-                        },
-                        title: { show: true, offsetCenter: [0, "38%"], fontSize: 12, color: "#71717a" },
-                        data: [{ value: parseFloat(gaugePct.toFixed(1)), name: "Composite Impact" }],
-                      }],
-                      backgroundColor: "transparent",
-                    }}
-                    style={{ height: 200, width: "100%" }}
-                  />
-                  <div className="text-center -mt-4">
-                    <div className={`text-lg font-bold ${getImpactColor(impactScore)}`}>
-                      {impactScore.toFixed(3)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">normalized impact score</div>
-                  </div>
-                </div>
+            <>
+              {failureResults.map((failureResult, index) => {
+                const impactScore = failureResult.impact.composite_impact || 0;
+                const gaugePct = Math.min(impactScore * 100, 100);
+                const gaugeColor = impactScore > 0.5 ? "#ef4444" : impactScore > 0.25 ? "#f97316" : "#22c55e";
 
-                {/* Stats */}
-                <div className="sm:col-span-2 grid grid-cols-2 gap-3">
-                  {[
-                    { label: "Reachability Loss", value: `${(failureResult.impact.reachability?.loss_percent || 0).toFixed(1)}%`, tip: "Percentage of broken pub-sub paths due to this failure." },
-                    { label: "Throughput Loss", value: `${(failureResult.impact.throughput?.loss_percent || 0).toFixed(1)}%`, tip: "QoS-weighted reduction in message delivery capacity." },
-                    { label: "Flow Disruption", value: `${(failureResult.impact.flow_disruption?.loss_percent || 0).toFixed(1)}%`, tip: "Percentage of data flow paths disrupted by this failure." },
-                    { label: "Cascade Count", value: `${failureResult.impact.cascade?.count || 0}`, tip: "Number of additional components affected by the cascading failure." },
-                    { label: "Max Cascade Depth", value: `${failureResult.impact.cascade?.depth || 0}`, tip: "Longest chain of dependent failures triggered by this component." },
-                    { label: "Topics Affected", value: `${failureResult.impact.affected?.topics || 0}`, tip: "Number of pub/sub topics that lose connectivity or capacity." },
-                    { label: "Publishers Affected", value: `${failureResult.impact.affected?.publishers || 0}`, tip: "Number of publisher applications disconnected or degraded." },
-                    { label: "Subscribers Affected", value: `${failureResult.impact.affected?.subscribers || 0}`, tip: "Number of subscriber applications disconnected or degraded." },
-                  ].map(({ label, value, tip }) => (
-                    <div key={label} className="rounded-md border border-border bg-muted/30 px-3 py-2">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        {label}
-                        <TermTooltip description={tip} iconOnly side="top" />
-                      </div>
-                      <div className="text-sm font-semibold mt-0.5">{value}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                const cascadeTypes = Object.keys(failureResult.impact.cascade?.by_type || {});
+                const cascadeValues = Object.values(failureResult.impact.cascade?.by_type || {});
 
-              {/* Cascade by Component Type */}
-              {cascadeTypes.length > 0 && (
-                <div>
-                  <div className="text-xs font-medium text-muted-foreground mb-2">Cascaded Failures by Component Type</div>
-                  <ReactECharts
-                    option={{
-                      tooltip: { trigger: "axis", formatter: (p: any) => `${p[0].name}<br/>${p[0].value} components` },
-                      grid: { top: 8, bottom: 40, left: 12, right: 12, containLabel: true },
-                      xAxis: { type: "category", data: cascadeTypes, axisLabel: { fontSize: 11, color: "#a1a1aa", rotate: cascadeTypes.length > 5 ? 30 : 0 } },
-                      yAxis: { type: "value", name: "Count", nameTextStyle: { color: "#a1a1aa", fontSize: 11 }, axisLabel: { color: "#a1a1aa", fontSize: 11 } },
-                      series: [{ type: "bar", data: cascadeValues, itemStyle: { color: "#ef4444", borderRadius: [3, 3, 0, 0] } }],
-                      backgroundColor: "transparent",
-                    }}
-                    style={{ height: 200, width: "100%" }}
-                  />
-                </div>
-              )}
+                const layerKeys = Object.keys(failureResult.layer_impacts || {});
+                const layerValues = Object.values(failureResult.layer_impacts || {}).map((v: number) => parseFloat((v * 100).toFixed(1)));
+                const sortedLayers = layerKeys.map((k, i) => ({ key: k, value: layerValues[i] })).sort((a, b) => b.value - a.value);
+                const layerNames = sortedLayers.map(l => l.key.charAt(0).toUpperCase() + l.key.slice(1));
+                const layerData = sortedLayers.map(l => l.value);
 
-              {/* Impact by Layer */}
-              {layerKeys.length > 0 && (
-                <div>
-                  <div className="text-xs font-medium text-muted-foreground mb-2">Impact by Architectural Layer</div>
-                  <ReactECharts
-                    option={{
-                      tooltip: { trigger: "axis", formatter: (p: any) => `${p[0].name}<br/>${p[0].value}% impact` },
-                      grid: { top: 8, bottom: 8, left: 70, right: 12, containLabel: true },
-                      xAxis: { type: "value", name: "Impact %", nameTextStyle: { color: "#a1a1aa", fontSize: 11 }, axisLabel: { color: "#a1a1aa", fontSize: 11 } },
-                      yAxis: { type: "category", data: layerNames, axisLabel: { fontSize: 11, color: "#a1a1aa" } },
-                      series: [{ 
-                        type: "bar", 
-                        data: layerData, 
-                        itemStyle: { color: "#f97316", borderRadius: [0, 3, 3, 0] } 
-                      }],
-                      backgroundColor: "transparent",
-                    }}
-                    style={{ height: Math.max(150, layerNames.length * 40), width: "100%" }}
-                  />
-                </div>
-              )}
-
-              {/* Cascaded Failures List */}
-              {failureResult.cascaded_failures && failureResult.cascaded_failures.length > 0 && (() => {
-                const filteredCascaded = failureResult.cascaded_failures.filter(id => {
+                const filteredCascaded = (failureResult.cascaded_failures || []).filter(id => {
                   const name = getComponentName(id).toLowerCase()
                   const type = getComponentType(id).toLowerCase()
                   const searchLower = cascadedSearch.toLowerCase()
@@ -1623,53 +1601,188 @@ export default function TrafficSimulatorPage() {
                 }
 
                 return (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-xs font-medium text-muted-foreground">
-                      Detailed Cascaded Failures ({filteredCascaded.length}{failureResult.cascaded_failures.length > filteredCascaded.length ? ` / ${failureResult.cascaded_failures.length}` : ''})
-                    </div>
-                    <div className="relative w-48">
-                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-                      <Input 
-                        placeholder="Search failures..." 
-                        value={cascadedSearch} 
-                        onChange={e => setCascadedSearch(e.target.value)}
-                        className="h-7 pl-7 text-xs"
-                      />
-                      {cascadedSearch && (
-                        <button
-                          className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          onClick={() => setCascadedSearch("")}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto rounded-md border border-border bg-muted/30 p-2 space-y-1.5">
-                    {filteredCascaded.length === 0 ? (
-                      <div className="text-xs text-muted-foreground text-center py-4">No matching failures found.</div>
-                    ) : (
-                      filteredCascaded.map((id) => {
-                        const type = getComponentType(id)
-                        const name = getComponentName(id)
-                        return (
-                          <div key={id} className="flex items-center gap-2 p-2 rounded-md bg-background/50 border border-border/50 hover:border-border transition-colors">
-                            <Badge variant="outline" className={`text-[10px] h-5 px-1.5 font-mono uppercase shrink-0 ${getTypeColor(type)}`}>
-                              {type}
-                            </Badge>
-                            <span className="flex-1 text-sm font-medium truncate" title={name}>{name}</span>
-                            <span className="text-xs text-muted-foreground font-mono truncate max-w-[120px]" title={id}>{id}</span>
+                  <Card key={failureResult.target_id} className="border-border bg-background">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                          <ShieldAlert className="h-6 w-6 text-red-500 mb-3" />
+                          <CardTitle className="font-semibold text-sm mb-1">Failure Simulation Results</CardTitle>
+                          <CardDescription className="text-sm">
+                            Impact analysis for {getComponentName(failureResult.target_id)} ({failureResult.target_type})
+                          </CardDescription>
+                        </div>
+                        {failureResults.length === 1 && (
+                          <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setFailureResults(null)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Gauge + summary stats */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                        {/* Gauge */}
+                        <div className="flex flex-col items-center">
+                          <ReactECharts
+                            option={{
+                              series: [{
+                                type: "gauge",
+                                startAngle: 210,
+                                endAngle: -30,
+                                min: 0,
+                                max: 100,
+                                radius: "85%",
+                                progress: { show: true, width: 14, itemStyle: { color: gaugeColor } },
+                                axisLine: { lineStyle: { width: 14, color: [[1, "#27272a"]] } },
+                                axisTick: { show: false },
+                                splitLine: { show: false },
+                                axisLabel: { show: false },
+                                pointer: { show: false },
+                                detail: {
+                                  valueAnimation: true,
+                                  formatter: (v: number) => v.toFixed(1),
+                                  color: gaugeColor,
+                                  fontSize: 22,
+                                  fontWeight: "bold",
+                                  offsetCenter: [0, "10%"],
+                                },
+                                title: { show: true, offsetCenter: [0, "38%"], fontSize: 12, color: "#71717a" },
+                                data: [{ value: parseFloat(gaugePct.toFixed(1)), name: "Composite Impact" }],
+                              }],
+                              backgroundColor: "transparent",
+                            }}
+                            style={{ height: 200, width: "100%" }}
+                          />
+                          <div className="text-center -mt-4">
+                            <div className={`text-lg font-bold ${getImpactColor(impactScore)}`}>
+                              {impactScore.toFixed(3)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">normalized impact score</div>
                           </div>
-                        )
-                      })
-                    )}
-                  </div>
+                        </div>
+
+                        {/* Stats */}
+                        <div className="sm:col-span-2 grid grid-cols-2 gap-3">
+                          {[
+                            { label: "Reachability Loss", value: `${(failureResult.impact.reachability?.loss_percent || 0).toFixed(1)}%`, tip: "Percentage of broken pub-sub paths due to this failure." },
+                            { label: "Throughput Loss", value: `${(failureResult.impact.throughput?.loss_percent || 0).toFixed(1)}%`, tip: "QoS-weighted reduction in message delivery capacity." },
+                            { label: "Flow Disruption", value: `${(failureResult.impact.flow_disruption?.loss_percent || 0).toFixed(1)}%`, tip: "Percentage of data flow paths disrupted by this failure." },
+                            { label: "Cascade Count", value: `${failureResult.impact.cascade?.count || 0}`, tip: "Number of additional components affected by the cascading failure." },
+                            { label: "Max Cascade Depth", value: `${failureResult.impact.cascade?.depth || 0}`, tip: "Longest chain of dependent failures triggered by this component." },
+                            { label: "Topics Affected", value: `${failureResult.impact.affected?.topics || 0}`, tip: "Number of pub/sub topics that lose connectivity or capacity." },
+                            { label: "Publishers Affected", value: `${failureResult.impact.affected?.publishers || 0}`, tip: "Number of publisher applications disconnected or degraded." },
+                            { label: "Subscribers Affected", value: `${failureResult.impact.affected?.subscribers || 0}`, tip: "Number of subscriber applications disconnected or degraded." },
+                          ].map(({ label, value, tip }) => (
+                            <div key={label} className="rounded-md border border-border bg-muted/30 px-3 py-2">
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                {label}
+                                <TermTooltip description={tip} iconOnly side="top" />
+                              </div>
+                              <div className="text-sm font-semibold mt-0.5">{value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Cascade by Component Type */}
+                      {cascadeTypes.length > 0 && (
+                        <div>
+                          <div className="text-xs font-medium text-muted-foreground mb-2">Cascaded Failures by Component Type</div>
+                          <ReactECharts
+                            option={{
+                              tooltip: { trigger: "axis", formatter: (p: any) => `${p[0].name}<br/>${p[0].value} components` },
+                              grid: { top: 8, bottom: 40, left: 12, right: 12, containLabel: true },
+                              xAxis: { type: "category", data: cascadeTypes, axisLabel: { fontSize: 11, color: "#a1a1aa", rotate: cascadeTypes.length > 5 ? 30 : 0 } },
+                              yAxis: { type: "value", name: "Count", nameTextStyle: { color: "#a1a1aa", fontSize: 11 }, axisLabel: { color: "#a1a1aa", fontSize: 11 } },
+                              series: [{ type: "bar", data: cascadeValues, itemStyle: { color: "#ef4444", borderRadius: [3, 3, 0, 0] } }],
+                              backgroundColor: "transparent",
+                            }}
+                            style={{ height: 200, width: "100%" }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Impact by Layer */}
+                      {layerKeys.length > 0 && (
+                        <div>
+                          <div className="text-xs font-medium text-muted-foreground mb-2">Impact by Architectural Layer</div>
+                          <ReactECharts
+                            option={{
+                              tooltip: { trigger: "axis", formatter: (p: any) => `${p[0].name}<br/>${p[0].value}% impact` },
+                              grid: { top: 8, bottom: 8, left: 70, right: 12, containLabel: true },
+                              xAxis: { type: "value", name: "Impact %", nameTextStyle: { color: "#a1a1aa", fontSize: 11 }, axisLabel: { color: "#a1a1aa", fontSize: 11 } },
+                              yAxis: { type: "category", data: layerNames, axisLabel: { fontSize: 11, color: "#a1a1aa" } },
+                              series: [{ 
+                                type: "bar", 
+                                data: layerData, 
+                                itemStyle: { color: "#f97316", borderRadius: [0, 3, 3, 0] } 
+                              }],
+                              backgroundColor: "transparent",
+                            }}
+                            style={{ height: Math.max(150, layerNames.length * 40), width: "100%" }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Cascaded Failures List */}
+                      {failureResult.cascaded_failures && failureResult.cascaded_failures.length > 0 && (
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="text-xs font-medium text-muted-foreground">
+                              Detailed Cascaded Failures ({filteredCascaded.length}{(failureResult.cascaded_failures || []).length > filteredCascaded.length ? ` / ${(failureResult.cascaded_failures || []).length}` : ''})
+                            </div>
+                            <div className="relative w-48">
+                              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                              <Input 
+                                placeholder="Search failures..." 
+                                value={cascadedSearch} 
+                                onChange={e => setCascadedSearch(e.target.value)}
+                                className="h-7 pl-7 text-xs"
+                              />
+                              {cascadedSearch && (
+                                <button
+                                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                  onClick={() => setCascadedSearch("")}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="max-h-64 overflow-y-auto rounded-md border border-border bg-muted/30 p-2 space-y-1.5">
+                            {filteredCascaded.length === 0 ? (
+                              <div className="text-xs text-muted-foreground text-center py-4">No matching failures found.</div>
+                            ) : (
+                              filteredCascaded.map((id) => {
+                                const type = getComponentType(id)
+                                const name = getComponentName(id)
+                                return (
+                                  <div key={id} className="flex items-center gap-2 p-2 rounded-md bg-background/50 border border-border/50 hover:border-border transition-colors">
+                                    <Badge variant="outline" className={`text-[10px] h-5 px-1.5 font-mono uppercase shrink-0 ${getTypeColor(type)}`}>
+                                      {type}
+                                    </Badge>
+                                    <span className="flex-1 text-sm font-medium truncate" title={name}>{name}</span>
+                                    <span className="text-xs text-muted-foreground font-mono truncate max-w-[120px]" title={id}>{id}</span>
+                                  </div>
+                                )
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+              {failureResults.length > 1 && (
+                <div className="flex justify-center mt-4">
+                  <Button variant="outline" size="sm" onClick={() => setFailureResults(null)}>
+                    <X className="h-4 w-4 mr-2" />
+                    Clear Results
+                  </Button>
                 </div>
-                )
-              })()}
-            </CardContent>
-          </Card>
+              )}
+            </>
           );
         })()}
       </div>

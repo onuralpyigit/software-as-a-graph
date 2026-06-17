@@ -121,7 +121,7 @@ def test_simulate_failure(mock_failure_result):
     
     try:
         response = client.post("/api/v1/simulation/failure", json={
-            "target_id": "c1",
+            "target_ids": ["c1"],
             "layer": "system",
             "credentials": {
                 "uri": "bolt://localhost:7687",
@@ -134,5 +134,6 @@ def test_simulate_failure(mock_failure_result):
         data = response.json()
         assert data["success"] is True
         assert data["simulation_type"] == "failure"
+        assert "results" in data
     finally:
         app.dependency_overrides = {}

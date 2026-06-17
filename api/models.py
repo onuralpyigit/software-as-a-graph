@@ -259,7 +259,7 @@ class FailureSimulationResultModel(BaseModel):
 class FailureSimulationResponse(BaseModel):
     success: bool
     simulation_type: str
-    result: FailureSimulationResultModel
+    results: List[FailureSimulationResultModel]
 
 
 class ExhaustiveSummaryModel(BaseModel):
@@ -578,7 +578,7 @@ class EventSimulationRequest(GraphRequestWithCredentials):
 
 
 class FailureSimulationRequest(GraphRequestWithCredentials):
-    target_id: str = Field(..., description="Target component ID to simulate failure")
+    target_ids: List[str] = Field(..., description="Target component IDs to simulate failure")
     layer: str = Field(default="system", description="Analysis layer: app, infra, mw, system (aliases supported)")
     cascade_probability: float = Field(default=1.0, description="Cascade propagation probability (0.0-1.0)")
 

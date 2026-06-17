@@ -89,16 +89,16 @@ class SimulationService:
 
         return simulator.simulate_all_publishers(template)
 
-    def run_failure_simulation(self, target_id: str, layer: str = "system", 
+    def run_failure_simulation(self, target_ids: List[str], layer: str = "system", 
                               cascade_rule: CascadeRule = CascadeRule.ALL,
                               cascade_probability: float = 1.0,
                               failure_mode: FailureMode = FailureMode.CRASH) -> FailureResult:
-        """Run a single failure simulation."""
+        """Run a single failure simulation for one or more targets."""
         graph = self._get_graph()
         sim = FailureSimulator(graph)
         
         scenario = FailureScenario(
-            target_ids=[target_id],
+            target_ids=target_ids,
             failure_mode=failure_mode,
             cascade_rule=cascade_rule,
             cascade_probability=cascade_probability

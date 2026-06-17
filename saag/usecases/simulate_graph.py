@@ -11,13 +11,14 @@ class SimulateGraphUseCase:
         self.service = service
 
         
-    def execute(self, layer: str = "system", mode: SimulationMode = SimulationMode.EXHAUSTIVE, target_id: str = None, **kwargs) -> Any:
+    def execute(self, layer: str = "system", mode: SimulationMode = SimulationMode.EXHAUSTIVE, target_id: str = None, target_ids: List[str] = None, **kwargs) -> Any:
         if mode == SimulationMode.EXHAUSTIVE:
             return self.service.run_failure_simulation_exhaustive(layer=layer, **kwargs)
         elif mode == SimulationMode.SINGLE:
-            if not target_id:
-                raise ValueError("target_id is required for SINGLE simulation mode")
-            return self.service.run_failure_simulation(target_id=target_id, layer=layer, **kwargs)
+            targets = target_ids or ([target_id] if target_id else [])
+            if not targets:
+                raise ValueError("target_id or target_ids is required for SINGLE simulation mode")
+            return self.service.run_failure_simulation(target_ids=targets, layer=layer, **kwargs)
         elif mode == SimulationMode.EVENT:
             source_app = kwargs.pop("source_app", "all")
             if source_app == "all":
