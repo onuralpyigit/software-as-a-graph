@@ -3399,6 +3399,22 @@ function EmptyDetailState() {
   )
 }
 
+function EmptyExplorerState() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-3 p-8 text-center">
+      <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+        <Layers className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <div className="space-y-1">
+        <p className="text-sm font-medium text-foreground">No data available</p>
+        <p className="text-xs text-muted-foreground max-w-64">
+          There are no components, applications, or topics currently loaded. Please import a graph to explore the system architecture.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 // ── Browse Tree (right panel) ─────────────────────────────────────────────────
 
 interface TreeProps {
@@ -5088,74 +5104,79 @@ function BrowserPageContent() {
 
           {/* ── Browse tab ── */}
           <TabsContent forceMount value="browse" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
-            <div className="flex border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
-              {/* Left: Tabbed list panel */}
-              <div className="w-72 flex flex-col overflow-hidden shrink-0 border-r border-border">
-                <SideListPanel
-                  nodesList={nodesList}
-                  appsList={appsList}
-                  topicsList={topicsList}
-                  brokersList={brokersList}
-                  libsList={libsList}
-                  hierarchy={hierarchy}
-                  openSet={openSet}
-                  toggle={toggle}
-                  expandPath={expandPath}
-                  selectedKey={selectedNode?.key ?? null}
-                  onSelect={setSelectedNode}
-                  search={sideSearch}
-                  onSearchChange={setSideSearch}
-                  loading={loading}
-                  initialTab={sideInitialTab}
-                />
-              </div>
+            {(appsList.length > 0 || nodesList.length > 0 || topicsList.length > 0 || libsList.length > 0 || brokersList.length > 0)
+              ? (
+                <div className="flex border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
+                  {/* Left: Tabbed list panel */}
+                  <div className="w-72 flex flex-col overflow-hidden shrink-0 border-r border-border">
+                    <SideListPanel
+                      nodesList={nodesList}
+                      appsList={appsList}
+                      topicsList={topicsList}
+                      brokersList={brokersList}
+                      libsList={libsList}
+                      hierarchy={hierarchy}
+                      openSet={openSet}
+                      toggle={toggle}
+                      expandPath={expandPath}
+                      selectedKey={selectedNode?.key ?? null}
+                      onSelect={setSelectedNode}
+                      search={sideSearch}
+                      onSearchChange={setSideSearch}
+                      loading={loading}
+                      initialTab={sideInitialTab}
+                    />
+                  </div>
 
-              {/* Middle: Detail / table panel */}
-              <div className="flex-1 overflow-auto min-w-0 border-r border-border">
-                {loading && !csmsKeys.length
-                  ? (
-                    <div className="p-4 flex flex-col gap-3">
-                      <div className="flex items-center gap-3 pb-3 border-b border-border/60">
-                        <Skeleton className="h-4 w-40" />
-                        <Skeleton className="h-5 w-16 ml-auto rounded-full" />
-                      </div>
-                      {Array.from({ length: 12 }).map((_, i) => (
-                        <div key={i} className="flex items-center gap-4 py-1">
-                          <Skeleton className="h-3" style={{ width: `${30 + (i * 17) % 30}%` }} />
-                          <Skeleton className="h-3" style={{ width: `${20 + (i * 11) % 25}%` }} />
+                  {/* Middle: Detail / table panel */}
+                  <div className="flex-1 overflow-auto min-w-0 border-r border-border">
+                    {loading && !csmsKeys.length
+                      ? (
+                        <div className="p-4 flex flex-col gap-3">
+                          <div className="flex items-center gap-3 pb-3 border-b border-border/60">
+                            <Skeleton className="h-4 w-40" />
+                            <Skeleton className="h-5 w-16 ml-auto rounded-full" />
+                          </div>
+                          {Array.from({ length: 12 }).map((_, i) => (
+                            <div key={i} className="flex items-center gap-4 py-1">
+                              <Skeleton className="h-3" style={{ width: `${30 + (i * 17) % 30}%` }} />
+                              <Skeleton className="h-3" style={{ width: `${20 + (i * 11) % 25}%` }} />
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  )
-                  : selectedNode
-                    ? <NodeDetailPanel node={selectedNode} />
-                    : <EmptyDetailState />
-                }
-              </div>
+                      )
+                      : selectedNode
+                        ? <NodeDetailPanel node={selectedNode} />
+                        : <EmptyDetailState />
+                    }
+                  </div>
 
-              {/* Right: Connections column */}
-              <div className="w-64 shrink-0 flex flex-col overflow-hidden">
-                <ConnectionsColumn
-                  selectedNode={selectedNode}
-                  links={layerGraphLinks}
-                  nodeLabels={allNodeLabels}
-                  loading={layerLinksLoading}
-                  onSelect={(id) => {
-                    const info = allNodeLabels.get(id)
-                    if (!info) return
-                    const kind: SelectedKind = info.type === "Application" ? "app" : info.type === "Topic" ? "topic" : "node"
-                    const app = appsList.find(a => String(a.id) === id)
-                    const raw = app
-                      ?? nodesList.find(n => String(n.id) === id)
-                      ?? topicsList.find(t => String(t.id) === id)
-                      ?? brokersList.find(b => String(b.id) === id)
-                      ?? libsList.find(l => String(l.id) === id)
-                    if (!raw) return
-                    setSelectedNode({ kind, key: `${kind}:${id}`, label: info.label, path: [info.label], payload: raw })
-                  }}
-                />
-              </div>
-            </div>
+                  {/* Right: Connections column */}
+                  <div className="w-64 shrink-0 flex flex-col overflow-hidden">
+                    <ConnectionsColumn
+                      selectedNode={selectedNode}
+                      links={layerGraphLinks}
+                      nodeLabels={allNodeLabels}
+                      loading={layerLinksLoading}
+                      onSelect={(id) => {
+                        const info = allNodeLabels.get(id)
+                        if (!info) return
+                        const kind: SelectedKind = info.type === "Application" ? "app" : info.type === "Topic" ? "topic" : "node"
+                        const app = appsList.find(a => String(a.id) === id)
+                        const raw = app
+                          ?? nodesList.find(n => String(n.id) === id)
+                          ?? topicsList.find(t => String(t.id) === id)
+                          ?? brokersList.find(b => String(b.id) === id)
+                          ?? libsList.find(l => String(l.id) === id)
+                        if (!raw) return
+                        setSelectedNode({ kind, key: `${kind}:${id}`, label: info.label, path: [info.label], payload: raw })
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+              : <EmptyExplorerState />
+            }
           </TabsContent>
 
           {/* ── Graph tab ── */}
@@ -5204,24 +5225,29 @@ function BrowserPageContent() {
                   </div>
                 </div>
               )
-              : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
+              : <EmptyExplorerState />
             }
           </TabsContent>
 
           {/* ── Overview tab ── */}
           <TabsContent forceMount value="overview" className="flex-1 min-h-0 mt-0 h-full data-[state=inactive]:hidden">
-            <div className="border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
-              <GraphOverviewEChart
-                nodesList={nodesList}
-                appsList={appsList}
-                topicsList={topicsList}
-                libsList={libsList}
-                brokersList={brokersList}
-                graphLinks={layerGraphLinks}
-                linksLoading={layerLinksLoading}
-                exportFnRef={overviewGraphExportRef}
-              />
-            </div>
+            {(appsList.length > 0 || nodesList.length > 0 || topicsList.length > 0 || libsList.length > 0 || brokersList.length > 0)
+              ? (
+                <div className="border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
+                  <GraphOverviewEChart
+                    nodesList={nodesList}
+                    appsList={appsList}
+                    topicsList={topicsList}
+                    libsList={libsList}
+                    brokersList={brokersList}
+                    graphLinks={layerGraphLinks}
+                    linksLoading={layerLinksLoading}
+                    exportFnRef={overviewGraphExportRef}
+                  />
+                </div>
+              )
+              : <EmptyExplorerState />
+            }
           </TabsContent>
 
           {/* ── Force-graph tab ── */}
@@ -5270,7 +5296,7 @@ function BrowserPageContent() {
                   </div>
                 </div>
               )
-              : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
+              : <EmptyExplorerState />
             }
           </TabsContent>
         </Tabs>

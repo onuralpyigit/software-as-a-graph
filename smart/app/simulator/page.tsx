@@ -482,26 +482,16 @@ export default function TrafficSimulatorPage() {
       <div className="space-y-6">
 
         {/* ── Simulation Mode Toggle ──────────────────────────────── */}
-        <div className="flex items-center gap-3 p-1 bg-black border border-zinc-800 rounded-lg w-fit">
-          <button
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              simMode === "traffic" ? "bg-zinc-800 shadow-sm text-white" : "text-zinc-400 hover:text-white"
-            }`}
-            onClick={() => setSimMode("traffic")}
-          >
-            <Network className="h-4 w-4" />
-            Traffic Simulation
-          </button>
-          <button
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              simMode === "failure" ? "bg-zinc-800 shadow-sm text-white" : "text-zinc-400 hover:text-white"
-            }`}
-            onClick={() => setSimMode("failure")}
-          >
-            <ShieldAlert className="h-4 w-4" />
-            Failure Simulation
-          </button>
-        </div>
+        <Tabs value={simMode} onValueChange={v => setSimMode(v as typeof simMode)}>
+          <TabsList className="bg-background border border-border">
+            <TabsTrigger value="traffic" className="flex items-center gap-2">
+              <Network className="h-4 w-4" />Traffic Simulation
+            </TabsTrigger>
+            <TabsTrigger value="failure" className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4" />Failure Simulation
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {/* ── Configuration Panel ─────────────────────────────────── */}
         <div className="space-y-6">
@@ -1262,7 +1252,7 @@ export default function TrafficSimulatorPage() {
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[400px] p-0" align="start">
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                       <Command>
                         <CommandInput placeholder="Search component..." className="h-9" />
                         <CommandList>
@@ -1306,9 +1296,9 @@ export default function TrafficSimulatorPage() {
                     onValueChange={setFailureLayer} 
                     disabled={failureLoading}
                   >
-                    <SelectTrigger id="failure-layer">
-                      <SelectValue placeholder="Select layer" />
-                    </SelectTrigger>
+                     <SelectTrigger id="failure-layer" className="w-full">
+                       <SelectValue placeholder="Select layer" />
+                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="app">Application</SelectItem>
                       <SelectItem value="infra">Infrastructure</SelectItem>
