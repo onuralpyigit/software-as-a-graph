@@ -112,39 +112,41 @@ def test_simulation_failure_layer_resolution(mock_client):
     """Verify layer resolution in simulation failure endpoint."""
     app.dependency_overrides[get_client] = lambda: mock_client
     try:
-        payload = {"target_id": "c1", "layer": "middleware", **DUMMY_CREDS}
+        payload = {"target_ids": ["c1"], "layer": "middleware", **DUMMY_CREDS}
         
         with patch("api.routers.simulation.simulation_presenter.format_failure_simulation_response") as mock_fmt:
             # Satisfy Pydantic FailureSimulationResponse
             mock_fmt.return_value = {
                 "success": True, 
                 "simulation_type": "single", 
-                "result": {
-                    "target_id": "c1", 
-                    "target_type": "Application", 
-                    "scenario": "test",
-                    "impact": {
-                        "reachability": {"loss_percent": 0.0},
-                        "fragmentation": {"fragmentation_percent": 0.0},
-                        "throughput": {"loss_percent": 0.0},
-                        "flow_disruption": {"loss_percent": 0.0},
-                        "cascade": {"count": 0, "depth": 0},
-                        "affected": {"topics": 0, "publishers": 0, "subscribers": 0},
-                        "composite_impact": 0.0,
-                        "reliability": {"cascade_reach": 0.0, "weighted_cascade_impact": 0.0, "normalized_cascade_depth": 0.0, "reliability_impact": 0.0},
-                        "maintainability": {"change_reach": 0.0, "weighted_change_impact": 0.0, "normalized_change_depth": 0.0, "maintainability_impact": 0.0},
-                        "availability": {"weighted_reachability_loss": 0.0, "weighted_fragmentation": 0.0, "path_breaking_throughput_loss": 0.0, "availability_impact": 0.0, "ia_out": 0.0, "ia_in": 0.0},
-                        "security": {"attack_reach": 0.0, "weighted_attack_impact": 0.0, "high_value_contamination": 0.0, "security_impact": 0.0}
-                    },
-                    "cascaded_failures": [],
-                    "cascade_sequence": [],
-                    "layer_impacts": {}
-                }
+                "results": [
+                    {
+                        "target_id": "c1", 
+                        "target_type": "Application", 
+                        "scenario": "test",
+                        "impact": {
+                            "reachability": {"loss_percent": 0.0},
+                            "fragmentation": {"fragmentation_percent": 0.0},
+                            "throughput": {"loss_percent": 0.0},
+                            "flow_disruption": {"loss_percent": 0.0},
+                            "cascade": {"count": 0, "depth": 0},
+                            "affected": {"topics": 0, "publishers": 0, "subscribers": 0},
+                            "composite_impact": 0.0,
+                            "reliability": {"cascade_reach": 0.0, "weighted_cascade_impact": 0.0, "normalized_cascade_depth": 0.0, "reliability_impact": 0.0},
+                            "maintainability": {"change_reach": 0.0, "weighted_change_impact": 0.0, "normalized_change_depth": 0.0, "maintainability_impact": 0.0},
+                            "availability": {"weighted_reachability_loss": 0.0, "weighted_fragmentation": 0.0, "path_breaking_throughput_loss": 0.0, "availability_impact": 0.0, "ia_out": 0.0, "ia_in": 0.0},
+                            "security": {"attack_reach": 0.0, "weighted_attack_impact": 0.0, "high_value_contamination": 0.0, "security_impact": 0.0}
+                        },
+                        "cascaded_failures": [],
+                        "cascade_sequence": [],
+                        "layer_impacts": {}
+                    }
+                ]
             }
             
             response = client.post("/api/v1/simulation/failure", json=payload)
             assert response.status_code == 200, response.text
-            mock_client.simulate.assert_called_with(target_id="c1", layer="mw", mode="single")
+            mock_client.simulate.assert_called_with(target_ids=["c1"], layer="mw", mode="single")
     finally:
         app.dependency_overrides = {}
 
