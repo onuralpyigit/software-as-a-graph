@@ -1568,6 +1568,58 @@ export default function TrafficSimulatorPage() {
           )
         })()}
 
+        {/* ── Failure Simulation Results Skeleton ───────────────── */}
+        {simMode === "failure" && failureLoading && (
+          <Card className="border-border bg-background">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="space-y-3">
+                  <Skeleton className="h-6 w-6 rounded" />
+                  <Skeleton className="h-5 w-48" />
+                  <Skeleton className="h-4 w-64" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                <div className="flex flex-col items-center space-y-3">
+                  <Skeleton className="h-[200px] w-[200px] rounded-full" />
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <div className="sm:col-span-2 grid grid-cols-2 gap-3">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-2">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-4 w-16" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-56" />
+                <Skeleton className="h-[200px] w-full rounded-md" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-[150px] w-full rounded-md" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <div className="rounded-md border border-border bg-muted/30 p-2 space-y-1.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-2 p-2 rounded-md bg-background/50 border border-border/50">
+                      <Skeleton className="h-5 w-14 rounded shrink-0" />
+                      <Skeleton className="h-4 flex-1" style={{ width: `${50 + (i * 13) % 40}%`, flex: "none" }} />
+                      <Skeleton className="h-3 w-24 shrink-0" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* ── Failure Simulation Results ──────────────────────────── */}
         {simMode === "failure" && failureResults && failureResults.length > 0 && (() => {
           return (
