@@ -3,6 +3,8 @@
 import { useEffect, useState, useMemo } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { NoConnectionInfo } from "@/components/layout/no-connection-info"
@@ -163,7 +165,7 @@ interface ExtrasStats {
       name: string
       node_id: string | null
       node_name: string | null
-      role: string | null
+       role: string[] | null
       criticality: boolean
       bw_out: number
       bw_in: number
@@ -1607,6 +1609,7 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
   const [view, setView] = useState<NetworkUsageView>("nodes")
   const [mode, setMode] = useState<NetworkUsageMode>("total")
   const [tablePage, setTablePage] = useState(0)
+  const [networkCapacityMbps, setNetworkCapacityMbps] = useState<number>(1000)
 
   const nodeItems = useMemo(() => (!data ? [] : data.sorted_labels.map((label, i) => ({
     name: label,
@@ -1663,9 +1666,66 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
   const totalOut = Number(data.summary.total_outbound ?? 0)
   const totalIn = Number(data.summary.total_inbound ?? 0)
 
+  const totalBwMbps = totalBw / (1024 * 1024)
+  const capacityMbps = networkCapacityMbps
+  const utilPct = capacityMbps > 0 ? Math.min((totalBwMbps / capacityMbps) * 100, 100) : 0
+  const gaugeColor = utilPct > 85 ? "#ef4444" : utilPct > 60 ? "#f97316" : "#22c55e"
+
+  const netGaugeOption = {
+    series: [{
+      type: "gauge",
+      startAngle: 210,
+      endAngle: -30,
+      min: 0,
+      max: 100,
+      radius: "85%",
+      progress: { show: true, width: 14, itemStyle: { color: gaugeColor } },
+      axisLine: { lineStyle: { width: 14, color: [[1, "#27272a"]] } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+      axisLabel: { show: false },
+      pointer: { show: false },
+      detail: {
+        valueAnimation: true,
+        formatter: (v: number) => `${v.toFixed(1)}%`,
+        color: gaugeColor,
+        fontSize: 22,
+        fontWeight: "bold",
+        offsetCenter: [0, "10%"],
+      },
+      title: { show: true, offsetCenter: [0, "38%"], fontSize: 12, color: "#71717a" },
+      data: [{ value: parseFloat(utilPct.toFixed(2)), name: "Network Used" }],
+    }],
+    backgroundColor: "transparent",
+  }
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-[280px_1fr] gap-4">
+        <Card className="bg-background flex flex-col items-center py-3">
+          <div className="w-full px-4 pb-2">
+            <div className="flex items-center gap-2 justify-end">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Capacity</Label>
+              <Input
+                type="number"
+                min={1}
+                step={100}
+                value={networkCapacityMbps}
+                onChange={e => setNetworkCapacityMbps(parseFloat(e.target.value) || 1000)}
+                className="h-7 w-24 text-xs"
+              />
+              <span className="text-xs text-muted-foreground">MB/s</span>
+            </div>
+          </div>
+          <ReactECharts option={netGaugeOption} style={{ height: 180, width: "100%" }} />
+          <div className="text-center -mt-3 pb-1">
+            <div className="text-base font-bold" style={{ color: gaugeColor }}>
+              {totalBwMbps.toFixed(2)} MB/s
+            </div>
+            <div className="text-xs text-muted-foreground">of {capacityMbps} MB/s capacity</div>
+          </div>
+        </Card>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <PrimaryStatsCard 
           summary={data.summary} 
           prefix="bw" 
@@ -1681,6 +1741,7 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
         <StatCountCard label="Load Variation (CV)" value={`${Number(data.summary.cv ?? 0).toFixed(1)}%`} description="Coefficient of variation of node bandwidth. High CV means uneven network load distribution." formula="std(bw) / mean(bw) × 100" />
         <StatCountCard label="Zero-BW Nodes" value={data.summary.zero_bw_nodes ?? 0} description="Nodes with no network traffic, potentially indicating orphaned infrastructure." formula="count(bw = 0)" />
         <StatCountCard label="Outliers" value={data.summary.outlier_count ?? 0} description="Nodes whose total bandwidth exceeds the IQR upper fence." formula="bw > Q3 + 1.5 × IQR" />
+        </div>
       </div>
       <Card className="bg-background pb-3">
         <CardHeader>
@@ -1763,7 +1824,7 @@ function NetworkUsageSection({ data }: { data: ExtrasStats["network_usage"] }) {
                         {a.name}
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground truncate max-w-[120px]">{a.node_name ?? "—"}</td>
-                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{a.role ?? "—"}</td>
+                       <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{(a.role && a.role.length > 0) ? a.role.join(", ") : "—"}</td>
                       <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmtBytes(a.outbound)}/s</td>
                       <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmtBytes(a.inbound)}/s</td>
                       <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmtBytes(a.total)}/s</td>

@@ -66,7 +66,7 @@ def test_reconstruction_consistency():
         "applications": [
             {
                 "id": "app-1",
-                "role": "worker",
+                "role": ["worker"],
                 "code_metrics": {
                     "size": {"total_loc": 1000},
                     "quality": {"bugs": 5}
@@ -82,7 +82,7 @@ def test_reconstruction_consistency():
     
     app = exported["applications"][0]
     assert app["id"] == "app-1"
-    assert app["role"] == "worker"
+    assert app["role"] == ["worker"]
     assert "code_metrics" in app
     assert app["code_metrics"]["size"]["total_loc"] == 1000
     assert app["code_metrics"]["quality"]["bugs"] == 5

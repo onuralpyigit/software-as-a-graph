@@ -428,7 +428,9 @@
       "name": "App-0",
       "version": "3.1.6",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
@@ -469,13 +471,15 @@
       "name": "App-1",
       "version": "1.4.8",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Systems Engineering",
         "css_name": "Data Management",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -510,13 +514,15 @@
       "name": "App-2",
       "version": "3.2.4",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
         "csci_name": "Software Engineering",
         "css_name": "Process Control",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -551,13 +557,15 @@
       "name": "App-3",
       "version": "1.0.3",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Information Systems",
         "csci_name": "Infrastructure Software",
         "css_name": "Shared Platform",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -592,7 +600,9 @@
       "name": "App-4",
       "version": "3.0.1",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
@@ -633,13 +643,15 @@
       "name": "App-5",
       "version": "1.3.2",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Systems Engineering",
         "css_name": "Shared Platform",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -674,13 +686,15 @@
       "name": "App-6",
       "version": "1.9.8",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
         "csci_name": "Software Engineering",
         "css_name": "Shared Platform",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -715,13 +729,15 @@
       "name": "App-7",
       "version": "1.6.9",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Application Software",
         "css_name": "Communication",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -756,13 +772,15 @@
       "name": "App-8",
       "version": "1.5.1",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Information Systems",
         "csci_name": "Software Engineering",
         "css_name": "Software Design",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -797,13 +815,15 @@
       "name": "App-9",
       "version": "2.3.4",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Software Engineering",
         "css_name": "User Interface",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -838,13 +858,15 @@
       "name": "App-10",
       "version": "2.9.8",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Software Engineering",
         "css_name": "Communication",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -879,13 +901,15 @@
       "name": "App-11",
       "version": "2.0.2",
       "app_type": "monitor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Systems Engineering",
         "css_name": "Software Design",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -920,13 +944,15 @@
       "name": "App-12",
       "version": "1.3.6",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Application Software",
         "css_name": "Software Design",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -961,13 +987,15 @@
       "name": "App-13",
       "version": "3.1.6",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Infrastructure Software",
         "css_name": "User Interface",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1002,7 +1030,9 @@
       "name": "App-14",
       "version": "2.6.5",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
@@ -1043,13 +1073,15 @@
       "name": "App-15",
       "version": "3.2.1",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Information Systems",
         "csci_name": "Software Engineering",
         "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1084,13 +1116,15 @@
       "name": "App-16",
       "version": "2.7.6",
       "app_type": "actuator",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Application Software",
         "css_name": "Shared Platform",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1125,13 +1159,15 @@
       "name": "App-17",
       "version": "3.5.7",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Systems Engineering",
         "css_name": "Process Control",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1166,13 +1202,15 @@
       "name": "App-18",
       "version": "3.1.2",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Information Systems",
         "csci_name": "Systems Engineering",
         "css_name": "User Interface",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1207,13 +1245,15 @@
       "name": "App-19",
       "version": "2.6.6",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Application Software",
         "css_name": "Communication",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1248,7 +1288,9 @@
       "name": "App-20",
       "version": "3.0.1",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Information Systems",
@@ -1289,7 +1331,9 @@
       "name": "App-21",
       "version": "3.1.0",
       "app_type": "controller",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Information Systems",
@@ -1330,13 +1374,15 @@
       "name": "App-22",
       "version": "1.4.9",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
         "csci_name": "Infrastructure Software",
         "css_name": "Process Control",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1371,7 +1417,9 @@
       "name": "App-23",
       "version": "2.0.6",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
@@ -1412,13 +1460,15 @@
       "name": "App-24",
       "version": "1.4.7",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
         "csci_name": "Application Software",
         "css_name": "Process Control",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1453,13 +1503,15 @@
       "name": "App-25",
       "version": "3.3.7",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Software Engineering",
         "css_name": "Shared Platform",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1494,13 +1546,15 @@
       "name": "App-26",
       "version": "2.1.8",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Application Software",
         "css_name": "Software Design",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1535,13 +1589,15 @@
       "name": "App-27",
       "version": "1.7.1",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
         "csci_name": "Systems Engineering",
         "css_name": "Data Management",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1576,13 +1632,15 @@
       "name": "App-28",
       "version": "3.6.7",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
         "csci_name": "Application Software",
         "css_name": "Data Management",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1617,13 +1675,15 @@
       "name": "App-29",
       "version": "2.0.3",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Infrastructure Software",
         "css_name": "Software Design",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1658,13 +1718,15 @@
       "name": "App-30",
       "version": "3.9.4",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Systems Engineering",
         "css_name": "Data Management",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1699,7 +1761,9 @@
       "name": "App-31",
       "version": "3.4.9",
       "app_type": "actuator",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
@@ -1740,13 +1804,15 @@
       "name": "App-32",
       "version": "2.8.0",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Software Engineering",
         "css_name": "Data Management",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1781,7 +1847,9 @@
       "name": "App-33",
       "version": "2.7.7",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
@@ -1822,13 +1890,15 @@
       "name": "App-34",
       "version": "2.7.3",
       "app_type": "actuator",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Infrastructure Software",
         "css_name": "Communication",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1863,13 +1933,15 @@
       "name": "App-35",
       "version": "1.7.8",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Software Engineering",
         "css_name": "Communication",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1904,7 +1976,9 @@
       "name": "App-36",
       "version": "1.2.8",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
@@ -1945,7 +2019,9 @@
       "name": "App-37",
       "version": "3.6.5",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
@@ -1986,13 +2062,15 @@
       "name": "App-38",
       "version": "2.0.4",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Information Systems",
         "csci_name": "Application Software",
         "css_name": "User Interface",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2027,13 +2105,15 @@
       "name": "App-39",
       "version": "2.4.8",
       "app_type": "monitor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
         "csci_name": "Software Engineering",
         "css_name": "Process Control",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2068,13 +2148,15 @@
       "name": "App-40",
       "version": "3.6.4",
       "app_type": "controller",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Infrastructure Software",
         "css_name": "Process Control",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2109,7 +2191,9 @@
       "name": "App-41",
       "version": "1.1.0",
       "app_type": "actuator",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
@@ -2150,13 +2234,15 @@
       "name": "App-42",
       "version": "2.5.1",
       "app_type": "controller",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Software Engineering",
         "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2191,13 +2277,15 @@
       "name": "App-43",
       "version": "1.7.0",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
         "csci_name": "Software Engineering",
         "css_name": "Software Design",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2232,13 +2320,15 @@
       "name": "App-44",
       "version": "3.8.6",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Software Engineering",
         "css_name": "Communication",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2273,13 +2363,15 @@
       "name": "App-45",
       "version": "2.3.1",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Software Engineering",
         "css_name": "User Interface",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2314,13 +2406,15 @@
       "name": "App-46",
       "version": "1.4.2",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Information Systems",
         "csci_name": "Infrastructure Software",
         "css_name": "Process Control",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2355,13 +2449,15 @@
       "name": "App-47",
       "version": "3.0.8",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Infrastructure Software",
         "css_name": "Process Control",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2396,7 +2492,9 @@
       "name": "App-48",
       "version": "3.8.4",
       "app_type": "actuator",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
@@ -2437,13 +2535,15 @@
       "name": "App-49",
       "version": "2.2.7",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Software Engineering",
         "css_name": "User Interface",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2483,7 +2583,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Application Software",
         "css_name": "Shared Platform",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2521,7 +2621,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Systems Engineering",
         "css_name": "Data Management",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2597,7 +2697,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Infrastructure Software",
         "css_name": "Data Management",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2673,7 +2773,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Application Software",
         "css_name": "Data Management",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2711,7 +2811,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Application Software",
         "css_name": "User Interface",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2749,7 +2849,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Application Software",
         "css_name": "User Interface",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2787,7 +2887,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Infrastructure Software",
         "css_name": "Data Management",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2825,7 +2925,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Infrastructure Software",
         "css_name": "Process Control",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {

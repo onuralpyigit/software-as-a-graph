@@ -124,13 +124,15 @@
       "name": "esb-router",
       "version": "3.2.9",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
         "csci_name": "ERP Integration",
         "css_name": "Order Processing",
-        "csms_name": "Legacy Adapter"
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -165,7 +167,9 @@
       "name": "hr-portal",
       "version": "3.5.4",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -206,13 +210,15 @@
       "name": "erp-sync",
       "version": "2.6.0",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
         "csci_name": "Inventory Management",
         "css_name": "Employee Portal",
-        "csms_name": "Data Sync"
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -247,13 +253,15 @@
       "name": "esb-router-1",
       "version": "2.3.7",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
         "csci_name": "CRM Software",
         "css_name": "Stock Management",
-        "csms_name": "Legacy Adapter"
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -288,7 +296,9 @@
       "name": "inventory-tracker",
       "version": "1.4.0",
       "app_type": "monitor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -329,13 +339,15 @@
       "name": "invoice-service",
       "version": "2.0.7",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
         "csci_name": "HR Systems",
         "css_name": "Order Processing",
-        "csms_name": "Report Generation"
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -370,13 +382,15 @@
       "name": "hr-portal-1",
       "version": "1.9.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
         "csci_name": "HR Systems",
         "css_name": "Customer Relations",
-        "csms_name": "Data Sync"
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -411,13 +425,15 @@
       "name": "invoice-service-1",
       "version": "3.9.1",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
         "csci_name": "HR Systems",
         "css_name": "Employee Portal",
-        "csms_name": "Report Generation"
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -452,13 +468,15 @@
       "name": "invoice-service-2",
       "version": "3.4.5",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
         "csci_name": "HR Systems",
         "css_name": "Stock Management",
-        "csms_name": "Report Generation"
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -493,7 +511,9 @@
       "name": "erp-sync-1",
       "version": "1.0.3",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -534,13 +554,15 @@
       "name": "invoice-service-3",
       "version": "1.8.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Platform",
         "csci_name": "ERP Integration",
         "css_name": "Order Processing",
-        "csms_name": "Data Sync"
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -575,7 +597,9 @@
       "name": "esb-router-2",
       "version": "1.4.8",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Corporate IT",
@@ -621,7 +645,7 @@
         "csc_name": "Enterprise Platform",
         "csci_name": "Inventory Management",
         "css_name": "Order Processing",
-        "csms_name": "Legacy Adapter"
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -659,7 +683,7 @@
         "csc_name": "Business Systems",
         "csci_name": "Inventory Management",
         "css_name": "Employee Portal",
-        "csms_name": "Notification Service"
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -697,7 +721,7 @@
         "csc_name": "Corporate IT",
         "csci_name": "CRM Software",
         "css_name": "Customer Relations",
-        "csms_name": "Notification Service"
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {

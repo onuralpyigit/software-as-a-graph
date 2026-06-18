@@ -400,7 +400,9 @@
       "name": "inventory-tracker",
       "version": "1.1.0",
       "app_type": "monitor",
-      "role": "Operative",
+      "role": [
+        "Operative"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": false,
@@ -443,7 +445,9 @@
       "name": "erp-sync",
       "version": "2.5.1",
       "app_type": "processor",
-      "role": "Operative",
+      "role": [
+        "Operative"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": false,
@@ -451,7 +455,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Application Software",
         "css_name": "Communication",
-        "csms_name": "Configuration Management"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -486,7 +490,9 @@
       "name": "inventory-tracker-1",
       "version": "1.6.0",
       "app_type": "monitor",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": true,
       "priority": "MEDIUM",
       "hotstandby": true,
@@ -494,7 +500,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Application Software",
         "css_name": "Data Management",
-        "csms_name": "Shared Services"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -529,7 +535,9 @@
       "name": "crm-manager",
       "version": "2.8.8",
       "app_type": "controller",
-      "role": "Supervisor",
+      "role": [
+        "Supervisor"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": false,
@@ -537,7 +545,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Systems Engineering",
         "css_name": "User Interface",
-        "csms_name": "Error Handling"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -572,7 +580,9 @@
       "name": "hr-portal",
       "version": "3.4.7",
       "app_type": "service",
-      "role": "Engineer",
+      "role": [
+        "Engineer"
+      ],
       "criticality": true,
       "priority": "MEDIUM",
       "hotstandby": true,
@@ -615,7 +625,9 @@
       "name": "crm-manager-1",
       "version": "2.1.2",
       "app_type": "controller",
-      "role": "Supervisor",
+      "role": [
+        "Supervisor"
+      ],
       "criticality": true,
       "priority": "LOW",
       "hotstandby": false,
@@ -623,7 +635,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Application Software",
         "css_name": "Software Design",
-        "csms_name": "Data Processing"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -658,7 +670,9 @@
       "name": "inventory-tracker-2",
       "version": "3.7.8",
       "app_type": "monitor",
-      "role": "Engineer",
+      "role": [
+        "Engineer"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": true,
@@ -666,7 +680,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Application Software",
         "css_name": "Software Design",
-        "csms_name": "Core Logic"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -701,7 +715,9 @@
       "name": "esb-router",
       "version": "3.2.3",
       "app_type": "gateway",
-      "role": "Supervisor",
+      "role": [
+        "Supervisor"
+      ],
       "criticality": true,
       "priority": "LOW",
       "hotstandby": true,
@@ -709,7 +725,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Application Software",
         "css_name": "Software Design",
-        "csms_name": "Data Processing"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -744,7 +760,9 @@
       "name": "inventory-tracker-3",
       "version": "1.3.0",
       "app_type": "monitor",
-      "role": "Analyst",
+      "role": [
+        "Analyst"
+      ],
       "criticality": true,
       "priority": "MEDIUM",
       "hotstandby": true,
@@ -752,7 +770,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Application Software",
         "css_name": "Process Control",
-        "csms_name": "Core Logic"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -787,7 +805,9 @@
       "name": "esb-router-1",
       "version": "3.8.1",
       "app_type": "gateway",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": true,
       "priority": "MEDIUM",
       "hotstandby": true,
@@ -830,7 +850,9 @@
       "name": "crm-manager-2",
       "version": "2.6.4",
       "app_type": "controller",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": true,
       "priority": "MEDIUM",
       "hotstandby": true,
@@ -838,7 +860,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Software Engineering",
         "css_name": "Communication",
-        "csms_name": "Configuration Management"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -873,7 +895,9 @@
       "name": "inventory-tracker-4",
       "version": "2.8.9",
       "app_type": "monitor",
-      "role": "Operative",
+      "role": [
+        "Operative"
+      ],
       "criticality": false,
       "priority": "MEDIUM",
       "hotstandby": false,
@@ -881,7 +905,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Infrastructure Software",
         "css_name": "Software Design",
-        "csms_name": "Data Processing"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -916,7 +940,9 @@
       "name": "inventory-tracker-5",
       "version": "2.3.2",
       "app_type": "monitor",
-      "role": "Operative",
+      "role": [
+        "Operative"
+      ],
       "criticality": false,
       "priority": "HIGH",
       "hotstandby": false,
@@ -959,7 +985,9 @@
       "name": "inventory-tracker-6",
       "version": "2.3.4",
       "app_type": "monitor",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": true,
@@ -967,7 +995,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Software Engineering",
         "css_name": "User Interface",
-        "csms_name": "Data Processing"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1002,7 +1030,9 @@
       "name": "hr-portal-1",
       "version": "2.9.0",
       "app_type": "service",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": false,
@@ -1010,7 +1040,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Software Engineering",
         "css_name": "Process Control",
-        "csms_name": "Core Logic"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1045,7 +1075,9 @@
       "name": "crm-manager-3",
       "version": "1.9.8",
       "app_type": "controller",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": true,
       "priority": "MEDIUM",
       "hotstandby": false,
@@ -1053,7 +1085,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Software Engineering",
         "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1088,7 +1120,9 @@
       "name": "esb-router-2",
       "version": "1.5.3",
       "app_type": "gateway",
-      "role": "Supervisor",
+      "role": [
+        "Supervisor"
+      ],
       "criticality": false,
       "priority": "MEDIUM",
       "hotstandby": false,
@@ -1096,7 +1130,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Systems Engineering",
         "css_name": "User Interface",
-        "csms_name": "Error Handling"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1131,7 +1165,9 @@
       "name": "hr-portal-2",
       "version": "2.1.9",
       "app_type": "service",
-      "role": "Engineer",
+      "role": [
+        "Engineer"
+      ],
       "criticality": true,
       "priority": "LOW",
       "hotstandby": false,
@@ -1139,7 +1175,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Infrastructure Software",
         "css_name": "Software Design",
-        "csms_name": "Shared Services"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1174,7 +1210,9 @@
       "name": "invoice-service",
       "version": "2.7.1",
       "app_type": "service",
-      "role": "Operative",
+      "role": [
+        "Operative"
+      ],
       "criticality": false,
       "priority": "HIGH",
       "hotstandby": true,
@@ -1217,7 +1255,9 @@
       "name": "crm-manager-4",
       "version": "1.7.9",
       "app_type": "controller",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": true,
       "priority": "HIGH",
       "hotstandby": true,
@@ -1225,7 +1265,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Software Engineering",
         "css_name": "Shared Platform",
-        "csms_name": "Data Processing"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1260,7 +1300,9 @@
       "name": "esb-router-3",
       "version": "1.1.4",
       "app_type": "gateway",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": false,
       "priority": "MEDIUM",
       "hotstandby": true,
@@ -1268,7 +1310,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Infrastructure Software",
         "css_name": "Process Control",
-        "csms_name": "Data Processing"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1303,7 +1345,9 @@
       "name": "invoice-service-1",
       "version": "1.7.4",
       "app_type": "service",
-      "role": "Engineer",
+      "role": [
+        "Engineer"
+      ],
       "criticality": true,
       "priority": "LOW",
       "hotstandby": false,
@@ -1311,7 +1355,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Systems Engineering",
         "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1346,7 +1390,9 @@
       "name": "hr-portal-3",
       "version": "2.7.7",
       "app_type": "service",
-      "role": "Supervisor",
+      "role": [
+        "Supervisor"
+      ],
       "criticality": false,
       "priority": "HIGH",
       "hotstandby": false,
@@ -1389,7 +1435,9 @@
       "name": "esb-router-4",
       "version": "2.4.9",
       "app_type": "gateway",
-      "role": "Administrator",
+      "role": [
+        "Administrator"
+      ],
       "criticality": false,
       "priority": "LOW",
       "hotstandby": true,
@@ -1397,7 +1445,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Software Engineering",
         "css_name": "Software Design",
-        "csms_name": "Error Handling"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1432,7 +1480,9 @@
       "name": "esb-router-5",
       "version": "2.9.3",
       "app_type": "gateway",
-      "role": "Engineer",
+      "role": [
+        "Engineer"
+      ],
       "criticality": false,
       "priority": "MEDIUM",
       "hotstandby": false,
@@ -1440,7 +1490,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Application Software",
         "css_name": "Communication",
-        "csms_name": "Error Handling"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1475,7 +1525,9 @@
       "name": "hr-portal-4",
       "version": "2.0.1",
       "app_type": "service",
-      "role": "Supervisor",
+      "role": [
+        "Supervisor"
+      ],
       "criticality": true,
       "priority": "MEDIUM",
       "hotstandby": true,
@@ -1483,7 +1535,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Software Engineering",
         "css_name": "Communication",
-        "csms_name": "Error Handling"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1599,7 +1651,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Application Software",
         "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1637,7 +1689,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Infrastructure Software",
         "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1675,7 +1727,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Systems Engineering",
         "css_name": "Software Design",
-        "csms_name": "Core Logic"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1751,7 +1803,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Systems Engineering",
         "css_name": "Data Management",
-        "csms_name": "Data Processing"
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {

@@ -47,11 +47,6 @@ const navigation = [
     icon: FileText,
   },
   {
-    name: "Simulation",
-    href: "/simulation",
-    icon: Zap,
-  },
-  {
     name: "Validation",
     href: "/validation",
     icon: ShieldCheck,

@@ -110,7 +110,7 @@ interface EventSimulationRequest {
 }
 
 interface FailureSimulationRequest {
-  target_id: string;
+  target_ids: string[];
   layer?: string;
   cascade_probability?: number;
 }
@@ -173,14 +173,14 @@ class SimulationAPI {
   }
 
   /**
-   * Run failure simulation for a target component
+   * Run failure simulation for target components
    */
-  async runFailureSimulation(request: FailureSimulationRequest): Promise<FailureResult> {
+  async runFailureSimulation(request: FailureSimulationRequest): Promise<FailureResult[]> {
     const credentials = this.getCredentials();
     
     const response = await this.client.post('/api/v1/simulation/failure', {
       ...credentials,
-      target_id: request.target_id,
+      target_ids: request.target_ids,
       layer: request.layer || 'system',
       cascade_probability: request.cascade_probability !== undefined ? request.cascade_probability : 1.0,
     });
@@ -189,7 +189,7 @@ class SimulationAPI {
       throw new Error(response.data.message || 'Failure simulation failed');
     }
 
-    return response.data.result;
+    return response.data.results;
   }
 
   /**

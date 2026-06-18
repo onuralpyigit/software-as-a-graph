@@ -25,7 +25,7 @@ export interface AppInfo {
   id: string
   name: string
   weight: number
-  role: string | null
+  role: string[] | null
   priority: string | null
   hotstandby: boolean | null
   pub_topic_ids: string[]
@@ -47,8 +47,10 @@ export interface TrafficTopicMetrics {
   broker_names: string[]
   // Effective parameters used for this topic
   frequency_hz: number
+  graph_frequency_hz: number | null
   duration_sec: number
   message_size_bytes: number
+  graph_size_bytes: number | null
   msgs_published_per_sec: number
   msgs_delivered_per_sec: number
   msgs_total_per_sec: number

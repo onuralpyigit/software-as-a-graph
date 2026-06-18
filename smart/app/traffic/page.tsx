@@ -1004,12 +1004,14 @@ export default function TrafficSimulatorPage() {
                     <Button variant="ghost" size="sm" onClick={loadApps}>Retry</Button>
                   </div>
                 ) : (() => {
-                  // Group apps by their `role` field; apps with null role go under "(unset)"
+                  // Group apps by their individual roles; apps with multiple roles appear in multiple groups
                   const roleMap = new Map<string, AppInfo[]>()
                   for (const app of apps) {
-                    const key = app.role ?? "(unset)"
-                    if (!roleMap.has(key)) roleMap.set(key, [])
-                    roleMap.get(key)!.push(app)
+                    const roles = (app.role && app.role.length > 0) ? app.role : ["(unset)"]
+                    for (const r of roles) {
+                      if (!roleMap.has(r)) roleMap.set(r, [])
+                      roleMap.get(r)!.push(app)
+                    }
                   }
                   const roleKeys = Array.from(roleMap.keys()).sort()
 
@@ -1324,7 +1326,8 @@ export default function TrafficSimulatorPage() {
                             <th className="text-left p-3 font-medium">Topic</th>
                             <th className="text-right p-3 font-medium"><TermTooltip term="Publisher Count">Pubs</TermTooltip></th>
                             <th className="text-right p-3 font-medium"><TermTooltip term="Subscriber Count">Subs</TermTooltip></th>
-                            <th className="text-right p-3 font-medium"><TermTooltip term="Simulation Frequency">Hz</TermTooltip></th>
+                            <th className="text-right p-3 font-medium"><TermTooltip description="Effective frequency used. If from graph, shown in parentheses." term="Simulation Frequency">Hz</TermTooltip></th>
+                            <th className="text-right p-3 font-medium"><TermTooltip description="Effective message size used. If from graph, shown in parentheses." term="Message Size">Size</TermTooltip></th>
                             <th className="text-right p-3 font-medium"><TermTooltip term="In (msg/s)">In (msg/s)</TermTooltip></th>
                             <th className="text-right p-3 font-medium"><TermTooltip term="Out (msg/s)">Out (msg/s)</TermTooltip></th>
                             <th className="text-right p-3 font-medium"><TermTooltip term="Topic Bandwidth">Bandwidth</TermTooltip></th>
@@ -1334,6 +1337,8 @@ export default function TrafficSimulatorPage() {
                         <tbody>
                           {result.per_topic.map((t, i) => {
                             const maxBps = Math.max(...result.per_topic.map(x => x.bandwidth_total_bps), 1)
+                            const hzSource = t.graph_frequency_hz !== null && t.graph_frequency_hz !== undefined && Math.abs(t.frequency_hz - t.graph_frequency_hz) < 0.001
+                            const sizeSource = t.graph_size_bytes !== null && t.graph_size_bytes !== undefined && t.graph_size_bytes > 0 && t.graph_size_bytes === t.message_size_bytes
                             return (
                               <tr key={t.topic_id} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}>
                                 <td className="p-3">
@@ -1342,7 +1347,12 @@ export default function TrafficSimulatorPage() {
                                 </td>
                                 <td className="p-3 text-right">{t.publisher_count}</td>
                                 <td className="p-3 text-right">{t.subscriber_count}</td>
-                                <td className="p-3 text-right font-mono text-xs">{t.frequency_hz}</td>
+                                <td className="p-3 text-right font-mono text-xs">
+                                  {t.frequency_hz}{hzSource ? " ◉" : ""}
+                                </td>
+                                <td className="p-3 text-right font-mono text-xs">
+                                  {formatBytes(t.message_size_bytes)}{sizeSource ? " ◉" : " ⚬"}
+                                </td>
                                 <td className="p-3 text-right font-mono">{t.msgs_published_per_sec.toFixed(1)}</td>
                                 <td className="p-3 text-right font-mono">{t.msgs_delivered_per_sec.toFixed(1)}</td>
                                 <td className={`p-3 text-right font-mono font-medium ${getBandwidthColor(t.bandwidth_total_bps, maxBps)}`}>

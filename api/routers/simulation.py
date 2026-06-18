@@ -75,15 +75,15 @@ async def simulate_failure(
         )
     
     try:
-        logger.info(f"Running failure simulation: target={request.target_id}, layer={layer_canonical}")
+        logger.info(f"Running composite failure simulation: targets={request.target_ids}, layer={layer_canonical}")
         
         result = client.simulate(
-            target_id=request.target_id,
+            target_ids=request.target_ids,
             layer=layer_canonical,
             mode="single"
         )
         
-        return simulation_presenter.format_failure_simulation_response(result)
+        return simulation_presenter.format_failure_simulation_response([result])
     except Exception as e:
         logger.error(f"Failure simulation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failure simulation failed: {str(e)}")

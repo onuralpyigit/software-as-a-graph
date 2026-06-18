@@ -96,9 +96,14 @@ def reconstruct_component_dict(comp: ComponentData) -> Dict[str, Any]:
         if "topic_criticality" in props:
             res["criticality"] = props["topic_criticality"]
     elif comp.component_type == "Application":
+        role_val = props.get("role", ["Operative"])
+        if isinstance(role_val, str):
+            role_val = [role_val]
+        elif not isinstance(role_val, list):
+            role_val = ["Operative"]
         res.update({
             "app_type": props.get("app_type", "service"),
-            "role": props.get("role", "Operative"),
+            "role": role_val,
             "criticality": props.get("criticality", "LOW"),
             "priority": props.get("priority", "MEDIUM"),
             "hotstandby": props.get("hotstandby", False),
@@ -264,9 +269,14 @@ def flatten_component(comp: Dict[str, Any], comp_type: str) -> Dict[str, Any]:
         if crit is not None:
             res["topic_criticality"] = crit
     elif comp_type == "Application":
+        role_val = comp.get("role", ["Operative"])
+        if isinstance(role_val, str):
+            role_val = [role_val]
+        elif not isinstance(role_val, list):
+            role_val = ["Operative"]
         res.update({
             "app_type": comp.get("app_type", "service"),
-            "role": comp.get("role", "Operative"),
+            "role": role_val,
             "version": comp.get("version", ""),
         })
         # Only include optional classification fields if explicitly present in the source data

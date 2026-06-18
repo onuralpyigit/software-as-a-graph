@@ -59,17 +59,21 @@ def _augment_layer_metrics(layer_dict: Dict[str, Any], layer_obj: Any) -> None:
     })
 
 
-def format_failure_simulation_response(result: Any) -> Dict[str, Any]:
-    """Format failure simulation result for API response."""
-    result_dict = result.to_dict() if hasattr(result, "to_dict") else result
-    if isinstance(result_dict, dict) and "impact" in result_dict:
-        impact_obj = getattr(result, "impact", None)
-        if impact_obj is not None:
-            _inject_impact_extras(result_dict["impact"], impact_obj)
+def format_failure_simulation_response(results: List[Any]) -> Dict[str, Any]:
+    """Format failure simulation result(s) for API response."""
+    serialized_results = []
+    for r in results:
+        r_dict = r.to_dict() if hasattr(r, "to_dict") else r
+        if isinstance(r_dict, dict) and "impact" in r_dict:
+            impact_obj = getattr(r, "impact", None)
+            if impact_obj is not None:
+                _inject_impact_extras(r_dict["impact"], impact_obj)
+        serialized_results.append(r_dict)
+
     return {
         "success": True,
         "simulation_type": "failure",
-        "result": result_dict,
+        "results": serialized_results,
     }
 
 

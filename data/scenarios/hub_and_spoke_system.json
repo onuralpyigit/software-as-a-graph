@@ -440,13 +440,15 @@
       "name": "spoke-service-c",
       "version": "3.1.0",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Message Routing Software",
         "css_name": "Data Transformation",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -481,13 +483,15 @@
       "name": "spoke-service-a",
       "version": "2.9.3",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Spoke Services",
         "css_name": "Central Routing",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -522,7 +526,9 @@
       "name": "hub-router",
       "version": "3.9.9",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
@@ -563,7 +569,9 @@
       "name": "spoke-service-c-1",
       "version": "2.8.8",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
@@ -604,7 +612,9 @@
       "name": "hub-router-1",
       "version": "1.3.3",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
@@ -645,13 +655,15 @@
       "name": "spoke-service-b",
       "version": "3.6.1",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Hub Core",
         "css_name": "Spoke Integration",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -686,13 +698,15 @@
       "name": "spoke-service-b-1",
       "version": "1.5.3",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Spoke Services",
         "css_name": "Spoke Integration",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -727,7 +741,9 @@
       "name": "spoke-service-a-1",
       "version": "3.9.5",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
@@ -768,13 +784,15 @@
       "name": "hub-router-2",
       "version": "2.6.6",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Message Routing Software",
         "css_name": "Spoke Integration",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -809,13 +827,15 @@
       "name": "hub-router-3",
       "version": "2.3.9",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Spoke Services",
         "css_name": "Data Transformation",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -850,13 +870,15 @@
       "name": "hub-router-4",
       "version": "1.1.3",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Hub Core",
         "css_name": "Data Transformation",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -891,7 +913,9 @@
       "name": "spoke-service-a-2",
       "version": "1.5.4",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
@@ -932,13 +956,15 @@
       "name": "hub-router-5",
       "version": "1.5.5",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Hub Core",
         "css_name": "Central Routing",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -973,13 +999,15 @@
       "name": "spoke-service-b-2",
       "version": "1.7.3",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Spoke Services",
         "css_name": "Central Routing",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1014,13 +1042,15 @@
       "name": "spoke-service-b-3",
       "version": "3.5.3",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Spoke Services",
         "css_name": "Data Transformation",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1055,13 +1085,15 @@
       "name": "spoke-service-a-3",
       "version": "2.8.6",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Spoke Services",
         "css_name": "Spoke Integration",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1096,13 +1128,15 @@
       "name": "spoke-service-c-2",
       "version": "3.3.2",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Hub Core",
         "css_name": "Data Transformation",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1137,13 +1171,15 @@
       "name": "hub-router-6",
       "version": "1.9.3",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Message Routing Software",
         "css_name": "Spoke Integration",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1178,13 +1214,15 @@
       "name": "spoke-service-b-4",
       "version": "3.4.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Message Routing Software",
         "css_name": "Central Routing",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1219,7 +1257,9 @@
       "name": "hub-router-7",
       "version": "2.0.8",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
@@ -1260,13 +1300,15 @@
       "name": "spoke-service-b-5",
       "version": "1.4.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Message Routing Software",
         "css_name": "Spoke Integration",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1301,7 +1343,9 @@
       "name": "spoke-service-b-6",
       "version": "2.1.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
@@ -1342,7 +1386,9 @@
       "name": "hub-router-8",
       "version": "3.4.1",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
@@ -1383,7 +1429,9 @@
       "name": "spoke-service-b-7",
       "version": "2.9.1",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
@@ -1424,13 +1472,15 @@
       "name": "hub-router-9",
       "version": "2.5.0",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Message Routing Software",
         "css_name": "Spoke Integration",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1465,13 +1515,15 @@
       "name": "hub-router-10",
       "version": "1.4.3",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Message Routing Software",
         "css_name": "Spoke Integration",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1506,13 +1558,15 @@
       "name": "hub-router-11",
       "version": "2.3.5",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Message Routing Software",
         "css_name": "Spoke Integration",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1547,13 +1601,15 @@
       "name": "hub-router-12",
       "version": "1.2.5",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Spoke Services",
         "css_name": "Data Transformation",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1588,13 +1644,15 @@
       "name": "spoke-service-c-3",
       "version": "2.7.7",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Hub Core",
         "css_name": "Central Routing",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1629,13 +1687,15 @@
       "name": "spoke-service-a-4",
       "version": "1.6.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Hub Core",
         "css_name": "Data Transformation",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1670,13 +1730,15 @@
       "name": "spoke-service-c-4",
       "version": "3.9.2",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Hub Core",
         "css_name": "Spoke Integration",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1711,13 +1773,15 @@
       "name": "spoke-service-b-8",
       "version": "2.4.7",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Hub Core",
         "css_name": "Data Transformation",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1752,13 +1816,15 @@
       "name": "spoke-service-c-5",
       "version": "3.0.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Message Routing Software",
         "css_name": "Central Routing",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1793,13 +1859,15 @@
       "name": "spoke-service-c-6",
       "version": "3.7.2",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Hub Core",
         "css_name": "Data Transformation",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1834,7 +1902,9 @@
       "name": "spoke-service-b-9",
       "version": "1.5.5",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
@@ -1875,13 +1945,15 @@
       "name": "spoke-service-a-5",
       "version": "1.3.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Spoke Services",
         "css_name": "Data Transformation",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1916,7 +1988,9 @@
       "name": "spoke-service-a-6",
       "version": "2.4.1",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
@@ -1957,13 +2031,15 @@
       "name": "spoke-service-b-10",
       "version": "3.9.2",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Hub Core",
         "css_name": "Spoke Integration",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1998,13 +2074,15 @@
       "name": "spoke-service-a-7",
       "version": "2.7.1",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Spoke Services",
         "css_name": "Data Transformation",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2039,13 +2117,15 @@
       "name": "spoke-service-a-8",
       "version": "2.8.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Spoke Services",
         "css_name": "Central Routing",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2080,13 +2160,15 @@
       "name": "spoke-service-a-9",
       "version": "1.4.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Hub Core",
         "css_name": "Data Transformation",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2121,13 +2203,15 @@
       "name": "spoke-service-a-10",
       "version": "1.0.2",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Hub Core",
         "css_name": "Central Routing",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2162,13 +2246,15 @@
       "name": "spoke-service-b-11",
       "version": "2.3.8",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Hub Core",
         "css_name": "Spoke Integration",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2203,13 +2289,15 @@
       "name": "spoke-service-c-7",
       "version": "3.7.5",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Hub Core",
         "css_name": "Data Transformation",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2244,13 +2332,15 @@
       "name": "hub-router-13",
       "version": "1.6.8",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Hub Core",
         "css_name": "Central Routing",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2285,7 +2375,9 @@
       "name": "spoke-service-b-12",
       "version": "2.4.6",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
@@ -2326,13 +2418,15 @@
       "name": "hub-router-14",
       "version": "3.7.4",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Spoke Services",
         "css_name": "Spoke Integration",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2367,13 +2461,15 @@
       "name": "spoke-service-a-11",
       "version": "1.3.9",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Message Routing Software",
         "css_name": "Data Transformation",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2408,7 +2504,9 @@
       "name": "spoke-service-a-12",
       "version": "2.1.3",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
@@ -2449,7 +2547,9 @@
       "name": "spoke-service-c-8",
       "version": "1.3.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
@@ -2490,13 +2590,15 @@
       "name": "hub-router-15",
       "version": "2.9.6",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Message Routing Software",
         "css_name": "Spoke Integration",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2531,13 +2633,15 @@
       "name": "hub-router-16",
       "version": "3.0.5",
       "app_type": "gateway",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Message Routing Software",
         "css_name": "Central Routing",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2572,13 +2676,15 @@
       "name": "hub-router-17",
       "version": "2.2.1",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Hub Core",
         "css_name": "Spoke Integration",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2613,13 +2719,15 @@
       "name": "spoke-service-b-13",
       "version": "2.9.1",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Hub Core",
         "css_name": "Central Routing",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2654,13 +2762,15 @@
       "name": "spoke-service-a-13",
       "version": "2.5.0",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Message Routing Software",
         "css_name": "Central Routing",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2695,13 +2805,15 @@
       "name": "spoke-service-c-9",
       "version": "3.4.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Hub Core",
         "css_name": "Spoke Integration",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2736,13 +2848,15 @@
       "name": "hub-router-18",
       "version": "3.1.6",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Message Routing Software",
         "css_name": "Data Transformation",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2777,13 +2891,15 @@
       "name": "spoke-service-c-10",
       "version": "2.9.5",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Message Routing Software",
         "css_name": "Spoke Integration",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2818,7 +2934,9 @@
       "name": "spoke-service-c-11",
       "version": "2.4.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
@@ -2859,7 +2977,9 @@
       "name": "spoke-service-a-14",
       "version": "1.8.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
@@ -2900,7 +3020,9 @@
       "name": "hub-router-19",
       "version": "3.3.4",
       "app_type": "gateway",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
@@ -2941,13 +3063,15 @@
       "name": "spoke-service-a-15",
       "version": "1.2.1",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Message Routing Software",
         "css_name": "Central Routing",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2982,13 +3106,15 @@
       "name": "spoke-service-a-16",
       "version": "3.4.3",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Spoke Services",
         "css_name": "Central Routing",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3023,13 +3149,15 @@
       "name": "spoke-service-a-17",
       "version": "2.1.8",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Hub Core",
         "css_name": "Central Routing",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3064,13 +3192,15 @@
       "name": "spoke-service-b-14",
       "version": "2.5.3",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Hub Core",
         "css_name": "Spoke Integration",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3105,7 +3235,9 @@
       "name": "spoke-service-c-12",
       "version": "2.4.9",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
@@ -3146,13 +3278,15 @@
       "name": "spoke-service-c-13",
       "version": "2.1.6",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
         "csci_name": "Spoke Services",
         "css_name": "Central Routing",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3187,7 +3321,9 @@
       "name": "hub-router-20",
       "version": "2.8.0",
       "app_type": "gateway",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
@@ -3228,7 +3364,9 @@
       "name": "spoke-service-b-15",
       "version": "2.5.6",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Integration Platform",
@@ -3269,7 +3407,9 @@
       "name": "spoke-service-c-14",
       "version": "2.5.8",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Enterprise Service Bus",
@@ -3315,7 +3455,7 @@
         "csc_name": "Integration Platform",
         "csci_name": "Message Routing Software",
         "css_name": "Spoke Integration",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3467,7 +3607,7 @@
         "csc_name": "Integration Platform",
         "csci_name": "Hub Core",
         "css_name": "Spoke Integration",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3505,7 +3645,7 @@
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Hub Core",
         "css_name": "Central Routing",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3543,7 +3683,7 @@
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Hub Core",
         "css_name": "Spoke Integration",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3581,7 +3721,7 @@
         "csc_name": "Integration Platform",
         "csci_name": "Message Routing Software",
         "css_name": "Central Routing",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3619,7 +3759,7 @@
         "csc_name": "Integration Platform",
         "csci_name": "Spoke Services",
         "css_name": "Spoke Integration",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3657,7 +3797,7 @@
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Message Routing Software",
         "css_name": "Data Transformation",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3695,7 +3835,7 @@
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Message Routing Software",
         "css_name": "Central Routing",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3733,7 +3873,7 @@
         "csc_name": "Integration Platform",
         "csci_name": "Spoke Services",
         "css_name": "Data Transformation",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3771,7 +3911,7 @@
         "csc_name": "Integration Platform",
         "csci_name": "Message Routing Software",
         "css_name": "Spoke Integration",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3809,7 +3949,7 @@
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Message Routing Software",
         "css_name": "Data Transformation",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3885,7 +4025,7 @@
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Spoke Services",
         "css_name": "Spoke Integration",
-        "csms_name": "Protocol Conversion"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3923,7 +4063,7 @@
         "csc_name": "Integration Platform",
         "csci_name": "Spoke Services",
         "css_name": "Central Routing",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3961,7 +4101,7 @@
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Spoke Services",
         "css_name": "Central Routing",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -4037,7 +4177,7 @@
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Message Routing Software",
         "css_name": "Spoke Integration",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -4113,7 +4253,7 @@
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Spoke Services",
         "css_name": "Data Transformation",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -4151,7 +4291,7 @@
         "csc_name": "Integration Platform",
         "csci_name": "Spoke Services",
         "css_name": "Central Routing",
-        "csms_name": "Queue Management"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -4227,7 +4367,7 @@
         "csc_name": "Enterprise Service Bus",
         "csci_name": "Message Routing Software",
         "css_name": "Central Routing",
-        "csms_name": "Data Mapping"
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {

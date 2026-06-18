@@ -259,7 +259,7 @@ class FailureSimulationResultModel(BaseModel):
 class FailureSimulationResponse(BaseModel):
     success: bool
     simulation_type: str
-    result: FailureSimulationResultModel
+    results: List[FailureSimulationResultModel]
 
 
 class ExhaustiveSummaryModel(BaseModel):
@@ -375,7 +375,7 @@ class AppInfoModel(BaseModel):
     id: str
     name: str
     weight: float
-    role: Optional[str] = None
+    role: Optional[List[str]] = None
     priority: Optional[str] = None
     hotstandby: Optional[bool] = None
     pub_topic_ids: List[str]
@@ -420,8 +420,10 @@ class TrafficTopicMetrics(BaseModel):
     broker_names: List[str]
     # Effective parameters used for this topic
     frequency_hz: float
+    graph_frequency_hz: Optional[float] = None
     duration_sec: float
     message_size_bytes: int
+    graph_size_bytes: Optional[int] = None
     msgs_published_per_sec: float
     msgs_delivered_per_sec: float
     msgs_total_per_sec: float
@@ -578,7 +580,7 @@ class EventSimulationRequest(GraphRequestWithCredentials):
 
 
 class FailureSimulationRequest(GraphRequestWithCredentials):
-    target_id: str = Field(..., description="Target component ID to simulate failure")
+    target_ids: List[str] = Field(..., description="Target component IDs to simulate failure")
     layer: str = Field(default="system", description="Analysis layer: app, infra, mw, system (aliases supported)")
     cascade_probability: float = Field(default=1.0, description="Cascade propagation probability (0.0-1.0)")
 

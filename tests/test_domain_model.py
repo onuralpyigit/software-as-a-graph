@@ -202,16 +202,16 @@ class TestEntities:
     """Tests for graph entity domain models."""
 
     def test_application_to_dict(self):
-        app = Application(id="A1", name="Sensor", role="pub", app_type="driver", criticality=True, version="1.0")
+        app = Application(id="A1", name="Sensor", role=["pub"], app_type="driver", criticality=True, version="1.0")
         d = app.to_dict()
         assert d["id"] == "A1"
-        assert d["role"] == "pub"
+        assert d["role"] == ["pub"]
         assert d["criticality"] is True
         assert d["version"] == "1.0"
 
     def test_application_defaults(self):
         app = Application(id="A1", name="Service")
-        assert app.role == "Operative"
+        assert app.role == ["Operative"]
         assert app.app_type == "service"
         assert app.criticality is False
 
@@ -388,8 +388,8 @@ class TestNeo4jGraphImport:
         """Test Rule 5: app_to_lib DEPENDS_ON edges are created correctly."""
         graph_data = {
             "applications": [
-                {"id": "app1", "name": "App 1", "role": "pub", "app_type": "service"},
-                {"id": "app2", "name": "App 2", "role": "sub", "app_type": "service"}
+                {"id": "app1", "name": "App 1", "role": ["pub"], "app_type": "service"},
+                {"id": "app2", "name": "App 2", "role": ["sub"], "app_type": "service"}
             ],
             "libraries": [
                 {"id": "lib1", "name": "SharedLib"}

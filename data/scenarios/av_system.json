@@ -552,13 +552,15 @@
       "name": "motor-driver",
       "version": "3.7.7",
       "app_type": "actuator",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Perception Software",
         "css_name": "Path Planning",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -593,13 +595,15 @@
       "name": "object-detector",
       "version": "2.4.1",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Perception Software",
         "css_name": "Object Detection",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -634,13 +638,15 @@
       "name": "motor-driver-1",
       "version": "3.8.1",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Sensor Integration",
         "css_name": "State Estimation",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -675,13 +681,15 @@
       "name": "state-estimator",
       "version": "2.8.4",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Control Software",
         "css_name": "SLAM",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -716,13 +724,15 @@
       "name": "path-planner",
       "version": "2.3.6",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Control Software",
         "css_name": "Object Detection",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -757,13 +767,15 @@
       "name": "camera-driver",
       "version": "2.8.9",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Control Software",
         "css_name": "State Estimation",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -798,13 +810,15 @@
       "name": "slam-node",
       "version": "1.0.2",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Perception Software",
         "css_name": "State Estimation",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -839,7 +853,9 @@
       "name": "collision-avoider",
       "version": "2.8.5",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
@@ -880,13 +896,15 @@
       "name": "lidar-driver",
       "version": "3.4.4",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Navigation Software",
         "css_name": "State Estimation",
-        "csms_name": "Route Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -921,13 +939,15 @@
       "name": "state-estimator-1",
       "version": "3.3.1",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Perception Software",
         "css_name": "State Estimation",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -962,7 +982,9 @@
       "name": "camera-driver-1",
       "version": "3.3.5",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
@@ -1003,13 +1025,15 @@
       "name": "object-detector-1",
       "version": "1.9.1",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Sensor Integration",
         "css_name": "Motor Control",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1044,13 +1068,15 @@
       "name": "object-detector-2",
       "version": "3.9.6",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Navigation Software",
         "css_name": "State Estimation",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1085,13 +1111,15 @@
       "name": "motor-driver-2",
       "version": "2.7.8",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Perception Software",
         "css_name": "SLAM",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1126,7 +1154,9 @@
       "name": "camera-driver-2",
       "version": "2.4.9",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
@@ -1167,7 +1197,9 @@
       "name": "object-detector-3",
       "version": "2.9.6",
       "app_type": "sensor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
@@ -1208,13 +1240,15 @@
       "name": "slam-node-1",
       "version": "3.6.2",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Navigation Software",
         "css_name": "SLAM",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1249,13 +1283,15 @@
       "name": "state-estimator-2",
       "version": "2.2.0",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Perception Software",
         "css_name": "Object Detection",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1290,7 +1326,9 @@
       "name": "state-estimator-3",
       "version": "2.3.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
@@ -1331,7 +1369,9 @@
       "name": "camera-driver-3",
       "version": "1.9.2",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
@@ -1372,13 +1412,15 @@
       "name": "state-estimator-4",
       "version": "2.8.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Navigation Software",
         "css_name": "Object Detection",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1413,7 +1455,9 @@
       "name": "slam-node-2",
       "version": "1.5.7",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
@@ -1454,13 +1498,15 @@
       "name": "state-estimator-5",
       "version": "3.4.1",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Control Software",
         "css_name": "State Estimation",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1495,7 +1541,9 @@
       "name": "camera-driver-4",
       "version": "1.2.9",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
@@ -1536,13 +1584,15 @@
       "name": "object-detector-4",
       "version": "1.1.9",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Sensor Integration",
         "css_name": "Sensor Fusion",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1577,13 +1627,15 @@
       "name": "collision-avoider-1",
       "version": "2.2.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Perception Software",
         "css_name": "Sensor Fusion",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1618,13 +1670,15 @@
       "name": "motor-driver-3",
       "version": "3.9.5",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Control Software",
         "css_name": "SLAM",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1659,13 +1713,15 @@
       "name": "slam-node-3",
       "version": "1.0.6",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Perception Software",
         "css_name": "State Estimation",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1700,13 +1756,15 @@
       "name": "lidar-driver-1",
       "version": "1.2.6",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Sensor Integration",
         "css_name": "Object Detection",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1741,7 +1799,9 @@
       "name": "collision-avoider-2",
       "version": "3.8.6",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
@@ -1782,13 +1842,15 @@
       "name": "lidar-driver-2",
       "version": "3.1.0",
       "app_type": "actuator",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Perception Software",
         "css_name": "Path Planning",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1823,13 +1885,15 @@
       "name": "object-detector-5",
       "version": "2.4.6",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Control Software",
         "css_name": "Motor Control",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1864,13 +1928,15 @@
       "name": "motor-driver-4",
       "version": "3.1.7",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Perception Software",
         "css_name": "Collision Avoidance",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1905,7 +1971,9 @@
       "name": "lidar-driver-3",
       "version": "3.3.1",
       "app_type": "actuator",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
@@ -1946,13 +2014,15 @@
       "name": "lidar-driver-4",
       "version": "1.4.1",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Sensor Integration",
         "css_name": "Object Detection",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1987,13 +2057,15 @@
       "name": "motor-driver-5",
       "version": "3.0.7",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Control Software",
         "css_name": "Motor Control",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2028,13 +2100,15 @@
       "name": "path-planner-1",
       "version": "1.6.7",
       "app_type": "processor",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Sensor Integration",
         "css_name": "Object Detection",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2069,13 +2143,15 @@
       "name": "path-planner-2",
       "version": "1.6.4",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Control Software",
         "css_name": "Path Planning",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2110,13 +2186,15 @@
       "name": "state-estimator-6",
       "version": "3.2.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Sensor Integration",
         "css_name": "Object Detection",
-        "csms_name": "Route Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2151,7 +2229,9 @@
       "name": "state-estimator-7",
       "version": "1.8.3",
       "app_type": "service",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
@@ -2192,13 +2272,15 @@
       "name": "lidar-driver-5",
       "version": "3.9.4",
       "app_type": "actuator",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Navigation Software",
         "css_name": "Motor Control",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2233,7 +2315,9 @@
       "name": "slam-node-4",
       "version": "1.4.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
@@ -2274,13 +2358,15 @@
       "name": "motor-driver-6",
       "version": "1.8.8",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Perception Software",
         "css_name": "Sensor Fusion",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2315,13 +2401,15 @@
       "name": "slam-node-5",
       "version": "2.7.5",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Sensor Integration",
         "css_name": "Sensor Fusion",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2356,13 +2444,15 @@
       "name": "motor-driver-7",
       "version": "3.2.5",
       "app_type": "actuator",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Sensor Integration",
         "css_name": "State Estimation",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2397,13 +2487,15 @@
       "name": "lidar-driver-6",
       "version": "3.3.4",
       "app_type": "actuator",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Sensor Integration",
         "css_name": "Collision Avoidance",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2438,13 +2530,15 @@
       "name": "lidar-driver-7",
       "version": "1.1.1",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Perception Software",
         "css_name": "Collision Avoidance",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2479,7 +2573,9 @@
       "name": "camera-driver-5",
       "version": "3.6.2",
       "app_type": "actuator",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
@@ -2520,13 +2616,15 @@
       "name": "lidar-driver-8",
       "version": "1.2.1",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Sensor Integration",
         "css_name": "SLAM",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2561,7 +2659,9 @@
       "name": "path-planner-3",
       "version": "2.7.1",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
@@ -2602,13 +2702,15 @@
       "name": "lidar-driver-9",
       "version": "2.5.3",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Control Software",
         "css_name": "Object Detection",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2643,13 +2745,15 @@
       "name": "lidar-driver-10",
       "version": "3.1.2",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Sensor Integration",
         "css_name": "SLAM",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2684,7 +2788,9 @@
       "name": "path-planner-4",
       "version": "1.1.4",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
@@ -2725,13 +2831,15 @@
       "name": "slam-node-6",
       "version": "3.3.0",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Sensor Integration",
         "css_name": "Sensor Fusion",
-        "csms_name": "Route Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2766,13 +2874,15 @@
       "name": "collision-avoider-3",
       "version": "1.7.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Sensor Integration",
         "css_name": "Collision Avoidance",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2807,13 +2917,15 @@
       "name": "camera-driver-6",
       "version": "2.8.7",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Control Software",
         "css_name": "Path Planning",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2848,13 +2960,15 @@
       "name": "collision-avoider-4",
       "version": "3.5.1",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Navigation Software",
         "css_name": "Sensor Fusion",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2889,7 +3003,9 @@
       "name": "slam-node-7",
       "version": "1.0.4",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
@@ -2930,13 +3046,15 @@
       "name": "lidar-driver-11",
       "version": "2.6.7",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Navigation Software",
         "css_name": "Path Planning",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2971,13 +3089,15 @@
       "name": "path-planner-5",
       "version": "3.9.5",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Control Software",
         "css_name": "Object Detection",
-        "csms_name": "Route Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3012,13 +3132,15 @@
       "name": "slam-node-8",
       "version": "2.2.3",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Perception Software",
         "css_name": "State Estimation",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3053,7 +3175,9 @@
       "name": "path-planner-6",
       "version": "3.5.9",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
@@ -3094,7 +3218,9 @@
       "name": "path-planner-7",
       "version": "2.8.0",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
@@ -3135,13 +3261,15 @@
       "name": "path-planner-8",
       "version": "1.9.9",
       "app_type": "processor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Perception Software",
         "css_name": "Object Detection",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3176,13 +3304,15 @@
       "name": "collision-avoider-5",
       "version": "3.9.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Perception Software",
         "css_name": "State Estimation",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3217,13 +3347,15 @@
       "name": "slam-node-9",
       "version": "3.3.5",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Control Software",
         "css_name": "Object Detection",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3258,13 +3390,15 @@
       "name": "object-detector-6",
       "version": "3.2.5",
       "app_type": "sensor",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Navigation Software",
         "css_name": "Collision Avoidance",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3299,7 +3433,9 @@
       "name": "path-planner-9",
       "version": "3.5.8",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
@@ -3340,7 +3476,9 @@
       "name": "camera-driver-7",
       "version": "3.5.2",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
@@ -3381,13 +3519,15 @@
       "name": "lidar-driver-12",
       "version": "2.5.0",
       "app_type": "actuator",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Perception Software",
         "css_name": "Path Planning",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3422,13 +3562,15 @@
       "name": "camera-driver-8",
       "version": "2.8.7",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Sensor Integration",
         "css_name": "Sensor Fusion",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3463,7 +3605,9 @@
       "name": "object-detector-7",
       "version": "3.8.3",
       "app_type": "sensor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
@@ -3504,13 +3648,15 @@
       "name": "path-planner-10",
       "version": "2.4.8",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Control Software",
         "css_name": "Path Planning",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3545,13 +3691,15 @@
       "name": "slam-node-10",
       "version": "2.4.3",
       "app_type": "service",
-      "role": "pub",
+      "role": [
+        "pub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Sensor Integration",
         "css_name": "SLAM",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3586,13 +3734,15 @@
       "name": "path-planner-11",
       "version": "3.5.8",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Vehicle Computing System",
         "csci_name": "Navigation Software",
         "css_name": "Motor Control",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3627,13 +3777,15 @@
       "name": "collision-avoider-6",
       "version": "3.9.0",
       "app_type": "service",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Sensor Integration",
         "css_name": "Collision Avoidance",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3668,13 +3820,15 @@
       "name": "lidar-driver-13",
       "version": "1.5.3",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": true,
       "system_hierarchy": {
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Control Software",
         "css_name": "Motor Control",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3709,13 +3863,15 @@
       "name": "camera-driver-9",
       "version": "2.1.8",
       "app_type": "actuator",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Control Software",
         "css_name": "Path Planning",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3750,13 +3906,15 @@
       "name": "motor-driver-8",
       "version": "1.8.6",
       "app_type": "actuator",
-      "role": "sub",
+      "role": [
+        "sub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Perception Software",
         "css_name": "SLAM",
-        "csms_name": "Route Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3791,13 +3949,15 @@
       "name": "path-planner-12",
       "version": "1.2.6",
       "app_type": "processor",
-      "role": "pubsub",
+      "role": [
+        "pubsub"
+      ],
       "criticality": false,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",
         "csci_name": "Sensor Integration",
         "css_name": "Collision Avoidance",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3837,7 +3997,7 @@
         "csc_name": "Vehicle Computing System",
         "csci_name": "Sensor Integration",
         "css_name": "SLAM",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3875,7 +4035,7 @@
         "csc_name": "Vehicle Computing System",
         "csci_name": "Perception Software",
         "css_name": "Path Planning",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3913,7 +4073,7 @@
         "csc_name": "Vehicle Computing System",
         "csci_name": "Navigation Software",
         "css_name": "SLAM",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3989,7 +4149,7 @@
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Perception Software",
         "css_name": "State Estimation",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4065,7 +4225,7 @@
         "csc_name": "Robotic Systems",
         "csci_name": "Navigation Software",
         "css_name": "SLAM",
-        "csms_name": "Route Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4103,7 +4263,7 @@
         "csc_name": "Vehicle Computing System",
         "csci_name": "Navigation Software",
         "css_name": "Path Planning",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4141,7 +4301,7 @@
         "csc_name": "Vehicle Computing System",
         "csci_name": "Sensor Integration",
         "css_name": "State Estimation",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4179,7 +4339,7 @@
         "csc_name": "Vehicle Computing System",
         "csci_name": "Control Software",
         "css_name": "Path Planning",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4217,7 +4377,7 @@
         "csc_name": "Robotic Systems",
         "csci_name": "Navigation Software",
         "css_name": "SLAM",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4255,7 +4415,7 @@
         "csc_name": "Vehicle Computing System",
         "csci_name": "Sensor Integration",
         "css_name": "Object Detection",
-        "csms_name": "Route Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4293,7 +4453,7 @@
         "csc_name": "Vehicle Computing System",
         "csci_name": "Control Software",
         "css_name": "SLAM",
-        "csms_name": "Control Logic"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4331,7 +4491,7 @@
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Navigation Software",
         "css_name": "Motor Control",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4369,7 +4529,7 @@
         "csc_name": "Vehicle Computing System",
         "csci_name": "Control Software",
         "css_name": "SLAM",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4407,7 +4567,7 @@
         "csc_name": "Robotic Systems",
         "csci_name": "Control Software",
         "css_name": "Collision Avoidance",
-        "csms_name": "Route Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4445,7 +4605,7 @@
         "csc_name": "Autonomous Vehicle Platform",
         "csci_name": "Control Software",
         "css_name": "Motor Control",
-        "csms_name": "Point Cloud Processing"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4521,7 +4681,7 @@
         "csc_name": "Vehicle Computing System",
         "csci_name": "Perception Software",
         "css_name": "Object Detection",
-        "csms_name": "Obstacle Tracking"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4559,7 +4719,7 @@
         "csc_name": "Robotic Systems",
         "csci_name": "Navigation Software",
         "css_name": "SLAM",
-        "csms_name": "Image Pipeline"
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
