@@ -656,7 +656,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Service Mesh",
         "css_name": "User Management",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -742,7 +742,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Service Mesh",
         "css_name": "Authentication",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -914,7 +914,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Backend Services",
         "css_name": "Payment Processing",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1000,7 +1000,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Data Layer",
         "css_name": "Search Service",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1043,7 +1043,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Backend Services",
         "css_name": "User Management",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1086,7 +1086,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "API Gateway",
         "css_name": "Search Service",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1129,7 +1129,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Service Mesh",
         "css_name": "Authentication",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1172,7 +1172,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Backend Services",
         "css_name": "Product Catalog",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1215,7 +1215,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Backend Services",
         "css_name": "Authentication",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1258,7 +1258,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Data Layer",
         "css_name": "Search Service",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1344,7 +1344,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Backend Services",
         "css_name": "User Management",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1387,7 +1387,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Data Layer",
         "css_name": "User Management",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1430,7 +1430,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Data Layer",
         "css_name": "Product Catalog",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1473,7 +1473,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Backend Services",
         "css_name": "Authentication",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1559,7 +1559,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "API Gateway",
         "css_name": "Product Catalog",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1602,7 +1602,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Backend Services",
         "css_name": "Payment Processing",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1645,7 +1645,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Service Mesh",
         "css_name": "Payment Processing",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1688,7 +1688,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Service Mesh",
         "css_name": "User Management",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1731,7 +1731,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "API Gateway",
         "css_name": "Product Catalog",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1774,7 +1774,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Service Mesh",
         "css_name": "Authentication",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1817,7 +1817,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Backend Services",
         "css_name": "User Management",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1903,7 +1903,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "API Gateway",
         "css_name": "Product Catalog",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1946,7 +1946,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Service Mesh",
         "css_name": "Authentication",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -1989,7 +1989,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "API Gateway",
         "css_name": "Authentication",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2032,7 +2032,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Data Layer",
         "css_name": "Payment Processing",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2075,7 +2075,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Backend Services",
         "css_name": "Authentication",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2118,7 +2118,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Data Layer",
         "css_name": "Authentication",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2161,7 +2161,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Service Mesh",
         "css_name": "Product Catalog",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2204,7 +2204,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Backend Services",
         "css_name": "Authentication",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2290,7 +2290,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Data Layer",
         "css_name": "Payment Processing",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2376,7 +2376,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Backend Services",
         "css_name": "Search Service",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2419,7 +2419,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Service Mesh",
         "css_name": "User Management",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2462,7 +2462,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Backend Services",
         "css_name": "Search Service",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2505,7 +2505,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Service Mesh",
         "css_name": "Product Catalog",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2591,7 +2591,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Service Mesh",
         "css_name": "User Management",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2634,7 +2634,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Backend Services",
         "css_name": "Authentication",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2677,7 +2677,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Data Layer",
         "css_name": "User Management",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2720,7 +2720,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Service Mesh",
         "css_name": "User Management",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2763,7 +2763,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Service Mesh",
         "css_name": "Search Service",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2849,7 +2849,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Service Mesh",
         "css_name": "User Management",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2978,7 +2978,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "API Gateway",
         "css_name": "Payment Processing",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3021,7 +3021,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Backend Services",
         "css_name": "Authentication",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3064,7 +3064,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Service Mesh",
         "css_name": "Product Catalog",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3107,7 +3107,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Service Mesh",
         "css_name": "Product Catalog",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3150,7 +3150,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "API Gateway",
         "css_name": "Authentication",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3193,7 +3193,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Data Layer",
         "css_name": "Authentication",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3236,7 +3236,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Service Mesh",
         "css_name": "Product Catalog",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3279,7 +3279,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "API Gateway",
         "css_name": "User Management",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3322,7 +3322,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Backend Services",
         "css_name": "User Management",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3365,7 +3365,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Data Layer",
         "css_name": "Search Service",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3408,7 +3408,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Data Layer",
         "css_name": "Search Service",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3451,7 +3451,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Service Mesh",
         "css_name": "Authentication",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3580,7 +3580,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Backend Services",
         "css_name": "Payment Processing",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3666,7 +3666,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Service Mesh",
         "css_name": "Product Catalog",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3709,7 +3709,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "API Gateway",
         "css_name": "Authentication",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3795,7 +3795,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Backend Services",
         "css_name": "User Management",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3838,7 +3838,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "API Gateway",
         "css_name": "User Management",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3881,7 +3881,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Data Layer",
         "css_name": "Search Service",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3924,7 +3924,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Data Layer",
         "css_name": "Authentication",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4010,7 +4010,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "API Gateway",
         "css_name": "User Management",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4053,7 +4053,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Service Mesh",
         "css_name": "Product Catalog",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4096,7 +4096,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Service Mesh",
         "css_name": "Search Service",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4225,7 +4225,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Data Layer",
         "css_name": "User Management",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4268,7 +4268,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Backend Services",
         "css_name": "Product Catalog",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4354,7 +4354,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Service Mesh",
         "css_name": "Product Catalog",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4397,7 +4397,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Service Mesh",
         "css_name": "Payment Processing",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4440,7 +4440,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Service Mesh",
         "css_name": "Search Service",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4483,7 +4483,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Data Layer",
         "css_name": "Search Service",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4523,7 +4523,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Backend Services",
         "css_name": "Authentication",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4561,7 +4561,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "API Gateway",
         "css_name": "User Management",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4599,7 +4599,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "API Gateway",
         "css_name": "Search Service",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4675,7 +4675,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Backend Services",
         "css_name": "Authentication",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4713,7 +4713,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Service Mesh",
         "css_name": "Product Catalog",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4751,7 +4751,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Service Mesh",
         "css_name": "Payment Processing",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4789,7 +4789,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "API Gateway",
         "css_name": "Authentication",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4827,7 +4827,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Data Layer",
         "css_name": "Authentication",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4865,7 +4865,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "API Gateway",
         "css_name": "Search Service",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4903,7 +4903,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Backend Services",
         "css_name": "User Management",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4941,7 +4941,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Backend Services",
         "css_name": "Product Catalog",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4979,7 +4979,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Data Layer",
         "css_name": "Product Catalog",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5017,7 +5017,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Service Mesh",
         "css_name": "Payment Processing",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5093,7 +5093,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Service Mesh",
         "css_name": "User Management",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5131,7 +5131,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Backend Services",
         "css_name": "User Management",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5169,7 +5169,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "API Gateway",
         "css_name": "Payment Processing",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5207,7 +5207,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Backend Services",
         "css_name": "Product Catalog",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5245,7 +5245,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "API Gateway",
         "css_name": "Product Catalog",
-        "csms_name": "Session Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5283,7 +5283,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Data Layer",
         "css_name": "Product Catalog",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5321,7 +5321,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "API Gateway",
         "css_name": "Search Service",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5359,7 +5359,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Service Mesh",
         "css_name": "Payment Processing",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5397,7 +5397,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Backend Services",
         "css_name": "Product Catalog",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5435,7 +5435,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "API Gateway",
         "css_name": "Product Catalog",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5473,7 +5473,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "Data Layer",
         "css_name": "Payment Processing",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5511,7 +5511,7 @@
         "csc_name": "Cloud Platform",
         "csci_name": "API Gateway",
         "css_name": "Payment Processing",
-        "csms_name": "Index Management"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5549,7 +5549,7 @@
         "csc_name": "Distributed Services",
         "csci_name": "Service Mesh",
         "css_name": "Product Catalog",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5587,7 +5587,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "Backend Services",
         "css_name": "User Management",
-        "csms_name": "Token Validation"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5625,7 +5625,7 @@
         "csc_name": "Microservices Architecture",
         "csci_name": "API Gateway",
         "css_name": "Search Service",
-        "csms_name": "Cache Layer"
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {

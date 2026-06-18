@@ -479,7 +479,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Systems Engineering",
         "css_name": "Data Management",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -522,7 +522,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Software Engineering",
         "css_name": "Process Control",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -565,7 +565,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Infrastructure Software",
         "css_name": "Shared Platform",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -651,7 +651,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Systems Engineering",
         "css_name": "Shared Platform",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -694,7 +694,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Software Engineering",
         "css_name": "Shared Platform",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -737,7 +737,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Application Software",
         "css_name": "Communication",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -780,7 +780,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Software Engineering",
         "css_name": "Software Design",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -823,7 +823,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Software Engineering",
         "css_name": "User Interface",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -866,7 +866,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Software Engineering",
         "css_name": "Communication",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -909,7 +909,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Systems Engineering",
         "css_name": "Software Design",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -952,7 +952,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Application Software",
         "css_name": "Software Design",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -995,7 +995,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Infrastructure Software",
         "css_name": "User Interface",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1081,7 +1081,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Software Engineering",
         "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1124,7 +1124,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Application Software",
         "css_name": "Shared Platform",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1167,7 +1167,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Systems Engineering",
         "css_name": "Process Control",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1210,7 +1210,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Systems Engineering",
         "css_name": "User Interface",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1253,7 +1253,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Application Software",
         "css_name": "Communication",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1382,7 +1382,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Infrastructure Software",
         "css_name": "Process Control",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1468,7 +1468,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Application Software",
         "css_name": "Process Control",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1511,7 +1511,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Software Engineering",
         "css_name": "Shared Platform",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1554,7 +1554,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Application Software",
         "css_name": "Software Design",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1597,7 +1597,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Systems Engineering",
         "css_name": "Data Management",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1640,7 +1640,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Application Software",
         "css_name": "Data Management",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1683,7 +1683,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Infrastructure Software",
         "css_name": "Software Design",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1726,7 +1726,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Systems Engineering",
         "css_name": "Data Management",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1812,7 +1812,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Software Engineering",
         "css_name": "Data Management",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1898,7 +1898,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Infrastructure Software",
         "css_name": "Communication",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1941,7 +1941,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Software Engineering",
         "css_name": "Communication",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2070,7 +2070,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Application Software",
         "css_name": "User Interface",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2113,7 +2113,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Software Engineering",
         "css_name": "Process Control",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2156,7 +2156,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Infrastructure Software",
         "css_name": "Process Control",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2242,7 +2242,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Software Engineering",
         "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2285,7 +2285,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Software Engineering",
         "css_name": "Software Design",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2328,7 +2328,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Software Engineering",
         "css_name": "Communication",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2371,7 +2371,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Software Engineering",
         "css_name": "User Interface",
-        "csms_name": "Error Handling"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2414,7 +2414,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Infrastructure Software",
         "css_name": "Process Control",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2457,7 +2457,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Infrastructure Software",
         "css_name": "Process Control",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2543,7 +2543,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Software Engineering",
         "css_name": "User Interface",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2583,7 +2583,7 @@
         "csc_name": "Software Systems",
         "csci_name": "Application Software",
         "css_name": "Shared Platform",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2621,7 +2621,7 @@
         "csc_name": "Computing Platform",
         "csci_name": "Systems Engineering",
         "css_name": "Data Management",
-        "csms_name": "Core Logic"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2697,7 +2697,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Infrastructure Software",
         "css_name": "Data Management",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2773,7 +2773,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Application Software",
         "css_name": "Data Management",
-        "csms_name": "Shared Services"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2811,7 +2811,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Application Software",
         "css_name": "User Interface",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2849,7 +2849,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Application Software",
         "css_name": "User Interface",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2887,7 +2887,7 @@
         "csc_name": "Computer Science",
         "csci_name": "Infrastructure Software",
         "css_name": "Data Management",
-        "csms_name": "Messaging Utilities"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2925,7 +2925,7 @@
         "csc_name": "Information Systems",
         "csci_name": "Infrastructure Software",
         "css_name": "Process Control",
-        "csms_name": "Data Processing"
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {

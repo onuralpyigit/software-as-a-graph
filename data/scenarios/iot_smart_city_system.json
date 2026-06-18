@@ -1136,7 +1136,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Analytics Engine",
         "css_name": "Alert Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1222,7 +1222,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1308,7 +1308,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Control Systems",
         "css_name": "Alert Management",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1351,7 +1351,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Environmental Sensing",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1394,7 +1394,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Alert Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1437,7 +1437,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Control Systems",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1480,7 +1480,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Analytics Engine",
         "css_name": "Environmental Sensing",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1523,7 +1523,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Alert Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1566,7 +1566,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Traffic Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1609,7 +1609,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Control Systems",
         "css_name": "Lighting Control",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1695,7 +1695,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Analytics Engine",
         "css_name": "Power Monitoring",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1738,7 +1738,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Traffic Management",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1781,7 +1781,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Lighting Control",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1867,7 +1867,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Analytics Engine",
         "css_name": "Power Monitoring",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1910,7 +1910,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1953,7 +1953,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Data Collection",
         "css_name": "Environmental Sensing",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -1996,7 +1996,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Data Collection",
         "css_name": "Power Monitoring",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2039,7 +2039,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Data Collection",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2125,7 +2125,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Control Systems",
         "css_name": "Alert Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2168,7 +2168,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Analytics Engine",
         "css_name": "Power Monitoring",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2211,7 +2211,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Control Systems",
         "css_name": "Alert Management",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2340,7 +2340,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Lighting Control",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2383,7 +2383,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Environmental Sensing",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2426,7 +2426,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Power Monitoring",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2469,7 +2469,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Control Systems",
         "css_name": "Power Monitoring",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2555,7 +2555,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Data Collection",
         "css_name": "Alert Management",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2641,7 +2641,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Control Systems",
         "css_name": "Power Monitoring",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2684,7 +2684,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Traffic Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2727,7 +2727,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Alert Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2813,7 +2813,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Control Systems",
         "css_name": "Alert Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2856,7 +2856,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Power Monitoring",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2899,7 +2899,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Alert Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -2985,7 +2985,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Environmental Sensing",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3028,7 +3028,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Data Collection",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3114,7 +3114,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Traffic Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3157,7 +3157,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Analytics Engine",
         "css_name": "Environmental Sensing",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3200,7 +3200,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Lighting Control",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3243,7 +3243,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Environmental Sensing",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3286,7 +3286,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Power Monitoring",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3329,7 +3329,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Alert Management",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3458,7 +3458,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Alert Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3501,7 +3501,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Traffic Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3544,7 +3544,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Analytics Engine",
         "css_name": "Environmental Sensing",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3587,7 +3587,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Power Monitoring",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3630,7 +3630,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Control Systems",
         "css_name": "Power Monitoring",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3759,7 +3759,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Control Systems",
         "css_name": "Power Monitoring",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3802,7 +3802,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Environmental Sensing",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3845,7 +3845,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Traffic Management",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3888,7 +3888,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Lighting Control",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -3974,7 +3974,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Power Monitoring",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4017,7 +4017,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4060,7 +4060,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Control Systems",
         "css_name": "Alert Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4103,7 +4103,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Lighting Control",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4189,7 +4189,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Control Systems",
         "css_name": "Lighting Control",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4232,7 +4232,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Environmental Sensing",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4275,7 +4275,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Analytics Engine",
         "css_name": "Traffic Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4318,7 +4318,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Power Monitoring",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4361,7 +4361,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Analytics Engine",
         "css_name": "Alert Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4404,7 +4404,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Power Monitoring",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4447,7 +4447,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Power Monitoring",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4490,7 +4490,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Data Collection",
         "css_name": "Alert Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4533,7 +4533,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Control Systems",
         "css_name": "Power Monitoring",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4619,7 +4619,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4662,7 +4662,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Alert Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4705,7 +4705,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Data Collection",
         "css_name": "Alert Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4748,7 +4748,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Environmental Sensing",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4834,7 +4834,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4877,7 +4877,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4920,7 +4920,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Alert Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -4963,7 +4963,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Analytics Engine",
         "css_name": "Alert Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5049,7 +5049,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Analytics Engine",
         "css_name": "Traffic Management",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5092,7 +5092,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Alert Management",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5135,7 +5135,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Alert Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5178,7 +5178,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Traffic Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5221,7 +5221,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5307,7 +5307,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5350,7 +5350,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5393,7 +5393,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Analytics Engine",
         "css_name": "Traffic Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5436,7 +5436,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5479,7 +5479,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Power Monitoring",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5522,7 +5522,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5608,7 +5608,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5651,7 +5651,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Traffic Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5694,7 +5694,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5737,7 +5737,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Alert Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5866,7 +5866,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Traffic Management",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5952,7 +5952,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Traffic Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -5995,7 +5995,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Data Collection",
         "css_name": "Alert Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6038,7 +6038,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Traffic Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6081,7 +6081,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Traffic Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6124,7 +6124,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Analytics Engine",
         "css_name": "Alert Management",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6167,7 +6167,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Analytics Engine",
         "css_name": "Environmental Sensing",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6210,7 +6210,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Power Monitoring",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6253,7 +6253,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Lighting Control",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6296,7 +6296,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Environmental Sensing",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6339,7 +6339,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Traffic Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6382,7 +6382,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6468,7 +6468,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Environmental Sensing",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6554,7 +6554,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Environmental Sensing",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6597,7 +6597,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Data Collection",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6683,7 +6683,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Traffic Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6855,7 +6855,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Traffic Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6898,7 +6898,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Traffic Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6941,7 +6941,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -6984,7 +6984,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Control Systems",
         "css_name": "Power Monitoring",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7113,7 +7113,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Environmental Sensing",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7156,7 +7156,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Analytics Engine",
         "css_name": "Lighting Control",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7199,7 +7199,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7242,7 +7242,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Traffic Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7285,7 +7285,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Environmental Sensing",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7371,7 +7371,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Analytics Engine",
         "css_name": "Power Monitoring",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7414,7 +7414,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Alert Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7500,7 +7500,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Analytics Engine",
         "css_name": "Environmental Sensing",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7586,7 +7586,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Traffic Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7629,7 +7629,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Monitoring Software",
         "css_name": "Power Monitoring",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7672,7 +7672,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Power Monitoring",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7715,7 +7715,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Analytics Engine",
         "css_name": "Environmental Sensing",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7758,7 +7758,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Traffic Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7801,7 +7801,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Power Monitoring",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -7844,7 +7844,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Control Systems",
         "css_name": "Environmental Sensing",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8016,7 +8016,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Alert Management",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8059,7 +8059,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Power Monitoring",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8102,7 +8102,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8145,7 +8145,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Data Collection",
         "css_name": "Power Monitoring",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8188,7 +8188,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Traffic Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8231,7 +8231,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Alert Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8274,7 +8274,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Alert Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8317,7 +8317,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Power Monitoring",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8360,7 +8360,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Data Collection",
         "css_name": "Alert Management",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8403,7 +8403,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Power Monitoring",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8489,7 +8489,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Traffic Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8532,7 +8532,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Alert Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8575,7 +8575,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Environmental Sensing",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8618,7 +8618,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Control Systems",
         "css_name": "Lighting Control",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8661,7 +8661,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Control Systems",
         "css_name": "Alert Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8747,7 +8747,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Data Collection",
         "css_name": "Power Monitoring",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8790,7 +8790,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Environmental Sensing",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8833,7 +8833,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Data Collection",
         "css_name": "Traffic Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8876,7 +8876,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Data Collection",
         "css_name": "Power Monitoring",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -8962,7 +8962,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Data Collection",
         "css_name": "Environmental Sensing",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9005,7 +9005,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Lighting Control",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9048,7 +9048,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9091,7 +9091,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Data Collection",
         "css_name": "Alert Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9134,7 +9134,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Power Monitoring",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9177,7 +9177,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Power Monitoring",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9220,7 +9220,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Traffic Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9263,7 +9263,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Data Collection",
         "css_name": "Environmental Sensing",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9306,7 +9306,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Power Monitoring",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9392,7 +9392,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Power Monitoring",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9435,7 +9435,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Lighting Control",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9478,7 +9478,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Analytics Engine",
         "css_name": "Alert Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9521,7 +9521,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Traffic Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9564,7 +9564,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Data Collection",
         "css_name": "Alert Management",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9607,7 +9607,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Analytics Engine",
         "css_name": "Power Monitoring",
-        "csms_name": "Data Aggregation"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9693,7 +9693,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Traffic Management",
-        "csms_name": "Threshold Analysis"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9771,7 +9771,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Analytics Engine",
         "css_name": "Traffic Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9809,7 +9809,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Data Collection",
         "css_name": "Traffic Management",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9847,7 +9847,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Data Collection",
         "css_name": "Alert Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9885,7 +9885,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Data Collection",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9923,7 +9923,7 @@
         "csc_name": "Edge Computing System",
         "csci_name": "Data Collection",
         "css_name": "Traffic Management",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9961,7 +9961,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Analytics Engine",
         "css_name": "Power Monitoring",
-        "csms_name": "Notification Logic"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -9999,7 +9999,7 @@
         "csc_name": "Smart City Platform",
         "csci_name": "Control Systems",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
@@ -10075,7 +10075,7 @@
         "csc_name": "IoT Infrastructure",
         "csci_name": "Monitoring Software",
         "css_name": "Lighting Control",
-        "csms_name": "Event Processing"
+        "csms_name": "Device Control"
       },
       "code_metrics": {
         "size": {
