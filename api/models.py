@@ -420,8 +420,10 @@ class TrafficTopicMetrics(BaseModel):
     broker_names: List[str]
     # Effective parameters used for this topic
     frequency_hz: float
+    graph_frequency_hz: Optional[float] = None
     duration_sec: float
     message_size_bytes: int
+    graph_size_bytes: Optional[int] = None
     msgs_published_per_sec: float
     msgs_delivered_per_sec: float
     msgs_total_per_sec: float

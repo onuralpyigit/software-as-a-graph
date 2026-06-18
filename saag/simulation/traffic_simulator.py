@@ -202,13 +202,18 @@ class TrafficSimulator:
             pub_count = max(1, td["publisher_count"])
             sub_count = max(0, td["subscriber_count"])
 
-            # Resolve effective params (per-topic override → global default)
+            # Resolve effective params (per-topic override → graph value → global default)
             p = overrides.get(tid, {})
-            eff_hz = float(p.get("frequency_hz", frequency_hz))
+            eff_hz = float(p.get("frequency_hz", td["frequency"] if td["frequency"] is not None else frequency_hz))
             eff_dur = float(p.get("duration_sec", duration_sec))
-            # Prefer the size stored on the Topic node; fall back to global default
-            # for topics that have no size property (size == 0).
-            eff_size = int(td["size"]) if td.get("size", 0) > 0 else message_size_bytes
+            # Prefer per-topic override, then graph value, then global default
+            graph_size = td.get("size", 0)
+            if "message_size_bytes" in p:
+                eff_size = int(p["message_size_bytes"])
+            elif graph_size > 0:
+                eff_size = graph_size
+            else:
+                eff_size = message_size_bytes
 
             msgs_in_per_sec = pub_count * eff_hz
             msgs_out_per_sec = msgs_in_per_sec * sub_count
@@ -231,8 +236,10 @@ class TrafficSimulator:
                     "broker_ids": td["broker_ids"],
                     "broker_names": td["broker_names"],
                     "frequency_hz": eff_hz,
+                    "graph_frequency_hz": td["frequency"],
                     "duration_sec": eff_dur,
                     "message_size_bytes": eff_size,
+                    "graph_size_bytes": td.get("size", 0) if td.get("size") is not None else 0,
                     "msgs_published_per_sec": round(msgs_in_per_sec, 4),
                     "msgs_delivered_per_sec": round(msgs_out_per_sec, 4),
                     "msgs_total_per_sec": round(msgs_total_per_sec, 4),
@@ -330,13 +337,15 @@ class TrafficSimulator:
                          collect(DISTINCT b.id)   AS broker_ids,
                          collect(DISTINCT COALESCE(b.name, b.id)) AS broker_names
                     RETURN
-                        t.id                     AS id,
-                        COALESCE(t.name, t.id)   AS name,
-                        COALESCE(t.weight, 0.01) AS weight,
+                        t.id                        AS id,
+                        COALESCE(t.name, t.id)      AS name,
+                        COALESCE(t.weight, 0.01)    AS weight,
                         pub_count,
                         sub_count,
                         broker_ids,
-                        broker_names
+                        broker_names,
+                        COALESCE(t.size, 0)         AS size,
+                        COALESCE(t.topic_frequency, NULL) AS frequency
                     """,
                     topic_ids=topic_ids,
                 )
@@ -350,6 +359,8 @@ class TrafficSimulator:
                         "subscriber_count": int(rec["sub_count"]),
                         "broker_ids": list(rec["broker_ids"]),
                         "broker_names": list(rec["broker_names"]),
+                        "size": int(rec["size"]) if rec["size"] is not None else 0,
+                        "frequency": float(rec["frequency"]) if rec["frequency"] is not None else None,
                     }
                 return data
         finally:
