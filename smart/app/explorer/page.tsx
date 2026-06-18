@@ -75,7 +75,7 @@ interface SelectedNode {
 }
 
 // Graph explorer types
-type HGLevel = "csms" | "css" | "csci" | "csc" | "app"
+type HGLevel = "csms" | "css" | "csci" | "csc" | "app" | "lib"
 interface HGNode {
   id: string
   name: string
@@ -130,13 +130,13 @@ function sortKeys(keys: string[]): string[] {
 
 // Hierarchy node colors — distinct from connection node types to avoid confusion
 const NODE_COLORS: Record<HGLevel, string> = {
-  csms: "#ec4899", css: "#8b5cf6", csci: "#06b6d4", csc: "#14b8a6", app: "#4CBCD0",
+  csms: "#ec4899", css: "#8b5cf6", csci: "#06b6d4", csc: "#14b8a6", app: "#4CBCD0", lib: "#ECA088",
 }
 const NODE_SIZES: Record<HGLevel, number> = {
-  csms: 14, css: 10, csci: 8, csc: 6, app: 3.5,
+  csms: 14, css: 10, csci: 8, csc: 6, app: 3.5, lib: 3.5,
 }
 const LEVEL_LABELS: Record<HGLevel, string> = {
-  csms: "System (CSMS)", css: "Segment (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)",
+  csms: "System (CSMS)", css: "Segment (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)", lib: "Library",
 }
 
 // Hierarchical connections-view layout: assign a y-layer per node type
@@ -698,8 +698,9 @@ function buildDrillData(
     }
     case "csc": {
       for (const app of hierarchy[p[0]]?.css[p[1]]?.csci[p[2]]?.csc[p[3]]?.apps ?? []) {
-        const id = `app:${app.id}`
-        nodes.push({ id, name: app.csu ?? app.name ?? app.id ?? "?", level: "app", appCount: 1, pathKey: app.id, appData: app })
+        const isLib = app.type === "Library"
+        const id = isLib ? `lib:${app.id}` : `app:${app.id}`
+        nodes.push({ id, name: app.csu ?? app.name ?? app.id ?? "?", level: isLib ? "lib" : "app", appCount: 1, pathKey: app.id, appData: app, nodeType: isLib ? "Library" : undefined })
         links.push({ source: parent.id, target: id })
       }
       break
@@ -1095,7 +1096,7 @@ const cfEdgeTypes = { conn: ConnFlowEdge }
 // ── Hierarchy graph using @xyflow/react ──────────────────────────────────────
 
 const HIER_LEVEL_LABEL: Record<HGLevel, string> = {
-  csms: "System", css: "Segment", csci: "Config Item", csc: "Component", app: "App",
+  csms: "System", css: "Segment", csci: "Config Item", csc: "Component", app: "App", lib: "Lib",
 }
 
 const HierFlowNode = memo(function HierFlowNode({ data }: NodeProps) {
@@ -1177,7 +1178,7 @@ const HierFlowNode = memo(function HierFlowNode({ data }: NodeProps) {
     </div>
   )
 
-  if (hn.level === "app" && hn.appData) {
+  if ((hn.level === "app" || hn.level === "lib") && hn.appData) {
     return nodeContent
   }
   return nodeContent
@@ -1219,7 +1220,7 @@ const HierFlowGraph = memo(function HierFlowGraph({ graphData, dims, isDark, sel
 }) {
   const W = dims.width  || 800
   const H = dims.height || 600
-  const LEVEL_ORDER: HGLevel[] = ["csms", "css", "csci", "csc", "app"]
+  const LEVEL_ORDER: HGLevel[] = ["csms", "css", "csci", "csc", "app", "lib"]
 
   // Find which node is the parent (drilled-into) node — first node that has children
   const parentNodeId = useMemo(() => {
@@ -1838,14 +1839,18 @@ function buildEChartsTree(hierarchy: Record<string, CsmsGroup>): object {
                     name: csc.name,
                     itemStyle: { color: NODE_COLORS.csc },
                     lineStyle: { color: NODE_COLORS.csc + "88" },
-                    children: csc.apps.map(app => ({
-                      name: app.csu ?? app.name ?? app.id ?? "?",
-                      value: app.weight,
-                      itemStyle: { color: NODE_COLORS.app },
-                      lineStyle: { color: NODE_COLORS.app + "66" },
-                      // carry raw app data for tooltip
-                      _app: app,
-                    })),
+                    children: csc.apps.map(app => {
+                      const isLib = app.type === "Library"
+                      const color = isLib ? NODE_COLORS.lib : NODE_COLORS.app
+                      return {
+                        name: app.csu ?? app.name ?? app.id ?? "?",
+                        value: app.weight,
+                        itemStyle: { color },
+                        lineStyle: { color: color + "66" },
+                        _app: app,
+                        _level: isLib ? "lib" : "app",
+                      }
+                    }),
                   }
                 }),
               }
@@ -1953,7 +1958,8 @@ function buildMergedTree(
       for (const [ik, csci] of Object.entries(css.csci)) {
         for (const [pk, csc] of Object.entries(csci.csc)) {
           for (const app of csc.apps) {
-            const instKey = `app:${ck}/${sk}/${ik}/${pk}/${app.id}`
+            const prefix = app.type === "Library" ? "lib" : "app"
+            const instKey = `${prefix}:${ck}/${sk}/${ik}/${pk}/${app.id}`
             const hasData = connDataMap.has(instKey)
             const isSelected = selectedInstanceKey ? instKey === selectedInstanceKey : app.id === selectedPathKey
             if (hasData || isSelected) {
@@ -2020,24 +2026,28 @@ function buildMergedTree(
                     itemStyle: { color: NODE_COLORS.csc },
                     lineStyle: { color: NODE_COLORS.csc + "88" },
                     children: csc.apps.map(app => {
-                      const instancePathKey = `app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${app.id}`
+                      const isLib = app.type === "Library"
+                      const instancePathKey = isLib
+                        ? `lib:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${app.id}`
+                        : `app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${app.id}`
                       const isSel = selectedInstanceKey
                         ? instancePathKey === selectedInstanceKey
                         : selectedPathKey !== null && app.id === selectedPathKey
                       const appConnData = connDataMap.get(instancePathKey)
                       const appChildren = appConnData ? buildConnSubtree(app.id, appConnData, expandedLeaves, isDark, instancePathKey) : []
+                      const leafColor = isLib ? NODE_COLORS.lib : NODE_COLORS.app
                       return {
                         id: instancePathKey,
                         name: (app.csu ?? app.name ?? app.id ?? "?") + `\x00${instancePathKey}`,
                         value: app.weight,
                         _app: app,
-                        _level: "app",
+                        _level: isLib ? "lib" : "app",
                         ...(appConnData && { collapsed: false }),
                         itemStyle: {
-                          color: NODE_COLORS.app,
-                          ...(isSel ? { borderColor: isDark ? "#fff" : "#1e293b", borderWidth: 2, shadowBlur: 10, shadowColor: NODE_COLORS.app + "99" } : {}),
+                          color: leafColor,
+                          ...(isSel ? { borderColor: isDark ? "#fff" : "#1e293b", borderWidth: 2, shadowBlur: 10, shadowColor: leafColor + "99" } : {}),
                         },
-                        lineStyle: { color: NODE_COLORS.app + "66" },
+                        lineStyle: { color: leafColor + "66" },
                         ...(appChildren.length > 0 ? { children: appChildren } : {}),
                       }
                     }),
@@ -2123,7 +2133,8 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       // expandedLeaves keys are like "app:csms/css/csci/csc/appId:connNodeId"
       const parts = nodeKey.split(":")
       if (parts.length >= 2) {
-        const parentPath = parts[0] === "app" ? parts[1] : parts.slice(0, -1).join(":")
+        const parentPath = (parts[0] === "app" || parts[0] === "lib") ? parts[1] : parts.slice(0, -1).join(":")
+        const prefix = parts[0] === "lib" ? "lib" : "app"
         // parentPath is like "csms/css/csci/csc/appId" or "parentPath:nodeId"
         const pathSegments = parentPath.split("/")
 
@@ -2131,7 +2142,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
         if (pathSegments.length >= 5) {
           // Full app path: csms/css/csci/csc/appId
           const [csmsKey, cssKey, csciKey, cscKey, appId] = pathSegments
-          toShow.add(`app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${appId}`)
+          toShow.add(`${prefix}:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${appId}`)
           toShow.add(`csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`)
           toShow.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
           toShow.add(`css:${csmsKey}/${cssKey}`)
@@ -2141,7 +2152,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
           const segments = parentPath.split(":")[0].split("/")
           if (segments.length >= 5) {
             const [csmsKey, cssKey, csciKey, cscKey, appId] = segments
-            toShow.add(`app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${appId}`)
+            toShow.add(`${prefix}:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${appId}`)
             toShow.add(`csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`)
             toShow.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
             toShow.add(`css:${csmsKey}/${cssKey}`)
@@ -2294,7 +2305,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       }
       if (d._isConnGroup) return
       if (d._app) {
-        const instanceKey: string = (d.name as string).includes('\x00') ? (d.name as string).split('\x00')[1] : `app:${d._app.id}`
+        const instanceKey: string = (d.name as string).includes('\x00') ? (d.name as string).split('\x00')[1] : `${d._level === "lib" ? "lib" : "app"}:${d._app.id}`
         onAppNodeClick(d._app, instanceKey)
         return
       }
@@ -2431,7 +2442,8 @@ const HierEChartsTree = memo(function HierEChartsTree({
       if (!onNodeClick) return
       const depth = (params.treeAncestors?.length ?? 1) - 1
       const levels: HGLevel[] = ["csms", "csms", "css", "csci", "csc", "app"]
-      const level = levels[depth] ?? "app"
+      const nodeLevel = params.data?._level as HGLevel | undefined
+      const level = nodeLevel ?? levels[depth] ?? "app"
       // Build path key from ancestor names
       const ancestors: string[] = (params.treeAncestors ?? []).map((a: any) => a.name).slice(1) // skip root "System"
       const name: string = params.name ?? ""
@@ -2457,7 +2469,7 @@ const HierEChartsTree = memo(function HierEChartsTree({
       }}>
         <span style={{ fontWeight: 600, marginBottom: 2, display: "block" }}>Legend</span>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 14px" }}>
-          {(["csms", "css", "csci", "csc", "app"] as const).map(lvl => (
+          {(["csms", "css", "csci", "csc", "app", "lib"] as const).map(lvl => (
             <span key={lvl} style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: NODE_COLORS[lvl], flexShrink: 0 }} />
               {LEVEL_LABELS[lvl]}
@@ -2527,8 +2539,11 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
           result.push({ id: `csci:${csmsKey}/${cssKey}/${csciKey}`, name: csci.name, level: "csci", appCount: Object.values(csci.csc).flatMap(c => c.apps).length, pathKey: `${csmsKey}/${cssKey}/${csciKey}` })
           for (const [cscKey, csc] of Object.entries(csci.csc)) {
             result.push({ id: `csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`, name: csc.name, level: "csc", appCount: csc.apps.length, pathKey: `${csmsKey}/${cssKey}/${csciKey}/${cscKey}` })
-            for (const app of csc.apps)
-              result.push({ id: `app:${app.id}`, name: app.name ?? app.id, level: "app", appCount: 1, pathKey: app.id, instanceKey: `app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${app.id}` })
+            for (const app of csc.apps) {
+              const isLib = app.type === "Library"
+              const prefix = isLib ? "lib" : "app"
+              result.push({ id: `${prefix}:${app.id}`, name: app.name ?? app.id, level: isLib ? "lib" : "app", appCount: 1, pathKey: app.id, instanceKey: `${prefix}:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${app.id}`, nodeType: isLib ? "Library" : undefined })
+            }
           }
         }
       }
@@ -2563,7 +2578,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     setSearchOpen(false)
     const wasSyncing = isSyncingRef.current
     isSyncingRef.current = false
-    if (node.level === "app") {
+    if (node.level === "app" || node.level === "lib") {
       setSelectedApp(node)
       setFocusHierPathKey(null)
       setConnTab("props")
@@ -2607,7 +2622,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     if (effectiveKey.startsWith('__raw:')) {
       // Legacy initialNodeId path: raw node id, search by pathKey
       const rawId = effectiveKey.slice(6)
-      const hierNode = flatNodes.find(n => n.level === "app" && n.pathKey === rawId)
+      const hierNode = flatNodes.find(n => (n.level === "app" || n.level === "lib") && n.pathKey === rawId)
       if (hierNode) { jumpToNode(hierNode); return }
       const extra = extraNodes.find((n: any) => n.id === rawId)
       if (extra) { jumpToNode({ id: `extra:${extra.id}`, name: extra.name ?? extra.id, level: "app", nodeType: extra.type, appCount: 0, pathKey: extra.id }); return }
@@ -2819,7 +2834,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
   const drillInto = useCallback((node: object) => {
     const n = node as HGNode
     if (drillNode && n.id === drillNode.id) return
-    if (n.level === "app") {
+    if (n.level === "app" || n.level === "lib") {
       if (selectedApp?.id === n.id) { clearSelection(); return }
       setSelectedApp(n)
       setConnTab("props")
@@ -2838,10 +2853,14 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     const n = node as any
     if (!n || !n.id) return
     if (n.id === selectedApp?.pathKey) return
-    setSelectedApp({ id: `app:${n.id}`, name: n.label ?? n.id, level: "app", nodeType: n.type, appCount: 1, pathKey: n.id })
+    const isLib = n.type === "Library"
+    const isApp = n.type === "Application"
+    const lvl: HGLevel = isLib ? "lib" : "app"
+    const prefix = isLib ? "lib" : "app"
+    setSelectedApp({ id: `${prefix}:${n.id}`, name: n.label ?? n.id, level: lvl, nodeType: n.type, appCount: 1, pathKey: n.id })
     setConnTab("props")
     setConnData(null)
-    const key = n.type === 'Application' ? `app:${n.id}` : `extra:${n.id}`
+    const key = isApp ? `app:${n.id}` : isLib ? `lib:${n.id}` : `extra:${n.id}`
     onNodeSelect?.(key)
   }, [selectedApp, onNodeSelect])
 
@@ -2853,7 +2872,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     const extraNode = extraNodes.find((n: any) => n.id === nodeId)
     const nodeName = extraNode?.name ?? extraNode?.label ?? nodeId
     const nodeType = extraNode?.type
-    const hgNode: HGNode = { id: `app:${nodeId}`, name: nodeName, level: "app", appCount: 1, pathKey: nodeId, instanceKey: connInstanceKey, nodeType }
+    const hgNode: HGNode = { id: `${nodeType === "Library" ? "lib" : "app"}:${nodeId}`, name: nodeName, level: nodeType === "Library" ? "lib" : "app", appCount: 1, pathKey: nodeId, instanceKey: connInstanceKey, nodeType }
     setSelectedApp(hgNode)
     setConnTab("props")
     if (existingData) setConnData(existingData)
@@ -2876,7 +2895,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
         if (fetchedNode) {
           const fetchedName = (fetchedNode as any).label ?? (fetchedNode as any).name ?? nodeId
           const fetchedType = (fetchedNode as any).type
-          setSelectedApp({ id: `app:${nodeId}`, name: fetchedName, level: "app", nodeType: fetchedType, appCount: 1, pathKey: nodeId, instanceKey: connInstanceKey })
+          setSelectedApp({ id: `${fetchedType === "Library" ? "lib" : "app"}:${nodeId}`, name: fetchedName, level: fetchedType === "Library" ? "lib" : "app", nodeType: fetchedType, appCount: 1, pathKey: nodeId, instanceKey: connInstanceKey })
           onSelectInfo?.(nodeId, fetchedName, fetchedType)
         }
       }).catch(() => {})
@@ -2907,7 +2926,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
       ctx.fillStyle = color; ctx.fill()
       if (isParent) { ctx.strokeStyle = isDark ? "#fff" : "#111"; ctx.lineWidth = 2; ctx.stroke() }
       else if (isSelectedApp) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke() }
-      const minScale: Record<HGLevel, number> = { csms: 0.15, css: 0.3, csci: 0.5, csc: 0.7, app: 0.9 }
+      const minScale: Record<HGLevel, number> = { csms: 0.15, css: 0.3, csci: 0.5, csc: 0.7, app: 0.9, lib: 0.9 }
       if (globalScale >= minScale[n.level]) {
         const base = n.level === "csms" ? 13 : n.level === "css" ? 11 : 9
         const fontSize = Math.max(2, base / globalScale)
@@ -2915,7 +2934,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
         ctx.fillStyle = isDark ? "#e5e7eb" : "#374151"; ctx.textAlign = "center"
         const label = n.name.length > 24 ? n.name.slice(0, 22) + "…" : n.name
         ctx.fillText(label, n.x!, n.y! + r + fontSize + 1)
-        if (!isParent && n.level !== "app" && globalScale >= minScale[n.level] * 1.5) {
+        if (!isParent && n.level !== "app" && n.level !== "lib" && globalScale >= minScale[n.level] * 1.5) {
           ctx.font = `${Math.max(1.5, (base - 3) / globalScale)}px sans-serif`
           ctx.fillStyle = isDark ? "#6b7280" : "#9ca3af"
           ctx.fillText(`${n.appCount}`, n.x!, n.y! + r + fontSize * 2 + 2)
@@ -2980,7 +2999,9 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
             isDark={isDark}
             focusHierPathKey={focusHierPathKey}
             onAppNodeClick={(app: AppNode, instanceKey: string) => {
-              const hgNode: HGNode = { id: `app:${app.id}`, name: app.csu ?? app.name ?? app.id ?? "?", level: "app", appCount: 1, pathKey: app.id, instanceKey, appData: app }
+              const isLib = app.type === "Library"
+              const prefix = isLib ? "lib" : "app"
+              const hgNode: HGNode = { id: `${prefix}:${app.id}`, name: app.csu ?? app.name ?? app.id ?? "?", level: isLib ? "lib" : "app", appCount: 1, pathKey: app.id, instanceKey, appData: app, nodeType: isLib ? "Library" : undefined }
               // If this app is already expanded (has fetched connection data), single-click collapses it.
               const isExpanded = connDataMap.has(instanceKey) || connDataMap.has(app.id)
               if (isExpanded) {
@@ -3066,7 +3087,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
           <div className="absolute top-2 left-3 right-3 z-10 flex items-center gap-3 text-xs overflow-x-auto pointer-events-none shrink-0 select-none">
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-muted-foreground mr-1 font-medium">Levels:</span>
-              {(["csms", "css", "csci", "csc", "app"] as const).map(lvl => {
+              {(["csms", "css", "csci", "csc", "app", "lib"] as const).map(lvl => {
                 const color = NODE_COLORS[lvl]
                 return (
                   <span
@@ -3473,15 +3494,17 @@ function AppTreeNode({ app, path, depth, selectedKey, onSelect }: {
   app: AppNode; path: string[]; depth: number
 } & Pick<TreeProps, "selectedKey" | "onSelect">) {
   const label = app.csu ?? app.name ?? app.id ?? "?"
-  const nodeKey = `app:${app.id}`
+  const isLib = app.type === "Library"
+  const prefix = isLib ? "lib" : "app"
+  const nodeKey = `${prefix}:${app.id}`
   return (
     <TreeRow
       depth={depth}
-      icon={<Cpu className="h-3 w-3 text-violet-500" />}
+      icon={isLib ? <Package className="h-3 w-3 text-orange-500" /> : <Cpu className="h-3 w-3 text-violet-500" />}
       label={label}
       isSelected={selectedKey === nodeKey}
       hasChildren={false}
-      onClick={() => onSelect({ kind: "app", key: nodeKey, label, path: [...path, label], payload: app })}
+      onClick={() => onSelect({ kind: isLib ? "node" : "app", key: nodeKey, label, path: [...path, label], payload: app })}
     />
   )
 }
@@ -4763,7 +4786,7 @@ function BrowserPageContent() {
         apiClient.getComponentsByType('Broker'),
         apiClient.getComponentsByType('Library'),
       ])
-      const h = buildHierarchy(apps)
+      const h = buildHierarchy([...apps, ...libs])
       setHierarchy(h)
       setTotalApps(apps.length)
       setNodesList(nodes)
@@ -4781,13 +4804,14 @@ function BrowserPageContent() {
                 const app = csc.apps.find((a: AppNode) => a.id === targetNodeId)
                 if (app) {
                   const label = app.csu ?? app.name ?? app.id ?? "?"
+                  const isLib = app.type === "Library"
                   const csmsOpenKey = `csms:${csmsKey}`
                   const cssOpenKey  = `css:${csmsKey}/${cssKey}`
                   const csciOpenKey = `csci:${csmsKey}/${cssKey}/${csciKey}`
                   const cscOpenKey  = `csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`
                   setOpenSet(new Set([csmsOpenKey, cssOpenKey, csciOpenKey, cscOpenKey]))
-                  setSelectedNode({ kind: "app", key: `app:${app.id}`, label, path: [csmsKey, cssKey, csciKey, cscKey, label], payload: app })
-                  setSideInitialTab("apps")
+                  setSelectedNode({ kind: isLib ? "node" : "app", key: `${isLib ? "lib" : "app"}:${app.id}`, label, path: [csmsKey, cssKey, csciKey, cscKey, label], payload: app })
+                  setSideInitialTab(isLib ? "libs" : "apps")
                   found = true
                   break outer
                 }
@@ -4842,7 +4866,7 @@ function BrowserPageContent() {
     Object.values(hierarchy).flatMap(csms =>
       Object.values(csms.css).flatMap(css =>
         Object.values(css.csci).flatMap(csci =>
-          Object.values(csci.csc).flatMap(csc => csc.apps)
+          Object.values(csci.csc).flatMap(csc => csc.apps.filter(a => a.type !== "Library"))
         )
       )
     )
@@ -5187,7 +5211,7 @@ function BrowserPageContent() {
                   <div className="flex-1 min-w-0 overflow-hidden">
                     <HierarchyGraph
                       hierarchy={hierarchy}
-                      extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]}
+                      extraNodes={[...nodesList, ...topicsList, ...brokersList]}
                       exportFnRef={systemGraphExportRef}
                       onSelectInfo={(pathKey, name, nodeType) => {
                         const info = allNodeLabels.get(pathKey)
