@@ -54,7 +54,7 @@ Software-as-a-Graph (SaG) operationalizes this insight into a 6-step core analyt
 ┌─────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
 │  Step 1     │    │  Step 2              │    │  Step 3 (optional)  │
 │  Model      │───▶│  Analyze             │───▶│  Predict            │
-│  (import +  │    │  (M(v) + RMAV/Q(v)  │    │  (GNN ensemble;     │
+│  (import +  │    │  (M(v) + RMAV/Q(v)  │    │  (GNN prediction;   │
 │   export)   │    │   + Anti-Patterns)   │    │   inductive only)   │
 └─────────────┘    └──────────────────────┘    └─────────────────────┘
                              │                             │
@@ -75,7 +75,7 @@ Software-as-a-Graph (SaG) operationalizes this insight into a 6-step core analyt
 | **Offline Prep: Generate** | Produces a synthetic pub-sub topology for experiments, benchmarks, or CI regression tests | Topology JSON (`data/system.json`) | [graph-generation.md](docs/graph-generation.md) |
 | **1. Model** | Converts topology JSON into a formal weighted directed graph $G = (V, E, \tau_V, \tau_E, w)$ in Neo4j; derives logical `DEPENDS_ON` edges via six dependency rules; computes QoS-derived weights | $G_{\text{structural}}$ and $G_{\text{analysis}}(l)$ | [graph-model.md](docs/graph-model.md) |
 | **2. Analyze** | Deterministic, closed-form. Computes 14 Tier-1 structural metrics $M(v)$; maps them to RMAV dimension scores and $Q^*(v)$ via AHP-weighted formulas; detects anti-patterns. | $M(v)$ metric vector, RMAV/$Q^*(v)$ scores, five-level classification, anti-pattern report | [structural-analysis.md](docs/structural-analysis.md) |
-| **3. Predict** | Inductive, optional. A 3-layer `EdgeAwareHGTConv` (HGT) model trained on simulation labels $I(v)$ learns patterns the AHP composite cannot encode. | GNN criticality ranks, edge criticality, ensemble-blended $Q_{\text{ens}}(v)$ | [prediction.md](docs/prediction.md) |
+| **3. Predict** | Inductive, optional. A 3-layer `EdgeAwareHGTConv` (HGT) model trained on simulation labels $I(v)$ learns patterns the AHP composite cannot encode. | GNN criticality ranks, edge criticality, GNN node scores $Q_{\text{GNN}}(v)$ | [prediction.md](docs/prediction.md) |
 | **4. Simulate** | Runs four parallel simulators (cascade, change-propagation, connectivity-loss, compromise-propagation). Provides training labels for Step 3 and ground truth for Step 5. | Per-dimension ground-truth $I_R(v)$, $I_M(v)$, $I_A(v)$, $I_V(v)$ and composite $I^*(v)$ | [failure-simulation.md](docs/failure-simulation.md) |
 | **5. Validate** | Computes Spearman $\rho$ and Kendall $\tau$ between predictions and ground truth; evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
 | **6. Visualize** | Renders interactive dashboards with network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | `dashboard.html` (fully self-contained) | [visualization.md](docs/visualization.md) |
@@ -260,9 +260,9 @@ The four-dimensional criticality signature profiles the exact nature of architec
 | **Fragile Hub** | H | L | H | L | Multi-Channel Cascade Sink | Reduce shared-topic count between subscriber/publisher pairs |
 | **Exposed Bottleneck** | L | H | L | H | Vulnerable Bottleneck | Refactor code quality issues and shield component interfaces |
 
-### GNN Ensemble (Step 3 Predict)
-
-The optional inductive Predict stage refines the deterministic RMAV scores by combining GNN prediction scores (trained on simulation ground-truth impact) with the deterministic RMAV baseline using a learned blending coefficient vector.
+### GNN Prediction (Step 3 Predict)
+ 
+The optional inductive Predict stage refines the deterministic RMAV scores by utilizing a Graph Neural Network (trained on simulation ground-truth impact) to perform GNN-only criticality predictions.
 
 ---
 
@@ -478,7 +478,7 @@ print(f"F1-Score   = {result.validation.overall.f1:.3f}")
 | [Pipeline](saag/pipeline.py#L12) | `saag.Pipeline` | Fluent builder to sequence and execute the pipeline |
 | [Client](saag/client.py#L9) | `saag.Client` | Low-level service facade wrapper |
 | [AnalysisResult](saag/models.py#L102) | `saag.AnalysisResult` | Step 2 scoring output structural metrics and RMAV |
-| [PredictionResult](saag/models.py#L180) | `saag.PredictionResult` | Step 3 scoring output GNN ensemble-blended scores |
+| [PredictionResult](saag/models.py#L180) | `saag.PredictionResult` | Step 3 scoring output GNN predictions |
 | [ValidationResult](saag/models.py#L369) | `saag.ValidationResult` | Step 5 validation output including Spearman and gate metrics |
 
 ---
@@ -515,7 +515,7 @@ print(f"F1-Score   = {result.validation.overall.f1:.3f}")
 ├── saag/                       # Core Python SDK & Logic
 │   ├── core/                   #   Domain models, ports, Neo4j & memory repos
 │   ├── analysis/               #   Structural metrics + anti-pattern detection
-│   ├── prediction/             #   RMAV quality scoring + GNN service + ensemble blending
+│   ├── prediction/             #   RMAV quality scoring + GNN service
 │   ├── simulation/             #   Four parallel failure/event simulators
 │   ├── validation/             #   Per-dimension statistical validation
 │   ├── visualization/          #   Dashboard & chart generation

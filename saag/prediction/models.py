@@ -491,12 +491,10 @@ class EdgeCriticalityGNN(nn.Module):
 
 
 class EnsembleGNN(nn.Module):
-    """Learnable convex combination of GNN + RMAV scores.
+    """[DEPRECATED] Learnable convex combination of GNN + RMAV scores.
 
-    Available as optional "ensemble" mode for research/comparison.
-    Default prediction mode is "gnn" — GNN-only output.
-    RMAV scores are used as regularization targets during training
-    but are NOT blended into the default output.
+    Ensemble predictions have been removed from the prediction step.
+    This class is kept solely for backward compatibility.
     """
 
     def __init__(self, num_dims: int = NUM_LABEL_DIMS):

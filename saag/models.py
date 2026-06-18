@@ -178,7 +178,7 @@ from types import SimpleNamespace
 
 
 class PredictionResult:
-    """Result of the inductive Predict stage: GNN-derived criticality ranks, attention weights, and ensemble-blended scores.
+    """Result of the inductive Predict stage: GNN-derived criticality ranks and attention weights.
 
     This stage generalises beyond the closed-form RMAV composite by learning nonlinear
     interactions and multi-hop motifs that AHP-weighted scoring cannot encode.
@@ -428,7 +428,7 @@ class PipelineExecutionResult:
 
     Stage mapping:
       analysis   — deterministic Analyze stage (structural metrics + RMAV/Q scores + anti-patterns)
-      prediction — inductive Predict stage (GNN criticality ranks, ensemble blend); optional
+      prediction — inductive Predict stage (GNN criticality ranks); optional
       simulation — Simulate stage (counterfactual cascade ground truth)
       validation — Validate stage (Predict/Analyze vs Simulate ground truth)
     """

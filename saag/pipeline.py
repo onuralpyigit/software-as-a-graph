@@ -70,8 +70,8 @@ class Pipeline:
         self._analyze_kwargs = kwargs
         return self
 
-    def predict(self, mode: str = "ensemble", gnn_checkpoint: Optional[str] = None) -> "Pipeline":
-        """Stage 3: Inductive prediction — GNN criticality ranks and ensemble-blended scores.
+    def predict(self, mode: str = "gnn", gnn_checkpoint: Optional[str] = None) -> "Pipeline":
+        """Stage 3: Inductive prediction — GNN criticality ranks.
 
         Runs a Heterogeneous Graph Transformer (HGT / HGTConv) over the topology to
         learn patterns that the AHP-weighted RMAV composite cannot encode (nonlinear
@@ -81,7 +81,7 @@ class Pipeline:
         Parameters
         ----------
         mode:
-            'gnn' for raw GNN scores, 'ensemble' to blend with RMAV (default).
+            'gnn' for raw GNN scores (default).
         gnn_checkpoint:
             Path to a GNN checkpoint directory. Defaults to output/gnn_checkpoints.
         """
@@ -127,7 +127,7 @@ class Pipeline:
             logger.info("Running fault simulation (cascade ground truth)...")
             result.simulation = self.client.simulate(layer=self._layer, **self._simulate_kwargs)
 
-        # 4. Predict — inductive: GNN criticality ranks + ensemble blend
+        # 4. Predict — inductive: GNN criticality ranks
         if self._do_predict:
             if result.analysis is None:
                 raise RuntimeError(

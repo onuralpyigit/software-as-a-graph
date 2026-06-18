@@ -11,9 +11,8 @@ Prediction (Step 3) and Failure Simulation (Step 4):
 
     Step 3  →  RMAV Q*(v)
     Step 3.5 → GNN  Q_GNN(v)   ← NEW
-    Ensemble → Q_ens(v) = α·Q_GNN + (1−α)·Q_RMAV
     Step 4  →  I*(v) (unchanged)
-    Step 5  →  validate Q_ens vs I*  (apples-to-apples with Step 3)
+    Step 5  →  validate Q_gnn vs I*  (apples-to-apples with Step 3)
 
 Usage
 -----
@@ -27,7 +26,6 @@ Typical inference workflow (no training data available):
     ... )
     >>> gnn_result.node_scores          # {node_name: GNNCriticalityScore}
     >>> gnn_result.edge_scores          # {(src, dst): GNNCriticalityScore}
-    >>> gnn_result.ensemble_scores      # merged with RMAV via EnsembleGNN
 
 Training workflow:
 
@@ -334,11 +332,10 @@ class GNNService:
             self._edge_model = build_edge_gnn(
                 metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout
             )
-        self._ensemble = EnsembleGNN()
+        self._ensemble = None
         self._node_model.to(self.device)
         if self._edge_model:
             self._edge_model.to(self.device)
-        self._ensemble.to(self.device)
 
     # ── Main public API ───────────────────────────────────────────────────────
 
@@ -469,28 +466,13 @@ class GNNService:
             test_metrics = evaluate(model_to_train, data, "test_mask", self.device)
             all_metrics.append(test_metrics)
 
-        # Restore best model and masks before ensemble fine-tuning (Issue G6/G8)
+        # Restore best model and masks
         if best_state is not None:
             logger.info("Restoring best model from seed %d (Val Rho: %.4f)", best_seed, best_val_rho)
             model_to_restore = self._edge_model if self.predict_edges else self._node_model
             model_to_restore.load_state_dict(best_state)
-            # Re-apply best seed splits to ensure ensemble uses the correct training set
+            # Re-apply best seed splits to ensure splits are correct
             create_node_splits(data, train_ratio, val_ratio, seed=best_seed)
-
-        # Average metrics across seeds if multiple
-        if len(all_metrics) > 1:
-            avg_rho = sum(m.spearman_rho for m in all_metrics) / len(all_metrics)
-            avg_f1 = sum(m.f1_score for m in all_metrics) / len(all_metrics)
-            avg_rmse = sum(m.rmse for m in all_metrics) / len(all_metrics)
-            avg_mae = sum(m.mae for m in all_metrics) / len(all_metrics)
-            avg_ndcg = sum(m.ndcg_10 for m in all_metrics) / len(all_metrics)
-            logger.info("Average metrics over %d seeds: rho=%.4f, f1=%.4f, ndcg=%.4f", 
-                        len(all_metrics), avg_rho, avg_f1, avg_ndcg)
-
-        # Train ensemble (fine-tune α) - using the best model from the last seed
-        has_rmav = any(hasattr(data[nt], "y_rmav") for nt in data.node_types)
-        if self._ensemble is not None and has_rmav:
-            self._train_ensemble(data)
 
         # ── Final Inference ──────────────────────────────────────────────────
         # Best state is already loaded in self._node_model via GNNTrainer.train
@@ -669,73 +651,20 @@ class GNNService:
             else:
                 result.prediction_mode = "rmav_only"
                 self._populate_scores_from_rmav(result, data_dev, conv)
-        elif mode == "gnn":
+        else: # gnn, or deprecated ensemble
             result.prediction_mode = "gnn_only"
             self._populate_node_scores(result, pred_dict, conv)
-        else: # ensemble
-            if self._ensemble is not None and has_rmav:
-                result.prediction_mode = "ensemble"
-                self._populate_node_scores(result, pred_dict, conv)
-                result.ensemble_scores = self._compute_ensemble_scores(data_dev, pred_dict, conv)
-                result.ensemble_alpha = self._ensemble.alpha.detach().cpu().tolist()
-                # Overwrite primary node_scores with ensemble if in ensemble mode
-                result.node_scores = result.ensemble_scores
-            else:
-                result.prediction_mode = "gnn_only"
-                self._populate_node_scores(result, pred_dict, conv)
-                if mode == "ensemble":
-                    logger.warning("Ensemble mode selected but RMAV or Ensemble model missing. Falling back to GNN-only.")
+            if mode == "ensemble":
+                logger.warning("Ensemble mode is deprecated and removed. Falling back to GNN-only.")
 
         # ── Edge scores (always GNN) ──────────────────────────────────────────
         self._populate_edge_scores(result, edge_pred_dict, conv)
 
         # ── Validation metrics (Issue G9, G10) ────────────────────────────────
         if eval_labels:
-            from .trainer import evaluate_scores, _collect_samples
-            # Use persisted best seed (G9)
             create_node_splits(data_dev, seed=self._best_seed)
-            
             # 1. GNN Validation
             result.gnn_metrics = evaluate(self._node_model, data_dev, "test_mask", self.device)
-            
-            # 2. Ensemble Validation (G10)
-            if result.ensemble_scores and has_rmav:
-                from .trainer import get_inductive_subgraph
-                # Get the isolated test subgraph to prevent transductive leakage (G4)
-                test_sub_data = get_inductive_subgraph(data_dev, "test_mask")
-                test_sub_data = test_sub_data.to(self.device)
-                
-                # Run GNN on the isolated test subgraph
-                self._node_model.eval()
-                if self._edge_model:
-                    self._edge_model.eval()
-                with torch.no_grad():
-                    test_x_dict = {nt: test_sub_data[nt].x for nt in test_sub_data.node_types if hasattr(test_sub_data[nt], "x")}
-                    test_ei_dict = {rel: test_sub_data[rel].edge_index for rel in test_sub_data.edge_types}
-                    test_ea_dict = {rel: test_sub_data[rel].edge_attr for rel in test_sub_data.edge_types if hasattr(test_sub_data[rel], "edge_attr")}
-                    if self._edge_model:
-                        test_pred_dict, _ = self._edge_model(test_x_dict, test_ei_dict, test_ea_dict)
-                    else:
-                        test_pred_dict = self._node_model(test_x_dict, test_ei_dict, test_ea_dict)
-                
-                # Construct a test conversion mapping to map offsets back to node names
-                test_conv = GraphConversionResult(hetero_data=test_sub_data)
-                for nt in test_sub_data.node_types:
-                    if conv is not None and nt in conv.node_id_map:
-                        store = data_dev[nt]
-                        if hasattr(store, "test_mask"):
-                            indices = torch.where(store.test_mask)[0].cpu().tolist()
-                            test_conv.node_id_map[nt] = [conv.node_id_map[nt][idx] for idx in indices]
-                        else:
-                            test_conv.node_id_map[nt] = conv.node_id_map[nt][:]
-                
-                test_ens_scores = self._compute_ensemble_scores(test_sub_data, test_pred_dict, test_conv)
-                test_ens_pred_dict = self._format_scores_as_dict(test_ens_scores, test_conv)
-                y_ens, y_true = _collect_samples(test_ens_pred_dict, test_sub_data, "test_mask")
-                result.ensemble_metrics = evaluate_scores(y_ens, y_true)
-                logger.info("Ensemble test metrics:\n%s", result.ensemble_metrics)
-            
-            logger.info("GNN test metrics:\n%s", result.gnn_metrics)
 
         # ── Adaptive Classification ───────────────────────────────────────────
         classifier = BoxPlotClassifier()
@@ -850,94 +779,12 @@ class GNNService:
     # ── Ensemble helpers ──────────────────────────────────────────────────────
 
     def _train_ensemble(self, data, num_epochs: int = 100, lr: float = 1e-3) -> None:
-        """Fine-tune ensemble alpha on labelled training nodes."""
-        if self._ensemble is None:
-            return
-        # Allow gradient flow through ensemble α AND GNN heads (Issue G7)
-        # Note: GNN backbone (HeteroConv) remains frozen to prevent catastrophic forgetting
-        gnn_params = []
-        if self._node_model and hasattr(self._node_model, "heads"):
-            gnn_params = list(self._node_model.heads.parameters())
+        """Deprecated: ensemble blending is removed."""
+        pass
         
-        opt = torch.optim.Adam(
-            list(self._ensemble.parameters()) + gnn_params, 
-            lr=lr
-        )
-        data = data.to(self.device)
-
-        for epoch in range(num_epochs):
-            self._ensemble.train()
-            if self._node_model: self._node_model.train() # Heads need training mode
-            opt.zero_grad()
-
-            x_dict = {nt: data[nt].x for nt in data.node_types
-                      if hasattr(data[nt], "x")}
-            ei = {rel: data[rel].edge_index for rel in data.edge_types}
-            ea = {rel: data[rel].edge_attr for rel in data.edge_types
-                  if hasattr(data[rel], "edge_attr")}
-            if self._edge_model:
-                pred_dict, _ = self._edge_model(x_dict, ei, ea)
-            else:
-                pred_dict = self._node_model(x_dict, ei, ea)
-
-            total_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
-            for nt in data.node_types:
-                store = data[nt]
-                if not (hasattr(store, "y") and hasattr(store, "y_rmav")
-                        and hasattr(store, "train_mask") and nt in pred_dict):
-                    continue
-                mask = store.train_mask
-                if mask.sum() == 0:
-                    continue
-                gnn_scores = pred_dict[nt][mask]
-                rmav_scores = store.y_rmav[mask]
-                blended = self._ensemble(gnn_scores, rmav_scores)
-                target = store.y[mask]
-                loss = torch.nn.functional.mse_loss(blended, target)
-                total_loss = total_loss + loss
-
-            # L1 regularization on alpha to favor robust RMAV baseline
-            total_loss = total_loss + 5.0 * torch.sum(self._ensemble.alpha)
-
-            total_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self._ensemble.parameters(), max_norm=1.0)
-            if gnn_params:
-                torch.nn.utils.clip_grad_norm_(gnn_params, max_norm=1.0)
-            opt.step()
-            with torch.no_grad():
-                self._ensemble.alpha_logit.clamp_(max=-3.5)
-
-        alpha_vals = self._ensemble.alpha.detach().cpu().tolist()
-        logger.info(
-            "Ensemble alpha (composite/R/M/A/S): %s",
-            [f"{a:.3f}" for a in alpha_vals],
-        )
-
     def _compute_ensemble_scores(self, data, pred_dict, conv) -> Dict[str, GNNCriticalityScore]:
-        out: Dict[str, GNNCriticalityScore] = {}
-        for nt, gnn_preds in pred_dict.items():
-            store = data[nt]
-            if conv is None or nt not in conv.node_id_map:
-                continue
-            node_names = conv.node_id_map[nt]
-
-            if hasattr(store, "y_rmav"):
-                rmav_t = store.y_rmav.to(self.device)
-            else:
-                rmav_t = None
-
-            blended = self._ensemble(gnn_preds, rmav_t).detach().cpu().numpy()
-            for i, name in enumerate(node_names):
-                out[name] = GNNCriticalityScore(
-                    component=name,
-                    composite_score=float(blended[i, 0]),
-                    reliability_score=float(blended[i, 1]),
-                    maintainability_score=float(blended[i, 2]),
-                    availability_score=float(blended[i, 3]),
-                    security_score=float(blended[i, 4]),
-                    source="Ensemble",
-                )
-        return out
+        """Deprecated: ensemble blending is removed."""
+        return {}
 
     # ── Serialisation ─────────────────────────────────────────────────────────
 

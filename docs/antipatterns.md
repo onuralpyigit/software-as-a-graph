@@ -168,7 +168,7 @@ Step 1: Import                         G(V, E, w) from system topology
 Step 2: Analyze — structural           M(v) — 13 topological metrics per component
 Step 2: Analyze — RMAV scoring    Q(v) — deterministic AHP-weighted criticality scores
         └── Anti-Pattern Detection     Pattern(v) — smell classification  ← this document
-Step 3: Predict (optional)             Q_ens(v) — GNN-refined ensemble scores
+Step 3: Predict (optional)             Q_gnn(v) — GNN node criticality scores
 Step 4: Simulate                       I(v) — ground-truth impact scores
 Step 5: Validate                       ρ(Q, I), F1 — empirical verification
 Step 6: Visualize                      Interactive dashboard with pattern annotations

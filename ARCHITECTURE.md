@@ -140,8 +140,7 @@ Computes structural metrics, AHP-weighted RMAV quality scores, and architectural
 ### `prediction/` — Step 3 Predictive Engine
 Houses the AHP-weighted scoring implementation and the inductive Graph Attention Network.
 - `QualityAnalyzer` — Applies AHP-weighted composite quality formulas with shrinkage ($\lambda=0.70$) to output Reliability ($R$), Maintainability ($M$), Availability ($A$), and Vulnerability ($V$) scores.
-- `PredictionService` — Orchestrates the prediction stage, blending GNN outputs with deterministic RMAV scores using a learned ensemble model:
-  $$Q_{\text{ensemble}}(v) = \alpha \cdot Q_{\text{GNN}}(v) + (1 - \alpha) \cdot Q_{\text{RMAV}}(v)$$
+- `PredictionService` — Orchestrates the prediction stage, utilizing raw GNN outputs for inductive node and edge criticality predictions.
 - `GNNService` — Loads a checkpoint containing the `NodeCriticalityGNN` (built using three stacked `EdgeAwareHGTConv` layers with edge feature injection) to run inductive prediction.
 - `BoxPlotClassifier` — Performs adaptive outlier-fence classification.
 

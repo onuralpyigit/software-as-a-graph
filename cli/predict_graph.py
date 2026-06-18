@@ -21,7 +21,7 @@ Usage examples
   # Multi-layer
   python cli/predict_graph.py --layer app,system
 
-  # AHP-weighted RMAV + GNN ensemble
+  # AHP-weighted RMAV + GNN prediction
   python cli/predict_graph.py --use-ahp --gnn-model output/gnn_checkpoints/best
 
   # Strict CI gate — only CRITICAL patterns block
@@ -93,7 +93,7 @@ def build_parser() -> argparse.ArgumentParser:
     gnn_grp.add_argument(
         "--gnn-model", metavar="PATH", default=None,
         help="Path to a trained GNN checkpoint directory. "
-             "When provided, runs HeteroGAT inference and reports ensemble scores.",
+             "When provided, runs HeteroGAT inference and reports GNN scores.",
     )
 
     # ── Anti-pattern detection ────────────────────────────────────────────────
@@ -407,7 +407,7 @@ def main() -> None:
     else:
         mode_parts.append("default weights")
     if args.gnn_model:
-        mode_parts.append("GNN ensemble")
+        mode_parts.append("GNN prediction")
     if not args.no_antipatterns:
         if args.pattern:
             mode_parts.append(f"patterns: {args.pattern}")
@@ -465,8 +465,8 @@ def main() -> None:
             if gnn_result:
                 top_nodes = gnn_result.top_critical_nodes(n=10)
                 print()
-                print(f"  GNN / ensemble top-10 components:")
-                print(f"  {'Rank':<4} {'Component':<32} {'Q_ens':>6}  {'R':>6}  {'M':>6}  {'A':>6}  {'S':>6}  {'Source'}")
+                print(f"  GNN top-10 components:")
+                print(f"  {'Rank':<4} {'Component':<32} {'Q_GNN':>6}  {'R':>6}  {'M':>6}  {'A':>6}  {'S':>6}  {'Source'}")
                 print(f"  {'─'*4} {'─'*32} {'─'*6}  {'─'*6}  {'─'*6}  {'─'*6}  {'─'*6}  {'─'*10}")
                 for rank, ns in enumerate(top_nodes, 1):
                     print(
@@ -475,9 +475,6 @@ def main() -> None:
                         f"{ns.maintainability_score:>6.3f}  {ns.availability_score:>6.3f}  "
                         f"{ns.security_score:>6.3f}  {ns.source}"
                     )
-                    if gnn_result.ensemble_alpha:
-                        alpha_str = "  ".join(f"{a:.2f}" for a in gnn_result.ensemble_alpha)
-                        print(f"\n  Ensemble α per dimension (Q R M A S): {alpha_str}")
                 print()
 
         # ── Anti-pattern detection  (Issue #1, #5, #6, #7) ───────────────────

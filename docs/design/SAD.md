@@ -139,7 +139,7 @@ The logical view decomposes the codebase into specialized packages with strict d
 ┌─────────────────────────────────────────────────────────────────┐
 │ Application Service Packages                                    │
 │ - saag.analysis (structural metrics & RMAV quality)             │
-│ - saag.prediction (inductive GNN and ensemble blending)        │
+│ - saag.prediction (inductive GNN prediction service)           │
 │ - saag.simulation (BFS discrete-event cascade simulation)       │
 │ - saag.validation (Spearman ρ, classification performance)      │
 │ - saag.visualization (HTML dashboard builder)                   │
@@ -214,7 +214,7 @@ software-as-a-graph/                  # Workspace Root
 ├── saag/                             # Core Domain & Service Packages (SDK)
 │   ├── core/                         #   Core domain models, ports, and layer definitions
 │   ├── analysis/                     #   Structural metrics and RMAV formula engines
-│   ├── prediction/                   #   PyTorch HGT/GNN engine and ensemble service
+│   ├── prediction/                   #   PyTorch HGT/GNN prediction service
 │   ├── simulation/                   #   Discrete-event cascade propagation engine
 │   ├── validation/                   #   Spearman ρ and classification evaluation
 │   ├── visualization/                #   Plotly chart and static HTML builders
@@ -230,7 +230,7 @@ The system is packaged as an installable Python library using `pyproject.toml`. 
 - `saag` $\rightarrow$ CLI Pipeline Orchestrator (`cli.run:main`)
 - `saag-generate` $\rightarrow$ Synthetic graph generation (`cli.generate_graph:main`)
 - `saag-analyze` $\rightarrow$ Metric analysis and quality scoring (`cli.analyze_graph:main`)
-- `saag-predict` $\rightarrow$ GNN and ensemble execution (`cli.predict_graph:main`)
+- `saag-predict` $\rightarrow$ GNN prediction execution (`cli.predict_graph:main`)
 - `saag-simulate` $\rightarrow$ Failure cascades execution (`cli.simulate_graph:main`)
 
 ---

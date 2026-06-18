@@ -64,8 +64,8 @@ Usage
     # Skip xlarge scenarios for fast iteration
     PYTHONPATH=. python cli/loso_evaluate.py --skip scenario_07,scenario_09
 
-    # Use ensemble mode for inductive eval (compares Q_GNN vs Q_ens generalisation)
-    PYTHONPATH=. python cli/loso_evaluate.py --mode ensemble
+    # Use gnn mode for inductive eval
+    PYTHONPATH=. python cli/loso_evaluate.py --mode gnn
 """
 
 from __future__ import annotations
@@ -258,7 +258,7 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
     logger.info(
         "  [%s] %d nodes, %d edges, %d labelled%s",
         scenario_id, bundle.n_nodes, bundle.n_edges, bundle.n_labelled,
-        "" if rmav else "  (rmav missing — ensemble mode unavailable)",
+        "" if rmav else "  (rmav missing)",
     )
     return bundle
 
@@ -847,7 +847,7 @@ def parse_args() -> argparse.Namespace:
                    help="Comma-separated training seeds")
     p.add_argument("--skip", default="",
                    help="Comma-separated scenario id substrings to skip")
-    p.add_argument("--mode", default="gnn", choices=["gnn", "rmav", "ensemble"],
+    p.add_argument("--mode", default="gnn", choices=["gnn", "rmav"],
                    help="Prediction mode for evaluation (default: gnn)")
     p.add_argument(
         "--variant",

@@ -512,7 +512,7 @@ def networkx_to_hetero_data(
                         availability, security}}`` training labels.
     rmav_scores:
         ``{node_name: {overall, reliability, maintainability,
-                        availability, security}}`` for ensemble blending.
+                        availability, security}}`` for node predictions.
 
     Returns
     -------
@@ -609,7 +609,7 @@ def networkx_to_hetero_data(
             data[node_type].y = torch.from_numpy(label_matrix)
             result.num_labelled_nodes += labelled_count
 
-        # ── RMAV scores (for ensemble / consistency regularization) ───────────
+        # ── RMAV scores (for consistency regularization) ───────────
         if rmav_scores:
             rmav_matrix = np.zeros((n, 5), dtype=np.float32)
             for local_idx, name in enumerate(nodes):

@@ -752,12 +752,12 @@ def compute_gnn_scores(G: nx.DiGraph, gnn_model: str, qos: bool = True) -> Dict[
         graph=G,
         structural_metrics=structural_metrics,
         rmav_scores=rmav_dict,
-        mode="ensemble",
+        mode="gnn",
         qos_enabled=qos
     )
     
-    # Use ensemble_scores if available, otherwise node_scores
-    scores_map = gnn_result.ensemble_scores or gnn_result.node_scores
+    # Use GNN node_scores directly
+    scores_map = gnn_result.node_scores
     
     # Convert back to Dict[str, NodeScores]
     results = {}

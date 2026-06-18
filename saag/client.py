@@ -45,21 +45,21 @@ class Client:
     def predict(
         self,
         analysis_result: AnalysisResult,
-        mode: str = "ensemble",
+        mode: str = "gnn",
         gnn_checkpoint: Optional[str] = None,
     ) -> PredictionResult:
         """Run the inductive Predict stage (GNN) on a prior AnalysisResult.
 
         Consumes the StructuralAnalysisResult and RMAV scores already produced by
         analyze() — no repository access. Emits GNN-derived criticality ranks,
-        edge criticality, attention weights, and ensemble-blended scores.
+        edge criticality, attention weights, and GNN node scores.
 
         Parameters
         ----------
         analysis_result:
             Output of a preceding client.analyze() call for the same layer.
         mode:
-            'gnn' for raw GNN scores, 'ensemble' to blend with RMAV (default).
+            'gnn' for raw GNN scores (default).
         gnn_checkpoint:
             Path to a GNN checkpoint directory. Defaults to output/gnn_checkpoints.
         """

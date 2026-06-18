@@ -679,12 +679,11 @@ saag.prediction.service.PredictionService.predict_layer(structural_result, check
          │  → Execute 3-layer HGTConv message passing (bidirectional optional) (§6.25)
          │  → Run multi-task prediction heads (R/M/A/V and Composite)
          │  → Execute TypedEdgeEncoder for link criticality scores (§6.26)
-    5. Ensemble Blending (EnsembleGNN):
-         │  → Fusion of GNN output and RMAV baseline via learnable α coefficients (§6.28)
-    6. BoxPlotClassifier.classify(ensemble_scores) -> Criticality levels
+    5. Criticality Classification:
+         │  → BoxPlotClassifier.classify(node_scores) -> Criticality levels
          │
          ▼
-    Return QualityAnalysisResult (containing GNN & Ensemble predictions)
+    Return QualityAnalysisResult (containing GNN predictions)
 ```
 
 ### 5.5 Simulation Pipeline (Step 4)
@@ -1317,18 +1316,9 @@ Output: Scalar Loss L
      L = L_composite + 0.5 × L_dimension + 0.3 × L_rank + 0.1 × L_pairwise + 0.1 × L_consistency
 ```
 
-### 6.28 Ensemble Blend Score Fusion
+### 6.28 [DEPRECATED] Ensemble Blend Score Fusion
 
-Fuses GNN predictions with closed-form RMAV scores.
-
-```
-Input: GNN predictions Q_GNN, RMAV baseline scores Q_RMAV, learnable parameters logit_α
-Output: Combined ensemble prediction Q_ens
-
-1. Calculate blend scale coefficients:
-     α = Sigmoid( logit_α )   [dimension-wise vectors of width 5]
-2. Blend scores:
-     Q_ens(v) = α × Q_GNN(v) + (1 - α) × Q_RMAV(v)
+This step (formerly `EnsembleGNN`) has been deprecated and removed. All predictions are now derived solely from raw GNN outputs.
 
 
 ---
@@ -1454,7 +1444,7 @@ The FastAPI backend exposes the pipeline as a versioned RESTful API (`/api/v1/` 
 | POST | `/api/v1/graph/import` | Import JSON or GraphML topology into Neo4j |
 | GET | `/api/v1/graph/search-nodes` | Search for nodes by name/type query parameter |
 | POST | `/api/v1/analysis/layer/{layer}` | Run structural analysis + quality scoring for a layer |
-| POST | `/api/v1/prediction/predict` | Run GNN or Ensemble criticality prediction for a layer |
+| POST | `/api/v1/prediction/predict` | Run GNN criticality prediction for a layer |
 | POST | `/api/v1/prediction/train` | Train a GNN model checkpoint on failure simulation labels |
 | POST | `/api/v1/simulation/failure` | Run failure simulation for a layer |
 | POST | `/api/v1/validation/run-pipeline` | Run statistical validation for a layer |

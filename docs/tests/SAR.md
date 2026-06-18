@@ -171,7 +171,7 @@ We report the SAR's 8-domain RMAV validation directly and list the Middleware HG
 |-----------------|-----------------|-----------------|-------|--------|
 | **RMAV Baseline** | 0.876 | 0.943 | 8-domain SAR validation | Reported |
 | **HGL-QoS GNN Reference** | 0.4009 | 0.4326 | Middleware LOSO, 7 simulation-label scenarios | External reference |
-| **Ensemble Blended** | — | — | Not reported in Middleware LOSO or this SAR | Not reported |
+| **Ensemble Blended (Deprecated)** | — | — | Deprecated and removed from prediction stage | Deprecated |
 
 - **Scope distinction:** RMAV values are validated in the SAR's 8-domain suite. The GNN values are the Middleware HGL-QoS LOSO numbers and should not be read as a current SAR ensemble claim.
 

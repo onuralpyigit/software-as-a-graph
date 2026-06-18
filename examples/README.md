@@ -282,14 +282,14 @@ python examples/run_atm_visualization.py
 ```
 This generates a single, self-contained dashboard at `output/atm_system_dashboard.html` that showcases all 10 required sections (including cytoscape network graphs, D3 adjacency matrices, multi-seed stability, and the MIL-STD-498 system hierarchy drill-down).
 
-### 5. ATM GNN & Ensemble Prediction
-To run the inductive machine learning and ensemble prediction pipeline on the ATM system:
+### 5. ATM GNN Prediction
+
+To run the GNN prediction pipeline on the ATM system:
 ```bash
 python examples/run_atm_prediction.py
 ```
 This script loads the pre-trained Heterogeneous Graph Transformer (HGT) model checkpoints from `models/gnn_checkpoints/`, executes the forward pass on the ATM Application layer, and prints:
-- **Ensemble Blend Coefficients ($\alpha$)**: The learnable blend parameter vectors showing how GNN predictions are combined with deterministic RMAV rules.
-- **ATM Component Criticality Ranks**: The top-10 ranked application and library components sorted by composite/ensemble score $Q_{ens}$.
+- **ATM Component Criticality Ranks**: The top-10 ranked application and library components sorted by GNN criticality score.
 - **ATM Edge Criticality Ranks**: The top-10 ranked directed dependencies (interaction edges) sorted by direct GNN-predicted criticality.
 - Saves the predictions to `output/atm_system_predictions.json`.
 

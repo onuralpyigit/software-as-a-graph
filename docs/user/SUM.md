@@ -268,7 +268,7 @@ Trains the EdgeAwareHGTConv (HGT) GNN on simulated fault labels to predict compo
   ```
 
 #### GNN Model Prediction (Inference)
-Executes inference on a Neo4j graph using a trained GNN checkpoint and combines it with structural scores via learnable ensemble blending.
+Executes inference on a Neo4j graph using a trained GNN checkpoint.
 - **Script:** [cli/predict_graph.py] or `saag-predict`
 - **Arguments:**
   - `--gnn-model`: Path to model checkpoint directory.
@@ -375,7 +375,7 @@ The server will start on port `8000`. You can access the Swagger UI documentatio
     "checkpoint_dir": "output/gnn_checkpoints"
   }
   ```
-- **Response:** Ensembled GNN scores, edge attention mappings, and classification categories (e.g., `CRITICAL`, `HIGH`).
+- **Response:** GNN scores, edge attention mappings, and classification categories (e.g., `CRITICAL`, `HIGH`).
 
 #### Failure Simulation `/api/v1/simulation/simulate`
 - **Method:** `POST`

@@ -40,7 +40,7 @@ def test_layer_validation_missing_ok(temp_checkpoint):
     assert service2.layer == "app"
 
 def test_ensemble_fallback_warning(caplog):
-    """G12: Verify warning log and gnn_only mode when RMAV is missing."""
+    """G12: Verify warning log and gnn_only mode when ensemble is requested."""
     service = GNNService()
     service._node_model = MagicMock()
     service._node_model.predict_edges = False
@@ -55,13 +55,12 @@ def test_ensemble_fallback_warning(caplog):
     
     data = HeteroData()
     data["Application"].x = torch.randn(2, 23)
-    # y_rmav is missing
     
     import logging
     with caplog.at_level(logging.WARNING):
         result = service.predict_from_data(data, mode="ensemble")
         
-        assert "Ensemble mode selected but RMAV or Ensemble model missing" in caplog.text
+        assert "Ensemble mode is deprecated and removed" in caplog.text
         assert result.prediction_mode == "gnn_only"
 
 def test_ensemble_mode_reporting():
@@ -77,13 +76,8 @@ def test_ensemble_mode_reporting():
     data["Application"].x = torch.randn(2, 23)
     data["Application"].y_rmav = torch.randn(2, 5)
     
-    # Mock ensemble
-    service._ensemble = MagicMock()
-    service._ensemble.alpha = torch.tensor([0.5]*5)
-    service._ensemble.return_value = torch.randn(2, 5)
-    
     result = service.predict_from_data(data, mode="ensemble")
-    assert result.prediction_mode == "ensemble"
+    assert result.prediction_mode == "gnn_only"
     
     result_gnn = service.predict_from_data(data, mode="gnn")
     assert result_gnn.prediction_mode == "gnn_only"

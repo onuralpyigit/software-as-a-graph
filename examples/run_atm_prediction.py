@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Worked Example: Inductive GNN and Ensemble Prediction on the Air Traffic Management (ATM) Dataset.
+Worked Example: Inductive GNN Prediction on the Air Traffic Management (ATM) Dataset.
 Adheres strictly to the structural and functional specifications of Step 3 Predict.
 """
 
@@ -74,24 +74,17 @@ def run_atm_prediction(args):
         print("Executing structural analysis on the 'app' layer to build input features...")
         analysis_result = client.analyze(layer="app")
 
-        # 6. Execute GNN and ensemble inference
+        # 6. Execute GNN inference
         print(f"Running GNN inference using checkpoint directory: {checkpoint_dir}")
-        print(f"Prediction mode: {args.mode}")
         prediction = client.predict(
             analysis_result,
             mode=args.mode,
             gnn_checkpoint=str(checkpoint_dir)
         )
 
-        # 7. Extract and display GNN/ensemble node scores
+        # 7. Extract and display GNN node scores
         components = prediction.all_components
         print(f"Successfully generated criticality predictions for {len(components)} components.")
-        
-        # Print ensemble alpha if available
-        raw_inner = prediction.raw
-        if hasattr(raw_inner, "ensemble_alpha") and raw_inner.ensemble_alpha:
-            alpha_str = " | ".join(f"{val:.3f}" for val in raw_inner.ensemble_alpha)
-            print(f"Ensemble blend coefficients (\u03b1) [Q | R | M | A | S]: {alpha_str}")
 
         comp_rows = []
         # Sort components by composite overall score descending, show top 10
@@ -180,7 +173,7 @@ if __name__ == "__main__":
     parser.add_argument("--user", default="neo4j", help="Neo4j username")
     parser.add_argument("--password", default="password", help="Neo4j password")
     parser.add_argument("--checkpoint", default="models/gnn_checkpoints", help="Path to GNN checkpoint directory")
-    parser.add_argument("--mode", default="ensemble", choices=["ensemble", "gnn"], help="Prediction mode: 'ensemble' (GNN + RMAV) or 'gnn' (raw GNN)")
+    parser.add_argument("--mode", default="gnn", choices=["gnn"], help="Prediction mode: 'gnn' (raw GNN)")
     parser.add_argument("--output", default="output/atm_system_predictions.json", help="Path to save prediction results JSON")
     
     args = parser.parse_args()

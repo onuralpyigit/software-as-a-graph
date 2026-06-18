@@ -40,7 +40,7 @@ component in the system:
 | Signal | Source | What it represents |
 |--------|--------|-------------------|
 | **Q(v)** | RMAV formula applied to topology (Analyze stage, Step 2) | *Predicted* criticality — computed deterministically from graph structure alone, before any runtime data |
-| **Q_ens(v)** | GNN ensemble (Predict stage, Step 3, optional) | *Refined prediction* — inductive GNN blend; compared against I(v) in addition to or instead of Q(v) when available |
+| **Q_gnn(v)** | GNN prediction (Predict stage, Step 3, optional) | *Refined prediction* — inductive GNN node scores; compared against I(v) in addition to or instead of Q(v) when available |
 | **I(v)** | Stochastic cascade simulation (Simulate stage, Step 4) | *Proxy ground truth* — normalised damage score obtained by injecting each node as the failure origin |
 
 High statistical agreement between Q(v) and I(v) is empirical evidence that **topology alone predicts
@@ -53,8 +53,8 @@ failure impact** — the central claim of the Software-as-a-Graph thesis.
    │ Step 2: Analyze (RMAV)            │  Step 4: Simulate (Cascade)
    │   Q(v) = w·R + w·M + w·A + w·V   │    I(v) = mean impact over N_repeats
    └────┬──────────────────────────────┘             simulation seeds
-        │    [optional: Step 3 Predict]
-        │    Q_ens(v) = α·Q_GNN + (1-α)·Q(v)
+         │    [optional: Step 3 Predict]
+         │    Q_gnn(v) = GNN predictions
         │                   │
         └────────┬──────────┘
                  │

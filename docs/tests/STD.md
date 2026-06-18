@@ -788,7 +788,7 @@ These tests verify that prediction services integrate GNN checkpoints and fallba
 | IT-GNN-01 | Predict with GNN model checkpoint | Predictions include both GNN and RMAV scores; no fallback |
 | IT-GNN-02 | Predict with missing GNN model | System logs warning and falls back to RMAV automatically; exit code 0 |
 | IT-GNN-03 | Predict with mismatching checkpoint layer | System aborts with `CheckpointLayerMismatchError` |
-| IT-GNN-04 | GNN + RMAV Ensemble Blend | `EnsembleGNN` blends predictions using trained logit_α parameters |
+| IT-GNN-04 | \[Deprecated\] Ensemble Blend Fallback | Warning log and GNN-only predictions when ensemble mode is requested |
 
 ---
 
@@ -1165,9 +1165,9 @@ Each SRS v3.0 requirement maps to one or more test cases. Requirements without e
 | REQ-GNN-07 | Multi-task prediction heads | UT-GNN-04, IT-GNN-01 |
 | REQ-GNN-08 | Composite head concatenation | UT-GNN-04 |
 | REQ-GNN-09 | TypedEdgeEncoder links | UT-GNN-06 |
-| REQ-GNN-ENS-01 | Ensemble blend learnable α | UT-GNN-06, IT-GNN-04 |
-| REQ-GNN-ENS-02 | Criticality Box-Plot levels | IT-GNN-01 |
-| REQ-GNN-ENS-03 | Missing checkpoint fallback | IT-GNN-02 |
+| REQ-GNN-ENS-01 | \[Deprecated\] Ensemble blend learnable α | — |
+| REQ-GNN-ENS-02 | \[Deprecated\] Ensemble criticality levels | — |
+| REQ-GNN-ENS-03 | \[Deprecated\] Ensemble fallback | — |
 | REQ-GNN-TR-01 | Optimizer AdamW Cosine restarts | UT-GNN-07 |
 | REQ-GNN-TR-02 | Transductive/inductive splits | UT-GNN-01 |
 | REQ-GNN-TR-03 | Loss calculation MSE/ListMLE | UT-GNN-07, ST-CLI-13 |

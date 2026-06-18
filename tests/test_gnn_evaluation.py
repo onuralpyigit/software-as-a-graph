@@ -45,35 +45,6 @@ def test_mask_consistency_best_seed(mock_gnn_service):
             from unittest.mock import ANY
             mock_split.assert_called_with(ANY, seed=1234)
 
-def test_ensemble_metrics_computation(mock_gnn_service):
-    """G10: Verify that ensemble metrics are computed during validation."""
-    service = mock_gnn_service
-    service._ensemble = MagicMock()
-    service._ensemble.alpha = torch.tensor([0.5, 0.5, 0.5, 0.5, 0.5])
-    
-    data = HeteroData()
-    data["Application"].x = torch.randn(2, 23)
-    data["Application"].y = torch.tensor([[0.5]*5, [0.8]*5])
-    data["Application"].y_rmav = torch.tensor([[0.4]*5, [0.7]*5])
-    data["Application"].test_mask = torch.tensor([True, True])
-    
-    # Mock GNN outputs
-    gnn_out = torch.tensor([[0.6]*5, [0.9]*5])
-    service._node_model.return_value = {"Application": gnn_out}
-    
-    # Mock evaluate_scores
-    from saag.prediction.trainer import EvalMetrics
-    
-    with patch("saag.prediction.trainer.evaluate_scores") as mock_eval_scores:
-        mock_eval_scores.return_value = EvalMetrics(0.95, 0.9, 0.05, 0.05, 1.0, 1.0, 1.0)
-        
-        # We need ensemble_scores to be populated
-        result = service.predict_from_data(data, simulation_results={"app1": {}}, mode="ensemble")
-        
-        assert result.ensemble_metrics is not None
-        assert result.ensemble_metrics.spearman_rho == 0.95
-        mock_eval_scores.assert_called()
-
 def test_ablation_modes(mock_gnn_service):
     """G11: Verify that mode selection filters correct scores."""
     service = mock_gnn_service
@@ -94,11 +65,7 @@ def test_ablation_modes(mock_gnn_service):
     assert result_gnn.node_scores["app1"].source == "GNN"
     assert result_gnn.node_scores["app1"].composite_score == pytest.approx(0.8)
     
-    # 3. Mode: Ensemble (mocked ensemble model)
-    service._ensemble = lambda g, r: 0.5 * g + 0.5 * r
-    service._ensemble.alpha = MagicMock()
-    service._ensemble.alpha.detach.return_value.cpu.return_value.tolist.return_value = [0.5]*5
-    
+    # 3. Mode: Ensemble (deprecated fallback to GNN)
     result_ens = service.predict_from_data(data, mode="ensemble")
-    assert result_ens.node_scores["app1"].source == "Ensemble"
-    assert result_ens.node_scores["app1"].composite_score == pytest.approx(0.45) # (0.8+0.1)/2
+    assert result_ens.node_scores["app1"].source == "GNN"
+    assert result_ens.node_scores["app1"].composite_score == pytest.approx(0.8)

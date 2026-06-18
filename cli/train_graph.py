@@ -77,7 +77,7 @@ def parse_args() -> argparse.Namespace:
     gnn.add_argument("--no-edge-model", action="store_true", help="Skip edge model")
     gnn.add_argument("--seeds", type=int, nargs="+", help="Seed list for stability validation")
     gnn.add_argument("--multi-scenario", action="store_true", help="Inductive training on all domain scenarios")
-    gnn.add_argument("--mode", choices=["rmav", "gnn", "ensemble"], default="ensemble", help="Evaluation path for final summary (default: ensemble)")
+    gnn.add_argument("--mode", choices=["rmav", "gnn"], default="gnn", help="Evaluation path for final summary (default: gnn)")
     gnn.add_argument(
         "--variant",
         choices=["hetero_qos", "homo_unweighted", "homo_scalar", "topology_rmav"],

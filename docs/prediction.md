@@ -18,7 +18,7 @@
    - 2.4 [HGT Model (Heterogeneous Graph Transformer)](#24-hgt-model-heterogeneous-graph-transformer)
    - 2.5 [Multi-Task Prediction Heads](#25-multi-task-prediction-heads)
    - 2.6 [Edge Criticality Prediction](#26-edge-criticality-prediction)
-   - 2.7 [Ensemble: GNN + RMAV](#27-ensemble-gnn--rmav)
+   - 2.7 [Deprecated: Ensemble](#27-deprecated-ensemble)
    - 2.8 [Training Protocol](#28-training-protocol)
    - 2.9 [Multi-Seed Stability](#29-multi-seed-stability)
    - 2.10 [Methodological Integrity](#210-methodological-integrity)
@@ -34,14 +34,12 @@
 The Predict stage takes the metric vector **M(v)** and graph structure produced by Step 2 and generates:
 - Machine-learned node criticality predictions $Q_{\text{GNN}}(v) \in [0, 1]$
 - Direct edge-level criticality predictions $Q_{\text{GNN}}(u, v) \in [0, 1]$
-- Ensemble predictions $Q_{\text{ens}}(v) = \alpha \cdot Q_{\text{GNN}}(v) + (1-\alpha) \cdot Q_{\text{RMAV}}(v)$
 
-```
 M(v) and Graph structure             Prediction Engine                  Output
 ────────────────────────             ─────────────────               ─────────────────────
 Tier 1 & Tier 2 Metrics:      →      GNN Model (HGT)          →      Q_GNN(v) ∈ [0, 1]
   PR, RPR, BT, CL, EV,               Multi-task prediction           Q_GNN(u, v) ∈ [0, 1]
-  DG_in, DG_out, CC,                 heads for RMAV dimensions       Q_ens(v) ∈ [0, 1]
+  DG_in, DG_out, CC,                 heads for RMAV dimensions
   AP_c_dir, BR, w, w_in,             and overall criticality
   w_out, MPCI, PC, FOC, ...
 ```
@@ -70,13 +68,12 @@ The GNN-based Predict stage addresses these limitations by learning directly fro
    └──────────┬───────────────────────┘    7-bit type one-hot, 7 QoS decomposition dims)
               │                            5-dim simulation labels y = I*(v)
               │                            5-dim RMAV scores  y_rmav = Q_RMAV(v)
-       ┌───────┼────────────┐
-       ▼       ▼            ▼
-    NodeGNN  EdgeGNN   EnsembleGNN
-    3L HGT   TypedEdge  α · Q_GNN     ← Step 3 output (default mode="gnn")
-    +EdgeFea  Encoder  +(1-α)·Q_RMAV ← Q_RMAV from Step 2
-    +BiDir   (E, 16)   (N, 5)
-    (N, 5)
+        ┌───────┴────────────┐
+        ▼                    ▼
+     NodeGNN              EdgeGNN
+     3L HGT               TypedEdge Encoder
+     +EdgeFeat +BiDir     (E, 16)
+     (N, 5)
 ```
 
 All prediction modules are managed by `GNNService`.
@@ -161,7 +158,7 @@ Dimensions 9–15 are non-zero only for PUBLISHES_TO / SUBSCRIBES_TO edges, wher
 
 **Node labels** (`data[type].y`, shape (n, 5)): simulation ground-truth per-dimension impact scores `[I*(v), IR(v), IM(v), IA(v), IV(v)]`.
 
-**RMAV scores** (`data[type].y_rmav`, shape (n, 5)): RMAV quality scores `[Q(v), R(v), M(v), A(v), V(v)]`, stored for ensemble blending. These are *not* used as training labels; they are the ensemble right-hand side.
+**RMAV scores** (`data[type].y_rmav`, shape (n, 5)): RMAV quality scores `[Q(v), R(v), M(v), A(v), V(v)]`, stored for consistency regularization target during training. These are *not* used as training labels.
 
 ### 2.4 HGT Model (Heterogeneous Graph Transformer)
 
@@ -224,16 +221,9 @@ bridge_multiplier = 1.0   if (u, v) is a structural bridge
 
 This downweights non-bridge edges to reduce label noise from redundant paths.
 
-### 2.7 Ensemble: GNN + RMAV
+### 2.7 [DEPRECATED] Ensemble: GNN + RMAV
 
-```
-Q_ens(v) = α · Q_GNN(v)  +  (1−α) · Q_RMAV(v)
-
-α ∈ ℝ^5  — per-dimension learnable blend coefficients, α_d = sigmoid(logit_d)
-           Initialised at logit = 0  →  α = 0.5  (equal blend start)
-```
-
-The ensemble is a thin `EnsembleGNN` module. It is fine-tuned after the main GNN training loop using the training-node subset.
+The ensemble blending step (formerly `EnsembleGNN`) has been deprecated and removed. Criticality predictions are now derived solely from raw GNN outputs.
 
 ### 2.8 Training Protocol
 
@@ -260,8 +250,6 @@ L_consistency = MSE( pred_unlabeled_rmav, rmav_target ) — RMAV consistency reg
 
 **Optimizer and scheduler:** AdamW, lr = 3×10⁻⁴, weight_decay = 10⁻⁴, gradient clipping max_norm = 1.0. Schedule: `CosineAnnealingWarmRestarts(T_0 = max(50, epochs//4), T_mult=2, η_min = lr×0.01)`.
 
-**Ensemble fine-tuning.** Fine-tuned for 100 epochs using Adam at lr = 1×10⁻³ with GNN backbone weights frozen.
-
 ### 2.9 Multi-Seed Stability
 
 Multi-seed training runs the full train loop independently for each seed in `{42, 123, 456, 789, 2024}`. The implementation restores the weights from the **best-performing seed** (by validation Spearman ρ) before final serialization.
@@ -275,12 +263,12 @@ Multi-seed training runs the full train loop independently for each seed in `{42
 | G1 | Node feature dim mismatch | High | **Resolved** | Per-type dims enforced; feature version check in config |
 | G2 | Edge labels as node proxies | Medium | Open | Current: bridge-multiplier-based downweighting |
 | G3 | Redundant type encoding | Low | **Resolved** | Zero-padding removed; type-appropriate indices selected |
-| G4 | Transductive leakage | High | **Resolved** | Inductive subgraphs isolated via get_inductive_subgraph during training, validation, and ensemble evaluation |
+| G4 | Transductive leakage | High | **Resolved** | Inductive subgraphs isolated via get_inductive_subgraph during training and validation |
 | G5 | Best seed weight saving | High | **Resolved** | `best_state` restored before `train()` returns |
-| G6 | Ensemble α bias | Medium | Open | α is a global blend; cannot correct local directional GNN errors |
+| G6 | Ensemble α bias | Medium | **Deprecated** | Blending removed. |
 | G7 | Prediction seed overwrite | High | **Resolved** | `predict_from_data()` uses persisted best seed for mask consistency |
-| G8 | Ensemble validation gap | High | **Resolved** | `ensemble_metrics` computed via `evaluate_scores` in prediction path |
-| G9 | Silent ensemble fallback | Medium | **Resolved** | Added `prediction_mode` field and explicit fallback logging |
+| G8 | Ensemble validation gap | High | **Deprecated** | Blending removed. |
+| G9 | Silent ensemble fallback | Medium | **Deprecated** | Blending removed. |
 | G10 | Layer compatibility check | Medium | **Resolved** | `from_checkpoint()` validates layer alias against metadata |
 | G11 | Edge feature dim mismatch | Medium | **Resolved** | Historical 8→9 mismatch superseded; active schema is 16 dimensions (`weight`, `path_count_norm`, 7-bit edge type, 7 QoS dims). |
 | G12 | HGTConv edge_attr incompatibility | Medium | **Resolved** | EdgeAwareHGTConv projects edge features into relation-specific Key and Value spaces |
@@ -291,22 +279,22 @@ Multi-seed training runs the full train loop independently for each seed in `{42
 
 ## 3. Comparing the Prediction Modes
 
-| Property | Analyze — RMAV (rule-based) | Predict — GNN (learning-based) | Predict — Ensemble |
-|----------|:-----------------:|:--------------------:|:--------:|
-| Requires training data | No | Yes | Yes |
-| Node criticality | ✓ | ✓ | ✓ |
-| Edge criticality | Proxies (BR, BT) | ✓ Direct (approx.) | ✓ Direct |
-| Per-dimension decomposition | ✓ Explicit | ✓ Learned heads | ✓ Blended |
-| Interpretability | Full | Partial (attention + heads) | Partial |
-| Topic-type branching | ✓ Explicit | Learned | Learned |
-| MPCI amplification | ✓ Explicit (CDPot_enh) | Learned | Learned |
-| Generalises to unseen systems | Immediately | Requires fine-tuning | Requires fine-tuning |
-| Spearman ρ (published validation) | 0.876 overall; 0.943 large-scale | 0.4009 (HGL-QoS LOSO) | Pending |
-| F1@K / F1-score (published validation) | 0.893 | 0.4326 (HGL-QoS LOSO) | Pending |
-| Transductive leakage risk | None (formula-based) | None (Resolved) | None (Resolved) |
-| Primary use | First analysis; interpretable; CI gate; fallback when no checkpoint | Default predictor after training; RMAV = fallback | Research comparison; use `--mode ensemble` |
+| Property | Analyze — RMAV (rule-based) | Predict — GNN (learning-based) |
+|----------|:-----------------:|:--------------------:|
+| Requires training data | No | Yes |
+| Node criticality | ✓ | ✓ |
+| Edge criticality | Proxies (BR, BT) | ✓ Direct (approx.) |
+| Per-dimension decomposition | ✓ Explicit | ✓ Learned heads |
+| Interpretability | Full | Partial (attention + heads) |
+| Topic-type branching | ✓ Explicit | Learned |
+| MPCI amplification | ✓ Explicit (CDPot_enh) | Learned |
+| Generalises to unseen systems | Immediately | Requires fine-tuning |
+| Spearman ρ (published validation) | 0.876 overall; 0.943 large-scale | 0.4009 (HGL-QoS LOSO) |
+| F1@K / F1-score (published validation) | 0.893 | 0.4326 (HGL-QoS LOSO) |
+| Transductive leakage risk | None (formula-based) | None (Resolved) |
+| Primary use | First analysis; interpretable; CI gate; fallback when no checkpoint | Default predictor after training; RMAV = fallback |
 
-> **Validation-source note:** the GNN values above are the Middleware HGL-QoS Leave-One-Scenario-Out results using simulation labels across seven scenarios (`ρ = 0.4009`, `F1@K = 0.4326`). Ensemble LOSO is not reported in that work and remains Pending in this document.
+> **Validation-source note:** the GNN values above are the Middleware HGL-QoS Leave-One-Scenario-Out results using simulation labels across seven scenarios (`ρ = 0.4009`, `F1@K = 0.4326`).
 
 ---
 
@@ -345,8 +333,7 @@ The JSON output from `predict_graph.py --output results/prediction.json` follows
         }
       ],
       "gnn": {
-        "prediction_mode": "ensemble",
-        "ensemble_alpha": [0.71, 0.68, 0.75, 0.70, 0.72],
+        "prediction_mode": "gnn_only",
         "node_scores": {
           "NavLib": {
             "component": "NavLib",
@@ -356,7 +343,7 @@ The JSON output from `predict_graph.py --output results/prediction.json` follows
             "availability_score": 0.5821,
             "vulnerability_score": 0.5211,
             "criticality_level": "HIGH",
-            "source": "Ensemble"
+            "source": "GNN"
           }
         },
         "edge_scores": [
@@ -372,31 +359,12 @@ The JSON output from `predict_graph.py --output results/prediction.json` follows
             "criticality_level": "MEDIUM"
           }
         ],
-        "ensemble_scores": {
-          "NavLib": {
-            "component": "NavLib",
-            "composite_score": 0.5432,
-            "reliability_score": 0.6321,
-            "maintainability_score": 0.4121,
-            "availability_score": 0.5821,
-            "vulnerability_score": 0.5211,
-            "criticality_level": "HIGH",
-            "source": "Ensemble"
-          }
-        },
         "gnn_metrics": {
           "spearman_rho": 0.8912,
           "f1_score": 0.9021,
           "rmse": 0.0812,
           "mae": 0.0612,
           "ndcg_10": 0.9211
-        },
-        "ensemble_metrics": {
-          "spearman_rho": 0.9122,
-          "f1_score": 0.9231,
-          "rmse": 0.0712,
-          "mae": 0.0512,
-          "ndcg_10": 0.9412
         }
       }
     }
@@ -430,6 +398,6 @@ PYTHONPATH=. python cli/predict_graph.py --gnn-model output/gnn_checkpoints/best
 
 ## 6. What Comes Next
 
-Step 3 has two operational modes. For inference, a trained checkpoint lets Step 3 run after Step 2 and emit GNN/ensemble predictions; Step 4 and Step 5 are then used to validate those predictions against simulation ground truth. For GNN training, Step 4 must come first because simulation labels `I(v)` are required, followed by Step 5 validation to measure GNN/ensemble performance.
+Step 3 has two operational modes. For inference, a trained checkpoint lets Step 3 run after Step 2 and emit GNN predictions; Step 4 and Step 5 are then used to validate those predictions against simulation ground truth. For GNN training, Step 4 must come first because simulation labels `I(v)` are required, followed by Step 5 validation to measure GNN performance.
 
 → [Step 4: Simulate](failure-simulation.md)

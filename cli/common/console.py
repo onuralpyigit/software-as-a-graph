@@ -612,7 +612,7 @@ class ConsoleDisplay:
                 print(f"    - {lib}")
             print()
     def display_gnn_prediction(self, prediction: Dict[str, Any], limit: int = 10) -> None:
-        """Display GNN or Ensemble prediction results."""
+        """Display GNN prediction results."""
         if not prediction:
             return
 
@@ -971,7 +971,7 @@ class ConsoleDisplay:
         if not components:
             return
             
-        self.print_subheader(f"Top {min(len(components), n)} Critical Components (Ensemble)")
+        self.print_subheader(f"Top {min(len(components), n)} Critical Components (GNN)")
         
         header = f"  {'Rank':<5} {'Component':<25} {'Score':>7} {'Lvl':<9} {'R':>5} {'M':>5} {'A':>5} {'V':>5} {'Dom':<4} {'B/D':<6} {'S'}"
         print(self.colored(header, Colors.WHITE, bold=True))
@@ -1036,7 +1036,7 @@ class ConsoleDisplay:
             )
 
     def display_training_summary(self, summary: Dict[str, Any]) -> None:
-        """Display summary of GNN training results (ensemble levels)."""
+        """Display summary of GNN training results."""
         self.print_subheader(f"Training Results ({summary.get('total_components', 0)} components)")
         
         for lvl in ["critical", "high", "medium", "low", "minimal"]:

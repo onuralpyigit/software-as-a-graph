@@ -161,7 +161,7 @@ def _edge_score_model(e, name_lookup: dict = {}) -> GNNEdgeScoreModel:
 
 
 def _build_summary(result) -> TrainSummaryModel:
-    scores = result.ensemble_scores or result.node_scores
+    scores = result.node_scores
     levels = [s.criticality_level.upper() for s in scores.values()]
     return TrainSummaryModel(
         total_components=len(scores),
@@ -226,7 +226,7 @@ def _read_checkpoint_info(directory: Path) -> Optional[CheckpointInfo]:
         predict_edges=cfg.get("predict_edges", True),
         has_node_model=node_path.exists(),
         has_edge_model=(directory / "edge_model.pt").exists(),
-        has_ensemble=(directory / "ensemble.pt").exists() or best_path.exists(),
+        has_ensemble=False,
     )
 
 
@@ -348,8 +348,8 @@ async def train_gnn(
             checkpoint_dir=str(ckpt_dir),
             summary=_build_summary(gnn_result),
             gnn_metrics=_metrics_from_eval(gnn_result.gnn_metrics),
-            ensemble_metrics=_metrics_from_eval(gnn_result.ensemble_metrics),
-            ensemble_alpha=gnn_result.ensemble_alpha,
+            ensemble_metrics=None,
+            ensemble_alpha=None,
             top_critical=top_nodes,
             top_critical_edges=top_edges,
         )
@@ -448,7 +448,7 @@ async def predict_gnn(
         ckpt_dir, gnn_result, name_lookup = await asyncio.to_thread(_run_inference)
 
         scores = [_node_score_model(s, name_lookup) for s in sorted(
-            (gnn_result.ensemble_scores or gnn_result.node_scores).values(),
+            gnn_result.node_scores.values(),
             key=lambda s: s.composite_score,
             reverse=True,
         )]

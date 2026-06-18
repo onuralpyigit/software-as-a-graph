@@ -185,12 +185,11 @@ The system must forecast node and edge criticality using rule-based metrics and 
 | **REQ-GNN-08** | The system shall feed the outputs of the four dimension heads directly into the composite head alongside the node representation to learn non-linear dimension interactions. |
 | **REQ-GNN-09** | The system shall calculate direct edge-level criticality rankings using a `TypedEdgeEncoder` which projects edge features and fuses them with source and destination node embeddings. |
 
-#### 3.4.3 Ensemble Blending and Criticality Classification
+#### 3.4.3 Criticality Classification
 | ID | Requirement |
 |----|-------------|
-| **REQ-GNN-ENS-01** | The system shall combine GNN outputs with RMAV predictions using an ensemble blend: $Q_{ens}(v) = \alpha \cdot Q_{GNN}(v) + (1-\alpha) \cdot Q_{RMAV}(v)$, where $\alpha \in [0, 1]^5$ consists of learnable dimension blend parameters. |
-| **REQ-GNN-ENS-02** | The system shall classify components into five criticality levels (CRITICAL, HIGH, MEDIUM, LOW, MINIMAL) using box-plot statistical classification ($Q_3 + k \cdot IQR$) with adaptive thresholds rather than static cuts. |
-| **REQ-GNN-ENS-03** | The system shall log fallback alerts and default to RMAV scoring if the specified GNN model checkpoint is missing or incompatible with the target layer. |
+| **REQ-GNN-CLS-01** | The system shall classify components into five criticality levels (CRITICAL, HIGH, MEDIUM, LOW, MINIMAL) using box-plot statistical classification ($Q_3 + k \cdot IQR$) with adaptive thresholds rather than static cuts. |
+| **REQ-GNN-CLS-02** | The system shall log fallback alerts and default to RMAV scoring if the specified GNN model checkpoint is missing or incompatible with the target layer. |
 
 #### 3.4.4 GNN Training and Optimization
 | ID | Requirement |
@@ -369,7 +368,7 @@ This matrix maps the requirements defined in Section 3 to the standard software 
 | **REQ-SA-01 to 05** | Software Design Definition | Centrality verification against NetworkX baseline calculations. |
 | **REQ-QS-01 to 04** | Software Design Definition | Closed-form metric verification, AHP consistency checks. |
 | **REQ-GNN-01 to 09**| Software Implementation / Design | Node/edge dimension checks, HGT layer shapes verification. |
-| **REQ-GNN-ENS-01**  | Software Integration | Blend parameter checks, fallback mode tests. |
+| **REQ-GNN-CLS-01 to 02** | Software Integration / Classification | Criticality tier classification checks, fallback mode tests. |
 | **REQ-GNN-TR-01 to 05**| Software Implementation / Training | Optimization checks, loss value decreases validation. |
 | **REQ-FS-01 to 05** | Software Verification | Cascade propagation rules checking against test scenarios. |
 | **REQ-VL-01 to 05** | Software Validation | Statistical function testing (scipy comparison assertions). |

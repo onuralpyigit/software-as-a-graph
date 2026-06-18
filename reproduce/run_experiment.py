@@ -40,7 +40,7 @@ SaG pipeline. For each scenario `<S>` you need:
     data/generated/<S>.json                 — generated topology JSON
     results/<S>/structural_metrics.json     — Step 2 output
     results/<S>/impact_scores.json          — Step 4 output (multi-seed)
-    results/<S>/rmav_scores.json            — Step 3a output (optional, for ensemble)
+    results/<S>/rmav_scores.json            — Step 3a output (optional)
 
 If any are missing, the scenario is skipped with a warning. To produce
 them, run:
