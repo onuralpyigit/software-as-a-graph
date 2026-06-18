@@ -488,34 +488,16 @@ class StatisticalGraphGenerator:
         return clean_pub, clean_sub
 
     def _sample_topic_frequency(self, domain: Optional[str], rng: Optional[random.Random] = None) -> float:
-        """Sample a topic frequency from a per-domain log-uniform distribution.
-
-        Log-uniform (i.e. uniform on the log10 axis) is appropriate because
-        topic frequencies span several orders of magnitude across domains.  A
-        plain uniform draw over [lo, hi] would massively over-sample the
-        high-frequency end and suppress the low-frequency tail that carries the
-        domain-differentiating signal LOSO needs to reward.
-
-        Args:
-            domain: Domain key matching ``_DOMAIN_FREQ_BOUNDS`` (e.g.
-                ``"air_traffic_management"``).  Falls back to the generic range
-                when the domain is unknown or ``None``.
-            rng: Random instance to use.  Defaults to ``self.rng``; callers
-                that want to avoid perturbing the main topology RNG stream
-                should pass a dedicated ``random.Random`` object.
-
-        Returns:
-            Frequency in Hz, rounded to 3 significant figures.
-        """
+        """Sample a topic frequency from a per-domain log-uniform distribution, then map it to the closest allowed frequency."""
         import math
         _rng = rng if rng is not None else self.rng
         lo, hi = _DOMAIN_FREQ_BOUNDS.get(domain or "", _DOMAIN_FREQ_BOUNDS_DEFAULT)
         log_val = _rng.uniform(math.log10(lo), math.log10(hi))
         freq = 10.0 ** log_val
-        # Round to 3 significant figures to avoid spurious decimal precision.
-        if freq >= 1.0:
-            return round(freq, max(0, 2 - int(math.floor(math.log10(freq)))))
-        return round(freq, 3)
+        
+        ALLOWED_FREQS = [1.0, 10.0, 25.0, 50.0, 100.0, 200.0]
+        closest_freq = min(ALLOWED_FREQS, key=lambda x: abs(x - freq))
+        return closest_freq
 
     def _derive_topic_criticality_with_noise(
         self,
@@ -651,6 +633,10 @@ class StatisticalGraphGenerator:
                 size = self._sample_from_distribution(c.topic_stats.topic_size_bytes)
             else:
                 size = self.rng.randint(64, 65536)
+            
+            # Round to nearest power of 2
+            import math
+            size = int(2 ** round(math.log2(max(1.0, float(size)))))
             
             topic_name = domain_ds.get_topic_name() if domain_ds else f"Topic-{i}"
             

@@ -518,6 +518,19 @@ def run_batch_generation(args: argparse.Namespace) -> int:
 
     _hdr(f"Stage 1 / 3 — Scenario datasets  ({len(yaml_files)} scenarios)")
 
+    SCENARIO_SYSTEM_MAP = {
+        "scenario_01_autonomous_vehicle": "av_system",
+        "scenario_02_iot_smart_city": "iot_smart_city_system",
+        "scenario_03_financial_trading": "financial_trading_system",
+        "scenario_04_healthcare": "healthcare_system",
+        "scenario_05_hub_and_spoke": "hub_and_spoke_system",
+        "scenario_06_microservices": "microservices_system",
+        "scenario_07_enterprise_xlarge": "enterprise_system",
+        "scenario_08_tiny_regression": "tiny_system",
+        "scenario_09_xlarge_stress": "xlarge_system",
+        "scenario_10_atm_system": "atm_system",
+    }
+
     for yaml_path in yaml_files:
         stem      = yaml_path.stem
         out_path  = args.output_dir / f"{stem}.json"
@@ -529,6 +542,18 @@ def run_batch_generation(args: argparse.Namespace) -> int:
             verbose=args.verbose,
         )
         records.append(record)
+        
+        # Also copy to legacy/canonical system name if mapped
+        if record.status == "ok" and stem in SCENARIO_SYSTEM_MAP:
+            import shutil
+            sys_name = SCENARIO_SYSTEM_MAP[stem]
+            sys_out_path = args.output_dir / f"{sys_name}.json"
+            if not args.dry_run:
+                try:
+                    shutil.copy2(out_path, sys_out_path)
+                    _ok(f"Copied {stem}.json → {sys_name}.json")
+                except Exception as exc:
+                    _err(f"Failed to copy to {sys_name}.json: {exc}")
 
     # ── 2. Multi-seed variants ─────────────────────────────────────────────
     if args.multi_seed:

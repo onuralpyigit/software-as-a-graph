@@ -64,25 +64,25 @@
     {
       "id": "T0",
       "name": "patient.vitals",
-      "size": 2201,
+      "size": 2048,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.001,
+      "frequency": 1.0,
       "criticality": "low"
     },
     {
       "id": "T1",
       "name": "dicom.images",
-      "size": 731,
+      "size": 1024,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.011,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
@@ -94,67 +94,67 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 0.017,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
       "id": "T3",
       "name": "hl7.orders",
-      "size": 540,
+      "size": 512,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 0.863,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
       "id": "T4",
       "name": "patient.vitals-1",
-      "size": 651,
+      "size": 512,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.079,
+      "frequency": 1.0,
       "criticality": "low"
     },
     {
       "id": "T5",
       "name": "hl7.results",
-      "size": 1948,
+      "size": 2048,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.8,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
       "id": "T6",
       "name": "billing.events-1",
-      "size": 2033,
+      "size": 2048,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 0.012,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
       "id": "T7",
       "name": "hl7.results-1",
-      "size": 680,
+      "size": 512,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 0.033,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
@@ -166,19 +166,19 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.002,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
       "id": "T9",
       "name": "appointments.created",
-      "size": 616,
+      "size": 512,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.003,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
@@ -190,43 +190,43 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.189,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
       "id": "T11",
       "name": "patient.vitals-2",
-      "size": 3149,
+      "size": 4096,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.004,
+      "frequency": 1.0,
       "criticality": "low"
     },
     {
       "id": "T12",
       "name": "hl7.orders-1",
-      "size": 469,
+      "size": 512,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 0.493,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
       "id": "T13",
       "name": "appointments.created-2",
-      "size": 2235,
+      "size": 2048,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.529,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
@@ -238,31 +238,31 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.005,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
       "id": "T15",
       "name": "patient.vitals-3",
-      "size": 1555,
+      "size": 2048,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.03,
+      "frequency": 1.0,
       "criticality": "low"
     },
     {
       "id": "T16",
       "name": "hl7.orders-2",
-      "size": 1970,
+      "size": 2048,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 0.019,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
@@ -274,969 +274,942 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 0.009,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
       "id": "T18",
       "name": "dicom.images-3",
-      "size": 1232,
+      "size": 1024,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.059,
+      "frequency": 1.0,
       "criticality": "low"
     },
     {
       "id": "T19",
       "name": "hl7.orders-3",
-      "size": 1328,
+      "size": 1024,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 0.004,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
       "id": "T20",
       "name": "hl7.orders-4",
-      "size": 405,
+      "size": 512,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 0.002,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
       "id": "T21",
       "name": "dicom.images-4",
-      "size": 1094,
+      "size": 1024,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.001,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
       "id": "T22",
       "name": "patient.vitals-4",
-      "size": 3412,
+      "size": 4096,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.048,
+      "frequency": 1.0,
       "criticality": "low"
     },
     {
       "id": "T23",
       "name": "patient.vitals-5",
-      "size": 1407,
+      "size": 1024,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.002,
+      "frequency": 1.0,
       "criticality": "low"
     },
     {
       "id": "T24",
       "name": "dicom.images-5",
-      "size": 1245,
+      "size": 1024,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 0.032,
+      "frequency": 1.0,
       "criticality": "critical"
     }
   ],
   "applications": [
     {
       "id": "A0",
-      "name": "vitals-monitor",
-      "version": "2.2.3",
-      "app_type": "sensor",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Health Information System",
-        "csci_name": "Patient Management",
-        "css_name": "Billing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 415,
-          "total_classes": 6,
-          "total_methods": 29,
-          "total_fields": 20
-        },
-        "complexity": {
-          "total_wmc": 31,
-          "avg_wmc": 5.18,
-          "max_wmc": 6
-        },
-        "cohesion": {
-          "avg_lcom": 16.02,
-          "max_lcom": 52.4
-        },
-        "coupling": {
-          "avg_cbo": 2.79,
-          "max_cbo": 5,
-          "avg_rfc": 18.17,
-          "max_rfc": 32,
-          "avg_fanin": 1.76,
-          "max_fanin": 5,
-          "avg_fanout": 3.54,
-          "max_fanout": 10
-        }
-      }
-    },
-    {
-      "id": "A1",
       "name": "emr-service",
-      "version": "1.8.7",
+      "version": "1.7.5",
       "app_type": "service",
       "role": [
-        "pubsub"
+        "Operative"
       ],
-      "criticality": true,
+      "criticality": false,
+      "priority": "LOW",
+      "hotstandby": true,
       "system_hierarchy": {
-        "csc_name": "Clinical Platform",
+        "csc_name": "Health Information System",
         "csci_name": "Patient Management",
-        "css_name": "PACS Integration",
-        "csms_name": "Signal Analysis"
+        "css_name": "Billing",
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 784,
+          "total_loc": 548,
           "total_classes": 8,
-          "total_methods": 69,
-          "total_fields": 26
+          "total_methods": 52,
+          "total_fields": 27
         },
         "complexity": {
-          "total_wmc": 157,
-          "avg_wmc": 19.63,
-          "max_wmc": 24
+          "total_wmc": 153,
+          "avg_wmc": 19.17,
+          "max_wmc": 64
         },
         "cohesion": {
-          "avg_lcom": 42.23,
-          "max_lcom": 152.2
+          "avg_lcom": 48.23,
+          "max_lcom": 151.6
         },
         "coupling": {
-          "avg_cbo": 10.93,
-          "max_cbo": 21,
-          "avg_rfc": 36.38,
-          "max_rfc": 71,
-          "avg_fanin": 2.07,
-          "max_fanin": 6,
-          "avg_fanout": 3.21,
-          "max_fanout": 7
-        }
-      }
-    },
-    {
-      "id": "A2",
-      "name": "appointment-scheduler",
-      "version": "1.7.0",
-      "app_type": "controller",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Medical Imaging System",
-        "csci_name": "Diagnostics Software",
-        "css_name": "Billing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 918,
-          "total_classes": 11,
-          "total_methods": 88,
-          "total_fields": 50
-        },
-        "complexity": {
-          "total_wmc": 143,
-          "avg_wmc": 13.03,
-          "max_wmc": 38
-        },
-        "cohesion": {
-          "avg_lcom": 12.46,
-          "max_lcom": 47.7
-        },
-        "coupling": {
-          "avg_cbo": 8.05,
-          "max_cbo": 14,
-          "avg_rfc": 34.21,
-          "max_rfc": 84,
-          "avg_fanin": 4.04,
-          "max_fanin": 10,
-          "avg_fanout": 7.26,
-          "max_fanout": 15
-        }
-      }
-    },
-    {
-      "id": "A3",
-      "name": "emr-service-1",
-      "version": "2.1.1",
-      "app_type": "service",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Medical Imaging System",
-        "csci_name": "Lab Integration",
-        "css_name": "PACS Integration",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1986,
-          "total_classes": 19,
-          "total_methods": 164,
-          "total_fields": 53
-        },
-        "complexity": {
-          "total_wmc": 310,
-          "avg_wmc": 16.3,
-          "max_wmc": 16
-        },
-        "cohesion": {
-          "avg_lcom": 26.68,
-          "max_lcom": 92.7
-        },
-        "coupling": {
-          "avg_cbo": 10.59,
+          "avg_cbo": 10.43,
           "max_cbo": 20,
-          "avg_rfc": 25.6,
-          "max_rfc": 54,
-          "avg_fanin": 5.46,
-          "max_fanin": 21,
-          "avg_fanout": 9.42,
-          "max_fanout": 26
-        }
-      }
-    },
-    {
-      "id": "A4",
-      "name": "vitals-monitor-1",
-      "version": "2.8.4",
-      "app_type": "sensor",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Health Information System",
-        "csci_name": "Clinical Software",
-        "css_name": "Vitals Monitoring",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 138,
-          "total_classes": 1,
-          "total_methods": 6,
-          "total_fields": 4
-        },
-        "complexity": {
-          "total_wmc": 5,
-          "avg_wmc": 5.47,
-          "max_wmc": 19
-        },
-        "cohesion": {
-          "avg_lcom": 22.55,
-          "max_lcom": 55.2
-        },
-        "coupling": {
-          "avg_cbo": 5.79,
-          "max_cbo": 12,
-          "avg_rfc": 17.31,
-          "max_rfc": 35,
-          "avg_fanin": 2.42,
-          "max_fanin": 6,
-          "avg_fanout": 3.72,
-          "max_fanout": 9
-        }
-      }
-    },
-    {
-      "id": "A5",
-      "name": "appointment-scheduler-1",
-      "version": "3.7.2",
-      "app_type": "controller",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Medical Imaging System",
-        "csci_name": "Diagnostics Software",
-        "css_name": "Lab Processing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1383,
-          "total_classes": 19,
-          "total_methods": 108,
-          "total_fields": 68
-        },
-        "complexity": {
-          "total_wmc": 303,
-          "avg_wmc": 15.97,
-          "max_wmc": 32
-        },
-        "cohesion": {
-          "avg_lcom": 13.44,
-          "max_lcom": 30.3
-        },
-        "coupling": {
-          "avg_cbo": 12.32,
-          "max_cbo": 30,
-          "avg_rfc": 19.56,
-          "max_rfc": 30,
-          "avg_fanin": 3.2,
-          "max_fanin": 11,
-          "avg_fanout": 4.21,
-          "max_fanout": 9
-        }
-      }
-    },
-    {
-      "id": "A6",
-      "name": "emr-service-2",
-      "version": "3.2.5",
-      "app_type": "service",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Health Information System",
-        "csci_name": "Patient Management",
-        "css_name": "Billing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1147,
-          "total_classes": 16,
-          "total_methods": 108,
-          "total_fields": 79
-        },
-        "complexity": {
-          "total_wmc": 256,
-          "avg_wmc": 16.0,
-          "max_wmc": 28
-        },
-        "cohesion": {
-          "avg_lcom": 41.71,
-          "max_lcom": 121.0
-        },
-        "coupling": {
-          "avg_cbo": 11.44,
-          "max_cbo": 27,
-          "avg_rfc": 29.39,
-          "max_rfc": 68,
-          "avg_fanin": 1.04,
-          "max_fanin": 4,
-          "avg_fanout": 4.2,
-          "max_fanout": 11
-        }
-      }
-    },
-    {
-      "id": "A7",
-      "name": "emr-service-3",
-      "version": "3.6.9",
-      "app_type": "service",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Lab Integration",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1345,
-          "total_classes": 21,
-          "total_methods": 160,
-          "total_fields": 72
-        },
-        "complexity": {
-          "total_wmc": 436,
-          "avg_wmc": 20.76,
-          "max_wmc": 34
-        },
-        "cohesion": {
-          "avg_lcom": 12.41,
-          "max_lcom": 51.4
-        },
-        "coupling": {
-          "avg_cbo": 6.49,
-          "max_cbo": 14,
-          "avg_rfc": 29.36,
-          "max_rfc": 71,
-          "avg_fanin": 1.33,
-          "max_fanin": 6,
-          "avg_fanout": 8.96,
-          "max_fanout": 21
-        }
-      }
-    },
-    {
-      "id": "A8",
-      "name": "appointment-scheduler-2",
-      "version": "1.3.9",
-      "app_type": "controller",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Medical Imaging System",
-        "csci_name": "Clinical Software",
-        "css_name": "PACS Integration",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1507,
-          "total_classes": 20,
-          "total_methods": 182,
-          "total_fields": 94
-        },
-        "complexity": {
-          "total_wmc": 252,
-          "avg_wmc": 12.59,
-          "max_wmc": 26
-        },
-        "cohesion": {
-          "avg_lcom": 22.68,
-          "max_lcom": 76.5
-        },
-        "coupling": {
-          "avg_cbo": 10.91,
-          "max_cbo": 18,
-          "avg_rfc": 17.06,
-          "max_rfc": 41,
-          "avg_fanin": 5.84,
-          "max_fanin": 17,
-          "avg_fanout": 3.59,
-          "max_fanout": 9
-        }
-      }
-    },
-    {
-      "id": "A9",
-      "name": "vitals-monitor-2",
-      "version": "1.8.6",
-      "app_type": "sensor",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Clinical Software",
-        "css_name": "Billing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 194,
-          "total_classes": 2,
-          "total_methods": 12,
-          "total_fields": 7
-        },
-        "complexity": {
-          "total_wmc": 12,
-          "avg_wmc": 6.13,
-          "max_wmc": 21
-        },
-        "cohesion": {
-          "avg_lcom": 19.89,
-          "max_lcom": 56.8
-        },
-        "coupling": {
-          "avg_cbo": 3.46,
-          "max_cbo": 7,
-          "avg_rfc": 14.0,
-          "max_rfc": 24,
-          "avg_fanin": 2.77,
-          "max_fanin": 12,
-          "avg_fanout": 4.3,
-          "max_fanout": 10
-        }
-      }
-    },
-    {
-      "id": "A10",
-      "name": "pacs-viewer",
-      "version": "1.3.5",
-      "app_type": "monitor",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Medical Imaging System",
-        "csci_name": "Lab Integration",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 864,
-          "total_classes": 14,
-          "total_methods": 74,
-          "total_fields": 30
-        },
-        "complexity": {
-          "total_wmc": 163,
-          "avg_wmc": 11.61,
-          "max_wmc": 15
-        },
-        "cohesion": {
-          "avg_lcom": 12.75,
-          "max_lcom": 31.7
-        },
-        "coupling": {
-          "avg_cbo": 5.31,
-          "max_cbo": 12,
-          "avg_rfc": 17.08,
-          "max_rfc": 33,
-          "avg_fanin": 3.8,
-          "max_fanin": 17,
-          "avg_fanout": 7.61,
+          "avg_rfc": 19.09,
+          "max_rfc": 45,
+          "avg_fanin": 3.43,
+          "max_fanin": 8,
+          "avg_fanout": 8.66,
           "max_fanout": 18
         }
       }
     },
     {
-      "id": "A11",
-      "name": "pacs-viewer-1",
-      "version": "2.1.6",
-      "app_type": "monitor",
+      "id": "A1",
+      "name": "emr-service-1",
+      "version": "2.3.7",
+      "app_type": "service",
       "role": [
-        "pubsub"
+        "Supervisor"
       ],
-      "criticality": false,
+      "criticality": true,
+      "priority": "HIGH",
+      "hotstandby": true,
       "system_hierarchy": {
-        "csc_name": "Health Information System",
-        "csci_name": "Clinical Software",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Patient Management",
+        "css_name": "PACS Integration",
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 358,
-          "total_classes": 6,
-          "total_methods": 33,
-          "total_fields": 16
+          "total_loc": 1369,
+          "total_classes": 17,
+          "total_methods": 154,
+          "total_fields": 54
         },
         "complexity": {
-          "total_wmc": 87,
-          "avg_wmc": 14.54,
-          "max_wmc": 75
+          "total_wmc": 203,
+          "avg_wmc": 11.97,
+          "max_wmc": 40
         },
         "cohesion": {
-          "avg_lcom": 11.29,
-          "max_lcom": 39.1
+          "avg_lcom": 41.35,
+          "max_lcom": 121.0
         },
         "coupling": {
-          "avg_cbo": 8.09,
-          "max_cbo": 15,
-          "avg_rfc": 21.41,
-          "max_rfc": 39,
-          "avg_fanin": 1.26,
-          "max_fanin": 4,
-          "avg_fanout": 7.94,
-          "max_fanout": 20
+          "avg_cbo": 11.16,
+          "max_cbo": 18,
+          "avg_rfc": 33.75,
+          "max_rfc": 84,
+          "avg_fanin": 5.81,
+          "max_fanin": 13,
+          "avg_fanout": 7.0,
+          "max_fanout": 18
         }
       }
     },
     {
-      "id": "A12",
-      "name": "appointment-scheduler-3",
-      "version": "2.7.5",
-      "app_type": "controller",
+      "id": "A2",
+      "name": "lab-results-processor",
+      "version": "1.8.6",
+      "app_type": "processor",
       "role": [
-        "pub"
+        "Analyst",
+        "Engineer"
       ],
       "criticality": false,
+      "priority": "LOW",
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Medical Imaging System",
         "csci_name": "Diagnostics Software",
-        "css_name": "PACS Integration",
-        "csms_name": "Signal Analysis"
+        "css_name": "Billing",
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1100,
-          "total_classes": 13,
-          "total_methods": 80,
-          "total_fields": 62
+          "total_loc": 1932,
+          "total_classes": 25,
+          "total_methods": 225,
+          "total_fields": 102
         },
         "complexity": {
-          "total_wmc": 151,
-          "avg_wmc": 11.64,
-          "max_wmc": 22
+          "total_wmc": 363,
+          "avg_wmc": 14.53,
+          "max_wmc": 47
         },
         "cohesion": {
-          "avg_lcom": 43.5,
-          "max_lcom": 134.3
+          "avg_lcom": 28.09,
+          "max_lcom": 60.1
         },
         "coupling": {
-          "avg_cbo": 12.19,
-          "max_cbo": 24,
-          "avg_rfc": 22.0,
+          "avg_cbo": 10.57,
+          "max_cbo": 26,
+          "avg_rfc": 18.12,
           "max_rfc": 34,
-          "avg_fanin": 3.05,
-          "max_fanin": 7,
-          "avg_fanout": 7.75,
+          "avg_fanin": 4.91,
+          "max_fanin": 12,
+          "avg_fanout": 9.88,
           "max_fanout": 22
         }
       }
     },
     {
-      "id": "A13",
-      "name": "billing-service",
-      "version": "3.0.3",
-      "app_type": "service",
+      "id": "A3",
+      "name": "appointment-scheduler",
+      "version": "3.0.7",
+      "app_type": "controller",
       "role": [
-        "pub"
+        "Administrator",
+        "Engineer",
+        "Supervisor"
       ],
       "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": false,
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Lab Integration",
+        "css_name": "PACS Integration",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1713,
+          "total_classes": 18,
+          "total_methods": 134,
+          "total_fields": 78
+        },
+        "complexity": {
+          "total_wmc": 214,
+          "avg_wmc": 11.87,
+          "max_wmc": 26
+        },
+        "cohesion": {
+          "avg_lcom": 35.09,
+          "max_lcom": 145.4
+        },
+        "coupling": {
+          "avg_cbo": 7.72,
+          "max_cbo": 14,
+          "avg_rfc": 39.32,
+          "max_rfc": 86,
+          "avg_fanin": 3.18,
+          "max_fanin": 6,
+          "avg_fanout": 8.12,
+          "max_fanout": 19
+        }
+      }
+    },
+    {
+      "id": "A4",
+      "name": "appointment-scheduler-1",
+      "version": "3.1.1",
+      "app_type": "controller",
+      "role": [
+        "Analyst",
+        "Engineer",
+        "Supervisor"
+      ],
+      "criticality": true,
+      "priority": "LOW",
+      "hotstandby": false,
+      "system_hierarchy": {
+        "csc_name": "Clinical Platform",
+        "csci_name": "Clinical Software",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 630,
+          "total_classes": 10,
+          "total_methods": 97,
+          "total_fields": 21
+        },
+        "complexity": {
+          "total_wmc": 109,
+          "avg_wmc": 10.91,
+          "max_wmc": 32
+        },
+        "cohesion": {
+          "avg_lcom": 34.54,
+          "max_lcom": 69.7
+        },
+        "coupling": {
+          "avg_cbo": 6.18,
+          "max_cbo": 11,
+          "avg_rfc": 36.06,
+          "max_rfc": 69,
+          "avg_fanin": 3.95,
+          "max_fanin": 16,
+          "avg_fanout": 5.63,
+          "max_fanout": 14
+        }
+      }
+    },
+    {
+      "id": "A5",
+      "name": "appointment-scheduler-2",
+      "version": "1.1.0",
+      "app_type": "controller",
+      "role": [
+        "Engineer",
+        "Operative"
+      ],
+      "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Clinical Software",
+        "css_name": "Lab Processing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 554,
+          "total_classes": 6,
+          "total_methods": 44,
+          "total_fields": 28
+        },
+        "complexity": {
+          "total_wmc": 75,
+          "avg_wmc": 12.46,
+          "max_wmc": 44
+        },
+        "cohesion": {
+          "avg_lcom": 45.34,
+          "max_lcom": 111.1
+        },
+        "coupling": {
+          "avg_cbo": 13.52,
+          "max_cbo": 27,
+          "avg_rfc": 34.63,
+          "max_rfc": 70,
+          "avg_fanin": 3.37,
+          "max_fanin": 9,
+          "avg_fanout": 7.01,
+          "max_fanout": 17
+        }
+      }
+    },
+    {
+      "id": "A6",
+      "name": "appointment-scheduler-3",
+      "version": "3.5.7",
+      "app_type": "controller",
+      "role": [
+        "Analyst",
+        "Supervisor"
+      ],
+      "criticality": false,
+      "priority": "LOW",
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Medical Imaging System",
         "csci_name": "Diagnostics Software",
         "css_name": "Billing",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1743,
-          "total_classes": 25,
-          "total_methods": 227,
-          "total_fields": 120
+          "total_loc": 1323,
+          "total_classes": 16,
+          "total_methods": 90,
+          "total_fields": 34
         },
         "complexity": {
-          "total_wmc": 357,
-          "avg_wmc": 14.29,
-          "max_wmc": 31
+          "total_wmc": 176,
+          "avg_wmc": 11.03,
+          "max_wmc": 22
         },
         "cohesion": {
-          "avg_lcom": 33.46,
-          "max_lcom": 113.9
+          "avg_lcom": 18.59,
+          "max_lcom": 45.6
         },
         "coupling": {
-          "avg_cbo": 11.94,
+          "avg_cbo": 11.35,
           "max_cbo": 25,
-          "avg_rfc": 21.75,
-          "max_rfc": 51,
-          "avg_fanin": 3.46,
-          "max_fanin": 11,
-          "avg_fanout": 4.28,
+          "avg_rfc": 24.77,
+          "max_rfc": 39,
+          "avg_fanin": 3.55,
+          "max_fanin": 7,
+          "avg_fanout": 6.45,
+          "max_fanout": 14
+        }
+      }
+    },
+    {
+      "id": "A7",
+      "name": "billing-service",
+      "version": "1.8.8",
+      "app_type": "service",
+      "role": [
+        "Analyst",
+        "Engineer"
+      ],
+      "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Clinical Software",
+        "css_name": "EMR Management",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1466,
+          "total_classes": 22,
+          "total_methods": 181,
+          "total_fields": 97
+        },
+        "complexity": {
+          "total_wmc": 178,
+          "avg_wmc": 8.1,
+          "max_wmc": 21
+        },
+        "cohesion": {
+          "avg_lcom": 33.23,
+          "max_lcom": 119.7
+        },
+        "coupling": {
+          "avg_cbo": 10.25,
+          "max_cbo": 20,
+          "avg_rfc": 21.79,
+          "max_rfc": 54,
+          "avg_fanin": 1.66,
+          "max_fanin": 6,
+          "avg_fanout": 9.7,
+          "max_fanout": 27
+        }
+      }
+    },
+    {
+      "id": "A8",
+      "name": "emr-service-2",
+      "version": "3.9.2",
+      "app_type": "service",
+      "role": [
+        "Operative",
+        "Supervisor"
+      ],
+      "criticality": true,
+      "priority": "HIGH",
+      "hotstandby": false,
+      "system_hierarchy": {
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Patient Management",
+        "css_name": "PACS Integration",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 652,
+          "total_classes": 7,
+          "total_methods": 54,
+          "total_fields": 33
+        },
+        "complexity": {
+          "total_wmc": 148,
+          "avg_wmc": 21.1,
+          "max_wmc": 71
+        },
+        "cohesion": {
+          "avg_lcom": 45.96,
+          "max_lcom": 121.7
+        },
+        "coupling": {
+          "avg_cbo": 4.2,
+          "max_cbo": 10,
+          "avg_rfc": 25.12,
+          "max_rfc": 49,
+          "avg_fanin": 2.4,
+          "max_fanin": 8,
+          "avg_fanout": 7.6,
+          "max_fanout": 16
+        }
+      }
+    },
+    {
+      "id": "A9",
+      "name": "pacs-viewer",
+      "version": "1.0.8",
+      "app_type": "monitor",
+      "role": [
+        "Engineer",
+        "Operative",
+        "Supervisor"
+      ],
+      "criticality": false,
+      "priority": "LOW",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Lab Integration",
+        "css_name": "Billing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 500,
+          "total_classes": 9,
+          "total_methods": 52,
+          "total_fields": 22
+        },
+        "complexity": {
+          "total_wmc": 103,
+          "avg_wmc": 11.49,
+          "max_wmc": 25
+        },
+        "cohesion": {
+          "avg_lcom": 39.58,
+          "max_lcom": 88.2
+        },
+        "coupling": {
+          "avg_cbo": 4.23,
+          "max_cbo": 9,
+          "avg_rfc": 19.0,
+          "max_rfc": 30,
+          "avg_fanin": 2.12,
+          "max_fanin": 8,
+          "avg_fanout": 5.89,
           "max_fanout": 13
+        }
+      }
+    },
+    {
+      "id": "A10",
+      "name": "billing-service-1",
+      "version": "3.0.8",
+      "app_type": "service",
+      "role": [
+        "Engineer",
+        "Supervisor"
+      ],
+      "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": false,
+      "system_hierarchy": {
+        "csc_name": "Clinical Platform",
+        "csci_name": "Patient Management",
+        "css_name": "EMR Management",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1324,
+          "total_classes": 14,
+          "total_methods": 112,
+          "total_fields": 30
+        },
+        "complexity": {
+          "total_wmc": 152,
+          "avg_wmc": 10.88,
+          "max_wmc": 18
+        },
+        "cohesion": {
+          "avg_lcom": 34.32,
+          "max_lcom": 115.7
+        },
+        "coupling": {
+          "avg_cbo": 7.56,
+          "max_cbo": 14,
+          "avg_rfc": 35.64,
+          "max_rfc": 88,
+          "avg_fanin": 4.39,
+          "max_fanin": 19,
+          "avg_fanout": 7.79,
+          "max_fanout": 17
+        }
+      }
+    },
+    {
+      "id": "A11",
+      "name": "appointment-scheduler-4",
+      "version": "1.4.7",
+      "app_type": "controller",
+      "role": [
+        "Administrator",
+        "Analyst"
+      ],
+      "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Clinical Software",
+        "css_name": "EMR Management",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1597,
+          "total_classes": 18,
+          "total_methods": 145,
+          "total_fields": 38
+        },
+        "complexity": {
+          "total_wmc": 294,
+          "avg_wmc": 16.31,
+          "max_wmc": 24
+        },
+        "cohesion": {
+          "avg_lcom": 27.79,
+          "max_lcom": 59.6
+        },
+        "coupling": {
+          "avg_cbo": 13.65,
+          "max_cbo": 22,
+          "avg_rfc": 25.2,
+          "max_rfc": 46,
+          "avg_fanin": 5.26,
+          "max_fanin": 23,
+          "avg_fanout": 3.22,
+          "max_fanout": 9
+        }
+      }
+    },
+    {
+      "id": "A12",
+      "name": "vitals-monitor",
+      "version": "2.9.7",
+      "app_type": "sensor",
+      "role": [
+        "Analyst",
+        "Engineer"
+      ],
+      "criticality": false,
+      "priority": "LOW",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Clinical Platform",
+        "csci_name": "Diagnostics Software",
+        "css_name": "PACS Integration",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 319,
+          "total_classes": 3,
+          "total_methods": 12,
+          "total_fields": 8
+        },
+        "complexity": {
+          "total_wmc": 15,
+          "avg_wmc": 5.07,
+          "max_wmc": 24
+        },
+        "cohesion": {
+          "avg_lcom": 12.85,
+          "max_lcom": 55.4
+        },
+        "coupling": {
+          "avg_cbo": 3.29,
+          "max_cbo": 7,
+          "avg_rfc": 18.14,
+          "max_rfc": 37,
+          "avg_fanin": 1.31,
+          "max_fanin": 6,
+          "avg_fanout": 2.58,
+          "max_fanout": 8
+        }
+      }
+    },
+    {
+      "id": "A13",
+      "name": "emr-service-3",
+      "version": "1.4.7",
+      "app_type": "service",
+      "role": [
+        "Engineer"
+      ],
+      "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": false,
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Patient Management",
+        "css_name": "Billing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1280,
+          "total_classes": 19,
+          "total_methods": 141,
+          "total_fields": 80
+        },
+        "complexity": {
+          "total_wmc": 355,
+          "avg_wmc": 18.71,
+          "max_wmc": 35
+        },
+        "cohesion": {
+          "avg_lcom": 37.07,
+          "max_lcom": 89.7
+        },
+        "coupling": {
+          "avg_cbo": 6.53,
+          "max_cbo": 14,
+          "avg_rfc": 25.03,
+          "max_rfc": 45,
+          "avg_fanin": 1.66,
+          "max_fanin": 7,
+          "avg_fanout": 5.53,
+          "max_fanout": 16
         }
       }
     },
     {
       "id": "A14",
-      "name": "lab-results-processor",
-      "version": "1.0.4",
-      "app_type": "processor",
+      "name": "billing-service-2",
+      "version": "3.8.5",
+      "app_type": "service",
       "role": [
-        "sub"
+        "Administrator",
+        "Engineer",
+        "Operative"
       ],
-      "criticality": true,
+      "criticality": false,
+      "priority": "LOW",
+      "hotstandby": true,
       "system_hierarchy": {
-        "csc_name": "Health Information System",
+        "csc_name": "Clinical Platform",
         "csci_name": "Lab Integration",
         "css_name": "Lab Processing",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1668,
-          "total_classes": 18,
-          "total_methods": 113,
-          "total_fields": 66
+          "total_loc": 475,
+          "total_classes": 7,
+          "total_methods": 46,
+          "total_fields": 27
         },
         "complexity": {
-          "total_wmc": 300,
-          "avg_wmc": 16.69,
-          "max_wmc": 27
+          "total_wmc": 153,
+          "avg_wmc": 21.81,
+          "max_wmc": 22
         },
         "cohesion": {
-          "avg_lcom": 27.68,
-          "max_lcom": 74.9
+          "avg_lcom": 11.51,
+          "max_lcom": 30.2
         },
         "coupling": {
-          "avg_cbo": 13.57,
-          "max_cbo": 22,
-          "avg_rfc": 30.98,
-          "max_rfc": 64,
-          "avg_fanin": 3.54,
-          "max_fanin": 7,
-          "avg_fanout": 10.27,
-          "max_fanout": 21
+          "avg_cbo": 6.11,
+          "max_cbo": 9,
+          "avg_rfc": 22.6,
+          "max_rfc": 54,
+          "avg_fanin": 2.15,
+          "max_fanin": 4,
+          "avg_fanout": 7.07,
+          "max_fanout": 17
         }
       }
     },
     {
       "id": "A15",
-      "name": "lab-results-processor-1",
-      "version": "3.6.3",
-      "app_type": "processor",
+      "name": "pacs-viewer-1",
+      "version": "1.8.7",
+      "app_type": "monitor",
       "role": [
-        "pubsub"
+        "Administrator",
+        "Analyst",
+        "Engineer"
       ],
       "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": false,
       "system_hierarchy": {
-        "csc_name": "Medical Imaging System",
-        "csci_name": "Diagnostics Software",
+        "csc_name": "Health Information System",
+        "csci_name": "Clinical Software",
         "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2406,
-          "total_classes": 32,
-          "total_methods": 167,
-          "total_fields": 141
+          "total_loc": 757,
+          "total_classes": 12,
+          "total_methods": 108,
+          "total_fields": 50
         },
         "complexity": {
-          "total_wmc": 554,
-          "avg_wmc": 17.3,
-          "max_wmc": 40
+          "total_wmc": 145,
+          "avg_wmc": 12.09,
+          "max_wmc": 19
         },
         "cohesion": {
-          "avg_lcom": 28.78,
-          "max_lcom": 89.4
+          "avg_lcom": 37.16,
+          "max_lcom": 154.8
         },
         "coupling": {
-          "avg_cbo": 9.34,
-          "max_cbo": 16,
-          "avg_rfc": 21.43,
-          "max_rfc": 46,
-          "avg_fanin": 1.12,
-          "max_fanin": 3,
-          "avg_fanout": 6.56,
-          "max_fanout": 15
+          "avg_cbo": 9.23,
+          "max_cbo": 19,
+          "avg_rfc": 18.5,
+          "max_rfc": 34,
+          "avg_fanin": 4.89,
+          "max_fanin": 20,
+          "avg_fanout": 7.27,
+          "max_fanout": 17
         }
       }
     },
     {
       "id": "A16",
-      "name": "pacs-viewer-2",
-      "version": "2.8.8",
-      "app_type": "monitor",
+      "name": "lab-results-processor-1",
+      "version": "1.9.5",
+      "app_type": "processor",
       "role": [
-        "pubsub"
+        "Administrator",
+        "Operative",
+        "Supervisor"
       ],
-      "criticality": true,
+      "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": false,
       "system_hierarchy": {
-        "csc_name": "Health Information System",
+        "csc_name": "Medical Imaging System",
         "csci_name": "Diagnostics Software",
         "css_name": "Vitals Monitoring",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 815,
-          "total_classes": 13,
-          "total_methods": 115,
-          "total_fields": 34
+          "total_loc": 1382,
+          "total_classes": 16,
+          "total_methods": 93,
+          "total_fields": 78
         },
         "complexity": {
-          "total_wmc": 112,
-          "avg_wmc": 8.58,
-          "max_wmc": 34
+          "total_wmc": 350,
+          "avg_wmc": 21.9,
+          "max_wmc": 57
         },
         "cohesion": {
-          "avg_lcom": 34.33,
-          "max_lcom": 107.0
+          "avg_lcom": 35.63,
+          "max_lcom": 89.6
         },
         "coupling": {
-          "avg_cbo": 8.1,
-          "max_cbo": 16,
-          "avg_rfc": 23.63,
-          "max_rfc": 48,
-          "avg_fanin": 1.61,
-          "max_fanin": 5,
-          "avg_fanout": 3.8,
-          "max_fanout": 11
+          "avg_cbo": 9.68,
+          "max_cbo": 17,
+          "avg_rfc": 22.02,
+          "max_rfc": 42,
+          "avg_fanin": 6.4,
+          "max_fanin": 17,
+          "avg_fanout": 7.22,
+          "max_fanout": 15
         }
       }
     },
     {
       "id": "A17",
-      "name": "billing-service-1",
-      "version": "1.1.8",
-      "app_type": "service",
+      "name": "appointment-scheduler-5",
+      "version": "3.4.0",
+      "app_type": "controller",
       "role": [
-        "pubsub"
+        "Supervisor"
       ],
       "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Medical Imaging System",
         "csci_name": "Diagnostics Software",
         "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 912,
-          "total_classes": 11,
-          "total_methods": 80,
-          "total_fields": 46
+          "total_loc": 426,
+          "total_classes": 4,
+          "total_methods": 23,
+          "total_fields": 14
         },
         "complexity": {
-          "total_wmc": 169,
-          "avg_wmc": 15.37,
-          "max_wmc": 22
+          "total_wmc": 46,
+          "avg_wmc": 11.61,
+          "max_wmc": 29
         },
         "cohesion": {
-          "avg_lcom": 46.28,
-          "max_lcom": 107.4
+          "avg_lcom": 26.37,
+          "max_lcom": 88.7
         },
         "coupling": {
-          "avg_cbo": 7.65,
-          "max_cbo": 16,
-          "avg_rfc": 17.3,
-          "max_rfc": 43,
-          "avg_fanin": 4.97,
-          "max_fanin": 18,
-          "avg_fanout": 5.04,
-          "max_fanout": 13
+          "avg_cbo": 12.28,
+          "max_cbo": 28,
+          "avg_rfc": 19.16,
+          "max_rfc": 32,
+          "avg_fanin": 3.03,
+          "max_fanin": 7,
+          "avg_fanout": 6.62,
+          "max_fanout": 18
         }
       }
     },
     {
       "id": "A18",
-      "name": "billing-service-2",
-      "version": "1.5.8",
+      "name": "billing-service-3",
+      "version": "2.3.5",
       "app_type": "service",
       "role": [
-        "pubsub"
+        "Analyst",
+        "Operative"
       ],
       "criticality": true,
+      "priority": "LOW",
+      "hotstandby": false,
       "system_hierarchy": {
-        "csc_name": "Clinical Platform",
+        "csc_name": "Health Information System",
         "csci_name": "Lab Integration",
         "css_name": "Lab Processing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1065,
-          "total_classes": 11,
-          "total_methods": 63,
-          "total_fields": 35
-        },
-        "complexity": {
-          "total_wmc": 227,
-          "avg_wmc": 20.61,
-          "max_wmc": 33
-        },
-        "cohesion": {
-          "avg_lcom": 13.55,
-          "max_lcom": 35.7
-        },
-        "coupling": {
-          "avg_cbo": 5.12,
-          "max_cbo": 10,
-          "avg_rfc": 37.38,
-          "max_rfc": 58,
-          "avg_fanin": 4.97,
-          "max_fanin": 19,
-          "avg_fanout": 5.19,
-          "max_fanout": 11
-        }
-      }
-    },
-    {
-      "id": "A19",
-      "name": "emr-service-4",
-      "version": "3.4.0",
-      "app_type": "service",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Patient Management",
-        "css_name": "Billing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 729,
-          "total_classes": 11,
-          "total_methods": 66,
-          "total_fields": 50
-        },
-        "complexity": {
-          "total_wmc": 197,
-          "avg_wmc": 17.9,
-          "max_wmc": 39
-        },
-        "cohesion": {
-          "avg_lcom": 31.79,
-          "max_lcom": 121.3
-        },
-        "coupling": {
-          "avg_cbo": 11.26,
-          "max_cbo": 26,
-          "avg_rfc": 37.9,
-          "max_rfc": 86,
-          "avg_fanin": 5.57,
-          "max_fanin": 19,
-          "avg_fanout": 3.12,
-          "max_fanout": 6
-        }
-      }
-    },
-    {
-      "id": "A20",
-      "name": "appointment-scheduler-4",
-      "version": "3.3.5",
-      "app_type": "controller",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Patient Management",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
@@ -1246,19 +1219,19 @@
           "total_fields": 24
         },
         "complexity": {
-          "total_wmc": 109,
-          "avg_wmc": 13.66,
-          "max_wmc": 21
+          "total_wmc": 105,
+          "avg_wmc": 13.13,
+          "max_wmc": 20
         },
         "cohesion": {
-          "avg_lcom": 13.26,
-          "max_lcom": 56.5
+          "avg_lcom": 11.33,
+          "max_lcom": 48.3
         },
         "coupling": {
-          "avg_cbo": 10.94,
-          "max_cbo": 23,
-          "avg_rfc": 34.24,
-          "max_rfc": 55,
+          "avg_cbo": 9.28,
+          "max_cbo": 19,
+          "avg_rfc": 32.24,
+          "max_rfc": 51,
           "avg_fanin": 3.05,
           "max_fanin": 13,
           "avg_fanout": 9.36,
@@ -1267,1119 +1240,1292 @@
       }
     },
     {
-      "id": "A21",
-      "name": "lab-results-processor-2",
-      "version": "3.6.5",
-      "app_type": "processor",
+      "id": "A19",
+      "name": "emr-service-4",
+      "version": "1.1.1",
+      "app_type": "service",
       "role": [
-        "pubsub"
+        "Administrator",
+        "Analyst",
+        "Supervisor"
       ],
       "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Clinical Platform",
+        "csci_name": "Lab Integration",
+        "css_name": "Billing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1400,
+          "total_classes": 13,
+          "total_methods": 127,
+          "total_fields": 36
+        },
+        "complexity": {
+          "total_wmc": 164,
+          "avg_wmc": 12.6,
+          "max_wmc": 54
+        },
+        "cohesion": {
+          "avg_lcom": 30.36,
+          "max_lcom": 74.9
+        },
+        "coupling": {
+          "avg_cbo": 7.52,
+          "max_cbo": 19,
+          "avg_rfc": 33.72,
+          "max_rfc": 67,
+          "avg_fanin": 3.12,
+          "max_fanin": 6,
+          "avg_fanout": 8.42,
+          "max_fanout": 22
+        }
+      }
+    },
+    {
+      "id": "A20",
+      "name": "billing-service-4",
+      "version": "3.4.3",
+      "app_type": "service",
+      "role": [
+        "Analyst",
+        "Operative",
+        "Supervisor"
+      ],
+      "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "EMR Management",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 519,
+          "total_classes": 6,
+          "total_methods": 34,
+          "total_fields": 12
+        },
+        "complexity": {
+          "total_wmc": 72,
+          "avg_wmc": 12.04,
+          "max_wmc": 23
+        },
+        "cohesion": {
+          "avg_lcom": 44.41,
+          "max_lcom": 182.2
+        },
+        "coupling": {
+          "avg_cbo": 4.33,
+          "max_cbo": 11,
+          "avg_rfc": 26.23,
+          "max_rfc": 64,
+          "avg_fanin": 3.16,
+          "max_fanin": 10,
+          "avg_fanout": 7.6,
+          "max_fanout": 22
+        }
+      }
+    },
+    {
+      "id": "A21",
+      "name": "pacs-viewer-2",
+      "version": "2.0.7",
+      "app_type": "monitor",
+      "role": [
+        "Operative",
+        "Supervisor"
+      ],
+      "criticality": false,
+      "priority": "LOW",
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Health Information System",
         "csci_name": "Patient Management",
         "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2043,
-          "total_classes": 21,
-          "total_methods": 231,
-          "total_fields": 100
+          "total_loc": 462,
+          "total_classes": 7,
+          "total_methods": 54,
+          "total_fields": 15
         },
         "complexity": {
-          "total_wmc": 217,
-          "avg_wmc": 10.31,
-          "max_wmc": 22
+          "total_wmc": 78,
+          "avg_wmc": 11.11,
+          "max_wmc": 20
         },
         "cohesion": {
-          "avg_lcom": 52.03,
-          "max_lcom": 133.8
+          "avg_lcom": 22.0,
+          "max_lcom": 46.7
         },
         "coupling": {
-          "avg_cbo": 8.31,
-          "max_cbo": 18,
-          "avg_rfc": 28.97,
-          "max_rfc": 54,
-          "avg_fanin": 5.53,
-          "max_fanin": 14,
-          "avg_fanout": 5.65,
-          "max_fanout": 13
+          "avg_cbo": 7.14,
+          "max_cbo": 16,
+          "avg_rfc": 29.48,
+          "max_rfc": 53,
+          "avg_fanin": 3.57,
+          "max_fanin": 15,
+          "avg_fanout": 5.09,
+          "max_fanout": 14
         }
       }
     },
     {
       "id": "A22",
-      "name": "appointment-scheduler-5",
-      "version": "3.0.6",
-      "app_type": "controller",
+      "name": "billing-service-5",
+      "version": "1.2.5",
+      "app_type": "service",
       "role": [
-        "pubsub"
+        "Administrator",
+        "Analyst",
+        "Supervisor"
       ],
       "criticality": false,
+      "priority": "LOW",
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Medical Imaging System",
-        "csci_name": "Patient Management",
+        "csci_name": "Diagnostics Software",
         "css_name": "Lab Processing",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 427,
-          "total_classes": 4,
-          "total_methods": 39,
-          "total_fields": 9
+          "total_loc": 1670,
+          "total_classes": 20,
+          "total_methods": 149,
+          "total_fields": 54
         },
         "complexity": {
-          "total_wmc": 51,
-          "avg_wmc": 12.76,
-          "max_wmc": 36
+          "total_wmc": 376,
+          "avg_wmc": 18.79,
+          "max_wmc": 52
         },
         "cohesion": {
-          "avg_lcom": 34.48,
-          "max_lcom": 76.9
+          "avg_lcom": 40.64,
+          "max_lcom": 122.5
         },
         "coupling": {
-          "avg_cbo": 5.78,
-          "max_cbo": 11,
-          "avg_rfc": 19.02,
-          "max_rfc": 29,
-          "avg_fanin": 2.44,
-          "max_fanin": 7,
-          "avg_fanout": 4.58,
-          "max_fanout": 13
+          "avg_cbo": 4.8,
+          "max_cbo": 7,
+          "avg_rfc": 27.75,
+          "max_rfc": 51,
+          "avg_fanin": 3.36,
+          "max_fanin": 10,
+          "avg_fanout": 9.53,
+          "max_fanout": 26
         }
       }
     },
     {
       "id": "A23",
-      "name": "billing-service-3",
-      "version": "3.0.6",
-      "app_type": "service",
+      "name": "lab-results-processor-2",
+      "version": "1.6.6",
+      "app_type": "processor",
       "role": [
-        "pubsub"
+        "Analyst",
+        "Engineer"
       ],
       "criticality": true,
+      "priority": "HIGH",
+      "hotstandby": true,
       "system_hierarchy": {
-        "csc_name": "Health Information System",
+        "csc_name": "Medical Imaging System",
         "csci_name": "Diagnostics Software",
         "css_name": "Vitals Monitoring",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1443,
+          "total_loc": 1944,
           "total_classes": 18,
-          "total_methods": 99,
-          "total_fields": 64
+          "total_methods": 173,
+          "total_fields": 84
         },
         "complexity": {
-          "total_wmc": 385,
-          "avg_wmc": 21.4,
+          "total_wmc": 434,
+          "avg_wmc": 24.12,
           "max_wmc": 53
         },
         "cohesion": {
-          "avg_lcom": 46.34,
-          "max_lcom": 171.2
+          "avg_lcom": 49.54,
+          "max_lcom": 116.1
         },
         "coupling": {
-          "avg_cbo": 11.66,
-          "max_cbo": 21,
-          "avg_rfc": 35.2,
-          "max_rfc": 60,
-          "avg_fanin": 5.4,
-          "max_fanin": 14,
-          "avg_fanout": 8.42,
-          "max_fanout": 18
-        }
-      }
-    },
-    {
-      "id": "A24",
-      "name": "appointment-scheduler-6",
-      "version": "3.9.9",
-      "app_type": "controller",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Clinical Software",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1179,
-          "total_classes": 11,
-          "total_methods": 66,
-          "total_fields": 32
-        },
-        "complexity": {
-          "total_wmc": 125,
-          "avg_wmc": 11.33,
-          "max_wmc": 23
-        },
-        "cohesion": {
-          "avg_lcom": 31.87,
-          "max_lcom": 125.1
-        },
-        "coupling": {
-          "avg_cbo": 12.74,
-          "max_cbo": 23,
-          "avg_rfc": 31.44,
-          "max_rfc": 74,
-          "avg_fanin": 3.09,
-          "max_fanin": 12,
-          "avg_fanout": 7.82,
-          "max_fanout": 19
-        }
-      }
-    },
-    {
-      "id": "A25",
-      "name": "pacs-viewer-3",
-      "version": "3.8.2",
-      "app_type": "monitor",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": true,
-      "system_hierarchy": {
-        "csc_name": "Health Information System",
-        "csci_name": "Clinical Software",
-        "css_name": "Billing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 409,
-          "total_classes": 6,
-          "total_methods": 31,
-          "total_fields": 23
-        },
-        "complexity": {
-          "total_wmc": 94,
-          "avg_wmc": 15.61,
-          "max_wmc": 36
-        },
-        "cohesion": {
-          "avg_lcom": 16.48,
-          "max_lcom": 41.4
-        },
-        "coupling": {
-          "avg_cbo": 7.79,
-          "max_cbo": 15,
-          "avg_rfc": 22.94,
-          "max_rfc": 45,
-          "avg_fanin": 4.24,
-          "max_fanin": 13,
-          "avg_fanout": 3.82,
-          "max_fanout": 10
-        }
-      }
-    },
-    {
-      "id": "A26",
-      "name": "vitals-monitor-3",
-      "version": "2.2.2",
-      "app_type": "sensor",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Medical Imaging System",
-        "csci_name": "Clinical Software",
-        "css_name": "Lab Processing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 366,
-          "total_classes": 4,
-          "total_methods": 23,
-          "total_fields": 10
-        },
-        "complexity": {
-          "total_wmc": 20,
-          "avg_wmc": 4.88,
-          "max_wmc": 13
-        },
-        "cohesion": {
-          "avg_lcom": 8.33,
-          "max_lcom": 32.5
-        },
-        "coupling": {
-          "avg_cbo": 2.86,
-          "max_cbo": 7,
-          "avg_rfc": 12.28,
-          "max_rfc": 23,
-          "avg_fanin": 2.1,
-          "max_fanin": 7,
-          "avg_fanout": 3.97,
-          "max_fanout": 11
-        }
-      }
-    },
-    {
-      "id": "A27",
-      "name": "pacs-viewer-4",
-      "version": "2.0.0",
-      "app_type": "monitor",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Medical Imaging System",
-        "csci_name": "Diagnostics Software",
-        "css_name": "Lab Processing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 334,
-          "total_classes": 5,
-          "total_methods": 43,
-          "total_fields": 21
-        },
-        "complexity": {
-          "total_wmc": 68,
-          "avg_wmc": 13.5,
-          "max_wmc": 18
-        },
-        "cohesion": {
-          "avg_lcom": 37.6,
-          "max_lcom": 114.5
-        },
-        "coupling": {
-          "avg_cbo": 4.82,
-          "max_cbo": 11,
-          "avg_rfc": 16.8,
-          "max_rfc": 39,
-          "avg_fanin": 4.55,
-          "max_fanin": 13,
-          "avg_fanout": 3.71,
-          "max_fanout": 11
-        }
-      }
-    },
-    {
-      "id": "A28",
-      "name": "pacs-viewer-5",
-      "version": "3.5.9",
-      "app_type": "monitor",
-      "role": [
-        "sub"
-      ],
-      "criticality": true,
-      "system_hierarchy": {
-        "csc_name": "Medical Imaging System",
-        "csci_name": "Clinical Software",
-        "css_name": "Lab Processing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 949,
-          "total_classes": 10,
-          "total_methods": 76,
-          "total_fields": 20
-        },
-        "complexity": {
-          "total_wmc": 144,
-          "avg_wmc": 14.35,
-          "max_wmc": 16
-        },
-        "cohesion": {
-          "avg_lcom": 30.3,
-          "max_lcom": 64.2
-        },
-        "coupling": {
-          "avg_cbo": 6.97,
-          "max_cbo": 14,
-          "avg_rfc": 26.31,
-          "max_rfc": 40,
-          "avg_fanin": 3.29,
-          "max_fanin": 12,
-          "avg_fanout": 7.5,
-          "max_fanout": 15
-        }
-      }
-    },
-    {
-      "id": "A29",
-      "name": "billing-service-4",
-      "version": "1.2.4",
-      "app_type": "service",
-      "role": [
-        "pub"
-      ],
-      "criticality": true,
-      "system_hierarchy": {
-        "csc_name": "Health Information System",
-        "csci_name": "Clinical Software",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1925,
-          "total_classes": 21,
-          "total_methods": 192,
-          "total_fields": 59
-        },
-        "complexity": {
-          "total_wmc": 248,
-          "avg_wmc": 11.79,
-          "max_wmc": 21
-        },
-        "cohesion": {
-          "avg_lcom": 11.86,
-          "max_lcom": 37.2
-        },
-        "coupling": {
-          "avg_cbo": 5.81,
-          "max_cbo": 13,
-          "avg_rfc": 36.83,
-          "max_rfc": 92,
-          "avg_fanin": 2.41,
-          "max_fanin": 10,
-          "avg_fanout": 4.09,
-          "max_fanout": 10
-        }
-      }
-    },
-    {
-      "id": "A30",
-      "name": "appointment-scheduler-7",
-      "version": "3.1.4",
-      "app_type": "controller",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Diagnostics Software",
-        "css_name": "Lab Processing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1359,
-          "total_classes": 18,
-          "total_methods": 171,
-          "total_fields": 46
-        },
-        "complexity": {
-          "total_wmc": 245,
-          "avg_wmc": 13.63,
-          "max_wmc": 55
-        },
-        "cohesion": {
-          "avg_lcom": 20.54,
-          "max_lcom": 49.0
-        },
-        "coupling": {
-          "avg_cbo": 5.36,
-          "max_cbo": 9,
-          "avg_rfc": 19.66,
-          "max_rfc": 46,
-          "avg_fanin": 5.01,
-          "max_fanin": 14,
-          "avg_fanout": 6.11,
-          "max_fanout": 14
-        }
-      }
-    },
-    {
-      "id": "A31",
-      "name": "lab-results-processor-3",
-      "version": "3.2.8",
-      "app_type": "processor",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Health Information System",
-        "csci_name": "Diagnostics Software",
-        "css_name": "Vitals Monitoring",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 661,
-          "total_classes": 7,
-          "total_methods": 36,
-          "total_fields": 21
-        },
-        "complexity": {
-          "total_wmc": 71,
-          "avg_wmc": 10.09,
-          "max_wmc": 26
-        },
-        "cohesion": {
-          "avg_lcom": 50.7,
-          "max_lcom": 205.7
-        },
-        "coupling": {
-          "avg_cbo": 10.75,
-          "max_cbo": 19,
-          "avg_rfc": 27.62,
-          "max_rfc": 44,
-          "avg_fanin": 1.98,
-          "max_fanin": 7,
-          "avg_fanout": 5.97,
-          "max_fanout": 15
-        }
-      }
-    },
-    {
-      "id": "A32",
-      "name": "appointment-scheduler-8",
-      "version": "1.9.6",
-      "app_type": "controller",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Diagnostics Software",
-        "css_name": "Vitals Monitoring",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1105,
-          "total_classes": 16,
-          "total_methods": 118,
-          "total_fields": 74
-        },
-        "complexity": {
-          "total_wmc": 291,
-          "avg_wmc": 18.17,
-          "max_wmc": 62
-        },
-        "cohesion": {
-          "avg_lcom": 31.75,
-          "max_lcom": 64.9
-        },
-        "coupling": {
-          "avg_cbo": 13.94,
+          "avg_cbo": 9.9,
           "max_cbo": 24,
-          "avg_rfc": 28.21,
-          "max_rfc": 62,
-          "avg_fanin": 3.81,
-          "max_fanin": 14,
-          "avg_fanout": 6.99,
-          "max_fanout": 15
-        }
-      }
-    },
-    {
-      "id": "A33",
-      "name": "emr-service-5",
-      "version": "2.8.5",
-      "app_type": "service",
-      "role": [
-        "pub"
-      ],
-      "criticality": true,
-      "system_hierarchy": {
-        "csc_name": "Health Information System",
-        "csci_name": "Diagnostics Software",
-        "css_name": "Billing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 953,
-          "total_classes": 13,
-          "total_methods": 115,
-          "total_fields": 49
-        },
-        "complexity": {
-          "total_wmc": 210,
-          "avg_wmc": 16.18,
-          "max_wmc": 31
-        },
-        "cohesion": {
-          "avg_lcom": 26.03,
-          "max_lcom": 75.6
-        },
-        "coupling": {
-          "avg_cbo": 9.82,
-          "max_cbo": 16,
-          "avg_rfc": 31.61,
-          "max_rfc": 71,
-          "avg_fanin": 4.55,
-          "max_fanin": 19,
-          "avg_fanout": 6.64,
-          "max_fanout": 14
-        }
-      }
-    },
-    {
-      "id": "A34",
-      "name": "emr-service-6",
-      "version": "2.1.6",
-      "app_type": "service",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Diagnostics Software",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1418,
-          "total_classes": 18,
-          "total_methods": 136,
-          "total_fields": 62
-        },
-        "complexity": {
-          "total_wmc": 221,
-          "avg_wmc": 12.29,
-          "max_wmc": 17
-        },
-        "cohesion": {
-          "avg_lcom": 39.6,
-          "max_lcom": 107.8
-        },
-        "coupling": {
-          "avg_cbo": 10.2,
-          "max_cbo": 22,
-          "avg_rfc": 35.14,
-          "max_rfc": 66,
-          "avg_fanin": 4.96,
-          "max_fanin": 22,
-          "avg_fanout": 6.81,
-          "max_fanout": 20
-        }
-      }
-    },
-    {
-      "id": "A35",
-      "name": "pacs-viewer-6",
-      "version": "1.8.1",
-      "app_type": "monitor",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": true,
-      "system_hierarchy": {
-        "csc_name": "Medical Imaging System",
-        "csci_name": "Clinical Software",
-        "css_name": "Lab Processing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 603,
-          "total_classes": 9,
-          "total_methods": 47,
-          "total_fields": 26
-        },
-        "complexity": {
-          "total_wmc": 127,
-          "avg_wmc": 14.12,
-          "max_wmc": 31
-        },
-        "cohesion": {
-          "avg_lcom": 19.92,
-          "max_lcom": 74.4
-        },
-        "coupling": {
-          "avg_cbo": 5.55,
-          "max_cbo": 12,
-          "avg_rfc": 31.67,
-          "max_rfc": 69,
-          "avg_fanin": 2.53,
-          "max_fanin": 9,
-          "avg_fanout": 5.47,
-          "max_fanout": 16
-        }
-      }
-    },
-    {
-      "id": "A36",
-      "name": "pacs-viewer-7",
-      "version": "2.6.5",
-      "app_type": "monitor",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Health Information System",
-        "csci_name": "Diagnostics Software",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 456,
-          "total_classes": 8,
-          "total_methods": 60,
-          "total_fields": 20
-        },
-        "complexity": {
-          "total_wmc": 75,
-          "avg_wmc": 9.34,
-          "max_wmc": 10
-        },
-        "cohesion": {
-          "avg_lcom": 17.01,
-          "max_lcom": 59.1
-        },
-        "coupling": {
-          "avg_cbo": 8.18,
-          "max_cbo": 13,
-          "avg_rfc": 27.77,
-          "max_rfc": 43,
-          "avg_fanin": 4.83,
-          "max_fanin": 17,
-          "avg_fanout": 4.78,
-          "max_fanout": 13
-        }
-      }
-    },
-    {
-      "id": "A37",
-      "name": "pacs-viewer-8",
-      "version": "2.3.9",
-      "app_type": "monitor",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": true,
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Lab Integration",
-        "css_name": "Billing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 646,
-          "total_classes": 11,
-          "total_methods": 61,
-          "total_fields": 38
-        },
-        "complexity": {
-          "total_wmc": 109,
-          "avg_wmc": 9.87,
-          "max_wmc": 29
-        },
-        "cohesion": {
-          "avg_lcom": 25.25,
-          "max_lcom": 63.8
-        },
-        "coupling": {
-          "avg_cbo": 9.89,
-          "max_cbo": 15,
-          "avg_rfc": 29.65,
-          "max_rfc": 71,
-          "avg_fanin": 3.8,
-          "max_fanin": 12,
-          "avg_fanout": 7.0,
-          "max_fanout": 18
-        }
-      }
-    },
-    {
-      "id": "A38",
-      "name": "appointment-scheduler-9",
-      "version": "1.8.7",
-      "app_type": "controller",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": true,
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Clinical Software",
-        "css_name": "PACS Integration",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 635,
-          "total_classes": 7,
-          "total_methods": 46,
-          "total_fields": 32
-        },
-        "complexity": {
-          "total_wmc": 123,
-          "avg_wmc": 17.64,
-          "max_wmc": 27
-        },
-        "cohesion": {
-          "avg_lcom": 28.14,
-          "max_lcom": 75.5
-        },
-        "coupling": {
-          "avg_cbo": 10.49,
-          "max_cbo": 19,
-          "avg_rfc": 25.27,
-          "max_rfc": 53,
-          "avg_fanin": 5.83,
-          "max_fanin": 25,
-          "avg_fanout": 9.61,
-          "max_fanout": 21
-        }
-      }
-    },
-    {
-      "id": "A39",
-      "name": "emr-service-7",
-      "version": "3.7.6",
-      "app_type": "service",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Health Information System",
-        "csci_name": "Lab Integration",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 682,
-          "total_classes": 10,
-          "total_methods": 51,
-          "total_fields": 42
-        },
-        "complexity": {
-          "total_wmc": 140,
-          "avg_wmc": 13.96,
-          "max_wmc": 51
-        },
-        "cohesion": {
-          "avg_lcom": 33.9,
-          "max_lcom": 107.6
-        },
-        "coupling": {
-          "avg_cbo": 7.38,
-          "max_cbo": 17,
-          "avg_rfc": 31.74,
-          "max_rfc": 59,
-          "avg_fanin": 2.59,
-          "max_fanin": 9,
-          "avg_fanout": 9.48,
+          "avg_rfc": 37.41,
+          "max_rfc": 82,
+          "avg_fanin": 2.34,
+          "max_fanin": 8,
+          "avg_fanout": 11.28,
           "max_fanout": 27
         }
       }
     },
     {
-      "id": "A40",
-      "name": "billing-service-5",
-      "version": "1.6.5",
-      "app_type": "service",
+      "id": "A24",
+      "name": "vitals-monitor-1",
+      "version": "2.0.4",
+      "app_type": "sensor",
       "role": [
-        "sub"
+        "Analyst",
+        "Supervisor"
       ],
       "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Medical Imaging System",
-        "csci_name": "Lab Integration",
-        "css_name": "Lab Processing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1086,
-          "total_classes": 16,
-          "total_methods": 105,
-          "total_fields": 51
-        },
-        "complexity": {
-          "total_wmc": 251,
-          "avg_wmc": 15.7,
-          "max_wmc": 38
-        },
-        "cohesion": {
-          "avg_lcom": 39.92,
-          "max_lcom": 158.6
-        },
-        "coupling": {
-          "avg_cbo": 4.33,
-          "max_cbo": 9,
-          "avg_rfc": 19.24,
-          "max_rfc": 37,
-          "avg_fanin": 3.81,
-          "max_fanin": 10,
-          "avg_fanout": 6.84,
-          "max_fanout": 14
-        }
-      }
-    },
-    {
-      "id": "A41",
-      "name": "emr-service-8",
-      "version": "1.5.7",
-      "app_type": "service",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
         "csci_name": "Diagnostics Software",
-        "css_name": "Billing",
-        "csms_name": "Signal Analysis"
+        "css_name": "EMR Management",
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 529,
-          "total_classes": 7,
-          "total_methods": 68,
-          "total_fields": 24
+          "total_loc": 346,
+          "total_classes": 3,
+          "total_methods": 20,
+          "total_fields": 7
         },
         "complexity": {
-          "total_wmc": 73,
-          "avg_wmc": 10.38,
-          "max_wmc": 12
-        },
-        "cohesion": {
-          "avg_lcom": 49.27,
-          "max_lcom": 107.5
-        },
-        "coupling": {
-          "avg_cbo": 10.62,
-          "max_cbo": 19,
-          "avg_rfc": 24.56,
-          "max_rfc": 41,
-          "avg_fanin": 3.65,
-          "max_fanin": 15,
-          "avg_fanout": 7.61,
-          "max_fanout": 21
-        }
-      }
-    },
-    {
-      "id": "A42",
-      "name": "pacs-viewer-9",
-      "version": "1.9.3",
-      "app_type": "monitor",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Clinical Software",
-        "css_name": "Billing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 775,
-          "total_classes": 12,
-          "total_methods": 103,
-          "total_fields": 38
-        },
-        "complexity": {
-          "total_wmc": 109,
-          "avg_wmc": 9.06,
+          "total_wmc": 20,
+          "avg_wmc": 6.57,
           "max_wmc": 27
         },
         "cohesion": {
-          "avg_lcom": 17.69,
-          "max_lcom": 37.6
+          "avg_lcom": 8.91,
+          "max_lcom": 23.2
         },
         "coupling": {
-          "avg_cbo": 6.03,
-          "max_cbo": 14,
-          "avg_rfc": 22.0,
-          "max_rfc": 52,
-          "avg_fanin": 2.13,
-          "max_fanin": 5,
-          "avg_fanout": 6.16,
-          "max_fanout": 18
+          "avg_cbo": 5.67,
+          "max_cbo": 13,
+          "avg_rfc": 15.78,
+          "max_rfc": 39,
+          "avg_fanin": 3.36,
+          "max_fanin": 9,
+          "avg_fanout": 2.5,
+          "max_fanout": 6
         }
       }
     },
     {
-      "id": "A43",
-      "name": "emr-service-9",
-      "version": "1.6.4",
-      "app_type": "service",
+      "id": "A25",
+      "name": "appointment-scheduler-6",
+      "version": "1.2.2",
+      "app_type": "controller",
       "role": [
-        "pubsub"
+        "Operative"
       ],
       "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": false,
       "system_hierarchy": {
-        "csc_name": "Health Information System",
+        "csc_name": "Clinical Platform",
         "csci_name": "Clinical Software",
-        "css_name": "PACS Integration",
-        "csms_name": "Signal Analysis"
+        "css_name": "Billing",
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1486,
-          "total_classes": 23,
-          "total_methods": 210,
-          "total_fields": 71
+          "total_loc": 1436,
+          "total_classes": 14,
+          "total_methods": 73,
+          "total_fields": 47
         },
         "complexity": {
-          "total_wmc": 480,
-          "avg_wmc": 20.89,
-          "max_wmc": 28
+          "total_wmc": 172,
+          "avg_wmc": 12.26,
+          "max_wmc": 38
         },
         "cohesion": {
-          "avg_lcom": 14.54,
-          "max_lcom": 31.0
+          "avg_lcom": 29.95,
+          "max_lcom": 66.5
         },
         "coupling": {
-          "avg_cbo": 8.6,
-          "max_cbo": 16,
-          "avg_rfc": 34.12,
-          "max_rfc": 73,
-          "avg_fanin": 2.65,
-          "max_fanin": 9,
-          "avg_fanout": 3.79,
+          "avg_cbo": 7.29,
+          "max_cbo": 15,
+          "avg_rfc": 37.72,
+          "max_rfc": 64,
+          "avg_fanin": 2.81,
+          "max_fanin": 12,
+          "avg_fanout": 5.53,
+          "max_fanout": 12
+        }
+      }
+    },
+    {
+      "id": "A26",
+      "name": "vitals-monitor-2",
+      "version": "1.2.8",
+      "app_type": "sensor",
+      "role": [
+        "Administrator",
+        "Analyst",
+        "Operative"
+      ],
+      "criticality": true,
+      "priority": "HIGH",
+      "hotstandby": false,
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Patient Management",
+        "css_name": "Lab Processing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 338,
+          "total_classes": 5,
+          "total_methods": 36,
+          "total_fields": 13
+        },
+        "complexity": {
+          "total_wmc": 33,
+          "avg_wmc": 6.66,
+          "max_wmc": 8
+        },
+        "cohesion": {
+          "avg_lcom": 22.52,
+          "max_lcom": 46.7
+        },
+        "coupling": {
+          "avg_cbo": 3.32,
+          "max_cbo": 8,
+          "avg_rfc": 11.71,
+          "max_rfc": 23,
+          "avg_fanin": 1.6,
+          "max_fanin": 7,
+          "avg_fanout": 2.41,
+          "max_fanout": 5
+        }
+      }
+    },
+    {
+      "id": "A27",
+      "name": "appointment-scheduler-7",
+      "version": "1.9.6",
+      "app_type": "controller",
+      "role": [
+        "Administrator",
+        "Analyst",
+        "Engineer"
+      ],
+      "criticality": true,
+      "priority": "LOW",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Clinical Platform",
+        "csci_name": "Patient Management",
+        "css_name": "Lab Processing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1841,
+          "total_classes": 21,
+          "total_methods": 163,
+          "total_fields": 77
+        },
+        "complexity": {
+          "total_wmc": 324,
+          "avg_wmc": 15.43,
+          "max_wmc": 56
+        },
+        "cohesion": {
+          "avg_lcom": 45.27,
+          "max_lcom": 183.0
+        },
+        "coupling": {
+          "avg_cbo": 6.1,
+          "max_cbo": 15,
+          "avg_rfc": 33.02,
+          "max_rfc": 69,
+          "avg_fanin": 3.6,
+          "max_fanin": 7,
+          "avg_fanout": 9.95,
+          "max_fanout": 22
+        }
+      }
+    },
+    {
+      "id": "A28",
+      "name": "vitals-monitor-3",
+      "version": "3.2.7",
+      "app_type": "sensor",
+      "role": [
+        "Analyst",
+        "Supervisor"
+      ],
+      "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Clinical Platform",
+        "csci_name": "Patient Management",
+        "css_name": "Lab Processing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 238,
+          "total_classes": 3,
+          "total_methods": 21,
+          "total_fields": 10
+        },
+        "complexity": {
+          "total_wmc": 22,
+          "avg_wmc": 7.5,
+          "max_wmc": 15
+        },
+        "cohesion": {
+          "avg_lcom": 13.02,
+          "max_lcom": 37.8
+        },
+        "coupling": {
+          "avg_cbo": 4.91,
+          "max_cbo": 8,
+          "avg_rfc": 16.81,
+          "max_rfc": 38,
+          "avg_fanin": 3.13,
+          "max_fanin": 13,
+          "avg_fanout": 3.56,
+          "max_fanout": 7
+        }
+      }
+    },
+    {
+      "id": "A29",
+      "name": "pacs-viewer-3",
+      "version": "2.3.7",
+      "app_type": "monitor",
+      "role": [
+        "Administrator",
+        "Operative"
+      ],
+      "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "EMR Management",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 853,
+          "total_classes": 11,
+          "total_methods": 96,
+          "total_fields": 44
+        },
+        "complexity": {
+          "total_wmc": 96,
+          "avg_wmc": 8.76,
+          "max_wmc": 9
+        },
+        "cohesion": {
+          "avg_lcom": 18.66,
+          "max_lcom": 73.5
+        },
+        "coupling": {
+          "avg_cbo": 7.78,
+          "max_cbo": 19,
+          "avg_rfc": 20.98,
+          "max_rfc": 48,
+          "avg_fanin": 4.89,
+          "max_fanin": 16,
+          "avg_fanout": 7.77,
+          "max_fanout": 22
+        }
+      }
+    },
+    {
+      "id": "A30",
+      "name": "appointment-scheduler-8",
+      "version": "2.1.7",
+      "app_type": "controller",
+      "role": [
+        "Analyst",
+        "Engineer",
+        "Supervisor"
+      ],
+      "criticality": true,
+      "priority": "LOW",
+      "hotstandby": false,
+      "system_hierarchy": {
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Patient Management",
+        "css_name": "Lab Processing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1120,
+          "total_classes": 16,
+          "total_methods": 106,
+          "total_fields": 65
+        },
+        "complexity": {
+          "total_wmc": 201,
+          "avg_wmc": 12.58,
+          "max_wmc": 37
+        },
+        "cohesion": {
+          "avg_lcom": 37.08,
+          "max_lcom": 120.0
+        },
+        "coupling": {
+          "avg_cbo": 12.52,
+          "max_cbo": 21,
+          "avg_rfc": 39.11,
+          "max_rfc": 90,
+          "avg_fanin": 1.76,
+          "max_fanin": 4,
+          "avg_fanout": 4.27,
+          "max_fanout": 12
+        }
+      }
+    },
+    {
+      "id": "A31",
+      "name": "vitals-monitor-4",
+      "version": "3.8.1",
+      "app_type": "sensor",
+      "role": [
+        "Administrator",
+        "Engineer",
+        "Operative"
+      ],
+      "criticality": false,
+      "priority": "LOW",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Patient Management",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 491,
+          "total_classes": 7,
+          "total_methods": 49,
+          "total_fields": 20
+        },
+        "complexity": {
+          "total_wmc": 40,
+          "avg_wmc": 5.78,
+          "max_wmc": 10
+        },
+        "cohesion": {
+          "avg_lcom": 24.43,
+          "max_lcom": 57.4
+        },
+        "coupling": {
+          "avg_cbo": 3.96,
+          "max_cbo": 7,
+          "avg_rfc": 16.75,
+          "max_rfc": 31,
+          "avg_fanin": 2.53,
+          "max_fanin": 6,
+          "avg_fanout": 4.94,
           "max_fanout": 10
         }
       }
     },
     {
-      "id": "A44",
-      "name": "vitals-monitor-4",
-      "version": "2.3.9",
+      "id": "A32",
+      "name": "vitals-monitor-5",
+      "version": "1.9.6",
       "app_type": "sensor",
       "role": [
-        "pub"
+        "Analyst"
       ],
-      "criticality": false,
+      "criticality": true,
+      "priority": "HIGH",
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Clinical Platform",
-        "csci_name": "Clinical Software",
-        "css_name": "PACS Integration",
-        "csms_name": "Signal Analysis"
+        "csci_name": "Diagnostics Software",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 489,
-          "total_classes": 5,
-          "total_methods": 31,
-          "total_fields": 10
+          "total_loc": 328,
+          "total_classes": 3,
+          "total_methods": 24,
+          "total_fields": 7
         },
         "complexity": {
-          "total_wmc": 47,
-          "avg_wmc": 9.34,
+          "total_wmc": 18,
+          "avg_wmc": 5.89,
           "max_wmc": 9
         },
         "cohesion": {
-          "avg_lcom": 23.94,
-          "max_lcom": 80.6
+          "avg_lcom": 13.5,
+          "max_lcom": 36.2
         },
         "coupling": {
-          "avg_cbo": 4.99,
-          "max_cbo": 9,
-          "avg_rfc": 15.03,
-          "max_rfc": 23,
-          "avg_fanin": 2.42,
+          "avg_cbo": 4.44,
+          "max_cbo": 8,
+          "avg_rfc": 12.64,
+          "max_rfc": 27,
+          "avg_fanin": 3.9,
+          "max_fanin": 17,
+          "avg_fanout": 4.83,
+          "max_fanout": 10
+        }
+      }
+    },
+    {
+      "id": "A33",
+      "name": "appointment-scheduler-9",
+      "version": "3.0.8",
+      "app_type": "controller",
+      "role": [
+        "Administrator",
+        "Analyst",
+        "Operative"
+      ],
+      "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Clinical Software",
+        "css_name": "Billing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1191,
+          "total_classes": 17,
+          "total_methods": 135,
+          "total_fields": 64
+        },
+        "complexity": {
+          "total_wmc": 250,
+          "avg_wmc": 14.7,
+          "max_wmc": 25
+        },
+        "cohesion": {
+          "avg_lcom": 40.09,
+          "max_lcom": 116.4
+        },
+        "coupling": {
+          "avg_cbo": 7.87,
+          "max_cbo": 17,
+          "avg_rfc": 38.23,
+          "max_rfc": 90,
+          "avg_fanin": 4.45,
+          "max_fanin": 14,
+          "avg_fanout": 5.35,
+          "max_fanout": 13
+        }
+      }
+    },
+    {
+      "id": "A34",
+      "name": "emr-service-5",
+      "version": "2.2.8",
+      "app_type": "service",
+      "role": [
+        "Administrator"
+      ],
+      "criticality": false,
+      "priority": "LOW",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Clinical Software",
+        "css_name": "EMR Management",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1722,
+          "total_classes": 18,
+          "total_methods": 128,
+          "total_fields": 66
+        },
+        "complexity": {
+          "total_wmc": 202,
+          "avg_wmc": 11.2,
+          "max_wmc": 26
+        },
+        "cohesion": {
+          "avg_lcom": 14.04,
+          "max_lcom": 59.6
+        },
+        "coupling": {
+          "avg_cbo": 4.51,
+          "max_cbo": 8,
+          "avg_rfc": 27.79,
+          "max_rfc": 56,
+          "avg_fanin": 2.19,
+          "max_fanin": 10,
+          "avg_fanout": 7.96,
+          "max_fanout": 16
+        }
+      }
+    },
+    {
+      "id": "A35",
+      "name": "emr-service-6",
+      "version": "2.9.2",
+      "app_type": "service",
+      "role": [
+        "Operative",
+        "Supervisor"
+      ],
+      "criticality": true,
+      "priority": "MEDIUM",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "Lab Processing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1486,
+          "total_classes": 14,
+          "total_methods": 134,
+          "total_fields": 38
+        },
+        "complexity": {
+          "total_wmc": 234,
+          "avg_wmc": 16.73,
+          "max_wmc": 56
+        },
+        "cohesion": {
+          "avg_lcom": 28.77,
+          "max_lcom": 90.9
+        },
+        "coupling": {
+          "avg_cbo": 10.93,
+          "max_cbo": 20,
+          "avg_rfc": 29.41,
+          "max_rfc": 57,
+          "avg_fanin": 1.17,
+          "max_fanin": 5,
+          "avg_fanout": 8.77,
+          "max_fanout": 19
+        }
+      }
+    },
+    {
+      "id": "A36",
+      "name": "appointment-scheduler-10",
+      "version": "3.1.1",
+      "app_type": "controller",
+      "role": [
+        "Analyst"
+      ],
+      "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Clinical Software",
+        "css_name": "EMR Management",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1199,
+          "total_classes": 16,
+          "total_methods": 149,
+          "total_fields": 71
+        },
+        "complexity": {
+          "total_wmc": 169,
+          "avg_wmc": 10.55,
+          "max_wmc": 36
+        },
+        "cohesion": {
+          "avg_lcom": 46.98,
+          "max_lcom": 115.6
+        },
+        "coupling": {
+          "avg_cbo": 9.12,
+          "max_cbo": 15,
+          "avg_rfc": 17.29,
+          "max_rfc": 36,
+          "avg_fanin": 2.78,
+          "max_fanin": 11,
+          "avg_fanout": 7.49,
+          "max_fanout": 17
+        }
+      }
+    },
+    {
+      "id": "A37",
+      "name": "pacs-viewer-4",
+      "version": "2.7.5",
+      "app_type": "monitor",
+      "role": [
+        "Administrator",
+        "Engineer"
+      ],
+      "criticality": true,
+      "priority": "LOW",
+      "hotstandby": false,
+      "system_hierarchy": {
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "Billing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 697,
+          "total_classes": 12,
+          "total_methods": 96,
+          "total_fields": 54
+        },
+        "complexity": {
+          "total_wmc": 125,
+          "avg_wmc": 10.38,
+          "max_wmc": 41
+        },
+        "cohesion": {
+          "avg_lcom": 28.83,
+          "max_lcom": 84.3
+        },
+        "coupling": {
+          "avg_cbo": 7.38,
+          "max_cbo": 15,
+          "avg_rfc": 22.37,
+          "max_rfc": 36,
+          "avg_fanin": 3.25,
           "max_fanin": 8,
-          "avg_fanout": 3.06,
+          "avg_fanout": 5.05,
+          "max_fanout": 15
+        }
+      }
+    },
+    {
+      "id": "A38",
+      "name": "vitals-monitor-6",
+      "version": "1.3.4",
+      "app_type": "sensor",
+      "role": [
+        "Analyst",
+        "Supervisor"
+      ],
+      "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Clinical Software",
+        "css_name": "PACS Integration",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 451,
+          "total_classes": 4,
+          "total_methods": 21,
+          "total_fields": 15
+        },
+        "complexity": {
+          "total_wmc": 26,
+          "avg_wmc": 6.43,
+          "max_wmc": 6
+        },
+        "cohesion": {
+          "avg_lcom": 20.41,
+          "max_lcom": 71.3
+        },
+        "coupling": {
+          "avg_cbo": 3.63,
+          "max_cbo": 8,
+          "avg_rfc": 17.76,
+          "max_rfc": 29,
+          "avg_fanin": 3.43,
+          "max_fanin": 14,
+          "avg_fanout": 2.37,
+          "max_fanout": 6
+        }
+      }
+    },
+    {
+      "id": "A39",
+      "name": "pacs-viewer-5",
+      "version": "2.9.9",
+      "app_type": "monitor",
+      "role": [
+        "Analyst"
+      ],
+      "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": false,
+      "system_hierarchy": {
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Patient Management",
+        "css_name": "EMR Management",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 991,
+          "total_classes": 13,
+          "total_methods": 101,
+          "total_fields": 63
+        },
+        "complexity": {
+          "total_wmc": 174,
+          "avg_wmc": 13.42,
+          "max_wmc": 39
+        },
+        "cohesion": {
+          "avg_lcom": 33.48,
+          "max_lcom": 115.8
+        },
+        "coupling": {
+          "avg_cbo": 8.55,
+          "max_cbo": 16,
+          "avg_rfc": 14.67,
+          "max_rfc": 34,
+          "avg_fanin": 2.38,
+          "max_fanin": 6,
+          "avg_fanout": 7.2,
+          "max_fanout": 22
+        }
+      }
+    },
+    {
+      "id": "A40",
+      "name": "emr-service-7",
+      "version": "2.5.9",
+      "app_type": "service",
+      "role": [
+        "Engineer",
+        "Supervisor"
+      ],
+      "criticality": true,
+      "priority": "MEDIUM",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Lab Integration",
+        "css_name": "Lab Processing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1649,
+          "total_classes": 25,
+          "total_methods": 187,
+          "total_fields": 123
+        },
+        "complexity": {
+          "total_wmc": 232,
+          "avg_wmc": 9.29,
+          "max_wmc": 19
+        },
+        "cohesion": {
+          "avg_lcom": 46.05,
+          "max_lcom": 99.9
+        },
+        "coupling": {
+          "avg_cbo": 6.71,
+          "max_cbo": 16,
+          "avg_rfc": 19.99,
+          "max_rfc": 42,
+          "avg_fanin": 3.34,
+          "max_fanin": 12,
+          "avg_fanout": 9.91,
+          "max_fanout": 25
+        }
+      }
+    },
+    {
+      "id": "A41",
+      "name": "vitals-monitor-7",
+      "version": "3.2.2",
+      "app_type": "sensor",
+      "role": [
+        "Operative"
+      ],
+      "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": true,
+      "system_hierarchy": {
+        "csc_name": "Clinical Platform",
+        "csci_name": "Lab Integration",
+        "css_name": "Billing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 360,
+          "total_classes": 4,
+          "total_methods": 31,
+          "total_fields": 9
+        },
+        "complexity": {
+          "total_wmc": 38,
+          "avg_wmc": 9.4,
+          "max_wmc": 35
+        },
+        "cohesion": {
+          "avg_lcom": 20.14,
+          "max_lcom": 72.4
+        },
+        "coupling": {
+          "avg_cbo": 3.97,
+          "max_cbo": 6,
+          "avg_rfc": 17.25,
+          "max_rfc": 37,
+          "avg_fanin": 1.86,
+          "max_fanin": 7,
+          "avg_fanout": 4.88,
+          "max_fanout": 13
+        }
+      }
+    },
+    {
+      "id": "A42",
+      "name": "pacs-viewer-6",
+      "version": "3.2.0",
+      "app_type": "monitor",
+      "role": [
+        "Engineer",
+        "Supervisor"
+      ],
+      "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": false,
+      "system_hierarchy": {
+        "csc_name": "Clinical Platform",
+        "csci_name": "Diagnostics Software",
+        "css_name": "Billing",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 476,
+          "total_classes": 7,
+          "total_methods": 51,
+          "total_fields": 22
+        },
+        "complexity": {
+          "total_wmc": 107,
+          "avg_wmc": 15.24,
+          "max_wmc": 75
+        },
+        "cohesion": {
+          "avg_lcom": 17.29,
+          "max_lcom": 41.0
+        },
+        "coupling": {
+          "avg_cbo": 7.34,
+          "max_cbo": 13,
+          "avg_rfc": 21.57,
+          "max_rfc": 42,
+          "avg_fanin": 3.2,
+          "max_fanin": 11,
+          "avg_fanout": 3.08,
+          "max_fanout": 8
+        }
+      }
+    },
+    {
+      "id": "A43",
+      "name": "appointment-scheduler-11",
+      "version": "1.2.6",
+      "app_type": "controller",
+      "role": [
+        "Operative",
+        "Supervisor"
+      ],
+      "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": false,
+      "system_hierarchy": {
+        "csc_name": "Clinical Platform",
+        "csci_name": "Diagnostics Software",
+        "css_name": "PACS Integration",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 553,
+          "total_classes": 8,
+          "total_methods": 64,
+          "total_fields": 27
+        },
+        "complexity": {
+          "total_wmc": 101,
+          "avg_wmc": 12.64,
+          "max_wmc": 24
+        },
+        "cohesion": {
+          "avg_lcom": 43.92,
+          "max_lcom": 167.3
+        },
+        "coupling": {
+          "avg_cbo": 6.45,
+          "max_cbo": 12,
+          "avg_rfc": 20.59,
+          "max_rfc": 44,
+          "avg_fanin": 5.48,
+          "max_fanin": 13,
+          "avg_fanout": 6.48,
+          "max_fanout": 14
+        }
+      }
+    },
+    {
+      "id": "A44",
+      "name": "pacs-viewer-7",
+      "version": "2.1.0",
+      "app_type": "monitor",
+      "role": [
+        "Engineer",
+        "Supervisor"
+      ],
+      "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": false,
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Patient Management",
+        "css_name": "PACS Integration",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 534,
+          "total_classes": 5,
+          "total_methods": 27,
+          "total_fields": 15
+        },
+        "complexity": {
+          "total_wmc": 56,
+          "avg_wmc": 11.23,
+          "max_wmc": 11
+        },
+        "cohesion": {
+          "avg_lcom": 24.46,
+          "max_lcom": 50.9
+        },
+        "coupling": {
+          "avg_cbo": 8.48,
+          "max_cbo": 14,
+          "avg_rfc": 21.31,
+          "max_rfc": 45,
+          "avg_fanin": 2.85,
+          "max_fanin": 7,
+          "avg_fanout": 4.11,
           "max_fanout": 9
         }
       }
     },
     {
       "id": "A45",
-      "name": "lab-results-processor-4",
-      "version": "1.6.5",
-      "app_type": "processor",
+      "name": "vitals-monitor-8",
+      "version": "2.8.6",
+      "app_type": "sensor",
       "role": [
-        "pub"
+        "Engineer",
+        "Operative",
+        "Supervisor"
       ],
       "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": true,
       "system_hierarchy": {
-        "csc_name": "Medical Imaging System",
-        "csci_name": "Patient Management",
+        "csc_name": "Clinical Platform",
+        "csci_name": "Clinical Software",
         "css_name": "PACS Integration",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1856,
-          "total_classes": 21,
-          "total_methods": 145,
-          "total_fields": 97
+          "total_loc": 420,
+          "total_classes": 6,
+          "total_methods": 45,
+          "total_fields": 17
         },
         "complexity": {
-          "total_wmc": 416,
-          "avg_wmc": 19.81,
-          "max_wmc": 38
+          "total_wmc": 34,
+          "avg_wmc": 5.71,
+          "max_wmc": 55
         },
         "cohesion": {
-          "avg_lcom": 26.68,
-          "max_lcom": 114.5
+          "avg_lcom": 17.84,
+          "max_lcom": 74.4
         },
         "coupling": {
-          "avg_cbo": 8.64,
-          "max_cbo": 15,
-          "avg_rfc": 38.61,
-          "max_rfc": 88,
-          "avg_fanin": 4.58,
-          "max_fanin": 14,
-          "avg_fanout": 8.95,
-          "max_fanout": 25
+          "avg_cbo": 3.59,
+          "max_cbo": 6,
+          "avg_rfc": 17.52,
+          "max_rfc": 40,
+          "avg_fanin": 1.42,
+          "max_fanin": 5,
+          "avg_fanout": 2.45,
+          "max_fanout": 6
         }
       }
     },
     {
       "id": "A46",
-      "name": "emr-service-10",
-      "version": "2.0.6",
-      "app_type": "service",
+      "name": "lab-results-processor-3",
+      "version": "2.4.2",
+      "app_type": "processor",
       "role": [
-        "pub"
+        "Engineer",
+        "Supervisor"
       ],
-      "criticality": false,
+      "criticality": true,
+      "priority": "LOW",
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Medical Imaging System",
-        "csci_name": "Patient Management",
+        "csci_name": "Diagnostics Software",
         "css_name": "PACS Integration",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 654,
-          "total_classes": 7,
-          "total_methods": 62,
-          "total_fields": 22
+          "total_loc": 2057,
+          "total_classes": 27,
+          "total_methods": 284,
+          "total_fields": 97
         },
         "complexity": {
-          "total_wmc": 120,
-          "avg_wmc": 17.12,
-          "max_wmc": 28
+          "total_wmc": 316,
+          "avg_wmc": 11.72,
+          "max_wmc": 16
         },
         "cohesion": {
-          "avg_lcom": 49.62,
-          "max_lcom": 134.8
+          "avg_lcom": 36.36,
+          "max_lcom": 119.9
         },
         "coupling": {
-          "avg_cbo": 6.93,
-          "max_cbo": 15,
-          "avg_rfc": 36.71,
-          "max_rfc": 80,
-          "avg_fanin": 4.3,
-          "max_fanin": 14,
-          "avg_fanout": 8.48,
+          "avg_cbo": 13.67,
+          "max_cbo": 26,
+          "avg_rfc": 18.43,
+          "max_rfc": 33,
+          "avg_fanin": 3.62,
+          "max_fanin": 13,
+          "avg_fanout": 8.58,
           "max_fanout": 22
         }
       }
@@ -2387,129 +2533,138 @@
     {
       "id": "A47",
       "name": "billing-service-6",
-      "version": "1.3.5",
+      "version": "1.1.4",
       "app_type": "service",
       "role": [
-        "pubsub"
+        "Engineer",
+        "Operative",
+        "Supervisor"
       ],
       "criticality": false,
+      "priority": "LOW",
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Health Information System",
-        "csci_name": "Lab Integration",
+        "csci_name": "Patient Management",
         "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1340,
-          "total_classes": 15,
-          "total_methods": 87,
-          "total_fields": 68
+          "total_loc": 1609,
+          "total_classes": 22,
+          "total_methods": 130,
+          "total_fields": 60
         },
         "complexity": {
-          "total_wmc": 329,
-          "avg_wmc": 21.93,
-          "max_wmc": 36
+          "total_wmc": 345,
+          "avg_wmc": 15.69,
+          "max_wmc": 38
         },
         "cohesion": {
-          "avg_lcom": 34.4,
-          "max_lcom": 88.7
+          "avg_lcom": 12.55,
+          "max_lcom": 39.2
         },
         "coupling": {
-          "avg_cbo": 4.56,
-          "max_cbo": 11,
-          "avg_rfc": 25.75,
-          "max_rfc": 49,
-          "avg_fanin": 5.2,
-          "max_fanin": 20,
-          "avg_fanout": 5.81,
-          "max_fanout": 14
+          "avg_cbo": 4.77,
+          "max_cbo": 10,
+          "avg_rfc": 21.57,
+          "max_rfc": 48,
+          "avg_fanin": 5.79,
+          "max_fanin": 17,
+          "avg_fanout": 4.6,
+          "max_fanout": 10
         }
       }
     },
     {
       "id": "A48",
-      "name": "vitals-monitor-5",
-      "version": "2.0.2",
-      "app_type": "sensor",
+      "name": "appointment-scheduler-12",
+      "version": "1.4.4",
+      "app_type": "controller",
       "role": [
-        "pubsub"
+        "Administrator"
       ],
       "criticality": false,
+      "priority": "LOW",
+      "hotstandby": false,
       "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Patient Management",
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Clinical Software",
         "css_name": "Vitals Monitoring",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 405,
-          "total_classes": 6,
-          "total_methods": 36,
-          "total_fields": 13
+          "total_loc": 1955,
+          "total_classes": 18,
+          "total_methods": 119,
+          "total_fields": 83
         },
         "complexity": {
-          "total_wmc": 29,
-          "avg_wmc": 4.78,
-          "max_wmc": 21
+          "total_wmc": 257,
+          "avg_wmc": 14.27,
+          "max_wmc": 18
         },
         "cohesion": {
-          "avg_lcom": 12.98,
-          "max_lcom": 33.8
+          "avg_lcom": 40.86,
+          "max_lcom": 180.1
         },
         "coupling": {
-          "avg_cbo": 4.91,
-          "max_cbo": 9,
-          "avg_rfc": 14.1,
-          "max_rfc": 23,
-          "avg_fanin": 3.85,
-          "max_fanin": 12,
-          "avg_fanout": 3.3,
-          "max_fanout": 9
+          "avg_cbo": 10.21,
+          "max_cbo": 23,
+          "avg_rfc": 32.03,
+          "max_rfc": 52,
+          "avg_fanin": 4.08,
+          "max_fanin": 10,
+          "avg_fanout": 5.61,
+          "max_fanout": 13
         }
       }
     },
     {
       "id": "A49",
-      "name": "billing-service-7",
-      "version": "1.9.8",
-      "app_type": "service",
+      "name": "pacs-viewer-8",
+      "version": "2.8.8",
+      "app_type": "monitor",
       "role": [
-        "sub"
+        "Analyst",
+        "Engineer"
       ],
-      "criticality": true,
+      "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": true,
       "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Lab Integration",
+        "csc_name": "Health Information System",
+        "csci_name": "Patient Management",
         "css_name": "PACS Integration",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1408,
-          "total_classes": 20,
-          "total_methods": 107,
-          "total_fields": 53
+          "total_loc": 628,
+          "total_classes": 7,
+          "total_methods": 48,
+          "total_fields": 27
         },
         "complexity": {
-          "total_wmc": 230,
-          "avg_wmc": 11.48,
-          "max_wmc": 13
+          "total_wmc": 109,
+          "avg_wmc": 15.61,
+          "max_wmc": 40
         },
         "cohesion": {
-          "avg_lcom": 47.02,
-          "max_lcom": 148.8
+          "avg_lcom": 12.47,
+          "max_lcom": 47.7
         },
         "coupling": {
-          "avg_cbo": 6.55,
+          "avg_cbo": 7.54,
           "max_cbo": 14,
-          "avg_rfc": 29.84,
-          "max_rfc": 49,
-          "avg_fanin": 3.54,
-          "max_fanin": 12,
-          "avg_fanout": 5.69,
-          "max_fanout": 17
+          "avg_rfc": 24.68,
+          "max_rfc": 42,
+          "avg_fanin": 3.25,
+          "max_fanin": 11,
+          "avg_fanout": 3.1,
+          "max_fanout": 8
         }
       }
     }
@@ -2517,457 +2672,457 @@
   "libraries": [
     {
       "id": "L0",
-      "name": "dicom-toolkit",
-      "version": "1.4.3",
+      "name": "phi-encryptor",
+      "version": "1.7.4",
       "system_hierarchy": {
         "csc_name": "Clinical Platform",
-        "csci_name": "Clinical Software",
-        "css_name": "Lab Processing",
-        "csms_name": "Signal Analysis"
+        "csci_name": "Patient Management",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 647,
-          "total_classes": 7,
-          "total_methods": 37,
-          "total_fields": 23
+          "total_loc": 89,
+          "total_classes": 1,
+          "total_methods": 6,
+          "total_fields": 2
         },
         "complexity": {
-          "total_wmc": 58,
-          "avg_wmc": 8.23,
-          "max_wmc": 8
+          "total_wmc": 8,
+          "avg_wmc": 7.82,
+          "max_wmc": 13
         },
         "cohesion": {
-          "avg_lcom": 5.92,
-          "max_lcom": 22.3
+          "avg_lcom": 13.76,
+          "max_lcom": 54.2
         },
         "coupling": {
-          "avg_cbo": 6.02,
-          "max_cbo": 12,
-          "avg_rfc": 14.75,
-          "max_rfc": 29,
-          "avg_fanin": 5.3,
-          "max_fanin": 22,
-          "avg_fanout": 3.89,
-          "max_fanout": 8
+          "avg_cbo": 2.3,
+          "max_cbo": 4,
+          "avg_rfc": 13.27,
+          "max_rfc": 32,
+          "avg_fanin": 7.55,
+          "max_fanin": 18,
+          "avg_fanout": 3.05,
+          "max_fanout": 9
         }
       }
     },
     {
       "id": "L1",
       "name": "hl7-parser",
-      "version": "2.7.0",
+      "version": "1.2.3",
       "system_hierarchy": {
-        "csc_name": "Clinical Platform",
+        "csc_name": "Medical Imaging System",
         "csci_name": "Lab Integration",
-        "css_name": "Billing",
-        "csms_name": "Signal Analysis"
+        "css_name": "EMR Management",
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 429,
-          "total_classes": 7,
-          "total_methods": 32,
-          "total_fields": 21
+          "total_loc": 216,
+          "total_classes": 3,
+          "total_methods": 23,
+          "total_fields": 7
         },
         "complexity": {
-          "total_wmc": 47,
-          "avg_wmc": 6.67,
-          "max_wmc": 10
+          "total_wmc": 36,
+          "avg_wmc": 11.97,
+          "max_wmc": 35
         },
         "cohesion": {
-          "avg_lcom": 7.42,
-          "max_lcom": 17.5
+          "avg_lcom": 21.66,
+          "max_lcom": 55.2
         },
         "coupling": {
-          "avg_cbo": 4.15,
-          "max_cbo": 8,
-          "avg_rfc": 15.29,
-          "max_rfc": 34,
-          "avg_fanin": 3.76,
+          "avg_cbo": 4.86,
+          "max_cbo": 10,
+          "avg_rfc": 12.53,
+          "max_rfc": 22,
+          "avg_fanin": 6.4,
           "max_fanin": 13,
-          "avg_fanout": 1.3,
-          "max_fanout": 4
+          "avg_fanout": 2.94,
+          "max_fanout": 8
         }
       }
     },
     {
       "id": "L2",
-      "name": "fhir-client",
-      "version": "1.6.4",
+      "name": "hl7-parser-1",
+      "version": "2.3.8",
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Lab Integration",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 455,
+          "total_classes": 7,
+          "total_methods": 47,
+          "total_fields": 21
+        },
+        "complexity": {
+          "total_wmc": 72,
+          "avg_wmc": 10.35,
+          "max_wmc": 49
+        },
+        "cohesion": {
+          "avg_lcom": 5.79,
+          "max_lcom": 19.9
+        },
+        "coupling": {
+          "avg_cbo": 7.28,
+          "max_cbo": 13,
+          "avg_rfc": 26.32,
+          "max_rfc": 53,
+          "avg_fanin": 3.07,
+          "max_fanin": 7,
+          "avg_fanout": 4.17,
+          "max_fanout": 12
+        }
+      }
+    },
+    {
+      "id": "L3",
+      "name": "phi-encryptor-1",
+      "version": "1.1.9",
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Lab Integration",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 86,
+          "total_classes": 1,
+          "total_methods": 4,
+          "total_fields": 2
+        },
+        "complexity": {
+          "total_wmc": 7,
+          "avg_wmc": 6.72,
+          "max_wmc": 13
+        },
+        "cohesion": {
+          "avg_lcom": 11.48,
+          "max_lcom": 33.9
+        },
+        "coupling": {
+          "avg_cbo": 2.46,
+          "max_cbo": 5,
+          "avg_rfc": 12.4,
+          "max_rfc": 28,
+          "avg_fanin": 6.36,
+          "max_fanin": 16,
+          "avg_fanout": 1.01,
+          "max_fanout": 3
+        }
+      }
+    },
+    {
+      "id": "L4",
+      "name": "dicom-toolkit",
+      "version": "1.4.7",
+      "system_hierarchy": {
+        "csc_name": "Clinical Platform",
+        "csci_name": "Clinical Software",
+        "css_name": "EMR Management",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 413,
+          "total_classes": 7,
+          "total_methods": 49,
+          "total_fields": 22
+        },
+        "complexity": {
+          "total_wmc": 89,
+          "avg_wmc": 12.74,
+          "max_wmc": 24
+        },
+        "cohesion": {
+          "avg_lcom": 25.83,
+          "max_lcom": 73.1
+        },
+        "coupling": {
+          "avg_cbo": 5.22,
+          "max_cbo": 9,
+          "avg_rfc": 19.26,
+          "max_rfc": 37,
+          "avg_fanin": 5.71,
+          "max_fanin": 19,
+          "avg_fanout": 3.27,
+          "max_fanout": 7
+        }
+      }
+    },
+    {
+      "id": "L5",
+      "name": "hl7-parser-2",
+      "version": "0.4.9",
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 517,
+          "total_classes": 4,
+          "total_methods": 29,
+          "total_fields": 15
+        },
+        "complexity": {
+          "total_wmc": 26,
+          "avg_wmc": 6.42,
+          "max_wmc": 6
+        },
+        "cohesion": {
+          "avg_lcom": 5.15,
+          "max_lcom": 15.0
+        },
+        "coupling": {
+          "avg_cbo": 5.65,
+          "max_cbo": 10,
+          "avg_rfc": 15.18,
+          "max_rfc": 32,
+          "avg_fanin": 4.77,
+          "max_fanin": 21,
+          "avg_fanout": 4.35,
+          "max_fanout": 9
+        }
+      }
+    },
+    {
+      "id": "L6",
+      "name": "hl7-parser-3",
+      "version": "2.1.8",
       "system_hierarchy": {
         "csc_name": "Clinical Platform",
         "csci_name": "Lab Integration",
         "css_name": "Billing",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 469,
-          "total_classes": 7,
-          "total_methods": 33,
-          "total_fields": 23
+          "total_loc": 439,
+          "total_classes": 5,
+          "total_methods": 26,
+          "total_fields": 11
         },
         "complexity": {
-          "total_wmc": 64,
-          "avg_wmc": 9.18,
-          "max_wmc": 20
+          "total_wmc": 28,
+          "avg_wmc": 5.55,
+          "max_wmc": 6
         },
         "cohesion": {
-          "avg_lcom": 9.45,
-          "max_lcom": 23.2
+          "avg_lcom": 8.65,
+          "max_lcom": 32.1
         },
         "coupling": {
-          "avg_cbo": 2.07,
-          "max_cbo": 5,
-          "avg_rfc": 16.9,
-          "max_rfc": 35,
-          "avg_fanin": 2.72,
-          "max_fanin": 6,
+          "avg_cbo": 3.85,
+          "max_cbo": 8,
+          "avg_rfc": 10.29,
+          "max_rfc": 17,
+          "avg_fanin": 5.77,
+          "max_fanin": 22,
+          "avg_fanout": 1.93,
+          "max_fanout": 5
+        }
+      }
+    },
+    {
+      "id": "L7",
+      "name": "hl7-parser-4",
+      "version": "1.2.0",
+      "system_hierarchy": {
+        "csc_name": "Health Information System",
+        "csci_name": "Patient Management",
+        "css_name": "EMR Management",
+        "csms_name": "Healthcare"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1058,
+          "total_classes": 13,
+          "total_methods": 92,
+          "total_fields": 38
+        },
+        "complexity": {
+          "total_wmc": 147,
+          "avg_wmc": 11.28,
+          "max_wmc": 43
+        },
+        "cohesion": {
+          "avg_lcom": 25.28,
+          "max_lcom": 51.6
+        },
+        "coupling": {
+          "avg_cbo": 6.83,
+          "max_cbo": 10,
+          "avg_rfc": 21.1,
+          "max_rfc": 36,
+          "avg_fanin": 6.19,
+          "max_fanin": 22,
           "avg_fanout": 1.09,
           "max_fanout": 3
         }
       }
     },
     {
-      "id": "L3",
-      "name": "dicom-toolkit-1",
-      "version": "0.5.5",
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Diagnostics Software",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 449,
-          "total_classes": 6,
-          "total_methods": 51,
-          "total_fields": 20
-        },
-        "complexity": {
-          "total_wmc": 77,
-          "avg_wmc": 12.82,
-          "max_wmc": 25
-        },
-        "cohesion": {
-          "avg_lcom": 24.84,
-          "max_lcom": 98.8
-        },
-        "coupling": {
-          "avg_cbo": 3.7,
-          "max_cbo": 7,
-          "avg_rfc": 12.7,
-          "max_rfc": 24,
-          "avg_fanin": 6.43,
-          "max_fanin": 22,
-          "avg_fanout": 2.7,
-          "max_fanout": 7
-        }
-      }
-    },
-    {
-      "id": "L4",
-      "name": "fhir-client-1",
-      "version": "2.7.8",
+      "id": "L8",
+      "name": "fhir-client",
+      "version": "2.4.8",
       "system_hierarchy": {
         "csc_name": "Medical Imaging System",
         "csci_name": "Lab Integration",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 645,
+          "total_loc": 688,
           "total_classes": 9,
-          "total_methods": 62,
+          "total_methods": 42,
           "total_fields": 36
         },
         "complexity": {
-          "total_wmc": 62,
-          "avg_wmc": 6.85,
-          "max_wmc": 12
-        },
-        "cohesion": {
-          "avg_lcom": 20.9,
-          "max_lcom": 54.3
-        },
-        "coupling": {
-          "avg_cbo": 3.25,
-          "max_cbo": 7,
-          "avg_rfc": 8.77,
-          "max_rfc": 13,
-          "avg_fanin": 3.84,
-          "max_fanin": 14,
-          "avg_fanout": 2.46,
-          "max_fanout": 6
-        }
-      }
-    },
-    {
-      "id": "L5",
-      "name": "dicom-toolkit-2",
-      "version": "0.6.7",
-      "system_hierarchy": {
-        "csc_name": "Medical Imaging System",
-        "csci_name": "Diagnostics Software",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 516,
-          "total_classes": 6,
-          "total_methods": 43,
-          "total_fields": 16
-        },
-        "complexity": {
-          "total_wmc": 39,
-          "avg_wmc": 6.5,
+          "total_wmc": 68,
+          "avg_wmc": 7.58,
           "max_wmc": 18
         },
         "cohesion": {
-          "avg_lcom": 11.09,
-          "max_lcom": 37.4
+          "avg_lcom": 24.66,
+          "max_lcom": 86.6
         },
         "coupling": {
-          "avg_cbo": 5.81,
-          "max_cbo": 10,
-          "avg_rfc": 11.15,
-          "max_rfc": 22,
-          "avg_fanin": 2.48,
-          "max_fanin": 9,
-          "avg_fanout": 2.26,
-          "max_fanout": 6
-        }
-      }
-    },
-    {
-      "id": "L6",
-      "name": "hl7-parser-1",
-      "version": "2.0.6",
-      "system_hierarchy": {
-        "csc_name": "Health Information System",
-        "csci_name": "Clinical Software",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 617,
-          "total_classes": 8,
-          "total_methods": 52,
-          "total_fields": 26
-        },
-        "complexity": {
-          "total_wmc": 99,
-          "avg_wmc": 12.32,
-          "max_wmc": 26
-        },
-        "cohesion": {
-          "avg_lcom": 24.15,
-          "max_lcom": 58.5
-        },
-        "coupling": {
-          "avg_cbo": 3.2,
-          "max_cbo": 5,
-          "avg_rfc": 15.11,
-          "max_rfc": 23,
-          "avg_fanin": 3.63,
-          "max_fanin": 15,
-          "avg_fanout": 2.71,
-          "max_fanout": 6
-        }
-      }
-    },
-    {
-      "id": "L7",
-      "name": "hl7-parser-2",
-      "version": "1.9.3",
-      "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Lab Integration",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 406,
-          "total_classes": 6,
-          "total_methods": 44,
-          "total_fields": 13
-        },
-        "complexity": {
-          "total_wmc": 63,
-          "avg_wmc": 10.54,
-          "max_wmc": 15
-        },
-        "cohesion": {
-          "avg_lcom": 11.1,
-          "max_lcom": 41.2
-        },
-        "coupling": {
-          "avg_cbo": 5.98,
-          "max_cbo": 14,
-          "avg_rfc": 18.65,
-          "max_rfc": 29,
-          "avg_fanin": 3.38,
-          "max_fanin": 7,
-          "avg_fanout": 2.87,
-          "max_fanout": 8
-        }
-      }
-    },
-    {
-      "id": "L8",
-      "name": "hl7-parser-3",
-      "version": "2.8.1",
-      "system_hierarchy": {
-        "csc_name": "Health Information System",
-        "csci_name": "Lab Integration",
-        "css_name": "Billing",
-        "csms_name": "Signal Analysis"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 318,
-          "total_classes": 5,
-          "total_methods": 43,
-          "total_fields": 15
-        },
-        "complexity": {
-          "total_wmc": 30,
-          "avg_wmc": 6.05,
-          "max_wmc": 28
-        },
-        "cohesion": {
-          "avg_lcom": 19.38,
-          "max_lcom": 80.6
-        },
-        "coupling": {
-          "avg_cbo": 4.52,
-          "max_cbo": 9,
-          "avg_rfc": 27.48,
-          "max_rfc": 50,
-          "avg_fanin": 6.96,
-          "max_fanin": 29,
-          "avg_fanout": 1.57,
-          "max_fanout": 4
+          "avg_cbo": 4.73,
+          "max_cbo": 11,
+          "avg_rfc": 21.85,
+          "max_rfc": 41,
+          "avg_fanin": 3.98,
+          "max_fanin": 10,
+          "avg_fanout": 4.61,
+          "max_fanout": 11
         }
       }
     },
     {
       "id": "L9",
-      "name": "dicom-toolkit-3",
-      "version": "1.4.0",
+      "name": "dicom-toolkit-1",
+      "version": "1.4.3",
       "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Diagnostics Software",
-        "css_name": "EMR Management",
-        "csms_name": "Signal Analysis"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Patient Management",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 677,
-          "total_classes": 10,
-          "total_methods": 81,
-          "total_fields": 37
+          "total_loc": 1074,
+          "total_classes": 11,
+          "total_methods": 84,
+          "total_fields": 28
         },
         "complexity": {
-          "total_wmc": 56,
-          "avg_wmc": 5.56,
-          "max_wmc": 7
+          "total_wmc": 103,
+          "avg_wmc": 9.35,
+          "max_wmc": 16
         },
         "cohesion": {
-          "avg_lcom": 16.57,
-          "max_lcom": 40.6
+          "avg_lcom": 27.94,
+          "max_lcom": 74.3
         },
         "coupling": {
-          "avg_cbo": 4.48,
-          "max_cbo": 8,
-          "avg_rfc": 15.98,
-          "max_rfc": 39,
-          "avg_fanin": 3.14,
-          "max_fanin": 9,
-          "avg_fanout": 1.78,
-          "max_fanout": 5
+          "avg_cbo": 3.29,
+          "max_cbo": 6,
+          "avg_rfc": 20.65,
+          "max_rfc": 51,
+          "avg_fanin": 6.72,
+          "max_fanin": 16,
+          "avg_fanout": 4.67,
+          "max_fanout": 10
         }
       }
     },
     {
       "id": "L10",
-      "name": "phi-encryptor",
-      "version": "2.3.5",
+      "name": "phi-encryptor-2",
+      "version": "0.9.7",
       "system_hierarchy": {
-        "csc_name": "Medical Imaging System",
+        "csc_name": "Health Information System",
         "csci_name": "Diagnostics Software",
-        "css_name": "Lab Processing",
-        "csms_name": "Signal Analysis"
+        "css_name": "EMR Management",
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 380,
-          "total_classes": 6,
-          "total_methods": 26,
-          "total_fields": 17
+          "total_loc": 81,
+          "total_classes": 1,
+          "total_methods": 6,
+          "total_fields": 2
         },
         "complexity": {
-          "total_wmc": 36,
-          "avg_wmc": 6.02,
-          "max_wmc": 15
+          "total_wmc": 6,
+          "avg_wmc": 6.46,
+          "max_wmc": 16
         },
         "cohesion": {
-          "avg_lcom": 3.04,
-          "max_lcom": 10.8
+          "avg_lcom": 10.02,
+          "max_lcom": 36.7
         },
         "coupling": {
-          "avg_cbo": 2.33,
-          "max_cbo": 5,
-          "avg_rfc": 7.4,
-          "max_rfc": 18,
-          "avg_fanin": 2.28,
-          "max_fanin": 9,
-          "avg_fanout": 2.3,
-          "max_fanout": 5
+          "avg_cbo": 3.85,
+          "max_cbo": 9,
+          "avg_rfc": 12.59,
+          "max_rfc": 30,
+          "avg_fanin": 6.52,
+          "max_fanin": 14,
+          "avg_fanout": 2.82,
+          "max_fanout": 8
         }
       }
     },
     {
       "id": "L11",
-      "name": "phi-encryptor-1",
-      "version": "0.9.0",
+      "name": "hl7-parser-5",
+      "version": "1.2.1",
       "system_hierarchy": {
-        "csc_name": "Clinical Platform",
-        "csci_name": "Patient Management",
+        "csc_name": "Health Information System",
+        "csci_name": "Diagnostics Software",
         "css_name": "Lab Processing",
-        "csms_name": "Signal Analysis"
+        "csms_name": "Healthcare"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 452,
-          "total_classes": 8,
-          "total_methods": 31,
-          "total_fields": 21
+          "total_loc": 755,
+          "total_classes": 6,
+          "total_methods": 52,
+          "total_fields": 13
         },
         "complexity": {
-          "total_wmc": 62,
-          "avg_wmc": 7.73,
-          "max_wmc": 19
+          "total_wmc": 42,
+          "avg_wmc": 7.08,
+          "max_wmc": 17
         },
         "cohesion": {
-          "avg_lcom": 10.14,
-          "max_lcom": 37.8
+          "avg_lcom": 10.53,
+          "max_lcom": 42.0
         },
         "coupling": {
-          "avg_cbo": 3.35,
-          "max_cbo": 5,
-          "avg_rfc": 10.16,
-          "max_rfc": 24,
-          "avg_fanin": 3.79,
-          "max_fanin": 16,
-          "avg_fanout": 2.53,
-          "max_fanout": 6
+          "avg_cbo": 6.56,
+          "max_cbo": 16,
+          "avg_rfc": 13.76,
+          "max_rfc": 34,
+          "avg_fanin": 6.92,
+          "max_fanin": 26,
+          "avg_fanout": 2.05,
+          "max_fanout": 5
         }
       }
     }
@@ -2976,39 +3131,67 @@
     "runs_on": [
       {
         "from": "A0",
-        "to": "N0"
+        "to": "N6"
+      },
+      {
+        "from": "A0",
+        "to": "N2"
       },
       {
         "from": "A1",
+        "to": "N2"
+      },
+      {
+        "from": "A1",
+        "to": "N0"
+      },
+      {
+        "from": "A2",
         "to": "N4"
       },
       {
         "from": "A2",
-        "to": "N0"
+        "to": "N5"
       },
       {
         "from": "A3",
-        "to": "N0"
+        "to": "N5"
       },
       {
         "from": "A4",
+        "to": "N4"
+      },
+      {
+        "from": "A5",
         "to": "N3"
       },
       {
         "from": "A5",
+        "to": "N2"
+      },
+      {
+        "from": "A6",
         "to": "N6"
       },
       {
         "from": "A6",
-        "to": "N5"
+        "to": "N7"
       },
       {
         "from": "A7",
-        "to": "N1"
+        "to": "N4"
+      },
+      {
+        "from": "A7",
+        "to": "N3"
       },
       {
         "from": "A8",
-        "to": "N2"
+        "to": "N0"
+      },
+      {
+        "from": "A9",
+        "to": "N5"
       },
       {
         "from": "A9",
@@ -3016,163 +3199,251 @@
       },
       {
         "from": "A10",
-        "to": "N6"
+        "to": "N4"
       },
       {
         "from": "A11",
         "to": "N4"
       },
       {
+        "from": "A11",
+        "to": "N1"
+      },
+      {
         "from": "A12",
-        "to": "N3"
-      },
-      {
-        "from": "A13",
-        "to": "N5"
-      },
-      {
-        "from": "A14",
-        "to": "N4"
-      },
-      {
-        "from": "A15",
-        "to": "N6"
-      },
-      {
-        "from": "A16",
         "to": "N7"
       },
       {
-        "from": "A17",
+        "from": "A12",
+        "to": "N2"
+      },
+      {
+        "from": "A13",
         "to": "N6"
       },
       {
+        "from": "A14",
+        "to": "N3"
+      },
+      {
+        "from": "A14",
+        "to": "N0"
+      },
+      {
+        "from": "A15",
+        "to": "N4"
+      },
+      {
+        "from": "A16",
+        "to": "N1"
+      },
+      {
+        "from": "A17",
+        "to": "N4"
+      },
+      {
         "from": "A18",
+        "to": "N5"
+      },
+      {
+        "from": "A19",
         "to": "N6"
       },
       {
         "from": "A19",
-        "to": "N7"
+        "to": "N5"
       },
       {
         "from": "A20",
-        "to": "N0"
+        "to": "N4"
       },
       {
-        "from": "A21",
-        "to": "N6"
-      },
-      {
-        "from": "A22",
-        "to": "N6"
-      },
-      {
-        "from": "A23",
+        "from": "A20",
         "to": "N2"
       },
       {
-        "from": "A24",
+        "from": "A21",
+        "to": "N4"
+      },
+      {
+        "from": "A22",
         "to": "N3"
       },
       {
+        "from": "A23",
+        "to": "N1"
+      },
+      {
+        "from": "A23",
+        "to": "N7"
+      },
+      {
+        "from": "A24",
+        "to": "N4"
+      },
+      {
+        "from": "A24",
+        "to": "N5"
+      },
+      {
         "from": "A25",
-        "to": "N0"
+        "to": "N3"
       },
       {
         "from": "A26",
-        "to": "N1"
+        "to": "N3"
       },
       {
         "from": "A27",
-        "to": "N1"
+        "to": "N3"
+      },
+      {
+        "from": "A27",
+        "to": "N2"
       },
       {
         "from": "A28",
-        "to": "N6"
+        "to": "N3"
+      },
+      {
+        "from": "A28",
+        "to": "N0"
       },
       {
         "from": "A29",
         "to": "N0"
       },
       {
+        "from": "A29",
+        "to": "N2"
+      },
+      {
         "from": "A30",
+        "to": "N3"
+      },
+      {
+        "from": "A31",
         "to": "N1"
       },
       {
         "from": "A31",
-        "to": "N2"
+        "to": "N4"
       },
       {
         "from": "A32",
-        "to": "N2"
+        "to": "N0"
+      },
+      {
+        "from": "A32",
+        "to": "N3"
       },
       {
         "from": "A33",
+        "to": "N5"
+      },
+      {
+        "from": "A33",
+        "to": "N1"
+      },
+      {
+        "from": "A34",
         "to": "N4"
       },
       {
         "from": "A34",
-        "to": "N2"
+        "to": "N3"
       },
       {
         "from": "A35",
-        "to": "N2"
-      },
-      {
-        "from": "A36",
-        "to": "N0"
-      },
-      {
-        "from": "A37",
-        "to": "N0"
-      },
-      {
-        "from": "A38",
         "to": "N3"
       },
       {
-        "from": "A39",
-        "to": "N1"
-      },
-      {
-        "from": "A40",
+        "from": "A35",
         "to": "N6"
       },
       {
+        "from": "A36",
+        "to": "N4"
+      },
+      {
+        "from": "A36",
+        "to": "N5"
+      },
+      {
+        "from": "A37",
+        "to": "N6"
+      },
+      {
+        "from": "A38",
+        "to": "N2"
+      },
+      {
+        "from": "A38",
+        "to": "N7"
+      },
+      {
+        "from": "A39",
+        "to": "N4"
+      },
+      {
+        "from": "A40",
+        "to": "N2"
+      },
+      {
+        "from": "A40",
+        "to": "N7"
+      },
+      {
         "from": "A41",
-        "to": "N0"
-      },
-      {
-        "from": "A42",
-        "to": "N0"
-      },
-      {
-        "from": "A43",
         "to": "N3"
       },
       {
+        "from": "A41",
+        "to": "N6"
+      },
+      {
+        "from": "A42",
+        "to": "N5"
+      },
+      {
+        "from": "A43",
+        "to": "N2"
+      },
+      {
         "from": "A44",
-        "to": "N4"
+        "to": "N2"
       },
       {
         "from": "A45",
-        "to": "N4"
+        "to": "N7"
+      },
+      {
+        "from": "A45",
+        "to": "N1"
       },
       {
         "from": "A46",
+        "to": "N7"
+      },
+      {
+        "from": "A47",
         "to": "N4"
       },
       {
         "from": "A47",
-        "to": "N0"
+        "to": "N6"
       },
       {
         "from": "A48",
+        "to": "N1"
+      },
+      {
+        "from": "A49",
         "to": "N5"
       },
       {
         "from": "A49",
-        "to": "N3"
+        "to": "N2"
       },
       {
         "from": "B0",
@@ -3180,11 +3451,11 @@
       },
       {
         "from": "B1",
-        "to": "N0"
+        "to": "N7"
       },
       {
         "from": "B2",
-        "to": "N3"
+        "to": "N4"
       }
     ],
     "routes": [
@@ -3193,15 +3464,23 @@
         "to": "T0"
       },
       {
-        "from": "B0",
+        "from": "B1",
+        "to": "T0"
+      },
+      {
+        "from": "B1",
         "to": "T1"
       },
       {
         "from": "B0",
+        "to": "T1"
+      },
+      {
+        "from": "B1",
         "to": "T2"
       },
       {
-        "from": "B2",
+        "from": "B1",
         "to": "T3"
       },
       {
@@ -3213,19 +3492,11 @@
         "to": "T5"
       },
       {
-        "from": "B0",
-        "to": "T5"
-      },
-      {
-        "from": "B2",
+        "from": "B1",
         "to": "T6"
       },
       {
-        "from": "B1",
-        "to": "T7"
-      },
-      {
-        "from": "B0",
+        "from": "B2",
         "to": "T7"
       },
       {
@@ -3233,19 +3504,15 @@
         "to": "T8"
       },
       {
+        "from": "B0",
+        "to": "T9"
+      },
+      {
         "from": "B2",
-        "to": "T9"
-      },
-      {
-        "from": "B1",
-        "to": "T9"
-      },
-      {
-        "from": "B1",
         "to": "T10"
       },
       {
-        "from": "B1",
+        "from": "B0",
         "to": "T11"
       },
       {
@@ -3253,7 +3520,7 @@
         "to": "T11"
       },
       {
-        "from": "B0",
+        "from": "B2",
         "to": "T12"
       },
       {
@@ -3261,22 +3528,18 @@
         "to": "T12"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T13"
       },
       {
-        "from": "B1",
+        "from": "B2",
         "to": "T14"
       },
       {
-        "from": "B1",
+        "from": "B2",
         "to": "T15"
       },
       {
-        "from": "B2",
-        "to": "T16"
-      },
-      {
         "from": "B1",
         "to": "T16"
       },
@@ -3285,11 +3548,11 @@
         "to": "T17"
       },
       {
-        "from": "B0",
-        "to": "T17"
+        "from": "B2",
+        "to": "T18"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T18"
       },
       {
@@ -3309,691 +3572,895 @@
         "to": "T21"
       },
       {
-        "from": "B0",
-        "to": "T21"
-      },
-      {
-        "from": "B2",
+        "from": "B1",
         "to": "T22"
       },
       {
-        "from": "B1",
+        "from": "B2",
         "to": "T23"
       },
       {
-        "from": "B2",
-        "to": "T24"
-      },
-      {
-        "from": "B1",
+        "from": "B0",
         "to": "T24"
       }
     ],
     "publishes_to": [
       {
         "from": "L0",
-        "to": "T3"
-      },
-      {
-        "from": "L0",
-        "to": "T16"
-      },
-      {
-        "from": "L1",
-        "to": "T4"
-      },
-      {
-        "from": "L2",
-        "to": "T7"
-      },
-      {
-        "from": "L2",
-        "to": "T3"
-      },
-      {
-        "from": "L3",
-        "to": "T3"
-      },
-      {
-        "from": "L3",
-        "to": "T22"
-      },
-      {
-        "from": "L5",
-        "to": "T21"
-      },
-      {
-        "from": "L5",
-        "to": "T19"
-      },
-      {
-        "from": "L6",
-        "to": "T24"
-      },
-      {
-        "from": "L8",
-        "to": "T0"
-      },
-      {
-        "from": "L9",
-        "to": "T13"
-      },
-      {
-        "from": "L9",
-        "to": "T18"
-      },
-      {
-        "from": "L9",
-        "to": "T8"
-      },
-      {
-        "from": "L10",
         "to": "T15"
       },
       {
-        "from": "L10",
-        "to": "T10"
-      },
-      {
-        "from": "A13",
-        "to": "T19"
-      },
-      {
-        "from": "A13",
-        "to": "T9"
-      },
-      {
-        "from": "A16",
-        "to": "T22"
-      },
-      {
-        "from": "A16",
-        "to": "T12"
-      },
-      {
-        "from": "A16",
-        "to": "T20"
-      },
-      {
-        "from": "A18",
-        "to": "T23"
-      },
-      {
-        "from": "A18",
-        "to": "T3"
-      },
-      {
-        "from": "A18",
-        "to": "T18"
-      },
-      {
-        "from": "A18",
-        "to": "T13"
-      },
-      {
-        "from": "A18",
-        "to": "T8"
-      },
-      {
-        "from": "A18",
-        "to": "T10"
-      },
-      {
-        "from": "A18",
-        "to": "T11"
-      },
-      {
-        "from": "A23",
-        "to": "T22"
-      },
-      {
-        "from": "A23",
-        "to": "T2"
-      },
-      {
-        "from": "A23",
-        "to": "T7"
-      },
-      {
-        "from": "A23",
-        "to": "T9"
-      },
-      {
-        "from": "A23",
-        "to": "T6"
-      },
-      {
-        "from": "A25",
-        "to": "T14"
-      },
-      {
-        "from": "A29",
-        "to": "T20"
-      },
-      {
-        "from": "A29",
-        "to": "T5"
-      },
-      {
-        "from": "A29",
+        "from": "L0",
         "to": "T17"
       },
       {
-        "from": "A32",
-        "to": "T2"
-      },
-      {
-        "from": "A33",
-        "to": "T14"
-      },
-      {
-        "from": "A33",
-        "to": "T4"
-      },
-      {
-        "from": "A33",
+        "from": "L2",
         "to": "T20"
       },
       {
-        "from": "A35",
-        "to": "T8"
+        "from": "L2",
+        "to": "T6"
       },
       {
-        "from": "A35",
-        "to": "T13"
+        "from": "L3",
+        "to": "T23"
       },
       {
-        "from": "A35",
-        "to": "T20"
+        "from": "L3",
+        "to": "T3"
       },
       {
-        "from": "A37",
+        "from": "L3",
         "to": "T9"
       },
       {
-        "from": "A39",
-        "to": "T5"
+        "from": "L4",
+        "to": "T24"
       },
       {
-        "from": "A3",
+        "from": "L4",
+        "to": "T0"
+      },
+      {
+        "from": "L5",
+        "to": "T12"
+      },
+      {
+        "from": "L6",
+        "to": "T16"
+      },
+      {
+        "from": "L7",
+        "to": "T12"
+      },
+      {
+        "from": "L7",
+        "to": "T11"
+      },
+      {
+        "from": "L7",
+        "to": "T19"
+      },
+      {
+        "from": "L8",
+        "to": "T4"
+      },
+      {
+        "from": "L8",
+        "to": "T8"
+      },
+      {
+        "from": "L9",
+        "to": "T9"
+      },
+      {
+        "from": "L9",
+        "to": "T22"
+      },
+      {
+        "from": "L10",
+        "to": "T22"
+      },
+      {
+        "from": "L10",
+        "to": "T19"
+      },
+      {
+        "from": "L10",
+        "to": "T6"
+      },
+      {
+        "from": "L11",
         "to": "T15"
       },
       {
         "from": "A4",
-        "to": "T1"
+        "to": "T12"
       },
       {
-        "from": "A5",
-        "to": "T14"
+        "from": "A4",
+        "to": "T2"
       },
       {
-        "from": "A6",
-        "to": "T13"
+        "from": "A4",
+        "to": "T17"
       },
       {
-        "from": "A9",
-        "to": "T6"
-      },
-      {
-        "from": "A10",
+        "from": "A4",
         "to": "T7"
       },
       {
-        "from": "A11",
-        "to": "T6"
+        "from": "A4",
+        "to": "T10"
       },
       {
-        "from": "A12",
-        "to": "T9"
+        "from": "A6",
+        "to": "T19"
       },
       {
-        "from": "A15",
+        "from": "A8",
         "to": "T1"
       },
       {
-        "from": "A17",
+        "from": "A8",
+        "to": "T23"
+      },
+      {
+        "from": "A10",
+        "to": "T15"
+      },
+      {
+        "from": "A10",
         "to": "T11"
       },
       {
-        "from": "A19",
-        "to": "T11"
+        "from": "A14",
+        "to": "T23"
       },
       {
-        "from": "A20",
-        "to": "T16"
+        "from": "A14",
+        "to": "T18"
       },
       {
-        "from": "A21",
-        "to": "T6"
+        "from": "A14",
+        "to": "T13"
+      },
+      {
+        "from": "A14",
+        "to": "T22"
+      },
+      {
+        "from": "A18",
+        "to": "T13"
+      },
+      {
+        "from": "A18",
+        "to": "T8"
+      },
+      {
+        "from": "A18",
+        "to": "T23"
+      },
+      {
+        "from": "A18",
+        "to": "T15"
+      },
+      {
+        "from": "A23",
+        "to": "T2"
+      },
+      {
+        "from": "A23",
+        "to": "T22"
+      },
+      {
+        "from": "A23",
+        "to": "T18"
       },
       {
         "from": "A24",
+        "to": "T15"
+      },
+      {
+        "from": "A24",
+        "to": "T0"
+      },
+      {
+        "from": "A24",
+        "to": "T18"
+      },
+      {
+        "from": "A24",
+        "to": "T12"
+      },
+      {
+        "from": "A26",
         "to": "T23"
       },
       {
         "from": "A26",
-        "to": "T8"
-      },
-      {
-        "from": "A30",
-        "to": "T4"
-      },
-      {
-        "from": "A41",
-        "to": "T18"
-      },
-      {
-        "from": "A42",
-        "to": "T20"
-      },
-      {
-        "from": "A43",
-        "to": "T7"
-      },
-      {
-        "from": "A44",
         "to": "T22"
       },
       {
-        "from": "A45",
-        "to": "T9"
+        "from": "A26",
+        "to": "T21"
       },
       {
-        "from": "A46",
-        "to": "T5"
-      },
-      {
-        "from": "A48",
-        "to": "T22"
-      }
-    ],
-    "subscribes_to": [
-      {
-        "from": "L0",
-        "to": "T17"
-      },
-      {
-        "from": "L0",
+        "from": "A26",
         "to": "T19"
       },
       {
-        "from": "L1",
-        "to": "T20"
-      },
-      {
-        "from": "L1",
-        "to": "T7"
-      },
-      {
-        "from": "L1",
-        "to": "T21"
-      },
-      {
-        "from": "L2",
-        "to": "T0"
-      },
-      {
-        "from": "L3",
-        "to": "T13"
-      },
-      {
-        "from": "L4",
-        "to": "T7"
-      },
-      {
-        "from": "L5",
-        "to": "T11"
-      },
-      {
-        "from": "L5",
-        "to": "T20"
-      },
-      {
-        "from": "L5",
-        "to": "T18"
-      },
-      {
-        "from": "L5",
-        "to": "T13"
-      },
-      {
-        "from": "L6",
-        "to": "T14"
-      },
-      {
-        "from": "L6",
-        "to": "T18"
-      },
-      {
-        "from": "L6",
-        "to": "T23"
-      },
-      {
-        "from": "L9",
-        "to": "T7"
-      },
-      {
-        "from": "L9",
-        "to": "T2"
-      },
-      {
-        "from": "L11",
-        "to": "T10"
-      },
-      {
-        "from": "L11",
-        "to": "T22"
-      },
-      {
-        "from": "A0",
-        "to": "T4"
-      },
-      {
-        "from": "A1",
-        "to": "T21"
-      },
-      {
-        "from": "A1",
-        "to": "T1"
-      },
-      {
-        "from": "A1",
+        "from": "A26",
         "to": "T6"
       },
       {
-        "from": "A1",
-        "to": "T11"
-      },
-      {
-        "from": "A1",
-        "to": "T17"
-      },
-      {
-        "from": "A1",
-        "to": "T7"
-      },
-      {
-        "from": "A2",
-        "to": "T19"
-      },
-      {
-        "from": "A14",
-        "to": "T8"
-      },
-      {
-        "from": "A14",
-        "to": "T3"
-      },
-      {
-        "from": "A14",
-        "to": "T18"
-      },
-      {
-        "from": "A14",
+        "from": "A26",
         "to": "T13"
-      },
-      {
-        "from": "A14",
-        "to": "T11"
-      },
-      {
-        "from": "A16",
-        "to": "T22"
-      },
-      {
-        "from": "A16",
-        "to": "T0"
-      },
-      {
-        "from": "A16",
-        "to": "T11"
-      },
-      {
-        "from": "A18",
-        "to": "T13"
-      },
-      {
-        "from": "A18",
-        "to": "T8"
-      },
-      {
-        "from": "A18",
-        "to": "T23"
-      },
-      {
-        "from": "A18",
-        "to": "T18"
-      },
-      {
-        "from": "A18",
-        "to": "T3"
-      },
-      {
-        "from": "A18",
-        "to": "T6"
-      },
-      {
-        "from": "A22",
-        "to": "T3"
-      },
-      {
-        "from": "A23",
-        "to": "T7"
-      },
-      {
-        "from": "A23",
-        "to": "T2"
-      },
-      {
-        "from": "A23",
-        "to": "T22"
-      },
-      {
-        "from": "A23",
-        "to": "T23"
-      },
-      {
-        "from": "A25",
-        "to": "T4"
-      },
-      {
-        "from": "A25",
-        "to": "T14"
-      },
-      {
-        "from": "A25",
-        "to": "T10"
-      },
-      {
-        "from": "A28",
-        "to": "T18"
-      },
-      {
-        "from": "A28",
-        "to": "T13"
-      },
-      {
-        "from": "A28",
-        "to": "T4"
-      },
-      {
-        "from": "A31",
-        "to": "T22"
-      },
-      {
-        "from": "A31",
-        "to": "T6"
-      },
-      {
-        "from": "A32",
-        "to": "T12"
-      },
-      {
-        "from": "A35",
-        "to": "T13"
-      },
-      {
-        "from": "A35",
-        "to": "T8"
-      },
-      {
-        "from": "A35",
-        "to": "T23"
-      },
-      {
-        "from": "A35",
-        "to": "T21"
-      },
-      {
-        "from": "A37",
-        "to": "T24"
-      },
-      {
-        "from": "A37",
-        "to": "T4"
-      },
-      {
-        "from": "A37",
-        "to": "T9"
-      },
-      {
-        "from": "A37",
-        "to": "T18"
-      },
-      {
-        "from": "A37",
-        "to": "T11"
-      },
-      {
-        "from": "A38",
-        "to": "T6"
-      },
-      {
-        "from": "A38",
-        "to": "T16"
-      },
-      {
-        "from": "A38",
-        "to": "T11"
-      },
-      {
-        "from": "A40",
-        "to": "T8"
-      },
-      {
-        "from": "A47",
-        "to": "T5"
-      },
-      {
-        "from": "A49",
-        "to": "T21"
-      },
-      {
-        "from": "A49",
-        "to": "T11"
-      },
-      {
-        "from": "A49",
-        "to": "T1"
-      },
-      {
-        "from": "A49",
-        "to": "T22"
-      },
-      {
-        "from": "A7",
-        "to": "T7"
-      },
-      {
-        "from": "A8",
-        "to": "T9"
       },
       {
         "from": "A27",
         "to": "T3"
       },
       {
-        "from": "A34",
+        "from": "A27",
+        "to": "T21"
+      },
+      {
+        "from": "A27",
+        "to": "T14"
+      },
+      {
+        "from": "A28",
+        "to": "T23"
+      },
+      {
+        "from": "A30",
+        "to": "T3"
+      },
+      {
+        "from": "A30",
+        "to": "T18"
+      },
+      {
+        "from": "A31",
+        "to": "T22"
+      },
+      {
+        "from": "A32",
+        "to": "T22"
+      },
+      {
+        "from": "A32",
+        "to": "T15"
+      },
+      {
+        "from": "A32",
+        "to": "T10"
+      },
+      {
+        "from": "A32",
+        "to": "T17"
+      },
+      {
+        "from": "A32",
+        "to": "T2"
+      },
+      {
+        "from": "A32",
+        "to": "T18"
+      },
+      {
+        "from": "A35",
+        "to": "T8"
+      },
+      {
+        "from": "A35",
+        "to": "T13"
+      },
+      {
+        "from": "A35",
+        "to": "T23"
+      },
+      {
+        "from": "A35",
+        "to": "T3"
+      },
+      {
+        "from": "A35",
+        "to": "T16"
+      },
+      {
+        "from": "A35",
+        "to": "T9"
+      },
+      {
+        "from": "A40",
+        "to": "T23"
+      },
+      {
+        "from": "A40",
+        "to": "T8"
+      },
+      {
+        "from": "A40",
+        "to": "T3"
+      },
+      {
+        "from": "A40",
+        "to": "T9"
+      },
+      {
+        "from": "A46",
+        "to": "T6"
+      },
+      {
+        "from": "A46",
+        "to": "T11"
+      },
+      {
+        "from": "A46",
+        "to": "T1"
+      },
+      {
+        "from": "A46",
+        "to": "T16"
+      },
+      {
+        "from": "A46",
+        "to": "T12"
+      },
+      {
+        "from": "A46",
+        "to": "T24"
+      },
+      {
+        "from": "A0",
+        "to": "T22"
+      },
+      {
+        "from": "A7",
+        "to": "T24"
+      },
+      {
+        "from": "A12",
+        "to": "T18"
+      },
+      {
+        "from": "A19",
         "to": "T19"
       },
       {
-        "from": "A36",
+        "from": "A20",
+        "to": "T23"
+      },
+      {
+        "from": "A22",
+        "to": "T12"
+      },
+      {
+        "from": "A34",
+        "to": "T5"
+      },
+      {
+        "from": "A38",
+        "to": "T12"
+      },
+      {
+        "from": "A41",
+        "to": "T23"
+      },
+      {
+        "from": "A43",
+        "to": "T14"
+      },
+      {
+        "from": "A45",
+        "to": "T24"
+      },
+      {
+        "from": "A47",
+        "to": "T10"
+      },
+      {
+        "from": "A48",
+        "to": "T12"
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "L0",
+        "to": "T3"
+      },
+      {
+        "from": "L0",
+        "to": "T2"
+      },
+      {
+        "from": "L2",
+        "to": "T19"
+      },
+      {
+        "from": "L3",
+        "to": "T13"
+      },
+      {
+        "from": "L3",
+        "to": "T20"
+      },
+      {
+        "from": "L4",
+        "to": "T11"
+      },
+      {
+        "from": "L5",
+        "to": "T22"
+      },
+      {
+        "from": "L5",
+        "to": "T9"
+      },
+      {
+        "from": "L5",
+        "to": "T19"
+      },
+      {
+        "from": "L5",
+        "to": "T7"
+      },
+      {
+        "from": "L6",
+        "to": "T17"
+      },
+      {
+        "from": "L7",
+        "to": "T23"
+      },
+      {
+        "from": "L8",
+        "to": "T7"
+      },
+      {
+        "from": "L8",
+        "to": "T16"
+      },
+      {
+        "from": "L9",
+        "to": "T12"
+      },
+      {
+        "from": "L9",
+        "to": "T9"
+      },
+      {
+        "from": "L10",
+        "to": "T0"
+      },
+      {
+        "from": "L10",
+        "to": "T9"
+      },
+      {
+        "from": "L11",
+        "to": "T19"
+      },
+      {
+        "from": "L11",
+        "to": "T22"
+      },
+      {
+        "from": "A1",
+        "to": "T11"
+      },
+      {
+        "from": "A1",
+        "to": "T1"
+      },
+      {
+        "from": "A1",
+        "to": "T21"
+      },
+      {
+        "from": "A1",
+        "to": "T22"
+      },
+      {
+        "from": "A1",
+        "to": "T17"
+      },
+      {
+        "from": "A2",
+        "to": "T19"
+      },
+      {
+        "from": "A2",
+        "to": "T20"
+      },
+      {
+        "from": "A3",
+        "to": "T6"
+      },
+      {
+        "from": "A3",
+        "to": "T16"
+      },
+      {
+        "from": "A3",
+        "to": "T17"
+      },
+      {
+        "from": "A4",
+        "to": "T2"
+      },
+      {
+        "from": "A4",
+        "to": "T7"
+      },
+      {
+        "from": "A4",
+        "to": "T12"
+      },
+      {
+        "from": "A4",
+        "to": "T19"
+      },
+      {
+        "from": "A4",
+        "to": "T8"
+      },
+      {
+        "from": "A5",
+        "to": "T3"
+      },
+      {
+        "from": "A5",
+        "to": "T5"
+      },
+      {
+        "from": "A5",
+        "to": "T20"
+      },
+      {
+        "from": "A8",
+        "to": "T11"
+      },
+      {
+        "from": "A8",
+        "to": "T1"
+      },
+      {
+        "from": "A8",
+        "to": "T21"
+      },
+      {
+        "from": "A8",
+        "to": "T6"
+      },
+      {
+        "from": "A8",
+        "to": "T23"
+      },
+      {
+        "from": "A8",
+        "to": "T5"
+      },
+      {
+        "from": "A11",
+        "to": "T20"
+      },
+      {
+        "from": "A11",
+        "to": "T5"
+      },
+      {
+        "from": "A11",
+        "to": "T4"
+      },
+      {
+        "from": "A13",
+        "to": "T14"
+      },
+      {
+        "from": "A13",
+        "to": "T4"
+      },
+      {
+        "from": "A13",
+        "to": "T17"
+      },
+      {
+        "from": "A16",
+        "to": "T22"
+      },
+      {
+        "from": "A17",
+        "to": "T20"
+      },
+      {
+        "from": "A17",
+        "to": "T22"
+      },
+      {
+        "from": "A18",
+        "to": "T13"
+      },
+      {
+        "from": "A18",
+        "to": "T3"
+      },
+      {
+        "from": "A18",
+        "to": "T8"
+      },
+      {
+        "from": "A18",
+        "to": "T1"
+      },
+      {
+        "from": "A23",
+        "to": "T22"
+      },
+      {
+        "from": "A23",
+        "to": "T7"
+      },
+      {
+        "from": "A23",
+        "to": "T12"
+      },
+      {
+        "from": "A23",
+        "to": "T17"
+      },
+      {
+        "from": "A25",
+        "to": "T19"
+      },
+      {
+        "from": "A27",
+        "to": "T3"
+      },
+      {
+        "from": "A27",
+        "to": "T6"
+      },
+      {
+        "from": "A27",
+        "to": "T13"
+      },
+      {
+        "from": "A27",
+        "to": "T0"
+      },
+      {
+        "from": "A27",
+        "to": "T22"
+      },
+      {
+        "from": "A27",
+        "to": "T5"
+      },
+      {
+        "from": "A30",
+        "to": "T3"
+      },
+      {
+        "from": "A30",
+        "to": "T4"
+      },
+      {
+        "from": "A30",
         "to": "T18"
+      },
+      {
+        "from": "A30",
+        "to": "T17"
+      },
+      {
+        "from": "A30",
+        "to": "T22"
+      },
+      {
+        "from": "A33",
+        "to": "T19"
+      },
+      {
+        "from": "A33",
+        "to": "T22"
+      },
+      {
+        "from": "A33",
+        "to": "T24"
+      },
+      {
+        "from": "A35",
+        "to": "T3"
+      },
+      {
+        "from": "A35",
+        "to": "T13"
+      },
+      {
+        "from": "A35",
+        "to": "T18"
+      },
+      {
+        "from": "A35",
+        "to": "T23"
+      },
+      {
+        "from": "A35",
+        "to": "T22"
+      },
+      {
+        "from": "A35",
+        "to": "T12"
+      },
+      {
+        "from": "A36",
+        "to": "T5"
+      },
+      {
+        "from": "A37",
+        "to": "T14"
+      },
+      {
+        "from": "A37",
+        "to": "T24"
+      },
+      {
+        "from": "A37",
+        "to": "T4"
+      },
+      {
+        "from": "A37",
+        "to": "T9"
+      },
+      {
+        "from": "A37",
+        "to": "T18"
+      },
+      {
+        "from": "A37",
+        "to": "T6"
+      },
+      {
+        "from": "A37",
+        "to": "T19"
+      },
+      {
+        "from": "A40",
+        "to": "T13"
+      },
+      {
+        "from": "A40",
+        "to": "T8"
+      },
+      {
+        "from": "A40",
+        "to": "T3"
+      },
+      {
+        "from": "A40",
+        "to": "T18"
+      },
+      {
+        "from": "A40",
+        "to": "T23"
+      },
+      {
+        "from": "A40",
+        "to": "T1"
+      },
+      {
+        "from": "A40",
+        "to": "T16"
+      },
+      {
+        "from": "A40",
+        "to": "T5"
+      },
+      {
+        "from": "A46",
+        "to": "T11"
+      },
+      {
+        "from": "A46",
+        "to": "T16"
+      },
+      {
+        "from": "A49",
+        "to": "T11"
+      },
+      {
+        "from": "A49",
+        "to": "T21"
+      },
+      {
+        "from": "A49",
+        "to": "T1"
+      },
+      {
+        "from": "A49",
+        "to": "T3"
+      },
+      {
+        "from": "A9",
+        "to": "T22"
+      },
+      {
+        "from": "A15",
+        "to": "T19"
+      },
+      {
+        "from": "A21",
+        "to": "T17"
+      },
+      {
+        "from": "A29",
+        "to": "T2"
+      },
+      {
+        "from": "A39",
+        "to": "T13"
+      },
+      {
+        "from": "A42",
+        "to": "T15"
+      },
+      {
+        "from": "A44",
+        "to": "T24"
       }
     ],
     "connects_to": [
       {
         "from": "N0",
-        "to": "N1"
-      },
-      {
-        "from": "N0",
         "to": "N3"
       },
       {
-        "from": "N0",
-        "to": "N4"
-      },
-      {
-        "from": "N0",
-        "to": "N7"
+        "from": "N1",
+        "to": "N3"
       },
       {
         "from": "N1",
         "to": "N6"
       },
       {
+        "from": "N1",
+        "to": "N7"
+      },
+      {
         "from": "N2",
-        "to": "N6"
+        "to": "N4"
+      },
+      {
+        "from": "N2",
+        "to": "N7"
       },
       {
         "from": "N3",
-        "to": "N5"
+        "to": "N7"
       },
       {
-        "from": "N4",
+        "from": "N5",
         "to": "N7"
       }
     ],
     "uses": [
       {
-        "from": "L2",
+        "from": "L0",
         "to": "L10"
       },
       {
-        "from": "L3",
-        "to": "L1"
-      },
-      {
-        "from": "L7",
+        "from": "L6",
         "to": "L3"
       },
       {
-        "from": "L7",
-        "to": "L4"
-      },
-      {
-        "from": "L10",
-        "to": "L4"
-      },
-      {
-        "from": "L10",
-        "to": "L9"
-      },
-      {
         "from": "L11",
-        "to": "L2"
+        "to": "L8"
       },
       {
-        "from": "A49",
-        "to": "L0"
-      },
-      {
-        "from": "A12",
-        "to": "L0"
-      },
-      {
-        "from": "A38",
+        "from": "A1",
         "to": "L0"
       },
       {
@@ -4001,31 +4468,23 @@
         "to": "L0"
       },
       {
-        "from": "A27",
+        "from": "A44",
         "to": "L0"
       },
       {
-        "from": "A34",
+        "from": "A43",
+        "to": "L0"
+      },
+      {
+        "from": "A42",
+        "to": "L0"
+      },
+      {
+        "from": "A48",
         "to": "L0"
       },
       {
         "from": "A7",
-        "to": "L1"
-      },
-      {
-        "from": "A20",
-        "to": "L1"
-      },
-      {
-        "from": "A24",
-        "to": "L1"
-      },
-      {
-        "from": "A36",
-        "to": "L1"
-      },
-      {
-        "from": "A39",
         "to": "L1"
       },
       {
@@ -4037,35 +4496,47 @@
         "to": "L1"
       },
       {
-        "from": "A8",
+        "from": "A15",
         "to": "L1"
       },
       {
-        "from": "A43",
+        "from": "A11",
         "to": "L1"
       },
       {
-        "from": "A47",
+        "from": "A20",
         "to": "L1"
       },
       {
-        "from": "A10",
+        "from": "A24",
+        "to": "L1"
+      },
+      {
+        "from": "A39",
+        "to": "L1"
+      },
+      {
+        "from": "A37",
+        "to": "L1"
+      },
+      {
+        "from": "A3",
         "to": "L1"
       },
       {
         "from": "A44",
+        "to": "L1"
+      },
+      {
+        "from": "A33",
+        "to": "L1"
+      },
+      {
+        "from": "A49",
         "to": "L2"
       },
       {
         "from": "A12",
-        "to": "L2"
-      },
-      {
-        "from": "A8",
-        "to": "L2"
-      },
-      {
-        "from": "A46",
         "to": "L2"
       },
       {
@@ -4073,23 +4544,11 @@
         "to": "L2"
       },
       {
-        "from": "A24",
+        "from": "A4",
         "to": "L2"
       },
       {
-        "from": "A6",
-        "to": "L2"
-      },
-      {
-        "from": "A9",
-        "to": "L3"
-      },
-      {
-        "from": "A41",
-        "to": "L3"
-      },
-      {
-        "from": "A19",
+        "from": "A2",
         "to": "L3"
       },
       {
@@ -4097,63 +4556,67 @@
         "to": "L3"
       },
       {
-        "from": "A2",
+        "from": "A9",
         "to": "L3"
       },
       {
-        "from": "A47",
+        "from": "A25",
         "to": "L3"
       },
       {
-        "from": "A24",
+        "from": "A23",
         "to": "L3"
       },
       {
-        "from": "A20",
-        "to": "L3"
+        "from": "A9",
+        "to": "L4"
+      },
+      {
+        "from": "A42",
+        "to": "L4"
+      },
+      {
+        "from": "A33",
+        "to": "L4"
+      },
+      {
+        "from": "A41",
+        "to": "L4"
       },
       {
         "from": "A13",
         "to": "L4"
       },
       {
-        "from": "A39",
-        "to": "L5"
+        "from": "A2",
+        "to": "L4"
       },
       {
-        "from": "A21",
-        "to": "L5"
+        "from": "A30",
+        "to": "L4"
       },
       {
-        "from": "A10",
-        "to": "L5"
+        "from": "A28",
+        "to": "L4"
+      },
+      {
+        "from": "A27",
+        "to": "L4"
       },
       {
         "from": "A7",
         "to": "L5"
       },
       {
-        "from": "A3",
+        "from": "A29",
         "to": "L5"
       },
       {
-        "from": "A12",
+        "from": "A39",
         "to": "L5"
-      },
-      {
-        "from": "A10",
-        "to": "L6"
       },
       {
         "from": "A34",
-        "to": "L6"
-      },
-      {
-        "from": "A21",
-        "to": "L6"
-      },
-      {
-        "from": "A11",
         "to": "L6"
       },
       {
@@ -4161,11 +4624,39 @@
         "to": "L6"
       },
       {
-        "from": "A29",
+        "from": "A39",
+        "to": "L6"
+      },
+      {
+        "from": "A47",
+        "to": "L6"
+      },
+      {
+        "from": "A11",
+        "to": "L6"
+      },
+      {
+        "from": "A7",
+        "to": "L6"
+      },
+      {
+        "from": "A20",
+        "to": "L6"
+      },
+      {
+        "from": "A19",
         "to": "L6"
       },
       {
         "from": "A5",
+        "to": "L6"
+      },
+      {
+        "from": "A16",
+        "to": "L6"
+      },
+      {
+        "from": "A12",
         "to": "L6"
       },
       {
@@ -4173,63 +4664,43 @@
         "to": "L7"
       },
       {
-        "from": "A40",
-        "to": "L7"
-      },
-      {
-        "from": "A30",
-        "to": "L7"
-      },
-      {
-        "from": "A12",
-        "to": "L7"
-      },
-      {
-        "from": "A32",
-        "to": "L7"
-      },
-      {
-        "from": "A21",
-        "to": "L8"
-      },
-      {
-        "from": "A15",
-        "to": "L8"
-      },
-      {
         "from": "A29",
         "to": "L8"
       },
       {
-        "from": "A17",
+        "from": "A10",
         "to": "L8"
       },
       {
-        "from": "A36",
+        "from": "A11",
         "to": "L8"
       },
       {
-        "from": "A7",
+        "from": "A20",
+        "to": "L8"
+      },
+      {
+        "from": "A47",
+        "to": "L8"
+      },
+      {
+        "from": "A44",
+        "to": "L8"
+      },
+      {
+        "from": "A22",
+        "to": "L8"
+      },
+      {
+        "from": "A12",
         "to": "L8"
       },
       {
         "from": "A41",
-        "to": "L8"
-      },
-      {
-        "from": "A16",
-        "to": "L8"
-      },
-      {
-        "from": "A28",
-        "to": "L8"
-      },
-      {
-        "from": "A6",
         "to": "L9"
       },
       {
-        "from": "A0",
+        "from": "A6",
         "to": "L9"
       },
       {
@@ -4237,79 +4708,35 @@
         "to": "L9"
       },
       {
-        "from": "A19",
+        "from": "A9",
         "to": "L9"
       },
       {
-        "from": "A37",
+        "from": "A14",
         "to": "L9"
       },
       {
-        "from": "A11",
+        "from": "A5",
         "to": "L9"
       },
       {
-        "from": "A15",
-        "to": "L9"
+        "from": "A0",
+        "to": "L10"
       },
       {
         "from": "A42",
         "to": "L10"
       },
       {
-        "from": "A13",
+        "from": "A9",
         "to": "L10"
       },
       {
-        "from": "A20",
-        "to": "L11"
-      },
-      {
-        "from": "A11",
-        "to": "L11"
-      },
-      {
-        "from": "A36",
-        "to": "L11"
-      },
-      {
-        "from": "A34",
-        "to": "L11"
-      },
-      {
-        "from": "A15",
-        "to": "L11"
-      },
-      {
-        "from": "A17",
-        "to": "L11"
-      },
-      {
-        "from": "A10",
-        "to": "L11"
+        "from": "A12",
+        "to": "L10"
       },
       {
         "from": "A21",
-        "to": "L11"
-      },
-      {
-        "from": "A5",
-        "to": "L11"
-      },
-      {
-        "from": "A48",
-        "to": "L11"
-      },
-      {
-        "from": "A30",
-        "to": "L11"
-      },
-      {
-        "from": "A43",
-        "to": "L11"
-      },
-      {
-        "from": "A26",
         "to": "L11"
       }
     ]

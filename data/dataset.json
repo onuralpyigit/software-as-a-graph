@@ -1,11 +1,11 @@
 {
   "metadata": {
     "scale": {
-      "apps": 50,
-      "topics": 30,
-      "brokers": 3,
-      "nodes": 8,
-      "libs": 10
+      "apps": 15,
+      "topics": 10,
+      "brokers": 2,
+      "nodes": 4,
+      "libs": 5
     },
     "seed": 42,
     "generation_mode": "random",
@@ -28,22 +28,6 @@
     {
       "id": "N3",
       "name": "Node-3"
-    },
-    {
-      "id": "N4",
-      "name": "Node-4"
-    },
-    {
-      "id": "N5",
-      "name": "Node-5"
-    },
-    {
-      "id": "N6",
-      "name": "Node-6"
-    },
-    {
-      "id": "N7",
-      "name": "Node-7"
     }
   ],
   "brokers": [
@@ -54,29 +38,25 @@
     {
       "id": "B1",
       "name": "Broker-1"
-    },
-    {
-      "id": "B2",
-      "name": "Broker-2"
     }
   ],
   "topics": [
     {
       "id": "T0",
       "name": "Topic-0",
-      "size": 41969,
+      "size": 32768,
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
         "transport_priority": "LOW"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T1",
       "name": "Topic-1",
-      "size": 7360,
+      "size": 8192,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "BEST_EFFORT",
@@ -88,7 +68,7 @@
     {
       "id": "T2",
       "name": "Topic-2",
-      "size": 1703,
+      "size": 2048,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "RELIABLE",
@@ -100,7 +80,7 @@
     {
       "id": "T3",
       "name": "Topic-3",
-      "size": 48662,
+      "size": 65536,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
@@ -112,31 +92,31 @@
     {
       "id": "T4",
       "name": "Topic-4",
-      "size": 18088,
+      "size": 16384,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
         "transport_priority": "URGENT"
       },
-      "frequency": 200.0,
+      "frequency": 50.0,
       "criticality": "critical"
     },
     {
       "id": "T5",
       "name": "Topic-5",
-      "size": 16113,
+      "size": 16384,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "BEST_EFFORT",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 50.0,
       "criticality": "high"
     },
     {
       "id": "T6",
       "name": "Topic-6",
-      "size": 14692,
+      "size": 16384,
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
@@ -148,823 +128,621 @@
     {
       "id": "T7",
       "name": "Topic-7",
-      "size": 9208,
+      "size": 8192,
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 20.0,
-      "criticality": "high"
+      "frequency": 10.0,
+      "criticality": "medium"
     },
     {
       "id": "T8",
       "name": "Topic-8",
-      "size": 48329,
+      "size": 65536,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "URGENT"
       },
-      "frequency": 200.0,
+      "frequency": 50.0,
       "criticality": "critical"
     },
     {
       "id": "T9",
       "name": "Topic-9",
-      "size": 6781,
+      "size": 8192,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 100.0,
-      "criticality": "high"
-    },
-    {
-      "id": "T10",
-      "name": "Topic-10",
-      "size": 44412,
-      "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
-      },
-      "frequency": 20.0,
-      "criticality": "high"
-    },
-    {
-      "id": "T11",
-      "name": "Topic-11",
-      "size": 48604,
-      "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
-      },
-      "frequency": 20.0,
-      "criticality": "critical"
-    },
-    {
-      "id": "T12",
-      "name": "Topic-12",
-      "size": 58533,
-      "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "URGENT"
-      },
-      "frequency": 200.0,
-      "criticality": "critical"
-    },
-    {
-      "id": "T13",
-      "name": "Topic-13",
-      "size": 35805,
-      "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
-      },
-      "frequency": 100.0,
-      "criticality": "critical"
-    },
-    {
-      "id": "T14",
-      "name": "Topic-14",
-      "size": 5761,
-      "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "URGENT"
-      },
       "frequency": 1.0,
-      "criticality": "high"
-    },
-    {
-      "id": "T15",
-      "name": "Topic-15",
-      "size": 38762,
-      "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
-      },
-      "frequency": 100.0,
-      "criticality": "critical"
-    },
-    {
-      "id": "T16",
-      "name": "Topic-16",
-      "size": 27715,
-      "qos": {
-        "durability": "TRANSIENT",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
-      },
-      "frequency": 1.0,
-      "criticality": "high"
-    },
-    {
-      "id": "T17",
-      "name": "Topic-17",
-      "size": 2146,
-      "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
-      },
-      "frequency": 100.0,
-      "criticality": "critical"
-    },
-    {
-      "id": "T18",
-      "name": "Topic-18",
-      "size": 2016,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
-      },
-      "frequency": 1.0,
-      "criticality": "medium"
-    },
-    {
-      "id": "T19",
-      "name": "Topic-19",
-      "size": 6204,
-      "qos": {
-        "durability": "TRANSIENT",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "LOW"
-      },
-      "frequency": 1.0,
-      "criticality": "medium"
-    },
-    {
-      "id": "T20",
-      "name": "Topic-20",
-      "size": 14392,
-      "qos": {
-        "durability": "TRANSIENT",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "LOW"
-      },
-      "frequency": 1.0,
-      "criticality": "medium"
-    },
-    {
-      "id": "T21",
-      "name": "Topic-21",
-      "size": 15311,
-      "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
-      },
-      "frequency": 1.0,
-      "criticality": "medium"
-    },
-    {
-      "id": "T22",
-      "name": "Topic-22",
-      "size": 33182,
-      "qos": {
-        "durability": "TRANSIENT",
-        "reliability": "RELIABLE",
-        "transport_priority": "LOW"
-      },
-      "frequency": 1.0,
-      "criticality": "high"
-    },
-    {
-      "id": "T23",
-      "name": "Topic-23",
-      "size": 39517,
-      "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "transport_priority": "URGENT"
-      },
-      "frequency": 200.0,
-      "criticality": "critical"
-    },
-    {
-      "id": "T24",
-      "name": "Topic-24",
-      "size": 1803,
-      "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
-      },
-      "frequency": 100.0,
-      "criticality": "critical"
-    },
-    {
-      "id": "T25",
-      "name": "Topic-25",
-      "size": 36845,
-      "qos": {
-        "durability": "TRANSIENT",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "LOW"
-      },
-      "frequency": 1.0,
-      "criticality": "medium"
-    },
-    {
-      "id": "T26",
-      "name": "Topic-26",
-      "size": 13095,
-      "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
-      },
-      "frequency": 20.0,
-      "criticality": "high"
-    },
-    {
-      "id": "T27",
-      "name": "Topic-27",
-      "size": 46989,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
-      },
-      "frequency": 1.0,
-      "criticality": "medium"
-    },
-    {
-      "id": "T28",
-      "name": "Topic-28",
-      "size": 42654,
-      "qos": {
-        "durability": "TRANSIENT",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "URGENT"
-      },
-      "frequency": 1.0,
-      "criticality": "high"
-    },
-    {
-      "id": "T29",
-      "name": "Topic-29",
-      "size": 46026,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
-      },
-      "frequency": 1.0,
-      "criticality": "low"
+      "criticality": "minimal"
     }
   ],
   "applications": [
     {
       "id": "A0",
       "name": "App-0",
-      "version": "3.1.6",
+      "version": "2.7.5",
       "app_type": "gateway",
       "role": [
-        "sub"
+        "Administrator"
       ],
       "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": false,
       "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Application Software",
-        "css_name": "Process Control",
-        "csms_name": "Configuration Management"
+        "csc_name": "Information Systems",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Shared Platform",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2679,
-          "total_classes": 24,
-          "total_methods": 164,
-          "total_fields": 126
+          "total_loc": 2178,
+          "total_classes": 19,
+          "total_methods": 157,
+          "total_fields": 77
         },
         "complexity": {
-          "total_wmc": 495,
-          "avg_wmc": 20.62,
-          "max_wmc": 66
+          "total_wmc": 332,
+          "avg_wmc": 17.5,
+          "max_wmc": 37
         },
         "cohesion": {
-          "avg_lcom": 46.26,
-          "max_lcom": 134.4
+          "avg_lcom": 61.5,
+          "max_lcom": 135.1
         },
         "coupling": {
-          "avg_cbo": 15.97,
-          "max_cbo": 26,
-          "avg_rfc": 34.81,
-          "max_rfc": 79,
-          "avg_fanin": 7.17,
-          "max_fanin": 17,
-          "avg_fanout": 5.6,
-          "max_fanout": 15
+          "avg_cbo": 8.93,
+          "max_cbo": 19,
+          "avg_rfc": 46.56,
+          "max_rfc": 87,
+          "avg_fanin": 3.15,
+          "max_fanin": 7,
+          "avg_fanout": 10.61,
+          "max_fanout": 29
         }
       }
     },
     {
       "id": "A1",
       "name": "App-1",
-      "version": "1.4.8",
-      "app_type": "processor",
+      "version": "1.3.9",
+      "app_type": "gateway",
       "role": [
-        "sub"
+        "Administrator",
+        "Analyst"
       ],
       "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "csc_name": "Information Systems",
+        "csci_name": "Infrastructure Software",
+        "css_name": "User Interface",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1820,
-          "total_classes": 27,
-          "total_methods": 221,
-          "total_fields": 133
+          "total_loc": 1466,
+          "total_classes": 15,
+          "total_methods": 109,
+          "total_fields": 57
         },
         "complexity": {
-          "total_wmc": 619,
-          "avg_wmc": 22.91,
-          "max_wmc": 71
+          "total_wmc": 405,
+          "avg_wmc": 26.99,
+          "max_wmc": 83
         },
         "cohesion": {
-          "avg_lcom": 25.67,
-          "max_lcom": 92.5
+          "avg_lcom": 27.7,
+          "max_lcom": 105.9
         },
         "coupling": {
-          "avg_cbo": 6.0,
-          "max_cbo": 12,
-          "avg_rfc": 30.25,
-          "max_rfc": 74,
-          "avg_fanin": 6.26,
-          "max_fanin": 17,
-          "avg_fanout": 7.51,
-          "max_fanout": 16
+          "avg_cbo": 7.63,
+          "max_cbo": 14,
+          "avg_rfc": 49.69,
+          "max_rfc": 106,
+          "avg_fanin": 5.34,
+          "max_fanin": 20,
+          "avg_fanout": 12.43,
+          "max_fanout": 35
         }
       }
     },
     {
       "id": "A2",
       "name": "App-2",
-      "version": "3.2.4",
+      "version": "3.6.9",
       "app_type": "controller",
       "role": [
-        "pubsub"
+        "Engineer"
       ],
-      "criticality": true,
+      "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": false,
       "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Software Engineering",
-        "css_name": "Process Control",
-        "csms_name": "Configuration Management"
+        "csc_name": "Information Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "Software Design",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 807,
-          "total_classes": 8,
-          "total_methods": 71,
-          "total_fields": 29
+          "total_loc": 1870,
+          "total_classes": 21,
+          "total_methods": 174,
+          "total_fields": 67
         },
         "complexity": {
-          "total_wmc": 142,
-          "avg_wmc": 17.79,
-          "max_wmc": 60
+          "total_wmc": 402,
+          "avg_wmc": 19.15,
+          "max_wmc": 41
         },
         "cohesion": {
-          "avg_lcom": 14.2,
-          "max_lcom": 59.6
+          "avg_lcom": 21.37,
+          "max_lcom": 72.7
         },
         "coupling": {
-          "avg_cbo": 13.52,
-          "max_cbo": 21,
-          "avg_rfc": 27.66,
-          "max_rfc": 43,
-          "avg_fanin": 4.8,
-          "max_fanin": 19,
-          "avg_fanout": 3.9,
-          "max_fanout": 10
+          "avg_cbo": 7.36,
+          "max_cbo": 15,
+          "avg_rfc": 37.55,
+          "max_rfc": 71,
+          "avg_fanin": 2.1,
+          "max_fanin": 9,
+          "avg_fanout": 6.57,
+          "max_fanout": 14
         }
       }
     },
     {
       "id": "A3",
       "name": "App-3",
-      "version": "1.0.3",
-      "app_type": "sensor",
+      "version": "2.8.9",
+      "app_type": "processor",
       "role": [
-        "pubsub"
+        "Analyst",
+        "Engineer",
+        "Operative"
       ],
       "criticality": false,
+      "priority": "LOW",
+      "hotstandby": true,
       "system_hierarchy": {
-        "csc_name": "Information Systems",
+        "csc_name": "Software Systems",
         "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
+        "css_name": "Communication",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 410,
-          "total_classes": 4,
-          "total_methods": 19,
-          "total_fields": 12
+          "total_loc": 730,
+          "total_classes": 8,
+          "total_methods": 69,
+          "total_fields": 27
         },
         "complexity": {
-          "total_wmc": 34,
-          "avg_wmc": 8.38,
-          "max_wmc": 13
+          "total_wmc": 110,
+          "avg_wmc": 13.77,
+          "max_wmc": 68
         },
         "cohesion": {
-          "avg_lcom": 24.9,
-          "max_lcom": 90.3
+          "avg_lcom": 42.21,
+          "max_lcom": 96.5
         },
         "coupling": {
-          "avg_cbo": 3.75,
-          "max_cbo": 8,
-          "avg_rfc": 9.45,
-          "max_rfc": 16,
-          "avg_fanin": 2.01,
+          "avg_cbo": 12.96,
+          "max_cbo": 29,
+          "avg_rfc": 38.75,
+          "max_rfc": 71,
+          "avg_fanin": 2.76,
           "max_fanin": 7,
-          "avg_fanout": 2.69,
-          "max_fanout": 6
+          "avg_fanout": 3.03,
+          "max_fanout": 8
         }
       }
     },
     {
       "id": "A4",
       "name": "App-4",
-      "version": "3.0.1",
-      "app_type": "processor",
+      "version": "1.8.3",
+      "app_type": "gateway",
       "role": [
-        "pub"
+        "Administrator",
+        "Supervisor"
       ],
       "criticality": false,
+      "priority": "LOW",
+      "hotstandby": false,
       "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Systems Engineering",
+        "csc_name": "Information Systems",
+        "csci_name": "Application Software",
         "css_name": "Software Design",
-        "csms_name": "Configuration Management"
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2454,
-          "total_classes": 20,
-          "total_methods": 140,
-          "total_fields": 71
+          "total_loc": 1614,
+          "total_classes": 14,
+          "total_methods": 148,
+          "total_fields": 65
         },
         "complexity": {
-          "total_wmc": 284,
-          "avg_wmc": 14.18,
-          "max_wmc": 31
+          "total_wmc": 342,
+          "avg_wmc": 24.46,
+          "max_wmc": 82
         },
         "cohesion": {
-          "avg_lcom": 43.93,
-          "max_lcom": 184.8
+          "avg_lcom": 22.61,
+          "max_lcom": 94.8
         },
         "coupling": {
-          "avg_cbo": 10.19,
-          "max_cbo": 18,
-          "avg_rfc": 30.77,
-          "max_rfc": 59,
-          "avg_fanin": 1.57,
-          "max_fanin": 6,
-          "avg_fanout": 6.19,
-          "max_fanout": 15
+          "avg_cbo": 15.47,
+          "max_cbo": 25,
+          "avg_rfc": 34.58,
+          "max_rfc": 54,
+          "avg_fanin": 6.56,
+          "max_fanin": 26,
+          "avg_fanout": 5.28,
+          "max_fanout": 13
         }
       }
     },
     {
       "id": "A5",
       "name": "App-5",
-      "version": "1.3.2",
-      "app_type": "monitor",
+      "version": "3.2.9",
+      "app_type": "processor",
       "role": [
-        "pub"
+        "Administrator",
+        "Engineer"
       ],
-      "criticality": false,
+      "criticality": true,
+      "priority": "HIGH",
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Systems Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
+        "css_name": "Data Management",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 712,
-          "total_classes": 11,
-          "total_methods": 90,
-          "total_fields": 26
+          "total_loc": 2060,
+          "total_classes": 21,
+          "total_methods": 230,
+          "total_fields": 83
         },
         "complexity": {
-          "total_wmc": 105,
-          "avg_wmc": 9.53,
-          "max_wmc": 22
+          "total_wmc": 348,
+          "avg_wmc": 16.57,
+          "max_wmc": 38
         },
         "cohesion": {
-          "avg_lcom": 15.5,
-          "max_lcom": 48.9
+          "avg_lcom": 23.99,
+          "max_lcom": 68.3
         },
         "coupling": {
-          "avg_cbo": 9.25,
-          "max_cbo": 15,
-          "avg_rfc": 28.54,
-          "max_rfc": 67,
-          "avg_fanin": 1.39,
-          "max_fanin": 5,
-          "avg_fanout": 5.7,
-          "max_fanout": 11
+          "avg_cbo": 10.29,
+          "max_cbo": 18,
+          "avg_rfc": 23.95,
+          "max_rfc": 38,
+          "avg_fanin": 4.79,
+          "max_fanin": 12,
+          "avg_fanout": 11.15,
+          "max_fanout": 32
         }
       }
     },
     {
       "id": "A6",
       "name": "App-6",
-      "version": "1.9.8",
-      "app_type": "sensor",
+      "version": "1.4.7",
+      "app_type": "processor",
       "role": [
-        "sub"
+        "Administrator"
       ],
       "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": true,
       "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Software Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
+        "csc_name": "Information Systems",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Process Control",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 348,
-          "total_classes": 4,
-          "total_methods": 30,
-          "total_fields": 15
+          "total_loc": 1780,
+          "total_classes": 20,
+          "total_methods": 194,
+          "total_fields": 88
         },
         "complexity": {
-          "total_wmc": 20,
-          "avg_wmc": 4.99,
-          "max_wmc": 6
+          "total_wmc": 257,
+          "avg_wmc": 12.86,
+          "max_wmc": 16
         },
         "cohesion": {
-          "avg_lcom": 23.53,
-          "max_lcom": 93.2
+          "avg_lcom": 31.94,
+          "max_lcom": 101.2
         },
         "coupling": {
-          "avg_cbo": 3.14,
-          "max_cbo": 7,
-          "avg_rfc": 16.77,
-          "max_rfc": 38,
-          "avg_fanin": 2.99,
+          "avg_cbo": 11.56,
+          "max_cbo": 25,
+          "avg_rfc": 44.57,
+          "max_rfc": 71,
+          "avg_fanin": 3.42,
           "max_fanin": 10,
-          "avg_fanout": 2.57,
-          "max_fanout": 6
+          "avg_fanout": 10.76,
+          "max_fanout": 24
         }
       }
     },
     {
       "id": "A7",
       "name": "App-7",
-      "version": "1.6.9",
-      "app_type": "sensor",
+      "version": "2.8.7",
+      "app_type": "actuator",
       "role": [
-        "pub"
+        "Administrator",
+        "Analyst"
       ],
       "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": true,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
+        "csc_name": "Computing Platform",
         "csci_name": "Application Software",
-        "css_name": "Communication",
-        "csms_name": "Configuration Management"
+        "css_name": "Software Design",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 482,
-          "total_classes": 5,
-          "total_methods": 21,
-          "total_fields": 15
+          "total_loc": 227,
+          "total_classes": 3,
+          "total_methods": 13,
+          "total_fields": 11
         },
         "complexity": {
-          "total_wmc": 48,
-          "avg_wmc": 9.52,
-          "max_wmc": 22
+          "total_wmc": 25,
+          "avg_wmc": 8.28,
+          "max_wmc": 8
         },
         "cohesion": {
-          "avg_lcom": 15.16,
-          "max_lcom": 62.6
+          "avg_lcom": 13.11,
+          "max_lcom": 26.7
         },
         "coupling": {
-          "avg_cbo": 2.27,
-          "max_cbo": 4,
-          "avg_rfc": 18.34,
-          "max_rfc": 35,
-          "avg_fanin": 3.82,
-          "max_fanin": 13,
-          "avg_fanout": 3.74,
-          "max_fanout": 8
+          "avg_cbo": 2.28,
+          "max_cbo": 5,
+          "avg_rfc": 10.36,
+          "max_rfc": 20,
+          "avg_fanin": 1.96,
+          "max_fanin": 8,
+          "avg_fanout": 4.71,
+          "max_fanout": 10
         }
       }
     },
     {
       "id": "A8",
       "name": "App-8",
-      "version": "1.5.1",
-      "app_type": "monitor",
+      "version": "1.6.9",
+      "app_type": "controller",
       "role": [
-        "pubsub"
+        "Analyst",
+        "Engineer",
+        "Operative"
       ],
       "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Information Systems",
-        "csci_name": "Software Engineering",
-        "css_name": "Software Design",
-        "csms_name": "Configuration Management"
+        "csci_name": "Application Software",
+        "css_name": "Data Management",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 835,
-          "total_classes": 10,
-          "total_methods": 60,
-          "total_fields": 40
+          "total_loc": 717,
+          "total_classes": 7,
+          "total_methods": 43,
+          "total_fields": 15
         },
         "complexity": {
-          "total_wmc": 105,
-          "avg_wmc": 10.51,
-          "max_wmc": 19
+          "total_wmc": 122,
+          "avg_wmc": 17.36,
+          "max_wmc": 22
         },
         "cohesion": {
-          "avg_lcom": 29.37,
-          "max_lcom": 92.3
+          "avg_lcom": 13.91,
+          "max_lcom": 44.4
         },
         "coupling": {
-          "avg_cbo": 9.57,
-          "max_cbo": 23,
-          "avg_rfc": 14.17,
-          "max_rfc": 30,
-          "avg_fanin": 3.25,
-          "max_fanin": 7,
-          "avg_fanout": 5.69,
-          "max_fanout": 14
+          "avg_cbo": 13.27,
+          "max_cbo": 27,
+          "avg_rfc": 17.37,
+          "max_rfc": 35,
+          "avg_fanin": 5.26,
+          "max_fanin": 11,
+          "avg_fanout": 3.48,
+          "max_fanout": 10
         }
       }
     },
     {
       "id": "A9",
       "name": "App-9",
-      "version": "2.3.4",
-      "app_type": "sensor",
+      "version": "2.4.2",
+      "app_type": "actuator",
       "role": [
-        "pub"
+        "Engineer",
+        "Operative"
       ],
       "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Software Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "csc_name": "Computing Platform",
+        "csci_name": "Application Software",
+        "css_name": "Process Control",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 289,
-          "total_classes": 3,
-          "total_methods": 17,
-          "total_fields": 9
+          "total_loc": 389,
+          "total_classes": 4,
+          "total_methods": 27,
+          "total_fields": 10
         },
         "complexity": {
-          "total_wmc": 17,
-          "avg_wmc": 5.82,
-          "max_wmc": 14
+          "total_wmc": 30,
+          "avg_wmc": 7.58,
+          "max_wmc": 12
         },
         "cohesion": {
-          "avg_lcom": 16.09,
-          "max_lcom": 69.7
+          "avg_lcom": 15.08,
+          "max_lcom": 41.5
         },
         "coupling": {
-          "avg_cbo": 2.41,
-          "max_cbo": 6,
-          "avg_rfc": 11.17,
-          "max_rfc": 27,
-          "avg_fanin": 3.23,
-          "max_fanin": 8,
-          "avg_fanout": 2.85,
-          "max_fanout": 6
+          "avg_cbo": 2.95,
+          "max_cbo": 7,
+          "avg_rfc": 8.73,
+          "max_rfc": 17,
+          "avg_fanin": 3.0,
+          "max_fanin": 13,
+          "avg_fanout": 2.22,
+          "max_fanout": 5
         }
       }
     },
     {
       "id": "A10",
       "name": "App-10",
-      "version": "2.9.8",
-      "app_type": "controller",
+      "version": "1.6.4",
+      "app_type": "sensor",
       "role": [
-        "pubsub"
+        "Administrator",
+        "Analyst",
+        "Operative"
       ],
       "criticality": false,
+      "priority": "LOW",
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Computer Science",
-        "csci_name": "Software Engineering",
-        "css_name": "Communication",
-        "csms_name": "Configuration Management"
+        "csci_name": "Application Software",
+        "css_name": "Process Control",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1400,
-          "total_classes": 15,
-          "total_methods": 143,
-          "total_fields": 32
+          "total_loc": 324,
+          "total_classes": 4,
+          "total_methods": 27,
+          "total_fields": 13
         },
         "complexity": {
-          "total_wmc": 245,
-          "avg_wmc": 16.34,
-          "max_wmc": 31
+          "total_wmc": 40,
+          "avg_wmc": 9.92,
+          "max_wmc": 33
         },
         "cohesion": {
-          "avg_lcom": 49.23,
-          "max_lcom": 118.3
+          "avg_lcom": 18.27,
+          "max_lcom": 79.4
         },
         "coupling": {
-          "avg_cbo": 8.98,
-          "max_cbo": 20,
-          "avg_rfc": 29.46,
-          "max_rfc": 47,
-          "avg_fanin": 5.73,
-          "max_fanin": 21,
-          "avg_fanout": 4.04,
-          "max_fanout": 8
+          "avg_cbo": 2.54,
+          "max_cbo": 4,
+          "avg_rfc": 9.28,
+          "max_rfc": 19,
+          "avg_fanin": 1.82,
+          "max_fanin": 6,
+          "avg_fanout": 4.15,
+          "max_fanout": 9
         }
       }
     },
     {
       "id": "A11",
       "name": "App-11",
-      "version": "2.0.2",
-      "app_type": "monitor",
+      "version": "1.3.1",
+      "app_type": "controller",
       "role": [
-        "pub"
+        "Analyst"
       ],
       "criticality": false,
+      "priority": "MEDIUM",
+      "hotstandby": true,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Software Design",
-        "csms_name": "Configuration Management"
+        "csc_name": "Information Systems",
+        "csci_name": "Software Engineering",
+        "css_name": "Data Management",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 740,
-          "total_classes": 8,
-          "total_methods": 50,
-          "total_fields": 38
+          "total_loc": 490,
+          "total_classes": 4,
+          "total_methods": 35,
+          "total_fields": 16
         },
         "complexity": {
-          "total_wmc": 115,
-          "avg_wmc": 14.37,
-          "max_wmc": 23
+          "total_wmc": 50,
+          "avg_wmc": 12.62,
+          "max_wmc": 45
         },
         "cohesion": {
-          "avg_lcom": 13.08,
-          "max_lcom": 51.7
+          "avg_lcom": 28.25,
+          "max_lcom": 57.2
         },
         "coupling": {
-          "avg_cbo": 9.3,
-          "max_cbo": 18,
-          "avg_rfc": 25.17,
-          "max_rfc": 42,
-          "avg_fanin": 4.72,
-          "max_fanin": 20,
-          "avg_fanout": 7.88,
-          "max_fanout": 22
+          "avg_cbo": 5.68,
+          "max_cbo": 14,
+          "avg_rfc": 37.69,
+          "max_rfc": 77,
+          "avg_fanin": 5.17,
+          "max_fanin": 18,
+          "avg_fanout": 4.04,
+          "max_fanout": 9
         }
       }
     },
     {
       "id": "A12",
       "name": "App-12",
-      "version": "1.3.6",
+      "version": "1.4.5",
       "app_type": "processor",
       "role": [
-        "pubsub"
+        "Analyst",
+        "Supervisor"
       ],
       "criticality": true,
+      "priority": "HIGH",
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Software Design",
-        "csms_name": "Configuration Management"
+        "csci_name": "Software Engineering",
+        "css_name": "Process Control",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2493,
-          "total_classes": 26,
-          "total_methods": 275,
-          "total_fields": 115
+          "total_loc": 1324,
+          "total_classes": 18,
+          "total_methods": 185,
+          "total_fields": 58
         },
         "complexity": {
-          "total_wmc": 597,
-          "avg_wmc": 22.96,
-          "max_wmc": 74
+          "total_wmc": 348,
+          "avg_wmc": 19.31,
+          "max_wmc": 62
         },
         "cohesion": {
           "avg_lcom": 46.49,
@@ -985,1591 +763,91 @@
     {
       "id": "A13",
       "name": "App-13",
-      "version": "3.1.6",
+      "version": "3.3.5",
       "app_type": "sensor",
       "role": [
-        "sub"
+        "Supervisor"
       ],
       "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": true,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Infrastructure Software",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "csc_name": "Information Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "Shared Platform",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 242,
-          "total_classes": 3,
-          "total_methods": 24,
-          "total_fields": 8
+          "total_loc": 428,
+          "total_classes": 5,
+          "total_methods": 34,
+          "total_fields": 18
         },
         "complexity": {
-          "total_wmc": 24,
-          "avg_wmc": 7.85,
-          "max_wmc": 29
+          "total_wmc": 30,
+          "avg_wmc": 5.99,
+          "max_wmc": 8
         },
         "cohesion": {
-          "avg_lcom": 7.31,
-          "max_lcom": 32.4
+          "avg_lcom": 24.67,
+          "max_lcom": 51.7
         },
         "coupling": {
-          "avg_cbo": 2.71,
-          "max_cbo": 7,
-          "avg_rfc": 11.19,
-          "max_rfc": 18,
-          "avg_fanin": 2.3,
+          "avg_cbo": 4.39,
+          "max_cbo": 8,
+          "avg_rfc": 17.44,
+          "max_rfc": 34,
+          "avg_fanin": 3.95,
           "max_fanin": 9,
-          "avg_fanout": 2.94,
-          "max_fanout": 8
+          "avg_fanout": 4.7,
+          "max_fanout": 10
         }
       }
     },
     {
       "id": "A14",
       "name": "App-14",
-      "version": "2.6.5",
-      "app_type": "monitor",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": true,
-      "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Systems Engineering",
-        "css_name": "Process Control",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 494,
-          "total_classes": 6,
-          "total_methods": 47,
-          "total_fields": 12
-        },
-        "complexity": {
-          "total_wmc": 92,
-          "avg_wmc": 15.4,
-          "max_wmc": 39
-        },
-        "cohesion": {
-          "avg_lcom": 32.26,
-          "max_lcom": 118.6
-        },
-        "coupling": {
-          "avg_cbo": 6.19,
-          "max_cbo": 10,
-          "avg_rfc": 25.96,
-          "max_rfc": 48,
-          "avg_fanin": 2.26,
-          "max_fanin": 9,
-          "avg_fanout": 6.6,
-          "max_fanout": 15
-        }
-      }
-    },
-    {
-      "id": "A15",
-      "name": "App-15",
-      "version": "3.2.1",
-      "app_type": "processor",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Information Systems",
-        "csci_name": "Software Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 2027,
-          "total_classes": 20,
-          "total_methods": 115,
-          "total_fields": 65
-        },
-        "complexity": {
-          "total_wmc": 482,
-          "avg_wmc": 24.11,
-          "max_wmc": 62
-        },
-        "cohesion": {
-          "avg_lcom": 36.92,
-          "max_lcom": 73.9
-        },
-        "coupling": {
-          "avg_cbo": 7.58,
-          "max_cbo": 15,
-          "avg_rfc": 33.66,
-          "max_rfc": 73,
-          "avg_fanin": 3.79,
-          "max_fanin": 12,
-          "avg_fanout": 4.92,
-          "max_fanout": 12
-        }
-      }
-    },
-    {
-      "id": "A16",
-      "name": "App-16",
-      "version": "2.7.6",
-      "app_type": "actuator",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Application Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 363,
-          "total_classes": 4,
-          "total_methods": 23,
-          "total_fields": 9
-        },
-        "complexity": {
-          "total_wmc": 35,
-          "avg_wmc": 8.76,
-          "max_wmc": 14
-        },
-        "cohesion": {
-          "avg_lcom": 17.1,
-          "max_lcom": 40.5
-        },
-        "coupling": {
-          "avg_cbo": 2.14,
-          "max_cbo": 5,
-          "avg_rfc": 14.11,
-          "max_rfc": 32,
-          "avg_fanin": 1.91,
-          "max_fanin": 8,
-          "avg_fanout": 3.73,
-          "max_fanout": 10
-        }
-      }
-    },
-    {
-      "id": "A17",
-      "name": "App-17",
-      "version": "3.5.7",
+      "version": "2.4.3",
       "app_type": "controller",
       "role": [
-        "pub"
+        "Operative",
+        "Supervisor"
       ],
       "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Systems Engineering",
-        "css_name": "Process Control",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 702,
-          "total_classes": 10,
-          "total_methods": 50,
-          "total_fields": 43
-        },
-        "complexity": {
-          "total_wmc": 177,
-          "avg_wmc": 17.7,
-          "max_wmc": 22
-        },
-        "cohesion": {
-          "avg_lcom": 18.68,
-          "max_lcom": 82.1
-        },
-        "coupling": {
-          "avg_cbo": 9.66,
-          "max_cbo": 15,
-          "avg_rfc": 21.98,
-          "max_rfc": 52,
-          "avg_fanin": 3.28,
-          "max_fanin": 13,
-          "avg_fanout": 7.67,
-          "max_fanout": 23
-        }
-      }
-    },
-    {
-      "id": "A18",
-      "name": "App-18",
-      "version": "3.1.2",
-      "app_type": "actuator",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Information Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 358,
-          "total_classes": 4,
-          "total_methods": 27,
-          "total_fields": 12
-        },
-        "complexity": {
-          "total_wmc": 19,
-          "avg_wmc": 4.8,
-          "max_wmc": 19
-        },
-        "cohesion": {
-          "avg_lcom": 16.28,
-          "max_lcom": 66.7
-        },
-        "coupling": {
-          "avg_cbo": 2.83,
-          "max_cbo": 6,
-          "avg_rfc": 12.85,
-          "max_rfc": 22,
-          "avg_fanin": 1.88,
-          "max_fanin": 7,
-          "avg_fanout": 2.7,
-          "max_fanout": 6
-        }
-      }
-    },
-    {
-      "id": "A19",
-      "name": "App-19",
-      "version": "2.6.6",
-      "app_type": "sensor",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Application Software",
-        "css_name": "Communication",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 218,
-          "total_classes": 2,
-          "total_methods": 9,
-          "total_fields": 5
-        },
-        "complexity": {
-          "total_wmc": 13,
-          "avg_wmc": 6.49,
-          "max_wmc": 11
-        },
-        "cohesion": {
-          "avg_lcom": 6.25,
-          "max_lcom": 25.5
-        },
-        "coupling": {
-          "avg_cbo": 3.56,
-          "max_cbo": 8,
-          "avg_rfc": 19.35,
-          "max_rfc": 29,
-          "avg_fanin": 3.64,
-          "max_fanin": 13,
-          "avg_fanout": 3.43,
-          "max_fanout": 10
-        }
-      }
-    },
-    {
-      "id": "A20",
-      "name": "App-20",
-      "version": "3.0.1",
-      "app_type": "sensor",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Information Systems",
-        "csci_name": "Application Software",
-        "css_name": "Process Control",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 482,
-          "total_classes": 6,
-          "total_methods": 43,
-          "total_fields": 23
-        },
-        "complexity": {
-          "total_wmc": 42,
-          "avg_wmc": 6.93,
-          "max_wmc": 11
-        },
-        "cohesion": {
-          "avg_lcom": 12.78,
-          "max_lcom": 46.9
-        },
-        "coupling": {
-          "avg_cbo": 5.19,
-          "max_cbo": 12,
-          "avg_rfc": 18.09,
-          "max_rfc": 44,
-          "avg_fanin": 3.94,
-          "max_fanin": 13,
-          "avg_fanout": 4.72,
-          "max_fanout": 12
-        }
-      }
-    },
-    {
-      "id": "A21",
-      "name": "App-21",
-      "version": "3.1.0",
-      "app_type": "controller",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Information Systems",
-        "csci_name": "Application Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1277,
-          "total_classes": 13,
-          "total_methods": 95,
-          "total_fields": 28
-        },
-        "complexity": {
-          "total_wmc": 179,
-          "avg_wmc": 13.79,
-          "max_wmc": 21
-        },
-        "cohesion": {
-          "avg_lcom": 40.93,
-          "max_lcom": 120.7
-        },
-        "coupling": {
-          "avg_cbo": 11.77,
-          "max_cbo": 27,
-          "avg_rfc": 22.05,
-          "max_rfc": 35,
-          "avg_fanin": 1.1,
-          "max_fanin": 4,
-          "avg_fanout": 10.0,
-          "max_fanout": 23
-        }
-      }
-    },
-    {
-      "id": "A22",
-      "name": "App-22",
-      "version": "1.4.9",
-      "app_type": "gateway",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Process Control",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1812,
-          "total_classes": 17,
-          "total_methods": 104,
-          "total_fields": 59
-        },
-        "complexity": {
-          "total_wmc": 238,
-          "avg_wmc": 14.02,
-          "max_wmc": 44
-        },
-        "cohesion": {
-          "avg_lcom": 29.81,
-          "max_lcom": 111.7
-        },
-        "coupling": {
-          "avg_cbo": 13.67,
-          "max_cbo": 23,
-          "avg_rfc": 38.22,
-          "max_rfc": 86,
-          "avg_fanin": 2.69,
-          "max_fanin": 11,
-          "avg_fanout": 13.65,
-          "max_fanout": 29
-        }
-      }
-    },
-    {
-      "id": "A23",
-      "name": "App-23",
-      "version": "2.0.6",
-      "app_type": "sensor",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
+      "priority": "LOW",
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Software Systems",
-        "csci_name": "Software Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 292,
-          "total_classes": 3,
-          "total_methods": 21,
-          "total_fields": 6
-        },
-        "complexity": {
-          "total_wmc": 24,
-          "avg_wmc": 8.14,
-          "max_wmc": 20
-        },
-        "cohesion": {
-          "avg_lcom": 20.45,
-          "max_lcom": 84.4
-        },
-        "coupling": {
-          "avg_cbo": 4.4,
-          "max_cbo": 7,
-          "avg_rfc": 19.81,
-          "max_rfc": 45,
-          "avg_fanin": 2.04,
-          "max_fanin": 6,
-          "avg_fanout": 3.11,
-          "max_fanout": 8
-        }
-      }
-    },
-    {
-      "id": "A24",
-      "name": "App-24",
-      "version": "1.4.7",
-      "app_type": "monitor",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Application Software",
-        "css_name": "Process Control",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 408,
-          "total_classes": 5,
-          "total_methods": 32,
-          "total_fields": 23
-        },
-        "complexity": {
-          "total_wmc": 58,
-          "avg_wmc": 11.68,
-          "max_wmc": 18
-        },
-        "cohesion": {
-          "avg_lcom": 25.65,
-          "max_lcom": 93.0
-        },
-        "coupling": {
-          "avg_cbo": 7.7,
-          "max_cbo": 19,
-          "avg_rfc": 27.94,
-          "max_rfc": 55,
-          "avg_fanin": 4.3,
-          "max_fanin": 15,
-          "avg_fanout": 4.61,
-          "max_fanout": 10
-        }
-      }
-    },
-    {
-      "id": "A25",
-      "name": "App-25",
-      "version": "3.3.7",
-      "app_type": "gateway",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Software Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 2703,
-          "total_classes": 31,
-          "total_methods": 310,
-          "total_fields": 124
-        },
-        "complexity": {
-          "total_wmc": 617,
-          "avg_wmc": 19.91,
-          "max_wmc": 33
-        },
-        "cohesion": {
-          "avg_lcom": 35.97,
-          "max_lcom": 95.2
-        },
-        "coupling": {
-          "avg_cbo": 8.8,
-          "max_cbo": 18,
-          "avg_rfc": 46.4,
-          "max_rfc": 95,
-          "avg_fanin": 5.1,
-          "max_fanin": 13,
-          "avg_fanout": 6.41,
-          "max_fanout": 15
-        }
-      }
-    },
-    {
-      "id": "A26",
-      "name": "App-26",
-      "version": "2.1.8",
-      "app_type": "gateway",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": true,
-      "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Software Design",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 2810,
-          "total_classes": 30,
-          "total_methods": 183,
-          "total_fields": 116
-        },
-        "complexity": {
-          "total_wmc": 554,
-          "avg_wmc": 18.47,
-          "max_wmc": 21
-        },
-        "cohesion": {
-          "avg_lcom": 36.61,
-          "max_lcom": 123.9
-        },
-        "coupling": {
-          "avg_cbo": 9.44,
-          "max_cbo": 24,
-          "avg_rfc": 36.51,
-          "max_rfc": 68,
-          "avg_fanin": 4.72,
-          "max_fanin": 13,
-          "avg_fanout": 6.31,
-          "max_fanout": 17
-        }
-      }
-    },
-    {
-      "id": "A27",
-      "name": "App-27",
-      "version": "1.7.1",
-      "app_type": "gateway",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": true,
-      "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1558,
-          "total_classes": 14,
-          "total_methods": 146,
-          "total_fields": 54
-        },
-        "complexity": {
-          "total_wmc": 300,
-          "avg_wmc": 21.43,
-          "max_wmc": 83
-        },
-        "cohesion": {
-          "avg_lcom": 64.12,
-          "max_lcom": 261.7
-        },
-        "coupling": {
-          "avg_cbo": 8.96,
-          "max_cbo": 17,
-          "avg_rfc": 29.07,
-          "max_rfc": 64,
-          "avg_fanin": 2.76,
-          "max_fanin": 6,
-          "avg_fanout": 4.55,
-          "max_fanout": 10
-        }
-      }
-    },
-    {
-      "id": "A28",
-      "name": "App-28",
-      "version": "3.6.7",
-      "app_type": "controller",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Application Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1575,
-          "total_classes": 17,
-          "total_methods": 126,
-          "total_fields": 51
-        },
-        "complexity": {
-          "total_wmc": 334,
-          "avg_wmc": 19.65,
-          "max_wmc": 43
-        },
-        "cohesion": {
-          "avg_lcom": 38.09,
-          "max_lcom": 90.6
-        },
-        "coupling": {
-          "avg_cbo": 12.3,
-          "max_cbo": 30,
-          "avg_rfc": 18.04,
-          "max_rfc": 32,
-          "avg_fanin": 3.79,
-          "max_fanin": 12,
-          "avg_fanout": 7.17,
-          "max_fanout": 19
-        }
-      }
-    },
-    {
-      "id": "A29",
-      "name": "App-29",
-      "version": "2.0.3",
-      "app_type": "monitor",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computer Science",
         "csci_name": "Infrastructure Software",
         "css_name": "Software Design",
-        "csms_name": "Configuration Management"
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 604,
-          "total_classes": 10,
-          "total_methods": 90,
-          "total_fields": 29
-        },
-        "complexity": {
-          "total_wmc": 130,
-          "avg_wmc": 12.97,
-          "max_wmc": 41
-        },
-        "cohesion": {
-          "avg_lcom": 38.43,
-          "max_lcom": 96.8
-        },
-        "coupling": {
-          "avg_cbo": 5.27,
-          "max_cbo": 11,
-          "avg_rfc": 16.83,
-          "max_rfc": 28,
-          "avg_fanin": 1.3,
-          "max_fanin": 3,
-          "avg_fanout": 5.25,
-          "max_fanout": 14
-        }
-      }
-    },
-    {
-      "id": "A30",
-      "name": "App-30",
-      "version": "3.9.4",
-      "app_type": "processor",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 2047,
-          "total_classes": 20,
-          "total_methods": 203,
-          "total_fields": 44
-        },
-        "complexity": {
-          "total_wmc": 270,
-          "avg_wmc": 13.5,
-          "max_wmc": 14
-        },
-        "cohesion": {
-          "avg_lcom": 38.59,
-          "max_lcom": 154.7
-        },
-        "coupling": {
-          "avg_cbo": 6.78,
-          "max_cbo": 11,
-          "avg_rfc": 24.07,
-          "max_rfc": 40,
-          "avg_fanin": 2.59,
-          "max_fanin": 6,
-          "avg_fanout": 3.54,
-          "max_fanout": 10
-        }
-      }
-    },
-    {
-      "id": "A31",
-      "name": "App-31",
-      "version": "3.4.9",
-      "app_type": "actuator",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Systems Engineering",
-        "css_name": "Software Design",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 163,
-          "total_classes": 2,
-          "total_methods": 10,
-          "total_fields": 6
-        },
-        "complexity": {
-          "total_wmc": 11,
-          "avg_wmc": 5.36,
-          "max_wmc": 13
-        },
-        "cohesion": {
-          "avg_lcom": 13.97,
-          "max_lcom": 59.0
-        },
-        "coupling": {
-          "avg_cbo": 4.2,
-          "max_cbo": 9,
-          "avg_rfc": 8.26,
-          "max_rfc": 14,
-          "avg_fanin": 2.35,
-          "max_fanin": 10,
-          "avg_fanout": 3.76,
-          "max_fanout": 8
-        }
-      }
-    },
-    {
-      "id": "A32",
-      "name": "App-32",
-      "version": "2.8.0",
-      "app_type": "controller",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Software Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1962,
-          "total_classes": 28,
-          "total_methods": 206,
-          "total_fields": 111
-        },
-        "complexity": {
-          "total_wmc": 536,
-          "avg_wmc": 19.16,
-          "max_wmc": 22
-        },
-        "cohesion": {
-          "avg_lcom": 36.12,
-          "max_lcom": 116.6
-        },
-        "coupling": {
-          "avg_cbo": 5.82,
-          "max_cbo": 11,
-          "avg_rfc": 24.0,
-          "max_rfc": 52,
-          "avg_fanin": 5.29,
-          "max_fanin": 15,
-          "avg_fanout": 7.86,
-          "max_fanout": 18
-        }
-      }
-    },
-    {
-      "id": "A33",
-      "name": "App-33",
-      "version": "2.7.7",
-      "app_type": "controller",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Software Engineering",
-        "css_name": "Process Control",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 580,
-          "total_classes": 6,
-          "total_methods": 40,
-          "total_fields": 29
-        },
-        "complexity": {
-          "total_wmc": 84,
-          "avg_wmc": 14.04,
-          "max_wmc": 90
-        },
-        "cohesion": {
-          "avg_lcom": 36.99,
-          "max_lcom": 124.2
-        },
-        "coupling": {
-          "avg_cbo": 8.72,
-          "max_cbo": 15,
-          "avg_rfc": 24.68,
-          "max_rfc": 56,
-          "avg_fanin": 4.13,
-          "max_fanin": 16,
-          "avg_fanout": 4.42,
-          "max_fanout": 11
-        }
-      }
-    },
-    {
-      "id": "A34",
-      "name": "App-34",
-      "version": "2.7.3",
-      "app_type": "actuator",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Communication",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 114,
-          "total_classes": 2,
-          "total_methods": 12,
-          "total_fields": 5
-        },
-        "complexity": {
-          "total_wmc": 10,
-          "avg_wmc": 4.79,
-          "max_wmc": 12
-        },
-        "cohesion": {
-          "avg_lcom": 6.4,
-          "max_lcom": 28.7
-        },
-        "coupling": {
-          "avg_cbo": 4.74,
-          "max_cbo": 9,
-          "avg_rfc": 9.17,
-          "max_rfc": 21,
-          "avg_fanin": 2.0,
-          "max_fanin": 8,
-          "avg_fanout": 3.53,
-          "max_fanout": 8
-        }
-      }
-    },
-    {
-      "id": "A35",
-      "name": "App-35",
-      "version": "1.7.8",
-      "app_type": "gateway",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Software Engineering",
-        "css_name": "Communication",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1392,
-          "total_classes": 14,
-          "total_methods": 161,
-          "total_fields": 63
-        },
-        "complexity": {
-          "total_wmc": 365,
-          "avg_wmc": 26.07,
-          "max_wmc": 89
-        },
-        "cohesion": {
-          "avg_lcom": 55.55,
-          "max_lcom": 168.7
-        },
-        "coupling": {
-          "avg_cbo": 15.34,
-          "max_cbo": 31,
-          "avg_rfc": 44.62,
-          "max_rfc": 80,
-          "avg_fanin": 3.79,
-          "max_fanin": 13,
-          "avg_fanout": 13.99,
-          "max_fanout": 35
-        }
-      }
-    },
-    {
-      "id": "A36",
-      "name": "App-36",
-      "version": "1.2.8",
-      "app_type": "controller",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Application Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1106,
-          "total_classes": 13,
-          "total_methods": 115,
-          "total_fields": 41
-        },
-        "complexity": {
-          "total_wmc": 251,
-          "avg_wmc": 19.33,
-          "max_wmc": 30
-        },
-        "cohesion": {
-          "avg_lcom": 44.53,
-          "max_lcom": 134.8
-        },
-        "coupling": {
-          "avg_cbo": 7.86,
-          "max_cbo": 16,
-          "avg_rfc": 37.92,
-          "max_rfc": 71,
-          "avg_fanin": 5.94,
-          "max_fanin": 24,
-          "avg_fanout": 7.56,
-          "max_fanout": 16
-        }
-      }
-    },
-    {
-      "id": "A37",
-      "name": "App-37",
-      "version": "3.6.5",
-      "app_type": "processor",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1279,
-          "total_classes": 18,
-          "total_methods": 184,
-          "total_fields": 60
-        },
-        "complexity": {
-          "total_wmc": 322,
-          "avg_wmc": 17.89,
-          "max_wmc": 35
-        },
-        "cohesion": {
-          "avg_lcom": 31.4,
-          "max_lcom": 114.2
-        },
-        "coupling": {
-          "avg_cbo": 6.39,
-          "max_cbo": 13,
-          "avg_rfc": 44.17,
-          "max_rfc": 81,
-          "avg_fanin": 5.16,
-          "max_fanin": 19,
-          "avg_fanout": 10.67,
-          "max_fanout": 30
-        }
-      }
-    },
-    {
-      "id": "A38",
-      "name": "App-38",
-      "version": "2.0.4",
-      "app_type": "sensor",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Information Systems",
-        "csci_name": "Application Software",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 467,
-          "total_classes": 7,
-          "total_methods": 42,
-          "total_fields": 22
-        },
-        "complexity": {
-          "total_wmc": 54,
-          "avg_wmc": 7.7,
-          "max_wmc": 8
-        },
-        "cohesion": {
-          "avg_lcom": 10.75,
-          "max_lcom": 27.6
-        },
-        "coupling": {
-          "avg_cbo": 2.36,
-          "max_cbo": 6,
-          "avg_rfc": 17.12,
-          "max_rfc": 38,
-          "avg_fanin": 1.3,
-          "max_fanin": 3,
-          "avg_fanout": 2.9,
-          "max_fanout": 6
-        }
-      }
-    },
-    {
-      "id": "A39",
-      "name": "App-39",
-      "version": "2.4.8",
-      "app_type": "monitor",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Software Engineering",
-        "css_name": "Process Control",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 683,
-          "total_classes": 9,
-          "total_methods": 54,
-          "total_fields": 29
-        },
-        "complexity": {
-          "total_wmc": 121,
-          "avg_wmc": 13.45,
-          "max_wmc": 21
-        },
-        "cohesion": {
-          "avg_lcom": 28.28,
-          "max_lcom": 83.6
-        },
-        "coupling": {
-          "avg_cbo": 8.1,
-          "max_cbo": 16,
-          "avg_rfc": 24.5,
-          "max_rfc": 42,
-          "avg_fanin": 3.55,
-          "max_fanin": 11,
-          "avg_fanout": 6.33,
-          "max_fanout": 18
-        }
-      }
-    },
-    {
-      "id": "A40",
-      "name": "App-40",
-      "version": "3.6.4",
-      "app_type": "controller",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Process Control",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 551,
-          "total_classes": 7,
-          "total_methods": 47,
-          "total_fields": 26
-        },
-        "complexity": {
-          "total_wmc": 115,
-          "avg_wmc": 16.39,
-          "max_wmc": 33
-        },
-        "cohesion": {
-          "avg_lcom": 44.12,
-          "max_lcom": 110.2
-        },
-        "coupling": {
-          "avg_cbo": 8.46,
-          "max_cbo": 17,
-          "avg_rfc": 21.69,
-          "max_rfc": 45,
-          "avg_fanin": 3.87,
-          "max_fanin": 17,
-          "avg_fanout": 5.07,
-          "max_fanout": 15
-        }
-      }
-    },
-    {
-      "id": "A41",
-      "name": "App-41",
-      "version": "1.1.0",
-      "app_type": "actuator",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Software Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 389,
-          "total_classes": 5,
-          "total_methods": 32,
-          "total_fields": 20
-        },
-        "complexity": {
-          "total_wmc": 43,
-          "avg_wmc": 8.55,
-          "max_wmc": 67
-        },
-        "cohesion": {
-          "avg_lcom": 18.54,
-          "max_lcom": 73.0
-        },
-        "coupling": {
-          "avg_cbo": 2.69,
-          "max_cbo": 6,
-          "avg_rfc": 10.19,
-          "max_rfc": 17,
-          "avg_fanin": 1.5,
-          "max_fanin": 6,
-          "avg_fanout": 4.3,
-          "max_fanout": 12
-        }
-      }
-    },
-    {
-      "id": "A42",
-      "name": "App-42",
-      "version": "2.5.1",
-      "app_type": "controller",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Software Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1302,
+          "total_loc": 1283,
           "total_classes": 12,
-          "total_methods": 82,
-          "total_fields": 29
+          "total_methods": 100,
+          "total_fields": 36
         },
         "complexity": {
-          "total_wmc": 229,
-          "avg_wmc": 19.1,
-          "max_wmc": 33
+          "total_wmc": 158,
+          "avg_wmc": 13.14,
+          "max_wmc": 85
         },
         "cohesion": {
-          "avg_lcom": 19.63,
-          "max_lcom": 77.9
+          "avg_lcom": 23.41,
+          "max_lcom": 64.9
         },
         "coupling": {
-          "avg_cbo": 12.89,
-          "max_cbo": 24,
-          "avg_rfc": 28.04,
-          "max_rfc": 50,
-          "avg_fanin": 1.82,
-          "max_fanin": 8,
-          "avg_fanout": 9.61,
-          "max_fanout": 29
-        }
-      }
-    },
-    {
-      "id": "A43",
-      "name": "App-43",
-      "version": "1.7.0",
-      "app_type": "gateway",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Software Engineering",
-        "css_name": "Software Design",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1108,
-          "total_classes": 10,
-          "total_methods": 118,
-          "total_fields": 56
-        },
-        "complexity": {
-          "total_wmc": 236,
-          "avg_wmc": 23.59,
-          "max_wmc": 79
-        },
-        "cohesion": {
-          "avg_lcom": 55.58,
-          "max_lcom": 113.1
-        },
-        "coupling": {
-          "avg_cbo": 11.37,
-          "max_cbo": 22,
-          "avg_rfc": 40.18,
-          "max_rfc": 87,
-          "avg_fanin": 5.51,
-          "max_fanin": 22,
-          "avg_fanout": 13.4,
-          "max_fanout": 28
-        }
-      }
-    },
-    {
-      "id": "A44",
-      "name": "App-44",
-      "version": "3.8.6",
-      "app_type": "monitor",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Software Engineering",
-        "css_name": "Communication",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 874,
-          "total_classes": 11,
-          "total_methods": 82,
-          "total_fields": 43
-        },
-        "complexity": {
-          "total_wmc": 144,
-          "avg_wmc": 13.08,
-          "max_wmc": 26
-        },
-        "cohesion": {
-          "avg_lcom": 29.48,
-          "max_lcom": 67.6
-        },
-        "coupling": {
-          "avg_cbo": 4.27,
-          "max_cbo": 7,
-          "avg_rfc": 31.93,
-          "max_rfc": 52,
-          "avg_fanin": 1.94,
-          "max_fanin": 6,
-          "avg_fanout": 4.94,
-          "max_fanout": 12
-        }
-      }
-    },
-    {
-      "id": "A45",
-      "name": "App-45",
-      "version": "2.3.1",
-      "app_type": "actuator",
-      "role": [
-        "pubsub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Software Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 179,
-          "total_classes": 2,
-          "total_methods": 12,
-          "total_fields": 7
-        },
-        "complexity": {
-          "total_wmc": 14,
-          "avg_wmc": 7.08,
-          "max_wmc": 27
-        },
-        "cohesion": {
-          "avg_lcom": 15.35,
-          "max_lcom": 39.0
-        },
-        "coupling": {
-          "avg_cbo": 3.33,
-          "max_cbo": 6,
-          "avg_rfc": 11.63,
-          "max_rfc": 29,
-          "avg_fanin": 1.73,
-          "max_fanin": 7,
-          "avg_fanout": 3.93,
-          "max_fanout": 8
-        }
-      }
-    },
-    {
-      "id": "A46",
-      "name": "App-46",
-      "version": "1.4.2",
-      "app_type": "gateway",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Information Systems",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Process Control",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1175,
-          "total_classes": 14,
-          "total_methods": 138,
-          "total_fields": 67
-        },
-        "complexity": {
-          "total_wmc": 173,
-          "avg_wmc": 12.34,
-          "max_wmc": 38
-        },
-        "cohesion": {
-          "avg_lcom": 25.67,
-          "max_lcom": 87.6
-        },
-        "coupling": {
-          "avg_cbo": 6.69,
-          "max_cbo": 15,
-          "avg_rfc": 26.21,
-          "max_rfc": 45,
-          "avg_fanin": 7.22,
-          "max_fanin": 20,
-          "avg_fanout": 5.48,
-          "max_fanout": 16
-        }
-      }
-    },
-    {
-      "id": "A47",
-      "name": "App-47",
-      "version": "3.0.8",
-      "app_type": "processor",
-      "role": [
-        "pub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Process Control",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1706,
-          "total_classes": 17,
-          "total_methods": 103,
-          "total_fields": 68
-        },
-        "complexity": {
-          "total_wmc": 177,
-          "avg_wmc": 10.39,
-          "max_wmc": 17
-        },
-        "cohesion": {
-          "avg_lcom": 21.97,
-          "max_lcom": 46.8
-        },
-        "coupling": {
-          "avg_cbo": 11.68,
-          "max_cbo": 24,
-          "avg_rfc": 38.13,
-          "max_rfc": 75,
-          "avg_fanin": 5.67,
-          "max_fanin": 19,
-          "avg_fanout": 3.98,
-          "max_fanout": 10
-        }
-      }
-    },
-    {
-      "id": "A48",
-      "name": "App-48",
-      "version": "3.8.4",
-      "app_type": "actuator",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Systems Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 334,
-          "total_classes": 4,
-          "total_methods": 16,
-          "total_fields": 16
-        },
-        "complexity": {
-          "total_wmc": 33,
-          "avg_wmc": 8.24,
-          "max_wmc": 17
-        },
-        "cohesion": {
-          "avg_lcom": 15.69,
-          "max_lcom": 48.8
-        },
-        "coupling": {
-          "avg_cbo": 4.7,
-          "max_cbo": 9,
-          "avg_rfc": 9.48,
-          "max_rfc": 15,
-          "avg_fanin": 2.25,
-          "max_fanin": 8,
-          "avg_fanout": 4.14,
-          "max_fanout": 10
-        }
-      }
-    },
-    {
-      "id": "A49",
-      "name": "App-49",
-      "version": "2.2.7",
-      "app_type": "processor",
-      "role": [
-        "sub"
-      ],
-      "criticality": false,
-      "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Software Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1635,
-          "total_classes": 20,
-          "total_methods": 112,
-          "total_fields": 82
-        },
-        "complexity": {
-          "total_wmc": 456,
-          "avg_wmc": 22.79,
-          "max_wmc": 89
-        },
-        "cohesion": {
-          "avg_lcom": 43.83,
-          "max_lcom": 111.2
-        },
-        "coupling": {
-          "avg_cbo": 9.06,
-          "max_cbo": 16,
-          "avg_rfc": 27.15,
-          "max_rfc": 53,
-          "avg_fanin": 3.5,
-          "max_fanin": 8,
-          "avg_fanout": 6.84,
-          "max_fanout": 18
+          "avg_cbo": 8.68,
+          "max_cbo": 17,
+          "avg_rfc": 23.1,
+          "max_rfc": 38,
+          "avg_fanin": 3.1,
+          "max_fanin": 13,
+          "avg_fanout": 7.74,
+          "max_fanout": 22
         }
       }
     }
@@ -2578,380 +856,190 @@
     {
       "id": "L0",
       "name": "Lib-0",
-      "version": "1.9.4",
+      "version": "1.3.3",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
+        "csc_name": "Computing Platform",
         "csci_name": "Application Software",
         "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 287,
-          "total_classes": 3,
-          "total_methods": 13,
-          "total_fields": 9
+          "total_loc": 270,
+          "total_classes": 5,
+          "total_methods": 27,
+          "total_fields": 8
         },
         "complexity": {
-          "total_wmc": 35,
-          "avg_wmc": 11.7,
-          "max_wmc": 23
+          "total_wmc": 26,
+          "avg_wmc": 5.21,
+          "max_wmc": 16
         },
         "cohesion": {
-          "avg_lcom": 6.5,
-          "max_lcom": 28.5
+          "avg_lcom": 12.52,
+          "max_lcom": 55.1
         },
         "coupling": {
-          "avg_cbo": 5.81,
-          "max_cbo": 13,
-          "avg_rfc": 17.39,
-          "max_rfc": 41,
-          "avg_fanin": 6.71,
-          "max_fanin": 21,
-          "avg_fanout": 4.66,
-          "max_fanout": 10
+          "avg_cbo": 3.21,
+          "max_cbo": 7,
+          "avg_rfc": 7.55,
+          "max_rfc": 16,
+          "avg_fanin": 5.72,
+          "max_fanin": 13,
+          "avg_fanout": 3.86,
+          "max_fanout": 9
         }
       }
     },
     {
       "id": "L1",
       "name": "Lib-1",
-      "version": "2.4.0",
+      "version": "1.3.2",
       "system_hierarchy": {
-        "csc_name": "Computing Platform",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "csc_name": "Software Systems",
+        "csci_name": "Application Software",
+        "css_name": "Shared Platform",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 230,
-          "total_classes": 3,
-          "total_methods": 15,
-          "total_fields": 4
+          "total_loc": 250,
+          "total_classes": 2,
+          "total_methods": 10,
+          "total_fields": 7
         },
         "complexity": {
-          "total_wmc": 16,
-          "avg_wmc": 5.41,
-          "max_wmc": 19
+          "total_wmc": 22,
+          "avg_wmc": 10.95,
+          "max_wmc": 13
         },
         "cohesion": {
-          "avg_lcom": 9.68,
-          "max_lcom": 22.1
+          "avg_lcom": 17.6,
+          "max_lcom": 43.8
         },
         "coupling": {
-          "avg_cbo": 1.84,
-          "max_cbo": 3,
-          "avg_rfc": 8.86,
-          "max_rfc": 18,
-          "avg_fanin": 6.6,
-          "max_fanin": 23,
-          "avg_fanout": 3.02,
-          "max_fanout": 8
+          "avg_cbo": 5.48,
+          "max_cbo": 11,
+          "avg_rfc": 11.42,
+          "max_rfc": 25,
+          "avg_fanin": 2.02,
+          "max_fanin": 8,
+          "avg_fanout": 4.08,
+          "max_fanout": 9
         }
       }
     },
     {
       "id": "L2",
       "name": "Lib-2",
-      "version": "1.9.9",
+      "version": "2.7.7",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Software Design",
-        "csms_name": "Configuration Management"
+        "csc_name": "Computer Science",
+        "csci_name": "Software Engineering",
+        "css_name": "Communication",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 938,
-          "total_classes": 8,
-          "total_methods": 70,
-          "total_fields": 38
+          "total_loc": 1101,
+          "total_classes": 9,
+          "total_methods": 47,
+          "total_fields": 33
         },
         "complexity": {
-          "total_wmc": 92,
-          "avg_wmc": 11.56,
-          "max_wmc": 19
+          "total_wmc": 82,
+          "avg_wmc": 9.11,
+          "max_wmc": 44
         },
         "cohesion": {
-          "avg_lcom": 33.01,
-          "max_lcom": 71.8
+          "avg_lcom": 29.7,
+          "max_lcom": 103.6
         },
         "coupling": {
-          "avg_cbo": 9.93,
-          "max_cbo": 25,
-          "avg_rfc": 14.11,
-          "max_rfc": 29,
-          "avg_fanin": 4.26,
-          "max_fanin": 13,
-          "avg_fanout": 2.63,
-          "max_fanout": 6
+          "avg_cbo": 7.75,
+          "max_cbo": 19,
+          "avg_rfc": 21.03,
+          "max_rfc": 47,
+          "avg_fanin": 4.52,
+          "max_fanin": 18,
+          "avg_fanout": 3.19,
+          "max_fanout": 9
         }
       }
     },
     {
       "id": "L3",
       "name": "Lib-3",
-      "version": "1.0.3",
+      "version": "1.6.5",
       "system_hierarchy": {
         "csc_name": "Computer Science",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "csci_name": "Software Engineering",
+        "css_name": "Software Design",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1195,
-          "total_classes": 14,
-          "total_methods": 101,
-          "total_fields": 84
+          "total_loc": 182,
+          "total_classes": 3,
+          "total_methods": 19,
+          "total_fields": 5
         },
         "complexity": {
-          "total_wmc": 154,
-          "avg_wmc": 11.0,
-          "max_wmc": 13
+          "total_wmc": 21,
+          "avg_wmc": 6.89,
+          "max_wmc": 15
         },
         "cohesion": {
-          "avg_lcom": 34.08,
-          "max_lcom": 119.9
+          "avg_lcom": 8.28,
+          "max_lcom": 31.3
         },
         "coupling": {
-          "avg_cbo": 9.56,
-          "max_cbo": 16,
-          "avg_rfc": 33.42,
-          "max_rfc": 62,
-          "avg_fanin": 4.0,
-          "max_fanin": 15,
-          "avg_fanout": 5.56,
-          "max_fanout": 14
+          "avg_cbo": 1.7,
+          "max_cbo": 3,
+          "avg_rfc": 13.04,
+          "max_rfc": 21,
+          "avg_fanin": 2.9,
+          "max_fanin": 9,
+          "avg_fanout": 1.46,
+          "max_fanout": 3
         }
       }
     },
     {
       "id": "L4",
       "name": "Lib-4",
-      "version": "1.0.6",
+      "version": "1.6.7",
       "system_hierarchy": {
-        "csc_name": "Information Systems",
+        "csc_name": "Computer Science",
         "csci_name": "Infrastructure Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "css_name": "User Interface",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1818,
-          "total_classes": 25,
-          "total_methods": 132,
-          "total_fields": 65
+          "total_loc": 655,
+          "total_classes": 8,
+          "total_methods": 34,
+          "total_fields": 36
         },
         "complexity": {
-          "total_wmc": 482,
-          "avg_wmc": 19.29,
-          "max_wmc": 114
+          "total_wmc": 62,
+          "avg_wmc": 7.73,
+          "max_wmc": 19
         },
         "cohesion": {
-          "avg_lcom": 20.13,
-          "max_lcom": 46.3
+          "avg_lcom": 23.85,
+          "max_lcom": 65.5
         },
         "coupling": {
-          "avg_cbo": 7.98,
-          "max_cbo": 15,
-          "avg_rfc": 14.97,
-          "max_rfc": 30,
-          "avg_fanin": 3.38,
-          "max_fanin": 11,
-          "avg_fanout": 4.67,
+          "avg_cbo": 3.95,
+          "max_cbo": 9,
+          "avg_rfc": 19.7,
+          "max_rfc": 40,
+          "avg_fanin": 4.94,
+          "max_fanin": 20,
+          "avg_fanout": 4.59,
           "max_fanout": 11
-        }
-      }
-    },
-    {
-      "id": "L5",
-      "name": "Lib-5",
-      "version": "1.9.6",
-      "system_hierarchy": {
-        "csc_name": "Information Systems",
-        "csci_name": "Application Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 188,
-          "total_classes": 2,
-          "total_methods": 9,
-          "total_fields": 5
-        },
-        "complexity": {
-          "total_wmc": 18,
-          "avg_wmc": 8.86,
-          "max_wmc": 16
-        },
-        "cohesion": {
-          "avg_lcom": 12.24,
-          "max_lcom": 36.9
-        },
-        "coupling": {
-          "avg_cbo": 7.83,
-          "max_cbo": 13,
-          "avg_rfc": 27.06,
-          "max_rfc": 53,
-          "avg_fanin": 5.45,
-          "max_fanin": 16,
-          "avg_fanout": 2.75,
-          "max_fanout": 6
-        }
-      }
-    },
-    {
-      "id": "L6",
-      "name": "Lib-6",
-      "version": "0.9.2",
-      "system_hierarchy": {
-        "csc_name": "Information Systems",
-        "csci_name": "Application Software",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 636,
-          "total_classes": 5,
-          "total_methods": 37,
-          "total_fields": 21
-        },
-        "complexity": {
-          "total_wmc": 33,
-          "avg_wmc": 6.55,
-          "max_wmc": 19
-        },
-        "cohesion": {
-          "avg_lcom": 17.66,
-          "max_lcom": 58.7
-        },
-        "coupling": {
-          "avg_cbo": 2.97,
-          "max_cbo": 7,
-          "avg_rfc": 12.92,
-          "max_rfc": 32,
-          "avg_fanin": 4.58,
-          "max_fanin": 11,
-          "avg_fanout": 1.41,
-          "max_fanout": 3
-        }
-      }
-    },
-    {
-      "id": "L7",
-      "name": "Lib-7",
-      "version": "2.4.4",
-      "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Application Software",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 878,
-          "total_classes": 12,
-          "total_methods": 52,
-          "total_fields": 58
-        },
-        "complexity": {
-          "total_wmc": 113,
-          "avg_wmc": 9.4,
-          "max_wmc": 19
-        },
-        "cohesion": {
-          "avg_lcom": 16.59,
-          "max_lcom": 61.4
-        },
-        "coupling": {
-          "avg_cbo": 6.41,
-          "max_cbo": 14,
-          "avg_rfc": 21.81,
-          "max_rfc": 40,
-          "avg_fanin": 5.88,
-          "max_fanin": 16,
-          "avg_fanout": 2.76,
-          "max_fanout": 7
-        }
-      }
-    },
-    {
-      "id": "L8",
-      "name": "Lib-8",
-      "version": "0.0.7",
-      "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 705,
-          "total_classes": 6,
-          "total_methods": 36,
-          "total_fields": 18
-        },
-        "complexity": {
-          "total_wmc": 49,
-          "avg_wmc": 8.16,
-          "max_wmc": 40
-        },
-        "cohesion": {
-          "avg_lcom": 15.14,
-          "max_lcom": 47.8
-        },
-        "coupling": {
-          "avg_cbo": 4.77,
-          "max_cbo": 11,
-          "avg_rfc": 20.54,
-          "max_rfc": 40,
-          "avg_fanin": 5.24,
-          "max_fanin": 19,
-          "avg_fanout": 2.29,
-          "max_fanout": 6
-        }
-      }
-    },
-    {
-      "id": "L9",
-      "name": "Lib-9",
-      "version": "2.5.1",
-      "system_hierarchy": {
-        "csc_name": "Information Systems",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Process Control",
-        "csms_name": "Configuration Management"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 1347,
-          "total_classes": 15,
-          "total_methods": 190,
-          "total_fields": 104
-        },
-        "complexity": {
-          "total_wmc": 175,
-          "avg_wmc": 11.69,
-          "max_wmc": 30
-        },
-        "cohesion": {
-          "avg_lcom": 46.84,
-          "max_lcom": 209.7
-        },
-        "coupling": {
-          "avg_cbo": 10.76,
-          "max_cbo": 23,
-          "avg_rfc": 28.37,
-          "max_rfc": 69,
-          "avg_fanin": 6.49,
-          "max_fanin": 26,
-          "avg_fanout": 6.07,
-          "max_fanout": 12
         }
       }
     }
@@ -2960,27 +1048,35 @@
     "runs_on": [
       {
         "from": "A0",
-        "to": "N1"
+        "to": "N2"
       },
       {
         "from": "A1",
-        "to": "N4"
+        "to": "N0"
       },
       {
         "from": "A2",
-        "to": "N6"
+        "to": "N0"
       },
       {
         "from": "A3",
-        "to": "N1"
+        "to": "N3"
+      },
+      {
+        "from": "A3",
+        "to": "N0"
       },
       {
         "from": "A4",
-        "to": "N7"
+        "to": "N1"
       },
       {
         "from": "A5",
-        "to": "N5"
+        "to": "N3"
+      },
+      {
+        "from": "A6",
+        "to": "N3"
       },
       {
         "from": "A6",
@@ -2988,187 +1084,63 @@
       },
       {
         "from": "A7",
+        "to": "N0"
+      },
+      {
+        "from": "A7",
         "to": "N2"
       },
       {
         "from": "A8",
-        "to": "N7"
+        "to": "N3"
       },
       {
         "from": "A9",
-        "to": "N4"
+        "to": "N0"
       },
       {
         "from": "A10",
-        "to": "N5"
+        "to": "N0"
+      },
+      {
+        "from": "A10",
+        "to": "N2"
       },
       {
         "from": "A11",
-        "to": "N7"
+        "to": "N0"
+      },
+      {
+        "from": "A11",
+        "to": "N3"
       },
       {
         "from": "A12",
-        "to": "N7"
+        "to": "N0"
       },
       {
         "from": "A13",
-        "to": "N5"
+        "to": "N1"
+      },
+      {
+        "from": "A13",
+        "to": "N0"
+      },
+      {
+        "from": "A14",
+        "to": "N0"
       },
       {
         "from": "A14",
         "to": "N1"
       },
       {
-        "from": "A15",
-        "to": "N0"
-      },
-      {
-        "from": "A16",
-        "to": "N2"
-      },
-      {
-        "from": "A17",
-        "to": "N1"
-      },
-      {
-        "from": "A18",
-        "to": "N4"
-      },
-      {
-        "from": "A19",
-        "to": "N0"
-      },
-      {
-        "from": "A20",
-        "to": "N1"
-      },
-      {
-        "from": "A21",
-        "to": "N4"
-      },
-      {
-        "from": "A22",
-        "to": "N7"
-      },
-      {
-        "from": "A23",
-        "to": "N4"
-      },
-      {
-        "from": "A24",
-        "to": "N6"
-      },
-      {
-        "from": "A25",
-        "to": "N3"
-      },
-      {
-        "from": "A26",
-        "to": "N7"
-      },
-      {
-        "from": "A27",
-        "to": "N3"
-      },
-      {
-        "from": "A28",
-        "to": "N6"
-      },
-      {
-        "from": "A29",
-        "to": "N3"
-      },
-      {
-        "from": "A30",
-        "to": "N2"
-      },
-      {
-        "from": "A31",
-        "to": "N0"
-      },
-      {
-        "from": "A32",
-        "to": "N3"
-      },
-      {
-        "from": "A33",
-        "to": "N1"
-      },
-      {
-        "from": "A34",
-        "to": "N1"
-      },
-      {
-        "from": "A35",
-        "to": "N2"
-      },
-      {
-        "from": "A36",
-        "to": "N0"
-      },
-      {
-        "from": "A37",
-        "to": "N1"
-      },
-      {
-        "from": "A38",
-        "to": "N3"
-      },
-      {
-        "from": "A39",
-        "to": "N5"
-      },
-      {
-        "from": "A40",
-        "to": "N6"
-      },
-      {
-        "from": "A41",
-        "to": "N3"
-      },
-      {
-        "from": "A42",
-        "to": "N1"
-      },
-      {
-        "from": "A43",
-        "to": "N7"
-      },
-      {
-        "from": "A44",
-        "to": "N2"
-      },
-      {
-        "from": "A45",
-        "to": "N5"
-      },
-      {
-        "from": "A46",
-        "to": "N2"
-      },
-      {
-        "from": "A47",
-        "to": "N6"
-      },
-      {
-        "from": "A48",
-        "to": "N2"
-      },
-      {
-        "from": "A49",
-        "to": "N7"
-      },
-      {
         "from": "B0",
-        "to": "N4"
+        "to": "N0"
       },
       {
         "from": "B1",
         "to": "N3"
-      },
-      {
-        "from": "B2",
-        "to": "N1"
       }
     ],
     "routes": [
@@ -3182,22 +1154,14 @@
       },
       {
         "from": "B1",
-        "to": "T1"
-      },
-      {
-        "from": "B0",
         "to": "T2"
       },
       {
-        "from": "B2",
+        "from": "B0",
         "to": "T3"
       },
       {
-        "from": "B1",
-        "to": "T4"
-      },
-      {
-        "from": "B2",
+        "from": "B0",
         "to": "T4"
       },
       {
@@ -3209,1004 +1173,328 @@
         "to": "T6"
       },
       {
-        "from": "B2",
-        "to": "T6"
-      },
-      {
-        "from": "B0",
+        "from": "B1",
         "to": "T7"
       },
       {
-        "from": "B2",
-        "to": "T7"
-      },
-      {
-        "from": "B2",
+        "from": "B1",
         "to": "T8"
       },
       {
-        "from": "B2",
+        "from": "B0",
         "to": "T9"
       },
       {
-        "from": "B0",
-        "to": "T10"
-      },
-      {
         "from": "B1",
-        "to": "T11"
-      },
-      {
-        "from": "B2",
-        "to": "T12"
-      },
-      {
-        "from": "B2",
-        "to": "T13"
-      },
-      {
-        "from": "B2",
-        "to": "T14"
-      },
-      {
-        "from": "B2",
-        "to": "T15"
-      },
-      {
-        "from": "B0",
-        "to": "T16"
-      },
-      {
-        "from": "B2",
-        "to": "T17"
-      },
-      {
-        "from": "B2",
-        "to": "T18"
-      },
-      {
-        "from": "B1",
-        "to": "T19"
-      },
-      {
-        "from": "B0",
-        "to": "T20"
-      },
-      {
-        "from": "B1",
-        "to": "T21"
-      },
-      {
-        "from": "B0",
-        "to": "T21"
-      },
-      {
-        "from": "B1",
-        "to": "T22"
-      },
-      {
-        "from": "B1",
-        "to": "T23"
-      },
-      {
-        "from": "B0",
-        "to": "T23"
-      },
-      {
-        "from": "B2",
-        "to": "T24"
-      },
-      {
-        "from": "B1",
-        "to": "T25"
-      },
-      {
-        "from": "B2",
-        "to": "T25"
-      },
-      {
-        "from": "B2",
-        "to": "T26"
-      },
-      {
-        "from": "B2",
-        "to": "T27"
-      },
-      {
-        "from": "B1",
-        "to": "T27"
-      },
-      {
-        "from": "B2",
-        "to": "T28"
-      },
-      {
-        "from": "B0",
-        "to": "T29"
+        "to": "T9"
       }
     ],
     "publishes_to": [
       {
-        "from": "A8",
-        "to": "T0"
-      },
-      {
-        "from": "A26",
-        "to": "T0"
-      },
-      {
         "from": "A4",
         "to": "T0"
-      },
-      {
-        "from": "A21",
-        "to": "T0"
-      },
-      {
-        "from": "A32",
-        "to": "T1"
-      },
-      {
-        "from": "A47",
-        "to": "T1"
-      },
-      {
-        "from": "A10",
-        "to": "T2"
-      },
-      {
-        "from": "A22",
-        "to": "T3"
-      },
-      {
-        "from": "A47",
-        "to": "T3"
-      },
-      {
-        "from": "A14",
-        "to": "T3"
-      },
-      {
-        "from": "A8",
-        "to": "T3"
-      },
-      {
-        "from": "A34",
-        "to": "T3"
-      },
-      {
-        "from": "A3",
-        "to": "T4"
-      },
-      {
-        "from": "A45",
-        "to": "T5"
-      },
-      {
-        "from": "A27",
-        "to": "T5"
-      },
-      {
-        "from": "A12",
-        "to": "T6"
-      },
-      {
-        "from": "A4",
-        "to": "T6"
       },
       {
         "from": "A11",
-        "to": "T6"
+        "to": "T0"
       },
       {
-        "from": "A3",
-        "to": "T6"
-      },
-      {
-        "from": "A41",
-        "to": "T7"
-      },
-      {
-        "from": "A7",
-        "to": "T7"
-      },
-      {
-        "from": "A19",
-        "to": "T8"
-      },
-      {
-        "from": "A10",
-        "to": "T8"
-      },
-      {
-        "from": "A22",
-        "to": "T8"
-      },
-      {
-        "from": "A14",
-        "to": "T9"
-      },
-      {
-        "from": "A2",
-        "to": "T9"
-      },
-      {
-        "from": "A40",
-        "to": "T9"
-      },
-      {
-        "from": "A17",
-        "to": "T9"
-      },
-      {
-        "from": "A21",
-        "to": "T10"
-      },
-      {
-        "from": "A47",
-        "to": "T10"
-      },
-      {
-        "from": "A38",
-        "to": "T11"
-      },
-      {
-        "from": "A22",
-        "to": "T11"
-      },
-      {
-        "from": "A4",
-        "to": "T12"
-      },
-      {
-        "from": "A12",
-        "to": "T12"
-      },
-      {
-        "from": "A11",
-        "to": "T12"
-      },
-      {
-        "from": "A23",
-        "to": "T12"
-      },
-      {
-        "from": "A27",
-        "to": "T13"
-      },
-      {
-        "from": "A3",
-        "to": "T13"
-      },
-      {
-        "from": "A34",
-        "to": "T14"
-      },
-      {
-        "from": "A17",
-        "to": "T15"
-      },
-      {
-        "from": "A2",
-        "to": "T15"
-      },
-      {
-        "from": "A20",
-        "to": "T15"
-      },
-      {
-        "from": "A25",
-        "to": "T16"
-      },
-      {
-        "from": "A45",
-        "to": "T17"
-      },
-      {
-        "from": "A23",
-        "to": "T17"
-      },
-      {
-        "from": "A38",
-        "to": "T17"
-      },
-      {
-        "from": "A26",
-        "to": "T18"
-      },
-      {
-        "from": "A12",
-        "to": "T18"
-      },
-      {
-        "from": "A7",
-        "to": "T18"
-      },
-      {
-        "from": "A41",
-        "to": "T19"
-      },
-      {
-        "from": "A37",
-        "to": "T19"
-      },
-      {
-        "from": "A32",
-        "to": "T19"
-      },
-      {
-        "from": "A44",
-        "to": "T20"
-      },
-      {
-        "from": "A14",
-        "to": "T21"
-      },
-      {
-        "from": "A41",
-        "to": "T21"
+        "from": "A8",
+        "to": "T1"
       },
       {
         "from": "A5",
-        "to": "T22"
+        "to": "T1"
       },
       {
-        "from": "A25",
-        "to": "T22"
+        "from": "A4",
+        "to": "T1"
       },
       {
-        "from": "A37",
-        "to": "T22"
-      },
-      {
-        "from": "A45",
-        "to": "T23"
+        "from": "A3",
+        "to": "T2"
       },
       {
         "from": "A14",
-        "to": "T23"
+        "to": "T2"
       },
       {
-        "from": "A26",
-        "to": "T24"
+        "from": "A11",
+        "to": "T2"
+      },
+      {
+        "from": "A6",
+        "to": "T2"
+      },
+      {
+        "from": "A12",
+        "to": "T2"
+      },
+      {
+        "from": "A6",
+        "to": "T3"
       },
       {
         "from": "A14",
-        "to": "T24"
+        "to": "T3"
       },
       {
-        "from": "A28",
-        "to": "T25"
+        "from": "A0",
+        "to": "T4"
       },
       {
-        "from": "A32",
-        "to": "T25"
+        "from": "A13",
+        "to": "T4"
       },
       {
-        "from": "A41",
-        "to": "T25"
+        "from": "A5",
+        "to": "T4"
       },
       {
-        "from": "A37",
-        "to": "T25"
+        "from": "A4",
+        "to": "T4"
       },
       {
-        "from": "A9",
-        "to": "T25"
+        "from": "A6",
+        "to": "T4"
       },
       {
-        "from": "A44",
-        "to": "T26"
+        "from": "A1",
+        "to": "T5"
       },
       {
-        "from": "A34",
-        "to": "T26"
+        "from": "A11",
+        "to": "T5"
       },
       {
-        "from": "A47",
-        "to": "T26"
+        "from": "A5",
+        "to": "T5"
       },
       {
         "from": "A2",
-        "to": "T27"
+        "to": "T6"
+      },
+      {
+        "from": "A4",
+        "to": "T6"
       },
       {
         "from": "A14",
-        "to": "T27"
+        "to": "T6"
       },
       {
-        "from": "A21",
-        "to": "T28"
+        "from": "A11",
+        "to": "T6"
       },
       {
-        "from": "A47",
-        "to": "T28"
+        "from": "A8",
+        "to": "T7"
       },
       {
-        "from": "A18",
-        "to": "T29"
+        "from": "A10",
+        "to": "T7"
+      },
+      {
+        "from": "A3",
+        "to": "T8"
+      },
+      {
+        "from": "A6",
+        "to": "T9"
+      },
+      {
+        "from": "A12",
+        "to": "T9"
+      },
+      {
+        "from": "A10",
+        "to": "T9"
+      },
+      {
+        "from": "A13",
+        "to": "T9"
+      },
+      {
+        "from": "A8",
+        "to": "T9"
       }
     ],
     "subscribes_to": [
       {
-        "from": "A31",
+        "from": "A4",
         "to": "T0"
       },
       {
-        "from": "A8",
+        "from": "A7",
         "to": "T0"
-      },
-      {
-        "from": "A43",
-        "to": "T0"
-      },
-      {
-        "from": "A26",
-        "to": "T0"
-      },
-      {
-        "from": "A6",
-        "to": "T0"
-      },
-      {
-        "from": "A15",
-        "to": "T0"
-      },
-      {
-        "from": "A27",
-        "to": "T1"
-      },
-      {
-        "from": "A30",
-        "to": "T1"
-      },
-      {
-        "from": "A29",
-        "to": "T1"
-      },
-      {
-        "from": "A44",
-        "to": "T2"
-      },
-      {
-        "from": "A35",
-        "to": "T2"
-      },
-      {
-        "from": "A10",
-        "to": "T2"
-      },
-      {
-        "from": "A30",
-        "to": "T2"
-      },
-      {
-        "from": "A8",
-        "to": "T2"
-      },
-      {
-        "from": "A33",
-        "to": "T3"
-      },
-      {
-        "from": "A39",
-        "to": "T3"
-      },
-      {
-        "from": "A2",
-        "to": "T3"
-      },
-      {
-        "from": "A42",
-        "to": "T4"
-      },
-      {
-        "from": "A24",
-        "to": "T4"
-      },
-      {
-        "from": "A13",
-        "to": "T5"
-      },
-      {
-        "from": "A38",
-        "to": "T5"
-      },
-      {
-        "from": "A23",
-        "to": "T5"
-      },
-      {
-        "from": "A45",
-        "to": "T5"
-      },
-      {
-        "from": "A18",
-        "to": "T5"
-      },
-      {
-        "from": "A27",
-        "to": "T5"
-      },
-      {
-        "from": "A12",
-        "to": "T5"
-      },
-      {
-        "from": "A12",
-        "to": "T6"
-      },
-      {
-        "from": "A29",
-        "to": "T6"
-      },
-      {
-        "from": "A31",
-        "to": "T6"
-      },
-      {
-        "from": "A48",
-        "to": "T6"
-      },
-      {
-        "from": "A46",
-        "to": "T6"
-      },
-      {
-        "from": "A30",
-        "to": "T7"
-      },
-      {
-        "from": "A37",
-        "to": "T7"
-      },
-      {
-        "from": "A36",
-        "to": "T7"
-      },
-      {
-        "from": "A27",
-        "to": "T7"
-      },
-      {
-        "from": "A18",
-        "to": "T7"
-      },
-      {
-        "from": "A6",
-        "to": "T7"
-      },
-      {
-        "from": "A10",
-        "to": "T8"
-      },
-      {
-        "from": "A27",
-        "to": "T8"
-      },
-      {
-        "from": "A39",
-        "to": "T9"
-      },
-      {
-        "from": "A46",
-        "to": "T9"
-      },
-      {
-        "from": "A24",
-        "to": "T9"
-      },
-      {
-        "from": "A42",
-        "to": "T9"
-      },
-      {
-        "from": "A21",
-        "to": "T10"
-      },
-      {
-        "from": "A42",
-        "to": "T10"
-      },
-      {
-        "from": "A31",
-        "to": "T10"
-      },
-      {
-        "from": "A38",
-        "to": "T11"
-      },
-      {
-        "from": "A49",
-        "to": "T11"
-      },
-      {
-        "from": "A29",
-        "to": "T11"
-      },
-      {
-        "from": "A12",
-        "to": "T12"
-      },
-      {
-        "from": "A30",
-        "to": "T13"
-      },
-      {
-        "from": "A36",
-        "to": "T13"
-      },
-      {
-        "from": "A37",
-        "to": "T13"
-      },
-      {
-        "from": "A27",
-        "to": "T13"
       },
       {
         "from": "A14",
-        "to": "T13"
+        "to": "T0"
       },
       {
-        "from": "A26",
-        "to": "T13"
+        "from": "A2",
+        "to": "T0"
       },
       {
-        "from": "A10",
-        "to": "T14"
-      },
-      {
-        "from": "A26",
-        "to": "T14"
+        "from": "A11",
+        "to": "T0"
       },
       {
         "from": "A0",
-        "to": "T15"
-      },
-      {
-        "from": "A24",
-        "to": "T15"
-      },
-      {
-        "from": "A39",
-        "to": "T15"
-      },
-      {
-        "from": "A2",
-        "to": "T15"
-      },
-      {
-        "from": "A14",
-        "to": "T15"
-      },
-      {
-        "from": "A31",
-        "to": "T15"
-      },
-      {
-        "from": "A18",
-        "to": "T15"
-      },
-      {
-        "from": "A48",
-        "to": "T16"
-      },
-      {
-        "from": "A21",
-        "to": "T16"
-      },
-      {
-        "from": "A15",
-        "to": "T16"
-      },
-      {
-        "from": "A3",
-        "to": "T16"
-      },
-      {
-        "from": "A16",
-        "to": "T16"
-      },
-      {
-        "from": "A6",
-        "to": "T16"
-      },
-      {
-        "from": "A24",
-        "to": "T16"
-      },
-      {
-        "from": "A18",
-        "to": "T17"
-      },
-      {
-        "from": "A49",
-        "to": "T17"
-      },
-      {
-        "from": "A38",
-        "to": "T17"
-      },
-      {
-        "from": "A23",
-        "to": "T17"
-      },
-      {
-        "from": "A1",
-        "to": "T17"
-      },
-      {
-        "from": "A6",
-        "to": "T17"
-      },
-      {
-        "from": "A31",
-        "to": "T18"
-      },
-      {
-        "from": "A43",
-        "to": "T18"
+        "to": "T0"
       },
       {
         "from": "A12",
-        "to": "T18"
+        "to": "T0"
       },
       {
-        "from": "A29",
-        "to": "T18"
-      },
-      {
-        "from": "A26",
-        "to": "T18"
+        "from": "A11",
+        "to": "T1"
       },
       {
         "from": "A8",
-        "to": "T18"
+        "to": "T1"
       },
       {
-        "from": "A20",
-        "to": "T18"
-      },
-      {
-        "from": "A35",
-        "to": "T18"
-      },
-      {
-        "from": "A37",
-        "to": "T19"
-      },
-      {
-        "from": "A30",
-        "to": "T19"
-      },
-      {
-        "from": "A27",
-        "to": "T19"
-      },
-      {
-        "from": "A1",
-        "to": "T19"
-      },
-      {
-        "from": "A18",
-        "to": "T19"
-      },
-      {
-        "from": "A16",
-        "to": "T19"
-      },
-      {
-        "from": "A35",
-        "to": "T20"
-      },
-      {
-        "from": "A10",
-        "to": "T20"
-      },
-      {
-        "from": "A44",
-        "to": "T20"
-      },
-      {
-        "from": "A26",
-        "to": "T20"
-      },
-      {
-        "from": "A23",
-        "to": "T20"
-      },
-      {
-        "from": "A3",
-        "to": "T20"
-      },
-      {
-        "from": "A48",
-        "to": "T20"
-      },
-      {
-        "from": "A20",
-        "to": "T21"
-      },
-      {
-        "from": "A0",
-        "to": "T21"
-      },
-      {
-        "from": "A24",
-        "to": "T21"
-      },
-      {
-        "from": "A39",
-        "to": "T21"
-      },
-      {
-        "from": "A2",
-        "to": "T21"
-      },
-      {
-        "from": "A1",
-        "to": "T21"
-      },
-      {
-        "from": "A27",
-        "to": "T21"
-      },
-      {
-        "from": "A6",
-        "to": "T22"
-      },
-      {
-        "from": "A16",
-        "to": "T22"
-      },
-      {
-        "from": "A21",
-        "to": "T22"
-      },
-      {
-        "from": "A42",
-        "to": "T22"
-      },
-      {
-        "from": "A15",
-        "to": "T22"
-      },
-      {
-        "from": "A39",
-        "to": "T22"
-      },
-      {
-        "from": "A1",
-        "to": "T22"
-      },
-      {
-        "from": "A49",
-        "to": "T23"
-      },
-      {
-        "from": "A38",
-        "to": "T23"
-      },
-      {
-        "from": "A45",
-        "to": "T23"
-      },
-      {
-        "from": "A30",
-        "to": "T23"
-      },
-      {
-        "from": "A31",
-        "to": "T24"
-      },
-      {
-        "from": "A26",
-        "to": "T24"
-      },
-      {
-        "from": "A43",
-        "to": "T24"
-      },
-      {
-        "from": "A29",
-        "to": "T24"
+        "from": "A5",
+        "to": "T1"
       },
       {
         "from": "A12",
-        "to": "T24"
+        "to": "T1"
       },
       {
-        "from": "A10",
-        "to": "T24"
+        "from": "A3",
+        "to": "T2"
       },
       {
-        "from": "A13",
-        "to": "T24"
+        "from": "A5",
+        "to": "T2"
       },
       {
         "from": "A14",
-        "to": "T24"
+        "to": "T2"
       },
       {
-        "from": "A36",
-        "to": "T25"
+        "from": "A12",
+        "to": "T2"
       },
       {
-        "from": "A30",
-        "to": "T25"
+        "from": "A4",
+        "to": "T2"
       },
       {
-        "from": "A27",
-        "to": "T25"
+        "from": "A1",
+        "to": "T2"
       },
       {
-        "from": "A37",
-        "to": "T25"
+        "from": "A12",
+        "to": "T3"
       },
       {
-        "from": "A26",
-        "to": "T25"
+        "from": "A6",
+        "to": "T3"
       },
       {
-        "from": "A35",
-        "to": "T26"
+        "from": "A9",
+        "to": "T3"
       },
       {
-        "from": "A33",
-        "to": "T26"
+        "from": "A3",
+        "to": "T3"
+      },
+      {
+        "from": "A8",
+        "to": "T3"
+      },
+      {
+        "from": "A4",
+        "to": "T3"
+      },
+      {
+        "from": "A0",
+        "to": "T4"
+      },
+      {
+        "from": "A5",
+        "to": "T4"
+      },
+      {
+        "from": "A1",
+        "to": "T4"
+      },
+      {
+        "from": "A9",
+        "to": "T4"
+      },
+      {
+        "from": "A3",
+        "to": "T4"
+      },
+      {
+        "from": "A1",
+        "to": "T5"
+      },
+      {
+        "from": "A14",
+        "to": "T6"
+      },
+      {
+        "from": "A5",
+        "to": "T6"
+      },
+      {
+        "from": "A5",
+        "to": "T7"
+      },
+      {
+        "from": "A3",
+        "to": "T8"
+      },
+      {
+        "from": "A11",
+        "to": "T8"
+      },
+      {
+        "from": "A12",
+        "to": "T8"
+      },
+      {
+        "from": "A0",
+        "to": "T8"
       },
       {
         "from": "A2",
-        "to": "T27"
+        "to": "T8"
+      },
+      {
+        "from": "A9",
+        "to": "T8"
+      },
+      {
+        "from": "A7",
+        "to": "T8"
+      },
+      {
+        "from": "A12",
+        "to": "T9"
+      },
+      {
+        "from": "A6",
+        "to": "T9"
+      },
+      {
+        "from": "A9",
+        "to": "T9"
+      },
+      {
+        "from": "A8",
+        "to": "T9"
       },
       {
         "from": "A14",
-        "to": "T27"
-      },
-      {
-        "from": "A20",
-        "to": "T27"
-      },
-      {
-        "from": "A29",
-        "to": "T27"
-      },
-      {
-        "from": "A48",
-        "to": "T27"
-      },
-      {
-        "from": "A21",
-        "to": "T28"
-      },
-      {
-        "from": "A42",
-        "to": "T28"
-      },
-      {
-        "from": "A15",
-        "to": "T28"
-      },
-      {
-        "from": "A13",
-        "to": "T28"
-      },
-      {
-        "from": "A13",
-        "to": "T29"
-      },
-      {
-        "from": "A45",
-        "to": "T29"
-      },
-      {
-        "from": "A18",
-        "to": "T29"
-      },
-      {
-        "from": "A24",
-        "to": "T29"
+        "to": "T9"
       }
     ],
     "connects_to": [
@@ -4215,38 +1503,18 @@
         "to": "N1"
       },
       {
-        "from": "N0",
-        "to": "N4"
-      },
-      {
-        "from": "N0",
-        "to": "N6"
-      },
-      {
         "from": "N1",
-        "to": "N7"
-      },
-      {
-        "from": "N2",
-        "to": "N7"
-      },
-      {
-        "from": "N4",
-        "to": "N6"
-      },
-      {
-        "from": "N5",
-        "to": "N6"
+        "to": "N3"
       }
     ],
     "uses": [
       {
-        "from": "L8",
-        "to": "L3"
+        "from": "L2",
+        "to": "L0"
       },
       {
-        "from": "L8",
-        "to": "L4"
+        "from": "L2",
+        "to": "L1"
       },
       {
         "from": "A1",
@@ -4254,91 +1522,91 @@
       },
       {
         "from": "A1",
-        "to": "L1"
-      },
-      {
-        "from": "A2",
-        "to": "L9"
-      },
-      {
-        "from": "A2",
-        "to": "L6"
-      },
-      {
-        "from": "A3",
-        "to": "L0"
-      },
-      {
-        "from": "A3",
-        "to": "L6"
-      },
-      {
-        "from": "A3",
         "to": "L3"
       },
       {
-        "from": "A4",
-        "to": "L2"
-      },
-      {
-        "from": "A4",
-        "to": "L6"
-      },
-      {
-        "from": "A4",
-        "to": "L5"
-      },
-      {
-        "from": "A6",
-        "to": "L0"
-      },
-      {
-        "from": "A6",
-        "to": "L7"
-      },
-      {
-        "from": "A6",
+        "from": "A2",
         "to": "L3"
       },
       {
-        "from": "A7",
-        "to": "L5"
-      },
-      {
-        "from": "A7",
-        "to": "L1"
-      },
-      {
-        "from": "A9",
-        "to": "L7"
-      },
-      {
-        "from": "A9",
+        "from": "A2",
         "to": "L4"
       },
       {
-        "from": "A10",
-        "to": "L9"
+        "from": "A2",
+        "to": "L1"
       },
       {
-        "from": "A10",
-        "to": "L6"
-      },
-      {
-        "from": "A10",
+        "from": "A3",
         "to": "L2"
       },
       {
-        "from": "A11",
-        "to": "L2"
+        "from": "A3",
+        "to": "L4"
       },
       {
-        "from": "A11",
-        "to": "L8"
-      },
-      {
-        "from": "A11",
+        "from": "A3",
         "to": "L0"
+      },
+      {
+        "from": "A4",
+        "to": "L3"
+      },
+      {
+        "from": "A4",
+        "to": "L4"
+      },
+      {
+        "from": "A5",
+        "to": "L4"
+      },
+      {
+        "from": "A5",
+        "to": "L2"
+      },
+      {
+        "from": "A5",
+        "to": "L1"
+      },
+      {
+        "from": "A6",
+        "to": "L0"
+      },
+      {
+        "from": "A7",
+        "to": "L3"
+      },
+      {
+        "from": "A7",
+        "to": "L1"
+      },
+      {
+        "from": "A8",
+        "to": "L4"
+      },
+      {
+        "from": "A8",
+        "to": "L3"
+      },
+      {
+        "from": "A8",
+        "to": "L1"
+      },
+      {
+        "from": "A10",
+        "to": "L2"
+      },
+      {
+        "from": "A10",
+        "to": "L1"
+      },
+      {
+        "from": "A10",
+        "to": "L3"
+      },
+      {
+        "from": "A11",
+        "to": "L2"
       },
       {
         "from": "A12",
@@ -4346,187 +1614,15 @@
       },
       {
         "from": "A12",
-        "to": "L5"
-      },
-      {
-        "from": "A15",
-        "to": "L0"
-      },
-      {
-        "from": "A15",
-        "to": "L9"
-      },
-      {
-        "from": "A15",
-        "to": "L3"
-      },
-      {
-        "from": "A17",
-        "to": "L9"
-      },
-      {
-        "from": "A19",
-        "to": "L1"
-      },
-      {
-        "from": "A20",
-        "to": "L9"
-      },
-      {
-        "from": "A21",
-        "to": "L0"
-      },
-      {
-        "from": "A21",
-        "to": "L1"
-      },
-      {
-        "from": "A22",
-        "to": "L9"
-      },
-      {
-        "from": "A23",
-        "to": "L7"
-      },
-      {
-        "from": "A23",
-        "to": "L8"
-      },
-      {
-        "from": "A25",
-        "to": "L0"
-      },
-      {
-        "from": "A26",
-        "to": "L2"
-      },
-      {
-        "from": "A26",
-        "to": "L5"
-      },
-      {
-        "from": "A26",
         "to": "L4"
       },
       {
-        "from": "A29",
-        "to": "L2"
-      },
-      {
-        "from": "A30",
-        "to": "L8"
-      },
-      {
-        "from": "A30",
-        "to": "L1"
-      },
-      {
-        "from": "A30",
-        "to": "L5"
-      },
-      {
-        "from": "A31",
-        "to": "L2"
-      },
-      {
-        "from": "A31",
-        "to": "L4"
-      },
-      {
-        "from": "A32",
-        "to": "L5"
-      },
-      {
-        "from": "A32",
-        "to": "L3"
-      },
-      {
-        "from": "A34",
-        "to": "L1"
-      },
-      {
-        "from": "A35",
-        "to": "L2"
-      },
-      {
-        "from": "A35",
-        "to": "L7"
-      },
-      {
-        "from": "A35",
-        "to": "L1"
-      },
-      {
-        "from": "A36",
-        "to": "L4"
-      },
-      {
-        "from": "A36",
-        "to": "L1"
-      },
-      {
-        "from": "A37",
-        "to": "L4"
-      },
-      {
-        "from": "A37",
-        "to": "L2"
-      },
-      {
-        "from": "A38",
-        "to": "L7"
-      },
-      {
-        "from": "A39",
-        "to": "L9"
-      },
-      {
-        "from": "A40",
-        "to": "L9"
-      },
-      {
-        "from": "A41",
-        "to": "L5"
-      },
-      {
-        "from": "A43",
-        "to": "L2"
-      },
-      {
-        "from": "A43",
-        "to": "L8"
-      },
-      {
-        "from": "A44",
-        "to": "L9"
-      },
-      {
-        "from": "A47",
-        "to": "L9"
-      },
-      {
-        "from": "A47",
-        "to": "L7"
-      },
-      {
-        "from": "A48",
+        "from": "A13",
         "to": "L0"
       },
       {
-        "from": "A48",
+        "from": "A13",
         "to": "L2"
-      },
-      {
-        "from": "A48",
-        "to": "L3"
-      },
-      {
-        "from": "A49",
-        "to": "L6"
-      },
-      {
-        "from": "A49",
-        "to": "L8"
       }
     ]
   }

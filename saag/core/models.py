@@ -18,17 +18,17 @@ MIN_TOPIC_WEIGHT: float = 0.01
 TOPIC_FREQUENCY_HZ: list = [
     1.0,     # [0.00, 0.06)
     1.0,     # [0.06, 0.13)
-    5.0,     # [0.13, 0.19)
+    10.0,    # [0.13, 0.19)
     10.0,    # [0.19, 0.25)
     10.0,    # [0.25, 0.31)
-    20.0,    # [0.31, 0.38)
-    20.0,    # [0.38, 0.44)
+    25.0,    # [0.31, 0.38)
+    25.0,    # [0.38, 0.44)
     50.0,    # [0.44, 0.50)
     50.0,    # [0.50, 0.56)
     100.0,   # [0.56, 0.62)
     100.0,   # [0.62, 0.69)
-    150.0,   # [0.69, 0.75)
-    150.0,   # [0.75, 0.81)
+    100.0,   # [0.69, 0.75)
+    100.0,   # [0.75, 0.81)
     200.0,   # [0.81, 0.88)
     200.0,   # [0.88, 0.94)
     200.0,   # [0.94, 1.00]
@@ -318,6 +318,12 @@ class Topic(GraphEntity):
     criticality: Optional[str] = field(default=None)
 
     def __post_init__(self) -> None:
+        # Enforce size is a power of 2
+        import math
+        if self.size is not None:
+            sz = max(1.0, float(self.size))
+            self.size = int(2 ** round(math.log2(sz)))
+
         # --- frequency ---------------------------------------------------
         # If the generator did not supply a value, fall back to the legacy
         # reliability × priority bin-lookup so existing callers are unaffected.
@@ -329,6 +335,11 @@ class Topic(GraphEntity):
             bin_idx = int(combined * len(TOPIC_FREQUENCY_HZ))
             bin_idx = max(0, min(bin_idx, len(TOPIC_FREQUENCY_HZ) - 1))
             self.frequency = float(TOPIC_FREQUENCY_HZ[bin_idx])
+
+        # Enforce frequency is in [1, 10, 25, 50, 100, 200]
+        if self.frequency is not None:
+            ALLOWED_FREQS = [1.0, 10.0, 25.0, 50.0, 100.0, 200.0]
+            self.frequency = float(min(ALLOWED_FREQS, key=lambda x: abs(x - self.frequency)))
 
         # --- criticality -------------------------------------------------
         # If the generator did not supply a value, derive it deterministically
