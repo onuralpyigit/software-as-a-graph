@@ -718,6 +718,8 @@ class StatisticalGraphGenerator:
             f"A{i}": _app_cluster_domain[i] for i in range(c.apps)
         }
 
+        _single_csms_name: str = name_rng.choice(_hier_pool["system"])
+
         # Assign topics to clusters and build the reverse lookup.
         _cluster_to_topics: Dict[str, List[Topic]] = {d: [] for d in _cluster_domains}
         _topic_id_to_cluster: Dict[str, str] = {}
@@ -752,7 +754,7 @@ class StatisticalGraphGenerator:
                 "csc_name": name_rng.choice(_hier_pool["component"]),
                 "csci_name": name_rng.choice(_hier_pool["config_item"]),
                 "css_name": _app_cluster_domain[i],
-                "csms_name": name_rng.choice(_hier_pool["system"]),
+                "csms_name": _single_csms_name,
             }
 
             priority = self.rng.choice(APP_PRIORITY_OPTIONS)
@@ -787,6 +789,7 @@ class StatisticalGraphGenerator:
                 lib_code_metrics = self._generate_lib_code_metrics(None, name_rng)
 
             lib_hierarchy = domain_ds.get_system_hierarchy() if domain_ds else get_generic_system_hierarchy(name_rng)
+            lib_hierarchy["csms_name"] = _single_csms_name
             if not domain_ds:
                 lib_hierarchy["css_name"] = _lib_cluster_domain[i]
                 
