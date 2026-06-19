@@ -238,6 +238,7 @@ def _run_fault_inject(args: argparse.Namespace) -> None:
     logger.info("  Node IDs   : %s", node_ids or "all")
     logger.info("  Seeds      : %s", seeds)
     logger.info("  Cascade lim: %s", args.cascade_depth or "unlimited")
+    logger.info("  Propagation: %s", args.propagation_threshold)
     logger.info("═" * 60)
 
     t0 = time.perf_counter()
@@ -247,6 +248,7 @@ def _run_fault_inject(args: argparse.Namespace) -> None:
         graph=g,
         seeds=seeds,
         cascade_depth_limit=args.cascade_depth,
+        propagation_threshold=args.propagation_threshold,
     )
     result = injector.run(node_types=node_types, node_ids=node_ids)
     elapsed = time.perf_counter() - t0
@@ -526,6 +528,13 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help="Maximum cascade wave depth (0 = unlimited).  Default: 0",
     )
+    fi.add_argument(
+        "--propagation-threshold",
+        type=float,
+        default=0.2,
+        metavar="F",
+        help="Fraction of feed loss before a subscriber cascades further.  Default: 0.2",
+    )
 
     # ── message-flow ─────────────────────────────────────────────────────
     mf = subparsers.add_parser(
@@ -591,6 +600,7 @@ def _build_parser() -> argparse.ArgumentParser:
     co.add_argument("--node-types", default="Application,Broker", metavar="TYPE1,TYPE2")
     co.add_argument("--seeds", default="42", metavar="42,123,...")
     co.add_argument("--cascade-depth", type=int, default=0, metavar="N")
+    co.add_argument("--propagation-threshold", type=float, default=0.2, metavar="F")
     # Message-flow flags
     co.add_argument("--duration", type=float, default=100.0, metavar="SECONDS")
     co.add_argument("--fault-node", default=None, metavar="NODE_ID")

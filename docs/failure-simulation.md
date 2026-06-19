@@ -242,6 +242,9 @@ With N seeds:
 - `std = 0.0` on a deterministic topology (most real systems): each seed produces identical results.
 - `std > 0` indicates that I(v) is sensitive to the propagation order, typically at the boundary of a cascade — a signal of fragility that is itself worth reporting.
 
+> [!NOTE]
+> **Stochasticity limits on shallow cascades.** Because the depth damping factor at wave 0 is exactly `1.0` (causing all eligible subscribers to fail deterministically) and stochastic propagation through pure `DEPENDS_ON` edges is disabled (`prob = 0.0`), standard deviation is always `0.0` for shallow cascades resolving completely at wave 0. Multi-seed averaging only affects deep cascades resolving at waves $\ge 1$ where `depth_damp < 1.0` introduces probabilistic failures.
+
 Recommended seeds for thesis experiments: `42,123,456,789,2024`.
 
 
