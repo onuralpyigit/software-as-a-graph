@@ -165,10 +165,10 @@ class FaultInjector:
         cascade_depth_limit: int = 0,
         propagation_threshold: float = 0.2,
     ) -> None:
-        self.graph = graph
+        self.graph = graph.copy()
         
         # Derive DEPENDS_ON edges dynamically if they are missing
-        has_depends_on = any((d.get("type") or d.get("etype") or "").upper() == "DEPENDS_ON" for _, _, d in graph.edges(data=True))
+        has_depends_on = any((d.get("type") or d.get("etype") or "").upper() == "DEPENDS_ON" for _, _, d in self.graph.edges(data=True))
         if not has_depends_on:
             from collections import defaultdict
             topic_pubs = defaultdict(set)
@@ -176,7 +176,7 @@ class FaultInjector:
             pub_qos = {}
             sub_qos = {}
             uses_rels = []
-            for src, tgt, d in graph.edges(data=True):
+            for src, tgt, d in self.graph.edges(data=True):
                 etype = (d.get("type") or d.get("etype") or "").upper()
                 if etype == "PUBLISHES_TO":
                     topic_pubs[tgt].add(src)
@@ -194,15 +194,15 @@ class FaultInjector:
                     for publisher in publishers:
                         if subscriber != publisher:
                             qp = pub_qos.get((publisher, topic)) or sub_qos.get((subscriber, topic)) or {}
-                            graph.add_edge(subscriber, publisher, type="DEPENDS_ON", dependency_type="app_to_app", weight=1.0, qos_profile=qp)
+                            self.graph.add_edge(subscriber, publisher, type="DEPENDS_ON", dependency_type="app_to_app", weight=1.0, qos_profile=qp)
             # App depends on library (uses relationship)
             for app, lib in uses_rels:
-                graph.add_edge(app, lib, type="DEPENDS_ON", dependency_type="app_to_lib", weight=1.0)
+                self.graph.add_edge(app, lib, type="DEPENDS_ON", dependency_type="app_to_lib", weight=1.0)
                 
         self.seeds = seeds or [42]
         self.cascade_depth_limit = cascade_depth_limit
         self.propagation_threshold = max(0.0, min(1.0, propagation_threshold))
-        self._index = _PubSubIndex(graph)
+        self._index = _PubSubIndex(self.graph)
 
     # ── Public API ──────────────────────────────────────────────────────────
 

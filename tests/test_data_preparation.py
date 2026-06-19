@@ -98,3 +98,29 @@ def test_extract_simulation_dict_legacy_list():
             "security": 0.55
         }
     }
+
+def test_fault_injector_does_not_mutate_graph():
+    import networkx as nx
+    from saag.simulation.fault_injector import FaultInjector
+
+    # Create a graph without DEPENDS_ON edges
+    g = nx.DiGraph()
+    g.add_node("App1", type="Application")
+    g.add_node("App2", type="Application")
+    g.add_node("Topic1", type="Topic")
+    g.add_edge("App1", "Topic1", type="PUBLISHES_TO")
+    g.add_edge("App2", "Topic1", type="SUBSCRIBES_TO")
+
+    # Record the original edges
+    original_edges = set(g.edges())
+
+    # Initialize FaultInjector, which dynamically derives DEPENDS_ON edges
+    injector = FaultInjector(g)
+
+    # Check that original graph's edges have not changed
+    assert set(g.edges()) == original_edges
+
+    # Check that FaultInjector's internal graph has the derived DEPENDS_ON edges
+    internal_edges = set(injector.graph.edges())
+    assert len(internal_edges) > len(original_edges)
+    assert ("App2", "App1") in internal_edges
