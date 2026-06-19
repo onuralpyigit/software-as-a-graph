@@ -25,7 +25,7 @@ For each candidate node v (Application or Broker by default):
   Cascade propagation (waves 1, 2, …)
     • For each orphaned topic, find all subscribers.
     • A subscriber propagates the cascade when its feed-loss fraction exceeds
-      *propagation_threshold* (default 1.0 = completely starved) AND it was
+      *propagation_threshold* (default 0.2 = aggressive feed loss starvation threshold) AND it was
       itself a publisher on other topics.  [DESIGN-FI-1]
     • A set-based pending queue prevents duplicate processing when a node
       loses feeds from multiple topics in the same wave.  [FIX: BUG-FI-2]
@@ -153,10 +153,9 @@ class FaultInjector:
         Maximum cascade waves.  0 = unlimited.  Default 0.
     propagation_threshold : float, optional
         Fraction of feeds that must be lost before a subscriber itself stops
-        publishing (cascades further).  1.0 = completely starved (conservative
-        default).  Lower values model nodes that fail on partial feed loss.
-        For the ATM ConflictDetector, which needs both T_radar AND T_tracks,
-        0.5 would be appropriate.
+        publishing (cascades further).  0.2 = aggressive default. Lower values
+        model nodes that fail on partial feed loss. For the ATM ConflictDetector,
+        which needs both T_radar AND T_tracks, 0.5 would be appropriate.
     """
 
     def __init__(

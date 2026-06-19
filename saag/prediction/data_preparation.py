@@ -835,6 +835,37 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
             }
         return out
 
+    if isinstance(simulation_results, dict) and "records" in simulation_results:
+        records = simulation_results["records"]
+        if isinstance(records, dict):
+            for nid, r in records.items():
+                if not isinstance(r, dict):
+                    continue
+                score = float(r.get("impact_score", 0.0))
+                out[str(nid)] = {
+                    "composite": score,
+                    "reliability": score,
+                    "maintainability": 0.0,
+                    "availability": score,
+                    "security": 0.0,
+                }
+        elif isinstance(records, list):
+            for r in records:
+                if not isinstance(r, dict):
+                    continue
+                nid = r.get("node_id") or r.get("id")
+                if nid is None:
+                    continue
+                score = float(r.get("impact_score", 0.0))
+                out[str(nid)] = {
+                    "composite": score,
+                    "reliability": score,
+                    "maintainability": 0.0,
+                    "availability": score,
+                    "security": 0.0,
+                }
+        return out
+
     results_list = simulation_results
     if isinstance(simulation_results, dict) and "results" in simulation_results:
         results_list = simulation_results["results"]

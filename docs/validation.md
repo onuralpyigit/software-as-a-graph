@@ -94,7 +94,7 @@ load_graph(system.json)
     │
     └── derive_ground_truth(G, seed, n_repeats=5)  →  I(v)
             uses FaultInjector._inject_node() per node
-            I(v) = mean(composite_impact) over n_repeats seeds
+            I(v) = mean(impact_score) over n_repeats seeds
             │
 run_statistical_tests(node_scores, top_k)
     │
@@ -171,11 +171,23 @@ Averaging across `n_repeats` seeds dampens stochastic variance and yields a stab
 
 ### 3.3 What I(v) Represents
 
-`I(v)` is the **normalised cascade impact score** ∈ [0, 1] measuring how much of the system becomes unreachable or impaired when node $v$ fails. It is the `composite_impact` property of `ImpactMetrics`:
+There are two parallel ground-truth metrics computed by the simulation tools depending on the validation path:
 
-$$I(v) = 0.35 \cdot \text{reachability\_loss} + 0.25 \cdot \text{fragmentation} + 0.25 \cdot \text{throughput\_loss} + 0.15 \cdot \text{flow\_disruption}$$
+1. **`FaultInjector` / `cli/validate_graph.py` (Diagnostic Feed-Loss)**:
+   When running validation dynamically via the command line, the ground truth $I(v)$ represents the mean continuous subscriber feed-loss fraction:
+   $$I(v) = \frac{\sum_{s \in \text{all\_subscribers}} \text{sub\_loss}(s)}{|\text{all\_subscribers}|}$$
+   This is a pub-sub-only BFS cascade metric mapping the direct starved paths.
 
-Weights are AHP-derived (see `saag/prediction/weight_calculator.py` `criteria_impact`).
+2. **`FailureSimulator` / `ValidationService` (Canonical Composite)**:
+   When running the GNN training pipeline or validation services, the ground truth $I(v)$ (denoted $I^*(v)$ in the paper) represents the four-component composite impact score:
+   $$I^*(v) = 0.35 \cdot \text{reachability\_loss} + 0.25 \cdot \text{fragmentation} + 0.25 \cdot \text{throughput\_loss} + 0.15 \cdot \text{flow\_disruption}$$
+   Where:
+   - **reachability\_loss**: fraction of weighted pub-sub paths (publisher → topic → subscriber) that are broken.
+   - **fragmentation**: graph partition severity after removing $v$ (weighted connected-component disruption).
+   - **throughput\_loss**: fraction of total topic-weight throughput disrupted.
+   - **flow\_disruption**: fraction of complete Pub→Topic→Sub flow triples broken.
+   
+   This composite score is the primary metric backing the RASSE and Middleware 2026 evaluation results.
 
 ---
 

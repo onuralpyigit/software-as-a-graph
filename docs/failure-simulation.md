@@ -58,13 +58,13 @@ Both modes are **pre-deployment** — they require only the static graph JSON, n
 
 ```
 simulate_graph.py  (CLI entry point)
-├── fault-inject  subcommand
+├── fault-inject subcommand (wraps FaultInjector)
 │   └── saag/simulation/fault_injector.py
 │       ├── _PubSubIndex          (O(1) lookup structures over PUBLISHES_TO / SUBSCRIBES_TO / ROUTES)
 │       ├── FaultInjector.run()   (iterates over candidate nodes)
 │       └── FaultInjector._cascade()  (BFS wave propagation per node per seed)
 │
-├── message-flow  subcommand
+├── message-flow subcommand (wraps MessageFlowSimulator)
 │   └── saag/simulation/message_flow_simulator.py
 │       ├── TopicFanout           (per-topic fan-out manager)
 │       ├── SubscriberQueue       (per-(topic, subscriber) SimPy Store)
@@ -72,12 +72,16 @@ simulate_graph.py  (CLI entry point)
 │       ├── _subscriber_process() (SimPy generator: dequeues, checks QoS)
 │       └── MessageFlowSimulator.run()
 │
-└── combined  subcommand
+└── combined      subcommand
     (runs fault-inject then message-flow in sequence)
 
-saag/simulation/simulation_results.py  (shared dataclasses for both modes)
-├── FaultInjectionResult / FaultInjectionRecord / CascadeWave
-└── MessageFlowResult / TopicFlowStats / SubscriberFlowStats / FaultEventRecord
+saag/simulation/  (core simulation engine modules)
+├── fault_injector.py        (FaultInjector: diagnostic feed-loss simulator)
+├── failure_simulator.py      (FailureSimulator: canonical composite & RM-AV simulator)
+├── message_flow_simulator.py (MessageFlowSimulator: discrete-event timing simulator)
+└── simulation_results.py    (shared dataclasses for all modes)
+    ├── FaultInjectionResult / FaultInjectionRecord / CascadeWave
+    └── MessageFlowResult / TopicFlowStats / SubscriberFlowStats / FaultEventRecord
 ```
 
 The CLI uses a **subcommand pattern** so fault injection and message flow share a common `--input` / `--output` / `--export-json` / `--verbose` interface while each exposes its own mode-specific flags.
@@ -156,20 +160,26 @@ For each node $u$ in the current wave's frontier:
 
 ### 3.2 I(v) Formula
 
-At the end of the simulation cascade, the final ground-truth impact score $I(v)$ is a four-component weighted composite returned by `ImpactMetrics.composite_impact`:
+There are two parallel ground-truth definitions computed by the simulation suite:
 
-$$I(v) = 0.35 \cdot \text{reachability\_loss} + 0.25 \cdot \text{fragmentation} + 0.25 \cdot \text{throughput\_loss} + 0.15 \cdot \text{flow\_disruption}$$
+1. **`FaultInjector` (BFS feed-loss / diagnostic simulator)**:
+   Computes the average subscriber feed loss across all system subscribers:
+   $$I(v) = \frac{\sum_{s \in \text{all\_subscribers}} \text{sub\_loss}(s)}{|\text{all\_subscribers}|}$$
+   This is the metric computed dynamically in the CLI `fault-inject` subcommand and legacy validation wrappers (`cli/validate_graph.py`), and saved to `impact_scores.json`.
 
-Where:
-- **reachability\_loss**: fraction of weighted pub-sub paths (publisher → topic → subscriber) that are broken.
-- **fragmentation**: graph partition severity after removing $v$ (weighted connected-component disruption).
-- **throughput\_loss**: fraction of total topic-weight throughput disrupted.
-- **flow\_disruption**: fraction of complete Pub→Topic→Sub flow triples broken.
-
-This is a graded score in $[0, 1]$ representing the overall service degradation of the system under the failure of node $v$. Weights are AHP-derived (see `saag/prediction/weight_calculator.py` `criteria_impact`).
+2. **`FailureSimulator` (Canonical composite simulator)**:
+   Computes the four-component weighted composite $I^*(v)$ returned by `ImpactMetrics.composite_impact`:
+   $$I^*(v) = 0.35 \cdot \text{reachability\_loss} + 0.25 \cdot \text{fragmentation} + 0.25 \cdot \text{throughput\_loss} + 0.15 \cdot \text{flow\_disruption}$$
+   Where:
+   - **reachability\_loss**: fraction of weighted pub-sub paths (publisher → topic → subscriber) that are broken.
+   - **fragmentation**: graph partition severity after removing $v$ (weighted connected-component disruption).
+   - **throughput\_loss**: fraction of total topic-weight throughput disrupted.
+   - **flow\_disruption**: fraction of complete Pub→Topic→Sub flow triples broken.
+   
+   This composite score is computed by the GNN training services (`cli/train_graph.py`) and validation services (`saag/validation/service.py`) to provide the main Middleware 2026 and RASSE evaluation metrics.
 
 > [!NOTE]
-> **`feed_loss_fraction` is an internal cascade-propagation signal**, not the final I(v). It is computed per subscriber application (§3.1, Stochastic Subscriber Failure) to decide whether a subscriber is eligible to fail and propagate to the next wave. It is stored in `per_subscriber_feed_loss` for diagnostics but is not aggregated as the ground-truth impact score.
+> **Starvation signal role**. In `FaultInjector`, the average subscriber feed loss $\text{sub\_loss}(s)$ is directly aggregated into the final $I(v)$ score. In `FailureSimulator`, however, feed loss and starvation are strictly internal propagation signals used to determine cascade eligibility (§3.1, Stochastic Subscriber Failure); the final $I^*(v)$ is computed using the structural and flow-based metrics shown above.
 
 > [!NOTE]
 > **Start-node inclusion in `reachability_loss`.** The failed node $v$ itself is counted as a lost subscriber in the reachability loss calculation, which could give subscriber-heavy nodes a modest advantage in I(v). To quantify this, we ran an exclusion sweep on `data/system.json`: excluding $v$ from its own feed-loss denominator shifts the system-layer Spearman $\rho$ by $+0.0077$ (0.7856 → 0.7933) and leaves the top-5 critical-node ranking identical (minor rank swaps only). The bias is therefore negligible and the current behaviour is retained for implementation simplicity.
@@ -182,10 +192,10 @@ The `propagation_threshold` parameter (default `0.2`, range $[0.0, 1.0]$) contro
 
 | `propagation_threshold` | Semantic |
 |---|---|
-| `0.2` (default) | A subscriber is eligible to fail when its average feed loss is $\ge 20\%$. |
+| `0.2` (default) | A subscriber is eligible to fail when its average feed loss is $\ge 20\%$. Aggressive default. |
 | `0.5` | A subscriber is eligible to fail when its average feed loss is $\ge 50\%$. |
 | `1.0` | A subscriber only cascades when it has lost $100\%$ of its feeds (completely starved). Conservative. |
-| `0.0` | Any single feed loss triggers eligibility to cascade. Aggressive. |
+| `0.0` | Any single feed loss triggers eligibility to cascade. Extremely aggressive. |
 
 For the ATM dataset, `ConflictDetector` requires both `T_radar` **and** `T_tracks` to function (both are mandatory inputs to the conflict algorithm). Setting `--propagation-threshold 0.5` will model this correctly: losing either feed alone is sufficient to silence `ConflictDetector`.
 
@@ -208,7 +218,9 @@ Libraries occupy an asymmetric position between $Q(v)$ (structural quality predi
 
 **Visible to $Q(v)$:** The structural analyzer creates `app_to_lib` (`DEPENDS_ON`) edges from every consuming Application to the Library. These edges contribute to the Library's in-degree, betweenness, and Reliability dimension score. A widely-used library therefore scores high on the $R(v)$ dimension — its blast radius is structurally significant.
 
-**Near-zero in $I(v)$:** The fault injector models library failure as a **$T_0$ step-function collapse**: all consuming Applications that `USES` the library are immediately marked as failed in wave 0 alongside the library itself (Rule 4, `TestLibraryCascade`). However, the injector does *not* then propagate those Application failures forward through the pub-sub topic graph as sequential BFS cascade waves in the same way it would for an Application or Broker seed. This means libraries tend to receive low `reachability_loss` and `throughput_loss` scores despite their potentially large structural footprint — they are visible to $Q$ but near-constant near-zero in $I$.
+**Low or Near-zero in FaultInjector $I(v)$**: `FaultInjector` restricts candidate targets to Applications and Brokers by default. Even if a Library is injected, it has no publish/subscribe endpoints on topic interfaces. Since stochastic propagation through `DEPENDS_ON` edges is disabled (`prob = 0.0`), a Library failure does not cascade to subscribers, yielding an $I(v)$ of 0.
+
+**$T_0$ Step-Function Collapse in FailureSimulator**: The canonical `FailureSimulator` models library failure as a **$T_0$ step-function collapse**: all consuming Applications that use the Library fail immediately at depth 0. However, the subsequent propagation of these Application failures forward through the pub-sub topic graph is typically restricted. This results in libraries having lower composite impact than their large structural footprint suggests, which is a known design asymmetry.
 
 This is a **known design asymmetry**, not a bug. The rationale is that library failures manifest as compile-time or startup failures in practice — the cascading effect is captured at $T_0$ (immediate knock-on) rather than the pub-sub propagation model used for runtime failures. When a Library's $Q(v)$ rank is meaningfully higher than its $I(v)$ rank in the validation scatter plot, this is the expected explanation.
 
