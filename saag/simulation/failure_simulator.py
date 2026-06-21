@@ -283,6 +283,29 @@ class FailureSimulator:
                 if max_observed_depth > 0 else 0.0
             )
         
+        # --- IM(v) & IV(v) dynamic metric computation -------------------------
+        # Precompute structural metrics dynamically on the derived dependency graph
+        comp_out_deg = {
+            cid: len(self.graph.get_depends_on_targets(cid))
+            for cid in self.graph.components
+        }
+        comp_in_deg = {cid: 0 for cid in self.graph.components}
+        for cid in self.graph.components:
+            for tgt in self.graph.get_depends_on_targets(cid):
+                if tgt in comp_in_deg:
+                    comp_in_deg[tgt] += 1
+
+        comp_dep_weight_out = {}
+        for cid in self.graph.components:
+            targets = self.graph.get_depends_on_targets(cid)
+            w_sum = 0.0
+            for tgt in targets:
+                if self.graph.graph.has_edge(cid, tgt):
+                    w_sum += self.graph.graph[cid][tgt].get("weight", 1.0)
+                else:
+                    w_sum += 1.0
+            comp_dep_weight_out[cid] = w_sum
+
         # --- IM(v) post-pass --------------------------------------------------
         # Compute the three Maintainability-specific sub-fields for each result.
         # Uses ChangePropagationSimulator on the transposed DEPENDS_ON graph (G^T).
@@ -295,13 +318,9 @@ class FailureSimulator:
             # We use the raw graph relationships annotated with edge weights.
             # dependency_weight is the QoS-derived weight on each DEPENDS_ON arc.
             dep_edges: List[Tuple[str, str, float]] = []
-            for comp_id, comp in self.graph.components.items():
-                # Outgoing DEPENDS_ON: comp -> its dependencies
-                # Edge weight stored as dependency_weight_out / out_degree_raw if available
-                weight_out = getattr(comp, 'dependency_weight_out', None)
-                out_raw = max(getattr(comp, 'out_degree_raw', 0), 0)
-                if weight_out is None:
-                    weight_out = float(out_raw)
+            for comp_id in self.graph.components:
+                out_raw = comp_out_deg[comp_id]
+                weight_out = comp_dep_weight_out[comp_id]
                 # Distribute weight evenly across outgoing edges as an approximation
                 per_edge_w = weight_out / out_raw if out_raw > 0 else 0.0
                 # Retrieve outgoing neighbors from the raw adjacency
@@ -311,14 +330,6 @@ class FailureSimulator:
             all_ids = list(self.graph.components.keys())
             comp_weights = {
                 cid: getattr(c, 'weight', 1.0)
-                for cid, c in self.graph.components.items()
-            }
-            comp_in_deg = {
-                cid: getattr(c, 'in_degree_raw', 0)
-                for cid, c in self.graph.components.items()
-            }
-            comp_out_deg = {
-                cid: getattr(c, 'out_degree_raw', 0)
                 for cid, c in self.graph.components.items()
             }
 
@@ -359,11 +370,9 @@ class FailureSimulator:
             from .compromise_propagation import CompromisePropagationSimulator
 
             dep_edges_v: List[Tuple[str, str, float]] = []
-            for comp_id, comp in self.graph.components.items():
-                weight_out = getattr(comp, 'dependency_weight_out', None)
-                out_raw = max(getattr(comp, 'out_degree_raw', 0), 0)
-                if weight_out is None:
-                    weight_out = float(out_raw)
+            for comp_id in self.graph.components:
+                out_raw = comp_out_deg[comp_id]
+                weight_out = comp_dep_weight_out[comp_id]
                 per_edge_w = weight_out / out_raw if out_raw > 0 else 0.0
                 for neighbor_id in self.graph.get_depends_on_targets(comp_id):
                     dep_edges_v.append((comp_id, neighbor_id, per_edge_w))
