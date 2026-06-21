@@ -260,6 +260,20 @@ def _publisher_process(
             window_counts["post"] += 1
 
 
+def _pct(samples: list, q: float) -> Optional[float]:
+    """Linear-interpolated percentile of an unsorted list; None if empty."""
+    if not samples:
+        return None
+    s = sorted(samples)
+    if len(s) == 1:
+        return s[0]
+    pos = (len(s) - 1) * (q / 100.0)
+    lo = int(pos)
+    frac = pos - lo
+    hi = min(lo + 1, len(s) - 1)
+    return s[lo] + (s[hi] - s[lo]) * frac
+
+
 def _subscriber_process(
     env: simpy.Environment,
     app_id: str,
@@ -275,6 +289,7 @@ def _subscriber_process(
     rng: random.Random,
     max_latency_samples: int = 10_000,
     processing_time_s: float = 0.0,
+    latency_windows: Optional[Dict[str, list]] = None,
 ) -> Generator:
     """
     Subscriber SimPy process.
@@ -348,6 +363,9 @@ def _subscriber_process(
         # Latency sample
         if len(topic_stats.latency_samples) < max_latency_samples:
             topic_stats.latency_samples.append(e2e_latency_ms)
+        if latency_windows is not None and fault_time is not None:
+            bucket = "pre" if arrival_time < fault_time else "post"
+            latency_windows[bucket].append(e2e_latency_ms)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -515,6 +533,7 @@ class MessageFlowSimulator:
         del_window: Dict[str, Dict[str, int]] = {
             tid: {"pre": 0, "post": 0} for tid in fanouts
         }
+        latency_windows: Dict[str, list] = {"pre": [], "post": []}
 
         # ── Spawn publisher processes ─────────────────────────────────────
 
@@ -570,6 +589,7 @@ class MessageFlowSimulator:
                         rng=rng,
                         max_latency_samples=self.max_latency_samples,
                         processing_time_s=proc_time.get(src, self.default_processing_time_s),
+                        latency_windows=latency_windows,
                     )
                 )
 
@@ -673,6 +693,10 @@ class MessageFlowSimulator:
             fault_event_record.delivery_rate_after = min(
                 1.0, total_post_del / post_expected if post_expected else 0.0
             )
+            fault_event_record.latency_p50_before = _pct(latency_windows["pre"], 50)
+            fault_event_record.latency_p50_after  = _pct(latency_windows["post"], 50)
+            fault_event_record.latency_p95_before = _pct(latency_windows["pre"], 95)
+            fault_event_record.latency_p95_after  = _pct(latency_windows["post"], 95)
 
         result = MessageFlowResult(
             graph_id=self.graph.graph.get("id", ""),

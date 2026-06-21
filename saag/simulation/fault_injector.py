@@ -152,10 +152,13 @@ class FaultInjector:
     cascade_depth_limit : int, optional
         Maximum cascade waves.  0 = unlimited.  Default 0.
     propagation_threshold : float, optional
-        Fraction of feeds that must be lost before a subscriber itself stops
-        publishing (cascades further).  0.2 = aggressive default. Lower values
-        model nodes that fail on partial feed loss. For the ATM ConflictDetector,
-        which needs both T_radar AND T_tracks, 0.5 would be appropriate.
+        Fraction of a subscriber's mean feed loss at or above which it may fail
+        (stochastically, scaled by depth damping).  Default 0.2 — a subscriber
+        becomes eligible to fail once it loses ~20% of its feed.  This is an
+        aggressive setting; raise toward 1.0 for a conservative
+        "only-on-total-starvation" cascade.  For nodes requiring all feeds
+        (e.g. ATM ConflictDetector needing T_radar AND T_tracks), 0.5 is more
+        appropriate.
     """
 
     def __init__(

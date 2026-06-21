@@ -265,6 +265,12 @@ class FaultEventRecord:
     cascade_impacted_subscribers: List[str]  # Subscribers that lost feeds after fault
     delivery_rate_before: float            # System-wide rate in [0, fault_time]
     delivery_rate_after: float             # System-wide rate in (fault_time, end]
+    # I_dyn(v): system-wide delivered-message latency, windowed on fault_time.
+    # None when no latency was observed in that window.
+    latency_p50_before: Optional[float] = None
+    latency_p50_after: Optional[float] = None
+    latency_p95_before: Optional[float] = None
+    latency_p95_after: Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

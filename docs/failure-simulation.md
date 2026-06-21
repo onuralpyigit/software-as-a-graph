@@ -285,6 +285,8 @@ Three types of SimPy process are spawned for the topology:
 
 All three process types share the same `failed_nodes: Set[str]` object, which serves as the inter-process fault broadcast channel.
 
+> **Latency windowing.** The subscriber process also buckets each delivered-message end-to-end latency into a shared `latency_windows` dict (`"pre"` / `"post"` keys) keyed on whether `arrival_time < fault_time`. After `env.run()`, the four summary percentiles (`latency_p50_before`, `latency_p50_after`, `latency_p95_before`, `latency_p95_after`) are aggregated via a linear-interpolated percentile helper and written to `FaultEventRecord`. These fields are `None` when no fault was injected or when a window received no deliveries. Their primary use is as an independent I_dyn(v) ground-truth candidate for convergent validity (see [validation.md §10](validation.md#10-cli-reference)).
+
 ### 4.2 Fan-Out Queue Architecture
 
 Standard pub-sub semantics require that **every subscriber receives every message**. A naive single `simpy.Store` per topic would instead route each message to exactly one subscriber (first-come-first-served dequeue), halving — or worse — per-subscriber delivery counts.
@@ -656,9 +658,15 @@ output/simulation/
   "cascade_orphaned_topics": ["T_conflicts"],
   "cascade_impacted_subscribers": ["ATCWorkstation"],
   "delivery_rate_before": 0.9977,
-  "delivery_rate_after": 0.9962
+  "delivery_rate_after": 0.9962,
+  "latency_p50_before": 2.1,
+  "latency_p50_after": 8.7,
+  "latency_p95_before": 3.4,
+  "latency_p95_after": 15.2
 }
 ```
+
+The four `latency_p*` fields hold system-wide end-to-end latency (ms) for messages delivered in each fault window. `null` is written when a window received no deliveries. The post-fault inflation `Δp50 = latency_p50_after − latency_p50_before` is the basis for the I_dyn(v) independent ground-truth signal consumed by `cli/validate_graph.py harness`.
 
 **`topic_stats`** — per topic:
 
@@ -754,13 +762,12 @@ python analyze_graph.py \
     --output output/analysis/ \
     --export-json
 
-# Step 3: Compute Spearman ρ between Q(v) and I(v)
-# (handled by ValidateUseCase / cli/validate_topology_classes.py,
-#  which reads output/analysis/analysis_results.json and
-#  output/simulation/impact_scores.json)
-PYTHONPATH=. python cli/validate_topology_classes.py \
-    --analysis output/analysis/analysis_results.json \
-    --impact   output/simulation/impact_scores.json
+# Step 3: Validate Q(v) vs I(v) with methodological guards
+# cli/validate_graph.py harness reads pre-computed prediction and impact JSON
+PYTHONPATH=. python cli/validate_graph.py harness \
+    --predictions output/analysis/predictions.json \
+    --ground-truth cascade=output/simulation/impact_scores.json \
+    --out output/harness_report.json
 ```
 
 ### 7.3 Message flow: observing the ConflictDetector fault
@@ -920,6 +927,11 @@ if result.fault_event:
     print(f"  Impacted:  {fe.cascade_impacted_subscribers}")
     print(f"  Rate before: {fe.delivery_rate_before:.4f}")
     print(f"  Rate after:  {fe.delivery_rate_after:.4f}")
+    # Latency windowing (I_dyn(v) source — may be None if a window had no deliveries)
+    if fe.latency_p50_before is not None and fe.latency_p50_after is not None:
+        delta_p50 = fe.latency_p50_after - fe.latency_p50_before
+        print(f"  Δp50 latency: {delta_p50:+.1f} ms  "
+              f"(before={fe.latency_p50_before:.1f}, after={fe.latency_p50_after:.1f})")
 ```
 
 ---

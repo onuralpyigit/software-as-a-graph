@@ -13,6 +13,7 @@
 3. [Ground Truth: I(v) from Cascade Simulation](#3-ground-truth-iv-from-cascade-simulation)
 4. [RMAV Prediction: Q(v)](#4-rmav-prediction-qv)
 5. [Statistical Battery](#5-statistical-battery)
+   - 5.0 [Methodological Guard Harness](#50-methodological-guard-harness)
    - 5.1 [Rank Correlation — Spearman ρ and Kendall τ](#51-rank-correlation--spearman-ρ-and-kendall-τ)
    - 5.2 [Bootstrap Confidence Interval](#52-bootstrap-confidence-interval)
    - 5.3 [Classification Metrics — Precision, Recall, F1 @ K](#53-classification-metrics--precision-recall-f1--k)
@@ -256,6 +257,29 @@ The ablation study (`compare` subcommand) measures the predictive lift from the 
 ---
 
 ## 5. Statistical Battery
+
+### 5.0 Methodological Guard Harness
+
+`cli/validate_graph.py harness` is a second entry point for the validation step that operates on **pre-computed** Q(v) and I(v) JSON files rather than deriving them internally from a graph JSON. It wraps five methodological guards that are orthogonal to — and complementary with — the statistical battery in §5.1–5.7:
+
+| Guard | What it checks |
+|-------|---------------|
+| **Stratified ρ (Simpson's paradox guard)** | Computes Spearman ρ and Kendall τ *per node type* and flags the pooled correlation as potentially misleading. Pools that mix node types with different (Q, I) regimes can yield a near-zero global ρ even when every per-type correlation is strongly positive — the pattern documented in the SaG ATM dataset (pooled ρ ≈ 0.075, per-type ρ 0.63–0.90). |
+| **Convergent validity** | Accepts multiple `--ground-truth` sources and cross-correlates them with each other. Strong inter-oracle agreement is the convergent validity argument; weak agreement limits what either oracle can claim. Requires at least two `--ground-truth` sources. |
+| **Independence ledger** | Each ground-truth source declares whether it shares structural basis with Q(v) (`:qos` tag). A coupled source emits a QoS-ablation caveat in the report rather than silently printing a number. |
+| **Rank-displacement outliers** | Nodes where I(v) ranks the component far more critical than Q(v) are surfaced automatically. These are structural blind spots — the library blast-radius gap (high I, low Q) is the canonical example. |
+| **Multi-seed spread** | Accepts a `GroundTruthSource` with `per_seed` scores and reports mean ± std of pooled ρ across seeds. `std > 0` is labelled as cascade-order fragility, not hidden. |
+
+**When to use `harness` vs. the main subcommands:**
+
+| Use case | Subcommand |
+|----------|-----------|
+| Compute Q(v) and I(v) from scratch and validate end-to-end | `single`, `sweep`, `report`, `compare` |
+| Validate pre-computed Q(v) and I(v) artifacts with methodological guards | `harness` |
+| Second independent oracle (Δlatency I_dyn(v)) for convergent validity | `harness --ground-truth latency=output/latency_delta.json` |
+| Journal-submission checklist (Simpson, independence, blind spots) | `harness` |
+
+---
 
 All statistics are computed on **Application-type nodes** by default, falling back to all nodes only
 when fewer than 4 Application nodes exist. This matches the thesis claim: topology predicts
@@ -612,8 +636,11 @@ for CI gates guarding research claims.
 | `sweep` | Multi-seed stability sweep |
 | `report` | Full sweep + per-seed detail + gate JSON output |
 | `compare` | Ablation study: topology-only vs. QoS-enriched |
+| `harness` | Methodological-guard harness on pre-computed Q(v) / I(v) JSON files (see §5.0) |
 
-### 10.2 Options
+The first four subcommands all require `--input` (a graph JSON) and derive both Q(v) and I(v) internally. The `harness` subcommand takes a different set of flags (no `--input`) and is documented separately below.
+
+### 10.2 Options — `single` / `sweep` / `report` / `compare`
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -630,9 +657,40 @@ for CI gates guarding research claims.
 | `--verbose` | off | Print per-node Q(v)/I(v) scores ranked by Q |
 | `--no-color` | off | Disable ANSI colours in console output |
 
+### 10.2b Options — `harness`
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--predictions PATH` | *(required)* | Q(v) JSON file. Accepts `{"<node_id>": {"type": "...", "Q": <float>}}` or list form. |
+| `--ground-truth NAME=PATH` | *(required, repeatable)* | Ground-truth I(v) source. Format: `name=path/to/file.json`. Append `:qos` to mark the source as QoS-coupled (e.g. `latency=file.json:qos`). Accepts `{"records": {nid: {"impact_score": float}}}` (FaultInjector output) or plain `{nid: float}`. |
+| `--out PATH` | *(none)* | Write JSON report blob to path. |
+| `--no-color` | off | Disable ANSI colours. |
+
 ### 10.3 Examples
 
 ```bash
+# ── Methodological-guard harness: single oracle ───────────────────────────────
+PYTHONPATH=. python cli/validate_graph.py harness \
+    --predictions output/predictions.json \
+    --ground-truth cascade=output/impact_scores.json \
+    --out output/harness_report.json
+
+# ── Harness: two oracles → convergent validity block ─────────────────────────
+# Second oracle: Δp50 latency inflation from message-flow simulation
+# Build latency_delta.json as {node_id: latency_p50_after - latency_p50_before}
+PYTHONPATH=. python cli/validate_graph.py harness \
+    --predictions output/predictions.json \
+    --ground-truth cascade=output/impact_scores.json \
+    --ground-truth latency=output/latency_delta.json \
+    --out output/harness_report.json
+
+# ── Harness: mark a source as QoS-coupled (triggers ablation caveat) ─────────
+PYTHONPATH=. python cli/validate_graph.py harness \
+    --predictions output/predictions.json \
+    --ground-truth cascade=output/impact_scores.json \
+    --ground-truth deadline=output/deadline_violations.json:qos \
+    --out output/harness_report.json
+
 # ── Quick sanity check (topology-only, single seed) ──────────────────────────
 PYTHONPATH=. python cli/validate_graph.py single --input data/scenarios/atm_system.json
 
@@ -814,6 +872,34 @@ This is the schema produced by the core `ValidationService` (`validate_layers()`
   "warnings": []
 }
 ```
+
+### 11.0 Harness JSON (`harness --out`)
+
+When `--out PATH` is provided to the `harness` subcommand, a JSON blob is written with the following structure (one entry per ground-truth source under `"sources"`, plus a `"convergent_validity"` block when ≥ 2 sources were given):
+
+```json
+{
+  "sources": {
+    "cascade": {
+      "pooled": { "rho": 0.745, "p": 0.001, "tau": 0.601, "n": 32 },
+      "per_type": {
+        "Application": { "rho": 0.943, "p": 0.000, "tau": 0.812, "n": 26 },
+        "Library":     { "rho": -0.200, "p": 0.412, "tau": -0.150, "n": 8 }
+      },
+      "precision_at_k": { "3": 1.0, "5": 0.80, "10": 0.70 },
+      "rank_displacement": [
+        { "node_id": "ICAOMessageLib", "type": "Library", "delta_rank": -5, "Q": 0.48, "I": 0.97 }
+      ],
+      "multi_seed": { "mean_rho": 0.741, "std_rho": 0.023, "seeds": 5 }
+    }
+  },
+  "convergent_validity": {
+    "cascade__latency": { "rho": 0.964, "p": 0.000, "tau": 0.851, "n": 32 }
+  }
+}
+```
+
+`pooled.rho` is always reported but the text report flags it as Simpson-paradox-contaminated. The per-type entries under `per_type` are the primary evidence. A `Corr` entry where `n < 3` has all `NaN` values and is not printed in the text report.
 
 ### 11.1 CSV Output (`--csv` flag)
 
