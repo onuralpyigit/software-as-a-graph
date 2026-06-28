@@ -225,6 +225,7 @@ def mock_pipeline():
         run_result.prediction = None
         run_result.simulation = None
         run_result.validation = None
+        run_result.prescription = None
         run_result.problems = []
         instance.run.return_value = run_result
         mock_pipe_class.return_value = instance
