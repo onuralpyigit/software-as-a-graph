@@ -37,6 +37,7 @@ class Pipeline:
         self._do_predict = False
         self._do_simulate = False
         self._do_validate = False
+        self._do_prescribe = False
         self._do_visualize = False
 
     @staticmethod
@@ -102,6 +103,11 @@ class Pipeline:
         self._validate_layers = layers
         return self
 
+    def prescribe(self) -> "Pipeline":
+        """Stage 6: Prescriptive remediation generation."""
+        self._do_prescribe = True
+        return self
+
     def visualize(self, output: str = "report.html", layers: Optional[List[str]] = None, **kwargs) -> "Pipeline":
         """Stage: Generate HTML dashboard report."""
         self._do_visualize = True
@@ -160,7 +166,23 @@ class Pipeline:
             gnn_checkpoint = self._predict_kwargs.get("gnn_checkpoint")
             result.validation = self.client.validate(layers=validate_layers, gnn_checkpoint=gnn_checkpoint)
 
-        # 6. Visualize
+        # 6. Prescribe — generate recommendations and verify them in closed loop
+        if self._do_prescribe:
+            if result.analysis is None:
+                raise RuntimeError(
+                    "prescribe() requires an AnalysisResult. "
+                    "Make sure to call analyze() in the pipeline."
+                )
+            logger.info("Running prescriptive remediation (Stage 6)...")
+            gnn_checkpoint = self._predict_kwargs.get("gnn_checkpoint")
+            result.prescription = self.client.prescribe(
+                analysis_result=result.analysis,
+                prediction_result=result.prediction,
+                layer=self._layer,
+                gnn_checkpoint=gnn_checkpoint
+            )
+
+        # 7. Visualize
         if self._do_visualize:
             out_file = self._visualize_kwargs.pop("output", "report.html")
             vis_layers = self._visualize_kwargs.pop("layers", [self._layer]) or [self._layer]

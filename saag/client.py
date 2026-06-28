@@ -136,6 +136,31 @@ class Client:
         
         return ValidationPipelineFacade(pipeline_result)
 
+    def prescribe(
+        self,
+        analysis_result: Any,
+        prediction_result: Optional[Any] = None,
+        layer: str = "system",
+        gnn_checkpoint: Optional[str] = None
+    ) -> Any:
+        """Run the prescriptive Stage 6 optimization on critical items and smells."""
+        from saag.prescription.service import PrescribeService
+        from saag.usecases.prescribe_graph import PrescribeGraphUseCase
+
+        service = PrescribeService(self.repo)
+        uc = PrescribeGraphUseCase(service)
+        
+        # Unwrap SDK facades if necessary
+        raw_analysis = getattr(analysis_result, "raw", analysis_result)
+        raw_prediction = getattr(prediction_result, "raw", prediction_result)
+        
+        return uc.execute(
+            analysis_result=raw_analysis,
+            prediction_result=raw_prediction,
+            layer=layer,
+            gnn_checkpoint=gnn_checkpoint
+        )
+
     def visualize(self, output: str = "report.html", layers: Optional[List[str]] = None, **kwargs) -> str:
         """Render the logic to an HTML report."""
         if layers is None:
