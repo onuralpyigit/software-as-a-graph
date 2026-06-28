@@ -218,6 +218,7 @@ def mock_pipeline():
         instance.predict.return_value = instance
         instance.simulate.return_value = instance
         instance.validate.return_value = instance
+        instance.prescribe.return_value = instance
         instance.visualize.return_value = instance
         # Make run() return a result whose post-execution display blocks are skipped
         run_result = MagicMock()
@@ -225,6 +226,7 @@ def mock_pipeline():
         run_result.prediction = None
         run_result.simulation = None
         run_result.validation = None
+        run_result.prescription = None
         run_result.problems = []
         instance.run.return_value = run_result
         mock_pipe_class.return_value = instance
@@ -264,6 +266,7 @@ class TestRunOrchestrator:
         mock_inst.predict.assert_called_once_with(gnn_checkpoint=None)
         mock_inst.simulate.assert_called_once_with(layer='system', mode='exhaustive')
         mock_inst.validate.assert_called_once_with(layers=['app', 'infra', 'mw', 'system'])
+        mock_inst.prescribe.assert_called_once()
         mock_inst.visualize.assert_called_once()
         mock_inst.run.assert_called_once()
 
