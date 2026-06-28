@@ -28,7 +28,7 @@ from enum import Enum
 from collections import defaultdict
 
 from .graph import SimulationGraph
-from .models import ComponentState, FailureMode, CascadeRule, FailureScenario, ImpactMetrics, CascadeEvent, FailureResult, MonteCarloResult
+from .models import ComponentState, FailureMode, CascadeRule, FailureScenario, ImpactMetrics, CascadeEvent, FailureResult, MonteCarloResult, RuntimeTelemetryProfile
 
 class FailureSimulator:
     """
@@ -51,14 +51,16 @@ class FailureSimulator:
     STARVATION_THRESHOLD = 0.3
     DEGRADED_PERFORMANCE = 0.5
     
-    def __init__(self, graph: SimulationGraph):
+    def __init__(self, graph: SimulationGraph, telemetry_profile: Optional[RuntimeTelemetryProfile] = None):
         """
         Initialize the failure simulator.
         
         Args:
             graph: SimulationGraph instance
+            telemetry_profile: Optional RuntimeTelemetryProfile containing runtime/synthetic calibration data
         """
         self.graph = graph
+        self.telemetry = telemetry_profile or RuntimeTelemetryProfile()
         self.logger = logging.getLogger(__name__)
         
         # Random generator
@@ -584,10 +586,11 @@ class FailureSimulator:
         self._baseline_computed = True
     
     def _compute_total_topic_weight(self) -> float:
-        """Compute total QoS-weighted topic capacity."""
+        """Compute total QoS-weighted topic capacity calibrated by telemetry."""
         total = 0.0
         for topic_id, topic_info in self.graph.topics.items():
-            total += getattr(topic_info, 'weight', 1.0)
+            runtime_rate = self.telemetry.msg_rate_per_sec.get(topic_id, 1.0)
+            total += getattr(topic_info, 'weight', 1.0) * runtime_rate
         return total if total > 0 else float(len(self.graph.topics))
     
     def _propagate_cascade_multi(
@@ -725,7 +728,10 @@ class FailureSimulator:
                         topic_info = self.graph.topics.get(topic_id)
                         if not topic_info:
                             continue
-                        w_topic = getattr(topic_info, 'weight', 1.0)
+                        
+                        # DYNAMIC IMPROVEMENT 1: Calibrate Topic Weight using real message throughput rate
+                        runtime_rate = self.telemetry.msg_rate_per_sec.get(topic_id, 1.0)
+                        w_topic = getattr(topic_info, 'weight', 1.0) * runtime_rate
                         
                         publishers = self.graph._publishers.get(topic_id, [])
                         if publishers:
@@ -733,14 +739,21 @@ class FailureSimulator:
                         else:
                             avg_pub_impact = current_impact
                             
-                        if avg_pub_impact >= (1.0 - self.STARVATION_THRESHOLD):
+                        # DYNAMIC IMPROVEMENT 2: Telemetry-calibrated starvation bounds per component
+                        app_starve_bound = self.telemetry.custom_starvation_bounds.get(current_id, self.STARVATION_THRESHOLD)
+                        if avg_pub_impact >= (1.0 - app_starve_bound):
                             effective_pub_impact = 1.0
                         else:
                             effective_pub_impact = avg_pub_impact
                             
                         attenuated_impact = effective_pub_impact * w_topic
                         
-                        if self._rng.random() < scenario.cascade_probability:
+                        # DYNAMIC IMPROVEMENT 3: Edge-specific operational failure probability
+                        edge_prob = self.telemetry.edge_failure_correlation.get(
+                            (current_id, topic_id), scenario.cascade_probability
+                        )
+                        
+                        if self._rng.random() < edge_prob:
                             if attenuated_impact > impact[topic_id]:
                                 impact[topic_id] = attenuated_impact
                                 comp = self.graph.components[topic_id]
@@ -764,13 +777,23 @@ class FailureSimulator:
                     for topic_id, brokers in self.graph._routing.items():
                         if any(b[0] == current_id for b in brokers):
                             topic_info = self.graph.topics.get(topic_id)
-                            w_topic = getattr(topic_info, 'weight', 1.0) if topic_info else 1.0
+                            
+                            # DYNAMIC IMPROVEMENT 1: Calibrate Topic Weight using real message throughput rate
+                            runtime_rate = self.telemetry.msg_rate_per_sec.get(topic_id, 1.0)
+                            w_topic = getattr(topic_info, 'weight', 1.0) * runtime_rate if topic_info else runtime_rate
+                            
                             if brokers:
                                 routing_impact = min(impact.get(b[0], 0.0) for b in brokers)
                             else:
                                 routing_impact = current_impact
                             attenuated_impact = routing_impact * w_topic
-                            if self._rng.random() < scenario.cascade_probability:
+                            
+                            # DYNAMIC IMPROVEMENT 3: Edge-specific operational failure probability
+                            edge_prob = self.telemetry.edge_failure_correlation.get(
+                                (current_id, topic_id), scenario.cascade_probability
+                            )
+                            
+                            if self._rng.random() < edge_prob:
                                 if attenuated_impact > impact[topic_id]:
                                     impact[topic_id] = attenuated_impact
                                     comp = self.graph.components[topic_id]
@@ -799,7 +822,13 @@ class FailureSimulator:
                             sub_impact = min(impact.get(t, 0.0) for t in subscribed_to)
                         else:
                             sub_impact = current_impact
-                        if self._rng.random() < scenario.cascade_probability:
+                        
+                        # DYNAMIC IMPROVEMENT 3: Edge-specific operational failure probability
+                        edge_prob = self.telemetry.edge_failure_correlation.get(
+                            (current_id, sub_id), scenario.cascade_probability
+                        )
+                        
+                        if self._rng.random() < edge_prob:
                             if sub_impact > impact[sub_id]:
                                 impact[sub_id] = sub_impact
                                 comp = self.graph.components[sub_id]
@@ -891,7 +920,8 @@ class FailureSimulator:
         affected_topics = 0
         
         for topic_id, topic_info in self.graph.topics.items():
-            topic_weight = getattr(topic_info, 'weight', 1.0)
+            runtime_rate = self.telemetry.msg_rate_per_sec.get(topic_id, 1.0)
+            topic_weight = getattr(topic_info, 'weight', 1.0) * runtime_rate
             
             publishers = self.graph.get_publishers(topic_id)
             brokers = self.graph.get_routing_brokers(topic_id)

@@ -298,6 +298,14 @@ class EventResult:
 # =============================================================================
 
 @dataclass
+class RuntimeTelemetryProfile:
+    """Holds empirical execution data to calibrate the simulation loop."""
+    msg_rate_per_sec: Dict[str, float] = field(default_factory=dict)       # topic_id -> throughput
+    edge_failure_correlation: Dict[Tuple[str, str], float] = field(default_factory=dict) # (src, tgt) -> drop rate
+    custom_starvation_bounds: Dict[str, float] = field(default_factory=dict) # app_id -> custom threshold
+
+
+@dataclass
 class FailureScenario:
     """Configuration for a failure simulation."""
     target_ids: Union[str, List[str]]                # Simultaneous initial targets

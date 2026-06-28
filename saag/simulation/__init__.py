@@ -17,6 +17,7 @@ from .models import (
     FailureMode,
     CascadeRule,
     EventType,
+    RuntimeTelemetryProfile,
 )
 
 __all__ = [
@@ -35,4 +36,5 @@ __all__ = [
     "FailureMode",
     "CascadeRule",
     "EventType",
+    "RuntimeTelemetryProfile",
 ]
