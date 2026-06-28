@@ -60,14 +60,14 @@ Software-as-a-Graph (SaG) operationalizes this insight into a 6-step core analyt
                              │                             │
         ┌────────────────────┘                            │
         ▼                                                 ▼
-┌─────────────┐    ┌─────────────┐    ┌─────────────────────────────┐
-│  Step 4     │    │  Step 5     │    │  Step 6                     │
-│  Simulate   │───▶│  Validate   │───▶│  Visualize                  │
-│  (I(v) GT)  │    │  (ρ, F1)    │    │                             │
-└─────────────┘    └─────────────┘    └─────────────────────────────┘
-                                                     │
-                                                     ▼
-                                              HTML Dashboard
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────────┐
+│  Step 4     │    │  Step 5     │    │  Step 6     │    │  Step 7                     │
+│  Simulate   │───▶│  Validate   │───▶│  Prescribe  │───▶│  Visualize                  │
+│  (I(v) GT)  │    │  (ρ, F1)    │    │  (Delta G)  │    │                             │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────────────────────┘
+                                                                        │
+                                                                        ▼
+                                                                 HTML Dashboard
 ```
 
 | Step | What It Does | Key Output | Documentation |
@@ -78,7 +78,8 @@ Software-as-a-Graph (SaG) operationalizes this insight into a 6-step core analyt
 | **3. Predict** | Inductive, optional. A 3-layer `EdgeAwareHGTConv` (HGT) model trained on simulation labels $I(v)$ learns patterns the AHP composite cannot encode. | GNN criticality ranks, edge criticality, GNN node scores $Q_{\text{GNN}}(v)$ | [prediction.md](docs/prediction.md) |
 | **4. Simulate** | Runs the FailureSimulator (producing canonical composite $I^*(v)$ and RM-AV ground truths) or FaultInjector (producing BFS feed-loss $I(v)$). Provides training labels for Step 3 and validation ground truth. | Per-dimension ground-truth $I_R(v)$, $I_M(v)$, $I_A(v)$, $I_V(v)$ and composite $I^*(v)$ / feed-loss $I(v)$ | [failure-simulation.md](docs/failure-simulation.md) |
 | **5. Validate** | Computes Spearman $\rho$ and Kendall $\tau$ between predictions and ground truth; evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
-| **6. Visualize** | Renders interactive dashboards with network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | `dashboard.html` (fully self-contained) | [visualization.md](docs/visualization.md) |
+| **6. Prescribe** | Generates rule-based architectural optimization recommendations and verifies them in a closed-loop simulation on a mutated graph | `PrescribeResult` with baseline vs mutated SRI | [prescription.md](docs/prescription.md) |
+| **7. Visualize** | Renders interactive dashboards with network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | `dashboard.html` (fully self-contained) | [visualization.md](docs/visualization.md) |
 
 ### Scale Presets
 
@@ -395,7 +396,10 @@ python cli/simulate_graph.py fault-inject --input data/system.json --export-json
 # Step 5: Compute Spearman correlation and validation gate metrics
 python cli/validate_graph.py report --input data/system.json --qos
 
-# Step 6: Renders interactive HTML dashboard report
+# Step 6: Prescribe optimizations and validate in closed loop
+python cli/prescribe_graph.py --layer system
+
+# Step 7: Renders interactive HTML dashboard report
 python cli/visualize_graph.py --layer system --output output/dashboard.html --open
 ```
 
@@ -457,18 +461,21 @@ The `saag` package exposes a fluent programmatic builder API for custom scriptin
 ```python
 import saag
 
-# Run Analyze + Simulate + Validate + Visualize in a fluent chain
+# Run Analyze + Simulate + Validate + Prescribe + Visualize in a fluent chain
 result = (
     saag.Pipeline.from_json("data/system.json", clear=True)
         .analyze(layer="app")          # Deterministic structural metrics & RMAV
         .simulate(layer="app", mode="exhaustive") # Ground-truth simulation
         .validate()                    # Statistical validation
+        .prescribe()                   # Prescriptive remediation generation
         .visualize(output="output/report.html") # Renders dashboard
         .run()
 )
 
 print(f"Spearman ρ = {result.validation.overall.spearman:.3f}")
 print(f"F1-Score   = {result.validation.overall.f1:.3f}")
+if result.prescription:
+    print(f"SRI Imp.   = {result.prescription.sri_improvement:.4f}")
 ```
 
 ### Key SDK Classes
@@ -480,6 +487,7 @@ print(f"F1-Score   = {result.validation.overall.f1:.3f}")
 | [AnalysisResult](saag/models.py#L102) | `saag.AnalysisResult` | Step 2 scoring output structural metrics and RMAV |
 | [PredictionResult](saag/models.py#L180) | `saag.PredictionResult` | Step 3 scoring output GNN predictions |
 | [ValidationResult](saag/models.py#L369) | `saag.ValidationResult` | Step 5 validation output including Spearman and gate metrics |
+| [PrescribeResult](saag/prescription/models.py) | `saag.prescription.PrescribeResult` | Step 6 prescriptive output including compiled policy and SRI delta |
 
 ---
 
@@ -498,7 +506,8 @@ print(f"F1-Score   = {result.validation.overall.f1:.3f}")
 │   ├── detect_antipatterns.py  #   Standalone anti-pattern / CI gate
 │   ├── simulate_graph.py       #   Step 4: Simulate — fault-inject | message-flow | combined
 │   ├── validate_graph.py       #   Step 5: Validate — single | sweep | report | compare
-│   ├── visualize_graph.py      #   Step 6: Visualize — interactive HTML dashboard
+│   ├── prescribe_graph.py      #   Step 6: Prescribe — optimize architecture & validate in closed loop
+│   ├── visualize_graph.py      #   Step 7: Visualize — interactive HTML dashboard
 │   ├── statistics_graph.py     #   Statistics dashboard (topology & communication analytics)
 │   ├── benchmark.py            #   Benchmark across scale presets
 │   ├── loso_evaluate.py        #   Leave-One-Scenario-Out GNN validation protocol
@@ -518,6 +527,7 @@ print(f"F1-Score   = {result.validation.overall.f1:.3f}")
 │   ├── prediction/             #   RMAV quality scoring + GNN service
 │   ├── simulation/             #   Four parallel failure/event simulators
 │   ├── validation/             #   Per-dimension statistical validation
+│   ├── prescription/           #   Stage 6 prescriptive optimization service
 │   ├── visualization/          #   Dashboard & chart generation
 │   ├── infrastructure/         #   Neo4j drivers & data persistence
 │   ├── pipeline.py             #   saag.Pipeline — fluent builder

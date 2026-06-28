@@ -427,15 +427,17 @@ class PipelineExecutionResult:
     """Aggregate result from running the full Pipeline sequentially.
 
     Stage mapping:
-      analysis   — deterministic Analyze stage (structural metrics + RMAV/Q scores + anti-patterns)
-      prediction — inductive Predict stage (GNN criticality ranks); optional
-      simulation — Simulate stage (counterfactual cascade ground truth)
-      validation — Validate stage (Predict/Analyze vs Simulate ground truth)
+      analysis     — deterministic Analyze stage (structural metrics + RMAV/Q scores + anti-patterns)
+      prediction   — inductive Predict stage (GNN criticality ranks); optional
+      simulation   — Simulate stage (counterfactual cascade ground truth)
+      validation   — Validate stage (Predict/Analyze vs Simulate ground truth)
+      prescription — prescriptive Stage 6 optimization; optional
     """
     analysis: Optional[AnalysisResult] = None
     prediction: Optional[PredictionResult] = None
     simulation: Optional[Any] = None
     validation: Optional[ValidationPipelineFacade] = None
+    prescription: Optional[Any] = None
 
     def save(self, filepath: str) -> None:
         """Export the full pipeline result to a JSON file."""
@@ -461,6 +463,11 @@ class PipelineExecutionResult:
                 data["simulation"] = self.simulation
         if self.validation:
             data["validation"] = self.validation.to_dict()
+        if self.prescription:
+            if hasattr(self.prescription, "to_dict"):
+                data["prescription"] = self.prescription.to_dict()
+            else:
+                data["prescription"] = self.prescription
         with out.open("w") as f:
             json.dump(data, f, indent=2, default=str)
 class ImportResult:

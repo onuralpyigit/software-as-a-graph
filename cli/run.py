@@ -28,7 +28,7 @@ def main():
     group = parser.add_argument_group("Pipeline Stages")
     group.add_argument("--all", action="store_true",
                        help=("Run all stages sequentially: generate → import → analyze → "
-                             "simulate → predict → validate → visualize. "
+                             "simulate → predict → validate → prescribe → visualize. "
                              "NOTE: the predict stage requires a pre-trained GNN checkpoint "
                              "(--gnn-model). On a first run, omit --predict/--all and train "
                              "the model first with: python cli/train_graph.py --layer system "
@@ -39,6 +39,7 @@ def main():
     group.add_argument("--predict", action="store_true", help="Explicitly run prediction stage")
     group.add_argument("--simulate", action="store_true", help="Run failure simulation stage")
     group.add_argument("--validate", action="store_true", help="Run validation stage (compare prediction vs simulation)")
+    group.add_argument("--prescribe", action="store_true", help="Run prescriptive remediation stage")
     group.add_argument("--visualize", action="store_true", help="Run visualization stage (generates HTML dashboard)")
     
     # Stage-specific options
@@ -64,7 +65,7 @@ def main():
     setup_logging(args)
     
     # Ensure at least one stage is selected
-    stages = [args.all, args.generate, args.input, args.analyze, args.predict, args.simulate, args.validate, args.visualize]
+    stages = [args.all, args.generate, args.input, args.analyze, args.predict, args.simulate, args.validate, args.prescribe, args.visualize]
     if not any(stages):
         parser.error("No stages selected. Use --all or specific stage flags.")
         return 1
@@ -146,6 +147,9 @@ def main():
         if args.all: layers = ["app", "infra", "mw", "system"]
         pipeline.validate(layers=layers)
         
+    if args.prescribe or args.all:
+        pipeline.prescribe()
+        
     if args.visualize or args.all:
         layers = [l.strip() for l in args.layer.split(",")] if args.layer else ["system"]
         if args.all: layers = ["app", "infra", "mw", "system"]
@@ -180,6 +184,22 @@ def main():
         
     if result.validation:
         display.display_validation_summary(result.validation)
+        
+    if result.prescription:
+        display.print_subheader("Prescriptive Remediation Summary (Stage 6)")
+        print(f"  Baseline SRI : {result.prescription.original_sri:.4f}")
+        print(f"  Mutated SRI  : {result.prescription.mutated_sri:.4f}")
+        improvement = result.prescription.sri_improvement
+        if improvement > 0:
+            from cli.common.console import Colors
+            print(f"  Improvement  : {display.colored(f'+{improvement:.4f}', Colors.GREEN)}")
+        else:
+            print(f"  Improvement  : {improvement:.4f}")
+        print(f"  Applied changes: {len(result.prescription.applied_changes)}")
+        for change in result.prescription.applied_changes[:5]:
+            print(f"    - {change}")
+        if len(result.prescription.applied_changes) > 5:
+            print(f"    ... and {len(result.prescription.applied_changes) - 5} more changes.")
     
     # Anti-patterns
     problems = result.analysis.problems if result.analysis else []

@@ -106,6 +106,7 @@ pytest -x
 
 # Execute a single test file
 pytest tests/test_analysis_service.py
+pytest tests/test_prescription.py
 
 # Run tests matching a specific pattern
 pytest -k "reliability"

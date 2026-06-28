@@ -70,16 +70,22 @@ The analytical pipeline is structured as a Directed Acyclic Graph (DAG) rather t
          │                                 │
          └────────────────┬────────────────┘
                           │
-                          ▼ [Step 5: Validate]
-                   ┌──────────────┐
-                   │  Validation  │
-                   │    Result    │
-                   └──────┬───────┘
-                          │
-                          ▼ [Step 6: Visualize]
-                   ┌──────────────┐
-                   │  Dashboard   │
-                   └──────────────┘
+                           ▼ [Step 5: Validate]
+                    ┌──────────────┐
+                    │  Validation  │
+                    │    Result    │
+                    └──────┬───────┘
+                           │
+                           ▼ [Step 6: Prescribe]
+                    ┌──────────────┐
+                    │  Prescribe   │
+                    │    Result    │
+                    └──────┬───────┘
+                           │
+                           ▼ [Step 7: Visualize]
+                    ┌──────────────┐
+                    │  Dashboard   │
+                    └──────┬───────┘
 ```
 
 > [!NOTE]
@@ -101,13 +107,14 @@ The SDK follows a **hexagonal (ports & adapters) architecture**. Domain logic is
 │  Use Cases (usecases/)                                   │
 │   ModelGraphUseCase    AnalyzeGraphUseCase               │
 │   PredictGraphUseCase  SimulateGraphUseCase              │
-│   ValidateGraphUseCase VisualizeGraphUseCase             │
+│   ValidateGraphUseCase PrescribeGraphUseCase             │
+│   VisualizeGraphUseCase                                  │
 └────────────────────┬─────────────────────────────────────┘
                      │
 ┌────────────────────▼─────────────────────────────────────┐
 │  Services                                                │
 │   AnalysisService   PredictionService  SimulationService │
-│   ValidationService VisualizationService                 │
+│   ValidationService PrescribeService   VisualizationServ │
 └────────────────────┬─────────────────────────────────────┘
                      │
 ┌────────────────────▼─────────────────────────────────────┐
@@ -157,7 +164,10 @@ Correlates predictions against simulation ground-truth metrics to verify thesis 
 - `Validator` — Evaluates prediction output arrays against ground truth using Spearman $\rho$, Kendall $\tau$, F1, Precision, and Recall.
 - `ValidationService` — Evaluates validation targets across the 9-gate tier system and computes system health indices (SRI, RCI).
 
-### `visualization/` — Step 6 Visualization Engine
+### `prescription/` — Step 6 Prescriptive Engine
+Generates rule-based architectural optimization policies (logical splitting, host anti-affinity container reallocations, and transport contract QoS upgrades) and validates resilience improvements in-memory.
+
+### `visualization/` — Step 7 Visualization Engine
 Compiles the metrics, classifications, problems, and simulations into visual dashboard formats.
 - `VisualizationService` — Assembles the multi-stage dataset into serializable models.
 - `DashboardGenerator` — Renders self-contained static HTML pages including Cytoscape network views and interactive charts.
@@ -193,7 +203,8 @@ The CLI directory contains executable scripts mirroring the stages of the analyt
 - `import_graph.py` & `export_graph.py` — Import topology JSON files into Neo4j or export database representations.
 - `analyze_graph.py`, `train_graph.py`, `predict_graph.py` — Step 2 and Step 3 analytical and prediction controllers.
 - `simulate_graph.py` & `validate_graph.py` — Step 4 simulation and Step 5 statistical validation controllers.
-- `visualize_graph.py` — Step 6 dashboard rendering controller.
+- `prescribe_graph.py` — Step 6 prescriptive optimization and closed-loop validation controller.
+- `visualize_graph.py` — Step 7 dashboard rendering controller.
 
 ---
 
