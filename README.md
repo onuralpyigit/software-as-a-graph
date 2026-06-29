@@ -7,6 +7,7 @@
 [![React 19](https://img.shields.io/badge/React-19-61DAFB)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/docker-compose-blue)](https://www.docker.com/)
 [![Neo4j 5.x](https://img.shields.io/badge/neo4j-5.x-green.svg)](https://neo4j.com/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green)
 
 ---
 
@@ -602,4 +603,4 @@ If you use this framework or methodology in your research, please cite:
 
 ## License
 
-See the [LICENSE](LICENSE) file for terms of use.
+Released under an open-source license — see [`LICENSE`](LICENSE). Apache-2.0 is the suggested default; all dependencies are license-compatible.
