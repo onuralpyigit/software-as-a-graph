@@ -7,7 +7,7 @@
 [![React 19](https://img.shields.io/badge/React-19-61DAFB)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/docker-compose-blue)](https://www.docker.com/)
 [![Neo4j 5.x](https://img.shields.io/badge/neo4j-5.x-green.svg)](https://neo4j.com/)
-[![License](https://img.shields.io/badge/license-Apache--2.0-green)
+![License](https://img.shields.io/badge/license-Apache--2.0-green)
 
 ---
 
