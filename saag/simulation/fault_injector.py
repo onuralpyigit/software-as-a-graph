@@ -384,7 +384,11 @@ class FaultInjector:
                         
                     # Stochastic check scaled by edge weight & depth dampening
                     prob = 0.0
-                    if rng.random() < prob:
+                    dep_type = data.get("dependency_type")
+                    if dep_type == "app_to_lib" or idx.node_type.get(u) == "Library":
+                        prob = 1.0
+                        
+                    if prob >= 1.0 or (prob > 0.0 and rng.random() < prob):
                         failed_nodes.add(v)
                         wave_new_failed.append(v)
                         next_frontier.append(v)

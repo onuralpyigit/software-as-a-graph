@@ -234,6 +234,7 @@ def load_graph(path: str) -> Tuple[nx.DiGraph, dict]:
     _edges("subscribes",   "app", "topic", "SUBSCRIBES_TO")
     _edges("routes",       "from", "to",   "ROUTES")
     _edges("runs_on",      "from", "to",   "RUNS_ON")
+    _edges("uses",         "from", "to",   "USES")
     # Legacy support
     _edges("publish_edges",   "app", "topic", "PUBLISHES_TO")
     _edges("subscribe_edges", "app", "topic", "SUBSCRIBES_TO")
