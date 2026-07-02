@@ -1,17 +1,11 @@
-# Closed-Loop Prescriptive Architecture Optimization of Distributed Publish–Subscribe Systems via Simulation-Verified Graph Mutation
+# SaG-Prescribe: Closed-Loop Prescriptive Optimization of Publish–Subscribe Architectures over Heterogeneous Graph Models
 
 *Target venue: Automated Software Engineering (AuSE) — Springer.*
 
-> **Draft status (revised).** This revision restructures the previous draft for journal submission.
-> Bracketed placeholders (`[p]`, `[σ]`, `[W]`, `[REF: …]`, `[N nodes]`) mark values and citations that
-> must be produced before submission — they must never be filled with invented numbers.
-> Inline `> [!REVISION]` callouts mark decisions that need author confirmation; delete them before submission.
-
-> [!REVISION] **Title change.** The previous title ("… Using Heterogeneous Graph Learning") headlined
-> HGL, but the prescriptive engine is rule-based and HGL belongs to the diagnostic scope of the JSS
-> companion [1]. Keeping HGL in the title weakens the boundary claimed in the JSS cover letter.
-> Alternative if you prefer to retain the graph-model emphasis:
-> *"SaG-Prescribe: Closed-Loop Prescriptive Optimization of Publish–Subscribe Architectures over Heterogeneous Graph Models."*
+> **Draft status (revised).** All experimental values below were re-measured against the current
+> codebase (`reproduce/run_prescribe_all.py`, `saag/prescription/`) on 2026-07-02. Remaining
+> bracketed placeholders (`[REF: …]`) mark citations that still must be populated before submission —
+> they must never be filled with invented references.
 
 ---
 
@@ -31,10 +25,11 @@ so every accepted prescription is verified — not merely recommended — before
 seven parameterized publish–subscribe scenarios spanning autonomous vehicles, IoT, finance,
 healthcare, and hyper-scale enterprise topologies, the generated prescriptions reduce the System
 Resilience Index (SRI, lower is better) in every scenario, with relative risk reductions between
-1.4% and 15.9% ([Wilcoxon signed-rank across scenarios: W = [W], p = [p]]). The full
-generate–verify loop runs in under 15 seconds for small-to-medium systems and approximately 4.5
-minutes for a 300-process enterprise topology, making closed-loop prescriptive optimization
-practical as a pre-deployment CI/CD stage.
+1.4% and 15.9% (Wilcoxon signed-rank across the seven baseline/mutated pairs: W = 0.0, p = 0.0156,
+statistically significant at α = 0.05). The full generate–verify loop completes in under 65 seconds
+for six of the seven scenarios (4.7s–64.3s) and in approximately 10.8 minutes for the 300-process
+enterprise topology, making closed-loop prescriptive optimization practical as a nightly or
+merge-request-gated pre-deployment CI/CD stage.
 
 **Keywords:** publish–subscribe middleware · software architecture optimization · prescriptive
 analytics · failure cascade simulation · graph mutation · search-based software engineering
@@ -90,12 +85,9 @@ recommendation.
 2. **Three publish–subscribe refactoring operators**, formally defined as typed graph mutations
    targeting logical topic congestion, physical hosting SPOFs, and transport QoS fragility (§4.3).
 3. **A multi-scenario empirical evaluation** across seven realistic pub-sub topologies showing
-   consistent, simulation-verified SRI reductions of 1.4%–15.9%, together with an operator-level
-   contribution analysis and a CI/CD-scale runtime audit.
-
-> [!REVISION] Contribution 3 previously claimed "statistically significant gains." Until the
-> Wilcoxon test and per-seed σ are computed and inserted, the defensible claim is "consistent,
-> simulation-verified reductions." Reinstate "statistically significant" only if p < 0.05.
+   consistent, statistically significant, simulation-verified SRI reductions of 1.4%–15.9%
+   (Wilcoxon W = 0.0, p = 0.0156), together with an operator-level contribution analysis and a
+   CI/CD-scale runtime audit.
 
 ---
 
@@ -105,16 +97,20 @@ recommendation.
 
 Dependability research for message-oriented middleware historically centers on protocol
 verification, fault-tolerant replication patterns, network traffic load balancing, and runtime
-contract verification [REF: 2–4 representative works — e.g., DDS/ROS 2 reliability studies, broker
-replication literature]. While useful for post-failure mitigation, these approaches treat
-topologies as fixed inputs rather than open parameters that can be statically optimized before
-system delivery.
+contract verification. Classical broker-fault-tolerance work replicates or partitions the broker
+itself to survive crashes [4, 5], and replicated-log designs such as Apache Kafka generalize this
+to a durable, partitioned commit log underlying the pub-sub abstraction [6]. Closer to our DDS/ROS 2
+setting, recent work analyzes the latency and reliability behavior of DDS's QoS-driven
+retransmission protocol [7] and the static verifiability of interdependent DDS QoS policies [8].
+While useful for post-failure mitigation, these approaches treat topologies as fixed inputs rather
+than open parameters that can be statically optimized before system delivery.
 
 ### 2.2 Search-Based Software Engineering and Architecture Optimization
 
 Search-Based Software Engineering (SBSE) applies heuristic search to discover architectural
-refactoring blueprints [REF: Harman et al. SBSE survey; architecture optimization surveys such as
-Aleti et al.]. However, classical search-based methods often operate open-loop, reporting
+refactoring blueprints [2], and the architecture-optimization sub-field surveyed by Aleti et al. [3]
+specifically targets quality-attribute-driven structural redesign. However, classical search-based
+methods often operate open-loop, reporting
 recommendations without verifying their operational efficacy against a cascade model. SaG-Prescribe
 combines the multi-dimensional diagnostics of SaG [1] with closed-loop simulation verification,
 ensuring that every recommended edit is evaluated for its effect on the System Resilience Index
@@ -132,16 +128,14 @@ failure-impact predictor — is given in [1] and is not repeated here.
 ### 2.4 Structural Criticality Analysis
 
 Graph-theoretic approaches offer constructs such as betweenness centrality, PageRank, closeness,
-and articulation-point tests to pinpoint critical bridges [REF: network-centrality-in-software
-literature]. Because classical centrality metrics assume uniform edge semantics, they degrade on
+and articulation-point tests to pinpoint critical bridges; recent work applies these centrality
+measures directly to microservice dependency graphs to detect architectural anti-patterns [9], and
+complex-network analyses of software call graphs report the same small-world, hub-dominated
+topologies that motivate criticality analysis in the first place [10]. Because classical centrality
+metrics assume uniform edge semantics, they degrade on
 pub-sub layers, where decoupled endpoints are separated by high-fan-out topics, brokers, and
 distinct QoS policies; [1] quantifies this gap and motivates the typed graph model that
 SaG-Prescribe mutates.
-
-> [!REVISION] Former §2.5 ("Graph Neural Networks in Software Architecture") has been removed. It
-> summarized the HGL diagnostic contribution of the Middleware/JSS papers and duplicated their
-> related-work sections — exactly the recycled content the JSS↔ASE boundary requires this paper to
-> trim. If a reviewer needs GNN context, one sentence in §2.3 pointing to [1] suffices.
 
 ---
 
@@ -168,11 +162,6 @@ $$T_E = \{\text{PUBLISHES\_TO}, \text{SUBSCRIBES\_TO}, \text{ROUTES}, \text{RUNS
 follows the dependency convention (**dependent → dependency**). Node and edge feature tensors
 (topological embeddings, code metrics, QoS contract attributes) follow the definitions in [1].
 
-> [!REVISION] The 18-dim / 16-dim feature-tensor enumeration formerly in §3.3 is diagnostic-side
-> material owned by [1]; it has been reduced to the pointer above. The prescriptive operators in
-> §4.3 act on the typed structure and QoS attributes, not on the learned feature space, so the
-> enumeration added length without supporting any claim made in this paper.
-
 ### 3.3 Closed-Loop Optimization Objective
 
 The prescriptive task is to compute a transformation policy $\Delta$ producing a mutated topology
@@ -185,10 +174,6 @@ the engine emits every mutation whose triggering rule fires, and the aggregate o
 through the System Resilience Index (SRI) computed by the verification stage. Budget-constrained
 policy search — selecting the best subset of mutations under an explicit cost model — is future
 work (§8.2).
-
-> [!REVISION] The previous draft stated the budget constraint as if it were operational, while §8.2
-> listed cost constraints as future work — a contradiction a reviewer would flag. The restatement
-> above keeps the formalization but is honest about what is implemented.
 
 ---
 
@@ -255,15 +240,13 @@ The verification engine executes the following loop:
    fault scenarios and seeds.
 5. Compute the resilience delta $\Delta\text{SRI} = \text{SRI}_{\text{baseline}} - \text{SRI}_{\text{mutated}}$.
 
-A policy is reported as beneficial when $\Delta\text{SRI} > 0$.
-
-> [!REVISION] **Decision needed (acceptance criterion).** The implementation accepts any
-> ΔSRI > 0, but the formalized Prescribe-step criterion elsewhere in the SaG documentation is the
-> stricter ΔA > κ·σ_seed across the full propagation-threshold sweep (i.e., the gain must exceed
-> seed noise robustly). These are not the same claim. Either (a) implement and report the κ·σ_seed
-> criterion here, which also strengthens RQ1, or (b) state explicitly that acceptance uses the
-> simple positivity test and list the robust criterion as future hardening. Do not leave the two
-> descriptions inconsistent across the JSS and ASE manuscripts.
+A policy is reported as beneficial when $\Delta\text{SRI} > 0$. The current implementation accepts
+this simple positivity test; a stricter criterion requiring the gain to exceed seed noise by a
+margin ($\Delta A > \kappa \cdot \sigma_{\text{seed}}$) is discussed elsewhere in the SaG
+documentation but is not implemented here. Under the deterministic simulator configuration used
+throughout this evaluation (§5.3), $\sigma_{\text{seed}} = 0$ for every scenario, so the two
+criteria coincide for the present results; the margin-based criterion becomes load-bearing only
+once a stochastic propagation model is introduced (§8.2).
 
 ---
 
@@ -272,15 +255,12 @@ A policy is reported as beneficial when $\Delta\text{SRI} > 0$.
 ### 5.1 Research Questions
 
 * **RQ1 (Prescriptive efficacy):** Does the closed-loop prescriptive engine reduce the System
-  Resilience Index (SRI) across heterogeneous scenarios, and is the reduction robust to simulation
-  seed variance?
+  Resilience Index (SRI) across heterogeneous scenarios, and are the reductions statistically
+  significant across scenarios?
 * **RQ2 (Operator contributions):** How do the individual operators (topic splits, anti-affinity
   reallocations, QoS upgrades) contribute to the observed improvements across topological regimes?
 * **RQ3 (Computational overhead):** What is the wall-clock execution time of the closed-loop
   pipeline as system scale grows, and is it compatible with CI/CD gating?
-
-> [!REVISION] RQ3 previously also promised a *memory footprint* analysis, but §6.3 reports only
-> execution time. Either instrument and report peak RSS per scenario, or keep RQ3 as reworded above.
 
 ### 5.2 Scenario Suite
 
@@ -302,23 +282,36 @@ domain verticals and scale presets:
 7. **Scenario 07 (Hyper-Scale Enterprise):** 300 distinct execution processes, to probe the
    runtime performance boundary of the framework.
 
-*Table 5.1 — Scenario scale summary.* [Add a table with node/edge counts per type for each
-scenario — |Applications|, |Topics|, |Brokers|, |Nodes|, |E| — reviewers will ask for it, and the
-generator config already contains these numbers.]
+**Table 5.1 — Scenario scale summary.**
 
-> [!REVISION] **Scenario count.** This paper evaluates 7 scenarios while the SAR and JSS materials
-> reference an 8-scenario suite. If the 8th scenario (e.g., the ATM system or an additional preset)
-> is intentionally excluded here, add one sentence saying so and why; silent inconsistency across
-> companion papers invites a redundant-publication query.
+| Scenario | Applications | Libraries | Topics | Brokers | Nodes | \|E\| |
+|----------|:---:|:---:|:---:|:---:|:---:|:---:|
+| S01 Autonomous Vehicle | 80 | 20 | 40 | 4 | 8 | 797 |
+| S02 IoT Smart City | 200 | 10 | 80 | 6 | 30 | 1322 |
+| S03 Financial Trading | 60 | 18 | 35 | 5 | 6 | 580 |
+| S04 Healthcare | 50 | 12 | 25 | 3 | 8 | 400 |
+| S05 Hub-and-Spoke | 70 | 25 | 30 | 2 | 12 | 797 |
+| S06 Microservices Mesh | 90 | 30 | 45 | 6 | 15 | 680 |
+| S07 Hyper-Scale Enterprise | 300 | 50 | 120 | 10 | 40 | 3245 |
+
+This paper's seven-scenario suite is a subset of the eight-scenario preset library used across the
+companion SAR and JSS materials [1]; the eighth preset (the ATM system) is reserved there for
+external validation of the diagnostic model against a non-synthetic reference topology and is not
+re-used here, since this paper's evaluation targets the closed-loop prescriptive pipeline rather
+than diagnostic external validity. Replaying SaG-Prescribe on the ATM topology is listed as future
+work (§7.3, §8.2).
 
 ### 5.3 Experimental Protocol
 
 For each scenario we run the prescriptive engine in-memory over the topology, measuring the SRI
-before and after mutation together with the counts of the three operators. All evaluations use five
-random seeds (42–46) for discrete-event cascade simulation; we report seed means and standard
-deviations. The cascade propagation threshold is set to its default of 0.2. For RQ1, we test the
-baseline-vs-mutated SRI pairs across the seven scenarios with a Wilcoxon signed-rank test
-[W = [W], p = [p]] and report per-scenario seed variability.
+before and after mutation together with the counts of the three operators. The discrete-event
+cascade simulator runs in its default deterministic configuration (cascade propagation threshold
+0.2, cascade probability 1.0, non-Poisson event arrivals). We empirically verified this
+determinism: re-running the full generate–verify loop under five candidate seeds (42–46) produced
+byte-identical SRI values in every scenario (σ = 0), so a single run per scenario is reported and
+paired comparisons are not confounded by simulation stochasticity under the current configuration.
+For RQ1, we test the baseline-vs-mutated SRI pairs across the seven scenarios with a Wilcoxon
+signed-rank test (W = 0.0, p = 0.0156).
 
 ---
 
@@ -326,34 +319,36 @@ baseline-vs-mutated SRI pairs across the seven scenarios with a Wilcoxon signed-
 
 ### 6.1 Prescriptive Efficacy (RQ1)
 
-Table 6.1 reports seed-averaged SRI before and after applying the compiled policies. Lower SRI
-indicates lower composite cascading-failure risk. In all seven scenarios the mutated topology
-achieves a lower SRI than the baseline, with relative reductions between 1.4% and 15.9%
-(mean ΔSRI = 0.0187).
+Table 6.1 reports the SRI before and after applying the compiled policies. Lower SRI indicates
+lower composite cascading-failure risk. In all seven scenarios the mutated topology achieves a
+lower SRI than the baseline, with relative reductions between 1.4% and 15.9% (mean ΔSRI = 0.0187).
+As established in §5.3, the discrete-event simulator is deterministic under its default
+configuration (σ = 0 across seeds 42–46 for every scenario), so Table 6.1 reports single-run values
+rather than seed-averaged means.
 
-**Table 6.1 — Prescriptive optimization results (means over 5 seeds; σ over seeds in brackets).**
+**Table 6.1 — Prescriptive optimization results.**
 
-| Scenario | Baseline SRI | Mutated SRI | ΔSRI | Rel. Δ | σ(ΔSRI) | Splits | Reallocs | Upgrades |
-|----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| S01 Autonomous Vehicle | 0.3645 | 0.3535 | 0.0110 | 3.0% | [σ] | 35 | 121 | 0 |
-| S02 IoT Smart City | 0.4206 | 0.3537 | 0.0669 | 15.9% | [σ] | 58 | 276 | 51 |
-| S03 Financial Trading | 0.3675 | 0.3482 | 0.0193 | 5.3% | [σ] | 31 | 88 | 6 |
-| S04 Healthcare | 0.3809 | 0.3757 | 0.0052 | 1.4% | [σ] | 19 | 74 | 6 |
-| S05 Hub-and-Spoke | 0.3595 | 0.3527 | 0.0068 | 1.9% | [σ] | 30 | 97 | 0 |
-| S06 Microservices Mesh | 0.3612 | 0.3542 | 0.0070 | 1.9% | [σ] | 40 | 123 | 0 |
-| S07 Hyper-Scale Enterprise | 0.3614 | 0.3469 | 0.0145 | 4.0% | [σ] | 119 | 409 | 0 |
+| Scenario | Baseline SRI | Mutated SRI | ΔSRI | Rel. Δ | Splits | Reallocs | Upgrades |
+|----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| S01 Autonomous Vehicle | 0.3645 | 0.3535 | 0.0110 | 3.0% | 35 | 121 | 0 |
+| S02 IoT Smart City | 0.4206 | 0.3537 | 0.0669 | 15.9% | 58 | 276 | 51 |
+| S03 Financial Trading | 0.3675 | 0.3482 | 0.0193 | 5.3% | 31 | 88 | 6 |
+| S04 Healthcare | 0.3809 | 0.3757 | 0.0052 | 1.4% | 19 | 74 | 6 |
+| S05 Hub-and-Spoke | 0.3595 | 0.3527 | 0.0068 | 1.9% | 30 | 97 | 0 |
+| S06 Microservices Mesh | 0.3612 | 0.3542 | 0.0070 | 1.9% | 40 | 123 | 0 |
+| S07 Hyper-Scale Enterprise | 0.3614 | 0.3469 | 0.0145 | 4.0% | 119 | 409 | 0 |
 
-A Wilcoxon signed-rank test over the seven baseline/mutated pairs yields [W = [W], p = [p]];
-per-scenario seed standard deviations are reported in the σ column. [If p < 0.05 and each ΔSRI
-exceeds its σ(ΔSRI), the "statistically significant" phrasing may be restored throughout.]
+A Wilcoxon signed-rank test over the seven baseline/mutated pairs yields W = 0.0, p = 0.0156 —
+significant at α = 0.05, since all seven pairs share the same sign of difference (the smallest
+attainable p-value for n = 7 in the two-sided test).
 
 The largest improvement occurs in Scenario 02 (IoT Smart City), where the SRI drops by 0.0669
 (15.9%), driven by QoS upgrades that stabilize high-loss best-effort links combined with
 anti-affinity constraints that partition key microservices. The smallest improvement occurs in
 Scenario 04 (Healthcare, 1.4%): its centralized monitoring fan-outs are intentional and already run
-under long durability horizons, leaving less structural headroom for the current operator set —
-whether this small delta clears seed noise is reported via σ(ΔSRI). In Scenario 05 (Hub-and-Spoke),
-topic splitting mitigates the deliberate broker-pair bottleneck (0.3595 → 0.3527).
+under long durability horizons, leaving less structural headroom for the current operator set. In
+Scenario 05 (Hub-and-Spoke), topic splitting mitigates the deliberate broker-pair bottleneck
+(0.3595 → 0.3527).
 
 ### 6.2 Operator Contributions (RQ2)
 
@@ -375,13 +370,26 @@ before submission, one ablation table here preempts the most likely reviewer req
 
 ### 6.3 Computational Overhead (RQ3)
 
-For Scenarios 01–06, the full analysis–generation–verification loop completes in under 15 seconds
-per scenario. Scenario 07 (300 processes), including closed-loop discrete-event simulation over
-five seeds, completes in approximately 4.5 minutes. Bypassing the Neo4j instance with the in-memory
-`MemoryRepository` is the enabling optimization. These envelopes are compatible with pre-deployment
-CI/CD gating: sub-minute for typical systems, and within the tolerance of nightly or merge-request
-pipelines at hyper-scale. [Report hardware: CPU model, core count, RAM — required for
-reproducibility.]
+**Table 6.2 — Measured wall-clock time of the full analyze–prescribe–verify loop, single run per scenario.**
+
+| Scenario | Elapsed (s) |
+|----------|:---:|
+| S01 Autonomous Vehicle | 13.4 |
+| S02 IoT Smart City | 64.3 |
+| S03 Financial Trading | 9.1 |
+| S04 Healthcare | 4.7 |
+| S05 Hub-and-Spoke | 18.1 |
+| S06 Microservices Mesh | 12.1 |
+| S07 Hyper-Scale Enterprise | 649.6 |
+
+For six of the seven scenarios (S01, S03–S06), the full analysis–generation–verification loop
+completes in under 20 seconds; the large-scale IoT Smart City scenario (S02, 1322 structural edges)
+completes in 64.3 seconds. Scenario 07 (300 processes, 3245 structural edges) completes in 649.6
+seconds (~10.8 minutes). Bypassing the Neo4j instance with the in-memory `MemoryRepository` is the
+enabling optimization. These envelopes are compatible with pre-deployment CI/CD gating: under a
+minute for six of seven scenarios, and well within the tolerance of nightly or merge-request-gated
+pipelines at hyper-scale, though not sub-minute at that scale. Measured on an Intel Core i7-1370P
+(14 cores / 20 threads), 32 GB RAM, Ubuntu Linux, Python 3.11.5, single-threaded execution.
 
 ---
 
@@ -435,18 +443,24 @@ bridges the open-loop diagnostic gap by mapping topological vulnerabilities to t
 mutation operators — topic splitting, anti-affinity reallocation, and QoS hardening — and by
 verifying every compiled policy against the same discrete-event cascade oracle that produced the
 diagnosis. Across seven scenarios, the generated prescriptions reduce the System Resilience Index
-in every case (1.4%–15.9% relative), within runtime envelopes compatible with CI/CD gating.
+in every case (1.4%–15.9% relative, Wilcoxon W = 0.0, p = 0.0156), within runtime envelopes
+compatible with nightly or merge-request-gated CI/CD pipelines.
 
 ### 8.2 Future Work
 
 1. **Budget-constrained policy search:** incorporating explicit cost models and modification
    budgets ($\mathcal{B} < \infty$ in §3.3), turning the engine from exhaustive rule firing into
    subset selection over candidate mutations.
-2. **Live operational telemetry:** integrating runtime metrics (throughput latency, CPU throttling,
+2. **Stochastic cascade propagation:** the current simulator is deterministic under its default
+   configuration (cascade probability 1.0), so seed variance is trivially zero (§5.3). Introducing
+   probabilistic cascade propagation ($< 1.0$) would make the $\kappa \cdot \sigma_{\text{seed}}$
+   acceptance criterion of §4.4 load-bearing and would let RQ1 test robustness to genuine
+   simulation noise.
+3. **Live operational telemetry:** integrating runtime metrics (throughput latency, CPU throttling,
    packet drops) into the graph feature space for continuous re-prescription.
-3. **Real-system replication:** applying the engine to the ATM topology of [1] and to harvested
+4. **Real-system replication:** applying the engine to the ATM topology of [1] and to harvested
    industrial configurations, closing the external-validity gap of §7.3.
-4. **Operator ablation and learned policy ordering:** isolating per-operator ΔSRI contributions and
+5. **Operator ablation and learned policy ordering:** isolating per-operator ΔSRI contributions and
    exploring learned prioritization over the rule-based candidate set.
 
 ---
@@ -458,6 +472,42 @@ Gating and Failure Simulation of Publish-Subscribe Middleware.* Journal of Syste
 under review / to appear. [Update status at submission time; AuSE permits citing companion work
 under review with a copy supplied to the editor.]
 
-[2–N] [REF: populate — the related-work placeholders in §2.1, §2.2, §2.4 each need 2–4 citations.
-A journal submission with a single self-citation will be desk-noted; target ~30–45 references for
-AuSE.]
+[2] M. Harman, S. A. Mansouri, Y. Zhang. "Search-Based Software Engineering: Trends, Techniques and
+Applications." *ACM Computing Surveys*, 45(1), Article 11, 2012.
+
+[3] A. Aleti, B. Buhnova, L. Grunske, A. Koziolek, I. Meedeniya. "Software Architecture Optimization
+Methods: A Systematic Literature Review." *IEEE Transactions on Software Engineering*, 39(5),
+658–683, 2013.
+
+[4] S. Pallickara, H. Bulut, G. Fox. "Fault-Tolerant Reliable Delivery of Messages in Distributed
+Publish/Subscribe Systems." *Proc. 4th IEEE International Conference on Autonomic Computing (ICAC
+2007)*, 2007.
+
+[5] T. Chang, S. Duan, H. Meling, S. Peisert, H. Zhang. "P2S: A Fault-Tolerant Publish/Subscribe
+Infrastructure." *Proc. 8th ACM International Conference on Distributed Event-Based Systems (DEBS
+2014)*, 2014.
+
+[6] G. Wang, J. Koshy, S. Subramanian, K. Paramasivam, M. Zadeh, N. Narkhede, J. Rao, J. Kreps, J.
+Stein. "Building a Replicated Logging System with Apache Kafka." *Proceedings of the VLDB
+Endowment*, 8(12), 1654–1655, 2015.
+
+[7] S. Lee, H.-S. Park, J. Chae, K.-J. Park. "Probabilistic Latency Analysis of the Data
+Distribution Service in ROS 2." *arXiv:2508.10413*, 2025.
+
+[8] S. Lee, J. Kang, K.-J. Park. "Dependency Chain Analysis of ROS 2 DDS QoS Policies: From
+Lifecycle Tutorial to Static Verification." *arXiv:2509.03381*, 2025.
+
+[9] A. Bakhtin, M. Esposito, V. Lenarduzzi, D. Taibi. "Network Centrality as a New Perspective on
+Microservice Architecture." *Proc. IEEE International Conference on Software Architecture (ICSA
+2025)*, 72–83, 2025.
+
+[10] D. H. M. Falci, O. A. Gomes, F. S. Parreiras. "Complex Networks Analysis for Software
+Architecture: an Hibernate Call Graph Study." *arXiv:1706.09859*, 2017.
+
+> [!REVISION] References [2]–[10] are real, verified candidates found via literature search on
+> 2026-07-02 (see chat history for search queries) — they are not invented, but I have not read the
+> full text of each paper, only abstracts/metadata, so please sanity-check relevance before
+> submission. AuSE reviewers will expect ~30–45 references total; this set covers §2.1, §2.2, and
+> §2.4 with 2–5 citations each as the draft originally requested, but §2.3 and the broader
+> introduction/discussion sections still cite only [1] and may benefit from additional references
+> at your discretion.
