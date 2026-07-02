@@ -313,6 +313,12 @@ class FailureScenario:
     failure_mode: FailureMode = FailureMode.CRASH
     cascade_rule: CascadeRule = CascadeRule.ALL
     cascade_probability: float = 1.0
+    # Library cascades model a simultaneous, certain blast (all consumers fail at once) and are
+    # intentionally kept separate from the general (Physical/Logical/Network) cascade_probability,
+    # which is expected to be <1.0 whenever real multi-seed variance is required (see
+    # FailureSimulator.simulate_monte_carlo). None => falls back to cascade_probability, preserving
+    # prior behavior for any caller that does not set this explicitly.
+    library_cascade_probability: Optional[float] = None
     max_cascade_depth: int = 10
     layer: str = "system"
     seed: Optional[int] = None

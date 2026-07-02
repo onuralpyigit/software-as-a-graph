@@ -48,19 +48,24 @@ class FailureSimulator:
         >>> print(f"Impact: {result.impact.composite_impact}")
     """
 
-    STARVATION_THRESHOLD = 0.3
+    STARVATION_THRESHOLD = 0.2  # documented class-level fallback; instances use self.propagation_threshold
     DEGRADED_PERFORMANCE = 0.5
-    
-    def __init__(self, graph: SimulationGraph, telemetry_profile: Optional[RuntimeTelemetryProfile] = None):
+
+    def __init__(self, graph: SimulationGraph, telemetry_profile: Optional[RuntimeTelemetryProfile] = None,
+                 propagation_threshold: float = 0.2):
         """
         Initialize the failure simulator.
-        
+
         Args:
             graph: SimulationGraph instance
             telemetry_profile: Optional RuntimeTelemetryProfile containing runtime/synthetic calibration data
+            propagation_threshold: Feed-loss fraction above which a subscriber is treated as
+                starved and propagates the cascade (canonical default 0.2). Per-app overrides
+                can still be supplied via telemetry_profile.custom_starvation_bounds.
         """
         self.graph = graph
         self.telemetry = telemetry_profile or RuntimeTelemetryProfile()
+        self.propagation_threshold = propagation_threshold
         self.logger = logging.getLogger(__name__)
         
         # Random generator
@@ -218,9 +223,10 @@ class FailureSimulator:
                     layer=layer,
                     cascade_rule=scenario_template.cascade_rule if scenario_template else CascadeRule.ALL,
                     cascade_probability=scenario_template.cascade_probability if scenario_template else 1.0,
+                    library_cascade_probability=scenario_template.library_cascade_probability if scenario_template else None,
                     max_cascade_depth=scenario_template.max_cascade_depth if scenario_template else 10,
                 )
-                
+
                 if n_trials > 1:
                     # Run N trials and use the result from the "most average" trial or just the mean scores
                     mc_result = self.simulate_monte_carlo(scenario, n_trials=n_trials)
@@ -513,8 +519,9 @@ class FailureSimulator:
                         layer=layer,
                         cascade_rule=scenario_template.cascade_rule if scenario_template else CascadeRule.ALL,
                         cascade_probability=scenario_template.cascade_probability if scenario_template else 1.0,
+                        library_cascade_probability=scenario_template.library_cascade_probability if scenario_template else None,
                     )
-                    
+
                     result = self.simulate(scenario)
                     results.append(result)
         finally:
@@ -551,6 +558,7 @@ class FailureSimulator:
                 failure_mode=scenario.failure_mode,
                 cascade_rule=scenario.cascade_rule,
                 cascade_probability=scenario.cascade_probability,
+                library_cascade_probability=scenario.library_cascade_probability,
                 max_cascade_depth=scenario.max_cascade_depth,
                 layer=scenario.layer,
                 seed=trial,
@@ -698,9 +706,12 @@ class FailureSimulator:
             # === Library Cascade (Rule 4: Library -> Using Applications) ===
             if scenario.cascade_rule in (CascadeRule.LIBRARY, CascadeRule.ALL):
                 if current_type == "Library":
+                    lib_prob = (scenario.library_cascade_probability
+                                if scenario.library_cascade_probability is not None
+                                else scenario.cascade_probability)
                     users = self.graph.get_uses_consumers(current_id)
                     for app_id in users:
-                        if self._rng.random() < scenario.cascade_probability:
+                        if self._rng.random() < lib_prob:
                             if current_impact > impact[app_id]:
                                 impact[app_id] = current_impact
                                 comp = self.graph.components[app_id]
@@ -740,7 +751,7 @@ class FailureSimulator:
                             avg_pub_impact = current_impact
                             
                         # DYNAMIC IMPROVEMENT 2: Telemetry-calibrated starvation bounds per component
-                        app_starve_bound = self.telemetry.custom_starvation_bounds.get(current_id, self.STARVATION_THRESHOLD)
+                        app_starve_bound = self.telemetry.custom_starvation_bounds.get(current_id, self.propagation_threshold)
                         if avg_pub_impact >= (1.0 - app_starve_bound):
                             effective_pub_impact = 1.0
                         else:
@@ -748,11 +759,17 @@ class FailureSimulator:
                             
                         attenuated_impact = effective_pub_impact * w_topic
                         
-                        # DYNAMIC IMPROVEMENT 3: Edge-specific operational failure probability
+                        # DYNAMIC IMPROVEMENT 3: Edge-specific operational failure probability.
+                        # Default to this edge's own QoS-derived coupling weight w(e) (§3.2) —
+                        # a tightly-coupled (high-QoS) publish edge is more likely to actually
+                        # starve its topic than a best-effort one — falling back to the scenario's
+                        # flat cascade_probability only when no such per-edge weight is recorded.
+                        pub_edge_weight = next((w for aid, w in publishers if aid == current_id), None)
+                        default_prob = pub_edge_weight if pub_edge_weight is not None else scenario.cascade_probability
                         edge_prob = self.telemetry.edge_failure_correlation.get(
-                            (current_id, topic_id), scenario.cascade_probability
+                            (current_id, topic_id), default_prob
                         )
-                        
+
                         if self._rng.random() < edge_prob:
                             if attenuated_impact > impact[topic_id]:
                                 impact[topic_id] = attenuated_impact
@@ -788,11 +805,16 @@ class FailureSimulator:
                                 routing_impact = current_impact
                             attenuated_impact = routing_impact * w_topic
                             
-                            # DYNAMIC IMPROVEMENT 3: Edge-specific operational failure probability
+                            # DYNAMIC IMPROVEMENT 3: Edge-specific operational failure probability.
+                            # Default to this ROUTES edge's own QoS-derived weight w(e) (§3.2),
+                            # falling back to the scenario's flat cascade_probability only when
+                            # no such per-edge weight is recorded.
+                            route_edge_weight = next((w for bid, w in brokers if bid == current_id), None)
+                            default_prob = route_edge_weight if route_edge_weight is not None else scenario.cascade_probability
                             edge_prob = self.telemetry.edge_failure_correlation.get(
-                                (current_id, topic_id), scenario.cascade_probability
+                                (current_id, topic_id), default_prob
                             )
-                            
+
                             if self._rng.random() < edge_prob:
                                 if attenuated_impact > impact[topic_id]:
                                     impact[topic_id] = attenuated_impact
@@ -816,18 +838,22 @@ class FailureSimulator:
                 elif current_type == "Topic":
                     subscribers = self.graph._subscribers.get(current_id, [])
                     for sub in subscribers:
-                        sub_id = sub[0]
+                        sub_id, sub_edge_weight = sub[0], (sub[1] if len(sub) > 1 else None)
                         _, subscribed_to = self.graph.get_app_topics(sub_id)
                         if subscribed_to:
                             sub_impact = min(impact.get(t, 0.0) for t in subscribed_to)
                         else:
                             sub_impact = current_impact
-                        
-                        # DYNAMIC IMPROVEMENT 3: Edge-specific operational failure probability
+
+                        # DYNAMIC IMPROVEMENT 3: Edge-specific operational failure probability.
+                        # Default to this SUBSCRIBES_TO edge's own QoS-derived weight w(e) (§3.2),
+                        # falling back to the scenario's flat cascade_probability only when no
+                        # such per-edge weight is recorded.
+                        default_prob = sub_edge_weight if sub_edge_weight is not None else scenario.cascade_probability
                         edge_prob = self.telemetry.edge_failure_correlation.get(
-                            (current_id, sub_id), scenario.cascade_probability
+                            (current_id, sub_id), default_prob
                         )
-                        
+
                         if self._rng.random() < edge_prob:
                             if sub_impact > impact[sub_id]:
                                 impact[sub_id] = sub_impact

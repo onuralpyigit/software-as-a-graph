@@ -89,44 +89,52 @@ class SimulationService:
 
         return simulator.simulate_all_publishers(template)
 
-    def run_failure_simulation(self, target_ids: List[str], layer: str = "system", 
+    def run_failure_simulation(self, target_ids: List[str], layer: str = "system",
                               cascade_rule: CascadeRule = CascadeRule.ALL,
                               cascade_probability: float = 1.0,
+                              library_cascade_probability: Optional[float] = None,
+                              propagation_threshold: float = 0.2,
                               failure_mode: FailureMode = FailureMode.CRASH) -> FailureResult:
         """Run a single failure simulation for one or more targets."""
         graph = self._get_graph()
-        sim = FailureSimulator(graph)
-        
+        sim = FailureSimulator(graph, propagation_threshold=propagation_threshold)
+
         scenario = FailureScenario(
             target_ids=target_ids,
             failure_mode=failure_mode,
             cascade_rule=cascade_rule,
-            cascade_probability=cascade_probability
+            cascade_probability=cascade_probability,
+            library_cascade_probability=library_cascade_probability
         )
         return sim.simulate(scenario)
 
     def run_failure_simulation_monte_carlo(self, target_id: str, layer: str = "system",
-                                          cascade_probability: float = 1.0, 
+                                          cascade_probability: float = 1.0,
+                                          library_cascade_probability: Optional[float] = None,
+                                          propagation_threshold: float = 0.2,
                                           failure_mode: FailureMode = FailureMode.CRASH,
                                           n_trials: int = 100) -> Any:
         """Run Monte Carlo failure simulation."""
         graph = self._get_graph()
-        sim = FailureSimulator(graph)
-        
+        sim = FailureSimulator(graph, propagation_threshold=propagation_threshold)
+
         scenario = FailureScenario(
             target_ids=[target_id],
             failure_mode=failure_mode,
             cascade_probability=cascade_probability,
+            library_cascade_probability=library_cascade_probability,
             cascade_rule=CascadeRule.ALL
         )
         return sim.simulate_monte_carlo(scenario, n_trials=n_trials)
 
-    def run_failure_simulation_exhaustive(self, layer: str = "system", cascade_probability: float = 1.0, 
+    def run_failure_simulation_exhaustive(self, layer: str = "system", cascade_probability: float = 1.0,
+                                         library_cascade_probability: Optional[float] = None,
+                                         propagation_threshold: float = 0.2,
                                          failure_mode: FailureMode = FailureMode.CRASH, **kwargs) -> List[Any]:
         """Run exhaustive failure analysis for all components in a layer."""
         graph = self._get_graph()
-        fail_sim = FailureSimulator(graph)
-        
+        fail_sim = FailureSimulator(graph, propagation_threshold=propagation_threshold)
+
         # --- Stage A: Discrete-event baseline flows ---
         event_sim = EventSimulator(graph)
         event_results = event_sim.simulate_all_publishers(
@@ -136,7 +144,7 @@ class SimulationService:
         for res in event_results.values():
             all_flows.extend(res.successful_flows)
         fail_sim.set_baseline_flows(all_flows)
-        
+
         # --- Stage B + C: Main loop and Post-passes ---
         n_trials = kwargs.get("n_trials", 1)
         return fail_sim.simulate_exhaustive(
@@ -144,6 +152,7 @@ class SimulationService:
                 target_ids=["template"],
                 failure_mode=failure_mode,
                 cascade_probability=cascade_probability,
+                library_cascade_probability=library_cascade_probability,
                 cascade_rule=CascadeRule.ALL
             ),
             layer=layer,
@@ -151,16 +160,19 @@ class SimulationService:
         )
 
     def run_failure_simulation_pairwise(self, layer: str = "system", cascade_probability: float = 1.0,
+                                      library_cascade_probability: Optional[float] = None,
+                                      propagation_threshold: float = 0.2,
                                       failure_mode: FailureMode = FailureMode.CRASH) -> List[Any]:
         """Run pairwise failure analysis for all component pairs in a layer."""
         graph = self._get_graph()
-        sim = FailureSimulator(graph)
-        
+        sim = FailureSimulator(graph, propagation_threshold=propagation_threshold)
+
         return sim.simulate_pairwise(
             scenario_template=FailureScenario(
                 target_ids=["template"],
                 failure_mode=failure_mode,
                 cascade_probability=cascade_probability,
+                library_cascade_probability=library_cascade_probability,
                 cascade_rule=CascadeRule.ALL
             ),
             layer=layer

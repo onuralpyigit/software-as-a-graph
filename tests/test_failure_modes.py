@@ -28,67 +28,62 @@ def create_test_graph(n_publishers: int):
     return SimulationGraph(GraphData(components=components, edges=edges))
 
 def test_degraded_single_publisher():
-    """Single publisher degraded (0.5) > threshold (0.3) -> Topic lives."""
+    """Single publisher degraded (0.5) > threshold (0.2) -> Topic lives."""
     graph = create_test_graph(n_publishers=1)
     sim = FailureSimulator(graph)
-    
+
     # Degrade the only publisher
     scenario = FailureScenario(target_ids=["Pub1"], failure_mode=FailureMode.DEGRADED)
     res = sim.simulate(scenario)
-    
-    # SL = 0.5 >= 0.3. Topic1 should NOT be in failed_set.
+
+    # avg_pub_impact = 0.5 < (1 - 0.2) = 0.8. Topic1 should NOT be in failed_set.
     assert "Topic1" not in res.cascaded_failures
     assert "Sub1" not in res.cascaded_failures
 
 def test_degraded_crushed_multi_publisher():
     """
-    4 publishers. 3 fail, 1 degraded. 
-    SL = (0.5 + 0 + 0 + 0) / 4 = 0.125 < 0.3 -> Topic fails.
+    5 publishers. 4 fail, 1 lives.
+    avg_pub_impact = (1.0*4 + 0) / 5 = 0.8 >= (1 - 0.2) -> Topic fails.
+
+    Canonical propagation_threshold is 0.2 (FailureSimulator default, matching
+    the paper's committed default); the starvation boundary is therefore
+    avg_pub_impact >= 0.8, not the pre-fix 0.3-threshold boundary of 0.7.
     """
-    graph = create_test_graph(n_publishers=4)
+    graph = create_test_graph(n_publishers=5)
     sim = FailureSimulator(graph)
-    
-    # Fail 3, Degrade 1
-    # Note: simulate currently takes one failure_mode for ALL target_ids.
-    # To test mixed, we rely on the fact that propagation handles performance.
-    # We'll fail 3 and degrade 1 by using multiple targets with a custom scenario 
-    # if we had one, but currently simulate() applies scenario.failure_mode to all.
-    # So let's simulate a case where 3 publishers are failed and we fail the 4th?
-    # No, let's just use 4 publishers and Fail 3.
-    # SL = (1.0 + 0 + 0 + 0) / 4 = 0.25 < 0.3 -> Topic fails.
-    
-    # Scenario: 3 publishers fail (Crash)
-    scenario = FailureScenario(target_ids=["Pub1", "Pub2", "Pub3"], failure_mode=FailureMode.CRASH)
+
+    # Scenario: 4 of 5 publishers fail (Crash)
+    scenario = FailureScenario(target_ids=["Pub1", "Pub2", "Pub3", "Pub4"], failure_mode=FailureMode.CRASH)
     res = sim.simulate(scenario)
-    
-    # SL = 0.25 < 0.3. Topic1 should fail.
+
+    # avg_pub_impact = 0.8 >= 0.8. Topic1 should fail.
     assert "Topic1" in res.cascaded_failures
     assert "Sub1" in res.cascaded_failures
-    
-    # Re-test: 2 publishers fail.
-    # SL = (1.0 + 1.0 + 0 + 0) / 4 = 0.5 >= 0.3. Topic1 lives.
-    scenario2 = FailureScenario(target_ids=["Pub1", "Pub2"], failure_mode=FailureMode.CRASH)
+
+    # Re-test: 3 of 5 publishers fail.
+    # avg_pub_impact = 0.6 < 0.8. Topic1 lives.
+    scenario2 = FailureScenario(target_ids=["Pub1", "Pub2", "Pub3"], failure_mode=FailureMode.CRASH)
     res2 = sim.simulate(scenario2)
     assert "Topic1" not in res2.cascaded_failures
 
 def test_degraded_starvation_boundary():
     """
-    3 publishers. 2 degraded (0.5 each).
-    SL = (0.5 + 0.5 + 1.0) / 3 = 0.66 > 0.3 -> Topic lives.
-    Wait, let's try to get closer to 0.3.
-    3 publishers. Fail 2. SL = 1/3 = 0.33 > 0.3 -> Lives.
-    4 publishers. Fail 3. SL = 1/4 = 0.25 < 0.3 -> Fails.
+    Boundary check around the canonical propagation_threshold = 0.2
+    (starvation fires when avg_pub_impact >= 1 - 0.2 = 0.8).
+
+    5 publishers. Fail 4. avg_pub_impact = 4/5 = 0.8 >= 0.8 -> Fails.
+    5 publishers. Fail 3. avg_pub_impact = 3/5 = 0.6 < 0.8 -> Lives.
     """
-    # 4 pubs, fail 3
-    graph = create_test_graph(n_publishers=4)
+    # 5 pubs, fail 4
+    graph = create_test_graph(n_publishers=5)
     sim = FailureSimulator(graph)
-    res = sim.simulate(FailureScenario(target_ids=["Pub1", "Pub2", "Pub3"], failure_mode=FailureMode.CRASH))
+    res = sim.simulate(FailureScenario(target_ids=["Pub1", "Pub2", "Pub3", "Pub4"], failure_mode=FailureMode.CRASH))
     assert "Topic1" in res.cascaded_failures
-    
-    # 3 pubs, fail 2
-    graph3 = create_test_graph(n_publishers=3)
+
+    # 5 pubs, fail 3
+    graph3 = create_test_graph(n_publishers=5)
     sim3 = FailureSimulator(graph3)
-    res3 = sim3.simulate(FailureScenario(target_ids=["Pub1", "Pub2"], failure_mode=FailureMode.CRASH))
+    res3 = sim3.simulate(FailureScenario(target_ids=["Pub1", "Pub2", "Pub3"], failure_mode=FailureMode.CRASH))
     assert "Topic1" not in res3.cascaded_failures
 
 if __name__ == "__main__":
