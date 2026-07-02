@@ -22,13 +22,12 @@ The Middleware conference paper introduced the foundational *Software-as-a-Graph
 * **Multi-Dimensional Quality Attribution (RMAV):** We introduce the formal formulation of the Reliability, Maintainability, Availability, and Vulnerability (RMAV) framework. This includes the Analytic Hierarchy Process (AHP) matrix calibration, the shrinkage toward a uniform prior, and the rank-normalized mathematical metrics.
 * **Code-Level SCA Ingestion (CQP):** We introduce the Code Quality Penalty (CQP) metric, which ingests raw code-level static analysis variables (e.g., LOC, cyclomatic complexity, LCOM) as vertex properties and propagates them through the global inter-component graph topology, bridging the "Architecture-Code Gap."
 * **Continuous CI/CD Quality Gating:** We detail the continuous pipeline-blocking gate architecture, including the exit-code protocol and the database-free `MemoryRepository` designed to run in-memory within seconds.
-* **Empirical Validation and Expert-Ranking Study (RQ5):** We report a new external validation study run on an ICAO-compliant Air Traffic Management (ATM) system, demonstrating a high rank correlation ($\tau = 0.8095$) between the framework's predictions and a blind panel of 5 ATC/safety experts ($\kappa = 0.7500$).
 
 ---
 
 ### 2. Boundary Mapping to ASE 2026 Companion Submission
 The under-review ASE 2026 manuscript is a *companion conference paper* designed with a clear, non-overlapping boundary:
-* **JSS Scope (Static Diagnostic & Gating Framework):** Focuses on the pre-deployment static diagnostic system—defining the graph model, the code-to-architecture quality attribution (RMAV/CQP), failure-impact simulation (interpretable vs. learned HGT predictions), continuous gating pipelines, and external expert validation.
+* **JSS Scope (Static Diagnostic & Gating Framework):** Focuses on the pre-deployment static diagnostic system—defining the graph model, the code-to-architecture quality attribution (RMAV/CQP), failure-impact simulation (interpretable vs. learned HGT predictions), and continuous gating pipelines.
 * **ASE Scope (Closed-Loop Prescriptive Optimization Engine):** Focuses exclusively on the closed-loop prescriptive optimization engine (**SaG-Prescribe**), the three graph mutation operators (logical topic splitting, host anti-affinity container reallocations, and transport QoS contract hardening), and the visual dashboard (**SMART**). 
 
 The ASE companion paper cites the JSS manuscript as its foundational diagnostic and simulation baseline, focusing its own evaluation entirely on prescriptive mutation efficiency and computational scalability.

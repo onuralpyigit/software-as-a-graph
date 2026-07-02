@@ -5,10 +5,14 @@
 > **Draft status (revised).** This is a fully reconciled draft with respect to internal consistency
 > (simulator identity, seeds, thresholds, RQ numbering, gate semantics). Values that depend on
 > experiments not yet executed remain as bracketed placeholders and MUST NOT be replaced with
-> invented numbers: `[τ]` and `[κ]` (ATM blind expert-ranking study, §9), `[X%]` (remediation
-> impact-reduction quantification, §6.7), and the bracketed per-type correlation and blast-radius
-> figures pending confirmation runs under the canonical simulator (§8.2). Math is in LaTeX notation
-> for elsarticle porting.
+> invented numbers: `[X%]` (remediation impact-reduction quantification, §6.7), and the bracketed
+> per-type correlation and blast-radius figures pending confirmation runs under the canonical
+> simulator (§8.2). The external, real-world validation planned for a prior draft of this paper
+> (an ICAO-compliant air-traffic-management case study with a blind expert-ranking panel) has been
+> withdrawn from this submission: the panel was never actually convened, and the figures previously
+> reported for it were placeholders that must not be presented as an executed study. A genuine
+> external validation is left to future work (§9.3). Math is in LaTeX notation for elsarticle
+> porting.
 
 ---
 
@@ -39,13 +43,11 @@ discrete-event simulation under a strict input–label independence guarantee.
 We further formalize a **prescriptive remediation** stage that generates topology-level hardening
 edits and verifies them on counterfactual graphs via the same simulation oracle. Integrated directly
 into CI/CD pipelines, SaG acts as an automated, delta-aware quality gate that blocks newly
-introduced structural regressions. Across seven synthetic scenarios and an external
-air-traffic-management (ATM) case study, we show: (i) *when* interpretable attribution suffices and
-when learning is required; (ii) that multi-dimensional attribution exposes failure modes invisible
-to centrality or code linting alone — notably a **shared-library blast-radius gap**, where a
-component with a low composite $Q$ ($\approx 0.48$) nonetheless drives near-total cascade impact
-($I \approx [0.97]$) through simultaneous fan-out; and (iii) agreement between predicted rankings
-and expert judgment on the ATM system (Kendall $\tau = [\tau]$, Fleiss $\kappa = [\kappa]$). We
+introduced structural regressions. Across seven synthetic scenarios, we show: (i) *when*
+interpretable attribution suffices and when learning is required; and (ii) that multi-dimensional
+attribution exposes failure modes invisible to centrality or code linting alone — notably a
+**shared-library blast-radius gap**, where a component with a low composite $Q$ ($\approx 0.48$)
+nonetheless drives near-total cascade impact ($I \approx [0.97]$) through simultaneous fan-out. We
 also demonstrate that the gate blocks architectural regression with low performance overhead
 (~5 s for medium, ~40 s for xlarge topologies), making continuous SSA feasible for rapid-release
 pipelines.
@@ -156,7 +158,7 @@ during build time, SaG executes anti-pattern scans and counterfactual simulation
 fails the build (exit code 2) when a change *introduces new, unwaived* CRITICAL or HIGH severity
 structural anomalies relative to the merge base (§6.6).
 
-Concretely, the paper is organized around five research questions:
+Concretely, the paper is organized around four research questions:
 
 > **RQ1.** When does interpretable, multi-dimensional attribution suffice for pre-deployment
 > criticality prediction, and when is a learned predictor required to recover the simulated
@@ -170,12 +172,9 @@ Concretely, the paper is organized around five research questions:
 >
 > **RQ4.** What is the feasibility and performance overhead of deploying the graph-based analyzer as
 > a blocking Quality Gate in continuous integration/delivery (CI/CD) pipelines?
->
-> **RQ5.** Do the framework's predicted criticality rankings agree with expert judgment on a
-> real-world system?
 
 RQ1, RQ2, and RQ3 are answered on the synthetic scenario suite (§8.1–§8.3); RQ4 evaluates gating
-feasibility and performance (§8.4); and RQ5 is answered by the external ATM validation (§9).
+feasibility and performance (§8.4).
 
 ## 1.5 Contributions
 
@@ -194,8 +193,6 @@ This paper makes the following contributions:
    operators, verifying counterfactual edits statically before commit (§6).
 5. **Two empirical findings.** We identify and explain the shared-library blast-radius gap and the
    Simpson's-paradox stratification of criticality correlation by node type (§5, §8).
-6. **External validation on a real-world system.** We validate predicted rankings against blind
-   expert judgment on an ICAO-compliant air-traffic-management (ATM) system (§9).
 
 ## 1.6 Relationship to the Authors' Prior Work
 
@@ -212,8 +209,8 @@ The remainder of this paper is organized as follows. Section 2 reviews related w
 defines the Software-as-a-Graph model. Section 4 presents multi-dimensional quality attribution, and
 Section 5 presents failure-impact analysis. Section 6 introduces prescriptive remediation and CI/CD
 quality gating. Section 7 describes the experimental setup; Section 8 reports the synthetic-suite
-and gating results (RQ1–RQ4); Section 9 presents the external ATM validation (RQ5); and Section 10
-discusses the findings, threats to validity, and conclusions.
+and gating results (RQ1–RQ4); and Section 9 discusses the findings, threats to validity, and
+conclusions.
 
 ---
 
@@ -535,8 +532,8 @@ dependency subset, and the quality dimension it most informs:
 The middleware layer includes Application and Node vertices in the subgraph to preserve incoming
 edges, but reports results only for Brokers. Components further aggregate along a MIL-STD-498
 hierarchy — CSU → CSC → CSCI → CSS — so that criticality can be rolled up from a unit to a
-configuration item to the whole system, which §9 uses to map the ATM system's components onto its
-Surveillance, ConflictManagement, and ControllerWorkingPosition CSCIs.
+configuration item to the whole system, supporting reporting at whatever granularity an
+organization's software configuration management already uses.
 
 ## 3.6 Running Example
 
@@ -912,13 +909,13 @@ the analyzer via a dedicated CLI script, `detect_antipatterns.py`.
 **Delta semantics.** The gate is *delta-aware*: it evaluates the candidate topology against the
 merge-base topology and blocks only on findings that the change *introduces*. This mirrors the
 "Clean as You Code" semantics of established code-level gates (§2.3) and is a practical necessity at
-the system level: real architectures contain *intentional*, risk-accepted single points of failure —
-in the ATM system of §9, the conflict detector and the ASTERIX broker are known, deliberate
-sole-source components — and an absolute gate that fails any build containing a CRITICAL finding
-would flag them on every commit, training developers to bypass the gate. Pre-existing findings are
-carried in the baseline; intentional risks are recorded in a **waiver register** (the system-level
-analogue of a won't-fix/false-positive marking), each waiver naming the entity, the rule, and an
-expiry, so that accepted risk remains visible and auditable rather than silently suppressed.
+the system level: real architectures often contain *intentional*, risk-accepted single points of
+failure — a sole-source surveillance feed or a deliberately unreplicated legacy broker, for
+instance — and an absolute gate that fails any build containing a CRITICAL finding would flag them
+on every commit, training developers to bypass the gate. Pre-existing findings are carried in the
+baseline; intentional risks are recorded in a **waiver register** (the system-level analogue of a
+won't-fix/false-positive marking), each waiver naming the entity, the rule, and an expiry, so that
+accepted risk remains visible and auditable rather than silently suppressed.
 
 **Exit-code protocol.** The gate evaluates the resulting graph delta and issues exit codes that
 govern pipeline execution:
@@ -948,9 +945,9 @@ attribution is not only more interpretable than a single score but more *actiona
 
 # 7. Experimental Setup
 
-This section describes the data, predictors, metrics, and protocols used to answer RQ1–RQ4 (§8),
-and to prepare the external validation of RQ5 (§9). The design follows one overriding principle,
-carried from the framework's independence guarantee (§5.3): every predictor is evaluated against the
+This section describes the data, predictors, metrics, and protocols used to answer RQ1–RQ4 (§8).
+The design follows one overriding principle, carried from the framework's independence guarantee
+(§5.3): every predictor is evaluated against the
 same simulator-derived ground truth produced by an independent process, so the claims we make are
 *comparative* — which modeling choices perform better under identical conditions — rather than
 assertions of absolute accuracy in operational deployments.
@@ -964,12 +961,8 @@ and large-scale enterprise pub-sub. The scenarios are produced by a statistical 
 and span scale presets from `tiny` to `xlarge`, exercising fan-out-dominated, dense-pub-sub, and
 anti-pattern/SPOF regimes with different dominant failure mechanisms. Using synthetic topologies
 lets us control the discriminating structural signal per scenario and removes confidentiality
-constraints on the inputs.
-
-**External dataset.** Independently of the synthetic suite, we validate on a real-world,
-ICAO-compliant air-traffic-management (ATM) system (§9), which serves as the external anchor for
-RQ5. It is described without naming its industrial provenance, in keeping with double-blind
-requirements.
+constraints on the inputs. We do not include a real-world validation dataset in this submission
+(§9.3); the synthetic suite is the sole empirical basis for RQ1–RQ4.
 
 ## 7.2 Predictors and Baselines
 
@@ -1171,113 +1164,9 @@ architectural risk.
 
 ---
 
-# 9. External Validation on an Air-Traffic-Management System
+# 9. Discussion, Threats to Validity, and Conclusion
 
-The synthetic suite (§8) controls structure but cannot establish whether the framework's rankings
-agree with human expert judgment on a real system. This section validates against an ICAO-compliant
-air-traffic-management (ATM) system and answers RQ5: do the framework's predicted criticality
-rankings agree with the judgment of domain experts? The dataset is described without naming its
-industrial provenance, per double-blind requirements.
-
-> **⚠ Study status (BLOCKING).** The blind expert-ranking study described in §9.2 has **not yet been
-> executed**. All expert-derived quantities in this section — the expert-consensus ranking in
-> Table 9.1 and every agreement statistic in Table 9.2 — are bracketed placeholders and MUST NOT be
-> replaced with anything other than the values produced by the actual study. The framework-side
-> rankings ($Q(v)$, learned, centrality) can be computed and frozen before the study; the expert
-> column and the $\tau$/$\kappa$ values cannot. This section's results prose is written as a
-> template to be finalized once the study is run.
-
-## 9.1 The ATM System
-
-The ATM system is a safety-critical surveillance-and-separation architecture. Its core data flow
-runs from surveillance sources through conflict detection to the controller working position: a
-radar tracker publishes radar and track streams; a conflict detector consumes both and publishes
-conflict alerts; a flight-data processor publishes flight-plan associations; and a controller
-workstation consumes alerts, tracks, and flight data. An ASTERIX broker routes the surveillance
-topics, and a meteorological service supplies weather. Topics carry predominantly `RELIABLE` QoS,
-with the conflict-alert channel additionally constrained by a tight (100 ms-class) deadline,
-reflecting the real-time separation-assurance requirement. Components aggregate along a MIL-STD-498
-hierarchy under a single ATC-system configuration item (CSS), decomposed into Surveillance,
-Separation-Assurance (Conflict Management), and Controller-Working-Position software configuration
-items (CSCIs).
-
-Two structural properties make the system a good external test. First, it contains clear
-single-points-of-failure: the radar tracker is the sole publisher of two mandatory feeds, and the
-ASTERIX broker is the sole router of the surveillance topics — both of which the framework should
-rank at the top. Second, the conflict detector requires *both* the radar and track feeds to
-function, so its simulated impact is sensitive to the cascade `propagation_threshold` (it cascades
-once it loses either feed under a 0.5 threshold) — a concrete instance of the threshold sensitivity
-discussed in §5.1 and §8.3, which we report explicitly rather than hide.
-
-## 9.2 Expert-Ranking Protocol (RQ5)
-
-We elicit a blind expert ground truth and compare it to the framework's predictions.
-
-**Panel.** A panel of 5 domain experts (air-traffic-control / safety engineers), blind to the
-framework's output and to one another's responses, will independently rank the ATM components by
-operational criticality — specifically, the order in which components should be prioritized for
-hardening before deployment.
-
-**Framework prediction.** The framework's ranking is taken from the composite $Q(v)$ (interpretable
-predictor) and, separately, from the learned predictor, so that both can be compared to expert
-judgment on the same components. Both framework rankings are computed and frozen *before* the
-expert elicitation, so the comparison is pre-registered rather than post hoc.
-
-**Agreement metrics.**
-- *Predicted-vs-expert agreement* is measured with Kendall's $\tau$ between the framework ranking
-  and the expert-consensus ranking ($\tau = [\tau]$).
-- *Inter-rater reliability* among the experts is measured with Fleiss' $\kappa$
-  ($\kappa = [\kappa]$), to establish that the expert consensus is itself coherent enough to serve
-  as a reference.
-- As a contrast, we report Kendall's $\tau$ between a topology-only centrality ranking and the
-  expert consensus ($\tau = [\tau_{\text{centrality}}]$), to test whether multi-dimensional
-  attribution aligns with expert judgment more closely than centrality does.
-
-**Acceptance.** RQ5 is supported if (i) inter-rater $\kappa$ indicates at least moderate agreement
-among experts, and (ii) the framework's $\tau$ to the expert consensus is high and exceeds the
-centrality baseline's $\tau$.
-
-## 9.3 Results
-
-Table 9.1 lists the relative rankings predicted by the framework alongside the expert-consensus
-ranking to be elicited by the protocol of §9.2. Table 9.2 reports the inter-rater agreement and
-predictor correlation values.
-
-**Table 9.1 — Predicted vs expert criticality ranking (ATM).**
-
-| Component (CSCI) | $Q(v)$ rank | Learned rank | Centrality rank | Expert-consensus rank |
-|------------------|:-----------:|:------------:|:---------------:|:---------------------:|
-| Radar tracker (Surveillance) | 2 | 6 | 3 | [·] |
-| ASTERIX broker (Surveillance) | 1 | 7 | 4 | [·] |
-| Conflict detector (Sep. Assurance) | 5 | 3 | 5 | [·] |
-| Flight-data processor (Sep. Assurance) | 7 | 5 | 6 | [·] |
-| Controller workstation (CWP) | 4 | 1 | 1 | [·] |
-| Meteo service (Meteorology) | 6 | 4 | 7 | [·] |
-| Message library (cross-cutting) | 3 | 2 | 2 | [·] |
-
-**Table 9.2 — Agreement.**
-
-| Quantity | Value |
-|----------|:-----:|
-| Kendall $\tau$ (framework $Q(v)$ vs expert) | [τ] |
-| Kendall $\tau$ (learned GNN vs expert) | [τ_gnn] |
-| Kendall $\tau$ (centrality vs expert) | [τ_centrality] |
-| Fleiss $\kappa$ (inter-rater) | [κ] |
-| `propagation_threshold` used | 0.2 |
-
-**Qualitative checks (to be confirmed against the elicited ranking).** (i) The framework ranks the
-radar tracker and the ASTERIX broker among the top components (ranks 2 and 1 in $Q(v)$
-respectively), matching their status as sole-source SPOFs. (ii) The cross-cutting message library is
-surfaced by its blast-radius signal even where its composite $Q$ is moderate (rank 3 in $Q(v)$),
-matching the §5.4 mechanism under step-function library failure cascades. (iii) The conflict
-detector's rank is reported together with the `propagation_threshold` used (0.2), since its position
-depends on whether single- or dual-feed loss is treated as disabling.
-
----
-
-# 10. Discussion, Threats to Validity, and Conclusion
-
-## 10.1 Interpretation
+## 9.1 Interpretation
 
 The framework's results converge on a single message: for pre-deployment criticality analysis of
 pub-sub middleware, *how* a component is critical is at least as important as *whether* it is, and
@@ -1316,7 +1205,7 @@ it blocks newly introduced architectural regressions at commit time — bridging
 "Architecture-Code Gap" — without repeatedly flagging known, risk-accepted structure, analogous to
 the "Clean as You Code" discipline of static code analysis gates.
 
-## 10.2 Threats to Validity
+## 9.2 Threats to Validity
 
 **Construct validity.** Our ground-truth impact is produced by a discrete-event simulator rather
 than observed in deployed systems. The strongest claims we can make are therefore comparative: our
@@ -1335,29 +1224,31 @@ remediation stage generates candidates without reading $I(v)$. A measured correl
 reflects predictive content rather than leakage. We further report bootstrap confidence intervals
 and paired significance tests so that comparative claims are not artifacts of seed variance.
 
-**External validity.** Two limits bound generalization. The synthetic suite, while spanning seven
-deployment domains and a range of scales and structural regimes, is generated rather than harvested
-from production systems; and the external anchor is a single ATM system. We reduce the first concern
-with Leave-One-Scenario-Out evaluation, which tests transfer to held-out architectures and closes
-the transductive-leakage gap, and the second with the blind expert-ranking study (§9), which grounds
-the rankings in human judgment on a real safety-critical system. Generalization beyond these — to
-other middleware families and to systems with richer adversarial structure — remains future work.
+**External validity.** The synthetic suite, while spanning seven deployment domains and a range of
+scales and structural regimes, is generated rather than harvested from production systems, and this
+paper reports no validation against a real-world deployment or human expert judgment. We reduce the
+in-distribution/out-of-distribution concern with Leave-One-Scenario-Out evaluation, which tests
+transfer to held-out architectures and closes the transductive-leakage gap, but this evaluates
+transfer across *synthetic* scenarios only. Generalization to production systems, to other
+middleware families, and to systems with richer adversarial structure remains future work (§9.3).
 
-## 10.3 Limitations and Future Work
+## 9.3 Limitations and Future Work
 
 Several limitations point to concrete next steps. The Vulnerability dimension is the lightest of the
 four, resting on reachability-style proxies; a richer adversarial model (trust boundaries, privilege
 escalation paths) would strengthen the V attribution and broaden the framework's security relevance.
-The external validation rests on one system; replicating the expert-ranking protocol across
-additional real architectures would test whether the agreement observed on the ATM system holds more
-generally. The remediation operator set is small and deliberately conservative; expanding it, and
+This paper validates entirely on synthetic scenarios; the most important next step is external
+validation on one or more real-world pub-sub deployments, ideally including a blind expert-ranking
+study comparing predicted criticality to domain-expert judgment, to test whether the ordering the
+framework recovers on synthetic topologies agrees with practitioner assessment of an operational
+system. The remediation operator set is small and deliberately conservative; expanding it, and
 deriving the acceptance multiplier $\kappa$ from broader multi-seed variance data, would let the
 prescriptive stage address more failure modes. Finally, the entire framework is validated against
 simulation; the natural endpoint is calibration against, or replacement of, the simulated ground
 truth with observed failure data from instrumented deployments, which would convert the comparative
 claims of this paper into absolute ones.
 
-## 10.4 Conclusion
+## 9.4 Conclusion
 
 We presented Software-as-a-Graph, a pre-deployment Static System Analysis (SSA) framework that
 models distributed pub-sub middleware as a typed, weighted, directed multigraph and analyzes it
@@ -1370,11 +1261,72 @@ into simulation-verified hardening edits.
 
 Integrated directly into pipelines as a delta-aware, blocking CI/CD Quality Gate, the framework
 verifies architectural changes and blocks regression in seconds, bridging the "Architecture-Code
-Gap" at commit time. Across a synthetic scenario suite and an external air-traffic-management case
-study, the framework shows when interpretable attribution suffices and when learning is required,
-exposes failure modes — a shared-library blast radius and a node-type stratification effect — that
-single-score centrality cannot, and demonstrates that attribution computed entirely before
-deployment can be made both legible and actionable. By taking the *type* of every component and
+Gap" at commit time. Across a synthetic scenario suite, the framework shows when interpretable
+attribution suffices and when learning is required, exposes failure modes — a shared-library blast
+radius and a node-type stratification effect — that single-score centrality cannot, and demonstrates
+that attribution computed entirely before deployment can be made both legible and actionable. By
+taking the *type* of every component and
 dependency seriously, the framework recovers structure that untyped, single-dimensional methods
 discard, and does so at the point in the lifecycle where it is most valuable: before the system
 runs.
+
+---
+
+# References
+
+> **Editorial note.** Citation markers `[1]`–`[15]` are used throughout the text; the list below maps
+> each to a source consistent with its context. All entries are real, published works. One entry,
+> `[9]`, is flagged **UNVERIFIED** below — its citing sentence ("PowerGraph applies graph learning to
+> critical-node analysis in power systems," §2.5) does not match any specific paper the authors could
+> confirm with confidence, and it MUST be checked against the authors' actual source (or replaced)
+> before submission rather than left as an unverified numbered reference. Publisher, volume, and page
+> details for the remaining entries should still be cross-checked against the authors' reference
+> manager during typesetting, but are believed accurate.
+
+[1] P. T. Eugster, P. A. Felber, R. Guerraoui, A.-M. Kermarrec, "The many faces of publish/subscribe,"
+*ACM Computing Surveys*, vol. 35, no. 2, pp. 114–131, 2003.
+
+[2] Object Management Group, "Data Distribution Service (DDS)," OMG Document formal/2015-04-10,
+version 1.4, 2015.
+
+[3] OASIS, "MQTT Version 5.0," OASIS Standard, 2019.
+
+[4] L. C. Freeman, "A set of measures of centrality based on betweenness," *Sociometry*, vol. 40,
+no. 1, pp. 35–41, 1977.
+
+[5] S. Brin, L. Page, "The anatomy of a large-scale hypertextual web search engine," *Computer
+Networks and ISDN Systems*, vol. 30, no. 1–7, pp. 107–117, 1998.
+
+[6] S. V. Buldyrev, R. Parshani, G. Paul, H. E. Stanley, S. Havlin, "Catastrophic cascade of failures
+in interdependent networks," *Nature*, vol. 464, pp. 1025–1028, 2010.
+
+[7] C. Fan, L. Zeng, Y. Sun, Y.-Y. Liu, "Finding key players in complex networks through deep
+reinforcement learning," *Nature Machine Intelligence*, vol. 2, pp. 317–324, 2020.
+
+[8] C. Fan, L. Zeng, Y. Ding, M. Chen, Y. Sun, Z. Liu, "Learning to identify high betweenness
+centrality nodes from scratch: A novel graph neural network approach," in *Proc. 28th ACM Int.
+Conf. on Information and Knowledge Management (CIKM)*, 2019, pp. 559–568.
+
+[9] **[UNVERIFIED — please confirm or replace]** A graph-neural-network-based approach to
+critical/vulnerable node identification in power-grid networks. No specific paper could be
+confirmed with confidence to match the citing sentence in §2.5; do not submit with this entry
+unresolved.
+
+[10] M. Schlichtkrull, T. N. Kipf, P. Bloem, R. van den Berg, I. Titov, M. Welling, "Modeling
+relational data with graph convolutional networks," in *Proc. European Semantic Web Conference
+(ESWC)*, 2018, pp. 593–607.
+
+[11] X. Wang, H. Ji, C. Shi, B. Wang, Y. Ye, P. Cui, P. S. Yu, "Heterogeneous graph attention
+network," in *Proc. The Web Conference (WWW)*, 2019, pp. 2022–2032.
+
+[12] Z. Hu, Y. Dong, K. Wang, Y. Sun, "Heterogeneous graph transformer," in *Proc. The Web
+Conference (WWW)*, 2020, pp. 2704–2710.
+
+[13] X. Fu, J. Zhang, Z. Meng, I. King, "MAGNN: Metapath aggregated graph neural network for
+heterogeneous graph embedding," in *Proc. The Web Conference (WWW)*, 2020, pp. 2331–2341.
+
+[14] Q. Li, Z. Han, X.-M. Wu, "Deeper insights into graph convolutional networks for semi-supervised
+learning," in *Proc. AAAI Conference on Artificial Intelligence*, 2018, pp. 3538–3545.
+
+[15] T. L. Saaty, *The Analytic Hierarchy Process: Planning, Priority Setting, Resource Allocation*,
+McGraw-Hill, 1980.
