@@ -1,4 +1,4 @@
-# SaG-Prescribe: Closed-Loop Prescriptive Optimization of Publish–Subscribe Architectures over Heterogeneous Graph Models
+# Closed-Loop Prescriptive Optimization of Publish–Subscribe Architectures over Heterogeneous Graph Models
 
 *Target venue: Automated Software Engineering (AuSE) — Springer.*
 
