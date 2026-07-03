@@ -46,7 +46,7 @@ class PrescribeService:
         # If original analysis has simulation metrics we can extract them,
         # but to be sure we have complete validation metrics, we calculate them.
         logger.info("Evaluating baseline system health and resilience...")
-        baseline_sri, baseline_metrics = self._evaluate_baseline(analysis_result, layer, gnn_checkpoint)
+        baseline_sri, baseline_metrics, baseline_impact = self._evaluate_baseline(analysis_result, layer, gnn_checkpoint)
 
         # 3. Create mutated graph JSON
         original_json = self.repository.export_json()
@@ -54,9 +54,27 @@ class PrescribeService:
 
         # 4. Closed-loop validation on the mutated graph
         logger.info("Evaluating mutated system health and resilience (closed-loop simulation)...")
-        mutated_sri, mutated_metrics, applied_changes = self._evaluate_mutation(mutated_json, layer, policy, gnn_checkpoint)
+        mutated_sri, mutated_metrics, applied_changes, mutated_impact = self._evaluate_mutation(mutated_json, layer, policy, gnn_checkpoint)
 
-        # 5. Compile final results
+        # 5. Per-component cascade-impact reduction (§6.7): restricted to remediated components
+        # whose id is stable across the mutation (node reallocations, QoS upgrades). Topic splits
+        # replace the original topic id with per-publisher sub-topics and have no stable
+        # before/after counterpart, so they are excluded from this figure rather than approximated.
+        remediated_ids = {r["component"] for r in policy.node_reallocations} | {u["topic"] for u in policy.qos_upgrades}
+        impact_deltas: Dict[str, Dict[str, float]] = {}
+        for cid in remediated_ids:
+            i_before = baseline_impact.get(cid)
+            i_after = mutated_impact.get(cid)
+            if i_before is None or i_after is None:
+                continue
+            impact_deltas[cid] = {"before": i_before, "after": i_after}
+            if i_before > 0:
+                impact_deltas[cid]["reduction_frac"] = (i_before - i_after) / i_before
+
+        reductions = [d["reduction_frac"] for d in impact_deltas.values() if "reduction_frac" in d]
+        mean_reduction = sum(reductions) / len(reductions) if reductions else None
+
+        # 6. Compile final results
         sri_improvement = round(baseline_sri - mutated_sri, 4)
         logger.info(f"Closed-loop validation complete. SRI changed from {baseline_sri} to {mutated_sri} (Improvement: {sri_improvement}).")
 
@@ -67,7 +85,9 @@ class PrescribeService:
             original_metrics=baseline_metrics,
             mutated_metrics=mutated_metrics,
             policy=policy,
-            applied_changes=applied_changes
+            applied_changes=applied_changes,
+            remediated_component_impact_deltas=impact_deltas,
+            mean_cascade_impact_reduction=mean_reduction,
         )
 
     def compile_policy(
@@ -230,15 +250,15 @@ class PrescribeService:
                     
         return policy
 
-    def _evaluate_baseline(self, analysis_result: Any, layer: str, gnn_checkpoint: Optional[str]) -> tuple[float, Dict[str, Any]]:
-        """Calculate baseline SRI and verification metrics."""
+    def _evaluate_baseline(self, analysis_result: Any, layer: str, gnn_checkpoint: Optional[str]) -> tuple[float, Dict[str, Any], Dict[str, float]]:
+        """Calculate baseline SRI, verification metrics, and per-component I(v)."""
         try:
             # Try to get validation summary if already run in the pipeline
             # Wait, validate service is always on client
             from saag.client import Client
             client = Client(repo=self.repository)
             val_res = client.validate(layers=[layer], gnn_checkpoint=gnn_checkpoint)
-            
+
             layer_val = val_res.layers.get(layer)
             if layer_val:
                 # If we have validation facade, run evaluation directly to get metrics cleanly
@@ -250,22 +270,22 @@ class PrescribeService:
         return self._run_evaluation(self.repository, layer, gnn_checkpoint)
 
     def _evaluate_mutation(
-        self, 
-        mutated_json: Dict[str, Any], 
-        layer: str, 
+        self,
+        mutated_json: Dict[str, Any],
+        layer: str,
         policy: PrescriptionPolicy,
         gnn_checkpoint: Optional[str]
-    ) -> tuple[float, Dict[str, Any], List[str]]:
+    ) -> tuple[float, Dict[str, Any], List[str], Dict[str, float]]:
         """Run verification on the mutated graph."""
         from saag.infrastructure.memory_repo import MemoryRepository
-        
+
         # Instantiate temporary in-memory repo containing mutated graph G'
         temp_repo = MemoryRepository()
         temp_repo.save_graph(mutated_json, clear=True)
         temp_repo.derive_dependencies()
 
         # Run closed-loop validation pipeline on the temporary repository
-        sri, metrics = self._run_evaluation(temp_repo, layer, gnn_checkpoint)
+        sri, metrics, impact_by_component = self._run_evaluation(temp_repo, layer, gnn_checkpoint)
 
         # Track applied changes for the report
         applied_changes = []
@@ -276,37 +296,39 @@ class PrescribeService:
         for upgrade in policy.qos_upgrades:
             applied_changes.append(f"Hardened QoS on topic '{upgrade['topic']}': Reliability -> {upgrade['target_reliability']}, Durability -> {upgrade['target_durability']}")
 
-        return sri, metrics, applied_changes
+        return sri, metrics, applied_changes, impact_by_component
 
-    def _run_evaluation(self, repo: IGraphRepository, layer: str, gnn_checkpoint: Optional[str]) -> tuple[float, Dict[str, Any]]:
-        """Run full analysis, simulation, and validation to retrieve SRI and key metrics."""
+    def _run_evaluation(self, repo: IGraphRepository, layer: str, gnn_checkpoint: Optional[str]) -> tuple[float, Dict[str, Any], Dict[str, float]]:
+        """Run full analysis, simulation, and validation to retrieve SRI, key metrics, and per-component I(v)."""
         from saag.client import Client
         client = Client(repo=repo)
-        
+
         # Stage 2: Analyze
         analysis = client.analyze(layer=layer)
-        
-        # Stage 4: Simulate
-        sim_results = client.simulate(layer=layer)
-        
+
+        # Stage 4: Simulate — canonical settings (propagation_threshold=0.2, §7.5); FailureResult
+        # exposes both aggregate impact terms and the full I(v) = composite_impact per component.
+        sim_results = client.simulate(layer=layer, propagation_threshold=0.2)
+        impact_by_component = {r.target_id: r.impact.composite_impact for r in sim_results}
+
         # Stage 5: Validate (which internally triggers simulation and prediction comparison)
         validation_facade = client.validate(layers=[layer], gnn_checkpoint=gnn_checkpoint)
         layer_val = validation_facade.layers[layer]
-        
+
         sri = layer_val.raw.system_health.get("SRI", 1.0)
-        
+
         # Calculate averages from simulation results
         avg_reachability = sum(r.impact.reachability_loss for r in sim_results) / len(sim_results) if sim_results else 0.0
         avg_fragmentation = sum(r.impact.fragmentation for r in sim_results) / len(sim_results) if sim_results else 0.0
         avg_throughput = sum(r.impact.throughput_loss for r in sim_results) / len(sim_results) if sim_results else 0.0
-        
+
         metrics = {
             "sri": sri,
             "avg_reachability_loss": avg_reachability,
             "avg_fragmentation": avg_fragmentation,
             "avg_throughput_loss": avg_throughput,
         }
-        return sri, metrics
+        return sri, metrics, impact_by_component
 
     def _apply_policy_mutations(self, original_json: Dict[str, Any], policy: PrescriptionPolicy) -> Dict[str, Any]:
         """Apply Delta(G) modifications to the JSON topology export."""

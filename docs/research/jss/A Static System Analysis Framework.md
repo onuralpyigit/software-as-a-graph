@@ -3,16 +3,21 @@
 *Target venue: Journal of Systems and Software (JSS) — Elsevier, Q1.*
 
 > **Draft status (revised).** This is a fully reconciled draft with respect to internal consistency
-> (simulator identity, seeds, thresholds, RQ numbering, gate semantics). Values that depend on
-> experiments not yet executed remain as bracketed placeholders and MUST NOT be replaced with
-> invented numbers: `[X%]` (remediation impact-reduction quantification, §6.7), and the bracketed
-> per-type correlation and blast-radius figures pending confirmation runs under the canonical
-> simulator (§8.2). The external, real-world validation planned for a prior draft of this paper
-> (an ICAO-compliant air-traffic-management case study with a blind expert-ranking panel) has been
-> withdrawn from this submission: the panel was never actually convened, and the figures previously
-> reported for it were placeholders that must not be presented as an executed study. A genuine
-> external validation is left to future work (§9.3). Math is in LaTeX notation for elsarticle
-> porting.
+> (simulator identity, seeds, thresholds, RQ numbering, gate semantics). No bracketed placeholders
+> remain — every quantity reported has been executed end to end against the framework's own
+> canonical `FailureSimulator` across all seven synthetic scenarios, and negative or mixed results
+> are reported as such rather than adjusted to fit an earlier hypothesis: the stratified-correlation
+> (§5.5, §8.2) and shared-library blast-radius (§5.4, §8.2) analyses did not confirm the effects they
+> were designed to detect, and the remediation impact quantification (§6.4, §6.7) is a mixed result
+> (mean +4.61% across scenarios, but negative in 3 of 7) that exposes a real gap between the
+> per-edit acceptance test §6.4 describes and what the current `PrescribeService` implementation
+> actually does (it applies the full compiled policy unconditionally, with no per-edit filter). The
+> external, real-world validation planned for a prior draft of this paper (an ICAO-compliant
+> air-traffic-management case study with a blind expert-ranking panel) has been withdrawn from this
+> submission: the panel was never actually convened, and the figures previously reported for it were
+> placeholders that must not be presented as an executed study. A genuine external validation is
+> left to future work (§9.3). Math is in
+> LaTeX notation for elsarticle porting.
 
 ---
 
@@ -41,16 +46,19 @@ interpretable $Q(v)$ score and a learned heterogeneous-graph predictor, validate
 discrete-event simulation under a strict input–label independence guarantee.
 
 We further formalize a **prescriptive remediation** stage that generates topology-level hardening
-edits and verifies them on counterfactual graphs via the same simulation oracle. Integrated directly
+edits from structure alone and measures their effect on counterfactual graphs via the same
+simulation oracle; we report this measurement honestly as a mixed result, since the per-edit
+acceptance test intended to filter out counterproductive edits is not yet wired into the current
+implementation (§6.4, §6.7). Integrated directly
 into CI/CD pipelines, SaG acts as an automated, delta-aware quality gate that blocks newly
 introduced structural regressions. Across seven synthetic scenarios, we show: (i) *when*
-interpretable attribution suffices and when learning is required; and (ii) that multi-dimensional
-attribution exposes failure modes invisible to centrality or code linting alone — notably a
-**shared-library blast-radius gap**, where a component with a low composite $Q$ ($\approx 0.48$)
-nonetheless drives near-total cascade impact ($I \approx [0.97]$) through simultaneous fan-out. We
-also demonstrate that the gate blocks architectural regression with low performance overhead
-(~5 s for medium, ~40 s for xlarge topologies), making continuous SSA feasible for rapid-release
-pipelines.
+interpretable attribution suffices and when learning is required; and (ii) that the composite score
+$Q(v)$ correlates with simulated cascade impact $I(v)$ at a moderate, fairly consistent strength
+across all five component types (pooled Spearman $\rho \approx 0.37$, per-type range
+$\rho \approx 0.32$–$0.43$), rather than the sharp pooled-vs-per-type divergence a naive aggregate
+might lead one to fear. We also demonstrate that the gate blocks architectural regression with low
+performance overhead (~5 s for medium, ~40 s for xlarge topologies), making continuous SSA feasible
+for rapid-release pipelines.
 
 **Keywords:** publish–subscribe middleware; static system analysis; dependency analysis; criticality
 prediction; failure cascade; quality attributes; heterogeneous graph; CI/CD quality gate;
@@ -190,9 +198,13 @@ This paper makes the following contributions:
    the interpretable $Q(v)$ and a learned heterogeneous GNN, validated against discrete-event
    simulation (§5).
 4. **A prescriptive remediation stage.** We formalize a Generate→Verify procedure with four concrete
-   operators, verifying counterfactual edits statically before commit (§6).
-5. **Two empirical findings.** We identify and explain the shared-library blast-radius gap and the
-   Simpson's-paradox stratification of criticality correlation by node type (§5, §8).
+   operators and a per-edit acceptance test against counterfactual simulation (§6.4); we measure the
+   current implementation end to end and report that the acceptance test is not yet wired in as a
+   per-edit filter, which we show produces a mixed rather than uniformly positive result (§6.7).
+5. **A stratified evaluation of criticality correlation.** We report Spearman correlation between
+   $Q(v)$ and simulated impact $I(v)$ separately by node type, and by pooled aggregate, showing the
+   two agree in this suite (no divergence between pooled and per-type figures), which is itself a
+   useful methodological check for evaluating heterogeneous architectures (§5, §8).
 
 ## 1.6 Relationship to the Authors' Prior Work
 
@@ -297,8 +309,8 @@ orthogonal dimensions, and our typed model keeps the semantics that single-score
 
 A growing body of work learns to identify critical nodes directly from graph structure, often
 surpassing hand-crafted metrics when higher-order structure matters: FINDER locates key entities in
-networked systems, DrBC learns to approximate betweenness, and PowerGraph applies graph learning to
-critical-node analysis in power systems [7, 8, 9].
+networked systems, DrBC learns to approximate betweenness, and PowerGraph provides a GNN benchmark
+for cascading-failure and critical-node analysis in power-grid networks [7, 8, 9].
 
 Most such methods, however, target *homogeneous* graphs. Pub-sub middleware is intrinsically
 heterogeneous — applications publish and subscribe to topics, topics are routed through brokers,
@@ -352,10 +364,10 @@ modes such as shared-library blast; (iv) apply graph learning while discarding t
 of pub-sub; or (v) use multi-criteria scoring for prioritization but not as an interpretable
 criticality *attribution* over a typed architecture graph. Software-as-a-Graph combines a typed
 multigraph model, AHP-based multi-dimensional attribution, dual interpretable and learned impact
-predictors, and a simulation-verified, delta-aware continuous CI/CD quality gate. The two empirical
-findings we report — the shared-library blast-radius gap and the Simpson's-paradox stratification of
-correlation by node type — are direct consequences of taking node and edge type seriously, and are
-not recoverable by the untyped or single-dimensional methods reviewed above.
+predictors, and a simulation-verified, delta-aware continuous CI/CD quality gate. The stratified
+correlation evaluation we report — by node type as well as pooled — is a direct consequence of
+taking node and edge type seriously, and is a methodological standard the untyped or
+single-dimensional methods reviewed above do not apply.
 
 ---
 
@@ -478,8 +490,8 @@ affect their dependents, propagating step by step through topics and brokers. Ru
 *simultaneous blast*: when a shared library fails, every application that uses it fails at once, in
 a single event, not along a propagation path. An untyped graph cannot tell these apart — both look
 like ordinary edges — yet they demand different predictions and different remedies. Preserving the
-`app_to_lib` type (Rule 5) is precisely what makes the shared-library blast-radius gap of §5 visible,
-just as preserving `broker_to_broker` (Rule 6) makes broker-colocation risk visible.
+`app_to_lib` type (Rule 5) is what lets the framework represent this simultaneous-blast mechanism at
+all, just as preserving `broker_to_broker` (Rule 6) makes broker-colocation risk representable.
 
 ## 3.4 Ingestion of Code-Level SCA Metrics
 
@@ -694,12 +706,14 @@ Three components in the running example of §3.6 illustrate how the profile name
 The broker routing $t$ is a directed cut vertex: removing it partitions the graph, so it scores high
 on $A$ (driven by AP_c_directed and, because $t$ carries high-QoS traffic, QSPOF), but low on $M$
 and $V$. The publisher $a_1$ is a cascade origin: its failure starves $a_2$ and $a_3$, giving high
-$R$ (RPR over its transitive dependents) but only moderate $A$. The shared library $\ell$ is the
-instructive case: it scores *moderately* on the composite $Q$ — its individual structural centrality
-is unremarkable — yet its failure collapses $a_1, a_2, a_3$ at once. This mismatch between a
-moderate $Q(v)$ and a near-total true impact is the shared-library blast-radius gap, which §5
-quantifies and which motivates a remediation operator (§6) triggered by structural blast signals
-rather than by $Q(v)$ itself.
+$R$ (RPR over its transitive dependents) but only moderate $A$. The shared library $\ell$ illustrates
+the qualitatively distinct simultaneous-blast mechanism of Rule 5 (§3.3): its individual structural
+centrality need not be remarkable, yet its failure collapses $a_1, a_2, a_3$ at once, in a single
+event rather than a propagation chain. Whether this mechanism produces a low-$Q$/high-$I$ mismatch in
+practice is an empirical question we evaluate directly in §5.4 (on our synthetic suite, it does not);
+independent of that, the mechanism is why the FanOutReduction operator (§6) is triggered by structural
+blast signals rather than by $Q(v)$ itself — a library's consumer fan-out is legible from structure
+alone, before any simulation is run.
 
 ---
 
@@ -709,9 +723,9 @@ Quality attribution (§4) tells an architect why a component is structurally cri
 asks the complementary question: *how much of the system actually fails* when a given component
 fails, and how well the attribution predicts it. We define the simulated ground-truth impact $I(v)$
 (§5.1), the two predictors we evaluate against it (§5.2), the independence between predictor inputs
-and the label path that makes the evaluation sound (§5.3), and two findings that follow from taking
-node type seriously: the shared-library blast-radius gap (§5.4) and the Simpson's-paradox
-stratification of correlation by node type (§5.5).
+and the label path that makes the evaluation sound (§5.3), and two analyses that take node type
+seriously: a direct test of the hypothesized shared-library blast-radius mismatch, which we report as
+a negative result (§5.4), and a stratified-correlation consistency check (§5.5).
 
 ## 5.1 Ground-Truth Impact $I(v)$
 
@@ -767,38 +781,58 @@ $I(v)$ reflects genuine predictive content rather than leakage, which is the pro
 the framework's pre-deployment claim. The same discipline governs the remediation stage (§6): its
 candidate-generation phase never reads $I(v)$.
 
-## 5.4 The Shared-Library Blast-Radius Gap
+## 5.4 The Shared-Library Blast Mechanism: A Negative Result
 
-The most distinctive prediction concerns shared libraries, whose failure mode (§3.3, Rule 5) is a
-*simultaneous* blast rather than a sequential cascade. A library used by many applications fails
-them all in a single event. This is structurally invisible to topology-only centrality, which sees
-an ordinary node of ordinary degree, and it is the kind of mismatch a multi-dimensional, typed model
-is positioned to expose.
+Shared libraries have a structurally distinctive failure mode (§3.3, Rule 5): a *simultaneous* blast
+rather than a sequential cascade, in which every consuming application fails in one event rather than
+along a propagation path. This is invisible to topology-only centrality, which sees an ordinary node
+of ordinary degree, and it motivated a specific hypothesis — that a library's composite score $Q(v)$
+would understate its true cascade impact $I(v)$, producing a moderate-$Q$/near-total-$I$ mismatch.
 
-Both the evaluation `FailureSimulator` and the diagnostic `FaultInjector` use these step-function
-blast semantics (§7.5), guaranteeing that the diagnostic and evaluation paths agree on what a
-library failure means.
+We tested this directly against the canonical `FailureSimulator` (§7.5) across all seven synthetic
+scenarios (165 Library-type nodes in total) and **did not find the hypothesized mismatch**. The
+highest composite score reached by any library in the suite is $Q = 0.422$ (a library with 4
+consuming applications), well short of the $Q \approx 0.5$ region the hypothesis anticipated, and its
+simulated impact is modest ($I = 0.086$). More importantly, across every library in the corpus,
+$I(v)$ never exceeds $Q(v)$: the composite score is, if anything, mildly conservative (over-cautious)
+relative to simulated impact for this node type, not blind to a hidden risk. The clearest low-$Q$
+case with substantial fan-out — a library with 12 consuming applications — still has $I = 0.119$
+against $Q = 0.255$. Nor does any single-node failure in the suite approach a near-total impact: the
+largest composite impact from failing any one component, of any type, across all seven scenarios, is
+$I = 0.320$ (an infrastructure node), roughly a third of the magnitude the blast-radius hypothesis
+anticipated.
 
-Under the blast form, the gap is the framework's clearest demonstration that attribution must be
-multi-dimensional and type-aware: a component an architect would deprioritize on a centrality
-ranking is in fact among the highest-impact in the system, and the remediation operator that targets
-it (§6) is triggered by structural blast signals rather than by $Q(v)$, precisely so that the gap
-does not cause it to be missed.
+We report this as a negative result rather than omit it. Two readings are consistent with the data.
+First, the mechanism itself — simultaneous, type-specific failure via Rule 5 — remains a real
+structural distinction worth preserving in the model (§3.3, §4.6), independent of whether it produces
+a large low-$Q$/high-$I$ gap in *this* suite; a typed model that can represent the mechanism is not
+obligated to find a dramatic instance of it in every corpus. Second, the seven synthetic scenarios
+evaluated here may simply under-represent topologies with a genuinely high-fan-out, low-redundancy
+shared library — a gap between what a model can express and what a given benchmark suite happens to
+exercise. We do not claim to have distinguished between these readings, and we retain the
+FanOutReduction operator's blast-radius trigger (§6.3) as a structurally motivated safeguard rather
+than as a mechanism validated by this particular empirical result.
 
-## 5.5 Stratification and the Simpson's-Paradox Effect
+## 5.5 Stratified Correlation: A Consistency Check
 
-A single pooled correlation between predicted criticality and $I(v)$, computed over all node types
-at once, is misleading. Node types occupy different regions of the $(Q, I)$ plane — brokers and
-topics concentrate availability impact, applications and libraries concentrate reliability impact —
-and pooling heterogeneous populations with different conditional relationships produces a Simpson's
-paradox: the aggregate correlation can be near zero even when every within-type correlation is
-strong. In our data, the pooled Spearman correlation is $\rho \approx 0.08$, while the per-node-type
-correlations lie in the range $\rho = [0.63\text{–}0.90]$. The pooled figure is not the framework
-underperforming; it is an artifact of mixing populations, and the correct, informative quantity is
-the stratified one. We therefore report correlation *by node type* throughout (§8), and treat
-stratified reporting as a methodological requirement rather than a presentation choice. This also
-sharpens RQ1: the question of when learning is required is itself type-dependent, and a pooled
-metric would hide exactly where the interpretable predictor already suffices.
+A single pooled correlation between predicted criticality and $I(v)$, computed over all node types at
+once, can in principle be misleading if node types occupy sufficiently different regions of the
+$(Q, I)$ plane: pooling heterogeneous populations with divergent conditional relationships can produce
+a Simpson's-paradox-style near-zero aggregate that conceals strong within-type correlations. We
+checked for this directly. Pooling $(Q, I)$ pairs across all seven scenarios (1,545 nodes), the
+pooled Spearman correlation is $\rho = 0.374$ ($p \approx 2.2\times10^{-52}$). Computed separately by
+node type, the correlations are: Broker $\rho = 0.429$ ($n=36$), InfraNode $\rho = 0.409$ ($n=119$),
+Library $\rho = 0.351$ ($n=165$), Application $\rho = 0.346$ ($n=850$), Topic $\rho = 0.322$
+($n=375$) — all significant at $p < 0.01$.
+
+**We do not find a Simpson's-paradox effect in this suite**: the pooled figure (0.374) sits inside
+the per-type range (0.322–0.429) rather than diverging sharply from it. This is nonetheless a useful
+result, not a null one. It confirms that the predictive relationship between $Q(v)$ and simulated
+impact is of consistent, moderate strength across every component type — the framework is not
+quietly failing on some types while succeeding on others in a way a pooled figure would hide — and it
+validates stratified reporting as good practice even where it happens not to overturn the pooled
+conclusion. We report correlation *by node type* throughout (§8) on that basis, rather than because
+pooling was shown to be actively misleading here.
 
 ---
 
@@ -864,26 +898,33 @@ insufficient: the *attribution* exposes the gap, and the *operator* is designed 
 Under the canonical blast-form semantics, this operator directly targets and remediates the
 high-impact, low-$Q$ components that centrality-driven selection would miss.
 
-## 6.4 Acceptance Criterion
+## 6.4 Acceptance Criterion (Target Design)
 
-An edit must do more than nudge the mean impact down; it must improve impact by a margin that
-exceeds the simulator's own seed noise. For a candidate edit producing $G'$, let
+By design, an edit should do more than nudge the mean impact down; it should improve impact by a
+margin that exceeds the simulator's own seed noise. For a candidate edit producing $G'$, let
 $\Delta I = I(v;G) - I(v;G')$ be the reduction in simulated impact at the remediated component (or
 the system-mean reduction, for system-level edits), and let $\sigma_{\text{seed}}$ be the
-across-seed standard deviation of $I$ (§5.1). The edit is accepted iff
+across-seed standard deviation of $I$ (§5.1). The intended acceptance rule is
 
-$$\Delta I > \kappa\,\sigma_{\text{seed}} \quad\text{for every sampled } \texttt{propagation\_threshold}.$$
+$$\Delta I > \kappa\,\sigma_{\text{seed}} \quad\text{for every sampled } \texttt{propagation\_threshold},$$
 
-Two design choices are load-bearing. First, normalizing by $\sigma_{\text{seed}}$ ties the
-acceptance bar to the fragility of the cascade at that point, so an edit is accepted only when its
-benefit is distinguishable from propagation-order noise. Second, requiring the inequality to hold
-*across the full `propagation_threshold` sweep* makes acceptance robust to the threshold's value —
-an edit that only helps at one (aggressive or conservative) threshold is rejected. A candidate that
-survives the whole sweep is accepted regardless of which default threshold a deployment ultimately
-adopts.
+rejecting any candidate edit that does not clear this bar, individually, before it is committed to
+the policy. Two design choices are load-bearing in this target rule. First, normalizing by
+$\sigma_{\text{seed}}$ ties the acceptance bar to the fragility of the cascade at that point, so an
+edit is accepted only when its benefit is distinguishable from propagation-order noise. Second,
+requiring the inequality to hold *across the full `propagation_threshold` sweep* would make
+acceptance robust to the threshold's value, so that a candidate accepted under one default remains
+accepted regardless of which threshold a deployment ultimately adopts.
 
-The multiplier $\kappa$ is not assumed; it is derived empirically from the multi-seed variance
-observed across scenarios, so that the bar reflects measured noise rather than a hand-set constant.
+**This per-edit filter is not yet implemented.** The current `PrescribeService` compiles a full
+policy of candidate edits (§6.2) and applies all of them unconditionally (`_apply_policy_mutations`);
+there is no step that simulates each candidate individually and discards those that fail the
+$\Delta I > \kappa\,\sigma_{\text{seed}}$ test. What *is* implemented and does hold end to end is the
+weaker, system-level half of §6.5's invariants: the mutated graph $G'$ is re-simulated from scratch
+by the canonical simulator, so the reported before/after numbers are genuine and not estimated — but
+they measure the compiled policy as a whole, not edits that have individually passed an acceptance
+test. §6.7 reports the consequence of this gap directly rather than presenting a filtered result the
+system does not currently produce.
 
 ## 6.5 Independence Invariants
 
@@ -891,13 +932,16 @@ The stage obeys three invariants that mirror the predictor/simulator separation 
 
 1. **Generate never reads $I(v)$.** Candidate edits come from structure and attribution only.
 2. **Verify re-invokes the canonical simulator** on $G'$ from scratch, rather than estimating the
-   counterfactual impact from the predictor.
+   counterfactual impact from the predictor. In the current implementation this re-simulation is
+   performed once on the fully mutated graph (all compiled edits applied together), not once per
+   individual candidate edit — see §6.4 for what that gap means for the accept/reject semantics.
 3. **No Verify result feeds back into Generate within a run.** There is no closed-loop search that
    would let simulated impact influence which edits are proposed, which would reintroduce the
    circularity the framework is built to avoid.
 
-Together these keep the remediation loop honest: the thing that proposes a fix and the thing that
-judges it are never the same signal.
+Together these keep the diagnostic and evaluation signals separate: the thing that proposes a fix
+and the thing that measures it are never the same signal, even though — per §6.4 — the measurement
+is not yet used to filter individual proposals.
 
 ## 6.6 CI/CD Quality Gate Implementation
 
@@ -932,14 +976,37 @@ By running the analysis and counterfactual failure simulation in-memory via the 
 during build time. This allows the gating check to run in seconds, preventing architectural
 regression before changes are committed to the target branch.
 
-## 6.7 What Remediation Yields
+## 6.7 What Remediation Currently Yields: A Mixed Result
 
-Applying the accepted edits and re-simulating gives a direct, end-to-end measure of the framework's
-practical value: a mean cascade-impact reduction of $[X\%]$ across remediated components, achieved
-by edits selected entirely from pre-deployment structure and confirmed by simulation. Because the
-operators target the failure modes the attribution exposes — including the blast-radius gap that
-centrality misses — the remediation result is the clearest evidence that multi-dimensional, typed
-attribution is not only more interpretable than a single score but more *actionable*.
+Applying the fully compiled policy (all generated edits, unconditionally — §6.4) and re-simulating
+with the canonical `FailureSimulator` gives a direct, end-to-end measurement of the current
+implementation's practical value, restricted to remediated components whose identity is stable
+across the mutation (node reallocations and QoS-upgraded topics; topic splits replace the original
+topic id and have no stable before/after counterpart — §6.7 note below):
+
+| Scenario | Remediated edits | With computable $\Delta I$ | Mean $\Delta I$ |
+|---|:---:|:---:|:---:|
+| Healthcare | 80 | 50 | **+30.94%** |
+| Hub-and-Spoke | 97 | 67 | **−31.67%** |
+| Financial Trading | 94 | 62 | **−27.66%** |
+| Autonomous Vehicle | 121 | 81 | **+23.53%** |
+| Microservices Mesh | 123 | 87 | **+15.34%** |
+| IoT Smart City | 327 | 191 | **+47.01%** |
+| Enterprise | 409 | 288 | **−25.36%** |
+| **Mean across scenarios** | | | **+4.61%** |
+
+The headline mean (+4.61%) is not a reliable positive result: three of the seven scenarios show the
+remediated components becoming *worse*, by as much as −31.67%, under the canonical simulator. This
+is the direct, measured consequence of §6.4's gap — because no per-edit acceptance test currently
+filters the compiled policy, edits that would fail $\Delta I > \kappa\,\sigma_{\text{seed}}$ are
+applied anyway, and some of them measurably backfire (most plausibly the node-reallocation operator,
+which can add `CONNECTS_TO` hops and thereby increase network-cascade exposure even while removing a
+colocation SPOF; we did not decompose the mixed result by operator, so this is a plausible mechanism
+rather than a confirmed one). We report the mixed result rather than the mean alone, or a
+cherry-picked positive subset, because the mean by itself would misrepresent a stage whose
+per-edit-verification design (§6.4) is not yet built. Building that filter and re-measuring is the
+concrete next step identified in §9.3, and is a precondition for the remediation stage's
+practical-value claim to be more than aspirational.
 
 ---
 
@@ -993,7 +1060,7 @@ We report metrics in three families, plus the stratification and significance ma
 - **Identification.** Precision, recall, and F1 for critical-component detection, plus SPOF-F1 for
   articulation-point classification against simulated availability impact.
 - **Regression.** RMSE and MAE between predicted and simulated scores, for calibration.
-- **Stratified reporting.** Per the Simpson's-paradox finding (§5.5), $\rho$ is always reported *by
+- **Stratified reporting.** Following the consistency check of §5.5, $\rho$ is always reported *by
   node type* in addition to (not instead of) any pooled figure.
 - **Statistical rigor.** Bootstrap 95% confidence intervals ($B = 2000$ resamples) on mean $\rho$,
   and paired Wilcoxon signed-rank tests ($p < 0.05$) for predictor comparisons across scenarios and
@@ -1078,10 +1145,10 @@ retains a useful ordering and the QoS-aware typed model is strongest. RQ1 theref
 in-distribution; typed, QoS-aware learning is necessary for generalization to unseen
 architectures.**
 
-## 8.2 RQ2 — What Multi-Dimensional Attribution Exposes
+## 8.2 RQ2 — What Taking Node and Edge Type Seriously Shows (and Does Not Show)
 
-Three results show that taking node and edge *type* seriously surfaces structure that single-score,
-untyped methods cannot.
+We report three analyses that take node and edge *type* seriously: one positive result, one
+consistency check, and one negative result that we report rather than omit.
 
 **Heterogeneity is the dominant source of predictive gain.** Isolating architecture from QoS
 encoding, the typed model improves critical-component identification by $\Delta F1 = +0.284$ over
@@ -1090,23 +1157,26 @@ out-of-distribution. The gain comes from relation-specific message passing, not 
 — a point we return to in §8.3. This is direct evidence that collapsing pub-sub types discards
 information a centrality score never had access to.
 
-**The shared-library blast-radius gap.** The clearest type-specific finding concerns shared
-libraries, which centrality ranks as ordinary nodes. Under the framework's blast-semantics
-simulator, a library with only a moderate composite score ($Q \approx 0.48$) is among the
-highest-impact components in the system ($I \approx [0.97]$), because its failure fails all
-consumers simultaneously — a low-$Q$/high-$I$ mismatch that betweenness, articulation-point, and
-PageRank baselines all miss.
+**The shared-library blast mechanism: tested, and not confirmed as a low-$Q$/high-$I$ gap.** Shared
+libraries have a structurally distinct simultaneous-failure mode (§3.3, Rule 5) that motivated a
+specific hypothesis — a moderate-$Q$ library driving near-total $I$ through simultaneous fan-out. We
+tested this directly against the canonical `FailureSimulator` (§7.5) across all seven scenarios
+(165 Library nodes) and did not find it (§5.4 for the full analysis): the highest library $Q$ in the
+suite is 0.422 with $I = 0.086$; no library anywhere in the corpus has $I(v)$ exceeding $Q(v)$; and
+the largest single-component impact of any type in the suite is $I = 0.320$, well short of a
+near-total figure. We report this as an honest negative result rather than adjust the hypothesis to
+fit — the simultaneous-blast *mechanism* remains real and worth modeling, but this suite does not
+exhibit the dramatic mismatch it was expected to expose.
 
-Under the aligned blast-semantics model (§7.5), we confirm this low-$Q$/high-$I$ gap, showcasing the
-necessity of explicit library type projections.
-
-**Stratification is mandatory: the Simpson's-paradox effect.** A single pooled correlation between
-predicted criticality and $I(v)$ is $\rho \approx 0.08$ — close to zero — yet this is an artifact of
-mixing node types, not a sign of failure. Computed *within* node type, the correlations are strong,
-$\rho = [0.63\text{–}0.90]$. The pooled figure is uninformative because brokers/topics and
-applications/libraries occupy different regions of the $(Q,I)$ plane; reporting a single aggregate
-would have hidden a genuinely accurate per-type predictor behind a near-zero number. This is itself
-a methodological result: criticality evaluation for heterogeneous architectures must be stratified.
+**Stratified correlation is consistent with the pooled figure, not a Simpson's-paradox reversal of
+it.** Pooling $(Q,I)$ pairs across all seven scenarios (1,545 nodes), the pooled Spearman correlation
+is $\rho = 0.374$. Computed *within* node type, correlations range $\rho = 0.322$–$0.429$ (Broker
+0.429, InfraNode 0.409, Library 0.351, Application 0.346, Topic 0.322), all significant at $p<0.01$.
+The pooled figure sits inside this range rather than diverging sharply from it, so we do not find the
+Simpson's-paradox-style masking we set out to check for. This is still a useful result: it confirms
+$Q(v)$'s predictive relationship with simulated impact holds at consistent, moderate strength across
+every component type, and it validates stratified reporting as sound practice independent of whether
+it overturns the pooled conclusion in any particular corpus.
 
 ## 8.3 RQ3 and Robustness — Ablations and Sensitivity
 
@@ -1181,20 +1251,28 @@ unseen cascade dynamics, the genuine pre-deployment condition, where homogeneous
 baselines collapse. An architect therefore has a principled choice rather than a default:
 interpretable attribution in-distribution, learning for out-of-distribution generalization.
 
-Second, multi-dimensional, typed attribution exposes structure a single score cannot (RQ2). The
-Simpson's-paradox result is the sharpest illustration: a near-zero pooled correlation conceals
-strong per-type correlations, so any evaluation of heterogeneous architectures that reports a single
-aggregate is not merely incomplete but actively misleading. The shared-library blast-radius
-mechanism is the second: a failure mode that strikes all consumers simultaneously is invisible to
-centrality and is recoverable only when node and edge types are preserved. Together these argue that
-criticality for typed systems must be both decomposed (so the failure mode is legible) and
-stratified (so the evaluation is honest).
+Second, taking node and edge type seriously is a methodological discipline whose value does not
+depend on always producing a dramatic reversal (RQ2). The stratified-correlation check confirms that
+$Q(v)$'s relationship with simulated impact holds at consistent, moderate strength across every
+component type ($\rho = 0.322$–$0.429$ per type, pooled $\rho = 0.374$) rather than concealing a
+Simpson's-paradox-style divergence — a result worth reporting precisely because we set out to check
+for the divergence and did not find it. The shared-library simultaneous-blast mechanism (§3.3, Rule
+5) remains a real, type-specific failure mode worth preserving in the model, but we did not find it
+to produce the hypothesized low-$Q$/high-$I$ mismatch in this suite (§5.4, §8.2), and we report that
+directly rather than adjust the claim to fit. Together these argue that criticality evaluation for
+typed systems should be both decomposed (so failure modes are legible) and stratified (so the
+evaluation is honest) — independent of whether either check happens to overturn the pooled or
+single-dimensional picture in a given corpus.
 
-Third, remediation makes the diagnosis actionable. By generating topology edits from structure and
-accepting them only when the simulator confirms a robust impact reduction — and by triggering the
-fan-out operator on blast-radius signals rather than on the composite score — the framework turns an
-attribution into a verified intervention, closing the loop from "which component, and why" to "what
-to change, confirmed before deployment."
+Third, remediation is designed to make the diagnosis actionable, but our end-to-end measurement
+shows it is not there yet. Edits are generated from structure alone, and the fan-out operator
+triggers on structural consumer fan-out rather than on the composite score, as intended — but the
+per-edit acceptance test that should reject edits failing to clear $\Delta I > \kappa\,\sigma_{\text{seed}}$
+(§6.4) is not implemented, and applying the full compiled policy unconditionally produces a mixed
+result (§6.7): a positive mean across scenarios that is not a reliable win, since three of seven
+scenarios come out worse. Closing the loop from "which component, and why" to "what to change,
+confirmed before deployment" therefore remains partially open, and we report it as such rather than
+as an accomplished result.
 
 Fourth, automated quality gating operationalises these checks continuously (RQ4). By implementing
 in-memory evaluations using the `MemoryRepository` to bypass Neo4j database dependencies, the
@@ -1243,7 +1321,13 @@ study comparing predicted criticality to domain-expert judgment, to test whether
 framework recovers on synthetic topologies agrees with practitioner assessment of an operational
 system. The remediation operator set is small and deliberately conservative; expanding it, and
 deriving the acceptance multiplier $\kappa$ from broader multi-seed variance data, would let the
-prescriptive stage address more failure modes. Finally, the entire framework is validated against
+prescriptive stage address more failure modes. Most concretely, §6.4's per-edit acceptance test is
+not yet implemented as an actual filter: `PrescribeService` applies the full compiled policy
+unconditionally rather than simulating each candidate edit individually and discarding those that
+fail $\Delta I > \kappa\,\sigma_{\text{seed}}$, and §6.7 shows this produces a mixed result (positive
+mean, but negative in 3 of 7 scenarios). Implementing that filter and re-measuring is a precondition
+for the remediation stage's practical-value claim to be more than aspirational, and is the single
+most concrete next step this paper identifies. Finally, the entire framework is validated against
 simulation; the natural endpoint is calibration against, or replacement of, the simulated ground
 truth with observed failure data from instrumented deployments, which would convert the comparative
 claims of this paper into absolute ones.
@@ -1256,8 +1340,10 @@ along two coupled axes: multi-dimensional quality attribution, which decomposes 
 criticality into orthogonal, interpretable RMAV dimensions (integrating local code quality metrics),
 and failure-impact analysis, which predicts cascade impact with both the interpretable composite and
 a learned heterogeneous predictor, validated against discrete-event simulation under a strict
-input–label independence guarantee. A prescriptive remediation stage turns the resulting diagnosis
-into simulation-verified hardening edits.
+input–label independence guarantee. A prescriptive remediation stage generates topology-level
+hardening edits from structure alone and measures their effect end to end against the canonical
+simulator; we report that measurement honestly as a mixed result, since the per-edit acceptance test
+that would filter out counterproductive edits is not yet implemented (§6.4, §6.7).
 
 Integrated directly into pipelines as a delta-aware, blocking CI/CD Quality Gate, the framework
 verifies architectural changes and blocks regression in seconds, bridging the "Architecture-Code
@@ -1275,13 +1361,11 @@ runs.
 # References
 
 > **Editorial note.** Citation markers `[1]`–`[15]` are used throughout the text; the list below maps
-> each to a source consistent with its context. All entries are real, published works. One entry,
-> `[9]`, is flagged **UNVERIFIED** below — its citing sentence ("PowerGraph applies graph learning to
-> critical-node analysis in power systems," §2.5) does not match any specific paper the authors could
-> confirm with confidence, and it MUST be checked against the authors' actual source (or replaced)
-> before submission rather than left as an unverified numbered reference. Publisher, volume, and page
-> details for the remaining entries should still be cross-checked against the authors' reference
-> manager during typesetting, but are believed accurate.
+> each to a source consistent with its context. All entries are real, published works, including
+> `[9]` (PowerGraph), which was previously flagged unverified and has since been confirmed by web
+> search against its NeurIPS 2024 Datasets and Benchmarks Track listing and arXiv preprint. Publisher,
+> volume, and page details should still be cross-checked against the authors' reference manager
+> during typesetting, but are believed accurate.
 
 [1] P. T. Eugster, P. A. Felber, R. Guerraoui, A.-M. Kermarrec, "The many faces of publish/subscribe,"
 *ACM Computing Surveys*, vol. 35, no. 2, pp. 114–131, 2003.
@@ -1307,10 +1391,9 @@ reinforcement learning," *Nature Machine Intelligence*, vol. 2, pp. 317–324, 2
 centrality nodes from scratch: A novel graph neural network approach," in *Proc. 28th ACM Int.
 Conf. on Information and Knowledge Management (CIKM)*, 2019, pp. 559–568.
 
-[9] **[UNVERIFIED — please confirm or replace]** A graph-neural-network-based approach to
-critical/vulnerable node identification in power-grid networks. No specific paper could be
-confirmed with confidence to match the citing sentence in §2.5; do not submit with this entry
-unresolved.
+[9] A. Varbella, K. Amara, M. El-Assady, B. Gjorgiev, G. Sansavini, "PowerGraph: A power grid
+benchmark dataset for graph neural networks," in *Advances in Neural Information Processing Systems
+37 (NeurIPS 2024), Datasets and Benchmarks Track*, 2024. arXiv:2402.02827.
 
 [10] M. Schlichtkrull, T. N. Kipf, P. Bloem, R. van den Berg, I. Titov, M. Welling, "Modeling
 relational data with graph convolutional networks," in *Proc. European Semantic Web Conference

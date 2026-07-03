@@ -2,7 +2,7 @@
 saag/prescription/models.py
 """
 from dataclasses import dataclass, field
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 @dataclass
 class PrescriptionPolicy:
@@ -28,6 +28,14 @@ class PrescribeResult:
     mutated_metrics: Dict[str, Any]
     policy: PrescriptionPolicy
     applied_changes: List[str] = field(default_factory=list)
+    # Per-component simulated cascade impact I(v) (composite_impact from the canonical
+    # FailureSimulator), before and after mutation, restricted to remediated components whose
+    # identity is stable across the mutation (node reallocations, QoS upgrades — topic splits
+    # replace the original topic id and so have no stable before/after counterpart).
+    remediated_component_impact_deltas: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    # Mean fractional cascade-impact reduction (I_before - I_after) / I_before, averaged over
+    # remediated_component_impact_deltas entries with I_before > 0. None if no such component exists.
+    mean_cascade_impact_reduction: Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -38,4 +46,6 @@ class PrescribeResult:
             "mutated_metrics": self.mutated_metrics,
             "policy": self.policy.to_dict(),
             "applied_changes": self.applied_changes,
+            "remediated_component_impact_deltas": self.remediated_component_impact_deltas,
+            "mean_cascade_impact_reduction": self.mean_cascade_impact_reduction,
         }
