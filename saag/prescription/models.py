@@ -36,6 +36,9 @@ class PrescribeResult:
     # Mean fractional cascade-impact reduction (I_before - I_after) / I_before, averaged over
     # remediated_component_impact_deltas entries with I_before > 0. None if no such component exists.
     mean_cascade_impact_reduction: Optional[float] = None
+    # True when sri_improvement > 0 -- the mutated policy reduced overall system risk.
+    # Reported, not enforced: a rejected policy is still returned in full for inspection.
+    accepted: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -48,4 +51,5 @@ class PrescribeResult:
             "applied_changes": self.applied_changes,
             "remediated_component_impact_deltas": self.remediated_component_impact_deltas,
             "mean_cascade_impact_reduction": self.mean_cascade_impact_reduction,
+            "accepted": self.accepted,
         }

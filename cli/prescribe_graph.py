@@ -84,16 +84,21 @@ def main():
             print(f"  - Topic '{upgrade['topic']}': {upgrade['original_reliability']}/{upgrade['original_durability']} -> {upgrade['target_reliability']}/{upgrade['target_durability']}")
             
         console.print_header("Closed-Loop Resilience Summary")
-        print(f"Baseline System Resilience Index (SRI): {res.original_sri:.4f}")
-        print(f"Mutated System Resilience Index (SRI) : {res.mutated_sri:.4f}")
-        
+        print(f"Baseline System Risk Index (SRI): {res.original_sri:.4f}")
+        print(f"Mutated System Risk Index (SRI) : {res.mutated_sri:.4f}")
+
         improvement = res.sri_improvement
         if improvement > 0:
             console.print_success(f"Resilience Improved by: {improvement:.4f}")
         elif improvement < 0:
             console.print_error(f"Resilience Degraded by: {abs(improvement):.4f}")
         else:
-            print("No change in System Resilience Index.")
+            print("No change in System Risk Index.")
+
+        if res.accepted:
+            console.print_success("Policy Status: ACCEPTED")
+        else:
+            console.print_error("Policy Status: REJECTED - mutated risk did not improve")
             
         if args.output:
             out_path = Path(args.output)

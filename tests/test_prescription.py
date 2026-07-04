@@ -110,10 +110,33 @@ def test_closed_loop_prescriptive_verification(repo_with_vulnerable_topology):
     assert hasattr(res, "sri_improvement")
     assert len(res.applied_changes) > 0
 
+    # Verify the accept/reject gate: accepted must be a bool consistent with the
+    # sign of sri_improvement (accepted = mutated policy reduced overall system risk).
+    assert isinstance(res.accepted, bool)
+    assert res.accepted == (res.sri_improvement > 0)
+
 def test_pipeline_integration(repo_with_vulnerable_topology):
     # Run the full pipeline including the prescribe step
     pipeline = Pipeline(repo=repo_with_vulnerable_topology)
     res = pipeline.analyze().simulate().validate().prescribe().run()
-    
+
     assert res.prescription is not None
     assert res.prescription.sri_improvement is not None
+    assert res.prescription.accepted == (res.prescription.sri_improvement > 0)
+
+
+def test_prescribe_result_to_dict_includes_accepted():
+    """PrescribeResult.to_dict() must surface the accept/reject gate for JSON export."""
+    from saag.prescription.models import PrescribeResult, PrescriptionPolicy
+
+    result = PrescribeResult(
+        original_sri=0.5,
+        mutated_sri=0.3,
+        sri_improvement=0.2,
+        original_metrics={},
+        mutated_metrics={},
+        policy=PrescriptionPolicy(),
+        accepted=True,
+    )
+    d = result.to_dict()
+    assert d["accepted"] is True

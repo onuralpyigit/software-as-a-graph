@@ -195,6 +195,7 @@ def main():
             print(f"  Improvement  : {display.colored(f'+{improvement:.4f}', Colors.GREEN)}")
         else:
             print(f"  Improvement  : {improvement:.4f}")
+        print(f"  Accepted     : {result.prescription.accepted}")
         print(f"  Applied changes: {len(result.prescription.applied_changes)}")
         for change in result.prescription.applied_changes[:5]:
             print(f"    - {change}")

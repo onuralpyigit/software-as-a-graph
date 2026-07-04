@@ -76,7 +76,11 @@ class PrescribeService:
 
         # 6. Compile final results
         sri_improvement = round(baseline_sri - mutated_sri, 4)
-        logger.info(f"Closed-loop validation complete. SRI changed from {baseline_sri} to {mutated_sri} (Improvement: {sri_improvement}).")
+        accepted = sri_improvement > 0
+        logger.info(
+            f"Closed-loop validation complete. SRI changed from {baseline_sri} to {mutated_sri} "
+            f"({'ACCEPTED' if accepted else 'REJECTED'}, Improvement: {sri_improvement})."
+        )
 
         return PrescribeResult(
             original_sri=baseline_sri,
@@ -88,6 +92,7 @@ class PrescribeService:
             applied_changes=applied_changes,
             remediated_component_impact_deltas=impact_deltas,
             mean_cascade_impact_reduction=mean_reduction,
+            accepted=accepted,
         )
 
     def compile_policy(

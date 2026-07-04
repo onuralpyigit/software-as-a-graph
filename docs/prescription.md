@@ -52,17 +52,23 @@ Step 6 (Prescribe) completes the closed-loop optimization cycle. Once high-risk 
      └───────────┬───────────────────┘
                  │
                  ▼
+       Accept / Reject Gate
+     ┌───────────────────────────────┐
+     │  accepted = (ΔSRI > 0)        │
+     └───────────┬───────────────────┘
+                 │
+                 ▼
        Remediation Blueprint
-       (Baseline SRI -> Mutated SRI)
+       (Baseline SRI -> Mutated SRI, accepted: true/false)
 ```
 
-To prevent target database contamination or transaction overhead, these refactoring rules are applied directly in-memory to a JSON representation of the graph. The mutated topology $G'$ is then validated in a closed-loop simulation sweep, comparing the baseline System Resilience Index (SRI) against the mutated SRI.
+To prevent target database contamination or transaction overhead, these refactoring rules are applied directly in-memory to a JSON representation of the graph. The mutated topology $G'$ is then validated in a closed-loop simulation sweep, comparing the baseline System Risk Index (SRI) against the mutated SRI. Lower SRI indicates lower system risk (better health); higher SRI indicates greater structural risk. The result is marked `accepted` when the mutation reduces risk, but a rejected policy is still returned in full for inspection — it is not automatically discarded or retried (see §3).
 
 ---
 
 ## 2. Preservation & Remediation Rules
 
-Remediations target components categorized as `CRITICAL` or `HIGH` risk by the adaptive box-plot filter or flagged as structural smells by the `AntiPatternDetector`.
+Remediations target components categorized as `CRITICAL`/`HIGH` risk by the adaptive box-plot filter; node reallocation (§2.2) additionally considers components flagged as SPOF or god-component smells by the `AntiPatternDetector`.
 
 ### 2.1 Logical Subgraph Refactoring (Topic Splitting)
 
@@ -103,7 +109,8 @@ The verification engine executes the following programmatic loop:
 4. **Evaluate Mutated Graph**: Run the full Analysis, Simulation, and Validation suite on the sandbox repository.
 5. **Compute SRI Improvement**:
    $$\Delta \text{SRI} = \text{SRI}_{\text{baseline}} - \text{SRI}_{\text{mutated}}$$
-   An improvement $> 0.0$ confirms the refactoring policy effectively mitigated structural risk.
+   Since SRI is a risk index (lower is better), $\Delta \text{SRI} > 0$ means the mutated topology carries less structural risk than the baseline.
+6. **Accept/Reject Gate**: If $\Delta \text{SRI} > 0$, the policy is marked `accepted = true`. Otherwise it is marked `accepted = false` and returned as-is for inspection — the policy is **not** automatically discarded or retried. This is a whole-policy gate only: per-edit filtering of individual mutation rules within a policy (rejecting just the one operator that hurt, while keeping the others) is not yet implemented and is tracked as future work.
 
 ---
 
@@ -129,6 +136,7 @@ if result.prescription:
     print(f"Baseline SRI: {result.prescription.original_sri:.4f}")
     print(f"Mutated SRI : {result.prescription.mutated_sri:.4f}")
     print(f"Improvement : {result.prescription.sri_improvement:.4f}")
+    print(f"Accepted    : {result.prescription.accepted}")
 ```
 
 ### 4.2 Using Client
@@ -151,6 +159,7 @@ prescription = client.prescribe(
 
 # Access compiled policies
 print("Topic splits compiled:", len(prescription.policy.topic_splits))
+print("Accepted:", prescription.accepted)
 print("Applied modifications:")
 for change in prescription.applied_changes:
     print(f" - {change}")
@@ -214,6 +223,7 @@ for change in prescription.applied_changes:
     "Split topic 'T1' into sub-topics per publisher: AppA, AppC",
     "Moved process 'AppB' from SPOF node 'NodeMain' to isolated node 'NodeMain_AppB'",
     "Hardened QoS on topic 'T1': Reliability -> RELIABLE, Durability -> TRANSIENT"
-  ]
+  ],
+  "accepted": true
 }
 ```
