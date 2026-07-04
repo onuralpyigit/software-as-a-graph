@@ -112,7 +112,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap_grp.add_argument(
         "--pattern", metavar="IDS", default=None,
         help="Comma-separated pattern IDs to run (default: full catalog). "
-             "Example: --pattern SPOF,FAILURE_HUB,GOD_COMPONENT,CYCLIC_DEPENDENCY",
+             "Example: --pattern SPOF,FAILURE_HUB,GOD_COMPONENT,CYCLE",
     )
     ap_grp.add_argument(
         "--catalog", action="store_true",

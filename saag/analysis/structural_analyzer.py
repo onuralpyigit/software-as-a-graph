@@ -421,6 +421,8 @@ class StructuralAnalyzer:
                 topic_frequency_hz=topic_freq_hz.get(nid, 0.0),
                 mpci=mpci.get(nid, 0.0),
                 path_complexity=path_complexity.get(nid, 0.0),
+                topic_subscriber_count=int(ps.get("topic_subscriber_count", 0)),
+                topic_publisher_count=int(ps.get("topic_publisher_count", 0)),
                 # Infrastructure Metrics
                 ip_address=G.nodes[nid].get("ip_address", ""),
                 cpu_cores=G.nodes[nid].get("cpu_cores", 0),
@@ -694,6 +696,16 @@ class StructuralAnalyzer:
                     max_pspof = max(max_pspof, current_pspof)
             
             result[app_id]["publisher_spof"] = max_pspof
+
+        # --- Surface raw topic pub/sub counts (TOPIC_FANOUT / ORPHANED_TOPIC) ---
+        # result is otherwise keyed by app ids only, so seeding topic ids here is collision-free.
+        for topic_id, ti in topic_info.items():
+            if topic_id not in allowed_ids:
+                continue
+            result[topic_id] = {
+                "topic_subscriber_count": ti["sub_count"],
+                "topic_publisher_count": ti["pub_count"],
+            }
 
         return result
 

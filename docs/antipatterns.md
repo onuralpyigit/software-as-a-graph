@@ -16,7 +16,7 @@ Istanbul Technical University, Department of Computer Engineering
 5. [Anti-Pattern Catalog](#5-anti-pattern-catalog)
    - 5.1 [SPOF — Single Point of Failure](#51-spof--single-point-of-failure)
    - 5.2 [SYSTEMIC_RISK — Systemic Risk Cluster](#52-systemic_risk--systemic-risk-cluster)
-   - 5.3 [CYCLIC_DEPENDENCY — Cyclic Dependency Loop](#53-cyclic_dependency--cyclic-dependency-loop)
+   - 5.3 [CYCLE — Cyclic Dependency Loop](#53-cycle--cyclic-dependency-loop)
    - 5.4 [GOD_COMPONENT — God Component](#54-god_component--god-component)
    - 5.5 [BOTTLENECK_EDGE — Bottleneck Edge](#55-bottleneck_edge--bottleneck-edge)
    - 5.6 [BROKER_OVERLOAD — Broker Saturation](#56-broker_overload--broker-saturation)
@@ -26,6 +26,15 @@ Istanbul Technical University, Department of Computer Engineering
    - 5.10 [QOS_MISMATCH — QoS Policy Mismatch](#510-qos_mismatch--qos-policy-mismatch)
    - 5.11 [ORPHANED_TOPIC — Orphaned Topic](#511-orphaned_topic--orphaned-topic)
    - 5.12 [UNSTABLE_INTERFACE — Unstable Interface](#512-unstable_interface--unstable-interface)
+   - 5.13 [BRIDGE_EDGE — Bridge Edge](#513-bridge_edge--bridge-edge)
+   - 5.14 [FAILURE_HUB — Critical Failure Propagation Hub](#514-failure_hub--critical-failure-propagation-hub)
+   - 5.15 [CONCENTRATION_RISK — Concentration Risk](#515-concentration_risk--concentration-risk)
+   - 5.16 [HUB_AND_SPOKE — Hub-and-Spoke Anti-Pattern](#516-hub_and_spoke--hub-and-spoke-anti-pattern)
+   - 5.17 [TARGET — High Value Target](#517-target--high-value-target)
+   - 5.18 [EXPOSURE — High Exposure Surface](#518-exposure--high-exposure-surface)
+   - 5.19 [CHAIN — Chain Topology](#519-chain--chain-topology)
+   - 5.20 [ISOLATED — Isolated Component](#520-isolated--isolated-component)
+   - 5.21 [COMPOUND_RISK — Compound Architectural Risk](#521-compound_risk--compound-architectural-risk)
 6. [Empirical Validation](#6-empirical-validation)
 7. [Relationship to the RMAV Prediction Framework](#7-relationship-to-the-rmav-prediction-framework)
 8. [Comparison with Existing Work](#8-comparison-with-existing-work)
@@ -41,7 +50,7 @@ Distributed publish-subscribe systems underpin some of the most demanding softwa
 
 These decisions have a name in classical software engineering: **architectural anti-patterns**. In object-oriented design, the body of work on anti-patterns is mature: God Class, Feature Envy, Shotgun Surgery, and dozens of others have well-defined specifications, detection heuristics, and refactoring strategies. In distributed publish-subscribe systems, no equivalent catalog exists. Practitioners identify problems reactively — through postmortem reports, performance regressions, or cascade failures — rather than proactively at design time.
 
-This document proposes and formally specifies a **catalog of twelve architectural anti-patterns and bad smells** specific to distributed publish-subscribe systems, alongside a detection methodology grounded in **graph topology analysis**. The central claim is that each anti-pattern has a measurable topological signature — a pattern of graph-theoretic metric values that can be computed from the system's static architecture before deployment — and that this signature reliably predicts the presence of the corresponding runtime risk.
+This document proposes and formally specifies a **catalog of twenty-one architectural anti-patterns and bad smells** specific to distributed publish-subscribe systems, alongside a detection methodology grounded in **graph topology analysis**. The central claim is that each anti-pattern has a measurable topological signature — a pattern of graph-theoretic metric values that can be computed from the system's static architecture before deployment — and that this signature reliably predicts the presence of the corresponding runtime risk.
 
 The anti-pattern catalog presented here emerges from the broader *Software-as-a-Graph* methodology, which models publish-subscribe systems as weighted directed multi-layer graphs and applies graph analysis to predict which components will have the greatest impact when they fail. Anti-pattern detection is positioned as a **complementary and explanatory contribution**: where criticality scoring answers *how much* risk exists, the anti-pattern catalog answers *what kind* of risk and *how to fix it*.
 
@@ -176,7 +185,7 @@ Step 6: Visualize                      Interactive dashboard with pattern annota
 
 ### 4.2 The Thirteen Structural Metrics
 
-Step 2 computes a 13-element metric vector `M(v)` for each component. These metrics are the raw detection signals for all twelve anti-patterns:
+Step 2 computes a 13-element metric vector `M(v)` for each component. These metrics are the raw detection signals for all twenty-one anti-patterns:
 
 | Symbol | Name | Description |
 |--------|------|-------------|
@@ -314,26 +323,23 @@ Empirical validation across the research corpus confirms that SPOF components co
 
 #### Specification
 
-A Systemic Risk Cluster is a set of three or more components `C = {v₁, v₂, ..., vₖ}` where `k ≥ 3` such that:
-- Every member of `C` is classified at the CRITICAL criticality tier (Q(v) > upper fence)
-- Every pair of members in `C` is connected by at least one DEPENDS_ON edge in either direction
-
-This is equivalent to detecting a **clique** (complete subgraph) in the subgraph induced by CRITICAL-tier components, where the minimum clique size is three.
+A Systemic Risk pattern is flagged at the system level (not per-component) when more than 20% of all components in the analyzed layer are classified at the CRITICAL overall criticality tier:
 
 **Formal detection rule:**
 
 ```
-SYSTEMIC_RISK(C) ↔ |C| ≥ 3  ∧  ∀u, v ∈ C : (u → v) ∈ E ∨ (v → u) ∈ E
-                  ∧  ∀v ∈ C : Q(v) > Q3_Q + 1.5 × IQR_Q
+SYSTEMIC_RISK ↔ |{v : Level(Q(v)) = CRITICAL}| / |V| > 0.20
 ```
+
+This is a system-wide ratio check, not a clique/subgraph detection over mutually-dependent CRITICAL components: it requires no adjacency information between CRITICAL-tier components, only the proportion of the population that is CRITICAL.
 
 #### Topological Signature
 
-The cluster appears as a dense subgraph of high-scoring nodes that are mutually dependent. No member of the cluster can fail without directly impacting at least two other already-critical components. In the visualization, this manifests as a tightly connected group of red-classified nodes with multiple cross-edges.
+The pattern appears as an anomalously large share of high-scoring (red-classified) nodes across the layer, without any requirement that those nodes be mutually connected. It signals that criticality is broadly distributed across the architecture rather than concentrated in one or two isolated components.
 
 #### Risk
 
-Correlated failures cascade through the entire cluster near-simultaneously. The compound outage produced by a cluster failure is far more severe than any single-component failure, because each cascade wave triggers additional failures in other cluster members before the system has time to stabilize. This pattern is the architectural equivalent of a systemic financial risk: individually manageable components whose mutual dependencies create a risk that is greater than the sum of its parts.
+A large fraction of the system operates near its criticality ceiling simultaneously, indicating that the architecture as a whole — not an isolated component — needs remediation. Unlike a single critical component, a systemic risk pattern cannot be resolved by hardening one node: the underlying architectural decisions (coupling patterns, layering, decomposition boundaries) that produced so many CRITICAL-tier components at once must be revisited. This pattern is the architectural equivalent of a systemic financial risk: individually manageable components whose accumulated criticality creates a risk that is greater than the sum of its parts.
 
 #### Remediation
 
@@ -344,21 +350,21 @@ Correlated failures cascade through the entire cluster near-simultaneously. The 
 
 ---
 
-### 5.3 CYCLIC_DEPENDENCY — Cyclic Dependency Loop
+### 5.3 CYCLE — Cyclic Dependency Loop
 
 | Property | Value |
 |----------|-------|
-| **ID** | `CYCLIC_DEPENDENCY` |
-| **Severity** | CRITICAL |
-| **RMAV Dimension** | Maintainability |
-| **Layer Applicability** | app |
+| **ID** | `CYCLE` |
+| **Severity** | HIGH |
+| **RMAV Dimension** | Architecture |
+| **Layer Applicability** | any layer where invoked (no restriction in the detector implementation) |
 
 #### Specification
 
-A Cyclic Dependency Loop exists when the application-layer dependency graph `G_app` contains a **strongly connected component (SCC)** with more than one vertex. A SCC `S ⊆ V` is a maximal subset of vertices such that every vertex in `S` is reachable from every other vertex in `S`:
+A Cyclic Dependency Loop exists when the dependency graph `G` contains a **strongly connected component (SCC)** with more than one vertex, or a single vertex with a self-loop. A SCC `S ⊆ V` is a maximal subset of vertices such that every vertex in `S` is reachable from every other vertex in `S`:
 
 ```
-CYCLIC_DEPENDENCY(S) ↔ |S| ≥ 2  ∧  S is a maximal SCC of G_app
+CYCLE(S) ↔ (|S| ≥ 2  ∨  (|S| = 1 ∧ self-loop))  ∧  S is a maximal SCC of G
 ```
 
 Detection uses Tarjan's or Kosaraju's algorithm, both running in `O(|V| + |E|)` time.
@@ -393,24 +399,23 @@ Cyclic dependencies in publish-subscribe systems create four categories of risk:
 | Property | Value |
 |----------|-------|
 | **ID** | `GOD_COMPONENT` |
-| **Severity** | HIGH |
+| **Severity** | CRITICAL |
 | **RMAV Dimension** | Maintainability |
-| **Layer Applicability** | app, system |
+| **Layer Applicability** | any layer where invoked (no restriction in the detector implementation) |
 
 #### Specification
 
-A God Component is a component `v` that simultaneously exhibits anomalously high composite quality risk *and* anomalously high total coupling. Formally:
+A God Component is a component `v` that simultaneously exhibits extreme betweenness centrality *and* CRITICAL-tier maintainability classification. Formally:
 
 ```
-GOD_COMPONENT(v) ↔ Q(v) > Q3_Q + 1.5 × IQR_Q
-                  ∧ (DG_in_raw(v) + DG_out_raw(v)) > Q3_degree
+GOD_COMPONENT(v) ↔ BC(v) > 0.30  ∧  Level(M(v)) = CRITICAL
 ```
 
-The two-condition gate is important. A component may have high `Q(v)` because it is architecturally central (high RPR, high BT) but have low total degree because it serves a specialized bottleneck role — this is a SPOF, not a God Component. A God Component is specifically one that has absorbed too many *responsibilities*, reflected in an anomalous number of publish-subscribe relationships in both directions.
+where `BC(v)` is raw betweenness centrality (not fence-normalized) and `Level(M(v))` is the box-plot-classified Maintainability tier. This is a simpler two-factor gate than a raw-degree-based formulation: it requires extreme betweenness *and* CRITICAL-tier maintainability classification, but does not separately gate on raw in/out-degree — a component may have high total degree without extreme betweenness (e.g. many redundant local connections), which does not by itself indicate the "brittle center of gravity" this pattern targets.
 
 #### Topological Signature
 
-In the dependency graph, a God Component appears as a high-degree vertex at the center of a dense local neighborhood. It typically publishes to many topics and subscribes to many others, making it both a significant producer and consumer in the system. Its maintainability score `M(v)` is high due to extreme betweenness centrality and high coupling risk, while its reliability score `R(v)` is high due to the many dependents that rely on its publications.
+In the dependency graph, a God Component appears as a high-betweenness vertex at the center of a dense local neighborhood — a disproportionate share of all shortest paths in the system pass through it. It typically publishes to many topics and subscribes to many others, making it both a significant producer and consumer in the system. Its maintainability score `M(v)` is high due to extreme betweenness centrality and high coupling risk, while its reliability score `R(v)` is often high too, due to the many dependents that rely on its publications.
 
 #### Risk
 
@@ -745,6 +750,299 @@ In evolutionary architecture terms, this component is the system's highest-frict
 
 ---
 
+### 5.13 BRIDGE_EDGE — Bridge Edge
+
+| Property | Value |
+|----------|-------|
+| **ID** | `BRIDGE_EDGE` |
+| **Severity** | HIGH |
+| **RMAV Dimension** | Availability |
+| **Layer Applicability** | any layer where invoked |
+
+#### Specification
+
+A Bridge Edge is a dependency edge `(u, v) ∈ E` whose removal increases the number of connected components in the graph — a structural bridge in the graph-theoretic sense, computed directly on the layer's structural graph rather than via a betweenness threshold:
+
+```
+BRIDGE_EDGE(u, v) ↔ is_bridge(u, v) = true
+```
+
+#### Topological Signature
+
+A Bridge Edge appears as the sole connection spanning two otherwise-separate regions of the dependency graph — removing it partitions the graph into at least two components.
+
+#### Risk
+
+Loss of this single link partitions the system into isolated clusters: downstream components on one side of the bridge become unreachable from upstream components on the other side, with no alternative routing path available.
+
+#### Remediation
+
+1. **Add redundant connections**: Introduce a second, independent path between the two regions the bridge connects.
+2. **Evaluate alternative routing**: Where the bridge represents a broker or network link, consider a mesh or partially-redundant topology instead of a single connecting edge.
+
+---
+
+### 5.14 FAILURE_HUB — Critical Failure Propagation Hub
+
+| Property | Value |
+|----------|-------|
+| **ID** | `FAILURE_HUB` |
+| **Severity** | CRITICAL |
+| **RMAV Dimension** | Reliability |
+| **Layer Applicability** | any layer where invoked |
+
+#### Specification
+
+A Failure Hub is a component whose Reliability score is a statistical outlier *and* whose raw out-degree exceeds the layer's median out-degree — i.e. it is both unusually likely to trigger cascades and structurally positioned to reach many dependents:
+
+```
+FAILURE_HUB(v) ↔ R(v) > fence_rel  ∧  DG_out_raw(v) > median_out
+```
+
+where `fence_rel` is the adaptive box-plot upper fence over the layer's Reliability score distribution, and `median_out` is the median raw out-degree across the layer.
+
+#### Topological Signature
+
+A Failure Hub appears as a high-Reliability-score vertex with an above-median number of outgoing dependency edges — a producer whose output many other components consume, combined with topological properties that make its failure propagate widely.
+
+#### Risk
+
+A failure here triggers a mass outage across many downstream dependents. Unlike a SPOF (which severs connectivity), a Failure Hub's risk is one of cascading *functional* failure — dependents remain connected but receive no valid data or stop functioning correctly.
+
+#### Remediation
+
+1. **Add health checks and circuit breakers** in all direct dependents to fail gracefully rather than cascade.
+2. **Introduce retry and backoff policies** on the consuming side to absorb transient failures.
+3. **Reduce fan-out** by splitting the hub's responsibilities across multiple, independently-failing components where feasible.
+
+---
+
+### 5.15 CONCENTRATION_RISK — Concentration Risk
+
+| Property | Value |
+|----------|-------|
+| **ID** | `CONCENTRATION_RISK` |
+| **Severity** | MEDIUM |
+| **RMAV Dimension** | Reliability |
+| **Layer Applicability** | any layer where invoked (requires at least 5 components) |
+
+#### Specification
+
+A system-wide (not per-component) pattern that fires when the top three components by PageRank hold a disproportionate share of the system's total transitive importance:
+
+```
+CONCENTRATION_RISK ↔ Σ PR(v) for top 3 v by PR(v)  >  0.5
+```
+
+#### Topological Signature
+
+The system's PageRank distribution is heavily skewed toward a handful of components, rather than spread broadly across the population.
+
+#### Risk
+
+The system is fragile because its correct operation depends too heavily on a small number of nodes. Even where none of these top-3 components individually qualifies as CRITICAL, their combined importance makes the system's effective resilience much lower than a per-component view would suggest.
+
+#### Remediation
+
+1. **Distribute load** via domain partitioning, sharding, or additional message brokers.
+2. **Reduce the top components' centrality** directly, using the remediation strategies for whichever other patterns (SPOF, GOD_COMPONENT, FAILURE_HUB) those specific top-3 components also trigger.
+
+---
+
+### 5.16 HUB_AND_SPOKE — Hub-and-Spoke Anti-Pattern
+
+| Property | Value |
+|----------|-------|
+| **ID** | `HUB_AND_SPOKE` |
+| **Severity** | MEDIUM |
+| **RMAV Dimension** | Maintainability |
+| **Layer Applicability** | any layer where invoked |
+
+#### Specification
+
+A component with an anomalously low local clustering coefficient combined with above-threshold total degree — i.e. a hub whose neighbors do not communicate directly with one another:
+
+```
+HUB_AND_SPOKE(v) ↔ CC(v) < 0.1  ∧  (DG_in_raw(v) + DG_out_raw(v)) > 3
+```
+
+#### Topological Signature
+
+The component sits at the center of a star-shaped local neighborhood: many direct connections, but its neighbors have no edges among themselves, so all coordination between them must route through the hub.
+
+#### Risk
+
+Creates bottlenecks and single-failure-point behavior in local clusters: neighbors have no redundant path to each other, so if the hub becomes unavailable or slow, every pairwise interaction between its neighbors is blocked, even though the neighbors themselves are healthy.
+
+#### Remediation
+
+1. **Add direct links between neighbors** for redundant paths where the interaction pattern justifies it.
+2. **Reduce the hub's centrality** by delegating some coordination responsibilities directly between the neighbors that interact most frequently.
+
+---
+
+### 5.17 TARGET — High Value Target
+
+| Property | Value |
+|----------|-------|
+| **ID** | `TARGET` |
+| **Severity** | CRITICAL |
+| **RMAV Dimension** | Vulnerability |
+| **Layer Applicability** | any layer where invoked |
+
+#### Specification
+
+A component whose security criticality classification is at or above the CRITICAL tier:
+
+```
+TARGET(v) ↔ Level(security(v)) ≥ CRITICAL
+```
+
+#### Topological Signature
+
+A High Value Target appears as a component with a structural position (high centrality, broad reachability, or high blast radius) that makes it an attractive point of compromise for an attacker.
+
+#### Risk
+
+A breach here provides an attacker with high reachability into the system: the same structural properties that make a component operationally critical also make it a high-value objective for lateral movement or denial-of-service.
+
+#### Remediation
+
+1. **Apply Zero Trust policies** around this component specifically — do not rely on network-perimeter trust alone.
+2. **Add audit logging** for all access to and from this component.
+3. **Network-isolate** the component where feasible, minimizing its direct exposure to less-trusted zones.
+
+---
+
+### 5.18 EXPOSURE — High Exposure Surface
+
+| Property | Value |
+|----------|-------|
+| **ID** | `EXPOSURE` |
+| **Severity** | HIGH |
+| **RMAV Dimension** | Vulnerability |
+| **Layer Applicability** | any layer where invoked |
+
+#### Specification
+
+A component whose security criticality is at the HIGH tier and whose closeness centrality exceeds a threshold — i.e. it is both moderately sensitive *and* easily reachable from most of the rest of the system:
+
+```
+EXPOSURE(v) ↔ Level(security(v)) = HIGH  ∧  CL(v) > 0.6
+```
+
+#### Topological Signature
+
+The component is only a few hops away from most other components in the graph, making it a convenient staging point for an attacker who has compromised it to reach many other targets.
+
+#### Risk
+
+Easier target for initial penetration or lateral movement: high reachability means that compromising this one component gives an attacker a short path to a large portion of the rest of the system.
+
+#### Remediation
+
+1. **Restrict incoming connections** to only what is operationally necessary.
+2. **Validate all inputs via API gateways** rather than trusting internal traffic implicitly.
+
+---
+
+### 5.19 CHAIN — Chain Topology
+
+| Property | Value |
+|----------|-------|
+| **ID** | `CHAIN` |
+| **Severity** | MEDIUM |
+| **RMAV Dimension** | Architecture (cross-cutting) |
+| **Layer Applicability** | any layer where invoked |
+
+#### Specification
+
+A weakly connected subgraph of at least four vertices, all of whose members have in-degree and out-degree both `≤ 1` in the layer's dependency graph — a linear sequence with no branching or redundancy:
+
+```
+CHAIN(H) ↔ H is a weakly connected component of {v ∈ V : DG_in_raw(v) ≤ 1 ∧ DG_out_raw(v) ≤ 1}
+         ∧ |H| ≥ 4
+```
+
+#### Topological Signature
+
+A Chain appears as a linear sequence of components, each connected only to its immediate predecessor and successor, with no alternative routing paths anywhere along the sequence.
+
+#### Risk
+
+Reliability is limited by the product of every node in the sequence: any single component's failure isolates the entire chain downstream of it, and there is no redundancy anywhere along the path to compensate.
+
+#### Remediation
+
+1. **Introduce redundant paths or bypasses** to reduce the effective sequence depth for critical data flows.
+2. **Merge adjacent stages** where they share an ownership boundary, shortening the chain.
+
+---
+
+### 5.20 ISOLATED — Isolated Component
+
+| Property | Value |
+|----------|-------|
+| **ID** | `ISOLATED` |
+| **Severity** | MEDIUM |
+| **RMAV Dimension** | Architecture (cross-cutting) |
+| **Layer Applicability** | any layer where invoked |
+
+#### Specification
+
+A component with zero total degree (no incoming or outgoing dependency edges) in the analyzed layer:
+
+```
+ISOLATED(v) ↔ DG_in_raw(v) + DG_out_raw(v) = 0
+```
+
+#### Topological Signature
+
+The component appears as a disconnected vertex with no edges to any other component in this layer's projection.
+
+#### Risk
+
+May be orphaned, misconfigured, or pending integration: an isolated component is either genuinely unused (dead configuration), disconnected due to a naming or deployment error, or a component whose integration was never completed.
+
+#### Remediation
+
+1. **Verify deployment, configuration, and integration status** — confirm whether this component is intentionally standalone or missing its expected connections.
+2. **Remove dead configuration** if the component is confirmed unused.
+
+---
+
+### 5.21 COMPOUND_RISK — Compound Architectural Risk
+
+| Property | Value |
+|----------|-------|
+| **ID** | `COMPOUND_RISK` |
+| **Severity** | CRITICAL |
+| **RMAV Dimension** | Architecture (cross-cutting) |
+| **Layer Applicability** | any layer where invoked (post-pass over already-detected problems) |
+
+#### Specification
+
+A post-pass over the set of problems already detected in a single `detect()` run: a component is flagged as COMPOUND_RISK when it has simultaneously been flagged as a SPOF *and* as either a GOD_COMPONENT, HUB_AND_SPOKE, or FAILURE_HUB (the post-pass matches on "SPOF" and "God"/"Hub" substrings in the already-generated finding names):
+
+```
+COMPOUND_RISK(v) ↔ SPOF(v)  ∧  (GOD_COMPONENT(v) ∨ HUB_AND_SPOKE(v) ∨ FAILURE_HUB(v))
+```
+
+#### Topological Signature
+
+The component simultaneously exhibits the structural signature of a SPOF (articulation point) and of a high-complexity hub (extreme betweenness, low clustering, or high out-degree with high reliability risk).
+
+#### Risk
+
+This is the most severe compound diagnosis: the component is both critical to connectivity and hard to change safely, so any remediation must address both properties at once. Attempting to fix only one property (e.g., adding redundancy without also decomposing the hub) leaves the other risk fully in place.
+
+#### Remediation
+
+1. **Prioritize this component above all other findings** — it combines the risk profile of two separate CRITICAL/HIGH patterns.
+2. **Apply both remediation strategies together**: introduce redundancy/failover (per §5.1) *and* decompose the hub's responsibilities (per §5.4/§5.16), rather than treating them as independent fixes.
+
+---
+
 ## 6. Empirical Validation
 
 ### 6.1 Validation Approach
@@ -792,28 +1090,37 @@ Scenario 06 is the most important precision test: a well-designed microservices 
 
 ## 7. Relationship to the RMAV Prediction Framework
 
-The twelve anti-patterns are not independent of the RMAV prediction framework — they are its **diagnostic decomposition**. Where the RMAV framework produces a composite criticality score `Q(v)` that summarizes total risk, anti-pattern detection identifies the specific architectural root cause of that risk and prescribes targeted remediation.
+The twenty-one anti-patterns are not independent of the RMAV prediction framework — they are its **diagnostic decomposition**. Where the RMAV framework produces a composite criticality score `Q(v)` that summarizes total risk, anti-pattern detection identifies the specific architectural root cause of that risk and prescribes targeted remediation.
 
-The mapping between anti-patterns and RMAV dimensions is deliberately asymmetric: most patterns degrade a primary RMAV dimension, but some affect multiple dimensions simultaneously. A God Component, for example, has high `M(v)` (coupling complexity) but also high `R(v)` (reliability, because many depend on it), making it both a maintainability problem and a reliability problem.
+The mapping between anti-patterns and RMAV dimensions is deliberately asymmetric: most patterns degrade a primary RMAV dimension, but some affect multiple dimensions simultaneously. A God Component, for example, has high `M(v)` (coupling complexity) but also high `R(v)` (reliability, because many depend on it), making it both a maintainability problem and a reliability problem. A handful of patterns (CYCLE, CHAIN, ISOLATED, COMPOUND_RISK) are cross-cutting structural findings rather than a degradation of a single RMAV axis, and are labeled "Architecture (cross-cutting)" below.
 
 The following table summarizes the primary RMAV dimension affected by each pattern and the topological metrics that drive detection:
 
 | Pattern | Primary RMAV | Primary Metric Signals |
 |---------|-------------|----------------------|
 | SPOF | Availability (A) | AP_c, BR, QSPOF |
-| SYSTEMIC_RISK | Reliability (R) | Q(v), edge adjacency |
-| CYCLIC_DEPENDENCY | Maintainability (M) | SCC detection |
-| GOD_COMPONENT | Maintainability (M) | Q(v), DG_in + DG_out |
+| BRIDGE_EDGE | Availability (A) | is_bridge |
 | BOTTLENECK_EDGE | Availability (A) | Edge betweenness |
 | BROKER_OVERLOAD | Availability (A) | A(v) broker comparison |
+| FAILURE_HUB | Reliability (R) | R(v) fence, out-degree |
+| CONCENTRATION_RISK | Reliability (R) | Top-3 PageRank share |
+| SYSTEMIC_RISK | Reliability (R) | CRITICAL-tier population ratio |
 | DEEP_PIPELINE | Reliability (R) | Path length, RPR |
-| TOPIC_FANOUT | Reliability (R) | Topic out-degree |
+| TOPIC_FANOUT | Reliability (R) | Topic subscriber count |
+| QOS_MISMATCH | Reliability (R) | QoS weight gap |
+| GOD_COMPONENT | Maintainability (M) | BC(v), M(v) tier |
+| HUB_AND_SPOKE | Maintainability (M) | Clustering coefficient, degree |
 | CHATTY_PAIR | Maintainability (M) | Edge score product |
-| QOS_MISMATCH | Reliability (R) | QADS (w_in) gap |
-| ORPHANED_TOPIC | Maintainability (M) | Topic in/out degree |
+| ORPHANED_TOPIC | Maintainability (M) | Topic publisher/subscriber count |
 | UNSTABLE_INTERFACE | Maintainability (M) | CouplingRisk_enh |
+| TARGET | Vulnerability (V) | Security criticality tier |
+| EXPOSURE | Vulnerability (V) | Security tier, closeness |
+| CYCLE | Architecture (cross-cutting) | SCC detection |
+| CHAIN | Architecture (cross-cutting) | Degree-bounded weakly connected subgraph |
+| ISOLATED | Architecture (cross-cutting) | is_isolated |
+| COMPOUND_RISK | Architecture (cross-cutting) | Co-occurring SPOF + God/Hub findings |
 
-A practical implication of this mapping is that the **RMAV dimension breakdown for a flagged component can guide pattern selection for investigation**. A component with high `A(v)` but moderate `M(v)` and `R(v)` should be investigated first for SPOF, BOTTLENECK_EDGE, or BROKER_OVERLOAD. A component with high `M(v)` and high `Q(v)` is a candidate for GOD_COMPONENT or CYCLIC_DEPENDENCY.
+A practical implication of this mapping is that the **RMAV dimension breakdown for a flagged component can guide pattern selection for investigation**. A component with high `A(v)` but moderate `M(v)` and `R(v)` should be investigated first for SPOF, BOTTLENECK_EDGE, or BROKER_OVERLOAD. A component with high `M(v)` and high `Q(v)` is a candidate for GOD_COMPONENT or CYCLE.
 
 ---
 
@@ -843,11 +1150,11 @@ This distinguishes the catalog from expert-opinion-based smell collections and m
 
 The most important practical implication of the topology-based detection approach is that **anti-patterns can be detected before deployment** — from the system's configuration, launch files, or infrastructure-as-code — without any runtime instrumentation. This shifts the discovery moment from "after the production incident" to "before the first deployment," dramatically reducing the cost of addressing architectural problems.
 
-The CLI tool `detect_antipatterns.py` implements this directly: it reads the graph from Neo4j, runs all twelve detectors, and exits with code 2 if any CRITICAL or HIGH severity patterns are found, exit code 1 if only warnings or smells (MEDIUM severity) are found, and exit code 0 if the system is completely clean. Integrated into a CI/CD pipeline, this makes CRITICAL or HIGH anti-pattern detection a build-breaking check, analogous to a failing unit test.
+The CLI tool `detect_antipatterns.py` implements this directly: it reads the graph from Neo4j, runs all twenty-one detectors, and exits with code 2 if any CRITICAL or HIGH severity patterns are found, exit code 1 if only warnings or smells (MEDIUM severity) are found, and exit code 0 if the system is completely clean. Integrated into a CI/CD pipeline, this makes CRITICAL or HIGH anti-pattern detection a build-breaking check, analogous to a failing unit test.
 
 ### 9.2 The Catalog as an Architecture Review Checklist
 
-For teams that perform explicit architecture review (as distinct from automated pipeline checks), the catalog provides a structured inspection checklist. Rather than reviewing system topology informally ("does this look healthy?"), reviewers can systematically ask twelve specific, testable questions about the system's graph structure.
+For teams that perform explicit architecture review (as distinct from automated pipeline checks), the catalog provides a structured inspection checklist. Rather than reviewing system topology informally ("does this look healthy?"), reviewers can systematically ask twenty-one specific, testable questions about the system's graph structure.
 
 This brings the discipline of **design review by checklist** — well-established in aviation, surgery, and infrastructure engineering — to distributed system architecture.
 
@@ -869,7 +1176,7 @@ The detection methodology's accuracy depends on the completeness of the input gr
 
 ## 10. Conclusion
 
-This document has presented a catalog of twelve architectural anti-patterns and bad smells specific to distributed publish-subscribe systems, each with a formal specification grounded in graph topology, an explanation of the architectural risk it represents, and a concrete remediation strategy. The catalog is organized across three severity tiers (CRITICAL, HIGH, MEDIUM) and four RMAV quality dimensions (Reliability, Maintainability, Availability, Vulnerability), providing a structured framework for relating topological signatures to operational consequences.
+This document has presented a catalog of twenty-one architectural anti-patterns and bad smells specific to distributed publish-subscribe systems, each with a formal specification grounded in graph topology, an explanation of the architectural risk it represents, and a concrete remediation strategy. The catalog is organized across three severity tiers (CRITICAL, HIGH, MEDIUM) and four RMAV quality dimensions (Reliability, Maintainability, Availability, Vulnerability), providing a structured framework for relating topological signatures to operational consequences.
 
 The central contribution beyond the catalog entries themselves is the **empirical grounding** of each pattern in failure simulation results. Where existing anti-pattern catalogs are typically grounded in expert judgment, this catalog's detection conditions are validated against simulated impact scores with Spearman ρ = 0.876 overall and ρ = 0.943 at large scale. This enables the catalog to serve not only as a qualitative review checklist but as the foundation for quantitative, automated deployment gates.
 

@@ -68,6 +68,11 @@ class StructuralMetrics:
     topic_frequency_hz: float = 0.0      # Raw message rate in Hz (Topic nodes only; 0.0 for all other types)
     mpci: float = 0.0                    # Multi-path coupling intensity
     path_complexity: float = 0.0         # Efferent path count complexity: mean(log2(1+path_count))
+    coupling_risk_enh: float = 0.0       # CouplingRisk_enh(v): Martin instability enriched by path_complexity
+                                          # (mirrors the value computed in analyzer.py's _compute_rmav; 0.0 for
+                                          # non-Application/Library types where instability isn't meaningful)
+    topic_subscriber_count: int = 0      # Raw SUBSCRIBES_TO count (Topic nodes only; 0 for all other types)
+    topic_publisher_count: int = 0       # Raw PUBLISHES_TO count (Topic nodes only; 0 for all other types)
 
     # === Infrastructure Metrics (Node and Broker nodes only) ===
     ip_address: str = ""

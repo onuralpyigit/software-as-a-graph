@@ -367,6 +367,7 @@ class QualityAnalyzer:
         coupling_risk = 1.0 - abs(2.0 * _instability - 1.0)
         # Enrich coupling risk with path complexity (Issue 4/7)
         coupling_risk = min(1.0, coupling_risk * (1.0 + COUPLING_PATH_DELTA * m.path_complexity))
+        m.coupling_risk_enh = coupling_risk  # Persisted for UNSTABLE_INTERFACE detection (antipattern_detector.py)
         M = (
             w.m_betweenness * bt
             + getattr(w, 'm_w_out', 0.30) * w_out_n
