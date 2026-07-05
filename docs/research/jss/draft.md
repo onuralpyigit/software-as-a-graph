@@ -1,11 +1,13 @@
-# Software-as-a-Graph: A Static System Analysis Framework for Pre-Deployment Quality Gating and Failure Simulation of Publish-Subscribe Middleware
+# Graph Neural Networks for Architectural Dependability and Cascading Failure Prediction in Complex Distributed Systems
 
-*Target venue: Journal of Systems and Software (JSS) — Elsevier, Q1.*
+*Target Venue: Journal of Systems and Software (JSS) — Elsevier, Q1 — Special Issue "AI Techniques
+for Performance, Reliability, and Sustainability of Modern Software Systems" (VSI:AI4MSS), topic:
+"AI for Reliability and Dependability Analysis in Complex ICT Systems."*
 
-> **Draft status (revised).** This is a fully reconciled draft with respect to internal consistency
-> (simulator identity, seeds, thresholds, RQ numbering, gate semantics). No bracketed placeholders
-> remain — every quantity reported has been executed end to end against the framework's own
-> canonical `FailureSimulator` across all seven synthetic scenarios, and negative or mixed results
+> **Draft status (revised, consolidated).** This is a fully reconciled draft with respect to internal
+> consistency (simulator identity, seeds, thresholds, RQ numbering, gate semantics). No bracketed
+> placeholders remain — every quantity reported has been executed end to end against the framework's
+> own canonical `FailureSimulator` across all seven synthetic scenarios, and negative or mixed results
 > are reported as such rather than adjusted to fit an earlier hypothesis: the stratified-correlation
 > (§5.5, §8.2) and shared-library blast-radius (§5.4, §8.2) analyses did not confirm the effects they
 > were designed to detect, and the remediation impact quantification (§6.4, §6.7) is a mixed result
@@ -16,53 +18,66 @@
 > air-traffic-management case study with a blind expert-ranking panel) has been withdrawn from this
 > submission: the panel was never actually convened, and the figures previously reported for it were
 > placeholders that must not be presented as an executed study. A genuine external validation is
-> left to future work (§9.3). Math is in
+> left to future work (§9.3). This draft consolidates two previously separate framings of the same
+> study — a Static System Analysis (SSA) framework framing and a Heterogeneous GNN framing — into the
+> single submission below, targeted at this special issue's AI-for-dependability topic. Math is in
 > LaTeX notation for elsarticle porting.
 
 ---
 
 # Abstract
 
-Distributed publish–subscribe middleware decouples producers and consumers through topics and
-brokers, which obscures the true dependency chains along which a single component failure can
-cascade. Identifying *which* components are critical — and *why* — before deployment is hard:
-runtime telemetry does not yet exist, and code-level Static Code Analysis (SCA) platforms (e.g.,
-SonarQube) are blind to system-level topological dependencies. We present **Software-as-a-Graph
-(SaG)**, a pre-deployment **Static System Analysis (SSA)** framework that bridges this
-"Architecture-Code Gap." SaG models a pub-sub system as a typed, weighted, directed multigraph over
-applications, libraries, topics, brokers, and deployment nodes, and derives logical `DEPENDS_ON`
-dependencies via a set of typed projection rules.
+Modern distributed systems increasingly rely on publish–subscribe middleware to decouple data
+producers and consumers. While this decoupling provides scaling and operational flexibility, it
+obscures the true dependency chains along which a single component's failure can cascade.
+Identifying *which* components are critical — and *why* — before deployment is difficult: runtime
+telemetry does not yet exist at design time, and code-level Static Code Analysis (SCA) platforms
+(e.g., SonarQube) are blind to system-level topological dependencies.
 
-On this model, SaG ingests local SCA metrics to enrich component vertices and performs two
-complementary analyses:
-1. **Multi-dimensional quality attribution** decomposes each component's criticality into orthogonal
-Reliability, Maintainability, Availability, and Vulnerability (RMAV) dimensions, combined into a
-composite score $Q(v)$ with Analytic Hierarchy Process weights. Because each code-level and
-topology-level metric feeds exactly one dimension, the breakdown explains *why* a component is
-critical, directing targeted remediation and informing automated quality gates rather than blanket
-hardening.
-2. **Failure-impact analysis** predicts each component's cascade impact $I(v)$ using both the
-interpretable $Q(v)$ score and a learned heterogeneous-graph predictor, validated against
-discrete-event simulation under a strict input–label independence guarantee.
+To bridge this "Architecture-Code Gap," we present **Software-as-a-Graph (SaG)**, a pre-deployment
+**Static System Analysis (SSA)** framework that models a distributed pub-sub system as a typed,
+weighted, directed multigraph over five component classes (applications, libraries, topics, brokers,
+and deployment nodes) and derives logical `DEPENDS_ON` dependencies through a set of typed
+projection rules.
 
-We further formalize a **prescriptive remediation** stage that generates topology-level hardening
-edits from structure alone and measures their effect on counterfactual graphs via the same
-simulation oracle; we report this measurement honestly as a mixed result, since the per-edit
-acceptance test intended to filter out counterproductive edits is not yet wired into the current
-implementation (§6.4, §6.7). Integrated directly
-into CI/CD pipelines, SaG acts as an automated, delta-aware quality gate that blocks newly
-introduced structural regressions. Across seven synthetic scenarios, we show: (i) *when*
-interpretable attribution suffices and when learning is required; and (ii) that the composite score
-$Q(v)$ correlates with simulated cascade impact $I(v)$ at a moderate, fairly consistent strength
-across all five component types (pooled Spearman $\rho \approx 0.37$, per-type range
-$\rho \approx 0.32$–$0.43$), rather than the sharp pooled-vs-per-type divergence a naive aggregate
-might lead one to fear. We also demonstrate that the gate blocks architectural regression with low
-performance overhead (~5 s for medium, ~40 s for xlarge topologies), making continuous SSA feasible
-for rapid-release pipelines.
+On this typed representation, we employ a **Heterogeneous Graph Neural Network (GNN)**
+predictor — a relation-specific Graph Transformer with explicit Quality-of-Service (QoS) contract
+edge-feature injection ($HGL\text{-}QoS$) — to forecast each component's cascading failure impact
+$I(v)$ before a single line of the system is deployed. We pair this learned predictor with an
+interpretable, Analytic Hierarchy Process (AHP)-weighted multi-dimensional quality attribution score
+$Q(v)$ that decomposes criticality into orthogonal Reliability, Maintainability, Availability, and
+Vulnerability (RMAV) dimensions, so that every diagnostic is traceable to a concrete remediation.
+Both predictors are validated against an independent discrete-event cascade simulator under a strict
+input–label independence guarantee, ruling out transductive leakage.
 
-**Keywords:** publish–subscribe middleware; static system analysis; dependency analysis; criticality
-prediction; failure cascade; quality attributes; heterogeneous graph; CI/CD quality gate;
-pre-deployment verification
+Evaluated across seven synthetic, industrially-styled pub-sub topologies, we show:
+
+1. In-distribution regimes are strongly modeled by the deterministic $Q(v)$ attribution
+   ($\rho > 0.87$, $F_1 > 0.90$), competitive with or exceeding the learned predictor's
+   in-distribution mean; out-of-distribution generalization to entirely unseen architectures instead
+   requires typed graph learning, where $HGL\text{-}QoS$ decisively outperforms homogeneous and
+   non-typed baselines, reaching a Leave-One-Scenario-Out (LOSO) rank correlation of $\rho = 0.401$
+   against $\rho \approx 0$ for homogeneous GATs.
+2. A stratified correlation check confirms the predictive relationship between $Q(v)$ and simulated
+   impact holds at consistent, moderate strength across all five node types (pooled $\rho = 0.374$;
+   per-type $\rho = 0.322$–$0.429$), and a direct test of the hypothesized shared-library
+   "simultaneous blast" mismatch does not find it in this suite — both reported as findings rather
+   than adjusted to fit prior expectations.
+3. A multi-seed, end-to-end evaluation of topology-level prescriptive remediation operators yields a
+   mixed result: a cross-scenario mean impact reduction of $+4.61\%$ that conceals resilience
+   regressions of up to $-31.67\%$ in 3 of 7 scenarios, exposing a concrete gap between the per-edit
+   acceptance test the design specifies and the unconditional policy application the current
+   implementation performs.
+
+Finally, we demonstrate SaG's operational feasibility as a delta-aware, blocking CI/CD quality gate:
+using a thread-safe, database-free `MemoryRepository` to eliminate live database latency, the gate
+evaluates complex regressions in $\approx 5\,\text{s}$ (medium topologies) to $\approx 40\,\text{s}$
+(hyper-scale topologies) while achieving 100% precision and recall on injected structural
+regressions, enabling continuous, automated dependability auditing.
+
+**Keywords:** publish–subscribe middleware; architectural dependability; cascading failure;
+heterogeneous graph neural networks; static system analysis; pre-deployment verification; quality
+attributes; CI/CD quality gate.
 
 ---
 
@@ -135,14 +150,14 @@ techniques are valuable but assume a *running* staging or production system; the
 which components a design should protect before it is deployed, and injecting failures at runtime
 carries operational risk.
 
-**Topology-Only and Learning-Based Centrality.** Classical network-science metrics collapse a
-component's risk into a single scalar that conflates distinct failure mechanisms (SPOFs vs. cascade
-hubs), while homogeneous graph neural networks collapse typed semantics (applications, topics,
-brokers) into flattened views, leading to representation collapse.
+**Topology-Only and Homogeneous Learning-Based Centrality.** Classical network-science metrics
+collapse a component's risk into a single scalar that conflates distinct failure mechanisms (SPOFs
+vs. cascade hubs), while homogeneous graph neural networks collapse typed semantics (applications,
+topics, brokers) into flattened views, leading to representation collapse.
 
 No existing approach offers an *interpretable, multi-dimensional, pre-deployment* attribution over
-the *typed* pub-sub graph, coupled to code-level SCA metrics, impact prediction, and automated CI/CD
-gating. That is the gap this paper fills.
+the *typed* pub-sub graph, coupled to code-level SCA metrics, heterogeneous-GNN impact prediction,
+and automated CI/CD gating. That is the gap this paper fills.
 
 ## 1.4 Our Approach
 
@@ -155,10 +170,10 @@ orthogonal Reliability, Maintainability, Availability, and Vulnerability (RMAV) 
 Analytic Hierarchy Process (AHP) weights.
 
 SaG then performs **failure-impact analysis**, predicting cascade impact $I(v)$ with two predictors:
-the AHP-weighted composite $Q(v)$ and a learned heterogeneous-graph predictor. Both are validated
-against a discrete-event simulator under an **input–label independence guarantee**. Finally, a
-**prescriptive remediation** stage generates topology-level hardening edits and verifies them on
-counterfactual graphs in-memory.
+the AHP-weighted composite $Q(v)$ and a learned **Heterogeneous Graph Transformer**
+($HGL\text{-}QoS$). Both are validated against a discrete-event simulator under an **input–label
+independence guarantee**. Finally, a **prescriptive remediation** stage generates topology-level
+hardening edits and verifies them on counterfactual graphs in-memory.
 
 To make SSA continuous, SaG integrates directly into CI/CD pipelines as a *delta-aware* blocking
 gate. By utilizing a thread-safe, database-free `MemoryRepository` to bypass Neo4j database overhead
@@ -169,8 +184,8 @@ structural anomalies relative to the merge base (§6.6).
 Concretely, the paper is organized around four research questions:
 
 > **RQ1.** When does interpretable, multi-dimensional attribution suffice for pre-deployment
-> criticality prediction, and when is a learned predictor required to recover the simulated
-> impact ordering?
+> criticality prediction, and when is a learned heterogeneous graph neural network required to
+> recover the simulated impact ordering?
 >
 > **RQ2.** What failure modes does multi-dimensional quality attribution expose that a single-score
 > topological centrality misses?
@@ -195,8 +210,8 @@ This paper makes the following contributions:
    evaluates system-level risk statically, blocks only newly introduced and unwaived structural
    regressions relative to the merge base, and executes in seconds via an in-memory repository (§6).
 3. **Failure-impact analysis under an independence guarantee.** We predict cascade impact using both
-   the interpretable $Q(v)$ and a learned heterogeneous GNN, validated against discrete-event
-   simulation (§5).
+   the interpretable $Q(v)$ and a learned Heterogeneous Graph Transformer ($HGL\text{-}QoS$),
+   validated against discrete-event simulation (§5).
 4. **A prescriptive remediation stage.** We formalize a Generate→Verify procedure with four concrete
    operators and a per-edit acceptance test against counterfactual simulation (§6.4); we measure the
    current implementation end to end and report that the acceptance test is not yet wired in as a
@@ -208,12 +223,13 @@ This paper makes the following contributions:
 
 ## 1.6 Relationship to the Authors' Prior Work
 
-This work extends two earlier contributions by the authors. A structural baseline of the framework —
-multi-layer graph dependency analysis — was introduced in prior work [Anon-A], and a
-heterogeneous-graph predictor for cascade impact is the subject of a manuscript currently under
-review [Anon-B]. The present paper is an *unambiguous superset* of both: quality attribution (§4),
-SCA metric integration, and CI/CD gating and remediation (§6) are first-class contributions that
-appear in neither.
+This work extends the authors' earlier structural baseline of the framework — multi-layer graph
+dependency analysis — introduced in prior work [Anon-A]. The present paper consolidates that
+structural foundation with the heterogeneous graph neural network predictor, multi-dimensional
+quality attribution (§4), SCA metric integration, and CI/CD gating and remediation (§6) into a
+single, self-contained submission targeted at this special issue's focus on AI for reliability and
+dependability analysis; no companion manuscript reporting the heterogeneous-GNN predictor is
+submitted or under review in parallel with this paper.
 
 ## 1.7 Organization
 
@@ -562,7 +578,7 @@ its derived `DEPENDS_ON` projection, with cascade and blast edges visually disti
 
 ---
 
-# 4. Multi-Dimensional Quality Attribution
+# 4. Multi-Dimensional Quality Attribution (The Interpretable Path)
 
 Centrality answers *whether* a component is important with a single number. An architect choosing
 between a replica, a reroute, and a decoupling refactor needs to know *why*. This section presents
@@ -717,13 +733,14 @@ alone, before any simulation is run.
 
 ---
 
-# 5. Failure-Impact Analysis
+# 5. Failure-Impact Analysis via Heterogeneous GNN and Interpretable Forecasting
 
 Quality attribution (§4) tells an architect why a component is structurally critical. This section
 asks the complementary question: *how much of the system actually fails* when a given component
-fails, and how well the attribution predicts it. We define the simulated ground-truth impact $I(v)$
-(§5.1), the two predictors we evaluate against it (§5.2), the independence between predictor inputs
-and the label path that makes the evaluation sound (§5.3), and two analyses that take node type
+fails, and how well each predictor — interpretable and learned — anticipates it. We define the
+simulated ground-truth impact $I(v)$ (§5.1), the two predictors we evaluate against it, including the
+Heterogeneous Graph Transformer architecture (§5.2), the independence between predictor inputs and
+the label path that makes the evaluation sound (§5.3), and two analyses that take node type
 seriously: a direct test of the hypothesized shared-library blast-radius mismatch, which we report as
 a negative result (§5.4), and a stratified-correlation consistency check (§5.5).
 
@@ -759,10 +776,17 @@ We evaluate two predictors of $I(v)$, deliberately spanning the interpretability
 - **Interpretable predictor.** The composite quality score $Q(v)$ of §4, computed deterministically
   on $G_{\text{analysis}}$ with no learned parameters. Its ranking of components is taken directly
   as a criticality prediction.
-- **Learned predictor.** A heterogeneous graph transformer with native edge-feature injection, which
-  assigns relation-specific message functions across the five node types and learns nonlinear,
-  multi-hop interactions that an AHP-weighted linear composite cannot encode. It consumes the
-  structural analysis result (not the repository) and is trained on simulation-derived labels.
+- **Learned predictor.** A **Heterogeneous Graph Transformer (HGT)** that assigns relation-specific
+  attention and message-passing parameters across the five node types
+  ($\text{App}, \text{Broker}, \text{Topic}, \text{Node}, \text{Library}$) and six
+  `DEPENDS_ON`/structural edge types, so that message transformations differ by the semantic
+  relation they traverse rather than being shared across a flattened graph. The **$HGL\text{-}QoS$**
+  variant additionally injects the continuous QoS attributes ($r, d, p$ from §3.2) directly into the
+  edge-attention aggregation, scaling message magnitude by interface contract strength; the base
+  **HGL** variant masks these QoS fields to isolate the contribution of typing alone from the
+  contribution of QoS encoding (RQ3, §8.3). Both variants consume features from the structural
+  analysis result $G_{\text{analysis}}$ (not the simulator) and are trained inductively against the
+  simulation-derived labels $I(v)$.
 
 The two can be combined through a learnable ensemble coefficient, but for the purpose of RQ1 we
 report them separately, so that the question — *when does the interpretable score suffice, and when
@@ -1339,8 +1363,8 @@ models distributed pub-sub middleware as a typed, weighted, directed multigraph 
 along two coupled axes: multi-dimensional quality attribution, which decomposes each component's
 criticality into orthogonal, interpretable RMAV dimensions (integrating local code quality metrics),
 and failure-impact analysis, which predicts cascade impact with both the interpretable composite and
-a learned heterogeneous predictor, validated against discrete-event simulation under a strict
-input–label independence guarantee. A prescriptive remediation stage generates topology-level
+a learned heterogeneous graph transformer, validated against discrete-event simulation under a
+strict input–label independence guarantee. A prescriptive remediation stage generates topology-level
 hardening edits from structure alone and measures their effect end to end against the canonical
 simulator; we report that measurement honestly as a mixed result, since the per-edit acceptance test
 that would filter out counterproductive edits is not yet implemented (§6.4, §6.7).
