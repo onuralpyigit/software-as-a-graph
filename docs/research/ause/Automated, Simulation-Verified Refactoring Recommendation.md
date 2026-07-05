@@ -93,7 +93,7 @@ The prescriptive task is to compute a transformation policy $\Delta$ such that $
 
 $$\min_{\Delta} \sum_{v \in V} I^*_{\Delta(G)}(v) \quad \text{subject to} \quad \mathrm{Cost}(\Delta) \le \mathcal{B}$$
 
-where $I^*(v)$ denotes the simulated failure impact of component $v$. In the implemented system, the aggregate objective is operationalized through the System Resilience Index (§5.4), and a policy is **accepted** if and only if its verified improvement satisfies the acceptance criterion [DECISION PENDING: $\Delta\mathrm{SRI} > 0$ as implemented, vs. $\Delta A > \kappa\,\sigma_{\text{seed}}$ per formal documentation — state one canonically here and reconcile the other in a single sentence].
+where $I^*(v)$ denotes the simulated failure impact of component $v$. In the implemented system, the aggregate objective is operationalized through the System Resilience Index (§5.4), and a policy is **accepted** if and only if its verified improvement satisfies $\Delta\mathrm{SRI} > 0$ — the whole-policy acceptance gate actually implemented in `PrescribeService` (`saag/prescription/service.py`) and documented canonically in `docs/prescription.md` §3. A stricter per-edit margin criterion, $\Delta A > \kappa\,\sigma_{\text{seed}}$, is discussed as future work (§8.2) but is not implemented; under the deterministic simulator configuration used throughout this evaluation, $\sigma_{\text{seed}} = 0$, so the two criteria coincide for the present results.
 
 ---
 
@@ -255,7 +255,7 @@ Future work proceeds along three lines: (1) integrating operational telemetry (t
 **Basis:** `docs/research/ase/Closed-Loop Prescriptive Architecture Optimization.md`, restructured per the approved outline (`ause_si_abstract_outline.md`).
 
 1. **HIGH — "statistically significant" removed from §6.1 body and RQ1** and replaced with conditional Wilcoxon/consistency phrasing. The original draft asserts significance with no test reported. Owner action: run paired Wilcoxon; expected exact two-sided p = 0.0156 if all 7 deltas positive.
-2. **HIGH — acceptance criterion left as explicit DECISION PENDING in §3.3** (ΔSRI > 0 as implemented vs. ΔA > κ·σ_seed in formal docs). One canonical statement required before submission.
+2. **RESOLVED — acceptance criterion in §3.3 canonicalized to ΔSRI > 0** (matches `PrescribeService`/`docs/prescription.md`); ΔA > κ·σ_seed reframed as future work (§8.2), noted to coincide with ΔSRI > 0 under the current deterministic (σ_seed = 0) simulator.
 3. **HIGH — scenario count bracketed [seven] throughout** pending 7-vs-8 reconciliation with JSS manuscript.
 4. **MEDIUM — seed-set disclosure inserted in §5.3** ({42–46} vs. JSS canonical {42, 123, 456, 789, 2024}); decide framing.
 5. **MEDIUM — SRI naming discrepancy flagged in §5.4**: `docs/validation.md` defines "System **Risk** Index" (semantics match lower-is-better); ASE draft uses "System **Resilience** Index." Standardize across manuscript, companion, and docs.

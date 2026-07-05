@@ -225,7 +225,7 @@ scheduler anti-affinity rules.
 
 **Operator 3 — Transport QoS contract hardening.** For a flagged Topic $t$ whose QoS profile is
 volatile and/or best-effort, upgrade the contract
-$(\text{reliability}, \text{durability}) \to (\text{RELIABLE}, \text{TRANSIENT\_LOCAL})$
+$(\text{reliability}, \text{durability}) \to (\text{RELIABLE}, \text{TRANSIENT})$
 (and raise transport priority where applicable), hardening the channel against message loss during
 cascades.
 

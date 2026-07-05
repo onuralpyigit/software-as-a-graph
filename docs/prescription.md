@@ -70,6 +70,8 @@ To prevent target database contamination or transaction overhead, these refactor
 
 Remediations target components categorized as `CRITICAL`/`HIGH` risk by the adaptive box-plot filter; node reallocation (§2.2) additionally considers components flagged as SPOF or god-component smells by the `AntiPatternDetector`.
 
+**Automation coverage.** `docs/antipatterns.md` documents remediation guidance for all 21 catalog anti-patterns, but that guidance is advisory (manual) unless it maps to one of the three operators below. Only 5 of the 21 catalog IDs — `SPOF`, `GOD_COMPONENT`, `BOTTLENECK_EDGE`, `FAILURE_HUB`, `HUB_AND_SPOKE` — are directly linked into an operator, and that link is via a name-substring match on the detected problem's display name (see the guard comment at `saag/prescription/service.py:32-34`), not a dedicated pattern-ID field. Every operator can also fire independently off the generic RMAV `CRITICAL`/`HIGH` criticality tier, regardless of which (if any) specific anti-pattern was detected. Notably, §2.3 (QoS Hardening) has **no** direct link to `QOS_MISMATCH` despite the conceptual overlap — it only fires from the generic criticality tier. The remaining 16 catalog IDs (e.g. `CYCLE`, `CHATTY_PAIR`, `DEEP_PIPELINE`, `TOPIC_FANOUT`, `QOS_MISMATCH`, `ORPHANED_TOPIC`, `UNSTABLE_INTERFACE`, ...) have no automated operator at all — remediation is advisory-only, per their `docs/antipatterns.md` entries.
+
 ### 2.1 Logical Subgraph Refactoring (Topic Splitting)
 
 **Problem**: A central topic hub connected to multiple publishers and subscribers becomes a logical bottleneck and a high-risk failure propagator.
@@ -93,7 +95,7 @@ This bounds failure propagation, separating independent logical communication ch
 ### 2.3 Middleware Transport Contract Hardening
 
 **Problem**: Critical communication channels utilizing unreliable or volatile transport configurations (e.g. ROS 2 `BEST_EFFORT` reliability or `VOLATILE` durability).
-**Remediation**: Harden the transport properties to reliable and transient-local contracts:
+**Remediation**: Harden the transport properties to reliable, transient-durability contracts:
 * For any topic $T$ that is `CRITICAL`/`HIGH` risk or connects to a critical component:
   * Set `qos_reliability = "RELIABLE"`.
   * Set `qos_durability = "TRANSIENT"`.
