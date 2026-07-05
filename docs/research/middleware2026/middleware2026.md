@@ -223,7 +223,7 @@ To comprehensively evaluate the predictive performance and robustness of HGL acr
 
 The evaluation suite is organized according to a multi-tier, scale-preset taxonomy, ranging from ultra-compact smoke tests to a hyper-scale enterprise platform with up to 300 applications and over one hundred communication channels. Table 2 summarizes the core structural characteristics and tier allocations for these scenario profiles.
 
-These seven scenarios are derived from the standard scale presets while maintaining unique domain-specific wiring layouts:
+These seven scenarios are derived from the standard scale presets while maintaining unique domain-specific wiring layouts. (This evaluation suite deliberately excludes the "Tiny Regression" CI smoke-test fixture used elsewhere in the pipeline for deterministic anti-pattern detection regression testing — see `docs/antipatterns.md` §6.3 — since it carries no domain-representative topology and would not contribute meaningful predictive signal.)
 
 - **Autonomous Vehicle (AV) System (Scenario 01):** Built on the `medium` scale, representing a high fan-out ROS2 autonomous vehicle system with sensor streaming topologies heavily bound to `RELIABLE` and `TRANSIENT_LOCAL` QoS profiles.
 - **IoT Smart City (Scenario 02):** Configured at the `large` scale, characterizing massive, distributed endpoint matrices that generate high-frequency message streams bound to high-loss `VOLATILE` and `BEST_EFFORT` transport contracts.

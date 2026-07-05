@@ -5,7 +5,7 @@ import pytest
 from types import SimpleNamespace
 from saag.analysis.antipattern_detector import CATALOG, AntiPatternDetector
 from saag.prediction.models import QualityAnalysisResult, DetectedProblem
-from saag.core.metrics import ComponentQuality, EdgeQuality, QualityScores, QualityLevels, StructuralMetrics
+from saag.core.metrics import ComponentQuality, EdgeQuality, EdgeMetrics, QualityScores, QualityLevels, StructuralMetrics
 from saag.core.criticality import CriticalityLevel
 
 
@@ -23,12 +23,17 @@ def _comp(id_, type_="Application", scores=None, levels=None, structural_kwargs=
     )
 
 
-def _edge(source, target, dependency_type="app_to_app", overall_score=0.0, weight=1.0):
+def _edge(source, target, dependency_type="app_to_app", overall_score=0.0, weight=1.0, betweenness=0.0):
     return EdgeQuality(
         source=source, target=target,
         source_type="Application", target_type="Application",
         dependency_type=dependency_type,
         scores=QualityScores(overall=overall_score),
+        structural=EdgeMetrics(
+            source=source, target=target,
+            source_type="Application", target_type="Application",
+            dependency_type=dependency_type, betweenness=betweenness,
+        ),
     )
 
 
@@ -79,6 +84,25 @@ def test_detector_spof(mock_quality_result):
     assert len(spofs) == 1
     assert spofs[0].entity_id == "A"
     assert spofs[0].severity in ["CRITICAL", "HIGH"]
+
+def test_detector_spof_availability_fence_fallback():
+    """docs/antipatterns.md §5.1: SPOF(v) <-> AP_c(v) > 0 OR A(v) > upper_fence(A).
+
+    A component with an outlier availability score, but that is NOT an
+    articulation point, must still be flagged via the fence fallback.
+    """
+    detector = AntiPatternDetector(active_patterns=["SPOF"])
+    comps = [_comp(f"N{i}", scores={"availability": 0.1}) for i in range(9)]
+    comps.append(_comp("HOT", scores={"availability": 0.9}))
+    result = QualityAnalysisResult(
+        timestamp="t", layer="system", context="test", components=comps, edges=[],
+        classification_summary=SimpleNamespace(total_components=len(comps), component_distribution={}),
+    )
+    problems = detector.detect(_shim(result), "system")
+    assert len(problems) == 1
+    assert problems[0].entity_id == "HOT"
+    assert problems[0].evidence["trigger"] == "availability_fence"
+
 
 def test_detector_god_component(mock_quality_result):
     """Verify God Component detection."""
@@ -132,6 +156,28 @@ def test_detector_systemic_risk_ratio():
 
 def test_bottleneck_edge_category():
     assert CATALOG["BOTTLENECK_EDGE"].category == "Availability"
+
+
+def test_bottleneck_edge_severity_is_high():
+    """docs/antipatterns.md §5.5 documents BOTTLENECK_EDGE as HIGH severity."""
+    assert CATALOG["BOTTLENECK_EDGE"].severity == "HIGH"
+
+
+def test_detector_bottleneck_edge_adaptive_fence():
+    """BOTTLENECK_EDGE uses an adaptive Q3+1.5*IQR fence over edge betweenness,
+    not a hardcoded constant, so only the true outlier edge is flagged."""
+    detector = AntiPatternDetector(active_patterns=["BOTTLENECK_EDGE"])
+    chain = [chr(ord("A") + i) for i in range(11)]
+    comps = [_comp(cid) for cid in chain]
+    edges = [_edge(chain[i], chain[i + 1], betweenness=0.05) for i in range(9)]
+    edges.append(_edge(chain[9], chain[10], betweenness=0.5))
+    result = QualityAnalysisResult(
+        timestamp="t", layer="system", context="test", components=comps, edges=edges,
+        classification_summary=SimpleNamespace(total_components=len(chain), component_distribution={}),
+    )
+    problems = detector.detect(_shim(result), "system")
+    assert len(problems) == 1
+    assert problems[0].entity_id == f"{chain[9]}->{chain[10]}"
 
 
 def test_catalog_names_avoid_prescription_collision():

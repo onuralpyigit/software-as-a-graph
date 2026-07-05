@@ -1086,6 +1086,8 @@ Eight system scenarios were used to validate the detection methodology across di
 
 Scenario 06 is the most important precision test: a well-designed microservices topology should produce few or no anti-pattern findings, validating that the detectors do not over-flag well-structured systems. Scenario 07 provides the primary scalability validation, confirming that detection algorithms scale gracefully to enterprise-scale deployments.
 
+> **Note on scenario counts across documents:** This anti-pattern validation suite counts **eight** scenarios (01–08) because Scenario 08 ("Tiny Regression") is a deterministic CI smoke-test fixture, useful here as a trivial detection-pipeline sanity check. The GNN/prescriptive-refactoring research papers (e.g. `docs/research/middleware2026/middleware2026.md`, `docs/prediction.md`, `docs/research/ause/`, `docs/research/jss/`) instead report **seven** scenarios (01–07), since they evaluate predictive/prescriptive performance across domain topologies and intentionally exclude the smoke-test fixture, which carries no domain-representative signal. Scenarios 09–11 are later additions (stress/ATM/broker-redundancy) not yet part of either validation suite.
+
 ---
 
 ## 7. Relationship to the RMAV Prediction Framework

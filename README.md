@@ -75,7 +75,7 @@ Software-as-a-Graph (SaG) operationalizes this insight into a 6-step core analyt
 |:---|:---|:---|:---|
 | **Offline Prep: Generate** | Produces a synthetic pub-sub topology for experiments, benchmarks, or CI regression tests | Topology JSON (`data/system.json`) | [graph-generation.md](docs/graph-generation.md) |
 | **1. Model** | Converts topology JSON into a formal weighted directed graph $G = (V, E, \tau_V, \tau_E, w)$ in Neo4j; derives logical `DEPENDS_ON` edges via six dependency rules; computes QoS-derived weights | $G_{\text{structural}}$ and $G_{\text{analysis}}(l)$ | [graph-model.md](docs/graph-model.md) |
-| **2. Analyze** | Deterministic, closed-form. Computes 14 Tier-1 structural metrics $M(v)$; maps them to RMAV dimension scores and $Q^*(v)$ via AHP-weighted formulas; detects anti-patterns. | $M(v)$ metric vector, RMAV/$Q^*(v)$ scores, five-level classification, anti-pattern report | [structural-analysis.md](docs/structural-analysis.md) |
+| **2. Analyze** | Deterministic, closed-form. Computes 13 Tier-1 structural metrics $M(v)$; maps them to RMAV dimension scores and $Q^*(v)$ via AHP-weighted formulas; detects anti-patterns. | $M(v)$ metric vector, RMAV/$Q^*(v)$ scores, five-level classification, anti-pattern report | [structural-analysis.md](docs/structural-analysis.md) |
 | **3. Predict** | Inductive, optional. A 3-layer `EdgeAwareHGTConv` (HGT) model trained on simulation labels $I(v)$ learns patterns the AHP composite cannot encode. | GNN criticality ranks, edge criticality, GNN node scores $Q_{\text{GNN}}(v)$ | [prediction.md](docs/prediction.md) |
 | **4. Simulate** | Runs the FailureSimulator (producing canonical composite $I^*(v)$ and RM-AV ground truths) or FaultInjector (producing BFS feed-loss $I(v)$). Provides training labels for Step 3 and validation ground truth. | Per-dimension ground-truth $I_R(v)$, $I_M(v)$, $I_A(v)$, $I_V(v)$ and composite $I^*(v)$ / feed-loss $I(v)$ | [failure-simulation.md](docs/failure-simulation.md) |
 | **5. Validate** | Computes Spearman $\rho$ and Kendall $\tau$ between predictions and ground truth; evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
@@ -439,16 +439,29 @@ The `AntiPatternDetector` reviews RMAV scoring results and flags structural defi
 
 | Anti-Pattern | Trigger Condition | Severity |
 |:---|:---|:---|
-| **SPOF** | Component is a directed articulation point | CRITICAL |
-| **FAILURE_HUB** | $R(v) \ge$ CRITICAL threshold | CRITICAL |
-| **GOD_COMPONENT** | $M(v) \ge$ CRITICAL and betweenness centrality $> 0.3$ | CRITICAL |
-| **TARGET** | $V(v) \ge$ CRITICAL threshold | CRITICAL |
+| **SPOF** | Component is a directed articulation point, or its availability score $A(v)$ exceeds the population's upper fence | CRITICAL |
 | **SYSTEMIC_RISK** | CRITICAL components account for $> 20\%$ of system | CRITICAL |
-| **BRIDGE_EDGE** | Edge is a graph bridge | HIGH |
-| **EXPOSURE** | $V(v) ==$ HIGH and closeness centrality $> 0.6$ | HIGH |
+| **GOD_COMPONENT** | $M(v) \ge$ CRITICAL and betweenness centrality $> 0.3$ | CRITICAL |
+| **FAILURE_HUB** | $R(v) \ge$ CRITICAL threshold and out-degree above the median | CRITICAL |
+| **TARGET** | $V(v) \ge$ CRITICAL threshold | CRITICAL |
+| **COMPOUND_RISK** | Component is simultaneously a SPOF and a GOD_COMPONENT/HUB_AND_SPOKE/FAILURE_HUB | CRITICAL |
 | **CYCLE** | Strongly Connected Component size $\ge 2$ nodes | HIGH |
+| **BRIDGE_EDGE** | Edge is a graph bridge | HIGH |
+| **BOTTLENECK_EDGE** | Edge betweenness centrality exceeds the edge-betweenness population's upper fence ($Q_3 + 1.5 \times IQR$) | HIGH |
+| **BROKER_OVERLOAD** | Broker's availability $\ge 2\times$ the median broker availability, or the sole broker in the system | HIGH |
+| **DEEP_PIPELINE** | Longest dependency chain $\ge 5$ hops (app layer) | HIGH |
+| **EXPOSURE** | $V(v) ==$ HIGH and closeness centrality $> 0.6$ | HIGH |
+| **CONCENTRATION_RISK** | Top-3 components hold $> 50\%$ of total PageRank (system-wide, $\ge 5$ components) | MEDIUM |
+| **TOPIC_FANOUT** | Topic subscriber count exceeds the topic population's upper fence (floor of 5) | MEDIUM |
+| **CHATTY_PAIR** | Bidirectional edges with $edge\_score(u \to v) \times edge\_score(v \to u) > 0.25$ | MEDIUM |
+| **QOS_MISMATCH** | Publisher QoS weight $w(u) <$ subscriber QoS weight $w(v) - 0.3$ | MEDIUM |
+| **ORPHANED_TOPIC** | Topic has no publishers or no subscribers | MEDIUM |
+| **UNSTABLE_INTERFACE** | Maintainability score $> 0.80$ and enhanced coupling risk $> 0.80$ | MEDIUM |
 | **HUB_AND_SPOKE** | Clustering coefficient $< 0.1$ and degree centrality $> 3$ | MEDIUM |
 | **CHAIN** | Weakly connected sequence length $\ge 4$ nodes | MEDIUM |
+| **ISOLATED** | Component has no incoming or outgoing dependencies in this layer | MEDIUM |
+
+See [antipatterns.md](docs/antipatterns.md) for the full formal specification of each pattern.
 
 > [!TIP]
 > Detection runs return exit codes (0: clean, 1: warnings/smells, 2: critical/high patterns detected) suitable for pre-merge gates.

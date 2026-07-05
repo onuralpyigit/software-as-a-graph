@@ -60,7 +60,7 @@ CATALOG: Dict[str, PatternSpec] = {
     "BOTTLENECK_EDGE": PatternSpec(
         id="BOTTLENECK_EDGE",
         name="Bottleneck Dependency",
-        severity="MEDIUM",
+        severity="HIGH",
         category="Availability",
         description="An edge carrying an anomalously high percentage of shortest paths.",
         risk="Potential performance bottleneck and shared failure point.",
@@ -325,7 +325,8 @@ class AntiPatternDetector:
         if not components:
             return problems
 
-        stats = self._compute_distribution_stats(components)
+        edges = getattr(layer_result, "edges", [])
+        stats = self._compute_distribution_stats(components, edges)
 
         detectors = {
             "SPOF":               self._detect_spof,
@@ -393,7 +394,7 @@ class AntiPatternDetector:
         )
 
     @staticmethod
-    def _compute_distribution_stats(components) -> Dict[str, Any]:
+    def _compute_distribution_stats(components, edges=None) -> Dict[str, Any]:
         """Compute box-plot fences for metrics."""
         def _boxplot_fence(values: List[float]) -> Tuple[float, float, float, float]:
             if not values: return 0.0, 0.0, 0.0, 1.0
@@ -426,24 +427,33 @@ class AntiPatternDetector:
         _, _, q3_topic_out, fence_topic_out_raw = _boxplot_fence(topic_sub_counts)
         fence_topic_out = max(fence_topic_out_raw, 5)  # doc's floor of 5 subscribers
 
+        # BOTTLENECK_EDGE: adaptive fence over the edge-betweenness distribution
+        # (docs/antipatterns.md §5.5: edge_BT(u,v) > Q3_edge_BT + 1.5 × IQR_edge_BT)
+        edge_betweennesses = [getattr(e.structural, "betweenness", 0) for e in (edges or [])]
+        _, _, q3_edge_bt, fence_edge_bt = _boxplot_fence(edge_betweennesses)
+
         return {
             "fence_q": fence_q, "q3_degree": q3_deg, "fence_degree": fence_deg,
             "fence_rel": fence_rel, "fence_avail": fence_avail, "fence_sec": fence_sec,
             "median_out": median_out, "total_count": len(components),
-            "fence_topic_out": fence_topic_out
+            "fence_topic_out": fence_topic_out, "fence_edge_bt": fence_edge_bt
         }
 
     # ── Detectors ────────────────────────────────────────────────────
 
     def _detect_spof(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
+        # docs/antipatterns.md §5.1: SPOF(v) <-> AP_c(v) > 0 OR A(v) > upper_fence(A)
+        fence_avail = stats.get("fence_avail", 1.0)
         for c in lr.components:
             # Issue #10: Use directed AP if available
             is_spof = getattr(c.structural, 'is_directed_ap', False)
             if is_spof:
-                out.append(self._make_problem("SPOF", c.id, {"availability_level": c.levels.availability.value, "is_directed": True}))
+                out.append(self._make_problem("SPOF", c.id, {"availability_level": c.levels.availability.value, "is_directed": True, "trigger": "articulation_point"}))
             elif getattr(c.structural, 'is_articulation_point', False):
-                 out.append(self._make_problem("SPOF", c.id, {"availability_level": c.levels.availability.value, "is_directed": False}))
+                 out.append(self._make_problem("SPOF", c.id, {"availability_level": c.levels.availability.value, "is_directed": False, "trigger": "articulation_point"}))
+            elif c.scores.availability > fence_avail:
+                out.append(self._make_problem("SPOF", c.id, {"availability_level": c.levels.availability.value, "availability_score": c.scores.availability, "trigger": "availability_fence"}))
         return out
 
     def _detect_bridge_edge(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
@@ -496,9 +506,10 @@ class AntiPatternDetector:
 
     def _detect_bottleneck_edge(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
+        fence_edge_bt = stats.get("fence_edge_bt", 0.2)
         for e in getattr(lr, "edges", []):
             betweenness = getattr(e.structural, 'betweenness', 0)
-            if betweenness > 0.2:
+            if betweenness > fence_edge_bt:
                 out.append(self._make_problem("BOTTLENECK_EDGE", e.id, {"betweenness": betweenness}, entity_type="Edge"))
         return out
 
