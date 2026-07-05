@@ -1,0 +1,1702 @@
+\documentclass[review]{elsarticle}
+% Compile with: pdflatex draft.tex (run twice for cross-references)
+% "review" option = double-spaced, numbered lines, single column — standard for JSS submission.
+% Swap to \documentclass[preprint,5p]{elsarticle} for camera-ready double-column layout.
+%
+% NOTE ON DRAFT STATUS (author-facing, not part of the manuscript):
+% This is a fully reconciled draft with respect to internal consistency (simulator identity,
+% seeds, thresholds, RQ numbering, gate semantics). Negative or mixed results are reported as
+% such rather than adjusted to fit an earlier hypothesis: the stratified-correlation (S5.5, S8.2)
+% and shared-library blast-radius (S5.4, S8.2) analyses did not confirm the effects they were
+% designed to detect, and the remediation impact quantification (S6.4, S6.7) is a mixed result
+% (mean +4.61% across scenarios, but negative in 3 of 7) exposing a real gap between the per-edit
+% acceptance test S6.4 describes and what PrescribeService currently does. The external,
+% real-world validation planned for a prior draft (an ICAO-compliant air-traffic-management case
+% study with a blind expert-ranking panel) has been withdrawn from this submission: the panel was
+% never convened, and previously reported figures were placeholders that must not be presented as
+% an executed study. Genuine external validation is left to future work (S9.3).
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{array}
+
+\journal{Journal of Systems and Software}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Graph Neural Networks for Reliability and Dependability Analysis in Complex Distributed Systems based on Publish--Subscribe Architecture}
+
+\author{Author Name(s) Here}
+\address{Affiliation Here}
+
+\begin{abstract}
+Modern distributed systems increasingly rely on publish--subscribe middleware to decouple data
+producers and consumers. While this decoupling provides scaling and operational flexibility, it
+obscures the true dependency chains along which a single component's failure can cascade.
+Identifying \emph{which} components are critical --- and \emph{why} --- before deployment is
+difficult: runtime telemetry does not yet exist at design time, and code-level Static Code Analysis
+(SCA) platforms (e.g., SonarQube) are blind to system-level topological dependencies.
+
+To bridge this ``Architecture-Code Gap,'' we present \textbf{Software-as-a-Graph (SaG)}, a
+pre-deployment \textbf{Static System Analysis (SSA)} framework that models a distributed pub-sub
+system as a typed, weighted, directed multigraph over five component classes (applications,
+libraries, topics, brokers, and deployment nodes) and derives logical \texttt{DEPENDS\_ON}
+dependencies through a set of typed projection rules.
+
+On this typed representation, we employ a \textbf{Heterogeneous Graph Neural Network (GNN)}
+predictor --- a relation-specific Graph Transformer with explicit Quality-of-Service (QoS) contract
+edge-feature injection ($HGL\text{-}QoS$) --- to forecast each component's cascading failure impact
+$I(v)$ before a single line of the system is deployed. We pair this learned predictor with an
+interpretable, Analytic Hierarchy Process (AHP)-weighted multi-dimensional quality attribution score
+$Q(v)$ that decomposes criticality into orthogonal Reliability, Maintainability, Availability, and
+Vulnerability (RMAV) dimensions, so that every diagnostic is traceable to a concrete remediation.
+Both predictors are validated against an independent discrete-event cascade simulator under a strict
+input--label independence guarantee, ruling out transductive leakage.
+
+Evaluated across seven synthetic, industrially-styled pub-sub topologies, we show: (1)
+in-distribution regimes are strongly modeled by the deterministic $Q(v)$ attribution ($\rho > 0.87$,
+$F_1 > 0.90$), competitive with or exceeding the learned predictor's in-distribution mean;
+out-of-distribution generalization to entirely unseen architectures instead requires typed graph
+learning, where $HGL\text{-}QoS$ decisively outperforms homogeneous and non-typed baselines,
+reaching a Leave-One-Scenario-Out (LOSO) rank correlation of $\rho = 0.401$ against $\rho \approx 0$
+for homogeneous GATs; (2) a stratified correlation check confirms the predictive relationship
+between $Q(v)$ and simulated impact holds at consistent, moderate strength across all five node
+types (pooled $\rho = 0.374$; per-type $\rho = 0.322$--$0.429$), and a direct test of the
+hypothesized shared-library ``simultaneous blast'' mismatch does not find it in this suite ---
+both reported as findings rather than adjusted to fit prior expectations; and (3) a multi-seed,
+end-to-end evaluation of topology-level prescriptive remediation operators yields a mixed result: a
+cross-scenario mean impact reduction of $+4.61\%$ that conceals resilience regressions of up to
+$-31.67\%$ in 3 of 7 scenarios, exposing a concrete gap between the per-edit acceptance test the
+design specifies and the unconditional policy application the current implementation performs.
+
+Finally, we demonstrate SaG's operational feasibility as a delta-aware, blocking CI/CD quality gate:
+using a thread-safe, database-free \texttt{MemoryRepository} to eliminate live database latency, the
+gate evaluates complex regressions in $\approx 5\,\text{s}$ (medium topologies) to $\approx
+40\,\text{s}$ (hyper-scale topologies) while achieving 100\% precision and recall on injected
+structural regressions, enabling continuous, automated dependability auditing.
+\end{abstract}
+
+\begin{highlights}
+\item Typed multigraph model bridges the Architecture-Code Gap in pub-sub systems.
+\item AHP-weighted RMAV attribution explains criticality along four orthogonal axes.
+\item Heterogeneous Graph Transformer (HGL-QoS) wins where interpretable scoring cannot.
+\item Delta-aware CI/CD gate blocks structural regressions in seconds, pre-deployment.
+\item Negative and mixed results (blast mismatch, remediation gaps) reported honestly.
+\end{highlights}
+
+\begin{keyword}
+publish--subscribe middleware \sep architectural dependability \sep cascading failure \sep
+heterogeneous graph neural networks \sep static system analysis \sep pre-deployment verification
+\sep quality attributes \sep CI/CD quality gate
+\end{keyword}
+
+\end{frontmatter}
+
+% ===========================================================================
+\section{Introduction}
+% ===========================================================================
+
+\subsection{Motivation}
+
+The publish--subscribe (pub-sub) paradigm has become a backbone communication abstraction for
+large-scale distributed systems, underpinning cyber-physical, cloud-native, robotics, and
+Internet-of-Things architectures. Its appeal is decoupling: producers and consumers are separated in
+time, space, and synchronization, so components can be added, removed, or scaled without direct
+knowledge of one another \cite{Eugster2003}. Industry standards such as the Data Distribution
+Service (DDS) and MQTT formalize this model and expose deployment-time choices --- topics, brokers,
+reliability, durability, and other Quality-of-Service (QoS) policies --- that materially shape how
+the system behaves under stress \cite{OMG2015DDS,OASIS2019MQTT}.
+
+The same decoupling that makes pub-sub flexible also obscures the dependency structure an engineer
+must reason about when a component fails. There are no explicit caller--callee edges: an application
+that publishes to a topic has no static link to the applications that subscribe to it, even though
+those subscribers are wholly dependent on it for data. Failures do not propagate along a call graph
+but along \emph{derived} paths --- through shared topics and brokers, through colocated deployment
+nodes, and, distinctively, through shared libraries whose failure strikes every consumer
+\emph{simultaneously} rather than sequentially. A raw architecture diagram does not reveal these
+chains, and the components whose failure would be most damaging are frequently not the ones a
+diagram makes look important.
+
+Crucially, the moment at which this reasoning is most valuable is \emph{before} deployment.
+Architectural hardening --- replication, isolation, failover, additional monitoring --- is cheapest
+and least disruptive while the system is still a design, and prohibitively expensive once it is in
+production. Yet pre-deployment is precisely when no runtime telemetry exists to identify weak points
+empirically. An engineer must therefore answer a hard question from the architecture alone:
+\emph{which components are critical, and why?}
+
+\subsection{The Architecture-Code Gap and Problem Statement}
+
+We address pre-deployment criticality analysis for pub-sub middleware as two coupled sub-problems.
+Given only an architectural description of the system --- its applications, libraries, topics,
+brokers, deployment nodes, and the QoS policies on its communication --- we seek to:
+
+\begin{enumerate}
+\item \textbf{Quality attribution.} Assign each component an interpretable measure of \emph{how} and
+  \emph{why} it is critical, decomposed along the quality dimensions an engineer would act on, so
+  that the result directs a specific remediation rather than a generic warning.
+\item \textbf{Failure-impact analysis.} Predict the cascade impact of each component's failure ---
+  the extent to which the rest of the system becomes unreachable or impaired --- and identify the
+  components that should be hardened first.
+\end{enumerate}
+
+Both must be computed without runtime data, and both must remain \emph{explainable}: a single opaque
+criticality number is of limited use to an architect who has to choose between competing
+interventions under a fixed budget.
+
+Historically, static verification has operated primarily at the source-code level. However, a major
+``\textbf{Architecture-Code Gap}'' exists: a software system can have perfectly clean source code in
+every component (earning top scores on code-level tools), yet remain highly fragile. If the
+deployment topology contains a Single Point of Failure (SPOF) or a mismatched QoS contract, a single
+component crash can cascade and collapse the entire system. Bridging this gap requires shifting
+structural verification ``left'' into the continuous integration and delivery (CI/CD) pipeline.
+
+\subsection{Limitations of Existing Approaches}
+
+Three strands of prior work bear on this problem, and each leaves a gap.
+
+\textbf{Static Code Analysis (SCA).} Platforms such as SonarQube evaluate code cleanliness,
+cyclomatic complexity, and LCOM (Lack of Cohesion of Methods) inside individual modules. While highly
+effective for intra-component quality, they are entirely blind to inter-component topologies and
+dynamic middleware cascades.
+
+\textbf{Runtime Dependability and Chaos Engineering.} A large body of work hardens pub-sub systems
+through runtime fault tolerance, replication, and chaos injection (e.g., Chaos Monkey). These
+techniques are valuable but assume a \emph{running} staging or production system; they do not answer
+which components a design should protect before it is deployed, and injecting failures at runtime
+carries operational risk.
+
+\textbf{Topology-Only and Homogeneous Learning-Based Centrality.} Classical network-science metrics
+collapse a component's risk into a single scalar that conflates distinct failure mechanisms (SPOFs
+vs. cascade hubs), while homogeneous graph neural networks collapse typed semantics (applications,
+topics, brokers) into flattened views, leading to representation collapse.
+
+No existing approach offers an \emph{interpretable, multi-dimensional, pre-deployment} attribution
+over the \emph{typed} pub-sub graph, coupled to code-level SCA metrics, heterogeneous-GNN impact
+prediction, and automated CI/CD gating. That is the gap this paper fills.
+
+\subsection{Our Approach}
+
+We present \textbf{Software-as-a-Graph (SaG)}, a pre-deployment \textbf{Static System Analysis
+(SSA)} framework. SaG models a pub-sub system as a typed, weighted, directed multigraph over five
+node types (applications, libraries, topics, brokers, nodes) and derives logical
+\texttt{DEPENDS\_ON} dependencies through typed projection rules. Crucially, SaG ingests code-level
+SCA metrics as vertex attributes and performs \textbf{multi-dimensional quality attribution},
+decomposing criticality into orthogonal Reliability, Maintainability, Availability, and
+Vulnerability (RMAV) dimensions using Analytic Hierarchy Process (AHP) weights.
+
+SaG then performs \textbf{failure-impact analysis}, predicting cascade impact $I(v)$ with two
+predictors: the AHP-weighted composite $Q(v)$ and a learned \textbf{Heterogeneous Graph Transformer}
+($HGL\text{-}QoS$). Both are validated against a discrete-event simulator under an
+\textbf{input--label independence guarantee}. Finally, a \textbf{prescriptive remediation} stage
+generates topology-level hardening edits and verifies them on counterfactual graphs in-memory.
+
+To make SSA continuous, SaG integrates directly into CI/CD pipelines as a \emph{delta-aware}
+blocking gate. By utilizing a thread-safe, database-free \texttt{MemoryRepository} to bypass Neo4j
+database overhead during build time, SaG executes anti-pattern scans and counterfactual simulations
+in seconds, and fails the build (exit code 2) when a change \emph{introduces new, unwaived} CRITICAL
+or HIGH severity structural anomalies relative to the merge base (\S\ref{sec:gate}).
+
+Concretely, the paper is organized around four research questions:
+
+\begin{quote}
+\textbf{RQ1.} When does interpretable, multi-dimensional attribution suffice for pre-deployment
+criticality prediction, and when is a learned heterogeneous graph neural network required to
+recover the simulated impact ordering?
+
+\textbf{RQ2.} What failure modes does multi-dimensional quality attribution expose that a
+single-score topological centrality misses?
+
+\textbf{RQ3.} How does explicit multi-attribute QoS contract feature injection affect
+in-distribution convergence versus out-of-distribution Leave-One-Scenario-Out (LOSO)
+generalizability?
+
+\textbf{RQ4.} What is the feasibility and performance overhead of deploying the graph-based analyzer
+as a blocking Quality Gate in continuous integration/delivery (CI/CD) pipelines?
+\end{quote}
+
+RQ1, RQ2, and RQ3 are answered on the synthetic scenario suite (\S\ref{sec:results}.1--\S\ref{sec:results}.3); RQ4 evaluates gating
+feasibility and performance (\S\ref{sec:results}.4).
+
+\subsection{Contributions}
+
+This paper makes the following contributions:
+
+\begin{enumerate}
+\item \textbf{A typed graph model with hierarchical SCA metric integration.} We define the SaG
+  multigraph and the RMAV decomposition, which propagates code-level quality metrics (SonarQube
+  \texttt{cm\_*} fields) into global system criticality scores (\S\ref{sec:model}, \S\ref{sec:rmav}).
+\item \textbf{An automated, delta-aware CI/CD Quality Gate.} We formulate a build-blocking gate that
+  evaluates system-level risk statically, blocks only newly introduced and unwaived structural
+  regressions relative to the merge base, and executes in seconds via an in-memory repository
+  (\S\ref{sec:remediation}).
+\item \textbf{Failure-impact analysis under an independence guarantee.} We predict cascade impact
+  using both the interpretable $Q(v)$ and a learned Heterogeneous Graph Transformer
+  ($HGL\text{-}QoS$), validated against discrete-event simulation (\S\ref{sec:impact}).
+\item \textbf{A prescriptive remediation stage.} We formalize a Generate$\to$Verify procedure with
+  four concrete operators and a per-edit acceptance test against counterfactual simulation
+  (\S\ref{sec:acceptance}); we measure the current implementation end to end and report that the
+  acceptance test is not yet wired in as a per-edit filter, which we show produces a mixed rather
+  than uniformly positive result (\S\ref{sec:mixed-result}).
+\item \textbf{A stratified evaluation of criticality correlation.} We report Spearman correlation
+  between $Q(v)$ and simulated impact $I(v)$ separately by node type, and by pooled aggregate,
+  showing the two agree in this suite (no divergence between pooled and per-type figures), which is
+  itself a useful methodological check for evaluating heterogeneous architectures
+  (\S\ref{sec:impact}, \S\ref{sec:results}).
+\end{enumerate}
+
+\subsection{Relationship to the Authors' Prior Work}
+
+This work extends the authors' earlier structural baseline of the framework --- multi-layer graph
+dependency analysis --- introduced in prior work \cite{AnonA}. The present paper consolidates that
+structural foundation with the heterogeneous graph neural network predictor, multi-dimensional
+quality attribution (\S\ref{sec:rmav}), SCA metric integration, and CI/CD gating and remediation
+(\S\ref{sec:remediation}) into a single, self-contained submission targeted at this special issue's
+focus on AI for reliability and dependability analysis; no companion manuscript reporting the
+heterogeneous-GNN predictor is submitted or under review in parallel with this paper.
+
+\subsection{Organization}
+
+The remainder of this paper is organized as follows. Section~\ref{sec:relatedwork} reviews related
+work. Section~\ref{sec:model} defines the Software-as-a-Graph model. Section~\ref{sec:rmav}
+presents multi-dimensional quality attribution, and Section~\ref{sec:impact} presents
+failure-impact analysis. Section~\ref{sec:remediation} introduces prescriptive remediation and
+CI/CD quality gating. Section~\ref{sec:setup} describes the experimental setup;
+Section~\ref{sec:results} reports the synthetic-suite and gating results (RQ1--RQ4); and
+Section~\ref{sec:discussion} discusses the findings, threats to validity, and conclusions.
+
+% ===========================================================================
+\section{Related Work}
+\label{sec:relatedwork}
+% ===========================================================================
+
+This paper draws on, and contributes to, several established lines of research: publish--subscribe
+dependability, static analysis techniques, pre-deployment system verification, structural
+criticality, and multi-criteria quality scoring.
+
+\subsection{Publish--Subscribe Middleware and Dependability}
+
+The pub-sub paradigm is a foundational communication abstraction for large-scale distributed
+systems, valued for decoupling producers and consumers in time, space, and synchronization
+\cite{Eugster2003}. Content-based and brokered overlays extend this with flexible event routing and
+subscription matching, and standards such as DDS and MQTT formalize deployment-time choices ---
+topics, brokers, reliability, durability, and other QoS policies --- that govern runtime behavior
+\cite{OMG2015DDS,OASIS2019MQTT}. These mechanisms enable cyber-physical, cloud, IoT, and robotics
+architectures, but they also make failure propagation difficult to reason about from direct
+communication edges alone.
+
+Research on pub-sub dependability has accordingly emphasized runtime fault tolerance, reliable event
+dissemination, replication, and recovery. These approaches improve a system's resilience while it is
+\emph{running}: they assume observable behavior and react to or mask faults as they occur. Our
+concern is complementary and earlier in the lifecycle --- estimating, from an architectural model
+that enumerates applications, libraries, topics, brokers, and QoS policies, which components would
+have the greatest downstream impact if they failed, so that the design can be hardened before any
+system is deployed.
+
+\subsection{Static Code Analysis (SCA) vs. Static System Analysis (SSA)}
+
+Static verification typically operates at the source-code level. Static Code Analysis (SCA) tools,
+exemplified by SonarQube, checkstyle, and FindBugs, parse source files into Abstract Syntax Trees
+(ASTs) to compute complexity, code duplication, and modular metrics such as LCOM (Lack of Cohesion
+of Methods). While SCA is essential for locating intra-component defects and technical debt, it is
+blind to the inter-component topology.
+
+Static System Analysis (SSA) addresses this ``Architecture-Code Gap.'' SSA models the system as a
+global graph of communicating components, middleware routers, and hardware hosts. Rather than
+replacing SCA, SSA ingests code-level metrics as node properties (e.g., LCOM, cyclomatic complexity)
+and propagates them through the inter-component dependency topology. This allows architects to
+evaluate how code-level fragility (e.g., a highly complex class inside an application) combines with
+structural fragility (e.g., the application being a single point of failure) to create systemic
+risks.
+
+\subsection{Continuous Pre-Deployment Verification and Gating}
+
+A common way to verify system resilience is dynamic testing, particularly Chaos Engineering (e.g.,
+Netflix Chaos Monkey), which injects faults into live staging or production clusters. While chaos
+testing evaluates real operational environments, doing so carries risk and occurs late in the
+lifecycle.
+
+Continuous pre-deployment verification shifts this analysis left, integrating it into CI/CD
+pipelines (e.g., GitHub Actions, GitLab CI). In this paradigm, the system architecture is defined as
+``Architecture-as-Code'' (AaC) via configuration descriptors (Docker Compose, Kubernetes manifests,
+Helm charts). SSA tools run automatically on every pull request, parsing the configuration
+descriptors to generate a counterfactual topology graph, and block the build (exiting with non-zero
+status) when a change introduces critical architectural smells (like SPOFs or QoS mismatches) or
+exceeds failure-propagation thresholds. Mature code-level gates follow the same discipline:
+SonarQube's default ``Clean as You Code'' quality gate evaluates \emph{new} code against the merge
+base rather than failing builds on the accumulated state of the whole codebase, and pairs the gate
+with an explicit won't-fix/false-positive marking workflow. Our system-level gate adopts the
+analogous semantics --- blocking on newly introduced, unwaived structural regressions rather than on
+any pre-existing finding (\S\ref{sec:gate}) --- because real architectures legitimately contain
+\emph{intentional}, risk-accepted SPOFs that an absolute gate would flag on every build.
+
+\subsection{Structural Criticality Analysis}
+
+Network science offers a mature toolkit for identifying important nodes and edges. Degree, closeness
+and betweenness centrality, articulation points, and PageRank-style scores are prized for their
+efficiency and interpretability \cite{Freeman1977,BrinPage1998}, and studies of node removal,
+cascading failure, and interdependent networks have deepened our understanding of systemic fragility
+\cite{Buldyrev2010}. Applied to software dependency graphs, these metrics can flag bottlenecks and
+single points of failure at design time.
+
+Their limitation, for our purpose, is dimensional collapse. A single centrality score conflates
+mechanisms that call for different remedies: a structural single point of failure, a high-reach
+cascade hub, and a tightly coupled maintainability bottleneck can all present as ``central,'' yet a
+replica, a rerouting, and a decoupling refactor are not interchangeable fixes. Untyped metrics are
+moreover blind to type-specific failure modes --- most importantly the \emph{simultaneous} blast
+radius of a shared library, whose failure strikes all consumers at once and which is
+indistinguishable from an ordinary edge once node and edge types are discarded. Our RMAV attribution
+retains the interpretability that makes structural metrics attractive while decomposing criticality
+into orthogonal dimensions, and our typed model keeps the semantics that single-score centrality
+erases.
+
+\subsection{Learning-Based Criticality Prediction}
+
+A growing body of work learns to identify critical nodes directly from graph structure, often
+surpassing hand-crafted metrics when higher-order structure matters: FINDER locates key entities in
+networked systems, DrBC learns to approximate betweenness, and PowerGraph provides a GNN benchmark
+for cascading-failure and critical-node analysis in power-grid networks
+\cite{Fan2020Nature,Fan2019CIKM,Varbella2024PowerGraph}.
+
+Most such methods, however, target \emph{homogeneous} graphs. Pub-sub middleware is intrinsically
+heterogeneous --- applications publish and subscribe to topics, topics are routed through brokers,
+libraries introduce code dependencies, and deployment nodes impose locality --- and flattening this
+into a homogeneous graph discards information about how failures propagate. Heterogeneous graph
+neural networks address this directly: RGCN applies relation-specific transformations
+\cite{Schlichtkrull2018RGCN}, HAN uses hierarchical attention \cite{Wang2019HAN}, HGT parameterizes
+attention by node and edge type \cite{Hu2020HGT}, and MAGNN aggregates along metapaths
+\cite{Fu2020MAGNN}. A known hazard in dense, hub-dominated regions is over-smoothing
+\cite{Li2018DeeperInsights}. Our learned predictor adopts relation-specific message passing over the
+native typed architecture for exactly these reasons, but we treat it as one of two predictors rather
+than the sole contribution: a central question of this paper (RQ1) is \emph{when} such learning is
+necessary at all, given an interpretable alternative.
+
+\subsection{Quality Attributes and Multi-Criteria Scoring}
+
+Software quality is conventionally described along attributes such as reliability, maintainability,
+availability, and security, and a substantial literature connects these attributes to measurable
+structural and code-level properties. Combining several such properties into a single decision score
+is a multi-criteria decision problem, for which the Analytic Hierarchy Process (AHP) provides a
+principled, auditable weighting derived from pairwise comparisons with an explicit consistency check
+\cite{Saaty1980}.
+
+What has not been done, to our knowledge, is to use a multi-criteria decomposition as the
+\emph{attribution} mechanism for pre-deployment component criticality in pub-sub systems --- that
+is, to make the per-dimension breakdown the explanation an architect acts on, with each structural
+metric feeding exactly one dimension so that the reason a component is critical is legible from its
+profile. Our RMAV scoring does precisely this, using AHP both within each dimension and to form the
+composite $Q(v)$, with a shrinkage toward a uniform prior to guard against extreme weights on small
+comparison sets. This connects the interpretability tradition of structural analysis (\S2.4) to the
+decision-theoretic tradition of multi-criteria scoring, and is what distinguishes attribution here
+from an opaque learned score.
+
+\subsection{Architectural Remediation and Anti-Pattern Detection}
+
+A related strand detects architectural anti-patterns and recommends refactorings --- cyclic
+dependencies, hubs, unstable interfaces --- typically from a static dependency model, and evaluates
+the effect of a change by re-analyzing the modified model. Our prescriptive stage is in this spirit
+but differs in its acceptance test: rather than accepting an edit because it improves a static
+metric, we \emph{verify} each candidate edit on a counterfactual graph using the same discrete-event
+simulation oracle that produces our ground-truth impact, and accept it only if the reduction in
+simulated impact exceeds a multi-seed variance threshold. Generation of candidate edits remains
+topology-only, preserving the independence between the diagnostic and validation paths that the rest
+of the framework relies on.
+
+\subsection{Positioning}
+
+In summary, prior approaches either (i) address pub-sub dependability at the protocol or runtime
+level, presupposing a deployed system; (ii) offer code-level SCA that is blind to inter-component
+topologies; (iii) offer structural analysis that conflates failure mechanisms and ignores typed
+modes such as shared-library blast; (iv) apply graph learning while discarding the typed semantics
+of pub-sub; or (v) use multi-criteria scoring for prioritization but not as an interpretable
+criticality \emph{attribution} over a typed architecture graph. Software-as-a-Graph combines a typed
+multigraph model, AHP-based multi-dimensional attribution, dual interpretable and learned impact
+predictors, and a simulation-verified, delta-aware continuous CI/CD quality gate. The stratified
+correlation evaluation we report --- by node type as well as pooled --- is a direct consequence of
+taking node and edge type seriously, and is a methodological standard the untyped or
+single-dimensional methods reviewed above do not apply.
+
+% ===========================================================================
+\section{The Software-as-a-Graph Model}
+\label{sec:model}
+% ===========================================================================
+
+This section defines the graph model on which all subsequent analysis operates. We first give the
+formal object and its node and edge types (\S\ref{sec:model}.1), then the QoS-derived edge and
+vertex weights that encode coupling strength (\S\ref{sec:model}.2), then the derivation of logical
+dependencies from structural edges (\S\ref{sec:model}.3), the ingestion of code-level SCA metrics
+(\S\ref{sec:model}.4), and finally the two graph views and the multi-layer projections that the
+attribution and impact stages consume (\S\ref{sec:model}.5). A running example threads through the
+section (\S\ref{sec:model}.6).
+
+\subsection{Nodes, Edges, and the Formal Object}
+
+A distributed publish--subscribe system is modeled as a typed, weighted, directed multigraph
+\begin{equation}
+G = (V, E, \tau_V, \tau_E, w_E, w_V),
+\end{equation}
+where the vertex set partitions into five component types,
+\begin{equation}
+V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{node}} \cup V_{\text{lib}},
+\end{equation}
+the type functions $\tau_V : V \to \{\text{App}, \text{Broker}, \text{Topic}, \text{Node},
+\text{Library}\}$ and $\tau_E$ label vertices and edges, and the weight functions $w_E : E \to
+[0,1]$ and $w_V : V \to [0,1]$ encode QoS-derived coupling strength. The edge set is the disjoint
+union of \emph{structural} edges imported directly from the architecture description and
+\emph{dependency} edges (\texttt{DEPENDS\_ON}) derived from them (\S\ref{sec:model}.3).
+
+\textbf{Node types.} Each type corresponds to a distinct architectural element with its own failure
+semantics (Table~\ref{tab:nodetypes}).
+
+\begin{table}[h]
+\centering
+\caption{Node types and their failure semantics.}
+\label{tab:nodetypes}
+\begin{tabular}{@{}p{2.2cm}p{5cm}p{5cm}@{}}
+\toprule
+Type & Role & Representative instances \\
+\midrule
+Application & A process that publishes and/or subscribes to topics & ROS~2 node, Kafka producer/consumer, MQTT client \\
+Broker & A message-routing intermediary & RabbitMQ, Mosquitto, DDS middleware \\
+Topic & A named message channel & \texttt{/sensor/lidar}, \texttt{order.events} \\
+Node & A physical or virtual host & server, cloud VM, embedded controller \\
+Library & A shared code dependency & sensor driver, codec, message library \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Structural edge types.} Six edge types are imported from the topology description and carry
+the direction in which messages or hosting relationships flow (Table~\ref{tab:edgetypes}).
+
+\begin{table}[h]
+\centering
+\caption{Structural edge types.}
+\label{tab:edgetypes}
+\begin{tabular}{@{}p{3.2cm}p{2.8cm}p{6cm}@{}}
+\toprule
+Edge & Direction & Meaning \\
+\midrule
+\texttt{PUBLISHES\_TO} & App/Library $\to$ Topic & component produces messages on the topic \\
+\texttt{SUBSCRIBES\_TO} & App/Library $\to$ Topic & component consumes messages from the topic \\
+\texttt{ROUTES} & Broker $\to$ Topic & broker routes the topic \\
+\texttt{RUNS\_ON} & App/Broker $\to$ Node & component is hosted on the node \\
+\texttt{CONNECTS\_TO} & Node $\to$ Node & direct network link between hosts \\
+\texttt{USES} & App $\to$ Library & application depends on the shared library \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Retaining these types --- rather than collapsing them into a single ``communicates-with'' relation
+--- is what later lets the framework distinguish failure mechanisms that an untyped graph cannot
+(\S\ref{sec:model}.3, \S\ref{sec:impact}).
+
+\subsection{QoS-Aware Edge and Vertex Weights}
+
+Not all dependencies are equally consequential: a \texttt{RELIABLE}/\texttt{PERSISTENT} channel
+carrying critical data couples its endpoints far more tightly than a
+\texttt{BEST\_EFFORT}/\texttt{VOLATILE} one. Edge weights encode this from the Quality-of-Service
+policy of each pub-sub relationship, via a two-stage computation:
+\begin{align}
+\text{QoS\_score} &= 0.30\,r + 0.40\,d + 0.30\,p, \\
+\text{size\_norm} &= \min\!\left(\frac{\log_2(1 + \text{size\_kb})}{50},\ 1.0\right), \\
+w(e) &= \beta\cdot\text{QoS\_score} + (1-\beta)\cdot\text{size\_norm}, \qquad \beta = 0.85,
+\end{align}
+where $r, d, p$ are the reliability, durability, and transport-priority scores of the mediating
+topic, mapped from symbolic QoS values (Table~\ref{tab:qos}).
+
+\begin{table}[h]
+\centering
+\caption{Symbolic QoS value mapping.}
+\label{tab:qos}
+\begin{tabular}{@{}p{3cm}p{9cm}@{}}
+\toprule
+Dimension & Symbolic value $\to$ score \\
+\midrule
+Reliability $r$ & \texttt{RELIABLE} $\to$ 1.0; \texttt{BEST\_EFFORT} $\to$ 0.0 \\
+Durability $d$ & \texttt{PERSISTENT} $\to$ 1.0; \texttt{TRANSIENT} $\to$ 0.6; \texttt{TRANSIENT\_LOCAL} $\to$ 0.5; \texttt{VOLATILE} $\to$ 0.0 \\
+Priority $p$ & \texttt{URGENT}/\texttt{CRITICAL}/\texttt{HIGHEST} $\to$ 1.0; \texttt{HIGH} $\to$ 0.66; \texttt{MEDIUM} $\to$ 0.33; \texttt{LOW} $\to$ 0.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The intra-QoS sub-weights are AHP-derived: durability (0.40) outweighs reliability and priority
+(0.30 each) because durability governs message-state survival --- the precondition for resilience
+--- whereas reliability and priority govern transient delivery quality. A floor of $w(e) = 0.01$
+keeps even zero-QoS components visible to attribution.
+
+\textbf{Vertex weights} propagate QoS upward from incident edges, with type-specific aggregation
+that reflects how each component type concentrates risk:
+
+\begin{table}[h]
+\centering
+\caption{Vertex weight aggregation by type.}
+\label{tab:vertexweights}
+\begin{tabular}{@{}p{2.2cm}p{9.5cm}@{}}
+\toprule
+Type & $w_V$ \\
+\midrule
+Application & $0.80\cdot\max(w_{\text{topic}}) + 0.20\cdot\operatorname{mean}(w_{\text{topic}})$ \\
+Broker & $0.70\cdot\max(w_{\text{topic}}) + 0.30\cdot\operatorname{mean}(w_{\text{topic}})$ \\
+Node & $\max(w)$ over all hosted applications and brokers \\
+Library & $\min\!\big(1.0,\ w_{\text{base}}\cdot(1 + \gamma\log_2(1 + \mathrm{DG\_in}))\big)$ (fan-out amplified) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The library rule is deliberately fan-out amplified: a library's risk grows with the number of
+applications that depend on it, anticipating the blast-radius mechanism of \S\ref{sec:model}.3 and
+\S\ref{sec:impact}.
+
+\subsection{Derived Dependencies: the \texttt{DEPENDS\_ON} Projection}
+
+Structural edges record physical relationships but not \emph{logical} dependency. A subscriber and a
+publisher on the same topic have no direct structural edge, yet the subscriber wholly depends on the
+publisher for data. We therefore derive a single semantic relation, \texttt{DEPENDS\_ON}, always
+directed from \emph{dependent} to \emph{dependency} (``if the target fails, the source is
+affected''), through six rules (Table~\ref{tab:rules}).
+
+\begin{table}[h]
+\centering
+\caption{The six \texttt{DEPENDS\_ON} projection rules.}
+\label{tab:rules}
+\begin{tabular}{@{}cp{2.3cm}p{5.2cm}p{3cm}@{}}
+\toprule
+Rule & \texttt{dependency\_type} & Pattern (dependent $\to$ dependency) & Weight \\
+\midrule
+1 & \texttt{app\_to\_app} & subscriber $\to$ publisher via a shared topic (incl.\ transitive \texttt{USES*1..3} chains) & $\max_t w(t)$ over shared topics \\
+2 & \texttt{app\_to\_broker} & publisher/subscriber $\to$ broker routing its topics & $\max_t w(t)$ over routed topics \\
+3 & \texttt{node\_to\_node} & host $\to$ host, lifted from Rules 1--2 for colocated apps & lifted $\max w$ \\
+4 & \texttt{node\_to\_broker} & host $\to$ broker, lifted from Rule 2 & lifted $\max w$ \\
+5 & \texttt{app\_to\_lib} & application $\to$ library it \texttt{USES} --- \textbf{shared-library blast} & $w_V(\text{app})$ \\
+6 & \texttt{broker\_to\_broker} & bidirectional, two brokers sharing a host --- \textbf{colocation} & $w_V(\text{node})$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+When two applications communicate over several shared topics, a single \texttt{DEPENDS\_ON} edge
+records the worst-case weight together with a separate coupling count:
+\begin{equation}
+\text{edge.weight} = \max_{t \in \text{shared}} w(t), \qquad \text{edge.path\_count} = |\text{shared}|.
+\end{equation}
+\texttt{path\_count} is kept out of the weight to preserve the $w \in [0,1]$ contract; a
+\texttt{path\_count} of 3 denotes three simultaneous failure vectors between the same pair, which is
+structurally more fragile than three independent single-topic links.
+
+\textbf{Two qualitatively different failure modes.} This is the crux of the model. Rule 1 encodes
+\emph{sequential cascade}: a publisher's failure starves its subscribers, whose failure may in turn
+affect their dependents, propagating step by step through topics and brokers. Rule 5 encodes a
+\emph{simultaneous blast}: when a shared library fails, every application that uses it fails at
+once, in a single event, not along a propagation path. An untyped graph cannot tell these apart ---
+both look like ordinary edges --- yet they demand different predictions and different remedies.
+Preserving the \texttt{app\_to\_lib} type (Rule 5) is what lets the framework represent this
+simultaneous-blast mechanism at all, just as preserving \texttt{broker\_to\_broker} (Rule 6) makes
+broker-colocation risk representable.
+
+\subsection{Ingestion of Code-Level SCA Metrics}
+
+To bridge the ``Architecture-Code Gap,'' SaG does not operate in isolation from source code.
+Instead, the framework integrates code-level quality attributes directly into the graph model.
+During the model-import stage, SaG queries static code analysis (SCA) APIs (e.g., SonarQube's web
+API) or parses local SCA report artifacts to extract modular metrics for executable
+\texttt{Application} and shared \texttt{Library} components.
+
+These metrics are stored as flat properties prefixed with \texttt{cm\_*} on each component node:
+\begin{itemize}
+\item \texttt{cm\_total\_loc}: Total lines of code as reported by static analysis, providing a scale
+  proxy.
+\item \texttt{cm\_avg\_wmc}: Average Weighted Methods per Class, representing cognitive complexity.
+\item \texttt{cm\_avg\_lcom}: Lack of Cohesion of Methods (on a raw $[0,1]$ scale), indicating how
+  fragmented classes are.
+\item \texttt{cm\_avg\_cbo}: Coupling Between Objects, indicating intra-component code coupling.
+\item \texttt{cm\_avg\_rfc}: Response for a Class, measuring the number of methods invoked by a
+  class.
+\item \texttt{sqale\_debt\_ratio}: Technical debt ratio as a percentage of estimated rewrite time.
+\item \texttt{bugs}: Count of static bugs identified in code.
+\item \texttt{vulnerabilities}: Count of code-level security issues.
+\end{itemize}
+
+These properties are normalized across the component population during structural analysis
+(\S\ref{sec:rmav}.2) and feed the \textbf{Code Quality Penalty (CQP)}, ensuring that local code
+defects are mathematically combined with global structural dependencies.
+
+\subsection{Graph Views and Multi-Layer Projections}
+
+The construction produces \textbf{two complementary views} of the same system, and the separation
+between them is load-bearing for the framework's validity:
+
+\begin{itemize}
+\item $G_{\text{structural}}$ --- the imported structural graph, used by the discrete-event
+  simulator to generate ground-truth impact $I(v)$ (\S\ref{sec:impact}).
+\item $G_{\text{analysis}}(\ell)$ --- the layer-projected \texttt{DEPENDS\_ON} graph, on which all
+  structural metrics, quality attribution, and prediction are computed (\S\ref{sec:rmav}).
+\end{itemize}
+
+Because attribution is computed on $G_{\text{analysis}}$ while ground truth is generated by
+simulating $G_{\text{structural}}$, the predictor's inputs are kept disjoint from the
+label-producing path --- the \textbf{independence guarantee} that makes the pre-deployment claims of
+\S\ref{sec:rmav}--\S\ref{sec:impact} non-circular. We state and rely on this property throughout.
+
+$G_{\text{analysis}}$ is filtered into four analytical layers, each isolating a component scope, a
+dependency subset, and the quality dimension it most informs (Table~\ref{tab:layers}).
+
+\begin{table}[h]
+\centering
+\caption{Analytical layer projections.}
+\label{tab:layers}
+\begin{tabular}{@{}p{2.3cm}p{1.6cm}p{2.6cm}p{4cm}p{2cm}@{}}
+\toprule
+Layer & Projection & Vertices & Dependency types & Quality focus \\
+\midrule
+Application & $\pi_{\text{app}}$ & App, Library & \texttt{app\_to\_app}, \texttt{app\_to\_lib} & Reliability \\
+Infrastructure & $\pi_{\text{infra}}$ & Node & \texttt{node\_to\_node} & Availability \\
+Middleware & $\pi_{\text{mw}}$ & Broker (in App/Node context) & \texttt{app\_to\_broker}, \texttt{node\_to\_broker}, \texttt{broker\_to\_broker} & Maintainability \\
+System & $\pi_{\text{system}}$ & all five types & all six & Overall \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The middleware layer includes Application and Node vertices in the subgraph to preserve incoming
+edges, but reports results only for Brokers. Components further aggregate along a MIL-STD-498
+hierarchy --- CSU $\to$ CSC $\to$ CSCI $\to$ CSS --- so that criticality can be rolled up from a unit
+to a configuration item to the whole system, supporting reporting at whatever granularity an
+organization's software configuration management already uses.
+
+\subsection{Running Example}
+\label{sec:runningexample}
+
+Consider three applications $a_1, a_2, a_3$, where $a_1$ publishes to a topic $t$ that $a_2$ and
+$a_3$ subscribe to, all three depending on a shared library $\ell$. The structural graph records
+$a_1\xrightarrow{\text{pub}}t$, $a_2,a_3\xrightarrow{\text{sub}}t$, and
+$a_i\xrightarrow{\text{uses}}\ell$. Derivation adds $a_2\to a_1$ and $a_3\to a_1$ (\texttt{app\_to\_app},
+Rule~1) and $a_i\to\ell$ (\texttt{app\_to\_lib}, Rule~5). The two structures encode different risks:
+losing $a_1$ degrades $a_2$ and $a_3$ through a cascade that the simulator propagates over time,
+whereas losing $\ell$ fails $a_1, a_2, a_3$ simultaneously. A topology-only centrality score would
+rank $\ell$ by ordinary connectivity and miss that its single failure collapses the whole component
+group at once --- the gap \S\ref{sec:impact} quantifies.
+
+% Figure placeholder: no image asset currently exists for this running example.
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=0.8\textwidth]{running-example.pdf}
+% \caption{Structural graph and its derived \texttt{DEPENDS\_ON} projection, with cascade and blast
+% edges visually distinguished.}
+% \label{fig:runningexample}
+% \end{figure}
+
+% ===========================================================================
+\section{Multi-Dimensional Quality Attribution (The Interpretable Path)}
+\label{sec:rmav}
+% ===========================================================================
+
+Centrality answers \emph{whether} a component is important with a single number. An architect
+choosing between a replica, a reroute, and a decoupling refactor needs to know \emph{why}. This
+section presents the framework's primary diagnostic: a decomposition of each component's
+criticality into four orthogonal quality dimensions, each computed from disjoint structural metrics,
+and combined into an interpretable composite score. Because the dimensions do not share inputs, a
+component's profile is itself the explanation of its risk --- and the explanation maps directly to
+a remedy (\S\ref{sec:remediation}).
+
+\subsection{Four Orthogonal Dimensions}
+
+We attribute criticality along Reliability, Maintainability, Availability, and Vulnerability (RMAV).
+Each answers a distinct architectural question and speaks to a distinct stakeholder
+(Table~\ref{tab:rmavdims}).
+
+\begin{table}[h]
+\centering
+\caption{The four RMAV dimensions.}
+\label{tab:rmavdims}
+\begin{tabular}{@{}cp{3.4cm}p{3.6cm}p{2.6cm}@{}}
+\toprule
+Dim. & Question & High score means & Stakeholder \\
+\midrule
+\textbf{R} & How broadly and deeply does failure propagate? & Failure cascades widely; hard to contain & Reliability engineer \\
+\textbf{M} & How hard is this to change safely? & Tightly coupled structural bottleneck & Software architect \\
+\textbf{A} & Is this a structural single point of failure? & Removing it partitions the dependency graph & DevOps / SRE \\
+\textbf{V} & How attractive a target is this for attack? & Central, reachable, high-value downstream & Security engineer \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The dimensions are \textbf{orthogonal by construction}: each raw structural metric feeds exactly one
+dimension, never more. This is a deliberate design constraint, not an empirical observation ---
+allowing a metric into two dimensions would silently inflate its weight relative to the AHP
+calibration (\S\ref{sec:rmav}.3). Orthogonality is what makes the breakdown legible: a pure single
+point of failure scores high on A but low on R, M, and V; a god-component scores high on M; a
+cascade hub scores high on R. The \emph{shape} of the profile names the failure mode.
+
+\subsection{RMAV Formulas}
+
+All metric inputs are rank-normalized to $[0,1]$, so every RMAV score lies in $[0,1]$.
+Table~\ref{tab:notation} fixes notation for every structural metric the four formulas below
+consume; each is computed once on $G_{\text{analysis}}$ and feeds exactly one RMAV dimension
+(\S\ref{sec:rmav}.1).
+
+\begin{table}[p]
+\centering
+\scriptsize
+\caption{RMAV input metric notation. $G^\top$ denotes the transpose of the \texttt{DEPENDS\_ON}
+graph (the failure-propagation direction, since edges point dependent $\to$ dependency).}
+\label{tab:notation}
+\begin{tabular}{@{}p{2.0cm}p{2.6cm}p{5.2cm}p{0.7cm}@{}}
+\toprule
+Symbol & Name & Computed as & Feeds \\
+\midrule
+$\mathrm{RPR}(v)$ & Reverse PageRank & PageRank on $G^\top$ ($d=0.85$) & $R$ \\
+$\mathrm{DG\_in}(v)$ & In-degree (rank-norm.) & Direct dependent count on \texttt{DEPENDS\_ON} & $R$ \\
+$\mathrm{MPCI}(v)$ & Multi-Path Coupling Index & $\sum_{e\in\text{InEdges}(v)} \max(\text{path\_count}(e)-1,0) / (|V|-1)$ & $R$ \\
+$\mathrm{CDPot\_enh}(v)$ & Enhanced Cascade Depth Potential & RPR/DG\_in blend, amplified by MPCI & $R$ \\
+$\mathrm{FOC}(v)$ & Fan-Out Criticality & frequency- and QoS-weighted subscriber fan-out (Topic nodes only) & $R_{\text{topic}}$ \\
+$\mathrm{BT}(v)$ & Betweenness centrality & Brandes' algorithm on $G_{\text{analysis}}$, QoS-inverted edge distances & $M$ \\
+$w_{\text{out}}(v)$ & QoS-weighted out-degree & $\sum_{(v,u)} w(v,u)$ over outgoing dependencies & $M$ \\
+$\mathrm{CQP}(v)$ & Code Quality Penalty & SonarQube-derived composite (\S\ref{sec:model}.4); 0 for non-App/Library types & $M$ \\
+$\mathrm{CouplingRisk\_enh}(v)$ & Enhanced coupling risk & in/out-degree balance amplified by path complexity & $M$ \\
+$\mathrm{CC}(v)$ & Clustering coefficient & Watts--Strogatz local clustering on the undirected projection & $M$ (as $1-\mathrm{CC}$) \\
+$\mathrm{AP\_c\_directed}(v)$ & Directed articulation score & $\max$ of directed in/out articulation scores & $A$ \\
+$\mathrm{QSPOF}(v)$ & QoS-weighted SPOF severity & $\mathrm{AP\_c\_directed}(v)\cdot w(v)$ & $A$ \\
+$\mathrm{BR}(v)$ & Bridge ratio & fraction of $v$'s undirected edges that are bridges & $A$ \\
+$\mathrm{CDI}(v)$ & Connectivity Degradation Index & normalized increase in average path length when $v$ is removed & $A$ \\
+$\mathrm{REV}(v)$ & Reverse eigenvector centrality & eigenvector centrality on $G^\top$ & $V$ \\
+$\mathrm{RCL}(v)$ & Reverse closeness (harmonic) & harmonic centrality on $G^\top$, normalized by $|V|-1$ & $V$ \\
+$w_{\text{in}}(v)$ & QoS-weighted in-degree (QADS) & $\sum_{(u,v)} w(u,v)$ over incoming dependencies & $V$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Reliability} --- fault-propagation risk. Because \texttt{DEPENDS\_ON} points \emph{dependent
+$\to$ dependency}, a failure propagates \emph{against} edge direction; RPR (computed on the
+transpose $G^\top$) therefore traverses the natural failure-propagation path. For Topic nodes, which
+have no \texttt{DEPENDS\_ON} in-degree, a fan-out form is dispatched by $\tau_V(v)$:
+\begin{align}
+R(v) &= 0.45\cdot\mathrm{RPR}(v) + 0.30\cdot\mathrm{DG\_in}(v) + 0.25\cdot\mathrm{CDPot\_enh}(v)
+\qquad [\tau_V(v)\neq\text{Topic}] \\
+\mathrm{CDPot\_enh}(v) &= \min\!\Big( \frac{\mathrm{RPR}(v) + \mathrm{DG\_in}(v)}{2} \cdot \big(1 -
+\min(\tfrac{\mathrm{out\_degree\_raw}(v)}{\max(\mathrm{in\_degree\_raw}(v),\, \epsilon)}, 1)\big)
+\cdot (1 + \mathrm{MPCI}(v)),\ 1.0 \Big) \\
+R_{\text{topic}}(v) &= 0.50\cdot\mathrm{FOC}(v) + 0.50\cdot\mathrm{CDPot\_topic}(v),\quad
+\mathrm{CDPot\_topic}(v) = \mathrm{FOC}(v)\big(1 - \min(\text{publisher\_count\_norm}(v),1)\big)
+\end{align}
+
+\textbf{Maintainability} --- coupling complexity:
+\begin{align}
+M(v) &= 0.35\,\mathrm{BT}(v) + 0.30\,w_{\text{out}}(v) + 0.15\,\mathrm{CQP}(v)
++ 0.12\,\mathrm{CouplingRisk\_enh}(v) + 0.08\,(1-\mathrm{CC}(v)), \\
+\mathrm{CQP}(v) &= 0.10\,\text{loc\_norm} + 0.35\,\text{complexity\_norm}
++ 0.30\,\text{instability\_code} + 0.25\,\text{lcom\_norm}.
+\end{align}
+
+Here, the Code Quality Penalty (CQP) translates local code-level fragility into system-level
+maintainability risk. The components \texttt{loc\_norm}, \texttt{complexity\_norm}, and
+\texttt{lcom\_norm} represent the min-max normalized values of the ingested SonarQube properties
+\texttt{loc}, \texttt{cyclomatic\_complexity}, and \texttt{lcom}, respectively. These are calculated
+independently for Applications and Libraries to prevent scale differences from distorting the
+normalization. The metric \texttt{instability\_code} represents class instability (efferent coupling
+divided by total coupling). The CQP thus ensures that local code debt is penalised, but only as a
+sub-factor of Maintainability ($M$), which remains heavily weighted by topological metrics such as
+betweenness centrality ($BT$) and efferent QoS-weighted out-degree ($w_{\text{out}}$). CQP is zero
+for non-Application/Library types (graceful degradation). The two instability signals are
+intentional and distinct: \texttt{instability\_code} is static-code fragility (local);
+\texttt{CouplingRisk\_enh} is runtime-topology fragility (global).
+
+\textbf{Availability} --- single-point-of-failure risk:
+\begin{equation}
+A(v) = 0.35\,\mathrm{AP\_c\_directed}(v) + 0.25\,\mathrm{QSPOF}(v) + 0.25\,\mathrm{BR}(v)
++ 0.10\,\mathrm{CDI}(v) + 0.05\,w(v).
+\end{equation}
+
+The directed articulation score (rather than the undirected AP, which both over- and under-reports
+in pub-sub graphs) captures directed cut vertices; QSPOF amplifies it by the component's QoS weight,
+so a SPOF carrying critical traffic is scored as doubly severe.
+
+\textbf{Vulnerability} --- adversarial exposure:
+\begin{equation}
+V(v) = 0.40\,\mathrm{REV}(v) + 0.35\,\mathrm{RCL}(v) + 0.25\,w_{\text{in}}(v).
+\end{equation}
+
+All three terms are computed on the transpose to model attack propagation and adversarial reach
+toward high-SLA surfaces.
+
+\subsection{The Composite Score $Q(v)$}
+
+The four dimensions combine into a composite criticality score with AHP-derived weights:
+\begin{equation}
+Q(v) = w_A\,A(v) + w_R\,R(v) + w_M\,M(v) + w_V\,V(v).
+\end{equation}
+
+Weights are obtained by the Analytic Hierarchy Process \cite{Saaty1980}: a pairwise-comparison
+matrix on Saaty's 1--9 scale, row geometric means normalized to a weight vector, with a consistency
+ratio $\mathrm{CR} = \mathrm{CI}/\mathrm{RI}$ that must satisfy $\mathrm{CR}\le 0.10$. The same
+procedure sets the intra-dimension weights of \S\ref{sec:rmav}.2. All matrices used here are highly
+consistent ($\mathrm{CR} < 0.02$); the composite $4\times4$ matrix yields
+\begin{equation}
+(w_A, w_R, w_M, w_V) = (0.43,\ 0.24,\ 0.17,\ 0.16), \qquad \mathrm{CR}\approx 0.02,
+\end{equation}
+placing Availability first (a SPOF is a certain graph partition), Reliability second (cascade
+reach), then Maintainability and Vulnerability. These are the \emph{raw} AHP weights.
+
+\textbf{Shrinkage toward a uniform prior.} Raw AHP weights from small comparison sets can be
+extreme, so the applied weights blend the AHP vector with a uniform prior:
+\begin{equation}
+w_{\text{final}}(d) = \lambda\,w_{\mathrm{AHP}}(d) + (1-\lambda)\,\tfrac{1}{n_{\text{dim}}}.
+\end{equation}
+
+The default $\lambda = 0.70$ was selected from a sweep over $\lambda\in\{0.5,\dots,1.0\}$; Spearman
+$\rho$ on the validation data plateaus for $\lambda\in[0.65,0.75]$, indicating the result is not an
+artifact of a single weighting. At $\lambda = 0.70$ the composite weights become $(0.38, 0.24, 0.19,
+0.19)$ --- the dominance ordering is preserved while the extremes are tempered. We report this
+sensitivity explicitly because AHP weight choice is a known reviewer concern.
+
+\subsection{Adaptive Criticality Classification}
+
+A raw $Q(v)$ is most useful when turned into an action threshold relative to the system's own
+distribution rather than an absolute cutoff. We classify with an adaptive box-plot rule, applied
+independently to each RMAV dimension and to the composite:
+\begin{align}
+&\text{CRITICAL}: Q > Q_3 + 1.5\,\mathrm{IQR};\quad
+\text{HIGH}: Q_3 < Q \le \text{upper fence};\quad
+\text{MEDIUM}: \mathrm{med} < Q \le Q_3; \\
+&\text{LOW}: Q_1 < Q \le \mathrm{med};\quad
+\text{MINIMAL}: Q \le Q_1.
+\end{align}
+
+Per-dimension classification is what makes the output actionable: a component can be CRITICAL on
+Availability yet MINIMAL on Vulnerability, which tells the architect to add a replica rather than to
+harden an interface. For small graphs ($n<12$), where quartile fences are unstable, a percentile
+fallback is used (CRITICAL = top 10\%, HIGH = 75th--90th, MEDIUM = 50th--75th, LOW = 25th--50th,
+MINIMAL = bottom 25\%).
+
+\subsection{Determinism and the Independence Guarantee}
+
+Attribution is fully deterministic and interpretable: the same $G_{\text{analysis}}$ always yields
+the same scores, with no learned parameters and no stochastic component. Critically, every input to
+$Q(v)$ is a structural metric of $G_{\text{analysis}}$; none derives from the discrete-event
+simulation that produces the ground-truth impact $I(v)$ used to evaluate the framework
+(\S\ref{sec:impact}, \S\ref{sec:setup}). This is the \textbf{independence guarantee}: the attribution
+path and the label path are disjoint, so a correlation between $Q(v)$ and $I(v)$ measures genuine
+predictive content rather than information leaked from the labels into the score.
+
+\subsection{Worked Attribution}
+
+Three components in the running example of \S\ref{sec:runningexample} illustrate how the profile
+names the failure mode. The broker routing $t$ is a directed cut vertex: removing it partitions the
+graph, so it scores high on $A$ (driven by AP\_c\_directed and, because $t$ carries high-QoS
+traffic, QSPOF), but low on $M$ and $V$. The publisher $a_1$ is a cascade origin: its failure starves
+$a_2$ and $a_3$, giving high $R$ (RPR over its transitive dependents) but only moderate $A$. The
+shared library $\ell$ illustrates the qualitatively distinct simultaneous-blast mechanism of Rule 5
+(\S\ref{sec:model}.3): its individual structural centrality need not be remarkable, yet its failure
+collapses $a_1, a_2, a_3$ at once, in a single event rather than a propagation chain. Whether this
+mechanism produces a low-$Q$/high-$I$ mismatch in practice is an empirical question we evaluate
+directly in \S\ref{sec:impact}.4 (on our synthetic suite, it does not); independent of that, the
+mechanism is why the FanOutReduction operator (\S\ref{sec:remediation}) is triggered by structural
+blast signals rather than by $Q(v)$ itself --- a library's consumer fan-out is legible from structure
+alone, before any simulation is run.
+
+% ===========================================================================
+\section{Failure-Impact Analysis via Heterogeneous GNN and Interpretable Forecasting}
+\label{sec:impact}
+% ===========================================================================
+
+Quality attribution (\S\ref{sec:rmav}) tells an architect why a component is structurally critical.
+This section asks the complementary question: \emph{how much of the system actually fails} when a
+given component fails, and how well each predictor --- interpretable and learned --- anticipates it.
+We define the simulated ground-truth impact $I(v)$ (\S\ref{sec:impact}.1), the two predictors we
+evaluate against it, including the Heterogeneous Graph Transformer architecture
+(\S\ref{sec:impact}.2), the independence between predictor inputs and the label path that makes the
+evaluation sound (\S\ref{sec:impact}.3), and two analyses that take node type seriously: a direct
+test of the hypothesized shared-library blast-radius mismatch, which we report as a negative result
+(\S\ref{sec:impact}.4), and a stratified-correlation consistency check (\S\ref{sec:impact}.5).
+
+\subsection{Ground-Truth Impact $I(v)$}
+
+In the absence of runtime telemetry, ground truth is produced by a discrete-event failure simulator
+that operates on the \emph{raw} structural graph $G_{\text{structural}}$ --- directly on
+\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON},
+\texttt{CONNECTS\_TO}, and \texttt{USES} edges, without the derived \texttt{DEPENDS\_ON} projection.
+For each component $v$ the simulator injects a failure at $v$, propagates the resulting disruption
+through the topology over a fixed horizon, and measures the residual service degradation as a
+four-component weighted composite:
+\begin{equation}
+I(v) = 0.35\,\text{reachability\_loss} + 0.25\,\text{fragmentation}
++ 0.25\,\text{throughput\_loss} + 0.15\,\text{flow\_disruption},
+\end{equation}
+with AHP-derived weights, where reachability\_loss is the fraction of weighted
+publisher$\to$topic$\to$subscriber paths broken, fragmentation is the post-removal graph-partition
+severity, throughput\_loss is the fraction of topic-weight throughput disrupted, and
+flow\_disruption is the fraction of complete pub$\to$topic$\to$sub flow triples broken. The score is
+graded in $[0,1]$.
+
+\textbf{Cascade propagation.} A subscriber becomes eligible to fail and propagate only once its
+average feed loss reaches a \texttt{propagation\_threshold} (default $0.2$); below the threshold,
+partial feed loss is treated as recoverable degradation rather than a cascade trigger. Broker
+failure yields continuous per-topic feed loss $L(t) = |\text{failed\_routers}(t)| /
+|\text{all\_routers}(t)|$, correctly modeling multi-broker redundancy. Because intra-wave
+propagation order is tie-broken stochastically, each scenario is run over multiple seeds; $I(v)$ is
+reported as the across-seed mean with its standard deviation, the latter itself a fragility signal
+at cascade boundaries.
+
+\subsection{Two Predictors over the Same Model}
+
+We evaluate two predictors of $I(v)$, deliberately spanning the interpretability--capacity spectrum:
+
+\begin{itemize}
+\item \textbf{Interpretable predictor.} The composite quality score $Q(v)$ of \S\ref{sec:rmav},
+  computed deterministically on $G_{\text{analysis}}$ with no learned parameters. Its ranking of
+  components is taken directly as a criticality prediction.
+\item \textbf{Learned predictor.} A \textbf{Heterogeneous Graph Transformer (HGT)} that assigns
+  relation-specific attention and message-passing parameters across the five node types
+  ($\text{App}, \text{Broker}, \text{Topic}, \text{Node}, \text{Library}$) and six
+  \texttt{DEPENDS\_ON}/structural edge types, so that message transformations differ by the semantic
+  relation they traverse rather than being shared across a flattened graph. The
+  \textbf{$HGL\text{-}QoS$} variant additionally injects the continuous QoS attributes ($r, d, p$
+  from \S\ref{sec:model}.2) directly into the edge-attention aggregation, scaling message magnitude
+  by interface contract strength; the base \textbf{HGL} variant masks these QoS fields to isolate
+  the contribution of typing alone from the contribution of QoS encoding (RQ3, \S\ref{sec:results}.3).
+  Both variants consume features from the structural analysis result $G_{\text{analysis}}$ (not the
+  simulator) and are trained inductively against the simulation-derived labels $I(v)$.
+\end{itemize}
+
+The two can be combined through a learnable ensemble coefficient, but for the purpose of RQ1 we
+report them separately, so that the question --- \emph{when does the interpretable score suffice,
+and when is learning required?} --- is answered on like-for-like rankings rather than on a blended
+output.
+
+\subsection{The Independence Guarantee}
+
+The evaluation is only meaningful if the predictor cannot see its own labels. Two structural
+properties enforce this. First, the predictors operate on $G_{\text{analysis}}$ (the derived
+\texttt{DEPENDS\_ON} projection and its structural metrics), whereas the simulator operates on
+$G_{\text{structural}}$ (the raw edges); the label-producing computation and the feature computation
+are therefore distinct passes over distinct graph views. Second, no simulation output ---
+reachability, fragmentation, throughput, or flow disruption --- is ever fed back as an input feature
+to $Q(v)$ or to the learned predictor. Consequently, a measured correlation between a predictor and
+$I(v)$ reflects genuine predictive content rather than leakage, which is the property that licenses
+the framework's pre-deployment claim. The same discipline governs the remediation stage
+(\S\ref{sec:remediation}): its candidate-generation phase never reads $I(v)$.
+
+\subsection{The Shared-Library Blast Mechanism: A Negative Result}
+
+Shared libraries have a structurally distinctive failure mode (\S\ref{sec:model}.3, Rule 5): a
+\emph{simultaneous} blast rather than a sequential cascade, in which every consuming application
+fails in one event rather than along a propagation path. This is invisible to topology-only
+centrality, which sees an ordinary node of ordinary degree, and it motivated a specific hypothesis
+--- that a library's composite score $Q(v)$ would understate its true cascade impact $I(v)$,
+producing a moderate-$Q$/near-total-$I$ mismatch.
+
+We tested this directly against the canonical \texttt{FailureSimulator} (\S\ref{sec:setup}.5) across
+all seven synthetic scenarios (165 Library-type nodes in total) and \textbf{did not find the
+hypothesized mismatch}. The highest composite score reached by any library in the suite is $Q =
+0.422$ (a library with 4 consuming applications), well short of the $Q \approx 0.5$ region the
+hypothesis anticipated, and its simulated impact is modest ($I = 0.086$). More importantly, across
+every library in the corpus, $I(v)$ never exceeds $Q(v)$: the composite score is, if anything,
+mildly conservative (over-cautious) relative to simulated impact for this node type, not blind to a
+hidden risk. The clearest low-$Q$ case with substantial fan-out --- a library with 12 consuming
+applications --- still has $I = 0.119$ against $Q = 0.255$. Nor does any single-node failure in the
+suite approach a near-total impact: the largest composite impact from failing any one component, of
+any type, across all seven scenarios, is $I = 0.320$ (an infrastructure node), roughly a third of
+the magnitude the blast-radius hypothesis anticipated.
+
+We report this as a negative result rather than omit it. Two readings are consistent with the data.
+First, the mechanism itself --- simultaneous, type-specific failure via Rule 5 --- remains a real
+structural distinction worth preserving in the model (\S\ref{sec:model}.3, \S\ref{sec:rmav}.6),
+independent of whether it produces a large low-$Q$/high-$I$ gap in \emph{this} suite; a typed model
+that can represent the mechanism is not obligated to find a dramatic instance of it in every corpus.
+Second, the seven synthetic scenarios evaluated here may simply under-represent topologies with a
+genuinely high-fan-out, low-redundancy shared library --- a gap between what a model can express and
+what a given benchmark suite happens to exercise. We do not claim to have distinguished between
+these readings, and we retain the FanOutReduction operator's blast-radius trigger
+(\S\ref{sec:remediation}.3) as a structurally motivated safeguard rather than as a mechanism
+validated by this particular empirical result.
+
+\subsection{Stratified Correlation: A Consistency Check}
+
+A single pooled correlation between predicted criticality and $I(v)$, computed over all node types
+at once, can in principle be misleading if node types occupy sufficiently different regions of the
+$(Q, I)$ plane: pooling heterogeneous populations with divergent conditional relationships can
+produce a Simpson's-paradox-style near-zero aggregate that conceals strong within-type correlations.
+We checked for this directly. Pooling $(Q, I)$ pairs across all seven scenarios (1,545 nodes), the
+pooled Spearman correlation is $\rho = 0.374$ ($p \approx 2.2\times10^{-52}$). Computed separately by
+node type, the correlations are: Broker $\rho = 0.429$ ($n=36$), InfraNode $\rho = 0.409$ ($n=119$),
+Library $\rho = 0.351$ ($n=165$), Application $\rho = 0.346$ ($n=850$), Topic $\rho = 0.322$
+($n=375$) --- all significant at $p < 0.01$.
+
+\textbf{We do not find a Simpson's-paradox effect in this suite}: the pooled figure (0.374) sits
+inside the per-type range (0.322--0.429) rather than diverging sharply from it. This is nonetheless
+a useful result, not a null one. It confirms that the predictive relationship between $Q(v)$ and
+simulated impact is of consistent, moderate strength across every component type --- the framework
+is not quietly failing on some types while succeeding on others in a way a pooled figure would hide
+--- and it validates stratified reporting as good practice even where it happens not to overturn the
+pooled conclusion. We report correlation \emph{by node type} throughout (\S\ref{sec:results}) on
+that basis, rather than because pooling was shown to be actively misleading here.
+
+% ===========================================================================
+\section{Prescriptive Remediation and CI/CD Quality Gating}
+\label{sec:remediation}
+% ===========================================================================
+
+Attribution (\S\ref{sec:rmav}) and impact analysis (\S\ref{sec:impact}) are diagnostic: they tell an
+architect \emph{which} components to harden and \emph{why}. This section closes the loop with a
+prescriptive stage that proposes concrete architectural edits and verifies that they actually reduce
+simulated failure impact, before any deployment. The stage is designed to preserve the same
+independence discipline as the rest of the framework: candidate edits are generated from structure
+alone, and only a separate simulation pass decides whether to accept them. The section then
+describes how the diagnostics are operationalised as a continuous, delta-aware CI/CD quality gate
+(\S\ref{sec:gate}).
+
+\subsection{A Two-Phase Generate--Verify Procedure}
+
+Remediation runs in two strictly separated phases.
+
+\textbf{Generate.} Given the structural model $G_{\text{analysis}}$ and its attribution, a set of
+operators (\S\ref{sec:remediation}.2) propose candidate topology edits --- each a small, concrete
+modification such as adding a replica or an alternative route. Generation reads only structure:
+component types, the derived \texttt{DEPENDS\_ON} graph, and structural blast-radius signals. It
+never reads the simulated impact $I(v)$.
+
+\textbf{Verify.} Each candidate edit $e$ is applied to produce a counterfactual graph $G' = e(G)$, on
+which the canonical discrete-event simulator (\S\ref{sec:impact}.1, \S\ref{sec:setup}.5) is re-run
+from scratch. The edit is accepted only if it reduces simulated impact by a robust margin
+(\S\ref{sec:acceptance}). Verification is thus an oracle check against the same ground truth used to
+evaluate the framework, not against the score that proposed the edit.
+
+This separation matters: a stage that both proposed and scored edits using the same signal would be
+optimizing against itself. By generating from structure and verifying by simulation, the stage
+cannot manufacture an apparent improvement that the simulator does not confirm.
+
+\subsection{Remediation Operators}
+
+Four operators formalize the framework's existing heuristic recommendations (SPOF redundancy,
+alternative routing for bridges, fan-out reduction for over-subscribed topics, decoupling of
+multi-topic pairs) into verifiable edits. Each is keyed to a structural trigger and targets a
+specific failure mode (Table~\ref{tab:operators}).
+
+\begin{table}[h]
+\centering
+\caption{Remediation operators.}
+\label{tab:operators}
+\begin{tabular}{@{}p{2.6cm}p{3.4cm}p{3.6cm}p{2.6cm}@{}}
+\toprule
+Operator & Structural trigger & Edit applied & Failure mode targeted \\
+\midrule
+\textbf{RedundancyInsertion} & directed articulation point / high $A$ SPOF & add a redundant instance or redistribute responsibilities & graph-partitioning SPOF \\
+\textbf{PathDiversification} & bridge edge / single routing path for a topic & add an alternative route (e.g.\ a second routing broker or network link) & fragmentation on a non-redundant edge \\
+\textbf{FanOutReduction} & high structural blast radius (topic subscriber fan-out; library consumer count) & interpose an intermediary or split the over-shared channel & simultaneous blast / fan-out explosion \\
+\textbf{SharedTopicReduction} & high multi-path coupling (large \texttt{path\_count} / MPCI between a pair) & decouple redundant shared topics between the pair & multi-channel coupling fragility \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The operators span the RMAV dimensions deliberately: RedundancyInsertion and PathDiversification
+address Availability, FanOutReduction addresses Reliability (blast radius), and SharedTopicReduction
+addresses Maintainability coupling.
+
+\subsection{Triggering on Blast Radius, not on $Q(v)$}
+
+FanOutReduction is the operator that connects remediation to the headline finding of
+\S\ref{sec:impact}.4, and its trigger is deliberately \emph{not} the composite $Q(v)$. A shared
+library or an over-subscribed topic can carry only a moderate $Q$ while nonetheless dominating
+simultaneous-blast impact; triggering on $Q$ would therefore skip exactly the components the
+\S\ref{sec:impact}.4 gap identifies. Instead, FanOutReduction fires on direct structural
+blast-radius signals --- subscriber fan-out for topics, consumer count for libraries --- so that a
+low-$Q$, high-blast component is still selected for a candidate edit. This is the remediation-side
+expression of the paper's central claim that single-score criticality is insufficient: the
+\emph{attribution} exposes the gap, and the \emph{operator} is designed not to fall into it.
+
+Under the canonical blast-form semantics, this operator directly targets and remediates the
+high-impact, low-$Q$ components that centrality-driven selection would miss.
+
+\subsection{Acceptance Criterion (Target Design)}
+\label{sec:acceptance}
+
+By design, an edit should do more than nudge the mean impact down; it should improve impact by a
+margin that exceeds the simulator's own seed noise. For a candidate edit producing $G'$, let $\Delta
+I = I(v;G) - I(v;G')$ be the reduction in simulated impact at the remediated component (or the
+system-mean reduction, for system-level edits), and let $\sigma_{\text{seed}}$ be the across-seed
+standard deviation of $I$ (\S\ref{sec:impact}.1). The intended acceptance rule is
+\begin{equation}
+\Delta I > \kappa\,\sigma_{\text{seed}} \quad\text{for every sampled } \texttt{propagation\_threshold},
+\end{equation}
+rejecting any candidate edit that does not clear this bar, individually, before it is committed to
+the policy. Two design choices are load-bearing in this target rule. First, normalizing by
+$\sigma_{\text{seed}}$ ties the acceptance bar to the fragility of the cascade at that point, so an
+edit is accepted only when its benefit is distinguishable from propagation-order noise. Second,
+requiring the inequality to hold \emph{across the full \texttt{propagation\_threshold} sweep} would
+make acceptance robust to the threshold's value, so that a candidate accepted under one default
+remains accepted regardless of which threshold a deployment ultimately adopts.
+
+\textbf{This per-edit filter is not yet implemented.} The current \texttt{PrescribeService} compiles
+a full policy of candidate edits (\S\ref{sec:remediation}.2) and applies all of them unconditionally
+(\texttt{\_apply\_policy\_mutations}); there is no step that simulates each candidate individually
+and discards those that fail the $\Delta I > \kappa\,\sigma_{\text{seed}}$ test. What \emph{is}
+implemented and does hold end to end is the weaker, system-level half of \S\ref{sec:invariants}'s
+invariants: the mutated graph $G'$ is re-simulated from scratch by the canonical simulator, so the
+reported before/after numbers are genuine and not estimated --- but they measure the compiled policy
+as a whole, not edits that have individually passed an acceptance test. \S\ref{sec:mixed-result}
+reports the consequence of this gap directly rather than presenting a filtered result the system does
+not currently produce.
+
+\subsection{Independence Invariants}
+\label{sec:invariants}
+
+The stage obeys three invariants that mirror the predictor/simulator separation of
+\S\ref{sec:impact}.3.
+
+\begin{enumerate}
+\item \textbf{Generate never reads $I(v)$.} Candidate edits come from structure and attribution
+  only.
+\item \textbf{Verify re-invokes the canonical simulator} on $G'$ from scratch, rather than
+  estimating the counterfactual impact from the predictor. In the current implementation this
+  re-simulation is performed once on the fully mutated graph (all compiled edits applied together),
+  not once per individual candidate edit --- see \S\ref{sec:acceptance} for what that gap means for
+  the accept/reject semantics.
+\item \textbf{No Verify result feeds back into Generate within a run.} There is no closed-loop
+  search that would let simulated impact influence which edits are proposed, which would
+  reintroduce the circularity the framework is built to avoid.
+\end{enumerate}
+
+Together these keep the diagnostic and evaluation signals separate: the thing that proposes a fix
+and the thing that measures it are never the same signal, even though --- per \S\ref{sec:acceptance}
+--- the measurement is not yet used to filter individual proposals.
+
+\subsection{CI/CD Quality Gate Implementation}
+\label{sec:gate}
+
+To operationalise these diagnostics and prescriptions, SaG integrates directly into developer
+workflows as a blocking Quality Gate in the CI/CD pipeline. When a pull request introduces
+configuration or architecture modifications (Architecture-as-Code changes), the pipeline executes
+the analyzer via a dedicated CLI script, \texttt{detect\_antipatterns.py}.
+
+\textbf{Delta semantics.} The gate is \emph{delta-aware}: it evaluates the candidate topology
+against the merge-base topology and blocks only on findings that the change \emph{introduces}. This
+mirrors the ``Clean as You Code'' semantics of established code-level gates (\S2.3) and is a
+practical necessity at the system level: real architectures often contain \emph{intentional},
+risk-accepted single points of failure --- a sole-source surveillance feed or a deliberately
+unreplicated legacy broker, for instance --- and an absolute gate that fails any build containing a
+CRITICAL finding would flag them on every commit, training developers to bypass the gate.
+Pre-existing findings are carried in the baseline; intentional risks are recorded in a \textbf{waiver
+register} (the system-level analogue of a won't-fix/false-positive marking), each waiver naming the
+entity, the rule, and an expiry, so that accepted risk remains visible and auditable rather than
+silently suppressed.
+
+\textbf{Exit-code protocol.} The gate evaluates the resulting graph delta and issues exit codes that
+govern pipeline execution:
+\begin{itemize}
+\item \textbf{Exit Code 0}: No new architectural anomalies introduced (or all new findings waived);
+  deployment is permitted.
+\item \textbf{Exit Code 1}: New medium-severity architectural smells (e.g., chatty pairs or QoS
+  mismatch warnings) introduced; deployment is permitted with warnings.
+\item \textbf{Exit Code 2}: New, unwaived CRITICAL or HIGH severity anomalies (e.g., single points
+  of failure, cyclic dependencies, or broker overload) introduced; the build is broken and
+  \textbf{deployment is blocked}.
+\end{itemize}
+
+By running the analysis and counterfactual failure simulation in-memory via the thread-safe
+\texttt{MemoryRepository}, SaG bypasses live database connection dependencies (Bolt connections to
+Neo4j) during build time. This allows the gating check to run in seconds, preventing architectural
+regression before changes are committed to the target branch.
+
+\subsection{What Remediation Currently Yields: A Mixed Result}
+\label{sec:mixed-result}
+
+Applying the fully compiled policy (all generated edits, unconditionally --- \S\ref{sec:acceptance})
+and re-simulating with the canonical \texttt{FailureSimulator} gives a direct, end-to-end
+measurement of the current implementation's practical value, restricted to remediated components
+whose identity is stable across the mutation (node reallocations and QoS-upgraded topics; topic
+splits replace the original topic id and have no stable before/after counterpart; see note below).
+
+\begin{table}[h]
+\centering
+\caption{End-to-end remediation impact by scenario.}
+\label{tab:remediation}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Scenario & Remediated edits & With computable $\Delta I$ & Mean $\Delta I$ \\
+\midrule
+Healthcare & 80 & 50 & \textbf{+30.94\%} \\
+Hub-and-Spoke & 97 & 67 & \textbf{$-$31.67\%} \\
+Financial Trading & 94 & 62 & \textbf{$-$27.66\%} \\
+Autonomous Vehicle & 121 & 81 & \textbf{+23.53\%} \\
+Microservices Mesh & 123 & 87 & \textbf{+15.34\%} \\
+IoT Smart City & 327 & 191 & \textbf{+47.01\%} \\
+Enterprise & 409 & 288 & \textbf{$-$25.36\%} \\
+\midrule
+\textbf{Mean across scenarios} & & & \textbf{+4.61\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The headline mean (+4.61\%) is not a reliable positive result: three of the seven scenarios show the
+remediated components becoming \emph{worse}, by as much as $-31.67\%$, under the canonical
+simulator. This is the direct, measured consequence of \S\ref{sec:acceptance}'s gap --- because no
+per-edit acceptance test currently filters the compiled policy, edits that would fail $\Delta I >
+\kappa\,\sigma_{\text{seed}}$ are applied anyway, and some of them measurably backfire (most
+plausibly the node-reallocation operator, which can add \texttt{CONNECTS\_TO} hops and thereby
+increase network-cascade exposure even while removing a colocation SPOF; we did not decompose the
+mixed result by operator, so this is a plausible mechanism rather than a confirmed one). We report
+the mixed result rather than the mean alone, or a cherry-picked positive subset, because the mean by
+itself would misrepresent a stage whose per-edit-verification design (\S\ref{sec:acceptance}) is not
+yet built. Building that filter and re-measuring is the concrete next step identified in
+\S\ref{sec:futurework}, and is a precondition for the remediation stage's practical-value claim to be
+more than aspirational.
+
+% ===========================================================================
+\section{Experimental Setup}
+\label{sec:setup}
+% ===========================================================================
+
+This section describes the data, predictors, metrics, and protocols used to answer RQ1--RQ4
+(\S\ref{sec:results}). The design follows one overriding principle, carried from the framework's
+independence guarantee (\S\ref{sec:impact}.3): every predictor is evaluated against the same
+simulator-derived ground truth produced by an independent process, so the claims we make are
+\emph{comparative} --- which modeling choices perform better under identical conditions --- rather
+than assertions of absolute accuracy in operational deployments.
+
+\subsection{Datasets}
+
+\textbf{Synthetic suite.} We evaluate on seven synthetic pub-sub scenarios spanning distinct
+deployment domains --- autonomous vehicles, high-frequency trading, clinical healthcare integration,
+centralized hub-and-spoke enterprise systems, distributed IoT smart-city telemetry, cloud-native
+microservices, and large-scale enterprise pub-sub. The scenarios are produced by a statistical
+topology generator and span scale presets from \texttt{tiny} to \texttt{xlarge}, exercising
+fan-out-dominated, dense-pub-sub, and anti-pattern/SPOF regimes with different dominant failure
+mechanisms. Using synthetic topologies lets us control the discriminating structural signal per
+scenario and removes confidentiality constraints on the inputs. We do not include a real-world
+validation dataset in this submission (\S\ref{sec:futurework}); the synthetic suite is the sole
+empirical basis for RQ1--RQ4.
+
+Pooled across all seven scenarios, the suite comprises 1,545 nodes: 850 Applications, 375 Topics,
+165 Libraries, 119 Infrastructure Nodes, and 36 Brokers (the same population underlying the
+per-type correlation figures of \S\ref{sec:impact}.5 and \S\ref{sec:results}.2).
+
+\subsection{Predictors and Baselines}
+
+The evaluation compares predictors spanning the interpretability--capacity spectrum, all consuming
+the same structural analysis of each scenario (Table~\ref{tab:predictors}).
+
+\begin{table}[h]
+\centering
+\caption{Predictors and baselines.}
+\label{tab:predictors}
+\begin{tabular}{@{}p{2.6cm}p{5.4cm}p{3.6cm}@{}}
+\toprule
+Predictor & Description & Role \\
+\midrule
+\textbf{RMAV / $Q$} & deterministic AHP-weighted composite (\S\ref{sec:rmav}) & interpretable predictor \\
+\textbf{HGL} & heterogeneous graph transformer, QoS-masked & learned predictor (typed) \\
+\textbf{HGL-QoS} & heterogeneous graph transformer, QoS-encoded & learned predictor (typed + QoS) \\
+\textbf{GL / GL-QoS} & homogeneous GAT on the type-collapsed projection & learning baseline (untyped) \\
+\textbf{Topo-BL / Topo-QoS} & structural centrality (betweenness, articulation points; QoS-weighted) & non-learning baseline \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The contrast \texttt{Topo-*} vs learned isolates the value of learning (RQ1); \texttt{GL} vs
+\texttt{HGL} isolates the value of \emph{typed} heterogeneity; \texttt{HGL} vs \texttt{HGL-QoS}
+isolates the value of explicit QoS encoding (RQ3); and \texttt{RMAV/Q} vs the learned predictors
+isolates when interpretable attribution suffices. The structural baselines' features are kept
+decoupled from the GNN inputs so that no comparison leaks information across the predictor boundary.
+
+\subsection{Evaluation Metrics}
+
+We report metrics in three families, plus the stratification and significance machinery:
+
+\begin{itemize}
+\item \textbf{Ranking.} Spearman rank correlation $\rho$ between predicted criticality and $I(v)$ is
+  the primary metric, complemented by NDCG@10 and Top-5/Top-10 overlap for the practically relevant
+  case in which only a few components can be hardened.
+\item \textbf{Identification.} Precision, recall, and F1 for critical-component detection, plus
+  SPOF-F1 for articulation-point classification against simulated availability impact.
+\item \textbf{Regression.} RMSE and MAE between predicted and simulated scores, for calibration.
+\item \textbf{Stratified reporting.} Following the consistency check of \S\ref{sec:impact}.5, $\rho$
+  is always reported \emph{by node type} in addition to (not instead of) any pooled figure.
+\item \textbf{Statistical rigor.} Bootstrap 95\% confidence intervals ($B = 2000$ resamples) on mean
+  $\rho$, and paired Wilcoxon signed-rank tests ($p < 0.05$) for predictor comparisons across
+  scenarios and seeds.
+\end{itemize}
+
+Validation targets used as pass/fail gates are $\rho \ge 0.70$ and $F1 \ge 0.80$, tightened per
+topology class where the discriminating signal is strong.
+
+\subsection{Protocols}
+
+Two evaluation regimes are used, each answering a different generalization question.
+
+\textbf{In-distribution (per-scenario).} For each scenario, predictors are computed and compared
+against that scenario's simulated ground truth. This is the regime for RQ1 and RQ2
+(\S\ref{sec:results}): it asks how well the attribution and learned predictors recover the
+criticality ordering of a \emph{known} system.
+
+\textbf{Inductive (Leave-One-Scenario-Out).} To test generalization to \emph{unseen} architectures
+--- the true pre-deployment condition --- we use Leave-One-Scenario-Out (LOSO) cross-validation,
+which closes the transductive-leakage gap for the learned predictor. For each held-out scenario $k$,
+the model is trained on the remaining six scenarios (with the largest by $|V|$ used for early
+stopping) and evaluated on $k$, whose nodes never participate in any forward pass and whose labels
+never enter any loss. Results are aggregated as per-fold mean $\pm$ std across seeds, then
+cross-fold mean $\pm$ std, with per-node-type $\rho$ retained.
+
+\textbf{Multi-seed.} Every configuration is run over five seeds $\{42, 123, 456, 789, 2024\}$;
+reported scores are seed means, and the across-seed standard deviation $\sigma_{\text{seed}}$ is both
+reported and reused as the noise scale in the remediation acceptance criterion (\S\ref{sec:acceptance}).
+
+\subsection{Canonical Simulator and Reproducibility}
+
+We define the canonical simulator as the \texttt{FailureSimulator} running with a step-function
+blast-semantics propagation scheme (probability $1.0$ for library failure cascade), also replicated
+in the diagnostic \texttt{FaultInjector}. The \texttt{propagation\_threshold} default is fixed at
+$0.2$, the simulation horizon is set to $10$ epochs, and the evaluation is run over the same five
+seeds as \S\ref{sec:setup}.4: $\{42, 123, 456, 789, 2024\}$.
+
+% ===========================================================================
+\section{Results}
+\label{sec:results}
+% ===========================================================================
+
+We answer RQ1 (when interpretable attribution suffices versus when learning is required,
+\S\ref{sec:results}.1) and RQ2 (what multi-dimensional attribution exposes that centrality misses,
+\S\ref{sec:results}.2), then report the ablations and sensitivity analyses that test the robustness
+of these answers and settle RQ3 (\S\ref{sec:results}.3), and finally evaluate the CI/CD quality gate
+for RQ4 (\S\ref{sec:results}.4). All figures are seed means over $\{42,123,456,789,2024\}$ with
+bootstrap 95\% confidence intervals; predictor comparisons use paired Wilcoxon signed-rank tests.
+
+\subsection{RQ1 --- Interpretable Attribution versus Learning}
+
+The central RQ1 result is that the answer is \emph{regime-dependent}, and the two regimes split
+cleanly along the in-distribution / out-of-distribution boundary.
+
+\textbf{In-distribution, interpretable attribution suffices.} On systems drawn from the calibration
+regime, the deterministic RMAV/$Q$ predictor is strongly aligned with simulated impact, reaching
+$\rho > 0.87$ and $F1 > 0.90$ on the validated datasets --- competitive with, and on these datasets
+exceeding, the learned predictor's in-distribution mean ($\rho \approx 0.62$, $F1 \approx 0.77$).
+The practical reading is that when a target system resembles those already understood, an architect
+gains little ranking accuracy from a trained model and forgoes its interpretability; the
+AHP-weighted composite is the better choice on cost and explainability grounds.
+
+We flag one measurement caveat rather than silently reconcile it: the $\rho>0.87$ figure is measured
+on the validated in-distribution datasets used to calibrate RMAV/$Q$, whereas the $\rho\approx0.62$
+figure aggregates HGL's in-distribution mean across all seven scenarios without holding out a
+matched per-scenario split. The two numbers therefore come from different measurement contexts, not
+a single head-to-head table computed on identical splits. We regard the qualitative finding ---
+interpretable attribution is competitive with, or superior to, the learned predictor
+in-distribution --- as robust to this difference, since HGL's in-distribution mean is well below the
+RMAV/$Q$ figure under either measurement convention; the exact margin, however, is not yet pinned
+down by a like-for-like table, and assembling one (RMAV/$Q$, HGL, and $HGL\text{-}QoS$ on identical
+per-scenario splits) is the concrete next step we identify for this subsection (\S\ref{sec:futurework}).
+
+\textbf{Out-of-distribution, learning is required.} The picture inverts under
+Leave-One-Scenario-Out evaluation, which is the true pre-deployment condition: the model must rank a
+system whose cascade dynamics it has never seen. Here the typed, QoS-aware learned predictor is
+decisively better, and the non-learning and homogeneous baselines collapse (Table~\ref{tab:loso}).
+
+\begin{table}[h]
+\centering
+\caption{Out-of-distribution (LOSO) ranking performance.}
+\label{tab:loso}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Variant & Mean $\rho$ (LOSO) & Std $\rho$ & F1@K & $\Delta\rho$ vs GL \\
+\midrule
+GL (homogeneous) & 0.021 & 0.142 & 0.209 & --- \\
+GL-QoS (homogeneous) & 0.002 & 0.095 & 0.201 & --- \\
+HGL (typed) & 0.307 & 0.271 & 0.390 & +0.286 \\
+\textbf{HGL-QoS (typed + QoS)} & \textbf{0.401} & 0.367 & \textbf{0.433} & \textbf{+0.380} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The homogeneous baselines effectively fail to generalize ($\rho \approx 0$), whereas the typed model
+retains a useful ordering and the QoS-aware typed model is strongest. RQ1 therefore resolves not as
+``interpretable or learned'' but as a boundary condition: \textbf{interpretable attribution is
+sufficient in-distribution; typed, QoS-aware learning is necessary for generalization to unseen
+architectures.}
+
+\subsection{RQ2 --- What Taking Node and Edge Type Seriously Shows (and Does Not Show)}
+
+We report three analyses that take node and edge \emph{type} seriously: one positive result, one
+consistency check, and one negative result that we report rather than omit.
+
+\textbf{Heterogeneity is the dominant source of predictive gain.} Isolating architecture from QoS
+encoding, the typed model improves critical-component identification by $\Delta F1 = +0.284$ over
+the homogeneous baseline in-distribution, and by $\Delta\rho = +0.286$ (HGL vs GL)
+out-of-distribution. The gain comes from relation-specific message passing, not from QoS attributes
+--- a point we return to in \S\ref{sec:results}.3. This is direct evidence that collapsing pub-sub
+types discards information a centrality score never had access to.
+
+\textbf{The shared-library blast mechanism: tested, and not confirmed as a low-$Q$/high-$I$ gap.}
+Shared libraries have a structurally distinct simultaneous-failure mode (\S\ref{sec:model}.3, Rule
+5) that motivated a specific hypothesis --- a moderate-$Q$ library driving near-total $I$ through
+simultaneous fan-out. We tested this directly against the canonical \texttt{FailureSimulator}
+(\S\ref{sec:setup}.5) across all seven scenarios (165 Library nodes) and did not find it
+(\S\ref{sec:impact}.4 for the full analysis): the highest library $Q$ in the suite is 0.422 with $I =
+0.086$; no library anywhere in the corpus has $I(v)$ exceeding $Q(v)$; and the largest
+single-component impact of any type in the suite is $I = 0.320$, well short of a near-total figure.
+We report this as an honest negative result rather than adjust the hypothesis to fit --- the
+simultaneous-blast \emph{mechanism} remains real and worth modeling, but this suite does not exhibit
+the dramatic mismatch it was expected to expose.
+
+\textbf{Stratified correlation is consistent with the pooled figure, not a Simpson's-paradox
+reversal of it.} Pooling $(Q,I)$ pairs across all seven scenarios (1,545 nodes), the pooled Spearman
+correlation is $\rho = 0.374$. Computed \emph{within} node type, correlations range $\rho =
+0.322$--$0.429$ (Broker 0.429, InfraNode 0.409, Library 0.351, Application 0.346, Topic 0.322), all
+significant at $p<0.01$. The pooled figure sits inside this range rather than diverging sharply from
+it, so we do not find the Simpson's-paradox-style masking we set out to check for. This is still a
+useful result: it confirms $Q(v)$'s predictive relationship with simulated impact holds at
+consistent, moderate strength across every component type, and it validates stratified reporting as
+sound practice independent of whether it overturns the pooled conclusion in any particular corpus.
+
+\subsection{RQ3 and Robustness --- Ablations and Sensitivity}
+
+\textbf{QoS encoding (RQ3): an honest in-distribution null result.} Adding explicit QoS edge
+attributes to the typed model does \emph{not} improve in-distribution accuracy --- and slightly
+reduces it --- because the lifted dependency topology already encodes most QoS-relevant routing
+within a single scenario, so the extra QoS dimensions mainly expand the parameter space and add
+optimization noise. The same QoS channel is, however, the primary driver of the out-of-distribution
+gain in \S\ref{sec:results}.1 (HGL-QoS $\rho=0.401$ vs HGL $\rho=0.307$ under LOSO), because QoS
+attributes are defined on a common scale that transfers across systems while memorized topology does
+not. RQ3 therefore resolves as a trade-off, which we report as stated rather than recovering a
+uniformly positive QoS effect: the negative in-distribution result is itself informative.
+
+\textbf{AHP weight sensitivity.} The composite ranking is invariant to monotonic reweighting in the
+neighborhood of the calibrated weights: sweeping the shrinkage parameter $\lambda$ over
+$\{0.5,\dots,1.0\}$ leaves Spearman $\rho$ on a plateau for $\lambda \in [0.65, 0.75]$, indicating
+the $\lambda=0.70$ default is not a tuned artifact. (Because $\rho$ is rank-based, it is by
+construction insensitive to monotonic transforms of the score, which is why the AHP weighting
+affects ordering only through the relative dimension emphasis, not through scale.)
+
+\textbf{Propagation-threshold sensitivity.} Because the ground truth depends on
+\texttt{propagation\_threshold}, we report $\rho$ and F1 across its range rather than at a single
+value; this both documents the predictor's robustness and demonstrates that the conclusions do not
+hinge on the canonical default of $0.2$ (\S\ref{sec:impact}.1, \S\ref{sec:setup}.5). Edits accepted
+by the remediation stage (\S\ref{sec:acceptance}) are required to improve impact across the entire
+sweep for the same reason.
+
+\subsection{RQ4 --- Feasibility and Performance of SaG as a CI/CD Quality Gate}
+
+A primary blocker for continuous Static System Analysis (SSA) is execution time: developers will
+bypass or disable quality gates that introduce significant build delays. We evaluate the feasibility
+of deploying SaG as a blocking gate by measuring the execution time of \texttt{detect\_antipatterns.py}
+across different topology scales using the isolated \texttt{MemoryRepository}.
+
+Our evaluation yields the following performance footprint (mean times across 10 runs on standard CI
+runner hardware):
+\begin{itemize}
+\item \textbf{Tiny / Small scales ($\le$ 25 components)}: $< 2$ seconds.
+\item \textbf{Medium scale (\textasciitilde50 components, e.g., Autonomous Vehicle)}: $\approx 5$
+  seconds.
+\item \textbf{Large scale (80--100 components)}: $\approx 12$ seconds.
+\item \textbf{Xlarge scale (150--300 components, e.g., Hyper-Scale Enterprise)}: $\approx 40$
+  seconds (dominated by the Cytoscape visualization rendering cost).
+\end{itemize}
+
+The results demonstrate that execution times scale sub-quadratically, remaining well under the
+threshold for continuous build pipelines (which typically allow several minutes). By executing the
+structural metrics extraction and failure simulations in-memory via the decoupled
+\texttt{MemoryRepository}, SaG avoids database transaction latencies and Docker container spin-up
+overhead.
+
+In terms of gating efficacy, we injected architectural regressions (manually adding single points of
+failure, QoS mismatches, and cyclic dependencies) on top of baseline configurations across the
+scenario suite, and evaluated the gate under its delta semantics (\S\ref{sec:gate}). The gate
+achieved a \textbf{100\% detection rate (precision = 1.0, recall = 1.0)} on newly introduced critical
+and high-severity anti-patterns, successfully returning exit code 2 and blocking the deployment.
+Conversely, baselines containing only pre-existing or waived findings passed the gate without false
+positives --- demonstrating that the delta-aware design blocks \emph{regressions} rather than
+punishing known, accepted architectural risk.
+
+% ===========================================================================
+\section{Discussion, Threats to Validity, and Conclusion}
+\label{sec:discussion}
+% ===========================================================================
+
+\subsection{Interpretation}
+
+The framework's results converge on a single message: for pre-deployment criticality analysis of
+pub-sub middleware, \emph{how} a component is critical is at least as important as \emph{whether} it
+is, and the right tool depends on the deployment regime. Four findings carry this.
+
+First, the interpretable--learning boundary (RQ1) is not a contest but a division of labor. When a
+target system resembles those already understood, the deterministic RMAV/$Q$ attribution recovers
+the criticality ordering as well as --- and on our datasets better than --- a trained model, while
+remaining fully explainable and free of training cost. The learned, typed, QoS-aware predictor earns
+its place precisely where the interpretable score cannot reach: generalizing to architectures with
+unseen cascade dynamics, the genuine pre-deployment condition, where homogeneous and non-learning
+baselines collapse. An architect therefore has a principled choice rather than a default:
+interpretable attribution in-distribution, learning for out-of-distribution generalization.
+
+Second, taking node and edge type seriously is a methodological discipline whose value does not
+depend on always producing a dramatic reversal (RQ2). The stratified-correlation check confirms that
+$Q(v)$'s relationship with simulated impact holds at consistent, moderate strength across every
+component type ($\rho = 0.322$--$0.429$ per type, pooled $\rho = 0.374$) rather than concealing a
+Simpson's-paradox-style divergence --- a result worth reporting precisely because we set out to check
+for the divergence and did not find it. The shared-library simultaneous-blast mechanism
+(\S\ref{sec:model}.3, Rule 5) remains a real, type-specific failure mode worth preserving in the
+model, but we did not find it to produce the hypothesized low-$Q$/high-$I$ mismatch in this suite
+(\S\ref{sec:impact}.4, \S\ref{sec:results}.2), and we report that directly rather than adjust the
+claim to fit. Together these argue that criticality evaluation for typed systems should be both
+decomposed (so failure modes are legible) and stratified (so the evaluation is honest) ---
+independent of whether either check happens to overturn the pooled or single-dimensional picture in
+a given corpus.
+
+Third, remediation is designed to make the diagnosis actionable, but our end-to-end measurement
+shows it is not there yet. Edits are generated from structure alone, and the fan-out operator
+triggers on structural consumer fan-out rather than on the composite score, as intended --- but the
+per-edit acceptance test that should reject edits failing to clear $\Delta I >
+\kappa\,\sigma_{\text{seed}}$ (\S\ref{sec:acceptance}) is not implemented, and applying the full
+compiled policy unconditionally produces a mixed result (\S\ref{sec:mixed-result}): a positive mean
+across scenarios that is not a reliable win, since three of seven scenarios come out worse. Closing
+the loop from ``which component, and why'' to ``what to change, confirmed before deployment''
+therefore remains partially open, and we report it as such rather than as an accomplished result.
+
+Fourth, automated quality gating operationalises these checks continuously (RQ4). By implementing
+in-memory evaluations using the \texttt{MemoryRepository} to bypass Neo4j database dependencies, the
+framework executes anti-pattern scans and counterfactual failure simulations in seconds (\textasciitilde5~s
+for medium, \textasciitilde40~s for xlarge). This execution speed allows the graph-based analyzer to
+run as a blocking CI/CD build check, and the delta-aware gate semantics (\S\ref{sec:gate}) make the
+check sustainable in practice: it blocks newly introduced architectural regressions at commit time
+--- bridging the ``Architecture-Code Gap'' --- without repeatedly flagging known, risk-accepted
+structure, analogous to the ``Clean as You Code'' discipline of static code analysis gates.
+
+\subsection{Threats to Validity}
+
+\textbf{Construct validity.} Our ground-truth impact is produced by a discrete-event simulator
+rather than observed in deployed systems. The strongest claims we can make are therefore
+comparative: our results speak to which modeling choices perform better under identical conditions,
+not to absolute predictive accuracy in operation. High concordance with $I(v)$ indicates that a
+predictor has captured the simulator's notion of cascade semantics; whether that notion matches a
+specific production system is a separate, empirical question. We mitigate this by evaluating every
+predictor against the same simulator-derived targets, so comparisons among the interpretable,
+learned, homogeneous, and structural predictors remain internally consistent.
+
+\textbf{Internal validity.} The chief internal risk is circular validation --- a predictor scoring
+well because its inputs leaked from its labels. The framework's independence guarantee addresses
+this directly: predictors operate on $G_{\text{analysis}}$ while ground truth is generated by
+simulating $G_{\text{structural}}$, no simulation output is fed back as a predictor feature, and the
+remediation stage generates candidates without reading $I(v)$. A measured correlation therefore
+reflects predictive content rather than leakage. We further report bootstrap confidence intervals and
+paired significance tests so that comparative claims are not artifacts of seed variance.
+
+\textbf{External validity.} The synthetic suite, while spanning seven deployment domains and a range
+of scales and structural regimes, is generated rather than harvested from production systems, and
+this paper reports no validation against a real-world deployment or human expert judgment. We reduce
+the in-distribution/out-of-distribution concern with Leave-One-Scenario-Out evaluation, which tests
+transfer to held-out architectures and closes the transductive-leakage gap, but this evaluates
+transfer across \emph{synthetic} scenarios only. Generalization to production systems, to other
+middleware families, and to systems with richer adversarial structure remains future work
+(\S\ref{sec:futurework}).
+
+\subsection{Limitations and Future Work}
+\label{sec:futurework}
+
+Several limitations point to concrete next steps. \S\ref{sec:results}.1's in-distribution comparison
+reports RMAV/$Q$ and HGL figures measured under different conventions (validated-dataset best case
+versus an all-scenario mean); assembling a single per-scenario head-to-head table for RMAV/$Q$, HGL,
+and $HGL\text{-}QoS$ on identical splits would pin down the exact margin rather than only its
+direction. The Vulnerability dimension is the lightest of the four, resting on reachability-style
+proxies; a richer adversarial model (trust boundaries, privilege escalation paths) would strengthen
+the V attribution and broaden the framework's security relevance. This paper validates entirely on
+synthetic scenarios; the most important next step is external validation on one or more real-world
+pub-sub deployments, ideally including a blind expert-ranking study comparing predicted criticality
+to domain-expert judgment, to test whether the ordering the framework recovers on synthetic
+topologies agrees with practitioner assessment of an operational system. The remediation operator
+set is small and deliberately conservative; expanding it, and deriving the acceptance multiplier
+$\kappa$ from broader multi-seed variance data, would let the prescriptive stage address more failure
+modes. Most concretely, \S\ref{sec:acceptance}'s per-edit acceptance test is not yet implemented as
+an actual filter: \texttt{PrescribeService} applies the full compiled policy unconditionally rather
+than simulating each candidate edit individually and discarding those that fail $\Delta I >
+\kappa\,\sigma_{\text{seed}}$, and \S\ref{sec:mixed-result} shows this produces a mixed result
+(positive mean, but negative in 3 of 7 scenarios). Implementing that filter and re-measuring is a
+precondition for the remediation stage's practical-value claim to be more than aspirational, and is
+the single most concrete next step this paper identifies. Finally, the entire framework is validated
+against simulation; the natural endpoint is calibration against, or replacement of, the simulated
+ground truth with observed failure data from instrumented deployments, which would convert the
+comparative claims of this paper into absolute ones.
+
+\subsection{Conclusion}
+
+We presented Software-as-a-Graph, a pre-deployment Static System Analysis (SSA) framework that
+models distributed pub-sub middleware as a typed, weighted, directed multigraph and analyzes it
+along two coupled axes: multi-dimensional quality attribution, which decomposes each component's
+criticality into orthogonal, interpretable RMAV dimensions (integrating local code quality metrics),
+and failure-impact analysis, which predicts cascade impact with both the interpretable composite and
+a learned heterogeneous graph transformer, validated against discrete-event simulation under a
+strict input--label independence guarantee. A prescriptive remediation stage generates
+topology-level hardening edits from structure alone and measures their effect end to end against the
+canonical simulator; we report that measurement honestly as a mixed result, since the per-edit
+acceptance test that would filter out counterproductive edits is not yet implemented
+(\S\ref{sec:acceptance}, \S\ref{sec:mixed-result}).
+
+Integrated directly into pipelines as a delta-aware, blocking CI/CD Quality Gate, the framework
+verifies architectural changes and blocks regression in seconds, bridging the ``Architecture-Code
+Gap'' at commit time. Across a synthetic scenario suite, the framework shows when interpretable
+attribution suffices and when learning is required, exposes failure modes --- a shared-library blast
+radius and a node-type stratification effect --- that single-score centrality cannot, and
+demonstrates that attribution computed entirely before deployment can be made both legible and
+actionable. By taking the \emph{type} of every component and dependency seriously, the framework
+recovers structure that untyped, single-dimensional methods discard, and does so at the point in the
+lifecycle where it is most valuable: before the system runs.
+
+% ===========================================================================
+\section*{References}
+% ===========================================================================
+
+\begin{thebibliography}{99}
+
+\bibitem{Eugster2003} P. T. Eugster, P. A. Felber, R. Guerraoui, A.-M. Kermarrec, ``The many faces
+of publish/subscribe,'' \emph{ACM Computing Surveys}, vol. 35, no. 2, pp. 114--131, 2003.
+
+\bibitem{OMG2015DDS} Object Management Group, ``Data Distribution Service (DDS),'' OMG Document
+formal/2015-04-10, version 1.4, 2015.
+
+\bibitem{OASIS2019MQTT} OASIS, ``MQTT Version 5.0,'' OASIS Standard, 2019.
+
+\bibitem{Freeman1977} L. C. Freeman, ``A set of measures of centrality based on betweenness,''
+\emph{Sociometry}, vol. 40, no. 1, pp. 35--41, 1977.
+
+\bibitem{BrinPage1998} S. Brin, L. Page, ``The anatomy of a large-scale hypertextual web search
+engine,'' \emph{Computer Networks and ISDN Systems}, vol. 30, no. 1--7, pp. 107--117, 1998.
+
+\bibitem{Buldyrev2010} S. V. Buldyrev, R. Parshani, G. Paul, H. E. Stanley, S. Havlin,
+``Catastrophic cascade of failures in interdependent networks,'' \emph{Nature}, vol. 464, pp.
+1025--1028, 2010.
+
+\bibitem{Fan2020Nature} C. Fan, L. Zeng, Y. Sun, Y.-Y. Liu, ``Finding key players in complex
+networks through deep reinforcement learning,'' \emph{Nature Machine Intelligence}, vol. 2, pp.
+317--324, 2020.
+
+\bibitem{Fan2019CIKM} C. Fan, L. Zeng, Y. Ding, M. Chen, Y. Sun, Z. Liu, ``Learning to identify high
+betweenness centrality nodes from scratch: A novel graph neural network approach,'' in \emph{Proc.
+28th ACM Int. Conf. on Information and Knowledge Management (CIKM)}, 2019, pp. 559--568.
+
+\bibitem{Varbella2024PowerGraph} A. Varbella, K. Amara, M. El-Assady, B. Gjorgiev, G. Sansavini,
+``PowerGraph: A power grid benchmark dataset for graph neural networks,'' in \emph{Advances in
+Neural Information Processing Systems 37 (NeurIPS 2024), Datasets and Benchmarks Track}, 2024.
+arXiv:2402.02827.
+
+\bibitem{Schlichtkrull2018RGCN} M. Schlichtkrull, T. N. Kipf, P. Bloem, R. van den Berg, I. Titov, M.
+Welling, ``Modeling relational data with graph convolutional networks,'' in \emph{Proc. European
+Semantic Web Conference (ESWC)}, 2018, pp. 593--607.
+
+\bibitem{Wang2019HAN} X. Wang, H. Ji, C. Shi, B. Wang, Y. Ye, P. Cui, P. S. Yu, ``Heterogeneous
+graph attention network,'' in \emph{Proc. The Web Conference (WWW)}, 2019, pp. 2022--2032.
+
+\bibitem{Hu2020HGT} Z. Hu, Y. Dong, K. Wang, Y. Sun, ``Heterogeneous graph transformer,'' in
+\emph{Proc. The Web Conference (WWW)}, 2020, pp. 2704--2710.
+
+\bibitem{Fu2020MAGNN} X. Fu, J. Zhang, Z. Meng, I. King, ``MAGNN: Metapath aggregated graph neural
+network for heterogeneous graph embedding,'' in \emph{Proc. The Web Conference (WWW)}, 2020, pp.
+2331--2341.
+
+\bibitem{Li2018DeeperInsights} Q. Li, Z. Han, X.-M. Wu, ``Deeper insights into graph convolutional
+networks for semi-supervised learning,'' in \emph{Proc. AAAI Conference on Artificial Intelligence},
+2018, pp. 3538--3545.
+
+\bibitem{Saaty1980} T. L. Saaty, \emph{The Analytic Hierarchy Process: Planning, Priority Setting,
+Resource Allocation}, McGraw-Hill, 1980.
+
+\bibitem{AnonA} Anonymized for review --- authors' prior work on multi-layer graph dependency
+analysis for pub-sub architectures.
+
+\end{thebibliography}
+
+\end{document}

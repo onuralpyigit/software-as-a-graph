@@ -1,4 +1,4 @@
-# Graph Neural Networks for Architectural Dependability and Cascading Failure Prediction in Complex Distributed Systems
+# Graph Neural Networks for Reliability and Dependability Analysis in Complex Distributed Systems based on Publish–Subscribe Architecture
 
 *Target Venue: Journal of Systems and Software (JSS) — Elsevier, Q1 — Special Issue "AI Techniques
 for Performance, Reliability, and Sustainability of Modern Software Systems" (VSI:AI4MSS), topic:
@@ -608,7 +608,32 @@ scores high on R. The *shape* of the profile names the failure mode.
 
 ## 4.2 RMAV Formulas
 
-All metric inputs are rank-normalized to $[0,1]$, so every RMAV score lies in $[0,1]$.
+All metric inputs are rank-normalized to $[0,1]$, so every RMAV score lies in $[0,1]$. Table 1 fixes
+notation for every structural metric the four formulas below consume; each is computed once on
+$G_{\text{analysis}}$ and feeds exactly one RMAV dimension (§4.1).
+
+**Table 1. RMAV input metric notation.** $G^\top$ denotes the transpose of the `DEPENDS_ON` graph
+(the failure-propagation direction, since edges point dependent → dependency).
+
+| Symbol | Name | Computed as | Feeds |
+|--------|------|-------------|:-----:|
+| $\mathrm{RPR}(v)$ | Reverse PageRank | PageRank on $G^\top$ ($d=0.85$) | $R$ |
+| $\mathrm{DG\_in}(v)$ | In-degree (rank-norm.) | Direct dependent count on `DEPENDS_ON` | $R$ |
+| $\mathrm{MPCI}(v)$ | Multi-Path Coupling Index | $\sum_{e\in\text{InEdges}(v)} \max(\text{path\_count}(e)-1,0) / (\lvert V\rvert-1)$ | $R$ (via CDPot_enh) |
+| $\mathrm{CDPot\_enh}(v)$ | Enhanced Cascade Depth Potential | RPR/DG_in blend, amplified by MPCI (Eq. above) | $R$ |
+| $\mathrm{FOC}(v)$ | Fan-Out Criticality | frequency- and QoS-weighted subscriber fan-out (Topic nodes only) | $R_{\text{topic}}$ |
+| $\mathrm{BT}(v)$ | Betweenness centrality | Brandes' algorithm on $G_{\text{analysis}}$, QoS-inverted edge distances | $M$ |
+| $w\_\text{out}(v)$ | QoS-weighted out-degree | $\sum_{(v,u)} w(v,u)$ over outgoing dependencies | $M$ |
+| $\mathrm{CQP}(v)$ | Code Quality Penalty | SonarQube-derived composite (§3.4); 0 for non-App/Library types | $M$ |
+| $\mathrm{CouplingRisk\_enh}(v)$ | Enhanced coupling risk | in/out-degree balance amplified by path complexity | $M$ |
+| $\mathrm{CC}(v)$ | Clustering coefficient | Watts–Strogatz local clustering on the undirected projection | $M$ (as $1-\mathrm{CC}$) |
+| $\mathrm{AP\_c\_directed}(v)$ | Directed articulation score | $\max$ of directed in/out articulation scores | $A$ |
+| $\mathrm{QSPOF}(v)$ | QoS-weighted SPOF severity | $\mathrm{AP\_c\_directed}(v)\cdot w(v)$ | $A$ |
+| $\mathrm{BR}(v)$ | Bridge ratio | fraction of $v$'s undirected edges that are bridges | $A$ |
+| $\mathrm{CDI}(v)$ | Connectivity Degradation Index | normalized increase in average path length when $v$ is removed | $A$ |
+| $\mathrm{REV}(v)$ | Reverse eigenvector centrality | eigenvector centrality on $G^\top$ | $V$ |
+| $\mathrm{RCL}(v)$ | Reverse closeness (harmonic) | harmonic centrality on $G^\top$, normalized by $\lvert V\rvert-1$ | $V$ |
+| $w\_\text{in}(v)$ | QoS-weighted in-degree (QADS) | $\sum_{(u,v)} w(u,v)$ over incoming dependencies | $V$ |
 
 **Reliability** — fault-propagation risk. Because `DEPENDS_ON` points *dependent → dependency*, a
 failure propagates *against* edge direction; RPR (computed on the transpose $G^\top$) therefore
@@ -1055,6 +1080,10 @@ lets us control the discriminating structural signal per scenario and removes co
 constraints on the inputs. We do not include a real-world validation dataset in this submission
 (§9.3); the synthetic suite is the sole empirical basis for RQ1–RQ4.
 
+Pooled across all seven scenarios, the suite comprises 1,545 nodes: 850 Applications, 375 Topics,
+165 Libraries, 119 Infrastructure Nodes, and 36 Brokers (the same population underlying the
+per-type correlation figures of §5.5 and §8.2).
+
 ## 7.2 Predictors and Baselines
 
 The evaluation compares predictors spanning the interpretability–capacity spectrum, all consuming
@@ -1145,11 +1174,16 @@ The practical reading is that when a target system resembles those already under
 gains little ranking accuracy from a trained model and forgoes its interpretability; the
 AHP-weighted composite is the better choice on cost and explainability grounds.
 
-> *Open item (MEDIUM):* the $\rho>0.87$ (RMAV) and $\rho\approx0.62$ (HGL) figures derive from
-> different measurement contexts; the committed deliverable for this subsection is a single
-> per-scenario head-to-head table reporting RMAV/$Q$, HGL, and HGL-QoS on identical splits. The
-> qualitative finding (interpretable competitive-to-superior in-distribution) is robust to that
-> table; the exact margin is not yet pinned.
+We flag one measurement caveat rather than silently reconcile it: the $\rho>0.87$ figure is measured
+on the validated in-distribution datasets used to calibrate RMAV/$Q$, whereas the $\rho\approx0.62$
+figure aggregates HGL's in-distribution mean across all seven scenarios without holding out a
+matched per-scenario split. The two numbers therefore come from different measurement contexts, not
+a single head-to-head table computed on identical splits. We regard the qualitative finding —
+interpretable attribution is competitive with, or superior to, the learned predictor in-distribution
+— as robust to this difference, since HGL's in-distribution mean is well below the RMAV/$Q$ figure
+under either measurement convention; the exact margin, however, is not yet pinned down by a
+like-for-like table, and assembling one (RMAV/$Q$, HGL, and $HGL\text{-}QoS$ on identical
+per-scenario splits) is the concrete next step we identify for this subsection (§9.3).
 
 **Out-of-distribution, learning is required.** The picture inverts under Leave-One-Scenario-Out
 evaluation, which is the true pre-deployment condition: the model must rank a system whose cascade
@@ -1336,7 +1370,11 @@ middleware families, and to systems with richer adversarial structure remains fu
 
 ## 9.3 Limitations and Future Work
 
-Several limitations point to concrete next steps. The Vulnerability dimension is the lightest of the
+Several limitations point to concrete next steps. §8.1's in-distribution comparison reports RMAV/$Q$
+and HGL figures measured under different conventions (validated-dataset best case versus an
+all-scenario mean); assembling a single per-scenario head-to-head table for RMAV/$Q$, HGL, and
+$HGL\text{-}QoS$ on identical splits would pin down the exact margin rather than only its direction.
+The Vulnerability dimension is the lightest of the
 four, resting on reachability-style proxies; a richer adversarial model (trust boundaries, privilege
 escalation paths) would strengthen the V attribution and broaden the framework's security relevance.
 This paper validates entirely on synthetic scenarios; the most important next step is external
@@ -1383,13 +1421,6 @@ runs.
 ---
 
 # References
-
-> **Editorial note.** Citation markers `[1]`–`[15]` are used throughout the text; the list below maps
-> each to a source consistent with its context. All entries are real, published works, including
-> `[9]` (PowerGraph), which was previously flagged unverified and has since been confirmed by web
-> search against its NeurIPS 2024 Datasets and Benchmarks Track listing and arXiv preprint. Publisher,
-> volume, and page details should still be cross-checked against the authors' reference manager
-> during typesetting, but are believed accurate.
 
 [1] P. T. Eugster, P. A. Felber, R. Guerraoui, A.-M. Kermarrec, "The many faces of publish/subscribe,"
 *ACM Computing Surveys*, vol. 35, no. 2, pp. 114–131, 2003.
