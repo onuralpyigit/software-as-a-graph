@@ -1,47 +1,46 @@
 # Graph Neural Networks for Reliability and Dependability Analysis in Complex Distributed Systems based on Publish–Subscribe Architecture
 
-* **Target Journal:** Journal of Systems and Software (JSS) — Elsevier, Q1
-* **Target Venue:** Virtual Special Issue "AI Techniques for Performance, Reliability, and Sustainability of Modern Software Systems" (VSI:AI4MSS) — topic *"AI for Reliability and Dependability Analysis in Complex ICT Systems"*
-
----
-
-## Highlights
-
-*(Elsevier-mandatory, 3–5 bullets, ≤ 85 characters each)*
-
-* Heterogeneous Graph Transformer (HGL-QoS) generalizes to unseen pub-sub architectures.
-* AHP-weighted RMAV attribution explains criticality along four orthogonal axes.
-* Typed multigraph model bridges the Architecture-Code Gap in pub-sub systems.
-* Delta-aware CI/CD gate blocks structural regressions in seconds, pre-deployment.
-* Negative and mixed results (blast mismatch, remediation gaps) reported honestly.
-
-## Keywords
-
-heterogeneous graph neural networks; publish–subscribe architecture; architectural dependability; cascading failure; static system analysis; pre-deployment verification; quality attributes; CI/CD quality gate.
-
----
+* **Target Journal:** Journal of Systems and Software (JSS) — Elsevier
+* **Target Venue:** Special Issue "AI Techniques for Performance, Reliability, and Sustainability of Modern Software Systems" (VSI:AI4MSS) — topic *"AI for Reliability and Dependability Analysis in Complex ICT Systems"*
 
 ## Abstract
 
-Modern distributed systems increasingly rely on publish–subscribe middleware to decouple data producers and consumers. While this decoupling provides scaling and operational flexibility, it obscures the true dependency chains along which a single component's failure can cascade. Identifying *which* components are critical—and *why*—before deployment is difficult: runtime telemetry does not yet exist at design time, and code-level Static Code Analysis (SCA) platforms (e.g., SonarQube) are blind to system-level topological dependencies.
+Publish-subscribe middleware decouples data producers and consumers, improving scalability but
+obscuring the dependency chains along which a component's failure can cascade. Because runtime
+telemetry does not exist before deployment, and static code analysis tools are blind to
+system-level topology, identifying which components are critical, and why, remains difficult. We
+address this gap with Software-as-a-Graph (SaG), a static system analysis framework that models a
+publish-subscribe system as a typed, weighted, directed multigraph over five component classes and
+derives logical dependencies through typed projection rules. On this representation, we train a
+relation-specific heterogeneous graph neural network (GNN) with explicit quality-of-service (QoS)
+edge-feature injection (HGL-QoS) to forecast each component's cascading failure impact before
+deployment. We pair this learned predictor with an interpretable, Analytic Hierarchy
+Process-weighted composite score decomposing criticality into four orthogonal quality dimensions,
+so every diagnostic maps to a concrete remediation. Both predictors are validated against an
+independent discrete-event cascade simulator under a strict input-label independence guarantee.
+Across seven synthetic publish-subscribe topologies, the interpretable score suffices for known
+architectures (rank correlation above 0.87), while the heterogeneous predictor is required to
+generalize to unseen architectures (0.401 versus near zero for homogeneous baselines). A stratified
+analysis confirms consistent predictive strength across component types, and an end-to-end
+evaluation of prescriptive remediation operators yields a mixed result, exposing a gap between the
+intended per-edit acceptance test and the current implementation. Finally, the framework operates
+as a blocking continuous-integration and continuous-deployment (CI/CD) quality gate, evaluating
+regressions in seconds with perfect precision and recall on injected structural faults.
 
-To bridge this "Architecture-Code Gap," we present a **Heterogeneous Graph Neural Network (GNN)** approach to pre-deployment dependability analysis, built on **Software-as-a-Graph (SaG)**, a **Static System Analysis (SSA)** framework that models a distributed pub-sub system as a typed, weighted, directed multigraph over five component classes (applications, libraries, topics, brokers, and deployment nodes) and derives logical `DEPENDS_ON` dependencies through a set of typed projection rules.
+## Highlights
 
-On this typed representation, we train a relation-specific Graph Transformer with explicit Quality-of-Service (QoS) contract edge-feature injection ($HGL\text{-}QoS$) to forecast each component's cascading failure impact $I(v)$ before a single line of the system is deployed. We pair this learned predictor with an interpretable, Analytic Hierarchy Process (AHP)-weighted multi-dimensional quality attribution score $Q(v)$ that decomposes criticality into orthogonal Reliability, Maintainability, Availability, and Vulnerability (RMAV) dimensions, so that every diagnostic is traceable to a concrete remediation. Both predictors are validated against an independent discrete-event cascade simulator under a strict input–label independence guarantee, ruling out transductive leakage.
+* Heterogeneous GNN (HGL-QoS) generalizes cascade prediction to unseen architectures.
+* AHP-weighted composite score explains criticality via four orthogonal dimensions.
+* Typed multigraph model bridges the Architecture-Code Gap before deployment.
+* Delta-aware CI/CD gate blocks structural regressions in seconds, pre-deployment.
+* Blast-mismatch and remediation gaps are reported as honest negative results.
 
-Evaluated across seven synthetic, industrially-styled pub-sub topologies, we show:
+## Keywords
 
-1. In-distribution regimes are strongly modeled by the deterministic $Q(v)$ attribution ($\rho > 0.87$, $F_1 > 0.90$), competitive with or exceeding the learned predictor's in-distribution mean; out-of-distribution generalization to entirely unseen architectures instead requires typed graph learning, where $HGL\text{-}QoS$ decisively outperforms homogeneous and non-typed baselines, reaching a Leave-One-Scenario-Out (LOSO) rank correlation of $\rho = 0.401$ against $\rho \approx 0$ for homogeneous GATs.
-2. A stratified correlation check confirms the predictive relationship between $Q(v)$ and simulated impact holds at consistent, moderate strength across all five node types (pooled $\rho = 0.374$; per-type $\rho = 0.322$–$0.429$), and a direct test of the hypothesized shared-library "simultaneous blast" mismatch does not find it in this suite—both reported as findings rather than adjusted to fit prior expectations.
-3. A multi-seed, end-to-end evaluation of topology-level prescriptive remediation operators yields a mixed result: a cross-scenario mean impact reduction of $+4.61\%$ that conceals resilience regressions of up to $-31.67\%$ in 3 of 7 scenarios, exposing a concrete gap between the per-edit acceptance test the design specifies and the unconditional policy application the current implementation performs.
+heterogeneous graph neural networks; publish-subscribe systems; architectural dependability;
+cascading failure; static system analysis; pre-deployment verification; CI/CD quality gate.
 
-Finally, we demonstrate SaG's operational feasibility as a delta-aware, blocking CI/CD quality gate: using a thread-safe, database-free `MemoryRepository` to eliminate live database latency, the gate evaluates complex regressions in $\approx 5\,\text{s}$ (medium topologies) to $\approx 40\,\text{s}$ (hyper-scale topologies) while achieving 100% precision and recall on injected structural regressions, enabling continuous, automated dependability auditing.
-
----
-
-## Manuscript Outline
-
-*(Revised to track the reconciled draft's actual section structure, §draft.md line refs in brackets)*
+## Outline
 
 ### 1. Introduction
 
