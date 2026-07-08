@@ -1,0 +1,143 @@
+\documentclass[11pt]{article}
+% Compile with: pdflatex remediation.tex (run twice for cross-references)
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+
+\title{Detecting Architectural Anti-Patterns and Prescriptive Refactoring}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-2em}
+
+\begin{center}
+\textbf{How Software-as-a-Graph goes from a flagged structural smell to a verified remediation.}
+\end{center}
+
+\noindent This document bridges Step~2: Analyze (anti-pattern detection, \texttt{structural-analysis.md}) and Step~6: Prescribe (closed-loop remediation, \texttt{prescription.md}). For the full formal specification of each anti-pattern, see \texttt{antipatterns.md}; for the full prescription API and schema, see \texttt{prescription.md}. This page focuses on how the two connect --- and where they don't.
+
+% =============================================================================
+\section{Detection: the 21-pattern catalog}
+% =============================================================================
+
+\texttt{AntiPatternDetector} (\texttt{saag/analysis/antipattern\_detector.py}) evaluates the 13-element structural metric vector $M(v)$ (see \texttt{structural-analysis.md}) and the derived RMAV criticality scores against a catalog of \textbf{21} anti-patterns, each with a severity tier and a formal detection rule.
+
+A key design property: thresholds are \textbf{population-relative, not universal}. Most detectors compare a component's metric against an adaptive box-plot fence ($Q_3 + 1.5 \times \mathrm{IQR}$) computed over the \emph{current system's own} metric distribution, not a fixed constant. A 300-component enterprise system and a 15-component ROS~2 stack get different absolute cutoffs for the same pattern, because ``anomalous'' is defined relative to each system's own population.
+
+\begin{center}
+\begin{tabular}{@{}lp{9.5cm}@{}}
+\toprule
+\textbf{Severity} & \textbf{Patterns} \\
+\midrule
+\textbf{CRITICAL} & \texttt{SPOF}, \texttt{SYSTEMIC\_RISK}, \texttt{GOD\_COMPONENT}, \texttt{FAILURE\_HUB}, \texttt{TARGET}, \texttt{COMPOUND\_RISK} \\
+\textbf{HIGH} & \texttt{CYCLE}, \texttt{BRIDGE\_EDGE}, \texttt{BOTTLENECK\_EDGE}, \texttt{BROKER\_OVERLOAD}, \texttt{DEEP\_PIPELINE}, \texttt{EXPOSURE} \\
+\textbf{MEDIUM} & \texttt{CONCENTRATION\_RISK}, \texttt{TOPIC\_FANOUT}, \texttt{CHATTY\_PAIR}, \texttt{QOS\_MISMATCH}, \texttt{ORPHANED\_TOPIC}, \texttt{UNSTABLE\_INTERFACE}, \texttt{HUB\_AND\_SPOKE}, \texttt{CHAIN}, \texttt{ISOLATED} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Every entry carries a \texttt{PatternSpec.recommendation} string --- narrative remediation guidance, reproduced in each pattern's \S5.$N$ section of \texttt{antipatterns.md}. That guidance exists for all 21 patterns. It is advice for a human, not code that runs --- that distinction is the subject of the next section.
+
+% =============================================================================
+\section{Prescription: three automated operators}
+% =============================================================================
+
+\texttt{PrescribeService} (\texttt{saag/prescription/service.py}) compiles a mutation policy $\Delta(G)$ from exactly \textbf{three} rule-based operators:
+
+\begin{center}
+\begin{tabular}{@{}p{3.4cm}p{5cm}p{6cm}@{}}
+\toprule
+\textbf{Operator} & \textbf{Trigger} & \textbf{What it does} \\
+\midrule
+\textbf{1. Logical topic splitting} & Topic is congested ($>1$ publisher and $>1$ subscriber), or CRITICAL/HIGH with $>1$ publisher, or connected to a component whose detected-problem name matches ``God Component'', ``Bottleneck'', or ``Hub'' & Splits the topic into per-publisher sub-topics, rewiring \texttt{publishes\_to}/\texttt{subscribes\_to}/routing \\
+\textbf{2. Physical anti-affinity reallocation} & A Node (or something it hosts) is CRITICAL/HIGH or matches a detected-problem name containing ``SPOF''/``Single Point of Failure'', and the node hosts $>1$ process & Moves all but the first hosted component to a newly cloned node, duplicating \texttt{CONNECTS\_TO} links for reachability \\
+\textbf{3. Transport QoS hardening} & A topic is CRITICAL/HIGH or connects to a CRITICAL/HIGH component, and its transport uses non-\texttt{RELIABLE} reliability or \texttt{VOLATILE} durability & Upgrades the contract to \texttt{RELIABLE} reliability / \texttt{TRANSIENT} durability \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Automation coverage is narrower than it looks}
+
+Two separate signals feed these triggers, and only one of them ties back to specific catalog IDs:
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Generic criticality tier} --- any component classified \texttt{CRITICAL}/\texttt{HIGH} on the RMAV dimensional scale can trigger any operator, regardless of which (if any) specific anti-pattern was detected on it.
+\item \textbf{Detected-problem name matching} (\texttt{service.py:164-171}) --- the only channel that links back to particular catalog entries, and it works by substring-matching \texttt{DetectedProblem.name} (the human-readable \texttt{PatternSpec.name}), not a dedicated pattern-ID field.
+\end{itemize}
+
+Following that name-matching channel through to the catalog, only \textbf{5 of the 21} patterns are directly wired into an operator:
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Catalog ID} & \textbf{Operator reached} & \textbf{How} \\
+\midrule
+\texttt{SPOF} & 2 (anti-affinity) & name contains ``SPOF'' / ``Single Point of Failure'' \\
+\texttt{GOD\_COMPONENT} & 1 (topic split) & name contains ``God Component'' / ``Bottleneck'' \\
+\texttt{BOTTLENECK\_EDGE} & 1 (topic split) & name contains ``Bottleneck'' \\
+\texttt{FAILURE\_HUB} & 1 (topic split) & name contains ``Hub'' \\
+\texttt{HUB\_AND\_SPOKE} & 1 (topic split) & name contains ``Hub'' \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Notably, \textbf{\texttt{QOS\_MISMATCH} has no link to Operator 3} despite the obvious conceptual overlap --- QoS hardening fires only from the generic criticality tier, never from the \texttt{QOS\_MISMATCH} detection itself. The remaining 16 patterns (\texttt{BRIDGE\_EDGE}, \texttt{BROKER\_OVERLOAD}, \texttt{CONCENTRATION\_RISK}, \texttt{DEEP\_PIPELINE}, \texttt{TOPIC\_FANOUT}, \texttt{QOS\_MISMATCH}, \texttt{CHATTY\_PAIR}, \texttt{ORPHANED\_TOPIC}, \texttt{UNSTABLE\_INTERFACE}, \texttt{TARGET}, \texttt{EXPOSURE}, \texttt{CYCLE}, \texttt{CHAIN}, \texttt{ISOLATED}, \texttt{SYSTEMIC\_RISK}, \texttt{COMPOUND\_RISK}) have \textbf{no automated operator at all} --- their \texttt{PatternSpec.recommendation} text in \texttt{antipatterns.md} is advisory-only, for a human to act on (interface extraction, mediator components, stage merging, cycle-breaking via events, redundancy injection, and similar remediations that require semantic --- not purely topological --- judgment).
+
+This is a principled boundary, not an oversight: the three operators only automate remediations expressible as pure topology/QoS mutations. Remediations that require understanding \emph{what} a component does (breaking a cycle correctly, deciding which pipeline stages are safe to merge) stay advisory.
+
+% =============================================================================
+\section{The In-Silico Trial: Closed-Loop Verification}
+% =============================================================================
+
+Every compiled policy is verified before it is ever reported as viable --- and it is \emph{never} applied to the live system:
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Baseline} --- the source graph runs through analyze $\to$ simulate $\to$ validate, producing a baseline System Risk Index (SRI).
+\item \textbf{Mutate in memory} --- the graph is exported to flat JSON, $\Delta(G)$ is applied to that JSON (never to the production Neo4j graph), producing $G'$.
+\item \textbf{Sandbox reload} --- $G'$ is loaded into a temporary \texttt{MemoryRepository}; dependency edges are re-derived from scratch.
+\item \textbf{Re-run the full suite} --- analyze $\to$ simulate $\to$ validate re-executes on $G'$, under the same fault scenarios and seeds as the baseline.
+\item \textbf{Accept/reject gate} --- $\Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} - \mathrm{SRI}_{\text{mutated}}$; the policy is marked \texttt{accepted = true} iff $\Delta\mathrm{SRI} > 0$.
+\end{enumerate}
+
+This is the criterion actually implemented (\texttt{service.py:78-79}) and the one documented in \texttt{prescription.md} (\S3, Closed-Loop Verification Mechanics) --- a \textbf{whole-policy} gate. There is no per-edit acceptance filter: all compiled operators in a policy are applied together and evaluated as one unit, so a policy can be accepted even if one of its operators is individually harmful, so long as the net effect is a lower SRI. A stricter per-edit filter --- rejecting each mutation individually unless its improvement clears a margin over seed noise ($\Delta I > \kappa \cdot \sigma_{\text{seed}}$) --- is a known, explicitly tracked future-work item, not a currently-enforced criterion.
+
+A rejected policy is still returned in full, with its before/after metrics, for the architect to inspect --- nothing is silently discarded.
+
+% =============================================================================
+\section{From Blueprint to Deployment}
+% =============================================================================
+
+The output of a \texttt{prescribe()} call is a remediation blueprint: an itemized \texttt{applied\_changes} list plus before/after metrics (reachability loss, fragmentation, throughput loss), surfaced in the SMART dashboard (\texttt{visualization.md}). The architect is the one who turns this into real deployment artifacts --- topic redesign in middleware config, Kubernetes anti-affinity scheduling constraints, DDS/MQTT QoS profile changes. The framework diagnoses and simulates the treatment; it never administers it to the live system.
+
+% =============================================================================
+\section{Summary Table: Diagnosis $\to$ Automated vs. Advisory Remediation}
+% =============================================================================
+
+\begin{center}
+\begin{tabular}{@{}p{3.6cm}lp{6.5cm}@{}}
+\toprule
+\textbf{Catalog ID} & \textbf{Severity} & \textbf{Remediation} \\
+\midrule
+\texttt{SPOF} & CRITICAL & \textbf{Automated} (Operator 2) + advisory redundancy/failover guidance beyond reallocation \\
+\texttt{GOD\_COMPONENT} & CRITICAL & \textbf{Automated} (Operator 1) \\
+\texttt{FAILURE\_HUB} & CRITICAL & \textbf{Automated} (Operator 1) \\
+\texttt{BOTTLENECK\_EDGE} & HIGH & \textbf{Automated} (Operator 1) \\
+\texttt{HUB\_AND\_SPOKE} & MEDIUM & \textbf{Automated} (Operator 1) \\
+\texttt{SYSTEMIC\_RISK}, \texttt{TARGET}, \texttt{COMPOUND\_RISK} & CRITICAL & Advisory only \\
+\texttt{CYCLE}, \texttt{BRIDGE\_EDGE}, \texttt{BROKER\_OVERLOAD}, \texttt{DEEP\_PIPELINE}, \texttt{EXPOSURE} & HIGH & Advisory only \\
+\texttt{CONCENTRATION\_RISK}, \texttt{TOPIC\_FANOUT}, \texttt{CHATTY\_PAIR}, \texttt{QOS\_MISMATCH}, \texttt{ORPHANED\_TOPIC}, \texttt{UNSTABLE\_INTERFACE}, \texttt{CHAIN}, \texttt{ISOLATED} & MEDIUM & Advisory only \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent See \texttt{antipatterns.md} for each pattern's full specification and remediation narrative, and \texttt{prescription.md} for the operator implementation, schema, and API.
+
+\end{document}

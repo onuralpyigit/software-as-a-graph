@@ -1,0 +1,1090 @@
+\documentclass[11pt]{article}
+% Compile with: pdflatex antipatterns.tex (run twice for the table of contents/cross-references)
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+
+\newcommand{\CRITICAL}{\textcolor{red!70!black}{\textbf{CRITICAL}}}
+\newcommand{\HIGH}{\textcolor{orange!80!black}{\textbf{HIGH}}}
+\newcommand{\MEDIUM}{\textcolor{yellow!50!black}{\textbf{MEDIUM}}}
+
+\newcommand{\patternprop}[4]{%
+  \begin{center}
+  \begin{tabular}{@{}ll@{}}
+  \toprule
+  \textbf{Property} & \textbf{Value} \\
+  \midrule
+  \textbf{ID} & \texttt{#1} \\
+  \textbf{Severity} & #2 \\
+  \textbf{RMAV Dimension} & #3 \\
+  \textbf{Layer Applicability} & #4 \\
+  \bottomrule
+  \end{tabular}
+  \end{center}
+}
+
+\title{Architectural Anti-Patterns and Bad Smells in Distributed Publish-Subscribe Systems:\\
+Specification and Graph-Based Detection}
+\author{Ibrahim Onuralp Yigit \\ \emph{Advisor: Prof. Feza Buzluca} \\[4pt]
+\small Istanbul Technical University, Department of Computer Engineering}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{center}
+\emph{Document maintained as part of the PhD research artifact:} \\
+\emph{``Graph-Based Modeling and Analysis of Distributed Publish-Subscribe Systems''} \\
+\emph{Istanbul Technical University --- Department of Computer Engineering} \\
+\emph{doi: 10.1109/RASSE64831.2025.11315354}
+\end{center}
+
+\tableofcontents
+\clearpage
+
+% =============================================================================
+\section{Introduction}
+% =============================================================================
+
+Distributed publish-subscribe systems underpin some of the most demanding software in the world: ROS~2-based autonomous vehicles routing hundreds of real-time sensor streams, financial trading platforms sustaining sub-millisecond message latency, IoT deployments connecting tens of thousands of heterogeneous edge devices, and hospital information systems governing life-critical clinical workflows. In every one of these domains, certain architectural decisions --- often invisible until a production incident --- introduce structural fragility that makes systems brittle, hard to scale, and expensive to maintain.
+
+These decisions have a name in classical software engineering: \textbf{architectural anti-patterns}. In object-oriented design, the body of work on anti-patterns is mature: God Class, Feature Envy, Shotgun Surgery, and dozens of others have well-defined specifications, detection heuristics, and refactoring strategies. In distributed publish-subscribe systems, no equivalent catalog exists. Practitioners identify problems reactively --- through postmortem reports, performance regressions, or cascade failures --- rather than proactively at design time.
+
+This document proposes and formally specifies a \textbf{catalog of twenty-one architectural anti-patterns and bad smells} specific to distributed publish-subscribe systems, alongside a detection methodology grounded in \textbf{graph topology analysis}. The central claim is that each anti-pattern has a measurable topological signature --- a pattern of graph-theoretic metric values that can be computed from the system's static architecture before deployment --- and that this signature reliably predicts the presence of the corresponding runtime risk.
+
+The anti-pattern catalog presented here emerges from the broader \emph{Software-as-a-Graph} methodology, which models publish-subscribe systems as weighted directed multi-layer graphs and applies graph analysis to predict which components will have the greatest impact when they fail. Anti-pattern detection is positioned as a \textbf{complementary and explanatory contribution}: where criticality scoring answers \emph{how much} risk exists, the anti-pattern catalog answers \emph{what kind} of risk and \emph{how to fix it}.
+
+% =============================================================================
+\section{Background and Motivation}
+% =============================================================================
+
+\subsection{The Problem with Reactive Discovery}
+
+Traditional approaches to quality assurance in distributed systems are largely reactive. Runtime monitoring instruments production deployments; chaos engineering deliberately introduces failures to observe propagation behavior; postmortem analysis reconstructs failure sequences from logs. All three techniques share a fundamental limitation: the problem must have manifested --- often at significant cost --- before it can be addressed.
+
+Pre-deployment static analysis exists for individual components (linters, type checkers, dependency analyzers), but the architectural level is poorly served. Tools that reason about the \emph{system topology} --- how components relate to each other through publish-subscribe relationships --- are rare and typically domain-specific.
+
+\subsection{Anti-Patterns vs. Bad Smells}
+
+Following the taxonomy established in object-oriented design research, this catalog distinguishes between two categories:
+
+An \textbf{anti-pattern} is a recognizable structural configuration that is known to cause problems. It represents a decision --- a deliberate or accidental architectural choice --- that creates systemic risk. Anti-patterns typically require significant refactoring to resolve.
+
+A \textbf{bad smell} is a surface symptom that suggests an underlying problem may exist. Bad smells are not definitively harmful in all contexts, but they are reliable signals worth investigating. They may require only localized changes to address.
+
+In practice, the distinction is one of confidence: anti-patterns have well-understood failure modes; bad smells are heuristics that require human judgment to confirm.
+
+\subsection{The Role of Graph Topology}
+
+The key insight enabling a topology-based catalog is that architectural decisions in publish-subscribe systems leave \textbf{measurable structural fingerprints} in the dependency graph. A single broker serving all applications makes that broker an articulation point. A component that publishes to and subscribes from everything has extreme betweenness centrality. A topic with hundreds of subscribers has anomalous out-degree in the topic projection.
+
+These topological signatures can be computed from the system's static architecture --- from the YAML configuration, the launch file, the infrastructure-as-code --- without running the system at all. This enables \textbf{proactive detection} at design time or during CI/CD pipeline execution, before any deployment occurs.
+
+% =============================================================================
+\section{The Multi-Layer Graph Model}
+% =============================================================================
+
+\subsection{Graph Construction}
+
+A distributed publish-subscribe system is modeled as a weighted directed multi-layer graph $G(V, E, w)$. The vertex set $V$ contains five component types:
+
+\begin{center}
+\begin{tabular}{@{}lp{6.5cm}l@{}}
+\toprule
+\textbf{Type} & \textbf{Description} & \textbf{Examples} \\
+\midrule
+Application & A process that publishes and/or subscribes to topics & ROS~2 node, Kafka consumer/producer, MQTT client \\
+Broker & A message routing intermediary & RabbitMQ, Mosquitto, ROS~2 DDS middleware \\
+Topic & A named message channel & \texttt{/sensor/lidar}, \texttt{order.events}, \texttt{patient.vitals} \\
+Node & A physical or virtual infrastructure host & Server, cloud VM, embedded controller \\
+Library & A shared code dependency & Sensor driver, compression library \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Six structural edge types $E$ capture the relationships between component types:
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Edge} & \textbf{Direction} & \textbf{Meaning} \\
+\midrule
+\texttt{PUBLISHES\_TO} & App / Library $\to$ Topic & Component produces messages on this topic \\
+\texttt{SUBSCRIBES\_TO} & App / Library $\to$ Topic & Component receives messages from this topic \\
+\texttt{ROUTES} & Broker $\to$ Topic & Broker is responsible for routing this topic \\
+\texttt{RUNS\_ON} & App / Broker $\to$ Node & Component is hosted on this infrastructure node \\
+\texttt{CONNECTS\_TO} & Node $\to$ Node & Direct network link between two infrastructure hosts \\
+\texttt{USES} & App $\to$ Library & Application depends on this shared library \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent\textbf{Authoritative source:} The full edge schema, QoS weight derivation, and \texttt{DEPENDS\_ON} rules are specified and maintained in \texttt{docs/graph-model.md}. This section provides a reader-oriented summary; consult \texttt{graph-model.md} for Cypher patterns, phase ordering, and edge weight inheritance rules.
+
+\subsection{QoS-Aware Edge Weights}
+
+Edge weights $w(e)$ are derived from the Quality-of-Service policies of each publish-subscribe relationship. The canonical formula is a two-stage computation:
+
+\begin{align*}
+\text{QoS\_score} &= 0.30 \cdot \text{reliability\_score} + 0.40 \cdot \text{durability\_score} + 0.30 \cdot \text{priority\_score} \\
+\text{size\_norm} &= \min\!\left(\frac{\log_2(1 + \text{size\_kb})}{50},\ 1.0\right) \qquad (\text{size\_kb} = \text{payload\_bytes} / 1024) \\
+w(e) &= \beta \cdot \text{QoS\_score} + (1 - \beta) \cdot \text{size\_norm}, \qquad \beta = 0.85
+\end{align*}
+
+AHP sub-weight justification: durability (0.40) outweighs reliability and priority (0.30 each) because durability governs message state survival --- the fundamental precondition for resilience --- while reliability and priority govern transient delivery quality.
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{QoS Dimension} & \textbf{Symbolic Value} & \textbf{Score} \\
+\midrule
+\multirow{2}{*}{reliability\_score} & \texttt{RELIABLE} & 1.0 \\
+ & \texttt{BEST\_EFFORT} & 0.0 \\
+\multirow{4}{*}{durability\_score} & \texttt{PERSISTENT} & 1.0 \\
+ & \texttt{TRANSIENT} & 0.6 \\
+ & \texttt{TRANSIENT\_LOCAL} & 0.5 \\
+ & \texttt{VOLATILE} & 0.0 \\
+\multirow{4}{*}{priority\_score} & \texttt{HIGHEST} / \texttt{CRITICAL} / \texttt{URGENT} & 1.0 \\
+ & \texttt{HIGH} & 0.66 \\
+ & \texttt{MEDIUM} & 0.33 \\
+ & \texttt{LOW} & 0.0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This QoS-aware weighting is critical for anti-pattern detection. Two topologically identical systems with different QoS policies can have very different structural risk profiles: a \texttt{BEST\_EFFORT} publisher feeding a \texttt{RELIABLE} subscriber creates a qualitatively different problem than two \texttt{BEST\_EFFORT} endpoints. A minimum weight floor of 0.01 is applied so that even zero-QoS components remain visible to RMAV scoring.
+
+\subsection{The DEPENDS\_ON Projection}
+
+For structural analysis, the six structural edge types are projected into a single semantic relationship: \texttt{DEPENDS\_ON}. The direction always points from \emph{dependent} to \emph{dependency} (e.g., subscriber $\to$ publisher). Six derivation rules are applied:
+
+\begin{center}
+\begin{tabular}{@{}clp{7.5cm}@{}}
+\toprule
+\textbf{Rule} & \textbf{Type} & \textbf{Dependency Semantic} \\
+\midrule
+1 & \texttt{app\_to\_app} & Subscriber depends on publisher for its data (App/Lib $\to$ App/Lib via shared Topic) \\
+2 & \texttt{app\_to\_broker} & Both publishers and subscribers depend on the Broker routing their topics (App/Lib $\to$ Broker) \\
+3 & \texttt{node\_to\_node} & Infrastructure node depends on nodes hosting its applications' upstream publishers \\
+4 & \texttt{node\_to\_broker} & Infrastructure node depends on Broker nodes routing its hosted applications' topics \\
+5 & \texttt{app\_to\_lib} & Application depends on the Library it uses --- encodes \textbf{library blast-radius risk} (App $\to$ Library) \\
+6 & \texttt{broker\_to\_broker} & Two Brokers sharing a physical Node have a bidirectional colocation dependency \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Rules 5 and 6 are essential for anti-pattern detection: Rule 5 enables the \texttt{SYSTEMIC\_RISK} and \texttt{GOD\_COMPONENT} patterns to surface library-mediated coupling, and Rule 6 allows \texttt{BROKER\_OVERLOAD} to detect co-location risk across co-resident broker pairs.
+
+This projection produces $G_{\text{analysis}}(\ell)$ --- a layer-specific directed graph in which each edge $(u,v)$ means ``$u$ is operationally dependent on $v$.'' All structural metrics and anti-pattern detection algorithms operate on this projected graph.
+
+\subsection{Architectural Layers}
+
+Analysis is organized across four architectural projections, each providing a different lens on the system:
+
+\begin{center}
+\begin{tabular}{@{}lllp{5cm}@{}}
+\toprule
+\textbf{Layer} & \textbf{Vertices} & \textbf{Edges} & \textbf{Primary Question} \\
+\midrule
+\texttt{app} & Applications only & app\_to\_app \texttt{DEPENDS\_ON} & Which applications create data-flow bottlenecks? \\
+\texttt{infra} & Nodes only & node\_to\_node \texttt{DEPENDS\_ON} & Which infrastructure hosts create availability risk? \\
+\texttt{mw} & Apps + Brokers & app\_to\_broker \texttt{DEPENDS\_ON} & Which broker routing relationships are critical? \\
+\texttt{system} & All types & All \texttt{DEPENDS\_ON} & What is the complete risk profile? \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% =============================================================================
+\section{Detection Methodology}
+% =============================================================================
+
+\subsection{The Analysis Pipeline}
+
+Anti-pattern detection runs as part of the Analyze stage. The structural sub-phase produces the metric vectors on which detection is based. The Simulate stage validates detection findings empirically.
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Step} & \textbf{Stage} & \textbf{Output} \\
+\midrule
+1 & Import & $G(V,E,w)$ from system topology \\
+2 & Analyze --- structural & $M(v)$ --- 13 topological metrics per component \\
+2 & Analyze --- RMAV scoring & $Q(v)$ --- deterministic AHP-weighted criticality scores \\
+ & \quad $\hookrightarrow$ Anti-Pattern Detection & $\mathrm{Pattern}(v)$ --- smell classification \emph{(this document)} \\
+3 & Predict (optional) & $Q_{\text{gnn}}(v)$ --- GNN node criticality scores \\
+4 & Simulate & $I(v)$ --- ground-truth impact scores \\
+5 & Validate & $\rho(Q,I)$, $F_1$ --- empirical verification \\
+6 & Visualize & Interactive dashboard with pattern annotations \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{The Thirteen Structural Metrics}
+
+Step 2 computes a 13-element metric vector $M(v)$ for each component. These metrics are the raw detection signals for all twenty-one anti-patterns:
+
+\begin{center}
+\begin{tabular}{@{}llp{7cm}@{}}
+\toprule
+\textbf{Symbol} & \textbf{Name} & \textbf{Description} \\
+\midrule
+$PR(v)$ & PageRank & Transitive importance via random walk \\
+$RPR(v)$ & Reverse PageRank & Reverse transitive importance --- cascade reach \\
+$BT(v)$ & Betweenness Centrality & Fraction of shortest paths passing through $v$ \\
+$CL(v)$ & Closeness Centrality & Average distance from $v$ to all reachable vertices \\
+$EV(v)$ & Eigenvector Centrality & Connection to other important hubs \\
+$DG_{in}(v)$ & In-Degree & Normalized count of incoming \texttt{DEPENDS\_ON} edges \\
+$DG_{out}(v)$ & Out-Degree & Normalized count of outgoing \texttt{DEPENDS\_ON} edges \\
+$CC(v)$ & Clustering Coefficient & Density of connections among $v$'s neighbors \\
+$AP_c(v)$ & Articulation Point Score & Fraction of graph fragmented upon $v$'s removal \\
+$BR(v)$ & Bridge Ratio & Fraction of $v$'s incident edges that are bridges \\
+$w(v)$ & QoS Weight & Component's own QoS-derived importance weight \\
+$w_{in}(v)$ & Weighted In-Degree & Sum of QoS weights on incoming edges \\
+$w_{out}(v)$ & Weighted Out-Degree & Sum of QoS weights on outgoing edges \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+All metrics are normalized to $[0,1]$ before quality scoring and anti-pattern detection, using one of two methods depending on the metric type:
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Topological metrics} (PageRank, Betweenness, Closeness, Eigenvector, Degree, $AP_c$, Bridge Ratio, QoS weights): \textbf{rank-based normalization} (default \texttt{-{}-norm robust}). Each component's raw value is replaced by its rank position divided by $N$, producing a uniform distribution in $[0,1]$. This is the default because topological metrics are highly skewed in real systems --- a single hub-broker may have betweenness 50$\times$ the median --- and min-max would compress all non-hub values near 0.
+\item \textbf{Linear properties} (LOC, cyclomatic complexity, LCOM, CPU cores, memory): \textbf{min-max normalization} ($\text{value} / \text{population\_max}$). These properties have meaningful absolute magnitude differences that should be preserved; a component twice as large is genuinely twice as costly.
+\end{itemize}
+
+\subsection{Adaptive Box-Plot Thresholds}
+
+A critical design choice for detection robustness is the use of \textbf{adaptive box-plot thresholds} rather than fixed global constants. For a metric vector $X = [x_1, \ldots, x_n]$, the outlier fence is:
+
+\[
+\text{upper\_fence} = Q_3 + 1.5 \times \mathrm{IQR}
+\]
+
+where $Q_3$ is the 75th percentile and $\mathrm{IQR} = Q_3 - Q_1$. A component is flagged when its metric value exceeds this fence. This approach has three important properties for anti-pattern detection:
+
+\textbf{Scale invariance}: A ``high'' betweenness score in a 10-component system is structurally different from the same absolute value in a 300-component system. Adaptive thresholds automatically scale to system size.
+
+\textbf{Distribution awareness}: The threshold is derived from the actual distribution in the system under analysis, not from a presumed universal baseline. This prevents both over-flagging on dense, highly-coupled systems and under-flagging on sparse ones.
+
+\textbf{Theoretical grounding}: The $1.5\times\mathrm{IQR}$ rule identifies statistical outliers in the system's own metric distribution. An anti-pattern is, by definition, a component that is structurally anomalous relative to its peers.
+
+\subsection{The RMAV Prediction Framework}
+
+The RMAV framework maps structural metrics to four quality dimensions. These dimensions provide the explanatory bridge between raw topological metrics and named anti-patterns, and they determine which anti-patterns a component is susceptible to:
+
+\begin{align*}
+R(v) &= 0.45 \times RPR(v) + 0.30 \times DG_{in}(v) + 0.25 \times \mathrm{CDPot}(v) \\
+M(v) &= 0.35 \times BT(v) + 0.30 \times w_{out}(v) + 0.15 \times \mathrm{CQP}(v) + 0.12 \times \mathrm{CouplingRisk\_enh}(v) + 0.08 \times (1 - CC(v)) \\
+A(v) &= 0.45 \times \mathrm{QSPOF}(v) + 0.30 \times BR(v) + 0.15 \times AP_{c\_dir}(v) + 0.10 \times \mathrm{CDI}(v) \\
+V(v) &= 0.40 \times \mathrm{REV}(v) + 0.35 \times \mathrm{RCL}(v) + 0.25 \times \mathrm{QADS}(v) \\[4pt]
+Q(v) &= 0.25 \times R(v) + 0.25 \times M(v) + 0.25 \times A(v) + 0.25 \times V(v)
+\end{align*}
+
+Weights are derived from the Analytic Hierarchy Process (AHP) using domain expert pairwise comparison matrices, with a shrinkage factor $\lambda = 0.7$ blending learned weights with a uniform prior for robustness on small graphs. The overall quality weight $Q(v)$ defaults to a balanced 0.25 for each dimension unless customized for specific system priorities.
+
+Each RMAV dimension addresses a distinct operational concern:
+
+\begin{center}
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Dimension} & \textbf{Operational Question} & \textbf{Primary Stakeholder} \\
+\midrule
+\textbf{R} --- Reliability & What is the blast radius if this component fails? & Reliability Engineer \\
+\textbf{M} --- Maintainability & How difficult is this component to change safely? & Software Architect \\
+\textbf{A} --- Availability & Does this component's failure disconnect the system? & DevOps / SRE \\
+\textbf{V} --- Vulnerability & Is this component an attractive attack or fault target? & Security Engineer \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% =============================================================================
+\section{Anti-Pattern Catalog}
+% =============================================================================
+
+The catalog is organized into three severity tiers based on the operational severity of the risk and the urgency of remediation. Within each tier, patterns are ordered by the breadth of their potential impact.
+
+\noindent\textbf{Severity Definitions:}
+
+\begin{itemize}[leftmargin=*]
+\item \CRITICAL\ --- Structural risk requiring immediate architectural intervention. These patterns represent conditions where a single failure event can produce a cascading, system-wide outage. No production deployment should proceed without addressing \CRITICAL\ patterns.
+\item \HIGH\ --- Significant architectural risk that materially degrades reliability, availability, or maintainability. Should be addressed in the current development cycle.
+\item \MEDIUM\ --- Architectural smell indicating accumulated technical debt or localized risk. Should be tracked and addressed in the medium term.
+\end{itemize}
+
+% -----------------------------------------------------------------------
+\subsection{SPOF --- Single Point of Failure}
+% -----------------------------------------------------------------------
+\patternprop{SPOF}{\CRITICAL}{Availability}{app, infra, mw, system}
+
+\paragraph{Specification}
+A Single Point of Failure (SPOF) is a component $v$ in the system graph $G$ whose removal causes the graph to become disconnected --- specifically, its removal increases the number of weakly connected components. Such a component is formally an \textbf{articulation point} of the graph.
+
+The detection uses a continuous measure rather than a binary flag. The \textbf{QoS-weighted SPOF severity} score is:
+\[
+\mathrm{QSPOF}(v) = AP_{c\_directed}(v) \times w(v)
+\]
+where $AP_c(v)$ is the fraction of vertex pairs whose connectivity is disrupted by removing $v$, and $w(v)$ is the component's own QoS weight. A high QSPOF score indicates both structural criticality (the graph is badly fragmented without this node) and operational importance (the node carries high-priority message traffic).
+
+\noindent\textbf{Formal detection rule:}
+\[
+\mathrm{SPOF}(v) \Leftrightarrow AP_c(v) > 0 \ \lor\ A(v) > \text{upper\_fence}(A)
+\]
+
+\paragraph{Topological Signature}
+A SPOF appears in the dependency graph as a vertex that lies on all paths between two otherwise disconnected subgraphs. Its removal partitions the graph into at least two components, making downstream subscribers permanently unreachable from their upstream publishers. In the structural graph, SPOFs typically manifest as:
+\begin{itemize}[leftmargin=*]
+\item The sole broker in a region, routing all message traffic
+\item An application that is the only publisher of a topic consumed by many subscribers
+\item An infrastructure node hosting multiple critical applications with no redundant hosting
+\end{itemize}
+
+\paragraph{Risk}
+Any failure, maintenance window, or upgrade event for a SPOF halts all data flows to its dependent components. Unlike a performance bottleneck (which degrades gracefully), a SPOF produces a hard availability cliff: the system works completely until the SPOF fails, at which point dependent functionality becomes entirely unavailable. The QSPOF score quantifies how much of the system is silenced by each failure.
+
+Empirical validation across the research corpus confirms that SPOF components consistently achieve among the highest simulated impact scores $I(v)$, with Spearman $\rho$ between $AP_c(v)$ and $I(v)$ exceeding 0.85 in application-layer analysis.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Introduce redundancy}: Deploy a replica of the SPOF component behind a load balancer or active-passive failover pair. For brokers, use clustered configurations (Kafka partition replication, RabbitMQ mirrored queues, ROS~2 domain segmentation).
+\item \textbf{Add health-check and circuit-breaker patterns}: Even with redundancy, circuit breakers ensure that failure detection and failover occur automatically without cascading delays.
+\item \textbf{For application SPOFs}: Extract the critical function into a stateless, horizontally scalable service. Publish intermediate state to a durable topic so that a replacement instance can resume without data loss.
+\item \textbf{Validate elimination}: After remediation, re-run articulation point detection to confirm $AP_c(v) = 0$ for the previously flagged component.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{SYSTEMIC\_RISK --- Systemic Risk Cluster}
+% -----------------------------------------------------------------------
+\patternprop{SYSTEMIC\_RISK}{\CRITICAL}{Reliability}{app, system}
+
+\paragraph{Specification}
+A Systemic Risk pattern is flagged at the system level (not per-component) when more than 20\% of all components in the analyzed layer are classified at the CRITICAL overall criticality tier:
+\[
+\mathrm{SYSTEMIC\_RISK} \Leftrightarrow \frac{|\{v : \mathrm{Level}(Q(v)) = \mathrm{CRITICAL}\}|}{|V|} > 0.20
+\]
+This is a system-wide ratio check, not a clique/subgraph detection over mutually-dependent CRITICAL components: it requires no adjacency information between CRITICAL-tier components, only the proportion of the population that is CRITICAL.
+
+\paragraph{Topological Signature}
+The pattern appears as an anomalously large share of high-scoring (red-classified) nodes across the layer, without any requirement that those nodes be mutually connected. It signals that criticality is broadly distributed across the architecture rather than concentrated in one or two isolated components.
+
+\paragraph{Risk}
+A large fraction of the system operates near its criticality ceiling simultaneously, indicating that the architecture as a whole --- not an isolated component --- needs remediation. Unlike a single critical component, a systemic risk pattern cannot be resolved by hardening one node: the underlying architectural decisions (coupling patterns, layering, decomposition boundaries) that produced so many CRITICAL-tier components at once must be revisited. This pattern is the architectural equivalent of a systemic financial risk: individually manageable components whose accumulated criticality creates a risk that is greater than the sum of its parts.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Introduce Anti-Corruption Layer (ACL) boundaries}: Place ACL adapters between cluster members to absorb interface changes and prevent failure propagation.
+\item \textbf{Convert to asynchronous communication}: Replace synchronous \texttt{DEPENDS\_ON} links between cluster members with asynchronous pub-sub relationships through dedicated internal topics, adding back-pressure and retry semantics.
+\item \textbf{Apply bulkhead isolation}: Deploy each cluster member in separate process/container groups with independent resource pools (CPU, memory, network) so that resource exhaustion in one member cannot starve others.
+\item \textbf{Implement saga patterns}: Replace multi-step workflows that cross cluster boundaries with compensating transaction sequences, ensuring partial failures are recoverable.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{CYCLE --- Cyclic Dependency Loop}
+% -----------------------------------------------------------------------
+\patternprop{CYCLE}{\HIGH}{Architecture}{any layer where invoked (no restriction in the detector implementation)}
+
+\paragraph{Specification}
+A Cyclic Dependency Loop exists when the dependency graph $G$ contains a \textbf{strongly connected component (SCC)} with more than one vertex, or a single vertex with a self-loop. A SCC $S \subseteq V$ is a maximal subset of vertices such that every vertex in $S$ is reachable from every other vertex in $S$:
+\[
+\mathrm{CYCLE}(S) \Leftrightarrow \big(|S| \ge 2\ \lor\ (|S| = 1 \land \text{self-loop})\big) \land\ S \text{ is a maximal SCC of } G
+\]
+Detection uses Tarjan's or Kosaraju's algorithm, both running in $O(|V| + |E|)$ time.
+
+\paragraph{Topological Signature}
+In the application layer, a cyclic dependency means that application $A$ publishes to a topic that $B$ subscribes to, and $B$ (directly or transitively) publishes to a topic that $A$ subscribes to. This creates a feedback loop in the data flow. The cycle may be direct ($A \to B \to A$) or involve multiple intermediaries ($A \to B \to C \to A$).
+
+\paragraph{Risk}
+Cyclic dependencies in publish-subscribe systems create four categories of risk:
+
+\textbf{Message amplification}: Under normal operation, a message from $A$ triggers $B$, which publishes a response, which triggers $A$ again, creating an oscillating message storm that grows until a rate limiter intervenes (if one exists) or the system exhausts memory/CPU.
+
+\textbf{Deadlock under transactional QoS}: With \texttt{RELIABLE}, \texttt{TRANSIENT\_LOCAL} QoS policies, cyclic dependencies can create circular wait conditions where each publisher is waiting for acknowledgement from a subscriber that is blocked waiting for input from the first publisher.
+
+\textbf{Untestable isolation}: No component in a cycle can be tested in isolation. Every unit test must instantiate the full cycle, dramatically increasing test complexity.
+
+\textbf{Unbounded change propagation}: A change to the message schema of any topic in the cycle requires coordinated changes to all components in the cycle simultaneously, making independent deployment impossible.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Break the cycle at the weakest link}: Identify the edge in the cycle with the lowest QoS weight ($w(e)$ is lowest). Convert this link from a direct subscription to a domain event: the downstream component emits an event that a third orchestrator component handles, rather than feeding directly back to the upstream publisher.
+\item \textbf{Introduce an aggregator/reducer}: A lightweight aggregator component can subscribe to outputs from both ends of the cycle and produce a single authoritative output topic, replacing the feedback loop with a two-input, one-output pattern.
+\item \textbf{Apply dependency inversion}: Extract the shared state or shared abstraction that both components need into a separate ``state topic'' owned by neither, and have both components publish to and subscribe from this neutral topic.
+\item \textbf{Add rate-limiting and loop-detection middleware}: As a temporary mitigation, deploy a message count sentinel that suppresses messages after a configurable threshold per time window.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{GOD\_COMPONENT --- God Component}
+% -----------------------------------------------------------------------
+\patternprop{GOD\_COMPONENT}{\CRITICAL}{Maintainability}{any layer where invoked (no restriction in the detector implementation)}
+
+\paragraph{Specification}
+A God Component is a component $v$ that simultaneously exhibits extreme betweenness centrality \emph{and} CRITICAL-tier maintainability classification. Formally:
+\[
+\mathrm{GOD\_COMPONENT}(v) \Leftrightarrow BC(v) > 0.30\ \land\ \mathrm{Level}(M(v)) = \mathrm{CRITICAL}
+\]
+where $BC(v)$ is raw betweenness centrality (not fence-normalized) and $\mathrm{Level}(M(v))$ is the box-plot-classified Maintainability tier. This is a simpler two-factor gate than a raw-degree-based formulation: it requires extreme betweenness \emph{and} CRITICAL-tier maintainability classification, but does not separately gate on raw in/out-degree --- a component may have high total degree without extreme betweenness (e.g. many redundant local connections), which does not by itself indicate the ``brittle center of gravity'' this pattern targets.
+
+\paragraph{Topological Signature}
+In the dependency graph, a God Component appears as a high-betweenness vertex at the center of a dense local neighborhood --- a disproportionate share of all shortest paths in the system pass through it. It typically publishes to many topics and subscribes to many others, making it both a significant producer and consumer in the system. Its maintainability score $M(v)$ is high due to extreme betweenness centrality and high coupling risk, while its reliability score $R(v)$ is often high too, due to the many dependents that rely on its publications.
+
+\paragraph{Risk}
+God Components concentrate three types of risk simultaneously: they are the most likely to require changes (high coupling means every upstream change touches them), the most impactful when they fail (many downstream subscribers depend on their publications), and the hardest to reason about (their behavior depends on many upstream inputs whose interaction effects are complex). Any production incident involving a God Component is likely to be severe and time-consuming to diagnose.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Decompose using the Strangler Fig pattern}: Identify cohesive subsets of the God Component's publish/subscribe responsibilities and extract them into new, purpose-built application components incrementally, keeping the original component functional throughout the migration.
+\item \textbf{Enforce topic ownership boundaries}: Each topic should have a single-publisher contract. If a component publishes to semantically unrelated topics (e.g., both sensor fusion results and system health metrics), split it along these semantic boundaries.
+\item \textbf{Apply domain-driven design bounded contexts}: Each bounded context receives its own set of topics, applications, and schemas. Cross-context communication uses explicit integration events through carefully governed shared topics.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{BOTTLENECK\_EDGE --- Bottleneck Edge}
+% -----------------------------------------------------------------------
+\patternprop{BOTTLENECK\_EDGE}{\HIGH}{Availability}{app, mw, system}
+
+\paragraph{Specification}
+A Bottleneck Edge is a directed edge $(u,v) \in E$ in the \texttt{DEPENDS\_ON} graph whose edge betweenness centrality exceeds the outlier fence of the edge betweenness distribution:
+\[
+\mathrm{BOTTLENECK\_EDGE}(u,v) \Leftrightarrow \mathrm{edge\_BT}(u,v) > Q3_{\mathrm{edge\_BT}} + 1.5 \times \mathrm{IQR}_{\mathrm{edge\_BT}}
+\]
+Edge betweenness centrality of $(u,v)$ measures the fraction of all shortest paths in the graph that pass through this specific edge. A high value indicates that a disproportionate share of all message routing in the system depends on this single connection.
+
+In practice, Bottleneck Edges often correspond to \textbf{bridge edges} --- edges whose removal disconnects the graph. All bridge edges are Bottleneck Edges, but not all Bottleneck Edges are bridges (a high-betweenness edge in a dense graph may not disconnect it, but still represents a routing bottleneck).
+
+\paragraph{Topological Signature}
+Bottleneck Edges appear as single connections spanning otherwise poorly-connected regions of the dependency graph. They are topologically similar to the narrow passages on a map: all traffic between two regions must pass through them. In multi-layer analysis, they most commonly appear in the middleware layer as the sole routing path between an application cluster and a broker.
+
+\paragraph{Risk}
+A Bottleneck Edge creates both a \textbf{throughput ceiling} (all traffic between two regions is constrained by this single connection's capacity) and an \textbf{availability cliff} (any disruption to this edge --- network partition, QoS violation, message storm --- isolates the downstream region entirely). Unlike a SPOF vertex (where the node's internal failure is the risk), a Bottleneck Edge is vulnerable to both endpoint failures and the communication channel itself.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Add parallel edge redundancy}: Introduce a second broker or relay path between the same endpoint pairs with load-balanced routing, distributing traffic across multiple channels.
+\item \textbf{Apply topic partitioning}: Shard high-traffic topics across multiple parallel channels, each carried by a separate edge, to distribute the routing load.
+\item \textbf{Introduce a message bus abstraction}: Replace the direct application$\to$broker dependency with an abstraction layer where multiple brokers can serve the same logical topic, removing the single-edge bottleneck at the architectural level.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{BROKER\_OVERLOAD --- Broker Saturation}
+% -----------------------------------------------------------------------
+\patternprop{BROKER\_OVERLOAD}{\HIGH}{Availability}{mw, system}
+
+\paragraph{Specification}
+Broker Saturation occurs when a single broker handles a disproportionate share of all message routing in the system. The detection rule operates on the middleware layer, comparing each broker's availability score against the median broker availability:
+\begin{align*}
+\mathrm{BROKER\_OVERLOAD}(b) &\Leftrightarrow A(b) \ge 2 \times \mathrm{median}_{\text{broker}}(A) \qquad [\,|\text{brokers}| \ge 2\,] \\
+\mathrm{BROKER\_OVERLOAD}(b) &\Leftrightarrow |\text{brokers}| = 1 \qquad\qquad\qquad\quad\ [\text{sole broker --- hub-and-spoke}]
+\end{align*}
+The factor of $2\times$ the median identifies brokers whose routing load is at least twice the typical broker load in the same deployment. A sole broker is flagged unconditionally, since it is by definition handling 100\% of all message routing.
+
+This anti-pattern is the pub-sub-specific instantiation of the classical \textbf{Hub-and-Spoke} topology anti-pattern. Scenario 05 in the validation corpus (\texttt{scenario\_05\_hub\_and\_spoke.yaml}) deliberately encodes this anti-pattern with only 2 brokers serving 70 applications across 12 nodes, and the methodology correctly identifies both brokers as CRITICAL-tier components with broker failure impact scores exceeding 50\% of total system applications.
+
+\paragraph{Topological Signature}
+In the middleware layer graph, the overloaded broker appears as a star-center vertex with edges to nearly all application vertices. Its betweenness centrality in the middleware projection is anomalously high. In the infrastructure layer, the nodes hosting the overloaded broker show elevated dependency scores because all application-to-broker paths converge on them.
+
+\paragraph{Risk}
+The overloaded broker becomes a single-threaded bottleneck for all message routing in its region. Resource exhaustion (CPU, memory, socket connections, file descriptors) on the broker propagates immediately to all producer and consumer applications, regardless of their individual health. Unlike application-layer SPOFs, broker overload creates both availability risk (failure stops all routing) and performance risk (degradation under load affects every message in the system simultaneously).
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Partition the topic namespace}: Assign topics to brokers using consistent hashing or range-based assignment, distributing routing responsibility across multiple broker instances.
+\item \textbf{Deploy a broker cluster}: Use clustering features of the specific broker technology (Kafka partition replication across multiple brokers, RabbitMQ quorum queues, ROS~2 domain segmentation by topic prefix).
+\item \textbf{Introduce hierarchical broker topology}: Deploy local edge brokers that aggregate application traffic in their region, forwarding only aggregated or filtered streams to a central broker. This reduces the central broker's connection count by the number of local applications.
+\item \textbf{Enforce deployment policy}: Set a hard limit on the maximum number of topics (or applications) per broker instance and enforce it at the infrastructure provisioning layer, preventing the anti-pattern from recurring after remediation.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{DEEP\_PIPELINE --- Deep Processing Pipeline}
+% -----------------------------------------------------------------------
+\patternprop{DEEP\_PIPELINE}{\HIGH}{Reliability}{app}
+
+\paragraph{Specification}
+A Deep Processing Pipeline is a directed path in the application-layer dependency graph with hop count exceeding a depth threshold $\tau$. The threshold is defined relative to the system's own path length distribution:
+\[
+\mathrm{DEEP\_PIPELINE}(p) \Leftrightarrow |p| - 1 \ge \tau \qquad \text{where } \tau = \max(5, P75_{\text{path\_length}})
+\]
+where $P75_{\text{path\_length}}$ is the 75th percentile of all shortest-path lengths in $G_{\text{app}}$, and the absolute minimum threshold is 5 hops. Detection uses exhaustive enumeration of simple paths from source vertices (in-degree $= 0$) to sink vertices (out-degree $= 0$), capped at depth $\tau + 2$ for computational tractability.
+
+The path $p = [v_1, v_2, \ldots, v_k]$ represents a linear data-processing chain where each component subscribes to the previous component's output topic and publishes to the next component's input topic.
+
+\paragraph{Topological Signature}
+A Deep Pipeline appears as a long directed chain in the application layer, resembling the classical \textbf{Pipes-and-Filters} pattern pushed to an extreme. Each edge in the chain represents a sequential data transformation. The chain's endpoints are typically a data source (sensor, external event stream) and a decision-making or output component (actuator, database writer, alert system).
+
+\paragraph{Risk}
+Pipeline depth amplifies three failure modes:
+
+\textbf{Latency amplification}: End-to-end latency is the sum of per-stage processing time plus message transfer overhead for every hop. A 10-hop pipeline with 10ms per stage has a minimum 100ms latency, which may violate real-time requirements even under ideal conditions.
+
+\textbf{Failure compounding}: Each stage is an independent failure point. A 10-stage pipeline with 99.9\% per-stage availability has only 99.0\% end-to-end availability. A 20-stage pipeline drops to 98.0\%. The pipeline pattern transforms individual component reliability into a multiplicative reliability budget.
+
+\textbf{Observability collapse}: Debugging a latency or correctness issue in a deep pipeline requires tracing a single message's transformation through every intermediate stage. Without distributed tracing instrumentation at every hop, root cause analysis becomes a linear search through log files.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Merge adjacent stages}: Combine sequential transformation stages that operate on the same data ownership boundary into a single component. Two stages that always execute together, never independently, should be one component.
+\item \textbf{Introduce parallel fan-out branches}: Identify stages in the pipeline that are logically independent (do not share state and do not require each other's output) and execute them in parallel branches that merge at a later aggregation stage.
+\item \textbf{Use content-based enrichment at source}: Pre-compute data needed downstream at an early stage using message enricher patterns, eliminating intermediate request-response hops.
+\item \textbf{Establish per-stage latency SLOs}: Instrument each stage with latency percentile metrics and enforce SLOs via timeouts with fallback publishers, making pipeline depth a consciously managed engineering parameter.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{TOPIC\_FANOUT --- Topic Fan-Out Explosion}
+% -----------------------------------------------------------------------
+\patternprop{TOPIC\_FANOUT}{\MEDIUM}{Reliability}{system}
+
+\paragraph{Specification}
+Topic Fan-Out Explosion occurs when a topic vertex has an anomalously large number of subscribers. In the structural graph, topic out-degree (via \texttt{SUBSCRIBES\_TO} edges) represents the subscriber count:
+\[
+\mathrm{TOPIC\_FANOUT}(t) \Leftrightarrow \mathrm{out\_degree\_raw}(t) > \max\big(Q3_{\text{topic\_out}} + 1.5 \times \mathrm{IQR}_{\text{topic\_out}},\ 5\big)
+\]
+The floor of 5 subscribers prevents false positives in small systems where statistical outlier detection would flag topics with 2--3 subscribers. The distribution statistics are computed over topic vertices only, preventing application-type statistics from polluting the threshold.
+
+\paragraph{Topological Signature}
+In the structural graph, a fan-out topic appears as a star-center vertex in the \texttt{SUBSCRIBES\_TO} edge subgraph, with edges reaching many application vertices. In the reliability analysis, it shows high $R(v)$ scores because its Reverse PageRank is high --- many components depend on it transitively, and its failure propagates broadly.
+
+\paragraph{Risk}
+Fan-out explosion creates three correlated risks. First, \textbf{broker resource amplification}: every message published to the topic must be delivered to $N$ subscribers, consuming $N \times$ (delivery overhead) in broker memory, CPU, and network bandwidth per message. Under high publishing rates, this can saturate the broker even when individual application loads are low. Second, \textbf{broadcast blast radius}: any quality issue with the topic --- late delivery, schema change, message corruption --- simultaneously affects all $N$ subscribers. A schema change requiring coordinated migration must be rolled out across $N$ services. Third, \textbf{subscriber lag proliferation}: in systems with persistent durability policies, a slow subscriber that fails to consume messages causes the broker to retain the backlog across all $N-1$ other subscribers, until the slow subscriber catches up or is explicitly removed.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Apply topic segmentation}: Split the overloaded topic into domain-specific sub-topics organized by semantic content. Subscribers opt into only the sub-topics they actually need (e.g., \texttt{/sensor/raw} becomes \texttt{/sensor/vision}, \texttt{/sensor/lidar}, \texttt{/sensor/imu}).
+\item \textbf{Introduce a topic router}: A lightweight router application subscribes to the broad topic and republishes to specific sub-topics based on message content, metadata, or headers. The router becomes the single subscriber to the original topic.
+\item \textbf{Evaluate shared-state alternatives}: When all $N$ subscribers are reading the topic to maintain a synchronized view of some shared state, a distributed cache or state store may be more appropriate than a pub-sub channel, and eliminates the fan-out overhead entirely.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{CHATTY\_PAIR --- Chatty Pair}
+% -----------------------------------------------------------------------
+\patternprop{CHATTY\_PAIR}{\MEDIUM}{Maintainability}{app}
+
+\paragraph{Specification}
+A Chatty Pair is a pair of application components $\{u,v\}$ that maintain a bidirectional, high-weight dependency relationship through pub-sub topics:
+\[
+\mathrm{CHATTY\_PAIR}(u,v) \Leftrightarrow (u \to v) \in E_{\text{depends}} \land (v \to u) \in E_{\text{depends}} \land \mathrm{edge\_score}(u{\to}v) \times \mathrm{edge\_score}(v{\to}u) > \tau_{\text{chatty}}
+\]
+where $\tau_{\text{chatty}} = 0.25$ (both edges must be moderately weighted). The product condition requires that both directions of coupling are significant, not just one. A high-score forward edge with a negligible reverse edge is not a Chatty Pair; it is simply an asymmetric dependency (which may be legitimate).
+
+Note that this pattern detects \emph{logical} bidirectionality --- the two components communicate through separate topics in each direction, preserving the nominal decoupling of pub-sub architecture. But the topology reveals the hidden coupling that the topic indirection conceals.
+
+\paragraph{Topological Signature}
+In the \texttt{DEPENDS\_ON} graph, a Chatty Pair appears as a pair of vertices connected by edges in both directions. In the structural graph, they are connected by at least two topics: one where $u$ publishes and $v$ subscribes, and one where $v$ publishes and $u$ subscribes.
+
+\paragraph{Risk}
+Chatty Pairs create \textbf{logical coupling that masquerades as decoupling}. The pub-sub layer gives the appearance of independence (neither component has a direct code dependency on the other), but the communication pattern reveals that they cannot be independently deployed, scaled, or reasoned about. A schema change in either component's output topic requires a coordinated change in the other. Failures in either component create a distributed deadlock: each waits for input from the other to proceed. In practice, Chatty Pairs are difficult to diagnose because the coupling is distributed across the message broker rather than visible in code.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Introduce a mediator component}: Create a new component that owns the shared state or coordination logic that both components currently negotiate through their bidirectional exchange. Both components become unidirectional publishers to and subscribers from the mediator.
+\item \textbf{Apply event-carried state transfer}: Replace the request-response exchange pattern (which creates bidirectional dependency) with an event-carried state transfer pattern: one component broadcasts its complete current state as events; the other reacts without needing to request information.
+\item \textbf{Apply Tell-Don't-Ask}: Ensure each component publishes decisions and actions (what it has done) rather than requesting information from the other (what it should do), replacing the conversational pattern with an event-driven reactive pattern.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{QOS\_MISMATCH --- QoS Policy Mismatch}
+% -----------------------------------------------------------------------
+\patternprop{QOS\_MISMATCH}{\MEDIUM}{Reliability}{system}
+
+\paragraph{Specification}
+A QoS Mismatch occurs on a \texttt{DEPENDS\_ON} edge $(u,v)$ where the publisher $u$'s QoS weight is significantly lower than the subscriber $v$'s QoS weight, representing a guarantee gap:
+\[
+\mathrm{QOS\_MISMATCH}(u,v) \Leftrightarrow w_{\text{publisher}}(u) < w_{\text{subscriber}}(v) - \tau_{\text{qos}}
+\]
+where $\tau_{\text{qos}} = 0.3$ is the minimum gap that constitutes a meaningful mismatch. The QoS weights $w$ are computed from the four-dimensional QoS formula described in Section~3.2. A gap greater than 0.3 means the publisher offers substantially weaker guarantees than the subscriber expects.
+
+In topological terms, this detection uses the vulnerability scores as proxies for QoS weight levels: $V(u)$ and $V(v)$ capture the QoS-weighted exposure of each component, and a large difference between them on a dependency edge indicates that the dependency relationship crosses a QoS boundary.
+
+\paragraph{Topological Signature}
+QoS Mismatches appear as \texttt{DEPENDS\_ON} edges crossing what might be called ``QoS zones'' --- regions of the graph where different reliability tiers operate. In ROS~2 systems, this commonly appears when a hardware driver (\texttt{BEST\_EFFORT}, \texttt{VOLATILE}) publishes to a topic that a safety-critical decision component (\texttt{RELIABLE}, \texttt{TRANSIENT\_LOCAL}) subscribes to. The structural topology looks identical to a correctly-configured edge; only the weight values reveal the mismatch.
+
+\paragraph{Risk}
+QoS mismatches produce system-specific failure modes depending on the middleware technology. In ROS~2/DDS systems, incompatible QoS policies prevent the endpoint match from being established at all --- a \textbf{silent connectivity failure} that occurs during runtime discovery with no compile-time warning. The two components appear healthy in isolation but never exchange messages. In MQTT systems, a publisher at QoS~0 cannot satisfy a broker or subscriber expecting QoS~2 delivery semantics; messages are delivered but without the guaranteed ordering and delivery confirmation the subscriber requires. In both cases, the failure mode is subtle: the system appears to function until the reliability assumption is tested by a failure condition or a high-load scenario.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Establish a QoS policy registry}: Maintain a central catalog of the expected QoS profile for each topic in the system, and enforce it via automated validation in the CI/CD pipeline. Any edge that crosses a QoS boundary should require explicit architectural sign-off.
+\item \textbf{Introduce a QoS bridge component}: If the publisher cannot upgrade its QoS (e.g., a hardware driver limited to \texttt{BEST\_EFFORT}), deploy a dedicated relay component that subscribes to the \texttt{BEST\_EFFORT} topic and republishes to a \texttt{RELIABLE} topic with appropriate buffering and retry semantics.
+\item \textbf{Use standardized QoS profiles}: For ROS~2 systems, use predefined middleware-agnostic profiles (\texttt{sensor\_data}, \texttt{services\_default}, \texttt{parameters}) to avoid accidental QoS mismatches caused by custom per-component settings.
+\item \textbf{Add static analysis in CI}: Implement a build-time check that validates QoS compatibility across all publisher-subscriber pairs, using the same four-dimensional weight formula as the graph model.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{ORPHANED\_TOPIC --- Orphaned Topic}
+% -----------------------------------------------------------------------
+\patternprop{ORPHANED\_TOPIC}{\MEDIUM}{Maintainability}{system}
+
+\paragraph{Specification}
+An Orphaned Topic is a topic vertex $t$ in the structural graph with either no publishers or no subscribers:
+\begin{align*}
+\mathrm{ORPHANED\_TOPIC}_{\text{publisher}}(t) &\Leftrightarrow \mathrm{in\_degree\_raw}(t) = 0 \quad [\text{no application publishes to } t \text{ via } \texttt{PUBLISHES\_TO}] \\
+\mathrm{ORPHANED\_TOPIC}_{\text{subscriber}}(t) &\Leftrightarrow \mathrm{out\_degree\_raw}(t) = 0 \quad [\text{no application subscribes to } t \text{ via } \texttt{SUBSCRIBES\_TO}]
+\end{align*}
+Note that the in/out degree is measured in the structural graph using the original \texttt{PUBLISHES\_TO} and \texttt{SUBSCRIBES\_TO} edge types, not the projected \texttt{DEPENDS\_ON} graph, because the \texttt{DEPENDS\_ON} projection reverses edge direction and would distort the detection logic.
+
+\paragraph{Topological Signature}
+In the structural graph, a publisher-only orphan appears as a topic vertex with only incoming \texttt{PUBLISHES\_TO} edges and no outgoing \texttt{SUBSCRIBES\_TO} edges. A subscriber-only orphan appears as the reverse: outgoing \texttt{SUBSCRIBES\_TO} edges but no incoming \texttt{PUBLISHES\_TO} edges. Both are \textbf{dead ends} in the data flow: messages published to the former are never consumed; the latter consumers are never fed.
+
+\paragraph{Risk}
+The two orphan subtypes represent different classes of architectural debt:
+
+\textbf{Publisher-only orphans} (no subscribers) indicate that a publishing component is producing data that nothing consumes. This wastes broker resources (storage, network bandwidth for delivery, memory for message buffers) and suggests that an intended consumer was never implemented, was removed without cleaning up the topic, or was renamed without updating the publisher. In safety-critical systems, data that should be logged or audited but is being silently dropped is particularly dangerous.
+
+\textbf{Subscriber-only orphans} (no publishers) are the more dangerous subtype. They indicate that a component is waiting for data that will never arrive --- either because the publisher was removed, because there is a topic naming mismatch (a common configuration error), or because a required service is not started. Components waiting on subscriber-only orphaned topics may block indefinitely, creating timeouts, resource starvation, or cascading failures in the components that depend on them.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{For publisher-only orphans}: Either connect the intended subscriber (if the topic serves a legitimate purpose) or remove the topic and its associated publisher code entirely. Establish a topic lifecycle policy requiring that unused topics be removed within a defined timeframe.
+\item \textbf{For subscriber-only orphans}: Diagnose the missing publisher. Common root causes are: service not started (deployment misconfiguration), topic name mismatch (check namespace and topic prefix conventions), or API version incompatibility (publisher was renamed in an upgrade). Add integration tests that assert every subscriber-only topic has a connected publisher before deployment proceeds.
+\item \textbf{Enforce topic lifecycle governance}: Implement automated detection of idle topics (no messages received in $N$ days) and require architectural review before a topic is retained in this state.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{UNSTABLE\_INTERFACE --- Unstable Interface}
+% -----------------------------------------------------------------------
+\patternprop{UNSTABLE\_INTERFACE}{\MEDIUM}{Maintainability}{app, system}
+
+\paragraph{Specification}
+An Unstable Interface is a component with extreme coupling imbalance, operationalized through the \textbf{CouplingRisk\_enh} metric. CouplingRisk enriches Martin's \emph{Instability} signal with topological path complexity:
+\begin{align*}
+\mathrm{Instability}(v) &= \frac{DG_{out\_raw}(v)}{DG_{in\_raw}(v) + DG_{out\_raw}(v) + \varepsilon} \\
+\mathrm{CouplingRisk\_base}(v) &= 1 - |2 \times \mathrm{Instability}(v) - 1| \\
+\mathrm{CouplingRisk\_enh}(v) &= \min\big(1.0,\ \mathrm{CouplingRisk\_base}(v) \times (1 + \Delta \times \mathrm{path\_complexity}(v))\big)
+\end{align*}
+$\mathrm{CouplingRisk\_enh} \in [0,1]$, where 0 indicates either a perfectly stable component or a perfectly unstable one, and 1 indicates a component with equal incoming and outgoing coupling AND high path complexity --- maximum change sensitivity.
+
+Detection targets components with high maintainability scores driven primarily by high CouplingRisk:
+\[
+\mathrm{UNSTABLE\_INTERFACE}(v) \Leftrightarrow M(v) > 0.80\ \land\ \mathrm{CouplingRisk\_enh}(v) > 0.80
+\]
+
+\paragraph{Topological Signature}
+Unstable Interface components appear in the dependency graph as vertices with approximately equal in-degree and out-degree --- neither pure publishers (all outgoing) nor pure subscribers (all incoming), but highly bidirectionally coupled to a large number of peers. Their local neighborhood is dense and difficult to visually disentangle from other components.
+
+\paragraph{Risk}
+An unstable interface is simultaneously dependent on many others (it will absorb every change that its publishers make to their output schemas) and depended upon by many others (its own output schema changes will propagate to all its subscribers). It sits at a structural crossroads where change impact is maximized. Every new feature, bug fix, or optimization on any upstream component that this component consumes must be evaluated for its effect on this component. Similarly, every schema change this component introduces must be evaluated against all its downstream consumers.
+
+In evolutionary architecture terms, this component is the system's highest-friction point for independent deployability. Without explicit schema versioning and backward-compatibility management, it becomes the bottleneck through which all coordinated deployments must pass.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Apply the Stable Abstractions Principle}: Components with high afferent coupling (many dependents) should define stable, abstract topic schemas that change rarely. Highly unstable components should depend on those stable abstractions rather than on the concrete implementation details of their publishers.
+\item \textbf{Introduce schema versioning}: Deploy a schema registry (Confluent Schema Registry for Kafka, custom message versioning for ROS~2) that makes the dependency contract explicit and allows parallel versions to coexist during migration.
+\item \textbf{Invert unstable dependencies}: If an unstable component subscribes to $N$ topics from stable publishers, consider having the stable publishers emit to a unified aggregation topic that the unstable component owns and controls. This converts $N$ incoming dependencies into 1, reducing coupling surface.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{BRIDGE\_EDGE --- Bridge Edge}
+% -----------------------------------------------------------------------
+\patternprop{BRIDGE\_EDGE}{\HIGH}{Availability}{any layer where invoked}
+
+\paragraph{Specification}
+A Bridge Edge is a dependency edge $(u,v) \in E$ whose removal increases the number of connected components in the graph --- a structural bridge in the graph-theoretic sense, computed directly on the layer's structural graph rather than via a betweenness threshold:
+\[
+\mathrm{BRIDGE\_EDGE}(u,v) \Leftrightarrow \mathrm{is\_bridge}(u,v) = \mathrm{true}
+\]
+
+\paragraph{Topological Signature}
+A Bridge Edge appears as the sole connection spanning two otherwise-separate regions of the dependency graph --- removing it partitions the graph into at least two components.
+
+\paragraph{Risk}
+Loss of this single link partitions the system into isolated clusters: downstream components on one side of the bridge become unreachable from upstream components on the other side, with no alternative routing path available.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Add redundant connections}: Introduce a second, independent path between the two regions the bridge connects.
+\item \textbf{Evaluate alternative routing}: Where the bridge represents a broker or network link, consider a mesh or partially-redundant topology instead of a single connecting edge.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{FAILURE\_HUB --- Critical Failure Propagation Hub}
+% -----------------------------------------------------------------------
+\patternprop{FAILURE\_HUB}{\CRITICAL}{Reliability}{any layer where invoked}
+
+\paragraph{Specification}
+A Failure Hub is a component whose Reliability score is a statistical outlier \emph{and} whose raw out-degree exceeds the layer's median out-degree --- i.e. it is both unusually likely to trigger cascades and structurally positioned to reach many dependents:
+\[
+\mathrm{FAILURE\_HUB}(v) \Leftrightarrow R(v) > \mathrm{fence}_{\text{rel}}\ \land\ DG_{out\_raw}(v) > \mathrm{median}_{\text{out}}
+\]
+where $\mathrm{fence}_{\text{rel}}$ is the adaptive box-plot upper fence over the layer's Reliability score distribution, and $\mathrm{median}_{\text{out}}$ is the median raw out-degree across the layer.
+
+\paragraph{Topological Signature}
+A Failure Hub appears as a high-Reliability-score vertex with an above-median number of outgoing dependency edges --- a producer whose output many other components consume, combined with topological properties that make its failure propagate widely.
+
+\paragraph{Risk}
+A failure here triggers a mass outage across many downstream dependents. Unlike a SPOF (which severs connectivity), a Failure Hub's risk is one of cascading \emph{functional} failure --- dependents remain connected but receive no valid data or stop functioning correctly.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Add health checks and circuit breakers} in all direct dependents to fail gracefully rather than cascade.
+\item \textbf{Introduce retry and backoff policies} on the consuming side to absorb transient failures.
+\item \textbf{Reduce fan-out} by splitting the hub's responsibilities across multiple, independently-failing components where feasible.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{CONCENTRATION\_RISK --- Concentration Risk}
+% -----------------------------------------------------------------------
+\patternprop{CONCENTRATION\_RISK}{\MEDIUM}{Reliability}{any layer where invoked (requires at least 5 components)}
+
+\paragraph{Specification}
+A system-wide (not per-component) pattern that fires when the top three components by PageRank hold a disproportionate share of the system's total transitive importance:
+\[
+\mathrm{CONCENTRATION\_RISK} \Leftrightarrow \sum_{v \in \text{top-3 by } PR} PR(v) > 0.5
+\]
+
+\paragraph{Topological Signature}
+The system's PageRank distribution is heavily skewed toward a handful of components, rather than spread broadly across the population.
+
+\paragraph{Risk}
+The system is fragile because its correct operation depends too heavily on a small number of nodes. Even where none of these top-3 components individually qualifies as CRITICAL, their combined importance makes the system's effective resilience much lower than a per-component view would suggest.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Distribute load} via domain partitioning, sharding, or additional message brokers.
+\item \textbf{Reduce the top components' centrality} directly, using the remediation strategies for whichever other patterns (SPOF, GOD\_COMPONENT, FAILURE\_HUB) those specific top-3 components also trigger.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{HUB\_AND\_SPOKE --- Hub-and-Spoke Anti-Pattern}
+% -----------------------------------------------------------------------
+\patternprop{HUB\_AND\_SPOKE}{\MEDIUM}{Maintainability}{any layer where invoked}
+
+\paragraph{Specification}
+A component with an anomalously low local clustering coefficient combined with above-threshold total degree --- i.e. a hub whose neighbors do not communicate directly with one another:
+\[
+\mathrm{HUB\_AND\_SPOKE}(v) \Leftrightarrow CC(v) < 0.1\ \land\ (DG_{in\_raw}(v) + DG_{out\_raw}(v)) > 3
+\]
+
+\paragraph{Topological Signature}
+The component sits at the center of a star-shaped local neighborhood: many direct connections, but its neighbors have no edges among themselves, so all coordination between them must route through the hub.
+
+\paragraph{Risk}
+Creates bottlenecks and single-failure-point behavior in local clusters: neighbors have no redundant path to each other, so if the hub becomes unavailable or slow, every pairwise interaction between its neighbors is blocked, even though the neighbors themselves are healthy.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Add direct links between neighbors} for redundant paths where the interaction pattern justifies it.
+\item \textbf{Reduce the hub's centrality} by delegating some coordination responsibilities directly between the neighbors that interact most frequently.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{TARGET --- High Value Target}
+% -----------------------------------------------------------------------
+\patternprop{TARGET}{\CRITICAL}{Vulnerability}{any layer where invoked}
+
+\paragraph{Specification}
+A component whose security criticality classification is at or above the CRITICAL tier:
+\[
+\mathrm{TARGET}(v) \Leftrightarrow \mathrm{Level}(\mathrm{security}(v)) \ge \mathrm{CRITICAL}
+\]
+
+\paragraph{Topological Signature}
+A High Value Target appears as a component with a structural position (high centrality, broad reachability, or high blast radius) that makes it an attractive point of compromise for an attacker.
+
+\paragraph{Risk}
+A breach here provides an attacker with high reachability into the system: the same structural properties that make a component operationally critical also make it a high-value objective for lateral movement or denial-of-service.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Apply Zero Trust policies} around this component specifically --- do not rely on network-perimeter trust alone.
+\item \textbf{Add audit logging} for all access to and from this component.
+\item \textbf{Network-isolate} the component where feasible, minimizing its direct exposure to less-trusted zones.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{EXPOSURE --- High Exposure Surface}
+% -----------------------------------------------------------------------
+\patternprop{EXPOSURE}{\HIGH}{Vulnerability}{any layer where invoked}
+
+\paragraph{Specification}
+A component whose security criticality is at the HIGH tier and whose closeness centrality exceeds a threshold --- i.e. it is both moderately sensitive \emph{and} easily reachable from most of the rest of the system:
+\[
+\mathrm{EXPOSURE}(v) \Leftrightarrow \mathrm{Level}(\mathrm{security}(v)) = \mathrm{HIGH}\ \land\ CL(v) > 0.6
+\]
+
+\paragraph{Topological Signature}
+The component is only a few hops away from most other components in the graph, making it a convenient staging point for an attacker who has compromised it to reach many other targets.
+
+\paragraph{Risk}
+Easier target for initial penetration or lateral movement: high reachability means that compromising this one component gives an attacker a short path to a large portion of the rest of the system.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Restrict incoming connections} to only what is operationally necessary.
+\item \textbf{Validate all inputs via API gateways} rather than trusting internal traffic implicitly.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{CHAIN --- Chain Topology}
+% -----------------------------------------------------------------------
+\patternprop{CHAIN}{\MEDIUM}{Architecture (cross-cutting)}{any layer where invoked}
+
+\paragraph{Specification}
+A weakly connected subgraph of at least four vertices, all of whose members have in-degree and out-degree both $\le 1$ in the layer's dependency graph --- a linear sequence with no branching or redundancy:
+\[
+\mathrm{CHAIN}(H) \Leftrightarrow H \text{ is a weakly connected component of } \{v \in V : DG_{in\_raw}(v) \le 1 \land DG_{out\_raw}(v) \le 1\}\ \land\ |H| \ge 4
+\]
+
+\paragraph{Topological Signature}
+A Chain appears as a linear sequence of components, each connected only to its immediate predecessor and successor, with no alternative routing paths anywhere along the sequence.
+
+\paragraph{Risk}
+Reliability is limited by the product of every node in the sequence: any single component's failure isolates the entire chain downstream of it, and there is no redundancy anywhere along the path to compensate.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Introduce redundant paths or bypasses} to reduce the effective sequence depth for critical data flows.
+\item \textbf{Merge adjacent stages} where they share an ownership boundary, shortening the chain.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{ISOLATED --- Isolated Component}
+% -----------------------------------------------------------------------
+\patternprop{ISOLATED}{\MEDIUM}{Architecture (cross-cutting)}{any layer where invoked}
+
+\paragraph{Specification}
+A component with zero total degree (no incoming or outgoing dependency edges) in the analyzed layer:
+\[
+\mathrm{ISOLATED}(v) \Leftrightarrow DG_{in\_raw}(v) + DG_{out\_raw}(v) = 0
+\]
+
+\paragraph{Topological Signature}
+The component appears as a disconnected vertex with no edges to any other component in this layer's projection.
+
+\paragraph{Risk}
+May be orphaned, misconfigured, or pending integration: an isolated component is either genuinely unused (dead configuration), disconnected due to a naming or deployment error, or a component whose integration was never completed.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Verify deployment, configuration, and integration status} --- confirm whether this component is intentionally standalone or missing its expected connections.
+\item \textbf{Remove dead configuration} if the component is confirmed unused.
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\subsection{COMPOUND\_RISK --- Compound Architectural Risk}
+% -----------------------------------------------------------------------
+\patternprop{COMPOUND\_RISK}{\CRITICAL}{Architecture (cross-cutting)}{any layer where invoked (post-pass over already-detected problems)}
+
+\paragraph{Specification}
+A post-pass over the set of problems already detected in a single \texttt{detect()} run: a component is flagged as COMPOUND\_RISK when it has simultaneously been flagged as a SPOF \emph{and} as either a GOD\_COMPONENT, HUB\_AND\_SPOKE, or FAILURE\_HUB (the post-pass matches on ``SPOF'' and ``God''/``Hub'' substrings in the already-generated finding names):
+\[
+\mathrm{COMPOUND\_RISK}(v) \Leftrightarrow \mathrm{SPOF}(v)\ \land\ \big(\mathrm{GOD\_COMPONENT}(v) \lor \mathrm{HUB\_AND\_SPOKE}(v) \lor \mathrm{FAILURE\_HUB}(v)\big)
+\]
+
+\paragraph{Topological Signature}
+The component simultaneously exhibits the structural signature of a SPOF (articulation point) and of a high-complexity hub (extreme betweenness, low clustering, or high out-degree with high reliability risk).
+
+\paragraph{Risk}
+This is the most severe compound diagnosis: the component is both critical to connectivity and hard to change safely, so any remediation must address both properties at once. Attempting to fix only one property (e.g., adding redundancy without also decomposing the hub) leaves the other risk fully in place.
+
+\paragraph{Remediation}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Prioritize this component above all other findings} --- it combines the risk profile of two separate CRITICAL/HIGH patterns.
+\item \textbf{Apply both remediation strategies together}: introduce redundancy/failover (per \S5.1) \emph{and} decompose the hub's responsibilities (per \S5.4/\S5.16), rather than treating them as independent fixes.
+\end{enumerate}
+
+% =============================================================================
+\section{Empirical Validation}
+% =============================================================================
+
+\subsection{Validation Approach}
+
+Anti-pattern detection findings are validated empirically through the failure simulation pipeline. For each component flagged by a pattern detector, the corresponding simulated impact score $I(v)$ --- computed by exhaustive component removal and cascade propagation --- provides independent evidence that the topological signature corresponds to real structural risk.
+
+The primary validation metrics are:
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Metric} & \textbf{Target} & \textbf{Achieved (Overall)} \\
+\midrule
+Spearman $\rho$ ($Q$ vs $I$) & $\ge 0.70$ & \textbf{0.876} \\
+$F_1$-Score (critical classification) & $\ge 0.90$ & \textbf{0.923} \\
+Precision & $\ge 0.85$ & \textbf{0.912} \\
+Recall & $\ge 0.80$ & \textbf{0.857} \\
+Top-5 Overlap & $\ge 0.70$ & \textbf{0.80} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The achieved Spearman $\rho$ of 0.876 confirms that the topological quality scores derived from the same structural metrics used for anti-pattern detection reliably rank components by actual failure impact. At large scale (systems with 150--300+ components), $\rho$ rises to 0.943, indicating that prediction accuracy improves as system scale increases --- precisely the regime where manual architectural review becomes least practical.
+
+\subsection{Pattern-Specific Validation Evidence}
+
+\textbf{SPOF validation}: The articulation point score $AP_c(v)$ was validated against the connectivity-loss simulation metric $I_A(v)$. Components flagged as SPOFs consistently achieve among the highest $I_A(v)$ values, with SPOF Precision-Recall $F_1$ ($\mathrm{SPOF}\_F_1$) exceeding 0.95 in application-layer analysis.
+
+\textbf{Hub-and-Spoke / BROKER\_OVERLOAD validation}: Scenario 05 (\texttt{scenario\_05\_hub\_and\_spoke.yaml}) deliberately encodes the broker saturation anti-pattern with only 2 brokers serving 70 applications. Both brokers score in the CRITICAL tier, with broker failure impact scores exceeding 50\% of total system applications --- confirming that the availability metric $A(v)$ correctly identifies broker-level overload as a high-impact structural risk.
+
+\textbf{Baseline comparison}: The composite $Q(v)$ score, which drives anti-pattern classification, consistently outperforms single-metric baselines (betweenness centrality alone: $\rho = 0.75$, degree centrality alone: $\rho = 0.95$ in synthetic graphs). The synthetic graph advantage of degree centrality is a known artifact of topology generators where high-degree hubs are structurally forced into SPOF positions; $Q(v)$ better captures the broader risk profile in real-world heterogeneous topologies.
+
+\subsection{Validation Scenarios}
+
+Eight system scenarios were used to validate the detection methodology across different topology classes and application domains:
+
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Scenario} & \textbf{Domain} & \textbf{Scale} & \textbf{Key Anti-Pattern Stress} \\
+\midrule
+01 Autonomous Vehicle & ROS~2 / AV & Medium & Sensor fan-out, \texttt{RELIABLE}+\texttt{TRANSIENT\_LOCAL} QoS \\
+02 IoT Smart City & IoT & Large & Node overload, \texttt{VOLATILE}/\texttt{BEST\_EFFORT} flood \\
+03 Financial Trading & HFT & Medium & Dense pub-sub, \texttt{PERSISTENT}+\texttt{CRITICAL} priority \\
+04 Healthcare & Clinical & Medium & PHI-scoped fan-out, \texttt{PERSISTENT} clinical data \\
+05 Hub-and-Spoke & Anti-pattern & Medium & \texttt{BROKER\_OVERLOAD} with only 2 brokers \\
+06 Microservices & Cloud-native & Medium & Sparse topology (precision stress test) \\
+07 Enterprise & ESB & XLarge & 300+ components (scalability benchmark) \\
+08 Tiny Regression & Smoke test & Tiny & CI regression, fully deterministic \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Scenario 06 is the most important precision test: a well-designed microservices topology should produce few or no anti-pattern findings, validating that the detectors do not over-flag well-structured systems. Scenario 07 provides the primary scalability validation, confirming that detection algorithms scale gracefully to enterprise-scale deployments.
+
+\begin{quote}
+\textbf{Note on scenario counts across documents:} This anti-pattern validation suite counts \textbf{eight} scenarios (01--08) because Scenario 08 (``Tiny Regression'') is a deterministic CI smoke-test fixture, useful here as a trivial detection-pipeline sanity check. The GNN/prescriptive-refactoring research papers (e.g. \texttt{docs/research/middleware2026/middleware2026.md}, \texttt{docs/prediction.md}, \texttt{docs/research/ause/}, \texttt{docs/research/jss/}) instead report \textbf{seven} scenarios (01--07), since they evaluate predictive/prescriptive performance across domain topologies and intentionally exclude the smoke-test fixture, which carries no domain-representative signal. Scenarios 09--11 are later additions (stress/ATM/broker-redundancy) not yet part of either validation suite.
+\end{quote}
+
+% =============================================================================
+\section{Relationship to the RMAV Prediction Framework}
+% =============================================================================
+
+The twenty-one anti-patterns are not independent of the RMAV prediction framework --- they are its \textbf{diagnostic decomposition}. Where the RMAV framework produces a composite criticality score $Q(v)$ that summarizes total risk, anti-pattern detection identifies the specific architectural root cause of that risk and prescribes targeted remediation.
+
+The mapping between anti-patterns and RMAV dimensions is deliberately asymmetric: most patterns degrade a primary RMAV dimension, but some affect multiple dimensions simultaneously. A God Component, for example, has high $M(v)$ (coupling complexity) but also high $R(v)$ (reliability, because many depend on it), making it both a maintainability problem and a reliability problem. A handful of patterns (\texttt{CYCLE}, \texttt{CHAIN}, \texttt{ISOLATED}, \texttt{COMPOUND\_RISK}) are cross-cutting structural findings rather than a degradation of a single RMAV axis, and are labeled ``Architecture (cross-cutting)'' below.
+
+The following table summarizes the primary RMAV dimension affected by each pattern and the topological metrics that drive detection:
+
+\begin{center}
+\begin{longtable}{@{}lll@{}}
+\toprule
+\textbf{Pattern} & \textbf{Primary RMAV} & \textbf{Primary Metric Signals} \\
+\midrule
+\endhead
+\texttt{SPOF} & Availability (A) & $AP_c$, $BR$, QSPOF \\
+\texttt{BRIDGE\_EDGE} & Availability (A) & is\_bridge \\
+\texttt{BOTTLENECK\_EDGE} & Availability (A) & Edge betweenness \\
+\texttt{BROKER\_OVERLOAD} & Availability (A) & $A(v)$ broker comparison \\
+\texttt{FAILURE\_HUB} & Reliability (R) & $R(v)$ fence, out-degree \\
+\texttt{CONCENTRATION\_RISK} & Reliability (R) & Top-3 PageRank share \\
+\texttt{SYSTEMIC\_RISK} & Reliability (R) & CRITICAL-tier population ratio \\
+\texttt{DEEP\_PIPELINE} & Reliability (R) & Path length, RPR \\
+\texttt{TOPIC\_FANOUT} & Reliability (R) & Topic subscriber count \\
+\texttt{QOS\_MISMATCH} & Reliability (R) & QoS weight gap \\
+\texttt{GOD\_COMPONENT} & Maintainability (M) & $BC(v)$, $M(v)$ tier \\
+\texttt{HUB\_AND\_SPOKE} & Maintainability (M) & Clustering coefficient, degree \\
+\texttt{CHATTY\_PAIR} & Maintainability (M) & Edge score product \\
+\texttt{ORPHANED\_TOPIC} & Maintainability (M) & Topic publisher/subscriber count \\
+\texttt{UNSTABLE\_INTERFACE} & Maintainability (M) & CouplingRisk\_enh \\
+\texttt{TARGET} & Vulnerability (V) & Security criticality tier \\
+\texttt{EXPOSURE} & Vulnerability (V) & Security tier, closeness \\
+\texttt{CYCLE} & Architecture (cross-cutting) & SCC detection \\
+\texttt{CHAIN} & Architecture (cross-cutting) & Degree-bounded weakly connected subgraph \\
+\texttt{ISOLATED} & Architecture (cross-cutting) & is\_isolated \\
+\texttt{COMPOUND\_RISK} & Architecture (cross-cutting) & Co-occurring SPOF + God/Hub findings \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+A practical implication of this mapping is that the \textbf{RMAV dimension breakdown for a flagged component can guide pattern selection for investigation}. A component with high $A(v)$ but moderate $M(v)$ and $R(v)$ should be investigated first for SPOF, BOTTLENECK\_EDGE, or BROKER\_OVERLOAD. A component with high $M(v)$ and high $Q(v)$ is a candidate for GOD\_COMPONENT or CYCLE.
+
+% =============================================================================
+\section{Comparison with Existing Work}
+% =============================================================================
+
+\subsection{Object-Oriented Anti-Pattern Research}
+
+The most mature body of anti-pattern work addresses object-oriented design: Fowler's refactoring catalog (Fowler, 1999), Brown et al.'s architectural anti-patterns (Brown et al., 1998), and Suryanarayana et al.'s design smells catalog (2014). These works establish the template this catalog follows: a named pattern, a formal detection rule, and a refactoring strategy.
+
+The key difference is that OO anti-patterns are detected in code (via abstract syntax tree analysis, method metric computation, or class dependency graphs), while pub-sub anti-patterns are detected in the \emph{system topology} --- the runtime communication structure rather than the static code structure. A publish-subscribe system can be architecturally pathological (SPOF, BROKER\_OVERLOAD) while every individual component is internally well-structured by OO standards.
+
+\subsection{Microservices Anti-Pattern Research}
+
+Richardson's microservices patterns (2018) and Taibi et al.'s microservices smells research (2020) address some similar concerns in REST-based microservice architectures --- excessive chattiness, shared databases, distributed monoliths. The pub-sub catalog presented here is the analog of this work for the publish-subscribe communication paradigm, which presents different failure modes (broker saturation, topic fan-out, QoS mismatches) that do not arise in request-response architectures.
+
+\subsection{Graph-Theoretic Approaches to Architecture Analysis}
+
+The use of graph-theoretic metrics for software architecture quality analysis has precedent in coupling/cohesion research (Baldwin \& Clark, 2000), software evolution analysis (Lehman, 1996), and network reliability engineering (Colbourn, 1987). What distinguishes the present work is the \textbf{empirical grounding}: each anti-pattern specification includes validation through failure simulation, establishing that the topological detection signal predicts real-world failure impact rather than being purely structural.
+
+This distinguishes the catalog from expert-opinion-based smell collections and makes it uniquely suited for use as a CI/CD gate: a system is permitted to pass deployment only if no CRITICAL-tier anti-patterns are present, with empirical evidence that CRITICAL patterns are associated with high simulated impact scores.
+
+% =============================================================================
+\section{Implications for Architecture Practice}
+% =============================================================================
+
+\subsection{Pre-Deployment as the Primary Detection Moment}
+
+The most important practical implication of the topology-based detection approach is that \textbf{anti-patterns can be detected before deployment} --- from the system's configuration, launch files, or infrastructure-as-code --- without any runtime instrumentation. This shifts the discovery moment from ``after the production incident'' to ``before the first deployment,'' dramatically reducing the cost of addressing architectural problems.
+
+The CLI tool \texttt{detect\_antipatterns.py} implements this directly: it reads the graph from Neo4j, runs all twenty-one detectors, and exits with code 2 if any CRITICAL or HIGH severity patterns are found, exit code 1 if only warnings or smells (MEDIUM severity) are found, and exit code 0 if the system is completely clean. Integrated into a CI/CD pipeline, this makes CRITICAL or HIGH anti-pattern detection a build-breaking check, analogous to a failing unit test.
+
+\subsection{The Catalog as an Architecture Review Checklist}
+
+For teams that perform explicit architecture review (as distinct from automated pipeline checks), the catalog provides a structured inspection checklist. Rather than reviewing system topology informally (``does this look healthy?''), reviewers can systematically ask twenty-one specific, testable questions about the system's graph structure.
+
+This brings the discipline of \textbf{design review by checklist} --- well-established in aviation, surgery, and infrastructure engineering --- to distributed system architecture.
+
+\subsection{Remediation Prioritization}
+
+The three-tier severity classification provides a natural prioritization framework:
+
+\begin{itemize}[leftmargin=*]
+\item \CRITICAL\ patterns should block deployment. No production system should be deployed with a structural SPOF, a systemic risk cluster, or a cyclic dependency loop.
+\item \HIGH\ patterns should be addressed in the current sprint. God components, broker saturation, and deep pipelines represent significant risks that accumulate technical debt rapidly.
+\item \MEDIUM\ patterns should be tracked as architectural debt items with explicit remediation plans. They are unlikely to cause immediate failures but will compound reliability and maintainability problems over time.
+\end{itemize}
+
+\subsection{Limitations and Scope}
+
+The catalog is grounded in the publish-subscribe communication paradigm. Systems that combine pub-sub with request-response patterns (hybrid microservices, mixed REST/event architectures) will require additional patterns addressing the request-response side. The QoS mismatch pattern is currently specified for DDS/ROS~2 and MQTT; its generalization to other middleware platforms requires adaptation of the QoS weight formula.
+
+The detection methodology's accuracy depends on the completeness of the input graph model. Undocumented out-of-band dependencies (shared databases, external APIs, sidecar communication channels) that are not reflected in the system topology will not be detected. The methodology is most reliable when applied to systems whose topology is specified with high fidelity from infrastructure-as-code or launch file declarations.
+
+% =============================================================================
+\section{Conclusion}
+% =============================================================================
+
+This document has presented a catalog of twenty-one architectural anti-patterns and bad smells specific to distributed publish-subscribe systems, each with a formal specification grounded in graph topology, an explanation of the architectural risk it represents, and a concrete remediation strategy. The catalog is organized across three severity tiers (CRITICAL, HIGH, MEDIUM) and four RMAV quality dimensions (Reliability, Maintainability, Availability, Vulnerability), providing a structured framework for relating topological signatures to operational consequences.
+
+The central contribution beyond the catalog entries themselves is the \textbf{empirical grounding} of each pattern in failure simulation results. Where existing anti-pattern catalogs are typically grounded in expert judgment, this catalog's detection conditions are validated against simulated impact scores with Spearman $\rho = 0.876$ overall and $\rho = 0.943$ at large scale. This enables the catalog to serve not only as a qualitative review checklist but as the foundation for quantitative, automated deployment gates.
+
+The catalog represents a first version of what should become an evolving, community-contributed body of knowledge. As new domains and middleware technologies introduce new failure modes, new patterns can be added following the same specification structure: a formal detection rule expressed in topological terms, an empirical validation against failure simulation, and a prioritized remediation strategy. The goal is to bring to distributed system architecture the same accumulated wisdom that decades of object-oriented design research brought to component-level software quality.
+
+% =============================================================================
+\section{References}
+% =============================================================================
+
+\begin{thebibliography}{99}
+
+\bibitem{brown1998} Brown, W. H., Malveau, R. C., McCormick, H. W., \& Mowbray, T. J. (1998). \emph{AntiPatterns: Refactoring Software, Architectures, and Projects in Crisis}. Wiley.
+
+\bibitem{baldwinclark2000} Baldwin, C. Y., \& Clark, K. B. (2000). \emph{Design Rules, Volume 1: The Power of Modularity}. MIT Press.
+
+\bibitem{colbourn1987} Colbourn, C. J. (1987). \emph{The Combinatorics of Network Reliability}. Oxford University Press.
+
+\bibitem{fowler1999} Fowler, M. (1999). \emph{Refactoring: Improving the Design of Existing Code}. Addison-Wesley.
+
+\bibitem{lehman1996} Lehman, M. M. (1996). Laws of software evolution revisited. \emph{Proceedings of EWSPT '96}. Springer.
+
+\bibitem{martin2003} Martin, R. C. (2003). \emph{Agile Software Development, Principles, Patterns, and Practices}. Prentice Hall.
+
+\bibitem{nygard2018} Nygard, M. T. (2018). \emph{Release It! Design and Deploy Production-Ready Software} (2nd ed.). Pragmatic Bookshelf.
+
+\bibitem{richardson2018} Richardson, C. (2018). \emph{Microservices Patterns: With Examples in Java}. Manning.
+
+\bibitem{saaty1980} Saaty, T. L. (1980). \emph{The Analytic Hierarchy Process}. McGraw-Hill.
+
+\bibitem{suryanarayana2014} Suryanarayana, G., Samarthyam, G., \& Sharma, T. (2014). \emph{Refactoring for Software Design Smells: Managing Technical Debt}. Morgan Kaufmann.
+
+\bibitem{taibi2020} Taibi, D., Lenarduzzi, V., \& Pahl, C. (2020). Microservices anti-patterns: A taxonomy. In \emph{Microservices: Science and Engineering}. Springer.
+
+\bibitem{yigit2025} Yigit, I. O., \& Buzluca, F. (2025). A graph-based dependency analysis method for identifying critical components in distributed publish-subscribe systems. \emph{IEEE International Conference on Recent Advances in Systems Science and Engineering (RASSE 2025)}. DOI: 10.1109/RASSE64831.2025.11315354
+
+\end{thebibliography}
+
+\end{document}
