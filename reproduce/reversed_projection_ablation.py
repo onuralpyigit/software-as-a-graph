@@ -19,8 +19,8 @@ from pathlib import Path
 import networkx as nx
 from scipy.stats import spearmanr
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[0]))
-ROOT = Path("/home/onuralpyigit/Workspace/SoftwareAsAGraph")
+ROOT = Path(__file__).resolve().parents[1]  # repo root (reproduce/ is one level down)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(ROOT))
 
 from cli.simulate_graph import _load_graph

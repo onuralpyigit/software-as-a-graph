@@ -1,18 +1,24 @@
 # Experimental Harness & Evaluation Suite
 
-This document provides a technical deep-dive into the reproducibility infrastructure for the Middleware 2026 paper: **"Heterogeneous Graph Learning for Cascade Impact Prediction in Distributed Publish-Subscribe Middleware"**.
+This document provides a technical deep-dive into the reproducibility infrastructure for the paper
+**"Heterogeneous Graph Learning for Cascade Impact Prediction in Distributed Publish-Subscribe
+Middleware"** (originally submitted to Middleware 2026; now extended for the JSS special issue
+VSI:AI4MSS — see `docs/research/jss/si_middleware_extension.md`).
 
 ---
 
 ## 1. The Experimental Harness (`middleware26_main_table.py`)
 
-The primary harness orchestrates the new **Attributable GNN Evaluation Ladder** over an **8 × 6 × 5 evaluation matrix** (8 scenarios, 6 variants, 5 seeds), totaling 240 cells (160 GNN training runs plus 80 closed-form structural baseline computations).
+The primary harness orchestrates the **Attributable GNN Evaluation Ladder** over a **7 × 6 × 5
+evaluation matrix** (7 scenarios, 6 variants, 5 seeds), totaling 210 cells (140 GNN training runs
+plus 70 closed-form structural baseline computations) — matching the paper's own "210 evaluation
+cells: 140 trained GNN models and 70 structural-baseline computations."
 
 ### A. Topology Refinement (`DEPENDS_ON` Edges)
 Raw pub-sub graphs often exhibit "feature degeneracy" where Application nodes lack structural centrality because they only possess high-level logical connections. The harness implements a custom edge derivation rule (Rule 1 & 5) before training:
-- **Rule 1**: If Application $A$ publishes a topic $T$ consumed by $B$, add a `DEPENDS_ON` edge $A \to B$.
-- **Rule 5**: If Application $A$ uses Library $L$, add a `DEPENDS_ON` edge $A \to L$.
-Structural metrics (betweenness, bridge ratio, etc.) are computed on this refined subgraph, ensuring a meaningful feature signal for the GNN.
+- **Rule 1**: If Application $A$ publishes a topic $T$ consumed by $B$, add a `DEPENDS_ON` edge $B \to A$ — the subscriber depends on the publisher, the reverse of data flow (see the paper's §3.1 "Formal Definitions": dependent → dependency).
+- **Rule 5**: If Application $A$ uses Library $L$, add a `DEPENDS_ON` edge $A \to L$ — the user depends on the library.
+Structural metrics (betweenness, bridge ratio, etc.) are computed on this refined subgraph, ensuring a meaningful feature signal for the GNN. (§5.5 of the paper empirically validates this direction: inverting it flips the structural predictor's correlation with ground truth from ρ≈+0.84 to ρ≈−0.79.)
 
 ### B. Remapping & Normalization
 - **Node ID Alignment**: Handles inconsistent naming across simulation logs (e.g., remapping `A1` to `A01` to match architectural JSONs).

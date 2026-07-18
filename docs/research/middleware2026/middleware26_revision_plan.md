@@ -100,12 +100,25 @@ stronger running example (resolves D3 in favor of inclusion).
 with an explicit topic sentence ("Dependability of pub-sub middleware has been studied at the
 protocol, broker-overlay, and runtime levels [refs]…") so a skimming reviewer cannot miss it.
 
-### B3. "Black-box simulator, below reproducibility standards" (37C-W1; advisor: §3.4'te link verdik) — MEDIUM
+### B3. "Black-box simulator, below reproducibility standards" (37C-W1; advisor: §3.4'te link verdik) — MEDIUM — **RESOLVED 2026-07-18**
 The anonymized replication link exists, but for double-blind review many reviewers do not follow
 links, and journal standards expect the definition *in the paper body*. Fix: A2's formal
 definitions block satisfies this criticism as a side effect. Keep the link as supplement, not
 substitute. (Advisor is right that the criticism overstates; the reviewer is right about where the
 definition should live.)
+
+**Resolution:** A2's formal-definitions block (§3, done earlier this session) puts the I*(v)
+definition in the paper body. Separately, the package the link actually points to
+(`reproduce/README.md` and its scripts) was audited and found to have real, independent problems —
+Middleware-2026-only branding, a missing `requirements.txt`, a stale/incomplete file listing, a
+docstring in `middleware26_main_table.py` describing a nonexistent 8×6×5=240-cell matrix (the code
+itself was already correct at 7×6×5=210, only the comment was stale), a backwards `DEPENDS_ON`
+direction description in `EXPERIMENTS.md` (code was correct, doc was not), and — most substantively
+— the two new JSS-revision experiments (reversed-projection ablation, hardening-budget analysis)
+were unreferenced from the package and hardcoded a personal absolute path. All fixed: scripts moved
+into `reproduce/` with portable paths, README rewritten with JSS framing/install command/complete
+file listing/table-number mapping, both stale-docstring bugs corrected. §3.4 now names what's in
+the package rather than pointing at a bare link. B3 is closed.
 
 ### B4. "No train/val split, possible data leakage" (37C-W6; advisor: §3.3 + §5.4 LOSO var) — MEDIUM
 The protocol exists but is split across two sections far apart. Fix: a single boxed/titled

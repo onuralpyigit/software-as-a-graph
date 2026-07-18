@@ -3,29 +3,33 @@
 reproduce/middleware26_main_table.py — Block C: Main Results Table Harness
 ======================================================================
 
-Orchestrates the 8×6×5 evaluation matrix for Table 3 (paper §6.2):
-  8 scenarios × 6 variants × 5 seeds = 240 evaluation cells
-  (160 GNN training runs + 80 closed-form structural baseline computations).
+Orchestrates the 7×6×5 evaluation matrix behind Table 1 / Tables 4-6 of the paper
+(docs/research/jss/si_middleware_extension.md):
+  7 scenarios × 6 variants × 5 seeds = 210 evaluation cells
+  (140 GNN training runs + 70 closed-form structural baseline computations),
+  matching the paper's "210 evaluation cells: 140 trained GNN models and 70
+  structural-baseline computations" exactly (see ALL_SCENARIOS / ALL_VARIANTS below).
 
-  Factorial design (2×3: architecture × qos):
-    Structural BL : Topo-BL       | Q-Topo-BL
-    Homogeneous   : Homo-U        | Homo-S
-    Heterogeneous : HGL           | Q-HGL
+  Factorial design (2×3: architecture × qos), paper names (Table 1) with this file's
+  ALL_VARIANTS identifiers in parentheses:
+    Structural BL : Topo-BL (topo_baseline) | Topo-QoS (topo_qos)
+    Homogeneous   : GL      (gl)            | GL-QoS   (gl_qos)
+    Heterogeneous : HGL     (hgl)           | HGL-QoS  (hgl_qos)
 
 For each cell, emits:
   - Spearman ρ (composite), per-node-type ρ, F1, RMSE, NDCG@10
-  - Paired Wilcoxon signed-rank p-value (hetero_qos vs each baseline)
+  - Paired Wilcoxon signed-rank p-value (hgl_qos vs each baseline)
   - Bootstrap 95% CI (B=2000)
 
 Output: results/main_table.json + results/main_table.tex (via render_table.py)
 
 Usage
 -----
-  # Full matrix (≈ 160 runs, 30-60 min on CPU)
+  # Full matrix (≈ 140 GNN training runs, 30-60 min on CPU)
   python reproduce/middleware26_main_table.py
 
   # Quick smoke test: 1 scenario, 2 seeds
-  python reproduce/middleware26_main_table.py --scenarios atm_system --seeds 42 123
+  python reproduce/middleware26_main_table.py --scenarios av_system --seeds 42 123
 
   # Resume from partial results (skips completed cells)
   python reproduce/middleware26_main_table.py --resume
@@ -941,7 +945,7 @@ def _train_cell(
     train_ratio: float = 0.6,
     val_ratio: float = 0.2,
 ) -> Dict[str, Any]:
-    """Train one cell of the 8×6×5 matrix and return metrics dict."""
+    """Train one cell of the 7×6×5 matrix and return metrics dict."""
     import torch
     import numpy as np
     from saag.prediction.data_preparation import networkx_to_hetero_data, create_node_splits

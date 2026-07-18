@@ -1,8 +1,7 @@
 FROM python:3.11-slim
 
-LABEL org.opencontainers.image.title="Q-HGL Middleware 2026"
-LABEL org.opencontainers.image.description=\
-    "QoS-Aware Heterogeneous Graph Learning — reproducibility container"
+LABEL org.opencontainers.image.title="Q-HGL Middleware 2026 / JSS"
+LABEL org.opencontainers.image.description="QoS-Aware Heterogeneous Graph Learning -- reproducibility container"
 LABEL org.opencontainers.image.authors="Q-HGL Authors"
 
 # ── System dependencies ────────────────────────────────────────────────────────
@@ -15,11 +14,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /workspace
 
+# ── Project source ─────────────────────────────────────────────────────────────
+# Copied before the dependency install (rather than the usual requirements.txt-first
+# caching trick) because there is no requirements.txt: pyproject.toml is the single
+# source of truth for dependencies (see reproduce/README.md) and `pip install -e .`
+# needs the actual saag/api/cli/tools packages present to resolve its editable install.
+COPY . .
+
 # ── Python dependencies ────────────────────────────────────────────────────────
-# Copy requirements first (Docker cache layer)
-COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -e ".[neo4j,api]"
 
 # Install PyTorch Geometric (CPU-only build for reproducibility)
 RUN pip install --no-cache-dir \
@@ -29,9 +33,6 @@ RUN pip install --no-cache-dir \
         torch-geometric \
         -f https://data.pyg.org/whl/torch-2.2.1+cpu.html || \
     pip install --no-cache-dir torch-geometric
-
-# ── Project source ─────────────────────────────────────────────────────────────
-COPY . .
 
 # Ensure project root is on PYTHONPATH
 ENV PYTHONPATH=/workspace
