@@ -197,3 +197,58 @@ codebase — pure `Q_GNN(v)`, no blending — is the one that actually matches w
 - The reversed-projection ablation (§5.5) and hardening-budget experiment's Betweenness/Random arms
   were unaffected (no GNN involved) and did not need revision; only hardening-budget's HGL(LOSO)
   column changed, since it consumes the now-corrected LOSO predictions.
+
+## R3 (2026-07-19): `middleware26_revised.md` (Middleware Cycle 2 draft) brought in line with R2 and Track A/B/C
+
+`docs/research/middleware2026/middleware26_revised.md` — a separate, parallel revision draft targeting
+a possible Middleware Cycle 2 resubmission rather than the JSS SI extension — had fallen out of sync
+with everything above: it used an invented 3-node-type/2-edge-type schema found nowhere else in the
+codebase, had zero citations anywhere (including Related Work), defined ground truth by pointing at
+an unresolved `[Author et al., RASSE 2025]` placeholder, and reported the same invalidated
+ensemble-blended headline numbers R2 traced and removed from `si_middleware_extension.md` (system-wide
+MSE 0.014, uniformly strong LOSO zero-shot claims). It was rewritten in full against the submitted
+`middleware2026.md` and the corrected `si_middleware_extension.md`, reusing only material already
+verified elsewhere in the repo — no new numbers, citations, or claims were invented. Mapped against
+the three reviews:
+
+**37A (pub-sub relevance, scenario justification, no tangible metric):**
+- Table 1 replaced: one-sentence-per-scenario is now a full characterization (as-generated
+  Application/Library/Topic/Broker/Node counts, edge-type mix, topic QoS-reliability mix, and a
+  dedicated real-deployment-pattern sentence per scenario) — the C1 table, unblocked by reusing
+  `si_middleware_extension.md`'s Table 2b instead of waiting on D2 canonicalization.
+- New §5.5 hardening-budget analysis (risk-mass coverage by top-K selection method) — closes C2,
+  reusing the JSS sibling's hardening-budget design and results rather than inventing a new metric.
+
+**37B (writing/duplication, dependency direction):**
+- RQ duplication (A3) closed: RQs now appear once, as §5.2–5.4 headers, with no prose restatement
+  in §3.
+- A4's direction-convention statement is now written twice, in contrast form, in both §1.2 and
+  §3.1 ("data flows $A \to B$; dependency points $B \to A$... against the direction of data flow"),
+  per A4 owner-action 2 — directly targeting *why* two reviewers tripped on an already-correct claim,
+  not just repeating the claim.
+
+**37C (undefined criticality, black-box simulator, reproducibility):**
+- A2's formal ground-truth definition (named `FaultInjector` engine, seed protocol
+  {42,123,456,789,2024}, depth-damping, exact QoS multipliers, propagation_threshold=0.2) is now in
+  §4.1's body, replacing the hand-wavy min-max-scaling paragraph and the placeholder citation — RASSE
+  2025 is now cited as reference [23] with a real DOI.
+- The R2 finding is disclosed in a new §6.2 ("Predictor Reproducibility"), naming commit `62b6b2d`
+  and reporting the numbers §3.3 as-described actually produces, rather than the un-reproducible
+  cached ones.
+- §5.3 (formerly claiming "robust zero-shot domain transfer") now reports the corrected LOSO
+  reversal plainly — concise, not the headline, but not omitted or misstated.
+
+**Preserved from the submission, not regressed:** the existing 22-entry bibliography, the
+already-correct `DEPENDS_ON` direction, the Simpson's-paradox stratified reporting, and the
+bootstrap-CI/paired-Wilcoxon statistical-testing methodology (§4.4) all carry through unchanged.
+
+**Net effect on headline numbers:** the corrected in-distribution results are weaker than the
+submission's (mean $\rho$ 0.411 vs. 0.620; F1 0.688 vs. 0.765), and LOSO is now a reported negative
+result instead of the submission's headline 0.401 — the same trade this revision plan already made
+for the JSS extension in R2. This is not a quality regression; it is the defensible numbers replacing
+ones that do not reproduce from the architecture the paper describes.
+
+**Not yet done:** this draft has not been run through the same Track A/B/C sequencing rigor as the
+JSS extension (no explicit venue/timeline decision recorded for Middleware Cycle 2, which R2 already
+marked as "no longer the fallback plan"). Treat `middleware26_revised.md` as a corrected, internally
+consistent artifact, not as an actively-targeted submission unless that decision is revisited.
