@@ -3,7 +3,9 @@
 reproduce/qos_pipeline_inspect.py — Stage-by-stage QoS attribute trace
 ===================================================================
 
-Block 0, Task 0.5: Generates source data for Figure 2 (paper §3.2).
+Block 0, Task 0.5: Generates diagnostic source data for the QoS edge-encoding pipeline described
+in the paper's §3.1 ("Each edge is encoded as a 16-dimensional feature vector..."). Auxiliary
+inspection tooling, not itself a numbered table/figure in the current JSS paper.
 
 Traces QoS attributes through every stage of the pipeline:
   Stage 1: Raw QoS fields per Topic (from topology JSON)

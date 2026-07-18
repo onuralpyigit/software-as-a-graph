@@ -3,8 +3,9 @@
 reproduce/loso_all_variants.py — Block E: LOSO × 4 variants
 =========================================================
 
-Runs cli/loso_evaluate.py for each of the 4 model variants and
-aggregates results into a unified JSON for Table 4 (paper §6.5).
+Runs cli/loso_evaluate.py for each of the 4 model variants (gl, gl_qos, hgl, hgl_qos; see
+ALL_VARIANTS below) and aggregates results into a unified JSON for the paper's Table 7
+(Leave-One-Scenario-Out Cross-Validation Results, docs/research/jss/si_middleware_extension.md).
 
 Usage
 -----
@@ -12,7 +13,7 @@ Usage
   python reproduce/loso_all_variants.py
 
   # Smoke test: 1 variant, 2 seeds
-  python reproduce/loso_all_variants.py --variants hetero_qos homo_unweighted --seeds 42 123
+  python reproduce/loso_all_variants.py --variants gl hgl --seeds 42,123
 
   # Resume (skips variants whose output dir already has results.json)
   python reproduce/loso_all_variants.py --resume

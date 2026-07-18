@@ -6,8 +6,10 @@ reproduce/render_table.py — Block C: Table 3 + Table 4 LaTeX/CSV/Markdown rend
 Reads results/main_table.json (Block C) and/or results/loso_all_variants.json
 (Block E) and produces:
 
-  - results/table3_main_results.tex   (LaTeX booktabs table for paper §6.2)
-  - results/table4_loso_results.tex   (LaTeX booktabs table for paper §6.5)
+  - results/table3_main_results.tex   (LaTeX booktabs table; feeds the paper's Table 4/5 --
+                                        Global Ranking Performance / Identification Metrics)
+  - results/table4_loso_results.tex   (LaTeX booktabs table; feeds the paper's Table 7 --
+                                        Leave-One-Scenario-Out Cross-Validation Results)
   - results/table3_main_results.csv   (CSV for Excel/R)
   - results/table3_main_results.md    (Markdown for README / GitHub)
 

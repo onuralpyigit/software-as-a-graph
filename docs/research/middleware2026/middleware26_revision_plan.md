@@ -160,3 +160,40 @@ The A2 definitions block and the A4 direction-convention statement should be wri
 canonically, and reused verbatim in the thesis — these are exactly the two points committee members
 will probe. The Simpson's-paradox stratified reporting and the evaluation-protocol box likewise
 transfer directly to the thesis validation chapter.
+
+## R2 (new, 2026-07-18): Undisclosed ensemble step invalidated the cached headline numbers
+
+A full pipeline rerun for this revision (main table, LOSO, both new §5.5/§5.6 experiments) did
+**not** reproduce the numbers this whole revision plan was written against. Root cause, traced via
+git history (see `si_middleware_extension.md` §6.1 for the full writeup): the pipeline that
+produced the cached results behind every headline number (ρ=0.620, F1=0.765, LOSO ρ=0.401, etc.)
+computed $Q_{\text{ens}}(v) = \alpha \cdot Q_{\text{GNN}} + (1-\alpha) \cdot Q_{\text{RMAV}}$, an
+ensemble blend with a separate quality-attribution score never mentioned in §3.2's architecture
+description. That ensemble step was removed from the codebase (commit `62b6b2d`, "Refactor GNN
+Prediction Pipeline: Remove Ensemble Blending", 2026-06-18) for unrelated reasons, well after the
+cached numbers were generated (~2026-06-07) and well before this revision session. The current
+codebase — pure `Q_GNN(v)`, no blending — is the one that actually matches what §3.2 describes.
+
+**Consequences already applied to `si_middleware_extension.md`/`.tex`:**
+- All of §5 rewritten with fresh numbers from the rerun (in-distribution results hold up
+  directionally — HGL still beats GL — but LOSO reverses: HGL/HGL-QoS now score negative mean ρ,
+  underperforming the homogeneous baselines that were previously beaten by a wide margin).
+- Abstract, §1 contribution #3, and §7 Conclusion rewritten to report the LOSO reversal as the
+  paper's central negative result rather than its third positive contribution.
+- New §6.1 ("Predictor Reproducibility") documents the discovery and the tracing process.
+- This changes the paper's central claim materially: heterogeneous message passing remains a real,
+  useful in-distribution advantage, but the "QoS-aware HGL generalizes out-of-distribution" claim
+  (previously headline contribution #3) is now a reported negative finding instead.
+
+**Not yet done / open follow-ups:**
+- Whether a *disclosed*, properly-described ensemble (GNN + a structural/quality score) can
+  legitimately recover OOD performance is an open question raised by this finding, noted as future
+  work in §7 — it would be a different, larger contribution than "a heterogeneous GNN generalizes,"
+  and would need its own evaluation section if pursued.
+- `docs/research/jss/draft.md` (the deprioritized SaG flagship paper) uses the same underlying
+  RMAV/Q(v) framework this ensemble blended with — that paper's own numbers should be checked
+  against the same commit-history timeline before it is ever revived, since it may have the
+  analogous problem in the other direction (RMAV numbers generated before/after code changes).
+- The reversed-projection ablation (§5.5) and hardening-budget experiment's Betweenness/Random arms
+  were unaffected (no GNN involved) and did not need revision; only hardening-budget's HGL(LOSO)
+  column changed, since it consumes the now-corrected LOSO predictions.
