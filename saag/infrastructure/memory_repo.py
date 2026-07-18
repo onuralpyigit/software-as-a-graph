@@ -237,6 +237,13 @@ class MemoryRepository:
     def _derive_dependencies(self) -> None:
         """
         Derive DEPENDS_ON relationships from structural edges (Rule 1-6).
+
+        Direction convention: dependent -> dependency, the reverse of data flow. If
+        Application A publishes to a Topic that Application B subscribes to, B depends on A
+        (B *would* fail if A failed), so the edge is B -> A: ``key = (sub, pub)`` below, not
+        ``(pub, sub)``. Symmetrically, app_to_lib edges point from the using application to
+        the library it uses. This is deliberate, not a bug: a DEPENDS_ON arrow is drawn
+        against the direction message data actually flows.
         """
         # Build component type and weight lookup
         comp_lookup = {}

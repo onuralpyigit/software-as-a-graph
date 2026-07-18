@@ -613,7 +613,9 @@ class FailureSimulator:
         Propagate failure cascade from multiple initial targets using continuous-valued
         state reduction with state attenuation.
         """
-        # 1. Initialize impact metrics (I(v) = 1.0 - performance[v])
+        # 1. Initialize local per-component impact state (1.0 - performance[v]).
+        #    Internal to this cascade pass only -- not the paper's I*(v) ground truth
+        #    (that is FaultInjector.impact_score); do not conflate the two.
         impact: Dict[str, float] = {cid: 0.0 for cid in self.graph.components}
         
         # Set initial target impacts

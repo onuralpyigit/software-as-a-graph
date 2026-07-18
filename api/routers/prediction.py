@@ -42,7 +42,9 @@ class TrainRequest(BaseModel):
             "'hetero_qos' (QoS-aware HeteroGAT, default), "
             "'homo_unweighted' (flat GAT, no edge_attr), "
             "'homo_scalar' (flat GAT, scalar weight), "
-            "'topology_rmav' (RMAV baseline, no GNN)."
+            "'topology_rmav' (RMAV baseline, no GNN). "
+            "Paper-name mapping (docs/research/jss/si_middleware_extension.md Table 1): "
+            "hetero_qos=HGL-QoS, homo_unweighted=GL, homo_scalar=GL-QoS."
         ),
     )
 

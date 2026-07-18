@@ -335,7 +335,19 @@ class FailureScenario:
 
 @dataclass
 class ImpactMetrics:
-    """Impact metrics from a failure simulation."""
+    """Impact metrics from a failure simulation.
+
+    NOT the HGL/GL paper's ground truth. ``composite_impact`` below and the IR(v)/IM(v)/IA(v)/
+    IS(v) properties are AHP-weighted RMAV-dimension metrics produced by ``FailureSimulator``,
+    used for the separate multi-dimensional quality-attribution framework (Q(v) validation).
+    They are unrelated to, and must not be conflated with, the paper's I*(v) cascade-impact
+    ground truth used to evaluate HGL/HGL-QoS/GL/GL-QoS/Topo-BL/Topo-QoS: that I*(v) is produced
+    solely by ``saag.simulation.fault_injector.FaultInjector`` (rate-weighted feed-loss fractions
+    times topic QoS factors) and reported as ``FaultInjectionRecord.impact_score``. The two
+    engines compute genuinely different quantities from genuinely different formulas; see
+    docs/research/jss/si_middleware_extension.md Section 3 ("Formal Definitions") for the
+    canonical I*(v) definition.
+    """
     initial_paths: int = 0
     remaining_paths: int = 0
     reachability_loss: float = 0.0
@@ -355,7 +367,7 @@ class ImpactMetrics:
     flow_disruption: float = 0.0 # Fraction of event-sim flows broken
     cascade_by_type: Dict[str, int] = field(default_factory=dict)
     
-    # Impact weights I(v) - Formally derived via AHP in weight_calculator.py
+    # composite_impact weights - AHP-derived in weight_calculator.py (not the paper's I*(v); see class docstring)
     impact_weights: Dict[str, float] = field(default_factory=lambda: {
         "reachability": 0.35,
         "fragmentation": 0.25, 

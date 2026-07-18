@@ -11,6 +11,15 @@ publish-subscribe dependency graph.  I(v) is used as the target variable
 when computing Spearman ρ between the topology-derived Q(v) predictor and
 observed impact.
 
+This is the SOLE engine that produces the I*(v) ground truth reported in
+docs/research/jss/si_middleware_extension.md (the HGL/HGL-QoS/GL/GL-QoS/
+Topo-BL/Topo-QoS evaluation). Do not confuse this with the differently-named
+"impact"/"I(v)" quantities elsewhere in this package -- e.g.
+saag.simulation.models.ImpactMetrics.composite_impact and its IR(v)/IM(v)/
+IA(v)/IS(v) properties (AHP-weighted RMAV metrics from FailureSimulator, used
+for an unrelated quality-attribution framework) -- which are different
+formulas over different targets and are never used as HGL/GL ground truth.
+
 ALGORITHM
 ─────────
 For each candidate node v (Application or Broker by default):
@@ -62,6 +71,19 @@ from .simulation_results import (
 )
 
 logger = logging.getLogger(__name__)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# I*(v) simulation-softening constants (see docs/research/jss/si_middleware_extension.md,
+# Section 3 "Formal Definitions" -- these are the canonical values reported there).
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: Recommended multi-seed set for stable, reproducible I*(v) estimates.
+RECOMMENDED_SEEDS: List[int] = [42, 123, 456, 789, 2024]
+
+#: Topic QoS factors applied to a subscriber's feed-loss fraction during cascade softening.
+RELIABLE_QOS_FACTOR: float = 1.2
+HIGH_PRIORITY_QOS_FACTOR: float = 1.15
+MEDIUM_PRIORITY_QOS_FACTOR: float = 1.05
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -148,7 +170,7 @@ class FaultInjector:
         brokers).
     seeds : list[int], optional
         Seeds for multi-seed stability testing.  Default [42].
-        Recommended: [42, 123, 456, 789, 2024].
+        Recommended: RECOMMENDED_SEEDS (module-level constant, [42, 123, 456, 789, 2024]).
     cascade_depth_limit : int, optional
         Maximum cascade waves.  0 = unlimited.  Default 0.
     propagation_threshold : float, optional
@@ -350,12 +372,12 @@ class FaultInjector:
             node_data = self.graph.nodes.get(topic, {})
             factor = 1.0
             if node_data.get("qos_reliability", "").upper() == "RELIABLE":
-                factor *= 1.2
+                factor *= RELIABLE_QOS_FACTOR
             priority = node_data.get("qos_priority", "").upper()
             if priority in ("HIGH", "CRITICAL", "URGENT"):
-                factor *= 1.15
+                factor *= HIGH_PRIORITY_QOS_FACTOR
             elif priority == "MEDIUM":
-                factor *= 1.05
+                factor *= MEDIUM_PRIORITY_QOS_FACTOR
             return factor
 
         frontier = [node_id]

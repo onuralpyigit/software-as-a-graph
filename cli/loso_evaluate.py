@@ -375,7 +375,7 @@ def run_one_fold(
     workdir: Path,
     mode: str,
     global_metadata: Optional[Tuple] = None,
-    variant: str = "hetero_qos",
+    variant: str = "hgl_qos",
 ) -> FoldResult:
     """
     One LOSO fold: train on N-1 scenarios with multi-seed, predict on held-out.
@@ -660,7 +660,7 @@ def run_loso(
     layers: int,
     dropout: float,
     mode: str,
-    variant: str = "hetero_qos",
+    variant: str = "hgl_qos",
 ) -> LOSOReport:
     """Run leave-one-scenario-out across all loaded bundles."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -889,7 +889,7 @@ def main() -> int:
     logger.info("  Layer:     %s", args.layer)
     logger.info("  Seeds:     %s", seeds)
     logger.info("  Mode:      %s", args.mode)
-    logger.info("  Variant:   %s", getattr(args, 'variant', 'hetero_qos'))
+    logger.info("  Variant:   %s", getattr(args, 'variant', 'hgl_qos'))
     logger.info("  Skip:      %s", skip if skip else "(none)")
 
     if not args.cache_dir.exists():
@@ -906,7 +906,7 @@ def main() -> int:
         layer=args.layer, epochs=args.epochs, lr=args.lr,
         hidden=args.hidden, heads=args.heads, layers=args.layers,
         dropout=args.dropout, mode=args.mode,
-        variant=getattr(args, 'variant', 'hetero_qos'),
+        variant=getattr(args, 'variant', 'hgl_qos'),
     )
     elapsed = time.time() - t0
     logger.info("LOSO complete in %.1f s.", elapsed)
