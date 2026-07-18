@@ -623,12 +623,12 @@ as written would obtain. The blended score's better performance — particularly
 apparent out-of-distribution generalization — is itself informative: an RMAV-style structural
 composite is not learned per-scenario, so blending it in would mechanically stabilize LOSO
 predictions regardless of what the GNN component contributes, which is consistent with the sharp
-LOSO-specific reversal we observe once the blend is removed (§5.4). Whether reintroducing an
-disclosed, described ensemble of this kind is a productive direction is a legitimate question, but
-it is a different, larger claim than "a heterogeneous GNN generalizes out-of-distribution," and
-would need to be evaluated and described as such rather than folded silently into the numbers a
-pure-GNN architecture section reports. We leave that as future work (§7) rather than
-retrofitting it into this submission's evaluated architecture.
+LOSO-specific reversal we observe once the blend is removed (§5.4). We deliberately do not
+reintroduce that ensemble step here, disclosed or otherwise: doing so would substitute a second,
+non-learned predictor for part of what this paper claims the GNN itself achieves, which is the
+exact methodological ambiguity this section exists to flag and correct. HGL in this paper is, and
+remains, the pure heterogeneous graph attention network §3.2 describes — nothing else contributes
+to $Q^*(v)$. §7 discusses improving its out-of-distribution behavior on those terms.
 
 ### 6.2 Simulator-Derived Labels
 
@@ -686,7 +686,22 @@ By natively modeling the complete five-type architecture (Applications, Librarie
 
 We acknowledge several important limitations of this study, foremost among them the ones detailed above. The reported targets are generated via simulation, and the evaluated scenarios are synthetic; consequently, absolute metric values should be interpreted as simulator-based estimates rather than guarantees of operational accuracy. Our most defensible contribution is therefore narrower than the conference submission claimed: within the disclosed evaluation framework, preserving heterogeneous middleware semantics yields better pre-deployment identification of critical components than homogeneous graph learning, but only within a trained scenario's distribution — generalization to unseen topologies, as evaluated here, is not yet achieved by either the heterogeneous or the homogeneous learned variants, and the deterministic structural baseline remains the more reliable out-of-distribution choice on this evidence (§5.6).
 
-In the future, we will extend this work in four directions. First, whether a disclosed, properly described ensemble of the GNN score with a structural or quality-attribution score — of the kind inadvertently present in the conference submission's pipeline — can recover out-of-distribution performance without sacrificing methodological transparency is an open, legitimate question raised directly by §6.1's finding, and is a more promising near-term direction than further tuning the pure-GNN architecture alone. Second, although HGL currently performs message passing across the full multi-tier graph, ground-truth impact scores are limited to the application level; expanding the simulator to attribute cascade impact to Topics, Brokers, and compute Nodes would enable direct validation of HGL's predictions for these infrastructure layers. Third, we aim to validate HGL against real-world failure data from operational deployments such as Kubernetes- or ROS2-based publish-subscribe systems, essential to move beyond simulator-based evidence. Fourth, a systematic comparison against other heterogeneous architectures — such as RGCN [16], HAN [17], HGT [18], and MAGNN [19] — would help establish whether the out-of-distribution weakness observed here is specific to this HeteroGAT instantiation or a broader property of typed message passing under scenario shift.
+In the future, we will extend this work in four directions. First, §6.1's finding motivates
+improving HGL's out-of-distribution robustness directly, as a single learned architecture, rather
+than by reintroducing a second, non-learned predictor via ensembling — a direction we deliberately
+do not pursue, since it would reopen the exact methodological-transparency problem §6.1 diagnoses.
+Promising directions on those terms include training over a larger and more topologically diverse
+scenario corpus, explicit domain-generalization regularization, or meta-learning objectives that
+directly optimize for cross-scenario transfer rather than in-distribution fit. Second, although HGL
+currently performs message passing across the full multi-tier graph, ground-truth impact scores are
+limited to the application level; expanding the simulator to attribute cascade impact to Topics,
+Brokers, and compute Nodes would enable direct validation of HGL's predictions for these
+infrastructure layers. Third, we aim to validate HGL against real-world failure data from
+operational deployments such as Kubernetes- or ROS2-based publish-subscribe systems, essential to
+move beyond simulator-based evidence. Fourth, a systematic comparison against other heterogeneous
+architectures — such as RGCN [16], HAN [17], HGT [18], and MAGNN [19] — would help establish
+whether the out-of-distribution weakness observed here is specific to this HeteroGAT instantiation
+or a broader property of typed message passing under scenario shift.
 
 ---
 
