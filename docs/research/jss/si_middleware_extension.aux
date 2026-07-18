@@ -1,0 +1,128 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{Eugster2003}
+\citation{Carzaniga2001}
+\citation{OMG2015DDS,OASIS2019MQTT}
+\citation{Albert2000}
+\citation{Buldyrev2010}
+\citation{Freeman1977,Brandes2001}
+\citation{Kipf2017}
+\citation{Hamilton2017}
+\citation{Velickovic2018}
+\citation{Fan2020}
+\citation{Munikoti2022}
+\citation{Munikoti2024}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{2}{section.1}\protected@file@percent }
+\citation{Schlichtkrull2018,Wang2019,Hu2020,Fu2020}
+\citation{Eugster2003,Carzaniga2001}
+\citation{Eugster2003}
+\citation{Carzaniga2001}
+\citation{OMG2015DDS,OASIS2019MQTT}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Related Work}{5}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Publish-Subscribe Middleware and Dependability}{5}{subsection.2.1}\protected@file@percent }
+\citation{Freeman1977,Brandes2001,BrinPage1998}
+\citation{Albert2000,Buldyrev2010}
+\citation{Kipf2017,Hamilton2017}
+\citation{Velickovic2018}
+\citation{Fan2020}
+\citation{Munikoti2022}
+\citation{Munikoti2024}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Structural Criticality Analysis}{7}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Learning-Based Critical-Node Prediction}{7}{subsection.2.3}\protected@file@percent }
+\citation{Schlichtkrull2018}
+\citation{Wang2019}
+\citation{Hu2020}
+\citation{Fu2020}
+\citation{Li2018}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Heterogeneous Graph Neural Networks}{8}{subsection.2.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.5}Positioning of This Work}{9}{subsection.2.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Our Methodology}{9}{section.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Model Variants and Baseline Configurations in the Controlled $2\times 3$ Factorial Design}}{11}{table.1}\protected@file@percent }
+\newlabel{tab:variants}{{1}{11}{Model Variants and Baseline Configurations in the Controlled $2\times 3$ Factorial Design}{table.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Graph Representation}{12}{subsection.3.1}\protected@file@percent }
+\newlabel{sec:graphrep}{{3.1}{12}{Graph Representation}{subsection.3.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Model Variants}{13}{subsection.3.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces The two graph representations consumed by the learned models. (a) HGL ingests the \emph  {heterogeneous} architecture model, which preserves the full five-type components---Applications ($a_i$, plain boxes), a Library ($\ell $, box), a Topic ($t$, ellipse), a Broker ($b$, double box), and a compute Node ($n$, box)---and the typed relationships (pub, sub, routes, uses, runs), drawn in the direction data actually flows (publisher $\to $ topic $\to $ subscriber; broker $\to $ topic; broker $\to $ node). (b) The homogeneous baseline GL ingests the lifted logical dependency subgraph, in which the transport tier is collapsed into derived \texttt  {DEPENDS\_ON} edges and \emph  {all node and edge types are flattened into a single graph view} (uniform circles, untyped edges, labeled ``depends on'' to visually distinguish them from panel (a)'s typed pub/sub/routes/runs/uses labels). Edges point from \emph  {dependent} to \emph  {dependency} --- the reverse of data flow: $a_2$ and $a_3$ both depend on publisher $a_1$ (subscriber $\to $ publisher arrows, against the pub $\to $ topic $\to $ sub data path), and both also depend on the shared library $\ell $ (user $\to $ library arrows). The contrast between the two panels isolates the central design question: whether retaining node and relation \emph  {type} (a) yields better cascade prediction than reasoning over connectivity alone (b). In this example, $a_1$'s role as the upstream publisher on which $a_2$ and $a_3$ depend, and the shared library $\ell $ concentrating a multi-application blast radius, are signals that are explicit in (a) but indistinguishable from ordinary edges in (b).}}{14}{figure.1}\protected@file@percent }
+\newlabel{fig:graphrep}{{1}{14}{The two graph representations consumed by the learned models. (a) HGL ingests the \emph {heterogeneous} architecture model, which preserves the full five-type components---Applications ($a_i$, plain boxes), a Library ($\ell $, box), a Topic ($t$, ellipse), a Broker ($b$, double box), and a compute Node ($n$, box)---and the typed relationships (pub, sub, routes, uses, runs), drawn in the direction data actually flows (publisher $\to $ topic $\to $ subscriber; broker $\to $ topic; broker $\to $ node). (b) The homogeneous baseline GL ingests the lifted logical dependency subgraph, in which the transport tier is collapsed into derived \texttt {DEPENDS\_ON} edges and \emph {all node and edge types are flattened into a single graph view} (uniform circles, untyped edges, labeled ``depends on'' to visually distinguish them from panel (a)'s typed pub/sub/routes/runs/uses labels). Edges point from \emph {dependent} to \emph {dependency} --- the reverse of data flow: $a_2$ and $a_3$ both depend on publisher $a_1$ (subscriber $\to $ publisher arrows, against the pub $\to $ topic $\to $ sub data path), and both also depend on the shared library $\ell $ (user $\to $ library arrows). The contrast between the two panels isolates the central design question: whether retaining node and relation \emph {type} (a) yields better cascade prediction than reasoning over connectivity alone (b). In this example, $a_1$'s role as the upstream publisher on which $a_2$ and $a_3$ depend, and the shared library $\ell $ concentrating a multi-application blast radius, are signals that are explicit in (a) but indistinguishable from ordinary edges in (b)}{figure.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Training and Validation}{15}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Cascade Impact Simulation}{16}{subsection.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Evaluation}{17}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Evaluation Protocol.}{17}{section*.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Ranking Metrics}{18}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Critical-Component Identification}{19}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Regression Error}{19}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Statistical Aggregation}{20}{subsection.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}Ablation Protocol}{20}{subsection.4.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.6}Domain Scenario Taxonomy and Dataset Scale}{20}{subsection.4.6}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Dataset Scale Presets and Structural Tier Distributions}}{22}{table.2}\protected@file@percent }
+\newlabel{tab:scale}{{2}{22}{Dataset Scale Presets and Structural Tier Distributions}{table.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Scenario Characterization --- As-Generated Structure and QoS Mix}}{23}{table.3}\protected@file@percent }
+\newlabel{tab:scenariochar}{{3}{23}{Scenario Characterization --- As-Generated Structure and QoS Mix}{table.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Experimental Results}{24}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Ranking Performance}{25}{subsection.5.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Global Ranking Performance (Spearman $\rho $) Across Scenarios}}{25}{table.4}\protected@file@percent }
+\newlabel{tab:ranking}{{4}{25}{Global Ranking Performance (Spearman $\rho $) Across Scenarios}{table.4}{}}
+\gdef \LT@i {\LT@entry 
+    {5}{83.92543pt}\LT@entry 
+    {5}{55.87819pt}\LT@entry 
+    {5}{34.77223pt}\LT@entry 
+    {1}{52.29573pt}\LT@entry 
+    {1}{40.88185pt}\LT@entry 
+    {1}{35.4665pt}\LT@entry 
+    {1}{53.97441pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Identification Metrics}{26}{subsection.5.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{Identification and Regression Metrics Across the 7 Scenarios}}{26}{table.5}\protected@file@percent }
+\newlabel{tab:identification}{{5}{26}{Identification and Regression Metrics Across the 7 Scenarios}{table.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Ablation Analysis}{28}{subsection.5.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Controlled Architectural and QoS Ablation Contrasts}}{29}{table.6}\protected@file@percent }
+\newlabel{tab:ablation}{{6}{29}{Controlled Architectural and QoS Ablation Contrasts}{table.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Leave-One-Scenario-Out Generalization}{30}{subsection.5.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Leave-One-Scenario-Out (LOSO) Cross-Validation Results}}{30}{table.7}\protected@file@percent }
+\newlabel{tab:loso}{{7}{30}{Leave-One-Scenario-Out (LOSO) Cross-Validation Results}{table.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5}Reversed-Projection Ablation}{31}{subsection.5.5}\protected@file@percent }
+\newlabel{sec:reversed}{{5.5}{31}{Reversed-Projection Ablation}{subsection.5.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Reversed-Projection Ablation --- Spearman $\rho $ Against $I^*(v)$, Application Nodes}}{32}{table.8}\protected@file@percent }
+\newlabel{tab:reversed}{{8}{32}{Reversed-Projection Ablation --- Spearman $\rho $ Against $I^*(v)$, Application Nodes}{table.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.6}Hardening-Budget Analysis}{32}{subsection.5.6}\protected@file@percent }
+\newlabel{sec:hardening}{{5.6}{32}{Hardening-Budget Analysis}{subsection.5.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Hardening-Budget Risk-Mass Coverage by Top-$K$ Selection Method}}{33}{table.9}\protected@file@percent }
+\newlabel{tab:hardening}{{9}{33}{Hardening-Budget Risk-Mass Coverage by Top-$K$ Selection Method}{table.9}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Threats to Validity}{34}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Simulator-Derived Labels}{34}{subsection.6.1}\protected@file@percent }
+\citation{Simpson1951,Bickel1975}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Per-Type Label Informativeness}{35}{subsection.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Training and Ablation Design}{36}{subsection.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}Scenario Coverage and Scale}{37}{subsection.6.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Remaining Experimental Work.}{38}{section*.3}\protected@file@percent }
+\citation{Simpson1951,Bickel1975}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Conclusion}{39}{section.7}\protected@file@percent }
+\citation{Schlichtkrull2018}
+\citation{Wang2019}
+\citation{Hu2020}
+\citation{Fu2020}
+\bibcite{Eugster2003}{{1}{}{{}}{{}}}
+\bibcite{Carzaniga2001}{{2}{}{{}}{{}}}
+\bibcite{OMG2015DDS}{{3}{}{{}}{{}}}
+\bibcite{OASIS2019MQTT}{{4}{}{{}}{{}}}
+\bibcite{Freeman1977}{{5}{}{{}}{{}}}
+\bibcite{Brandes2001}{{6}{}{{}}{{}}}
+\bibcite{BrinPage1998}{{7}{}{{}}{{}}}
+\bibcite{Albert2000}{{8}{}{{}}{{}}}
+\bibcite{Buldyrev2010}{{9}{}{{}}{{}}}
+\bibcite{Kipf2017}{{10}{}{{}}{{}}}
+\bibcite{Hamilton2017}{{11}{}{{}}{{}}}
+\bibcite{Velickovic2018}{{12}{}{{}}{{}}}
+\bibcite{Fan2020}{{13}{}{{}}{{}}}
+\bibcite{Munikoti2022}{{14}{}{{}}{{}}}
+\bibcite{Munikoti2024}{{15}{}{{}}{{}}}
+\bibcite{Schlichtkrull2018}{{16}{}{{}}{{}}}
+\bibcite{Wang2019}{{17}{}{{}}{{}}}
+\bibcite{Hu2020}{{18}{}{{}}{{}}}
+\bibcite{Fu2020}{{19}{}{{}}{{}}}
+\bibcite{Li2018}{{20}{}{{}}{{}}}
+\bibcite{Simpson1951}{{21}{}{{}}{{}}}
+\bibcite{Bickel1975}{{22}{}{{}}{{}}}
+\providecommand\NAT@force@numbers{}\NAT@force@numbers
+\gdef \@abspage@last{44}
