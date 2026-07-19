@@ -151,6 +151,10 @@ class GNNTrainer:
         patience: int = 30,
         weight_decay: float = 1e-4,
         warmup_T0: Optional[int] = None,
+        multitask_weight: float = 0.5,
+        rmav_consistency_weight: float = 0.1,
+        ranking_weight: float = 0.3,
+        pairwise_ranking_weight: float = 0.1,
     ):
         self.model = model
         self.checkpoint_dir = Path(checkpoint_dir)
@@ -161,7 +165,12 @@ class GNNTrainer:
         # T_0 for CosineAnnealingWarmRestarts; defaults to num_epochs // 4
         self.warmup_T0 = warmup_T0 or max(50, num_epochs // 4)
 
-        self.loss_fn = CriticalityLoss()
+        self.loss_fn = CriticalityLoss(
+            multitask_weight=multitask_weight,
+            rmav_consistency_weight=rmav_consistency_weight,
+            ranking_weight=ranking_weight,
+            pairwise_ranking_weight=pairwise_ranking_weight,
+        )
         self.device = next(model.parameters()).device
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
@@ -264,8 +273,25 @@ class GNNTrainer:
                 if n_train > 0 or n_val > 0:
                     logger.info("  [%s] Train: %d | Val: %d", nt, n_train, n_val)
 
-    def train(self, data: "HeteroData") -> Tuple[Dict[str, List[float]], Optional[EvalMetrics]]:
-        """Run the full training loop with combined-metric early stopping."""
+    def train(
+        self, data: "HeteroData", primary_data: Optional["HeteroData"] = None
+    ) -> Tuple[Dict[str, List[float]], Optional[EvalMetrics]]:
+        """Run the full training loop with combined-metric early stopping.
+
+        Parameters
+        ----------
+        data:
+            Either a single HeteroData graph, or a DataLoader over multiple
+            graphs for inductive multi-scenario training.
+        primary_data:
+            When ``data`` is a multi-graph DataLoader, the specific graph
+            whose val_mask should drive validation/early-stopping/checkpoint
+            selection. Without this, validation would run against whatever
+            graph happens to land first in the loader's shuffled iteration
+            order, which is not guaranteed to be the scenario being trained
+            toward. Ignored when ``data`` is a single HeteroData (in that
+            case the single graph is always the validation target).
+        """
         logger.info(
             "Starting training | epochs=%d | lr=%.2e | device=%s",
             self.num_epochs, self.lr, self.device,
@@ -277,8 +303,11 @@ class GNNTrainer:
             optimizer, T_0=self.warmup_T0, T_mult=2, eta_min=self.lr * 0.01,
         )
         loader = DataLoader([data], batch_size=1) if isinstance(data, HeteroData) else data
-        first_batch = next(iter(loader))
-        first_batch = first_batch.to(self.device)
+        if primary_data is not None:
+            first_batch = primary_data.to(self.device)
+        else:
+            first_batch = next(iter(loader))
+            first_batch = first_batch.to(self.device)
         self._log_split_sizes(first_batch)
 
         best_combined = -1.0

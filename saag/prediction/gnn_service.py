@@ -355,6 +355,12 @@ class GNNService:
         mode: str = "gnn",
         layer: str = "app",
         qos_enabled: bool = True,
+        weight_decay: float = 1e-4,
+        warmup_T0: Optional[int] = None,
+        multitask_weight: float = 0.5,
+        rmav_consistency_weight: float = 0.1,
+        ranking_weight: float = 0.3,
+        pairwise_ranking_weight: float = 0.1,
     ) -> GNNAnalysisResult:
         """Process graphs and train the GNN model using a multi-seed approach.
 
@@ -436,9 +442,16 @@ class GNNService:
                 for ig in inductive_graphs:
                     create_node_splits(ig, train_ratio, val_ratio, seed=seed)
 
-            # IQR-normalize labels to reduce outlier impact on loss scale
+            # IQR-normalize labels to reduce outlier impact on loss scale.
+            # Applied per-graph so every scenario's labels land on the same
+            # (0,1) scale — otherwise the primary graph's normalized labels
+            # and the inductive graphs' raw-scale labels would produce
+            # inconsistent gradients for the same scale-sensitive loss terms.
             from .data_preparation import normalize_labels_robust
             normalize_labels_robust(data)
+            if inductive_graphs:
+                for ig in inductive_graphs:
+                    normalize_labels_robust(ig)
 
             # Initialise models for this seed
             self._init_models(data.metadata())
@@ -451,8 +464,16 @@ class GNNService:
                 lr=lr,
                 num_epochs=num_epochs,
                 patience=patience,
+                weight_decay=weight_decay,
+                warmup_T0=warmup_T0,
+                multitask_weight=multitask_weight,
+                rmav_consistency_weight=rmav_consistency_weight,
+                ranking_weight=ranking_weight,
+                pairwise_ranking_weight=pairwise_ranking_weight,
             )
-            _, best_val_metrics = trainer.train(training_input)
+            _, best_val_metrics = trainer.train(
+                training_input, primary_data=data if inductive_graphs else None
+            )
 
             # Track global best across seeds
             if best_val_metrics and best_val_metrics.spearman_rho > best_val_rho:

@@ -78,6 +78,17 @@ def parse_args() -> argparse.Namespace:
     gnn.add_argument("--seeds", type=int, nargs="+", help="Seed list for stability validation")
     gnn.add_argument("--multi-scenario", action="store_true", help="Inductive training on all domain scenarios")
     gnn.add_argument("--mode", choices=["rmav", "gnn"], default="gnn", help="Evaluation path for final summary (default: gnn)")
+    gnn.add_argument("--weight-decay", type=float, default=1e-4, help="AdamW weight decay")
+    gnn.add_argument("--warmup-t0", type=int, default=None,
+                      help="T_0 for CosineAnnealingWarmRestarts (default: max(50, epochs//4))")
+    gnn.add_argument("--multitask-weight", type=float, default=0.5,
+                      help="CriticalityLoss weight for per-dimension R/M/A/V MSE term")
+    gnn.add_argument("--ranking-weight", type=float, default=0.3,
+                      help="CriticalityLoss weight for the ListMLE ranking term")
+    gnn.add_argument("--pairwise-ranking-weight", type=float, default=0.1,
+                      help="CriticalityLoss weight for the pairwise margin-ranking term")
+    gnn.add_argument("--rmav-consistency-weight", type=float, default=0.1,
+                      help="CriticalityLoss weight for RMAV consistency regularization on unlabeled nodes")
     gnn.add_argument(
         "--variant",
         choices=["hetero_qos", "homo_unweighted", "homo_scalar", "topology_rmav"],
@@ -273,6 +284,12 @@ def main() -> None:
             lr=args.lr,
             num_epochs=args.epochs,
             patience=args.patience,
+            weight_decay=args.weight_decay,
+            warmup_T0=args.warmup_t0,
+            multitask_weight=args.multitask_weight,
+            rmav_consistency_weight=args.rmav_consistency_weight,
+            ranking_weight=args.ranking_weight,
+            pairwise_ranking_weight=args.pairwise_ranking_weight,
         )
         _, best_metrics = trainer.train(data)
         if best_metrics:
@@ -304,6 +321,12 @@ def main() -> None:
         seeds=args.seeds,
         mode=args.mode,
         layer=args.layer,
+        weight_decay=args.weight_decay,
+        warmup_T0=args.warmup_t0,
+        multitask_weight=args.multitask_weight,
+        rmav_consistency_weight=args.rmav_consistency_weight,
+        ranking_weight=args.ranking_weight,
+        pairwise_ranking_weight=args.pairwise_ranking_weight,
     )
 
     # ── Results ─────────────────────────────────────────────────────────────

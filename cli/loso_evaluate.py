@@ -376,6 +376,13 @@ def run_one_fold(
     mode: str,
     global_metadata: Optional[Tuple] = None,
     variant: str = "hgl_qos",
+    auto_layers: bool = True,
+    weight_decay: float = 1e-4,
+    warmup_T0: Optional[int] = None,
+    multitask_weight: float = 0.5,
+    rmav_consistency_weight: float = 0.1,
+    ranking_weight: float = 0.3,
+    pairwise_ranking_weight: float = 0.1,
 ) -> FoldResult:
     """
     One LOSO fold: train on N-1 scenarios with multi-seed, predict on held-out.
@@ -449,7 +456,12 @@ def run_one_fold(
                     model.load_state_dict(torch.load(best_path, map_location="cpu"))
                 else:
                     trainer = GNNTrainer(model=model, checkpoint_dir=str(ckpt_dir),
-                                         lr=lr, num_epochs=epochs, patience=min(60, epochs))
+                                         lr=lr, num_epochs=epochs, patience=min(60, epochs),
+                                         weight_decay=weight_decay, warmup_T0=warmup_T0,
+                                         multitask_weight=multitask_weight,
+                                         rmav_consistency_weight=rmav_consistency_weight,
+                                         ranking_weight=ranking_weight,
+                                         pairwise_ranking_weight=pairwise_ranking_weight)
                     trainer.train(data)
 
                 # Evaluate on holdout
@@ -488,7 +500,16 @@ def run_one_fold(
             else:
                 # hgl_qos (default) or hgl or topology_rmav → GNNService path
                 effective_mode = "rmav" if variant == "topology_rmav" else mode
-                effective_layers = 1 if primary.n_nodes <= 200 else (2 if primary.n_nodes <= 500 else layers)
+                if auto_layers:
+                    effective_layers = 1 if primary.n_nodes <= 200 else (2 if primary.n_nodes <= 500 else layers)
+                    if effective_layers != layers:
+                        logger.info(
+                            "  [auto-layers] primary.n_nodes=%d -> downgrading layers %d -> %d "
+                            "(disable with --no-auto-layers)",
+                            primary.n_nodes, layers, effective_layers,
+                        )
+                else:
+                    effective_layers = layers
                 use_qos = (variant == "hgl_qos")
 
                 if use_qos:
@@ -541,6 +562,12 @@ def run_one_fold(
                         patience=min(60, epochs),
                         layer=layer,
                         qos_enabled=use_qos,
+                        weight_decay=weight_decay,
+                        warmup_T0=warmup_T0,
+                        multitask_weight=multitask_weight,
+                        rmav_consistency_weight=rmav_consistency_weight,
+                        ranking_weight=ranking_weight,
+                        pairwise_ranking_weight=pairwise_ranking_weight,
                     )
                 result = service.predict(
                     graph=holdout_graph,
@@ -661,6 +688,13 @@ def run_loso(
     dropout: float,
     mode: str,
     variant: str = "hgl_qos",
+    auto_layers: bool = True,
+    weight_decay: float = 1e-4,
+    warmup_T0: Optional[int] = None,
+    multitask_weight: float = 0.5,
+    rmav_consistency_weight: float = 0.1,
+    ranking_weight: float = 0.3,
+    pairwise_ranking_weight: float = 0.1,
 ) -> LOSOReport:
     """Run leave-one-scenario-out across all loaded bundles."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -692,6 +726,13 @@ def run_loso(
                 workdir=workdir, mode=mode,
                 global_metadata=global_metadata,
                 variant=variant,
+                auto_layers=auto_layers,
+                weight_decay=weight_decay,
+                warmup_T0=warmup_T0,
+                multitask_weight=multitask_weight,
+                rmav_consistency_weight=rmav_consistency_weight,
+                ranking_weight=ranking_weight,
+                pairwise_ranking_weight=pairwise_ranking_weight,
             )
             fold_results.append(fold)
         except Exception as exc:
@@ -867,7 +908,27 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--hidden", type=int, default=64)
     p.add_argument("--heads", type=int, default=4)
     p.add_argument("--layers", type=int, default=3)
+    p.add_argument(
+        "--auto-layers", dest="auto_layers", action="store_true", default=True,
+        help="Auto-downgrade --layers for small/medium scenarios (n_nodes<=200 -> 1 layer, "
+             "<=500 -> 2 layers) to reduce overfitting risk. Default: on.",
+    )
+    p.add_argument(
+        "--no-auto-layers", dest="auto_layers", action="store_false",
+        help="Disable the layer-count auto-downgrade; always use --layers as given.",
+    )
     p.add_argument("--dropout", type=float, default=0.2)
+    p.add_argument("--weight-decay", type=float, default=1e-4, help="AdamW weight decay")
+    p.add_argument("--warmup-t0", type=int, default=None,
+                    help="T_0 for CosineAnnealingWarmRestarts (default: max(50, epochs//4))")
+    p.add_argument("--multitask-weight", type=float, default=0.5,
+                    help="CriticalityLoss weight for per-dimension R/M/A/V MSE term")
+    p.add_argument("--ranking-weight", type=float, default=0.3,
+                    help="CriticalityLoss weight for the ListMLE ranking term")
+    p.add_argument("--pairwise-ranking-weight", type=float, default=0.1,
+                    help="CriticalityLoss weight for the pairwise margin-ranking term")
+    p.add_argument("--rmav-consistency-weight", type=float, default=0.1,
+                    help="CriticalityLoss weight for RMAV consistency regularization on unlabeled nodes")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -907,6 +968,13 @@ def main() -> int:
         hidden=args.hidden, heads=args.heads, layers=args.layers,
         dropout=args.dropout, mode=args.mode,
         variant=getattr(args, 'variant', 'hgl_qos'),
+        auto_layers=args.auto_layers,
+        weight_decay=args.weight_decay,
+        warmup_T0=args.warmup_t0,
+        multitask_weight=args.multitask_weight,
+        rmav_consistency_weight=args.rmav_consistency_weight,
+        ranking_weight=args.ranking_weight,
+        pairwise_ranking_weight=args.pairwise_ranking_weight,
     )
     elapsed = time.time() - t0
     logger.info("LOSO complete in %.1f s.", elapsed)

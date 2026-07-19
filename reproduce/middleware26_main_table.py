@@ -944,6 +944,7 @@ def _train_cell(
     patience: int = 30,
     train_ratio: float = 0.6,
     val_ratio: float = 0.2,
+    auto_layers: bool = True,
 ) -> Dict[str, Any]:
     """Train one cell of the 7×6×5 matrix and return metrics dict."""
     import torch
@@ -962,7 +963,16 @@ def _train_cell(
         return {"error": "empty_graph"}
 
     n_nodes = nx_graph.number_of_nodes()
-    effective_layers = 1 if n_nodes <= 200 else (2 if n_nodes <= 500 else num_layers)
+    if auto_layers:
+        effective_layers = 1 if n_nodes <= 200 else (2 if n_nodes <= 500 else num_layers)
+        if effective_layers != num_layers:
+            logging.getLogger(__name__).info(
+                "[auto-layers] %s: n_nodes=%d -> downgrading layers %d -> %d "
+                "(disable with --no-auto-layers)",
+                scenario, n_nodes, num_layers, effective_layers,
+            )
+    else:
+        effective_layers = num_layers
     start = time.time()
 
     if variant in ("topo_baseline", "topo_qos"):
@@ -1061,6 +1071,9 @@ def _train_cell(
         conv = networkx_to_hetero_data(train_graph, train_sm, simulation_dict, rmav_dict, qos_enabled=use_qos)
         data = conv.hetero_data
         create_node_splits(data, train_ratio, val_ratio, seed=seed)
+        # NOTE: intentionally pinned to 1e-3 (not args.lr) — this value produced the
+        # currently-published Table 3/4 numbers for the gl/gl_qos baselines. Do not
+        # make this configurable without a documented rerun of those tables.
         effective_lr = 1e-3
         effective_patience = max(patience, 60)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -1115,6 +1128,9 @@ def _train_cell(
             train_ratio=train_ratio,
             val_ratio=val_ratio,
             num_epochs=num_epochs,
+            # NOTE: intentionally pinned to 1e-3 — this value produced the currently-
+            # published Table 3/4 numbers for hgl/hgl_qos. Do not make this configurable
+            # without a documented rerun of those tables.
             lr=1e-3,
             patience=patience,
             seeds=[seed],
@@ -1349,6 +1365,15 @@ def parse_args():
     p.add_argument("--hidden", type=int, default=64)
     p.add_argument("--heads", type=int, default=4)
     p.add_argument("--layers", type=int, default=3)
+    p.add_argument(
+        "--auto-layers", dest="auto_layers", action="store_true", default=True,
+        help="Auto-downgrade --layers for small/medium scenarios (n_nodes<=200 -> 1 layer, "
+             "<=500 -> 2 layers) to reduce overfitting risk. Default: on.",
+    )
+    p.add_argument(
+        "--no-auto-layers", dest="auto_layers", action="store_false",
+        help="Disable the layer-count auto-downgrade; always use --layers as given.",
+    )
     p.add_argument("--output", type=Path, default=RESULTS_DIR / "main_table.json")
     p.add_argument("--resume", action="store_true",
                    help="Skip cells already present in the output file")
@@ -1442,7 +1467,7 @@ def main():
                         scenario=sc, variant=v, seed=s,
                         hidden=args.hidden, num_heads=args.heads,
                         num_layers=args.layers, num_epochs=args.epochs,
-                        patience=args.patience,
+                        patience=args.patience, auto_layers=args.auto_layers,
                     )
                 except Exception as exc:
                     cell = {"scenario": sc, "variant": v, "seed": s, "error": str(exc)}

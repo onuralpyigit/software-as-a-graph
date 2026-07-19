@@ -4,9 +4,12 @@ Tests for the Inductive Split Protocol and optimized EdgeFeatureEncoder.
 
 import pytest
 import torch
+import networkx as nx
+from unittest.mock import MagicMock, patch
 from torch_geometric.data import HeteroData
-from saag.prediction.trainer import get_inductive_subgraph, GNNTrainer
+from saag.prediction.trainer import get_inductive_subgraph, GNNTrainer, EvalMetrics
 from saag.prediction.models import EdgeFeatureEncoder, build_node_gnn
+from saag.prediction.gnn_service import GNNService
 
 # Gracefully skip tests if PyTorch Geometric is not installed
 pyg = pytest.importorskip("torch_geometric", reason="torch_geometric not installed")
@@ -178,3 +181,144 @@ def test_gnn_trainer_inductive_subgraphs():
     finally:
         # Restore the original forward method
         model.forward = original_forward
+
+
+def _mock_service_for_train(service):
+    """Stub out the parts of GNNService.train() that aren't under test here
+    (model construction/state_dict handling), mirroring the pattern used by
+    test_gnn_methodology.py::test_best_seed_selection.
+    """
+    service._init_models = MagicMock()
+    service._node_model = MagicMock()
+    service._edge_model = None
+    service.predict_edges = False
+    w = MagicMock(spec=torch.Tensor)
+    w.cpu.return_value = w
+    w.clone.return_value = w
+    service._node_model.state_dict.return_value = {"w": w}
+
+
+def test_normalize_labels_robust_applied_to_all_inductive_graphs(tmp_path):
+    """Regression test for the LOSO label-scale bug: normalize_labels_robust must
+    run on every graph passed via inductive_graphs, not just the primary graph —
+    otherwise the primary and auxiliary scenarios train against label distributions
+    on different numeric scales within the same backward pass.
+    """
+    service = GNNService(checkpoint_dir=str(tmp_path / "ckpt"))
+    G = nx.DiGraph()
+    G.add_node("1", type="Application")
+    G.add_edge("1", "1", type="DEPENDS_ON")
+
+    ig1 = HeteroData()
+    ig1["Application"].x = torch.randn(2, 23)
+    ig1["Application"].y = torch.zeros(2, 5)
+    ig1["Application"].num_nodes = 2
+    ig2 = HeteroData()
+    ig2["Application"].x = torch.randn(2, 23)
+    ig2["Application"].y = torch.zeros(2, 5)
+    ig2["Application"].num_nodes = 2
+
+    seen_graphs = []
+
+    def spy(hetero_data):
+        seen_graphs.append(hetero_data)
+
+    metrics = EvalMetrics(spearman_rho=0.5, f1_score=0.5, rmse=1.0, mae=1.0,
+                           top_5_overlap=0.0, top_10_overlap=0.0, ndcg_10=0.0)
+
+    with patch("saag.prediction.data_preparation.normalize_labels_robust", side_effect=spy), \
+         patch("saag.prediction.gnn_service.GNNTrainer") as MockTrainer, \
+         patch("saag.prediction.gnn_service.evaluate", return_value=metrics):
+        mock_trainer_instance = MagicMock()
+        mock_trainer_instance.train.return_value = ({}, metrics)
+        MockTrainer.return_value = mock_trainer_instance
+
+        _mock_service_for_train(service)
+
+        service.train(
+            G, seeds=[1],
+            simulation_results={"1": {"composite": 1.0, "reliability": 0.0,
+                                       "maintainability": 0.0, "availability": 0.0,
+                                       "security": 0.0}},
+            rmav_scores={"1": {}},
+            inductive_graphs=[ig1, ig2],
+        )
+
+    # The primary graph (built internally from G) plus both inductive graphs
+    # must each have gone through normalize_labels_robust exactly once.
+    assert len(seen_graphs) == 3
+    assert ig1 in seen_graphs
+    assert ig2 in seen_graphs
+
+
+def test_gnn_trainer_validates_against_primary_graph_in_loso(tmp_path):
+    """Regression test for the LOSO validation-target bug: when training with
+    inductive_graphs, GNNTrainer.train() must validate/early-stop against the
+    primary (held-in) scenario, not whichever graph happens to land first in
+    the shuffled multi-graph DataLoader.
+    """
+    service = GNNService(checkpoint_dir=str(tmp_path / "ckpt"))
+    G = nx.DiGraph()
+    G.add_node("1", type="Application")
+    G.add_edge("1", "1", type="DEPENDS_ON")
+
+    ig1 = HeteroData()
+    ig1["Application"].x = torch.randn(2, 23)
+    ig1["Application"].y = torch.zeros(2, 5)
+    ig1["Application"].num_nodes = 2
+
+    metrics = EvalMetrics(spearman_rho=0.5, f1_score=0.5, rmse=1.0, mae=1.0,
+                           top_5_overlap=0.0, top_10_overlap=0.0, ndcg_10=0.0)
+
+    with patch("saag.prediction.gnn_service.GNNTrainer") as MockTrainer, \
+         patch("saag.prediction.gnn_service.evaluate", return_value=metrics):
+        mock_trainer_instance = MagicMock()
+        mock_trainer_instance.train.return_value = ({}, metrics)
+        MockTrainer.return_value = mock_trainer_instance
+
+        _mock_service_for_train(service)
+
+        service.train(
+            G, seeds=[1],
+            simulation_results={"1": {"composite": 1.0, "reliability": 0.0,
+                                       "maintainability": 0.0, "availability": 0.0,
+                                       "security": 0.0}},
+            rmav_scores={"1": {}},
+            inductive_graphs=[ig1],
+        )
+
+    # trainer.train() must have been called with primary_data set to the
+    # primary graph (not None, and not left to loader-shuffle chance).
+    _, call_kwargs = mock_trainer_instance.train.call_args
+    assert call_kwargs.get("primary_data") is not None
+    assert call_kwargs["primary_data"] is not ig1
+
+
+def test_gnn_trainer_train_uses_primary_data_when_provided():
+    """Unit test for GNNTrainer.train()'s primary_data override: validation
+    must run against the explicitly-provided primary graph, not the first item
+    the DataLoader happens to yield.
+    """
+    data = _build_complex_hetero_data()
+    other = _build_complex_hetero_data()
+
+    model = build_node_gnn(data.metadata(), hidden_channels=8, num_heads=2, num_layers=1)
+    trainer = GNNTrainer(model, checkpoint_dir="test_ckpt", num_epochs=1, patience=1)
+
+    from torch_geometric.loader import DataLoader
+    # Loader order deliberately puts `other` first, `data` (primary) second.
+    loader = DataLoader([other, data], batch_size=1, shuffle=False)
+
+    seen_val_targets = []
+    original_compute_val_loss = trainer._compute_val_loss
+
+    def spy_compute_val_loss(hetero_data):
+        seen_val_targets.append(hetero_data)
+        return original_compute_val_loss(hetero_data)
+
+    trainer._compute_val_loss = spy_compute_val_loss
+
+    trainer.train(loader, primary_data=data)
+
+    assert len(seen_val_targets) >= 1
+    assert all(t is data for t in seen_val_targets)
