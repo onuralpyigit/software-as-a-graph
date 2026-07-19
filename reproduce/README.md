@@ -80,9 +80,30 @@ make -f reproduce/Makefile table4
 ```
 
 > Same table-number caveat as Step 2: this harness's "Table 4" is the paper's **Table 7**
-> (Leave-One-Scenario-Out Cross-Validation Results).
+> (Leave-One-Scenario-Out Cross-Validation Results). **Superseded** — both papers now report
+> per-domain k-fold (Step 3b) as the primary generalization-adjacent result instead; this LOSO table
+> is retained as a secondary domain-gap analysis, not the paper's headline claim (see `docs/prediction.md`'s
+> G4 note and both papers' §6.1/§6.2 for why).
 
-### Step 4 — Figures (run after Tables 3+4)
+### Step 3b — Per-domain k-fold → paper's Table 5/6 (primary protocol, ~8–20 h CPU)
+
+```bash
+make -f reproduce/Makefile kfold
+# Output: results/table4_kfold_results.tex  /  .md
+```
+
+Runs `reproduce/kfold_all_variants.py` for all 5 variants (`hgl_qos`, `hgl`, `gl_qos`, `gl`,
+`topology_rmav`), each evaluated via repeated stratified k-fold (`k=5`, 5 seeds) *independently
+within* each of the 7 cached scenarios — no cross-scenario training, unlike Step 3's LOSO. This is
+slower than Step 3 per variant (k-fold trains ~5× more model fits than LOSO for the same seed count:
+scenarios × k × seeds vs. scenarios × seeds), but requires no cross-scenario data-loader coupling,
+so each scenario's run can be reasoned about, and re-run, in isolation. Confirmed result (full sweep,
+2026-07-20): HGL-QoS reaches mean cross-scenario ρ=0.587 (σ=0.146), F1@K=0.505, positive in all
+seven scenarios individually (range ρ=0.341–0.781) — see `output/kfold/hgl_qos/summary.md` for the
+per-scenario breakdown and `results/kfold_all_variants.json` for the full per-variant/per-scenario
+results.
+
+### Step 4 — Figures (run after Tables 3+4, or 3+3b)
 
 ```bash
 make -f reproduce/Makefile figure4   # Stratified ρ (instantaneous, reads JSON)
@@ -125,10 +146,12 @@ make -f reproduce/Makefile smoke-test EPOCHS=50
 |---|---|
 | `results/table3_main_results.tex` | LaTeX table — Spearman ρ 7×6 (paper Table 4) |
 | `results/table3_main_results.csv` | CSV version for Excel/R |
-| `results/table4_loso_results.tex` | LaTeX table — LOSO Δρ (paper Table 7) |
+| `results/table4_kfold_results.tex` | LaTeX table — per-domain k-fold ρ (paper Table 5/6, primary) |
+| `results/table4_loso_results.tex` | LaTeX table — LOSO Δρ (paper Table 7, superseded/secondary) |
 | `results/figure4_stratified_rho.pdf` | Figure — per-node-type ρ |
 | `output/atm_case_study/attention_subgraph.pdf` | Figure — HGT attention (ATM running example) |
-| `results/loso_all_variants.json` | Raw LOSO Δρ data |
+| `results/kfold_all_variants.json` | Raw per-domain k-fold data (primary) |
+| `results/loso_all_variants.json` | Raw LOSO Δρ data (superseded/secondary) |
 | `output/reversed_projection_ablation.json` | Paper Table 8 — reversed-projection ablation |
 | `output/hardening_budget_experiment.json` | Paper Table 9 — hardening-budget risk-mass coverage |
 

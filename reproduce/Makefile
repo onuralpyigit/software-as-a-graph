@@ -8,6 +8,7 @@
 #   make block0          — W1 QoS pipeline audit (go/no-go gate)
 #   make table3          — Table 3: 8×4×5 training matrix
 #   make table4          — Table 4: LOSO × 4 variants
+#   make kfold           — Per-domain k-fold × 5 variants (opt-in; primary validation protocol)
 #   make figure4         — Figure 4: Stratified per-node-type ρ
 #   make figure5         — Figure 5: ATM attention subgraph
 #   make all             — full end-to-end pipeline
@@ -25,7 +26,7 @@ SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios block0 table3 table4 figure4 figure5 \
+.PHONY: setup scenarios block0 table3 table4 kfold figure4 figure5 \
         all smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -96,6 +97,23 @@ table4:
 	@echo "✓ Table 4 ready: $(RESULTS_DIR)/table4_loso_results.tex"
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Per-domain k-fold — primary in-domain validation protocol (5 variants).
+# Opt-in (not part of `all`): trains ~5× more model fits than table4/LOSO for
+# the same seed count (scenarios × k folds × seeds vs. scenarios × seeds).
+# ─────────────────────────────────────────────────────────────────────────────
+
+kfold:
+	$(PYTHON) reproduce/kfold_all_variants.py \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) \
+	    --output $(RESULTS_DIR)/kfold_all_variants.json \
+	    --resume
+	$(PYTHON) reproduce/render_table.py \
+	    --table-kfold $(RESULTS_DIR)/kfold_all_variants.json \
+	    --output-dir $(RESULTS_DIR)
+	@echo "✓ K-fold ready: $(RESULTS_DIR)/table4_kfold_results.tex"
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Block F: Figure 4 — stratified per-node-type ρ
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -157,6 +175,6 @@ clean:
 	@echo "✓ Results cleaned."
 
 clean-all: clean
-	rm -rf $(OUTPUT_DIR)/gnn_checkpoints $(OUTPUT_DIR)/loso \
+	rm -rf $(OUTPUT_DIR)/gnn_checkpoints $(OUTPUT_DIR)/loso $(OUTPUT_DIR)/kfold \
 	       $(OUTPUT_DIR)/atm_case_study
 	@echo "✓ Full clean done."

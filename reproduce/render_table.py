@@ -584,6 +584,86 @@ def render_table4_md(loso_data: Dict, output: Path):
     print(f"  Saved Markdown Table 4: {output}")
 
 
+# ── Table: per-domain k-fold results (5 variants) ────────────────────────────
+
+def render_table4kfold_tex(kfold_data: Dict, output: Path):
+    """LaTeX booktabs table: per-domain k-fold in-domain ρ × variant."""
+    table = kfold_data.get("comparison_table", {})
+    if not table:
+        print("  No k-fold comparison table found.")
+        return
+
+    lines = [
+        r"\begin{table}[t]",
+        r"\centering",
+        r"\caption{Per-domain k-fold in-domain evaluation, mean Spearman $\rho \pm \sigma$",
+        r"         across scenarios and seeds. \textbf{Bold} = best per row.}",
+        r"\label{tab:kfold_results}",
+        r"\begin{tabular}{lcccc}",
+        r"\toprule",
+        r"Variant & Mean $\rho$ & Std $\rho$ & Mean F1@K & $\Delta\rho$ vs BL \\",
+        r"\midrule",
+    ]
+
+    for var in _VARIANT_ORDER:
+        if var not in table:
+            continue
+        r = table[var]
+        label = _VARIANT_LABELS.get(var, var)
+        mean_r = r.get("mean_rho")
+        std_r  = r.get("std_rho")
+        f1     = r.get("mean_f1")
+        delta  = r.get("delta_vs_best_baseline")
+
+        mean_s  = f"{mean_r:.4f}" if mean_r is not None else "—"
+        std_s   = f"{std_r:.4f}" if std_r is not None else "—"
+        f1_s    = f"{f1:.4f}" if f1 is not None else "—"
+        delta_s = (f"+{delta:.4f}" if delta > 0 else f"{delta:.4f}") if delta is not None else "—"
+
+        if var == "hgl_qos":
+            mean_s = rf"\textbf{{{mean_s}}}"
+        lines.append(rf"{label} & {mean_s} & {std_s} & {f1_s} & {delta_s} \\")
+
+    lines += [
+        r"\bottomrule",
+        r"\end{tabular}",
+        r"\end{table}",
+    ]
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(lines) + "\n")
+    print(f"  Saved LaTeX k-fold table: {output}")
+
+
+def render_table4kfold_md(kfold_data: Dict, output: Path):
+    table = kfold_data.get("comparison_table", {})
+    rows = [
+        "| Variant | Mean ρ | Std ρ | F1@K | Δρ vs BL |",
+        "|---|---|---|---|---|",
+    ]
+    for var in _VARIANT_ORDER:
+        if var not in table:
+            continue
+        r = table[var]
+        label = _VARIANT_LABELS_PLAIN.get(var, var)
+        mean_r = r.get("mean_rho")
+        std_r  = r.get("std_rho")
+        f1     = r.get("mean_f1")
+        delta  = r.get("delta_vs_best_baseline")
+
+        mean_s  = f"{mean_r:.4f}" if mean_r is not None else "—"
+        std_s   = f"{std_r:.4f}" if std_r is not None else "—"
+        f1_s    = f"{f1:.4f}" if f1 is not None else "—"
+        delta_s = (f"+{delta:.4f}" if delta and delta > 0 else f"{delta:.4f}") if delta is not None else "—"
+
+        if var == "hgl_qos":
+            mean_s = f"**{mean_s}**"
+        rows.append(f"| {label} | {mean_s} | {std_s} | {f1_s} | {delta_s} |")
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(rows) + "\n")
+    print(f"  Saved Markdown k-fold table: {output}")
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def parse_args():
@@ -592,6 +672,8 @@ def parse_args():
                    help="Path to main_table.json (Block C output)")
     p.add_argument("--table4", type=Path, default=_RESULTS_DIR / "loso_all_variants.json",
                    help="Path to loso_all_variants.json (Block E output)")
+    p.add_argument("--table-kfold", type=Path, default=_RESULTS_DIR / "kfold_all_variants.json",
+                   help="Path to kfold_all_variants.json (per-domain k-fold output)")
     p.add_argument("--output-dir", type=Path, default=_RESULTS_DIR)
     p.add_argument("--tex-only", action="store_true", help="Only generate .tex files")
     p.add_argument("--no-tex", action="store_true", help="Skip .tex files")
@@ -678,6 +760,35 @@ def main():
     else:
         print(f"\n  [Table 4] Not found: {args.table4}")
         print("  Run: python reproduce/loso_all_variants.py")
+
+    # ── K-Fold ────────────────────────────────────────────────────────────────
+    if args.table_kfold.exists():
+        print(f"\n  [K-Fold] {args.table_kfold}")
+        kfold_data = json.loads(args.table_kfold.read_text())
+        if not args.console:
+            if not args.no_tex:
+                render_table4kfold_tex(kfold_data, out / "table4_kfold_results.tex")
+            if not args.tex_only:
+                render_table4kfold_md(kfold_data, out / "table4_kfold_results.md")
+        table = kfold_data.get("comparison_table", {})
+        print("\n  Per-Domain K-Fold Results")
+        print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'Δρ vs BL'}")
+        print("  " + "─" * 55)
+        for var in _VARIANT_ORDER:
+            if var not in table:
+                continue
+            r = table[var]
+            label = _VARIANT_LABELS_PLAIN.get(var, var)
+            mean_r = r.get("mean_rho")
+            std_r  = r.get("std_rho")
+            delta  = r.get("delta_vs_best_baseline")
+            mean_s  = f"{mean_r:.4f}" if mean_r is not None else "—"
+            std_s   = f"{std_r:.4f}" if std_r is not None else "—"
+            delta_s = (f"+{delta:.4f}" if delta and delta > 0 else f"{delta:.4f}") if delta is not None else "—"
+            print(f"  {label:<25} {mean_s:<10} {std_s:<10} {delta_s}")
+    else:
+        print(f"\n  [K-Fold] Not found: {args.table_kfold}")
+        print("  Run: python reproduce/kfold_all_variants.py")
 
     print("\n  Done. Files written to:", out)
 

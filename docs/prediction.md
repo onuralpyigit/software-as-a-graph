@@ -263,7 +263,7 @@ Multi-seed training runs the full train loop independently for each seed in `{42
 | G1 | Node feature dim mismatch | High | **Resolved** | Per-type dims enforced; feature version check in config |
 | G2 | Edge labels as node proxies | Medium | Open | Current: bridge-multiplier-based downweighting |
 | G3 | Redundant type encoding | Low | **Resolved** | Zero-padding removed; type-appropriate indices selected |
-| G4 | Transductive leakage | High | **Resolved** | Inductive subgraphs isolated via get_inductive_subgraph during training and validation |
+| G4 | Transductive leakage | High | **Resolved** | Per-domain repeated k-fold (`cli/kfold_evaluate.py`) is now the primary validation protocol — held-out fold nodes are excluded from that fold's training within each scenario. The older cross-scenario LOSO protocol (`cli/loso_evaluate.py`) remains available as a secondary/domain-gap analysis (see note below), which used `get_inductive_subgraph` to isolate scenarios during training and validation. |
 | G5 | Best seed weight saving | High | **Resolved** | `best_state` restored before `train()` returns |
 | G6 | Ensemble α bias | Medium | **Deprecated** | Blending removed. |
 | G7 | Prediction seed overwrite | High | **Resolved** | `predict_from_data()` uses persisted best seed for mask consistency |
@@ -289,12 +289,12 @@ Multi-seed training runs the full train loop independently for each seed in `{42
 | Topic-type branching | ✓ Explicit | Learned |
 | MPCI amplification | ✓ Explicit (CDPot_enh) | Learned |
 | Generalises to unseen systems | Immediately | Requires fine-tuning |
-| Spearman ρ (published validation) | 0.876 overall; 0.943 large-scale | 0.4009 (HGL-QoS LOSO) |
-| F1@K / F1-score (published validation) | 0.893 | 0.4326 (HGL-QoS LOSO) |
+| Spearman ρ (published validation) | 0.876 overall; 0.943 large-scale | 0.587 (HGL-QoS, per-domain k-fold) |
+| F1@K / F1-score (published validation) | 0.893 | 0.505 (HGL-QoS, per-domain k-fold) |
 | Transductive leakage risk | None (formula-based) | None (Resolved) |
 | Primary use | First analysis; interpretable; CI gate; fallback when no checkpoint | Default predictor after training; RMAV = fallback |
 
-> **Validation-source note:** the GNN values above are the Middleware HGL-QoS Leave-One-Scenario-Out results using simulation labels across seven scenarios (`ρ = 0.4009`, `F1@K = 0.4326`).
+> **Validation-source note:** the GNN values above are the HGL-QoS per-domain repeated k-fold results (`k=5`, 5 seeds, `cli/kfold_evaluate.py`) using simulation labels, evaluated independently within each of seven scenarios and averaged across scenarios (`ρ = 0.587 ± 0.146`, `F1@K = 0.505`; positive in all seven scenarios individually, range `ρ = 0.341–0.781`). This is an *in-domain* metric — the model is trained and evaluated on the same scenario, repeated under resampling to confirm the result is stable rather than an artifact of one split — not a claim about zero-shot transfer to a scenario the model was never trained on. The older cross-scenario Leave-One-Scenario-Out (LOSO) protocol, which does test zero-shot transfer, remains available (`cli/loso_evaluate.py`) and reached `ρ = 0.290` (`F1@K = 0.405`, `HGL-QoS`) under that harder, out-of-domain regime; it is retained as a secondary domain-gap analysis rather than the primary validation metric, since testing transfer between architecturally distinct scenarios (autonomous-vehicle vs. financial-trading vs. hub-and-spoke topologies, etc.) conflates model quality with how much structure those unrelated domains happen to share.
 
 ---
 

@@ -526,7 +526,8 @@ if result.prescription:
 │   ├── visualize_graph.py      #   Step 7: Visualize — interactive HTML dashboard
 │   ├── statistics_graph.py     #   Statistics dashboard (topology & communication analytics)
 │   ├── benchmark.py            #   Benchmark across scale presets
-│   ├── loso_evaluate.py        #   Leave-One-Scenario-Out GNN validation protocol
+│   ├── kfold_evaluate.py       #   Per-domain repeated k-fold GNN validation (primary protocol)
+│   ├── loso_evaluate.py        #   Leave-One-Scenario-Out GNN validation (secondary/domain-gap)
 │   ├── multi_seed_summary.py   #   Aggregate results across seeds
 │   └── run_scenarios.sh        #   Full pipeline across 8 domain scenarios
 │
