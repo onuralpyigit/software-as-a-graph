@@ -2,7 +2,7 @@
 
 ## Abstract
 
-Modern distributed systems increasingly rely on publish-subscribe middleware to achieve loose spatial and temporal coupling. However, this decoupling often obscures complex runtime dependencies, making systems highly vulnerable to cascading failures. Traditional architectural evaluations frequently treat software interactions symmetrically or rely on homogeneous graph abstractions that drop critical middleware semantics [1, 2, 5, 6]. Furthermore, historical models often invert the core architectural logic by failing to recognize that dependent components structurally depend on their upstream publishers and shared libraries for correct operation. To resolve these challenges, this paper presents a comprehensive expansion of the open-source `software-as-a-graph` (`saag`) framework. We model distributed publish-subscribe architectures as formal directed heterogeneous graphs over five architectural node types (Application, Library, Topic, Broker, Node) and seven typed relations, ensuring that dependency edges precisely map the downstream trajectory of architectural risk. We replace legacy static scoring paradigms with a unified Machine Learning (ML)-based **Prediction Step** that fuses relation-specific latent node embeddings, learned via a heterogeneous graph attention architecture, with deterministic, rule-based middleware structural constraints. We validate our framework using a rigorous, inductive **Leave-One-Scenario-Out (LOSO)** cross-validation protocol across seven large-scale domain application profiles. Within a trained scenario's distribution, our framework achieves the strongest mean ranking correlation among learned variants (Spearman $\rho=0.411$) and the strongest mean identification F1 (0.688), outperforming a homogeneous graph-learning baseline ($\rho=0.186$, F1=0.596) by a substantial margin. Generalization to entirely unseen scenario topologies, however, does not hold under this evaluation: LOSO cross-validation shows the heterogeneous variants falling to negative mean rank correlation, underperforming even the homogeneous baselines out-of-distribution. We report this limitation plainly rather than omit it, and discuss it as a concrete direction for future work rather than a settled negative result.
+Modern distributed systems increasingly rely on publish-subscribe middleware to achieve loose spatial and temporal coupling. However, this decoupling often obscures complex runtime dependencies, making systems highly vulnerable to cascading failures. Traditional architectural evaluations frequently treat software interactions symmetrically or rely on homogeneous graph abstractions that drop critical middleware semantics [1, 2, 5, 6]. Furthermore, historical models often invert the core architectural logic by failing to recognize that dependent components structurally depend on their upstream publishers and shared libraries for correct operation. To resolve these challenges, this paper presents a comprehensive expansion of the open-source `software-as-a-graph` (`saag`) framework. We model distributed publish-subscribe architectures as formal directed heterogeneous graphs over five architectural node types (Application, Library, Topic, Broker, Node) and seven typed relations, ensuring that dependency edges precisely map the downstream trajectory of architectural risk. We replace legacy static scoring paradigms with a unified Machine Learning (ML)-based **Prediction Step**: relation-specific latent node embeddings, learned end-to-end via a heterogeneous graph attention architecture, are decoded by multi-task heads into a continuous criticality score, with no non-learned score contributing to the result. We validate our framework using a rigorous, inductive **Leave-One-Scenario-Out (LOSO)** cross-validation protocol across seven large-scale domain application profiles. Within a trained scenario's distribution, our framework achieves the strongest mean ranking correlation among learned variants (Spearman $\rho=0.411$) and the strongest mean identification F1 (0.688), outperforming a homogeneous graph-learning baseline ($\rho=0.186$, F1=0.596) by a substantial margin. Generalization to entirely unseen scenario topologies, however, does not hold under this evaluation: LOSO cross-validation shows the heterogeneous variants falling to negative mean rank correlation, underperforming even the homogeneous baselines out-of-distribution. We report this limitation plainly rather than omit it, and discuss it as a concrete direction for future work rather than a settled negative result.
 
 ---
 
@@ -31,12 +31,12 @@ Existing approaches to identifying critical software components fall into two ma
 
 ### 1.4. Proposed Solution and Core Contributions
 
-To address these limitations, this paper introduces a comprehensive expansion of the open-source `software-as-a-graph` (`saag`) framework. We formalize publish-subscribe middleware topologies as directed heterogeneous graphs, ensuring that edge trajectories match the true downstream flow of data dependency and cascading risk. The framework's legacy quality scoring mechanism has been completely refactored and replaced by a unified, ML-based **Prediction Step**. This new step combines latent node features learned via heterogeneous graph attention message passing [16, 17, 18, 19] with explicit, rule-based middleware structural constraints.
+To address these limitations, this paper introduces a comprehensive expansion of the open-source `software-as-a-graph` (`saag`) framework. We formalize publish-subscribe middleware topologies as directed heterogeneous graphs, ensuring that edge trajectories match the true downstream flow of data dependency and cascading risk. The framework's legacy quality scoring mechanism has been completely refactored and replaced by a unified, ML-based **Prediction Step**. This new step learns latent node features via heterogeneous graph attention message passing [16, 17, 18, 19] and decodes them end-to-end into a criticality score, with no non-learned score contributing to the prediction (§3.3, §6.2).
 
 The core contributions of this work are as follows:
 
 1. **Semantic Multi-Modal Formulation:** We establish a rigorous heterogeneous graph schema that models publish-subscribe structures over five node types and seven typed relations while preserving distinct node and edge semantics.
-2. **Unified Prediction Pipeline:** We introduce a hybrid prediction architecture that fuses relation-specific graph embeddings with deterministic domain heuristics, enabling precise component criticality forecasting. Within a trained scenario's distribution, this yields a substantial improvement over a homogeneous graph-learning baseline (F1 +0.092, $\Delta\rho$ +0.225).
+2. **Unified Prediction Pipeline:** We introduce a heterogeneous graph attention architecture that learns relation-specific embeddings end-to-end and decodes them into a criticality score via multi-task heads, enabling precise component criticality forecasting without a non-learned score contributing to the prediction. Within a trained scenario's distribution, this yields a substantial improvement over a homogeneous graph-learning baseline (F1 +0.092, $\Delta\rho$ +0.225).
 3. **Inductive Generalization Protocol:** We enforce an inductive Leave-One-Scenario-Out (LOSO) cross-validation framework across seven diverse architectural scenarios as a rigorous test of zero-shot transfer to unseen software topologies. We report the outcome of this test plainly, including where it falls short of the in-distribution result, rather than presenting only the favorable regime.
 
 ---
@@ -77,7 +77,7 @@ $$\mathcal{T}_v = \{\text{Application}, \text{Library}, \text{Topic}, \text{Brok
 
 $$\mathcal{T}_e = \{\text{PUBLISHES\_TO}, \text{SUBSCRIBES\_TO}, \text{ROUTES}, \text{RUNS\_ON}, \text{CONNECTS\_TO}, \text{USES}, \text{DEPENDS\_ON}\}$$
 
-Of these seven relation types, six are **structural** and imported directly from the topology definition: `PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES` (Broker → Topic, capturing broker routing responsibility — a broker's criticality is visible in the heterogeneous graph only through this edge type, since a broker's failure impacts every topic it routes), `RUNS_ON`, `CONNECTS_TO`, and `USES`. `DEPENDS_ON` is **derived**: it is added by a set of derivation rules in the pre-analysis step rather than imported from the topology, and is listed in $\mathcal{T}_e$ because it is what the message-passing layers (§3.3.1) and the deterministic rule-based constraints (§3.3.2) both consume.
+Of these seven relation types, six are **structural** and imported directly from the topology definition: `PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES` (Broker → Topic, capturing broker routing responsibility — a broker's criticality is visible in the heterogeneous graph only through this edge type, since a broker's failure impacts every topic it routes), `RUNS_ON`, `CONNECTS_TO`, and `USES`. `DEPENDS_ON` is **derived**: it is added by a set of derivation rules in the pre-analysis step rather than imported from the topology, and is listed in $\mathcal{T}_e$ because it is what the message-passing layers (§3.3.1) consume.
 
 The direction convention for `DEPENDS_ON` is **dependent → dependency**: if Application $A$ publishes to Topic $T$ and Application $B$ subscribes to $T$, then $B$ depends on $A$, so an edge $B \xrightarrow{\text{DEPENDS\_ON}} A$ is added. Similarly, if Application $A$ uses Library $L$, an edge $A \xrightarrow{\text{DEPENDS\_ON}} L$ is added. This is against the direction of data flow, and encodes what fails if $A$ fails, not what $A$ sends (§1.2).
 
@@ -107,17 +107,17 @@ This structural mapping ensures that fault contexts flow naturally along the dir
 
 ### 3.3. Mathematical Formulation of the Prediction Step
 
-The legacy analysis pipeline within `saag` relied on a static quality scoring mechanism. To provide real-time predictability, this has been upgraded to a unified **Prediction Step**. This framework fuses latent topological features learned via message-passing GNN layers with deterministic, rule-based systems criteria.
+The legacy analysis pipeline within `saag` relied on a static quality scoring mechanism computed in isolation from any learned model. This has been upgraded to a unified **Prediction Step**: a heterogeneous graph attention network that consumes the typed topology of §3.1 directly and predicts component criticality end-to-end, with no external score concatenated into its input or output.
 
 ```mermaid
 flowchart LR
-    A["Heterogeneous Graph Embeddings<br/>h_v"] --> C["Concatenation<br/>x_v"]
-    B["Rule-Based Middleware Constraints<br/>r_v"] --> C
-    C --> D["Multi-Layer Perceptron<br/>(MLP)"]
-    D --> E["Predicted Criticality<br/>Ĉ(v)"]
+    A["Heterogeneous Graph Embeddings<br/>h_v"] --> D["Per-Dimension Heads<br/>(R, M, A, V)"]
+    A --> E["Composite Head"]
+    D --> E
+    E --> F["Predicted Criticality<br/>Ĉ(v)"]
 ```
 
-**Figure 1**: The `saag` Prediction Step. Relation-specific graph embeddings ($\mathbf{h}_v$, §3.3.1) are concatenated with a deterministic rule-based constraint vector ($\mathbf{r}_v$, §3.3.2) and passed through an MLP to produce the predicted criticality score $\hat{\mathcal{C}}(v)$ (§3.3.3).
+**Figure 1**: The `saag` Prediction Step. Relation-specific graph embeddings ($\mathbf{h}_v$, §3.3.1) are decoded by four per-dimension multi-task heads and a composite head (§3.3.2) to produce the predicted criticality score $\hat{\mathcal{C}}(v)$. Every quantity in this figure is a function of $\mathbf{h}_v$ alone — see the note on RMAV below.
 
 #### 3.3.1. Latent Heterogeneous Node Embeddings
 
@@ -133,37 +133,19 @@ Where:
 * $c_{v,r}$ is a normalization constant dynamically mapped to the relation-specific degree metric, equivalent to $\vert{}\mathcal{N}_r(v)\vert{}$.
 * $\sigma(\cdot)$ represents a non-linear activation function, implemented as LeakyReLU.
 
-#### 3.3.2. Rule-Based Middleware Constraint Formulations
+#### 3.3.2. Multi-Task Decoding and Criticality Prediction
 
-To ensure the machine learning embeddings are bound by deterministic pub-sub semantics, we construct an explicit rule-based constraint vector, $\mathbf{r}_v$, for each component. This structural heuristic evaluates immediate dependent fan-out and cascade reachability over the derived `DEPENDS_ON` graph:
+The final-layer embedding $\mathbf{h}_v^{(L)}$ is decoded by four independent, learned per-dimension heads — Reliability, Maintainability, Availability, and Vulnerability, denoted $r_v, m_v, a_v, v_v \in [0,1]$ — each a residual MLP followed by a sigmoid:
 
-$$\mathbf{r}_v = \begin{bmatrix} \mathcal{D}_{\text{out}}(v) \\ \mathcal{F}_{\text{cascade}}(v) \\ \gamma_v \end{bmatrix}$$
+$$r_v = \text{Sigmoid}\left(\text{MLP}_R\left(\mathbf{h}_v^{(L)}\right)\right), \quad \dots \quad v_v = \text{Sigmoid}\left(\text{MLP}_V\left(\mathbf{h}_v^{(L)}\right)\right)$$
 
-Where:
+These four scalar outputs are concatenated back onto the embedding to form the composite head's input, $\mathbf{x}_v = \mathbf{h}_v^{(L)} \,\Vert{}\, [r_v, m_v, a_v, v_v]$, and the final criticality prediction is:
 
-* $\mathcal{D}_{\text{out}}(v)$ is the explicit dependent-count metric representing immediate downstream dependencies — the number of components whose derived `DEPENDS_ON` edge points at $v$:
+$$\hat{\mathcal{C}}(v) = \text{Sigmoid}\left(\text{MLP}_{\text{composite}}\left(\mathbf{x}_v\right)\right)$$
 
-$$\mathcal{D}_{\text{out}}(v) = \big\vert{} \{ u \in \mathcal{V} \mid (u, v) \in \mathcal{E} \land \phi(u,v) = \text{DEPENDS\_ON} \} \big\vert{}$$
+Every term on the right-hand side — $\mathbf{h}_v^{(L)}$, $r_v$, $m_v$, $a_v$, $v_v$ — is produced by the network itself from the typed topology of §3.1; none is an external, non-learned input. $\hat{\mathcal{C}}(v) \in [0, 1]$, where a score of $1.0$ indicates maximum destructive systemic impact across the distributed architecture upon component failure. $\hat{\mathcal{C}}(v)$ is evaluated against the ground-truth cascade impact label $I^*(v)$ defined in §4.1; we retain $\hat{\mathcal{C}}(v)$ as this paper's predicted-score notation throughout.
 
-* $\mathcal{F}_{\text{cascade}}(v)$ is a recursive rule-based reachability score calculating the maximum possible static fault propagation depth along directed dependency paths — the set of components whose failure chain runs through $v$:
-
-$$\mathcal{F}_{\text{cascade}}(v) = \sum_{w \,:\, w \to \dots \to v \text{ is a } \text{DEPENDS\_ON} \text{ path}} \frac{1}{\text{dist}(w, v)}$$
-
-* $\gamma_v$ is an operational multi-broker traffic weighting parameter mapping the historical or expected message throughput rate handled by component $v$.
-
-#### 3.3.3. Hybrid Feature Fusion and Criticality Prediction
-
-The final sub-step of the prediction pipeline joins the learned structural abstractions with our deterministic systems criteria. The latent representation from the final layer $L$ of the heterogeneous graph architecture, $\mathbf{h}_v^{(L)}$, is concatenated with the domain-driven rule-based vector, $\mathbf{r}_v$, to form a comprehensive feature representation, $\mathbf{x}_v$:
-
-$$\mathbf{x}_v = \mathbf{h}_v^{(L)} \,\Vert{}\, \mathbf{r}_v$$
-
-This combined representation is passed directly into a parameterized Multi-Layer Perceptron (MLP) architecture. The continuous prediction of system component criticality, $\hat{\mathcal{C}}(v)$, is formulated as:
-
-$$\mathbf{z}_v = \text{ReLU}\left(\mathbf{W}_1 \mathbf{x}_v + \mathbf{b}_1\right)$$
-
-$$\hat{\mathcal{C}}(v) = \text{Sigmoid}\left(\mathbf{W}_2 \mathbf{z}_v + b_2\right)$$
-
-Where $\mathbf{W}_1, \mathbf{W}_2$ and $\mathbf{b}_1, b_2$ represent the learned weights and biases of the prediction layers. The output is bounded such that $\hat{\mathcal{C}}(v) \in [0, 1]$, where a score of $1.0$ indicates maximum destructive systemic impact across the distributed architecture upon component failure. $\hat{\mathcal{C}}(v)$ is evaluated against the ground-truth cascade impact label $I^*(v)$ defined in §4.1; we retain $\hat{\mathcal{C}}(v)$ as this paper's predicted-score notation throughout.
+**Relationship to the deterministic RMAV framework.** `saag` also implements a separate, non-learned RMAV composite score — a closed-form, AHP-weighted function of structural metrics (fan-out, articulation points, betweenness, etc.), used elsewhere in the framework for anti-pattern detection and CI/CD reporting. An earlier internal pipeline blended this score into $\hat{\mathcal{C}}(v)$ at inference time; that blending step was found to be undisclosed in this paper's methodology and was removed prior to the results reported in §5 (§6.2 traces this in detail). $\hat{\mathcal{C}}(v)$ as evaluated in this paper is the pure network output defined above — the RMAV composite contributes to none of the numbers in §5.
 
 ---
 
@@ -266,7 +248,7 @@ Table 3 details the mean in-distribution ranking correlation across all seven ev
 | **Scenario 07: Enterprise Benchmark** | 0.361 | 0.731 | 0.376 | 0.421 | 0.832 | **0.863** |
 | *Mean* | *0.233* | *0.612* | *0.186* | *0.219* | ***0.411*** | *0.377* |
 
-Within a trained scenario's distribution, HGL and HGL-QoS consistently outrank the homogeneous GL/GL-QoS baselines, though not the QoS-weighted structural baseline Topo-QoS, which remains the strongest single predictor in five of seven scenarios — a point we return to in §6. In the Enterprise scenario, HGL-QoS attains its best correlation of **0.863**, a **+0.487** improvement over GL (0.376). In IoT Smart City, HGL-QoS reaches **0.745** versus GL's 0.382 (**+0.363**).
+Within a trained scenario's distribution, HGL consistently outranks the homogeneous GL/GL-QoS baselines in every scenario; HGL-QoS does so in five of seven, falling below GL-QoS in Healthcare (-0.116 vs. 0.003) and Hub-and-Spoke (0.144 vs. 0.172). Neither heterogeneous variant outranks the QoS-weighted structural baseline Topo-QoS, which remains the strongest single predictor in five of seven scenarios — a point we return to in §6. In the Enterprise scenario, HGL-QoS attains its best correlation of **0.863**, a **+0.487** improvement over GL (0.376). In IoT Smart City, HGL-QoS reaches **0.745** versus GL's 0.382 (**+0.363**). Individual per-scenario differences should be read with caution: bootstrap 95% confidence intervals (§4.4) cross zero for a third of the reported scenario/variant cells, including all four learned variants in Healthcare, and none of the paired Wilcoxon comparisons across seeds reach $p<0.05$ — a direct consequence of the five-seed sample, whose minimum achievable two-sided $p$-value is $0.0625$. The mean effects across all seven scenarios (Table 6) are the more reliable signal in this design.
 
 ### Table 4: Identification and Regression Metrics Across the 7 Scenarios
 
@@ -323,7 +305,7 @@ Within a trained scenario's distribution, HGL and HGL-QoS consistently outrank t
 
 (MSE values above are $\text{RMSE}^2$ of the per-scenario RMSE figures reported in the framework's replication package, presented here as MSE for consistency with the rest of this paper's regression-error framing.)
 
-The identification results are more mixed than the ranking correlations alone suggest. HGL achieves the highest F1 in four of seven scenarios, but the QoS-weighted structural baseline Topo-QoS wins outright in Healthcare, Hub-and-Spoke, and Microservices, each by a substantial margin over every learned variant. On average, HGL achieves a mean F1 of **0.688**, outperforming GL (**0.596**) by $\Delta\text{F1} = +0.092$ — a real margin, but smaller than Topo-QoS's own mean F1 of 0.752. Ablation analyses (§5.4) show that this in-distribution gain comes principally from architectural heterogeneity rather than from explicit QoS encoding.
+The identification results are more mixed than the ranking correlations alone suggest. Topo-QoS wins outright on per-scenario F1 in five of seven scenarios (AV, Financial Trading, Healthcare, Hub-and-Spoke, Microservices); HGL-QoS wins the remaining two (Enterprise, IoT Smart City). Plain HGL does not win outright in any single scenario, though its mean F1 across all seven exceeds both homogeneous baselines (below). On average, HGL achieves a mean F1 of **0.688**, outperforming GL (**0.596**) by $\Delta\text{F1} = +0.092$ — a real margin in the all-scenario mean, but smaller than Topo-QoS's own mean F1 of 0.752, and not reflective of HGL winning individual scenarios outright. Ablation analyses (§5.4) show that this in-distribution gain comes principally from architectural heterogeneity rather than from explicit QoS encoding.
 
 ### 5.3. RQ2 — Inductive Generalization Assessment
 
@@ -350,7 +332,7 @@ To isolate the performance contributions of architectural heterogeneity versus e
 
 | Comparison | Varies | $\Delta\rho$ (mean) | $\Delta\text{F1}$ (mean) |
 | --- | --- | --- | --- |
-| **Topo-QoS $-$ Topo-BL** | QoS weighting on structural metrics | **+0.379** | **+0.134** |
+| **Topo-QoS $-$ Topo-BL** | QoS weighting on structural metrics | **+0.379** | **+0.133** |
 | **HGL $-$ GL** | Homogeneous $\to$ heterogeneous architecture | **+0.225** | **+0.092** |
 | **GL-QoS $-$ GL** | Scalar QoS edge weight in homogeneous model | **+0.033** | **+0.010** |
 | **HGL-QoS $-$ HGL** | Explicit QoS vector in heterogeneous model | **-0.035** | **-0.004** |
@@ -374,7 +356,7 @@ The metrics in §5.1–§5.4 are internal to the prediction task: they measure h
 | Scenario 07: Enterprise | 9 | 0.3% | 30.6% | 0.3% |
 | **Mean** | — | **15.8%** | **33.2%** | **11.2%** |
 
-This restates §5.3's LOSO finding in an operator-facing metric: a component-hardening budget allocated by a LOSO-evaluated HGL model, as trained here, would capture materially less cascade risk (15.8% mean) than the same budget allocated by a cheap, deterministic structural heuristic with full visibility into the target scenario (33.2%), though it still exceeds Random selection (11.2%) in five of seven scenarios. A like-for-like comparison using in-distribution HGL predictions rather than LOSO predictions — matching the regime behind this paper's in-distribution F1 of 0.688 (§5.2) — is left for future work.
+This restates §5.3's LOSO finding in an operator-facing metric: a component-hardening budget allocated by a LOSO-evaluated HGL model, as trained here, would capture materially less cascade risk (15.8% mean) than the same budget allocated by a cheap, deterministic structural heuristic with full visibility into the target scenario (33.2%). It exceeds Random selection (11.2%) in four of seven scenarios (AV, Healthcare, Hub-and-Spoke, Microservices); in the remaining three it is comparable to or below Random (Enterprise: 0.3% vs. 0.3%; Financial Trading: 0.7% vs. 0.8%; IoT Smart City: 6.4% vs. 18.4%), underscoring how weak the LOSO-evaluated model's operator-facing value is outside its strongest scenarios. A like-for-like comparison using in-distribution HGL predictions rather than LOSO predictions — matching the regime behind this paper's in-distribution F1 of 0.688 (§5.2) — is left for future work.
 
 ---
 
@@ -392,13 +374,13 @@ Given §5.3's LOSO limitation, these applications are currently best supported w
 
 ### 6.2. Predictor Reproducibility
 
-An earlier internal pipeline used to generate results for this framework's predecessor computed a blended score $Q_{\text{ens}}(v) = \alpha \cdot Q_{\text{GNN}}(v) + (1-\alpha) \cdot Q_{\text{RMAV}}(v)$, combining the GNN's output with a separate, non-learned multi-dimensional quality-attribution score ($Q_{\text{RMAV}}$, part of a related but distinct framework not otherwise described in this paper) before evaluating against $I^*(v)$. That ensemble step was removed from the codebase during later, unrelated refactoring (commit `62b6b2d`, "Refactor GNN Prediction Pipeline: Remove Ensemble Blending"); the pipeline that produced every number reported in §5 of this paper evaluates the pure GNN score $\hat{\mathcal{C}}(v)$ that §3.3 actually describes — no ensemble, no `RMAV` blending contributes to any result in this paper.
+An earlier internal pipeline used to generate results for this framework's predecessor computed a blended score $Q_{\text{ens}}(v) = \alpha \cdot Q_{\text{GNN}}(v) + (1-\alpha) \cdot Q_{\text{RMAV}}(v)$, combining the GNN's output with a separate, non-learned multi-dimensional quality-attribution score ($Q_{\text{RMAV}}$, part of a related but distinct framework not otherwise described in this paper) before evaluating against $I^*(v)$. That ensemble step was removed from the codebase during later, unrelated refactoring (commit `62b6b2d`, "Refactor GNN Prediction Pipeline: Remove Ensemble Blending"); the pipeline that produced every number reported in §5 of this paper evaluates the pure GNN score $\hat{\mathcal{C}}(v)$ that §3.3 now correctly describes — no ensemble, no `RMAV` blending contributes to any result in this paper. An earlier draft of §3.3 itself still described the removed concatenation mechanism; that section has been corrected to match the architecture actually evaluated.
 
 We flag this because the blended score's prior apparent performance — particularly its stronger apparent out-of-distribution generalization — was itself an artifact worth understanding: an `RMAV`-style structural composite is not learned per-scenario, so blending it in mechanically stabilizes LOSO predictions regardless of what the GNN component contributes, which is consistent with the LOSO reversal we observe in §5.3 once the blend is removed. We deliberately do not reintroduce that ensemble step here, disclosed or otherwise, since doing so would substitute a second, non-learned predictor for part of what this paper claims the GNN itself achieves. Every result in §5 reflects the architecture §3.3 describes, and nothing else.
 
 ### 6.3. Internal Validity
 
-Internal threats to validity concern factors within our experimental setup that could skew the observed predictive accuracy of the heterogeneous graph learning pipeline. The primary threat stems from our reliance on the `FaultInjector` discrete-event cascade simulator (§4.1) to generate ground-truth training labels. If the simulator fails to reflect real-world network congestion, socket buffer overflows, or physical link drops, the learned embeddings risk overfitting to idealized cascading logic. To counter this risk, our framework implements the simulation-softening procedure described in §4.1 to transition raw simulation states into continuous, informative target spaces, and explicitly incorporates the real-world multi-broker traffic weight $\gamma_v$ directly into our deterministic rule-based constraint vector $\mathbf{r}_v$ (§3.3.2), grounding the structural abstractions generated by the GNN layers in physical runtime realities.
+Internal threats to validity concern factors within our experimental setup that could skew the observed predictive accuracy of the heterogeneous graph learning pipeline. The primary threat stems from our reliance on the `FaultInjector` discrete-event cascade simulator (§4.1) to generate ground-truth training labels. If the simulator fails to reflect real-world network congestion, socket buffer overflows, or physical link drops, the learned embeddings risk overfitting to idealized cascading logic. To counter this risk, our framework implements the simulation-softening procedure described in §4.1 to transition raw simulation states into continuous, informative target spaces.
 
 Because the simulator models cascade impact as degradation in pub-sub message flows, Library nodes consistently receive near-constant, close-to-zero impact scores, since failures in shared libraries are not simulated as cascade-triggering events in the current simulator. This limits within-type ranking evaluation for Library nodes specifically; our headline claims in §5 should be understood as reflecting Application-node performance, consistent with the framework's current prediction focus.
 
@@ -416,7 +398,7 @@ We rigorously evaluated cross-topology generalizability via the Leave-One-Scenar
 
 In this paper, we addressed the challenge of predicting component criticality within distributed publish-subscribe middleware architectures. Traditional evaluation methodologies frequently fall short because they treat multi-modal software interactions symmetrically or rely on homogeneous graph abstractions that strip away crucial middleware semantics. Furthermore, historical models often inverted core architectural logic by failing to recognize that dependent components structurally depend on their upstream publishers and shared libraries.
 
-To overcome these limitations, we introduced an expanded formulation of the open-source `software-as-a-graph` (`saag`) framework. By formalizing middleware topologies as directed heterogeneous graphs $\mathcal{G} = (\mathcal{V}, \mathcal{E}, \mathcal{T}_v, \mathcal{T}_e)$ over five node types and seven relation types, we accurately mapped the asymmetrical downstream trajectory of architectural risk. The framework's legacy quality scoring architecture was replaced with a unified, ML-based Prediction Step, fusing relation-specific latent node embeddings $\mathbf{h}_v^{(L)}$ with explicit, rule-based middleware structural constraints $\mathbf{r}_v$ to yield a continuous criticality score $\hat{\mathcal{C}}(v) \in [0, 1]$.
+To overcome these limitations, we introduced an expanded formulation of the open-source `software-as-a-graph` (`saag`) framework. By formalizing middleware topologies as directed heterogeneous graphs $\mathcal{G} = (\mathcal{V}, \mathcal{E}, \mathcal{T}_v, \mathcal{T}_e)$ over five node types and seven relation types, we accurately mapped the asymmetrical downstream trajectory of architectural risk. The framework's legacy quality scoring architecture was replaced with a unified, ML-based Prediction Step: relation-specific latent node embeddings $\mathbf{h}_v^{(L)}$, learned end-to-end via heterogeneous graph attention, are decoded by multi-task heads into a continuous criticality score $\hat{\mathcal{C}}(v) \in [0, 1]$, with no non-learned score contributing to the result (§3.3, §6.2).
 
 Within a trained scenario's distribution, our framework achieves the strongest mean ranking correlation among learned variants (Spearman $\rho=0.411$) and identification F1 (0.688), a substantial improvement over a homogeneous graph-learning baseline ($\rho=0.186$, F1=0.596). Under Leave-One-Scenario-Out cross-validation, however, this advantage does not transfer to entirely unseen scenario topologies: both heterogeneous variants fall to negative mean rank correlation, underperforming the homogeneous baselines out-of-distribution. We report this limitation directly, alongside the in-distribution result, because a paper that only reports the favorable regime would misrepresent what this evaluation actually shows.
 
