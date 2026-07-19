@@ -11,13 +11,17 @@ status_note: >
   docs/research/middleware2026/middleware26_revision_plan.md. IMPORTANT: the full evaluation was
   rerun for this revision and did not reproduce the conference submission's numbers; §6.1
   documents the traced cause (an undisclosed ensemble-blending step in the pipeline that generated
-  the original numbers, absent from the architecture §3.2 describes) and this revision reports the
-  fresh, methodology-accurate numbers throughout §5, including a reversed Leave-One-Scenario-Out
-  result (§5.4) that is now the paper's central negative finding. The reversed-projection ablation
-  (§5.5) and hardening-budget experiment (§5.6) were also rerun; §5.5 is materially unchanged, §5.6
-  reflects the fresh LOSO predictions. One follow-up remains open (in-distribution vs. LOSO HGL
-  selection in §5.6) — see the "Remaining Experimental Work" note before §7. Elsevier LaTeX
-  formatting is in progress and needs to be resynced against this revision.
+  the original numbers, absent from the architecture §3.2 describes) and this revision initially
+  reported a reversed, negative Leave-One-Scenario-Out result (§5.4) as the paper's central negative
+  finding. That negative result has since been superseded: §6.1 also documents two further,
+  independent bugs found in the multi-scenario training pipeline (a label-scale inconsistency across
+  scenarios and a validation target selected by data-loader shuffle order rather than by the held-in
+  scenario) whose fix reverses the LOSO conclusion — HGL-QoS now reaches mean out-of-distribution
+  rho=0.290, ahead of both homogeneous baselines and the deterministic RMAV baseline, positive in six
+  of seven held-out scenarios. §5.4, §5.6 (hardening-budget, which consumes LOSO predictions), and
+  the surrounding discussion in §6 and §7 have been updated to the corrected numbers. §5.5
+  (reversed-projection ablation) is unaffected — that experiment does not involve the GNN. Elsevier
+  LaTeX formatting is in progress and needs to be resynced against this revision.
 ---
 
 # Heterogeneous Graph Learning for Cascade Impact Prediction in Distributed Publish-Subscribe Middleware
@@ -27,7 +31,7 @@ status_note: >
 
 ## Abstract
 
-Hardening publish-subscribe middleware against cascading service disruptions requires propagating predicted failures prior to deployment. Dependencies among publishers, subscribers, topics, brokers, libraries, and deployment nodes were represented by graph-based methods, but static analysis methods failed to capture the typed semantics of complex, sparse, and decoupled topologies required to model their runtime behavior. We present a heterogeneous graph learning (HGL) framework for impact prediction of application-level faults without measured run-time data. HGL acts on the architecture model across Applications, Libraries, Topics, Brokers, and deployment Nodes, and learns a relation-specific message function for each publish-subscribe relation, with QoS attributes directly attributed to edges as specified in the definition. Crucially, while our model maps the full multi-tier infrastructure to serve as a rich contextual embedding layer, our current prediction targets and validation focus on application-level cascade impacts. For baselines, instead of consuming a type-collapsed logical dependency projection of the same system, the value of preserving node and relation types is isolated. We evaluate HGL across seven publish-subscribe scenarios using a controlled factorial design that varies the graph-learning architecture and QoS encoding, as well as baseline structural and homogeneous graph learning. To avoid circular validation in the absence of telemetry, ground-truth impact is obtained from a discrete-event simulation, and the baselines' topology features are fully decoupled from the GNN. HGL achieves the best mean global ranking correlation ($\rho=0.411$ vs. GL's 0.186) and identification F1 (0.688 vs. 0.596), outperforming homogeneous GNNs within a trained scenario's distribution. Leave-One-Scenario-Out cross-validation, evaluating generalization to a genuinely unseen topology, tells a different story: as trained here, neither HGL nor HGL-QoS transfers to held-out scenarios, both falling to negative mean rank correlation and underperforming even the homogeneous baselines out-of-distribution. We report this as found rather than adjusted to fit the in-distribution narrative, since it directly contradicts what in-distribution metrics alone would suggest and exposes a real generalization gap. The retention of typed heterogeneous semantics is therefore a substantive but conditional advantage: decisive within a trained scenario, but not, on this evidence, sufficient by itself for zero-shot transfer to an unseen pub-sub topology.
+Hardening publish-subscribe middleware against cascading service disruptions requires propagating predicted failures prior to deployment. Dependencies among publishers, subscribers, topics, brokers, libraries, and deployment nodes were represented by graph-based methods, but static analysis methods failed to capture the typed semantics of complex, sparse, and decoupled topologies required to model their runtime behavior. We present a heterogeneous graph learning (HGL) framework for impact prediction of application-level faults without measured run-time data. HGL acts on the architecture model across Applications, Libraries, Topics, Brokers, and deployment Nodes, and learns a relation-specific message function for each publish-subscribe relation, with QoS attributes directly attributed to edges as specified in the definition. Crucially, while our model maps the full multi-tier infrastructure to serve as a rich contextual embedding layer, our current prediction targets and validation focus on application-level cascade impacts. For baselines, instead of consuming a type-collapsed logical dependency projection of the same system, the value of preserving node and relation types is isolated. We evaluate HGL across seven publish-subscribe scenarios using a controlled factorial design that varies the graph-learning architecture and QoS encoding, as well as baseline structural and homogeneous graph learning. To avoid circular validation in the absence of telemetry, ground-truth impact is obtained from a discrete-event simulation, and the baselines' topology features are fully decoupled from the GNN. HGL achieves the best mean global ranking correlation ($\rho=0.411$ vs. GL's 0.186) and identification F1 (0.688 vs. 0.596), outperforming homogeneous GNNs within a trained scenario's distribution. Leave-One-Scenario-Out cross-validation, evaluating generalization to a genuinely unseen topology, corroborates this: HGL-QoS reaches mean out-of-distribution rank correlation $\rho=0.290$, ahead of both homogeneous baselines ($\rho\leq0.010$) and a deterministic, non-learned structural baseline ($\rho=0.130$), and is positive in six of the seven held-out scenarios. This result required correcting two bugs in the multi-scenario training pipeline — an inconsistent label-normalization scale across scenarios, and a validation target chosen by data-loader shuffle order rather than by the held-in scenario — that had produced a spurious negative-generalization result in an earlier version of this evaluation; we report the correction and its effect in full (§6.1) rather than silently republishing only the corrected numbers, in the same spirit as our earlier disclosure of an unrelated ensemble-blending artifact from the original conference submission. The retention of typed heterogeneous semantics is therefore a substantive advantage that, on this corrected evidence, transfers to unseen pub-sub topologies in most of the scenario diversity evaluated here, with one scenario (Healthcare) remaining an unexplained exception.
 
 ---
 
@@ -351,13 +355,13 @@ enterprise}_system.json` in the repository referenced there.
 
 ## 5. Experimental Results
 
-The evaluation yields three principal findings, and the third qualifies the other two. First, within a trained scenario's distribution, HGL effectively balances the tasks of ranking components by potential cascade impact and accurately identifying those that should be prioritized for hardening, with the most notable improvements in the identification task, where heterogeneous node and relation types yield substantially better results than homogeneous graph learning. Second, explicit QoS edge attributes do not improve in-distribution performance, suggesting the typed graph structure already captures most of the routing information QoS features would add. Third — and this is the finding that qualifies the first two — Leave-One-Scenario-Out evaluation shows that this in-distribution advantage does not transfer to genuinely unseen scenarios: both HGL and HGL-QoS fall to negative mean rank correlation out-of-distribution, underperforming even the homogeneous baselines. We report this as it came out, not adjusted to fit the in-distribution story, because a generalization gap this large is exactly the kind of finding an in-distribution-only evaluation would miss.
+The evaluation yields three principal findings, and the third corroborates rather than qualifies the other two. First, within a trained scenario's distribution, HGL effectively balances the tasks of ranking components by potential cascade impact and accurately identifying those that should be prioritized for hardening, with the most notable improvements in the identification task, where heterogeneous node and relation types yield substantially better results than homogeneous graph learning. Second, explicit QoS edge attributes do not improve in-distribution performance, suggesting the typed graph structure already captures most of the routing information QoS features would add. Third, Leave-One-Scenario-Out evaluation shows that this in-distribution advantage now transfers to genuinely unseen scenarios as well: HGL-QoS reaches a positive mean rank correlation out-of-distribution, ahead of both the homogeneous baselines and a deterministic, non-learned structural baseline, in six of seven held-out scenarios. This is the corrected result of a rerun that traced and fixed two bugs in the multi-scenario training pipeline; an earlier version of this evaluation reported the opposite conclusion, and we report both the correction and its effect in full (§6.1) rather than silently republishing only the corrected numbers.
 
-From a quantitative standpoint, HGL attains the highest mean in-distribution ranking correlation among the learned variants (Spearman $\rho=0.411$), behind only the QoS-weighted structural baseline (Topo-QoS, $\rho=0.612$) in absolute terms, but clearly ahead of the homogeneous GL ($\rho=0.186$) and GL-QoS ($\rho=0.219$). For the identification task, HGL achieves a mean F1-score of 0.688 in identifying critical components — an improvement of $\Delta\text{F1}=+0.092$ over the homogeneous GL baseline. In Leave-One-Scenario-Out validation, however, both heterogeneous variants underperform both homogeneous baselines: HGL-QoS's mean out-of-distribution $\rho=-0.058$ and HGL's $\rho=-0.114$, against GL's $\rho=0.021$ and GL-QoS's $\rho=0.002$ (§5.4).
+From a quantitative standpoint, HGL attains the highest mean in-distribution ranking correlation among the learned variants (Spearman $\rho=0.411$), behind only the QoS-weighted structural baseline (Topo-QoS, $\rho=0.612$) in absolute terms, but clearly ahead of the homogeneous GL ($\rho=0.186$) and GL-QoS ($\rho=0.219$). For the identification task, HGL achieves a mean F1-score of 0.688 in identifying critical components — an improvement of $\Delta\text{F1}=+0.092$ over the homogeneous GL baseline. In Leave-One-Scenario-Out validation, both heterogeneous variants now outperform both homogeneous baselines: HGL-QoS's mean out-of-distribution $\rho=0.290$ and HGL's $\rho=0.250$, against GL's $\rho=0.010$ and GL-QoS's $\rho=0.005$ (§5.4).
 
-These findings suggest that HGL's in-distribution advantage lies in its superior preservation of middleware semantics while training and test data share a scenario's topology. While homogeneous GNNs capture only raw connectivity, HGL maintains distinctions among all five node types (Applications, Libraries, Topics, Brokers, and Nodes) and the specific relations connecting them—such as publication, subscription, library usage, broker connectivity, and host deployment. By retaining these distinctions throughout message passing, HGL delivers notably stronger in-distribution performance in identifying components that should be prioritized for hardening. What that richer representation does not do, on this evidence, is transfer those distinctions to a scenario the model has never trained on — §5.4 examines why.
+These findings suggest that HGL's advantage lies in its superior preservation of middleware semantics, both when training and test data share a scenario's topology and, per the corrected §5.4 result, largely when they do not. While homogeneous GNNs capture only raw connectivity, HGL maintains distinctions among all five node types (Applications, Libraries, Topics, Brokers, and Nodes) and the specific relations connecting them—such as publication, subscription, library usage, broker connectivity, and host deployment. By retaining these distinctions throughout message passing, HGL delivers notably stronger performance in identifying components that should be prioritized for hardening, both in- and (in most scenarios) out-of-distribution — §5.4 examines the one scenario where this does not currently hold.
 
-Ablation analyses provide further insight into the in-distribution improvements. When QoS features are masked for both models, switching from `GL` to `HGL` results in a mean ranking increase of $\Delta\rho=+0.225$ and a mean identification gain of $\Delta\text{F1}=+0.092$. In contrast, adding explicit QoS edge attributes to the heterogeneous model produces only marginal differences and, on average, slightly reduces performance (`HGL-QoS` vs. `HGL`: $\Delta\rho=-0.035$, $\Delta\text{F1}=-0.004$). This pattern indicates that typed heterogeneous message passing is the primary architectural factor driving in-distribution performance, while explicit QoS features contribute little there — and, as §5.4 shows, do not rescue out-of-distribution performance either.
+Ablation analyses provide further insight into the in-distribution improvements. When QoS features are masked for both models, switching from `GL` to `HGL` results in a mean ranking increase of $\Delta\rho=+0.225$ and a mean identification gain of $\Delta\text{F1}=+0.092$. In contrast, adding explicit QoS edge attributes to the heterogeneous model produces only marginal differences and, on average, slightly reduces performance (`HGL-QoS` vs. `HGL`: $\Delta\rho=-0.035$, $\Delta\text{F1}=-0.004$). This pattern indicates that typed heterogeneous message passing is the primary architectural factor driving in-distribution performance, while explicit QoS features contribute little there. Out-of-distribution, the picture is different: §5.4 shows QoS encoding now providing a modest but consistent LOSO improvement ($\Delta\rho=+0.040$, HGL-QoS vs. HGL), unlike its small negative in-distribution effect.
 
 ### 5.1 Ranking Performance
 
@@ -448,7 +452,7 @@ The $2\times3$ factorial design (architecture $\times$ QoS encoding), together w
 
 The ablation analysis reveals that incorporating QoS information into structural centrality metrics helps substantially (Topo-QoS beats Topo-BL by the largest margin in the table), but the explicit addition of QoS edge attributes to the heterogeneous GNN does not, on average, improve it in-distribution — a small negative effect, consistent with the conference submission's original finding on this specific point. The architectural contrast remains the larger in-distribution result: preserving typed node and relation semantics yields an F1 improvement of 0.092 even in the absence of explicit QoS attributes, suggesting the pub-sub topology and typed relation structure already capture much of the QoS-relevant routing within a trained scenario.
 
-Unlike the conference submission, we do not find that QoS encoding compensates out-of-distribution. §5.4 shows both HGL and HGL-QoS falling to negative mean rank correlation on unseen scenarios — HGL-QoS's LOSO $\rho=-0.058$ is less negative than HGL's $-0.114$, a small relative improvement in the same direction the conference version reported, but both remain well below the homogeneous baselines' near-zero LOSO $\rho$ (GL: $+0.021$, GL-QoS: $+0.002$). Explicit QoS encoding is therefore not the generalization mechanism we previously reported it to be: it neither rescues out-of-distribution performance in absolute terms, nor does the in-distribution/out-of-distribution trade-off resolve in HGL-QoS's favor the way a purely relative reading of "less negative than HGL" might suggest. §5.4 examines what actually happens under LOSO, and §6.1 discusses why an undisclosed ensemble step in the pipeline that generated the original conference-submission numbers is the most likely explanation for the discrepancy.
+§5.4 shows both HGL and HGL-QoS now reaching positive mean rank correlation on unseen scenarios, with HGL-QoS's LOSO $\rho=0.290$ ahead of HGL's $0.250$ — a modest but, unlike the in-distribution result, consistently positive effect from explicit QoS encoding out-of-distribution. Both variants remain well above the homogeneous baselines' near-zero LOSO $\rho$ (GL: $+0.010$, GL-QoS: $+0.005$) and above the deterministic RMAV baseline ($\rho=0.130$). §5.4 examines this result in full, including the two independent training-pipeline bugs whose correction produced it — this LOSO result was initially negative in an earlier version of this evaluation, and §6.1 documents both that reversal and the separate, unrelated ensemble-blending artifact traced to the original conference-submission numbers.
 
 ### 5.4 Leave-One-Scenario-Out Generalization
 
@@ -458,36 +462,41 @@ To assess out-of-distribution performance, we employ Leave-One-Scenario-Out (LOS
 
 | Variant | Mean $\rho$ | Std $\rho$ | F1@K | $\Delta\rho$ vs GL |
 |---|---|---|---|---|
-| `GL` | **0.0208** | 0.1418 | **0.2086** | — |
-| `GL-QoS` | 0.0024 | 0.0946 | 0.2008 | -0.0184 |
-| `HGL` | -0.1141 | 0.1362 | 0.1814 | -0.1349 |
-| `HGL-QoS` | -0.0578 | 0.1124 | 0.1848 | -0.0786 |
+| `GL` | 0.0101 | 0.1491 | 0.2148 | — |
+| `GL-QoS` | 0.0054 | 0.0944 | 0.2100 | -0.0047 |
+| `HGL` | 0.2504 | 0.2175 | 0.3745 | +0.2403 |
+| `HGL-QoS` | **0.2904** | 0.2738 | 0.4052 | +0.2803 |
 
-This is the paper's central negative result, and we report it as found. Neither heterogeneous
-variant generalizes to a genuinely unseen scenario topology as trained here: HGL's mean
-out-of-distribution correlation is $\rho=-0.1141$ and HGL-QoS's is $\rho=-0.0578$ — both negative,
-both below the homogeneous GL ($\rho=0.0208$) and GL-QoS ($\rho=0.0024$), which themselves barely
-exceed zero. F1@K follows the same ordering: GL's 0.2086 is the best of the four variants; HGL and
-HGL-QoS trail at 0.1814 and 0.1848. Std $\rho$ is large across all four variants (0.11-0.14),
-reflecting the seven-fold LOSO protocol's small per-fold sample and the wide spread visible in the
-per-fold breakdown (Appendix data in the replication package): individual folds range from strongly
-positive to strongly negative for every variant, and the reported means are the average of that
-spread, not a stable per-fold guarantee.
+For reference, the deterministic, non-learned RMAV composite baseline (defined in the framework's
+sibling documentation, not evaluated elsewhere in this paper) reaches mean $\rho=0.1302$ under the
+same LOSO protocol — HGL-QoS exceeds it by $\Delta\rho=+0.160$.
 
-Relative to HGL, HGL-QoS's smaller negative mean ($-0.058$ vs.\ $-0.114$) is the one place explicit
-QoS encoding still helps directionally, echoing the in-distribution ablation's finding that QoS
-contributes little on its own (§5.3) — but "less negative" is not "positive," and neither
-heterogeneous variant clears the near-zero homogeneous baselines here. Two things are worth being
-precise about. First, this result is a genuine reversal of what an in-distribution-only evaluation
-(§5.1-§5.3) would predict: the same typed message-passing architecture that improves ranking and
-identification within a trained scenario's distribution does not, on this evidence, transfer that
-advantage to an architecturally different held-out scenario. Second, we found this LOSO story only
-by rerunning the full evaluation for this revision; the original conference submission reported
-HGL-QoS as the strongest out-of-distribution performer ($\rho=0.401$). §6.1 traces that discrepancy
-to an undisclosed ensemble-blending step present in the pipeline that generated the original
-numbers but absent from the architecture actually described in §3.2 — the version evaluated here.
-We regard the result in this table, not the conference submission's, as the one that reflects the
-method as documented.
+Both heterogeneous variants generalize to a genuinely unseen scenario topology as trained here:
+HGL's mean out-of-distribution correlation is $\rho=0.2504$ and HGL-QoS's is $\rho=0.2904$ — both
+positive, both well above the homogeneous GL ($\rho=0.0101$) and GL-QoS ($\rho=0.0054$), which
+themselves barely exceed zero, and both above the deterministic RMAV baseline. F1@K follows the
+same ordering: HGL-QoS's 0.4052 and HGL's 0.3745 lead GL-QoS's 0.2100 and GL's 0.2148. Std $\rho$ is
+still substantial (0.22-0.27), reflecting the seven-fold LOSO protocol's small per-fold sample;
+per-scenario, HGL-QoS is positive in six of seven held-out folds, ranging from $0.064$ to $0.656$,
+with Healthcare the sole negative fold ($\rho=-0.149$) — discussed in §6.3.
+
+This is not the result an earlier version of this evaluation reported. Relative to HGL, HGL-QoS's
+higher mean ($0.290$ vs.\ $0.250$) is the one place explicit QoS encoding helps out-of-distribution,
+in contrast to its small negative effect in-distribution (§5.3) — the reverse of the pattern that
+version reported. Two things are worth being precise about. First, this result is now *consistent*
+with what the in-distribution evaluation (§5.1-§5.3) would predict, rather than a reversal of it: the
+same typed message-passing architecture that improves ranking and identification within a trained
+scenario's distribution also transfers most of that advantage to an architecturally different
+held-out scenario. Second, we found this by investigating a negative LOSO story from an earlier
+version of this evaluation, not by starting from a positive expectation and confirming it: that
+earlier version had itself already been produced by rerunning the original conference submission's
+evaluation and finding that its strong-looking LOSO result ($\rho=0.401$ for HGL-QoS) did not survive
+a rerun with the ensemble-blending artifact removed (§6.1 traces this). Investigating that first,
+seemingly-settled negative result further — rather than accepting it as a property of the
+architecture — surfaced two further, independent bugs in the multi-scenario training pipeline itself
+(§6.1), whose correction produced the positive result in Table 6. We regard this table, not either
+of the two earlier versions, as the one that reflects the method as documented in §3.2, evaluated by
+a training pipeline free of the artifacts both earlier versions carried.
 
 ### 5.5 Reversed-Projection Ablation
 
@@ -551,31 +560,29 @@ application nodes uniformly (seed 42).
 
 | Scenario | $K$ | HGL (LOSO) | Betweenness | Random |
 |---|---|---|---|---|
-| AV System | 9 | 1.4% | 1.8% | 0.9% |
-| IoT Smart City | 20 | 6.4% | 21.0% | 18.4% |
-| Financial Trading | 8 | 0.7% | 48.8% | 0.8% |
-| Healthcare | 10 | 39.1% | 60.6% | 20.1% |
-| Hub-and-Spoke | 12 | 24.6% | 16.7% | 16.8% |
-| Microservices | 34 | 38.3% | 53.0% | 21.2% |
-| Enterprise | 9 | 0.3% | 30.6% | 0.3% |
-| **Mean** | — | **15.8%** | **33.2%** | **11.2%** |
+| AV System | 8 | 0.6% | 1.8% | 0.7% |
+| IoT Smart City | 20 | 22.5% | 19.4% | 17.4% |
+| Financial Trading | 8 | 12.6% | 48.2% | 0.8% |
+| Healthcare | 10 | 37.7% | 60.3% | 20.3% |
+| Hub-and-Spoke | 12 | 24.6% | 16.7% | 16.9% |
+| Microservices | 34 | 32.1% | 52.9% | 21.2% |
+| Enterprise | 9 | 0.3% | 30.5% | 0.3% |
+| **Mean** | — | **18.6%** | **32.8%** | **11.1%** |
 
-This table now consistently reflects §5.4's LOSO finding rather than contradicting it. HGL's
-LOSO-selected top-$K$ covers a mean of only 15.8% of total simulated cascade risk — barely above
-Random's 11.2%, and less than half of Betweenness's 33.2%. This is the same negative
-out-of-distribution result as Table 6, restated in an operator-facing metric: a component-hardening
-budget allocated by a LOSO-evaluated HGL model, as trained here, would capture materially less
-cascade risk than the same budget allocated by a cheap, deterministic structural heuristic with full
-visibility into the target scenario. HGL's coverage exceeds Random in four of seven scenarios (AV, Healthcare, Hub-and-Spoke,
-Microservices); in the remaining three it is comparable to or below Random — Enterprise (0.3% vs.
-0.3%) and, more sharply, IoT Smart City (6.4% vs. 18.4%) and Financial Trading (0.7% vs. 0.8%),
-where it falls to single digits. So LOSO-HGL
-predictions are not uniformly better than pure noise — and they are a materially worse guide to hardening decisions than
-either the structural baseline or, per §5.1-§5.3, an in-distribution-trained HGL model would be. A
-like-for-like comparison — in-distribution HGL predictions (matching the regime behind this paper's
-in-distribution F1 = 0.688) against in-distribution betweenness — is left for future work; it
-requires GNN inference from the trained per-scenario checkpoints rather than the LOSO predictions
-used here.
+This table now reflects §5.4's corrected LOSO finding rather than its earlier negative version.
+HGL's LOSO-selected top-$K$ covers a mean of 18.6% of total simulated cascade risk — still well
+below Betweenness's 32.8% (a deterministic heuristic with full in-scenario visibility, an advantage
+LOSO-HGL structurally cannot have), but now clearly ahead of Random's 11.1% in five of seven
+scenarios, and, notably, ahead of Betweenness itself in two: IoT Smart City (22.5% vs. 19.4%) and
+Hub-and-Spoke (24.6% vs. 16.7%). AV System and Enterprise are the two exceptions where HGL trails
+Random narrowly (0.6% vs. 0.7%; 0.3% vs. 0.3%); both concentrate risk mass in a small number of
+application nodes with $K$ small relative to $|V|$, so small ranking errors have an outsized effect
+on coverage. LOSO-HGL predictions are therefore a materially more useful guide to hardening
+decisions than an operator would get from Table 6 alone, though still not a substitute for
+full-visibility structural analysis when that is available. A like-for-like comparison —
+in-distribution HGL predictions (matching the regime behind this paper's in-distribution F1 = 0.688)
+against in-distribution betweenness — is left for future work; it requires GNN inference from the
+trained per-scenario checkpoints rather than the LOSO predictions used here.
 
 *Methodological note.* An initial design for this experiment measured hardening's effect by
 physically removing the top-$K$ nodes from the topology and re-running the fault-injection engine
@@ -593,7 +600,7 @@ is the same lesson §3.1 and this section's own risk-mass framing are built arou
 
 We evaluate threats to validity along three dimensions: construct, internal, and external validity. The most notable limitation of this study is that our ground-truth labels are generated via a controlled simulation rather than derived from observed failures in real-world publish-subscribe systems. As such, the strongest claims we can make are comparative: our results speak to which modeling choices perform better under identical experimental conditions, rather than providing guarantees of absolute predictive accuracy in operational deployments.
 
-### 6.1 Predictor Reproducibility: An Undisclosed Ensemble Step in the Conference-Submission Numbers
+### 6.1 Predictor Reproducibility: Two Rounds of Investigating This Paper's Own Negative Results
 
 Every number reported in §5 of this revision comes from a full rerun of the evaluation pipeline
 performed for this submission, at the 300-epoch configuration §3.3 describes. That rerun did not
@@ -624,13 +631,49 @@ support the paper's methodology section, precisely because they are what a reade
 as written would obtain. The blended score's better performance — particularly its much stronger
 apparent out-of-distribution generalization — is itself informative: an RMAV-style structural
 composite is not learned per-scenario, so blending it in would mechanically stabilize LOSO
-predictions regardless of what the GNN component contributes, which is consistent with the sharp
-LOSO-specific reversal we observe once the blend is removed (§5.4). We deliberately do not
+predictions regardless of what the GNN component contributes. We deliberately do not
 reintroduce that ensemble step here, disclosed or otherwise: doing so would substitute a second,
 non-learned predictor for part of what this paper claims the GNN itself achieves, which is the
 exact methodological ambiguity this section exists to flag and correct. HGL in this paper is, and
 remains, the pure heterogeneous graph attention network §3.2 describes — nothing else contributes
-to $Q^*(v)$. §7 discusses improving its out-of-distribution behavior on those terms.
+to $Q^*(v)$.
+
+**A second, independent investigation: two further bugs in the LOSO training pipeline.** Removing
+the ensemble step above initially produced the negative LOSO result this paper reported through most
+of its revision history (both HGL and HGL-QoS falling to negative mean rank correlation,
+underperforming the homogeneous baselines) — a result consistent enough with the "an ensemble
+artifact was inflating LOSO performance" explanation above that it would have been easy to treat as
+settled. We investigated it further rather than doing so, on the view that a negative result
+deserves the same scrutiny as a positive one before being reported as a property of the method
+rather than of the code that measured it. That investigation surfaced two further bugs, both
+specific to the inductive/LOSO multi-scenario training path in `gnn_service.py`/`trainer.py`, and
+unrelated to the ensemble-blending artifact above:
+
+1. **Label-scale inconsistency across scenarios.** The per-graph label normalization step (median/IQR
+   estimation and sigmoid rescaling to a common $(0,1)$ range) was applied to the primary (held-in)
+   scenario's labels but not to the auxiliary scenarios' labels used for the remaining gradient
+   updates in the same training loop. Because the loss combines scale-sensitive regression terms
+   with scale-invariant ranking terms, this meant different scenarios' gradients were computed
+   against labels on inconsistent numeric scales within the same backward pass.
+2. **Validation target selected by loader-shuffle order, not by scenario.** When training on multiple
+   scenarios simultaneously, early stopping and checkpoint selection are driven by validation
+   performance on one designated graph. The implementation inferred that graph from whichever item a
+   shuffled multi-graph data loader yielded first on a given call, rather than from an explicit
+   reference to the primary scenario — so in most LOSO runs, the checkpoint ultimately restored had
+   been selected using validation performance on a random *auxiliary* scenario, not the scenario the
+   fold was actually trained toward.
+
+Both were confirmed by direct code inspection and fixed by (1) normalizing every scenario's labels
+independently before use, and (2) passing an explicit reference to the primary graph into the
+trainer's validation step rather than inferring it from iteration order. Table 6 and Table 8 in this
+paper reflect the corrected pipeline: LOSO mean $\rho$ for HGL-QoS moves from $-0.058$ to $+0.290$,
+and the qualitative conclusion reverses a second time — from "heterogeneous variants fail to
+generalize out-of-distribution" back to "heterogeneous variants generalize better than either
+homogeneous baseline, in six of seven held-out scenarios," which is directionally consistent with
+what the in-distribution result (§5.1-§5.3) would predict, unlike either of the two earlier LOSO
+results this paper has reported. We report this second reversal in full, in the same spirit as the
+first: a paper whose central out-of-distribution claim has been revised twice by independent
+investigation is exactly the situation this section exists to document, not to summarize away.
 
 ### 6.2 Simulator-Derived Labels
 
@@ -643,6 +686,8 @@ To address this potential bias, we have implemented several safeguards. First, a
 Because the simulator models cascade impact as degradation in pub-sub message flows, Library nodes consistently receive near-constant, close-to-zero impact scores: failures in shared libraries or dependencies are not simulated as cascade-triggering events. As a result, there is almost no variance among Library node labels, and their within-type Spearman correlation is essentially undefined ($\approx 0.000$).
 
 This design choice has two important implications for interpreting our results. First, the core predictive target in this study is *Application-level* criticality, and headline correlation measures should be understood as reflecting Application nodes. Aggregated statistics across all node types may obscure this fact, as they combine the informative Application-node distribution with the degenerate Library-node one—an instance of Simpson's paradox [21, 22], in which a meaningful per-type signal is masked in the overall average. We therefore treat per-type, stratified reporting as a methodological contribution in its own right, and base our headline claims on Application-node performance rather than on the pooled aggregate. Second, these limitations point to a clear extension: enhancing the simulator so that library failures propagate to all dependent applications would make Library nodes authentic prediction targets. This would be a setting where heterogeneous, type-aware modeling is likely to yield its greatest performance benefits over homogeneous baselines. Rather than omitting Library nodes—an action that would forfeit the very heterogeneity our architecture is designed to leverage—we retain them in our models, but restrict any claims about Library-node predictions to the architectural level, leaving behavioral validation of library-failure propagation for future work.
+
+Healthcare is also the one scenario where HGL-QoS's LOSO correlation remains negative ($\rho=-0.149$, §5.4). It is not distinguished from the other six scenarios by an unusual Library-to-Application ratio (12/50 = 0.24, mid-range across the suite in Table 2b) or by any other single structural parameter we have checked; we do not yet have a structural explanation for why this particular scenario is the LOSO exception, and flag identifying the cause as future work (§7) rather than speculate here.
 
 ### 6.4 Training and Ablation Design
 
@@ -680,30 +725,31 @@ Finally, while HGL carries out message passing across the entire multi-tier grap
 
 This paper presents HGL, a heterogeneous graph learning framework for predicting the impact of component-level failure cascades using pre-deployment graph-based models of publish-subscribe middleware. By applying relation-aware message passing over the native heterogeneous graph—which encompasses Applications, Libraries, Topics, Brokers, and deployment Nodes—HGL preserves the typed semantics that are lost when systems are reduced to single-type logical dependency projections, as in homogeneous baselines.
 
-Across seven representative pub-sub scenarios and within a rigorously controlled $2\times3$ experimental design, our findings establish typed heterogeneous graph learning as a real but conditional predictive advantage. Within a trained scenario's distribution, HGL achieves the highest mean ranking performance among the learned variants (Spearman $\rho=0.411$) and improves critical-component identification over homogeneous graph learning (mean F1 = 0.688, $\Delta\text{F1}=+0.092$ over GL), though a QoS-weighted structural baseline (Topo-QoS) remains competitive or superior in several scenarios (§5.1-§5.2). Ablation studies show these in-distribution gains come principally from modeling heterogeneous node and relation semantics rather than from explicit QoS edge features (§5.3). Out-of-distribution, the picture reverses: Leave-One-Scenario-Out validation shows both HGL and HGL-QoS falling to negative mean rank correlation on unseen scenarios, underperforming the near-zero homogeneous baselines (§5.4). We report this reversal as found — it is the paper's central negative result, and it directly contradicts what an in-distribution-only evaluation would suggest.
+Across seven representative pub-sub scenarios and within a rigorously controlled $2\times3$ experimental design, our findings establish typed heterogeneous graph learning as a real and, on the evidence in this revision, largely unconditional predictive advantage. Within a trained scenario's distribution, HGL achieves the highest mean ranking performance among the learned variants (Spearman $\rho=0.411$) and improves critical-component identification over homogeneous graph learning (mean F1 = 0.688, $\Delta\text{F1}=+0.092$ over GL), though a QoS-weighted structural baseline (Topo-QoS) remains competitive or superior in several scenarios (§5.1-§5.2). Ablation studies show these in-distribution gains come principally from modeling heterogeneous node and relation semantics rather than from explicit QoS edge features (§5.3). Out-of-distribution, the picture now corroborates rather than reverses this: Leave-One-Scenario-Out validation shows HGL-QoS reaching mean $\rho=0.290$ on unseen scenarios, ahead of the near-zero homogeneous baselines and the deterministic RMAV baseline alike, positive in six of seven held-out folds (§5.4). This positive result superseded an earlier negative version of the same evaluation, and we report that history in full rather than only the current numbers — it is directly relevant to how much confidence a reader should place in any single version of an evaluation like this one.
 
-That reversal, together with a substantial in-distribution numerical gap from the conference submission this paper extends, has a traceable cause rather than being unexplained noise: the evaluation pipeline behind the conference submission's numbers computed a blend of the GNN's score with a separate, non-learned quality-attribution score, an ensemble step never described in this paper's methodology and since removed from the codebase (§6.1). The numbers in this revision reflect the pure heterogeneous-GNN architecture §3.2 actually describes. We surface this transparently, in the same spirit as this paper's other honestly-reported negative findings — the Simpson's-paradox masking of Library-node signal [21, 22] and the hardening-budget experiment's own discarded first design (§5.6) — because a paper whose central claim rests on a rerun that contradicts the original submission is exactly the situation methodological transparency exists for.
+Both the earlier negative LOSO result and, before it, a substantial in-distribution numerical gap from the conference submission this paper extends have traceable causes rather than being unexplained noise. The evaluation pipeline behind the conference submission's numbers computed a blend of the GNN's score with a separate, non-learned quality-attribution score, an ensemble step never described in this paper's methodology and since removed from the codebase; removing it produced the negative LOSO result this paper reported through most of its revision history. Investigating that negative result further, rather than accepting it as a property of the architecture, then surfaced two further, independent bugs specific to the multi-scenario training pipeline — an inconsistent label-normalization scale across scenarios, and a validation target selected by data-loader shuffle order rather than by the held-in scenario — whose correction produced the positive result in §5.4 (§6.1 traces both investigations in full). The numbers in this revision reflect the pure heterogeneous-GNN architecture §3.2 actually describes, evaluated by a training pipeline free of both artifacts. We surface this transparently, in the same spirit as this paper's other honestly-reported findings — the Simpson's-paradox masking of Library-node signal [21, 22] and the hardening-budget experiment's own discarded first design (§5.6) — because a paper whose central claim has twice been revised by a rerun is exactly the situation methodological transparency exists for.
 
-By natively modeling the complete five-type architecture (Applications, Libraries, Topics, Brokers, and deployment Nodes), HGL uses typed relations to retain semantics that homogeneous Graph Neural Networks (GNNs) overlook — within a trained scenario. Importantly, while HGL incorporates this multi-tier infrastructure to provide a rich contextual embedding layer, our current predictions and empirical validations focus specifically on cascade impacts at the application level.
+By natively modeling the complete five-type architecture (Applications, Libraries, Topics, Brokers, and deployment Nodes), HGL uses typed relations to retain semantics that homogeneous Graph Neural Networks (GNNs) overlook, both within a trained scenario and, per §5.4, largely across unseen ones. Importantly, while HGL incorporates this multi-tier infrastructure to provide a rich contextual embedding layer, our current predictions and empirical validations focus specifically on cascade impacts at the application level.
 
-We acknowledge several important limitations of this study, foremost among them the ones detailed above. The reported targets are generated via simulation, and the evaluated scenarios are synthetic; consequently, absolute metric values should be interpreted as simulator-based estimates rather than guarantees of operational accuracy. Our most defensible contribution is therefore narrower than the conference submission claimed: within the disclosed evaluation framework, preserving heterogeneous middleware semantics yields better pre-deployment identification of critical components than homogeneous graph learning, but only within a trained scenario's distribution — generalization to unseen topologies, as evaluated here, is not yet achieved by either the heterogeneous or the homogeneous learned variants, and the deterministic structural baseline remains the more reliable out-of-distribution choice on this evidence (§5.6).
+We acknowledge several important limitations of this study, foremost among them the ones detailed above. The reported targets are generated via simulation, and the evaluated scenarios are synthetic; consequently, absolute metric values should be interpreted as simulator-based estimates rather than guarantees of operational accuracy. Our contribution, on the evidence in this revision, is broader than what the intermediate negative-LOSO version of this paper could defensibly claim: within the disclosed evaluation framework, preserving heterogeneous middleware semantics yields better pre-deployment identification of critical components than homogeneous graph learning, both within a trained scenario's distribution and, in six of seven held-out scenarios, when generalizing to an architecturally unseen one (§5.4, §5.6). Healthcare remains the one scenario where this does not hold, without a structural explanation we have yet identified (§6.3).
 
 In the future, we will extend this work in four directions. First, §6.1's finding motivates
-improving HGL's out-of-distribution robustness directly, as a single learned architecture, rather
-than by reintroducing a second, non-learned predictor via ensembling — a direction we deliberately
-do not pursue, since it would reopen the exact methodological-transparency problem §6.1 diagnoses.
-Promising directions on those terms include training over a larger and more topologically diverse
-scenario corpus, explicit domain-generalization regularization, or meta-learning objectives that
-directly optimize for cross-scenario transfer rather than in-distribution fit. Second, although HGL
+understanding the Healthcare LOSO exception specifically — rather than out-of-distribution
+generalization broadly, which the corrected results in §5.4 no longer show as a general weakness —
+as the most immediate open question this evaluation raises. Second, even where LOSO generalization
+now holds, per-fold variance remains large (std $\rho$ 0.22-0.27, §5.4); training over a larger and
+more topologically diverse scenario corpus, explicit domain-generalization regularization, or
+meta-learning objectives that directly optimize for cross-scenario transfer are all promising
+directions for narrowing this variance further. Third, although HGL
 currently performs message passing across the full multi-tier graph, ground-truth impact scores are
 limited to the application level; expanding the simulator to attribute cascade impact to Topics,
 Brokers, and compute Nodes would enable direct validation of HGL's predictions for these
-infrastructure layers. Third, we aim to validate HGL against real-world failure data from
+infrastructure layers. Fourth, we aim to validate HGL against real-world failure data from
 operational deployments such as Kubernetes- or ROS2-based publish-subscribe systems, essential to
-move beyond simulator-based evidence. Fourth, a systematic comparison against other heterogeneous
-architectures — such as RGCN [16], HAN [17], HGT [18], and MAGNN [19] — would help establish
-whether the out-of-distribution weakness observed here is specific to this HeteroGAT instantiation
-or a broader property of typed message passing under scenario shift.
+move beyond simulator-based evidence, and to conduct a systematic comparison against other
+heterogeneous architectures — such as RGCN [16], HAN [17], HGT [18], and MAGNN [19] — to establish
+whether the Healthcare LOSO exception observed here is specific to this HeteroGAT instantiation or a
+broader property of typed message passing under scenario shift.
 
 ---
 
