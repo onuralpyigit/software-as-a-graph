@@ -88,15 +88,19 @@ class TestUseCaseOrchestration:
         analyze_uc = AnalyzeGraphUseCase(analysis_service)
         predict_uc = PredictGraphUseCase(prediction_service)
 
-        # 1. Analyze
+        # 1. Analyze — structural only; RMAV/quality is no longer computed here
+        # (moved to the unified Predict step, see PredictionService.predict()).
         layer_res = analyze_uc.execute("app")
         struct_res = layer_res.structural
+        assert layer_res.quality is None
+        assert layer_res.problems == []
 
         # 2. Predict (orchestrated)
         quality_res, problems = predict_uc.execute("app", struct_res, detect_problems=True)
 
         assert quality_res is not None
         assert len(quality_res.components) >= 1
+        assert problems is not None
 
         # Check scores are in range [0, 1]
         for comp in quality_res.components:

@@ -73,10 +73,12 @@ def repo_with_vulnerable_topology():
 def test_prescribe_rule_compilation(repo_with_vulnerable_topology):
     client = Client(repo=repo_with_vulnerable_topology)
     analysis = client.analyze(layer="system")
-    
+    # Criticality levels (SPOF/CRITICAL) now come from the Predict step, not Analyze.
+    prediction = client.predict(analysis, mode="rmav")
+
     # Run prescribe compiler
     service = PrescribeService(repo_with_vulnerable_topology)
-    policy = service.compile_policy(analysis_result=analysis.raw)
+    policy = service.compile_policy(analysis_result=analysis.raw, prediction_result=prediction)
     
     # Verify logical subgraph refactoring (Topic splitting T1)
     assert len(policy.topic_splits) == 1

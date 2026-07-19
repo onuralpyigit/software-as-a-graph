@@ -100,7 +100,15 @@ class ComponentFacade:
 
 
 class AnalysisResult:
-    """Result of the deterministic Analyze stage: structural metrics, RMAV dimension scores, Q(v), and anti-pattern problems."""
+    """Result of the deterministic Analyze stage (Step 2): structural metrics only.
+
+    RMAV dimension scores, Q(v), anti-pattern problems, and explanations are
+    produced by the Predict stage instead — see ``Client.predict()`` /
+    ``PredictionResult``. ``quality``/``all_components``/``critical_components``
+    below return empty until predict() has been run and the result merged back
+    in (e.g. via ``Client.validate()``/``Client.visualize()``, which do this
+    internally).
+    """
     def __init__(self, inner: _LayerAnalysisResult):
         self._inner = inner
 
@@ -110,19 +118,21 @@ class AnalysisResult:
         return self._inner
 
     @property
-    def quality(self) -> _QualityAnalysisResult:
-        """RMAV quality scores and criticality levels for all components (closed-form, deterministic)."""
+    def quality(self) -> Optional[_QualityAnalysisResult]:
+        """RMAV quality scores and criticality levels, if the Predict stage has populated them."""
         return self._inner.quality
 
     @property
     def critical_components(self) -> List["ComponentFacade"]:
-        """Components classified as CRITICAL by the RMAV/Q scoring."""
+        """Components classified as CRITICAL by the RMAV/Q scoring (requires predict() to have run)."""
         return [c for c in self.all_components if c.criticality_level.lower() == "critical"]
 
     @property
     def all_components(self) -> List["ComponentFacade"]:
-        """All assessed components with their RMAV scores and criticality levels."""
+        """All assessed components with their RMAV scores and criticality levels (requires predict() to have run)."""
         from saag.core.criticality import CriticalityRanking
+        if self._inner.quality is None:
+            return []
         rankings = []
         for cq in self._inner.quality.components:
             scores = {
@@ -160,7 +170,7 @@ class AnalysisResult:
 
     @property
     def problems(self) -> List[_DetectedProblem]:
-        """Anti-patterns and architectural smells detected from Q(v) thresholds."""
+        """Anti-patterns and architectural smells (populated by the Predict stage — see PredictionResult.problems)."""
         return self._inner.problems or []
 
     def save(self, filepath: str) -> None:
@@ -251,8 +261,10 @@ class PredictionResult:
             if val >= 0.35: return "medium"
             return "low" if val >= 0.15 else "minimal"
 
-        if hasattr(self._inner, "prediction_mode") or hasattr(self._inner, "node_scores"):
-            # GNN path (GNNAnalysisResult or SimpleNamespace)
+        if hasattr(self._inner, "node_scores"):
+            # GNN path (GNNAnalysisResult or SimpleNamespace) — discriminate on
+            # node_scores rather than prediction_mode, since QualityAnalysisResult
+            # (RMAV path) now also carries a prediction_mode field.
             source_dict = getattr(self._inner, "ensemble_scores", getattr(self._inner, "node_scores", {}))
             if not source_dict:
                 source_dict = getattr(self._inner, "node_scores", {})
@@ -352,6 +364,21 @@ class PredictionResult:
         """Access the underlying result."""
         return self._inner
 
+    @property
+    def problems(self) -> List[Any]:
+        """Anti-patterns and architectural smells detected from the RMAV scores."""
+        return list(getattr(self._inner, "problems", []) or [])
+
+    @property
+    def explanation(self) -> Any:
+        """Human-readable narrative explanation of the system's quality/criticality."""
+        return getattr(self._inner, "explanation", None)
+
+    @property
+    def prediction_mode(self) -> str:
+        """Which scoring path produced this result: 'rmav' or 'gnn_only'/'ensemble'."""
+        return getattr(self._inner, "prediction_mode", "rmav")
+
     def save(self, filepath: str) -> None:
         """Export the prediction result to a JSON file."""
         import json
@@ -427,8 +454,8 @@ class PipelineExecutionResult:
     """Aggregate result from running the full Pipeline sequentially.
 
     Stage mapping:
-      analysis     — deterministic Analyze stage (structural metrics + RMAV/Q scores + anti-patterns)
-      prediction   — inductive Predict stage (GNN criticality ranks); optional
+      analysis     — deterministic Analyze stage (structural metrics only)
+      prediction   — unified Predict stage (RMAV always + GNN when available + anti-patterns + explanation); optional
       simulation   — Simulate stage (counterfactual cascade ground truth)
       validation   — Validate stage (Predict/Analyze vs Simulate ground truth)
       prescription — prescriptive Stage 6 optimization; optional

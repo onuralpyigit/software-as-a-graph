@@ -52,12 +52,13 @@ Software-as-a-Graph (SaG) operationalizes this insight into a 6-step core analyt
         └──────┬──────┘
                │ topology JSON
                ▼
-┌─────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
-│  Step 1     │    │  Step 2              │    │  Step 3 (optional)  │
-│  Model      │───▶│  Analyze             │───▶│  Predict            │
-│  (import +  │    │  (M(v) + RMAV/Q(v)  │    │  (GNN prediction;   │
-│   export)   │    │   + Anti-Patterns)   │    │   inductive only)   │
-└─────────────┘    └──────────────────────┘    └─────────────────────┘
+┌─────────────┐    ┌──────────────────────┐    ┌─────────────────────────────┐
+│  Step 1     │    │  Step 2              │    │  Step 3                     │
+│  Model      │───▶│  Analyze             │───▶│  Predict (unified)          │
+│  (import +  │    │  (M(v) structural    │    │  (RMAV/Q(v) always + GNN    │
+│   export)   │    │   metrics only)      │    │   when available + Anti-    │
+│             │    │                      │    │   Patterns + Explanation)   │
+└─────────────┘    └──────────────────────┘    └─────────────────────────────┘
                              │                             │
         ┌────────────────────┘                            │
         ▼                                                 ▼
@@ -75,8 +76,8 @@ Software-as-a-Graph (SaG) operationalizes this insight into a 6-step core analyt
 |:---|:---|:---|:---|
 | **Offline Prep: Generate** | Produces a synthetic pub-sub topology for experiments, benchmarks, or CI regression tests | Topology JSON (`data/system.json`) | [graph-generation.md](docs/graph-generation.md) |
 | **1. Model** | Converts topology JSON into a formal weighted directed graph $G = (V, E, \tau_V, \tau_E, w)$ in Neo4j; derives logical `DEPENDS_ON` edges via six dependency rules; computes QoS-derived weights | $G_{\text{structural}}$ and $G_{\text{analysis}}(l)$ | [graph-model.md](docs/graph-model.md) |
-| **2. Analyze** | Deterministic, closed-form. Computes 13 Tier-1 structural metrics $M(v)$; maps them to RMAV dimension scores and $Q^*(v)$ via AHP-weighted formulas; detects anti-patterns. | $M(v)$ metric vector, RMAV/$Q^*(v)$ scores, five-level classification, anti-pattern report | [structural-analysis.md](docs/structural-analysis.md) |
-| **3. Predict** | Inductive, optional. A 3-layer `EdgeAwareHGTConv` (HGT) model trained on simulation labels $I(v)$ learns patterns the AHP composite cannot encode. | GNN criticality ranks, edge criticality, GNN node scores $Q_{\text{GNN}}(v)$ | [prediction.md](docs/prediction.md) |
+| **2. Analyze** | Deterministic, closed-form. Computes 13 Tier-1 structural metrics $M(v)$ only. | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
+| **3. Predict** | Unified Prediction Step. Always maps $M(v)$ to RMAV dimension scores and $Q^*(v)$ via AHP-weighted formulas (deterministic); blends in a 3-layer `EdgeAwareHGTConv` (HGT) model trained on simulation labels $I(v)$ when a checkpoint is available (falls back to RMAV otherwise); detects anti-patterns; generates a natural-language explanation. | RMAV/$Q^*(v)$ scores, five-level classification, GNN criticality ranks (when available), anti-pattern report, explanation | [prediction.md](docs/prediction.md) |
 | **4. Simulate** | Runs the FailureSimulator (producing canonical composite $I^*(v)$ and RM-AV ground truths) or FaultInjector (producing BFS feed-loss $I(v)$). Provides training labels for Step 3 and validation ground truth. | Per-dimension ground-truth $I_R(v)$, $I_M(v)$, $I_A(v)$, $I_V(v)$ and composite $I^*(v)$ / feed-loss $I(v)$ | [failure-simulation.md](docs/failure-simulation.md) |
 | **5. Validate** | Computes Spearman $\rho$ and Kendall $\tau$ between predictions and ground truth; evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
 | **6. Prescribe** | Generates rule-based architectural optimization recommendations and verifies them in a closed-loop simulation on a mutated graph | `PrescribeResult` with baseline vs mutated SRI | [prescription.md](docs/prescription.md) |
@@ -384,10 +385,11 @@ python cli/generate_graph.py --scale medium --output data/system.json
 # Step 1: Import topology to Neo4j and derive DEPENDS_ON edges
 python cli/import_graph.py --input data/system.json --clear
 
-# Step 2: Compute structural metrics, RMAV/Q scores, and anti-patterns
-python cli/analyze_graph.py --layer system --predict
+# Step 2: Compute structural metrics only
+python cli/analyze_graph.py --layer system
 
-# Step 3: Optional GNN training and inference
+# Step 3: Unified Prediction Step — RMAV always; optional GNN training/inference
+python cli/predict_graph.py --layer system
 python cli/train_graph.py --layer system
 python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model
 
@@ -478,7 +480,7 @@ import saag
 # Run Analyze + Simulate + Validate + Prescribe + Visualize in a fluent chain
 result = (
     saag.Pipeline.from_json("data/system.json", clear=True)
-        .analyze(layer="app")          # Deterministic structural metrics & RMAV
+        .analyze(layer="app")          # Deterministic structural metrics only
         .simulate(layer="app", mode="exhaustive") # Ground-truth simulation
         .validate()                    # Statistical validation
         .prescribe()                   # Prescriptive remediation generation
@@ -498,8 +500,8 @@ if result.prescription:
 |:---|:---|:---|
 | [Pipeline](saag/pipeline.py#L12) | `saag.Pipeline` | Fluent builder to sequence and execute the pipeline |
 | [Client](saag/client.py#L9) | `saag.Client` | Low-level service facade wrapper |
-| [AnalysisResult](saag/models.py#L102) | `saag.AnalysisResult` | Step 2 scoring output structural metrics and RMAV |
-| [PredictionResult](saag/models.py#L180) | `saag.PredictionResult` | Step 3 scoring output GNN predictions |
+| [AnalysisResult](saag/models.py#L102) | `saag.AnalysisResult` | Step 2 output — structural metrics only |
+| [PredictionResult](saag/models.py#L180) | `saag.PredictionResult` | Step 3 (unified Predict) output — RMAV/GNN scores, anti-patterns, explanation |
 | [ValidationResult](saag/models.py#L369) | `saag.ValidationResult` | Step 5 validation output including Spearman and gate metrics |
 | [PrescribeResult](saag/prescription/models.py) | `saag.prescription.PrescribeResult` | Step 6 prescriptive output including compiled policy and SRI delta |
 
@@ -514,9 +516,9 @@ if result.prescription:
 │   ├── generate_graph.py       #   Offline Prep: Generate — synthetic pub-sub topology
 │   ├── import_graph.py         #   Step 1a: Model (Import) — Neo4j import & dependency derivation
 │   ├── export_graph.py         #   Step 1b: Model (Export) — export graph from Neo4j to JSON
-│   ├── analyze_graph.py        #   Step 2: Analyze — structural metrics + RMAV/Q scoring + anti-patterns
+│   ├── analyze_graph.py        #   Step 2: Analyze — structural metrics only
 │   ├── train_graph.py          #   Step 3a: Predict (Train) — GNN training (optional; requires Step 4 labels)
-│   ├── predict_graph.py        #   Step 3b: Predict (Inference) — GNN inference on a new graph
+│   ├── predict_graph.py        #   Step 3b: Predict (Inference) — unified RMAV + GNN + anti-patterns
 │   ├── detect_antipatterns.py  #   Standalone anti-pattern / CI gate
 │   ├── simulate_graph.py       #   Step 4: Simulate — fault-inject | message-flow | combined
 │   ├── validate_graph.py       #   Step 5: Validate — single | sweep | report | compare
@@ -537,8 +539,8 @@ if result.prescription:
 │
 ├── saag/                       # Core Python SDK & Logic
 │   ├── core/                   #   Domain models, ports, Neo4j & memory repos
-│   ├── analysis/               #   Structural metrics + anti-pattern detection
-│   ├── prediction/             #   RMAV quality scoring + GNN service
+│   ├── analysis/               #   Structural metrics only (Step 2)
+│   ├── prediction/             #   Unified Predict step (Step 3): RMAV quality scoring + GNN service + anti-pattern detection + explanations
 │   ├── simulation/             #   Four parallel failure/event simulators
 │   ├── validation/             #   Per-dimension statistical validation
 │   ├── prescription/           #   Stage 6 prescriptive optimization service

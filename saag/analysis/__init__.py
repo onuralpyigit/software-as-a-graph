@@ -22,7 +22,6 @@ from .analyzer import QualityAnalyzer, CriticalityProfile
 from .classifier import BoxPlotClassifier
 from .weight_calculator import AHPProcessor, QualityWeights
 from .problem_detector import ProblemDetector
-from .quality_scoring_service import QualityScoringService
 
 __all__ = [
     "AnalysisService",
@@ -39,7 +38,6 @@ __all__ = [
     "AHPProcessor",
     "QualityWeights",
     "ProblemDetector",
-    "QualityScoringService",
     "QualityAnalysisResult",
     "DetectedProblem",
     "ProblemSummary",

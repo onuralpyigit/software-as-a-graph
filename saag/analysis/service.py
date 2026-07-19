@@ -6,13 +6,16 @@ from .structural_analyzer import StructuralAnalyzer
 from .models import CrossLayerInsight, MultiLayerAnalysisResult, LayerAnalysisResult
 from saag.core.layers import AnalysisLayer, get_layer_definition
 from saag.core.ports.graph_repository import IGraphRepository
-from saag.analysis.antipattern_detector import AntiPatternDetector
-from saag.analysis.smells import AntiPatternReport
+
+_PREDICT_KWARG_KEYS = ["use_ahp", "normalization_method", "winsorize", "winsorize_limit", "equal_weights", "ahp_shrinkage"]
+
 
 class AnalysisService:
     """
-    Service for running structural graph analysis.
-    Orchestrates StructuralAnalyzer.
+    Service for running structural graph analysis (Step 2).
+    Orchestrates StructuralAnalyzer only — RMAV/GNN scoring, anti-pattern
+    detection, and explanations are produced by the Predict stage (Step 3),
+    see saag.prediction.service.PredictionService.
     """
 
     def __init__(
@@ -21,23 +24,36 @@ class AnalysisService:
         **kwargs
     ):
         self.repository = repository
-        self._smell_detector = AntiPatternDetector()
-        
-        # Local imports to break circular dependencies
-        from saag.analysis.quality_scoring_service import QualityScoringService
-        from saag.explanation.engine import ExplanationEngine
-        
-        pred_kwargs = {k: v for k, v in kwargs.items() if k in ["use_ahp", "normalization_method", "winsorize", "winsorize_limit", "equal_weights", "ahp_shrinkage"]}
-        self._quality_analyzer = QualityScoringService(**pred_kwargs)
-        self._explanation_engine = ExplanationEngine()
         self._analysis_kwargs = kwargs
 
+    def _predict_layer(self, layer: str) -> LayerAnalysisResult:
+        """Run Step 2 (structural) then Step 3 (RMAV + anti-patterns) for one layer.
+
+        Convenience helper for methods that need criticality data
+        (cross-layer insights, critical-component/edge lookups).
+        """
+        from saag.prediction.service import PredictionService
+
+        layer_result = self.analyze_layer(layer)
+        pred_kwargs = {k: v for k, v in self._analysis_kwargs.items() if k in _PREDICT_KWARG_KEYS}
+        predictor = PredictionService(**pred_kwargs)
+        quality_result = predictor.predict(layer_result.structural, layer=layer)
+        layer_result.quality = quality_result
+        layer_result.problems = quality_result.problems
+        layer_result.problem_summary = quality_result.problem_summary
+        layer_result.explanation = quality_result.explanation
+        return layer_result
+
     def analyze_all_layers(self) -> MultiLayerAnalysisResult:
-        """Analyze all primary graph layers and compute cross-layer insights."""
+        """Analyze all primary graph layers and compute cross-layer insights.
+
+        Spans Step 2 (structural) and Step 3 (Predict), since cross-layer
+        insights require RMAV criticality levels.
+        """
         layers = ["app", "infra", "mw", "system"]
         results = {}
         for layer in layers:
-            results[layer] = self.analyze_layer(layer)
+            results[layer] = self._predict_layer(layer)
 
         insights = self._compute_cross_layer_insights(results)
 
@@ -173,16 +189,19 @@ class AnalysisService:
 
     def analyze_layer(self, layer: str) -> LayerAnalysisResult:
         """
-        Run analysis on a specific layer and return the full LayerAnalysisResult object.
+        Run structural analysis (Step 2) on a specific layer and return the
+        LayerAnalysisResult with only ``structural`` populated.
 
         Pre-analysis: DEPENDS_ON relationships are derived from the structural
-        graph before structural analysis begins.
+        graph before structural analysis begins. RMAV/GNN quality scoring,
+        anti-pattern detection, and explanations are produced separately by
+        the Predict stage (Step 3) — see saag.prediction.service.PredictionService.
         """
         try:
             layer_enum = AnalysisLayer.from_string(layer)
         except ValueError:
             layer_enum = AnalysisLayer.SYSTEM
-            
+
         layer_def = get_layer_definition(layer_enum)
 
         # Pre-analysis stage: derive DEPENDS_ON edges and finalise their weights.
@@ -191,37 +210,18 @@ class AnalysisService:
         graph_data = self.repository.get_graph_data()
         structural_analyzer = StructuralAnalyzer()
         struct_result = structural_analyzer.analyze(graph_data, layer=layer_enum)
-        
-        # Consolidation: Perform quality prediction and smell detection
-        pred_quality_kwargs = {k: v for k, v in self._analysis_kwargs.items() if k in ["run_sensitivity", "sensitivity_perturbations", "sensitivity_noise"]}
-        quality_result = self._quality_analyzer.predict_quality(struct_result, **pred_quality_kwargs)
-        problems = self._smell_detector.detect(quality_result, layer=layer)
-        problem_summary = self._quality_analyzer.summarize_problems(problems)
-        
-        # Wrapper for ExplanationEngine
-        smell_report = AntiPatternReport(
-            problems=problems,
-            summary=problem_summary.to_dict() if hasattr(problem_summary, "to_dict") else problem_summary
-        )
-        
-        # Human-readable explanations
-        explanation = self._explanation_engine.explain_system(quality_result, smell_report)
-        
+
         return LayerAnalysisResult(
             layer=layer_enum.value,
             layer_name=layer_def.name,
             description=layer_def.description,
             structural=struct_result,
-            quality=quality_result,
-            problems=problems,
-            problem_summary=problem_summary,
-            explanation=explanation
         )
 
     def analyze_by_type(self, component_type: str) -> Dict[str, Any]:
-        """Run analysis and filter by component type."""
-        # Reuse analyze_layer("system") then filter
-        result = self.analyze_layer("system")
+        """Run analysis+prediction and filter by component type."""
+        # Reuse the Predict-enriched result then filter
+        result = self._predict_layer("system")
         
         # Filter components
         filtered_components = [c for c in result.components if c.type == component_type]
@@ -260,8 +260,8 @@ class AnalysisService:
         }
 
     def get_critical_components(self, limit: int = 20) -> List[Dict[str, Any]]:
-        """Get the most critical components based on analysis."""
-        result = self.analyze_layer("system")
+        """Get the most critical components based on analysis+prediction."""
+        result = self._predict_layer("system")
         
         components = sorted(
             result.components,
@@ -293,8 +293,8 @@ class AnalysisService:
         ]
 
     def get_critical_edges(self, limit: int = 20) -> List[Dict[str, Any]]:
-        """Get the most critical edges based on analysis."""
-        result = self.analyze_layer("system")
+        """Get the most critical edges based on analysis+prediction."""
+        result = self._predict_layer("system")
         
         edges = sorted(
             result.edges,

@@ -2,6 +2,7 @@
 Prediction Package
 """
 from .service import PredictionService
+from .quality_scoring_service import QualityScoringService
 from saag.analysis.analyzer import QualityAnalyzer
 from saag.analysis.models import QualityAnalysisResult, DetectedProblem, ProblemSummary
 from saag.analysis.classifier import BoxPlotClassifier
@@ -18,6 +19,7 @@ from .data_preparation import (
 
 __all__ = [
     "PredictionService",
+    "QualityScoringService",
     "QualityAnalyzer",
     "QualityAnalysisResult",
     "DetectedProblem",

@@ -1,10 +1,10 @@
-# Step 3: Predict — Inductive GNN Forecasting
+# Step 3: Predict — Unified Rule-Based (RMAV) + ML (GNN) Prediction Step
 
-**Predict component and edge criticality using a Heterogeneous Graph Transformer (HGT) trained on simulation-derived ground truth.**
+**Predict component and edge criticality by combining deterministic rule-based RMAV scoring with a Heterogeneous Graph Transformer (HGT) trained on simulation-derived ground truth, plus anti-pattern detection and explanations.**
 
 ← [Step 2: Analyze](structural-analysis.md) | → [Step 4: Simulate](failure-simulation.md)
 
-> **Inductive Forecasting.** While Step 2 produces deterministic, rule-based Q_RMAV(v) scores, Step 3 uses a machine learning approach to discover complex, multi-hop topological patterns and predict direct edge-level criticality. GNN models are trained on simulation labels I(v) and can generalize predictions to unseen systems without running full runtime simulations.
+> **Unified Prediction Step.** This step replaces the legacy "Quality Scoring" mechanism that used to live inside Step 2 (Analyze), which is now structural-metrics-only. Step 3 always computes deterministic, rule-based Q_RMAV(v) scores; when a trained GNN checkpoint is available it blends in a machine-learning pass that discovers complex, multi-hop topological patterns and predicts direct edge-level criticality (falling back to RMAV otherwise). GNN models are trained on simulation labels I(v) and can generalize predictions to unseen systems without running full runtime simulations. Anti-pattern detection and human-readable explanations are derived from the resulting scores as part of this same step.
 
 ---
 

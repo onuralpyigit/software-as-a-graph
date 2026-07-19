@@ -706,12 +706,16 @@ class ConsoleDisplay:
             if not has_topics and result.layer in ("app", "mw"):
                 self.print_warning(f"fan_out_criticality (FOC) is restricted in {result.layer} layer. Use 'system' layer for topic fan-out analysis.")
             self.display_graph_summary(result)
-            self.display_classification_summary(result)
-            self.display_layer_critical_components(result)
-            self.display_sensitivity(result)
+            if result.quality:
+                self.display_classification_summary(result)
+                self.display_layer_critical_components(result)
+                self.display_sensitivity(result)
+            else:
+                self.print_warning("No quality/criticality data on this result — run the Predict step (client.predict()) for RMAV+GNN scores and anti-patterns.")
             if result.prediction:
                 self.display_gnn_prediction(result.prediction)
-            self.display_problems(result)
+            if result.quality:
+                self.display_problems(result)
             return
 
         self.print_header(f"{result.layer_name} Layer Analysis")
@@ -731,12 +735,16 @@ class ConsoleDisplay:
         self.console.print(Panel(Group(*info_content), border_style="grey23"))
 
         self.display_graph_summary(result)
-        self.display_classification_summary(result)
-        self.display_layer_critical_components(result)
-        self.display_sensitivity(result)
+        if result.quality:
+            self.display_classification_summary(result)
+            self.display_layer_critical_components(result)
+            self.display_sensitivity(result)
+        else:
+            self.print_warning("No quality/criticality data on this result — run the Predict step (client.predict()) for RMAV+GNN scores and anti-patterns.")
         if result.prediction:
             self.display_gnn_prediction(result.prediction)
-        self.display_problems(result)
+        if result.quality:
+            self.display_problems(result)
 
     def display_multi_layer_analysis_result(self, results: "MultiLayerAnalysisResult") -> None:
         """Display analysis results for multiple layers."""

@@ -48,48 +48,42 @@ class Client:
         mode: str = "gnn",
         gnn_checkpoint: Optional[str] = None,
     ) -> PredictionResult:
-        """Run the inductive Predict stage (GNN) on a prior AnalysisResult.
+        """Run the unified Prediction stage (Step 3) on a prior AnalysisResult.
 
-        Consumes the StructuralAnalysisResult and RMAV scores already produced by
-        analyze() — no repository access. Emits GNN-derived criticality ranks,
-        edge criticality, attention weights, and GNN node scores.
+        Consumes the StructuralAnalysisResult produced by analyze() — no
+        repository access. Always computes rule-based RMAV scores; blends in
+        GNN-derived criticality ranks when a trained checkpoint is available
+        at ``gnn_checkpoint`` (falls back to RMAV otherwise). Also runs
+        anti-pattern detection and generates a human-readable explanation.
 
         Parameters
         ----------
         analysis_result:
             Output of a preceding client.analyze() call for the same layer.
         mode:
-            'gnn' for raw GNN scores (default).
+            'gnn' for raw GNN scores (default) when a checkpoint is available.
         gnn_checkpoint:
             Path to a GNN checkpoint directory. Defaults to output/gnn_checkpoints.
         """
-        from saag.prediction.gnn_service import GNNService
-        from saag.prediction.data_preparation import extract_rmav_scores_dict
+        from saag.prediction.service import PredictionService
 
         layer_result = analysis_result.raw
         structural = layer_result.structural
         layer = getattr(layer_result, "layer", "system")
 
-        rmav_dict = extract_rmav_scores_dict(layer_result.quality)
-
         checkpoint = gnn_checkpoint or "output/gnn_checkpoints"
-        service = GNNService.from_checkpoint(checkpoint, graph=structural.graph, layer=layer)
+        service = PredictionService(gnn_checkpoint_dir=checkpoint, prefer_gnn=(mode == "gnn"))
 
-        gnn_result = service.predict(
-            graph=structural.graph,
-            structural_metrics=structural,
-            rmav_scores=rmav_dict,
-            mode=mode,
-        )
-        return PredictionResult(gnn_result)
+        result = service.predict_quality_with_gnn(structural, structural.graph, layer=layer)
+        return PredictionResult(result)
 
-    def detect_antipatterns(self, analysis_result: AnalysisResult, active_patterns: Optional[List[str]] = None) -> List[Any]:
-        """Return anti-patterns detected during the Analyze stage.
+    def detect_antipatterns(self, prediction_result: Any, active_patterns: Optional[List[str]] = None) -> List[Any]:
+        """Return anti-patterns detected during the Predict stage.
 
-        Problems are computed as part of analyze(); this method simply surfaces
+        Problems are computed as part of predict(); this method simply surfaces
         them with an optional pattern filter rather than re-running detection.
         """
-        problems = analysis_result.problems
+        problems = getattr(prediction_result, "problems", []) or []
         if active_patterns:
             problems = [p for p in problems if getattr(p, "pattern", None) in active_patterns]
         return problems

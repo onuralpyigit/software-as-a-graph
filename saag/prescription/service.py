@@ -132,10 +132,18 @@ class PrescribeService:
                         critical_components.add(comp.id)
                         
         # Extract from structural analysis results
-        # Handle both raw LayerAnalysisResult and SDK facade AnalysisResult
+        # Handle both raw LayerAnalysisResult and SDK facade AnalysisResult.
+        # analysis_result.quality is now always None (Analyze/Step 2 is
+        # structural-only) — RMAV components come from the Predict stage
+        # (prediction_result), so fall back to its raw QualityAnalysisResult.
         quality_comps = []
-        if hasattr(analysis_result, "quality") and hasattr(analysis_result.quality, "components"):
-            quality_comps = analysis_result.quality.components
+        analysis_quality = getattr(analysis_result, "quality", None)
+        if analysis_quality is None:
+            raw_prediction = getattr(prediction_result, "raw", prediction_result)
+            if hasattr(raw_prediction, "components"):
+                analysis_quality = raw_prediction
+        if analysis_quality is not None and hasattr(analysis_quality, "components"):
+            quality_comps = analysis_quality.components
         elif hasattr(analysis_result, "all_components"):
             for comp in analysis_result.all_components:
                 # Check overall
@@ -156,8 +164,8 @@ class PrescribeService:
                     if level_str in ("CRITICAL", "HIGH"):
                         critical_components.add(cq.id)
                 
-        # Identify problems (smells)
-        problems = getattr(analysis_result, "problems", []) or []
+        # Identify problems (smells) — now produced by the Predict stage, not Analyze
+        problems = getattr(prediction_result, "problems", None) or getattr(analysis_result, "problems", []) or []
         spof_components = set()
         god_components = set()
         

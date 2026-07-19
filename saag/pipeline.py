@@ -61,10 +61,12 @@ class Pipeline:
         return pipeline
 
     def analyze(self, layer: str = "system", **kwargs) -> "Pipeline":
-        """Stage 2: Deterministic analysis — structural metrics, RMAV/Q scores, anti-patterns.
+        """Stage 2: Deterministic structural analysis — topology metrics only
+        (PageRank, betweenness, closeness, articulation points, etc.).
 
         Produces a fully deterministic AnalysisResult from topology and metadata.
-        Given the same graph, this stage always yields the same Q(v).
+        No RMAV/Q scores or anti-patterns here — see predict() for the unified
+        Prediction Step that produces those.
         """
         self._layer = layer
         self._do_analyze = True
@@ -72,17 +74,21 @@ class Pipeline:
         return self
 
     def predict(self, mode: str = "gnn", gnn_checkpoint: Optional[str] = None) -> "Pipeline":
-        """Stage 3: Inductive prediction — GNN criticality ranks.
+        """Stage 3: Unified Prediction Step — rule-based (RMAV) + ML (GNN) scoring.
 
-        Runs a Heterogeneous Graph Transformer (HGT / HGTConv) over the topology to
-        learn patterns that the AHP-weighted RMAV composite cannot encode (nonlinear
-        interactions, multi-hop motifs).
+        Always computes the AHP-weighted RMAV composite (deterministic, closed-form).
+        When a trained GNN checkpoint is available, blends in a Heterogeneous Graph
+        Transformer (HGT / HGTConv) inference pass that learns patterns the RMAV
+        composite cannot encode (nonlinear interactions, multi-hop motifs); falls
+        back to RMAV otherwise. Also runs anti-pattern detection and generates a
+        human-readable explanation. This replaces the legacy "Quality Scoring" step
+        that used to live inside Analyze.
         Requires analyze() to have been configured first.
 
         Parameters
         ----------
         mode:
-            'gnn' for raw GNN scores (default).
+            'gnn' for raw GNN scores (default) when a checkpoint is available.
         gnn_checkpoint:
             Path to a GNN checkpoint directory. Defaults to output/gnn_checkpoints.
         """
@@ -123,9 +129,9 @@ class Pipeline:
             logger.info(f"Importing topology from {self.file_path}")
             self.client.import_topology(self.file_path, clear=getattr(self, "_clear", False))
 
-        # 2. Analyze — deterministic: structural metrics + RMAV/Q + anti-patterns
+        # 2. Analyze — deterministic: structural metrics only
         if self._do_analyze:
-            logger.info(f"Analyzing layer '{self._layer}': structural metrics + RMAV/Q scores + anti-patterns")
+            logger.info(f"Analyzing layer '{self._layer}': structural metrics")
             result.analysis = self.client.analyze(layer=self._layer, **self._analyze_kwargs)
 
         # 3. Simulate — counterfactual cascade engine; generates ground-truth labels
@@ -133,7 +139,7 @@ class Pipeline:
             logger.info("Running fault simulation (cascade ground truth)...")
             result.simulation = self.client.simulate(layer=self._layer, **self._simulate_kwargs)
 
-        # 4. Predict — inductive: GNN criticality ranks
+        # 4. Predict — unified: RMAV (always) + GNN (when available) + anti-patterns
         if self._do_predict:
             if result.analysis is None:
                 raise RuntimeError(
@@ -156,7 +162,7 @@ class Pipeline:
                     "first to generate labels for training."
                 )
 
-            logger.info("Running GNN prediction (inductive stage)...")
+            logger.info("Running unified Prediction step (RMAV + GNN)...")
             result.prediction = self.client.predict(result.analysis, **self._predict_kwargs)
 
         # 5. Validate — compare Predict/Analyze output against Simulate ground truth

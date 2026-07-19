@@ -40,7 +40,9 @@ docs/          # Detailed step-by-step methodology documentation
 
 ## System Pipeline & Data Flow
 
-The analytical pipeline is structured as a Directed Acyclic Graph (DAG) rather than a linear chain. Step 2 (Analyze) computes structural metrics and feeds them to both Step 3 (Predict) and Step 4 (Simulate), which run independently. Step 5 (Validate) then compares prediction outcomes against the simulation ground-truth labels.
+The analytical pipeline is structured as a Directed Acyclic Graph (DAG) rather than a linear chain. Step 2 (Analyze) computes structural metrics only and feeds them to both Step 3 (Predict) and Step 4 (Simulate), which run independently. Step 5 (Validate) then compares prediction outcomes against the simulation ground-truth labels.
+
+Step 3 (Predict) is a unified **Prediction Step**: the legacy "Quality Scoring" mechanism that used to live inside Analyze has been removed and replaced by a single step that always computes rule-based (RMAV) scores, blends in ML (GNN) inference when a trained checkpoint is available, and runs anti-pattern detection and explanation generation on the result.
 
 ```
                   ┌──────────────┐
@@ -60,9 +62,11 @@ The analytical pipeline is structured as a Directed Acyclic Graph (DAG) rather t
          ┌────────────────┴────────────────┐
          ▼ [Step 3: Predict]               ▼ [Step 4: Simulate]
    ┌───────────┐                     ┌───────────┐
-   │  Quality  │                     │Simulation │
-   │  Analysis │                     │  Result   │
-   │  Result   │                     │  (Labels) │
+   │Prediction │                     │Simulation │
+   │  Result   │                     │  Result   │
+   │(RMAV+GNN+ │                     │  (Labels) │
+   │AntiPattern│                     │           │
+   │+Explain)  │                     │           │
    └─────┬─────┘                     └─────┬─────┘
          │                                 │
          │      - - - (trains) - - - >     │
@@ -89,7 +93,7 @@ The analytical pipeline is structured as a Directed Acyclic Graph (DAG) rather t
 ```
 
 > [!NOTE]
-> **First-run sequencing:** Step 3 (Predict) depends on simulation-derived training labels for GNN training. On the first run, execute Steps 1 $\rightarrow$ 2 $\rightarrow$ 4 to generate those labels, then train the GNN model, and finally run Step 3 inference. The Analyze stage (Step 2) is fully self-contained and produces valid RMAV $Q^*(v)$ scores without requiring a GNN checkpoint.
+> **First-run sequencing:** Step 3 (Predict) depends on simulation-derived training labels for GNN training. On the first run, execute Steps 1 $\rightarrow$ 2 $\rightarrow$ 4 to generate those labels, then train the GNN model, and finally run Step 3 inference. The Predict stage (Step 3) is fully self-contained for its rule-based path and produces valid RMAV $Q^*(v)$ scores without requiring a GNN checkpoint (the Analyze stage, Step 2, is structural-only and does not compute RMAV/Q scores).
 
 ---
 
@@ -139,17 +143,19 @@ Contains the core domain models and persistence ports. Modules in this package a
 - `ports/graph_repository.py` — Defines the `IGraphRepository` interface port outlining required lifecycle adapters (`save_graph()`, `get_graph_data()`, and `export_json()`).
 
 ### `analysis/` — Step 2 Analytical Engine
-Computes structural metrics, AHP-weighted RMAV quality scores, and architectural anti-patterns on the layer subgraph.
+Computes structural metrics only on the layer subgraph. No RMAV/Q scores or anti-patterns — those are produced by the Predict stage (Step 3).
 - `StructuralAnalyzer` — Implements NetworkX-based algorithms for PageRank, Betweenness, Harmonic Closeness, Eigenvector, and Reverse PageRank, alongside custom pub-sub metrics (MPCI, FOC, CDI, and PC).
-- `AnalysisService` — Orchestrates layer projections and calculations. It pulls graph projections from `IGraphRepository`, runs the `StructuralAnalyzer`, triggers `QualityScoringService` to apply AHP-weighted formulas, executes `AntiPatternDetector`, and invokes `ExplanationEngine` for natural language text descriptions.
-- `AntiPatternDetector` — Audits scores to flag architectural smells (SPOF, FAILURE_HUB, GOD_COMPONENT, etc.).
+- `AnalysisService` — Orchestrates layer projections and calculations. It pulls graph projections from `IGraphRepository` and runs the `StructuralAnalyzer`.
+- `AntiPatternDetector` — Audits RMAV scores to flag architectural smells (SPOF, FAILURE_HUB, GOD_COMPONENT, etc.). Module lives here but is invoked by `prediction/`, since it operates on Predict-stage output.
 
-### `prediction/` — Step 3 Predictive Engine
-Houses the AHP-weighted scoring implementation and the inductive Graph Attention Network.
+### `prediction/` — Step 3 Predictive Engine (unified Prediction Step)
+Replaces the legacy "Quality Scoring" mechanism with a single step that always computes rule-based RMAV scores, blends in ML/GNN inference when available, and runs anti-pattern detection and explanation generation.
+- `QualityScoringService` — Rule-based RMAV scoring and problem-detection primitives (moved here from `analysis/`).
 - `QualityAnalyzer` — Applies AHP-weighted composite quality formulas with shrinkage ($\lambda=0.70$) to output Reliability ($R$), Maintainability ($M$), Availability ($A$), and Vulnerability ($V$) scores.
-- `PredictionService` — Orchestrates the prediction stage, utilizing raw GNN outputs for inductive node and edge criticality predictions.
+- `PredictionService` — Orchestrates the unified Predict stage: RMAV (always) → GNN (when a checkpoint is available, else falls back to RMAV) → anti-pattern detection → explanation generation.
 - `GNNService` — Loads a checkpoint containing the `NodeCriticalityGNN` (built using three stacked `EdgeAwareHGTConv` layers with edge feature injection) to run inductive prediction.
 - `BoxPlotClassifier` — Performs adaptive outlier-fence classification.
+- `ExplanationEngine` (from `explanation/`) — Generates the natural-language narrative attached to each Predict-stage result.
 
 ### `simulation/` — Step 4 Simulation Engine
 A discrete-event and BFS cascade failure simulator evaluating propagation boundaries on raw structural edges.

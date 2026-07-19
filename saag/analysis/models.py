@@ -60,7 +60,12 @@ class StructuralAnalysisResult:
 
 @dataclass
 class QualityAnalysisResult:
-    """Complete quality analysis result for a single layer."""
+    """Complete quality analysis result for a single layer.
+
+    Produced by the unified Prediction Step (Step 3): ``problems``,
+    ``problem_summary``, and ``explanation`` are populated by
+    ``PredictionService`` alongside the rule-based (RMAV) or ML (GNN) scores.
+    """
     timestamp: str
     layer: str
     context: str
@@ -70,6 +75,10 @@ class QualityAnalysisResult:
     weights: Any = None
     stats: Dict[str, BoxPlotStats] = field(default_factory=dict)
     sensitivity: Optional[Dict[str, Any]] = None
+    problems: List["DetectedProblem"] = field(default_factory=list)
+    problem_summary: Optional["ProblemSummary"] = None
+    explanation: Optional["SystemReport"] = None
+    prediction_mode: str = "rmav"
 
     def to_dict(self) -> Dict[str, Any]:
         result = {
@@ -152,14 +161,18 @@ class ProblemSummary:
 class LayerAnalysisResult:
     """
     Complete analysis result for a single layer.
+
+    ``structural`` is always populated by the Analyze stage (Step 2).
+    ``quality``/``problems``/``problem_summary``/``explanation`` are ``None``/empty
+    until the Predict stage (Step 3, see ``PredictionService``) has run.
     """
     layer: str
     layer_name: str
     description: str
     structural: StructuralAnalysisResult
-    quality: QualityAnalysisResult
-    problems: List[DetectedProblem]
-    problem_summary: ProblemSummary
+    quality: Optional[QualityAnalysisResult] = None
+    problems: List[DetectedProblem] = field(default_factory=list)
+    problem_summary: Optional[ProblemSummary] = None
     library_usage: Dict[str, List[str]] = field(default_factory=dict)
     node_allocations: Dict[str, List[str]] = field(default_factory=dict)
     broker_routing: Dict[str, List[str]] = field(default_factory=dict)
@@ -196,9 +209,9 @@ class LayerAnalysisResult:
                     for c in self.structural.components.values()
                 ]
             },
-            "quality_analysis": self.quality.to_dict(),
+            "quality_analysis": self.quality.to_dict() if self.quality else None,
             "problems": [p.to_dict() for p in self.problems],
-            "problem_summary": self.problem_summary.to_dict(),
+            "problem_summary": self.problem_summary.to_dict() if self.problem_summary else None,
             "library_usage": self.library_usage,
             "node_allocations": self.node_allocations,
             "broker_routing": self.broker_routing,

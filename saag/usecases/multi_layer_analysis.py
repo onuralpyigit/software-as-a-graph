@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional
 
 from saag.analysis.models import LayerAnalysisResult, MultiLayerAnalysisResult
 from saag.analysis.structural_analyzer import StructuralAnalyzer
-from saag.analysis.quality_scoring_service import QualityScoringService
+from saag.prediction.quality_scoring_service import QualityScoringService
 from saag.analysis.antipattern_detector import AntiPatternDetector
 from saag.core.layers import AnalysisLayer, get_layer_definition
 

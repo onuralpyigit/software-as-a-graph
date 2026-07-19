@@ -50,7 +50,6 @@ from types import SimpleNamespace
 
 import argparse
 from saag import Client
-from saag.models import PredictionResult
 from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay
 
@@ -248,7 +247,7 @@ def run_antipattern_detection(
 # GNN inference helper
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def run_gnn_inference(client: Client, nx_graph, analysis, layer: str, gnn_model: str, display: ConsoleDisplay):
+def run_gnn_inference(client: Client, nx_graph, analysis, prediction, layer: str, gnn_model: str, display: ConsoleDisplay):
     """
     Run GNN inference using a trained checkpoint.
     Returns a GNNAnalysisResult or None on failure.
@@ -261,7 +260,7 @@ def run_gnn_inference(client: Client, nx_graph, analysis, layer: str, gnn_model:
 
     try:
         structural_dict = extract_structural_metrics_dict(analysis.raw)
-        rmav_dict = extract_rmav_scores_dict(analysis.raw.quality)
+        rmav_dict = extract_rmav_scores_dict(prediction.raw)
 
         gnn_svc = GNNService.from_checkpoint(gnn_model, graph=nx_graph)
         return gnn_svc.predict(
@@ -433,10 +432,9 @@ def main() -> None:
             ahp_shrinkage=args.ahp_shrinkage,
         )
 
-        # ── RMAS prediction ──────────────────────────────────────────────────
+        # ── RMAS prediction (Step 3: unified Predict step, RMAV path) ─────────
         display.print_step(f"[{layer.upper()}] RMAS quality scoring…")
-        # Quality scores are already computed inside client.analyze(); wrap for uniform access.
-        prediction = PredictionResult(analysis.raw.quality)
+        prediction = client.predict(analysis, mode="rmav")
 
         components = prediction.raw.components if prediction.raw else []
         total_components = len(components)
@@ -461,7 +459,7 @@ def main() -> None:
         gnn_result = None
         if args.gnn_model:
             display.print_step(f"[{layer.upper()}] GNN inference from checkpoint: {args.gnn_model}")
-            gnn_result = run_gnn_inference(client, nx_graph, analysis, layer, args.gnn_model, display)
+            gnn_result = run_gnn_inference(client, nx_graph, analysis, prediction, layer, args.gnn_model, display)
             if gnn_result:
                 top_nodes = gnn_result.top_critical_nodes(n=10)
                 print()

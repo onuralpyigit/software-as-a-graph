@@ -18,7 +18,7 @@
    - 3.1 [Synthetic Graph Generation (Offline Input Preparation)](#31-synthetic-graph-generation-offline-input-preparation)
    - 3.2 [Graph Model Construction (Step 1)](#32-graph-model-construction-step-1)
    - 3.3 [Structural Analysis (Step 2)](#33-structural-analysis-step-2)
-   - 3.4 [Quality Scoring and GNN Prediction (Step 3)](#34-quality-scoring-and-gnn-prediction-step-3)
+   - 3.4 [Unified Prediction Step: Rule-Based (RMAV) + ML (GNN) (Step 3)](#34-unified-prediction-step-rule-based-rmav--ml-gnn-step-3)
    - 3.5 [Failure Simulation (Step 4)](#35-failure-simulation-step-4)
    - 3.6 [Statistical Validation (Step 5)](#36-statistical-validation-step-5)
    - 3.7 [Visualization (Step 6)](#37-visualization-step-6)
@@ -161,8 +161,8 @@ The system must extract topological metrics from the projected subgraphs.
 | **REQ-SA-04** | The system shall normalize all computed topological and QoS metrics to the interval $[0, 1]$ prior to downstream utilization. |
 | **REQ-SA-05** | The system shall compute graph-level statistics (density, clustering coefficient, bridge ratio, and node/edge ratios) for diagnostic reporting. |
 
-### 3.4 Quality Scoring and GNN Prediction (Step 3)
-The system must forecast node and edge criticality using rule-based metrics and trained GNN models.
+### 3.4 Unified Prediction Step: Rule-Based (RMAV) + ML (GNN) (Step 3)
+The legacy "Quality Scoring" mechanism (formerly part of Step 2) has been removed and replaced by a single, unified Prediction Step. The system must forecast node and edge criticality using rule-based metrics (always computed) and trained GNN models (blended in when available), and derive anti-pattern reports and explanations from the result.
 
 #### 3.4.1 Rule-Based Quality Scoring (RMAV)
 | ID | Requirement |
