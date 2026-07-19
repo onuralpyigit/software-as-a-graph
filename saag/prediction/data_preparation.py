@@ -778,6 +778,81 @@ def create_node_splits(
         store.test_mask  = test_mask
 
 
+def create_kfold_masks(
+    hetero_data,
+    k: int = 5,
+    fold_idx: int = 0,
+    val_ratio: float = 0.15,
+    seed: int = 42,
+) -> None:
+    """Add train/val/test boolean masks to every node store in-place for one
+    fold of a within-graph, stratified k-fold split.
+
+    Unlike :func:`create_node_splits` (a one-shot random holdout), this
+    partitions labelled nodes (|y_composite| > 1e-6) into ``k`` roughly-equal
+    folds; fold ``fold_idx`` is held out as the test set, and the remaining
+    ``k - 1`` folds are split into train/val by ``val_ratio``. Unlabelled
+    nodes are folded the same way so every split still has full graph
+    context. Node types with fewer than ``k`` labelled nodes fall back to
+    putting everything in train (test/val empty for that store), matching
+    ``compute_inductive_metrics``'s existing n<3 guard.
+    """
+    rng = np.random.default_rng(seed)
+
+    def _fold_test_trainval(idx: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        if len(idx) < k:
+            return np.array([], dtype=np.int64), idx
+        shuffled = rng.permutation(idx)
+        folds = np.array_split(shuffled, k)
+        test = folds[fold_idx]
+        trainval = np.concatenate([f for i, f in enumerate(folds) if i != fold_idx])
+        return test, trainval
+
+    for store in hetero_data.node_stores:
+        n = store.num_nodes
+        if n == 0:
+            continue
+
+        train_mask = torch.zeros(n, dtype=torch.bool)
+        val_mask   = torch.zeros(n, dtype=torch.bool)
+        test_mask  = torch.zeros(n, dtype=torch.bool)
+
+        if hasattr(store, "y") and store.y.numel() > 0:
+            y_comp = store.y[:, 0].detach().numpy()
+            labelled_idx   = np.where(np.abs(y_comp) > 1e-6)[0]
+            unlabelled_idx = np.where(np.abs(y_comp) <= 1e-6)[0]
+
+            if len(labelled_idx) >= k:
+                lab_test, lab_trainval = _fold_test_trainval(labelled_idx)
+                n_lab_val = max(1, int(len(lab_trainval) * val_ratio)) if len(lab_trainval) > 1 else 0
+                lab_val   = lab_trainval[:n_lab_val]
+                lab_train = lab_trainval[n_lab_val:]
+
+                unlab_test, unlab_trainval = _fold_test_trainval(unlabelled_idx)
+                n_unlab_val = max(0, int(len(unlab_trainval) * val_ratio))
+                unlab_val   = unlab_trainval[:n_unlab_val]
+                unlab_train = unlab_trainval[n_unlab_val:]
+
+                all_train = np.concatenate([lab_train, unlab_train])
+                all_val   = np.concatenate([lab_val,   unlab_val])
+                all_test  = np.concatenate([lab_test,  unlab_test])
+
+                train_mask[torch.from_numpy(all_train.astype(np.int64))] = True
+                val_mask[torch.from_numpy(all_val.astype(np.int64))]     = True
+                test_mask[torch.from_numpy(all_test.astype(np.int64))]   = True
+
+                store.train_mask = train_mask
+                store.val_mask   = val_mask
+                store.test_mask  = test_mask
+                continue
+
+        # ── Fallback: not enough labelled nodes for k folds — all train ─────
+        train_mask[:] = True
+        store.train_mask = train_mask
+        store.val_mask   = val_mask
+        store.test_mask  = test_mask
+
+
 
 def normalize_labels_robust(hetero_data) -> None:
     """In-place IQR normalization of .y label tensors, preserving zeros.
