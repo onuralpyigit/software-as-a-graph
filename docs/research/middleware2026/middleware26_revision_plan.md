@@ -1,37 +1,9 @@
 # Revision Plan — HGL Paper (post-Middleware 2026 rejection)
 
-**Basis:** Reviews 37A/37B/37C + advisor's assessment (2026-07). Governing diagnosis (advisor):
-the substance is sound; the failure was narrative — "derdimizi derli toplu anlatmamak." The journal
-version must be presentation-first, unhurried.
+## Track A — Criticisms → substantive fixes
 
-**Target venue decision (resolved 2026-07-18):** JSS VSI:AI4MSS extension (deadline
-**2026-09-30**), via `docs/research/jss/si_middleware_extension.md`/`.tex`. Decided against the
-alternative of submitting the pre-existing, broader `docs/research/jss/draft.md` ("SaG flagship")
-to the same special issue: that draft reuses the same HGL/LOSO empirical results as this paper, so
-it does not avoid re-litigating this content, and it carries its own unresolved issues (I(v)
-ground-truth mis-attributed to the AHP composite rather than FaultInjector; the per-edit
-remediation acceptance filter disclosed as unbuilt; the real-world expert-panel validation
-withdrawn) that no reviewer has yet stress-tested. The Middleware-paper extension is reviewer-tested
-(this document's Track A/B/C already answers 37A/37B/37C point-by-point) and is lower-risk for a
-fixed-deadline submission. Middleware Cycle 2 is no longer the fallback plan; the SaG flagship
-draft is deprioritized, not abandoned, for a later, separate submission. Resolving this also
-resolves **D3** (ATM case study placement, resolved in favor of the narrative-only running example,
-not an evaluation scenario — see `si_middleware_extension.md` §1).
-
-**Status as of 2026-07-18:** All Track A/B/C items are done; R1 and D2 are resolved (see below); the
-two deferred experiments (A4.4 reversed-projection ablation, C2 hardening-budget analysis) are run
-and reported in §5.5/§5.6; the manuscript compiles cleanly as Elsevier `elsarticle` LaTeX (44pp,
-`si_middleware_extension.tex`). Remaining before submission: (1) real author/institution names,
-currently placeholders; (2) Figure 1 is an ASCII-schematic placeholder, not a vector diagram; (3)
-the in-distribution (non-LOSO) HGL vs. betweenness hardening-budget comparison flagged in §5.6 as
-future work is optional polish, not a blocker.
-
----
-
-## Track A — Criticisms accepted by advisor → substantive fixes
-
-### A1. Introduction citations (37C-W2; advisor: haklı) — HIGH
-Reference-free introduction. Add citations along the advisor's four groups, reusing existing
+### A1. Introduction citations (37C-W2) — HIGH
+Reference-free introduction. Add citations along the four groups, reusing existing
 bibliography where possible:
 
 | Group | Existing refs to pull forward | To add |
@@ -45,7 +17,7 @@ bibliography where possible:
 FINDER/DrBC/PowerGraph additions also strengthen §2.3 and partially answer 37A's novelty
 objection (see B1).
 
-### A2. Define "criticality" early and formally (37C-W1/W4; advisor: hep konuştuğumuz konu) — HIGH, **gated on R1**
+### A2. Define "criticality" early and formally (37C-W1/W4) — HIGH, **gated on R1**
 Add a formal definitions block in §3 (before any use): criticality Q*(v), cascade impact I*(v),
 downstream impact, the softening procedure, propagation_threshold (0.2), depth damping, seed
 protocol {42, 123, 456, 789, 2024}.
@@ -57,13 +29,13 @@ resolved (run the pinned configuration, confirm which engine produced the ρ=0.6
 this section can be written honestly. This remains the single highest-leverage action: it unblocks
 the JSS flagship, the SI extension, and this revision simultaneously.
 
-### A3. Research-question duplication in §3 (37B, 37C-W5; advisor: gereksiz tekrar) — LOW
+### A3. Research-question duplication in §3 (37B, 37C-W5) — LOW
 RQs appear as prose at the section opening and again as RQ1–RQ3. Keep the enumerated form only;
 replace the prose restatement with a one-sentence forward reference. Mechanical fix.
 
-### A4. DEPENDS_ON direction (37B main concern; advisor accepted) — HIGH priority, but likely a *clarity* fix, not a correctness fix
+### A4. DEPENDS_ON direction (37B main concern) — HIGH priority, but likely a *clarity* fix, not a correctness fix
 **Audit result:** every retrievable statement in the manuscript already uses the convention the
-reviewer (and advisor) describe as correct: subscriber → publisher, dependent → dependency.
+reviewer describe as correct: subscriber → publisher, dependent → dependency.
 Intro, §3 formal definition, and Figure 1 caption are mutually consistent. The reviewer's summary
 inverts the paper's actual statement.
 
@@ -85,9 +57,9 @@ middleware audience.
 
 ---
 
-## Track B — Criticisms the advisor disputes → visibility fixes (no substantive concession)
+## Track B — Criticisms → visibility fixes (no substantive concession)
 
-### B1. "Pub-sub only general motivation, no technical detail" (37A; advisor: geçerli değil) — MEDIUM
+### B1. "Pub-sub only general motivation, no technical detail" (37A) — MEDIUM
 The QoS edge attribution, broker ROUTES semantics, and decoupling discussion exist but evidently
 don't register. Fixes: (a) a concrete running example introduced in §1 and threaded through §3–§5
 (graph → prediction → simulated cascade) — the JSS draft's a₁/a₂/a₃/ℓ example is ready-made;
@@ -95,17 +67,16 @@ don't register. Fixes: (a) a concrete running example introduced in §1 and thre
 7-dimensional QoS encoding"). If the revision becomes the JSS SI paper, the ATM system is the
 stronger running example (resolves D3 in favor of inclusion).
 
-### B2. "Past pub-sub dependability work not cited" (37A; advisor: §2.1'de inceledik) — LOW–MEDIUM
+### B2. "Past pub-sub dependability work not cited" (37A) — LOW–MEDIUM
 §2.1 exists. Fix is placement: name 2–3 key dependability works in §1 (overlaps A1) and open §2.1
 with an explicit topic sentence ("Dependability of pub-sub middleware has been studied at the
 protocol, broker-overlay, and runtime levels [refs]…") so a skimming reviewer cannot miss it.
 
-### B3. "Black-box simulator, below reproducibility standards" (37C-W1; advisor: §3.4'te link verdik) — MEDIUM — **RESOLVED 2026-07-18**
+### B3. "Black-box simulator, below reproducibility standards" (37C-W1) — MEDIUM
 The anonymized replication link exists, but for double-blind review many reviewers do not follow
 links, and journal standards expect the definition *in the paper body*. Fix: A2's formal
 definitions block satisfies this criticism as a side effect. Keep the link as supplement, not
-substitute. (Advisor is right that the criticism overstates; the reviewer is right about where the
-definition should live.)
+substitute.
 
 **Resolution:** A2's formal-definitions block (§3, done earlier this session) puts the I*(v)
 definition in the paper body. Separately, the package the link actually points to
@@ -120,7 +91,7 @@ into `reproduce/` with portable paths, README rewritten with JSS framing/install
 file listing/table-number mapping, both stale-docstring bugs corrected. §3.4 now names what's in
 the package rather than pointing at a bare link. B3 is closed.
 
-### B4. "No train/val split, possible data leakage" (37C-W6; advisor: §3.3 + §5.4 LOSO var) — MEDIUM
+### B4. "No train/val split, possible data leakage" (37C-W6) — MEDIUM
 The protocol exists but is split across two sections far apart. Fix: a single boxed/titled
 "Evaluation Protocol" paragraph early in §4 stating in four sentences: per-scenario splits,
 what is trained/validated/tested on what, in-distribution vs. LOSO settings, and the
@@ -129,15 +100,15 @@ looks; put it where they look.
 
 ---
 
-## Track C — Improvements the advisor endorsed in passing
+## Track C — Improvements
 
-### C1. Scenario justification table (37A; advisor: gerekçelendirme istemiş) — MEDIUM, **gated on D2**
+### C1. Scenario justification table (37A) — MEDIUM, **gated on D2**
 One-sentence-per-scenario is genuinely thin. Add a characterization table: per scenario |V| and |E|
 by type, topic/broker counts, QoS mix, generation parameters, and replication-package pointer, plus
 one sentence each on *what real deployment pattern it represents*. **Blocker: D2** — the 7 vs. 8
 scenario count must be canonicalized before any table is printed.
 
-### C2. Domain-utility metric (37A "all metrics internal"; advisor: "daha somut metrik olabilir miydi") — MEDIUM
+### C2. Domain-utility metric (37A "all metrics internal") — MEDIUM
 ρ and F1 measure the predictor against the simulator; nothing measures operator value. Cheapest
 credible addition: a **hardening-budget experiment** — replicate/harden top-k components selected
 by HGL vs. betweenness vs. random; report reduction in mean simulated cascade impact. Reuses
@@ -155,100 +126,8 @@ existing simulation machinery; produces the "tangible benefit" number 37A asked 
    evaluation-protocol box (B4), RQ dedup (A3), direction hardening (A4.2–4).
 6. New experiments: reversed-projection ablation (A4.4), hardening-budget (C2).
 
-## Thesis implications (advisor's note)
+## Thesis implications
 The A2 definitions block and the A4 direction-convention statement should be written once,
 canonically, and reused verbatim in the thesis — these are exactly the two points committee members
 will probe. The Simpson's-paradox stratified reporting and the evaluation-protocol box likewise
 transfer directly to the thesis validation chapter.
-
-## R2 (new, 2026-07-18): Undisclosed ensemble step invalidated the cached headline numbers
-
-A full pipeline rerun for this revision (main table, LOSO, both new §5.5/§5.6 experiments) did
-**not** reproduce the numbers this whole revision plan was written against. Root cause, traced via
-git history (see `si_middleware_extension.md` §6.1 for the full writeup): the pipeline that
-produced the cached results behind every headline number (ρ=0.620, F1=0.765, LOSO ρ=0.401, etc.)
-computed $Q_{\text{ens}}(v) = \alpha \cdot Q_{\text{GNN}} + (1-\alpha) \cdot Q_{\text{RMAV}}$, an
-ensemble blend with a separate quality-attribution score never mentioned in §3.2's architecture
-description. That ensemble step was removed from the codebase (commit `62b6b2d`, "Refactor GNN
-Prediction Pipeline: Remove Ensemble Blending", 2026-06-18) for unrelated reasons, well after the
-cached numbers were generated (~2026-06-07) and well before this revision session. The current
-codebase — pure `Q_GNN(v)`, no blending — is the one that actually matches what §3.2 describes.
-
-**Consequences already applied to `si_middleware_extension.md`/`.tex`:**
-- All of §5 rewritten with fresh numbers from the rerun (in-distribution results hold up
-  directionally — HGL still beats GL — but LOSO reverses: HGL/HGL-QoS now score negative mean ρ,
-  underperforming the homogeneous baselines that were previously beaten by a wide margin).
-- Abstract, §1 contribution #3, and §7 Conclusion rewritten to report the LOSO reversal as the
-  paper's central negative result rather than its third positive contribution.
-- New §6.1 ("Predictor Reproducibility") documents the discovery and the tracing process.
-- This changes the paper's central claim materially: heterogeneous message passing remains a real,
-  useful in-distribution advantage, but the "QoS-aware HGL generalizes out-of-distribution" claim
-  (previously headline contribution #3) is now a reported negative finding instead.
-
-**Not yet done / open follow-ups:**
-- Whether a *disclosed*, properly-described ensemble (GNN + a structural/quality score) can
-  legitimately recover OOD performance is an open question raised by this finding, noted as future
-  work in §7 — it would be a different, larger contribution than "a heterogeneous GNN generalizes,"
-  and would need its own evaluation section if pursued.
-- `docs/research/jss/draft.md` (the deprioritized SaG flagship paper) uses the same underlying
-  RMAV/Q(v) framework this ensemble blended with — that paper's own numbers should be checked
-  against the same commit-history timeline before it is ever revived, since it may have the
-  analogous problem in the other direction (RMAV numbers generated before/after code changes).
-- The reversed-projection ablation (§5.5) and hardening-budget experiment's Betweenness/Random arms
-  were unaffected (no GNN involved) and did not need revision; only hardening-budget's HGL(LOSO)
-  column changed, since it consumes the now-corrected LOSO predictions.
-
-## R3 (2026-07-19): `middleware26_revised.md` (Middleware Cycle 2 draft) brought in line with R2 and Track A/B/C
-
-`docs/research/middleware2026/middleware26_revised.md` — a separate, parallel revision draft targeting
-a possible Middleware Cycle 2 resubmission rather than the JSS SI extension — had fallen out of sync
-with everything above: it used an invented 3-node-type/2-edge-type schema found nowhere else in the
-codebase, had zero citations anywhere (including Related Work), defined ground truth by pointing at
-an unresolved `[Author et al., RASSE 2025]` placeholder, and reported the same invalidated
-ensemble-blended headline numbers R2 traced and removed from `si_middleware_extension.md` (system-wide
-MSE 0.014, uniformly strong LOSO zero-shot claims). It was rewritten in full against the submitted
-`middleware2026.md` and the corrected `si_middleware_extension.md`, reusing only material already
-verified elsewhere in the repo — no new numbers, citations, or claims were invented. Mapped against
-the three reviews:
-
-**37A (pub-sub relevance, scenario justification, no tangible metric):**
-- Table 1 replaced: one-sentence-per-scenario is now a full characterization (as-generated
-  Application/Library/Topic/Broker/Node counts, edge-type mix, topic QoS-reliability mix, and a
-  dedicated real-deployment-pattern sentence per scenario) — the C1 table, unblocked by reusing
-  `si_middleware_extension.md`'s Table 2b instead of waiting on D2 canonicalization.
-- New §5.5 hardening-budget analysis (risk-mass coverage by top-K selection method) — closes C2,
-  reusing the JSS sibling's hardening-budget design and results rather than inventing a new metric.
-
-**37B (writing/duplication, dependency direction):**
-- RQ duplication (A3) closed: RQs now appear once, as §5.2–5.4 headers, with no prose restatement
-  in §3.
-- A4's direction-convention statement is now written twice, in contrast form, in both §1.2 and
-  §3.1 ("data flows $A \to B$; dependency points $B \to A$... against the direction of data flow"),
-  per A4 owner-action 2 — directly targeting *why* two reviewers tripped on an already-correct claim,
-  not just repeating the claim.
-
-**37C (undefined criticality, black-box simulator, reproducibility):**
-- A2's formal ground-truth definition (named `FaultInjector` engine, seed protocol
-  {42,123,456,789,2024}, depth-damping, exact QoS multipliers, propagation_threshold=0.2) is now in
-  §4.1's body, replacing the hand-wavy min-max-scaling paragraph and the placeholder citation — RASSE
-  2025 is now cited as reference [23] with a real DOI.
-- The R2 finding is disclosed in a new §6.2 ("Predictor Reproducibility"), naming commit `62b6b2d`
-  and reporting the numbers §3.3 as-described actually produces, rather than the un-reproducible
-  cached ones.
-- §5.3 (formerly claiming "robust zero-shot domain transfer") now reports the corrected LOSO
-  reversal plainly — concise, not the headline, but not omitted or misstated.
-
-**Preserved from the submission, not regressed:** the existing 22-entry bibliography, the
-already-correct `DEPENDS_ON` direction, the Simpson's-paradox stratified reporting, and the
-bootstrap-CI/paired-Wilcoxon statistical-testing methodology (§4.4) all carry through unchanged.
-
-**Net effect on headline numbers:** the corrected in-distribution results are weaker than the
-submission's (mean $\rho$ 0.411 vs. 0.620; F1 0.688 vs. 0.765), and LOSO is now a reported negative
-result instead of the submission's headline 0.401 — the same trade this revision plan already made
-for the JSS extension in R2. This is not a quality regression; it is the defensible numbers replacing
-ones that do not reproduce from the architecture the paper describes.
-
-**Not yet done:** this draft has not been run through the same Track A/B/C sequencing rigor as the
-JSS extension (no explicit venue/timeline decision recorded for Middleware Cycle 2, which R2 already
-marked as "no longer the fallback plan"). Treat `middleware26_revised.md` as a corrected, internally
-consistent artifact, not as an actively-targeted submission unless that decision is revisited.
