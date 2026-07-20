@@ -125,15 +125,7 @@ class GNNEdgeCriticalityScore:
     availability_score: float
     security_score: float
 
-    @property
-    def criticality_level(self) -> str:
-        if self.composite_score >= 0.75:
-            return "CRITICAL"
-        elif self.composite_score >= 0.55:
-            return "HIGH"
-        elif self.composite_score >= 0.35:
-            return "MEDIUM"
-        return "LOW"
+    criticality_level: str = "MINIMAL"    # Calculated via adaptive thresholds (per-scenario box-plot)
 
     def to_dict(self) -> dict:
         return {
@@ -201,7 +193,10 @@ class GNNAnalysisResult:
                 maintainability=_to_level(qs.maintainability),
                 availability=_to_level(qs.availability),
                 security=_to_level(qs.security),
-                overall=_to_level(qs.overall)
+                # Reuse the adaptive, per-scenario box-plot level already assigned
+                # to `score.criticality_level` rather than recomputing with fixed
+                # absolute cutoffs, so this shim can't disagree with node_scores.
+                overall=CriticalityLevel[score.criticality_level],
             )
             s_dict = self._structural_cache.get(node_id, {})
             sm = StructuralMetrics(id=node_id, name=s_dict.get("name", node_id), type=s_dict.get("type", "Application"))
@@ -220,12 +215,10 @@ class GNNAnalysisResult:
             qs = QualityScores(reliability=es.reliability_score, maintainability=es.maintainability_score, 
                                availability=es.availability_score, security=es.security_score, 
                                overall=es.composite_score)
-            def _to_level(val: float) -> CriticalityLevel:
-                if val >= 0.75: return CriticalityLevel.CRITICAL
-                if val >= 0.55: return CriticalityLevel.HIGH
-                return CriticalityLevel.MEDIUM if val >= 0.35 else CriticalityLevel.LOW
-            eqs.append(EdgeQuality(source=es.source_node, target=es.target_node, source_type="GNN_Node", 
-                                   target_type="GNN_Node", dependency_type=es.edge_type, scores=qs, level=_to_level(qs.overall)))
+            # Reuse the adaptive, per-scenario box-plot level already assigned to
+            # `es.criticality_level` rather than recomputing with fixed cutoffs.
+            eqs.append(EdgeQuality(source=es.source_node, target=es.target_node, source_type="GNN_Node",
+                                   target_type="GNN_Node", dependency_type=es.edge_type, scores=qs, level=CriticalityLevel[es.criticality_level]))
         return eqs
 
     def top_critical_nodes(self, n: int = 10, use_ensemble: bool = True) -> List[GNNCriticalityScore]:
@@ -703,6 +696,20 @@ class GNNService:
         for k, v in result.node_scores.items():
             v.criticality_level = lookup.get(k, "MINIMAL").upper()
         result.stats["composite"] = classification.stats.to_dict()
+
+        # Classify edge scores against this scenario's own edge-score distribution
+        # (mirrors the node classification above; previously edges used fixed
+        # absolute cutoffs, inconsistent across scenarios of different scale).
+        if result.edge_scores:
+            edge_data = [
+                {"id": i, "score": e.composite_score}
+                for i, e in enumerate(result.edge_scores)
+            ]
+            edge_classification = classifier.classify(edge_data, metric_name="EdgeCriticality")
+            edge_lookup = {item.id: item.level.value for item in edge_classification.items}
+            for i, e in enumerate(result.edge_scores):
+                e.criticality_level = edge_lookup.get(i, "MINIMAL").upper()
+            result.stats["edge_composite"] = edge_classification.stats.to_dict()
 
         # Attach context for shimming
         result.layer = layer

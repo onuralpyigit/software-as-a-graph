@@ -119,6 +119,8 @@ class KFoldReport:
     overall_mean_rho: float = 0.0
     overall_std_rho: float = 0.0
     overall_mean_f1: float = 0.0
+    overall_mean_precision: float = 0.0
+    overall_mean_recall: float = 0.0
     overall_mean_ndcg: float = 0.0
     n_scenarios: int = 0
     k_folds: int = 0
@@ -316,6 +318,8 @@ def run_one_scenario(
 
         rho_vals = [m["spearman_rho"] for m in seed_metrics]
         f1_vals = [m["f1_at_k"] for m in seed_metrics]
+        precision_vals = [m["precision_at_k"] for m in seed_metrics]
+        recall_vals = [m["recall_at_k"] for m in seed_metrics]
         ndcg_vals = [m["ndcg_10"] for m in seed_metrics]
         rmse_vals = [m["rmse"] for m in seed_metrics]
 
@@ -336,12 +340,16 @@ def run_one_scenario(
             mean_metrics={
                 "spearman_rho": float(np.mean(rho_vals)),
                 "f1_at_k": float(np.mean(f1_vals)),
+                "precision_at_k": float(np.mean(precision_vals)),
+                "recall_at_k": float(np.mean(recall_vals)),
                 "ndcg_10": float(np.mean(ndcg_vals)),
                 "rmse": float(np.mean(rmse_vals)),
             },
             std_metrics={
                 "spearman_rho": float(np.std(rho_vals)),
                 "f1_at_k": float(np.std(f1_vals)),
+                "precision_at_k": float(np.std(precision_vals)),
+                "recall_at_k": float(np.std(recall_vals)),
                 "ndcg_10": float(np.std(ndcg_vals)),
                 "rmse": float(np.std(rmse_vals)),
             },
@@ -353,6 +361,8 @@ def run_one_scenario(
 
     fold_rhos = [f.mean_metrics["spearman_rho"] for f in fold_results]
     fold_f1s = [f.mean_metrics["f1_at_k"] for f in fold_results]
+    fold_precisions = [f.mean_metrics["precision_at_k"] for f in fold_results]
+    fold_recalls = [f.mean_metrics["recall_at_k"] for f in fold_results]
     fold_ndcgs = [f.mean_metrics["ndcg_10"] for f in fold_results]
     fold_rmses = [f.mean_metrics["rmse"] for f in fold_results]
 
@@ -371,12 +381,16 @@ def run_one_scenario(
         mean_metrics={
             "spearman_rho": float(np.mean(fold_rhos)),
             "f1_at_k": float(np.mean(fold_f1s)),
+            "precision_at_k": float(np.mean(fold_precisions)),
+            "recall_at_k": float(np.mean(fold_recalls)),
             "ndcg_10": float(np.mean(fold_ndcgs)),
             "rmse": float(np.mean(fold_rmses)),
         },
         std_metrics={
             "spearman_rho": float(np.std(fold_rhos)),
             "f1_at_k": float(np.std(fold_f1s)),
+            "precision_at_k": float(np.std(fold_precisions)),
+            "recall_at_k": float(np.std(fold_recalls)),
             "ndcg_10": float(np.std(fold_ndcgs)),
             "rmse": float(np.std(fold_rmses)),
         },
@@ -449,6 +463,8 @@ def run_kfold(
 
     all_rhos = [r.mean_metrics["spearman_rho"] for r in scenario_results]
     all_f1s = [r.mean_metrics["f1_at_k"] for r in scenario_results]
+    all_precisions = [r.mean_metrics["precision_at_k"] for r in scenario_results]
+    all_recalls = [r.mean_metrics["recall_at_k"] for r in scenario_results]
     all_ndcgs = [r.mean_metrics["ndcg_10"] for r in scenario_results]
 
     return KFoldReport(
@@ -456,6 +472,8 @@ def run_kfold(
         overall_mean_rho=float(np.mean(all_rhos)),
         overall_std_rho=float(np.std(all_rhos)),
         overall_mean_f1=float(np.mean(all_f1s)),
+        overall_mean_precision=float(np.mean(all_precisions)),
+        overall_mean_recall=float(np.mean(all_recalls)),
         overall_mean_ndcg=float(np.mean(all_ndcgs)),
         n_scenarios=len(scenario_results),
         k_folds=k,
@@ -476,6 +494,8 @@ def write_results_json(report: KFoldReport, path: Path) -> None:
             "overall_mean_spearman_rho": report.overall_mean_rho,
             "overall_std_spearman_rho": report.overall_std_rho,
             "overall_mean_f1_at_k": report.overall_mean_f1,
+            "overall_mean_precision_at_k": report.overall_mean_precision,
+            "overall_mean_recall_at_k": report.overall_mean_recall,
             "overall_mean_ndcg_10": report.overall_mean_ndcg,
         },
         "scenarios": [
@@ -509,7 +529,8 @@ def write_per_fold_csv(report: KFoldReport, path: Path) -> None:
         w = csv.writer(f)
         w.writerow([
             "scenario_id", "fold_idx", "seed",
-            "spearman_rho", "f1_at_k", "ndcg_10", "rmse", "mae",
+            "spearman_rho", "f1_at_k", "precision_at_k", "recall_at_k",
+            "ndcg_10", "rmse", "mae",
             "n", "prediction_mode",
         ])
         for r in report.scenario_results:
@@ -519,6 +540,8 @@ def write_per_fold_csv(report: KFoldReport, path: Path) -> None:
                         r.scenario_id, fold.fold_idx, m["seed"],
                         f"{m['spearman_rho']:.4f}",
                         f"{m['f1_at_k']:.4f}",
+                        f"{m['precision_at_k']:.4f}",
+                        f"{m['recall_at_k']:.4f}",
                         f"{m['ndcg_10']:.4f}",
                         f"{m['rmse']:.4f}",
                         f"{m['mae']:.4f}",
@@ -538,18 +561,22 @@ def write_summary_md(report: KFoldReport, path: Path) -> None:
     L.append("")
     L.append(f"- Spearman ρ : **{report.overall_mean_rho:.4f} ± {report.overall_std_rho:.4f}**")
     L.append(f"- F1 @ K     : {report.overall_mean_f1:.4f}")
+    L.append(f"- Precision @ K : {report.overall_mean_precision:.4f}")
+    L.append(f"- Recall @ K : {report.overall_mean_recall:.4f}")
     L.append(f"- NDCG @ 10  : {report.overall_mean_ndcg:.4f}")
     L.append("")
     L.append("## Per-scenario (in-domain fit)")
     L.append("")
-    L.append("| Scenario | mean ρ | std ρ | mean F1 | mean NDCG@10 | folds |")
-    L.append("|----------|--------|-------|---------|--------------|-------|")
+    L.append("| Scenario | mean ρ | std ρ | mean F1 | mean Precision@K | mean Recall@K | mean NDCG@10 | folds |")
+    L.append("|----------|--------|-------|---------|-------------------|----------------|--------------|-------|")
     for r in report.scenario_results:
         L.append(
             f"| {r.scenario_id} "
             f"| {r.mean_metrics['spearman_rho']:.4f} "
             f"| {r.std_metrics['spearman_rho']:.4f} "
             f"| {r.mean_metrics['f1_at_k']:.4f} "
+            f"| {r.mean_metrics['precision_at_k']:.4f} "
+            f"| {r.mean_metrics['recall_at_k']:.4f} "
             f"| {r.mean_metrics['ndcg_10']:.4f} "
             f"| {len(r.fold_results)} |"
         )
