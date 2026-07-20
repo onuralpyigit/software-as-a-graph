@@ -219,6 +219,8 @@ Structural edges reveal physical relationships but not logical dependencies. Thi
 
 **Edge direction:** DEPENDS_ON always points from the *dependent* to the *dependency* (e.g., subscriber → publisher, application → broker).
 
+> See [criticality.md](criticality.md) for the conceptual definition of component and relationship criticality — the `DEPENDS_ON` edges derived here are what relationship criticality is computed over.
+
 Six derivation rules are applied, producing six `dependency_type` values:
 
 | Rule | `dependency_type` | Source Pattern | Weight |
