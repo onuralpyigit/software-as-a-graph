@@ -4,6 +4,24 @@
 
 ---
 
+> ### In Plain Terms
+>
+> **Criticality** is how much a component or connection matters to the people who rely on the system working — measured by what would go wrong for them if it failed, not by how the code is written internally.
+>
+> Per ISO/IEC 25010 (SQuaRE), Quality-in-Use is quality as experienced by a stakeholder in a real context of use, not an internal code property. So criticality answers: **"If this fails, how much worse does the outcome get for the people using the system?"** — broken into five plain questions:
+>
+> | Quality-in-Use characteristic | What a user would notice |
+> |:---|:---|
+> | Effectiveness | "Can I still get my task done at all, or does it just stop working?" |
+> | Efficiency | "Does it now take more time, retries, or resources to get the same result?" |
+> | Satisfaction | "Do I still trust this system / enjoy using it after this happens?" |
+> | Freedom from risk | "Does this failure cost money, create safety issues, or expose data?" |
+> | Context coverage | "Does this hold up everywhere I use it, or only in some situations?" |
+>
+> A component or edge is **critical** to the extent its failure degrades one or more of these for real stakeholders. The RMAV structural metrics below (Reliability, Maintainability, Availability, Vulnerability) are *proxies* for this — graph-computable stand-ins used because you can't survey real users for every simulated failure. See [§4](#4-quality-in-use-framing-isoiec-25010-square) for the full technical mapping.
+
+---
+
 ## Table of Contents
 
 1. [Overview](#1-overview)
@@ -14,8 +32,9 @@
 3. [Relationship (Edge) Criticality](#3-relationship-edge-criticality)
    - 3.1 [Definition](#31-definition)
    - 3.2 [Structural Edge Signals](#32-structural-edge-signals)
-   - 3.3 [Learned Edge Scoring (GNN)](#33-learned-edge-scoring-gnn)
-   - 3.4 [Ranking Critical Edges](#34-ranking-critical-edges)
+   - 3.3 [Edge RMAV Decomposition](#33-edge-rmav-decomposition)
+   - 3.4 [Learned Edge Scoring (GNN)](#34-learned-edge-scoring-gnn)
+   - 3.5 [Ranking Critical Edges](#35-ranking-critical-edges)
 4. [Quality-in-Use Framing (ISO/IEC 25010 SQuaRE)](#4-quality-in-use-framing-isoiec-25010-square)
    - 4.1 [The Five Quality-in-Use Characteristics](#41-the-five-quality-in-use-characteristics)
    - 4.2 [Mapping RMAV to Quality-in-Use](#42-mapping-rmav-to-quality-in-use)
@@ -42,7 +61,7 @@ Two distinct but related concepts are in scope:
 
 ### 2.1 Definition
 
-> **Component criticality** is the degree to which a component's failure, degradation, or compromise threatens the health of the rest of the system — measured as the breadth and depth of failure propagation, the difficulty of changing the component safely, whether it is a structural single point of failure, and how attractive a target it is for attack.
+> **Component criticality** is the degree to which the failure, latency, or degradation of a specific software component reduces the system's capacity to enable users to achieve specified goals with effectiveness, efficiency, freedom from risk, and satisfaction within its operational context — and how consistently that impact holds across the contexts in which the system is used.
 
 Criticality is computed, not asserted: it is derived entirely from a component's position in $G_{\text{analysis}}(l)$ (the layer-projected dependency graph produced by [graph-model.md](graph-model.md)), never from manual tagging.
 
@@ -83,7 +102,7 @@ Implemented by `CriticalityLevel` and `BoxPlotStats` in [saag/core/criticality.p
 
 ### 3.1 Definition
 
-> **Relationship criticality** is the degree to which a single dependency edge — a specific pub-sub linkage or derived `DEPENDS_ON` relationship — is non-redundant and load-bearing for system connectivity: how much of the system's reachability, path efficiency, or failure containment depends on that one edge existing.
+> **Relationship criticality** is the degree to which the failure, latency, or degradation of a specific dependency relationship — a pub-sub linkage or derived `DEPENDS_ON` edge, independent of its endpoints' own criticality — reduces the system's capacity to enable users to achieve specified goals with effectiveness, efficiency, freedom from risk, and satisfaction within its operational context — and how consistently that impact holds across the contexts in which the system is used.
 
 Where component criticality asks "how dangerous is losing this node," relationship criticality asks "how dangerous is losing this specific *link*, independent of the endpoints' own criticality." A high-criticality node can still have many low-criticality (redundant) edges; a low-criticality node can sit at the far end of a single, highly critical bridge edge.
 
@@ -100,7 +119,25 @@ These are distinct from two *node-level* metrics that are easy to mistake for ed
 - **Bridge Ratio `BR(v)`** ([structural-analysis.md §9.9](structural-analysis.md#99-bridge-ratio-br)) — the *fraction of a node's own connections* that are bridges. It describes a node's exposure to non-redundant edges, not a per-edge score.
 - **Multi-Path Coupling Index `MPCI(v)`** ([structural-analysis.md §9.3](structural-analysis.md#93-multi-path-coupling-index-mpci)) — counts *redundant* shared channels feeding into a node. High MPCI means a node's incoming edges are collectively low-criticality (multi-channel, no single edge is a SPOF); low MPCI (with high `DG_in`) means each incoming edge is closer to a single point of failure for that dependency.
 
-### 3.3 Learned Edge Scoring (GNN)
+### 3.3 Edge RMAV Decomposition
+
+Just as component criticality is decomposed into RMAV (§2.2), each edge is scored on the same four dimensions in [`_score_and_classify_edges`](../saag/analysis/analyzer.py#L412-L483) — an edge is not reduced to a single number, but assessed as reliability, maintainability, availability, and vulnerability risks in its own right, blending the edge's intrinsic structural signals (§3.2) with its endpoints' own RMAV scores:
+
+| Dimension | Question Answered for an Edge | Formula (blend of edge-intrinsic + endpoint context) |
+|:---|:---|:---|
+| **R — Reliability** | How much does this specific link contribute to fault propagation? | Edge betweenness + edge weight (bridge proxy) + `max(source.R, target.R)` |
+| **M — Maintainability** | How much does this link add to coupling/change cost? | Edge betweenness + is-bridge flag + edge weight |
+| **A — Availability** | Does losing this specific link partition the graph? | is-bridge flag + `min(source.A, target.A)` |
+| **V — Vulnerability** | How much does this link expand the attack surface? | Edge weight (QoS-derived) + `max(source.V, target.V)` |
+
+Two design choices carry meaning:
+
+- **`max()` for R and V, `min()` for A** — a link is only as *reliable/secure* as its riskiest endpoint (failure or compromise on either side propagates through the edge), but it is only as *available* as its weakest endpoint (the edge can't be more resilient than the more fragile side it connects).
+- **`is_bridge` appears in both M and A** — a non-redundant edge is expensive to reroute around (raises M) *and* is a structural cut-point if removed (raises A) — the same structural fact, two different consequences.
+
+The four dimension scores are combined into the same overall composite formula used for nodes (§2.2), giving each edge a `QualityScores` record (`reliability`, `maintainability`, `availability`, `security`, `overall`) identical in shape to a component's — see [`EdgeQuality`](../saag/core/metrics.py#L345-L378).
+
+### 3.4 Learned Edge Scoring (GNN)
 
 The Predict stage's GNN produces a direct, per-edge criticality prediction rather than relying on endpoint-node proxies — see [prediction.md §2.6](prediction.md#26-edge-criticality-prediction) and [design/SDD.md §6.26](design/SDD.md) for the full architecture:
 
@@ -121,7 +158,7 @@ bridge_multiplier = 1.0   if (u, v) is a structural bridge
 
 This is the formal statement of relationship criticality used for training/validation: an edge is critical in proportion to *both* what it connects to (`I*(u)`) *and* whether it is replaceable (`bridge_multiplier`).
 
-### 3.4 Ranking Critical Edges
+### 3.5 Ranking Critical Edges
 
 Edges are ranked for reporting/UI consumption via `get_critical_edges()` in [saag/analysis/service.py](../saag/analysis/service.py) and exposed through [api/routers/components.py](../api/routers/components.py), sorting by `EdgeQuality.scores.overall` (the same RMAV-style composite machinery used for nodes, applied edge-wise).
 
