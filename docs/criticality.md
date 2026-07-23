@@ -4,24 +4,6 @@
 
 ---
 
-> ### In Plain Terms
->
-> **Criticality** is how much a component or connection matters to the people who rely on the system working — measured by what would go wrong for them if it failed, not by how the code is written internally.
->
-> Per ISO/IEC 25010 (SQuaRE), Quality-in-Use is quality as experienced by a stakeholder in a real context of use, not an internal code property. So criticality answers: **"If this fails, how much worse does the outcome get for the people using the system?"** — broken into five plain questions:
->
-> | Quality-in-Use characteristic | What a user would notice |
-> |:---|:---|
-> | Effectiveness | "Can I still get my task done at all, or does it just stop working?" |
-> | Efficiency | "Does it now take more time, retries, or resources to get the same result?" |
-> | Satisfaction | "Do I still trust this system / enjoy using it after this happens?" |
-> | Freedom from risk | "Does this failure cost money, create safety issues, or expose data?" |
-> | Context coverage | "Does this hold up everywhere I use it, or only in some situations?" |
->
-> A component or edge is **critical** to the extent its failure degrades one or more of these for real stakeholders. The RMAV structural metrics below (Reliability, Maintainability, Availability, Vulnerability) are *proxies* for this — graph-computable stand-ins used because you can't survey real users for every simulated failure. See [§4](#4-quality-in-use-framing-isoiec-25010-square) for the full technical mapping.
-
----
-
 ## Table of Contents
 
 1. [Overview](#1-overview)
@@ -37,8 +19,11 @@
    - 3.5 [Ranking Critical Edges](#35-ranking-critical-edges)
 4. [Quality-in-Use Framing (ISO/IEC 25010 SQuaRE)](#4-quality-in-use-framing-isoiec-25010-square)
    - 4.1 [The Five Quality-in-Use Characteristics](#41-the-five-quality-in-use-characteristics)
-   - 4.2 [Mapping RMAV to Quality-in-Use](#42-mapping-rmav-to-quality-in-use)
-   - 4.3 [Proxy, Not Ground Truth](#43-proxy-not-ground-truth)
+   - 4.2 [Stakeholders & Context of Use](#42-stakeholders--context-of-use)
+   - 4.3 [Mapping RMAV to Quality-in-Use](#43-mapping-rmav-to-quality-in-use)
+   - 4.4 [Worked Example: Score to Narrative](#44-worked-example-score-to-narrative)
+   - 4.5 [Proxy, Not Ground Truth](#45-proxy-not-ground-truth)
+   - 4.6 [Real-World Drivers vs. Structural Proxies](#46-real-world-drivers-vs-structural-proxies)
 5. [Where This Fits in the Pipeline](#5-where-this-fits-in-the-pipeline)
 6. [References](#6-references)
 
@@ -46,14 +31,28 @@
 
 ## 1. Overview
 
+Criticality is how much a component or connection matters to the people who rely on the system working — measured by what would go wrong for them if it failed, not by how the code is written internally.
+
+Per ISO/IEC 25010 (SQuaRE), Quality-in-Use is quality as experienced by a stakeholder in a real context of use, not an internal code property. So criticality answers: **"If this fails, how much worse does the outcome get for the people using the system?"** — broken into five plain questions:
+
+| Quality-in-Use characteristic | What a user would notice |
+|:---|:---|
+| Effectiveness | "Can I still get my task done at all, or does it just stop working?" |
+| Efficiency | "Does it now take more time, retries, or resources to get the same result?" |
+| Satisfaction | "Do I still trust this system / enjoy using it after this happens?" |
+| Freedom from risk | "Does this failure cost money, create safety issues, or expose data?" |
+| Context coverage | "Does this hold up everywhere I use it, or only in some situations?" |
+
+A component or edge is **critical** to the extent its failure degrades one or more of these for real stakeholders. The RMAV structural metrics below (Reliability, Maintainability, Availability, Vulnerability) are *proxies* for this — graph-computable stand-ins used because you can't survey real users for every simulated failure. See [§4](#4-quality-in-use-framing-isoiec-25010-square) for the full technical mapping.
+
 Every entity in the graph — a component (node) or a dependency (edge) — carries a **criticality** signal: a score describing how much damage its failure, degradation, or compromise would do to the rest of the system. This document is the conceptual home for that concept. It does not re-derive formulas that already live in [structural-analysis.md](structural-analysis.md) and [prediction.md](prediction.md); it defines the terms, shows where each signal is computed, and explains the theoretical grounding (ISO/IEC 25010 SQuaRE Quality-in-Use) that motivates *why* these particular structural signals are treated as criticality.
 
 Two distinct but related concepts are in scope:
 
-| Concept | Applies to | Primary output |
-|:---|:---|:---|
-| **Component criticality** | Nodes ($v \in V$: Application, Broker, Topic, Node, Library) | RMAV scores $R(v), M(v), A(v), V(v), Q(v)$ + five-tier classification |
-| **Relationship criticality** | Edges ($e \in E$: physical pub-sub links and derived `DEPENDS_ON` edges) | Structural bridge/betweenness signals + GNN edge score $Q_{\text{GNN}}(u,v)$ |
+| Concept | Applies to | Primary output | User-side failure signature |
+|:---|:---|:---|:---|
+| **Component criticality** | Nodes ($v \in V$: Application, Broker, Topic, Node, Library) | RMAV scores $R(v), M(v), A(v), V(v), Q(v)$ + five-tier classification | The node itself goes away. E.g. MainBroker fails → every application routed through it loses its only path to publish/subscribe; the task stops outright, it doesn't degrade (§4.4). |
+| **Relationship criticality** | Edges ($e \in E$: physical pub-sub links and derived `DEPENDS_ON` edges) | Structural bridge/betweenness signals + GNN edge score $Q_{\text{GNN}}(u,v)$ | The node survives, but one specific *link* to it breaks. A low-criticality node can still sit behind a single highly critical bridge edge — losing that one relationship is as consequential as losing a much higher-scoring node (§3.1). |
 
 ---
 
@@ -178,7 +177,31 @@ ISO/IEC 25010 (SQuaRE) defines **Quality-in-Use** as quality measured from the o
 | **Freedom from risk** | Economic, Health & safety, Environmental risk mitigation | Degree to which the system limits risk of harm |
 | **Context coverage** | Context completeness, Flexibility | Degree to which quality-in-use is sustained across all intended contexts |
 
-### 4.2 Mapping RMAV to Quality-in-Use
+Restated per characteristic, as a definition of what "high criticality on that characteristic" means for a component or relationship in this graph:
+
+- **Effectiveness criticality** — failure directly prevents a dependent from completing its function, or corrupts the result it produces. This is what a structural SPOF (high $A(v)$, §2.2) operationalizes: removal partitions the graph, so downstream components cannot complete their function at all, not just slower.
+- **Efficiency criticality** — failure or added latency forces dependents into retries, failover, or extra resource spend to reach the same outcome. This is what cascade reach ($R$) and coupling cost ($M$) operationalize.
+- **Freedom-from-risk criticality** — malfunction exposes the operator or business to economic loss, safety hazard, or security/compliance breach. This is what $A$ (operational risk) and $V$ (security/legal risk) jointly operationalize, and why $Q(v)$ weights $A$ highest (§2.2).
+- **Satisfaction criticality** — repeated or high-profile failures erode downstream trust in the system, independent of whether the immediate task technically still completes. Only partially operationalized by RMAV (§4.5).
+- **Context-coverage criticality** — whether the impact holds in every deployment/topology this component or relationship appears in, or only in specialized configurations. Checked empirically via cross-scenario/cross-domain stability, not a single RMAV dimension (§4.5).
+
+### 4.2 Stakeholders & Context of Use
+
+ISO/IEC 25010 defines Quality-in-Use relative to *specified* stakeholders operating in a *specified* context of use — it is not a free-floating property. Applied to this project, "stakeholder" actually spans two distinct populations, and conflating them is the easiest way to misread a criticality score:
+
+- **Who is harmed by a failure.** The end users and operators of the *system being modeled* — e.g. the customers of an ATM network, the downstream services subscribing to a Kafka topic, the operators of a ROS 2 robot. The five characteristics in §4.1 describe *their* experience, and that is what a criticality score is ultimately a proxy for.
+- **Who acts on the criticality signal.** The engineering role that consumes $Q(v)$/RMAV output to prioritize remediation. Each RMAV dimension has a named primary consumer (see the [RMAV Quality Model table in README.md](../README.md#rmav-quality-model)):
+
+  | RMAV Dimension | Primary Engineering Stakeholder | Whose Quality-in-Use They're Protecting |
+  |:---|:---|:---|
+  | **R** — Reliability | Reliability Engineer | Effectiveness/Efficiency for end users caught in a cascade |
+  | **M** — Maintainability | Software Architect | Efficiency of the engineering team's own change process |
+  | **A** — Availability | DevOps / SRE | Effectiveness and Freedom from risk for end users during an outage |
+  | **V** — Vulnerability | Security Engineer | Freedom from risk (security/legal exposure) for end users and the business |
+
+A criticality score routes a structural signal to the engineering role equipped to act on it, but the *severity* it encodes is always denominated in harm to the first population — not in convenience for the second. The mapping in §4.3 is stated from that first, end-user perspective.
+
+### 4.3 Mapping RMAV to Quality-in-Use
 
 RMAV and edge criticality are **structural proxies** for quality-in-use loss under failure — they are graph-computable, deterministic, and don't require live stakeholders. This table states which Quality-in-Use characteristic each RMAV dimension primarily operationalizes, and why:
 
@@ -190,9 +213,43 @@ RMAV and edge criticality are **structural proxies** for quality-in-use loss und
 | **Freedom from risk** | **A + V** (dominant), **R** | Availability quantifies economic/operational risk (SPOF = certain partition); Vulnerability quantifies security/legal risk (breach exposure); Reliability quantifies propagation risk. This is why $Q(v)$ weights $A$ highest (0.43) — freedom-from-risk is the dominant quality-in-use concern for infrastructure components. |
 | **Context coverage** | Cross-scenario/cross-domain stability of the score | A component's criticality ranking should hold across topologies and domains; instability here is a weakness of the *criticality signal itself*, checked via the per-domain repeated stratified k-fold evaluation and multi-scenario batch runs (`cli/run_scenarios.sh`). |
 
-### 4.3 Proxy, Not Ground Truth
+### 4.4 Worked Example: Score to Narrative
+
+The formulas above stay abstract until tied to an instance. [structural-analysis.md §13](structural-analysis.md#13-worked-example) computes `A(MainBroker) = 0.679` → **HIGH**, driven by `AP_c_directed = 0.65` (a directed structural SPOF) and `BR = 1.0` (every one of MainBroker's edges is a bridge — there is no redundant path around it). Read as a Quality-in-Use narrative for the end users of that system:
+
+- **Effectiveness** — if MainBroker fails, both SensorApp and MonitorApp lose their only path to publish/subscribe on `/temperature`. The monitoring task doesn't degrade, it stops: `BR = 1.0` means there is no alternate route left to fall back on.
+- **Freedom from risk** — an undetected temperature excursion during that outage is an economic or safety risk to whoever depends on the reading, which is exactly why $A$ carries the highest weight (0.43) in $Q(v)$ (§2.2).
+- **Context coverage** — because every one of MainBroker's edges is a bridge, this holds in *every* context this topology is used in; there's no scenario where a redundant path happens to save the day.
+
+A component scoring MINIMAL on $A$ but HIGH on $V$ (e.g. a rarely-invoked but highly-reachable component) would instead read as: normal operation is unaffected (Effectiveness fine), but a compromise there has outsized reach (Freedom from risk driven by breach exposure, not outage) — the same five-characteristic lens, applied to a different RMAV profile.
+
+### 4.5 Proxy, Not Ground Truth
 
 Quality-in-use is behavioral and only directly observable via user studies, incident data, or — as used in this project — **simulated failure impact**. RMAV/edge scores are validated against that simulated ground truth ($I_R(v), I_M(v), I_A(v), I_V(v)$ from [failure-simulation.md](failure-simulation.md)) via the correlation, F1, and SPOF-F1 metrics computed in [validation.md](validation.md). That validation step is precisely the question "does our structural criticality proxy actually track quality-in-use loss under failure?" RMAV should be described as **operationalizing Effectiveness and Freedom-from-Risk as computable, validated structural metrics**, not as a complete model of Quality-in-Use — Satisfaction and Context Coverage are only partially covered, and not directly measured from live stakeholder behavior.
+
+### 4.6 Real-World Drivers vs. Structural Proxies
+
+§4.5 states the gap qualitatively; this section states it dimension-by-dimension. In a live system, each RMAV dimension is really driven by a mix of runtime, code, and security signals — most of which this project has no field for. The graph model ([graph-model.md](graph-model.md)) carries topology, a DDS-style QoS weight (`reliability`/`durability`/`transport_priority` + message size — a delivery-guarantee proxy, not live traffic or security metadata), and static code metrics (LOC, cyclomatic complexity, instability, LCOM). There is no MTTF/MTTR, privilege, encryption, or telemetry field anywhere in the schema — so every RMAV number below is a structural stand-in, never a direct read of the real-world driver.
+
+**Component criticality:**
+
+| Dimension | Real-world driver | What the structural proxy actually captures | Not captured |
+|:---|:---|:---|:---|
+| **R** | Intrinsic failure rate (MTTF) and severity of an independent failure | Reverse PageRank + in-degree + CDPot (§2.2): how far/deep a failure would propagate *given that it happens* | Whether the node fails often at all — $R(v)$ is purely blast-radius, silent on the component's own failure rate |
+| **M** | Change-impact risk: regression likelihood from complexity and code churn | `CQP` (§2.2, structural-analysis.md §11.2) blends `complexity_norm`, `instability_code`, `lcom_norm` from static code metrics, plus topological betweenness/coupling | Code churn as a time-series (commit frequency) — `instability_code` is a point-in-time Martin instability ratio, not a churn rate |
+| **A** | SPOF status weighted by MTTR (how long the outage lasts once it starts) | `AP_c_directed` + bridge ratio + `QSPOF` (§2.2): whether removing the node partitions the graph | MTTR — every structural SPOF is scored the same regardless of how fast it would actually be restored |
+| **V** | Asset value (PII/secrets handled) and the component's privilege level | Reverse eigenvector/closeness centrality + QoS-weighted in-degree (§2.2): how reachable/central the node is | Data sensitivity, privilege level, or what the component does — $V(v)$ is topology-only; a low-privilege leaf handling PII would still score MINIMAL |
+
+**Relationship criticality:**
+
+| Dimension | Real-world driver | What the structural proxy actually captures | Not captured |
+|:---|:---|:---|:---|
+| **R** | Cascading-failure probability: synchronous/blocking calls with no circuit breaker | Edge betweenness + bridge factor + `max(source.R, target.R)` (§3.3) | Whether the call is actually synchronous/blocking or backed by a circuit breaker — a runtime/code property invisible to a static graph |
+| **M** | Interface/contract volatility: how likely a change on one side breaks the other | Edge betweenness + is-bridge flag + edge weight (§3.3) | Semantic contract coupling (e.g. a shared database schema) — only topological reachability is measured |
+| **A** | Traffic bottlenecks: throughput/bandwidth saturation, lack of redundant routing | is-bridge flag + `min(source.A, target.A)` (§3.3): whether this specific link is structurally redundant | Live traffic volume — `weight` (§3.2) is the QoS delivery-guarantee proxy, not measured throughput or bandwidth |
+| **V** | Trust-boundary crossing: unencrypted channels, missing mutual TLS, lateral-movement potential | Edge weight (QoS) + `max(source.V, target.V)` (§3.3) | Encryption status, inter-service authentication, or any security-boundary metadata — none of this exists in the schema |
+
+None of this makes the structural proxy wrong — [validation.md](validation.md) is precisely the check that it still tracks simulated failure impact well enough to be useful. It does mean a CRITICAL/HIGH score should be read as *"structurally exposed,"* not as *"this component definitely has a high MTTF/PII/no-circuit-breaker problem"* — those specific root causes still require the engineering stakeholder from §4.2 to inspect the actual component or relationship.
 
 ---
 
@@ -204,7 +261,7 @@ Quality-in-use is behavioral and only directly observable via user studies, inci
 | [structural-analysis.md](structural-analysis.md) | Computes the Tier-1 metric vector $M(v)$ and deterministic RMAV scores — see §2.2 and §3.2 above. |
 | [prediction.md](prediction.md) | Refines RMAV into GNN-blended node scores and direct edge scores $Q_{\text{GNN}}(u,v)$ — see §3.3 above. |
 | [failure-simulation.md](failure-simulation.md) | Produces the simulated ground truth ($I^*(v)$, $I_{R/M/A/V}(v)$) that criticality proxies are trained/validated against. |
-| [validation.md](validation.md) | Statistically checks whether structural/learned criticality tracks simulated impact — the empirical check on §4.3. |
+| [validation.md](validation.md) | Statistically checks whether structural/learned criticality tracks simulated impact — the empirical check on §4.5. |
 
 ## 6. References
 
