@@ -26,20 +26,20 @@ def test_extract_simulation_dict_records_dict():
         }
     }
     res = extract_simulation_dict(raw)
+    # FaultInjector emits a single scalar I*(v), which maps onto composite /
+    # reliability / availability. maintainability and security must be ABSENT,
+    # not 0.0: an omitted key means "unmeasured", a 0.0 means "measured as no
+    # impact". Emitting fabricated zeros trained two of five heads on a constant.
     assert res == {
         "App1": {
             "composite": 0.85,
             "reliability": 0.85,
-            "maintainability": 0.0,
             "availability": 0.85,
-            "security": 0.0
         },
         "App2": {
             "composite": 0.35,
             "reliability": 0.35,
-            "maintainability": 0.0,
             "availability": 0.35,
-            "security": 0.0
         }
     }
 
@@ -58,20 +58,17 @@ def test_extract_simulation_dict_records_list():
         ]
     }
     res = extract_simulation_dict(raw)
+    # As above: unmeasured dimensions are absent, not zero.
     assert res == {
         "App1": {
             "composite": 0.75,
             "reliability": 0.75,
-            "maintainability": 0.0,
             "availability": 0.75,
-            "security": 0.0
         },
         "App2": {
             "composite": 0.25,
             "reliability": 0.25,
-            "maintainability": 0.0,
             "availability": 0.25,
-            "security": 0.0
         }
     }
 

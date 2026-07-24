@@ -90,6 +90,15 @@ ALL_VARIANTS = [
 
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
 
+#: Fraction of non-zero composite labels below which a simulation cache is
+#: considered too sparse to train on. Shared by _is_sparse and the leakage
+#: guard in _load_cache_dicts so the check and its error message agree.
+_SPARSE_THRESHOLD = 0.20
+
+#: Opt-in to the RMAV label substitution in _load_cache_dicts. Off by default
+#: because the substitution is a label-leakage path; set by --allow-rmav-substitution.
+ALLOW_RMAV_SUBSTITUTION = False
+
 RESULTS_DIR = Path("results")
 SCENARIOS_DIR = Path("data/scenarios")
 LOSO_CACHE_DIR = Path("output/loso_cache")
@@ -120,8 +129,18 @@ def _safe_rho(rho: Any) -> float:
         return 0.0
 
 
-def _load_cache_dicts(cache_dir: Path, graph_nodes: set) -> Tuple[Dict, Dict, Dict, str]:
-    """Load and remap structural / simulation / RMAV dicts from *cache_dir*."""
+def _load_cache_dicts(cache_dir: Path, graph_nodes: set,
+                      allow_rmav_substitution: Optional[bool] = None) -> Tuple[Dict, Dict, Dict, str]:
+    """Load and remap structural / simulation / RMAV dicts from *cache_dir*.
+
+    `allow_rmav_substitution` opts in to replacing sparse simulation labels with
+    RMAV quality scores. That substitution is a label-leakage path — see the
+    guard below — so it is off by default and raises instead. None defers to the
+    module-level ALLOW_RMAV_SUBSTITUTION, which --allow-rmav-substitution sets.
+    """
+    if allow_rmav_substitution is None:
+        allow_rmav_substitution = ALLOW_RMAV_SUBSTITUTION
+
     structural_dict: Dict = {}
     simulation_dict: Dict = {}
     rmav_dict: Dict = {}
@@ -142,11 +161,29 @@ def _load_cache_dicts(cache_dir: Path, graph_nodes: set) -> Tuple[Dict, Dict, Di
     rmav_dict       = _remap_node_ids(rmav_dict,       graph_nodes)
 
     gt_source = "Sim"
-    # Cached simulation uses a simple feed-loss model → ~94 % zero labels → GNN
-    # collapses to constant output.  Substitute RMAV quality scores (non-zero for
-    # all nodes, std ≈ 0.12) so the model has a meaningful training signal.
+    # LABEL LEAKAGE GUARD.
+    # Substituting RMAV quality scores for sparse simulation labels makes the
+    # labels a function of the same structural metrics that form the GNN's input
+    # features (see saag/prediction/data_preparation.py BASE_METRIC_KEYS), so any
+    # reported rho would measure the model rediscovering its own inputs rather
+    # than predicting simulated impact. Sparse labels are a signal to fix the
+    # labeler — not to swap in a proxy.
     if _is_sparse(simulation_dict) and rmav_dict:
-        logger.info("Simulation labels sparse — using RMAV quality as ground truth.")
+        if not allow_rmav_substitution:
+            raise ValueError(
+                f"Simulation labels in {cache_dir} are sparse "
+                f"(<{int(_SPARSE_THRESHOLD * 100)}% non-zero composite). Refusing to substitute "
+                "RMAV quality scores: RMAV is computed from the same structural metrics used as "
+                "GNN input features, so substituting it makes the labels a function of the "
+                "features and invalidates every correlation metric. Regenerate the cache with a "
+                "labeler that covers these nodes, or pass allow_rmav_substitution=True to "
+                "acknowledge the leakage — results will be tagged 'RMAV-sub', never 'Sim'."
+            )
+        logger.warning(
+            "LEAKAGE: substituting RMAV quality for sparse simulation labels in %s. "
+            "Correlation metrics from this run are not valid evidence of predictive power.",
+            cache_dir,
+        )
         simulation_dict = _rmav_to_sim_format(rmav_dict)
         gt_source = "RMAV-sub"
 
@@ -632,7 +669,7 @@ def _remap_node_ids(d: Dict, graph_nodes: set) -> Dict:
     return remapped if after >= before else d
 
 
-def _is_sparse(d: Dict, threshold: float = 0.20) -> bool:
+def _is_sparse(d: Dict, threshold: float = _SPARSE_THRESHOLD) -> bool:
     """Return True when fewer than *threshold* fraction of entries have composite > 0."""
     if not d:
         return True
@@ -1380,12 +1417,20 @@ def parse_args():
     p.add_argument("--dry-run", action="store_true",
                    help="Print the planned matrix without training")
     p.add_argument("-v", "--verbose", action="store_true")
+    p.add_argument("--allow-rmav-substitution", action="store_true",
+                   help="Permit substituting RMAV quality scores for sparse simulation labels. "
+                        "This is a label-leakage path (RMAV derives from the same structural "
+                        "metrics used as GNN input features); affected cells are tagged "
+                        "'RMAV-sub' and their correlation metrics are not valid evidence.")
     return p.parse_args()
 
 
 def main():
+    global ALLOW_RMAV_SUBSTITUTION
     args = parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARNING)
+
+    ALLOW_RMAV_SUBSTITUTION = args.allow_rmav_substitution
 
     scenarios = args.scenarios or ALL_SCENARIOS
     variants = args.variants or ALL_VARIANTS

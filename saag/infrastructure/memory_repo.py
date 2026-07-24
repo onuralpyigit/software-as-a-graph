@@ -681,9 +681,8 @@ class MemoryRepository:
 
     def get_layer_data(self, layer: str) -> GraphData:
         """Retrieve graph data for a specific layer project."""
-        from saag.core.layers import get_layer_definition, AnalysisLayer, _resolve_layer
-        canonical = _resolve_layer(layer)
-        defn = get_layer_definition(AnalysisLayer.from_string(canonical))
+        from saag.core.layers import get_layer_definition, resolve_layer
+        defn = get_layer_definition(resolve_layer(layer))
         return self.get_graph_data(
             component_types=defn.component_types,
             dependency_types=defn.dependency_types

@@ -223,6 +223,19 @@ bridge_multiplier = 1.0   if (u, v) is a structural bridge
 
 This downweights non-bridge edges to reduce label noise from redundant paths.
 
+> **Limitation — edge labels are not simulated.** No edge-removal simulation
+> exists in the pipeline. `I_edge` above is a *projection of node labels* through
+> a hand-chosen bridge multiplier, not an observation of what happens when the
+> edge fails. `EdgeCriticality` ([saag/simulation/models.py](../saag/simulation/models.py))
+> is declared but never populated, so `SimulationService.classify_edges()`
+> always returns an empty list. Consequently, edge-criticality predictions are
+> validated against a heuristic derived from the node labels rather than against
+> ground truth, and reported edge metrics should not be read as evidence of
+> predictive accuracy for edges. Node-level results are unaffected. Closing this
+> requires simulating removal of each candidate edge (bridges ∪ high
+> edge-betweenness) and populating `EdgeCriticality` from the resulting
+> reachability and fragmentation deltas.
+
 ### 2.7 [DEPRECATED] Ensemble: GNN + RMAV
 
 The ensemble blending step (formerly `EnsembleGNN`) has been deprecated and removed. Criticality predictions are now derived solely from raw GNN outputs.

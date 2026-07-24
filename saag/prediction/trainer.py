@@ -110,6 +110,24 @@ class EvalMetrics:
         return "\n".join(lines)
 
 
+def _labelled_nodes(store) -> 'torch.Tensor':
+    """Boolean mask of nodes that carry simulation ground truth.
+
+    Prefers the explicit ``label_mask`` written by
+    ``data_preparation.networkx_to_hetero_data`` — presence in the simulator's
+    output. Falls back to the historical ``|y_composite| > 0`` proxy for stores
+    built before that field existed (older checkpoints, hand-built fixtures).
+
+    The distinction matters: the proxy treats a node the simulator targeted and
+    scored 0.0 as unlabelled, excluding it from the loss while still scoring the
+    model on it. Real caches carry 7–115 such nodes per scenario.
+    """
+    mask = getattr(store, "label_mask", None)
+    if mask is not None:
+        return mask
+    return store.y[:, 0].abs() > 1e-6
+
+
 def get_inductive_subgraph(data: 'HeteroData', mask_name: str) -> 'HeteroData':
     """Isolate graph nodes by partition to enforce the Inductive Split Protocol."""
     has_mask = False
@@ -155,9 +173,17 @@ class GNNTrainer:
         rmav_consistency_weight: float = 0.1,
         ranking_weight: float = 0.3,
         pairwise_ranking_weight: float = 0.1,
+        dimension_mask: Optional[List[bool]] = None,
     ):
         self.model = model
         self.checkpoint_dir = Path(checkpoint_dir)
+        # Length-5 vector over LABEL_COLS marking which dimensions the labeler
+        # actually measured; unmeasured ones are dropped from the multitask term
+        # rather than regressed toward a fabricated zero. None = all measured.
+        self.dim_weights = (
+            torch.tensor([1.0 if m else 0.0 for m in dimension_mask])
+            if dimension_mask is not None else None
+        )
         self.lr = lr
         self.num_epochs = num_epochs
         self.patience = patience
@@ -197,12 +223,14 @@ class GNNTrainer:
                 mask = store.val_mask
                 if mask.sum() == 0:
                     continue
-                # Sub-mask to labelled nodes only (|y_composite| > 0)
-                labelled = mask & (store.y[:, 0].abs() > 1e-6)
+                # Sub-mask to labelled nodes only. Prefer the explicit label_mask
+                # (presence in the simulation output) over the |y| > 0 proxy, which
+                # silently drops nodes the simulator scored as genuinely zero.
+                labelled = mask & _labelled_nodes(store)
                 if labelled.sum() == 0:
                     continue
                 rmav_target = store.y_rmav if hasattr(store, "y_rmav") else None
-                loss, _ = self.loss_fn(preds, store.y, labelled, rmav_target)
+                loss, _ = self.loss_fn(preds, store.y, labelled, rmav_target, self.dim_weights)
                 total += loss.item()
                 count += 1
         return total / max(count, 1)
@@ -244,12 +272,14 @@ class GNNTrainer:
             mask = store.train_mask
             if mask.sum() == 0:
                 continue
-            # Sub-mask: only train on nodes that have non-zero ground-truth labels
-            labelled = mask & (store.y[:, 0].abs() > 1e-6)
+            # Sub-mask: train on every node the simulator actually labelled,
+            # including those it scored as zero — they are the low end of the
+            # ranking the model is subsequently evaluated on.
+            labelled = mask & _labelled_nodes(store)
             if labelled.sum() == 0:
                 continue
             rmav_target = store.y_rmav if hasattr(store, "y_rmav") else None
-            loss, _ = self.loss_fn(preds, store.y, labelled, rmav_target)
+            loss, _ = self.loss_fn(preds, store.y, labelled, rmav_target, self.dim_weights)
             total = total + loss
         return total
 

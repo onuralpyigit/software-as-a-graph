@@ -90,13 +90,35 @@ class FaultInjectionResult:
     Aggregated result of a full fault-injection experiment across all nodes.
     This is the canonical output written to ``impact_scores.json``.
     """
-    schema_version: str = "2.0"
+    schema_version: str = "2.1"
     graph_id: str = ""
     total_nodes_injected: int = 0
     total_application_nodes: int = 0
     total_broker_nodes: int = 0
     total_subscribers: int = 0          # Denominator used for all I(v)
     seeds_used: List[int] = field(default_factory=list)
+
+    # ── Provenance (schema 2.1) ──────────────────────────────────────────────
+    # Which engine produced these labels. Two simulators exist and they measure
+    # different quantities (see saag/simulation/models.py ImpactMetrics docstring),
+    # so consumers must be able to tell them apart rather than infer it.
+    labeler: str = "FaultInjector"
+    #: Component types actually injected. Types absent here have NO ground truth.
+    labeled_node_types: List[str] = field(default_factory=list)
+    #: Label dimensions this engine genuinely produces. Anything outside this
+    #: list is a structural zero, not a measurement — do not train or score on it.
+    labeled_dimensions: List[str] = field(
+        default_factory=lambda: ["composite", "reliability", "availability"]
+    )
+    #: Nodes present in the graph but never injected. Makes the coverage gap
+    #: explicit instead of letting it vanish in a set intersection downstream.
+    unlabeled_node_ids: List[str] = field(default_factory=list)
+
+    #: How reproducible these labels are, measured across `seeds_used`. Travels
+    #: with the labels so downstream reports can state the ceiling on any
+    #: correlation metric: a model scoring rho=0.93 against labels whose own
+    #: test-retest rho is 0.91 has saturated, not underperformed.
+    label_stability: Dict[str, Any] = field(default_factory=dict)
 
     # Per-node records, keyed by node_id
     records: Dict[str, FaultInjectionRecord] = field(default_factory=dict)
@@ -139,6 +161,11 @@ class FaultInjectionResult:
             "total_broker_nodes": self.total_broker_nodes,
             "total_subscribers": self.total_subscribers,
             "seeds_used": self.seeds_used,
+            "labeler": self.labeler,
+            "labeled_node_types": self.labeled_node_types,
+            "labeled_dimensions": self.labeled_dimensions,
+            "unlabeled_node_ids": self.unlabeled_node_ids,
+            "label_stability": self.label_stability,
             "top_k_by_impact": self.top_k_by_impact,
             "records": {
                 nid: rec.to_dict() for nid, rec in self.records.items()

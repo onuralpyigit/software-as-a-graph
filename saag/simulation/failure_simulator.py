@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 import random
 import statistics
+import zlib
 from dataclasses import dataclass, field
 from typing import Dict, List, Set, Tuple, Any, Optional
 from enum import Enum
@@ -78,6 +79,19 @@ class FailureSimulator:
         self._baseline_flows: Set[Tuple[str, str, str]] = set()
         self._baseline_computed: bool = False
     
+    @staticmethod
+    def _derive_seed(run_seed: Optional[int], component_id: str) -> Optional[int]:
+        """Derive a per-component seed from a run-level seed.
+
+        Uses zlib.crc32 rather than hash() because hash() on str is salted by
+        PYTHONHASHSEED, which would make labels differ across processes.
+        Deriving from the component id (not its index) keeps a component's
+        label independent of how many other components share the sweep.
+        """
+        if run_seed is None:
+            return None
+        return (run_seed ^ zlib.crc32(component_id.encode("utf-8"))) & 0x7FFFFFFF
+
     def set_baseline_flows(self, flows: List[Tuple[str, str, str]]) -> None:
         """Set the baseline successful flows from event simulation."""
         self._baseline_flows = set(flows)
@@ -187,26 +201,34 @@ class FailureSimulator:
         self,
         scenario_template: Optional[FailureScenario] = None,
         layer: str = "system",
-        n_trials: int = 1
+        n_trials: int = 1,
+        seed: Optional[int] = 42
     ) -> List[FailureResult]:
         """
         Run failure simulation for all components in a layer.
-        
+
         Computes baseline once and reuses it across all simulations
         for efficiency.
-        
+
         Args:
             scenario_template: Base scenario configuration
             layer: Layer to analyze
-            
+            n_trials: Monte Carlo trials per component (1 = single draw)
+            seed: Run-level seed making the sweep reproducible. Each component
+                gets its own seed derived from (seed, component_id), so a
+                component's label does not depend on the size or ordering of
+                the target set. Pass None to restore free-running behaviour.
+
         Returns:
             List of FailureResult sorted by impact (highest first)
         """
         results = []
-        
-        # Get components to analyze for the layer
-        component_ids = self.graph.get_analyze_components_by_layer(layer)
-        
+
+        # Get components to analyze for the layer. Sorted because the underlying
+        # component map follows repository insertion order, which is not stable
+        # across backends and would otherwise leak into the derived seeds.
+        component_ids = sorted(self.graph.get_analyze_components_by_layer(layer))
+
         self.logger.info(f"Running exhaustive failure analysis: {len(component_ids)} components in layer '{layer}'")
         
         # Compute baseline once (C5 fix: avoid recomputing per simulation)
@@ -225,6 +247,7 @@ class FailureSimulator:
                     cascade_probability=scenario_template.cascade_probability if scenario_template else 1.0,
                     library_cascade_probability=scenario_template.library_cascade_probability if scenario_template else None,
                     max_cascade_depth=scenario_template.max_cascade_depth if scenario_template else 10,
+                    seed=self._derive_seed(seed, comp_id),
                 )
 
                 if n_trials > 1:

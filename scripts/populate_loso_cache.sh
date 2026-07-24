@@ -86,11 +86,18 @@ for scenario in "${TARGETS[@]}"; do
     # Step 4: Fault injection → failure_impact.json
     if [ ! -f "$out/failure_impact.json" ]; then
         echo "  [4/4] Running fault injection ..."
+        # Five seeds, not one: the artifact's label_stability block needs at
+        # least two to measure test-retest agreement, and the reported rho has
+        # no stated ceiling without it.
+        # Library is included because app_to_lib cascades at prob 1.0 and yields
+        # strong labels; Topic and Node are excluded because the cascade cannot
+        # express their failure and they would contribute only spurious zeros.
         PYTHONPATH=. python cli/simulate_graph.py fault-inject \
             --input "$out/topology.json" \
             --output "$out/" \
             --export-json \
-            --seeds 42 2>&1 | tail -3 || \
+            --node-types Application,Broker,Library \
+            --seeds 42,123,456,789,2024 2>&1 | tail -3 || \
             echo "  (simulate_graph error — skipping)"
         # Rename if generated with different name
         for f in "$out"/impact_scores*.json "$out"/failure_impact_*.json; do

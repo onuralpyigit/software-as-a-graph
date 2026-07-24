@@ -488,6 +488,14 @@ class GraphConversionResult:
 
     present_node_types: List[str] = field(default_factory=list)
 
+    #: Which of the 5 label columns (see LABEL_COLS) the labeler actually
+    #: measured. Columns marked False are structural zeros, not measurements —
+    #: training or scoring on them regresses a head toward a constant. Inferred
+    #: from which keys the simulation dict carries; see extract_simulation_dict.
+    dimension_mask: List[bool] = field(
+        default_factory=lambda: [True, True, True, True, True]
+    )
+
 
 def networkx_to_hetero_data(
     graph: nx.DiGraph,
@@ -528,6 +536,19 @@ def networkx_to_hetero_data(
 
     result = GraphConversionResult(hetero_data=HeteroData())
     data: HeteroData = result.hetero_data  # type: ignore[assignment]
+
+    # Infer which label dimensions the labeler actually measured, from the keys
+    # it emitted. A labeler that reports only a scalar impact (FaultInjector)
+    # leaves maintainability/security absent; those columns stay zero in the
+    # matrix but must not be treated as observations. See GraphConversionResult.
+    if simulation_results:
+        measured_keys = set()
+        for sim in simulation_results.values():
+            if isinstance(sim, dict):
+                measured_keys.update(sim.keys())
+        result.dimension_mask = [
+            dim in measured_keys for dim in sorted(LABEL_COLS, key=LABEL_COLS.get)
+        ]
 
     # ── 1. Partition nodes by type ────────────────────────────────────────────
     type_to_nodes: Dict[str, List[str]] = {t: [] for t in NODE_TYPES}
@@ -596,6 +617,11 @@ def networkx_to_hetero_data(
         # ── Node labels (simulation ground truth) ─────────────────────────────
         if simulation_results:
             label_matrix = np.zeros((n, 5), dtype=np.float32)
+            # Presence in the simulation dict, NOT |y| > 0. A node the simulator
+            # targeted and scored 0.0 is a real observation at the low end of the
+            # ranking; a node never targeted is missing data. Collapsing both to
+            # 0.0 excluded genuine zeros from training while still scoring on them.
+            label_mask = np.zeros(n, dtype=bool)
             labelled_count = 0
             for local_idx, name in enumerate(nodes):
                 sim = simulation_results.get(name)
@@ -605,8 +631,10 @@ def networkx_to_hetero_data(
                     label_matrix[local_idx, 2] = float(sim.get("maintainability", 0.0))
                     label_matrix[local_idx, 3] = float(sim.get("availability", 0.0))
                     label_matrix[local_idx, 4] = float(sim.get("security", 0.0))
+                    label_mask[local_idx] = True
                     labelled_count += 1
             data[node_type].y = torch.from_numpy(label_matrix)
+            data[node_type].label_mask = torch.from_numpy(label_mask)
             result.num_labelled_nodes += labelled_count
 
         # ── RMAV scores (for consistency regularization) ───────────
@@ -704,6 +732,21 @@ def networkx_to_hetero_data(
 
 # ── Training split utilities ───────────────────────────────────────────────────
 
+def _labelled_index_mask(store) -> np.ndarray:
+    """Boolean array over a node store: which nodes carry simulation ground truth.
+
+    Prefers the explicit ``label_mask`` (presence in the simulator's output) and
+    falls back to the historical ``|y_composite| > 0`` proxy for stores built
+    before that field existed. The proxy misclassifies a node the simulator
+    targeted and scored 0.0 as unlabelled, which pushed genuine low-impact
+    observations out of the training split while leaving them in evaluation.
+    """
+    mask = getattr(store, "label_mask", None)
+    if mask is not None:
+        return mask.detach().cpu().numpy().astype(bool)
+    return np.abs(store.y[:, 0].detach().numpy()) > 1e-6
+
+
 def create_node_splits(
     hetero_data,
     train_ratio: float = 0.6,
@@ -713,8 +756,9 @@ def create_node_splits(
     """Add train/val/test boolean masks to every node store in-place.
 
     Uses **stratified splitting** when ground-truth labels exist: labelled nodes
-    (|y_composite| > 1e-6) are split proportionally across train/val/test first,
-    ensuring each split contains labelled nodes for meaningful ρ evaluation.
+    (those the simulator actually targeted — see :func:`_labelled_index_mask`)
+    are split proportionally across train/val/test first, ensuring each split
+    contains labelled nodes for meaningful ρ evaluation.
     Unlabelled nodes are then distributed to fill the remaining capacity.
     Falls back to uniform random split when no ``y`` attribute is present.
     """
@@ -731,9 +775,9 @@ def create_node_splits(
 
         # ── Stratified split when labels available ──────────────────────────
         if hasattr(store, "y") and store.y.numel() > 0:
-            y_comp = store.y[:, 0].detach().numpy()
-            labelled_idx   = np.where(np.abs(y_comp) > 1e-6)[0]
-            unlabelled_idx = np.where(np.abs(y_comp) <= 1e-6)[0]
+            is_labelled = _labelled_index_mask(store)
+            labelled_idx   = np.where(is_labelled)[0]
+            unlabelled_idx = np.where(~is_labelled)[0]
 
             if len(labelled_idx) >= 3:
                 lab_shuffled = rng.permutation(labelled_idx)
@@ -789,7 +833,7 @@ def create_kfold_masks(
     fold of a within-graph, stratified k-fold split.
 
     Unlike :func:`create_node_splits` (a one-shot random holdout), this
-    partitions labelled nodes (|y_composite| > 1e-6) into ``k`` roughly-equal
+    partitions labelled nodes (see :func:`_labelled_index_mask`) into ``k`` roughly-equal
     folds; fold ``fold_idx`` is held out as the test set, and the remaining
     ``k - 1`` folds are split into train/val by ``val_ratio``. Unlabelled
     nodes are folded the same way so every split still has full graph
@@ -818,9 +862,9 @@ def create_kfold_masks(
         test_mask  = torch.zeros(n, dtype=torch.bool)
 
         if hasattr(store, "y") and store.y.numel() > 0:
-            y_comp = store.y[:, 0].detach().numpy()
-            labelled_idx   = np.where(np.abs(y_comp) > 1e-6)[0]
-            unlabelled_idx = np.where(np.abs(y_comp) <= 1e-6)[0]
+            is_labelled = _labelled_index_mask(store)
+            labelled_idx   = np.where(is_labelled)[0]
+            unlabelled_idx = np.where(~is_labelled)[0]
 
             if len(labelled_idx) >= k:
                 lab_test, lab_trainval = _fold_test_trainval(labelled_idx)
@@ -901,16 +945,22 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
     if isinstance(simulation_results, dict) and "component_criticality" in simulation_results:
         for c in simulation_results["component_criticality"]:
             name = c.get("id")
+            # As above: maintainability/security are unmeasured here, not zero.
             out[name] = {
                 "composite": float(c.get("combined_impact", 0.0)),
                 "reliability": float(c.get("failure_impact", 0.0)),
-                "maintainability": 0.0,
                 "availability": float(c.get("failure_impact", 0.0)),
-                "security": 0.0,
             }
         return out
 
     if isinstance(simulation_results, dict) and "records" in simulation_results:
+        # FaultInjector emits a single scalar I*(v). It measures reachability-style
+        # impact, so it maps onto composite/reliability/availability — but it says
+        # nothing about maintainability or security. Those keys are deliberately
+        # absent rather than set to 0.0: an omitted key is an unmeasured dimension,
+        # a 0.0 is a measurement of "no impact". Conflating them made two of five
+        # prediction heads regress toward a constant. See the artifact's
+        # `labeled_dimensions` field for the authoritative list.
         records = simulation_results["records"]
         if isinstance(records, dict):
             for nid, r in records.items():
@@ -920,9 +970,7 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
                 out[str(nid)] = {
                     "composite": score,
                     "reliability": score,
-                    "maintainability": 0.0,
                     "availability": score,
-                    "security": 0.0,
                 }
         elif isinstance(records, list):
             for r in records:
@@ -935,9 +983,7 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
                 out[str(nid)] = {
                     "composite": score,
                     "reliability": score,
-                    "maintainability": 0.0,
                     "availability": score,
-                    "security": 0.0,
                 }
         return out
 

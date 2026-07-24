@@ -135,6 +135,13 @@ def _load_graph(input_path: Path):
         g.add_node(node["id"], type="Node",
                    name=node.get("name", node["id"]),
                    **{k: v for k, v in node.items() if k not in ("id", "name")})
+    # Libraries must be added explicitly. Without this they are still created
+    # implicitly by their USES edges, but with type=None — so they never match
+    # a --node-types filter and silently receive no ground truth at all.
+    for lib in data.get("libraries", []):
+        g.add_node(lib["id"], type="Library",
+                   name=lib.get("name", lib["id"]),
+                   **{k: v for k, v in lib.items() if k not in ("id", "name")})
 
     # Edges
     # Support both flat and nested 'relationships' structure
@@ -510,16 +517,22 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     fi.add_argument(
         "--node-types",
-        default="Application,Broker",
+        default="Application,Broker,Library",
         metavar="TYPE1,TYPE2",
-        help="Comma-separated node types to inject.  Default: Application,Broker",
+        help="Comma-separated node types to inject.  "
+             "Default: Application,Broker,Library.  Types omitted here get NO "
+             "ground truth and are recorded in the artifact's unlabeled_node_ids.  "
+             "'Topic' and 'Node' are excluded on purpose: the cascade derives "
+             "DEPENDS_ON only from PUBLISHES_TO/SUBSCRIBES_TO/USES, so injecting "
+             "either yields I(v)=0 for every one of them — spurious zeros, not labels.",
     )
     fi.add_argument(
         "--seeds",
-        default="42",
+        default="42,123,456,789,2024",
         metavar="42,123,...",
         help="Comma-separated seeds for multi-seed stability testing.  "
-             "Default: 42",
+             "Default: the five recommended seeds; labels are the per-node mean "
+             "and impact_score_std reports the spread.",
     )
     fi.add_argument(
         "--cascade-depth",

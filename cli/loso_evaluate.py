@@ -84,6 +84,7 @@ import networkx as nx
 import numpy as np
 import torch
 from scipy.stats import spearmanr
+from sklearn.metrics import average_precision_score
 from torch_geometric.data import HeteroData
 
 # ── SaG SDK imports ──────────────────────────────────────────────────────────
@@ -114,6 +115,11 @@ class ScenarioBundle:
     n_nodes: int
     n_edges: int
     n_labelled: int
+    #: Provenance carried through from failure_impact.json: which engine wrote
+    #: the labels, over how many seeds, and how well they agree with themselves.
+    #: The test-retest rho here is the ceiling on any rho reported against them.
+    label_stability: Dict[str, Any] = field(default_factory=dict)
+    labeler: str = ""
 
 
 @dataclass
@@ -143,6 +149,9 @@ class LOSOReport:
     per_type_summary: Dict[str, Dict[str, float]] = field(default_factory=dict)
     # All scenarios: {scenario_id: {node_id: {score_type: mean_val}}}
     scenario_predictions: Dict[str, Dict[str, Dict[str, float]]] = field(default_factory=dict)
+    #: {scenario_id: label_stability} carried from each cache artifact, so the
+    #: report can state the ceiling alongside the achieved rho.
+    label_stability: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -254,6 +263,8 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
         n_nodes=graph.number_of_nodes(),
         n_edges=graph.number_of_edges(),
         n_labelled=conv.num_labelled_nodes,
+        label_stability=sim_raw.get("label_stability", {}) if isinstance(sim_raw, dict) else {},
+        labeler=sim_raw.get("labeler", "") if isinstance(sim_raw, dict) else "",
     )
     logger.info(
         "  [%s] %d nodes, %d edges, %d labelled%s",
@@ -290,14 +301,44 @@ def compute_inductive_metrics(
     true_impact: Dict[str, float],
     graph: nx.DiGraph,
     top_k_frac: float = 0.20,
+    tau_frac: float = 0.50,
 ) -> Dict[str, Any]:
     """
     Compute Spearman ρ, F1@K, NDCG@10, RMSE, MAE between predicted and ground-truth
     composite I*(v). Also returns per-node-type stratified ρ.
+
+    Three families of metric are reported, and they answer different questions:
+
+    * ``*_at_k`` — top-K overlap. Note that ``precision_at_k``, ``recall_at_k``
+      and ``f1_at_k`` are **identically equal** here: both the predicted and the
+      true set contain exactly K elements, so tp/K == tp/K. They are retained
+      unchanged for backward compatibility with existing CSVs and tables, and
+      ``overlap_at_k`` is the honest name for the quantity.
+    * ``*_at_tau`` — precision/recall against an absolute truth threshold
+      ``tau = tau_frac * max(y_true)``. The true critical set is sized by the
+      data rather than fixed at K, so precision and recall genuinely diverge.
+      Scale-free, which matters because label magnitude varies ~14x across
+      scenarios (max I*(v) is 0.73 on atm_system but 0.064 on enterprise).
+    * ``pr_auc`` — average precision over the full ranking against that same
+      truth set. No K, no prediction-side threshold; the best single summary.
+
+    ``rmse``/``mae`` compare a sigmoid-scale prediction against raw labels whose
+    maximum can be 0.064, so they are dominated by label scale rather than error.
+    ``rmse_scaled``/``mae_scaled`` min-max both vectors first; ``label_scale_max``
+    is reported so the raw figures remain interpretable.
     """
+    n_predicted = len(pred_scores)
+    n_labeled = len(true_impact)
     common = sorted(set(pred_scores.keys()) & set(true_impact.keys()))
     if len(common) < 3:
-        return {"spearman_rho": float("nan"), "n": len(common), "per_type_rho": {}}
+        return {
+            "spearman_rho": float("nan"),
+            "n": len(common),
+            "per_type_rho": {},
+            "n_predicted": n_predicted,
+            "n_labeled": n_labeled,
+            "n_evaluated": len(common),
+        }
 
     y_pred = np.array([pred_scores[v] for v in common], dtype=np.float64)
     y_true = np.array([true_impact[v] for v in common], dtype=np.float64)
@@ -305,7 +346,7 @@ def compute_inductive_metrics(
     rho, p_val = spearmanr(y_pred, y_true)
     rho = float(rho) if not np.isnan(rho) else 0.0
 
-    # F1 @ top-K
+    # F1 @ top-K. Both sets have exactly k elements, so precision == recall == f1.
     k = max(1, int(round(len(common) * top_k_frac)))
     pred_top = set(np.argsort(-y_pred)[:k].tolist())
     true_top = set(np.argsort(-y_true)[:k].tolist())
@@ -313,6 +354,29 @@ def compute_inductive_metrics(
     precision = tp / k if k > 0 else 0.0
     recall = tp / len(true_top) if true_top else 0.0
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+
+    # ── Absolute-threshold critical set ───────────────────────────────────────
+    # Sized by the label distribution instead of fixed at K, so |true_set| != k
+    # and precision/recall carry independent information. Relative to max rather
+    # than an absolute constant because label scale is not comparable across
+    # scenarios (max I*(v) ranges 0.053 to 0.731 over the cohort).
+    label_scale_max = float(y_true.max())
+    tau = tau_frac * label_scale_max
+    true_critical = y_true >= tau if label_scale_max > 0 else np.zeros_like(y_true, dtype=bool)
+    n_true_critical = int(true_critical.sum())
+
+    if n_true_critical > 0:
+        tp_tau = int(true_critical[np.argsort(-y_pred)[:k]].sum())
+        precision_tau = tp_tau / k
+        recall_tau = tp_tau / n_true_critical
+        f1_tau = (
+            2 * precision_tau * recall_tau / (precision_tau + recall_tau)
+            if (precision_tau + recall_tau) > 0 else 0.0
+        )
+        pr_auc = float(average_precision_score(true_critical.astype(int), y_pred))
+    else:
+        precision_tau = recall_tau = f1_tau = 0.0
+        pr_auc = float("nan")
 
     # NDCG @ 10
     k_ndcg = min(10, len(common))
@@ -324,6 +388,17 @@ def compute_inductive_metrics(
 
     rmse = float(np.sqrt(np.mean((y_pred - y_true) ** 2)))
     mae = float(np.mean(np.abs(y_pred - y_true)))
+
+    # Scale-normalised error. The raw figures above compare a sigmoid-scale
+    # prediction against labels whose max may be 0.064, so they mostly measure
+    # mean(prediction). Min-max both vectors to make the comparison meaningful.
+    def _minmax(a: np.ndarray) -> np.ndarray:
+        lo, hi = float(a.min()), float(a.max())
+        return (a - lo) / (hi - lo) if hi > lo else np.zeros_like(a)
+
+    pred_s, true_s = _minmax(y_pred), _minmax(y_true)
+    rmse_scaled = float(np.sqrt(np.mean((pred_s - true_s) ** 2)))
+    mae_scaled = float(np.mean(np.abs(pred_s - true_s)))
 
     # Per-node-type stratified ρ
     by_type: Dict[str, List[Tuple[float, float]]] = {}
@@ -354,6 +429,25 @@ def compute_inductive_metrics(
         "n": len(common),
         "k": k,
         "per_type_rho": per_type_rho,
+        # ── Added metrics (appended; nothing above changed value) ─────────────
+        # Honest name for f1_at_k/precision_at_k/recall_at_k, which are equal.
+        "overlap_at_k": f1,
+        # Absolute-threshold critical set: precision and recall diverge here.
+        "precision_at_tau": precision_tau,
+        "recall_at_tau": recall_tau,
+        "f1_at_tau": f1_tau,
+        "n_true_critical": n_true_critical,
+        "tau": tau,
+        "pr_auc": pr_auc,
+        # Scale diagnostics for the otherwise-uninterpretable rmse/mae above.
+        "rmse_scaled": rmse_scaled,
+        "mae_scaled": mae_scaled,
+        "label_scale_max": label_scale_max,
+        # Coverage: makes a labeling gap visible instead of letting the
+        # set-intersection above absorb it silently.
+        "n_predicted": n_predicted,
+        "n_labeled": n_labeled,
+        "n_evaluated": len(common),
     }
 
 
@@ -636,6 +730,19 @@ def run_one_fold(
     ndcg_vals = [m["ndcg_10"] for m in seed_metrics]
     rmse_vals = [m["rmse"] for m in seed_metrics]
 
+    # Metrics added alongside the originals. Aggregated the same way, and
+    # tolerant of seed dicts written before these keys existed.
+    def _agg(key: str) -> List[float]:
+        return [m[key] for m in seed_metrics if key in m and not np.isnan(m[key])]
+
+    added_keys = [
+        "precision_at_tau", "recall_at_tau", "f1_at_tau", "pr_auc",
+        "rmse_scaled", "mae_scaled", "n_true_critical",
+        "n_predicted", "n_labeled", "n_evaluated",
+    ]
+    added_mean = {k: float(np.mean(v)) for k in added_keys if (v := _agg(k))}
+    added_std = {k: float(np.std(v)) for k in added_keys if (v := _agg(k))}
+
     per_type_agg: Dict[str, List[float]] = {}
     for m in seed_metrics:
         for nt, info in m.get("per_type_rho", {}).items():
@@ -659,12 +766,14 @@ def run_one_fold(
             "f1_at_k": float(np.mean(f1_vals)),
             "ndcg_10": float(np.mean(ndcg_vals)),
             "rmse": float(np.mean(rmse_vals)),
+            **added_mean,
         },
         std_metrics={
             "spearman_rho": float(np.std(rho_vals)),
             "f1_at_k": float(np.std(f1_vals)),
             "ndcg_10": float(np.std(ndcg_vals)),
             "rmse": float(np.std(rmse_vals)),
+            **added_std,
         },
         per_type_rho=per_type_summary,
         node_predictions=node_agg,
@@ -771,6 +880,9 @@ def run_loso(
         n_seeds_per_fold=len(seeds),
         per_type_summary=per_type_summary,
         scenario_predictions={f.holdout_id: f.node_predictions for f in fold_results},
+        label_stability={
+            b.scenario_id: b.label_stability for b in bundles if b.label_stability
+        },
     )
 
 
@@ -809,11 +921,21 @@ def write_results_json(report: LOSOReport, path: Path) -> None:
 def write_per_fold_csv(report: LOSOReport, path: Path) -> None:
     with path.open("w", newline="") as f:
         w = csv.writer(f)
+        # New columns are appended after the original ten so that any reader
+        # indexing by position keeps working.
         w.writerow([
             "holdout_id", "primary_id", "seed",
             "spearman_rho", "f1_at_k", "ndcg_10", "rmse", "mae",
             "n", "prediction_mode",
+            "pr_auc", "precision_at_tau", "recall_at_tau", "f1_at_tau",
+            "n_true_critical", "rmse_scaled", "mae_scaled", "label_scale_max",
+            "n_predicted", "n_labeled", "n_evaluated",
         ])
+
+        def _f(m: Dict[str, Any], key: str) -> str:
+            v = m.get(key)
+            return "" if v is None or (isinstance(v, float) and np.isnan(v)) else f"{v:.4f}"
+
         for fold in report.fold_results:
             for m in fold.seed_metrics:
                 w.writerow([
@@ -824,8 +946,97 @@ def write_per_fold_csv(report: LOSOReport, path: Path) -> None:
                     f"{m['rmse']:.4f}",
                     f"{m['mae']:.4f}",
                     m["n"], m.get("prediction_mode", ""),
+                    _f(m, "pr_auc"),
+                    _f(m, "precision_at_tau"),
+                    _f(m, "recall_at_tau"),
+                    _f(m, "f1_at_tau"),
+                    m.get("n_true_critical", ""),
+                    _f(m, "rmse_scaled"),
+                    _f(m, "mae_scaled"),
+                    _f(m, "label_scale_max"),
+                    m.get("n_predicted", ""),
+                    m.get("n_labeled", ""),
+                    m.get("n_evaluated", ""),
                 ])
     logger.info("Wrote %s", path)
+
+
+def _metric_caveats(report: LOSOReport) -> str:
+    """Interpretation notes that must travel with the numbers.
+
+    Each line documents a way these metrics can be over-read. They are emitted
+    into the report rather than kept in a docstring because the report is what
+    gets copied into papers and issues.
+    """
+    lines = ["### Reading these numbers", ""]
+    lines.append(
+        "- **Overlap@K** (reported as `f1_at_k`, `precision_at_k`, `recall_at_k`) — "
+        "the predicted and true top-K sets both contain exactly K elements, so all "
+        "three are numerically identical. Treat them as one quantity: set overlap."
+    )
+    lines.append(
+        "- **P@τ / R@τ** use an absolute critical set (`I*(v) >= 0.5 * max`), so they "
+        "size the truth set from the data and genuinely diverge. `crit` is how many "
+        "nodes cleared that bar — when it is 2 or 3, a single ranking error moves "
+        "recall by 30-50 points."
+    )
+    lines.append(
+        "- **PR-AUC** is the K-free summary; prefer it when comparing across scenarios."
+    )
+    lines.append(
+        "- **rmse/mae** compare sigmoid-scale predictions against raw labels whose "
+        "maximum varies ~14x across scenarios; they largely reflect label scale, not "
+        "error. Use `rmse_scaled`/`mae_scaled`."
+    )
+
+    ceilings = [
+        (sid, st.get("test_retest_spearman"), st.get("topk_jaccard"))
+        for sid, st in sorted(report.label_stability.items())
+    ]
+    measured = [(s, r, j) for s, r, j in ceilings if r is not None]
+    if measured:
+        worst_rho = min(r for _, r, _ in measured)
+        worst_sid = next(s for s, r, _ in measured if r == worst_rho)
+        lines.append("")
+        lines.append(
+            f"**Label noise ceiling.** The ground truth agrees with itself at "
+            f"test-retest ρ = **{worst_rho:.4f}** (worst: `{worst_sid}`). A model ρ at or "
+            f"near this value has saturated the labels, not underperformed — no method "
+            f"can exceed the reproducibility of what it is scored against."
+        )
+        churn = [(s, j) for s, _, j in measured if j is not None and j < 0.9]
+        if churn:
+            lines.append("")
+            lines.append(
+                "Top-K critical sets are themselves unstable across seeds in: "
+                + ", ".join(f"`{s}` (Jaccard {j:.2f})" for s, j in sorted(churn))
+                + ". Overlap@K and P@τ on those scenarios inherit that churn."
+            )
+    elif report.label_stability:
+        lines.append("")
+        lines.append(
+            "**Label noise ceiling: not measured.** The cache was built from a single "
+            "seed, so the labels' own reproducibility is unknown and ρ has no stated "
+            "ceiling. Regenerate with the five recommended seeds to establish one."
+        )
+
+    coverages = [
+        (f.holdout_id, f.mean_metrics.get("n_evaluated"), f.mean_metrics.get("n_predicted"))
+        for f in report.fold_results
+    ]
+    gaps = [
+        f"{h} ({int(ev)}/{int(pr)})"
+        for h, ev, pr in coverages
+        if ev is not None and pr is not None and pr > 0 and ev < pr
+    ]
+    if gaps:
+        lines.append(
+            "- **Coverage gap** — scored on fewer nodes than were predicted: "
+            + ", ".join(gaps)
+            + ". Unlabelled nodes are dropped from scoring; they are not evidence "
+            "either way."
+        )
+    return "\n".join(lines)
 
 
 def write_summary_md(report: LOSOReport, path: Path) -> None:
@@ -837,8 +1048,10 @@ def write_summary_md(report: LOSOReport, path: Path) -> None:
     L.append("## Cross-fold")
     L.append("")
     L.append(f"- Spearman ρ : **{report.overall_mean_rho:.4f} ± {report.overall_std_rho:.4f}**")
-    L.append(f"- F1 @ K     : {report.overall_mean_f1:.4f}")
+    L.append(f"- Overlap @ K : {report.overall_mean_f1:.4f}")
     L.append(f"- NDCG @ 10  : {report.overall_mean_ndcg:.4f}")
+    L.append("")
+    L.append(_metric_caveats(report))
     L.append("")
     L.append("## Per node type (cross-fold)")
     L.append("")
@@ -849,15 +1062,26 @@ def write_summary_md(report: LOSOReport, path: Path) -> None:
     L.append("")
     L.append("## Per-fold details")
     L.append("")
-    L.append("| Holdout | Primary | mean ρ | std ρ | mean F1 | mean NDCG@10 |")
-    L.append("|---------|---------|--------|-------|---------|--------------|")
+    L.append("| Holdout | Primary | mean ρ | std ρ | Overlap@K | NDCG@10 | PR-AUC | P@τ | R@τ | crit | labelled |")
+    L.append("|---------|---------|--------|-------|-----------|---------|--------|-----|-----|------|----------|")
     for f in report.fold_results:
+        m = f.mean_metrics
+
+        def _c(key: str, fmt: str = ".4f") -> str:
+            v = m.get(key)
+            return "—" if v is None or (isinstance(v, float) and np.isnan(v)) else format(v, fmt)
+
         L.append(
             f"| {f.holdout_id} | {f.primary_id} "
-            f"| {f.mean_metrics['spearman_rho']:.4f} "
+            f"| {m['spearman_rho']:.4f} "
             f"| {f.std_metrics['spearman_rho']:.4f} "
-            f"| {f.mean_metrics['f1_at_k']:.4f} "
-            f"| {f.mean_metrics['ndcg_10']:.4f} |"
+            f"| {m['f1_at_k']:.4f} "
+            f"| {m['ndcg_10']:.4f} "
+            f"| {_c('pr_auc')} "
+            f"| {_c('precision_at_tau')} "
+            f"| {_c('recall_at_tau')} "
+            f"| {_c('n_true_critical', '.0f')} "
+            f"| {_c('n_evaluated', '.0f')}/{_c('n_predicted', '.0f')} |"
         )
     path.write_text("\n".join(L) + "\n")
     logger.info("Wrote %s", path)

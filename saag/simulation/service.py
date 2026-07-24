@@ -130,8 +130,12 @@ class SimulationService:
     def run_failure_simulation_exhaustive(self, layer: str = "system", cascade_probability: float = 1.0,
                                          library_cascade_probability: Optional[float] = None,
                                          propagation_threshold: float = 0.2,
-                                         failure_mode: FailureMode = FailureMode.CRASH, **kwargs) -> List[Any]:
-        """Run exhaustive failure analysis for all components in a layer."""
+                                         failure_mode: FailureMode = FailureMode.CRASH,
+                                         seed: Optional[int] = 42, **kwargs) -> List[Any]:
+        """Run exhaustive failure analysis for all components in a layer.
+
+        `seed` makes the sweep reproducible; pass None for free-running behaviour.
+        """
         graph = self._get_graph()
         fail_sim = FailureSimulator(graph, propagation_threshold=propagation_threshold)
 
@@ -156,7 +160,8 @@ class SimulationService:
                 cascade_rule=CascadeRule.ALL
             ),
             layer=layer,
-            n_trials=n_trials
+            n_trials=n_trials,
+            seed=seed
         )
 
     def run_failure_simulation_pairwise(self, layer: str = "system", cascade_probability: float = 1.0,

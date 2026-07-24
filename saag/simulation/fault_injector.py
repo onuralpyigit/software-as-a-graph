@@ -56,11 +56,12 @@ seed).  [FIX: DESIGN-FI-2]
 from __future__ import annotations
 
 import logging
+import math
 import random
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 import networkx as nx
 
@@ -271,6 +272,12 @@ class FaultInjector:
             total_broker_nodes=n_brokers,
             total_subscribers=len(self._index.all_subscribers),
             seeds_used=self.seeds,
+            labeler="FaultInjector",
+            labeled_node_types=sorted(node_types),
+            # Nodes the sweep never touched. Recorded explicitly so downstream
+            # consumers can distinguish "simulated, impact was zero" from
+            # "never simulated" instead of collapsing both to a 0.0 label.
+            unlabeled_node_ids=sorted(set(self.graph.nodes) - set(candidates)),
         )
 
         logger.info(
@@ -296,8 +303,100 @@ class FaultInjector:
             )
 
         result.finalise()
+        result.label_stability = self._compute_label_stability(result)
+        self._warn_on_degenerate_types(result)
         logger.info("Fault injection complete.  %d records.", result.total_nodes_injected)
         return result
+
+    @staticmethod
+    def _compute_label_stability(result: FaultInjectionResult, k_frac: float = 0.20) -> Dict[str, Any]:
+        """Quantify how reproducible these labels are across seeds.
+
+        Every record already carries its per-seed scores; this turns them into a
+        noise floor for the whole label set. Reported alongside the labels so a
+        downstream rho can be read against its ceiling instead of in isolation:
+        labels that only agree with themselves at rho=0.91 cannot support a claim
+        of rho=0.95 predictive accuracy.
+
+        Returns mean per-node std, the worst pairwise test-retest Spearman across
+        seeds, and the worst top-K Jaccard overlap.
+        """
+        seeds = result.seeds_used or []
+        records = list(result.records.values())
+        stability: Dict[str, Any] = {
+            "n_seeds": len(seeds),
+            "k_frac": k_frac,
+            "n_nodes": len(records),
+        }
+        if not records:
+            return stability
+
+        stability["mean_std"] = round(
+            sum(r.impact_score_std for r in records) / len(records), 6
+        )
+        stability["max_std"] = round(max(r.impact_score_std for r in records), 6)
+
+        if len(seeds) < 2:
+            # Single seed: no spread to measure. Say so rather than reporting a
+            # perfect-looking 1.0 that would overstate label quality.
+            stability["test_retest_spearman"] = None
+            stability["topk_jaccard"] = None
+            stability["note"] = "single seed — label stability not measured"
+            return stability
+
+        try:
+            from scipy.stats import spearmanr
+        except ImportError:  # pragma: no cover - scipy is a core dependency
+            stability["note"] = "scipy unavailable — correlation not computed"
+            return stability
+
+        per_seed = [
+            [r.seed_impact_scores.get(s, 0.0) for r in records] for s in seeds
+        ]
+        k = max(1, int(round(len(records) * k_frac)))
+
+        def _top_k(scores: List[float]) -> set:
+            order = sorted(range(len(scores)), key=lambda i: -scores[i])
+            return set(order[:k])
+
+        rhos: List[float] = []
+        jaccards: List[float] = []
+        for i in range(len(seeds)):
+            for j in range(i + 1, len(seeds)):
+                rho = spearmanr(per_seed[i], per_seed[j]).correlation
+                if not math.isnan(rho):
+                    rhos.append(float(rho))
+                jaccards.append(len(_top_k(per_seed[i]) & _top_k(per_seed[j])) / k)
+
+        # Report the worst pair, not the mean: the ceiling is set by the weakest
+        # agreement, and averaging hides it.
+        stability["test_retest_spearman"] = round(min(rhos), 6) if rhos else None
+        stability["topk_jaccard"] = round(min(jaccards), 6) if jaccards else None
+        return stability
+
+    @staticmethod
+    def _warn_on_degenerate_types(result: FaultInjectionResult) -> None:
+        """Flag node types whose entire label set came out zero.
+
+        A type that scores 0.0 everywhere is almost never a finding about the
+        system — it means the cascade has no path to express that type's failure
+        (e.g. Topic and Node, whose RUNS_ON/direct-topic semantics are not derived
+        into DEPENDS_ON). Training on such a block teaches the model to predict a
+        constant, so it must be visible rather than silently averaged in.
+        """
+        by_type: Dict[str, List[float]] = defaultdict(list)
+        for rec in result.records.values():
+            by_type[rec.node_type].append(rec.impact_score)
+
+        for node_type, scores in sorted(by_type.items()):
+            if scores and max(scores) <= 1e-9:
+                logger.warning(
+                    "DEGENERATE LABELS: all %d '%s' nodes scored I(v)=0. The cascade "
+                    "cannot express this type's failure, so these are not measurements. "
+                    "Exclude '%s' from --node-types, or they will train the model "
+                    "toward a constant.",
+                    len(scores), node_type, node_type,
+                )
 
     # ── Core injection logic ─────────────────────────────────────────────────
 
