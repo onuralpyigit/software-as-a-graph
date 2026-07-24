@@ -524,7 +524,7 @@ BR(v) = 0 if degree(v) = 0
 **Literature Citation:** Graph bridges (or cut-edges) represent the most critical single links between subgraphs.
 - Tarjan, R. (1972). *Depth-first search and linear graph algorithms*. SIAM Journal on Computing, 1(2), 146-160.
 
-> **Note:** BR(v) describes a *node's* exposure to bridge edges, not a per-edge score. For the direct definition of relationship (edge) criticality, see [criticality.md §3](criticality.md#3-relationship-edge-criticality).
+> **Note:** BR(v) describes a *node's* exposure to bridge edges, not a per-edge score. For the direct definition of relationship (edge) criticality, see [criticality.md §4](criticality.md#4-relationship-edge-criticality).
 
 ### 9.10 Connectivity Degradation Index (CDI)
 
