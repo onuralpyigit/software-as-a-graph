@@ -160,10 +160,13 @@ Replaces the legacy "Quality Scoring" mechanism with a single step that always c
 ### `simulation/` — Step 4 Simulation Engine
 A discrete-event and BFS cascade failure simulator evaluating propagation boundaries on raw structural edges.
 - `SimulationGraph` — Wraps the structural topology projection for traversal operations.
-- `FailureSimulator` — Runs the main BFS cascade simulation under different scenarios (CRASH, DEGRADED, etc.) across physical, logical, network, and library pathways.
+- `FaultInjector` — **Canonical Predict-stage labeler.** Pub-sub BFS cascade producing the scalar $I^*(v)$ written to `impact_scores.json`, which supplies the supervised training labels for the GNN. Deterministic and multi-seed, and emits its own provenance (`labeler`, `labeled_node_types`, `labeled_dimensions`, `unlabeled_node_ids`) plus a `label_stability` block giving the ceiling on any correlation reported against it.
+- `FailureSimulator` — **Canonical Validate-stage oracle.** Runs the main BFS cascade simulation under different scenarios (CRASH, DEGRADED, etc.) across physical, logical, network, and library pathways, producing the composite and IR/IM/IA/IS decomposition the validation gates are written against.
 - `EventSimulator` — Models transient message flow to estimate throughput degradation and queue delays.
 - `ChangePropagationSimulator` — Propagates code-level modifications against G^T to evaluate change-reach bounds.
 - `CompromisePropagationSimulator` — Propagates cyber-breach scenarios along trust-weighted dependency paths.
+
+> **`FaultInjector` and `FailureSimulator` both emit a quantity called "impact", and the two are not interchangeable.** Each owns exactly one pipeline stage — labels vs. validation oracle — and mixing them within a stage is a correctness error, enforced by `tests/test_groundtruth_contract.py`. See [docs/failure-simulation.md §2.1](docs/failure-simulation.md#21-which-engine-is-canonical-for-what).
 
 ### `validation/` — Step 5 Validation Engine
 Correlates predictions against simulation ground-truth metrics to verify thesis validation gates.

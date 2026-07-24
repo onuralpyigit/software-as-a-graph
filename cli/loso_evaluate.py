@@ -317,8 +317,10 @@ def compute_inductive_metrics(
     * ``*_at_tau`` — precision/recall against an absolute truth threshold
       ``tau = tau_frac * max(y_true)``. The true critical set is sized by the
       data rather than fixed at K, so precision and recall genuinely diverge.
-      Scale-free, which matters because label magnitude varies ~14x across
-      scenarios (max I*(v) is 0.73 on atm_system but 0.064 on enterprise).
+      Scale-free, which matters because label magnitude varies ~4x across
+      scenarios (max I*(v) is 0.96 on healthcare_system but 0.22 on
+      iot_smart_city_system) -- I*(v) is a mean over all subscribers, so it
+      decays roughly as 1/|subscribers|.
     * ``pr_auc`` — average precision over the full ranking against that same
       truth set. No K, no prediction-side threshold; the best single summary.
 
@@ -359,7 +361,7 @@ def compute_inductive_metrics(
     # Sized by the label distribution instead of fixed at K, so |true_set| != k
     # and precision/recall carry independent information. Relative to max rather
     # than an absolute constant because label scale is not comparable across
-    # scenarios (max I*(v) ranges 0.053 to 0.731 over the cohort).
+    # scenarios (max I*(v) ranges 0.22 to 0.96 over the cohort).
     label_scale_max = float(y_true.max())
     tau = tau_frac * label_scale_max
     true_critical = y_true >= tau if label_scale_max > 0 else np.zeros_like(y_true, dtype=bool)
@@ -985,7 +987,7 @@ def _metric_caveats(report: LOSOReport) -> str:
     )
     lines.append(
         "- **rmse/mae** compare sigmoid-scale predictions against raw labels whose "
-        "maximum varies ~14x across scenarios; they largely reflect label scale, not "
+        "maximum varies ~4x across scenarios; they largely reflect label scale, not "
         "error. Use `rmse_scaled`/`mae_scaled`."
     )
 

@@ -122,14 +122,37 @@ evaluate_gates(vr, topo_class)
 
 For each node v, the `FaultInjector` runs a BFS cascade simulation in two sequential phases per wave:
 
-**Phase A — Direct propagation (Stochastic):** *(optional extension — **disabled by default**)*
+**Phase A — Direct propagation:** *(inactive for `app_to_app`; **always active** for `app_to_lib`)*
 
-> [!NOTE]
-> **Phase A is a no-op in the default configuration.** The propagation probability for pure `DEPENDS_ON` / `USES` edges is `prob = 0.0` (see `saag/simulation/fault_injector.py`). When `prob = 0.0`, no node ever fails through a bare dependency edge — Phase A contributes zero cascade events. This means the independence claim (§2 note, H5) holds: $I(v)$ is derived entirely from pub-sub topology (Phase B), which shares no computational path with the RMAV predictor $Q(v)$.
+> [!IMPORTANT]
+> **Phase A is a no-op only for `app_to_app` edges.** The propagation probability defaults to
+> `prob = 0.0`, but `saag/simulation/fault_injector.py` special-cases library dependencies:
+> when the edge's `dependency_type` is `app_to_lib` — or the failed node is itself a
+> `Library` — `prob` is set to `1.0`. Library failure therefore fails **every** consuming
+> Application deterministically at wave 0, and those Applications then orphan the topics they
+> solely publish.
 >
-> Phase A exists as an extension point for future work where a non-zero `prob` is desirable — e.g. modelling compile-time dependency chains or shared-library ABI breaks. To activate it, set `prob > 0` in the `FaultInjector` constructor. Doing so changes the independence character of ρ(M, IM) and ρ(V, IV) from a consistency check to a partially-coupled measurement; this should be disclosed in any publication.
+> An earlier revision of this note claimed `prob = 0.0` applied to `USES` edges as well and
+> that Phase A contributed zero cascade events in all configurations. That was incorrect. It
+> had no practical effect while Libraries were excluded from `--node-types`, which is why it
+> went unnoticed; now that Libraries are labelled by default, Phase A fires on every Library
+> injection.
 
-Failure spreads from failed nodes along `DEPENDS_ON` and `USES` edges stochastically. The propagation probability in pure dependency edges is `prob * depth_damp`. By default, `prob` is set to `0.0` (disabled).
+**Consequence for the independence claim (§2 note, H5).** The claim holds unchanged for
+**Application** and **Broker** nodes: their $I(v)$ still derives entirely from pub-sub
+topology (Phase B), which shares no computational path with $Q(v)$.
+
+For **Library** nodes it must be qualified. $Q(v)$'s Reliability dimension includes a
+normalised in-degree term counting `app_to_lib` edges, and a Library's $I(v)$ is now driven
+through those same edges by Phase A. Both quantities therefore increase with the number of
+consuming Applications. This is **not** label leakage — $I(v)$ remains a simulation output,
+not a function of the feature vector — but $\rho(Q, I)$ restricted to Library nodes is a
+partially-coupled measurement rather than a clean empirical test, and should be disclosed as
+such. Report `per_type_rho` so Library and Application correlations can be read separately.
+
+Failure spreads from failed nodes along `DEPENDS_ON` and `USES` edges. For `app_to_app` the
+probability is `prob * depth_damp` with `prob = 0.0` by default (disabled); for `app_to_lib`
+it is `1.0` (deterministic).
 
 **Phase B — Topic-mediated Soft QoS/Rate-weighted Propagation:**  
 1. **Continuous Topic Feed Loss**:
@@ -172,23 +195,47 @@ Averaging across `n_repeats` seeds dampens stochastic variance and yields a stab
 
 ### 3.3 What I(v) Represents
 
-There are two parallel ground-truth metrics computed by the simulation tools depending on the validation path:
+There are two parallel ground-truth metrics, and **which one applies depends on the pipeline stage, not on the entry point**:
 
-1. **`FaultInjector` / `cli/validate_graph.py` (Diagnostic Feed-Loss)**:
-   When running validation dynamically via the command line, the ground truth $I(v)$ represents the mean continuous subscriber feed-loss fraction:
+1. **`FaultInjector` → `impact_scores.json` (canonical Predict-stage label, $I^*(v)$)**:
+   The ground truth $I(v)$ is the mean continuous subscriber feed-loss fraction:
    $$I(v) = \frac{\sum_{s \in \text{all\_subscribers}} \text{sub\_loss}(s)}{|\text{all\_subscribers}|}$$
-   This is a pub-sub-only BFS cascade metric mapping the direct starved paths.
+   A pub-sub BFS cascade metric mapping the directly starved paths. **This is the quantity
+   that supplies GNN training labels and backs the k-fold / LOSO evaluation tables** —
+   `scripts/populate_loso_cache.sh` writes it to `failure_impact.json`, and
+   `cli/kfold_evaluate.py` and `cli/loso_evaluate.py` read it from there.
 
-2. **`FailureSimulator` / `ValidationService` (Canonical Composite)**:
-   When running the GNN training pipeline or validation services, the ground truth $I(v)$ (denoted $I^*(v)$ in the paper) represents the four-component composite impact score:
-   $$I^*(v) = 0.35 \cdot \text{reachability\_loss} + 0.25 \cdot \text{fragmentation} + 0.25 \cdot \text{throughput\_loss} + 0.15 \cdot \text{flow\_disruption}$$
+2. **`FailureSimulator` / `ValidationService` (Composite + RMAV oracle, $I_{\text{comp}}(v)$)**:
+   Used by the Validate-stage gates in `saag/validation/`. The composite impact score is:
+   $$I_{\text{comp}}(v) = 0.35 \cdot \text{reachability\_loss} + 0.25 \cdot \text{fragmentation} + 0.25 \cdot \text{throughput\_loss} + 0.15 \cdot \text{flow\_disruption}$$
    Where:
    - **reachability\_loss**: fraction of weighted pub-sub paths (publisher → topic → subscriber) that are broken.
    - **fragmentation**: graph partition severity after removing $v$ (weighted connected-component disruption).
    - **throughput\_loss**: fraction of total topic-weight throughput disrupted.
    - **flow\_disruption**: fraction of complete Pub→Topic→Sub flow triples broken.
-   
-   This composite score is the primary metric backing the RASSE and Middleware 2026 evaluation results.
+
+   This engine additionally produces the four-dimensional IR/IM/IA/IS decomposition, which
+   has no counterpart in `FaultInjector`.
+
+> [!WARNING]
+> **$I^*(v)$ and $I_{\text{comp}}(v)$ are different quantities and must not be conflated.**
+> Both were previously written $I^*(v)$, and a prior revision of this section stated that the
+> composite score "is the primary metric backing the RASSE and Middleware 2026 evaluation
+> results". That is not the case: every cell in `results/main_table.json` is labelled
+> `"gt_source": "Sim"` and derives from `failure_impact.json`, which
+> `scripts/populate_loso_cache.sh` produces with `FaultInjector`. The published evaluation
+> tables are backed by $I^*(v)$ (path 1); $I_{\text{comp}}(v)$ backs the validation gates.
+>
+> The two engines' outputs are not on a common scale and correlate only loosely. Mixing them
+> within one stage is a correctness error, guarded by
+> [`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py).
+
+**Dimension coverage.** $I^*(v)$ is a single scalar. It maps onto the `composite`,
+`reliability` and `availability` label columns; `maintainability` and `security` are
+**unmeasured** by this engine and are declared absent via the artifact's
+`labeled_dimensions`, not filled with zeros. Only $I_{\text{comp}}(v)$'s engine supplies all
+four RMAV dimensions. See
+[failure-simulation.md §6.1](failure-simulation.md#61-impact_scoresjson).
 
 ---
 
@@ -322,6 +369,33 @@ Against stochastic Sim labels in decoupled pub-sub topologies, absolute ρ is co
 
 > **Why two regimes?** Absolute thresholds (0.80, 0.75) were calibrated when validation targets shared structural basis with predictors (ρ ≈ 0.94 against reachability proxies). Against honest Sim labels — where the target is produced by a stochastic forward simulation fully decoupled from the predictor graph — the same absolute values are unattainable regardless of model quality. Applying Regime A thresholds to Regime B results condemns results for the wrong reason. Conversely, applying Regime B (relative) bands to RMAV pipeline results masks absolute weakness. Use the regime that matches the ground-truth source.
 
+#### The label noise ceiling
+
+Both regimes appeal to "simulator noise" as the reason absolute ρ is bounded. That bound is
+now **measured rather than asserted**, and travels with the labels in the artifact's
+`label_stability` block ([failure-simulation.md §3.6](failure-simulation.md#36-multi-seed-stability-label-noise-and-reproducibility)).
+
+`test_retest_spearman` is the worst pairwise agreement between two seeds' label vectors —
+i.e. how well the ground truth reproduces *itself*. **No method can exceed it.** A model
+reporting ρ = 0.93 against labels self-consistent at 0.93 has saturated the labels; treating
+that as a shortfall against a 0.95 target is a category error.
+
+Measured across the cohort, `test_retest_spearman` ranges 0.928 (`microservices_system`) to
+1.000 (`iot_smart_city_system`). `cli/loso_evaluate.py` prints the worst value in
+`summary.md` next to the achieved ρ, so the comparison needs no separate lookup.
+
+**Rank stability and set stability differ sharply.** `topk_jaccard` — the worst pairwise
+overlap of the top-20% critical sets across seeds — falls to **0.56** on
+`microservices_system` and 0.625 on `atm_system`, meaning roughly 40% of the "critical set"
+changes between seeds of the *same* labeler. Rank-based metrics (ρ, NDCG) are largely immune;
+every top-K-cut metric (Overlap@K, Precision@τ, Recall@τ, SPOF-F1) inherits that churn
+directly. Read `topk_jaccard` before quoting any of them.
+
+> [!CAUTION]
+> A single-seed cache cannot establish a ceiling. `label_stability.test_retest_spearman` is
+> `null` in that case with an explanatory `note`, and any ρ computed against it is unbounded
+> above by construction. Regenerate with the five recommended seeds before publication.
+
 **Kendall τ** is the conservative cross-check:
 
 ```
@@ -362,6 +436,50 @@ Precision@K = TP / (TP + FP)
 Recall@K    = TP / (TP + FN)
 F1@K        = 2 × Precision × Recall / (Precision + Recall)
 ```
+
+> [!IMPORTANT]
+> **At equal K these three are one number, not three.** Because `|gt_top_k| = |pred_top_k| = K`,
+> it follows that `FP = FN`, hence `Precision@K = Recall@K = F1@K` identically for every
+> input. Reporting all three as separate evidence overstates how much has been measured;
+> `cli/loso_evaluate.py` emits `overlap_at_k` as the honest name for the quantity and retains
+> the three legacy keys unchanged for backward compatibility.
+>
+> To obtain precision and recall that genuinely diverge, size the truth set from the data
+> rather than fixing it at K. The evaluation CLI reports a **τ-threshold** critical set,
+> `I(v) ≥ 0.5 · max I(v)`, alongside the top-K window:
+>
+> ```
+> true_critical = {v : I(v) ≥ τ}          τ = 0.5 · max I(v)
+> Precision@τ   = |pred_top_k ∩ true_critical| / K
+> Recall@τ      = |pred_top_k ∩ true_critical| / |true_critical|
+> ```
+>
+> The threshold is relative to the maximum because label magnitude is **not comparable across
+> scenarios**: $I^*(v)$ is a mean over *all* subscribers, so it decays roughly as
+> $1/|\text{subscribers}|$ — max $I(v)$ ranges from 0.223 on `iot_smart_city_system` to
+> 0.960 on `healthcare_system`, a ~4.3× spread. An absolute constant would select nearly
+> every node in one scenario and none in another.
+>
+> **`PR-AUC`** (average precision over the full ranking against the τ set) is the preferred
+> single summary for cross-scenario comparison — it needs no K and no prediction-side
+> threshold.
+>
+> **A caution on small critical sets.** The τ set typically contains only 2–9 nodes. Where
+> it is that small, a single ranking error moves Recall@τ by 30–50 points; read
+> `n_true_critical` alongside the value.
+
+**RMSE and MAE against raw labels are not interpretable.** They compare sigmoid-scale
+predictions against labels whose maximum varies ~4× across scenarios, so the reported figure
+largely reflects which scenario it came from rather than the size of the error. Use
+`rmse_scaled` / `mae_scaled`, which min-max both vectors first, and read `label_scale_max`
+for context.
+
+**Coverage must be reported with every metric.** `n_predicted`, `n_labeled` and `n_evaluated`
+state how many nodes the model scored, how many carry ground truth, and how many the metric
+was actually computed over. Nodes without labels are dropped from the inner join — they are
+evidence neither for nor against the model, and the gap must be visible rather than absorbed
+silently. Currently 30–47% of components per scenario are unlabelled (Topic and Node; see
+[failure-simulation.md §11 L6](failure-simulation.md#11-known-limitations)).
 
 ### 5.4 SPOF-F1
 

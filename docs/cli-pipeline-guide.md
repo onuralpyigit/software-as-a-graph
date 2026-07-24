@@ -270,11 +270,16 @@ Systematic BFS cascade fault injection → `impact_scores.json`.
 | `--layer` | `None` | Resolves to `data/<layer>.json` if `--input` missing |
 | `--output` | `output/simulation/` | Output directory |
 | `--nodes` | `None` | Comma-separated node IDs |
-| `--node-types` | `Application,Broker` | Comma-separated node types |
-| `--seeds` | `42` | Comma-separated seeds |
+| `--node-types` | `Application,Broker,Library` | Comma-separated node types. Do **not** add `Topic` or `Node` — the cascade cannot express their failure and every instance scores `I(v)=0`. |
+| `--seeds` | `42,123,456,789,2024` | Comma-separated seeds. ≥ 2 required for the artifact's `label_stability` block to be measurable. |
 | `--cascade-depth` | `0` | Max depth (0 = unlimited) |
 | `--propagation-threshold` | `0.2` | Fraction of feed loss before cascade |
 | `--export-json` | `False` | Write JSON result files |
+
+The emitted `impact_scores.json` is schema 2.1: it names its `labeler`, declares
+`labeled_node_types` / `labeled_dimensions` / `unlabeled_node_ids`, and carries a
+`label_stability` block giving the ceiling on any correlation computed against it. See
+[failure-simulation.md §6.1](failure-simulation.md#61-impact_scoresjson).
 
 #### `message-flow`
 

@@ -11,13 +11,14 @@ This document describes the two simulation **CLI modes** available in `simulate_
 
 1. [Motivation and Design Rationale](#1-motivation-and-design-rationale)
 2. [Architecture Overview](#2-architecture-overview)
+   - [Which engine is canonical for what](#21-which-engine-is-canonical-for-what)
 3. [Mode 1 — Fault Injection](#3-mode-1--fault-injection)
    - [Algorithm](#31-algorithm)
    - [I(v) Formula](#32-iv-formula)
    - [Cascade Propagation](#33-cascade-propagation)
    - [Broker Failure Semantics](#34-broker-failure-semantics)
    - [Library Blast-Radius Asymmetry](#35-library-blast-radius-asymmetry)
-   - [Multi-Seed Stability](#36-multi-seed-stability)
+   - [Multi-Seed Stability, Label Noise, and Reproducibility](#36-multi-seed-stability-label-noise-and-reproducibility)
 4. [Mode 2 — Message Flow Simulation](#4-mode-2--message-flow-simulation)
    - [Discrete-Event Model](#41-discrete-event-model)
    - [Fan-Out Queue Architecture](#42-fan-out-queue-architecture)
@@ -76,13 +77,33 @@ simulate_graph.py  (CLI entry point)
     (runs fault-inject then message-flow in sequence)
 
 saag/simulation/  (core simulation engine modules)
-├── fault_injector.py        (FaultInjector: diagnostic feed-loss simulator)
-├── failure_simulator.py      (FailureSimulator: canonical composite & RM-AV simulator)
+├── fault_injector.py        (FaultInjector: canonical Predict-stage labeler, I*(v))
+├── failure_simulator.py      (FailureSimulator: canonical Validate-stage RMAV oracle)
 ├── message_flow_simulator.py (MessageFlowSimulator: discrete-event timing simulator)
 └── simulation_results.py    (shared dataclasses for all modes)
     ├── FaultInjectionResult / FaultInjectionRecord / CascadeWave
     └── MessageFlowResult / TopicFlowStats / SubscriberFlowStats / FaultEventRecord
 ```
+
+### 2.1 Which engine is canonical for what
+
+`FaultInjector` and `FailureSimulator` both emit something called "impact", and the two
+quantities are **not** interchangeable — see the warning in
+[`saag/simulation/models.py`](../saag/simulation/models.py). Each owns one pipeline stage:
+
+| Stage | Engine | Output | Consumed by |
+|-------|--------|--------|-------------|
+| **Predict** (supervised labels) | `FaultInjector` | `impact_scores.json` → `I*(v)`, a scalar | GNN training, k-fold / LOSO evaluation |
+| **Validate** (quality oracle) | `FailureSimulator` | `ImpactMetrics` → composite + IR/IM/IA/IS | `saag/validation/` gates |
+
+`FaultInjector` is the labeler because it is deterministic, multi-seed, and records
+per-node variance — the properties a training label needs. `FailureSimulator` supplies
+the four-dimensional RMAV decomposition that the validation gates are written against.
+
+**The two must never be mixed inside one stage.** This is enforced by
+[`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py), which also
+checks that the emitted artifact names its own labeler, so a cache can always be traced
+back to the engine that wrote it.
 
 The CLI uses a **subcommand pattern** so fault injection and message flow share a common `--input` / `--output` / `--export-json` / `--verbose` interface while each exposes its own mode-specific flags.
 
@@ -218,18 +239,40 @@ Libraries occupy an asymmetric position between $Q(v)$ (structural quality predi
 
 **Visible to $Q(v)$:** The structural analyzer creates `app_to_lib` (`DEPENDS_ON`) edges from every consuming Application to the Library. These edges contribute to the Library's in-degree, betweenness, and Reliability dimension score. A widely-used library therefore scores high on the $R(v)$ dimension — its blast radius is structurally significant.
 
-**Low or Near-zero in FaultInjector $I(v)$**: `FaultInjector` restricts candidate targets to Applications and Brokers by default. Even if a Library is injected, it has no publish/subscribe endpoints on topic interfaces. Since stochastic propagation through `DEPENDS_ON` edges is disabled (`prob = 0.0`), a Library failure does not cascade to subscribers, yielding an $I(v)$ of 0.
+**Also visible to `FaultInjector` $I(v)$.** `FaultInjector.__init__` derives
+`DEPENDS_ON(app → lib, dependency_type="app_to_lib")` from `USES` edges when the input
+graph carries none, and `_cascade` propagates those edges at `prob = 1.0`. A Library
+failure therefore fails every consuming Application at wave 0, and those Applications then
+orphan the topics they solely publish — the blast radius does reach subscribers.
 
-**$T_0$ Step-Function Collapse in FailureSimulator**: The canonical `FailureSimulator` models library failure as a **$T_0$ step-function collapse**: all consuming Applications that use the Library fail immediately at depth 0. However, the subsequent propagation of these Application failures forward through the pub-sub topic graph is typically restricted. This results in libraries having lower composite impact than their large structural footprint suggests, which is a known design asymmetry.
+Measured on the regenerated LOSO caches (five seeds, `--node-types Application,Broker,Library`):
 
-This is a **known design asymmetry**, not a bug. The rationale is that library failures manifest as compile-time or startup failures in practice — the cascading effect is captured at $T_0$ (immediate knock-on) rather than the pub-sub propagation model used for runtime failures. When a Library's $Q(v)$ rank is meaningfully higher than its $I(v)$ rank in the validation scatter plot, this is the expected explanation.
+| Scenario | Library nodes | non-zero | mean $I(v)$ | max $I(v)$ |
+|----------|--------------:|---------:|------------:|-----------:|
+| `atm_system` | 8 | 6 | 0.400 | 0.705 |
+| `healthcare_system` | 12 | 12 | 0.922 | 0.960 |
+| `microservices_system` | 30 | 30 | 0.428 | 0.514 |
+
+Libraries are consistently among the *highest*-impact node types, which matches their
+structural footprint rather than contradicting it.
+
+> [!IMPORTANT]
+> **Corrects an earlier claim.** This section previously stated that a Library injection
+> yields $I(v) = 0$ because `DEPENDS_ON` propagation is disabled at `prob = 0.0`. That is
+> true only for `app_to_app` dependency edges; `app_to_lib` is explicitly special-cased to
+> `prob = 1.0`. Libraries were absent from results for two unrelated reasons, both now
+> fixed: they were not in the default `--node-types`, and the CLI's fallback graph loader
+> had no `libraries` block, so Library nodes were created implicitly by their `USES` edges
+> with `type=None` and matched no type filter at all.
+
+**$T_0$ Step-Function Collapse in FailureSimulator**: `FailureSimulator` models library failure as a **$T_0$ step-function collapse**: all consuming Applications that use the Library fail immediately at depth 0. The subsequent propagation of these Application failures forward through the pub-sub topic graph is more restricted than in `FaultInjector`, so the two engines rank libraries differently. That divergence is expected — they measure different quantities (§2.1).
 
 > [!NOTE]
 > The standard Reliability $R(v)$ formula (documented in [structural-analysis.md](structural-analysis.md#reliability-rv--fault-propagation-risk)) already includes the normalized in-degree term $DG\_in(v)$, which captures the number of direct consumers (blast radius) for both Applications and Libraries. This is the correct place to tune the Library's structural influence if the asymmetry is considered too large.
 
 ---
 
-### 3.6 Multi-Seed Stability
+### 3.6 Multi-Seed Stability, Label Noise, and Reproducibility
 
 The cascade propagation order within a wave is non-deterministic when multiple nodes are eligible to propagate simultaneously (tie-breaking). Each seed produces a different shuffle of the wave candidates, testing whether I(v) depends on this ordering.
 
@@ -239,13 +282,82 @@ With N seeds:
 - The cascade trace (waves, orphaned topics, impacted subscribers) in the JSON record is from the **seed whose impact score is closest to the mean** (median-representative seed), giving the most stable trace for human inspection.
 
 **Interpreting std values:**
-- `std = 0.0` on a deterministic topology (most real systems): each seed produces identical results.
+- `std = 0.0` — each seed produced an identical result for that node.
 - `std > 0` indicates that I(v) is sensitive to the propagation order, typically at the boundary of a cascade — a signal of fragility that is itself worth reporting.
 
 > [!NOTE]
 > **Stochasticity limits on shallow cascades.** Because the depth damping factor at wave 0 is exactly `1.0` (causing all eligible subscribers to fail deterministically) and stochastic propagation through pure `DEPENDS_ON` edges is disabled (`prob = 0.0`), standard deviation is always `0.0` for shallow cascades resolving completely at wave 0. Multi-seed averaging only affects deep cascades resolving at waves $\ge 1$ where `depth_damp < 1.0` introduces probabilistic failures.
 
-Recommended seeds for thesis experiments: `42,123,456,789,2024`.
+Recommended seeds — and the CLI default: `42,123,456,789,2024`.
+
+#### The `label_stability` block
+
+Per-node `impact_score_std` answers "is this node's score stable?". It does not answer
+"how much can I trust a correlation computed against this whole label set?". Every artifact
+therefore carries an aggregate `label_stability` block:
+
+```json
+"label_stability": {
+  "n_seeds": 5,
+  "n_nodes": 39,
+  "k_frac": 0.20,
+  "mean_std": 0.026726,
+  "max_std": 0.1856,
+  "test_retest_spearman": 0.980215,
+  "topk_jaccard": 0.625
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `test_retest_spearman` | **Worst** pairwise Spearman ρ between any two seeds' label vectors. This is the ceiling on any reported ρ. |
+| `topk_jaccard` | **Worst** pairwise overlap of the top-`k_frac` critical sets across seeds. |
+| `mean_std` / `max_std` | Mean and worst per-node standard deviation. |
+| `n_seeds` | Number of seeds. With one seed, the correlation fields are `null` and a `note` explains why — a single seed cannot establish a ceiling, and reporting `1.0` would overstate label quality. |
+
+**Both aggregates report the worst pair, not the mean.** The ceiling is set by the weakest
+agreement; averaging hides it.
+
+Measured across the scenario cohort:
+
+| Scenario | `test_retest_spearman` | `topk_jaccard` |
+|----------|----------------------:|---------------:|
+| `microservices_system` | 0.928 | 0.560 |
+| `atm_system` | 0.980 | 0.625 |
+| `av_system` | 0.985 | 0.714 |
+| `financial_trading_system` | 0.990 | 0.647 |
+| `hub_and_spoke_system` | 0.996 | 0.947 |
+| `enterprise_system` | 0.996 | 1.000 |
+| `healthcare_system` | 0.998 | 0.923 |
+| `iot_smart_city_system` | 1.000 | 1.000 |
+
+**Read the two columns separately.** Rank correlation is high everywhere (≥ 0.93), but the
+*critical set* is much less stable: on `microservices_system` roughly 44% of the top-20%
+changes between seeds. Metrics defined on a top-K cut — Overlap@K, P@τ, R@τ — inherit that
+churn, while ρ and NDCG largely do not. A reported Overlap@K of 0.60 on that scenario is
+within the labels' own noise.
+
+`cli/loso_evaluate.py` propagates this block into `summary.md`, so the ceiling is printed
+next to the achieved ρ rather than having to be looked up.
+
+#### Reproducibility
+
+`FaultInjector` seeds a fresh `random.Random(seed)` per (node, seed) pair, so results are
+reproducible across runs and processes.
+
+`FailureSimulator.simulate_exhaustive` takes a `seed` argument (default `42`) and derives a
+per-component seed as `run_seed ^ zlib.crc32(component_id)`. Two properties matter here:
+
+- **`zlib.crc32`, not `hash()`** — `hash(str)` is salted by `PYTHONHASHSEED`, which would
+  make labels differ between processes.
+- **Derived from the component id, not its index** — a component's label must not shift
+  because a LOSO fold changed how many other components share the sweep.
+
+Pass `seed=None` to restore free-running behaviour. Before seeding, identical exhaustive
+sweeps disagreed with each other: on `healthcare_system`, run-to-run ρ fell to 0.909 with
+8% of the top-20% set churning between runs — a noise floor barely above the ρ ≥ 0.85 gate
+it was being used to enforce. See
+[`tests/test_label_determinism.py`](../tests/test_label_determinism.py).
 
 
 ---
@@ -385,12 +497,23 @@ python simulate_graph.py fault-inject [options]
 | `--output DIR` | `output/simulation/` | Output directory; created if absent. |
 | `--export-json` | off | Write `impact_scores.json` and `impact_scores_summary.txt` to `--output`. |
 | `--nodes ID1,ID2,...` | all matching `--node-types` | Comma-separated node IDs to inject. Overrides `--node-types`. |
-| `--node-types TYPE1,TYPE2` | `Application,Broker` | Node types eligible for injection. |
-| `--seeds 42,123,...` | `42` | Comma-separated integer seeds for multi-seed stability. |
+| `--node-types TYPE1,TYPE2` | `Application,Broker,Library` | Node types eligible for injection. Types omitted here get **no** ground truth and are listed in the artifact's `unlabeled_node_ids`. |
+| `--seeds 42,123,...` | `42,123,456,789,2024` | Comma-separated integer seeds. Labels are the per-node mean; ≥ 2 seeds are required for `label_stability` to be measurable. |
 | `--cascade-depth N` | `0` (unlimited) | Maximum cascade wave depth. |
 | `--verbose` / `-v` | off | Enable DEBUG logging. |
 
 > **Propagation threshold** is currently only configurable via the Python API (`FaultInjector(propagation_threshold=0.5)`), not the CLI. This is intentional — it is a research parameter that should be set deliberately, not accidentally via a flag.
+
+> [!WARNING]
+> **Do not add `Topic` or `Node` to `--node-types`.** The cascade derives `DEPENDS_ON` only
+> from `PUBLISHES_TO`, `SUBSCRIBES_TO` and `USES`, so it has no way to express the failure
+> of a Topic or a physical Node: **every** instance of either scores exactly $I(v) = 0$.
+> Those are not measurements of "no impact" — they are the absence of a model. Including
+> them adds a block of 25–45 constant-zero labels per scenario (see §11 L6) and trains the
+> model toward a constant.
+>
+> `FaultInjector.run()` detects this and emits a `DEGENERATE LABELS` warning naming any node
+> type whose entire label set came out zero. If you see that warning, remove the type.
 
 **Example — full ATM dataset, five seeds:**
 
@@ -534,17 +657,53 @@ output/simulation/
 
 ```json
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "graph_id": "atm_system",
-  "total_nodes_injected": 6,
-  "total_application_nodes": 5,
-  "total_broker_nodes": 1,
-  "total_subscribers": 3,
+  "total_nodes_injected": 39,
+  "total_application_nodes": 26,
+  "total_broker_nodes": 5,
+  "total_subscribers": 21,
   "seeds_used": [42, 123, 456, 789, 2024],
+
+  "labeler": "FaultInjector",
+  "labeled_node_types": ["Application", "Broker", "Library"],
+  "labeled_dimensions": ["composite", "reliability", "availability"],
+  "unlabeled_node_ids": ["N0", "N1", "N2", "N3", "N4", "..."],
+  "label_stability": { "...": "see §3.6" },
+
   "top_k_by_impact": [ ... ],
   "records": { ... }
 }
 ```
+
+**Provenance fields (added in schema 2.1):**
+
+| Field | Why it exists |
+|-------|---------------|
+| `labeler` | Names the engine that wrote the file. Two engines emit differently-scaled "impact" (§2.1); a consumer that cannot tell them apart cannot know what its numbers mean. |
+| `labeled_node_types` | The types actually injected. |
+| `labeled_dimensions` | The label dimensions this engine genuinely **measured**. `FaultInjector` emits one scalar, which maps onto `composite` / `reliability` / `availability` — it says nothing about maintainability or security, so those are **absent**, not zero. |
+| `unlabeled_node_ids` | Nodes present in the graph but never injected. Makes the coverage gap explicit instead of letting it vanish in a downstream set intersection. |
+| `label_stability` | The labels' own reproducibility — the ceiling on any ρ reported against them. See §3.6. |
+
+> [!IMPORTANT]
+> **Absent is not zero.** `extract_simulation_dict` previously emitted
+> `"maintainability": 0.0` and `"security": 0.0` for every record. Those fabricated zeros
+> were indistinguishable from real measurements, so two of the model's five prediction heads
+> were trained and scored against a constant. The parser now emits only the dimensions the
+> labeler declared, and `networkx_to_hetero_data` derives a `dimension_mask` from them so the
+> unmeasured columns are excluded from the multitask loss.
+>
+> The same distinction applies to **nodes**: a node the simulator targeted and scored `0.0`
+> is a real observation at the low end of the ranking, while a node that was never targeted
+> is missing data. Both used to collapse to a `0.0` label, and the training code identified
+> labelled nodes with the proxy `|y_composite| > 1e-6` — which excluded genuine zeros from
+> the loss while still scoring the model on them (7–115 nodes per scenario; 37% on
+> `enterprise_system`). An explicit `label_mask` now carries presence-in-the-artifact.
+
+**Backward compatibility.** Schema 2.0 files still parse. They carry no provenance fields,
+so consumers fall back to the historical behaviour and `label_stability` is unavailable.
+Regenerate with `scripts/populate_loso_cache.sh` to pick up the new fields.
 
 **`top_k_by_impact`** — ranked list (top 20 by default):
 
@@ -811,11 +970,16 @@ ValidateUseCase / validate_topology_classes.py
 Validation report
 ```
 
-**Pairing keys.** Both `analysis_results.json` and `impact_scores.json` use the node ID (string matching the graph node name) as the primary key. The validation script should inner-join on this key, discarding nodes present in only one file (e.g., Topic nodes that appear in analysis but are not injection candidates).
+**Pairing keys.** Both `analysis_results.json` and `impact_scores.json` use the node ID (string matching the graph node name) as the primary key. The validation script inner-joins on this key. Nodes present in only one file are dropped — but that drop must be **reported, not silent**: consult `unlabeled_node_ids` and the `n_predicted` / `n_labeled` / `n_evaluated` counts that `compute_inductive_metrics` now returns. A model scored on 65 of 98 nodes has not been evaluated on the other 33, and that is neither evidence for nor against it.
 
-**Node-type stratified reporting.** The `node_type` field in each record allows the Spearman ρ to be computed separately for Application nodes and Broker nodes, which is important because the infrastructure layer has historically shown weaker correlation (ρ ≈ 0.54) than the application layer (ρ = 0.876).
+**Node-type stratified reporting.** The `node_type` field in each record allows the Spearman ρ to be computed separately per type. This matters more now that Libraries are labelled: overall ρ can be driven by *between-type* separation (Libraries score systematically high, Applications low) rather than by correct ranking *within* a type. Always read `per_type_rho` alongside the headline ρ — they can point in opposite directions.
 
-**Multi-seed stability gate.** Before using I(v) for publication, verify that `impact_score_std` is below a threshold (suggested: 0.02) for all nodes. High std values indicate topology boundary fragility that should be investigated.
+**Multi-seed stability gate.** Before using I(v) for publication:
+
+1. Confirm `label_stability.n_seeds` ≥ 2. With one seed the labels' reproducibility is unmeasured and ρ has no stated ceiling.
+2. Read `label_stability.test_retest_spearman` as the ceiling on any reported ρ. A model at 0.93 against labels self-consistent at 0.93 has **saturated** the labels, not underperformed.
+3. Read `label_stability.topk_jaccard` before quoting any top-K metric. Where it is ~0.6, Overlap@K and P@τ inherit ~40% churn from the labels themselves.
+4. Check per-node `impact_score_std` for boundary fragility (suggested threshold: 0.02).
 
 ---
 
@@ -875,8 +1039,8 @@ injector = FaultInjector(
     propagation_threshold=0.2,      # default 0.2
 )
 
-# Inject all Application and Broker nodes
-result = injector.run(node_types=["Application", "Broker"])
+# Inject the three labelable types. Topic and Node would score 0 everywhere (§11 L6).
+result = injector.run(node_types=["Application", "Broker", "Library"])
 
 # Inject specific nodes only
 result = injector.run(node_ids=["ConflictDetector", "ASTERIX_Broker"])
@@ -892,7 +1056,21 @@ for node_id, rec in result.records.items():
 # Access ranked summary
 for row in result.top_k_by_impact:
     print(f"#{row['rank']}  {row['node_id']}  {row['impact_score']:.4f}")
+
+# Check the labels before trusting anything computed against them
+stab = result.label_stability
+print(f"ceiling on any reported rho: {stab['test_retest_spearman']}")
+print(f"top-K critical set stability: {stab['topk_jaccard']}")
+
+# Coverage: which nodes have no ground truth at all
+print(f"{len(result.unlabeled_node_ids)} nodes unlabeled: {result.unlabeled_node_ids[:5]}")
 ```
+
+> [!NOTE]
+> Passing a graph whose Library nodes lack a `type` attribute silently excludes them from
+> `node_types` matching. If you build the graph yourself rather than via
+> `cli/simulate_graph.py::_load_graph`, set `type="Library"` explicitly — implicit creation
+> through `USES` edges leaves the attribute unset.
 
 ### 10.2 MessageFlowSimulator
 
@@ -947,5 +1125,31 @@ if result.fault_event:
 **L4 — Publisher-side processing time is not included in end-to-end latency.** The message `created_at` timestamp is set after the publisher's processing delay, meaning publisher processing is not part of the reported latency. Total pipeline latency = publisher processing + queue transit + subscriber processing; only the latter two are captured. This is consistent with DDS measurement conventions (publication timestamp is at the point of writing to the middleware).
 
 **L5 — Infrastructure layer metrics not used in cascade.** RUNS\_ON and CONNECTS\_TO edges are not used in the fault cascade. A network partition that isolates a set of physical nodes from each other is not modelled. This is consistent with the known weak correlation of infrastructure-layer Q(v) (ρ ≈ 0.54) and is flagged as a gap in the thesis.
+
+**L6 — Topic and Node cannot be labelled.** Following from L5, `FaultInjector` derives `DEPENDS_ON` only from `PUBLISHES_TO`, `SUBSCRIBES_TO` and `USES`. It has no rule that expresses the failure of a Topic (a topic is orphaned *by* a publisher or broker failing, never injected directly) or of a physical Node (no `RUNS_ON → DEPENDS_ON` derivation exists). Injecting either yields $I(v) = 0$ for **every** instance. These types are therefore excluded from `--node-types` and recorded in `unlabeled_node_ids`, leaving 33–160 nodes per scenario without ground truth (≈ 30–47% of components). The GNN still *predicts* scores for them; those predictions are simply never validated. Closing this requires adding the missing derivation rules to the cascade, not merely widening `--node-types`.
+
+**L7 — Only three of five label dimensions are measured.** `FaultInjector` emits a single scalar, so `maintainability` and `security` have no ground truth from this engine. They are declared absent via `labeled_dimensions` and excluded from the loss via `dimension_mask` (§6.1). The four-dimensional RMAV decomposition exists only in `FailureSimulator`, which serves the Validate stage (§2.1). Unifying them would require one engine to produce all five dimensions.
+
+**L8 — No edge-removal simulation.** `EdgeCriticality` is declared in `saag/simulation/models.py` but never populated: `all_edge_criticality` is initialised empty and passed straight through, so `SimulationService.classify_edges()` always returns `[]`. Edge criticality labels used for training are a *projection of node labels* through a hand-chosen bridge multiplier (1.0 for bridges, 0.1 otherwise), not an observation of what happens when an edge fails. Reported edge metrics are therefore validated against a heuristic rather than ground truth and should not be read as evidence of predictive accuracy for edges; node-level results are unaffected. See [prediction.md §2.6](prediction.md#26-edge-criticality-prediction). Closing this means simulating removal of each candidate edge (bridges ∪ high edge-betweenness) and populating `EdgeCriticality` from the resulting reachability and fragmentation deltas.
+
+**L9 — Broker labels are topology-dependent and frequently degenerate.** When computing topic feed loss, the cascade uses routing-broker failure as the loss fraction *only* when the topic has no publishers at all; otherwise loss comes from publisher rates and the routing brokers are ignored entirely. Combined with the redundancy rule (a topic is orphaned only if *all* its routing brokers fail), this means a Broker scores $I(v) = 0$ whenever every topic it routes either has a live publisher or has a redundant router.
+
+This is not a corner case. Across the eight regenerated LOSO caches:
+
+| Broker labels | Scenarios |
+|---------------|-----------|
+| **All zero** — no signal at all | `enterprise_system` (10 brokers), `financial_trading_system` (5), `healthcare_system` (3) |
+| Partial (some zero) | `atm_system` (3/5 non-zero), `av_system` (2/4), `iot_smart_city_system` (4/6, max 0.029) |
+| Full signal | `hub_and_spoke_system` (2/2, mean 0.897), `microservices_system` (6/6, mean 0.497) |
+
+**Broker labels are therefore usable in some scenarios and absent in others**, and the same
+graph can flip between the two depending on how redundantly it is routed — the cohort caches
+carry slightly denser `ROUTES` sets than the raw `data/scenarios/*.json` files, and
+`healthcare_system` has non-zero broker labels in the latter (max 0.801) but all-zero in the
+former. `FaultInjector` emits a `DEGENERATE LABELS` warning naming the affected type, so this
+is visible per run rather than silent; treat it as a signal to exclude `Broker` from
+`--node-types` for that scenario, or to read per-type ρ with `Broker` excluded. Fixing it
+properly means making broker failure contribute to feed loss even for topics that have live
+publishers.
 
 **L6 — No timeout / retry modelling.** For RELIABLE QoS, the head-drop policy prevents queue overflow but does not model TCP-style retransmission or DDS heartbeat/acknowledgement. The modelled delivery rates will be optimistic relative to real network conditions.
