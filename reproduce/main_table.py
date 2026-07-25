@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-reproduce/middleware26_main_table.py — Block C: Main Results Table Harness
+reproduce/main_table.py — Block C: Main Results Table Harness
 ======================================================================
 
 Orchestrates the 7×6×5 evaluation matrix behind Table 1 / Tables 4-6 of the paper
@@ -26,13 +26,13 @@ Output: results/main_table.json + results/main_table.tex (via render_table.py)
 Usage
 -----
   # Full matrix (≈ 140 GNN training runs, 30-60 min on CPU)
-  python reproduce/middleware26_main_table.py
+  python reproduce/main_table.py
 
   # Quick smoke test: 1 scenario, 2 seeds
-  python reproduce/middleware26_main_table.py --scenarios av_system --seeds 42 123
+  python reproduce/main_table.py --scenarios av_system --seeds 42 123
 
   # Resume from partial results (skips completed cells)
-  python reproduce/middleware26_main_table.py --resume
+  python reproduce/main_table.py --resume
 """
 
 from __future__ import annotations

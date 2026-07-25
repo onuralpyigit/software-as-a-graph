@@ -114,7 +114,7 @@ echo ""
 
 # ── Step 1: Training matrix ────────────────────────────────────────────────────
 echo "  [1/3] Training matrix ..."
-PYTHONPATH=. python reproduce/middleware26_main_table.py \
+PYTHONPATH=. python reproduce/main_table.py \
     --output "$OUTPUT" \
     --seeds ${SEEDS} \
     --epochs "$EPOCHS" \

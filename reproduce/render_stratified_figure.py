@@ -7,7 +7,7 @@ Reads EvalMetrics per_node_type data from training run JSON outputs and
 produces Figure 4: per-node-type Spearman ρ stratified by variant.
 
 Sources (tries each in order):
-  1. results/main_table.json  (from reproduce/middleware26_main_table.py)
+  1. results/main_table.json  (from reproduce/main_table.py)
   2. output/loso/<variant>/results.json  (per-variant LOSO)
 
 Output:
@@ -295,7 +295,7 @@ def main():
     data = _load_stratified_data(args.source, args.main_table, args.loso_dir)
     if data is None:
         print("\n  No stratified data found. Run one of:")
-        print("    python reproduce/middleware26_main_table.py   (for main_table.json)")
+        print("    python reproduce/main_table.py   (for main_table.json)")
         print("    python reproduce/loso_all_variants.py         (for LOSO results)")
         sys.exit(0)
 

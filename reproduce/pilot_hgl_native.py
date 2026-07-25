@@ -24,7 +24,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("HGL-Native-Pilot")
 
-from reproduce.middleware26_main_table import _load_scenario_data
+from reproduce.main_table import _load_scenario_data
 from saag.prediction.gnn_service import GNNService
 
 def run_pilot():

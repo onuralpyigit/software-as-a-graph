@@ -72,7 +72,7 @@ def test_rmav_substitution_raises_by_default(tmp_path):
     RMAV is computed from the same structural metrics that form the GNN's input
     features, so substituting it makes the labels a function of the features.
     """
-    from reproduce.middleware26_main_table import _load_cache_dicts
+    from reproduce.main_table import _load_cache_dicts
 
     nodes = _write_sparse_cache(tmp_path / "sparse_scenario")
 
@@ -82,7 +82,7 @@ def test_rmav_substitution_raises_by_default(tmp_path):
 
 def test_rmav_substitution_is_tagged_when_explicitly_allowed(tmp_path):
     """Opting in is permitted, but the result may never be labelled 'Sim'."""
-    from reproduce.middleware26_main_table import _load_cache_dicts
+    from reproduce.main_table import _load_cache_dicts
 
     nodes = _write_sparse_cache(tmp_path / "sparse_scenario")
 
@@ -98,7 +98,7 @@ def test_dense_simulation_labels_are_untouched(tmp_path):
     """The guard must not fire on healthy caches."""
     import json
 
-    from reproduce.middleware26_main_table import _load_cache_dicts
+    from reproduce.main_table import _load_cache_dicts
 
     cache_dir = tmp_path / "dense_scenario"
     cache_dir.mkdir(parents=True)

@@ -7,7 +7,7 @@ VSI:AI4MSS — see `docs/research/jss/si_middleware_extension.md`).
 
 ---
 
-## 1. The Experimental Harness (`middleware26_main_table.py`)
+## 1. The Experimental Harness (`main_table.py`)
 
 The primary harness orchestrates the **Attributable GNN Evaluation Ladder** over a **7 × 6 × 5
 evaluation matrix** (7 scenarios, 6 variants, 5 seeds), totaling 210 cells (140 GNN training runs
@@ -77,7 +77,7 @@ To reproduce the full Table 3 with all identification metrics:
 
 ```bash
 # Run the harness
-python reproduce/middleware26_main_table.py --epochs 300 --seeds 42 123 456 789 2024
+python reproduce/main_table.py --epochs 300 --seeds 42 123 456 789 2024
 
 # Render the report
 python reproduce/render_table.py --table3 results/main_table.json

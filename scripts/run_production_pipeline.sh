@@ -9,7 +9,7 @@ echo "=========================================="
 export OMP_NUM_THREADS=4
 
 echo "[1/2] Launching main table (Table 3) sweep in background..."
-PYTHONPATH=. python reproduce/middleware26_main_table.py \
+PYTHONPATH=. python reproduce/main_table.py \
     --epochs 300 \
     --seeds 42 123 456 789 2024 \
     --output results/main_table.json \

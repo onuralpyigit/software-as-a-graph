@@ -730,7 +730,7 @@ def main():
         print_id_metrics_console(data3)
     else:
         print(f"\n  [Table 3] Not found: {args.table3}")
-        print("  Run: python reproduce/middleware26_main_table.py")
+        print("  Run: python reproduce/main_table.py")
 
     # ── Table 4 ───────────────────────────────────────────────────────────────
     if args.table4.exists():

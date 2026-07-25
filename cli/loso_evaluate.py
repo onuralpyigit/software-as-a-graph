@@ -241,7 +241,7 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
     structural = extract_structural_metrics_dict(structural_raw)
 
     try:
-        from reproduce.middleware26_main_table import _parse_failure_impact, _parse_quality_scores, _remap_node_ids
+        from reproduce.main_table import _parse_failure_impact, _parse_quality_scores, _remap_node_ids
         sim_parsed = _parse_failure_impact(sim_raw)
         rmav_parsed = _parse_quality_scores(rmav_raw) if rmav_raw else {}
         graph_nodes = set(str(n) for n in graph.nodes())
@@ -532,7 +532,7 @@ def run_one_fold(
                     holdout_graph = holdout.graph
                     holdout_sm    = holdout.structural
                 else:
-                    from reproduce.middleware26_main_table import _mask_qos_in_graph, _mask_qos_in_structural
+                    from reproduce.main_table import _mask_qos_in_graph, _mask_qos_in_structural
                     train_graph = _mask_qos_in_graph(primary.graph)
                     train_sm    = _mask_qos_in_structural(primary.structural)
                     holdout_graph = _mask_qos_in_graph(holdout.graph)
@@ -614,7 +614,7 @@ def run_one_fold(
                     holdout_graph = holdout.graph
                     holdout_sm    = holdout.structural
                 else:
-                    from reproduce.middleware26_main_table import _mask_qos_in_graph, _mask_qos_in_structural
+                    from reproduce.main_table import _mask_qos_in_graph, _mask_qos_in_structural
                     train_graph = _mask_qos_in_graph(primary.graph)
                     train_sm    = _mask_qos_in_structural(primary.structural)
                     holdout_graph = _mask_qos_in_graph(holdout.graph)

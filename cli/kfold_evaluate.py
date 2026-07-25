@@ -172,7 +172,7 @@ def run_one_scenario(
 
     use_qos = variant in ("hgl_qos", "gl_qos")
     if variant in ("hgl", "gl"):
-        from reproduce.middleware26_main_table import _mask_qos_in_graph, _mask_qos_in_structural
+        from reproduce.main_table import _mask_qos_in_graph, _mask_qos_in_structural
         train_graph = _mask_qos_in_graph(bundle.graph)
         train_sm = _mask_qos_in_structural(bundle.structural)
     else:

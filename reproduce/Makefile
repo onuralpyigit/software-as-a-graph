@@ -71,7 +71,7 @@ block0:
 # ─────────────────────────────────────────────────────────────────────────────
 
 table3: block0
-	$(PYTHON) reproduce/middleware26_main_table.py \
+	$(PYTHON) reproduce/main_table.py \
 	    --output $(RESULTS_DIR)/main_table.json \
 	    --seeds $(SEEDS) \
 	    --epochs $(EPOCHS) \
@@ -156,7 +156,7 @@ all: setup scenarios block0 table3 table4 figure4 figure5
 # ─────────────────────────────────────────────────────────────────────────────
 
 smoke-test: block0
-	$(PYTHON) reproduce/middleware26_main_table.py \
+	$(PYTHON) reproduce/main_table.py \
 	    --scenarios atm_system av_system iot_smart_city_system \
 	    --seeds 42 123 \
 	    --epochs $(EPOCHS_FAST) \

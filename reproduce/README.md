@@ -159,7 +159,7 @@ make -f reproduce/Makefile smoke-test EPOCHS=50
 
 ## Architecture Variants (Table columns)
 
-These identifiers are used directly by `middleware26_main_table.py`, `loso_all_variants.py`, and the
+These identifiers are used directly by `main_table.py`, `loso_all_variants.py`, and the
 two Table 8/9 scripts, and match the paper's Table 1 naming exactly (unlike some other CLI entry
 points in this repo, e.g. `cli/train_graph.py`, which predate the paper and use a different internal
 naming scheme — see that file's `--variant` help text for the mapping if you need it):
@@ -187,7 +187,7 @@ The Go/No-Go test (`make block0`) verifies determinism via `test_prediction_delt
 To reproduce results for a subset of scenarios:
 
 ```bash
-python reproduce/middleware26_main_table.py \
+python reproduce/main_table.py \
     --scenarios av_system iot_smart_city_system \
     --seeds 42,123 \
     --epochs 150 \
@@ -211,7 +211,7 @@ reproduce/
 ├── __init__.py        — package initialization
 │
 │   Core harness — this paper's Tables 1, 4-7:
-├── middleware26_main_table.py   — 7×6×5 evaluation matrix (paper Tables 4-5)
+├── main_table.py                — 7×6×5 evaluation matrix (paper Tables 4-5)
 ├── loso_all_variants.py         — LOSO × 4 variants (paper Table 7)
 ├── render_table.py              — LaTeX/CSV/MD table renderer
 ├── render_stratified_figure.py  — per-node-type ρ figure

@@ -67,7 +67,7 @@ if __name__ == "__main__" and __package__ is None:
 
 # Reuse the harness's data-prep + helpers so recalibration uses the exact
 # same DEPENDS_ON graph, RMAV substitution policy, and topo scoring formula.
-from reproduce.middleware26_main_table import (
+from reproduce.main_table import (
     _load_scenario_data,
     _compute_topo_baseline_scores,
     _mask_qos_in_graph,
@@ -517,7 +517,7 @@ def main():
                   f"  ({dt:.1f}s)")
 
     # ── Re-aggregate so downstream renderers see the new F1 numbers ──────────
-    from reproduce.middleware26_main_table import _aggregate_cells
+    from reproduce.main_table import _aggregate_cells
     aggregate = _aggregate_cells(new_cells)
 
     agg_serializable: Dict[str, Any] = {}
