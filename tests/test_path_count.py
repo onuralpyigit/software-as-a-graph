@@ -41,25 +41,6 @@ class TestPathComplexity:
         assert res.components["B"].path_complexity == 0.0
         assert res.components["C"].path_complexity == 0.0
 
-    def test_coupling_risk_modulation(self, multi_path_graph):
-        """QualityAnalyzer should modulate CouplingRisk by (1 + delta * path_complexity)."""
-        # 1. Structural Analysis
-        struct_res = StructuralAnalyzer().analyze(multi_path_graph)
-        
-        # 2. Quality Analysis
-        quality_res = QualityAnalyzer().analyze(struct_res)
-        
-        comp_map = {c.id: c for c in quality_res.components}
-        a_metrics = struct_res.components["A"]
-        a_quality = comp_map["A"]
-        
-        # Base CouplingRisk calculation:
-        # id=0, od=2/2=1.0 -> instability = 1.0 / (0 + 1.0) = 1.0
-        # base_cr = 1.0 - abs(2*1.0 - 1) = 0.0
-        # Wait, if base_cr is 0, modulation won't change it. 
-        # Let's use a graph where ID > 0.
-        pass
-
     def test_coupling_risk_modulation_with_id(self):
         """Verifies modulation when base CouplingRisk > 0."""
         # X depends on Y, Z depends on X

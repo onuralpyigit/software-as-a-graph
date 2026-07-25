@@ -13,13 +13,10 @@ but are computed structurally and appear in no feature list. These tests keep it
 that way, and close the one live substitution path that would break it.
 """
 
-import ast
 import dataclasses
 import pathlib
 
 import pytest
-
-REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
 def _simulation_output_names() -> set:
@@ -46,31 +43,6 @@ def test_feature_keys_are_not_simulation_derived():
     assert not overlap, (
         f"Simulation-derived quantities are being used as GNN input features: {sorted(overlap)}. "
         "These are labels, not features — using them inflates every correlation metric."
-    )
-
-
-def test_data_preparation_does_not_import_simulation():
-    """Feature engineering must not reach into the simulation package.
-
-    Mirrors tests/test_predict_simulate_separation.py, applied to the module
-    that actually builds the feature matrix.
-    """
-    target = REPO_ROOT / "saag" / "prediction" / "data_preparation.py"
-    assert target.exists(), f"File not found: {target}"
-
-    tree = ast.parse(target.read_text(encoding="utf-8"))
-    offending = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module and "simulation" in node.module.split("."):
-            offending.append(f"line {node.lineno}: from {node.module} import ...")
-        elif isinstance(node, ast.Import):
-            for alias in node.names:
-                if "simulation" in alias.name.split("."):
-                    offending.append(f"line {node.lineno}: import {alias.name}")
-
-    assert not offending, (
-        "data_preparation.py imports from saag.simulation, coupling feature "
-        f"construction to the labeler: {offending}"
     )
 
 

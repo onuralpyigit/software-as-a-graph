@@ -133,14 +133,11 @@ def ea_dict(hetero_data):
 # ── Instantiation tests ────────────────────────────────────────────────────────
 
 class TestBaselineInstantiation:
-    def test_homo_unweighted_instantiates(self):
-        from saag.prediction.models.baselines import HomogeneousGAT_Unweighted
-        model = HomogeneousGAT_Unweighted(hidden_channels=32, num_heads=2, num_layers=2)
-        assert model is not None
-
-    def test_homo_scalar_instantiates(self):
-        from saag.prediction.models.baselines import HomogeneousGAT_ScalarWeighted
-        model = HomogeneousGAT_ScalarWeighted(hidden_channels=32, num_heads=2, num_layers=2)
+    @pytest.mark.parametrize("cls_name", ["HomogeneousGAT_Unweighted", "HomogeneousGAT_ScalarWeighted"])
+    def test_baseline_instantiates(self, cls_name):
+        import saag.prediction.models.baselines as baselines
+        cls = getattr(baselines, cls_name)
+        model = cls(hidden_channels=32, num_heads=2, num_layers=2)
         assert model is not None
 
     def test_build_baseline_factory(self):
@@ -163,24 +160,17 @@ class TestBaselineForwardPass:
         with torch.no_grad():
             return model(x_dict, ei_dict, ea_dict)
 
-    def test_homo_unweighted_forward_shape(self, x_dict, ei_dict, ea_dict):
-        from saag.prediction.models.baselines import HomogeneousGAT_Unweighted
-        model = HomogeneousGAT_Unweighted(hidden_channels=32, num_heads=2, num_layers=2)
+    @pytest.mark.parametrize("cls_name", ["HomogeneousGAT_Unweighted", "HomogeneousGAT_ScalarWeighted"])
+    def test_forward_shape(self, cls_name, x_dict, ei_dict, ea_dict):
+        import saag.prediction.models.baselines as baselines
+        cls = getattr(baselines, cls_name)
+        model = cls(hidden_channels=32, num_heads=2, num_layers=2)
         out = self._run_forward(model, x_dict, ei_dict, ea_dict)
 
         assert isinstance(out, dict)
         for nt, tensor in out.items():
             assert tensor.ndim == 2, f"{nt}: expected 2D tensor, got {tensor.ndim}D"
             assert tensor.shape[1] == 5, f"{nt}: expected 5 output dims, got {tensor.shape[1]}"
-
-    def test_homo_scalar_forward_shape(self, x_dict, ei_dict, ea_dict):
-        from saag.prediction.models.baselines import HomogeneousGAT_ScalarWeighted
-        model = HomogeneousGAT_ScalarWeighted(hidden_channels=32, num_heads=2, num_layers=2)
-        out = self._run_forward(model, x_dict, ei_dict, ea_dict)
-
-        assert isinstance(out, dict)
-        for nt, tensor in out.items():
-            assert tensor.shape[1] == 5
 
     def test_outputs_are_non_trivial(self, x_dict, ei_dict, ea_dict):
         """Outputs must not all be identical across all nodes (not constant model)."""

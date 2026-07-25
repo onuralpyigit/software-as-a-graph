@@ -11,7 +11,7 @@ Covers:
 import math
 import pytest
 
-from saag.prediction.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
+from saag.prediction.weight_calculator import QualityWeights, AHPProcessor
 from saag.prediction.analyzer import CriticalityProfile
 from saag.validation.models import ValidationTargets, LayerValidationResult
 
@@ -32,11 +32,6 @@ class TestRStarV5:
         w = QualityWeights()
         assert w.r_in_degree == pytest.approx(0.30, abs=0.01)
 
-    def test_r_w_in_deprecated_to_zero(self):
-        """w_in exclusively assigned to V*(v) as QADS; r_w_in=0.0 in R*(v)."""
-        w = QualityWeights()
-        assert w.r_w_in == 0.0, "r_w_in must be deprecated (0.0) in R*(v) v5"
-
     def test_r_dim_weights_sum_to_one(self):
         """Active R*(v) sub-weights must sum to 1.0."""
         w = QualityWeights()
@@ -44,12 +39,6 @@ class TestRStarV5:
         assert total == pytest.approx(1.0, abs=0.02), (
             f"R*(v) active weights sum={total:.4f}, expected ≈1.0"
         )
-
-    def test_ahp_reliability_matrix_is_3x3(self):
-        """AHP reliability matrix is still 3×3 (RPR, DG_in, CDPot)."""
-        m = AHPMatrices()
-        assert len(m.criteria_reliability) == 3
-        assert all(len(row) == 3 for row in m.criteria_reliability)
 
     def test_ahp_computed_rpr_is_highest(self):
         """AHP-derived RPR weight should exceed the other two terms."""

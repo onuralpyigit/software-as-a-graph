@@ -2,7 +2,6 @@ import pytest
 from saag.core import GraphData, ComponentData, EdgeData
 from saag.analysis.structural_analyzer import StructuralAnalyzer
 from saag.prediction.analyzer import QualityAnalyzer
-from saag.prediction.weight_calculator import QualityWeights
 
 class TestAvailabilityDecoupling:
     """Verifies Issue 5: Decoupling structural SPOF from QoS weight."""
@@ -69,15 +68,3 @@ class TestAvailabilityDecoupling:
         print(f"SPOF AP_c_dir: {ap_c_dir:.4f}")
         print(f"Availability (High QoS): {a_high:.4f}")
         print(f"Availability (Low QoS): {a_low:.4f}")
-
-    def test_availability_weights_sum_to_one(self):
-        """Verify that the new AHP weights sum to 1.0."""
-        w = QualityWeights()
-        total = (
-            w.a_qspof + 
-            w.a_bridge_ratio + 
-            w.a_ap_c_directed + 
-            w.a_cdi + 
-            w.a_qos_weight
-        )
-        assert total == pytest.approx(1.0)

@@ -516,18 +516,8 @@ class TestNoPoissonBaseline:
         assert result.metrics.messages_delivered == 20
         assert result.metrics.messages_dropped == 0
         assert result.poisson_failure_log == []
-
-    def test_delivery_rate_100_percent(self):
-        sim = make_sim()
-        result = sim.simulate(EventScenario(source_app="App1", num_messages=50,
-                                            duration=10.0, seed=2))
-        assert abs(result.metrics.delivery_rate - 100.0) < 1e-6
-
-    def test_no_failed_components(self):
-        sim = make_sim()
-        result = sim.simulate(EventScenario(source_app="App1", num_messages=10,
-                                            duration=3.0, seed=3))
         assert result.failed_components == []
+        assert abs(result.metrics.delivery_rate - 100.0) < 1e-6
 
 
 class TestPoissonFailureScheduling:

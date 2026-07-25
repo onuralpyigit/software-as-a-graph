@@ -1,5 +1,5 @@
 """
-Tests for the Inductive Split Protocol and optimized EdgeFeatureEncoder.
+Tests for the Inductive Split Protocol.
 """
 
 import pytest
@@ -8,7 +8,7 @@ import networkx as nx
 from unittest.mock import MagicMock, patch
 from torch_geometric.data import HeteroData
 from saag.prediction.trainer import get_inductive_subgraph, GNNTrainer, EvalMetrics
-from saag.prediction.models import EdgeFeatureEncoder, build_node_gnn
+from saag.prediction.models import build_node_gnn
 from saag.prediction.gnn_service import GNNService
 
 # Gracefully skip tests if PyTorch Geometric is not installed
@@ -103,40 +103,6 @@ def test_get_inductive_subgraph_no_mask_graceful_fallback():
     data["Application"].empty_mask = torch.tensor([False, False, False, False], dtype=torch.bool)
     fallback_graph_2 = get_inductive_subgraph(data, "empty_mask")
     assert fallback_graph_2 is data
-
-
-def test_edge_feature_encoder_fusion():
-    """Verify that EdgeFeatureEncoder correctly concatenates node & edge features and runs without dimension error."""
-    # hidden_channels = 8, edge_feat_dim = 6
-    # expected proj input dimension = 8 * 2 + 6 = 22
-    encoder = EdgeFeatureEncoder(edge_feat_dim=6, hidden_channels=8)
-
-    h_dict = {
-        "Application": torch.randn(3, 8),
-        "Topic": torch.randn(2, 8)
-    }
-    edge_index = torch.tensor([
-        [0, 1, 2],
-        [0, 1, 0]
-    ], dtype=torch.long)
-    edge_attr = torch.randn(3, 6)
-
-    edge_index_dict = {
-        ("Application", "PUBLISHES_TO", "Topic"): edge_index
-    }
-    edge_attr_dict = {
-        ("Application", "PUBLISHES_TO", "Topic"): edge_attr
-    }
-
-    # Execute forward pass
-    augmented = encoder(h_dict, edge_index_dict, edge_attr_dict)
-
-    # Destination nodes (Topic) should receive messages and change value
-    assert augmented["Topic"].shape == (2, 8)
-    assert not torch.allclose(augmented["Topic"], h_dict["Topic"])
-
-    # Source nodes (Application) should not be updated by scatter-mean on destination index
-    assert torch.allclose(augmented["Application"], h_dict["Application"])
 
 
 def test_gnn_trainer_inductive_subgraphs():

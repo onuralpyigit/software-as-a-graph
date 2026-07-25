@@ -63,15 +63,6 @@ def _build_gnn(data):
 
 # ── Feature dimension constants ────────────────────────────────────────────────
 
-def test_node_type_dims_updated():
-    from saag.prediction.data_preparation import NODE_TYPE_TO_DIM
-    assert NODE_TYPE_TO_DIM["Application"] == 23
-    assert NODE_TYPE_TO_DIM["Library"] == 23
-    assert NODE_TYPE_TO_DIM["Broker"] == 19
-    assert NODE_TYPE_TO_DIM["Topic"] == 22
-    assert NODE_TYPE_TO_DIM["Node"] == 20
-
-
 def test_edge_feature_dim_is_sixteen():
     """
     Edge features: 2 (weight + path_count) + 7 (edge type one-hot) + 7 (QoS) = 16

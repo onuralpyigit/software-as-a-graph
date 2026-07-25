@@ -17,6 +17,16 @@ import cli.visualize_graph
 import cli.export_graph
 import cli.benchmark
 
+def _run_main(module, argv: list[str]) -> int:
+    with patch.object(sys, "argv", ["run.py"] + argv), \
+         patch("pathlib.Path.exists", return_value=True):
+        try:
+            module.main()
+            return 0
+        except SystemExit as e:
+            return e.code
+
+
 # =============================================================================
 # Shared Fixtures
 # =============================================================================
@@ -246,20 +256,11 @@ class TestRunOrchestrator:
     def run_module(self):
         return cli.run
 
-    def _run_main(self, module, argv: list[str]) -> int:
-        with patch.object(sys, "argv", ["run.py"] + argv), \
-             patch("pathlib.Path.exists", return_value=True):
-            try:
-                module.main()
-                return 0
-            except SystemExit as e:
-                return e.code
-
     def test_all_stages_called(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
-        ret = self._run_main(run_module, ["--all"])
+        ret = _run_main(run_module, ["--all"])
         assert ret == 0
-        
+
         mock_class.from_json.assert_called_once()
         mock_inst.analyze.assert_called_once_with(layer='system', use_ahp=False)
         mock_inst.predict.assert_called_once_with(gnn_checkpoint=None)
@@ -271,7 +272,7 @@ class TestRunOrchestrator:
     def test_neo4j_args_forwarded(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
         uri, user, pw = "bolt://db:7687", "admin", "secret"
-        ret = self._run_main(run_module, ["--analyze", "--uri", uri, "--user", user, "--password", pw])
+        ret = _run_main(run_module, ["--analyze", "--uri", uri, "--user", user, "--password", pw])
         assert ret == 0
         mock_class.assert_called_once_with(neo4j_uri=uri, user=user, password=pw)
 
@@ -279,104 +280,77 @@ class TestRunOrchestrator:
         mock_class, mock_inst = mock_pipeline
         mock_inst.run.side_effect = Exception("Failed")
         with pytest.raises(Exception):
-            self._run_main(run_module, ["--all"])
+            _run_main(run_module, ["--all"])
 
     def test_analyze_only(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
-        self._run_main(run_module, ["--analyze"])
+        _run_main(run_module, ["--analyze"])
         assert mock_inst.analyze.call_count == 1
         assert mock_inst.predict.call_count == 0
 
     def test_validate_only(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
-        self._run_main(run_module, ["--validate"])
+        _run_main(run_module, ["--validate"])
         assert mock_inst.validate.call_count == 1
         assert mock_inst.analyze.call_count == 0
 
     def test_no_stage_prints_help(self, run_module, mock_pipeline):
         with patch('sys.stderr'), patch('argparse.ArgumentParser.error') as mock_error:
-            self._run_main(run_module, [])
+            _run_main(run_module, [])
             mock_error.assert_called_once()
 
 class TestLayerHandling:
     """Tests for --layer/--layers argument mapping in run.py"""
-    
+
     @pytest.fixture(scope="class")
     def run_module(self):
         return cli.run
 
-    def _run_main(self, module, argv: list[str]) -> int:
-        with patch.object(sys, "argv", ["run.py"] + argv), \
-             patch("pathlib.Path.exists", return_value=True):
-            try:
-                module.main()
-                return 0
-            except SystemExit as e:
-                return e.code
-
     def test_single_layer_uses_layer_flag(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
-        self._run_main(run_module, ["--analyze", "--layer", "system"])
+        _run_main(run_module, ["--analyze", "--layer", "system"])
         mock_inst.analyze.assert_called_once_with(layer="system", use_ahp=False)
 
     def test_visualize_multi_layer(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
-        self._run_main(run_module, ["--visualize", "--layer", "app"])
+        _run_main(run_module, ["--visualize", "--layer", "app"])
         kwargs = mock_inst.visualize.call_args[1]
         assert kwargs["layers"] == ["app"]
 
 class TestOptionsPassthrough:
     """Tests for flag forwarding to sub-scripts in run.py"""
-    
+
     @pytest.fixture(scope="class")
     def run_module(self):
         return cli.run
 
-    def _run_main(self, module, argv: list[str]) -> int:
-        with patch.object(sys, "argv", ["run.py"] + argv), \
-             patch("pathlib.Path.exists", return_value=True):
-            try:
-                module.main()
-                return 0
-            except SystemExit as e:
-                return e.code
-
     def test_use_ahp_forwarded(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
-        self._run_main(run_module, ["--analyze", "--use-ahp"])
+        _run_main(run_module, ["--analyze", "--use-ahp"])
         mock_inst.analyze.assert_called_once_with(layer='system', use_ahp=True)
 
 class TestOutputPaths:
     """Tests for output directory and file paths in run.py"""
-    
+
     @pytest.fixture(scope="class")
     def run_module(self):
         return cli.run
 
-    def _run_main(self, module, argv: list[str]) -> int:
-        with patch.object(sys, "argv", ["run.py"] + argv), \
-             patch("pathlib.Path.exists", return_value=True):
-            try:
-                module.main()
-                return 0
-            except SystemExit as e:
-                return e.code
-
     def test_custom_output_dir(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
-        self._run_main(run_module, ["--analyze", "--output", "results/v2.json"])
+        _run_main(run_module, ["--analyze", "--output", "results/v2.json"])
         # Expect save to be called because it's not visualize or all
         mock_inst.run.return_value.save.assert_called_once_with("results/v2.json")
 
     def test_custom_input_path(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
-        self._run_main(run_module, ["--input", "data/custom.json"])
+        _run_main(run_module, ["--input", "data/custom.json"])
         mock_class.from_json.assert_called_once_with("data/custom.json", clear=False, neo4j_uri="bolt://localhost:7687", password="password", user="neo4j")
 
     def test_generate_stage_called(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
         with patch('cli.common.dispatcher.dispatch_generate') as mock_gen:
-            ret = self._run_main(run_module, ["--generate", "--input", "test.json", "--scale", "tiny"])
+            ret = _run_main(run_module, ["--generate", "--input", "test.json", "--scale", "tiny"])
             assert ret == 0
             mock_gen.assert_called_once()
             # Pipeline is then initialized from the generated file

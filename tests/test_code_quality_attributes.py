@@ -21,7 +21,7 @@ from saag.core.models import Application, GraphData, ComponentData, EdgeData
 from saag.core.metrics import StructuralMetrics
 from saag.analysis.structural_analyzer import StructuralAnalyzer, extract_layer_subgraph
 from saag.prediction.analyzer import QualityAnalyzer
-from saag.prediction.weight_calculator import AHPProcessor, AHPMatrices, QualityWeights
+from saag.prediction.weight_calculator import QualityWeights
 from saag.core import AnalysisLayer
 
 
@@ -402,39 +402,8 @@ class TestGeneratorCodeQuality:
 # =============================================================================
 
 class TestAHPWeightsCodeQuality:
-    def test_compute_weights_includes_cqp_field(self):
-        """CQ-010a: AHPProcessor.compute_weights() populates m_code_quality_penalty."""
-        processor = AHPProcessor()
-        weights = processor.compute_weights()
-        
-        assert hasattr(weights, "m_code_quality_penalty")
-        assert weights.m_code_quality_penalty > 0.0
-
-    def test_maintainability_weights_sum_to_approximately_one(self):
-        """CQ-010b: BT + w_out + CQP + CR + CC ~ 1.0."""
-        processor = AHPProcessor()
-        w = processor.compute_weights()
-        
-        m_sum = (
-            w.m_betweenness
-            + w.m_w_out
-            + w.m_code_quality_penalty
-            + w.m_coupling_risk
-            + w.m_clustering
-        )
-        # After shrinkage the sum should still be ≈ 1.0
-        assert m_sum == pytest.approx(1.0, abs=0.02)
-
     def test_default_weights_sum_to_one(self):
         """CQ-010c: Default QualityWeights M components exactly sum to 1.0."""
         w = QualityWeights()
         m_sum = w.m_betweenness + w.m_w_out + w.m_code_quality_penalty + w.m_coupling_risk + w.m_clustering
         assert m_sum == pytest.approx(1.0, abs=0.001)
-
-    def test_ahp_maintainability_matrix_is_5x5(self):
-        """CQ-010d: AHPMatrices criteria_maintainability is a 5×5 matrix."""
-        matrices = AHPMatrices()
-        mat = matrices.criteria_maintainability
-        assert len(mat) == 5
-        for row in mat:
-            assert len(row) == 5

@@ -101,10 +101,7 @@ def test_simulate_event(mock_event_result):
                 "password": "password"
             }
         })
-        
-        if response.status_code != 200:
-            print(f"DEBUG: {response.json()}")
-            
+
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True

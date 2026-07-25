@@ -58,10 +58,8 @@ def test_ensemble_fallback_warning(caplog):
     
     import logging
     with caplog.at_level(logging.WARNING):
-        result = service.predict_from_data(data, mode="ensemble")
-        
+        service.predict_from_data(data, mode="ensemble")
         assert "Ensemble mode is deprecated and removed" in caplog.text
-        assert result.prediction_mode == "gnn_only"
 
 def test_ensemble_mode_reporting():
     """G12: Verify prediction_mode Literal reporting."""

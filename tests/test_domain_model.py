@@ -52,44 +52,19 @@ class TestQoSPolicy:
 
     # --- Individual QoS attribute tests (justified weights) ---
 
-    def test_reliable_adds_0_3(self):
-        """Reliability weight = 0.30."""
-        policy = QoSPolicy(reliability="RELIABLE", durability="VOLATILE", transport_priority="LOW")
-        assert policy.calculate_weight() == pytest.approx(0.3, abs=0.01)
-
-    def test_persistent_adds_0_4(self):
-        """Durability weight = 0.40."""
-        policy = QoSPolicy(reliability="BEST_EFFORT", durability="PERSISTENT", transport_priority="LOW")
-        assert policy.calculate_weight() == pytest.approx(0.4, abs=0.01)
-
-    def test_transient_local_adds_0_2(self):
-        """Transient local (0.5) * Durability weight (0.40) = 0.20."""
-        policy = QoSPolicy(reliability="BEST_EFFORT", durability="TRANSIENT_LOCAL", transport_priority="LOW")
-        assert policy.calculate_weight() == pytest.approx(0.2, abs=0.01)
-
-    def test_transient_adds_0_24(self):
-        """Transient (0.6) * Durability weight (0.40) = 0.24."""
-        policy = QoSPolicy(reliability="BEST_EFFORT", durability="TRANSIENT", transport_priority="LOW")
-        assert policy.calculate_weight() == pytest.approx(0.24, abs=0.01)
-
-    def test_urgent_priority_adds_0_3(self):
-        """Urgent (1.0) * Priority weight (0.30) = 0.30."""
-        policy = QoSPolicy(reliability="BEST_EFFORT", durability="VOLATILE", transport_priority="URGENT")
-        assert policy.calculate_weight() == pytest.approx(0.3, abs=0.01)
-
-    def test_high_priority_adds_0_2(self):
-        """High (0.66) * Priority weight (0.30) ≈ 0.20."""
-        policy = QoSPolicy(reliability="BEST_EFFORT", durability="VOLATILE", transport_priority="HIGH")
-        assert policy.calculate_weight() == pytest.approx(0.2, abs=0.01)
-
-    def test_medium_priority_adds_0_1(self):
-        """Medium (0.33) * Priority weight (0.30) ≈ 0.10."""
-        policy = QoSPolicy(reliability="BEST_EFFORT", durability="VOLATILE", transport_priority="MEDIUM")
-        assert policy.calculate_weight() == pytest.approx(0.1, abs=0.01)
-
-    def test_low_priority_adds_0(self):
-        policy = QoSPolicy(reliability="BEST_EFFORT", durability="VOLATILE", transport_priority="LOW")
-        assert policy.calculate_weight() == pytest.approx(0.0, abs=0.01)
+    @pytest.mark.parametrize("reliability, durability, transport_priority, expected", [
+        ("RELIABLE", "VOLATILE", "LOW", 0.3),          # reliability weight = 0.30
+        ("BEST_EFFORT", "PERSISTENT", "LOW", 0.4),     # durability weight = 0.40
+        ("BEST_EFFORT", "TRANSIENT_LOCAL", "LOW", 0.2),  # transient local (0.5) * 0.40 = 0.20
+        ("BEST_EFFORT", "TRANSIENT", "LOW", 0.24),     # transient (0.6) * 0.40 = 0.24
+        ("BEST_EFFORT", "VOLATILE", "URGENT", 0.3),    # urgent (1.0) * priority weight (0.30) = 0.30
+        ("BEST_EFFORT", "VOLATILE", "HIGH", 0.2),      # high (0.66) * 0.30 ≈ 0.20
+        ("BEST_EFFORT", "VOLATILE", "MEDIUM", 0.1),    # medium (0.33) * 0.30 ≈ 0.10
+        ("BEST_EFFORT", "VOLATILE", "LOW", 0.0),       # low priority adds 0
+    ])
+    def test_individual_qos_attribute_weight(self, reliability, durability, transport_priority, expected):
+        policy = QoSPolicy(reliability=reliability, durability=durability, transport_priority=transport_priority)
+        assert policy.calculate_weight() == pytest.approx(expected, abs=0.01)
 
     # --- Serialization ---
 

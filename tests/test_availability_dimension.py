@@ -122,21 +122,14 @@ class TestQSPOFFormula:
     def _qspof(ap_c_dir: float, qw: float) -> float:
         return ap_c_dir * qw
 
-    def test_zero_ap_gives_zero_qspof(self):
-        """Non-articulation point → QSPOF = 0 regardless of QoS weight."""
-        assert self._qspof(0.0, 1.0) == pytest.approx(0.0)
-
-    def test_zero_weight_gives_zero_qspof(self):
-        """Zero QoS weight → QSPOF = 0 regardless of AP score."""
-        assert self._qspof(0.8, 0.0) == pytest.approx(0.0)
-
-    def test_full_ap_full_weight_gives_one(self):
-        """Full AP and full QoS weight → QSPOF = 1.0."""
-        assert self._qspof(1.0, 1.0) == pytest.approx(1.0)
-
-    def test_partial_values(self):
-        """Partial AP and QoS weight multiply correctly."""
-        assert self._qspof(0.5, 0.6) == pytest.approx(0.30, abs=1e-9)
+    @pytest.mark.parametrize("ap_c_dir, qw, expected", [
+        (0.0, 1.0, 0.0),   # non-articulation point → 0 regardless of QoS weight
+        (0.8, 0.0, 0.0),   # zero QoS weight → 0 regardless of AP score
+        (1.0, 1.0, 1.0),   # full AP and full QoS weight → 1.0
+        (0.5, 0.6, 0.30),  # partial AP and QoS weight multiply correctly
+    ])
+    def test_qspof_values(self, ap_c_dir, qw, expected):
+        assert self._qspof(ap_c_dir, qw) == pytest.approx(expected, abs=1e-9)
 
     def test_qspof_in_range(self):
         """QSPOF must always be in [0, 1] for valid inputs."""
@@ -156,17 +149,14 @@ class TestAPcDirectedFormula:
     def _ap_c_directed(out: float, inp: float) -> float:
         return max(out, inp)
 
-    def test_both_zero(self):
-        assert self._ap_c_directed(0.0, 0.0) == 0.0
-
-    def test_out_dominates(self):
-        assert self._ap_c_directed(0.8, 0.3) == pytest.approx(0.8)
-
-    def test_in_dominates(self):
-        assert self._ap_c_directed(0.2, 0.9) == pytest.approx(0.9)
-
-    def test_equal_values(self):
-        assert self._ap_c_directed(0.5, 0.5) == pytest.approx(0.5)
+    @pytest.mark.parametrize("out, inp, expected", [
+        (0.0, 0.0, 0.0),  # both zero
+        (0.8, 0.3, 0.8),  # out dominates
+        (0.2, 0.9, 0.9),  # in dominates
+        (0.5, 0.5, 0.5),  # equal values
+    ])
+    def test_ap_c_directed_values(self, out, inp, expected):
+        assert self._ap_c_directed(out, inp) == pytest.approx(expected)
 
     def test_result_in_range(self):
         for a in [0.0, 0.1, 0.5, 1.0]:

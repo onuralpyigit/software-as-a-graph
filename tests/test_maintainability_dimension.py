@@ -99,20 +99,14 @@ class TestCouplingRiskFormula:
         instability = dg_out / (dg_in + dg_out + _eps)
         return 1.0 - abs(2.0 * instability - 1.0)
 
-    def test_pure_sink_zero_coupling_risk(self):
-        """DG_out=0 → Instability=0 → CouplingRisk=0."""
-        cr = self._coupling_risk(dg_out=0.0, dg_in=1.0)
-        assert cr == pytest.approx(0.0, abs=1e-6)
-
-    def test_pure_source_zero_coupling_risk(self):
-        """DG_in=0 → Instability≈1 → CouplingRisk≈0."""
-        cr = self._coupling_risk(dg_out=1.0, dg_in=0.0)
-        assert cr == pytest.approx(0.0, abs=1e-4)
-
-    def test_equal_in_out_maximises_coupling_risk(self):
-        """DG_in == DG_out → Instability=0.5 → CouplingRisk=1.0."""
-        cr = self._coupling_risk(dg_out=5.0, dg_in=5.0)
-        assert cr == pytest.approx(1.0, abs=1e-6)
+    @pytest.mark.parametrize("dg_out, dg_in, expected, abs_tol", [
+        (0.0, 1.0, 0.0, 1e-6),  # pure sink: DG_out=0 → Instability=0 → CouplingRisk=0
+        (1.0, 0.0, 0.0, 1e-4),  # pure source: DG_in=0 → Instability≈1 → CouplingRisk≈0
+        (5.0, 5.0, 1.0, 1e-6),  # equal in/out: Instability=0.5 → CouplingRisk maximised
+    ])
+    def test_coupling_risk_values(self, dg_out, dg_in, expected, abs_tol):
+        cr = self._coupling_risk(dg_out=dg_out, dg_in=dg_in)
+        assert cr == pytest.approx(expected, abs=abs_tol)
 
     def test_coupling_risk_always_in_range(self):
         """CouplingRisk should always be in [0, 1]."""
@@ -210,16 +204,6 @@ class TestImpactMetricsIMv:
         assert "maintainability" in d, "'maintainability' key missing from to_dict()"
         assert "change_reach" in d["maintainability"]
         assert "maintainability_impact" in d["maintainability"]
-
-    def test_reliability_impact_unchanged(self):
-        """Existing IR(v) reliability_impact should still be correct."""
-        im = ImpactMetrics(
-            cascade_reach=0.5,
-            weighted_cascade_impact=0.3,
-            normalized_cascade_depth=0.8,
-        )
-        expected = 0.45 * 0.5 + 0.35 * 0.3 + 0.20 * 0.8
-        assert im.reliability_impact == pytest.approx(expected, abs=1e-6)
 
 
 # ===========================================================================

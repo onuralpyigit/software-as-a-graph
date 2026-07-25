@@ -84,22 +84,14 @@ class TestCDPotFormula:
         cdpot = self._cdpot(rpr=0.8, id_n=0.9, od_n=0.0)
         assert cdpot > 0.5, f"Absorber should have high CDPot, got {cdpot:.4f}"
 
-    def test_pure_fanout_node(self):
-        """Low in-degree, very high out-degree → CDPot ≈ 0."""
-        cdpot = self._cdpot(rpr=0.6, id_n=0.1, od_n=1.0)
-        assert cdpot == pytest.approx(0.0, abs=0.05), (
-            f"Fan-out should have CDPot≈0, got {cdpot:.4f}"
-        )
-
-    def test_equal_in_out(self):
-        """Equal normalised in/out-degree → depth penalty = 0 → CDPot = 0."""
-        cdpot = self._cdpot(rpr=0.5, id_n=0.5, od_n=0.5)
-        assert cdpot == pytest.approx(0.0, abs=1e-9)
-
-    def test_zero_in_degree_safe(self):
-        """Zero in-degree should not raise ZeroDivisionError."""
-        cdpot = self._cdpot(rpr=0.0, id_n=0.0, od_n=0.5)
-        assert cdpot == pytest.approx(0.0, abs=0.05)
+    @pytest.mark.parametrize("rpr, id_n, od_n, expected, abs_tol", [
+        (0.6, 0.1, 1.0, 0.0, 0.05),  # fan-out: low in-degree, very high out-degree → ≈0
+        (0.5, 0.5, 0.5, 0.0, 1e-9),  # equal normalised in/out-degree → depth penalty=0
+        (0.0, 0.0, 0.5, 0.0, 0.05),  # zero in-degree should not raise ZeroDivisionError
+    ])
+    def test_cdpot_values(self, rpr, id_n, od_n, expected, abs_tol):
+        cdpot = self._cdpot(rpr=rpr, id_n=id_n, od_n=od_n)
+        assert cdpot == pytest.approx(expected, abs=abs_tol)
 
     def test_output_in_range(self):
         """CDPot should always be in [0, 1]."""
