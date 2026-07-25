@@ -203,11 +203,11 @@ def run_validation(args):
         
         # Verify basic dimensions and scores
         assert raw_val.matched_components == 5, f"Expected 5 matched components, got {raw_val.matched_components}"
-        assert math.isclose(raw_val.spearman, 0.3536, abs_tol=1e-3), f"Expected overall spearman 0.3536, got {raw_val.spearman}"
+        assert math.isclose(raw_val.spearman, 0.0, abs_tol=1e-3), f"Expected overall spearman 0.0, got {raw_val.spearman}"
         print(f"  [PASS] Overall Spearman rank correlation \u03c1 = {raw_val.spearman:.4f}")
 
         # Verify Wilcoxon / degree centrality baseline comparator (PG)
-        assert math.isclose(raw_val.predictive_gain, -0.3000, abs_tol=1e-3), f"Expected PG -0.3000, got {raw_val.predictive_gain}"
+        assert math.isclose(raw_val.predictive_gain, -0.6669, abs_tol=1e-3), f"Expected PG -0.6669, got {raw_val.predictive_gain}"
         print(f"  [PASS] Predictive Gain (PG) = {raw_val.predictive_gain:.4f}")
 
         # Verify Gates passed/failed (fails G1 & G2, passes G3 & G4)

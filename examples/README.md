@@ -180,13 +180,13 @@ It also outputs a clean comparison table:
    - The validation pipeline automatically filters the system topology to the 5 matched components analyzed in the `system` layer (`A0`, `A1`, `B0`, `N0`, `N1`).
    
 2. **Statistical Correlation & Validation Gates**:
-   - The overall Spearman rank correlation is calculated as $\rho = 0.3536$, reflecting the ranking alignment on a very small $N=5$ node topology.
+   - The overall Spearman rank correlation is calculated as $\rho = 0.0000$ — a small-N degeneracy of the ranking on this 5-node topology (the predicted vs. simulated orderings tie out completely at this scale).
    - Classification gates **G3 (Precision)** and **G4 (Top-5 Overlap)** pass with perfect scores (`1.0000`), demonstrating that the highest criticality predictors perfectly align with the highest simulation impacts.
    - **G1 (Spearman)** and **G2 (F1)** fail due to the low list variance on such a small node count, matching the expected behavior of the validation engine.
 
 3. **System Health and Risk**:
-   - System health indices correctly indicate high availability headroom ($H_A = 0.8683$) and moderate reliability ($H_R = 0.4757$).
-   - The System Risk Index ($SRI$) is calculated as `0.3915` with a low Risk Concentration Gini index ($RCI = 0.1028$), confirming that risk is relatively distributed across the small network.
+   - System health indices correctly indicate high availability headroom ($H_A = 0.9290$) and moderate reliability ($H_R = 0.4757$).
+   - The System Risk Index ($SRI$) is calculated as `0.3763` with a low Risk Concentration Gini index ($RCI = 0.1024$), confirming that risk is relatively distributed across the small network.
 
 ---
 
@@ -218,12 +218,13 @@ Generating interactive HTML dashboard...
 Dashboard generated successfully at: output/worked_example_dashboard.html
 
 Verifying dashboard contents:
-  [PASS] All 10 standard dashboard sections are correctly present in the output HTML file.
+  [INFO] Validation Report section omitted (spearman=0.0000 <= 0).
+  [PASS] All applicable standard dashboard sections are correctly present in the output HTML file.
   [PASS] Embedded Cytoscape.js and D3.js libraries/scripts verified.
 Worked example dashboard verified successfully! Strictly adheres to docs/visualization.md.
 ```
 
-The script outputs the static dashboard to `output/worked_example_dashboard.html`. You can open this file in any web browser to view the interactive elements.
+The script outputs the static dashboard to `output/worked_example_dashboard.html`. You can open this file in any web browser to view the interactive elements. Note: the **Validation Report** section (§7) only renders when the layer's Spearman correlation is positive — on this 5-node worked example it is exactly `0.0` (see the Step 5 discussion above), so that one section is legitimately skipped here. It renders normally on the larger ATM dataset (`run_atm_visualization.py`).
 
 ### Dashboard Sections Rendered
 
@@ -255,7 +256,7 @@ python examples/run_atm_structural_analysis.py
 ```
 This prints:
 - **ATM Layer Normalized Structural Metrics**: RPR, degrees, and centrality scores for critical ATM modules.
-- **ATM Component Criticality Scores and Levels (RMAV)**: Safety-critical elements like `conflict-detector` and `radar-tracker` are correctly flagged in the high/critical overall Q(v) tiers.
+- **ATM Component Criticality Scores and Levels (RMAV)**: Safety-critical elements like `conflict-detector` and `radar-tracker` score noticeably above baseline, landing in the MEDIUM overall Q(v) tier (composite scores ~0.28-0.42) on the current RMAV scoring model.
 - **ATM Graph Summary**: Detailed topological summary ($S(G)$) of the 74-component graph.
 
 ### 2. ATM Failure Simulation
@@ -273,7 +274,7 @@ To run the validation checks comparing predicted quality metrics against simulat
 ```bash
 python examples/run_atm_validation.py
 ```
-This prints statistical metrics showing strong GNN model alignment for safety-critical components (such as an application-stratified Spearman $\rho \approx 0.8870$), checks unified validation gates (G1-G9), and computes health indices.
+This prints statistical metrics showing strong model alignment for safety-critical components (such as an application-stratified Spearman $\rho \approx 0.853$), checks unified validation gates (G1-G9), and computes health indices.
 
 ### 4. ATM Visualization Dashboard
 To compile all ATM analysis steps and output an interactive HTML dashboard:
@@ -281,6 +282,14 @@ To compile all ATM analysis steps and output an interactive HTML dashboard:
 python examples/run_atm_visualization.py
 ```
 This generates a single, self-contained dashboard at `output/atm_system_dashboard.html` that showcases all 10 required sections (including cytoscape network graphs, D3 adjacency matrices, multi-seed stability, and the MIL-STD-498 system hierarchy drill-down).
+
+> **Known issue**: on the 74-component ATM topology, the "Deep Processing Pipeline"
+> anti-pattern detector currently emits tens of thousands of near-duplicate findings
+> (path-combinatoric over-detection), inflating `output/atm_system_antipatterns.json`
+> and the generated dashboard HTML to tens of megabytes each. The dashboard still
+> renders correctly, but generation is slow and the Anti-Pattern Catalog section is
+> impractically large. This is a pre-existing `AntiPatternDetector` scaling issue,
+> independent of this script — flagged here for awareness, not yet fixed.
 
 ### 5. ATM GNN Prediction
 

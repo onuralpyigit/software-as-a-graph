@@ -186,7 +186,8 @@ def run_atm_visualization(args):
         # 6. Run anti-pattern detector & write catalog
         print("Scanning for anti-patterns...")
         analysis_res = client.analyze(layer="system")
-        problems = client.detect_antipatterns(analysis_res)
+        prediction_res = client.predict(analysis_res)
+        problems = client.detect_antipatterns(prediction_res)
         
         ap_path = output_dir / "atm_system_antipatterns.json"
         smells = [map_problem_to_smell(p, "system") for p in problems]

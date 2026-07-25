@@ -114,8 +114,12 @@ def run_atm_prediction(args):
         print(f"\nSuccessfully generated criticality predictions for {len(edges)} directed dependencies.")
         
         edge_rows = []
+        # Dedupe by (source, target) before ranking — the same directed dependency
+        # can be predicted more than once (e.g. multiple contributing relationship
+        # types), yielding identical scores.
+        unique_edges = {(e.source, e.target): e for e in edges}.values()
         # Sort edges by overall score descending, show top 10
-        sorted_edges = sorted(edges, key=lambda e: e.scores.overall, reverse=True)[:10]
+        sorted_edges = sorted(unique_edges, key=lambda e: e.scores.overall, reverse=True)[:10]
         for edge in sorted_edges:
             edge_rows.append([
                 edge.source,

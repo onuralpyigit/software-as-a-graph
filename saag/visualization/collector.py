@@ -72,8 +72,9 @@ class LayerDataCollector:
         """
         try:
             analysis = self.analysis_service.analyze_layer(layer)
-            prediction = analysis.quality
-            
+            prediction = self.prediction_service.predict_quality(analysis.structural)
+            analysis.quality = prediction
+
             # Structural Stats
             data.nodes = analysis.structural.graph_summary.nodes
             data.edges = analysis.structural.graph_summary.edges
