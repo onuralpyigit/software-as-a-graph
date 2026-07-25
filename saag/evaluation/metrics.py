@@ -175,6 +175,138 @@ def _minmax(a: np.ndarray) -> np.ndarray:
     return (a - lo) / (hi - lo) if hi > lo else np.zeros_like(a)
 
 
+#: Boundaries of the QoS tiers used for stratified reporting, as w(t) cut points.
+#: Chosen to mirror CRITICALITY_THRESHOLDS in saag/core/models.py so a "high" tier
+#: here means the same thing as a "high" Topic.criticality label.
+_QOS_TIER_BOUNDS: Sequence[Tuple[str, float]] = (
+    ("minimal", 0.19),
+    ("low", 0.43),
+    ("medium", 0.64),
+    ("high", 1.01),
+)
+
+
+def _qos_tier(weight: float) -> str:
+    """Bucket a QoS weight w(t) into a reporting tier."""
+    for name, upper in _QOS_TIER_BOUNDS:
+        if weight < upper:
+            return name
+    return "critical"
+
+
+def _topic_qos_weights(graph) -> Dict[str, float]:
+    """w(t) for every Topic node, resolved from whichever QoS shape is present."""
+    from saag.core.models import topic_weight_from_node_attrs
+
+    weights: Dict[str, float] = {}
+    for nid, attrs in graph.nodes(data=True):
+        if attrs.get("type") != "Topic":
+            continue
+        existing = attrs.get("weight")
+        if isinstance(existing, (int, float)) and existing > 0:
+            weights[nid] = float(existing)
+        else:
+            weights[nid] = topic_weight_from_node_attrs(attrs)
+    return weights
+
+
+def component_qos_exposure(graph) -> Dict[str, float]:
+    """QoS mass each component carries: Σ w(t) over topics it publishes or routes.
+
+    Publish and route edges are what a component is *responsible for delivering*;
+    subscriptions are excluded because losing a subscriber does not silence the
+    channel for anyone else.
+    """
+    topic_weights = _topic_qos_weights(graph)
+    exposure: Dict[str, float] = {}
+    for src, dst, attrs in graph.edges(data=True):
+        etype = (attrs.get("type") or attrs.get("etype") or "").upper()
+        if etype not in ("PUBLISHES_TO", "ROUTES"):
+            continue
+        weight = topic_weights.get(dst)
+        if weight is not None:
+            exposure[src] = exposure.get(src, 0.0) + weight
+    return exposure
+
+
+def critical_topic_coverage_at_k(
+    keys: Sequence[str],
+    pred_scores: Mapping[str, float],
+    graph,
+    k: int,
+) -> Dict[str, Any]:
+    """Share of the system's QoS mass covered by the top-K predicted components.
+
+    Answers the question a hardening budget actually poses — "if I harden K
+    components, how much of what matters have I protected?" — which a global rank
+    correlation cannot express: a model can rank well overall while missing the
+    handful of components carrying the critical channels.
+
+    ``lift`` compares the achieved coverage against what K components chosen at
+    random would cover, so a value of 1.0 means the ranking added nothing.
+    """
+    exposure = component_qos_exposure(graph)
+    total = sum(exposure.get(nid, 0.0) for nid in keys)
+    if total <= 0 or not keys:
+        return {"coverage": UNDEFINED, "reason": "no_qos_exposure", "k": k}
+
+    ranked = sorted(keys, key=lambda nid: -float(pred_scores[nid]))[:k]
+    covered = sum(exposure.get(nid, 0.0) for nid in ranked)
+    coverage = covered / total
+
+    random_share = len(ranked) / len(keys)
+    return {
+        "coverage": float(coverage),
+        "random_baseline": float(random_share),
+        "lift": float(coverage / random_share) if random_share > 0 else UNDEFINED,
+        "k": k,
+        "total_qos_mass": float(total),
+    }
+
+
+def per_qos_tier_rho(
+    keys: Sequence[str],
+    pred_scores: Mapping[str, float],
+    true_impact: Mapping[str, float],
+    graph,
+) -> Dict[str, Dict[str, Any]]:
+    """Spearman ρ stratified by the QoS tier of the mass a component carries.
+
+    A pooled ρ can be carried by the many low-QoS components while the model
+    ranks the critical ones badly — the same Simpson's-paradox risk the existing
+    node-type stratification guards against, on the axis the QoS claim is about.
+    Follows the same conventions as :func:`_per_type_rho`: fewer than
+    ``_MIN_STRATUM`` members or a constant vector is ``undefined``, never 0.0.
+    """
+    exposure = component_qos_exposure(graph)
+
+    by_tier: Dict[str, List[Tuple[float, float]]] = {}
+    for nid in keys:
+        mass = exposure.get(nid)
+        if mass is None:
+            continue  # carries no topic; the QoS axis is undefined for it
+        by_tier.setdefault(_qos_tier(mass), []).append(
+            (float(pred_scores[nid]), float(true_impact[nid]))
+        )
+
+    out: Dict[str, Dict[str, Any]] = {}
+    for tier, pairs in sorted(by_tier.items()):
+        n = len(pairs)
+        if n < _MIN_STRATUM:
+            out[tier] = {"rho": UNDEFINED, "n": n, "reason": "too_few_nodes"}
+            continue
+        preds, trues = (np.asarray(v, dtype=np.float64) for v in zip(*pairs))
+        if np.ptp(preds) == 0.0 or np.ptp(trues) == 0.0:
+            out[tier] = {"rho": UNDEFINED, "n": n, "reason": "constant_signal"}
+            continue
+        rho, _ = spearmanr(preds, trues)
+        out[tier] = (
+            {"rho": UNDEFINED, "n": n, "reason": "undefined_rho"}
+            if np.isnan(rho) else {"rho": float(rho), "n": n}
+        )
+    return out
+
+
 def compute_inductive_metrics(
     pred_scores: Dict[str, float],
     true_impact: Dict[str, float],
@@ -310,6 +442,12 @@ def compute_inductive_metrics(
         "n": len(common),
         "k": k,
         "per_type_rho": _per_type_rho(common, pred_scores, true_impact, graph),
+        # QoS axis: does the ranking hold up on the components carrying the
+        # critical channels, and how much of that mass does a top-K budget cover?
+        "per_qos_tier_rho": per_qos_tier_rho(common, pred_scores, true_impact, graph),
+        "critical_topic_coverage_at_k": critical_topic_coverage_at_k(
+            common, pred_scores, graph, k
+        ),
         # Honest name for f1_at_k/precision_at_k/recall_at_k, which are equal.
         "overlap_at_k": f1,
         # Absolute-threshold critical set: precision and recall diverge here.

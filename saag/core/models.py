@@ -43,6 +43,21 @@ CRITICALITY_THRESHOLDS: list = [
     (1.00, "critical"),
 ]
 
+#: Ordinal encoding of the 5-level Topic.criticality label produced by
+#: CRITICALITY_THRESHOLDS. Lives in core because both the prediction feature
+#: encoder and the simulation severity model read it, and simulation must not
+#: import prediction (see tests/test_independence_guarantee.py).
+TOPIC_CRITICALITY_ORD: Dict[str, float] = {
+    "minimal": 0.0,
+    "low": 1.0,
+    "medium": 2.0,
+    "high": 3.0,
+    "critical": 4.0,
+}
+
+#: Highest value in TOPIC_CRITICALITY_ORD, used to normalise it to [0, 1].
+MAX_TOPIC_CRITICALITY_ORD: float = 4.0
+
 #: Convex combination factor (β) for topic weight: 0.85 QoS + 0.15 Size.
 #: Rationale: QoS semantics are the primary signal; payload size is a secondary amplifier.
 #: Note: Distinguish from AHP_SHRINKAGE_LAMBDA (λ) used for weight blending.
@@ -145,11 +160,16 @@ class QoSPolicy:
         "TRANSIENT": 0.6,
         "PERSISTENT": 1.0,
     }
+    # CRITICAL/HIGHEST are aliases for the top tier. They must be listed here:
+    # the Cypher and in-memory scorers special-case them to 1.0, so omitting them
+    # made this scorer rank a CRITICAL topic identically to a LOW one.
     PRIORITY_SCORES: ClassVar[Dict[str, float]] = {
         "LOW": 0.0,
         "MEDIUM": 0.33,
         "HIGH": 0.66,
-        "URGENT": 1.0
+        "URGENT": 1.0,
+        "CRITICAL": 1.0,
+        "HIGHEST": 1.0,
     }
     
     # Justification (AHP): 
@@ -178,6 +198,43 @@ class QoSPolicy:
             durability=data.get("durability", "VOLATILE"),
             reliability=data.get("reliability", "BEST_EFFORT"),
             transport_priority=data.get("transport_priority", "MEDIUM")
+        )
+
+    @staticmethod
+    def from_node_attrs(attrs: Dict[str, Any]) -> "QoSPolicy":
+        """Resolve a policy from Topic graph-node attributes in either shape.
+
+        Topic nodes reach consumers in two forms and neither is wrong:
+
+        * **flat** — ``qos_reliability`` / ``qos_durability`` /
+          ``qos_transport_priority``, written by the repositories and the
+          serializer;
+        * **nested** — a ``qos`` sub-dict, which is how raw topology JSON is
+          shaped and how the ``cli`` research loaders pass it through.
+
+        Reading only one shape silently yields the defaults on the other, which
+        is how the simulation engines came to be QoS-blind on the research path.
+        ``qos_priority`` is accepted as a legacy alias for the priority key.
+        """
+        nested = attrs.get("qos") or attrs.get("qos_policy") or {}
+        return QoSPolicy(
+            durability=(
+                attrs.get("qos_durability")
+                or nested.get("durability")
+                or "VOLATILE"
+            ),
+            reliability=(
+                attrs.get("qos_reliability")
+                or nested.get("reliability")
+                or "BEST_EFFORT"
+            ),
+            transport_priority=(
+                attrs.get("qos_transport_priority")
+                or attrs.get("qos_priority")
+                or nested.get("transport_priority")
+                or nested.get("priority")
+                or "MEDIUM"
+            ),
         )
     
     def calculate_weight(self) -> float:
@@ -376,16 +433,31 @@ class Topic(GraphEntity):
         
         This convex combination ensures w(topic) ∈ [0, 1].
         """
-        qos_score = self.qos.calculate_weight()
-        # size / 1024 converts to KB
-        size_kb = self.size / 1024
-        # size_norm in [0, 1]
-        size_norm = min(math.log2(1 + size_kb) / 50, 1.0)
-        
-        beta = TOPIC_QOS_WEIGHT_BETA
-        weight = beta * qos_score + (1 - beta) * size_norm
-        
-        return max(MIN_TOPIC_WEIGHT, weight)
+        return compute_topic_weight(self.qos, self.size)
+
+
+def compute_topic_weight(qos: "QoSPolicy", size: int) -> float:
+    """w(t) = β·QoS_score + (1−β)·size_norm, floored at MIN_TOPIC_WEIGHT.
+
+    Free function so callers holding raw graph attributes rather than a
+    :class:`Topic` can reach the same formula the repositories use.
+    """
+    qos_score = qos.calculate_weight()
+    size_kb = size / 1024
+    size_norm = min(math.log2(1 + size_kb) / 50, 1.0)
+    weight = TOPIC_QOS_WEIGHT_BETA * qos_score + (1 - TOPIC_QOS_WEIGHT_BETA) * size_norm
+    return max(MIN_TOPIC_WEIGHT, weight)
+
+
+def topic_weight_from_node_attrs(attrs: Dict[str, Any]) -> float:
+    """Compute w(t) straight from Topic graph-node attributes (either QoS shape).
+
+    Accepts both ``size`` and ``message_size`` for the payload key, matching the
+    two spellings already in circulation between the topology JSON and the
+    simulation graph.
+    """
+    size = attrs.get("size", attrs.get("message_size", 1024)) or 1024
+    return compute_topic_weight(QoSPolicy.from_node_attrs(attrs), int(size))
 
 @dataclass
 class Library(GraphEntity):

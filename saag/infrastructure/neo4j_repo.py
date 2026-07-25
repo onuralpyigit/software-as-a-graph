@@ -554,9 +554,22 @@ class Neo4jRepository:
 
         # 2. Edge Weights (Inherit from Topic)
         self._run_query("MATCH ()-[r:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic) SET r.weight = t.weight", tx=tx)
-        
+
         # 3. ROUTES Edge Weights
         self._run_query("MATCH ()-[r:ROUTES]->(t:Topic) SET r.weight = t.weight", tx=tx)
+
+        # 4. Edge QoS profile (also inherited from the Topic). Consumers that read
+        # per-edge QoS rather than the scalar weight — notably the GNN edge-feature
+        # encoder — see only edges, and no topology source states edge-level QoS.
+        self._run_query(
+            """
+            MATCH ()-[r:PUBLISHES_TO|SUBSCRIBES_TO|ROUTES]->(t:Topic)
+            SET r.qos_reliability        = t.qos_reliability,
+                r.qos_durability         = t.qos_durability,
+                r.qos_transport_priority = t.qos_transport_priority
+            """,
+            tx=tx,
+        )
 
     def _calculate_aggregate_weights(self, tx: Any = None) -> None:
         """

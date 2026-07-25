@@ -157,11 +157,26 @@ For each node $u$ in the current wave's frontier:
      $$L(t) = \frac{|\text{failed\_routers}(t)|}{|\text{all\_routers}(t)|}$$
    - The loss is then scaled by the topic's QoS criticality factor and capped at 1.0:
      $$L(t) = \min(1.0, L(t) \times \text{QoS\_factor}(t))$$
-     where $\text{QoS\_factor}(t)$ is:
-     - Starts at `1.0`.
-     - Multiplied by `1.2` if `qos_reliability` is `"RELIABLE"`.
-     - Multiplied by `1.15` if `qos_priority` is `"HIGH"`, `"CRITICAL"`, or `"URGENT"`.
-     - Multiplied by `1.05` if `qos_priority` is `"MEDIUM"`.
+     The factor is selected by `--qos-factor` / `FaultInjector(qos_factor_mode=...)`:
+
+     | Mode | $\text{QoS\_factor}(t)$ |
+     |---|---|
+     | `ladder` (default) | `1.0`, ×`1.2` if reliability is `RELIABLE`, ×`1.15` if transport priority is `HIGH`/`CRITICAL`/`URGENT`/`HIGHEST`, ×`1.05` if `MEDIUM` |
+     | `wt` | $\max(0,\ 1 + \kappa\,(w(t) - \overline{w}))$ with $\kappa = 0.5$ — the same $w(t)$ the rest of the codebase uses, so **durability** participates (it carries the largest AHP sub-weight, 0.40, and the ladder ignores it entirely) |
+     | `none` | `1.0` — the topology-only arm used by [`reproduce/qos_label_ablation.py`](../reproduce/qos_label_ablation.py) |
+
+> [!IMPORTANT]
+> **This factor was inert before it was fixed.** QoS was read with the flat keys
+> `qos_reliability` / `qos_priority`, but the canonical property is
+> `qos_transport_priority`, and the research loader
+> (`cli/loso_evaluate.py:_build_graph_from_json`) leaves Topic QoS in its **nested**
+> `qos: {...}` shape. On that path no key matched, so every topic scored the
+> default and $I^*(v)$ was numerically **independent of QoS** — flipping every topic
+> in `atm_system` from `PERSISTENT/RELIABLE/CRITICAL` to `VOLATILE/BEST_EFFORT/LOW`
+> moved all 39 labels by exactly `0.000000`. QoS is now resolved through
+> `QoSPolicy.from_node_attrs`, which accepts both shapes. Any $I^*(v)$ artifact
+> generated before this fix is a `--qos-factor none` label regardless of what its
+> provenance block says. See [`tests/test_qos_resolution.py`](../tests/test_qos_resolution.py).
 
 2. **Orphaned Topic and Subscriber Impact Tracking**:
    - If $L(t) > 10^{-6}$ and the topic was not previously orphaned, it is added to `orphaned_topics`. If this occurs during Wave 0, the topic is also added to `directly_orphaned_topics`.
@@ -191,12 +206,38 @@ There are two parallel ground-truth definitions computed by the simulation suite
 2. **`FailureSimulator` (Canonical composite simulator)**:
    Computes the four-component weighted composite $I^*(v)$ returned by `ImpactMetrics.composite_impact`:
    $$I^*(v) = 0.35 \cdot \text{reachability\_loss} + 0.25 \cdot \text{fragmentation} + 0.25 \cdot \text{throughput\_loss} + 0.15 \cdot \text{flow\_disruption}$$
-   Where:
-   - **reachability\_loss**: fraction of weighted pub-sub paths (publisher → topic → subscriber) that are broken.
-   - **fragmentation**: graph partition severity after removing $v$ (weighted connected-component disruption).
-   - **throughput\_loss**: fraction of total topic-weight throughput disrupted.
-   - **flow\_disruption**: fraction of complete Pub→Topic→Sub flow triples broken.
-   
+
+   The weights are AHP-derived and now come from `AHPProcessor.compute_weights()`
+   rather than a literal, so the pairwise matrix in
+   [`weight_calculator.py`](../saag/analysis/weight_calculator.py) actually drives the
+   scorer. The exact values are $0.3472 / 0.2538 / 0.2538 / 0.1453$; the figures
+   above are those rounded.
+
+   Each term is weighted by the **QoS severity** $s(t) = w(t)\cdot\text{rate}(t)$ of
+   what was actually lost, rather than counting broken paths equally
+   (`qos_weighting=True`, the default; `False` restores the count-based form and is
+   the topology-only arm of the label ablation):
+
+   - **reachability\_loss**: fraction of weighted pub-sub path capacity broken. Already
+     QoS-weighted before this change, since path capacity uses edge weights that
+     inherit $w(t)$.
+   - **fragmentation**: $0.70\cdot(\text{new islands}/\text{max islands}) + 0.30\cdot(\text{QoS mass stranded off the largest island})$,
+     measured **relative to the healthy graph** so a topology that is already
+     disconnected does not charge every component for a pre-existing island.
+   - **throughput\_loss**: $\sum_t s(t)\cdot\ell(t) / \sum_t s(t)$ where
+     $\ell(t) = \max(\text{failed publisher fraction},\ \text{failed router fraction})$.
+     Continuous and broker-aware — the previous form was binary on
+     publishers/subscribers only, so a topic whose sole routing broker died was
+     scored as fully delivering.
+   - **flow\_disruption**: $\sum_{\text{broken}} s(t) / \sum_{\text{all}} s(t)$ over the
+     baseline Pub→Topic→Sub triples, rather than a plain broken/total count.
+
+> [!NOTE]
+> **QoS is a severity weight, not a fifth term.** It is not an independent dimension
+> of *what breaks* — it is how much the same breakage costs. Adding it additively
+> would score a component above zero on QoS while nothing it touches has broken, and
+> would double-count against the $w(t)$ already inside `reachability_loss`.
+
    This composite score is computed by the GNN training services (`cli/train_graph.py`) and validation services (`saag/validation/service.py`) to provide the main Middleware 2026 and RASSE evaluation metrics.
 
 > [!NOTE]

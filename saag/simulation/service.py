@@ -27,8 +27,16 @@ class SimulationService:
     Orchestrates EventSimulator and FailureSimulator directly.
     """
 
-    def __init__(self, repository: IGraphRepository):
+    def __init__(self, repository: IGraphRepository, qos_weighting: bool = True):
+        """
+        Args:
+            repository: Graph repository port.
+            qos_weighting: Weight impact terms by the QoS severity of what was lost.
+                False produces the topology-only oracle arm used by the label
+                ablation (reproduce/qos_label_ablation.py).
+        """
         self.repository = repository
+        self.qos_weighting = qos_weighting
 
     def _get_graph(self) -> SimulationGraph:
         """Helper to fetch data and create SimulationGraph."""
@@ -97,7 +105,8 @@ class SimulationService:
                               failure_mode: FailureMode = FailureMode.CRASH) -> FailureResult:
         """Run a single failure simulation for one or more targets."""
         graph = self._get_graph()
-        sim = FailureSimulator(graph, propagation_threshold=propagation_threshold)
+        sim = FailureSimulator(graph, propagation_threshold=propagation_threshold,
+                                 qos_weighting=self.qos_weighting)
 
         scenario = FailureScenario(
             target_ids=target_ids,
@@ -116,7 +125,8 @@ class SimulationService:
                                           n_trials: int = 100) -> Any:
         """Run Monte Carlo failure simulation."""
         graph = self._get_graph()
-        sim = FailureSimulator(graph, propagation_threshold=propagation_threshold)
+        sim = FailureSimulator(graph, propagation_threshold=propagation_threshold,
+                                 qos_weighting=self.qos_weighting)
 
         scenario = FailureScenario(
             target_ids=[target_id],
@@ -137,7 +147,8 @@ class SimulationService:
         `seed` makes the sweep reproducible; pass None for free-running behaviour.
         """
         graph = self._get_graph()
-        fail_sim = FailureSimulator(graph, propagation_threshold=propagation_threshold)
+        fail_sim = FailureSimulator(graph, propagation_threshold=propagation_threshold,
+                                 qos_weighting=self.qos_weighting)
 
         # --- Stage A: Discrete-event baseline flows ---
         event_sim = EventSimulator(graph)
@@ -170,7 +181,8 @@ class SimulationService:
                                       failure_mode: FailureMode = FailureMode.CRASH) -> List[Any]:
         """Run pairwise failure analysis for all component pairs in a layer."""
         graph = self._get_graph()
-        sim = FailureSimulator(graph, propagation_threshold=propagation_threshold)
+        sim = FailureSimulator(graph, propagation_threshold=propagation_threshold,
+                                 qos_weighting=self.qos_weighting)
 
         return sim.simulate_pairwise(
             scenario_template=FailureScenario(
@@ -186,7 +198,7 @@ class SimulationService:
     def generate_report(self, layers: List[str] = ["app", "infra", "mw", "system"], classify_edges: bool = False) -> SimulationReport:
         """Generate comprehensive simulation report across layers without redundant execution passes."""
         graph = self._get_graph()
-        fail_sim = FailureSimulator(graph)
+        fail_sim = FailureSimulator(graph, qos_weighting=self.qos_weighting)
         event_sim = EventSimulator(graph)
         
         report_timestamp = datetime.now().isoformat()

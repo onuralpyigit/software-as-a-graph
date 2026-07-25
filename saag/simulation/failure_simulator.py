@@ -30,6 +30,17 @@ from collections import defaultdict
 
 from .graph import SimulationGraph
 from .models import ComponentState, FailureMode, CascadeRule, FailureScenario, ImpactMetrics, CascadeEvent, FailureResult, MonteCarloResult, RuntimeTelemetryProfile
+from saag.core.models import TOPIC_CRITICALITY_ORD, MAX_TOPIC_CRITICALITY_ORD
+
+#: Split of the fragmentation term between "how many islands" and "how much QoS
+#: mass got stranded". Mirrors the 0.70/0.30 blend the IA(v) post-pass already used.
+FRAGMENTATION_STRUCTURAL_COEFF: float = 0.70
+FRAGMENTATION_SEVERITY_COEFF: float = 0.30
+
+#: Share of topic severity taken from the declared Topic.criticality label when
+#: ``use_topic_criticality`` is enabled. The remainder stays on w(t).
+TOPIC_CRITICALITY_BLEND: float = 0.50
+
 
 class FailureSimulator:
     """
@@ -53,7 +64,8 @@ class FailureSimulator:
     DEGRADED_PERFORMANCE = 0.5
 
     def __init__(self, graph: SimulationGraph, telemetry_profile: Optional[RuntimeTelemetryProfile] = None,
-                 propagation_threshold: float = 0.2):
+                 propagation_threshold: float = 0.2, qos_weighting: bool = True,
+                 use_topic_criticality: bool = False):
         """
         Initialize the failure simulator.
 
@@ -63,10 +75,23 @@ class FailureSimulator:
             propagation_threshold: Feed-loss fraction above which a subscriber is treated as
                 starved and propagates the cascade (canonical default 0.2). Per-app overrides
                 can still be supplied via telemetry_profile.custom_starvation_bounds.
+            qos_weighting: Weight fragmentation, throughput and flow-disruption by the QoS
+                severity w(t)·rate of the topics actually lost, rather than counting broken
+                paths equally. False restores the count-based terms and is the topology-only
+                arm of the label ablation (see reproduce/qos_label_ablation.py).
+            use_topic_criticality: Also blend in the author-declared Topic.criticality
+                label. Off by default and deliberately so: that label is partly derived
+                from the same QoS weight (with ~17% injected noise, see
+                tools/generation/generator.py), and it is simultaneously a GNN input
+                feature, so enabling it makes the label a function of a feature. Only
+                turn it on as an explicit, separately-reported ablation arm — and drop
+                topic_qos_criticality_ord from KEYS_BY_TYPE if you do.
         """
         self.graph = graph
         self.telemetry = telemetry_profile or RuntimeTelemetryProfile()
         self.propagation_threshold = propagation_threshold
+        self.qos_weighting = qos_weighting
+        self.use_topic_criticality = use_topic_criticality
         self.logger = logging.getLogger(__name__)
         
         # Random generator
@@ -77,6 +102,7 @@ class FailureSimulator:
         self._initial_connected_components: int = 1
         self._initial_total_weight: float = 0.0
         self._baseline_flows: Set[Tuple[str, str, str]] = set()
+        self._initial_stranded_severity: float = 0.0
         self._baseline_computed: bool = False
         # Cached impact of removing nothing; edge deltas subtract it.
         self._null_impact_cache: Optional[ImpactMetrics] = None
@@ -93,6 +119,62 @@ class FailureSimulator:
         if run_seed is None:
             return None
         return (run_seed ^ zlib.crc32(component_id.encode("utf-8"))) & 0x7FFFFFFF
+
+    def topic_severity(self, topic_id: str) -> float:
+        """Operational severity of losing *topic_id*: w(t) × its message rate.
+
+        w(t) is the QoS-derived topic weight the repositories compute on import
+        (0.85·QoS_score + 0.15·size_norm); the rate comes from telemetry when
+        calibrated and defaults to 1.0. Returns 1.0 uniformly when QoS weighting
+        is disabled, which makes every severity-weighted sum collapse back to the
+        count-based form.
+        """
+        if not self.qos_weighting:
+            return 1.0
+        topic_info = self.graph.topics.get(topic_id)
+        weight = float(getattr(topic_info, "weight", 1.0)) if topic_info else 1.0
+        if self.use_topic_criticality:
+            weight = (
+                TOPIC_CRITICALITY_BLEND * self._topic_criticality_norm(topic_id)
+                + (1.0 - TOPIC_CRITICALITY_BLEND) * weight
+            )
+        return weight * self.telemetry.msg_rate_per_sec.get(topic_id, 1.0)
+
+    def _topic_criticality_norm(self, topic_id: str) -> float:
+        """Author-declared Topic.criticality as an ordinal normalised to [0, 1]."""
+        comp = self.graph.components.get(topic_id)
+        props = getattr(comp, "properties", {}) or {}
+        label = str(
+            props.get("criticality", props.get("topic_criticality", "minimal"))
+        ).lower()
+        return TOPIC_CRITICALITY_ORD.get(label, 0.0) / MAX_TOPIC_CRITICALITY_ORD
+
+    def _component_severity(self, component_id: str) -> float:
+        """Severity of a non-topic component, from its aggregate QoS weight."""
+        if not self.qos_weighting:
+            return 1.0
+        comp = self.graph.components.get(component_id)
+        return float(getattr(comp, "weight", 1.0)) if comp else 1.0
+
+    def _stranded_severity_fraction(self) -> float:
+        """Share of surviving QoS mass cut off from the largest island.
+
+        0.0 while the survivors stay mutually reachable, however many components
+        died; it rises only when the graph actually splits, and in proportion to
+        how valuable the stranded side is.
+        """
+        islands = self.graph.active_connected_components()
+        if len(islands) <= 1:
+            return 0.0
+
+        masses = [
+            sum(self._component_severity(cid) for cid in island)
+            for island in islands
+        ]
+        total = sum(masses)
+        if total <= 0:
+            return 0.0
+        return (total - max(masses)) / total
 
     def set_baseline_flows(self, flows: List[Tuple[str, str, str]]) -> None:
         """Set the baseline successful flows from event simulation."""
@@ -604,10 +686,6 @@ class FailureSimulator:
         # path-breaking from cascade-induced throughput loss.
         try:
             total_topic_weight = self._initial_total_weight or 1.0
-            total_comp_weight = sum(
-                getattr(c, 'weight', 1.0)
-                for c in self.graph.components.values()
-            ) or 1.0
 
             for r in results:
                 im = r.impact
@@ -619,19 +697,11 @@ class FailureSimulator:
                 im.weighted_reachability_loss = im.reachability_loss  # inherently QoS-weighted
 
                 # WeightedFragmentation:
-                # Scale standard fragmentation by the QoS weight of the failed component
-                # and its cascaded failures to emphasize high-importance partitions.
-                failed_ids = set(r.cascaded_failures) | {r.target_id}
-                failed_weight = sum(
-                    getattr(self.graph.components[cid], 'weight', 1.0)
-                    for cid in failed_ids
-                    if cid in self.graph.components
-                )
-                weight_fraction = failed_weight / total_comp_weight
-                # Blend structural fragmentation with component importance
-                im.weighted_fragmentation = (
-                    0.70 * im.fragmentation + 0.30 * weight_fraction
-                )
+                # The base fragmentation term now carries the QoS-mass blend itself
+                # (see _calculate_impact), so re-blending here would apply the
+                # 0.70/0.30 split twice. Under qos_weighting=False the base term is
+                # deliberately structural-only and this stays structural too.
+                im.weighted_fragmentation = im.fragmentation
 
                 # PathBreakingThroughputLoss:
                 # Heuristic: throughput loss that stems from PARTITION_LOSS (structural
@@ -770,14 +840,15 @@ class FailureSimulator:
         ])
         self._initial_connected_components = self.graph.count_active_connected_components()
         self._initial_total_weight = self._compute_total_topic_weight()
+        # A topology can already be disconnected when healthy. Record that so the
+        # fragmentation term reports stranding *caused by the failure* rather than
+        # charging every component for a pre-existing island.
+        self._initial_stranded_severity = self._stranded_severity_fraction()
         self._baseline_computed = True
     
     def _compute_total_topic_weight(self) -> float:
         """Compute total QoS-weighted topic capacity calibrated by telemetry."""
-        total = 0.0
-        for topic_id, topic_info in self.graph.topics.items():
-            runtime_rate = self.telemetry.msg_rate_per_sec.get(topic_id, 1.0)
-            total += getattr(topic_info, 'weight', 1.0) * runtime_rate
+        total = sum(self.topic_severity(tid) for tid in self.graph.topics)
         return total if total > 0 else float(len(self.graph.topics))
     
     def _propagate_cascade_multi(
@@ -1120,26 +1191,59 @@ class FailureSimulator:
             fragmentation = min(1.0, new_cc / denom)
         else:
             fragmentation = 0.0
+
+        # Counting islands says nothing about what is inside them: stranding one
+        # broker carrying every safety-critical topic reads the same as stranding
+        # an idle logger. Blend in the QoS mass cut off from the main island,
+        # mirroring the IA(v) weighting that already existed downstream.
+        if self.qos_weighting:
+            new_stranded = max(
+                0.0,
+                self._stranded_severity_fraction() - self._initial_stranded_severity,
+            )
+            fragmentation = (
+                FRAGMENTATION_STRUCTURAL_COEFF * fragmentation
+                + FRAGMENTATION_SEVERITY_COEFF * new_stranded
+            )
         
-        # === Throughput Loss (QoS-weighted) ===
+        # === Throughput Loss (QoS-weighted, continuous) ===
+        # Loss is the fraction of a topic's delivery capability that is gone, not a
+        # binary "did it lose every publisher". Broker loss counts too: a topic whose
+        # only routing broker died delivers nothing, which the previous all-or-nothing
+        # publisher/subscriber test scored as fully healthy.
         total_weight = self._initial_total_weight
         lost_weight = 0.0
         affected_topics = 0
-        
-        for topic_id, topic_info in self.graph.topics.items():
-            runtime_rate = self.telemetry.msg_rate_per_sec.get(topic_id, 1.0)
-            topic_weight = getattr(topic_info, 'weight', 1.0) * runtime_rate
-            
-            publishers = self.graph.get_publishers(topic_id)
-            brokers = self.graph.get_routing_brokers(topic_id)
-            subscribers = self.graph.get_subscribers(topic_id)
-            
-            if not publishers or not subscribers:
-                lost_weight += topic_weight
+
+        for topic_id in self.graph.topics:
+            topic_weight = self.topic_severity(topic_id)
+
+            live_pubs = self.graph.get_publishers(topic_id)
+            live_brokers = self.graph.get_routing_brokers(topic_id)
+            live_subs = self.graph.get_subscribers(topic_id)
+
+            all_pubs = self.graph._publishers.get(topic_id, [])
+            all_brokers = self.graph._routing.get(topic_id, [])
+
+            if not live_subs:
+                # Nothing consumes the topic; its whole throughput is moot.
+                topic_loss = 1.0
+            else:
+                pub_loss = (
+                    1.0 - (len(live_pubs) / len(all_pubs)) if all_pubs else 0.0
+                )
+                # Brokerless (DDS direct) topologies have no routing tier to lose.
+                broker_loss = (
+                    1.0 - (len(live_brokers) / len(all_brokers)) if all_brokers else 0.0
+                )
+                topic_loss = max(pub_loss, broker_loss)
+
+            if topic_loss > 1e-9:
+                lost_weight += topic_weight * topic_loss
                 affected_topics += 1
-        
+
         if total_weight > 0:
-            throughput_loss = lost_weight / total_weight
+            throughput_loss = min(1.0, lost_weight / total_weight)
         else:
             throughput_loss = 0.0
             
@@ -1209,23 +1313,31 @@ class FailureSimulator:
                 cascade_by_type[comp.type] += 1
 
         # === Flow Disruption FD(v) ===
+        # Each broken flow counts for the severity of the topic it carried, so
+        # silencing one safety-critical channel outweighs silencing several
+        # best-effort telemetry ones. With qos_weighting off every severity is
+        # 1.0 and this is the original broken/total count ratio.
         if self._baseline_flows:
-            broken_flows = 0
+            broken_weight = 0.0
+            total_flow_weight = 0.0
             for pub_id, topic_id, sub_id in self._baseline_flows:
+                severity = self.topic_severity(topic_id)
+                total_flow_weight += severity
+
                 # Flow is broken if Pub, Topic, or Sub is not active
                 # is_active() already considers DEGRADED as active, which is correct for "weakest link" model
-                if not (self.graph.is_active(pub_id) and 
-                        self.graph.is_active(topic_id) and 
+                if not (self.graph.is_active(pub_id) and
+                        self.graph.is_active(topic_id) and
                         self.graph.is_active(sub_id)):
-                    broken_flows += 1
+                    broken_weight += severity
                     continue
-                
+
                 # Flow is also broken if no routing broker is active for the topic
                 brokers = self.graph.get_routing_brokers(topic_id)
                 if not any(self.graph.is_active(b) for b in brokers):
-                    broken_flows += 1
-            
-            flow_disruption = broken_flows / len(self._baseline_flows)
+                    broken_weight += severity
+
+            flow_disruption = broken_weight / total_flow_weight if total_flow_weight > 0 else 0.0
         else:
             flow_disruption = 0.0
 

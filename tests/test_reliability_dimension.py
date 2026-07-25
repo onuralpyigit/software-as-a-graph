@@ -258,7 +258,9 @@ class TestImpactMetricsIRv:
             throughput_loss=0.0,
             flow_disruption=0.0,
         )
-        assert im.composite_impact == pytest.approx(0.35 * 0.5, abs=1e-6)
+        assert im.composite_impact == pytest.approx(
+            im.impact_weights["reachability"] * 0.5, abs=1e-6
+        )
 
 
 # ===========================================================================

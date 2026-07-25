@@ -128,6 +128,11 @@ import numpy as np
 import torch
 from torch import Tensor
 
+from saag.core.models import (
+    QoSPolicy,
+    TOPIC_CRITICALITY_ORD as _TOPIC_CRITICALITY_ORD,
+)
+
 logger = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -196,13 +201,8 @@ TOPIC_RUNTIME_KEYS: List[str] = [
 
 # Ordinal mapping for Topic.criticality labels (5-level QoS urgency scale).
 # Separate from Application.criticality which is a bool (process-level ground truth).
-TOPIC_CRITICALITY_ORD: Dict[str, float] = {
-    "minimal":  0.0,
-    "low":      1.0,
-    "medium":   2.0,
-    "high":     3.0,
-    "critical": 4.0,
-}
+# Defined in saag.core.models so the simulation severity model can share it.
+TOPIC_CRITICALITY_ORD: Dict[str, float] = _TOPIC_CRITICALITY_ORD
 
 # Per-type feature key mapping used during feature extraction
 KEYS_BY_TYPE: Dict[str, List[str]] = {
@@ -241,14 +241,12 @@ LABEL_COLS = {
 
 # ── QoS edge feature helpers ───────────────────────────────────────────────────
 
-# Canonical score tables (mirrors QoSPolicy in saag/core/models.py)
-_RELIABILITY_SCORE: Dict[str, float] = {"BEST_EFFORT": 0.0, "RELIABLE": 1.0}
-_DURABILITY_SCORE: Dict[str, float] = {
-    "VOLATILE": 0.0, "TRANSIENT_LOCAL": 0.5, "TRANSIENT": 0.6, "PERSISTENT": 1.0
-}
-_PRIORITY_SCORE: Dict[str, float] = {
-    "LOW": 0.0, "MEDIUM": 0.33, "HIGH": 0.66, "URGENT": 1.0
-}
+# Canonical score tables, sourced from QoSPolicy rather than restated here.
+# They were previously duplicated, and the copy drifted: it lacked the
+# CRITICAL/HIGHEST priority tier, so those topics scored below MEDIUM.
+_RELIABILITY_SCORE: Dict[str, float] = QoSPolicy.RELIABILITY_SCORES
+_DURABILITY_SCORE: Dict[str, float] = QoSPolicy.DURABILITY_SCORES
+_PRIORITY_SCORE: Dict[str, float] = QoSPolicy.PRIORITY_SCORES
 
 # Edge types for which QoS attributes are semantically meaningful
 _QOS_EDGE_TYPES = {"PUBLISHES_TO", "SUBSCRIBES_TO", "DEPENDS_ON"}

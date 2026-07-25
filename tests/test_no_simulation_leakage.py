@@ -46,6 +46,62 @@ def test_feature_keys_are_not_simulation_derived():
     )
 
 
+#: Graph attributes the impact oracle may consume when building a label. Any of
+#: these that is *also* a GNN input feature makes the label a function of a
+#: feature — a leak the name-collision check above cannot see, because the
+#: feature and the attribute are spelled differently.
+_LABEL_INPUT_TOPIC_ATTRS = {
+    # Consumed by FailureSimulator._topic_criticality_norm, but only when
+    # use_topic_criticality=True — which is off by default for this reason.
+    "criticality": "topic_qos_criticality_ord",
+}
+
+
+def test_label_side_topic_attributes_are_not_also_features():
+    """Topic.criticality feeds the label only behind an opt-in flag.
+
+    It is simultaneously the Topic feature ``topic_qos_criticality_ord``. If the
+    oracle starts consuming it by default, that feature has to leave the feature
+    contract or the correlation measures the model rediscovering its own input.
+    """
+    import inspect
+
+    from saag.prediction.data_preparation import KEYS_BY_TYPE
+    from saag.simulation.failure_simulator import FailureSimulator
+
+    default_on = (
+        inspect.signature(FailureSimulator.__init__)
+        .parameters["use_topic_criticality"]
+        .default
+    )
+    if not default_on:
+        return  # opt-in, so no leak
+
+    topic_features = set(KEYS_BY_TYPE.get("Topic", []))
+    conflicting = {
+        feature for feature in _LABEL_INPUT_TOPIC_ATTRS.values()
+        if feature in topic_features
+    }
+    assert not conflicting, (
+        f"use_topic_criticality is on by default while {sorted(conflicting)} is still a "
+        "Topic input feature. Remove it from KEYS_BY_TYPE or keep the oracle flag off."
+    )
+
+
+def test_topic_criticality_is_opt_in():
+    """Regression: the default oracle must not consume the declared label."""
+    import inspect
+
+    from saag.simulation.failure_simulator import FailureSimulator
+
+    assert (
+        inspect.signature(FailureSimulator.__init__)
+        .parameters["use_topic_criticality"]
+        .default
+        is False
+    )
+
+
 def _write_sparse_cache(cache_dir: pathlib.Path, n: int = 10) -> set:
     """Write a cache whose simulation labels are all zero but whose RMAV is not.
 

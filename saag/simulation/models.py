@@ -134,7 +134,12 @@ class TopicInfo:
     @property
     def persistence_factor(self) -> float:
         """Factor for persistence overhead."""
-        return {"PERSISTENT": 1.5, "TRANSIENT": 1.2, "VOLATILE": 1.0}.get(self.qos_durability, 1.0)
+        return {
+            "PERSISTENT": 1.5,
+            "TRANSIENT": 1.2,
+            "TRANSIENT_LOCAL": 1.1,
+            "VOLATILE": 1.0,
+        }.get(self.qos_durability, 1.0)
 
 
 # =============================================================================
@@ -333,6 +338,33 @@ class FailureScenario:
             self.target_ids = [self.target_ids]
 
 
+def ahp_impact_weights() -> Dict[str, float]:
+    """The I(v) criterion weights, taken from the AHP processor rather than restated.
+
+    They were previously hardcoded here as 0.35/0.25/0.25/0.15 — the same numbers
+    the AHP matrix yields, but as a literal, so perturbing the matrix in
+    ``weight_calculator.py`` moved nothing. Falls back to the documented values if
+    the analysis package is unavailable, keeping this module import-light.
+    """
+    try:
+        from saag.analysis.weight_calculator import AHPProcessor
+
+        w = AHPProcessor().compute_weights()
+        return {
+            "reachability": w.i_reachability,
+            "fragmentation": w.i_fragmentation,
+            "throughput": w.i_throughput,
+            "flow_disruption": w.i_flow_disruption,
+        }
+    except Exception:  # pragma: no cover - defensive, keeps simulation standalone
+        return {
+            "reachability": 0.35,
+            "fragmentation": 0.25,
+            "throughput": 0.25,
+            "flow_disruption": 0.15,
+        }
+
+
 @dataclass
 class ImpactMetrics:
     """Impact metrics from a failure simulation.
@@ -368,12 +400,7 @@ class ImpactMetrics:
     cascade_by_type: Dict[str, int] = field(default_factory=dict)
     
     # composite_impact weights - AHP-derived in weight_calculator.py (not the paper's I*(v); see class docstring)
-    impact_weights: Dict[str, float] = field(default_factory=lambda: {
-        "reachability": 0.35,
-        "fragmentation": 0.25, 
-        "throughput": 0.25,
-        "flow_disruption": 0.15
-    })
+    impact_weights: Dict[str, float] = field(default_factory=lambda: ahp_impact_weights())
 
     # -----------------------------------------------------------------------
     # IR(v): Reliability-specific ground truth (fault propagation dynamics)

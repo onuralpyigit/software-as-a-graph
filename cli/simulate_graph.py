@@ -77,6 +77,8 @@ import time
 from typing import Any, Dict, List, Optional
 
 from cli.common.arguments import setup_logging
+from cli.loso_evaluate import _project_topic_qos_onto_edges
+from saag.simulation.fault_injector import FaultInjector
 
 logger = logging.getLogger("simulate_graph")
 
@@ -201,6 +203,10 @@ def _load_graph(input_path: Path):
         if src and tgt:
             g.add_edge(src, tgt, type="USES")
 
+    # Topology JSON states QoS on Topic nodes only, so without this the pub/sub
+    # edges reach the injector with an empty qos_profile and a constant weight.
+    _project_topic_qos_onto_edges(g)
+
     logger.info("Graph loaded via fallback: %d nodes, %d edges",
                 len(g.nodes), len(g.edges))
     return g
@@ -211,7 +217,6 @@ def _load_graph(input_path: Path):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _run_fault_inject(args: argparse.Namespace) -> None:
-    from saag.simulation.fault_injector import FaultInjector
 
     input_path = Path(args.input)
     
@@ -246,6 +251,7 @@ def _run_fault_inject(args: argparse.Namespace) -> None:
     logger.info("  Seeds      : %s", seeds)
     logger.info("  Cascade lim: %s", args.cascade_depth or "unlimited")
     logger.info("  Propagation: %s", args.propagation_threshold)
+    logger.info("  QoS factor : %s", getattr(args, "qos_factor", "ladder"))
     logger.info("═" * 60)
 
     t0 = time.perf_counter()
@@ -256,6 +262,7 @@ def _run_fault_inject(args: argparse.Namespace) -> None:
         seeds=seeds,
         cascade_depth_limit=args.cascade_depth,
         propagation_threshold=args.propagation_threshold,
+        qos_factor_mode=getattr(args, "qos_factor", "ladder"),
     )
     result = injector.run(node_types=node_types, node_ids=node_ids)
     elapsed = time.perf_counter() - t0
@@ -548,6 +555,17 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="F",
         help="Fraction of feed loss before a subscriber cascades further.  Default: 0.2",
     )
+    fi.add_argument(
+        "--qos-factor",
+        choices=FaultInjector.QOS_FACTOR_MODES,
+        default="ladder",
+        help=(
+            "How a topic's QoS scales its feed-loss fraction. 'ladder' (default) "
+            "reproduces the published x1.2/x1.15/x1.05 constants; 'wt' uses the "
+            "shared w(t) weight so durability participates too; 'none' disables "
+            "QoS scaling and is the topology-only arm of the label ablation."
+        ),
+    )
 
     # ── message-flow ─────────────────────────────────────────────────────
     mf = subparsers.add_parser(
@@ -614,6 +632,7 @@ def _build_parser() -> argparse.ArgumentParser:
     co.add_argument("--seeds", default="42", metavar="42,123,...")
     co.add_argument("--cascade-depth", type=int, default=0, metavar="N")
     co.add_argument("--propagation-threshold", type=float, default=0.2, metavar="F")
+    co.add_argument("--qos-factor", choices=FaultInjector.QOS_FACTOR_MODES, default="ladder")
     # Message-flow flags
     co.add_argument("--duration", type=float, default=100.0, metavar="SECONDS")
     co.add_argument("--fault-node", default=None, metavar="NODE_ID")

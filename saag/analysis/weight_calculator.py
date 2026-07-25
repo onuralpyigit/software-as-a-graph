@@ -370,11 +370,13 @@ class AHPProcessor:
             s_closeness=0.0,
             s_out_degree=0.0,
             
-            # Impact
+            # Impact — all four criteria; i_flow_disruption used to be dropped
+            # here, so the fourth AHP weight was computed and then discarded.
             i_reachability=w_impact[0],
             i_fragmentation=w_impact[1],
             i_throughput=w_impact[2],
-            
+            i_flow_disruption=w_impact[3],
+
             # Overall
             q_reliability=w_over[0],
             q_maintainability=w_over[1],

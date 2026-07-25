@@ -202,11 +202,35 @@ MIN_WEIGHT = 0.01
 | | `MEDIUM` | 0.33 |
 | | `LOW` | 0.0 |
 
+> [!NOTE]
+> `HIGHEST` and `CRITICAL` are now listed in `QoSPolicy.PRIORITY_SCORES` itself. They
+> previously existed only as special cases inside the Cypher and in-memory scorers,
+> so `QoSPolicy.calculate_weight()` fell through to `0.0` and ranked a `CRITICAL`
+> topic identically to a `LOW` one. 36 topics across the scenario corpus were
+> affected. `tests/test_qos_resolution.py` now asserts all scorers agree across the
+> full priority domain.
+
 **Edge weight inheritance:** After topic weights are computed, structural edge weights are updated by one-pass inheritance:
 
 ```
 ∀ e = (a, t) ∈ PUBLISHES_TO ∪ SUBSCRIBES_TO ∪ ROUTES :  e.weight = t.weight
 ```
+
+**Edge QoS inheritance:** The same edges also inherit the topic's QoS *profile*, not
+only the scalar weight:
+
+```
+∀ e = (a, t) ∈ PUBLISHES_TO ∪ SUBSCRIBES_TO ∪ ROUTES :
+    e.qos_reliability, e.qos_durability, e.qos_transport_priority = t.<same>
+```
+
+This matters because consumers that read per-edge QoS see only edges. No topology
+source states edge-level QoS, so before this pass the GNN's seven QoS edge features
+(`data_preparation.py` dims 9–15) were `[0, 0, 0.33, 0, 0, 0, 0]` — **constant across
+every pub/sub edge in every scenario**. The `HGL` vs `HGL-QoS` ablation was therefore
+comparing a QoS-masked model against one whose QoS channel carried no information.
+`reproduce/qos_pipeline_inspect.py` reports the resulting spread; a Gini of 0 there
+means the pass is not running.
 
 ---
 

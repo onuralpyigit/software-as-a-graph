@@ -15,6 +15,7 @@ import networkx as nx
 
 from .models import ComponentState, RelationType, ComponentInfo, TopicInfo
 from saag.core.layers import SimulationLayer, SIMULATION_LAYERS
+from saag.core.models import QoSPolicy
 
 class SimulationGraph:
     """
@@ -87,13 +88,17 @@ class SimulationGraph:
                 comp_weight = props.get("weight", 1.0)
 
             if comp_type == "Topic":
+                # Resolve through QoSPolicy so both the flat (qos_transport_priority)
+                # and nested (qos: {...}) attribute shapes are honoured. Reading the
+                # flat keys directly made qos_priority always fall back to its default.
+                qos = QoSPolicy.from_node_attrs(props)
                 self.topics[comp_id] = TopicInfo(
                     id=comp_id,
                     name=props.get("name", comp_id),
-                    message_size=props.get("message_size", 1024),
-                    qos_reliability=props.get("qos_reliability", "BEST_EFFORT"),
-                    qos_durability=props.get("qos_durability", "VOLATILE"),
-                    qos_priority=props.get("qos_priority", "LOW"),
+                    message_size=props.get("message_size", props.get("size", 1024)),
+                    qos_reliability=qos.reliability,
+                    qos_durability=qos.durability,
+                    qos_priority=qos.transport_priority,
                     weight=comp_weight,
                 )
             
@@ -319,29 +324,52 @@ class SimulationGraph:
     def count_active_connected_components(self):  # -> int
         """
         Count weakly-connected components in the active subgraph.
-        
+
         Builds a temporary undirected graph from active components and their
         active relationships, then counts connected components. Used by
         FailureSimulator to compute true graph fragmentation rather than
         simple component loss ratio.
-        
+
         Returns:
             Number of weakly-connected components among active components.
             Returns 0 if no active components exist.
         """
         import networkx as nx
-        
+
+        active_graph = self._build_active_undirected_graph()
+        if len(active_graph) == 0:
+            return 0
+        return nx.number_connected_components(active_graph)
+
+    def active_connected_components(self) -> List[Set[str]]:
+        """The active subgraph's connected components as sets of component ids.
+
+        Same projection as :meth:`count_active_connected_components`, exposed so
+        callers can weight each island by what it carries instead of only
+        counting islands.
+        """
+        import networkx as nx
+
+        active_graph = self._build_active_undirected_graph()
+        if len(active_graph) == 0:
+            return []
+        return [set(c) for c in nx.connected_components(active_graph)]
+
+    def _build_active_undirected_graph(self):
+        """Undirected projection over active Application/Broker/Node components."""
+        import networkx as nx
+
         # Build undirected graph of active components
         active_graph = nx.Graph()
-        
+
         # Add all active non-Topic components as nodes
         for comp_id, comp in self.components.items():
             if comp.state == ComponentState.ACTIVE and comp.type in ("Application", "Broker", "Node"):
                 active_graph.add_node(comp_id)
         
         if len(active_graph) == 0:
-            return 0
-        
+            return active_graph
+
         # Add edges for active relationships
         # RUNS_ON: app/broker <-> node
         for comp_id, node_id in self._hosted_on.items():
@@ -378,8 +406,8 @@ class SimulationGraph:
                 for pub in active_pubs:
                     for sub in active_subs:
                         active_graph.add_edge(pub, sub)
-        
-        return nx.number_connected_components(active_graph)
+
+        return active_graph
     
     def get_message_path(self, publisher: str, topic_id: str) -> List[Tuple[str, str]]:
         """

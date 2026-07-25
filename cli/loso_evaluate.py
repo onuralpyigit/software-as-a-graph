@@ -100,6 +100,7 @@ from saag.prediction.data_preparation import (
     extract_structural_metrics_dict,
     extract_rmav_scores_dict,
 )
+from saag.core.models import QoSPolicy, topic_weight_from_node_attrs
 
 logger = logging.getLogger("loso_evaluate")
 
@@ -214,13 +215,55 @@ def _build_graph_from_json(topology: Dict[str, Any]) -> nx.DiGraph:
                 or r.get("application_id") or r.get("node_id")
             )
             if src and dst and src != dst:
-                g.add_edge(
-                    src, dst,
-                    type=r.get("type", type_label),
-                    weight=float(r.get("weight", 1.0)),
-                    qos_profile=r.get("qos_profile", {}),
-                )
+                attrs: Dict[str, Any] = {
+                    "type": r.get("type", type_label),
+                    "qos_profile": r.get("qos_profile", {}),
+                }
+                # Only pin a weight the topology actually stated, so the
+                # projection below can tell "unset" from "deliberately 1.0".
+                if r.get("weight") is not None:
+                    attrs["weight"] = float(r["weight"])
+                g.add_edge(src, dst, **attrs)
+
+    _project_topic_qos_onto_edges(g)
+    for _, _, data in g.edges(data=True):
+        data.setdefault("weight", 1.0)
     return g
+
+
+#: Edge types that inherit their weight and QoS profile from the Topic endpoint.
+_TOPIC_MEDIATED_EDGES = ("PUBLISHES_TO", "SUBSCRIBES_TO", "ROUTES")
+
+
+def _project_topic_qos_onto_edges(g: nx.DiGraph) -> None:
+    """Inherit each Topic's w(t) and QoS profile onto its incident pub/sub edges.
+
+    Mirrors the ``SET r.weight = t.weight`` inheritance the repositories perform
+    on import (see ``Neo4jRepository._calculate_intrinsic_weights``). Topology
+    JSON carries QoS on Topic *nodes* only and states no edge attributes at all,
+    so without this pass every pub/sub edge reaching a consumer has
+    ``weight=1.0`` and ``qos_profile={}`` — constant across the whole graph.
+    That is what made the GNN's QoS edge dimensions carry no signal.
+
+    Existing non-default values are left alone, so a topology that does state
+    edge-level QoS keeps it.
+    """
+    for u, v, data in g.edges(data=True):
+        etype = (data.get("type") or data.get("etype") or "").upper()
+        if etype not in _TOPIC_MEDIATED_EDGES:
+            continue
+
+        # Topic is the target on PUBLISHES_TO/SUBSCRIBES_TO/ROUTES, but tolerate
+        # either orientation rather than silently skipping a reversed edge.
+        topic = v if g.nodes.get(v, {}).get("type") == "Topic" else u
+        attrs = g.nodes.get(topic, {})
+        if attrs.get("type") != "Topic":
+            continue
+
+        if not data.get("qos_profile"):
+            data["qos_profile"] = QoSPolicy.from_node_attrs(attrs).to_dict()
+        if "weight" not in data:
+            data["weight"] = topic_weight_from_node_attrs(attrs)
 
 
 def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:

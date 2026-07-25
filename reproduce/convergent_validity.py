@@ -51,19 +51,28 @@ logger = logging.getLogger("convergent_validity")
 RESULTS_DIR = Path("results")
 
 
-def _fault_injector_labels(scenario: str, seeds: List[int]) -> Dict[str, float]:
+def _fault_injector_labels(
+    scenario: str, seeds: List[int], qos: bool = True
+) -> Dict[str, float]:
     """I*(v) — the labels that back the published tables."""
     from cli.loso_evaluate import _build_graph_from_json
     from saag.simulation.fault_injector import FaultInjector
     from reproduce.ahp_sensitivity import _load_topology
 
     graph = _build_graph_from_json(_load_topology(scenario))
-    injector = FaultInjector(graph=graph, seeds=seeds, cascade_depth_limit=0)
+    injector = FaultInjector(
+        graph=graph,
+        seeds=seeds,
+        cascade_depth_limit=0,
+        qos_factor_mode="ladder" if qos else "none",
+    )
     result = injector.run(node_types=["Application", "Broker", "Library"])
     return {nid: float(rec.impact_score) for nid, rec in result.records.items()}
 
 
-def _failure_simulator_labels(scenario: str, layer: str = "system") -> Dict[str, float]:
+def _failure_simulator_labels(
+    scenario: str, layer: str = "system", qos: bool = True
+) -> Dict[str, float]:
     """I_comp(v) — the composite that backs the validation gates."""
     from saag.infrastructure.memory_repo import MemoryRepository
     from saag.simulation.failure_simulator import FailureSimulator
@@ -72,16 +81,25 @@ def _failure_simulator_labels(scenario: str, layer: str = "system") -> Dict[str,
 
     repo = MemoryRepository()
     repo.save_graph(_load_topology(scenario), clear=True)
-    sim = FailureSimulator(SimulationGraph(repo.get_graph_data(include_raw=True)))
+    sim = FailureSimulator(
+        SimulationGraph(repo.get_graph_data(include_raw=True)),
+        qos_weighting=qos,
+    )
     return {
         r.target_id: float(r.impact.composite_impact)
         for r in sim.simulate_exhaustive(layer=layer, seed=42)
     }
 
 
-def compare(scenario: str, seeds: List[int]) -> Dict[str, Any]:
-    star = _fault_injector_labels(scenario, seeds)
-    comp = _failure_simulator_labels(scenario)
+def compare(scenario: str, seeds: List[int], qos: bool = True) -> Dict[str, Any]:
+    """Agreement between the two oracles.
+
+    ``qos=False`` reproduces the pre-QoS behaviour of both engines, so the
+    convergence claim — that weighting both oracles by the same w(t) should make
+    them agree more — is testable rather than asserted.
+    """
+    star = _fault_injector_labels(scenario, seeds, qos=qos)
+    comp = _failure_simulator_labels(scenario, qos=qos)
 
     common = sorted(set(star) & set(comp))
     row: Dict[str, Any] = {
@@ -127,6 +145,12 @@ def parse_args():
     p.add_argument("--scenarios", nargs="+", default=None)
     p.add_argument("--seeds", nargs="+", type=int, default=[42, 123, 456, 789, 2024])
     p.add_argument("--output", type=Path, default=RESULTS_DIR / "convergent_validity.json")
+    p.add_argument(
+        "--no-qos", action="store_true",
+        help="Disable QoS weighting in both oracles, reproducing their pre-QoS "
+             "behaviour. Run with and without to measure whether weighting both "
+             "by the same w(t) actually makes them converge.",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -143,7 +167,7 @@ def main():
     rows = []
     for scenario in scenarios:
         try:
-            row = compare(scenario, args.seeds)
+            row = compare(scenario, args.seeds, qos=not args.no_qos)
         except Exception as exc:      # noqa: BLE001
             logger.warning("%s failed: %s", scenario, exc)
             rows.append({"scenario": scenario, "error": str(exc)})

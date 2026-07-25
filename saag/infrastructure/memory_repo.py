@@ -76,11 +76,10 @@ class MemoryRepository:
 
             rel_val = rel_scores.get(rel, 0.0)
             dur_val = dur_scores.get(dur, 0.0)
-            
-            if pri in ("HIGHEST", "CRITICAL"):
-                pri_val = 1.0
-            else:
-                pri_val = pri_scores.get(pri, 0.0)
+            # HIGHEST/CRITICAL now live in PRIORITY_SCORES; the local special
+            # case that used to cover them here is what let the shared table
+            # drift out of sync with this scorer.
+            pri_val = pri_scores.get(pri, 0.0)
 
             qos_score = 0.30 * rel_val + 0.40 * dur_val + 0.30 * pri_val
             
@@ -94,19 +93,24 @@ class MemoryRepository:
             weighted_sum = beta * qos_score + one_minus_beta * size_norm
             topic["weight"] = max(MIN_TOPIC_WEIGHT, weighted_sum)
 
-        # 2. Update edge weights (Inherit from Topic)
-        topic_weights = {t["id"]: t["weight"] for t in self.data["topics"]}
+        # 2. Update edge weights and QoS profiles (both inherit from the Topic).
+        # The profile matters as much as the scalar: downstream consumers that
+        # read per-edge QoS (the GNN edge-feature encoder) see only edges, and a
+        # topology JSON never states edge-level QoS.
+        topic_attrs = {
+            t["id"]: (
+                t["weight"],
+                QoSPolicy.from_node_attrs(t).to_dict(),
+            )
+            for t in self.data["topics"]
+        }
 
-        for rel_type in ["publishes_to", "subscribes_to"]:
+        for rel_type in ("publishes_to", "subscribes_to", "routes"):
             for rel in self.data["relationships"].get(rel_type, []):
-                topic_id = rel.get("to")
-                if topic_id in topic_weights:
-                    rel["weight"] = topic_weights[topic_id]
-
-        for rel in self.data["relationships"].get("routes", []):
-            topic_id = rel.get("to")
-            if topic_id in topic_weights:
-                rel["weight"] = topic_weights[topic_id]
+                inherited = topic_attrs.get(rel.get("to"))
+                if inherited is not None:
+                    rel["weight"], profile = inherited
+                    rel.setdefault("qos_profile", profile)
 
     def _calculate_aggregate_weights(self) -> None:
         """

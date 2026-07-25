@@ -70,6 +70,7 @@ from .simulation_results import (
     FaultInjectionRecord,
     FaultInjectionResult,
 )
+from saag.core.models import QoSPolicy, topic_weight_from_node_attrs
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +183,18 @@ class FaultInjector:
         "only-on-total-starvation" cascade.  For nodes requiring all feeds
         (e.g. ATM ConflictDetector needing T_radar AND T_tracks), 0.5 is more
         appropriate.
+    qos_factor_mode : {"ladder", "wt", "none"}, optional
+        How a topic's QoS scales its feed-loss fraction.  Default ``"ladder"``
+        reproduces the published constants (§3.2).  ``"wt"`` uses the same
+        w(t) the rest of the codebase derives QoS weights from — which, unlike
+        the ladder, lets durability participate.  ``"none"`` disables QoS
+        scaling entirely and is the topology-only arm of the label ablation.
+    qos_factor_kappa : float, optional
+        Sensitivity of the ``"wt"`` mode.  Default 0.5.
     """
+
+    #: Accepted values for ``qos_factor_mode``.
+    QOS_FACTOR_MODES = ("ladder", "wt", "none")
 
     def __init__(
         self,
@@ -190,7 +202,16 @@ class FaultInjector:
         seeds: Optional[List[int]] = None,
         cascade_depth_limit: int = 0,
         propagation_threshold: float = 0.2,
+        qos_factor_mode: str = "ladder",
+        qos_factor_kappa: float = 0.5,
     ) -> None:
+        if qos_factor_mode not in self.QOS_FACTOR_MODES:
+            raise ValueError(
+                f"qos_factor_mode must be one of {self.QOS_FACTOR_MODES}, "
+                f"got {qos_factor_mode!r}"
+            )
+        self.qos_factor_mode = qos_factor_mode
+        self.qos_factor_kappa = qos_factor_kappa
         self.graph = graph.copy()
         
         # Derive DEPENDS_ON edges dynamically if they are missing
@@ -229,6 +250,58 @@ class FaultInjector:
         self.cascade_depth_limit = cascade_depth_limit
         self.propagation_threshold = max(0.0, min(1.0, propagation_threshold))
         self._index = _PubSubIndex(self.graph)
+        self._topic_weights = self._compute_topic_weights()
+        self._mean_topic_weight = (
+            sum(self._topic_weights.values()) / len(self._topic_weights)
+            if self._topic_weights else 0.0
+        )
+
+    def _compute_topic_weights(self) -> Dict[str, float]:
+        """w(t) for every topic, resolved from whichever QoS shape the graph carries.
+
+        Prefers a ``weight`` already written by the repositories; otherwise derives
+        it from the topic's QoS and payload size so research loaders — which pass
+        raw topology JSON through untouched — get the same number.
+        """
+        weights: Dict[str, float] = {}
+        for topic in self._index.all_topics:
+            data = self.graph.nodes.get(topic, {})
+            existing = data.get("weight")
+            if isinstance(existing, (int, float)) and existing > 0:
+                weights[topic] = float(existing)
+            else:
+                weights[topic] = topic_weight_from_node_attrs(data)
+        return weights
+
+    def _qos_factor(self, topic: str) -> float:
+        """Multiplier applied to a topic's feed-loss fraction, per ``qos_factor_mode``.
+
+        ``ladder`` is the published form: fixed multipliers keyed off reliability
+        and transport priority.  It ignores durability, which carries the largest
+        AHP sub-weight (0.40) of the three QoS dimensions.
+
+        ``wt`` scales by how far the topic's w(t) sits from the system mean, so all
+        three QoS dimensions and payload size participate through the single weight
+        the rest of the codebase already agrees on.
+        """
+        if self.qos_factor_mode == "none":
+            return 1.0
+
+        if self.qos_factor_mode == "wt":
+            w = self._topic_weights.get(topic, self._mean_topic_weight)
+            return max(0.0, 1.0 + self.qos_factor_kappa * (w - self._mean_topic_weight))
+
+        node_data = self.graph.nodes.get(topic, {})
+        qos = QoSPolicy.from_node_attrs(node_data)
+        factor = 1.0
+        if qos.reliability.upper() == "RELIABLE":
+            factor *= RELIABLE_QOS_FACTOR
+        priority = qos.transport_priority.upper()
+        if priority in ("HIGH", "CRITICAL", "URGENT", "HIGHEST"):
+            factor *= HIGH_PRIORITY_QOS_FACTOR
+        elif priority == "MEDIUM":
+            factor *= MEDIUM_PRIORITY_QOS_FACTOR
+        return factor
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -466,18 +539,7 @@ class FaultInjector:
                 return edge_data.get("rate_hz", 10.0)
             return 10.0
 
-        # Helper to calculate QoS criticality factor of a topic
-        def get_qos_factor(topic):
-            node_data = self.graph.nodes.get(topic, {})
-            factor = 1.0
-            if node_data.get("qos_reliability", "").upper() == "RELIABLE":
-                factor *= RELIABLE_QOS_FACTOR
-            priority = node_data.get("qos_priority", "").upper()
-            if priority in ("HIGH", "CRITICAL", "URGENT"):
-                factor *= HIGH_PRIORITY_QOS_FACTOR
-            elif priority == "MEDIUM":
-                factor *= MEDIUM_PRIORITY_QOS_FACTOR
-            return factor
+        get_qos_factor = self._qos_factor
 
         frontier = [node_id]
 

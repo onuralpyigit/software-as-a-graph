@@ -794,6 +794,53 @@ baseline) and one with QoS enrichment — and reports the pair-wise deltas.
 This is the evidence that incorporating QoS contract topology (singleton publisher detection, weight
 amplification) adds predictive signal beyond purely structural graph metrics.
 
+> [!WARNING]
+> **This ablation varies the predictor while holding the label fixed, so on its own it
+> cannot establish that the lift is real.** QoS already propagates into the predictor:
+> `w(t)` inherits onto every edge and from there into QSPOF, the QoS-weighted in/out
+> degrees, and QoS-weighted betweenness. Once QoS also enters the *label*, the two
+> share a term and Δρ rises whether or not anything was learned.
+>
+> [`reproduce/qos_label_ablation.py`](../reproduce/qos_label_ablation.py) varies the
+> **label** instead — computing I(v) under `--qos-factor none` / `ladder` / `wt` and
+> scoring each predictor against all three. The diagnostic is the *spread of Δρ across
+> predictors*, not any single Δρ: roughly uniform means the enriched label is simply a
+> better target; concentrated on `topo_qos` means construct overlap. Measured across
+> the cohort, `topo_qos` gains relative to the QoS-blind `topo_bl` control in 9 of 10
+> scenarios, by a small but systematic margin (|Δρ| < 0.05 on all real scenarios).
+> Report both numbers together.
+
+### 9.1 QoS-stratified reporting
+
+`saag/validation/` and `saag/evaluation/` previously contained no reference to QoS, so
+"does the model rank the components carrying critical channels correctly?" could not be
+answered from any emitted artifact. Two additions in
+[`saag/evaluation/metrics.py`](../saag/evaluation/metrics.py) close that:
+
+| Field | Meaning |
+|---|---|
+| `per_qos_tier_rho` | Spearman ρ stratified by the QoS tier of the mass a component carries (`Σ w(t)` over topics it publishes or routes). Guards the same Simpson's-paradox risk as the node-type strata (§6.1), on the axis the QoS claim is about. Follows the same conventions: a stratum below `_MIN_STRATUM = 3` or with a constant vector is `undefined`, never `0.0`. |
+| `critical_topic_coverage_at_k` | Share of the system's total QoS mass covered by the top-K predicted components, plus a `lift` against what K randomly chosen components would cover. This is the number a hardening budget actually poses — a global ρ cannot express it, since a model can rank well overall and still miss the few components carrying the critical topics. |
+
+Subscriptions are deliberately excluded from the exposure sum: losing a subscriber does
+not silence the channel for anyone else.
+
+### 9.2 Inter-oracle convergence
+
+`I*(v)` (`FaultInjector`) and `I_comp(v)` (`FailureSimulator`) are now both QoS-weighted,
+which raised the question of whether weighting them by the same `w(t)` makes them agree
+more. Measured with `reproduce/convergent_validity.py --no-qos` versus the default:
+
+| | mean Spearman ρ | mean top-K Jaccard |
+|---|---:|---:|
+| QoS disabled in both oracles | 0.4214 | 0.2815 |
+| QoS enabled in both oracles | 0.4050 | 0.2831 |
+
+**Rank agreement did not improve; it fell slightly.** The two oracles' disagreement is
+therefore not primarily about QoS — it is structural, between a mean subscriber
+feed-loss and a weighted composite of four connectivity terms. Neither oracle can stand
+in for the other, and results must continue to name which one they used.
+
 **Statistical test:** Paired t-test on seed-level ρ series (`alternative='greater'`).  
 For fewer than 3 seeds, significance is approximated as `Δρ > 0.01`.
 
