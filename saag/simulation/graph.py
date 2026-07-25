@@ -57,6 +57,12 @@ class SimulationGraph:
         self._connections: Dict[str, List[Tuple[str, float]]] = defaultdict(list)  # node -> [(nodes, weight)]
         self._uses: Dict[str, List[str]] = defaultdict(list)                       # app/lib -> [libs]
         self._used_by: Dict[str, List[str]] = defaultdict(list)                    # lib -> [apps/libs]
+
+        # Severed relationships, as (source, target) pairs. Distinct from a
+        # failed *component*: both endpoints stay up and every other link they
+        # own keeps working — the partial-outage case that edge criticality is
+        # about. Consulted by the relationship accessors below.
+        self._failed_edges: Set[Tuple[str, str]] = set()
         
         # Load graph
         if graph_data:
@@ -141,7 +147,23 @@ class SimulationGraph:
         for comp in self.components.values():
             comp.state = ComponentState.ACTIVE
             comp.reset_metrics()
-    
+        self._failed_edges.clear()
+
+    def fail_edge(self, source: str, target: str) -> None:
+        """Sever one relationship, leaving both endpoints active."""
+        self._failed_edges.add((source, target))
+
+    def recover_edge(self, source: str, target: str) -> None:
+        """Restore a severed relationship."""
+        self._failed_edges.discard((source, target))
+
+    def is_edge_active(self, source: str, target: str) -> bool:
+        """True when the relationship carries traffic and both endpoints are up."""
+        if (source, target) in self._failed_edges:
+            return False
+        return self.is_active(source) and self.is_active(target)
+
+
     def fail_component(self, comp_id: str) -> None:
         """Mark a component as failed."""
         if comp_id in self.components:
@@ -169,16 +191,19 @@ class SimulationGraph:
     # =========================================================================
     
     def get_publishers(self, topic_id: str) -> List[str]:
-        """Get all publishers for a topic."""
-        return [p[0] for p in self._publishers.get(topic_id, []) if self.is_active(p[0])]
-    
+        """Get all publishers for a topic (live component *and* live edge)."""
+        return [p[0] for p in self._publishers.get(topic_id, [])
+                if self.is_active(p[0]) and (p[0], topic_id) not in self._failed_edges]
+
     def get_subscribers(self, topic_id: str) -> List[str]:
-        """Get all subscribers for a topic."""
-        return [s[0] for s in self._subscribers.get(topic_id, []) if self.is_active(s[0])]
-    
+        """Get all subscribers for a topic (live component *and* live edge)."""
+        return [s[0] for s in self._subscribers.get(topic_id, [])
+                if self.is_active(s[0]) and (s[0], topic_id) not in self._failed_edges]
+
     def get_routing_brokers(self, topic_id: str) -> List[str]:
-        """Get all brokers that route a topic."""
-        return [b[0] for b in self._routing.get(topic_id, []) if self.is_active(b[0])]
+        """Get all brokers that route a topic (live component *and* live edge)."""
+        return [b[0] for b in self._routing.get(topic_id, [])
+                if self.is_active(b[0]) and (b[0], topic_id) not in self._failed_edges]
     
     def get_hosted_components(self, node_id: str) -> List[str]:
         """Get all components hosted on a node."""
@@ -255,6 +280,8 @@ class SimulationGraph:
             # 1. Broker segment capacity (Max of any active broker path)
             broker_capacities = []
             for b_id, b_weight in brokers_raw:
+                if active_only and (b_id, topic_id) in self._failed_edges:
+                    continue
                 if not active_only or self.is_active(b_id):
                     b_perf = self.components[b_id].performance
                     broker_capacities.append(b_perf * b_weight)
@@ -271,12 +298,16 @@ class SimulationGraph:
                 p_perf = self.components[p_id].performance
                 if active_only and p_perf <= 0:
                     continue
-                    
+                if active_only and (p_id, topic_id) in self._failed_edges:
+                    continue
+
                 path_prefix_capacity = min(p_perf, p_weight, broker_segment_capacity)
-                
+
                 for s_id, s_weight in subs_raw:
                     s_perf = self.components[s_id].performance
                     if active_only and s_perf <= 0:
+                        continue
+                    if active_only and (s_id, topic_id) in self._failed_edges:
                         continue
                         
                     capacity = min(path_prefix_capacity, s_weight, s_perf)

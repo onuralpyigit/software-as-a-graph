@@ -392,20 +392,26 @@ score(u, v) = TypedEdgeEncoder_r( h_u, h_v, e_uv )
 e_uv ∈ ℝ^16: QoS weight + path_count_norm + 7-bit edge-type one-hot + 7-bit QoS features
 ```
 
-Training labels are derived from simulated failure impact with a **bridge-aware multiplier**, so an edge inherits its source's blast radius only when it is structurally non-redundant:
+Training labels are **measured by removing the edge**, not inferred from its endpoints:
 
 ```
-I_edge(u, v) = I*(u) × bridge_multiplier
-
-bridge_multiplier = 1.0   if (u, v) is a structural bridge
-                   = 0.1   otherwise
+I_edge(u, v) = composite_impact(G \ {(u,v)})  −  composite_impact(G)
 ```
 
-This is the formal statement of the §4.2 rule: an edge is critical in proportion to *both* what stakeholder-facing capability sits behind it (`I*(u)`) *and* whether it is replaceable (`bridge_multiplier`). The 10× gap between the two multiplier values is the model's encoding of the Effectiveness/Efficiency distinction — a non-replaceable link stops the task, a replaceable one only makes it more expensive.
+`FailureSimulator.simulate_edge_removal` severs the one relationship, leaves both endpoints active — the partial-outage case of [§4.2](#42-why-a-link-needs-its-own-score) — and recomputes reachability, fragmentation, throughput and flow disruption. Subtracting the no-op control matters: the impact function is non-zero on a pristine graph (topics that already lack a publisher or subscriber count as lost throughput), so a level rather than a delta would give every edge that floor as if it were signal.
+
+This replaces the earlier heuristic `I_edge(u,v) = I*(u) × {1.0 if bridge else 0.1}`, which encoded the §4.2 Effectiveness/Efficiency distinction as a hand-chosen 10× gap rather than observing it. That heuristic remains available for ablation.
+
+> **What the measurement shows, and a caution.** Most individual edges cost almost nothing: on `av_system`, 4 of 40 candidates carry non-zero impact. That is the §4.2 replaceability question answered empirically — most links *are* replaceable. It also exposes a modelling gap the heuristic hid: `RUNS_ON` edges measure exactly 0.0 because the cascade routes no traffic over them ([failure-simulation.md L5](failure-simulation.md#11-known-limitations)), even though bridge detection flags them as non-redundant. A zero there means "this model cannot express that link's failure", not "that link does not matter" — the same caveat that applies to Topic and Node labels (L6).
 
 ### 4.6 Ranking Critical Edges
 
 Edges are ranked for reporting/UI consumption via `get_critical_edges()` in [saag/analysis/service.py](../saag/analysis/service.py) and exposed through [api/routers/components.py](../api/routers/components.py), sorting by `EdgeQuality.scores.overall` (the same RMAV-style composite machinery used for nodes, applied edge-wise).
+
+Simulated edge criticality is available separately via `SimulationService.classify_edges()`, which returns `EdgeCriticality` records from the removal sweep ([§4.5](#45-learned-edge-scoring-gnn)). Two fields must be read together:
+
+- `combined_impact` — the measured delta. Comparable to node `composite_impact` because it uses the same weighting.
+- `evaluated` — whether the edge was in the candidate set at all. The sweep measures `bridges(G) ∪ top-q edge-betweenness`; everything else returns `evaluated: false` with `combined_impact = 0.0`. **An unevaluated edge is not a harmless edge** — sorting the two together would rank never-measured links alongside measured-as-zero ones.
 
 ---
 

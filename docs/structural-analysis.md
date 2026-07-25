@@ -61,7 +61,7 @@ Analysis takes the layer-projected dependency graph **G_analysis(l)** produced b
 
 ```
 G_analysis(l)          StructuralAnalyzer           Output
-(DEPENDS_ON graph)  →  13 RMAV-input metrics    →   M(v) per component
+(DEPENDS_ON graph)  →  14 RMAV-input metrics    →   M(v) per component
                         4 diagnostic metrics         S(G) graph summary
                         3 raw/derived counts
                         — all stored in M(v) —
@@ -285,7 +285,7 @@ No single metric captures all aspects of structural criticality. Two components 
 - **Component A** has many transitive dependents (high RPR) but sits in a well-connected, redundant subgraph (low BT, AP_c_directed = 0, BR ≈ 0). It is a broad reliability risk but not a SPOF.
 - **Component B** has few direct dependents (low RPR) but is the single connection between two graph clusters (AP_c_directed = 0.82, BR = 1.0). It is a structural single point of failure despite low blast radius.
 
-A single metric misclassifies both. Thirteen RMAV-input metrics, drawn from four different theoretical families — random walk, local topology, resilience, and QoS-weighted degree — together produce a complete and orthogonal structural fingerprint.
+A single metric misclassifies both. Fourteen RMAV-input metrics (the Tier-1 rows of [§10](#10-metric-catalogue-reference): RPR, DG_in, MPCI, FOC, BT, w_out, CC, AP_c_directed, BR, CDI, REV, RCL, w_in, PC), drawn from four different theoretical families — random walk, local topology, resilience, and QoS-weighted degree — together produce a complete and orthogonal structural fingerprint.
 
 ---
 
@@ -319,6 +319,17 @@ rank(v) = position of v when all components sorted by ascending x(v)
 > **Note on terminology:** The `--norm robust` flag performs rank-based normalization, not IQR scaling as the term "robust" might suggest. This preserves ordinal relationships and is robust to outliers.
 
 **Why rank normalization (default):** Min-max normalization is sensitive to outliers. In a system with one highly-central hub and 50 peripheral nodes, min-max assigns 1.0 to the hub and compresses all other values near 0 — the relative ordering among peripherals is lost. Rank normalization preserves the full ordinal structure regardless of extreme values. This is particularly important for betweenness centrality, which is typically sparse (most nodes have BT near 0, one or two have very high BT).
+
+> [!IMPORTANT]
+> **Measured: the default costs accuracy on this cohort.** Rank normalization discards magnitude before the RMAV weighted sum, which makes Q(v) closer to a Borda count over the Tier-1 metrics than to a weighted metric aggregate. Sweeping the method across the seven scenarios against I*(v) ([results/threshold_sensitivity.json](../results/threshold_sensitivity.json), produced by [reproduce/threshold_sensitivity.py](../reproduce/threshold_sensitivity.py)):
+>
+> | `--norm` | `robust` (rank, default) | `minmax` | `zscore` |
+> |---|---|---|---|
+> | mean ρ | **0.129** | **0.324** | **0.324** |
+>
+> Keeping magnitude is worth ≈ +0.195 ρ here. The outlier argument above is a real property of min-max, but on this cohort it is outweighed by the information rank normalization throws away. The default is retained (changing it would invalidate every previously reported figure) but should not be presented as the accuracy-maximising choice; report the sweep alongside any headline ρ.
+>
+> A second consequence worth noting: because rank-normalized inputs are near-uniform on [0,1] by construction, the box-plot classifier in [§11.7](#117-criticality-classification) produces a fairly stable CRITICAL fraction almost regardless of topology, which is the likely explanation for the narrow "typical distribution" band reported there.
 
 **Supported normalization methods** (passed via `--norm`):
 
@@ -696,7 +707,20 @@ The four dimensions are deliberately **orthogonal** in metric input: each raw me
 
 ### 11.2 RMAV Formulas
 
-All inputs are normalized to [0, 1] by Step 2's rank normalization unless otherwise noted. All RMAV scores are therefore in [0, 1]. Intra-dimension weights are derived from AHP; see [Section 11.5](#115-ahp-weight-derivation).
+All inputs are normalized to [0, 1] by Step 2's rank normalization unless otherwise noted. All RMAV scores are therefore in [0, 1]. Intra-dimension weights are stated judgements checked for AHP consistency; see [Section 11.5](#115-ahp-weight-derivation).
+
+> [!IMPORTANT]
+> **The weights printed below are the pre-shrinkage judgement, not the shipped defaults.**
+> `AHPProcessor.compute_weights()` ([saag/analysis/weight_calculator.py#L314](../saag/analysis/weight_calculator.py#L314)) applies the shrinkage factor λ to the **intra-dimension** vectors as well as the composite, and the shipped default is λ = 0.70. So every formula in this section runs with weights pulled ~30 % of the way toward uniform:
+>
+> | Dimension | λ = 1.0 (as written below) | λ = 0.70 (shipped default) |
+> |---|---|---|
+> | Q(v) — A, R, M, V | 0.458, 0.246, 0.169, 0.128 | **0.395, 0.247, 0.193, 0.165** |
+> | R(v) — RPR, DG_in, CDPot | 0.460, 0.319, 0.221 | **0.422, 0.324, 0.255** |
+> | M(v) — BT, w_out, CouplingRisk, 1−CC | 0.350, 0.300, 0.120, 0.080 | **0.305, 0.270, 0.144, 0.116** |
+> | V(v) — REV, RCL, w_in | 0.400, 0.351, 0.249 | **0.380, 0.346, 0.274** |
+>
+> Reproduce with `AHPProcessor(shrinkage_factor=λ).compute_weights()`. The rounded values quoted in the formulas (0.45 / 0.30 / 0.25 etc.) are the design intent at λ = 1.0; use the right-hand column when reconciling against runtime output.
 
 ---
 
@@ -829,7 +853,7 @@ Q(v) = w_A × A(v)  +  w_R × R(v)  +  w_M × M(v)  +  w_V × V(v)
 ```
 w_final(d) = λ × w_AHP(d) + (1 − λ) × 0.25
 ```
-The default λ = 0.70 was selected from a sensitivity sweep across λ ∈ {0.50, 0.60, 0.70, 0.80, 0.90, 1.00}. Spearman ρ plateaus in the λ ∈ [0.65, 0.75] range, indicating that the AHP signal saturates near the default value. Traceability: the shrinkage implementation is `saag/analysis/weight_calculator.py`; the sweep artifact is tracked in `docs/internal/TODO.md#ahp-shrinkage-sweep-artifact` until committed to `output/`.
+The measured sweep is in [§11.6](#116-weight-shrinkage-strategy) and committed to [results/ahp_shrinkage_sweep.json](../results/ahp_shrinkage_sweep.json). It finds **no plateau** — ρ decreases monotonically in λ — and equal weights (λ = 0) outperform the λ = 0.70 default by 0.128 on the seven-scenario cohort. Read §11.6 before relying on the default.
 
 ---
 
@@ -932,7 +956,12 @@ Each raw metric from M(v) feeds **exactly one** RMAV dimension. No metric appear
 
 ### 11.5 AHP Weight Derivation
 
-Intra-dimension weights are derived from the **Analytic Hierarchy Process (AHP)** using pairwise comparison matrices on Saaty's 1–9 scale.
+Intra-dimension weights are expressed as pairwise comparison matrices on Saaty's 1–9 scale and checked with the **Analytic Hierarchy Process (AHP)** consistency machinery.
+
+> [!NOTE]
+> **These are stated author judgements, not an elicitation.** The matrices below were written to express a design intent and then checked for consistency; they are not the output of a panel exercise. The near-zero consistency ratios (CR ≈ 0.000–0.002 on 5×5 matrices) are a symptom of that — a matrix filled in from a target weight vector is perfectly consistent almost by construction, whereas genuine human elicitation on five criteria rarely lands below CR ≈ 0.02. Describing the result as "AHP-derived" overstates the provenance; it is a principled fixed weighting with a documented rationale and a consistency check.
+>
+> The empirical case for the weighting therefore rests on [§11.6](#116-weight-shrinkage-strategy), not on the elicitation — and on the cohort measured there, equal weights do better. Treat the matrices as documentation of intent.
 
 ```
 Step 1 — Construct n×n matrix A:  A[i][j] = importance of criterion i relative to j
@@ -1014,7 +1043,24 @@ Raw AHP weights can be extreme on small comparison sets. The shrinkage strategy 
 w_final(d) = λ × w_AHP(d)  +  (1 − λ) × (1 / n_dimensions)
 ```
 
-The default λ = 0.70 was selected from a sensitivity sweep across λ ∈ {0.50, 0.60, 0.70, 0.80, 0.90, 1.00}. Spearman ρ on the ATM validation dataset plateaus in the λ ∈ [0.65, 0.75] range. Traceability: `saag/analysis/weight_calculator.py` implements the shrinkage formula; the sweep artifact is tracked in `docs/internal/TODO.md#ahp-shrinkage-sweep-artifact` until committed to `output/`.
+λ = 0 is equal weights (the `--equal-weights` baseline); λ = 1 is the raw stated judgement. Shrinkage is applied to the intra-dimension vectors as well as the composite ([§11.2](#112-rmav-formulas)).
+
+#### Measured sensitivity — no plateau, and the judgement does not help
+
+The sweep is implemented in [reproduce/ahp_sensitivity.py](../reproduce/ahp_sensitivity.py) and committed to [results/ahp_shrinkage_sweep.json](../results/ahp_shrinkage_sweep.json). Measured across the seven-scenario cohort, scoring Q(v) against `FaultInjector` labels I*(v) on the DEPENDS_ON projection:
+
+| λ | 0.00 | 0.50 | 0.60 | 0.65 | **0.70** | 0.75 | 0.80 | 0.90 | 1.00 |
+|---|---|---|---|---|---|---|---|---|---|
+| mean ρ | **0.257** | 0.162 | 0.146 | 0.138 | **0.129** | 0.117 | 0.111 | 0.093 | 0.077 |
+
+Two results, both negative, both reported as measured:
+
+- **There is no plateau.** ρ is *monotonically decreasing* in λ (`monotone_decreasing_in_lambda: true`); the spread across the sweep is 0.179, and the λ ∈ [0.65, 0.75] window varies by more than 0.01. An earlier revision of this section claimed a plateau there; that claim was never backed by a committed artifact (`docs/internal/` was empty) and this sweep contradicts it.
+- **Equal weights outperform the stated judgement.** λ = 0 reaches ρ = 0.257 against 0.129 at the λ = 0.70 default — a lift of **−0.128** for using the AHP weighting at all.
+
+> **Scope of the result.** This is measured on the seven-scenario cohort against I*(v), which is not the dataset the original λ = 0.70 default was chosen on (the ATM system, against a different oracle — see [§11.5](#115-ahp-weight-derivation)). It does not show the weighting is wrong everywhere; it shows the default is unsupported on the cohort the paper reports, and that the plateau claim should not be repeated. Because ρ is rank-based, all of this concerns only how the weighting *reorders* components.
+
+Traceability: `AHPProcessor._shrink_weights` in [saag/analysis/weight_calculator.py](../saag/analysis/weight_calculator.py) implements the formula; regenerate the artifact with `PYTHONPATH=. python reproduce/ahp_sensitivity.py`.
 
 ---
 

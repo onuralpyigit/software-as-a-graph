@@ -52,17 +52,33 @@ Step 6 (Prescribe) completes the closed-loop optimization cycle. Once high-risk 
      └───────────┬───────────────────┘
                  │
                  ▼
-       Accept / Reject Gate
+       Per-Edit Acceptance Filter
      ┌───────────────────────────────┐
-     │  accepted = (ΔSRI > 0)        │
+     │ for each candidate edit e:    │
+     │   simulate G+{e} alone across │
+     │   thresholds x seeds          │
+     │   keep iff ΔI > κ·σ_seed      │
+     │   at EVERY threshold          │
      └───────────┬───────────────────┘
                  │
                  ▼
+       Apply accepted subset only
+                 │
+                 ▼
+       Closed-Loop Validation (ΔSRI)
+                 │
+                 ▼
        Remediation Blueprint
-       (Baseline SRI -> Mutated SRI, accepted: true/false)
+       (per-edit verdicts + Baseline SRI -> Mutated SRI)
 ```
 
-To prevent target database contamination or transaction overhead, these refactoring rules are applied directly in-memory to a JSON representation of the graph. The mutated topology $G'$ is then validated in a closed-loop simulation sweep, comparing the baseline System Risk Index (SRI) against the mutated SRI. Lower SRI indicates lower system risk (better health); higher SRI indicates greater structural risk. The result is marked `accepted` when the mutation reduces risk, but a rejected policy is still returned in full for inspection — it is not automatically discarded or retried (see §3).
+To prevent target database contamination or transaction overhead, these refactoring rules are applied directly in-memory to a JSON representation of the graph.
+
+**Each candidate edit is verified on its own before anything is applied.** A compiled policy is a *candidate* set: `PrescribeService._verify_edits` builds a counterfactual graph containing that edit alone, runs the simulator across the propagation-threshold sweep and the seed set, and keeps the edit only when its mean impact reduction exceeds `κ · σ_seed` at **every** threshold. Requiring it at every threshold prevents an edit being accepted because it happened to help at the canonical 0.2 default; requiring it to beat σ prevents simulator noise being read as improvement.
+
+> **Why this exists.** The policy was previously applied wholesale and judged by a single end-state SRI check, so an edit that made the system worse could ride along with edits that made it better. That is the mechanism behind the cross-scenario `+4.61 %` mean that concealed regressions of up to `−31.67 %` in 3 of 7 scenarios. With the filter, a regressing edit is rejected individually and never reaches the mutated graph.
+>
+> **An empty result is a valid result.** On small topologies it is common for *no* candidate to clear the bar; `PrescribeResult` then reports `applied_changes == []` and `sri_improvement == 0.0`. That is the filter working, not a failure. `edit_verdicts` carries every candidate with its measured `delta_impact`, `sigma_seed` and rejection `reason`, so a run states what it declined and why.
 
 ---
 

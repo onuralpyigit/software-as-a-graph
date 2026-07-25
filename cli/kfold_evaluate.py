@@ -67,6 +67,8 @@ from typing import Any, Dict, List, Optional
 
 import networkx as nx
 import numpy as np
+
+from saag.evaluation.metrics import aggregate_per_type
 import torch
 
 # ── SaG SDK imports ──────────────────────────────────────────────────────────
@@ -170,8 +172,8 @@ def run_one_scenario(
     scenario_dir = workdir / bundle.scenario_id
     scenario_dir.mkdir(parents=True, exist_ok=True)
 
-    use_qos = variant in ("hgl_qos", "gl_qos")
-    if variant in ("hgl", "gl"):
+    use_qos = variant in ("hgl_qos", "gl_qos", "topo_qos")
+    if variant in ("hgl", "gl", "topo_baseline"):
         from reproduce.main_table import _mask_qos_in_graph, _mask_qos_in_structural
         train_graph = _mask_qos_in_graph(bundle.graph)
         train_sm = _mask_qos_in_structural(bundle.structural)
@@ -197,7 +199,17 @@ def run_one_scenario(
             ckpt_dir.mkdir(parents=True, exist_ok=True)
 
             try:
-                if variant in ("gl", "gl_qos"):
+                if variant in ("topo_baseline", "topo_qos"):
+                    # Training-free structural centrality: no fit, so the
+                    # fold split only selects which nodes are scored. Present
+                    # in the table because a learned variant has to beat it.
+                    from reproduce.main_table import _compute_topo_baseline_scores
+                    struct_pred = _compute_topo_baseline_scores(
+                        train_graph, train_sm, use_qos=use_qos
+                    ) or {}
+                    pred_scores = {str(k): float(v) for k, v in struct_pred.items()}
+
+                elif variant in ("gl", "gl_qos"):
                     from saag.prediction.models.baselines import build_baseline
                     from saag.prediction.trainer import GNNTrainer
 
@@ -323,14 +335,9 @@ def run_one_scenario(
         ndcg_vals = [m["ndcg_10"] for m in seed_metrics]
         rmse_vals = [m["rmse"] for m in seed_metrics]
 
-        per_type_agg: Dict[str, List[float]] = {}
-        for m in seed_metrics:
-            for nt, info in m.get("per_type_rho", {}).items():
-                per_type_agg.setdefault(nt, []).append(info["rho"])
-        per_type_summary = {
-            nt: {"mean": float(np.mean(vs)), "std": float(np.std(vs)), "n_seeds": len(vs)}
-            for nt, vs in per_type_agg.items()
-        }
+        per_type_summary = aggregate_per_type(
+            [m.get("per_type_rho", {}) for m in seed_metrics], value_key="rho"
+        )
 
         fold_results.append(FoldResult(
             scenario_id=bundle.scenario_id,
@@ -366,14 +373,9 @@ def run_one_scenario(
     fold_ndcgs = [f.mean_metrics["ndcg_10"] for f in fold_results]
     fold_rmses = [f.mean_metrics["rmse"] for f in fold_results]
 
-    type_to_rhos: Dict[str, List[float]] = {}
-    for f in fold_results:
-        for nt, info in f.per_type_rho.items():
-            type_to_rhos.setdefault(nt, []).append(info["mean"])
-    per_type_summary = {
-        nt: {"mean": float(np.mean(vs)), "std": float(np.std(vs)), "n_folds": len(vs)}
-        for nt, vs in type_to_rhos.items()
-    }
+    per_type_summary = aggregate_per_type(
+        [f.per_type_rho for f in fold_results], value_key="mean", count_key="n_folds"
+    )
 
     return ScenarioResult(
         scenario_id=bundle.scenario_id,
@@ -607,7 +609,8 @@ def parse_args() -> argparse.Namespace:
                    help="Prediction mode for evaluation (default: gnn)")
     p.add_argument(
         "--variant",
-        choices=["hgl_qos", "hgl", "gl_qos", "gl", "topology_rmav"],
+        choices=["hgl_qos", "hgl", "gl_qos", "gl", "topology_rmav",
+                 "topo_baseline", "topo_qos"],
         default="hgl_qos",
         help=(
             "Model architecture variant (default: hgl_qos). "

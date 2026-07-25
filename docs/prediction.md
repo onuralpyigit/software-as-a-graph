@@ -35,6 +35,7 @@ The Predict stage takes the metric vector **M(v)** and graph structure produced 
 - Machine-learned node criticality predictions $Q_{\text{GNN}}(v) \in [0, 1]$
 - Direct edge-level criticality predictions $Q_{\text{GNN}}(u, v) \in [0, 1]$
 
+```
 M(v) and Graph structure             Prediction Engine                  Output
 ────────────────────────             ─────────────────               ─────────────────────
 Tier 1 & Tier 2 Metrics:      →      GNN Model (HGT)          →      Q_GNN(v) ∈ [0, 1]
@@ -212,29 +213,23 @@ e_{uv} ∈ ℝ^16: QoS weight + path_count_norm + 7-bit edge-type one-hot + 7-bi
 
 The `TypedEdgeEncoder` learns relation-specific linear projections $W_r \in \mathbb{R}^{16 \times D}$. The projected edge feature is fused with source and destination node embeddings via a shared layer `[h_src ‖ h_dst ‖ e_proj]` → LayerNorm → GELU before the output head.
 
-**Edge labels.** Training labels for edges are derived from simulation ground truth with a bridge-aware multiplier:
+**Edge labels.** Training labels for edges are now **measured**, by removing each candidate edge and recomputing impact:
 
 ```
-I_edge(u, v) = I*(u) × bridge_multiplier
-
-bridge_multiplier = 1.0   if (u, v) is a structural bridge
-                   = 0.1   otherwise
+I_edge(u, v) = composite_impact(G \ {(u,v)})  −  composite_impact(G)
 ```
 
-This downweights non-bridge edges to reduce label noise from redundant paths.
+`FailureSimulator.simulate_edge_removal` severs one relationship — leaving both endpoints active, which is the partial-outage case edge criticality is about — and recomputes the same reachability / fragmentation / throughput / flow quantities that back `ImpactMetrics`. The subtraction is not cosmetic: `_calculate_impact` returns a non-zero floor on a pristine graph (composite 0.0061 on `av_system`) because topics that already lack a publisher or subscriber count as lost throughput, so a level rather than a delta would hand every edge that floor as if it were signal. See [failure-simulation.md §11 L8](failure-simulation.md#11-known-limitations).
 
-> **Limitation — edge labels are not simulated.** No edge-removal simulation
-> exists in the pipeline. `I_edge` above is a *projection of node labels* through
-> a hand-chosen bridge multiplier, not an observation of what happens when the
-> edge fails. `EdgeCriticality` ([saag/simulation/models.py](../saag/simulation/models.py))
-> is declared but never populated, so `SimulationService.classify_edges()`
-> always returns an empty list. Consequently, edge-criticality predictions are
-> validated against a heuristic derived from the node labels rather than against
-> ground truth, and reported edge metrics should not be read as evidence of
-> predictive accuracy for edges. Node-level results are unaffected. Closing this
-> requires simulating removal of each candidate edge (bridges ∪ high
-> edge-betweenness) and populating `EdgeCriticality` from the resulting
-> reachability and fragmentation deltas.
+The candidate set is bounded to `bridges(G) ∪ top-q edge-betweenness`, since a full sweep costs one impact recomputation per edge. Edges outside it are returned with `evaluated: false` — *not measured* is distinct from *measured as harmless*, and must not be read as a zero.
+
+**The previous heuristic**, retained behind `--edge-labels heuristic` for ablation:
+
+```
+I_edge(u, v) = I*(u) × bridge_multiplier      bridge_multiplier = 1.0 if bridge else 0.1
+```
+
+> **What the measurement changed.** On `av_system`, 4 of 40 candidate edges carry non-zero impact and all four are `PUBLISHES_TO`/`SUBSCRIBES_TO`. `RUNS_ON` edges measure exactly 0.0 — this cascade model routes no traffic over them ([failure-simulation.md L5](failure-simulation.md#11-known-limitations)) — even though bridge detection surfaces them as structurally non-redundant. The heuristic would have assigned those edges their source node's full blast radius. Reported edge metrics are now validated against an observation rather than against a hand-chosen constant; the magnitudes are small, which is itself the finding that most individual links are replaceable.
 
 ### 2.7 [DEPRECATED] Ensemble: GNN + RMAV
 
@@ -276,7 +271,7 @@ Multi-seed training runs the full train loop independently for each seed in `{42
 | ID | Issue | Severity | Status | Solution / Mitigation |
 |----|-------|:--------:|--------|-----------------------|
 | G1 | Node feature dim mismatch | High | **Resolved** | Per-type dims enforced; feature version check in config |
-| G2 | Edge labels as node proxies | Medium | Open | Current: bridge-multiplier-based downweighting |
+| G2 | Edge labels as node proxies | Medium | **Resolved** | `FailureSimulator.simulate_edge_removal` measures each candidate edge by removing it; labels are deltas against a no-op control. Heuristic retained behind `--edge-labels heuristic` for ablation (§2.6). |
 | G3 | Redundant type encoding | Low | **Resolved** | Zero-padding removed; type-appropriate indices selected |
 | G4 | Transductive leakage | High | **Resolved** | Per-domain repeated k-fold (`cli/kfold_evaluate.py`) is now the primary validation protocol — held-out fold nodes are excluded from that fold's training within each scenario. The older cross-scenario LOSO protocol (`cli/loso_evaluate.py`) remains available as a secondary/domain-gap analysis (see note below), which used `get_inductive_subgraph` to isolate scenarios during training and validation. |
 | G5 | Best seed weight saving | High | **Resolved** | `best_state` restored before `train()` returns |

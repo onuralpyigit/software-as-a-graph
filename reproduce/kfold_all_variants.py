@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 import time
@@ -38,7 +39,9 @@ from typing import Dict, List, Optional
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-ALL_VARIANTS = ["topology_rmav", "gl", "gl_qos", "hgl", "hgl_qos"]
+# Structural baselines first: training-free, so their score is the bar a
+# learned variant must clear to justify being trained at all.
+ALL_VARIANTS = ["topo_baseline", "topo_qos", "topology_rmav", "gl", "gl_qos", "hgl", "hgl_qos"]
 DEFAULT_SEEDS = "42,123,456,789,2024"
 DEFAULT_K     = 5
 OUTPUT_BASE   = Path("output/kfold")
@@ -58,8 +61,18 @@ def _run_variant(
 ) -> Optional[Dict]:
     """Invoke kfold_evaluate.py for one variant and return its results dict."""
     out_dir = OUTPUT_BASE / variant
+
+    # Clear stale state before running. GNNService restores from any checkpoint
+    # it finds, so a leftover workspace makes the run skip training entirely and
+    # score a model fitted for a different configuration (see the same guard in
+    # loso_all_variants.py, where it flipped hgl from -0.576 to +0.594).
+    workspace = out_dir / "workspace"
+    if workspace.exists():
+        shutil.rmtree(workspace)
     out_dir.mkdir(parents=True, exist_ok=True)
     results_path = out_dir / "results.json"
+    if results_path.exists():
+        results_path.unlink()
 
     cmd = [
         sys.executable, "-m", "cli.kfold_evaluate",
@@ -162,7 +175,7 @@ def _print_comparison_table(table: Dict):
     print(f"  Table: Per-Domain K-Fold In-Domain Evaluation — 5 Variants")
     print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'F1@K':<8} {'Δρ vs best BL'}")
     print("  " + "─" * 65)
-    order = ["hgl_qos", "hgl", "gl_qos", "gl", "topology_rmav"]
+    order = [v for v in ALL_VARIANTS if v in table]
     for variant in order:
         if variant not in table:
             continue

@@ -341,6 +341,23 @@ def render_table3_md(data: Dict, output: Path):
     print(f"  Saved Markdown Table 3: {output}")
 
 
+def _per_type_cell(entry, ndigits: int = 3) -> str:
+    """Render one per-node-type cell.
+
+    The aggregator now emits ``{"rho": float | "undefined", "n_nodes": int, ...}``
+    rather than a bare float, because a stratum whose labels are constant (Topic
+    and Node carry no ground truth) has an undefined correlation, not one of
+    0.0. Printing "und." keeps that distinction visible in the table instead of
+    letting a coverage gap read as a measured failure.
+    """
+    if entry is None:
+        return "—"
+    value = entry.get("rho", entry.get("mean")) if isinstance(entry, dict) else entry
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return f"{value:.{ndigits}f}"
+    return "und."
+
+
 def print_table3_console(data: Dict):
     agg = data["aggregate"]
     scenarios = sorted({k.split("|")[0] for k in agg if not k.startswith("_")})
@@ -400,8 +417,9 @@ def print_table3_console(data: Dict):
         for nt in node_types:
             subrow = f"    └─ {nt:<27} {'':<12}"
             for v in _VARIANT_ORDER:
-                nt_rho = agg.get(f"{sc}|{v}", {}).get("per_node_type", {}).get(nt)
-                cell = f"{nt_rho:.3f}" if nt_rho is not None else "—"
+                cell = _per_type_cell(
+                    agg.get(f"{sc}|{v}", {}).get("per_node_type", {}).get(nt)
+                )
                 subrow += cell.ljust(col_w)
             print(subrow)
 
@@ -695,8 +713,9 @@ def render_per_type_table_md(data: Dict, output: Path):
         for nt in node_types:
             row = f"| {label} | {nt} |"
             for v in _VARIANT_ORDER:
-                rho = agg.get(f"{sc}|{v}", {}).get("per_node_type", {}).get(nt)
-                row += f" {rho:.3f} |" if rho is not None else " — |"
+                row += " " + _per_type_cell(
+                    agg.get(f"{sc}|{v}", {}).get("per_node_type", {}).get(nt)
+                ) + " |"
             rows.append(row)
             label = ""
         rows.append("| | | " + " | ".join([""] * len(_VARIANT_ORDER)) + " |")

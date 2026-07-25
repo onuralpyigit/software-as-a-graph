@@ -44,7 +44,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 # Add project root to sys.path for direct execution
 if __name__ == "__main__" and __package__ is None:
@@ -376,7 +376,9 @@ def _saag_structural_features(topology: Dict) -> Dict:
     return out
 
 
-def _compute_rmav_from_structural(topology: Dict, structural_features: Dict) -> Dict:
+def _compute_rmav_from_structural(
+    topology: Dict, structural_features: Dict, analyzer: Any = None
+) -> Dict:
     """Compute fresh RMAV quality scores from DEPENDS_ON structural features.
 
     Builds StructuralMetrics objects from the DEPENDS_ON subgraph metrics
@@ -442,7 +444,10 @@ def _compute_rmav_from_structural(topology: Dict, structural_features: Dict) -> 
         ),
     )
 
-    qa = QualityAnalyzer()
+    # An explicit analyzer lets a caller re-score identical features under a
+    # different weighting (reproduce/ahp_sensitivity.py sweeps lambda this way)
+    # without duplicating the StructuralMetrics construction above.
+    qa = analyzer or QualityAnalyzer()
     quality_result = qa.analyze(struct_result)
 
     result: Dict = {}
@@ -452,7 +457,9 @@ def _compute_rmav_from_structural(topology: Dict, structural_features: Dict) -> 
             "reliability":     float(comp.scores.reliability),
             "maintainability": float(comp.scores.maintainability),
             "availability":    float(comp.scores.availability),
-            "vulnerability":   float(comp.scores.vulnerability),
+            # The dimension is Vulnerability; the serialized field is `security`
+            # (see docs/criticality.md §3.3 — same dimension, opposite naming).
+            "vulnerability":   float(comp.scores.security),
         }
     return result
 
@@ -947,26 +954,265 @@ def _compute_topo_baseline_scores(
 
 
 def _get_per_type_rho(keys, y_pred, y_true, nx_graph):
-    """Compute Spearman rho for each node type (e.g. Application, Library)."""
-    import numpy as np
-    from scipy.stats import spearmanr
-    per_type = {}
-    # keys and y_pred/y_true are aligned
-    types = [nx_graph.nodes[k].get("type", "Application") for k in keys]
-    unique_types = sorted(set(types))
-    for t in unique_types:
-        indices = [i for i, ty in enumerate(types) if ty == t]
-        if len(indices) < 3:
-            continue
-        p = y_pred[indices, 0]
-        t_val = y_true[indices, 0]
-        if np.all(p == p[0]) or np.all(t_val == t_val[0]):
-            rho = 0.0
+    """Deprecated. Superseded by ``saag.evaluation.metrics``' stratified ρ.
+
+    Retained only so any out-of-tree caller keeps importing. It reported ``0.0``
+    for constant and unlabelled strata, which is what filled Table 5 with zeros
+    for Topic/Node/Library; the shared implementation reports those as
+    ``"undefined"`` instead.
+    """
+    import warnings
+    warnings.warn(
+        "_get_per_type_rho is superseded by saag.evaluation.metrics; "
+        "it conflates 'undefined' with 0.0",
+        DeprecationWarning, stacklevel=2,
+    )
+    from saag.evaluation.metrics import _per_type_rho
+    pred = {k: float(y_pred[i, 0]) for i, k in enumerate(keys)}
+    true = {k: float(y_true[i, 0]) for i, k in enumerate(keys)}
+    return _per_type_rho(keys, pred, true, nx_graph)
+
+
+def _predict_all_nodes(model, data, conv, device) -> Dict[str, float]:
+    """Full-graph forward pass → ``{node_id: composite_score}``.
+
+    Scoring the *whole* node population is what makes a learned variant
+    comparable to the training-free structural baselines, which have always been
+    scored on every node. ``trainer.evaluate`` instead scores the 20% test split
+    via ``get_inductive_subgraph``; comparing that against a full-population
+    baseline compares two different samples, not two estimators.
+    """
+    import torch
+
+    model.eval()
+    data_dev = data.to(device)
+    with torch.no_grad():
+        x_dict = {nt: data_dev[nt].x for nt in data_dev.node_types if hasattr(data_dev[nt], "x")}
+        ei_dict = {rel: data_dev[rel].edge_index for rel in data_dev.edge_types}
+        ea_dict = {rel: data_dev[rel].edge_attr for rel in data_dev.edge_types
+                   if hasattr(data_dev[rel], "edge_attr")}
+        if getattr(model, "predict_edges", False):
+            preds, _ = model(x_dict, ei_dict, ea_dict)
         else:
-            rho, _ = spearmanr(p, t_val)
-        if not np.isnan(rho):
-            per_type[t] = round(float(rho), 4)
-    return per_type
+            preds = model(x_dict, ei_dict, ea_dict)
+
+    scores: Dict[str, float] = {}
+    for node_type, tensor in preds.items():
+        names = (conv.node_id_map or {}).get(node_type)
+        if not names:
+            continue
+        arr = tensor.detach().cpu().numpy()
+        for i, name in enumerate(names):
+            if i < arr.shape[0]:
+                scores[str(name)] = float(arr[i, 0])
+    return scores
+
+
+def _score_cell(
+    scenario: str,
+    variant: str,
+    seed: int,
+    pred_scores: Dict[str, float],
+    simulation_dict: Dict[str, Dict],
+    nx_graph,
+    gt_source: str,
+    use_qos: bool,
+    runtime_s: float,
+    eval_population: str,
+    eval_keys: Optional[List[str]] = None,
+    label_stability: Optional[Dict[str, Any]] = None,
+    test_split_ids: Optional[Iterable[str]] = None,
+    extra: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Score one cell through the single shared metric contract.
+
+    Every variant — structural baseline or GNN — reaches the reported numbers
+    through this function on an identical ``eval_keys`` set, so a Table 3 row is
+    a comparison of estimators rather than of evaluation conventions.
+
+    Two columns are emitted and both are kept:
+
+    ``spearman_rho`` / the top-level metrics are the **held-out** figures, over
+    ``eval_keys ∩ test_split_ids``. This is the headline number because a
+    full-population score flatters a trained model — it includes the nodes it
+    was fitted on — while leaving the training-free baselines unchanged, which
+    is the same category of unfair comparison this refactor exists to remove.
+
+    ``full_population`` carries the transductive figures over all of
+    ``eval_keys``. For the untrained baselines the two are the same measurement
+    on different sample sizes; for the GNNs the gap is the fitting advantage.
+    """
+    from saag.evaluation.metrics import compute_inductive_metrics
+
+    true_impact = {k: float(v.get("composite", 0.0)) for k, v in simulation_dict.items()}
+
+    # A pinned key set is only meaningful if this variant actually scored every
+    # node in it. A variant whose substrate omits a node type cannot be compared
+    # on a population that includes it; surface that instead of quietly
+    # shrinking the sample back to a per-variant subset.
+    if eval_keys is not None:
+        missing = sorted(set(eval_keys) - set(pred_scores))
+        if missing:
+            return {
+                "scenario": scenario, "variant": variant, "seed": seed,
+                "error": "incomplete_coverage",
+                "eval_population": eval_population,
+                "n_missing": len(missing),
+                "missing_sample": missing[:5],
+            }
+
+    full = compute_inductive_metrics(
+        pred_scores, true_impact, nx_graph,
+        population=eval_population,
+        eval_keys=eval_keys,
+        label_stability=label_stability,
+    )
+
+    held_out = sorted(set(map(str, test_split_ids or ())) & set(eval_keys or ()))
+    if len(held_out) >= 3:
+        metrics = compute_inductive_metrics(
+            pred_scores, true_impact, nx_graph,
+            population=eval_population, eval_keys=held_out,
+            label_stability=label_stability,
+        )
+        scored_on = "held_out"
+    else:
+        # Too small a held-out sample for a meaningful rank correlation; fall
+        # back to the full population and say so rather than emit a figure whose
+        # basis differs silently from its neighbours in the table.
+        metrics = full
+        scored_on = "full_population"
+
+    cell: Dict[str, Any] = {
+        "scenario": scenario,
+        "variant": variant,
+        "seed": seed,
+        "scored_on": scored_on,
+        "spearman_rho": _round(metrics.get("spearman_rho")),
+        "f1_score": _round(metrics.get("f1_at_k")),
+        "precision": _round(metrics.get("precision_at_k")),
+        "recall": _round(metrics.get("recall_at_k")),
+        "overlap_at_k": _round(metrics.get("overlap_at_k")),
+        "precision_at_tau": _round(metrics.get("precision_at_tau")),
+        "recall_at_tau": _round(metrics.get("recall_at_tau")),
+        "pr_auc": _round(metrics.get("pr_auc")),
+        "n_true_critical": metrics.get("n_true_critical"),
+        "rmse": _round(metrics.get("rmse")),
+        "mae": _round(metrics.get("mae")),
+        "rmse_scaled": _round(metrics.get("rmse_scaled")),
+        "mae_scaled": _round(metrics.get("mae_scaled")),
+        "label_scale_max": _round(metrics.get("label_scale_max")),
+        "ndcg_10": _round(metrics.get("ndcg_10")),
+        "per_node_type": metrics.get("per_type_rho", {}),
+        "eval_population": eval_population,
+        "n_predicted": metrics.get("n_predicted"),
+        "n_labeled": metrics.get("n_labeled"),
+        "n_evaluated": metrics.get("n_evaluated"),
+        "label_stability": metrics.get("label_stability", {}),
+        "runtime_s": round(runtime_s, 2),
+        "gt_source": gt_source,
+        "gt_engine": "FaultInjector",
+        "qos_enabled": use_qos,
+    }
+
+    cell["full_population"] = {
+        "spearman_rho": _round(full.get("spearman_rho")),
+        "overlap_at_k": _round(full.get("overlap_at_k")),
+        "pr_auc": _round(full.get("pr_auc")),
+        "ndcg_10": _round(full.get("ndcg_10")),
+        "per_node_type": full.get("per_type_rho", {}),
+        "n_evaluated": full.get("n_evaluated"),
+    }
+
+    if extra:
+        cell.update(extra)
+    return cell
+
+
+def _round(value, ndigits: int = 4):
+    """Round, preserving ``None``/``"undefined"``/NaN rather than coercing to 0.0."""
+    import math
+    if value is None or isinstance(value, str):
+        return value
+    try:
+        if math.isnan(float(value)):
+            return None
+    except (TypeError, ValueError):
+        return value
+    return round(float(value), ndigits)
+
+
+_EVAL_KEY_CACHE: Dict[Tuple[str, str], List[str]] = {}
+
+
+def resolve_cell_eval_keys(scenario: str, eval_population: str) -> List[str]:
+    """The node ids every variant of *scenario* is scored on.
+
+    Derived from the **native** graph and the simulation labels only — never
+    from a variant's substrate or its predictions — so `topo_qos` and `hgl_qos`
+    are guaranteed to be measured on the same sample. Without this, the
+    projection-substrate variants (App+Lib) and the native-substrate variants
+    (all five types) silently scored different populations, which is what made
+    the published Table 3 a comparison of conventions rather than of models.
+    """
+    from saag.evaluation.metrics import resolve_eval_keys
+
+    cache_key = (scenario, eval_population)
+    if cache_key in _EVAL_KEY_CACHE:
+        return _EVAL_KEY_CACHE[cache_key]
+
+    nx_graph, _, simulation_dict, _, _ = _load_scenario_data(scenario, substrate="native")
+    true_impact = {k: float(v.get("composite", 0.0)) for k, v in simulation_dict.items()}
+    # Every labelled node is a legitimate prediction target; the population
+    # filter (not the label value) decides membership.
+    keys = resolve_eval_keys(true_impact, true_impact, nx_graph, eval_population)
+    _EVAL_KEY_CACHE[cache_key] = keys
+    return keys
+
+
+def resolve_cell_split(
+    scenario: str,
+    eval_population: str,
+    seed: int,
+    train_ratio: float = 0.6,
+    val_ratio: float = 0.2,
+) -> Dict[str, List[str]]:
+    """One train/val/test partition of the evaluation population, shared by all variants.
+
+    Pinned by node id and derived only from ``(scenario, eval_population, seed)``,
+    so every trained variant in a cell learns from the same nodes and is scored
+    on the same held-out nodes. The untrained structural baselines are scored on
+    that same test set, which is what finally makes the Table 3 row a comparison
+    of estimators on one sample.
+    """
+    import numpy as np
+
+    keys = list(resolve_cell_eval_keys(scenario, eval_population))
+    rng = np.random.default_rng(seed)
+    order = rng.permutation(len(keys))
+    n_train = int(round(len(keys) * train_ratio))
+    n_val = int(round(len(keys) * val_ratio))
+    shuffled = [keys[i] for i in order]
+    return {
+        "train": sorted(shuffled[:n_train]),
+        "val": sorted(shuffled[n_train:n_train + n_val]),
+        "test": sorted(shuffled[n_train + n_val:]),
+    }
+
+
+def _load_label_stability(scenario: str) -> Dict[str, Any]:
+    """Read the labeler's self-agreement block, so ρ can be read against its ceiling."""
+    cache_dir = _find_cache_dir(scenario)
+    for name in ("failure_impact.json", "impact_scores.json"):
+        path = cache_dir / name
+        if path.exists():
+            try:
+                raw = json.loads(path.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            if isinstance(raw, dict) and raw.get("label_stability"):
+                return raw["label_stability"]
+    return {}
 
 
 def _train_cell(
@@ -982,11 +1228,19 @@ def _train_cell(
     train_ratio: float = 0.6,
     val_ratio: float = 0.2,
     auto_layers: bool = True,
+    eval_population: str = "application",
 ) -> Dict[str, Any]:
-    """Train one cell of the 7×6×5 matrix and return metrics dict."""
+    """Train one cell of the 7×6×5 matrix and return metrics dict.
+
+    Every branch produces a ``{node_id: composite_score}`` dict over the full
+    node population and hands it to :func:`_score_cell`; no branch computes its
+    own metrics. That is what keeps the six variants like-for-like.
+    """
     import torch
     import numpy as np
-    from saag.prediction.data_preparation import networkx_to_hetero_data, create_node_splits
+    from saag.prediction.data_preparation import (
+        apply_external_splits, networkx_to_hetero_data, create_node_splits,
+    )
     from saag.prediction.trainer import GNNTrainer, evaluate
 
     torch.manual_seed(seed)
@@ -1012,10 +1266,18 @@ def _train_cell(
         effective_layers = num_layers
     start = time.time()
 
-    if variant in ("topo_baseline", "topo_qos"):
-        from saag.prediction.trainer import evaluate_scores
-        import numpy as np
+    eval_keys = resolve_cell_eval_keys(scenario, eval_population)
+    splits = resolve_cell_split(scenario, eval_population, seed, train_ratio, val_ratio)
+    label_stability = _load_label_stability(scenario)
+    score_common = dict(
+        scenario=scenario, variant=variant, seed=seed,
+        simulation_dict=simulation_dict, nx_graph=nx_graph,
+        gt_source=gt_source, eval_population=eval_population,
+        eval_keys=eval_keys, label_stability=label_stability,
+        test_split_ids=splits["test"],
+    )
 
+    if variant in ("topo_baseline", "topo_qos"):
         use_qos = (variant == "topo_qos")
         struct_pred = _compute_topo_baseline_scores(
             nx_graph, structural_dict, use_qos=use_qos
@@ -1024,73 +1286,23 @@ def _train_cell(
             return {"scenario": scenario, "variant": variant, "seed": seed,
                     "error": "no_structural_signal"}
 
-        keys = sorted(set(struct_pred) & set(simulation_dict))
-        if len(keys) < 3:
-            return {"scenario": scenario, "variant": variant, "seed": seed,
-                    "error": "insufficient_overlap"}
-
-        pred_list = [struct_pred[k] for k in keys]
-        true_list = [simulation_dict[k].get("composite", 0.0) for k in keys]
-
-        y_pred = np.zeros((len(pred_list), 5))
-        y_true = np.zeros((len(true_list), 5))
-        y_pred[:, 0] = pred_list
-        y_true[:, 0] = true_list
-
-        m = evaluate_scores(y_pred, y_true)
-        per_node_type = _get_per_type_rho(keys, y_pred, y_true, nx_graph)
-
-        return {
-            "scenario": scenario, "variant": variant, "seed": seed,
-            "spearman_rho":   round(m.spearman_rho, 4),
-            "f1_score":       round(m.f1_score, 4),
-            "precision":      round(m.precision, 4),
-            "recall":         round(m.recall, 4),
-            "accuracy":       round(m.accuracy, 4),
-            "rmse":           round(m.rmse, 4),
-            "mae":            round(m.mae, 4),
-            "ndcg_10":        round(m.ndcg_10, 4),
-            "per_node_type":  per_node_type,
-            "runtime_s":      round(time.time() - start, 2),
-            "gt_source":      gt_source,
-            "qos_enabled":    use_qos,
-        }
+        return _score_cell(
+            pred_scores={str(k): float(v) for k, v in struct_pred.items()},
+            use_qos=use_qos,
+            runtime_s=time.time() - start,
+            extra={"trained": False},
+            **score_common,
+        )
 
     elif variant == "rasse_2025":
         # Full IEEE RASSE 2025 approach (RMAV scores)
-        import numpy as np
-        from saag.prediction.trainer import evaluate_scores
-
-
-
-        keys = sorted(set(rmav_dict) & set(simulation_dict))
-        if len(keys) < 3:
-            return {"error": "insufficient_overlap"}
-        
-        pred_list = [rmav_dict[k].get("overall", 0.0) for k in keys]
-        true_list = [simulation_dict[k].get("composite", 0.0) for k in keys]
-        
-        y_pred = np.zeros((len(pred_list), 5))
-        y_true = np.zeros((len(true_list), 5))
-        y_pred[:, 0] = pred_list
-        y_true[:, 0] = true_list
-        
-        m = evaluate_scores(y_pred, y_true)
-        
-        per_node_type = _get_per_type_rho(keys, y_pred, y_true, nx_graph)
-        
-        return {
-            "scenario": scenario, "variant": variant, "seed": seed,
-            "spearman_rho": round(m.spearman_rho, 4),
-            "f1_score": round(m.f1_score, 4),
-            "precision": round(m.precision, 4),
-            "recall": round(m.recall, 4),
-            "accuracy": round(m.accuracy, 4),
-            "rmse": round(m.rmse, 4),
-            "mae": round(m.mae, 4),
-            "ndcg_10": round(m.ndcg_10, 4),
-            "per_node_type": per_node_type, "runtime_s": round(time.time() - start, 2),
-        }
+        return _score_cell(
+            pred_scores={str(k): float(v.get("overall", 0.0)) for k, v in rmav_dict.items()},
+            use_qos=False,
+            runtime_s=time.time() - start,
+            extra={"trained": False},
+            **score_common,
+        )
 
     elif variant in ("gl", "gl_qos"):
         from saag.prediction.models.baselines import build_baseline
@@ -1107,7 +1319,8 @@ def _train_cell(
 
         conv = networkx_to_hetero_data(train_graph, train_sm, simulation_dict, rmav_dict, qos_enabled=use_qos)
         data = conv.hetero_data
-        create_node_splits(data, train_ratio, val_ratio, seed=seed)
+        # Pinned split: identical train/test nodes for every variant in this cell.
+        apply_external_splits(data, conv, splits)
         # NOTE: intentionally pinned to 1e-3 (not args.lr) — this value produced the
         # currently-published Table 3/4 numbers for the gl/gl_qos baselines. Do not
         # make this configurable without a documented rerun of those tables.
@@ -1122,16 +1335,15 @@ def _train_cell(
         trainer = GNNTrainer(model=model, checkpoint_dir=ckpt_dir, lr=effective_lr,
                              num_epochs=num_epochs, patience=effective_patience)
         trainer.train(data)
-        metrics = evaluate(model, data, "test_mask", device)
 
-        if metrics is None:
-            return {"scenario": scenario, "variant": variant, "seed": seed,
-                    "error": "no_metrics"}
-        d = metrics.to_dict()
-        d.update({"scenario": scenario, "variant": variant, "seed": seed,
-                  "runtime_s": round(time.time() - start, 2),
-                  "gt_source": gt_source, "qos_enabled": use_qos})
-        return d
+        pred_scores = _predict_all_nodes(model, data, conv, device)
+        return _score_cell(
+            pred_scores=pred_scores,
+            use_qos=use_qos,
+            runtime_s=time.time() - start,
+            extra={"trained": True},
+            **score_common,
+        )
 
     elif variant in ("hgl", "hgl_qos"):
         # hgl: heterogeneous GAT with QoS dimensions masked (unweighted native).
@@ -1173,25 +1385,28 @@ def _train_cell(
             seeds=[seed],
             mode="gnn",
             qos_enabled=use_qos,
+            node_splits=splits,
         )
 
         result = svc.train(**train_kwargs)
-        metrics = result.gnn_metrics
 
-        if metrics is None:
+        # GNNService already runs a full-graph forward pass and keys the output
+        # by node name, so no separate inference step is needed here.
+        pred_scores = {
+            str(name): float(score.composite_score)
+            for name, score in (result.node_scores or {}).items()
+        }
+        if not pred_scores:
             return {"scenario": scenario, "variant": variant, "seed": seed,
-                    "error": "no_metrics"}
+                    "error": "no_predictions"}
 
-        d = metrics.to_dict()
-        d.update({
-            "scenario":    scenario,
-            "variant":     variant,
-            "seed":        seed,
-            "runtime_s":   round(time.time() - start, 2),
-            "gt_source":   gt_source,
-            "qos_enabled": use_qos,
-        })
-        return d
+        return _score_cell(
+            pred_scores=pred_scores,
+            use_qos=use_qos,
+            runtime_s=time.time() - start,
+            extra={"trained": True},
+            **score_common,
+        )
 
     else:
         return {"scenario": scenario, "variant": variant, "seed": seed,
@@ -1237,29 +1452,56 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
         k = (c["scenario"], c["variant"])
         by_sv.setdefault(k, []).append(c)
 
+    def _defined(cs_, key):
+        """Values that are actually numbers. ``None`` means the statistic was
+        undefined for that seed; averaging it in as 0.0 would invent evidence."""
+        out = []
+        for c in cs_:
+            v = c.get(key)
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and not np.isnan(v):
+                out.append(float(v))
+        return out
+
     aggregate = {}
     for (sc, var), cs in by_sv.items():
-        rhos = [c.get("spearman_rho", 0.0) for c in cs]
-        f1s = [c.get("f1_score", 0.0) for c in cs]
-        precs = [c.get("precision", 0.0) for c in cs]
-        recs = [c.get("recall", 0.0) for c in cs]
-        accs = [c.get("accuracy", 0.0) for c in cs]
-        rmses = [c.get("rmse", 0.0) for c in cs]
-        maes = [c.get("mae", 0.0) for c in cs]
-        ndcgs = [c.get("ndcg_10", 0.0) for c in cs]
+        rhos = _defined(cs, "spearman_rho")
+        f1s = _defined(cs, "f1_score")
+        precs = _defined(cs, "precision")
+        recs = _defined(cs, "recall")
+        accs = _defined(cs, "accuracy")
+        rmses = _defined(cs, "rmse")
+        maes = _defined(cs, "mae")
+        ndcgs = _defined(cs, "ndcg_10")
+        pr_aucs = _defined(cs, "pr_auc")
 
-        mean_r = float(np.mean(rhos))
+        mean_r = float(np.mean(rhos)) if rhos else float("nan")
         lo, hi = _bootstrap_ci(rhos)
         gt_source = cs[0].get("gt_source", "Sim") if cs else "Sim"
 
-        # Aggregate per-node-type
-        pnt_aggr = {}
+        # Per-node-type: average only the seeds where the stratum was defined,
+        # and keep the undefined count so a mostly-undefined stratum is visible
+        # rather than being represented by whichever seed happened to work.
+        pnt_aggr: Dict[str, List[float]] = {}
+        pnt_undef: Dict[str, int] = {}
+        pnt_n: Dict[str, int] = {}
         for c in cs:
-            pnt = c.get("per_node_type", {})
-            for nt, val in pnt.items():
-                pnt_aggr.setdefault(nt, []).append(val)
-        
-        mean_pnt = {nt: round(float(np.mean(vals)), 4) for nt, vals in pnt_aggr.items()}
+            for nt, val in (c.get("per_node_type") or {}).items():
+                rho_v = val.get("rho") if isinstance(val, dict) else val
+                pnt_n[nt] = (val or {}).get("n", 0) if isinstance(val, dict) else 0
+                if isinstance(rho_v, (int, float)) and not np.isnan(rho_v):
+                    pnt_aggr.setdefault(nt, []).append(float(rho_v))
+                else:
+                    pnt_undef[nt] = pnt_undef.get(nt, 0) + 1
+
+        mean_pnt: Dict[str, Any] = {}
+        for nt in sorted(set(pnt_aggr) | set(pnt_undef)):
+            vals = pnt_aggr.get(nt, [])
+            mean_pnt[nt] = {
+                "rho": round(float(np.mean(vals)), 4) if vals else "undefined",
+                "n_nodes": pnt_n.get(nt, 0),
+                "n_seeds_defined": len(vals),
+                "n_seeds_undefined": pnt_undef.get(nt, 0),
+            }
 
         # Calibration policy: propagate the mode across seeds.
         # Mixed policies inside one (scenario, variant) group is a bug.
@@ -1270,26 +1512,41 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
             logger.warning("Mixed calibration policies in %s|%s: %s", sc, var, cal_uniq)
         cal_mode = _Counter(cal_labels).most_common(1)[0][0]
 
-        # NaN-safe mean for F1/Precision/Recall (degenerate cells store None/NaN).
-        def _nanmean(vals):
-            import math
-            good = [v for v in vals if v is not None and not (isinstance(v, float) and math.isnan(v))]
-            return float(np.mean(good)) if good else float("nan")
+        def _m(vals):
+            return round(float(np.mean(vals)), 4) if vals else None
+
+        full_rhos = [
+            c["full_population"]["spearman_rho"]
+            for c in cs
+            if isinstance(c.get("full_population", {}).get("spearman_rho"), (int, float))
+        ]
+        stability = next((c.get("label_stability") for c in cs if c.get("label_stability")), {})
 
         aggregate[(sc, var)] = {
-            "mean_rho":       round(mean_r, 4),
-            "mean_f1":        round(_nanmean(f1s),   4) if not np.isnan(_nanmean(f1s))  else None,
-            "mean_precision": round(_nanmean(precs),  4) if not np.isnan(_nanmean(precs)) else None,
-            "mean_recall":    round(_nanmean(recs),   4) if not np.isnan(_nanmean(recs))  else None,
-            "mean_accuracy":  round(float(np.mean(accs)), 4),
-            "mean_rmse":      round(float(np.mean(rmses)), 4),
-            "mean_mae":       round(float(np.mean(maes)), 4),
-            "mean_ndcg_10":   round(float(np.mean(ndcgs)), 4),
-            "ci_lo":          round(lo, 4),
-            "ci_hi":          round(hi, 4),
+            "mean_rho":       _m(rhos),
+            "mean_f1":        _m(f1s),
+            "mean_precision": _m(precs),
+            "mean_recall":    _m(recs),
+            "mean_accuracy":  _m(accs),
+            "mean_rmse":      _m(rmses),
+            "mean_mae":       _m(maes),
+            "mean_ndcg_10":   _m(ndcgs),
+            "mean_pr_auc":    _m(pr_aucs),
+            "ci_lo":          round(lo, 4) if not np.isnan(lo) else None,
+            "ci_hi":          round(hi, 4) if not np.isnan(hi) else None,
             "gt_source":      gt_source,
+            "gt_engine":      cs[0].get("gt_engine", "FaultInjector") if cs else "FaultInjector",
+            "eval_population": cs[0].get("eval_population") if cs else None,
+            "scored_on":      cs[0].get("scored_on") if cs else None,
+            "n_evaluated":    cs[0].get("n_evaluated") if cs else None,
             "per_node_type":  mean_pnt,
+            # Transductive reference: the same predictor over every node in the
+            # population, including the ones a trained variant was fitted on.
+            "mean_rho_full_population": _m(full_rhos),
+            # Ceiling no method can exceed — the labeler's agreement with itself.
+            "label_stability": stability,
             "n_seeds":        len(cs),
+            "n_seeds_defined_rho": len(rhos),
             "rhos":           rhos,
             "calibration":    cal_mode,
             "n_needs_recalibration": sum(1 for c in cs if c.get("needs_recalibration")),
@@ -1411,6 +1668,14 @@ def parse_args():
         "--no-auto-layers", dest="auto_layers", action="store_false",
         help="Disable the layer-count auto-downgrade; always use --layers as given.",
     )
+    p.add_argument(
+        "--eval-population", default="application",
+        choices=["application", "app_lib", "labeled"],
+        help="Node population every variant is scored on. 'application' (default) matches "
+             "the thesis claim and is the only population every variant can cover; "
+             "'app_lib' adds Libraries; 'labeled' uses every labelled node and will mark "
+             "projection-substrate variants as incomplete_coverage. Recorded in the output.",
+    )
     p.add_argument("--output", type=Path, default=RESULTS_DIR / "main_table.json")
     p.add_argument("--resume", action="store_true",
                    help="Skip cells already present in the output file")
@@ -1513,6 +1778,7 @@ def main():
                         hidden=args.hidden, num_heads=args.heads,
                         num_layers=args.layers, num_epochs=args.epochs,
                         patience=args.patience, auto_layers=args.auto_layers,
+                        eval_population=args.eval_population,
                     )
                 except Exception as exc:
                     cell = {"scenario": sc, "variant": v, "seed": s, "error": str(exc)}
@@ -1523,9 +1789,11 @@ def main():
                         print(f" SKIP ({cell['error']})")
                         n_fail += 1
                     else:
-                        rho = cell.get("spearman_rho", float("nan"))
+                        rho = cell.get("spearman_rho")
                         rt  = cell.get("runtime_s", 0)
-                        print(f" rho={rho:.4f}  ({rt}s)")
+                        n_ev = cell.get("n_evaluated", "?")
+                        rho_s = f"{rho:.4f}" if isinstance(rho, (int, float)) else "undefined"
+                        print(f" rho={rho_s}  n={n_ev}  ({rt}s)")
 
                 cells.append(cell)
                 n_done += 1
@@ -1548,6 +1816,12 @@ def main():
         "config": {
             "scenarios": scenarios, "variants": variants, "seeds": seeds,
             "epochs": args.epochs, "hidden": args.hidden,
+            # Recorded so any table rendered from this file can state which node
+            # population produced it — the single most important caveat when
+            # comparing a training-free baseline against a learned model.
+            "eval_population": args.eval_population,
+            "gt_engine": "FaultInjector",
+            "metric_contract": "saag.evaluation.metrics.compute_inductive_metrics",
         },
     }
     output.update(meta_passthrough)

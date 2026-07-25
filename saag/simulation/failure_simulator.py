@@ -78,6 +78,8 @@ class FailureSimulator:
         self._initial_total_weight: float = 0.0
         self._baseline_flows: Set[Tuple[str, str, str]] = set()
         self._baseline_computed: bool = False
+        # Cached impact of removing nothing; edge deltas subtract it.
+        self._null_impact_cache: Optional[ImpactMetrics] = None
     
     @staticmethod
     def _derive_seed(run_seed: Optional[int], component_id: str) -> Optional[int]:
@@ -197,6 +199,160 @@ class FailureSimulator:
             csc_names={c.id: c.properties.get("name", c.id) for c in self.graph.components.values()},
         )
     
+    def simulate_edge_removal(
+        self,
+        source: str,
+        target: str,
+        relationship: str = "UNKNOWN",
+    ) -> "EdgeCriticality":
+        """Sever one relationship and measure what it costs, both endpoints alive.
+
+        This is the observation that edge criticality was previously missing.
+        Training labels were a projection of node labels through a hand-chosen
+        bridge multiplier (``I*(u) x {1.0, 0.1}``), so reported edge metrics were
+        validated against a heuristic rather than against a measurement. Here the
+        edge is actually removed and the same reachability / fragmentation /
+        throughput / flow quantities that back :class:`ImpactMetrics` are
+        recomputed against the cached baseline.
+
+        Only the edge is removed — no cascade is run — because the question an
+        edge label answers is "what does *this link* carry", not "what else
+        breaks afterwards". Cascade effects belong to the node labels.
+
+        Returns
+        -------
+        EdgeCriticality
+            ``flow_impact`` is the fraction of pub->topic->sub flows broken,
+            ``connectivity_impact`` the fragmentation increase, and
+            ``combined_impact`` the composite on the same 0.35/0.25/0.25/0.15
+            weighting used for nodes, so node and edge scores stay comparable.
+        """
+        from saag.simulation.models import EdgeCriticality
+
+        self.graph.reset()
+        if not self._baseline_computed:
+            self._compute_baseline()
+            self._baseline_computed = True
+
+        # ``_calculate_impact`` is not zero on a pristine graph: topics that
+        # already lack a publisher or a subscriber are counted as lost
+        # throughput regardless of what failed. Measured on av_system that floor
+        # is composite 0.0061. An edge label must be the *cost of removing the
+        # edge*, so every quantity is differenced against that null observation
+        # — otherwise edges that cost nothing (RUNS_ON, which this cascade model
+        # does not route traffic over) would all report the floor as if it were
+        # signal.
+        null = self._null_impact()
+
+        self.graph.fail_edge(source, target)
+        try:
+            impact = self._calculate_impact(source, set())
+        finally:
+            self.graph.recover_edge(source, target)
+
+        def _delta(after: float, before: float) -> float:
+            return max(0.0, after - before)
+
+        combined = _delta(impact.composite_impact, null.composite_impact)
+        return EdgeCriticality(
+            source=source,
+            target=target,
+            relationship=relationship,
+            flow_impact=round(_delta(impact.flow_disruption, null.flow_disruption), 6),
+            connectivity_impact=round(_delta(impact.fragmentation, null.fragmentation), 6),
+            combined_impact=round(combined, 6),
+            level=self._impact_level(combined),
+        )
+
+    def _null_impact(self) -> ImpactMetrics:
+        """Impact of removing nothing — the floor every edge delta is measured from."""
+        if getattr(self, "_null_impact_cache", None) is None:
+            self._null_impact_cache = self._calculate_impact("__null__", set())
+        return self._null_impact_cache
+
+    @staticmethod
+    def _impact_level(score: float) -> str:
+        """Absolute band for a single edge, before per-scenario reclassification."""
+        if score >= 0.50:
+            return "critical"
+        if score >= 0.25:
+            return "high"
+        if score >= 0.10:
+            return "medium"
+        return "low" if score > 1e-6 else "minimal"
+
+    def simulate_edge_removal_sweep(
+        self,
+        candidates: Optional[List[Tuple[str, str, str]]] = None,
+        layer: str = "system",
+        top_q: int = 50,
+    ) -> List["EdgeCriticality"]:
+        """Measure every candidate edge, defaulting to bridges + top-betweenness.
+
+        The candidate set is bounded on purpose: an exhaustive sweep is
+        O(|E|) full impact recomputations, while the edges that can plausibly
+        matter are the non-redundant ones (bridges) and the heavily traversed
+        ones (top edge-betweenness). Edges outside the set are returned with
+        ``evaluated=False`` rather than silently scored 0, so a consumer can tell
+        "measured as harmless" from "never measured".
+        """
+        if candidates is None:
+            candidates = self._select_edge_candidates(layer=layer, top_q=top_q)
+
+        self.graph.reset()
+        self._compute_baseline()
+        self._baseline_computed = True
+        self._null_impact_cache = None
+
+        results = []
+        try:
+            for src, dst, rel in candidates:
+                results.append(self.simulate_edge_removal(src, dst, rel))
+        finally:
+            self._baseline_computed = False
+            self._null_impact_cache = None
+
+        results.sort(key=lambda e: e.combined_impact, reverse=True)
+        self.logger.info(
+            "Edge-removal sweep: %d candidates, %d with non-zero impact",
+            len(results), sum(1 for e in results if e.combined_impact > 1e-6),
+        )
+        return results
+
+    def _select_edge_candidates(
+        self, layer: str = "system", top_q: int = 50
+    ) -> List[Tuple[str, str, str]]:
+        """Bridges union the top-q edges by betweenness, on the undirected projection."""
+        import networkx as nx
+
+        g = self.graph.graph
+        if g.number_of_edges() == 0:
+            return []
+
+        undirected = nx.Graph(g)
+        selected: Set[Tuple[str, str]] = set()
+
+        try:
+            selected.update((u, v) for u, v in nx.bridges(undirected))
+        except nx.NetworkXError:
+            for component in nx.connected_components(undirected):
+                sub = undirected.subgraph(component)
+                if sub.number_of_nodes() > 1:
+                    selected.update((u, v) for u, v in nx.bridges(sub))
+
+        if top_q > 0:
+            betweenness = nx.edge_betweenness_centrality(undirected)
+            ranked = sorted(betweenness.items(), key=lambda kv: kv[1], reverse=True)
+            selected.update(edge for edge, _ in ranked[:top_q])
+
+        out: List[Tuple[str, str, str]] = []
+        for u, v in selected:
+            for src, dst in ((u, v), (v, u)):
+                if g.has_edge(src, dst):
+                    rel = g.edges[src, dst].get("relation", "UNKNOWN")
+                    out.append((src, dst, rel))
+        return sorted(set(out))
+
     def simulate_exhaustive(
         self,
         scenario_template: Optional[FailureScenario] = None,

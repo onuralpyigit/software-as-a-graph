@@ -117,7 +117,12 @@ def _extract_from_loso(loso_dir: Path) -> Dict[str, Dict[str, Dict[str, float]]]
         for fold in folds:
             per_type = fold.get("per_type_rho", {})
             for nt, info in per_type.items():
-                nt_buf.setdefault(nt, []).append(float(info.get("mean", 0.0)))
+                val = info.get("mean")
+                # "undefined" means the stratum had no usable signal in that
+                # fold (constant or unlabelled). Skip it; plotting it as 0.0
+                # would draw a coverage gap as a poor correlation.
+                if isinstance(val, (int, float)):
+                    nt_buf.setdefault(nt, []).append(float(val))
         if nt_buf:
             result[var] = {}
             for nt, vals in nt_buf.items():

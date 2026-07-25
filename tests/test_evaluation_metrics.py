@@ -117,7 +117,14 @@ def test_coverage_counts_expose_a_labeling_gap():
 
 
 def test_degenerate_truth_does_not_crash():
-    """An all-zero label block must not raise; pr_auc is undefined there."""
+    """An all-zero label block must not raise, and must not report a score.
+
+    When no node clears the tau threshold there is no critical set to be precise
+    *about*, so precision/recall are undefined rather than zero. They previously
+    returned 0.0, which is indistinguishable from "the model ranked every
+    critical node last" — a measurable failure — and let a labelling gap read as
+    a model result.
+    """
     true = {f"n{i}": 0.0 for i in range(10)}
     pred = {f"n{i}": float(i) for i in range(10)}
 
@@ -125,7 +132,8 @@ def test_degenerate_truth_does_not_crash():
 
     assert m["n_true_critical"] == 0
     assert np.isnan(m["pr_auc"])
-    assert m["precision_at_tau"] == 0.0
+    assert np.isnan(m["precision_at_tau"])
+    assert np.isnan(m["recall_at_tau"])
 
 
 def test_too_few_common_nodes_still_reports_coverage():

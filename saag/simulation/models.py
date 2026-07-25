@@ -751,7 +751,13 @@ class ComponentCriticality:
 
 @dataclass
 class EdgeCriticality:
-    """Criticality assessment for an edge."""
+    """Criticality assessment for an edge.
+
+    Populated by ``FailureSimulator.simulate_edge_removal``, which actually
+    severs the relationship and recomputes impact. ``evaluated=False`` means the
+    edge was outside the candidate set and never measured — which is *not* the
+    same as measuring it and finding no impact, and must not be read as a zero.
+    """
     source: str
     target: str
     relationship: str
@@ -760,13 +766,18 @@ class EdgeCriticality:
     combined_impact: float = 0.0
     level: str = "minimal"
     messages_traversed: int = 0
+    evaluated: bool = True
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "source": self.source,
             "target": self.target,
+            "relationship": self.relationship,
             "level": self.level,
+            "flow_impact": round(self.flow_impact, 4),
+            "connectivity_impact": round(self.connectivity_impact, 4),
             "combined_impact": round(self.combined_impact, 4),
+            "evaluated": self.evaluated,
         }
 
 

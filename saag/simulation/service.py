@@ -205,7 +205,15 @@ class SimulationService:
         for res in event_metrics_system.values():
             all_flows.extend(res.successful_flows)
         fail_sim.set_baseline_flows(all_flows)
-        
+
+        # Step 1b: Edge criticality by actual edge removal (was never populated
+        # before, so SimulationService.classify_edges always returned []).
+        # Runs once over the system scope — an edge belongs to the topology, not
+        # to a layer projection of it.
+        if classify_edges:
+            all_edge_criticality = fail_sim.simulate_edge_removal_sweep(layer="system")
+
+
         # Step 2: Loop layers and calculate execution profiles exactly once per scope
         for layer in layers:
             logger.info(f"Generating simulation metrics for layer scope: {layer}")
@@ -325,6 +333,6 @@ class SimulationService:
         return report.component_criticality
 
     def classify_edges(self, layer: str = "system", k_factor: float = 1.5) -> List[Any]:
-        """Classify edges by criticality."""
-        report = self.generate_report(layers=[layer])
+        """Classify edges by criticality, measured by actually removing each one."""
+        report = self.generate_report(layers=[layer], classify_edges=True)
         return report.edge_criticality

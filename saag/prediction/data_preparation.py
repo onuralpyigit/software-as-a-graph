@@ -121,7 +121,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import networkx as nx
 import numpy as np
@@ -745,6 +745,60 @@ def _labelled_index_mask(store) -> np.ndarray:
     if mask is not None:
         return mask.detach().cpu().numpy().astype(bool)
     return np.abs(store.y[:, 0].detach().numpy()) > 1e-6
+
+
+def apply_external_splits(
+    hetero_data,
+    conversion_result,
+    splits: Dict[str, Iterable[str]],
+) -> None:
+    """Set train/val/test masks from caller-supplied **node id** sets, in place.
+
+    :func:`create_node_splits` draws a fresh split per model, so two variants
+    trained on the same scenario see different train/test partitions and cannot
+    be compared on a common held-out sample. Pinning the split by node id — the
+    one identifier that is stable across substrates — makes a like-for-like
+    comparison table possible.
+
+    Ids absent from a store are ignored; a node named in no split gets all three
+    masks ``False``, so it is neither trained on nor scored.
+
+    Parameters
+    ----------
+    splits:
+        ``{"train": [...], "val": [...], "test": [...]}`` of node ids.
+    """
+    wanted = {
+        key: {str(v) for v in splits.get(key, ())}
+        for key in ("train", "val", "test")
+    }
+    overlap = (
+        (wanted["train"] & wanted["val"])
+        | (wanted["train"] & wanted["test"])
+        | (wanted["val"] & wanted["test"])
+    )
+    if overlap:
+        raise ValueError(
+            f"external splits overlap on {len(overlap)} node(s), e.g. "
+            f"{sorted(overlap)[:5]}; a node cannot be both trained on and held out"
+        )
+
+    id_map = getattr(conversion_result, "node_id_map", None) or {}
+    for node_type in hetero_data.node_types:
+        store = hetero_data[node_type]
+        names = [str(n) for n in id_map.get(node_type, [])]
+        n = store.num_nodes
+        masks = {
+            key: torch.zeros(n, dtype=torch.bool) for key in ("train", "val", "test")
+        }
+        for idx, name in enumerate(names[:n]):
+            for key in ("train", "val", "test"):
+                if name in wanted[key]:
+                    masks[key][idx] = True
+                    break
+        store.train_mask = masks["train"]
+        store.val_mask = masks["val"]
+        store.test_mask = masks["test"]
 
 
 def create_node_splits(

@@ -3,6 +3,7 @@ saag/prescription/service.py
 """
 import copy
 import logging
+import statistics
 from typing import Dict, Any, List, Optional
 
 from saag.core.ports.graph_repository import IGraphRepository
@@ -11,7 +12,7 @@ from saag.validation.service import ValidationService
 from saag.analysis.service import AnalysisService
 from saag.prediction.service import PredictionService
 
-from .models import PrescriptionPolicy, PrescribeResult
+from .models import EditVerdict, PrescriptionPolicy, PrescribeResult
 
 logger = logging.getLogger(__name__)
 
@@ -27,20 +28,41 @@ class PrescribeService:
 
     def prescribe(
         self, 
-        analysis_result: Any, 
-        prediction_result: Optional[Any] = None, 
+        analysis_result: Any,
+        prediction_result: Optional[Any] = None,
         layer: str = "system",
-        gnn_checkpoint: Optional[str] = None
+        gnn_checkpoint: Optional[str] = None,
+        kappa: float = 1.0,
+        seeds: Optional[List[int]] = None,
+        thresholds: Optional[List[float]] = None,
     ) -> PrescribeResult:
         """
         Generate optimization recommendations for components flagged as CRITICAL/HIGH,
-        apply them to a mutated version of the graph, and verify resilience improvements.
+        verify each one independently, apply only those that pass, and re-check
+        resilience end to end.
+
+        Parameters
+        ----------
+        kappa:
+            Acceptance multiple. An edit is kept only when its mean impact
+            reduction exceeds ``kappa * sigma_seed`` — i.e. it must beat the
+            simulator's own seed noise, not merely register a positive delta.
+        seeds:
+            Simulation seeds used to estimate that noise. Defaults to the
+            canonical five.
+        thresholds:
+            Propagation thresholds the edit must clear at *every* value, so an
+            accepted edit is not an artifact of the 0.2 default.
         """
         logger.info(f"Starting Prescriptive Optimization for layer '{layer}'...")
-        
-        # 1. Compile transformation policy Delta(G)
-        policy = self.compile_policy(analysis_result, prediction_result, layer)
-        logger.info(f"Generated policy Delta(G): {len(policy.topic_splits)} splits, {len(policy.node_reallocations)} reallocations, {len(policy.qos_upgrades)} upgrades.")
+
+        # 1. Compile transformation policy Delta(G) — this is the *candidate* set.
+        candidate_policy = self.compile_policy(analysis_result, prediction_result, layer)
+        logger.info(
+            f"Generated candidate Delta(G): {len(candidate_policy.topic_splits)} splits, "
+            f"{len(candidate_policy.node_reallocations)} reallocations, "
+            f"{len(candidate_policy.qos_upgrades)} upgrades."
+        )
 
         # 2. Get baseline simulation metrics
         # If original analysis has simulation metrics we can extract them,
@@ -48,11 +70,49 @@ class PrescribeService:
         logger.info("Evaluating baseline system health and resilience...")
         baseline_sri, baseline_metrics, baseline_impact = self._evaluate_baseline(analysis_result, layer, gnn_checkpoint)
 
-        # 3. Create mutated graph JSON
         original_json = self.repository.export_json()
+
+        # 3. Per-edit acceptance filter. Each candidate is simulated on its own
+        # counterfactual graph and kept only if it improves impact by more than
+        # the seed noise, at every propagation threshold. Applying the whole
+        # policy unconditionally is what previously let regressions ride along
+        # with improvements.
+        verdicts = self._verify_edits(
+            original_json, candidate_policy, baseline_impact, layer, gnn_checkpoint,
+            kappa=kappa, seeds=seeds, thresholds=thresholds,
+        )
+        accepted_edits = [
+            (v.kind, v.target, payload)
+            for v, (_k, _t, payload) in zip(verdicts, candidate_policy.edits())
+            if v.accepted
+        ]
+        policy = PrescriptionPolicy.from_edits(accepted_edits)
+        logger.info(
+            "Per-edit filter: %d/%d edits accepted (kappa=%.2f).",
+            len(accepted_edits), len(verdicts), kappa,
+        )
+
+        # 4. Create mutated graph JSON from the accepted subset only
         mutated_json = self._apply_policy_mutations(original_json, policy)
 
-        # 4. Closed-loop validation on the mutated graph
+        if policy.is_empty():
+            # Nothing cleared the bar. Report that plainly rather than running a
+            # no-op mutation and presenting an unchanged SRI as a result.
+            logger.info("No candidate edit passed the acceptance filter; leaving the graph unchanged.")
+            return PrescribeResult(
+                original_sri=baseline_sri,
+                mutated_sri=baseline_sri,
+                sri_improvement=0.0,
+                original_metrics=baseline_metrics,
+                mutated_metrics=baseline_metrics,
+                policy=policy,
+                applied_changes=[],
+                accepted=False,
+                edit_verdicts=verdicts,
+                candidate_policy=candidate_policy,
+            )
+
+        # 5. Closed-loop validation on the mutated graph
         logger.info("Evaluating mutated system health and resilience (closed-loop simulation)...")
         mutated_sri, mutated_metrics, applied_changes, mutated_impact = self._evaluate_mutation(mutated_json, layer, policy, gnn_checkpoint)
 
@@ -93,6 +153,129 @@ class PrescribeService:
             remediated_component_impact_deltas=impact_deltas,
             mean_cascade_impact_reduction=mean_reduction,
             accepted=accepted,
+            edit_verdicts=verdicts,
+            candidate_policy=candidate_policy,
+        )
+
+    # ── Per-edit acceptance filter ────────────────────────────────────────────
+
+    #: Propagation thresholds an edit must clear at every value.
+    DEFAULT_THRESHOLDS = (0.1, 0.2, 0.5)
+    #: Seeds used to estimate the simulator's own noise on a delta. Three rather
+    #: than the canonical five: verification costs one exhaustive sweep per
+    #: (edit x threshold x seed), and the measured across-seed spread here is
+    #: ~1e-5 on mean I(v), so a third seed already pins sigma well enough for a
+    #: threshold that edits clear by orders of magnitude or not at all.
+    DEFAULT_SEEDS = (42, 123, 456)
+
+    def _verify_edits(
+        self,
+        original_json: Dict[str, Any],
+        candidate_policy: PrescriptionPolicy,
+        baseline_impact: Dict[str, float],
+        layer: str,
+        gnn_checkpoint: Optional[str],
+        kappa: float = 1.0,
+        seeds: Optional[List[int]] = None,
+        thresholds: Optional[List[float]] = None,
+    ) -> List[EditVerdict]:
+        """Simulate each candidate edit alone and decide whether to keep it.
+
+        The acceptance rule is ``delta > kappa * sigma_seed`` at **every**
+        threshold in the sweep. Requiring it everywhere is what stops an edit
+        being accepted because it happened to help at the canonical 0.2 default;
+        requiring it to beat sigma is what stops noise being read as improvement.
+        """
+        seeds = list(seeds or self.DEFAULT_SEEDS)
+        thresholds = list(thresholds or self.DEFAULT_THRESHOLDS)
+        verdicts: List[EditVerdict] = []
+
+        for kind, target, payload in candidate_policy.edits():
+            single = PrescriptionPolicy.from_edits([(kind, target, payload)])
+            mutated_json = self._apply_policy_mutations(original_json, single)
+
+            per_threshold: Dict[str, float] = {}
+            deltas: List[float] = []
+            failure_reason = ""
+
+            for threshold in thresholds:
+                seed_deltas = []
+                for seed in seeds:
+                    try:
+                        delta = self._measure_edit_delta(
+                            mutated_json, baseline_impact, layer, gnn_checkpoint,
+                            threshold=threshold, seed=seed,
+                        )
+                    except Exception as exc:      # noqa: BLE001 - one bad edit must not abort the sweep
+                        logger.warning("Edit %s/%s failed to simulate: %s", kind, target, exc)
+                        failure_reason = f"simulation_error: {exc}"
+                        seed_deltas = []
+                        break
+                    seed_deltas.append(delta)
+
+                if not seed_deltas:
+                    break
+                mean_delta = statistics.fmean(seed_deltas)
+                per_threshold[str(threshold)] = mean_delta
+                deltas.extend(seed_deltas)
+
+            if not deltas or len(per_threshold) != len(thresholds):
+                verdicts.append(EditVerdict(
+                    kind=kind, target=target, kappa=kappa, accepted=False,
+                    reason=failure_reason or "incomplete_sweep",
+                    per_threshold=per_threshold,
+                ))
+                continue
+
+            mean_delta = statistics.fmean(deltas)
+            sigma = statistics.stdev(deltas) if len(deltas) > 1 else 0.0
+            bar = kappa * sigma
+            worst = min(per_threshold.values())
+            accepted = worst > bar
+
+            verdicts.append(EditVerdict(
+                kind=kind, target=target,
+                delta_impact=mean_delta, sigma_seed=sigma, kappa=kappa,
+                accepted=accepted,
+                reason="" if accepted else (
+                    f"worst-threshold delta {worst:.6f} <= kappa*sigma {bar:.6f}"
+                ),
+                per_threshold=per_threshold,
+            ))
+
+        return verdicts
+
+    def _measure_edit_delta(
+        self,
+        mutated_json: Dict[str, Any],
+        baseline_impact: Dict[str, float],
+        layer: str,
+        gnn_checkpoint: Optional[str],
+        threshold: float,
+        seed: int,
+    ) -> float:
+        """Mean reduction in simulated impact over components common to both graphs.
+
+        Positive means the edit lowered cascade impact. Restricted to component
+        ids present before *and* after, because a topic split renames its target
+        and has no stable counterpart to difference against.
+        """
+        from saag.infrastructure.memory_repo import MemoryRepository
+
+        temp_repo = MemoryRepository()
+        temp_repo.save_graph(mutated_json, clear=True)
+        temp_repo.derive_dependencies()
+
+        _sri, _metrics, mutated_impact = self._run_evaluation(
+            temp_repo, layer, gnn_checkpoint,
+            propagation_threshold=threshold, seed=seed, impact_only=True,
+        )
+
+        common = set(baseline_impact) & set(mutated_impact)
+        if not common:
+            return 0.0
+        return statistics.fmean(
+            baseline_impact[cid] - mutated_impact[cid] for cid in common
         )
 
     def compile_policy(
@@ -311,18 +494,42 @@ class PrescribeService:
 
         return sri, metrics, applied_changes, impact_by_component
 
-    def _run_evaluation(self, repo: IGraphRepository, layer: str, gnn_checkpoint: Optional[str]) -> tuple[float, Dict[str, Any], Dict[str, float]]:
-        """Run full analysis, simulation, and validation to retrieve SRI, key metrics, and per-component I(v)."""
+    def _run_evaluation(
+        self,
+        repo: IGraphRepository,
+        layer: str,
+        gnn_checkpoint: Optional[str],
+        propagation_threshold: float = 0.2,
+        seed: Optional[int] = None,
+        impact_only: bool = False,
+    ) -> tuple[float, Dict[str, Any], Dict[str, float]]:
+        """Run analysis, simulation, and validation to retrieve SRI, key metrics, and per-component I(v).
+
+        ``impact_only`` skips the Stage-5 validation pass. The per-edit
+        acceptance filter runs this once per (edit x threshold x seed) and only
+        consumes ``impact_by_component``, so paying for validation there would
+        multiply the cost of the sweep for a number nobody reads.
+        """
         from saag.client import Client
         client = Client(repo=repo)
 
-        # Stage 2: Analyze
-        analysis = client.analyze(layer=layer)
+        # Stage 2: Analyze. Skipped on the impact-only path: the simulator reads
+        # the repository directly and never consumes the analysis result, and
+        # this function is called once per (edit x threshold x seed) during the
+        # acceptance sweep, where analysis would dominate the runtime.
+        if not impact_only:
+            analysis = client.analyze(layer=layer)
 
         # Stage 4: Simulate — canonical settings (propagation_threshold=0.2, §7.5); FailureResult
         # exposes both aggregate impact terms and the full I(v) = composite_impact per component.
-        sim_results = client.simulate(layer=layer, propagation_threshold=0.2)
+        sim_kwargs: Dict[str, Any] = {"propagation_threshold": propagation_threshold}
+        if seed is not None:
+            sim_kwargs["seed"] = seed
+        sim_results = client.simulate(layer=layer, **sim_kwargs)
         impact_by_component = {r.target_id: r.impact.composite_impact for r in sim_results}
+
+        if impact_only:
+            return 0.0, {}, impact_by_component
 
         # Stage 5: Validate (which internally triggers simulation and prediction comparison)
         validation_facade = client.validate(layers=[layer], gnn_checkpoint=gnn_checkpoint)

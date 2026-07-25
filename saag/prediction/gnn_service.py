@@ -45,7 +45,7 @@ import logging
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -63,6 +63,7 @@ from .classifier import BoxPlotClassifier
 from .data_preparation import (
     GraphConversionResult,
     NODE_TYPES,
+    apply_external_splits,
     create_node_splits,
     extract_rmav_scores_dict,
     extract_simulation_dict,
@@ -354,6 +355,7 @@ class GNNService:
         rmav_consistency_weight: float = 0.1,
         ranking_weight: float = 0.3,
         pairwise_ranking_weight: float = 0.1,
+        node_splits: Optional[Dict[str, Iterable[str]]] = None,
     ) -> GNNAnalysisResult:
         """Process graphs and train the GNN model using a multi-seed approach.
 
@@ -395,6 +397,7 @@ class GNNService:
             graph, structural_metrics, simulation_results, rmav_scores, qos_enabled=qos_enabled
         )
         self._conversion_result = conv
+        self._pinned_splits = node_splits
         data = conv.hetero_data
         
         # Transductive bias acknowledgment (Issue G5)
@@ -429,8 +432,14 @@ class GNNService:
             np.random.seed(seed)
             random.seed(seed)
             
-            # Fresh split per seed (Issue G6/G8)
-            create_node_splits(data, train_ratio, val_ratio, seed=seed)
+            # Fresh split per seed (Issue G6/G8), unless the caller pinned one.
+            # An externally pinned split lets several model variants be trained
+            # and scored on an identical sample, which is required for a
+            # like-for-like comparison table.
+            if node_splits:
+                apply_external_splits(data, conv, node_splits)
+            else:
+                create_node_splits(data, train_ratio, val_ratio, seed=seed)
             if inductive_graphs:
                 for ig in inductive_graphs:
                     create_node_splits(ig, train_ratio, val_ratio, seed=seed)
@@ -486,7 +495,10 @@ class GNNService:
             model_to_restore = self._edge_model if self.predict_edges else self._node_model
             model_to_restore.load_state_dict(best_state)
             # Re-apply best seed splits to ensure splits are correct
-            create_node_splits(data, train_ratio, val_ratio, seed=best_seed)
+            if node_splits:
+                apply_external_splits(data, conv, node_splits)
+            else:
+                create_node_splits(data, train_ratio, val_ratio, seed=best_seed)
 
         # ── Final Inference ──────────────────────────────────────────────────
         # Best state is already loaded in self._node_model via GNNTrainer.train
@@ -676,7 +688,10 @@ class GNNService:
 
         # ── Validation metrics (Issue G9, G10) ────────────────────────────────
         if eval_labels:
-            create_node_splits(data_dev, seed=self._best_seed)
+            if getattr(self, "_pinned_splits", None):
+                apply_external_splits(data_dev, conv, self._pinned_splits)
+            else:
+                create_node_splits(data_dev, seed=self._best_seed)
             # 1. GNN Validation
             result.gnn_metrics = evaluate(self._node_model, data_dev, "test_mask", self.device)
 

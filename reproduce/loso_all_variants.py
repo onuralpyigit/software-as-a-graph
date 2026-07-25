@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 import time
@@ -32,7 +33,9 @@ from typing import Dict, List, Optional
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-ALL_VARIANTS = ["topology_rmav", "gl", "gl_qos", "hgl", "hgl_qos"]
+# Structural baselines first: they are training-free, so their LOSO score is
+# their only score, and a learned variant has to beat them to be worth training.
+ALL_VARIANTS = ["topo_baseline", "topo_qos", "topology_rmav", "gl", "gl_qos", "hgl", "hgl_qos"]
 DEFAULT_SEEDS = "42,123,456,789,2024"
 OUTPUT_BASE   = Path("output/loso")
 RESULTS_DIR   = Path("results")
@@ -50,8 +53,21 @@ def _run_variant(
 ) -> Optional[Dict]:
     """Invoke loso_evaluate.py for one variant and return its results dict."""
     out_dir = OUTPUT_BASE / variant
+
+    # Clear the per-variant workspace first. GNNService restores from any
+    # checkpoint it finds under the fold's checkpoint dir, so a leftover
+    # workspace from an earlier run makes the next run *skip training* and score
+    # a model fitted for a different configuration. Measured on hgl: a dirty
+    # workspace finishes in 3.2 s and reports LOSO rho = -0.576, while the same
+    # command on a clean one trains for 322 s and reports +0.594. Stale state
+    # was silently producing the published number.
+    workspace = out_dir / "workspace"
+    if workspace.exists():
+        shutil.rmtree(workspace)
     out_dir.mkdir(parents=True, exist_ok=True)
     results_path = out_dir / "results.json"
+    if results_path.exists():
+        results_path.unlink()
 
     cmd = [
         sys.executable, "-m", "cli.loso_evaluate",
@@ -150,10 +166,10 @@ def _build_comparison_table(
 
 def _print_comparison_table(table: Dict):
     print("\n  ═══════════════════════════════════════════════════════════════")
-    print(f"  Table 4: LOSO Inductive Evaluation — 5 Variants")
+    print("  Table 4: LOSO Inductive Evaluation")
     print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'F1@K':<8} {'Δρ vs best BL'}")
     print("  " + "─" * 65)
-    order = ["hgl_qos", "hgl", "gl_qos", "gl", "topology_rmav"]
+    order = [v for v in ALL_VARIANTS if v in table]
     for variant in order:
         if variant not in table:
             continue

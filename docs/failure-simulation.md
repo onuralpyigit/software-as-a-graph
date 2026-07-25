@@ -1130,7 +1130,30 @@ if result.fault_event:
 
 **L7 — Only three of five label dimensions are measured.** `FaultInjector` emits a single scalar, so `maintainability` and `security` have no ground truth from this engine. They are declared absent via `labeled_dimensions` and excluded from the loss via `dimension_mask` (§6.1). The four-dimensional RMAV decomposition exists only in `FailureSimulator`, which serves the Validate stage (§2.1). Unifying them would require one engine to produce all five dimensions.
 
-**L8 — No edge-removal simulation.** `EdgeCriticality` is declared in `saag/simulation/models.py` but never populated: `all_edge_criticality` is initialised empty and passed straight through, so `SimulationService.classify_edges()` always returns `[]`. Edge criticality labels used for training are a *projection of node labels* through a hand-chosen bridge multiplier (1.0 for bridges, 0.1 otherwise), not an observation of what happens when an edge fails. Reported edge metrics are therefore validated against a heuristic rather than ground truth and should not be read as evidence of predictive accuracy for edges; node-level results are unaffected. See [prediction.md §2.6](prediction.md#26-edge-criticality-prediction). Closing this means simulating removal of each candidate edge (bridges ∪ high edge-betweenness) and populating `EdgeCriticality` from the resulting reachability and fragmentation deltas.
+**L8 — Edge-removal simulation (RESOLVED).** `EdgeCriticality` is now populated by
+`FailureSimulator.simulate_edge_removal`, which severs one relationship — leaving both endpoints
+active — and recomputes the same reachability / fragmentation / throughput / flow quantities that
+back `ImpactMetrics`. `SimulationService.classify_edges()` returns measurements rather than `[]`.
+
+Three properties of the implementation matter when reading the numbers:
+
+- **Deltas, not levels.** `_calculate_impact` is *not* zero on a pristine graph: topics that already
+  lack a publisher or a subscriber are counted as lost throughput regardless of what failed
+  (composite 0.0061 on `av_system`). Every edge quantity is differenced against that null
+  observation, so an edge that costs nothing measures as exactly zero instead of inheriting the floor.
+- **Bounded candidate set.** Sweeping every edge costs one full impact recomputation per edge, so the
+  default candidate set is `bridges(G) ∪ top-q edge-betweenness`. Edges outside it carry
+  `evaluated: false` — *not measured* is distinct from *measured as harmless* and must not be read as
+  a zero.
+- **No cascade.** Only the edge is removed. The question an edge label answers is "what does this link
+  carry", not "what else fails afterwards"; cascade effects belong to the node labels.
+
+Measured consequence worth reporting: on `av_system`, of 40 candidates only 4 carry non-zero impact,
+and all four are `PUBLISHES_TO`/`SUBSCRIBES_TO`. `RUNS_ON` edges measure exactly 0.0 because this
+cascade model routes no traffic over them (L5) — the bridge-based candidate selection surfaces them
+as structurally non-redundant while the simulation correctly scores them as carrying nothing. The
+prior heuristic labels (`I*(u) × {1.0, 0.1}`) would have assigned them their source node's full blast
+radius.
 
 **L9 — Broker labels are topology-dependent and frequently degenerate.** When computing topic feed loss, the cascade uses routing-broker failure as the loss fraction *only* when the topic has no publishers at all; otherwise loss comes from publisher rates and the routing brokers are ignored entirely. Combined with the redundancy rule (a topic is orphaned only if *all* its routing brokers fail), this means a Broker scores $I(v) = 0$ whenever every topic it routes either has a live publisher or has a redundant router.
 
@@ -1152,4 +1175,4 @@ is visible per run rather than silent; treat it as a signal to exclude `Broker` 
 properly means making broker failure contribute to feed loss even for topics that have live
 publishers.
 
-**L6 — No timeout / retry modelling.** For RELIABLE QoS, the head-drop policy prevents queue overflow but does not model TCP-style retransmission or DDS heartbeat/acknowledgement. The modelled delivery rates will be optimistic relative to real network conditions.
+**L10 — No timeout / retry modelling.** For RELIABLE QoS, the head-drop policy prevents queue overflow but does not model TCP-style retransmission or DDS heartbeat/acknowledgement. The modelled delivery rates will be optimistic relative to real network conditions.

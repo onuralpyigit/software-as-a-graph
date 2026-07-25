@@ -118,6 +118,48 @@ evaluate_gates(vr, topo_class)
 
 ## 3. Ground Truth: I(v) from Cascade Simulation
 
+### 3.0 Notation — three quantities, three symbols
+
+Three different things have been written `I*` across this documentation set. They are not
+interchangeable and each result must name the one it used.
+
+| Symbol | Engine | Definition | Backs |
+|---|---|---|---|
+| **I\*(v)** | `FaultInjector` | Mean subscriber feed-loss fraction (§3.3 path 1) | GNN training labels; the main table, LOSO and k-fold tables |
+| **I_comp(v)** | `FailureSimulator` | `0.35·reachability + 0.25·fragmentation + 0.25·throughput + 0.15·flow_disruption` | Validate-stage gates (§5.7); the four-dimensional IR/IM/IA/IV decomposition |
+| **I_RMAV(v)** | `FailureSimulator` | `0.25·(IR + IM + IA + IV)` — the equal-weighted dimension sum used for Predictive Gain (§5.5) | PG only |
+
+#### Measured agreement between the two oracles
+
+`I*(v)` and `I_comp(v)` are on different scales, so only their rank agreement is meaningful.
+Measured across the seven-scenario cohort ([results/convergent_validity.json](../results/convergent_validity.json), produced by
+[reproduce/convergent_validity.py](../reproduce/convergent_validity.py)):
+
+| Scenario | Spearman ρ | Kendall τ | top-20 % Jaccard | n |
+|---|---:|---:|---:|---:|
+| enterprise_system | 0.518 | 0.383 | 0.378 | 310 |
+| av_system | 0.312 | 0.228 | 0.259 | 84 |
+| financial_trading_system | 0.298 | 0.229 | 0.182 | 65 |
+| microservices_system | 0.242 | 0.185 | 0.086 | 96 |
+| hub_and_spoke_system | 0.181 | 0.159 | 0.217 | 72 |
+| iot_smart_city_system | 0.121 | 0.101 | 0.262 | 206 |
+| healthcare_system | 0.053 | −0.002 | 0.222 | 53 |
+| **mean** | **0.246** | — | **0.229** | — |
+
+> [!WARNING]
+> **The two oracles agree weakly.** Mean ρ = 0.246 and mean top-K Jaccard = 0.229; on
+> `healthcare_system` they are effectively uncorrelated (ρ = 0.053, τ ≈ 0). This is a
+> quantification of the "correlate only loosely" note in §3.3, and it is a **construct-validity
+> bound**: an argument established against one oracle does not transfer to a claim measured against
+> the other. Any result that moves between them — for example a library or stratified analysis run
+> on `I_comp` used to interpret a table computed on `I*` — must either be re-run on the matching
+> oracle or state the gap explicitly.
+>
+> Read positively, this is also the honest form of the convergent-validity argument: two
+> differently-constructed simulators do agree *directionally* (all seven ρ are positive), which is
+> weak evidence that neither is purely an artifact of its own construction — but it is weak.
+
+
 ### 3.1 Simulation Mechanics
 
 For each node v, the `FaultInjector` runs a BFS cascade simulation in two sequential phases per wave:
@@ -331,6 +373,47 @@ The ablation study (`compare` subcommand) measures the predictive lift from the 
 All statistics are computed on **Application-type nodes** by default, falling back to all nodes only
 when fewer than 4 Application nodes exist. This matches the thesis claim: topology predicts
 *application-layer* cascade criticality.
+
+### 5.0.1 The one-population evaluation contract
+
+Every predictor variant in every reported table is scored by a single function,
+[`saag.evaluation.metrics.compute_inductive_metrics`](../saag/evaluation/metrics.py), on a single
+node set resolved by `resolve_eval_keys`. This is not incidental plumbing — it exists because the
+previously published Table 3 did not have it, and the resulting comparison was invalid:
+
+| | Structural baselines (Topo-BL / Topo-QoS) | Learned variants (GL / HGL family) |
+|---|---|---|
+| Node types scored | Applications (DEPENDS_ON projection) | Applications **and** Libraries, pooled into one ρ |
+| Sample | **every** node | the **20 % test split** only |
+
+Two estimators measured on two different samples is not a comparison. The effect was large enough
+to invert the paper's RQ1 conclusion: pooling Applications with Libraries dragged HGL on `av_system`
+from ρ = 0.81 within-type down to 0.46 — the Simpson pattern this document warns about in
+[§5.0](#50-methodological-guard-harness) — while the baselines were unaffected because their key set
+contained too few Libraries to pool.
+
+Three rules now hold across Tables 3, 4 and 5:
+
+1. **The key set is a function of the graph and labels only** — never of any variant's predictions —
+   so all variants in a cell see an identical sample. `--eval-population` (`application` by default,
+   `app_lib`, `labeled`) records the choice in `main_table.json["config"]`.
+2. **The reported figure is the held-out one.** All variants share one train/val/test split pinned by
+   node id via `resolve_cell_split` and applied through
+   [`apply_external_splits`](../saag/prediction/data_preparation.py). A full-population score
+   flatters a trained model by including the nodes it was fitted on while leaving a training-free
+   baseline unchanged — the same class of unfair comparison. The transductive figure is retained
+   alongside, under `full_population`.
+3. **A variant that cannot cover the population fails loudly.** Scoring returns
+   `error: "incomplete_coverage"` rather than silently shrinking the sample back to a per-variant
+   subset.
+
+> **Absent is not zero.** A stratum whose predictions or labels are constant has an *undefined* rank
+> correlation. It is reported as the string `"undefined"` with a `reason`
+> (`constant_signal` / `too_few_nodes`), never as `0.0`, and `aggregate_per_type` preserves that
+> through seed and fold averaging. Reporting 0.0 made Topic, Node and Library appear as measured
+> failures in the per-type table when in fact they carry no ground truth at all
+> ([failure-simulation.md L6](failure-simulation.md#11-known-limitations)) — a coverage gap
+> masquerading as a model result.
 
 ### 5.1 Rank Correlation — Spearman ρ and Kendall τ
 

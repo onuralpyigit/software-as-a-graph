@@ -88,6 +88,11 @@ from sklearn.metrics import average_precision_score
 from torch_geometric.data import HeteroData
 
 # ── SaG SDK imports ──────────────────────────────────────────────────────────
+from saag.evaluation.metrics import (
+    aggregate_per_type,
+    compute_inductive_metrics as _shared_inductive_metrics,
+    resolve_eval_keys,
+)
 from saag.prediction.gnn_service import GNNService
 from saag.prediction.data_preparation import (
     networkx_to_hetero_data,
@@ -296,161 +301,14 @@ def discover_scenarios(cache_dir: Path, skip: List[str]) -> List[ScenarioBundle]
 # Inductive metric computation
 # ──────────────────────────────────────────────────────────────────────────────
 
-def compute_inductive_metrics(
-    pred_scores: Dict[str, float],
-    true_impact: Dict[str, float],
-    graph: nx.DiGraph,
-    top_k_frac: float = 0.20,
-    tau_frac: float = 0.50,
-) -> Dict[str, Any]:
-    """
-    Compute Spearman ρ, F1@K, NDCG@10, RMSE, MAE between predicted and ground-truth
-    composite I*(v). Also returns per-node-type stratified ρ.
-
-    Three families of metric are reported, and they answer different questions:
-
-    * ``*_at_k`` — top-K overlap. Note that ``precision_at_k``, ``recall_at_k``
-      and ``f1_at_k`` are **identically equal** here: both the predicted and the
-      true set contain exactly K elements, so tp/K == tp/K. They are retained
-      unchanged for backward compatibility with existing CSVs and tables, and
-      ``overlap_at_k`` is the honest name for the quantity.
-    * ``*_at_tau`` — precision/recall against an absolute truth threshold
-      ``tau = tau_frac * max(y_true)``. The true critical set is sized by the
-      data rather than fixed at K, so precision and recall genuinely diverge.
-      Scale-free, which matters because label magnitude varies ~4x across
-      scenarios (max I*(v) is 0.96 on healthcare_system but 0.22 on
-      iot_smart_city_system) -- I*(v) is a mean over all subscribers, so it
-      decays roughly as 1/|subscribers|.
-    * ``pr_auc`` — average precision over the full ranking against that same
-      truth set. No K, no prediction-side threshold; the best single summary.
-
-    ``rmse``/``mae`` compare a sigmoid-scale prediction against raw labels whose
-    maximum can be 0.064, so they are dominated by label scale rather than error.
-    ``rmse_scaled``/``mae_scaled`` min-max both vectors first; ``label_scale_max``
-    is reported so the raw figures remain interpretable.
-    """
-    n_predicted = len(pred_scores)
-    n_labeled = len(true_impact)
-    common = sorted(set(pred_scores.keys()) & set(true_impact.keys()))
-    if len(common) < 3:
-        return {
-            "spearman_rho": float("nan"),
-            "n": len(common),
-            "per_type_rho": {},
-            "n_predicted": n_predicted,
-            "n_labeled": n_labeled,
-            "n_evaluated": len(common),
-        }
-
-    y_pred = np.array([pred_scores[v] for v in common], dtype=np.float64)
-    y_true = np.array([true_impact[v] for v in common], dtype=np.float64)
-
-    rho, p_val = spearmanr(y_pred, y_true)
-    rho = float(rho) if not np.isnan(rho) else 0.0
-
-    # F1 @ top-K. Both sets have exactly k elements, so precision == recall == f1.
-    k = max(1, int(round(len(common) * top_k_frac)))
-    pred_top = set(np.argsort(-y_pred)[:k].tolist())
-    true_top = set(np.argsort(-y_true)[:k].tolist())
-    tp = len(pred_top & true_top)
-    precision = tp / k if k > 0 else 0.0
-    recall = tp / len(true_top) if true_top else 0.0
-    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
-
-    # ── Absolute-threshold critical set ───────────────────────────────────────
-    # Sized by the label distribution instead of fixed at K, so |true_set| != k
-    # and precision/recall carry independent information. Relative to max rather
-    # than an absolute constant because label scale is not comparable across
-    # scenarios (max I*(v) ranges 0.22 to 0.96 over the cohort).
-    label_scale_max = float(y_true.max())
-    tau = tau_frac * label_scale_max
-    true_critical = y_true >= tau if label_scale_max > 0 else np.zeros_like(y_true, dtype=bool)
-    n_true_critical = int(true_critical.sum())
-
-    if n_true_critical > 0:
-        tp_tau = int(true_critical[np.argsort(-y_pred)[:k]].sum())
-        precision_tau = tp_tau / k
-        recall_tau = tp_tau / n_true_critical
-        f1_tau = (
-            2 * precision_tau * recall_tau / (precision_tau + recall_tau)
-            if (precision_tau + recall_tau) > 0 else 0.0
-        )
-        pr_auc = float(average_precision_score(true_critical.astype(int), y_pred))
-    else:
-        precision_tau = recall_tau = f1_tau = 0.0
-        pr_auc = float("nan")
-
-    # NDCG @ 10
-    k_ndcg = min(10, len(common))
-    ideal_order = np.argsort(-y_true)[:k_ndcg]
-    pred_order = np.argsort(-y_pred)[:k_ndcg]
-    dcg = float(np.sum(y_true[pred_order] / np.log2(np.arange(2, k_ndcg + 2))))
-    idcg = float(np.sum(y_true[ideal_order] / np.log2(np.arange(2, k_ndcg + 2))))
-    ndcg = dcg / idcg if idcg > 0 else 0.0
-
-    rmse = float(np.sqrt(np.mean((y_pred - y_true) ** 2)))
-    mae = float(np.mean(np.abs(y_pred - y_true)))
-
-    # Scale-normalised error. The raw figures above compare a sigmoid-scale
-    # prediction against labels whose max may be 0.064, so they mostly measure
-    # mean(prediction). Min-max both vectors to make the comparison meaningful.
-    def _minmax(a: np.ndarray) -> np.ndarray:
-        lo, hi = float(a.min()), float(a.max())
-        return (a - lo) / (hi - lo) if hi > lo else np.zeros_like(a)
-
-    pred_s, true_s = _minmax(y_pred), _minmax(y_true)
-    rmse_scaled = float(np.sqrt(np.mean((pred_s - true_s) ** 2)))
-    mae_scaled = float(np.mean(np.abs(pred_s - true_s)))
-
-    # Per-node-type stratified ρ
-    by_type: Dict[str, List[Tuple[float, float]]] = {}
-    for v in common:
-        nt = graph.nodes[v].get("type", "Unknown")
-        by_type.setdefault(nt, []).append((pred_scores[v], true_impact[v]))
-
-    per_type_rho: Dict[str, Dict[str, float]] = {}
-    for nt, pairs in by_type.items():
-        if len(pairs) < 3:
-            continue
-        ps, ts = zip(*pairs)
-        type_rho, _ = spearmanr(ps, ts)
-        per_type_rho[nt] = {
-            "rho": float(type_rho) if not np.isnan(type_rho) else 0.0,
-            "n": len(pairs),
-        }
-
-    return {
-        "spearman_rho": rho,
-        "spearman_p": float(p_val) if not np.isnan(p_val) else 1.0,
-        "f1_at_k": f1,
-        "precision_at_k": precision,
-        "recall_at_k": recall,
-        "ndcg_10": ndcg,
-        "rmse": rmse,
-        "mae": mae,
-        "n": len(common),
-        "k": k,
-        "per_type_rho": per_type_rho,
-        # ── Added metrics (appended; nothing above changed value) ─────────────
-        # Honest name for f1_at_k/precision_at_k/recall_at_k, which are equal.
-        "overlap_at_k": f1,
-        # Absolute-threshold critical set: precision and recall diverge here.
-        "precision_at_tau": precision_tau,
-        "recall_at_tau": recall_tau,
-        "f1_at_tau": f1_tau,
-        "n_true_critical": n_true_critical,
-        "tau": tau,
-        "pr_auc": pr_auc,
-        # Scale diagnostics for the otherwise-uninterpretable rmse/mae above.
-        "rmse_scaled": rmse_scaled,
-        "mae_scaled": mae_scaled,
-        "label_scale_max": label_scale_max,
-        # Coverage: makes a labeling gap visible instead of letting the
-        # set-intersection above absorb it silently.
-        "n_predicted": n_predicted,
-        "n_labeled": n_labeled,
-        "n_evaluated": len(common),
-    }
+#: Canonical implementation now lives in ``saag.evaluation.metrics`` so the
+#: in-distribution table (``reproduce/main_table.py``), this LOSO harness and
+#: ``cli/kfold_evaluate.py`` cannot drift apart. Re-exported here unchanged so
+#: existing callers and the emitted CSV columns keep working.
+#:
+#: LOSO retains ``population="labeled"`` (every node the cache carries a label
+#: for), which is the historical behaviour of this file.
+compute_inductive_metrics = _shared_inductive_metrics
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -519,7 +377,46 @@ def run_one_fold(
         ckpt_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            if variant in ("gl", "gl_qos"):
+            if variant in ("topo_baseline", "topo_qos"):
+                # Training-free structural centrality. It has no notion of a
+                # train set, so its held-out score is simply its score — which
+                # is exactly why it belongs in the LOSO table: an out-of-domain
+                # comparison a model must beat to justify being trained at all.
+                # Omitting it (as the published Table 4 did) leaves the strongest
+                # non-learning competitor unmeasured under the harder protocol.
+                from reproduce.main_table import (
+                    _compute_topo_baseline_scores, _load_scenario_data,
+                )
+
+                # Score on the DEPENDS_ON projection, not the native graph.
+                # Application nodes never route messages, so their betweenness
+                # on the raw pub-sub graph is identically 0 — the baseline would
+                # emit a constant for the entire Application stratum and its
+                # pooled rho would be carried purely by between-type offsets.
+                # This is the same substrate the in-distribution table gives it.
+                try:
+                    proj_graph, proj_struct, _sim, _rmav, _gt = _load_scenario_data(
+                        holdout.scenario_id, substrate="projection"
+                    )
+                except Exception as exc:      # noqa: BLE001 - fall back to native
+                    logger.warning("  %s: projection unavailable (%s); using native graph", variant, exc)
+                    proj_graph, proj_struct = holdout.graph, holdout.structural
+
+                struct_pred = _compute_topo_baseline_scores(
+                    proj_graph, proj_struct,
+                    use_qos=(variant == "topo_qos"),
+                )
+                if not struct_pred:
+                    logger.warning("  %s: no structural signal on holdout; skipping seed", variant)
+                    continue
+                pred_scores = {str(k): float(v) for k, v in struct_pred.items()}
+                full_node_scores = {
+                    k: {"overall": v, "reliability": v, "maintainability": v,
+                        "availability": v, "security": v}
+                    for k, v in pred_scores.items()
+                }
+
+            elif variant in ("gl", "gl_qos"):
                 # Baseline variants use GNNTrainer directly
                 from saag.prediction.models.baselines import build_baseline
                 from saag.prediction.data_preparation import create_node_splits
@@ -745,18 +642,11 @@ def run_one_fold(
     added_mean = {k: float(np.mean(v)) for k in added_keys if (v := _agg(k))}
     added_std = {k: float(np.std(v)) for k in added_keys if (v := _agg(k))}
 
-    per_type_agg: Dict[str, List[float]] = {}
-    for m in seed_metrics:
-        for nt, info in m.get("per_type_rho", {}).items():
-            per_type_agg.setdefault(nt, []).append(info["rho"])
-    per_type_summary = {
-        nt: {
-            "mean": float(np.mean(vs)),
-            "std": float(np.std(vs)),
-            "n_seeds": len(vs),
-        }
-        for nt, vs in per_type_agg.items()
-    }
+    # Undefined strata (Topic and Node carry no ground truth at all) must stay
+    # undefined through aggregation rather than averaging in as 0.0.
+    per_type_summary = aggregate_per_type(
+        [m.get("per_type_rho", {}) for m in seed_metrics], value_key="rho"
+    )
 
     return FoldResult(
         holdout_id=holdout.scenario_id,
@@ -858,19 +748,9 @@ def run_loso(
     all_f1s = [f.mean_metrics["f1_at_k"] for f in fold_results]
     all_ndcgs = [f.mean_metrics["ndcg_10"] for f in fold_results]
 
-    type_to_rhos: Dict[str, List[float]] = {}
-    for f in fold_results:
-        for nt, info in f.per_type_rho.items():
-            type_to_rhos.setdefault(nt, []).append(info["mean"])
-
-    per_type_summary = {
-        nt: {
-            "mean": float(np.mean(vs)),
-            "std": float(np.std(vs)),
-            "n_folds": len(vs),
-        }
-        for nt, vs in type_to_rhos.items()
-    }
+    per_type_summary = aggregate_per_type(
+        [f.per_type_rho for f in fold_results], value_key="mean", count_key="n_folds"
+    )
 
     return LOSOReport(
         fold_results=fold_results,
@@ -1041,6 +921,13 @@ def _metric_caveats(report: LOSOReport) -> str:
     return "\n".join(lines)
 
 
+def _fmt(value: Any, ndigits: int = 4) -> str:
+    """Render a statistic, passing ``undefined`` through as text, not as 0.0."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and not np.isnan(value):
+        return f"{value:.{ndigits}f}"
+    return "undefined"
+
+
 def write_summary_md(report: LOSOReport, path: Path) -> None:
     L: List[str] = []
     L.append("# LOSO Evaluation Summary (G4 closure)")
@@ -1057,10 +944,17 @@ def write_summary_md(report: LOSOReport, path: Path) -> None:
     L.append("")
     L.append("## Per node type (cross-fold)")
     L.append("")
-    L.append("| Node type | mean ρ | std | folds |")
-    L.append("|-----------|--------|-----|-------|")
+    L.append("| Node type | mean ρ | std | nodes | folds | folds undefined |")
+    L.append("|-----------|--------|-----|-------|-------|-----------------|")
     for nt, info in sorted(report.per_type_summary.items()):
-        L.append(f"| {nt} | {info['mean']:.4f} | {info['std']:.4f} | {info['n_folds']} |")
+        # "undefined" is a real outcome here — Topic and Node carry no ground
+        # truth (failure-simulation.md L6), so their ρ is not a number and must
+        # not be printed as one.
+        L.append(
+            f"| {nt} | {_fmt(info.get('mean'))} | {_fmt(info.get('std'))} | "
+            f"{info.get('n_nodes', '—')} | {info.get('n_folds', 0)} | "
+            f"{info.get('n_folds_undefined', 0)} |"
+        )
     L.append("")
     L.append("## Per-fold details")
     L.append("")
@@ -1118,7 +1012,7 @@ def parse_args() -> argparse.Namespace:
                    help="Prediction mode for evaluation (default: gnn)")
     p.add_argument(
         "--variant",
-        choices=["hgl_qos", "hgl", "gl_qos", "gl", "topology_rmav"],
+        choices=["hgl_qos", "hgl", "gl_qos", "gl", "topology_rmav", "topo_baseline", "topo_qos"],
         default="hgl_qos",
         help=(
             "Model architecture variant (default: hgl_qos). "

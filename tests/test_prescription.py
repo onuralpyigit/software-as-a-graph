@@ -101,19 +101,37 @@ def test_prescribe_rule_compilation(repo_with_vulnerable_topology):
 def test_closed_loop_prescriptive_verification(repo_with_vulnerable_topology):
     client = Client(repo=repo_with_vulnerable_topology)
     analysis = client.analyze(layer="system")
-    
+
     # Run prescribe usecase
     res = client.prescribe(analysis_result=analysis, layer="system")
-    
+
     # Verify prescribe results
     assert res is not None
     assert hasattr(res, "original_sri")
     assert hasattr(res, "mutated_sri")
     assert hasattr(res, "sri_improvement")
-    assert len(res.applied_changes) > 0
 
-    # Verify the accept/reject gate: accepted must be a bool consistent with the
-    # sign of sri_improvement (accepted = mutated policy reduced overall system risk).
+    # Every candidate edit is verified on its own counterfactual graph, and only
+    # the ones that beat the simulator's seed noise at every propagation
+    # threshold are applied. On a topology this small that can legitimately be
+    # none of them — an empty applied_changes is the filter working, not a
+    # failure, which is why this no longer asserts len(applied_changes) > 0.
+    assert res.candidate_policy is not None
+    assert len(res.edit_verdicts) == len(res.candidate_policy.edits())
+    assert res.n_accepted + res.n_rejected == len(res.edit_verdicts)
+
+    # applied_changes must describe exactly the accepted subset.
+    assert len(res.policy.edits()) == res.n_accepted
+    if res.n_accepted == 0:
+        assert res.applied_changes == []
+        assert res.sri_improvement == 0.0
+
+    # Every rejected edit must say why it was rejected.
+    for verdict in res.edit_verdicts:
+        if not verdict.accepted:
+            assert verdict.reason, f"{verdict.kind}/{verdict.target} rejected without a reason"
+
+    # accepted = the applied subset reduced overall system risk.
     assert isinstance(res.accepted, bool)
     assert res.accepted == (res.sri_improvement > 0)
 
