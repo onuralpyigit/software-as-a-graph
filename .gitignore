@@ -142,7 +142,7 @@ output/
 results/
 /models/
 scratch/
-evaluation/
+/evaluation/
 test_ckpt/
 
 # SMART (smart frontend)
