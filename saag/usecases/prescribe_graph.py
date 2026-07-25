@@ -18,11 +18,19 @@ class PrescribeGraphUseCase:
         analysis_result: Any, 
         prediction_result: Optional[Any] = None, 
         layer: str = "system",
-        gnn_checkpoint: Optional[str] = None
+        gnn_checkpoint: Optional[str] = None,
+        **kwargs: Any,
     ) -> PrescribeResult:
+        """Forward to PrescribeService.
+
+        ``kwargs`` carries the per-edit acceptance-filter parameters
+        (``kappa``, ``seeds``, ``thresholds``) through without this layer
+        needing to know about them.
+        """
         return self.service.prescribe(
             analysis_result=analysis_result,
             prediction_result=prediction_result,
             layer=layer,
-            gnn_checkpoint=gnn_checkpoint
+            gnn_checkpoint=gnn_checkpoint,
+            **kwargs,
         )

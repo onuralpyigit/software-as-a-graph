@@ -246,13 +246,56 @@ Each candidate is now simulated alone across the propagation-threshold sweep and
 kept only when `ΔI > κ·σ_seed` at **every** threshold. `PrescribeResult` carries per-edit verdicts
 with measured `delta_impact`, `sigma_seed` and rejection reasons.
 
-An empty accepted set is a valid outcome and is reported as such rather than as a no-op mutation
-with an unchanged SRI.
+**Measured with κ = 1.0, thresholds {0.1, 0.2, 0.5}, seeds {42, 123, 456}:**
 
-**Draft changes.** §6.4's "open implementation gap" disclosure can be replaced with the implemented
-filter and its accept/reject counts. §6.7's mixed result must be re-run before it is quoted.
+| Scenario | Baseline SRI | Mutated SRI | ΔSRI | Candidates | Accepted | Rejected |
+|---|---:|---:|---:|---:|---:|---:|
+| Autonomous Vehicle | 0.3645 | 0.3645 | +0.0000 | 35 | 0 | 35 |
+| IoT Smart City | 0.4206 | 0.3841 | **+0.0365** | 58 | 26 | 32 |
+| Financial Trading | 0.3675 | 0.3675 | +0.0000 | 31 | 0 | 31 |
+| Healthcare | 0.3809 | 0.3809 | +0.0000 | 19 | 0 | 19 |
+| Hub-and-Spoke | 0.3595 | 0.3595 | +0.0000 | 30 | 0 | 30 |
+| Microservices Mesh | 0.3612 | 0.3623 | **−0.0011** | 40 | 3 | 37 |
+
+The **Enterprise scenario is excluded**: 119 candidate edits x 3 thresholds x 3 seeds x 29.1 s per
+exhaustive sweep (350 labelled components) = approx 8.7 h serial. The exclusion and its cost are
+stated in draft §6.7 and §7.1 rather than left silent, and §9.3 records parallelising the sweep as
+immediate next work. The consequence to be honest about: the 13.6 % acceptance rate below is
+established over 98-326 components, so it cannot be claimed scale-invariant.
+
+Three findings, all reportable:
+
+1. **29 of 213 candidates (13.6 %) survive verification**, and five of six scenarios end with no
+   admitted edit. The operator set rarely produces a change distinguishable from simulator noise.
+   This supersedes the `+4.61 %` aggregate, which was arithmetically correct and substantively
+   misleading.
+2. **Individually-verified edits can still interact.** Microservices accepted 3 edits, each of which
+   cleared the bar alone, yet the combination left SRI marginally worse (−0.0011). Per-edit
+   verification bounds the damage — two orders of magnitude smaller than the −31.67 % the unfiltered
+   design produced — but does not establish that an accepted *set* composes. Verifying subsets would
+   close this at combinatorial cost; currently a stated limitation.
+3. **Where the filter admits edits it admits many, and only in one structural regime.** IoT Smart
+   City accepts 26/58 (all topic splits) and is the only clear improvement. The honest scope for this
+   stage is narrower than "topology-level hardening" — closer to "fan-out decomposition where a
+   fan-out bottleneck actually exists".
+
+**Draft changes.** §6.4's "open implementation gap" disclosure is replaced by the implemented filter;
+§6.7 now reports the acceptance rates and the interaction finding instead of the mixed aggregate.
+
+Reproduce: `PYTHONPATH=. python reproduce/run_prescribe_all.py --kappa 1.0`
 
 ---
+
+## 9. Outstanding
+
+One long-running regeneration was still in flight when this document was written; it uses the fixed
+harness and does not affect any conclusion above.
+
+- **k-fold sweep, `hgl_qos` variant.** Six of seven variants complete. Regenerate
+  `results/table4_kfold_results.md` with `PYTHONPATH=. python reproduce/render_table.py` once it
+  lands; no other artifact needs recomputing.
+
+The Enterprise remediation scenario was deliberately dropped rather than left pending — see §8.
 
 ## Reproduction
 

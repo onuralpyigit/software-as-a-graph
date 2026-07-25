@@ -203,11 +203,46 @@ def run_one_scenario(
                     # Training-free structural centrality: no fit, so the
                     # fold split only selects which nodes are scored. Present
                     # in the table because a learned variant has to beat it.
-                    from reproduce.main_table import _compute_topo_baseline_scores
+                    #
+                    # Scored on the DEPENDS_ON projection, matching the LOSO and
+                    # in-distribution harnesses. On the native pub-sub graph
+                    # Application nodes never route messages, so their
+                    # betweenness is identically zero and the QoS-weighted arm
+                    # silently falls back to plain topology betweenness -- which
+                    # made Topo-BL and Topo-QoS produce byte-identical scores.
+                    from reproduce.main_table import (
+                        _compute_topo_baseline_scores, _load_scenario_data,
+                    )
+                    try:
+                        proj_graph, proj_struct, _s, _r, _g = _load_scenario_data(
+                            bundle.scenario_id, substrate="projection"
+                        )
+                    except Exception as exc:      # noqa: BLE001
+                        logger.warning("%s: projection unavailable (%s); using native graph",
+                                       variant, exc)
+                        proj_graph, proj_struct = train_graph, train_sm
+
                     struct_pred = _compute_topo_baseline_scores(
-                        train_graph, train_sm, use_qos=use_qos
+                        proj_graph, proj_struct, use_qos=use_qos
                     ) or {}
-                    pred_scores = {str(k): float(v) for k, v in struct_pred.items()}
+
+                    # Restrict to this fold's test nodes, exactly as the learned
+                    # branches do. The baseline needs no training, but scoring it
+                    # on every node while the learned variants are scored on a
+                    # 20% test split would compare two estimators on two samples
+                    # -- the same defect this harness exists to prevent. Fold
+                    # membership is derived from the identical HeteroData
+                    # construction, so all variants see the same test set.
+                    _conv = networkx_to_hetero_data(
+                        train_graph, train_sm, bundle.simulation, bundle.rmav,
+                        qos_enabled=use_qos,
+                    )
+                    create_kfold_masks(_conv.hetero_data, k=k, fold_idx=fold_idx, seed=split_seed)
+                    _test_ids = _test_node_ids(_conv.hetero_data, _conv.node_id_map)
+                    pred_scores = {
+                        str(nid): float(v) for nid, v in struct_pred.items()
+                        if nid in _test_ids
+                    }
 
                 elif variant in ("gl", "gl_qos"):
                     from saag.prediction.models.baselines import build_baseline

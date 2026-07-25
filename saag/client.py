@@ -135,9 +135,15 @@ class Client:
         analysis_result: Any,
         prediction_result: Optional[Any] = None,
         layer: str = "system",
-        gnn_checkpoint: Optional[str] = None
+        gnn_checkpoint: Optional[str] = None,
+        **kwargs: Any,
     ) -> Any:
-        """Run the prescriptive Stage 6 optimization on critical items and smells."""
+        """Run the prescriptive Stage 6 optimization on critical items and smells.
+
+        ``kwargs`` is forwarded to ``PrescribeService.prescribe`` — notably
+        ``kappa``, ``seeds`` and ``thresholds``, which parameterise the per-edit
+        acceptance filter.
+        """
         from saag.prescription.service import PrescribeService
         from saag.usecases.prescribe_graph import PrescribeGraphUseCase
 
@@ -152,7 +158,8 @@ class Client:
             analysis_result=raw_analysis,
             prediction_result=raw_prediction,
             layer=layer,
-            gnn_checkpoint=gnn_checkpoint
+            gnn_checkpoint=gnn_checkpoint,
+            **kwargs,
         )
 
     def visualize(self, output: str = "report.html", layers: Optional[List[str]] = None, **kwargs) -> str:
