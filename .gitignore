@@ -140,7 +140,7 @@ test_outputs/
 # Ignore output directories
 output/
 results/
-models/
+/models/
 scratch/
 evaluation/
 test_ckpt/
@@ -150,6 +150,3 @@ smart/node_modules/
 smart/.next/
 smart/out/
 smart/.env*
-
-# Ignore checkpoint files
-test_ckpt/*.pt

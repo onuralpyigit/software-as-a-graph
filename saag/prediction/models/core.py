@@ -1,0 +1,514 @@
+"""
+Prediction Domain Models
+
+Data structures for quality analysis results, classifications, and problem detection.
+GNN architecture: HGT-based heterogeneous graph neural network for criticality prediction.
+"""
+
+from __future__ import annotations
+import logging
+from dataclasses import dataclass, field
+from typing import Dict, List, Any, Optional, Tuple
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch import Tensor
+
+from saag.core.metrics import ComponentQuality, EdgeQuality
+from saag.core.criticality import CriticalityLevel, BoxPlotStats
+
+# Import canonical dimension constants to avoid drift between data prep and model
+from ..data_preparation import NODE_TYPE_TO_DIM, EDGE_FEATURE_DIM
+
+logger = logging.getLogger(__name__)
+
+
+from saag.analysis.models import QualityAnalysisResult, DetectedProblem, ProblemSummary
+
+
+# ── GNN Support Classes ─────────────────────────────────────────────────────────
+
+def _require_pyg():
+    try:
+        import torch_geometric  # noqa: F401
+    except ImportError as exc:
+        raise ImportError(
+            "PyTorch Geometric is required for GNN functionality.\n"
+            "Install with:  pip install torch-geometric"
+        ) from exc
+
+
+NODE_TYPES: List[str] = ["Application", "Broker", "Topic", "Node", "Library"]
+NUM_LABEL_DIMS = 5  # composite, reliability, maintainability, availability, vulnerability
+
+
+class ResidualMLP(nn.Module):
+    """Two-layer MLP with residual connection and layer norm."""
+
+    def __init__(self, in_dim: int, hidden_dim: int, out_dim: int, dropout: float = 0.2):
+        super().__init__()
+        self.fc1 = nn.Linear(in_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, out_dim)
+        # LayerNorm on a 1-element vector collapses to 0 (mean=x, var=0 → output=beta=0).
+        # Use Identity when out_dim=1 so the scalar residual is preserved.
+        self.norm = nn.LayerNorm(out_dim) if out_dim > 1 else nn.Identity()
+        self.dropout = nn.Dropout(dropout)
+        self.proj = nn.Linear(in_dim, out_dim) if in_dim != out_dim else nn.Identity()
+
+    def forward(self, x: Tensor) -> Tensor:
+        h = F.gelu(self.fc1(x))
+        h = self.dropout(h)
+        h = self.fc2(h)
+        return self.norm(h + self.proj(x))
+
+
+class EdgeFeatureEncoder(nn.Module):
+    """Aggregates edge features into destination-node embeddings via scatter-mean.
+
+    Called before each HGTConv layer to inject edge information, since HGTConv
+    does not accept raw edge_attr tensors.
+    """
+
+    def __init__(self, edge_feat_dim: int, hidden_channels: int):
+        super().__init__()
+        self.proj = nn.Linear(edge_feat_dim, hidden_channels)
+
+    def forward(
+        self,
+        h_dict: Dict[str, Tensor],
+        edge_index_dict: Dict,
+        edge_attr_dict: Dict,
+    ) -> Dict[str, Tensor]:
+        try:
+            from torch_scatter import scatter_mean
+        except ImportError:
+            # Fallback: manual scatter via index_add
+            def scatter_mean(src, index, dim, dim_size):
+                out = torch.zeros(dim_size, src.size(1), device=src.device, dtype=src.dtype)
+                count = torch.zeros(dim_size, 1, device=src.device, dtype=src.dtype)
+                out.index_add_(0, index, src)
+                count.index_add_(0, index, torch.ones(src.size(0), 1, device=src.device))
+                return out / count.clamp(min=1)
+
+        augmented = {k: v.clone() for k, v in h_dict.items()}
+        for rel, edge_index in edge_index_dict.items():
+            _, _, dst_type = rel
+            if rel not in edge_attr_dict or dst_type not in h_dict:
+                continue
+            e = self.proj(edge_attr_dict[rel])          # (E, hidden)
+            n_dst = h_dict[dst_type].size(0)
+            aggr = scatter_mean(e, edge_index[1], dim=0, dim_size=n_dst)
+            augmented[dst_type] = augmented[dst_type] + aggr
+        return augmented
+
+
+class TypedEdgeEncoder(nn.Module):
+    """Per-relation-type edge encoder for EdgeCriticalityGNN.
+
+    Uses relation-specific linear projections instead of a shared MLP,
+    which better captures the semantics of different edge types.
+    """
+
+    def __init__(
+        self,
+        edge_feat_dim: int,
+        hidden_channels: int,
+        edge_types: List[Tuple],
+        dropout: float = 0.2,
+    ):
+        super().__init__()
+        self.type_proj = nn.ModuleDict({
+            self._rel_key(rel): nn.Linear(edge_feat_dim, hidden_channels)
+            for rel in edge_types
+        })
+        self.fuse = nn.Sequential(
+            nn.Linear(hidden_channels * 3, hidden_channels),
+            nn.LayerNorm(hidden_channels),
+            nn.GELU(),
+        )
+        self.out_head = ResidualMLP(hidden_channels, hidden_channels // 2, NUM_LABEL_DIMS, dropout)
+
+    @staticmethod
+    def _rel_key(rel: Tuple) -> str:
+        return "__".join(str(r) for r in rel)
+
+    def forward(self, h_src: Tensor, h_dst: Tensor, e_feat: Tensor, rel: Tuple) -> Tensor:
+        key = self._rel_key(rel)
+        if key in self.type_proj:
+            e_proj = self.type_proj[key](e_feat)
+        else:
+            e_proj = torch.zeros(e_feat.size(0), h_src.size(-1), device=h_src.device)
+        fused = self.fuse(torch.cat([h_src, h_dst, e_proj], dim=-1))
+        return torch.sigmoid(self.out_head(fused))
+
+
+class NodeCriticalityGNN(nn.Module):
+    """Heterogeneous Graph Transformer (HGT) for node-level criticality prediction.
+
+    Architecture:
+    - Per-type input projections → hidden_channels
+    - N layers of HGTConv with EdgeFeatureEncoder injecting edge info before each layer
+    - Optional bidirectional pass (forward + reverse) for upstream/downstream awareness
+    - Four RMAV output heads + one composite head (all sigmoid-activated)
+    """
+
+    def __init__(
+        self,
+        metadata: Tuple,
+        hidden_channels: int = 64,
+        num_heads: int = 4,
+        num_layers: int = 3,
+        dropout: float = 0.2,
+        use_bidirectional: bool = True,
+    ):
+        _require_pyg()
+        super().__init__()
+        from torch_geometric.nn import HGTConv
+
+        node_types, edge_types = metadata
+        self.node_types = node_types
+        self.edge_types = edge_types
+        self.hidden_channels = hidden_channels
+        self.num_layers = num_layers
+        self.dropout_p = dropout
+        self.out_dims = NUM_LABEL_DIMS
+        self.use_bidirectional = use_bidirectional
+
+        # Per-type input projections — dims sourced from data_preparation constants
+        self.input_proj = nn.ModuleDict({
+            nt: nn.Sequential(
+                nn.Linear(NODE_TYPE_TO_DIM.get(nt, 18), hidden_channels),
+                nn.LayerNorm(hidden_channels),
+                nn.GELU(),
+            )
+            for nt in node_types
+        })
+
+        # HGTConv layers with edge feature injection and per-layer residual norms
+        self.convs = nn.ModuleList([
+            HGTConv(
+                in_channels=hidden_channels,
+                out_channels=hidden_channels,
+                metadata=metadata,
+                heads=num_heads,
+            )
+            for _ in range(num_layers)
+        ])
+        self.edge_encoders = nn.ModuleList([
+            EdgeFeatureEncoder(EDGE_FEATURE_DIM, hidden_channels)
+            for _ in range(num_layers)
+        ])
+        self.norms = nn.ModuleList([
+            nn.ModuleDict({nt: nn.LayerNorm(hidden_channels) for nt in node_types})
+            for _ in range(num_layers)
+        ])
+        self.dropouts = nn.ModuleList([nn.Dropout(dropout) for _ in range(num_layers)])
+
+        # Optional reverse-direction HGTConv for bidirectional awareness
+        if use_bidirectional:
+            rev_edge_types = [
+                (dst, "rev__" + etype, src)
+                for (src, etype, dst) in edge_types
+            ]
+            rev_metadata = (node_types, rev_edge_types)
+            self.rev_conv = HGTConv(
+                in_channels=hidden_channels,
+                out_channels=hidden_channels,
+                metadata=rev_metadata,
+                heads=num_heads,
+            )
+        else:
+            self.rev_conv = None
+
+        # Output heads (unchanged from prior architecture)
+        self.rmav_heads = nn.ModuleDict({
+            dim: ResidualMLP(hidden_channels, hidden_channels // 2, 1, dropout)
+            for dim in ["reliability", "maintainability", "availability", "vulnerability"]
+        })
+        self.composite_head = ResidualMLP(hidden_channels + 4, hidden_channels // 2, 1, dropout)
+
+    def _apply_reverse_pass(
+        self, h: Dict[str, Tensor], edge_index_dict: Dict
+    ) -> Dict[str, Tensor]:
+        """Single reverse-direction HGTConv pass for upstream signal propagation."""
+        rev_ei = {
+            (dst, "rev__" + etype, src): torch.stack([ei[1], ei[0]])
+            for (src, etype, dst), ei in edge_index_dict.items()
+        }
+        if not rev_ei:
+            return h
+        h_rev = self.rev_conv(h, rev_ei)
+        for nt, h_r in h_rev.items():
+            if nt in h:
+                h[nt] = h[nt] + 0.5 * h_r
+        return h
+
+    def encode(
+        self,
+        x_dict: Dict[str, Tensor],
+        edge_index_dict: Dict,
+        edge_attr_dict: Optional[Dict] = None,
+    ) -> Dict[str, Tensor]:
+        h: Dict[str, Tensor] = {
+            nt: self.input_proj[nt](x)
+            for nt, x in x_dict.items()
+            if nt in self.input_proj
+        }
+
+        for conv, edge_enc, norm_d, drop in zip(
+            self.convs, self.edge_encoders, self.norms, self.dropouts
+        ):
+            if edge_attr_dict:
+                h = edge_enc(h, edge_index_dict, edge_attr_dict)
+            h_new = conv(h, edge_index_dict)
+            for nt, h_n in h_new.items():
+                residual = h.get(nt, torch.zeros_like(h_n))
+                h[nt] = drop(F.gelu(norm_d[nt](h_n + residual)))
+
+        if self.use_bidirectional and self.rev_conv is not None:
+            h = self._apply_reverse_pass(h, edge_index_dict)
+
+        return h
+
+    def decode(self, h_dict: Dict[str, Tensor]) -> Dict[str, Tensor]:
+        out: Dict[str, Tensor] = {}
+        for nt, h in h_dict.items():
+            r = torch.sigmoid(self.rmav_heads["reliability"](h))
+            m = torch.sigmoid(self.rmav_heads["maintainability"](h))
+            a = torch.sigmoid(self.rmav_heads["availability"](h))
+            v = torch.sigmoid(self.rmav_heads["vulnerability"](h))
+            composite_in = torch.cat([h, r, m, a, v], dim=-1)
+            composite = torch.sigmoid(self.composite_head(composite_in))
+            out[nt] = torch.cat([composite, r, m, a, v], dim=-1)
+        return out
+
+    def forward(self, x_dict, edge_index_dict, edge_attr_dict=None):
+        h_dict = self.encode(x_dict, edge_index_dict, edge_attr_dict)
+        return self.decode(h_dict)
+
+    def get_embeddings(self, x_dict, edge_index_dict, edge_attr_dict=None):
+        return self.encode(x_dict, edge_index_dict, edge_attr_dict)
+
+
+class EdgeCriticalityGNN(nn.Module):
+    """Predicts criticality of pub-sub relationships using TypedEdgeEncoder."""
+
+    def __init__(
+        self,
+        node_gnn: NodeCriticalityGNN,
+        hidden_channels: int = 64,
+        dropout: float = 0.2,
+        out_dims: int = NUM_LABEL_DIMS,
+    ):
+        super().__init__()
+        self.node_gnn = node_gnn
+        self.out_dims = out_dims
+        self.predict_edges = True
+        self.typed_edge_enc = TypedEdgeEncoder(
+            edge_feat_dim=EDGE_FEATURE_DIM,
+            hidden_channels=hidden_channels,
+            edge_types=node_gnn.edge_types,
+            dropout=dropout,
+        )
+
+    def forward(self, x_dict, edge_index_dict, edge_attr_dict=None):
+        h_dict = self.node_gnn.get_embeddings(x_dict, edge_index_dict, edge_attr_dict)
+        node_preds = self.node_gnn.decode(h_dict)
+        edge_preds = {}
+        for rel, edge_index in edge_index_dict.items():
+            src_type, _, dst_type = rel
+            if src_type not in h_dict or dst_type not in h_dict:
+                continue
+            src_idx, dst_idx = edge_index[0], edge_index[1]
+            h_src = h_dict[src_type][src_idx]
+            h_dst = h_dict[dst_type][dst_idx]
+            if edge_attr_dict and rel in edge_attr_dict:
+                e_feat = edge_attr_dict[rel]
+            else:
+                e_feat = torch.zeros(
+                    edge_index.size(1), EDGE_FEATURE_DIM, device=h_src.device
+                )
+            edge_preds[rel] = self.typed_edge_enc(h_src, h_dst, e_feat, rel)
+        return node_preds, edge_preds
+
+
+class EnsembleGNN(nn.Module):
+    """Learnable convex combination of GNN + RMAV scores.
+
+    Available as optional "ensemble" mode for research/comparison.
+    Default prediction mode is "gnn" — GNN-only output.
+    RMAV scores are used as regularization targets during training
+    but are NOT blended into the default output.
+    """
+
+    def __init__(self, num_dims: int = NUM_LABEL_DIMS):
+        super().__init__()
+        self.alpha_logit = nn.Parameter(torch.zeros(num_dims))
+
+    @property
+    def alpha(self) -> Tensor:
+        return torch.sigmoid(self.alpha_logit)
+
+    def forward(self, gnn_scores: Tensor, rmav_scores: Optional[Tensor] = None) -> Tensor:
+        if rmav_scores is None:
+            return gnn_scores
+        alpha = self.alpha.to(gnn_scores.device)
+        return alpha * gnn_scores + (1 - alpha) * rmav_scores
+
+
+# ── Loss functions ─────────────────────────────────────────────────────────────
+
+class CriticalityLoss(nn.Module):
+    """Multi-task criticality loss with consistency regularization and pairwise ranking.
+
+    Loss components:
+    - MSE on composite score (labeled nodes)
+    - MSE on RMAV sub-scores (labeled nodes, multitask)
+    - ListMLE ranking loss on composite (labeled nodes)
+    - Pairwise margin ranking loss on composite (labeled nodes)
+    - RMAV consistency regularization on unlabeled nodes
+    """
+
+    def __init__(
+        self,
+        multitask_weight: float = 0.5,
+        rmav_consistency_weight: float = 0.1,
+        ranking_weight: float = 0.3,
+        pairwise_ranking_weight: float = 0.1,
+    ):
+        super().__init__()
+        self.multitask_weight = multitask_weight
+        self.rmav_consistency_weight = rmav_consistency_weight
+        self.ranking_weight = ranking_weight
+        self.pairwise_ranking_weight = pairwise_ranking_weight
+        self.mse = nn.MSELoss(reduction="mean")
+
+    def forward(
+        self,
+        pred: Tensor,
+        target: Tensor,
+        mask: Tensor,
+        rmav_target: Optional[Tensor] = None,
+        dim_weights: Optional[Tensor] = None,
+    ) -> Tuple[Tensor, Dict[str, float]]:
+        labeled_pred = pred[mask]
+        labeled_target = target[mask]
+
+        if labeled_pred.shape[0] == 0:
+            zero = torch.tensor(0.0, device=pred.device)
+            return zero, {"composite": 0.0, "multitask": 0.0, "ranking": 0.0,
+                          "pairwise": 0.0, "consistency": 0.0}
+
+        loss_composite = self.mse(labeled_pred[:, 0], labeled_target[:, 0])
+        loss_multitask = self._multitask_loss(labeled_pred, labeled_target, dim_weights)
+        loss_ranking = self._listmle_loss(labeled_pred[:, 0], labeled_target[:, 0])
+        loss_pairwise = self._pairwise_margin_loss(labeled_pred[:, 0], labeled_target[:, 0])
+
+        supervised_loss = (
+            loss_composite
+            + self.multitask_weight * loss_multitask
+            + self.ranking_weight * loss_ranking
+            + self.pairwise_ranking_weight * loss_pairwise
+        )
+
+        loss_consistency = torch.tensor(0.0, device=pred.device)
+        if rmav_target is not None:
+            unlabeled_mask = ~mask
+            unlabeled_pred = pred[unlabeled_mask]
+            unlabeled_rmav = rmav_target[unlabeled_mask]
+            if unlabeled_pred.shape[0] > 0:
+                loss_consistency = self.mse(unlabeled_pred[:, 1:], unlabeled_rmav[:, 1:])
+
+        total = supervised_loss + self.rmav_consistency_weight * loss_consistency
+
+        components = {
+            "composite": loss_composite.item(),
+            "multitask": loss_multitask.item(),
+            "ranking": loss_ranking.item(),
+            "pairwise": loss_pairwise.item(),
+            "consistency": loss_consistency.item(),
+        }
+        return total, components
+
+    def _multitask_loss(
+        self,
+        labeled_pred: Tensor,
+        labeled_target: Tensor,
+        dim_weights: Optional[Tensor],
+    ) -> Tensor:
+        """MSE over the RMAV sub-scores, skipping dimensions the labeler never measured.
+
+        `dim_weights` is a length-5 vector aligned with LABEL_COLS; a 0 entry
+        excludes that dimension. Without it, a labeler that reports only a scalar
+        impact (FaultInjector measures composite/reliability/availability) would
+        have its maintainability and security heads regressed toward a constant
+        zero — training the model to predict an artefact of the label format.
+        """
+        if dim_weights is None:
+            return self.mse(labeled_pred[:, 1:], labeled_target[:, 1:])
+
+        w = dim_weights[1:].to(labeled_pred.device, labeled_pred.dtype)
+        total_w = w.sum()
+        if total_w <= 0:
+            return torch.tensor(0.0, device=labeled_pred.device)
+
+        sq_err = (labeled_pred[:, 1:] - labeled_target[:, 1:]) ** 2
+        return (sq_err * w).sum() / (total_w * labeled_pred.shape[0])
+
+    @staticmethod
+    def _listmle_loss(scores: Tensor, targets: Tensor) -> Tensor:
+        _, idx = torch.sort(targets, descending=True)
+        sorted_scores = scores[idx]
+        n = sorted_scores.shape[0]
+        cumulative_log_sum_exp = []
+        running = torch.tensor(-float("inf"), device=scores.device)
+        for i in range(n - 1, -1, -1):
+            running = torch.logaddexp(running, sorted_scores[i])
+            cumulative_log_sum_exp.insert(0, running)
+        log_probs = torch.stack(
+            [sorted_scores[i] - cumulative_log_sum_exp[i] for i in range(n)]
+        )
+        return -log_probs.mean()
+
+    @staticmethod
+    def _pairwise_margin_loss(
+        scores: Tensor, targets: Tensor, margin: float = 0.05
+    ) -> Tensor:
+        """For all pairs (i,j) where target_i > target_j, penalize score_i < score_j + margin."""
+        n = scores.shape[0]
+        if n < 2:
+            return torch.tensor(0.0, device=scores.device)
+        s_diff = scores.unsqueeze(0) - scores.unsqueeze(1)    # (n, n)
+        t_diff = targets.unsqueeze(0) - targets.unsqueeze(1)  # (n, n)
+        should_rank = (t_diff > margin).float()
+        loss = torch.clamp(margin - s_diff, min=0.0) * should_rank
+        return loss.sum() / (should_rank.sum() + 1e-8)
+
+
+def build_node_gnn(
+    metadata,
+    hidden_channels: int = 64,
+    num_heads: int = 4,
+    num_layers: int = 3,
+    dropout: float = 0.2,
+    use_bidirectional: bool = True,
+) -> NodeCriticalityGNN:
+    return NodeCriticalityGNN(
+        metadata, hidden_channels, num_heads, num_layers, dropout,
+        use_bidirectional=use_bidirectional,
+    )
+
+
+def build_edge_gnn(
+    metadata,
+    hidden_channels: int = 64,
+    num_heads: int = 4,
+    num_layers: int = 3,
+    dropout: float = 0.2,
+    use_bidirectional: bool = True,
+) -> EdgeCriticalityGNN:
+    node_gnn = build_node_gnn(
+        metadata, hidden_channels, num_heads, num_layers, dropout, use_bidirectional
+    )
+    return EdgeCriticalityGNN(node_gnn, hidden_channels=hidden_channels, dropout=dropout)
