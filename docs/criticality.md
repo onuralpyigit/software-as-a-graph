@@ -255,57 +255,59 @@ Component criticality is decomposed into four orthogonal structural dimensions �
 | **R — Reliability** | How broadly/deeply does failure propagate? | Reverse PageRank *(QoS-weighted)*, in-degree, Cascade Depth Potential | Efficiency, Satisfaction |
 | **M — Maintainability** | How hard is this to change safely? | Betweenness *(QoS-weighted)*, QoS-weighted efferent coupling, Code Quality Penalty | Efficiency (engineering-side) |
 | **A — Availability** | Is this a structural single point of failure? | Directed articulation point score, bridge ratio, QoS-SPOF *(uses $w(v)$)* | Effectiveness, Freedom from risk |
-| **V — Vulnerability** | How attractive a target is this for attack? | Reverse eigenvector *(QoS-weighted)*/closeness centrality, QoS-weighted in-degree | Freedom from risk, Satisfaction |
+| **V — Vulnerability** | How attractive a target is this for attack? | Reverse eigenvector *(QoS-weighted)*, reverse closeness, QoS-weighted in-degree | Freedom from risk, Satisfaction |
 
 The italicised terms are where the Step 1 weights enter; [§4.4](#44-what-the-component-carries-the-weight-channel) traces each one.
+
+**The four dimensions partition the mechanisms, not the harm.** Each is [D1](#41-definition) narrowed to one route by which a fault reaches stakeholders, which is why they can be scored independently and read as a profile: no raw metric feeds two dimensions ([§3.5](#35-why-the-dimensions-are-named-after-the-other-model)), so a component's shape across the four names the mechanism at work. The *harm* is not partitioned — two dimensions can threaten the same Quality-in-Use characteristic, and [§4.5](#45-mapping-rmav-to-quality-in-use) reads that correspondence in the opposite direction.
 
 > **Terminology — Vulnerability vs. Security.** The serialized field in `QualityScores` and `CriticalityRanking` is named **`security`** ([saag/core/metrics.py#L243-L258](../saag/core/metrics.py#L243-L258)), and a **high** `security` score means **worse** (more exposed). The two are the same dimension viewed from opposite ends; [§3.5](#35-why-the-dimensions-are-named-after-the-other-model) explains why the concept keeps the name $V$.
 
 #### Component criticality per dimension
 
-Each dimension is itself a full criticality definition, scoped to one failure mechanism:
+Each dimension is **[D1](#41-definition) restricted to one mechanism** — not a fifth and sixth definition of criticality. D1 fixes the harm; a dimension fixes the route by which a fault produces it. Metric inputs are listed in full; their coefficients live in [structural-analysis.md §11](structural-analysis.md#11-analyze-stage--rule-based-rmav-scoring).
 
-**R — Reliability criticality**
-> The degree to which a component's failure **propagates beyond itself**, converting one local fault into a multi-component outage.
+**D1.R — Reliability criticality (component)**
+> D1 restricted to **transitive propagation**: the degree to which a component's failure, latency or degradation reaches stakeholders *through* the components that depend on it, converting one local fault into a multi-component loss of goals.
 
 | | |
 |:---|:---|
 | Stakeholder question | "When this breaks, how much else breaks with it?" |
 | High score means | The component sits upstream of many transitive dependents; a fault reaches far and deep |
-| Structural drivers | Reverse PageRank, normalized in-degree, Enhanced Cascade Depth Potential (Topics: Fan-Out Criticality) |
+| Metric inputs | `RPR`, `DG_in`, `CDPot_enh` (itself consuming `DG_out` and `MPCI`). Topics instead use `FOC` and the publisher-count norm |
 | Quality-in-Use effect | **Efficiency** (dependents retry/fail over), then **Satisfaction** (repeated cascades erode trust) |
 | Acted on by | Reliability Engineer — bulkheads, circuit breakers, cascade containment |
 
-**M — Maintainability criticality**
-> The degree to which a component **resists safe change**, so that every modification to it carries disproportionate regression risk for the rest of the system.
+**D1.M — Maintainability criticality (component)**
+> D1 restricted to **change cost**: the degree to which a component resists safe modification, so that every change to it carries disproportionate regression risk for the stakeholders who must keep the system working.
 
 | | |
 |:---|:---|
 | Stakeholder question | "How expensive and risky is it to change or fix this?" |
-| High score means | A structural bottleneck with high fan-out coupling and poor internal code quality |
-| Structural drivers | Betweenness centrality, efferent coupling/degree, Code Quality Penalty (`complexity_norm`, `instability_code`, `lcom_norm`) |
+| High score means | A structural bottleneck with high QoS-weighted fan-out coupling and poor internal code quality |
+| Metric inputs | `BT`, `w_out`, `CQP` (`complexity_norm`, `instability_code`, `lcom_norm`), `CouplingRisk_enh` (consuming `path_complexity`), `(1 − CC)` |
 | Quality-in-Use effect | **Efficiency**, uniquely on the engineering stakeholder ([§3.2](#32-stakeholders-who-is-harmed-vs-who-acts)) rather than the end user — slower fixes, longer incident recovery |
 | Acted on by | Software Architect — decoupling, interface extraction, refactoring |
 
-**A — Availability criticality**
-> The degree to which a component is a **structural single point of failure**: its removal partitions the dependency graph, leaving dependents with no alternative path.
+**D1.A — Availability criticality (component)**
+> D1 restricted to **structural partition**: the degree to which a component's failure removes the *only* path by which its dependents reach what they need, so that stakeholder goals become unachievable rather than merely more expensive.
 
 | | |
 |:---|:---|
 | Stakeholder question | "If this is down, does anything still work?" |
 | High score means | Removing the node disconnects a subgraph — there is no redundant route around it |
-| Structural drivers | Directed articulation-point score `AP_c_directed`, Bridge Ratio `BR`, QoS-weighted SPOF `QSPOF` |
+| Metric inputs | `AP_c_directed`, `QSPOF` (= `AP_c_directed × w(v)`), Bridge Ratio `BR`, `CDI`, `w(v)` |
 | Quality-in-Use effect | **Effectiveness** — the only dimension where the stakeholder's task stops outright — plus **Freedom from risk** (the outage window is itself the harm) |
 | Acted on by | DevOps / SRE — redundancy, failover, replication |
 
-**V — Vulnerability / Security criticality**
-> The degree to which a component is an **attractive and reachable target**, such that its compromise (rather than its failure) grants disproportionate reach into the system.
+**D1.V — Vulnerability / Security criticality (component)**
+> D1 restricted to **compromise rather than failure**: the degree to which a component is an attractive and reachable target, such that an attacker owning it gains disproportionate reach over the guarantees stakeholders depend on.
 
 | | |
 |:---|:---|
 | Stakeholder question | "If an attacker owns this, how much do they own?" |
-| High score means | Centrally reachable, with many high-QoS flows converging on it |
-| Structural drivers | Reverse eigenvector centrality, closeness centrality, QoS-weighted in-degree |
+| High score means | Centrally reachable on $G^\top$, with many high-QoS flows converging on it |
+| Metric inputs | `REV` (reverse eigenvector), `RCL` (reverse closeness), `QADS` (= `w_in`) |
 | Quality-in-Use effect | **Freedom from risk** (security/legal/compliance exposure) and **Satisfaction** (confidence loss even without an incident) |
 | Acted on by | Security Engineer — hardening, segmentation, access control |
 
@@ -391,7 +393,7 @@ They meet in exactly one place: the composite coefficients $q_*$ are themselves 
 | **Freedom from risk** | **A + V** (dominant), **R** | Availability quantifies economic/operational risk (SPOF = certain partition); Vulnerability quantifies security/legal risk (breach exposure); Reliability quantifies propagation risk. |
 | **Context coverage** | Cross-scenario/cross-domain stability of the score | A component's criticality ranking should hold across topologies and domains; instability here is a weakness of the *criticality signal itself*, checked via the per-domain repeated stratified k-fold evaluation and multi-scenario batch runs (`cli/run_scenarios.sh`). |
 
-The mapping is many-to-many by design: no single RMAV dimension is a characteristic, and no characteristic is fully captured by one dimension. Coverage gaps are enumerated in [§7.3](#73-characteristic-coverage).
+The mapping is many-to-many by design: no single RMAV dimension is a characteristic, and no characteristic is fully captured by one dimension. That is why this table and the per-dimension sub-definitions ([D1.R–D1.V](#43-the-rmav-model), [D2.R–D2.V](#55-edge-rmav-decomposition)) are the *same* correspondence read in opposite directions, not two competing claims: those state which harm each mechanism produces, this states which mechanisms produce each harm. Coverage gaps are enumerated in [§7.3](#73-characteristic-coverage).
 
 ### 4.6 Criticality Classification
 
@@ -517,60 +519,64 @@ Just as component criticality is decomposed into RMAV ([§4.3](#43-the-rmav-mode
 
 #### Relationship criticality per dimension
 
-Each dimension restated as a definition of the link, parallel to the component definitions in [§4.3](#43-the-rmav-model):
+Each dimension is **[D2](#51-definition) restricted to one mechanism**, exactly parallel to the component sub-definitions in [§4.3](#43-the-rmav-model) — same four mechanisms, scoped to the link instead of the endpoint:
 
-**R — Reliability criticality (edge)**
-> The degree to which a relationship acts as a **conductor of faults** — the channel along which a failure at one endpoint reaches the other.
+**D2.R — Reliability criticality (relationship)**
+> D2 restricted to **transitive propagation**: the degree to which a relationship acts as the conductor of a fault — the channel along which disruption, latency or data loss at one endpoint reaches the stakeholders behind the other.
 
 | | |
 |:---|:---|
 | Stakeholder question | "If the upstream side breaks, does this link carry the damage downstream?" |
 | High score means | A heavily traversed link whose riskiest endpoint has wide blast radius |
-| Structural drivers | Edge betweenness, edge weight, `max(source.R, target.R)` |
-| Quality-in-Use effect | **Efficiency** — dependents on the far side retry or fail over |
+| Metric inputs | Edge betweenness, $w(e)$, `max(source.R, target.R)` |
+| Quality-in-Use effect | **Efficiency** (dependents on the far side retry or fail over), then **Satisfaction** (repeated cascades erode trust) |
 | Acted on by | Reliability Engineer — timeouts, circuit breakers, backpressure on this specific flow |
 
-**M — Maintainability criticality (edge)**
-> The degree to which a relationship **binds its two endpoints together**, so that a change on one side forces a coordinated change on the other.
+**D2.M — Maintainability criticality (relationship)**
+> D2 restricted to **change cost**: the degree to which a relationship binds its two endpoints together, so that a change on one side forces a coordinated change on the other.
 
 | | |
 |:---|:---|
 | Stakeholder question | "Can either side of this link evolve independently?" |
 | High score means | A non-redundant, heavily used link — the contract across it cannot be changed unilaterally or routed around |
-| Structural drivers | Edge betweenness, `is_bridge`, edge weight |
+| Metric inputs | Edge betweenness, `is_bridge`, $w(e)$ |
 | Quality-in-Use effect | **Efficiency** for the engineering stakeholder — coordinated releases, higher change cost |
 | Acted on by | Software Architect — interface versioning, contract decoupling |
 
-**A — Availability criticality (edge)**
-> The degree to which a relationship is the **only route** between what it connects: removing it partitions the graph even though both endpoints stay up.
+**D2.A — Availability criticality (relationship)**
+> D2 restricted to **structural partition**: the degree to which a relationship is the only route between what it connects, so that severing it makes stakeholder goals unachievable *even though both endpoints remain operational*.
 
 | | |
 |:---|:---|
 | Stakeholder question | "If just this connection drops, is anything cut off?" |
-| High score means | The edge is a structural bridge — this is the defining case of relationship criticality ([§5.2](#52-why-a-link-needs-its-own-score)) |
-| Structural drivers | `is_bridge`, `min(source.A, target.A)` |
-| Quality-in-Use effect | **Effectiveness** — total task loss for everything behind the bridge, while the operator's dashboards stay green |
+| High score means | The edge is a structural bridge — this is the defining case of relationship criticality ([§5.2](#52-why-a-link-needs-its-own-score)), and the dimension where D2's redundancy clause bites hardest |
+| Metric inputs | `is_bridge`, `min(source.A, target.A)` |
+| Quality-in-Use effect | **Effectiveness** — total task loss for everything behind the bridge, while the operator's dashboards stay green — plus **Freedom from risk** |
 | Acted on by | DevOps / SRE — redundant routing, multi-broker paths, alternate channels |
 
-**V — Vulnerability / Security criticality (edge)**
-> The degree to which a relationship is a **usable path into or across the system** — the lateral-movement value of the link itself, distinct from the value of either endpoint.
+**D2.V — Vulnerability / Security criticality (relationship)**
+> D2 restricted to **compromise rather than disruption**: the degree to which a relationship is a usable path into or across the system — the lateral-movement value of the channel itself, distinct from the value of either endpoint.
 
 | | |
 |:---|:---|
 | Stakeholder question | "If an attacker gets onto this channel, where does it take them?" |
 | High score means | A high-QoS flow touching an already-exposed endpoint |
-| Structural drivers | Edge weight (QoS), `max(source.V, target.V)` |
-| Quality-in-Use effect | **Freedom from risk** — interception, injection, or lateral movement along the channel |
+| Metric inputs | $w(e)$, `max(source.V, target.V)` |
+| Quality-in-Use effect | **Freedom from risk** (interception, injection, lateral movement) and **Satisfaction** (confidence loss even without an incident) |
 | Acted on by | Security Engineer — channel encryption, mutual authentication, segmentation |
 
-**Node and edge criticality side by side.** The same dimension asks a structurally different question depending on what it is scoring:
+#### The mapping in one view
 
-| Dimension | Component criticality asks | Relationship criticality asks |
-|:---|:---|:---|
-| **R** | Does *this component's* failure spread? | Does *this link* carry the spread? |
-| **M** | Is *this component* hard to change safely? | Does *this link* force the two sides to change together? |
-| **A** | Is *this component* a SPOF? | Is *this link* a SPOF, even with both components healthy? |
-| **V** | Is *this component* a valuable target? | Is *this link* a usable route to a target? |
+The correspondence is two-dimensional. **The dimension fixes the harm** — which Quality-in-Use characteristic degrades, and therefore who acts, is a property of the mechanism and does not change with scope. **The scope fixes the mechanism** — whether the element *originates* the fault or *conducts* it:
+
+| Dimension | Component mechanism (D1.x) | Relationship mechanism (D2.x) | Quality-in-Use harm | Acted on by |
+|:---|:---|:---|:---|:---|
+| **R** | Its failure spreads to transitive dependents | It carries the spread between endpoints | Efficiency, then Satisfaction | Reliability Engineer |
+| **M** | It resists safe change | It forces the two sides to change together | Efficiency (engineering stakeholder) | Software Architect |
+| **A** | Its loss partitions the graph | It is the only route, both endpoints healthy | Effectiveness, Freedom from risk | DevOps / SRE |
+| **V** | It is a valuable target | It is a usable route to a target | Freedom from risk, Satisfaction | Security Engineer |
+
+Reading a row left to right gives the same failure mechanism at two scopes; reading a column down gives the four mechanisms that threaten stakeholders at one scope. The harm and owner columns are shared by construction — a dimension that meant different things for a node and an edge would not be one dimension.
 
 Three design choices in the formulas carry meaning:
 
