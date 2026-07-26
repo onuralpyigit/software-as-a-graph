@@ -22,25 +22,29 @@
 
 ## Repository Layout
 
-The repository is structured into distinct top-level directories partitioning the core SDK, REST endpoints, CLI utilities, and the dashboard frontend:
-
 ```
 saag/          # Core SDK — domain models, services, use cases, infrastructure
 api/           # FastAPI REST layer — routers, presenters, dependency injection
 cli/           # Pipeline CLI scripts (one per stage) + shared utilities
 smart/         # Next.js web application (SMART dashboard)
-tools/         # Synthetic graph generation and benchmarking
+tools/         # Synthetic graph generation, benchmarking, static analysis, Neo4j plugin
+reproduce/     # Paper reproduction package — its own Makefile/Dockerfile/README
+scripts/       # Shell orchestrators for longer experiment sweeps
+examples/      # Annotated, runnable SDK usage examples
 data/          # Topology JSONs, scenario YAMLs, and configuration datasets
 models/        # Trained GNN checkpoints
+output/        # Pipeline run artifacts (dashboards, predictions, checkpoints)
+results/       # Rendered paper tables/figures from reproduce/
+evaluation/    # Ad-hoc evaluation artifacts
 tests/         # Pytest test suite
-docs/          # Detailed step-by-step methodology documentation
+docs/          # Per-stage methodology documentation + formal specs
 ```
 
 ---
 
 ## System Pipeline & Data Flow
 
-The analytical pipeline is structured as a Directed Acyclic Graph (DAG) rather than a linear chain. Step 2 (Analyze) computes structural metrics only and feeds them to both Step 3 (Predict) and Step 4 (Simulate), which run independently. Step 5 (Validate) then compares prediction outcomes against the simulation ground-truth labels.
+The analytical pipeline is a Directed Acyclic Graph, not a linear chain. Step 2 (Analyze) computes structural metrics only and feeds them to both Step 3 (Predict) and Step 4 (Simulate), which run independently. Step 5 (Validate) then compares prediction outcomes against the simulation ground-truth labels.
 
 Step 3 (Predict) is a unified **Prediction Step**: the legacy "Quality Scoring" mechanism that used to live inside Analyze has been removed and replaced by a single step that always computes rule-based (RMAV) scores, blends in ML (GNN) inference when a trained checkpoint is available, and runs anti-pattern detection and explanation generation on the result.
 
@@ -110,9 +114,9 @@ The SDK follows a **hexagonal (ports & adapters) architecture**. Domain logic is
 ┌────────────────────▼─────────────────────────────────────┐
 │  Use Cases (usecases/)                                   │
 │   ModelGraphUseCase    AnalyzeGraphUseCase               │
-│   PredictGraphUseCase  SimulateGraphUseCase              │
+│   PredictGraphUseCase  SimulateGraphUseCase               │
 │   ValidateGraphUseCase PrescribeGraphUseCase             │
-│   VisualizeGraphUseCase                                  │
+│   VisualizeGraphUseCase MultiLayerAnalysisUseCase         │
 └────────────────────┬─────────────────────────────────────┘
                      │
 ┌────────────────────▼─────────────────────────────────────┐
@@ -124,7 +128,7 @@ The SDK follows a **hexagonal (ports & adapters) architecture**. Domain logic is
 ┌────────────────────▼─────────────────────────────────────┐
 │  Core Domain (core/)                                     │
 │   models.py  metrics.py  layers.py  criticality.py       │
-│   Ports: IGraphRepository                                │
+│   Ports: IGraphRepository, IFileStore                    │
 └────────────────────┬─────────────────────────────────────┘
                      │
 ┌────────────────────▼─────────────────────────────────────┐
@@ -135,102 +139,144 @@ The SDK follows a **hexagonal (ports & adapters) architecture**. Domain logic is
 ```
 
 ### `core/` — Domain Models & Ports
-Contains the core domain models and persistence ports. Modules in this package are pure python; they do not depend on Neo4j, NetworkX, or presentation frameworks.
-- `models.py` — Represents physical pub-sub entities: `ComponentData`, `EdgeData`, `GraphData`, `Application`, `Broker`, `Node`, `Library`, `Topic`, and `QoSPolicy`.
-- `metrics.py` — Defines analytical models: `StructuralMetrics`, `ComponentQuality`, `EdgeMetrics`, and `GraphSummary`.
-- `layers.py` — Configures layer projections (`AnalysisLayer` enum: `app`, `infra`, `mw`, `system`) and their associated member mappings (`LAYER_DEFINITIONS`).
-- `criticality.py` — Represents thresholding structures: `CriticalityLevel` and `BoxPlotStats`.
-- `ports/graph_repository.py` — Defines the `IGraphRepository` interface port outlining required lifecycle adapters (`save_graph()`, `get_graph_data()`, and `export_json()`).
+Pure Python; no dependency on Neo4j, NetworkX, or presentation frameworks.
+- `models.py` — Physical pub-sub entities: `ComponentData`, `EdgeData`, `GraphData`, `Application`, `Broker`, `Node`, `Library`, `Topic`, `QoSPolicy`.
+- `metrics.py` — Analytical models: `StructuralMetrics`, `ComponentQuality`, `EdgeMetrics`, `GraphSummary`.
+- `layers.py` — Layer projections (`AnalysisLayer` enum: `app`, `infra`, `mw`, `system`) and their member mappings (`LAYER_DEFINITIONS`).
+- `criticality.py` — Thresholding structures: `CriticalityLevel`, `BoxPlotStats`.
+- `ports/graph_repository.py` — `IGraphRepository`: `save_graph()`, `derive_dependencies()`, `get_graph_data()`, `get_layer_data()`, `export_json()`.
+- `ports/file_store.py` — `IFileStore`, implemented by `file_exporter.py`'s `LocalFileStore` for filesystem I/O.
+- `utils/serialization.py` — Flatten/reconstruct helpers between nested JSON and flat graph properties.
 
 ### `analysis/` — Step 2 Analytical Engine
 Computes structural metrics only on the layer subgraph. No RMAV/Q scores or anti-patterns — those are produced by the Predict stage (Step 3).
-- `StructuralAnalyzer` — Implements NetworkX-based algorithms for PageRank, Betweenness, Harmonic Closeness, Eigenvector, and Reverse PageRank, alongside custom pub-sub metrics (MPCI, FOC, CDI, and PC).
-- `AnalysisService` — Orchestrates layer projections and calculations. It pulls graph projections from `IGraphRepository` and runs the `StructuralAnalyzer`.
-- `AntiPatternDetector` — Audits RMAV scores to flag architectural smells (SPOF, FAILURE_HUB, GOD_COMPONENT, etc.). Module lives here but is invoked by `prediction/`, since it operates on Predict-stage output.
+- `StructuralAnalyzer` — NetworkX-based PageRank, Betweenness, Harmonic Closeness, Eigenvector, and Reverse PageRank, plus custom pub-sub metrics (MPCI, FOC, CDI, PC).
+- `AnalysisService` — Orchestrates layer projections and calculations against `IGraphRepository`.
+- `AntiPatternDetector` — Audits RMAV scores to flag architectural smells (SPOF, FAILURE_HUB, GOD_COMPONENT, etc.). It lives here but is invoked by `prediction/`, since it operates on Predict-stage output.
+- `QualityAnalyzer`, `BoxPlotClassifier`, `AHPProcessor` — the actual RMAV scoring, classification, and AHP-weighting implementations used by the Predict stage (see the shim note below).
 
 ### `prediction/` — Step 3 Predictive Engine (unified Prediction Step)
-Replaces the legacy "Quality Scoring" mechanism with a single step that always computes rule-based RMAV scores, blends in ML/GNN inference when available, and runs anti-pattern detection and explanation generation.
-- `QualityScoringService` — Rule-based RMAV scoring and problem-detection primitives (moved here from `analysis/`).
-- `QualityAnalyzer` — Applies AHP-weighted composite quality formulas with shrinkage ($\lambda=0.70$) to output Reliability ($R$), Maintainability ($M$), Availability ($A$), and Vulnerability ($V$) scores.
+A single step that always computes rule-based RMAV scores, blends in ML/GNN inference when available, and runs anti-pattern detection and explanation generation.
+- `QualityScoringService` — Thin wrapper delegating RMAV scoring and problem-detection to `analysis/`.
 - `PredictionService` — Orchestrates the unified Predict stage: RMAV (always) → GNN (when a checkpoint is available, else falls back to RMAV) → anti-pattern detection → explanation generation.
-- `GNNService` — Loads a checkpoint containing the `NodeCriticalityGNN` (built using three stacked `EdgeAwareHGTConv` layers with edge feature injection) to run inductive prediction.
-- `BoxPlotClassifier` — Performs adaptive outlier-fence classification.
+- `GNNService` — Loads a checkpoint containing `NodeCriticalityGNN`: `N` stacked stock `torch_geometric.nn.HGTConv` layers, with an `EdgeFeatureEncoder` injecting edge features before each layer ([core.py:146-290](saag/prediction/models/core.py#L146-L290)). Runs inductive prediction.
 - `ExplanationEngine` (from `explanation/`) — Generates the natural-language narrative attached to each Predict-stage result.
 
+> **Back-compat shims — not architectural components.** `saag/adapters/`, `saag/core/graph_generator.py`, `saag/analysis/quality_scoring_service.py`, and `saag/prediction/{analyzer,classifier,problem_detector,weight_calculator}.py` are thin re-export stubs kept for import compatibility. Their real implementations live in `saag/analysis/` (`analyzer.py`, `classifier.py`, `weight_calculator.py`) and `tools/generation/`. Do not extend the shims directly.
+
 ### `simulation/` — Step 4 Simulation Engine
-A discrete-event and BFS cascade failure simulator evaluating propagation boundaries on raw structural edges.
+A discrete-event and BFS cascade failure simulation suite evaluating propagation boundaries on raw structural edges.
 - `SimulationGraph` — Wraps the structural topology projection for traversal operations.
 - `FaultInjector` — **Canonical Predict-stage labeler.** Pub-sub BFS cascade producing the scalar $I^*(v)$ written to `impact_scores.json`, which supplies the supervised training labels for the GNN. Deterministic and multi-seed, and emits its own provenance (`labeler`, `labeled_node_types`, `labeled_dimensions`, `unlabeled_node_ids`) plus a `label_stability` block giving the ceiling on any correlation reported against it.
 - `FailureSimulator` — **Canonical Validate-stage oracle.** Runs the main BFS cascade simulation under different scenarios (CRASH, DEGRADED, etc.) across physical, logical, network, and library pathways, producing the composite and IR/IM/IA/IS decomposition the validation gates are written against.
 - `EventSimulator` — Models transient message flow to estimate throughput degradation and queue delays.
-- `ChangePropagationSimulator` — Propagates code-level modifications against G^T to evaluate change-reach bounds.
+- `MessageFlowSimulator` — SimPy-based discrete-event flow simulation with QoS-aware message queues.
+- `TrafficSimulator` — Analytical (non-discrete-event) load estimator.
+- `ChangePropagationSimulator` — Propagates code-level modifications against $G^T$ to evaluate change-reach bounds.
 - `CompromisePropagationSimulator` — Propagates cyber-breach scenarios along trust-weighted dependency paths.
+- `ComplexityProcessor` — Converts component complexity into processing-latency estimates for flow simulation.
+- `SimulationService` — Orchestrates all of the above for use-case consumption.
 
 > **`FaultInjector` and `FailureSimulator` both emit a quantity called "impact", and the two are not interchangeable.** Each owns exactly one pipeline stage — labels vs. validation oracle — and mixing them within a stage is a correctness error, enforced by `tests/test_groundtruth_contract.py`. See [docs/failure-simulation.md §2.1](docs/failure-simulation.md#21-which-engine-is-canonical-for-what).
 
 ### `validation/` — Step 5 Validation Engine
 Correlates predictions against simulation ground-truth metrics to verify thesis validation gates.
 - `Validator` — Evaluates prediction output arrays against ground truth using Spearman $\rho$, Kendall $\tau$, F1, Precision, and Recall.
-- `ValidationService` — Evaluates validation targets across the 9-gate tier system and computes system health indices (SRI, RCI).
+- `ValidationService` — Evaluates the nine-gate tier system (see [README §Validation Gates](README.md#validation-gates)) and computes system health indices (SRI, RCI).
 
 ### `prescription/` — Step 6 Prescriptive Engine
-Generates rule-based architectural optimization policies (logical splitting, host anti-affinity container reallocations, and transport contract QoS upgrades) and validates resilience improvements in-memory.
+Generates rule-based architectural optimization policies (logical splitting, host anti-affinity container reallocations, and transport contract QoS upgrades) and validates resilience improvements in-memory via `SimulationService`, accepting only edits with a positive counterfactual delta.
 
 ### `visualization/` — Step 7 Visualization Engine
 Compiles the metrics, classifications, problems, and simulations into visual dashboard formats.
-- `VisualizationService` — Assembles the multi-stage dataset into serializable models.
+- `VisualizationService` — Assembles the multi-stage dataset into serializable models; composes analysis + prediction + simulation + validation services.
+- `LayerDataCollector` — Aggregates per-layer data across services.
 - `DashboardGenerator` — Renders self-contained static HTML pages including Cytoscape network views and interactive charts.
+- `ChartGenerator` — Produces embeddable chart snippets.
 
 ### `explanation/` — Natural Language Explanations
-Exposes translation features that turn numeric metrics and dependency traces into readable reports.
-- `ExplanationEngine` — Formulates narrative structures by binding metric values to text templates.
+- `ExplanationEngine` — Binds metric values to text templates to produce component- and system-level narrative reports.
+- `CLIFormatter` — Renders the same explanations as human-readable CLI cards.
+
+### `evaluation/` — Cross-Variant Evaluation Contract
+Supports the paper's result tables independently of the runtime pipeline.
+- `metrics.py` — `compute_inductive_metrics()`, `resolve_eval_keys()`, critical-topic-coverage-at-K, and per-QoS-tier Spearman $\rho$. Consumed by `reproduce/main_table.py` and `reproduce/loso_all_variants.py`.
 
 ### `usecases/` — Application Layer orchestrators
-Exposes thin interactor patterns representing the application boundaries. Each pipeline step is mapped to a single class (e.g. `ModelGraphUseCase`, `AnalyzeGraphUseCase`) delegating directly to services.
+Thin interactor classes representing the application boundaries; each pipeline step maps to one class (`ModelGraphUseCase`, `AnalyzeGraphUseCase`, `PredictGraphUseCase`, `SimulateGraphUseCase`, `ValidateGraphUseCase`, `PrescribeGraphUseCase`, `VisualizeGraphUseCase`, `MultiLayerAnalysisUseCase`), each delegating to a single service's `execute()`.
 
 ### `infrastructure/` — Persistence Adapters
-Implements concrete adapters matching the persistence port.
-- `Neo4jRepository` — The production adapter. Handles database connection sessions, executes Cypher queries to load/export topologies, and drives the Cypher-based `DEPENDS_ON` relationship derivation logic.
-- `MemoryRepository` — An in-memory, thread-safe mock adapter utilized during testing to run the pipeline without Neo4j database instances.
+- `Neo4jRepository` — Production adapter. Handles connection sessions, executes Cypher to load/export topologies, and drives the Cypher-based `DEPENDS_ON` derivation logic.
+- `MemoryRepository` — Pure-Python, in-process adapter satisfying the same `IGraphRepository` protocol, used by tests and by `cli/prescribe_graph.py` to run without a live database.
 
 ---
 
 ## REST API (`api/`)
 
-The REST API exposes the analytical pipeline as a JSON-based web service utilizing the FastAPI framework:
-- **Routers (`api/routers/`)** — Thin presentation entry points. They validate request schemas and pass parameters directly to SDK Use Case interactor boundaries.
-- **Presenters (`api/presenters/`)** — Decouple domain response schemas from HTTP endpoints. They transform complex SDK use case results into API-ready dictionaries.
-- **Dependency Injection (`api/dependencies.py`)** — Resolves request-scoped database connections and service lifecycles. It dynamically binds `IGraphRepository` adapters based on credentials provided in HTTP request headers.
+The REST API exposes the analytical pipeline as a JSON web service via FastAPI (`api/main.py`), CORS-open, mounted with 10 routers:
+
+| Router | Prefix | Endpoints |
+|:---|:---|:---:|
+| `graph.py` | `/api/v1/graph` | 13 |
+| `components.py` | `/api/v1` | 5 |
+| `statistics.py` | `/api/v1/stats` | 5 |
+| `prediction.py` | `/api/v1/graph/prediction` | 4 |
+| `simulation.py` | `/api/v1/simulation` | 4 |
+| `validation.py` | `/api/v1/validation` | 4 |
+| `analysis.py` | `/api/v1/analysis` | 3 |
+| `traffic.py` | `/api/v1/traffic` | 3 |
+| `health.py` | *(none)* | 3 |
+| `classification.py` | `/api/v1` | 1 |
+
+- **Routers (`api/routers/`)** — Validate request schemas (`api/models.py`) and call SDK services or use cases.
+- **Presenters (`api/presenters/`)** — Decouple domain response schemas from HTTP endpoints. Used by `graph.py`, `simulation.py`, and `analysis.py`; the other routers currently serialize inline — a gap to close, not a pattern to follow.
+- **Dependency Injection (`api/dependencies.py`)** — `get_repository()` builds a request-scoped `Neo4jRepository`. Credentials are read from the **JSON request body** (top-level or nested under `"credentials"`) on POST/PUT, or from **query parameters** (`uri`, `user`, `password`, `database`) on GET/HEAD/DELETE — not from HTTP headers.
 
 ---
 
 ## Command Line Interface (`cli/`)
 
-The CLI directory contains executable scripts mirroring the stages of the analytical pipeline:
-- `run.py` — Main entry point executing multiple stages in sequence.
-- `generate_graph.py` — Generates synthetic topologies using statistical presets.
-- `import_graph.py` & `export_graph.py` — Import topology JSON files into Neo4j or export database representations.
-- `analyze_graph.py`, `train_graph.py`, `predict_graph.py` — Step 2 and Step 3 analytical and prediction controllers.
-- `simulate_graph.py` & `validate_graph.py` — Step 4 simulation and Step 5 statistical validation controllers.
-- `prescribe_graph.py` — Step 6 prescriptive optimization and closed-loop validation controller.
-- `visualize_graph.py` — Step 7 dashboard rendering controller.
+Scripts mirror the pipeline stages. Eight have console-script entry points installed by `pyproject.toml`; the rest are run as `python cli/<script>.py`.
+
+| Script | Stage | Entry point |
+|:---|:---|:---|
+| `run.py` | Orchestrates all stages in dependency order | `saag` |
+| `generate_graph.py` | Offline prep — synthetic topology | `saag-generate` |
+| `import_graph.py` | Step 1 — import + derive dependencies | `saag-import` |
+| `export_graph.py` | Step 1 — export Neo4j → JSON | *(none)* |
+| `analyze_graph.py` | Step 2 — structural metrics | `saag-analyze` |
+| `train_graph.py` | Step 3 (training) — GNN training | *(none)* |
+| `predict_graph.py` | Step 3 (inference) — RMAV + GNN + anti-patterns | `saag-predict` |
+| `detect_antipatterns.py` | Standalone anti-pattern / CI gate | *(none)* |
+| `simulate_graph.py` | Step 4 — `fault-inject` \| `message-flow` \| `combined` | `saag-simulate` |
+| `validate_graph.py` | Step 5 — `single` \| `sweep` \| `report` \| `compare` \| `harness` | `saag-validate` |
+| `prescribe_graph.py` | Step 6 — optimize + closed-loop validate | *(none)* |
+| `visualize_graph.py` | Step 7 — HTML dashboard | `saag-visualize` |
+| `statistics_graph.py` | Cross-cutting topology/communication stats | *(none)* |
+| `benchmark.py` | Scale-preset performance benchmark | *(none)* |
+| `kfold_evaluate.py` | Per-domain repeated k-fold GNN evaluation (primary) | *(none)* |
+| `loso_evaluate.py` | Leave-one-scenario-out GNN evaluation (domain-gap) | *(none)* |
+| `multi_seed_summary.py` | Aggregate results across seeds | *(none)* |
+
+Details and flags for each script: [docs/cli-pipeline-guide.md](docs/cli-pipeline-guide.md).
 
 ---
 
 ## Web Dashboard (`smart/`)
 
-The frontend component (**SMART**) is a single-page Next.js dashboard application interacting with the FastAPI backend:
-- **App Router (`app/`)** — Defines frontend routes (e.g., `/dashboard`, `/explorer`, `/simulation`, `/validation`) organizing visualization concerns.
-- **React Force Graph** — Renders interactive 2D and 3D network visualizations in `/explorer` to inspect derived dependency links.
-- **Connection Context Store** — Manages active connection parameters to Neo4j and FastAPI endpoints.
+Next.js 14 (App Router) + React 18 application talking to the FastAPI backend over the hand-written axios clients in `smart/lib/api/`.
+
+Routes under `smart/app/`: `dashboard`, `explorer` (2D/3D force-directed graph), `analysis`, `simulator` (failure-injection animation), `predict`, `train`, `traffic`, `statistics`, `validation`, `data`, `glossary`, `settings`. A connection-store React context manages active Neo4j and API connection parameters.
 
 ---
 
 ## Tools (`tools/`)
 
-Auxiliary libraries supporting experimental generation and performance metrics:
-- `tools/generation/` — Exposes the `StatisticalGraphGenerator` which generates pub-sub topologies matching specific scale parameters and QoS probability distributions.
-- `tools/benchmark/` — Exposes the `BenchmarkRunner` that sequentially runs the generation, import, and scoring pipeline to measure processing latency and memory utilization.
+Auxiliary packages, installed alongside `saag` but not part of the core SDK:
+- `tools/generation/` — `GenerationService` / `StatisticalGraphGenerator` generate pub-sub topologies matching scale presets and QoS distributions.
+- `tools/benchmark/` — `BenchmarkRunner` sequentially runs generation, import, and scoring to measure processing latency and memory use.
+- `tools/neo4j-plugin/graph-relationship-manager/` — A Java/Maven Neo4j plugin providing `custom.*` Cypher procedures used during import; built and installed by the root `Dockerfile`.
+- `tools/static-system-analyzer/` — A separate static-analysis sub-project (own `src/`, `tests/`, `config/`, `docs/`) for extracting code-quality metrics feeding `Application`/`Library` nodes.
 
 ---
 
@@ -269,12 +315,15 @@ Structural connections (e.g. pub/sub topics and broker routing) are transformed 
 | 5 | `app_to_lib` | App $\rightarrow$ USES $\rightarrow$ Library | application depends on library package logic (shared blast risk) |
 | 6 | `broker_to_broker` | Broker $\leftrightarrow$ Host $\leftrightarrow$ Broker | co-located brokers share hardware fate (bidirectional) |
 
+> [!NOTE]
+> The RMAV dimension named **Vulnerability** in documentation is named `security` in code (`q_security`, `s_qads`, `dimensional_validation["security"]`).
+
 ---
 
 ## Deployment & Verification Architecture
 
-### Multi-Service Topology
-The application is designed to deploy as three decoupled containerized services coordinated via Docker Compose:
+### Container Topology
+`docker-compose.yml` runs a **single** all-in-one container (built from the root `Dockerfile`), bundling Neo4j, the FastAPI backend, and the SMART frontend, and publishing all four ports:
 
 ```
                   ┌───────────────────┐
@@ -284,24 +333,27 @@ The application is designed to deploy as three decoupled containerized services 
                HTTP (7000)  │  HTTP (8000)
          ┌──────────────────┴──────────────────┐
          ▼                                     ▼
-┌─────────────────┐  HTTP (8000)  ┌─────────────────┐
-│ Next.js Web App │ ─────────────>│ FastAPI Backend │
-│     (SMART)     │               │     (saag)      │
-└─────────────────┘               └────────┬────────┘
-                                           │
-                                           │ Bolt (7687)
-                                           ▼
-                                  ┌─────────────────┐
-                                  │ Neo4j Database  │
-                                  │   (GDS + APOC)  │
-                                  └─────────────────┘
+┌─────────────────────────────────────────────────────┐
+│                  Single Container                    │
+│  ┌─────────────────┐  HTTP   ┌─────────────────┐    │
+│  │ Next.js Web App │ ───────▶│ FastAPI Backend │    │
+│  │     (SMART)     │         │     (saag)      │    │
+│  └─────────────────┘         └────────┬────────┘    │
+│                                        │ Bolt (7687) │
+│                                        ▼             │
+│                              ┌─────────────────┐     │
+│                              │ Neo4j Database  │     │
+│                              └─────────────────┘     │
+└───────────────────────────────────────────────────────┘
 ```
 
-- **Database Container** — Serves Bolt connections on port `7687` for transaction execution, and HTTP on `7474` for browser access.
-- **FastAPI API Container** — Exposes REST endpoints on port `8000` to process pipeline orchestrations.
-- **SMART Web Container** — Serves the React web app on port `7000`.
+- `Dockerfile` (root) — multi-stage build: Python + PyG wheels, Next.js build, the Java Neo4j plugin, then Neo4j + API + frontend combined into one runtime image.
+- `api/Dockerfile` and `smart/Dockerfile` — separable single-service images, useful if you want the API and frontend as independent deployments instead of the all-in-one image.
+- `reproduce/Dockerfile` — a separate, pinned environment for exact experiment reproduction (its own torch/PyG version, isolated from the app image).
+
+No Neo4j GDS or APOC plugins are used anywhere in the codebase; graph algorithms run in NetworkX (`saag/analysis/structural_analyzer.py`). The only non-standard database dependency is the custom Java plugin under `tools/neo4j-plugin/`.
 
 ### Verification & Testing Architecture
-The test suite utilizes a decoupled testing design:
-- **Unit Verification** — Runs unit checks on services, use cases, and mathematical scoring components using the `MemoryRepository`. This mock repository performs in-memory graph operations, allowing tests to run quickly in CI/CD without spinning up a live Neo4j database instance.
-- **Integration Verification** — Validates end-to-end cypher execution and import/export roundtrips against a running Neo4j instance. These integration tests are tagged with the `integration` mark and run during full staging builds.
+- **Unit verification** — 71 test files under `tests/` exercise services, use cases, and scoring math via `MemoryRepository`, an in-memory `IGraphRepository` implementation — no live Neo4j needed, and this is what CI (`.github/workflows/tests.yml`, Python 3.11) runs.
+- **Integration verification** — tests tagged `@pytest.mark.integration` validate end-to-end Cypher execution and import/export roundtrips against a running Neo4j instance; run separately (`pytest -m integration`). `pyproject.toml` also defines a `slow` marker and a 120 s per-test timeout.
+- **Architectural guard tests** — a few tests enforce package boundaries by static inspection rather than behavior: `test_independence_guarantee.py` (simulation must not import prediction), `test_predict_simulate_separation.py` (the Predict use case must not import simulation), and `test_groundtruth_contract.py` (enforces the `FaultInjector`/`FailureSimulator` role split above).

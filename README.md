@@ -1,622 +1,312 @@
 # Software-as-a-Graph (SaG)
 
-**Predict which components in a distributed system will cause the most damage when they fail — using only its architecture.**
+**Predict which components in a distributed system will cause the most damage when they fail — using only its architecture, before it is deployed.**
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Next.js 16](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
-[![React 19](https://img.shields.io/badge/React-19-61DAFB)](https://react.dev/)
-[![Docker](https://img.shields.io/badge/docker-compose-blue)](https://www.docker.com/)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![Next.js 14](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
+[![React 18](https://img.shields.io/badge/React-18-61DAFB)](https://react.dev/)
 [![Neo4j 5.x](https://img.shields.io/badge/neo4j-5.x-green.svg)](https://neo4j.com/)
+[![Docker](https://img.shields.io/badge/docker-compose-blue)](https://www.docker.com/)
 ![License](https://img.shields.io/badge/license-Apache--2.0-green)
+
+[Architecture](ARCHITECTURE.md) | [Development Guide](CLAUDE.md) | [Methodology docs](docs/) | [Reproduction package](reproduce/)
 
 ---
 
 ## Table of Contents
 
 1. [The Problem](#the-problem)
-2. [Core Methodology & Pipeline](#core-methodology--pipeline)
-3. [RMAV Quality Model](#rmav-quality-model)
-4. [Empirical Results](#empirical-results)
-5. [Supported Platforms](#supported-platforms)
-6. [Web Interface — SMART](#web-interface--smart)
-7. [Installation & Development Setup](#installation--development-setup)
-8. [Anti-Pattern Detection](#anti-pattern-detection)
-9. [Python SDK (`saag`)](#python-sdk-saag)
-10. [Project Structure](#project-structure)
-11. [Research Context](#research-context)
+2. [The Seven Capabilities](#the-seven-capabilities)
+3. [Quick Start](#quick-start)
+4. [Reproducing the Published Results](#reproducing-the-published-results)
+5. [Validation Gates](#validation-gates)
+6. [Empirical Results](#empirical-results)
+7. [Applying SaG to Your Own System](#applying-sag-to-your-own-system)
+8. [RMAV Quality Model in Brief](#rmav-quality-model-in-brief)
+9. [Anti-Pattern Detection in Brief](#anti-pattern-detection-in-brief)
+10. [Python SDK](#python-sdk)
+11. [Further Reading](#further-reading)
 12. [License](#license)
 
 ---
 
 ## The Problem
 
-In distributed publish-subscribe systems (such as ROS 2, Apache Kafka, MQTT, and others), some components are structurally far more critical than others. When they fail, failures cascade through the system. Traditional approaches to identifying these weak points require either expensive runtime monitoring or waiting for production incidents.
-
-This reactive posture has two fundamental problems:
-- **Runtime monitoring adds overhead** — dynamic instrumentation imposes latency penalty on production systems that are often latency-sensitive or safety-critical.
-- **Production incident reliance** — by the time a critical failure is discovered in production, the damage (data loss, service disruption, financial loss, safety risk) has already occurred.
-
----
-
-## Core Methodology & Pipeline
+In distributed publish-subscribe systems (ROS 2/DDS, Apache Kafka, MQTT), some components are structurally far more critical than others — when they fail, failures cascade. Finding these weak points traditionally requires either runtime monitoring, which adds latency to systems that are often safety-critical, or waiting for a production incident, by which point the data loss or service disruption has already happened.
 
 > [!IMPORTANT]
-> **Core Insight:** A component's position in the dependency graph reliably predicts its real-world failure impact — without any runtime data.
+> **Core insight:** a component's position in the dependency graph reliably predicts its real-world failure impact — with no runtime data.
 
-Software-as-a-Graph (SaG) operationalizes this insight into a 6-step core analytical pipeline, supported by an offline input preparation stage (Generate). The fundamental claim is that **topological structure alone** — how components are connected, what they depend on, and how strongly — encodes enough information to rank components by their potential failure impact with high statistical fidelity.
-
-```
-        ┌─────────────┐
-        │  Offline    │
-        │  Generate   │  (synthetic topologies for experiments & benchmarks)
-        └──────┬──────┘
-               │ topology JSON
-               ▼
-┌─────────────┐    ┌──────────────────────┐    ┌─────────────────────────────┐
-│  Step 1     │    │  Step 2              │    │  Step 3                     │
-│  Model      │───▶│  Analyze             │───▶│  Predict (unified)          │
-│  (import +  │    │  (M(v) structural    │    │  (RMAV/Q(v) always + GNN    │
-│   export)   │    │   metrics only)      │    │   when available + Anti-    │
-│             │    │                      │    │   Patterns + Explanation)   │
-└─────────────┘    └──────────────────────┘    └─────────────────────────────┘
-                             │                             │
-        ┌────────────────────┘                            │
-        ▼                                                 ▼
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────────┐
-│  Step 4     │    │  Step 5     │    │  Step 6     │    │  Step 7                     │
-│  Simulate   │───▶│  Validate   │───▶│  Prescribe  │───▶│  Visualize                  │
-│  (I(v) GT)  │    │  (ρ, F1)    │    │  (Delta G)  │    │                             │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────────────────────┘
-                                                                        │
-                                                                        ▼
-                                                                 HTML Dashboard
-```
-
-| Step | What It Does | Key Output | Documentation |
-|:---|:---|:---|:---|
-| **Offline Prep: Generate** | Produces a synthetic pub-sub topology for experiments, benchmarks, or CI regression tests | Topology JSON (`data/system.json`) | [graph-generation.md](docs/graph-generation.md) |
-| **1. Model** | Converts topology JSON into a formal weighted directed graph $G = (V, E, \tau_V, \tau_E, w)$ in Neo4j; derives logical `DEPENDS_ON` edges via six dependency rules; computes QoS-derived weights | $G_{\text{structural}}$ and $G_{\text{analysis}}(l)$ | [graph-model.md](docs/graph-model.md) |
-| **2. Analyze** | Deterministic, closed-form. Computes 13 Tier-1 structural metrics $M(v)$ only. | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
-| **3. Predict** | Unified Prediction Step. Always maps $M(v)$ to RMAV dimension scores and $Q^*(v)$ via AHP-weighted formulas (deterministic); blends in a 3-layer `EdgeAwareHGTConv` (HGT) model trained on simulation labels $I(v)$ when a checkpoint is available (falls back to RMAV otherwise); detects anti-patterns; generates a natural-language explanation. | RMAV/$Q^*(v)$ scores, five-level classification, GNN criticality ranks (when available), anti-pattern report, explanation | [prediction.md](docs/prediction.md) |
-| **4. Simulate** | Runs the FailureSimulator (producing canonical composite $I^*(v)$ and RM-AV ground truths) or FaultInjector (producing BFS feed-loss $I(v)$). Provides training labels for Step 3 and validation ground truth. | Per-dimension ground-truth $I_R(v)$, $I_M(v)$, $I_A(v)$, $I_V(v)$ and composite $I^*(v)$ / feed-loss $I(v)$ | [failure-simulation.md](docs/failure-simulation.md) |
-| **5. Validate** | Computes Spearman $\rho$ and Kendall $\tau$ between predictions and ground truth; evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
-| **6. Prescribe** | Generates rule-based architectural optimization recommendations and verifies them in a closed-loop simulation on a mutated graph | `PrescribeResult` with baseline vs mutated SRI | [prescription.md](docs/prescription.md) |
-| **7. Visualize** | Renders interactive dashboards with network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | `dashboard.html` (fully self-contained) | [visualization.md](docs/visualization.md) |
-
-### Scale Presets
-
-The offline synthetic generator supports six scale presets for rapid experimentation:
-
-| Preset | Apps | Topics | Brokers | Nodes | Libs | Typical Use |
-|:---|:---:|:---:|:---:|:---:|:---:|:---|
-| `tiny` | 5 | 5 | 1 | 2 | 2 | Unit tests |
-| `small` | 15 | 10 | 2 | 4 | 5 | Quick checks |
-| `medium` | 50 | 30 | 3 | 8 | 10 | Development |
-| `large` | 150 | 100 | 6 | 20 | 30 | Integration tests |
-| `jumbo` | 300 | 120 | 10 | 40 | 50 | Large-scale benchmarks |
-| `xlarge` | 500 | 300 | 10 | 50 | 100 | Performance benchmarks |
-
-> [!NOTE]
-> The `cli/generate_graph.py` script produces synthetic pub-sub topologies for evaluation, benchmarking, and reproducible experiments. Real deployments start at Step 1 (Model) with an actual architecture description.
+SaG operationalizes that insight as a framework: it models the architecture as a weighted directed graph, ranks components by predicted failure impact, verifies the ranking against simulated ground truth, and prescribes fixes — all before deployment.
 
 ---
 
-## RMAV Quality Model
+## The Seven Capabilities
 
-The RMAV quality model decomposes criticality into four orthogonal, actionable dimensions. It operates on the derived dependency graph where edges point from *dependent* to *dependency* (e.g., subscriber $\rightarrow$ publisher, application $\rightarrow$ broker).
+Each capability is a pipeline stage with its own CLI script, SDK method, and methodology document. `Generate` is an offline prep step used for experiments and benchmarks; real deployments start at **Model**.
 
-| Dimension | Question Answered | High Score Means | Primary Stakeholder |
-|:---|:---|:---|:---|
-| **R — Reliability** | How broadly does failure propagate? | Failure cascades widely and is hard to contain | Reliability Engineer |
-| **M — Maintainability** | How hard is this to change safely? | Tightly coupled; structural bottleneck | Software Architect |
-| **A — Availability** | Is this a structural single point of failure? | Removing it partitions the dependency graph | DevOps / SRE |
-| **V — Vulnerability** | How attractive a target is this for attack? | Central, reachable, high-value downstream | Security Engineer |
+| # | Capability | What it does | Key output | Docs |
+|:--|:---|:---|:---|:---|
+| — | *Generate (prep)* | Synthesizes a pub-sub topology for experiments, benchmarks, and CI regression | Topology JSON | [graph-generation.md](docs/graph-generation.md) |
+| 1 | **Model** | Imports topology JSON into Neo4j as a weighted directed graph $G = (V, E, \tau_V, \tau_E, w)$; derives logical `DEPENDS_ON` edges via six rules; computes QoS-derived weights | $G_{\text{structural}}$, $G_{\text{analysis}}(l)$ | [graph-model.md](docs/graph-model.md) |
+| 2 | **Analyze** | Deterministic, closed-form. Computes the 14 Tier-1 structural metrics $M(v)$ — and nothing else | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
+| 3 | **Predict** | Maps $M(v)$ to RMAV dimension scores and $Q^*(v)$ via AHP-weighted formulas (always); blends in a heterogeneous GNN when a trained checkpoint exists; detects anti-patterns; generates a natural-language explanation | RMAV/$Q^*(v)$ scores, 5-level classification, GNN ranks, anti-pattern report | [prediction.md](docs/prediction.md) |
+| 4 | **Simulate** | Injects faults and propagates cascades over the raw structural graph to obtain ground-truth impact — training labels for stage 3 and the oracle for stage 5 | $I^*(v)$ composite and per-dimension $I_R, I_M, I_A, I_V$ | [failure-simulation.md](docs/failure-simulation.md) |
+| 5 | **Validate** | Correlates predictions against simulated ground truth: Spearman $\rho$, Kendall $\tau$, F1, predictive gain, bootstrap CIs, Wilcoxon — scored against nine gates | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
+| 6 | **Prescribe** | Generates architectural edits (topic splits, host reallocations, QoS upgrades) and accepts each only if a closed-loop counterfactual simulation confirms the improvement | `PrescribeResult` with baseline vs. mutated SRI | [prescription.md](docs/prescription.md) |
+| 7 | **Visualize** | Renders network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | Self-contained `dashboard.html` | [visualization.md](docs/visualization.md) |
 
-### Reliability
+```
+ topology JSON ──▶ 1 Model ──▶ 2 Analyze ──┬──▶ 3 Predict ──┐
+                                           │                 ├──▶ 5 Validate ──▶ 6 Prescribe ──▶ 7 Visualize
+                                           └──▶ 4 Simulate ──┘
+```
 
-Reliability measures how broadly and deeply a component's failure propagates. Standard components (Applications, Brokers, Nodes, Libraries) are evaluated based on Reverse PageRank, normalized in-degree, and Enhanced Cascade Depth Potential. Topic components are evaluated using Fan-Out Criticality (FOC) and topic-specific cascade potential.
+Stages 3 and 4 are independent by construction — that separation is what makes the validation in stage 5 meaningful, and it is enforced by tests. The full DAG, the first-run sequencing rule, and the package boundaries are in [ARCHITECTURE.md](ARCHITECTURE.md#system-pipeline--data-flow).
 
-**Standard Formula (Applications, Brokers, Nodes, Libraries):**
+---
 
-$$
-R(v) = 0.45 \times \text{RPR}(v) + 0.30 \times \text{DG-in}(v) + 0.25 \times \text{CDPot-enh}(v)
-$$
+## Quick Start
 
-Where:
-- $\text{RPR}(v)$ is the Reverse PageRank (transitive cascade reach).
-- $\text{DG-in}(v)$ is the normalized in-degree (immediate blast radius).
-- $\text{CDPot-enh}(v)$ is the Enhanced Cascade Depth Potential:
+### Prerequisites
 
-$$
-\text{CDPot-enh}(v) = \min\left(\text{CDPot-base}(v) \times (1 + \text{MPCI}(v)), 1.0\right)
-$$
+- **Python 3.11** — the only version exercised in CI. `pyproject.toml` declares `>=3.9`, but that is untested.
+- **Neo4j 5.x** — required for the Model stage and anything downstream of it. No GDS or APOC plugins are needed.
+- **Node.js 18+** — only if you want the SMART web dashboard.
 
-$$
-\text{CDPot-base}(v) = \frac{\text{RPR}(v) + \text{DG-in}(v)}{2} \times \left(1 - \min\left(\frac{\text{DG-out-raw}(v)}{\max(\text{DG-in-raw}(v), \epsilon)}, 1\right)\right)
-$$
+### 1. Install
 
-  with $\text{MPCI}(v)$ as the Multi-Path Coupling Index, and $\text{DG-out-raw}(v)$ / $\text{DG-in-raw}(v)$ as the raw integer degree metrics.
+The `torch-scatter` / `torch-sparse` wheels must come from PyG's index before the extras are installed. This is the sequence CI uses ([tests.yml](.github/workflows/tests.yml)):
 
-**Topic Formula:**
+```bash
+python3.11 -m venv .venv && source .venv/bin/activate
+pip install --upgrade pip
 
-$$
-R\text{-topic}(v) = 0.50 \times \text{FOC}(v) + 0.50 \times \text{CDPot-topic}(v)
-$$
+pip install torch==2.5.0 --index-url https://download.pytorch.org/whl/cpu
+pip install torch-scatter==2.1.2 torch-sparse==0.6.18 \
+  -f https://data.pyg.org/whl/torch-2.5.0+cpu.html
 
-Where:
-- $\text{FOC}(v)$ is the Fan-Out Criticality (log1p of message frequency $\times$ subscriber count).
-- $\text{CDPot-topic}(v) = \text{FOC}(v) \times (1 - \min(\text{publisher-count-norm}(v), 1))$ represents topic fan-out depth.
+pip install -e ".[all]"
+```
 
-### Maintainability
+### 2. Start Neo4j
 
-Maintainability measures how structurally embedded a component is in the topology, capturing static code fragility and deployment-coupling risk. It integrates betweenness centrality, efferent coupling, a Code Quality Penalty (CQP—incorporating cyclomatic complexity, lines of code, LCOM, and imports), topological instability, and the clustering coefficient.
+```bash
+docker run -d --name neo4j -p 7474:7474 -p 7687:7687 \
+  -e NEO4J_AUTH=neo4j/password neo4j:5.23.0
+```
 
-**Formula:**
+> [!WARNING]
+> `neo4j` / `password` are local-development defaults. Change them before any shared deployment. Note that the Python CLI reads the `NEO4J_URI`, `NEO4J_USER`, and `NEO4J_PASSWORD` environment variables directly — it does not load the root `.env` file, which is consumed only by Docker Compose and Next.js.
 
-$$
-M(v) = 0.35 \times \text{BT}(v) + 0.30 \times w\text{-out}(v) + 0.15 \times \text{CQP}(v) + 0.12 \times \text{CouplingRisk-enh}(v) + 0.08 \times (1 - \text{CC}(v))
-$$
+### 3. Run the pipeline
 
-Where:
-- $\text{BT}(v)$ is the betweenness centrality (fraction of shortest dependency paths passing through $v$).
-- $w\text{-out}(v)$ is the QoS-weighted out-degree (efferent coupling).
-- $\text{CQP}(v)$ is the Code Quality Penalty (only for Application and Library nodes; 0 otherwise):
+```bash
+# All stages (Model → Analyze → Simulate → Predict → Validate → Prescribe → Visualize)
+python cli/run.py --all --layer system
 
-$$
-\text{CQP}(v) = 0.10 \times \text{loc-norm}(v) + 0.35 \times \text{complexity-norm}(v) + 0.30 \times \text{instability-code}(v) + 0.25 \times \text{lcom-norm}(v)
-$$
+# Or one stage at a time; see the CLI table in ARCHITECTURE.md
+python cli/import_graph.py --input data/system.json --clear
+python cli/analyze_graph.py --layer system
+python cli/predict_graph.py --layer system
+python cli/visualize_graph.py --layer system --output output/dashboard.html --open
+```
 
-- $\text{CouplingRisk-enh}(v)$ is the Enhanced Coupling Risk:
+On a first run there is no GNN checkpoint, so `run.py` disables the Predict stage's ML path and falls back to deterministic RMAV scoring. To enable the GNN, run Simulate to produce labels, train, then pass the checkpoint **directory**:
 
-$$
-\text{CouplingRisk-enh}(v) = \min\left(1.0, \text{CouplingRisk-base}(v) \times (1 + \Delta \times \text{path-complexity}(v))\right)
-$$
+```bash
+python cli/train_graph.py --layer system
+python cli/predict_graph.py --layer system --gnn-model models/gnn_checkpoints
+```
 
-$$
-\text{CouplingRisk-base}(v) = 1 - |2 \times \text{Instability-topo}(v) - 1|
-$$
+### 4. Optional — the full stack in Docker
 
-$$
-\text{Instability-topo}(v) = \frac{\text{DG-out-raw}(v)}{\text{DG-in-raw}(v) + \text{DG-out-raw}(v) + \epsilon}
-$$
+```bash
+docker compose up --build
+```
 
-  with the coupling path delta $\Delta = 0.10$.
-- $\text{CC}(v)$ is the clustering coefficient (measuring local redundancy).
+One container publishes the SMART dashboard on `:7000`, the FastAPI server on `:8000` (`/docs` for OpenAPI), and Neo4j on `:7474` / `:7687`.
 
-### Availability
+### 5. Run the tests
 
-Availability measures whether a component is a structural single point of failure (SPOF). It combines directed articulation point scores, QoS-scaled SPOF severity, bridge ratios, connectivity degradation, and operational priority weights.
+```bash
+pytest                       # full suite; needs no live Neo4j
+pytest -m "not integration"  # skip anything requiring a database
+```
 
-**Formula:**
+---
 
-$$
-A(v) = 0.35 \times \text{AP}\text{-c-directed}(v) + 0.25 \times \text{QSPOF}(v) + 0.25 \times \text{BR}(v) + 0.10 \times \text{CDI}(v) + 0.05 \times w(v)
-$$
+## Reproducing the Published Results
 
-Where:
-- $\text{AP}\text{-c-directed}(v)$ is the directed articulation point score (reachability-based SPOF signal).
-- $\text{QSPOF}(v) = \text{AP}\text{-c-directed}(v) \times w(v)$ is the QoS-weighted SPOF severity.
-- $\text{BR}(v)$ is the bridge ratio (fraction of non-redundant edges).
-- $\text{CDI}(v)$ is the Connectivity Degradation Index (path elongation on removal).
-- $w(v)$ is the component's operational QoS weight.
+[`reproduce/`](reproduce/) is a self-contained package that regenerates every table and figure in the paper. It has its own [README](reproduce/README.md), [EXPERIMENTS.md](reproduce/EXPERIMENTS.md), pinned [Dockerfile](reproduce/Dockerfile), and [Makefile](reproduce/Makefile).
 
-### Vulnerability
+```bash
+# Exact environment (recommended)
+docker build -t saag-repro -f reproduce/Dockerfile .
+docker run --rm -v $(pwd)/results:/workspace/results saag-repro
 
-Vulnerability measures how attractive a component is as an adversarial target. It is calculated using reverse eigenvector centrality, reverse closeness centrality, and QoS-weighted in-degree (QADS).
+# Or locally, after the install above
+make -f reproduce/Makefile smoke-test   # ~15-30 min, 50 epochs, 2 seeds
+make -f reproduce/Makefile all          # ~6-12 h CPU, 5 seeds
+```
 
-**Formula:**
+| Target | Produces | Notes |
+|:---|:---|:---|
+| `block0` | W1 QoS pipeline audit | **Go/no-go gate** — must pass before `table3`. Runs `tests/test_qos_pipeline_audit.py` and `tests/test_baselines.py` |
+| `table3` | `results/table3_main_results.tex` | Main results: scenarios × 4 variants × 5 seeds. Depends on `block0`; `--resume` makes it restartable |
+| `table4` | `results/table4_loso_results.tex` | **LOSO** — leave-one-scenario-out, measures the cross-domain generalization gap |
+| `kfold` | `results/table4_kfold_results.tex` | **Per-domain repeated k-fold** — the in-domain protocol. Opt-in, not part of `all`: ~5× more model fits than LOSO for the same seed count |
+| `figure4` | `results/figure4_stratified_rho.pdf` | Per-node-type stratified $\rho$ |
+| `figure5` | `output/atm_case_study/attention_subgraph.pdf` | ATM attention-weight case study |
+| `all` | everything above except `kfold` | |
 
-$$
-V(v) = 0.40 \times \text{REV}(v) + 0.35 \times \text{RCL}(v) + 0.25 \times w\text{-in}(v)
-$$
+Budget roughly 6–12 h on 8 CPU cores, or 1–2 h on a CUDA GPU. Ablations (`reproduce/qos_label_ablation.py`, `threshold_sensitivity.py`, `ahp_sensitivity.py`, `reversed_projection_ablation.py`, `hardening_budget.py`, `convergent_validity.py`) run separately and are documented in `reproduce/EXPERIMENTS.md`.
 
-Where:
-- $\text{REV}(v)$ is the Reverse Eigenvector Centrality (transitive compromise reach on $G^T$).
-- $\text{RCL}(v)$ is the Reverse Closeness Centrality (adversarial reach speed via harmonic centrality on $G^T$).
-- $w\text{-in}(v)$ is the QoS-weighted in-degree (QADS: QoS-weighted Attack-Dependent Surface).
+Shell orchestrators for longer sweeps live in [`scripts/`](scripts/): `verify_pipeline.sh` (end-to-end smoke), `run_main_table.sh`, `populate_loso_cache.sh`, `train_all_variants.sh`, `run_production_pipeline.sh`, `recalibrate.sh`.
 
-### Overall Criticality Score
+---
 
-The overall criticality score combines the four dimensions. Availability dominates because structural SPOF failure partitions the graph with certainty, whereas cascade propagation and coupling risks are probabilistic.
+## Validation Gates
 
-**AHP-Weighted Composite Formula:**
+Stage 5 scores each run against nine gates. Thresholds are defined in [`ValidationTargets`](saag/validation/models.py#L10) and evaluated in [`ValidationService`](saag/validation/service.py#L713); full definitions are in [validation.md](docs/validation.md).
 
-$$
-Q(v) = 0.43 \times A(v) + 0.24 \times R(v) + 0.17 \times M(v) + 0.16 \times V(v)
-$$
+| Tier | Gate | Threshold |
+|:---|:---|:---|
+| 1 | G1 — Spearman $\rho$ | $\ge 0.70$ |
+| 1 | G2 — F1 | $\ge 0.75$ |
+| 1 | G3 — Precision | $\ge 0.80$ |
+| 1 | G4 — Top-5 overlap | $\ge 0.60$ |
+| 2 | G5 — Predictive gain over degree baseline | $> 0.03$ |
+| 2 | G6 — Weighted $\kappa_{\text{CTA}}$ (maintainability) | $\ge 0.70$ |
+| 2 | G7 — Cross-dimension correlation (CDCC) | $< 0.30$ |
+| 3 | G8 — Bottleneck precision | $\ge 0.70$ |
+| 3 | G9 — False-target rate (FTR) | $\le 0.20$ |
 
-Alternatively, an equal-weight baseline (0.25 each) can be activated for baseline comparisons:
-
-$$
-Q\_{\text{equal}}(v) = 0.25 \times A(v) + 0.25 \times R(v) + 0.25 \times M(v) + 0.25 \times V(v)
-$$
-
-
-
-
-### Criticality Classification (Adaptive Box-Plot)
-
-Scores are mapped to five criticality tiers using adaptive box-plot thresholding derived from the system's own score distribution:
-
-| Level | Threshold |
-|:---|:---|
-| **CRITICAL** | Score > Q3 + 1.5 * IQR |
-| **HIGH** | Q3 < Score <= Upper Fence |
-| **MEDIUM** | Median < Score <= Q3 |
-| **LOW** | Q1 < Score <= Median |
-| **MINIMAL** | Score <= Q1 |
-
-> [!NOTE]
-> For small topologies (fewer than 12 components), the box-plot method falls back to fixed-percentile classification (top 10% $\rightarrow$ CRITICAL).
-
-### RMAV Interpretation Triage Patterns
-
-The four-dimensional criticality signature profiles the exact nature of architectural risk:
-
-| Pattern | R | M | A | V | Risk Type | Recommended Action |
-|:---|:---:|:---:|:---:|:---:|:---|:---|
-| **Total Hub** | H | H | H | H | Catastrophic Hub | Introduce structural redundancy + network isolation + hardening |
-| **Reliability Hub** | H | L | L | L | Wide Cascade Propagator | Implement retry logic, circuit breakers, and back-pressure |
-| **Bottleneck** | L | H | L | L | High Change Fragility | Extract clean interface boundaries and reduce efferent coupling |
-| **SPOF** | L | L | H | L | High Availability Risk | Introduce redundant instances or active-passive failover |
-| **Attack Target** | L | L | L | H | High Attack Exposure | Enforce zero-trust boundaries and isolate network paths |
-| **Fragile Hub** | H | L | H | L | Multi-Channel Cascade Sink | Reduce shared-topic count between subscriber/publisher pairs |
-| **Exposed Bottleneck** | L | H | L | H | Vulnerable Bottleneck | Refactor code quality issues and shield component interfaces |
-
-### GNN Prediction (Step 3 Predict)
- 
-The optional inductive Predict stage refines the deterministic RMAV scores by utilizing a Graph Neural Network (trained on simulation ground-truth impact) to perform GNN-only criticality predictions.
+These are the **per-dimension** gates. The stricter **composite** targets for $Q^*(v)$ against $I^*(v)$ are separate: $\rho \ge 0.85$, F1 $\ge 0.90$, Top-5 $\ge 0.80$.
 
 ---
 
 ## Empirical Results
 
-The methodology has been validated across eight domain scenarios (including autonomous vehicles, IoT, high-frequency trading, healthcare, and air traffic management):
+Validated across the eleven domain scenarios in [`data/scenarios/`](data/scenarios/) — autonomous vehicles, IoT smart city, high-frequency trading, healthcare, ATM/air-traffic, microservices, hub-and-spoke, and enterprise-scale stress topologies.
 
 | Metric | Target | Achieved |
 |:---|:---:|:---:|
-| Spearman $\rho(Q^*, I^*)$ overall | $\ge 0.85$ | **> 0.87** |
-| Spearman $\rho(Q^*, I^*)$ at large scale (150–300+ nodes) | — | **0.943** |
-| Overall F1-score | $\ge 0.90$ | **> 0.90** |
-| Predictive Gain (PG) vs. degree baseline | $> 0.03$ | **> 0.03** |
-| Best prediction layer | — | Application layer outperforms infrastructure layer |
-| Scale effect | — | Prediction accuracy improves with system size |
+| Composite Spearman $\rho(Q^*, I^*)$ | $\ge 0.85$ | **> 0.87** |
+| Composite $\rho$ at large scale (150–300+ nodes) | — | **0.943** |
+| Composite F1 | $\ge 0.90$ | **> 0.90** |
+| Predictive gain vs. degree baseline | $> 0.03$ | **> 0.03** |
+| Best layer | — | Application layer outperforms infrastructure |
+| Scale effect | — | Accuracy improves with system size |
 
 ---
 
-## Supported Platforms
+## Applying SaG to Your Own System
 
-The graph model maps naturally to any publish-subscribe middleware:
+Real deployments skip `Generate` and start at **Model** with a topology JSON describing your architecture: `nodes`, `brokers`, `topics` (with QoS policy), `applications`, and `libraries`. The schema and a worked example are in [graph-model.md](docs/graph-model.md); [`data/system.json`](data/system.json) is a 50-application reference instance, and [`examples/run_worked_example.py`](examples/run_worked_example.py) verifies weight and `DEPENDS_ON` derivation end to end in memory.
 
-| Graph Concept | ROS 2 / DDS | Apache Kafka | MQTT |
+The graph model maps to any pub-sub middleware:
+
+| Graph concept | ROS 2 / DDS | Apache Kafka | MQTT |
 |:---|:---|:---|:---|
-| **Application** | ROS Node | Producer / Consumer | MQTT Client |
-| **Topic** | ROS Topic | Kafka Topic | MQTT Topic |
-| **Broker** | DDS Participant | Kafka Broker | MQTT Broker |
-| **Infrastructure Node** | Host / Container | Broker Host | Broker Server |
-| **Library** | ROS package dependency | Maven artifact dependency | Paho client library |
+| **Application** | ROS node | Producer / consumer | MQTT client |
+| **Topic** | ROS topic | Kafka topic | MQTT topic |
+| **Broker** | DDS participant | Kafka broker | MQTT broker |
+| **Infrastructure Node** | Host / container | Broker host | Broker server |
+| **Library** | ROS package dependency | Maven artifact | Paho client library |
 
 ---
 
-## Web Interface — SMART
+## RMAV Quality Model in Brief
 
-The **SMART** web interface (built using Next.js 16, React 19, TypeScript, and Tailwind CSS) provides an interactive dashboard:
-1. **Dashboard** — High-level KPIs, criticality heatmaps, and lists of top critical components.
-2. **Graph Explorer** — Interactive 2D/3D force-directed dependency graph displaying system layers.
-3. **Analysis** — Configurable structural analysis and RMAV quality scoring triggers.
-4. **Simulation** — Failure injection animation showing real-time cascade propagation paths.
-5. **Statistics** — QoS risk scatter plots, topic fan-out distributions, and communication loading.
-6. **Settings** — Configuration interface for Neo4j database connections.
+Criticality decomposes into four dimensions computed on the derived dependency graph, where edges point from *dependent* to *dependency*.
+
+| Dimension | Question answered | A high score means | Stakeholder |
+|:---|:---|:---|:---|
+| **R — Reliability** | How broadly does failure propagate? | Failure cascades widely and is hard to contain | Reliability engineer |
+| **M — Maintainability** | How hard is this to change safely? | Tightly coupled structural bottleneck | Software architect |
+| **A — Availability** | Is this a structural single point of failure? | Removing it partitions the dependency graph | DevOps / SRE |
+| **V — Vulnerability** | How attractive a target is this for attack? | Central, reachable, high-value downstream | Security engineer |
+
+The AHP-weighted composite is $Q(v) = 0.43 A(v) + 0.24 R(v) + 0.17 M(v) + 0.16 V(v)$ — availability dominates because a structural SPOF partitions the graph with certainty, whereas cascade and coupling risks are probabilistic. An equal-weight baseline (0.25 each) is available via `--equal-weights` for comparison.
+
+Scores map to five tiers using adaptive box-plot thresholds derived from the system's own score distribution: **CRITICAL** above the upper fence $Q_3 + 1.5 \cdot IQR$, then **HIGH** above $Q_3$, **MEDIUM** above the median, **LOW** above $Q_1$, **MINIMAL** at or below $Q_1$. Below 12 components the classifier falls back to fixed percentiles (top 10% → CRITICAL).
+
+The per-dimension formulas, all 14 Tier-1 metric definitions, and the AHP derivation are in [structural-analysis.md](docs/structural-analysis.md) and [criticality.md](docs/criticality.md).
+
+> [!NOTE]
+> In code the fourth dimension is named `security`, not `vulnerability` — expect `q_security`, `s_qads`, and `dimensional_validation["security"]` in results and checkpoints.
 
 ---
 
-## Installation & Development Setup
+## Anti-Pattern Detection in Brief
 
-### Prerequisites
-
-- **Python 3.9+** (Virtual environment recommended)
-- **Neo4j 5.x** (With GDS and APOC plugins enabled)
-- **Node.js 18+** (Frontend dashboard execution only)
-
-### 1. Neo4j Database Setup
-
-The recommended way to run Neo4j locally with GDS (Graph Data Science) and APOC is via Docker:
+Stage 3 audits its own RMAV output against a catalog of **21** structural anti-patterns — 6 CRITICAL (SPOF, SYSTEMIC_RISK, GOD_COMPONENT, FAILURE_HUB, TARGET, COMPOUND_RISK), 6 HIGH (CYCLE, BRIDGE_EDGE, BOTTLENECK_EDGE, BROKER_OVERLOAD, DEEP_PIPELINE, EXPOSURE), and 9 MEDIUM. Trigger conditions and remediations for each are specified in [antipatterns.md](docs/antipatterns.md) and [remediation.md](docs/remediation.md); the catalog itself lives in [`antipattern_detector.py`](saag/analysis/antipattern_detector.py#L35).
 
 ```bash
-docker run -d --name neo4j \
-  -p 7474:7474 -p 7687:7687 \
-  -e NEO4J_AUTH=neo4j/password \
-  neo4j:2026.02.2
-```
-
-> [!WARNING]
-> The default credentials (`neo4j` / `password`) are for local development only. Change these in the root `.env` file before shared deployments.
-
-### 2. Backend & CLI Installation
-
-Initialize a virtual environment, install PyTorch (with PyG dependencies), and install the CLI/SDK package in editable mode:
-
-```bash
-# Set up virtual environment
-python3.11 -m venv .venv
-source .venv/bin/activate
-
-# Install PyTorch and PyG (CPU version)
-pip install torch==2.5.0 --extra-index-url https://download.pytorch.org/whl/cpu
-pip install torch-scatter torch-sparse torch-geometric -f https://data.pyg.org/whl/torch-2.5.0+cpu.html
-
-# Install package with all extras
-pip install -e ".[all]"
-```
-
-To start the FastAPI REST server:
-```bash
-uvicorn api.main:app --reload --port 8000
-```
-API docs are available at `http://localhost:8000/docs`.
-
-### 3. Frontend Installation
-
-Navigate to the dashboard directory, install dependencies, and start the Next.js development server:
-
-```bash
-cd smart
-npm install
-npm run dev
-```
-Dashboard is available at `http://localhost:7000`.
-
-### 4. Running the Pipeline via CLI
-
-Run the full pipeline (Model $\rightarrow$ Analyze $\rightarrow$ Predict $\rightarrow$ Simulate $\rightarrow$ Validate $\rightarrow$ Visualize) on a layer in a single command:
-
-```bash
-python cli/run.py --all --layer system
-```
-
-#### Individual Pipeline Scripts
-
-All CLI scripts are stored in the [cli/](cli/) folder. Run them from the project root:
-
-```bash
-# Generate a synthetic pub-sub topology JSON
-python cli/generate_graph.py --scale medium --output data/system.json
-
-# Step 1: Import topology to Neo4j and derive DEPENDS_ON edges
-python cli/import_graph.py --input data/system.json --clear
-
-# Step 2: Compute structural metrics only
-python cli/analyze_graph.py --layer system
-
-# Step 3: Unified Prediction Step — RMAV always; optional GNN training/inference
-python cli/predict_graph.py --layer system
-python cli/train_graph.py --layer system
-python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model
-
-# Step 4: Run failure simulations to obtain ground truth I(v)
-python cli/simulate_graph.py fault-inject --input data/system.json --export-json
-
-# Step 5: Compute Spearman correlation and validation gate metrics
-python cli/validate_graph.py report --input data/system.json --qos
-
-# Step 6: Prescribe optimizations and validate in closed loop
-python cli/prescribe_graph.py --layer system
-
-# Step 7: Renders interactive HTML dashboard report
-python cli/visualize_graph.py --layer system --output output/dashboard.html --open
-```
-
-#### Pipeline Utilities
-
-```bash
-# Standalone anti-pattern detection (CI/CD quality gating)
 python cli/detect_antipatterns.py --layer system --output output/antipatterns.json
-
-# Export database graph representation to JSON
-python cli/export_graph.py --output output/graph_export.json
-
-# Run scalability performance benchmark
-python cli/benchmark.py
-
-# Execute full pipeline validation across all 8 scenarios
-bash cli/run_scenarios.sh
-
-# Run CLI-based statistics dashboard
-python cli/statistics_graph.py --layer system
 ```
-
-### 5. Running Tests
-
-```bash
-pytest                # Run all tests
-pytest -x             # Halt execution on first failure
-pytest -k "reliability" # Run tests matching name pattern
-```
-
----
-
-## Anti-Pattern Detection
-
-The `AntiPatternDetector` reviews RMAV scoring results and flags structural deficiencies in CI/CD pipelines.
-
-| Anti-Pattern | Trigger Condition | Severity |
-|:---|:---|:---|
-| **SPOF** | Component is a directed articulation point, or its availability score $A(v)$ exceeds the population's upper fence | CRITICAL |
-| **SYSTEMIC_RISK** | CRITICAL components account for $> 20\%$ of system | CRITICAL |
-| **GOD_COMPONENT** | $M(v) \ge$ CRITICAL and betweenness centrality $> 0.3$ | CRITICAL |
-| **FAILURE_HUB** | $R(v) \ge$ CRITICAL threshold and out-degree above the median | CRITICAL |
-| **TARGET** | $V(v) \ge$ CRITICAL threshold | CRITICAL |
-| **COMPOUND_RISK** | Component is simultaneously a SPOF and a GOD_COMPONENT/HUB_AND_SPOKE/FAILURE_HUB | CRITICAL |
-| **CYCLE** | Strongly Connected Component size $\ge 2$ nodes | HIGH |
-| **BRIDGE_EDGE** | Edge is a graph bridge | HIGH |
-| **BOTTLENECK_EDGE** | Edge betweenness centrality exceeds the edge-betweenness population's upper fence ($Q_3 + 1.5 \times IQR$) | HIGH |
-| **BROKER_OVERLOAD** | Broker's availability $\ge 2\times$ the median broker availability, or the sole broker in the system | HIGH |
-| **DEEP_PIPELINE** | Longest dependency chain $\ge 5$ hops (app layer) | HIGH |
-| **EXPOSURE** | $V(v) ==$ HIGH and closeness centrality $> 0.6$ | HIGH |
-| **CONCENTRATION_RISK** | Top-3 components hold $> 50\%$ of total PageRank (system-wide, $\ge 5$ components) | MEDIUM |
-| **TOPIC_FANOUT** | Topic subscriber count exceeds the topic population's upper fence (floor of 5) | MEDIUM |
-| **CHATTY_PAIR** | Bidirectional edges with $edge\_score(u \to v) \times edge\_score(v \to u) > 0.25$ | MEDIUM |
-| **QOS_MISMATCH** | Publisher QoS weight $w(u) <$ subscriber QoS weight $w(v) - 0.3$ | MEDIUM |
-| **ORPHANED_TOPIC** | Topic has no publishers or no subscribers | MEDIUM |
-| **UNSTABLE_INTERFACE** | Maintainability score $> 0.80$ and enhanced coupling risk $> 0.80$ | MEDIUM |
-| **HUB_AND_SPOKE** | Clustering coefficient $< 0.1$ and degree centrality $> 3$ | MEDIUM |
-| **CHAIN** | Weakly connected sequence length $\ge 4$ nodes | MEDIUM |
-| **ISOLATED** | Component has no incoming or outgoing dependencies in this layer | MEDIUM |
-
-See [antipatterns.md](docs/antipatterns.md) for the full formal specification of each pattern.
 
 > [!TIP]
-> Detection runs return exit codes (0: clean, 1: warnings/smells, 2: critical/high patterns detected) suitable for pre-merge gates.
+> Exit codes make this a pre-merge gate: **0** clean, **1** warnings/smells, **2** critical or high patterns detected.
 
 ---
 
-## Python SDK (`saag`)
+## Python SDK
 
-The `saag` package exposes a fluent programmatic builder API for custom scripting:
+`saag.Pipeline` is a fluent builder; stages execute in dependency order regardless of the order you chain them.
 
 ```python
 import saag
 
-# Run Analyze + Simulate + Validate + Prescribe + Visualize in a fluent chain
 result = (
     saag.Pipeline.from_json("data/system.json", clear=True)
-        .analyze(layer="app")          # Deterministic structural metrics only
-        .simulate(layer="app", mode="exhaustive") # Ground-truth simulation
-        .validate()                    # Statistical validation
-        .prescribe()                   # Prescriptive remediation generation
-        .visualize(output="output/report.html") # Renders dashboard
+        .analyze(layer="app")                      # structural metrics only
+        .simulate(layer="app", mode="exhaustive")  # ground-truth labels
+        .predict()                                 # RMAV (+ GNN if a checkpoint exists)
+        .validate()                                # statistical validation
+        .prescribe()                               # counterfactual-verified remediations
+        .visualize(output="output/report.html")
         .run()
 )
 
-print(f"Spearman ρ = {result.validation.overall.spearman:.3f}")
-print(f"F1-Score   = {result.validation.overall.f1:.3f}")
+for layer, v in result.validation.layers.items():
+    print(f"{layer}: rho={v.spearman_rho:.3f}  F1={v.f1_score:.3f}")
+
 if result.prescription:
-    print(f"SRI Imp.   = {result.prescription.sri_improvement:.4f}")
+    print(f"SRI improvement = {result.prescription.sri_improvement:.4f}")
 ```
 
-### Key SDK Classes
-
-| Class | Location | Purpose |
+| Class | Import path | Purpose |
 |:---|:---|:---|
-| [Pipeline](saag/pipeline.py#L12) | `saag.Pipeline` | Fluent builder to sequence and execute the pipeline |
-| [Client](saag/client.py#L9) | `saag.Client` | Low-level service facade wrapper |
-| [AnalysisResult](saag/models.py#L102) | `saag.AnalysisResult` | Step 2 output — structural metrics only |
-| [PredictionResult](saag/models.py#L180) | `saag.PredictionResult` | Step 3 (unified Predict) output — RMAV/GNN scores, anti-patterns, explanation |
-| [ValidationResult](saag/models.py#L369) | `saag.ValidationResult` | Step 5 validation output including Spearman and gate metrics |
-| [PrescribeResult](saag/prescription/models.py) | `saag.prescription.PrescribeResult` | Step 6 prescriptive output including compiled policy and SRI delta |
+| [Pipeline](saag/pipeline.py#L12) | `saag.Pipeline` | Fluent builder that sequences and runs the stages |
+| [Client](saag/client.py#L9) | `saag.Client` | Step-by-step service façade for finer control |
+| [AnalysisResult](saag/models.py#L102) | `saag.AnalysisResult` | Stage 2 — structural metrics |
+| [PredictionResult](saag/models.py#L190) | `saag.PredictionResult` | Stage 3 — RMAV/GNN scores, anti-patterns, explanation |
+| [ValidationResult](saag/models.py#L396) | `saag.ValidationResult` | Stage 5 — per-layer correlations and gate outcomes |
+| [PrescribeResult](saag/prescription/models.py#L84) | `saag.prescription.PrescribeResult` | Stage 6 — accepted policy and SRI delta |
+
+More runnable examples — including a round-trip persistence check and per-stage ATM walkthroughs — are in [`examples/`](examples/).
 
 ---
 
-## Project Structure
+## Further Reading
 
-```
-.
-├── cli/                        # CLI pipeline scripts
-│   ├── run.py                  #   Master pipeline orchestrator (--all flag)
-│   ├── generate_graph.py       #   Offline Prep: Generate — synthetic pub-sub topology
-│   ├── import_graph.py         #   Step 1a: Model (Import) — Neo4j import & dependency derivation
-│   ├── export_graph.py         #   Step 1b: Model (Export) — export graph from Neo4j to JSON
-│   ├── analyze_graph.py        #   Step 2: Analyze — structural metrics only
-│   ├── train_graph.py          #   Step 3a: Predict (Train) — GNN training (optional; requires Step 4 labels)
-│   ├── predict_graph.py        #   Step 3b: Predict (Inference) — unified RMAV + GNN + anti-patterns
-│   ├── detect_antipatterns.py  #   Standalone anti-pattern / CI gate
-│   ├── simulate_graph.py       #   Step 4: Simulate — fault-inject | message-flow | combined
-│   ├── validate_graph.py       #   Step 5: Validate — single | sweep | report | compare
-│   ├── prescribe_graph.py      #   Step 6: Prescribe — optimize architecture & validate in closed loop
-│   ├── visualize_graph.py      #   Step 7: Visualize — interactive HTML dashboard
-│   ├── statistics_graph.py     #   Statistics dashboard (topology & communication analytics)
-│   ├── benchmark.py            #   Benchmark across scale presets
-│   ├── kfold_evaluate.py       #   Per-domain repeated k-fold GNN validation (primary protocol)
-│   ├── loso_evaluate.py        #   Leave-One-Scenario-Out GNN validation (secondary/domain-gap)
-│   ├── multi_seed_summary.py   #   Aggregate results across seeds
-│   └── run_scenarios.sh        #   Full pipeline across 8 domain scenarios
-│
-├── tools/                      # Standalone tooling (no Neo4j dependency)
-│   └── generation/             #   Statistical pub-sub topology generator
-│       ├── generator.py        #     Core generator (structural edges only)
-│       ├── service.py          #     High-level GenerationService wrapper
-│       ├── models.py           #     Scale presets & statistical config
-│       └── datasets.py         #     Domain-specific naming & QoS mappings
-│
-├── saag/                       # Core Python SDK & Logic
-│   ├── core/                   #   Domain models, ports, Neo4j & memory repos
-│   ├── analysis/               #   Structural metrics only (Step 2)
-│   ├── prediction/             #   Unified Predict step (Step 3): RMAV quality scoring + GNN service + anti-pattern detection + explanations
-│   ├── simulation/             #   Four parallel failure/event simulators
-│   ├── validation/             #   Per-dimension statistical validation
-│   ├── prescription/           #   Stage 6 prescriptive optimization service
-│   ├── visualization/          #   Dashboard & chart generation
-│   ├── infrastructure/         #   Neo4j drivers & data persistence
-│   ├── pipeline.py             #   saag.Pipeline — fluent builder
-│   ├── client.py               #   saag.Client — service façade
-│   └── models.py               #   Result & data model types
-│
-├── api/                        # FastAPI application (Hexagonal Architecture)
-│   ├── presenters/             #   Response formatting & API translation
-│   ├── routers/                #   REST endpoints (thin layer)
-│   └── dependencies.py         #   Service & Repository injection
-│
-├── smart/                      # Web Frontend (SMART - Next.js)
-├── tests/                      # Pytest unit & integration tests
-├── examples/                   # Annotated Python usage examples
-├── data/                       # Topology JSON & YAML scenario configs
-├── output/                     # Pipeline output artefacts
-├── results/                    # Validation results from previous runs
-├── models/                     # Trained GNN model checkpoints
-└── docs/                       # Per-step methodology documentation
-```
+**Framework internals** — [ARCHITECTURE.md](ARCHITECTURE.md) for package boundaries and data flow, [CLAUDE.md](CLAUDE.md) for conventions and invariants.
 
-Key directories in the workspace:
-- [cli/](cli/) — Entry points for the command-line interface.
-- [tools/](tools/) — Auxiliary graph generation utilities.
-- [saag/](saag/) — Implementation of the core pipeline logic and mathematical models.
-- [api/](api/) — FastAPI endpoints for backend integration.
-- [smart/](smart/) — Next.js single page dashboard application.
-- [docs/](docs/) — Detailed methodology references.
+**Methodology, per stage** — [graph-model.md](docs/graph-model.md) · [graph-generation.md](docs/graph-generation.md) · [structural-analysis.md](docs/structural-analysis.md) · [criticality.md](docs/criticality.md) · [prediction.md](docs/prediction.md) · [antipatterns.md](docs/antipatterns.md) · [failure-simulation.md](docs/failure-simulation.md) · [validation.md](docs/validation.md) · [prescription.md](docs/prescription.md) · [remediation.md](docs/remediation.md) · [statistics.md](docs/statistics.md) · [visualization.md](docs/visualization.md) · [scenario.md](docs/scenario.md) · [cli-pipeline-guide.md](docs/cli-pipeline-guide.md)
 
----
+**Formal specifications** — [SRS](docs/requirements/SRS.md) · [SAD](docs/design/SAD.md) · [SDD](docs/design/SDD.md) · [STD](docs/tests/STD.md) · [SAR](docs/tests/SAR.md) · [User Manual](docs/user/SUM.md)
 
-## Research Context
+**Research** — [reproduce/](reproduce/) for the reproduction package, [docs/research/](docs/research/) for paper sources.
 
-<!-- 
-This framework is the software artifact for the PhD dissertation **"Graph-Based Modeling and Analysis of Distributed Publish-Subscribe Systems"** at Istanbul Technical University, Department of Computer Engineering.
-
-The underlying methodology was peer-reviewed and published at:
-
-> **IEEE International Conference on Recent Advances in Systems Science and Engineering (RASSE 2025)**
-> *A Graph-Based Dependency Analysis Method for Identifying Critical Components in Distributed Publish-Subscribe Systems*
--->
-
-The primary research contribution is the demonstration that **topological graph metrics can reliably predict real-world failure impact without runtime instrumentation**, validated empirically across multiple application domains and scale dimensions.
-
-Key methodological contributions:
-- **Six dependency derivation rules** making pub-sub logical dependencies explicit.
-- **The RMAV quality model** decomposing criticality into orthogonal, actionable dimensions.
-- **The MPCI metric** (Multi-Path Coupling Index) measuring coupling intensity.
-- **The directed $AP_c$ score** correctly capturing directed single points of failure.
-- **Adaptive box-plot classification** determining system-relative thresholds.
-- **Empirical independence guarantee** structurally separating predictor and simulation views.
-
-<!--
-### Citation
-
-If you use this framework or methodology in your research, please cite:
-
-```bibtex
-@inproceedings{yigit2025graphbased,
-  title     = {A Graph-Based Dependency Analysis Method for Identifying
-               Critical Components in Distributed Publish-Subscribe Systems},
-  author    = {Yigit, Ibrahim Onuralp and Buzluca, Feza},
-  booktitle = {2025 IEEE International Conference on Recent Advances in
-               Systems Science and Engineering (RASSE)},
-  year      = {2025},
-  doi       = {10.1109/RASSE64831.2025.11315354}
-}
-```
--->
+The primary research contribution is the demonstration that topological graph metrics reliably predict real-world failure impact without runtime instrumentation. Supporting contributions: the six dependency derivation rules; the RMAV decomposition; the MPCI (Multi-Path Coupling Index) metric; the directed $AP_c$ single-point-of-failure score; adaptive box-plot classification; and the structural independence guarantee separating the predictor from the simulation oracle.
 
 ---
 
 ## License
 
-Released under an open-source license — see [`LICENSE`](LICENSE). Apache-2.0 is the suggested default; all dependencies are license-compatible.
+Apache-2.0. See [`LICENSE`](LICENSE).
+
+> [!WARNING]
+> The `LICENSE` file currently contains **GPL-3.0** text and `pyproject.toml` declares `MIT` — neither matches the intended Apache-2.0 license. Both need to be corrected; this is tracked as a known discrepancy, not a documentation error.
