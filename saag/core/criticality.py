@@ -3,11 +3,13 @@ Criticality Domain Models
 
 Defines criticality levels and classification data structures.
 
-Criticality is the loss of Quality-in-Use (ISO/IEC 25010 SQuaRE) that stakeholders
-suffer *conditional on* the failure of a component (D1) or of a single dependency
-with both endpoints still running (D2) — a consequence, carrying no estimate of how
-likely that failure is (D3), and relative to one system and one layer rather than
-absolute (D4). Definitions D1–D4 are in docs/criticality.md.
+Criticality is the degree to which a fault reduces the system's capacity to enable
+its stakeholders to achieve their goals — the Quality-in-Use outcomes of ISO/IEC
+25010 (SQuaRE). D1 scopes it to a component failing, slowing or degrading, directly
+or transitively; D2 to the disruption of a single dependency while both endpoints
+keep running, in proportion to the absence of a fallback path. It is a consequence,
+carrying no estimate of how likely the fault is (D3), and relative to one system and
+one layer rather than absolute (D4). Definitions D1–D4 are in docs/criticality.md.
 
 It is computed, never asserted: no entity carries a hand-assigned criticality.
 Each score is a function of two inputs, an entity's position in the layer-projected

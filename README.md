@@ -219,7 +219,7 @@ The graph model maps to any pub-sub middleware:
 
 ## RMAV Quality Model in Brief
 
-Criticality here is a **Quality-in-Use** construct in the ISO/IEC 25010 (SQuaRE) sense: the loss stakeholders suffer *conditional on* a component or dependency failing — a consequence, carrying no estimate of how likely that failure is. The formal definitions (D1–D4), and how this differs from FMECA criticality, assigned integrity levels such as SIL/ASIL, and topological critical-node detection, are in [criticality.md](docs/criticality.md).
+Criticality here is a **Quality-in-Use** construct in the ISO/IEC 25010 (SQuaRE) sense: the degree to which the failure, latency or degradation of a component — directly or transitively — reduces the system's capacity to enable its stakeholders to achieve their goals. It is a *consequence*, carrying no estimate of how likely that failure is. The formal definitions (D1–D4), and how this differs from FMECA criticality, assigned integrity levels such as SIL/ASIL, and topological critical-node detection, are in [criticality.md](docs/criticality.md).
 
 It decomposes into four dimensions computed on the derived dependency graph, where edges point from *dependent* to *dependency*. The dimension names come from SQuaRE's *product quality* model and identify the failure **mechanism**; the Quality-in-Use characteristic each one threatens is the **harm** ([why both models](docs/criticality.md#35-why-the-dimensions-are-named-after-the-other-model)).
 

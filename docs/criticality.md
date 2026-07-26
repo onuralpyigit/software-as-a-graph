@@ -200,17 +200,21 @@ The four dimensions this framework scores — Reliability, Maintainability, Avai
 
 ### 4.1 Definition
 
-> **D1 — Component criticality.** For a system $S$ analysed at layer $l$, the criticality of a component $v \in V_l$ is the loss of Quality-in-Use suffered by $S$'s stakeholders — their reduced capacity to achieve their goals with effectiveness, efficiency, freedom from risk and satisfaction — **conditional on the failure, latency or degradation of $v$**, relative to $S$'s context of use, and to the extent that this loss holds consistently across the contexts in which $S$ is used.
+> **D1 — Component criticality.** The degree to which the failure, latency, or functional degradation of a specific software component — directly or transitively — reduces the system's capacity to enable its stakeholders to achieve specified goals with effectiveness, efficiency, freedom from risk, and satisfaction within its operational context.
 >
-> Realised as a measure: $\;\mathrm{crit}_l : V_l \to [0,1]^4 \times [0,1]$, mapping each component to its four RMAV dimension scores and their composite $Q(v)$.
+> Realised at layer $l$ as a measure: $\;\mathrm{crit}_l : V_l \to [0,1]^4 \times [0,1]$, mapping each component $v \in V_l$ to its four RMAV dimension scores and their composite $Q(v)$.
 
-Three qualifiers in D1 do real work and are easy to skim past:
+Five clauses in D1 do real work and are easy to skim past:
 
-- **"conditional on the failure"** — the definition is counterfactual and likelihood-free ([D3](#23-consequence-not-risk)).
-- **"at layer $l$"** — criticality is defined per layer projection, not once per component. The same broker has a different score in the `mw` and `system` layers because it is a different vertex set being ranked ([D4](#7-validity-of-the-construct)).
-- **"relative to $S$'s context of use"** — the same structure carries different weight in different domains ([§3.3](#33-context-of-use)), which is why the composite coefficients adapt to the system's QoS profile ([§4.4](#44-what-the-component-carries-the-weight-channel)).
+- **"failure, latency, or functional degradation"** — three distinct fault modes, not one. The structural estimator does not distinguish them; the simulation oracle does ([§7.2](#72-construct-validity)).
+- **"directly or transitively"** — the transitive half is the whole reason Reliability exists as a separate dimension, and it is what extends this construct beyond the purely topological critical-node tradition ([§2.2](#22-what-this-construct-borrows-and-rejects)): the harm is loss of stakeholder outcomes reachable through the component, not loss of graph connectivity.
+- **"reduces"** — the statement is counterfactual. It says what follows *if* the fault occurs, and never how likely that is ([D3](#23-consequence-not-risk)).
+- **"its stakeholders"** — both populations of [§3.2](#32-stakeholders-who-is-harmed-vs-who-acts). Maintainability is the dimension where the harmed party is the engineering team rather than the end user, and "stakeholders" is what keeps that inside the definition rather than beside it.
+- **"within its operational context"** — the same structure carries different weight in different domains ([§3.3](#33-context-of-use)), which is why the composite coefficients adapt to the system's QoS profile ([§4.4](#44-what-the-component-carries-the-weight-channel)). *Context coverage* as a Quality-in-Use characteristic is a property of the criticality signal rather than of any one component, and is treated as such in [§7.3](#73-characteristic-coverage).
 
-Stated as an operational rule: **a component is critical in proportion to how many stakeholder outcomes stop being achievable when it stops working.**
+The realization line adds one further relativization the sentence leaves implicit: criticality is defined **per layer projection**, not once per component. The same broker scores differently in the `mw` and `system` layers because a different vertex set is being ranked ([D4](#7-validity-of-the-construct)).
+
+Stated as an operational rule: **a component is critical in proportion to how many stakeholder outcomes stop being achievable when it fails, slows, or degrades.**
 
 That single quantity is not directly computable, so it is **decomposed into four dimensions — Reliability, Maintainability, Availability, and Vulnerability/Security (RMAV)** — each capturing one distinct mechanism by which a component's failure destroys stakeholder value:
 
@@ -414,11 +418,15 @@ Two consequences matter when reading a tier as a stakeholder statement:
 
 ### 5.1 Definition
 
-> **D2 — Relationship criticality.** For a system $S$ analysed at layer $l$, the criticality of a dependency $e = (u,v) \in E_l$ — a pub-sub linkage or derived `DEPENDS_ON` edge — is the loss of Quality-in-Use suffered by $S$'s stakeholders, **conditional on the loss of $e$ alone while both $u$ and $v$ remain operational**, relative to $S$'s context of use and to the extent that the loss holds consistently across contexts.
+> **D2 — Relationship criticality.** The degree to which the disruption, latency, or data loss across a specific inter-component interaction or dependency path — with both endpoint components remaining operational — reduces the system's capacity to enable its stakeholders to achieve specified goals with effectiveness, efficiency, freedom from risk, and satisfaction, in proportion to the absence of redundant or fallback paths around it.
 >
-> Realised as a measure: $\;\mathrm{crit}_l : E_l \to [0,1]^4 \times [0,1]$, the same signature as [D1](#41-definition).
+> Realised at layer $l$ as a measure: $\;\mathrm{crit}_l : E_l \to [0,1]^4 \times [0,1]$, mapping each dependency $e = (u,v) \in E_l$ to the same signature as [D1](#41-definition).
 
-The clause *"while both endpoints remain operational"* is what makes D2 more than a restatement of D1: it isolates the partial-outage case ([§5.2](#52-why-a-link-needs-its-own-score)), and it is the condition the simulator actually enforces when it measures edge impact by severing one relationship and leaving both endpoints active ([§5.6](#56-learned-edge-scoring-gnn)).
+Three clauses distinguish D2 from D1 rather than merely restating it for edges:
+
+- **"with both endpoint components remaining operational"** — this is the discriminating clause. It isolates the partial-outage case ([§5.2](#52-why-a-link-needs-its-own-score)), and it is precisely the condition the simulator enforces when it measures edge impact by severing one relationship and leaving both endpoints active ([§5.6](#56-learned-edge-scoring-gnn)).
+- **"inter-component interaction or dependency path"** — the two spellings are deliberate, because relationship criticality spans both graph views: raw structural interactions (`PUBLISHES_TO`, `ROUTES`, `RUNS_ON`, …) and the derived `DEPENDS_ON` paths abstracted from them — the two views of [graph-model.md §6](graph-model.md#6-two-graph-views). A single `DEPENDS_ON` edge may stand for several underlying interactions, which is what `path_count` records ([§5.3](#53-structural-edge-signals)).
+- **"in proportion to the absence of redundant or fallback paths"** — replaceability scales the harm rather than gating it. A link with no alternative route destroys Effectiveness for everything behind it; a replaceable one still costs Efficiency, and still carries whatever guarantee crosses it. That proportionality is exactly how the four edge dimensions divide the work: only Availability is bridge-gated, while Reliability, Maintainability and Vulnerability score replaceable links too ([§5.5](#55-edge-rmav-decomposition)).
 
 Where component criticality asks *"how dangerous is losing this component,"* relationship criticality asks *"how dangerous is losing this specific link, even though both components are still running."*
 
@@ -450,7 +458,7 @@ This asymmetry produces the two cases the model must handle:
 - A **high-criticality node** can have many **low-criticality edges** — a redundantly connected broker, where losing any single link changes nothing for anyone.
 - A **low-criticality node** can sit behind a **single highly critical bridge edge** — losing that one relationship is as consequential for its dependents as losing a much higher-scoring component.
 
-Edge criticality is therefore governed by one structural question with a direct Quality-in-Use reading: **is this link replaceable?** A replaceable link degrades Efficiency (traffic reroutes, costs more). A non-replaceable link — a graph bridge — destroys Effectiveness for everything behind it.
+Edge criticality is therefore governed by one structural question with a direct Quality-in-Use reading: **is this link replaceable?** A replaceable link degrades Efficiency (traffic reroutes, costs more). A non-replaceable link — a graph bridge — destroys Effectiveness for everything behind it. This is the same claim D2 makes as *"in proportion to the absence of redundant or fallback paths"* ([§5.1](#51-definition)); the difference between the two outcomes is a difference of degree, which is why replaceability scales the score instead of switching it on.
 
 ### 5.3 Structural Edge Signals
 
@@ -655,6 +663,8 @@ Consequently the defensible claim is: *RMAV tracks simulated failure impact, and
 ### 7.2 Construct Validity
 
 **What would falsify the construct.** Criticality claims that structural exposure predicts harm under failure. It is falsified if components ranked CRITICAL are, under controlled failure, no more damaging than components ranked MINIMAL — which is precisely what the link ① correlation and top-$K$ agreement statistics test.
+
+**The definitions name three fault modes; the two halves of the pipeline see them differently.** D1 spans failure, latency and functional degradation, and D2 spans disruption, latency and data loss. The **structural estimator** does not distinguish them: RMAV scores an element's *exposure* — how much depends on it, how irreplaceable it is, how strongly its flows are guaranteed — which is why one score covers all three modes rather than three scores covering one each. The **simulation oracle** does distinguish them: it measures end-to-end latency percentiles before and after fault injection, message drops, and QoS deadline and lifespan violations ([failure-simulation.md](failure-simulation.md)). The breadth of the definitions is therefore carried by link ① rather than by the estimator, and a reader comparing D1's wording against the RMAV formulas should read the difference as division of labour, not as overreach.
 
 **View independence is not source independence.** Predictors read $G_{\text{analysis}}$ while ground truth is produced by simulating $G_{\text{structural}}$, and no simulation output is fed back as a predictor feature. That rules out feature–label feedback. It does *not* make the two independent: both views are deterministic functions of the same input topology, so a modelling assumption shared by both would be invisible to this check. The guarantee should be cited for what it is.
 
