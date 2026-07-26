@@ -34,9 +34,13 @@ This document describes the two simulation **CLI modes** available in `simulate_
    - [message\_flow\_results.json](#62-message_flow_resultsjson)
 7. [Worked Examples — ATM Dataset](#7-worked-examples--atm-dataset)
 8. [Integration with the RMAV Validation Pipeline](#8-integration-with-the-rmav-validation-pipeline)
-9. [Input Graph Format Requirements](#9-input-graph-format-requirements)
-10. [Python API](#10-python-api)
-11. [Known Limitations](#11-known-limitations)
+9. [What the Simulator Measures in Quality-in-Use Terms](#9-what-the-simulator-measures-in-quality-in-use-terms)
+   - [Coverage by characteristic](#91-coverage-by-characteristic)
+   - [The two constraints](#92-the-two-constraints)
+   - [Design sketch — not implemented](#93-design-sketch--not-implemented)
+10. [Input Graph Format Requirements](#10-input-graph-format-requirements)
+11. [Python API](#11-python-api)
+12. [Known Limitations](#12-known-limitations)
 
 ---
 
@@ -506,7 +510,7 @@ This matches the DDS definition: the deadline is the maximum acceptable age of a
 
 **Lifespan** (`lifespan_ms`) is applied before the deadline check. Messages older than their lifespan at the time of dequeue are silently discarded.
 
-**Durability** (`TRANSIENT_LOCAL`) is noted in the QoS profile but is not fully modelled in the current simulator (no late-joiner history replay). This is documented in [Known Limitations](#11-known-limitations).
+**Durability** (`TRANSIENT_LOCAL`) is noted in the QoS profile but is not fully modelled in the current simulator (no late-joiner history replay). This is documented in [Known Limitations](#12-known-limitations).
 
 ### 4.4 Fault Injection at Runtime
 
@@ -1024,7 +1028,52 @@ Validation report
 
 ---
 
-## 9. Input Graph Format Requirements
+## 9. What the Simulator Measures in Quality-in-Use Terms
+
+Every impact quantity defined above — `I*(v)`, `composite_impact`, `IR/IM/IA/IS` — answers the question *"how much of the graph broke?"*. Criticality is defined on a different question: *"how much worse did the outcome get for stakeholders?"* — the Quality-in-Use axis of ISO/IEC 25010 that [criticality.md](criticality.md#41-definition) D1 and D2 are written on. This section asks whether the second question can be answered from what the simulator already produces.
+
+**It largely can, and without simulating anything differently.** The discrete-event engine already records delivery, latency, and contract-violation data per fault; those observations are simply aggregated along the RMAV axis (to mirror the predictor) rather than along the Quality-in-Use axis (to match the construct). What follows is a field-level audit of what each characteristic would draw on.
+
+### 9.1 Coverage by characteristic
+
+| Quality-in-Use characteristic | Status | Existing outputs that measure it |
+|:---|:---|:---|
+| **Effectiveness** — is the goal achievable at all? | **Measurable now** | `FaultEventRecord.delivery_rate_before` / `.delivery_rate_after`, `.cascade_impacted_subscribers`, `.cascade_orphaned_topics`; `SubscriberStats.missed_per_topic`, `.missed_post_fault`, `.overall_delivery_rate` ([`simulation_results.py`](../saag/simulation/simulation_results.py)); `ImpactMetrics.reachability_loss`, `.fragmentation`, `.flow_disruption` ([`models.py`](../saag/simulation/models.py)) |
+| **Efficiency** — same goal, more resource? | **Measurable now** | `FaultEventRecord.latency_p50_before/after` and `.latency_p95_before/after` — already positioned as an independent `I_dyn(v)` oracle candidate ([§4.4](#44-fault-injection-at-runtime)); `MessageFlowResult.total_queue_overflows`; `ImpactMetrics.throughput_loss`; `RuntimeMetrics.avg_latency`, `.p99_latency`, `.throughput` |
+| **Freedom from risk** — is a contract breached? | **Blocked by the corpus, not by the method** | The machinery exists: deadline and lifespan checks against end-to-end latency ([§4.3](#43-qos-enforcement)), `TopicFlowStats.total_dropped_deadline`, `SubscriberStats.deadline_violations_per_topic`, `MessageFlowResult.total_deadline_violations`, and a `deadline=…:qos` oracle slot in the validation harness. But **no topic in the scenario corpus declares `deadline_ms` — 0 of 710** across all ten scenarios, so every counter is structurally zero |
+| **Satisfaction** | **Not measurable** | Behavioural, and no correlate exists in a message-flow simulation. Repeat-outage frequency is the nearest proxy and is not the same construct |
+| **Context coverage** | **Across runs, not per fault** | Not a per-fault quantity at all: it is the stability of the impact ranking across scenarios and domains, already exercised by the LOSO and multi-scenario batch runs |
+
+**Two of five are available today; a third is one generator change away; one is permanently out of reach; one is a cross-run property rather than a per-fault measurement.**
+
+### 9.2 The two constraints
+
+**Cost.** `MessageFlowSimulator(graph, duration, fault_node, fault_time, seed, …)` injects **one fault per run** ([§11.2](#112-messageflowsimulator)). A per-component Effectiveness/Efficiency oracle therefore costs one discrete-event run per candidate component, which is materially more expensive than the graph-based sweep that produces `I*(v)` — the reason the cheap oracle is the one wired into the pipeline today.
+
+**Unlocking Freedom from risk is not free.** Every topic in the corpus carries `frequency` (Hz) — 710 of 710 — so a deadline is derivable from the publication period. But emitting `deadline_ms` changes generated topology bytes: all `data/scenarios/*.json` would regenerate and the golden SHA-256 in `tests/test_generation_service.py` would need re-baselining, and simulation outputs produced before and after would not be comparable. That is a deliberate change to the Generate capability, not a side effect to slip into a simulation run.
+
+### 9.3 Design sketch — not implemented
+
+Should a Quality-in-Use-denominated oracle be wanted, it would re-summarize the existing per-fault record rather than add instrumentation:
+
+```
+I_QiU(v) = ( effectiveness_loss , efficiency_loss [, risk_loss] )
+
+effectiveness_loss = delivery_rate_before − delivery_rate_after
+efficiency_loss    = (latency_p95_after − latency_p95_before) / latency_p95_before
+risk_loss          = deadline_violations_after / messages_delivered_after   ← always 0 today
+```
+
+Two properties would matter for it to be usable:
+
+- **It is a third quantity, not a replacement.** `I*(v)` (the Predict-stage labeler) and `composite_impact` (the Validate-stage oracle) are already distinct and must not be conflated ([§2.1](#21-which-engine-is-canonical-for-what)); `I_QiU` would be a third named quantity under the same rule, leaving both existing meanings untouched.
+- **No new validation machinery is needed.** `cli/validate_graph.py harness` already accepts repeated `--ground-truth NAME=PATH[:qos]` sources and computes a convergent-validity block between every pair of them. Agreement between `I_QiU` and the cascade oracle would therefore be a *reported result* rather than an assumption — which is exactly the check that [criticality.md §7.1](criticality.md#71-the-validation-chain-has-two-links) says is missing.
+
+Nothing in this section is implemented. It records what the existing outputs would support, so that the claim "impact is measured in Quality-in-Use terms" is not made before the aggregation exists.
+
+---
+
+## 10. Input Graph Format Requirements
 
 The `--input` file must be a JSON file compatible with the SaG schema. The CLI loader handles two paths automatically:
 
@@ -1062,11 +1111,11 @@ All QoS fields are optional; defaults are `RELIABLE`, `VOLATILE`, no deadline, n
 
 ---
 
-## 10. Python API
+## 11. Python API
 
 Both simulators can be used as Python libraries without going through the CLI.
 
-### 10.1 FaultInjector
+### 11.1 FaultInjector
 
 ```python
 from saag.simulation.fault_injector import FaultInjector
@@ -1113,7 +1162,7 @@ print(f"{len(result.unlabeled_node_ids)} nodes unlabeled: {result.unlabeled_node
 > `cli/simulate_graph.py::_load_graph`, set `type="Library"` explicitly — implicit creation
 > through `USES` edges leaves the attribute unset.
 
-### 10.2 MessageFlowSimulator
+### 11.2 MessageFlowSimulator
 
 ```python
 from saag.simulation.message_flow_simulator import MessageFlowSimulator
@@ -1155,7 +1204,7 @@ if result.fault_event:
 
 ---
 
-## 11. Known Limitations
+## 12. Known Limitations
 
 **L1 — Broker routing model is binary.** The fault injector models broker failure as "topic routed by the failed broker is orphaned if no other live broker routes it." In practice, DDS routing is more nuanced — a broker failure mid-message can cause partial delivery even with redundant routing. The current model is conservative and correct for single-broker topologies (ADVENT, ATM datasets).
 

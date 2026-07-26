@@ -606,7 +606,7 @@ I_edge(u, v) = composite_impact(G \ {(u,v)})  −  composite_impact(G)
 
 This replaces the earlier heuristic `I_edge(u,v) = I*(u) × {1.0 if bridge else 0.1}`, which encoded the §5.2 Effectiveness/Efficiency distinction as a hand-chosen 10× gap rather than observing it. That heuristic remains available for ablation.
 
-> **What the measurement shows, and a caution.** Most individual edges cost almost nothing: on `av_system`, 4 of 40 candidates carry non-zero impact. That is the §5.2 replaceability question answered empirically — most links *are* replaceable. It also exposes a modelling gap the heuristic hid: `RUNS_ON` edges measure exactly 0.0 because the cascade routes no traffic over them ([failure-simulation.md L5](failure-simulation.md#11-known-limitations)), even though bridge detection flags them as non-redundant. A zero there means "this model cannot express that link's failure", not "that link does not matter" — the same caveat that applies to Topic and Node labels (L6).
+> **What the measurement shows, and a caution.** Most individual edges cost almost nothing: on `av_system`, 4 of 40 candidates carry non-zero impact. That is the §5.2 replaceability question answered empirically — most links *are* replaceable. It also exposes a modelling gap the heuristic hid: `RUNS_ON` edges measure exactly 0.0 because the cascade routes no traffic over them ([failure-simulation.md L5](failure-simulation.md#12-known-limitations)), even though bridge detection flags them as non-redundant. A zero there means "this model cannot express that link's failure", not "that link does not matter" — the same caveat that applies to Topic and Node labels (L6).
 
 ### 5.7 Ranking Critical Edges
 
@@ -665,6 +665,14 @@ The claim "RMAV is validated" is true of one link in a two-link chain, and it is
 - **Link ② is not measured.** No user study, expert elicitation, or production incident data is used anywhere in this project. The simulator is itself a model of stakeholder harm, not an observation of it.
 
 Consequently the defensible claim is: *RMAV tracks simulated failure impact, and simulated failure impact is our stated operationalization of Quality-in-Use loss.* The stronger claim — that RMAV tracks Quality-in-Use as stakeholders would report it — is **unsupported by anything in this repository**. Closing link ② requires evidence of a different kind: expert ranking studies against the same topologies, or post-hoc comparison against incident records from a deployed system.
+
+**Link ② is partly closable without any of that, and it is worth being precise about how far.** The gap is not that the simulator observes the wrong things — it is that its observations are aggregated on the *predictor's* axis (RMAV) rather than the construct's (Quality-in-Use). A field-level audit of the existing simulation outputs ([failure-simulation.md §9](failure-simulation.md#9-what-the-simulator-measures-in-quality-in-use-terms)) finds:
+
+- **Effectiveness and Efficiency are measurable today**, from delivery rate before/after a fault and from the latency percentile shift the discrete-event engine already records per fault. Re-summarizing them on the Quality-in-Use axis would move link ② from unmeasured to measured *for those two characteristics*.
+- **Freedom from risk is blocked by the corpus, not by the method.** Deadline and lifespan violation counters exist and the validation harness already has an oracle slot for them, but no topic in the scenario corpus declares a deadline — 0 of 710 — so the counters never fire.
+- **Satisfaction is not measurable at all** by these means, which bounds what the construct can ever claim on that characteristic; and **Context coverage** is a property of the ranking across runs rather than of any single fault.
+
+So the honest position is stronger than "link ② is unmeasured" and weaker than "criticality is validated against Quality-in-Use": two of the five characteristics are measurable from data already produced, one is one generator change away, and one is permanently out of reach. Nothing in that audit has been *run* — it establishes measurability, not a measurement.
 
 ### 7.2 Construct Validity
 
