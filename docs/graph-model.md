@@ -1,8 +1,10 @@
-# Step 1: Import
+# Step 1: Model (Import)
 
 **Turn your system architecture into a graph that captures who depends on whom and how strongly.**
 
 [README](../README.md) | → [Step 2: Analyze](structural-analysis.md)
+
+For the full CLI flag reference (`import_graph.py`, `export_graph.py`), see [cli-pipeline-guide.md — Step 1](cli-pipeline-guide.md#step-1-model--import--export). This document specifies *what* the model is and *how* it is built.
 
 ---
 
@@ -23,10 +25,9 @@
 8. [Worked Example](#8-worked-example)
 9. [Domain Mapping](#9-domain-mapping)
 10. [Complexity](#10-complexity)
-11. [CLI Reference: Importing Graph Data](#11-cli-reference-importing-graph-data)
-12. [CLI Reference: Exporting Graph Data](#12-cli-reference-exporting-graph-data)
-13. [Export–Import Roundtrip](#13-exportimport-roundtrip)
-14. [What Comes Next](#14-what-comes-next)
+11. [Importing and Exporting](#11-importing-and-exporting)
+12. [Export–Import Roundtrip](#12-exportimport-roundtrip)
+13. [What Comes Next](#13-what-comes-next)
 
 ---
 
@@ -34,20 +35,20 @@
 
 Modeling takes a distributed publish-subscribe system — its applications, topics, brokers, infrastructure nodes, and shared libraries — and converts it into a formal weighted directed graph. This graph becomes the foundation for all subsequent steps.
 
-The process runs in five sequential phases partitioned between the **Import Stage** (`save_graph()`) and the **Pre-Analysis Stage** (`derive_dependencies()`):
+Five phases build the graph, split across two stages:
 
-```
-                        [ Import Stage (save_graph) ]                       [ Pre-Analysis Stage ]
-                  Phase 1         Phase 2         Phase 3         Phase 5 (Part A)   Phase 4          Phase 5 (Part B)
-                    │               │               │                    │              │               │
-System JSON ──▶  Entity  ──▶  Structural ──▶  Intrinsic  ──▶  Aggregate Vertex ──▶  Dependency  ──▶  Aggregate Edge
-                 Modeling        Edges           Weights           Weights          Derivation        Finalization
-                    │               │               │                    │              │               │
-                 5 vertex       6 edge types    Topic QoS          App, Broker,    6 DEPENDS_ON      app_to_lib &
-                 types          imported;       weights;           Node, Library   rules applied;    broker_to_broker
-                 created        fan-out attrs   edge weights       weights         path_count        weights
-                                computed        inherited          computed        recorded          finalized
-```
+| Stage | Entry point | Phases | Produces |
+|-------|-------------|--------|----------|
+| **Import** | `save_graph()` | 1 — Entity modeling | 5 vertex types |
+| | | 2 — Structural edges | 6 edge types + Topic fan-out counts |
+| | | 3 — Intrinsic weights | Topic weights, inherited onto edges |
+| | | 5a — Aggregate vertex weights | App, Library, Broker, Node weights |
+| **Pre-analysis** | `derive_dependencies()` | 4 — Dependency derivation | `DEPENDS_ON` edges (6 rules) |
+| | | 5b — Aggregate edge weights | Final `app_to_lib` / `broker_to_broker` weights |
+
+The split exists so a topology can be imported, inspected, and cleared without paying for dependency derivation; the pre-analysis stage runs automatically at the start of Step 2 (Analyze).
+
+Phase 5 is split because vertex weights are needed *before* derivation (Rules 5 and 6 inherit them) while the edges they land on only exist *after* it.
 
 The output is two complementary graph views — **G_structural** for simulation and **G_analysis(l)** for analysis and prediction — described in [Two Graph Views](#6-two-graph-views).
 
@@ -122,6 +123,8 @@ Each entity in the topology JSON becomes a vertex in G. Five vertex types are cr
 | **Application** | `applications[]` | `id`, `name`, `role`, `app_type`, `version`, `criticality`; code-metric flat properties (`cm_*`); system-hierarchy flat properties |
 | **Library** | `libraries[]` | `id`, `name`, `version`; code-metric and system-hierarchy properties |
 
+Nested JSON sub-objects (`code_metrics`, `system_hierarchy`) are flattened to scalar properties on import and rebuilt on export — both directions read one field table in [`saag/core/utils/serialization.py`](../saag/core/utils/serialization.py).
+
 **Optional code-quality attributes** on Application and Library vertices (all default to `0`/`0.0` when absent):
 
 | Field | Type | Description |
@@ -156,6 +159,8 @@ Six structural edge types are imported directly from the topology JSON. Each edg
 | `USES` | Application / Library → Library | Component depends on this shared code module |
 
 Together these six types form **G_structural**, which Step 4 (Simulation) uses for cascade propagation. They are never modified after import.
+
+Every edge is validated before creation: both endpoints must already exist as vertices, or the whole import transaction is rolled back with an error naming the offending ids.
 
 **Fan-out augmentation (Phase 2 post-step):** After all structural edges are imported, each Topic vertex is updated with:
 
@@ -195,20 +200,12 @@ MIN_WEIGHT = 0.01
 | | `TRANSIENT` | 0.6 |
 | | `TRANSIENT_LOCAL` | 0.5 |
 | | `VOLATILE` | 0.0 |
-| **priority_score** | `HIGHEST` | 1.0 |
-| | `CRITICAL` | 1.0 |
-| | `URGENT` | 1.0 |
+| **priority_score** | `HIGHEST` / `CRITICAL` / `URGENT` | 1.0 |
 | | `HIGH` | 0.66 |
 | | `MEDIUM` | 0.33 |
 | | `LOW` | 0.0 |
 
-> [!NOTE]
-> `HIGHEST` and `CRITICAL` are now listed in `QoSPolicy.PRIORITY_SCORES` itself. They
-> previously existed only as special cases inside the Cypher and in-memory scorers,
-> so `QoSPolicy.calculate_weight()` fell through to `0.0` and ranked a `CRITICAL`
-> topic identically to a `LOW` one. 36 topics across the scenario corpus were
-> affected. `tests/test_qos_resolution.py` now asserts all scorers agree across the
-> full priority domain.
+These three tables live once, in `QoSPolicy` ([`saag/core/models.py`](../saag/core/models.py)). The Cypher `CASE` expressions are generated from them and the in-memory repository calls the same Python formula, so no scorer can drift from the table; `tests/test_qos_resolution.py` asserts all scorers agree across the full domain.
 
 **Edge weight inheritance:** After topic weights are computed, structural edge weights are updated by one-pass inheritance:
 
@@ -216,32 +213,22 @@ MIN_WEIGHT = 0.01
 ∀ e = (a, t) ∈ PUBLISHES_TO ∪ SUBSCRIBES_TO ∪ ROUTES :  e.weight = t.weight
 ```
 
-**Edge QoS inheritance:** The same edges also inherit the topic's QoS *profile*, not
-only the scalar weight:
+**Edge QoS inheritance:** The same edges also inherit the topic's QoS *profile*, not only the scalar weight:
 
 ```
 ∀ e = (a, t) ∈ PUBLISHES_TO ∪ SUBSCRIBES_TO ∪ ROUTES :
     e.qos_reliability, e.qos_durability, e.qos_transport_priority = t.<same>
 ```
 
-This matters because consumers that read per-edge QoS see only edges. No topology
-source states edge-level QoS, so before this pass the GNN's seven QoS edge features
-(`data_preparation.py` dims 9–15) were `[0, 0, 0.33, 0, 0, 0, 0]` — **constant across
-every pub/sub edge in every scenario**. The `HGL` vs `HGL-QoS` ablation was therefore
-comparing a QoS-masked model against one whose QoS channel carried no information.
-`reproduce/qos_pipeline_inspect.py` reports the resulting spread; a Gini of 0 there
-means the pass is not running.
+This matters because consumers that read per-edge QoS — notably the GNN edge-feature encoder — see only edges, and no topology source states edge-level QoS. Without this pass every pub/sub edge would carry an identical constant QoS vector, leaving the `HGL` vs `HGL-QoS` ablation with no signal to compare. `reproduce/qos_pipeline_inspect.py` reports the resulting spread; a Gini of 0 there means the pass is not running.
 
 ---
 
 ### 4.4 Phase 4 — Dependency Derivation
 
-> [!NOTE]
-> **Pre-Analysis Deferral:** Dependency derivation is decoupled from the main import transaction of `save_graph()`. Instead, it runs during the **Pre-Analysis Stage** as a separate step via `IGraphRepository.derive_dependencies()` (called automatically at the start of Step 2 Analyze). This ensures that structural models can be imported and cleared without immediately running the Cypher logic required to derive logical `DEPENDS_ON` edges.
+Structural edges reveal physical relationships but not logical dependencies. This phase derives **DEPENDS_ON** edges — directed edges meaning "if the target fails, the source is affected." It runs in the pre-analysis stage (`derive_dependencies()`), not during import.
 
-Structural edges reveal physical relationships but not logical dependencies. This phase derives **DEPENDS_ON** edges — directed edges meaning "if the target fails, the source is affected."
-
-**Edge direction:** DEPENDS_ON always points from the *dependent* to the *dependency* (e.g., subscriber → publisher, application → broker).
+**Edge direction:** DEPENDS_ON always points from the *dependent* to the *dependency* (e.g., subscriber → publisher, application → broker) — that is, against the direction message data flows.
 
 > See [criticality.md](criticality.md) for the conceptual definition of component and relationship criticality — the `DEPENDS_ON` edges derived here are what relationship criticality is computed over.
 
@@ -253,10 +240,10 @@ Six derivation rules are applied, producing six `dependency_type` values:
 | 2 | `app_to_broker` | App/Lib `PUBLISHES_TO` or `SUBSCRIBES_TO` → Topic ← `ROUTES` Broker; also transitive via `USES*1..3` chains | `max(t.weight)` over routed topics |
 | 3 | `node_to_node` | Lifted from `app_to_app` and `app_to_broker` DEPENDS_ON edges: Node_B → Node_A when their hosted apps share one of those dependency types | lifted `max(d.weight)` over matching edges |
 | 4 | `node_to_broker` | Lifted from Rule 2: Node → Broker when a hosted app has an `app_to_broker` edge | lifted `max(dep.weight)` |
-| 5 | `app_to_lib` | App/Lib `USES` → Library | `app.weight` (finalized in pre-analysis edge weight finalization) |
-| 6 | `broker_to_broker` | Bidirectional colocation edge between two Brokers sharing a physical Node | `node.weight` (finalized in pre-analysis edge weight finalization) |
+| 5 | `app_to_lib` | App/Lib `USES` → Library | `app.weight` (assigned in Phase 5b) |
+| 6 | `broker_to_broker` | Bidirectional colocation edge between two Brokers sharing a physical Node | `node.weight` (assigned in Phase 5b) |
 
-> **Phase ordering note for Rules 5 and 6:** The vertex weights (`app.weight` and `node.weight`) are computed during the import stage. However, because `DEPENDS_ON` edges are only derived during the pre-analysis stage, the edge weights for `app_to_lib` and `broker_to_broker` are initialized with placeholder weights (`0.01`) during derivation, and then immediately finalized in a post-derivation pass (`_finalize_dependency_weights()`) before analysis starts.
+Rules 1–4 aggregate with max-preserving `ON CREATE` / `ON MATCH` semantics, so a later rule matching the same pair can only raise a weight, never lower it. Rules 5 and 6 cannot know their weight at derivation time — the vertex weights they inherit were computed during import, but the edge does not exist until now — so they are created with the `0.01` floor as a placeholder and finalized immediately afterwards in [Phase 5b](#45-phase-5--aggregate-weight-propagation).
 
 **Multi-path coupling:** When two applications communicate through multiple shared topics, a single DEPENDS_ON edge is created with:
 
@@ -304,12 +291,7 @@ After derivation:
 
 ### 4.5 Phase 5 — Aggregate Weight Propagation
 
-> [!IMPORTANT]
-> **Two-Stage Execution:** Aggregate weight propagation is split into two stages:
-> 1. **Vertex Weights:** Computed during the import stage (`save_graph()`) under `_calculate_aggregate_weights()`.
-> 2. **Edge Weights:** Finalized during the pre-analysis stage (`derive_dependencies()`) under `_finalize_dependency_weights()`, after the `DEPENDS_ON` relationships have been derived.
-
-Once topic weights are established (Phase 3), vertex weights for Applications, Brokers, Nodes, and Libraries are computed by propagating topic weights upward through the component hierarchy. Later, once `DEPENDS_ON` edges are derived (Phase 4), the `app_to_lib` and `broker_to_broker` edge weights (which could only be assigned a placeholder initially) are finalized to match their corresponding source/node weights.
+Once topic weights are established (Phase 3), vertex weights for Applications, Libraries, Brokers, and Nodes are computed by propagating topic weights upward through the component hierarchy (**Phase 5a**, import stage). Once `DEPENDS_ON` edges exist (Phase 4), the `app_to_lib` and `broker_to_broker` edge weights are finalized (**Phase 5b**, pre-analysis stage).
 
 #### Application Weight
 
@@ -320,16 +302,16 @@ w(app) = 0.80 × max{ w(t) : app PUBLISHES_TO t OR app SUBSCRIBES_TO t }
 
 The hybrid formula reflects that an application's criticality is primarily bounded by its most critical data stream (0.80 × max), but a dense subscription footprint of medium-weight topics adds cumulative risk (0.20 × mean). The max coefficient is **0.80** (higher than the 0.70 used for brokers) because an application is a direct *originator or consumer* — its failure severs only the topics it personally publishes or subscribes to, so the single most critical channel dominates. When `max = mean` (single-topic app), the formula collapses to `w = w(t)`.
 
-**Library-mediated pass (step 1.5):** The formula above only counts topics directly connected to the application via `PUBLISHES_TO` or `SUBSCRIBES_TO`. Applications that communicate exclusively through shared libraries (no direct topic edges) would receive `w(app) = 0.01` from the first pass — making them invisible to RMAV scoring even if they indirectly handle high-weight data.
+**Library-mediated second pass:** The formula above only counts topics directly connected to the application via `PUBLISHES_TO` or `SUBSCRIBES_TO`. Applications that communicate exclusively through shared libraries (no direct topic edges) would receive `w(app) = 0.01` from the first pass — making them invisible to RMAV scoring even if they indirectly handle high-weight data.
 
-After Library weights are computed in step 2, a second pass corrects this for any application still at the default floor:
+After Library weights are computed, a second pass corrects this for any application still at the default floor:
 
 ```
 For all apps where w(app) ≤ 0.01:
   w(app) = max{ w(l) : app USES l }
 ```
 
-This propagates library importance back to the consuming application. Only applications with no direct topics AND at least one USES edge are affected; all other applications retain their step-1 weights unchanged.
+This propagates library importance back to the consuming application. Only applications with no direct topics AND at least one USES edge are affected; all other applications retain their first-pass weights unchanged.
 
 #### Library Weight
 
@@ -359,9 +341,7 @@ w(node) = max{ w(v) : v RUNS_ON node }
 
 A node's hardware failure takes down all hosted components simultaneously; the worst-case hosted component determines the node's criticality tier.
 
-#### Edge Weight Corrections (Phase 5 post-step)
-
-After vertex weights are set, two edge types receive their final weights:
+#### Phase 5b — Edge Weight Finalization
 
 ```cypher
 // Rule 5: app_to_lib edges inherit the application's QoS weight
@@ -375,11 +355,13 @@ WITH d, max(n.weight) as node_w
 SET d.weight = coalesce(node_w, 0.01)
 ```
 
+An `app_to_lib` edge left at the `0.01` placeholder after this pass means the consuming application never received a real weight; the in-memory repository raises rather than letting the placeholder reach analysis.
+
 ---
 
 ## 5. Layer Projections
 
-The graph supports four layer projections, each filtering vertices and DEPENDS_ON edges to a specific architectural concern.
+The graph supports four layer projections, each filtering vertices and DEPENDS_ON edges to a specific architectural concern. They are defined once, in [`saag/core/layers.py`](../saag/core/layers.py).
 
 | Layer | CLI name | Vertex Types (component_types) | Analyzed Types (analyze_types) | `dependency_type` values |
 |-------|----------|------------------------------|------------------------------|--------------------------|
@@ -396,8 +378,8 @@ The graph supports four layer projections, each filtering vertices and DEPENDS_O
 |-------|----------------|
 | `application` | `app` |
 | `infrastructure` | `infra` |
-| `app_broker` | `mw` |
-| `complete` | `system` |
+| `app_broker`, `middleware`, `broker` | `mw` |
+| `complete`, `all` | `system` |
 
 ---
 
@@ -516,7 +498,7 @@ The topology JSON uses a **dict-of-lists** structure for relationships. Each key
 
 - `"qos"` and `"qos_policy"` are both accepted as the QoS sub-object key; `"qos"` is canonical.
 - QoS string values must be **uppercase** (`"RELIABLE"`, `"TRANSIENT_LOCAL"`, `"HIGH"`, etc.). They are stored and exported in uppercase. The Cypher weight CASE statements perform case-sensitive matching, so lowercase values (`"reliable"`) would fall through to the `ELSE 0.0` branch and silently produce `w = 0.01` for every affected topic.
-- All fields except `"id"` are optional. Missing fields receive defaults (`role = "pubsub"`, `app_type = "service"`, `qos_reliability = "BEST_EFFORT"`, etc.).
+- All fields except `"id"` are optional. Missing fields receive defaults (`role = ["Operative"]`, `app_type = "service"`, `qos_reliability = "BEST_EFFORT"`, `qos_durability = "VOLATILE"`, `qos_transport_priority = "MEDIUM"`, `size = 256`). A `role` given as a bare string is normalized to a single-element list.
 - The `"metadata"` block is optional but strongly recommended for provenance tracking. Generated files include it automatically.
 - Relationship edges may also use `"source"` and `"target"` keys as aliases for `"from"` and `"to"`.
 
@@ -525,6 +507,8 @@ The topology JSON uses a **dict-of-lists** structure for relationships. Each key
 ## 8. Worked Example
 
 **Given topology:** SensorApp publishes to `/temperature`; MonitorApp subscribes. Both use NavLib. MainBroker routes `/temperature`. `/temperature` has QoS `RELIABLE / TRANSIENT_LOCAL / HIGH`.
+
+Run it end to end with [`examples/run_worked_example.py`](../examples/run_worked_example.py).
 
 **Phase 1 — Entities created:**
 
@@ -556,6 +540,18 @@ SUBSCRIBES_TO.weight = 0.592
 ROUTES.weight        = 0.592
 ```
 
+**Phase 5a — Aggregate vertex weights:**
+
+```
+w(SensorApp)  = 0.80×0.592 + 0.20×0.592 = 0.592  (single topic)
+w(MonitorApp) = 0.592
+w(MainBroker) = 0.70×0.592 + 0.30×0.592 = 0.592
+
+w(NavLib)  base_w = max(0.592, 0.592) = 0.592
+           DG_in  = 2
+           w      = min(1.0, 0.592 × (1 + 0.15 × log₂(3))) ≈ 0.592 × 1.238 ≈ 0.733
+```
+
 **Phase 4 — Dependency derivation:**
 
 ```
@@ -566,20 +562,11 @@ SensorApp   --[DEPENDS_ON, app_to_lib,   w=placeholder]-----------> NavLib
 MonitorApp  --[DEPENDS_ON, app_to_lib,   w=placeholder]-----------> NavLib
 ```
 
-**Phase 5 — Aggregate weights:**
+**Phase 5b — Edge weights finalized:**
 
 ```
-w(SensorApp)  = 0.80×0.592 + 0.20×0.592 = 0.592  (single topic)
-w(MonitorApp) = 0.592
-w(MainBroker) = 0.70×0.592 + 0.30×0.592 = 0.592
-
-w(NavLib)  base_w = max(0.592, 0.592) = 0.592
-           DG_in  = 2
-           w      = min(1.0, 0.592 × (1 + 0.15 × log₂(3))) ≈ 0.592 × 1.238 ≈ 0.733
-
-app_to_lib edge weights corrected:
-  SensorApp  → NavLib: w = 0.592
-  MonitorApp → NavLib: w = 0.592
+SensorApp  → NavLib: w = w(SensorApp)  = 0.592
+MonitorApp → NavLib: w = w(MonitorApp) = 0.592
 ```
 
 ---
@@ -615,38 +602,32 @@ The model maps naturally to different pub-sub middleware technologies:
 | Phase 4 | Rules 2–6 | O(&#124;E_S&#124;) | One pass per rule |
 | Phase 5 | Aggregate weight propagation | O(&#124;V&#124; + &#124;E_S&#124;) | One Cypher pass per vertex type |
 
-The dominant cost is Phase 4 `app_to_app` derivation. In practice, topic fan-out is bounded (typically 1–12 subscribers), so the effective cost is much lower than the worst case. Critically, Phases 1, 2, 3, and 5 (vertex weights) run during the import stage, while Phase 4 and Phase 5 (edge weights) run as a pre-analysis step. All run **once at design time** before failure simulation or runtime metrics are collected, resulting in zero runtime monitoring overhead.
+The dominant cost is Phase 4 `app_to_app` derivation. In practice, topic fan-out is bounded (typically 1–12 subscribers), so the effective cost is much lower than the worst case. Every phase runs **once at design time**, before failure simulation or runtime metrics are collected, resulting in zero runtime monitoring overhead.
 
 ---
 
-## 11. CLI Reference: Importing Graph Data
+## 11. Importing and Exporting
 
-`cli/import_graph.py` reads a topology JSON file and runs all five construction phases against a Neo4j instance.
+Flags for both scripts are documented in [cli-pipeline-guide.md — Step 1](cli-pipeline-guide.md#step-1-model--import--export). This section covers what the calls do and what they return.
 
-### Synopsis
+```bash
+# Import a topology, wiping the database first (recommended for fresh runs)
+PYTHONPATH=. python cli/import_graph.py --input data/system.json --clear
 
+# Validate the input without touching the database
+PYTHONPATH=. python cli/import_graph.py --input data/system.json --dry-run
+
+# Export a re-importable snapshot (nested persistence format)
+PYTHONPATH=. python cli/export_graph.py --output output/snapshot.json
+
+# Export the flat analysis view of one layer, structural edges included
+PYTHONPATH=. python cli/export_graph.py --output output/app_layer.json \
+  --format analysis --layer app --include-structural
 ```
-PYTHONPATH=. python cli/import_graph.py --input <file> [options]
-```
-
-### Arguments
-
-| Argument | Type | Required | Default | Description |
-|----------|------|----------|---------|-------------|
-| `--input` | path | **yes** | — | Path to the topology JSON file |
-| `--clear` | flag | no | off | Wipe the entire database before importing. Recommended when loading a new topology to avoid stale data |
-| `--dry-run` | flag | no | off | Validate the input JSON and report expected counts without touching the database |
-| `--uri` | string | no | `bolt://localhost:7687` | Neo4j Bolt connection URI (env: `NEO4J_URI`) |
-| `--user` / `-u` | string | no | `neo4j` | Neo4j username (env: `NEO4J_USER`) |
-| `--password` / `-p` | string | no | `password` | Neo4j password (env: `NEO4J_PASSWORD`) |
-| `--layer` / `-l` | string | no | `system` | Reserved for future use; currently unused by the import path |
-| `--verbose` / `-v` | flag | no | off | Enable debug logging and print tracebacks on error |
-| `--quiet` / `-q` | flag | no | off | Suppress non-essential console output |
-| `--output` / `-o` | path | no | — | Write the returned import statistics to a JSON file |
 
 ### Call Chains
 
-**Import Stage:**
+**Import stage:**
 ```
 cli/import_graph.py
   └─ saag.Client.import_topology(filepath, clear)
@@ -655,187 +636,61 @@ cli/import_graph.py
                  ├─ Phase 1: _import_entities()
                  ├─ Phase 2: _import_relationships() (with fan-out augmentation)
                  ├─ Phase 3: _calculate_intrinsic_weights()
-                 └─ Phase 5 (Vertex): _calculate_aggregate_weights()
+                 └─ Phase 5a: _calculate_aggregate_weights()
 ```
 
-**Pre-Analysis Stage (triggered before Step 2 Analyze):**
+**Pre-analysis stage (triggered before Step 2 Analyze):**
 ```
 cli/analyze_graph.py (or AnalysisService)
   └─ saag.Client.analyze(layer)
        └─ saag.usecases.analyze_graph.AnalyzeGraphUseCase.execute()
             └─ saag.analysis.service.AnalysisService.analyze()
                  └─ Neo4jRepository.derive_dependencies()
-                      ├─ Phase 4: _derive_dependencies()
-                      └─ Phase 5 (Edge): _finalize_dependency_weights()
+                      ├─ Phase 4:  _derive_dependencies()
+                      └─ Phase 5b: _finalize_dependency_weights()
 ```
 
-### Usage Examples
+**Export:** `--format persistence` calls `Client.export_topology()` → `Neo4jRepository.export_json()`, which reconstructs the input-shaped payload from `get_graph_data(include_raw=True)` plus the `:Metadata` node. `--format analysis` calls `Client.get_graph_data()` directly and dumps `GraphData.to_dict()`; the `--layer` filter applies to this format only.
 
-```bash
-# Basic import (appends to existing database)
-PYTHONPATH=. python cli/import_graph.py \
-  --input data/system.json
+### Import Statistics
 
-# Import with database wipe (recommended for fresh runs)
-PYTHONPATH=. python cli/import_graph.py \
-  --input data/system.json \
-  --clear
-
-# Import against a non-default Neo4j instance
-PYTHONPATH=. python cli/import_graph.py \
-  --input data/sample_topology.json \
-  --clear \
-  --uri bolt://neo4j-host:7687 \
-  --user admin \
-  --password secret \
-  --verbose
-
-# Save import statistics to a file for CI verification
-PYTHONPATH=. python cli/import_graph.py \
-  --input data/system.json \
-  --clear \
-  --output output/import_stats.json
-```
-
-### Output
-
-On success, the console prints an import summary. The returned statistics dict (also written to `--output` if specified) contains:
+`import_graph.py --output <file>` writes the returned statistics dict:
 
 | Key | Description |
 |-----|-------------|
 | `nodes_imported` | Total vertex count in Neo4j after import (excludes the internal `:Metadata` node) |
-| `edges_imported` | Total relationship count after import (structural + DEPENDS_ON) |
+| `edges_imported` | Total relationship count after import |
 | `duration_ms` | Total import duration in milliseconds |
 | `application_count`, `broker_count`, … | Per-label vertex counts |
-| `app_to_app_count`, `app_to_broker_count`, … | Per-type DEPENDS_ON edge counts |
-| `success` | `true` on success |
-| `message` | Human-readable status string |
+| `app_to_app_count`, `app_to_broker_count`, … | Per-type DEPENDS_ON edge counts (zero until the pre-analysis stage runs) |
+| `success`, `message` | Status |
 
-**Dry-run output** (`--dry-run` flag): no database writes occur. The returned dict instead contains:
-
-| Key | Description |
-|-----|-------------|
-| `nodes_imported` | Total vertex count parsed from the input JSON |
-| `edges_imported` | Count of structural relationship entries in the input JSON |
-| `structural_edges` | Same as `edges_imported` — the six structural edge types only |
-| `estimated_depends_on` | Estimated lower bound of DEPENDS_ON edges that would be derived (sum of `publishes_to` + `subscribes_to` + `uses` entries, which drive Rules 1, 2, and 5) |
-| `note` | Reminder that `edges_imported` covers structural relationships only; DEPENDS_ON edges are derived at import time |
-| `dry_run` | `true` |
+With `--dry-run` no database writes occur, and the dict instead contains `nodes_imported` and `edges_imported` parsed from the input file, `structural_edges` (the same count), `estimated_depends_on` (a lower bound: `publishes_to` + `subscribes_to` + `uses` entries, which drive Rules 1, 2 and 5), a `note`, and `dry_run: true`.
 
 ### Notes and Caveats
 
-**`--clear` is strongly recommended** when importing a new topology. Without it, uniqueness constraints prevent duplicate nodes, but stale DEPENDS_ON edges from a previous import can remain and silently inflate centrality scores.
+**`--clear` is strongly recommended** when importing a new topology. Without it, uniqueness constraints prevent duplicate vertices, but stale DEPENDS_ON edges from a previous import can remain and silently inflate centrality scores.
 
-**No transactional rollback.** If a phase fails mid-way (e.g., due to a Neo4j memory error on a large topology), the database is left in a partially constructed state: entities may be present but weights and DEPENDS_ON edges absent. Re-run with `--clear` to recover.
+**No transactional rollback across phases.** If a phase fails mid-way (e.g., a Neo4j memory error on a large topology), the database is left partially constructed: entities may be present but weights and DEPENDS_ON edges absent. Re-run with `--clear` to recover.
 
-**Referential integrity is enforced in Phase 2.** Before any edge is created, each batch of relationships is validated: source and target IDs must exist as Neo4j vertices. A missing entity raises a `ValueError` and rolls back the entire transaction. The error message names up to five offending IDs. If you see this error, check your JSON for typos or missing entries in the `nodes`, `applications`, etc. arrays.
+**Referential integrity is enforced in Phase 2.** A relationship naming an entity that does not exist raises `ValueError` and rolls back the transaction; the message names up to five offending ids. If you see this error, check your JSON for typos or missing entries in the `nodes`, `applications`, etc. arrays.
 
-**The REST API equivalent** is `POST /api/v1/graph/import` with `ImportGraphRequest` body. The CLI and REST path share the same `ModelGraphUseCase` and produce identical Neo4j state.
+**REST API equivalents:**
 
----
-
-## 12. CLI Reference: Exporting Graph Data
-
-`cli/export_graph.py` reads the current Neo4j database and writes a topology JSON file that mirrors the input format, suitable for archiving, sharing, or re-importing into a fresh database.
-
-### Synopsis
-
-```
-PYTHONPATH=. python cli/export_graph.py --output <file> [options]
-```
-
-### Arguments
-
-| Argument | Type | Required | Default | Description |
-|----------|------|----------|---------|-------------|
-| `--output` / `-o` | path | **yes** | — | Path for the output JSON file. Parent directories are created if absent |
-| `--format` | choice | no | `persistence` | `persistence` — nested JSON re-importable by `import_graph.py`; `analysis` — flat `components`/`edges` dict for downstream tooling |
-| `--layer` / `-l` | string | no | `system` | Layer filter applied to `--format analysis` only. One of `app`, `infra`, `mw`, `system` (or legacy aliases). Scopes which vertex types and dependency types are included |
-| `--include-structural` | flag | no | off | Include raw structural edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`, etc.) alongside `DEPENDS_ON` edges in `--format analysis` output |
-| `--uri` | string | no | `bolt://localhost:7687` | Neo4j Bolt connection URI (env: `NEO4J_URI`) |
-| `--user` / `-u` | string | no | `neo4j` | Neo4j username (env: `NEO4J_USER`) |
-| `--password` / `-p` | string | no | `password` | Neo4j password (env: `NEO4J_PASSWORD`) |
-| `--verbose` / `-v` | flag | no | off | Enable debug logging and print tracebacks on error |
-| `--quiet` / `-q` | flag | no | off | Suppress non-essential console output |
-
-### Call Chains
-
-**Persistence format** (`--format persistence`, default):
-```
-cli/export_graph.py
-  └─ saag.Client.export_topology()
-       └─ Neo4jRepository.export_json()
-            └─ get_graph_data(include_raw=True) + _get_metadata_dict()
-                 └─ serialization.reconstruct_export_payload()
-                      └─ Reconstructed topology dict → json.dump()
-```
-
-**Analysis format** (`--format analysis`):
-```
-cli/export_graph.py
-  └─ saag.Client.get_graph_data(component_types, dependency_types, include_raw)
-       └─ Neo4jRepository.get_graph_data()
-            └─ GraphData.to_dict() → json.dump()
-```
-
-The layer filter (`--layer`) is applied to the analysis format only, scoping `component_types` and `dependency_types` through `LAYER_DEFINITIONS`. The persistence format always exports all five vertex types.
-
-### Usage Examples
-
-```bash
-# Export full topology — nested persistence format (re-importable)
-PYTHONPATH=. python cli/export_graph.py \
-  --output output/snapshot.json
-
-# Export application-layer view — flat analysis format
-PYTHONPATH=. python cli/export_graph.py \
-  --output output/app_layer.json \
-  --format analysis \
-  --layer app
-
-# Export system analysis view including raw structural edges
-PYTHONPATH=. python cli/export_graph.py \
-  --output output/system_full.json \
-  --format analysis \
-  --layer system \
-  --include-structural
-
-# Export from a remote Neo4j instance
-PYTHONPATH=. python cli/export_graph.py \
-  --output output/sample_snapshot.json \
-  --uri bolt://neo4j-host:7687 \
-  --user admin \
-  --password secret \
-  --verbose
-```
-
-### Output Format
-
-**Persistence format** (default): the exported file uses the same dict-of-lists structure as the input and is suitable for direct re-import with `import_graph.py`. See [Input Format](#7-input-format) for the full schema.
-
-One difference from the input: the persistence export adds a `"depends_on"` key inside `"relationships"` containing a snapshot of the currently derived DEPENDS_ON edges. This key is **informational only** — `import_graph.py` ignores it and always re-derives DEPENDS_ON from structural edges. The export summary reports these separately as "Derived (DEPENDS_ON)" to avoid inflating the structural edge count.
-
-**Analysis format** (`--format analysis`): outputs `{ "components": [...], "edges": [...] }`. This format is consumed by the SMART frontend and downstream analysis scripts. It is **not re-importable** by `import_graph.py`.
-
-### Notes and Caveats
-
-See [Export–Import Roundtrip](#13-exportimport-roundtrip) below for a full accounting of what is and is not preserved.
-
-**The REST API equivalents** are:
-
-| Endpoint | Method | Output shape | Re-importable? |
-|----------|--------|-------------|----------------|
+| Endpoint | Backed by | Output shape | Re-importable? |
+|----------|-----------|-------------|----------------|
+| `POST /api/v1/graph/import` | `ModelGraphUseCase` | — | — |
 | `POST /api/v1/graph/export-neo4j-data` | `repo.export_json()` | Input-file shape | **Yes** |
 | `POST /api/v1/graph/export` | `repo.get_graph_data()` | `components`/`edges` analysis shape | No |
 | `POST /api/v1/graph/export-limited` | `repo.get_limited_graph_data()` | Truncated analysis shape | No |
 
-Use `/export-neo4j-data` (not `/export`) when a re-importable snapshot is required. The `/export` endpoint produces an analysis-layer view for the SMART frontend — its `components`/`edges` envelope is not accepted by `import_graph.py`.
+The CLI and REST import paths share the same use case and produce identical Neo4j state. Use `/export-neo4j-data` (not `/export`) when a re-importable snapshot is required.
 
 ---
 
-## 13. Export–Import Roundtrip
+## 12. Export–Import Roundtrip
 
-Running `export_graph.py` (persistence format) followed by `import_graph.py` on the output is a faithful roundtrip for all user-supplied data. The following table documents what is preserved and what is intentionally re-computed.
+Running `export_graph.py` (persistence format) followed by `import_graph.py` on the output is a faithful roundtrip for all user-supplied data.
 
 ### Preserved
 
@@ -845,41 +700,32 @@ Running `export_graph.py` (persistence format) followed by `import_graph.py` on 
 | Topic QoS and size | `qos_reliability`, `qos_durability`, `qos_transport_priority`, `size` — exported and re-imported in uppercase |
 | Application `role`, `app_type`, `version`, `criticality` | Exported conditionally (only if non-null/non-empty) |
 | All six structural relationship types | `runs_on`, `routes`, `publishes_to`, `subscribes_to`, `connects_to`, `uses` |
-| `code_metrics` block (Applications and Libraries) | Flat `cm_*` properties in Neo4j are reconstructed into the nested `code_metrics` structure on export and re-flattened on re-import. CQP scores are fully reproducible after a roundtrip. |
+| `code_metrics` block (Applications and Libraries) | Flat `cm_*` properties are rebuilt into the nested structure on export and re-flattened on import. CQP scores are fully reproducible after a roundtrip. |
 | `system_hierarchy` block | Flat `csms_name`, `css_name`, `csc_name`, `csci_name` properties are reconstructed and re-imported correctly |
 | `metadata` block | Stored in the `:Metadata` singleton node; reconstructed and included in the export |
 
-### Not Preserved (Re-computed on Re-import)
+### Re-computed on Re-import
 
 | Data | What Happens Instead |
 |------|----------------------|
-| Computed `weight` properties | All five construction phases re-run on re-import from QoS data; computed weights are always fresh and do not need to be stored |
-| `DEPENDS_ON` edges | Re-derived automatically from structural edges on re-import; the persistence export includes them as an informational `"depends_on"` key but this key is ignored by the importer |
+| Computed `weight` properties | All construction phases re-run from QoS data on re-import; computed weights are always fresh and need not be stored |
+| `DEPENDS_ON` edges | Re-derived from structural edges. The persistence export includes them under a `"depends_on"` key for information only — the importer ignores that key, and the export summary reports them separately as "Derived (DEPENDS_ON)" so they do not inflate the structural edge count |
 
-### Roundtrip Validation Test
+The **analysis format** (`--format analysis`) outputs `{ "components": [...], "edges": [...] }` for the SMART frontend and downstream scripts. It is **not** re-importable.
 
-To verify roundtrip integrity for a given topology, run:
+### Verifying a Roundtrip
+
+[`examples/roundtrip_validation.py`](../examples/roundtrip_validation.py) performs the import → export → re-import cycle and compares vertex/edge counts, per-label counts, and topic weights. Equivalent manual sequence:
 
 ```bash
-# Import original
 PYTHONPATH=. python cli/import_graph.py --input data/system.json --clear
-
-# Export persistence snapshot
 PYTHONPATH=. python cli/export_graph.py --output output/snapshot.json
-
-# Re-import snapshot
 PYTHONPATH=. python cli/import_graph.py --input output/snapshot.json --clear
-
-# Verify: node and edge counts, per-label counts, and topic weights
-# should all match between the original and re-import runs.
-# code_metrics, system_hierarchy, and metadata are fully preserved.
 ```
-
-A full roundtrip integration test that asserts identical node/edge counts, identical per-label vertex counts, and identical topic weights after re-import is a recommended CI addition.
 
 ---
 
-## 14. What Comes Next
+## 13. What Comes Next
 
 Step 1 produces two graph views: G_structural (for simulation) and G_analysis(l) (for analysis). Step 2 operates on G_analysis(l) to compute a structural metric vector M(v) for every component.
 

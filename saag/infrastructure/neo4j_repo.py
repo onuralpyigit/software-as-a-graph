@@ -1,31 +1,28 @@
 """
 Neo4j Graph Repository Adapter
 
-Implements IGraphRepository using Neo4j as the backend.
+Implements IGraphRepository using Neo4j as the backend, building the graph model
+of docs/graph-model.md in five phases split across two stages:
 
-This adapter handles all Neo4j-specific operations for the graph model
-defined in docs/graph-model.md (Definition 1):
-    G = (V, E, τ_V, τ_E, L, w, QoS)
+    save_graph()           Phase 1  Entity import (V)
+                           Phase 2  Structural edge import (E_S)
+                           Phase 3  QoS-based topic weights (w)
+                           Phase 5a Aggregate vertex weights
 
-Import performs five construction phases:
-    Phase 1: Entity import (V)
-    Phase 2: Structural edge import (E_S)
-    Phase 3: QoS-based weight computation (w)
-    Phase 4: Dependency derivation (E_D, Rules 1–6)
-    Phase 5: Aggregate component weight propagation
+    derive_dependencies()  Phase 4  DEPENDS_ON derivation (E_D, Rules 1–6)
+                           Phase 5b DEPENDS_ON edge weight finalization
 """
 
 from __future__ import annotations
 import logging
-import os
-from typing import Dict, Any, List, Optional, Set, Tuple
+from typing import Dict, Any, List, Optional, Tuple
 
 from neo4j import GraphDatabase
-from neo4j.exceptions import ServiceUnavailable, AuthError
 
 from saag.core.ports.graph_repository import IGraphRepository
+from saag.core.layers import get_layer_definition, resolve_layer
 from saag.core.models import (
-    ComponentData, EdgeData, GraphData, QoSPolicy, 
+    ComponentData, EdgeData, GraphData, QoSPolicy,
     MIN_TOPIC_WEIGHT, TOPIC_QOS_WEIGHT_BETA,
     APP_HYBRID_MAX_COEFF, APP_HYBRID_MEAN_COEFF,
     BROKER_HYBRID_MAX_COEFF, BROKER_HYBRID_MEAN_COEFF,
@@ -34,55 +31,52 @@ from saag.core.models import (
 from . import config
 from saag.core.utils import serialization
 
-# ---------------------------------------------------------------------------
-# Layer Definitions for Neo4j Queries
-# ---------------------------------------------------------------------------
-# These use the canonical layer names (app, infra, mw, system) matching
-# docs/graph-model.md Definition 3 and src/core/layers.py.
-#
-# Legacy aliases (application, infrastructure, app_broker, complete) are
-# supported for backward compatibility via _LAYER_ALIASES.
-# ---------------------------------------------------------------------------
+#: Vertex labels of the graph model, in import order.
+COMPONENT_LABELS = ["Node", "Broker", "Topic", "Application", "Library"]
 
-LAYER_DEFINITIONS = {
-    "app": {
-        "name": "Application Layer",
-        "component_types": ["Application", "Library"],
-        "dependency_types": ["app_to_app", "app_to_lib"],
-    },
-    "infra": {
-        "name": "Infrastructure Layer",
-        "component_types": ["Node"],
-        "dependency_types": ["node_to_node"],
-    },
-    "mw": {
-        "name": "Middleware Layer",
-        "component_types": ["Application", "Broker", "Node"],
-        "dependency_types": ["app_to_broker", "node_to_broker", "broker_to_broker"],
-    },
-    "system": {
-        "name": "Complete System",
-        "component_types": ["Application", "Broker", "Node", "Topic", "Library"],
-        "dependency_types": ["app_to_app", "app_to_lib", "app_to_broker", "node_to_node", "node_to_broker", "broker_to_broker"],
-    },
+#: Structural relationship type -> (source labels, target label). The label
+#: constraints let Neo4j use the uniqueness indexes when matching endpoints.
+STRUCTURAL_RELATIONSHIPS = {
+    "runs_on": ("RUNS_ON", "Application|Broker", "Node"),
+    "routes": ("ROUTES", "Broker", "Topic"),
+    "publishes_to": ("PUBLISHES_TO", "Application|Library", "Topic"),
+    "subscribes_to": ("SUBSCRIBES_TO", "Application|Library", "Topic"),
+    "connects_to": ("CONNECTS_TO", "Node", "Node"),
+    "uses": ("USES", "Application|Library", "Library"),
 }
 
-# Backward compatibility aliases for legacy code that uses old layer names
-_LAYER_ALIASES: Dict[str, str] = {
-    "application": "app",
-    "infrastructure": "infra",
-    "app_broker": "mw",
-    "complete": "system",
-}
+#: DEPENDS_ON subtypes produced by the six derivation rules.
+DEPENDENCY_TYPES = [
+    "app_to_app", "app_to_lib", "app_to_broker",
+    "node_to_node", "node_to_broker", "broker_to_broker",
+]
+
+#: Code-quality and system-hierarchy properties shared by Application and Library
+#: vertices. Kept in one list so both import queries cannot drift apart.
+_SHARED_COMPONENT_PROPERTIES = [
+    "csc_name", "csci_name", "css_name", "csms_name",
+    "cm_total_loc", "cm_total_classes", "cm_total_methods", "cm_total_fields",
+    "cm_total_wmc", "cm_avg_wmc", "cm_max_wmc",
+    "cm_avg_lcom", "cm_max_lcom",
+    "cm_avg_cbo", "cm_max_cbo", "cm_avg_rfc", "cm_max_rfc",
+    "cm_avg_fanin", "cm_max_fanin", "cm_avg_fanout", "cm_max_fanout",
+    "sqale_debt_ratio", "bugs", "vulnerabilities", "duplicated_lines_density",
+    "loc", "cyclomatic_complexity", "coupling_afferent", "coupling_efferent", "lcom",
+]
 
 
-def _resolve_layer(layer: str) -> str:
-    """Resolve a layer name, supporting canonical names and legacy aliases."""
-    canonical = _LAYER_ALIASES.get(layer, layer)
-    if canonical not in LAYER_DEFINITIONS:
-        valid = sorted(set(LAYER_DEFINITIONS.keys()) | set(_LAYER_ALIASES.keys()))
-        raise ValueError(f"Unknown layer: '{layer}'. Valid layers: {valid}")
-    return canonical
+def _set_clause(var: str, properties: List[str]) -> str:
+    """Render ``SET n.prop = row.prop, ...`` for a list of property names."""
+    return ",\n                ".join(f"{var}.{prop} = row.{prop}" for prop in properties)
+
+
+def _set_if_present_clause(var: str, properties: List[str]) -> str:
+    """Render conditional SETs that skip properties absent from the source data."""
+    return "\n".join(
+        f"            FOREACH (_ IN CASE WHEN row.{prop} IS NOT NULL THEN [1] ELSE [] END |\n"
+        f"                SET {var}.{prop} = row.{prop})"
+        for prop in properties
+    )
 
 
 def create_repository(uri=None, user=None, password=None):
@@ -97,12 +91,12 @@ def create_repository(uri=None, user=None, password=None):
 class Neo4jRepository:
     """
     Neo4j adapter for the graph model.
-    
+
     Handles all Neo4j-specific operations including:
     - Graph data import with constraint management
-    - Weight calculations for nodes and edges (§1.5)
-    - Dependency derivation between components (Definition 2, Rules 1–4)
-    - Graph data retrieval with layer filtering (Definition 3)
+    - Weight computation for vertices and edges (docs/graph-model.md §4.3, §4.5)
+    - Dependency derivation between components (§4.4, Rules 1–6)
+    - Graph data retrieval with layer filtering (§5)
     """
     
     def __init__(
@@ -142,15 +136,10 @@ class Neo4jRepository:
     def save_graph(self, data: Dict[str, Any], clear: bool = False) -> None:
         """
         Import graph data into the repository within a single transaction.
-        
-        Orchestrates three construction phases:
-            1. Import entities (V) — Apps, Brokers, Nodes, Topics, Libraries
-            2. Import structural relationships (E_S) — USES, RUNS_ON, etc.
-            3. Compute intrinsic weights from QoS (Phase 3)
-            4. Compute aggregate component weights (Phase 4)
 
-        DEPENDS_ON derivation (formerly Phase 4) has been moved to the
-        pre-analysis stage and is performed by derive_dependencies().
+        Runs Phases 1, 2, 3 and 5a: entities, structural edges, topic weights and
+        aggregate vertex weights. DEPENDS_ON derivation runs later, in the
+        pre-analysis stage — see derive_dependencies().
         """
         self.logger.info(f"Starting import. Clear DB: {clear}")
         
@@ -195,11 +184,10 @@ class Neo4jRepository:
         Pre-analysis stage: derive DEPENDS_ON relationships and finalise
         DEPENDS_ON edge weights.
 
-        Must be called after save_graph() and before any analysis step.
-        Implements Definition 2, Rules 1–6 from docs/graph-model.md and
-        subsequently updates the edge weights for app_to_lib (Rule 5) and
-        broker_to_broker (Rule 6) edges that depend on fully-computed
-        component weights.
+        Must be called after save_graph() and before any analysis step. Applies
+        Rules 1–6 (docs/graph-model.md §4.4), then gives the app_to_lib (Rule 5)
+        and broker_to_broker (Rule 6) edges the component weights they could not
+        carry when they were derived.
         """
         self.logger.info("Pre-analysis: deriving DEPENDS_ON relationships.")
         with self.driver.session(database=self.database) as session:
@@ -217,12 +205,11 @@ class Neo4jRepository:
 
     def _finalize_dependency_weights(self, tx: Any = None) -> None:
         """
-        Finalise DEPENDS_ON edge weights that depend on component weights
-        computed during import (Phase 4).
+        Phase 5b: set the DEPENDS_ON edge weights that depend on vertex weights.
 
-        This is separated from _calculate_aggregate_weights so that component
-        weights remain available after import while DEPENDS_ON edge weights
-        are only set once the edges exist (i.e. after derive_dependencies).
+        Separate from _calculate_aggregate_weights because those vertex weights
+        are computed at import time, while the edges they flow onto only exist
+        after derive_dependencies() has run.
         """
         # app_to_lib Edge Weights (inherits from App)
         self._run_query("""
@@ -241,37 +228,64 @@ class Neo4jRepository:
     def _run_query(self, query: str, parameters: Dict = None, tx: Any = None) -> Any:
         """Execute a Cypher query, optionally within an existing transaction."""
         if tx:
-            result = tx.run(query, parameters or {})
-            return result.consume()
-            
+            return tx.run(query, parameters or {}).consume()
+
         with self.driver.session(database=self.database) as session:
-            result = session.run(query, parameters or {})
-            return result.consume()
+            return session.run(query, parameters or {}).consume()
+
+    def _fetch(self, query: str, parameters: Dict = None, tx: Any = None) -> List[Any]:
+        """Execute a Cypher query and materialise its records."""
+        if tx:
+            return list(tx.run(query, parameters or {}))
+
+        with self.driver.session(database=self.database) as session:
+            return list(session.run(query, parameters or {}))
 
     def _import_batch(self, data: List[Dict], query: str, tx: Any = None) -> int:
         """Import a batch of records using UNWIND, optionally within a transaction."""
         if not data:
             return 0
-            
-        if tx:
-            result = tx.run(
-                f"UNWIND $rows AS row {query}",
-                {"rows": data}
-            )
-            summary = result.consume()
-            return summary.counters.nodes_created + summary.counters.relationships_created
 
-        with self.driver.session(database=self.database) as session:
-            result = session.run(
-                f"UNWIND $rows AS row {query}",
-                {"rows": data}
+        summary = self._run_query(f"UNWIND $rows AS row {query}", {"rows": data}, tx=tx)
+        return summary.counters.nodes_created + summary.counters.relationships_created
+
+    def _validate_endpoints_exist(
+        self, batch: List[Dict], key: str, rel_type: str, tx: Any = None
+    ) -> None:
+        """
+        Fail the import when a relationship references an entity that was not created.
+
+        OPTIONAL MATCH identifies precisely which rows refer to missing entities,
+        so the error can name the offending ids instead of just failing to match.
+        """
+        offenders = self._fetch("""
+            UNWIND $rows AS row
+            OPTIONAL MATCH (src {id: row.from})
+            OPTIONAL MATCH (tgt {id: row.to})
+            WITH row, src, tgt
+            WHERE src IS NULL OR tgt IS NULL
+            RETURN row.from as src_id, src IS NOT NULL as src_exists,
+                   row.to as tgt_id, tgt IS NOT NULL as tgt_exists
+            LIMIT 100
+        """, {"rows": batch}, tx=tx)
+
+        errors = []
+        for record in offenders:
+            if not record["src_exists"]:
+                errors.append(f"Source entity missing (id='{record['src_id']}')")
+            if not record["tgt_exists"]:
+                errors.append(f"Target entity missing (id='{record['tgt_id']}')")
+
+        if errors:
+            raise ValueError(
+                f"Structural integrity violation in '{key}' ('{rel_type}') relationship: "
+                f"Referenced entities must exist. Found {len(errors)} errors including: "
+                f"{'; '.join(errors[:5])}"
             )
-            summary = result.consume()
-            return summary.counters.nodes_created + summary.counters.relationships_created
 
     def _create_constraints(self, tx: Any = None) -> None:
         """Create uniqueness constraints for all entity types."""
-        for label in ["Application", "Broker", "Node", "Topic", "Library"]:
+        for label in COMPONENT_LABELS:
             try:
                 self._run_query(
                     f"CREATE CONSTRAINT IF NOT EXISTS FOR (n:{label}) REQUIRE n.id IS UNIQUE",
@@ -342,138 +356,54 @@ class Neo4jRepository:
                 t.qos_transport_priority = row.qos_transport_priority
         """, tx=tx)
         # Conditionally set optional fields only when present in the source data
-        self._import_batch(topics, """
-            MATCH (t:Topic {id: row.id})
-            FOREACH (_ IN CASE WHEN row.topic_frequency IS NOT NULL THEN [1] ELSE [] END |
-                SET t.topic_frequency = row.topic_frequency)
-            FOREACH (_ IN CASE WHEN row.topic_criticality IS NOT NULL THEN [1] ELSE [] END |
-                SET t.topic_criticality = row.topic_criticality)
+        self._import_batch(topics, f"""
+            MATCH (t:Topic {{id: row.id}})
+{_set_if_present_clause("t", ["topic_frequency", "topic_criticality"])}
         """, tx=tx)
 
     def _import_applications(self, apps_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import applications with code metrics and hierarchy."""
         apps = [serialization.flatten_component(a, "Application") for a in apps_data]
         # Always-present fields
-        self._import_batch(apps, """
-            MERGE (a:Application {id: row.id})
-            SET a.name = row.name, a.role = row.role, a.app_type = row.app_type,
-                a.version = row.version,
-                a.csc_name = row.csc_name, a.csci_name = row.csci_name,
-                a.css_name = row.css_name, a.csms_name = row.csms_name,
-                a.cm_total_loc = row.cm_total_loc, a.cm_total_classes = row.cm_total_classes,
-                a.cm_total_methods = row.cm_total_methods, a.cm_total_fields = row.cm_total_fields,
-                a.cm_total_wmc = row.cm_total_wmc, a.cm_avg_wmc = row.cm_avg_wmc, a.cm_max_wmc = row.cm_max_wmc,
-                a.cm_avg_lcom = row.cm_avg_lcom, a.cm_max_lcom = row.cm_max_lcom,
-                a.cm_avg_cbo = row.cm_avg_cbo, a.cm_max_cbo = row.cm_max_cbo,
-                a.cm_avg_rfc = row.cm_avg_rfc, a.cm_max_rfc = row.cm_max_rfc,
-                a.cm_avg_fanin = row.cm_avg_fanin, a.cm_max_fanin = row.cm_max_fanin,
-                a.cm_avg_fanout = row.cm_avg_fanout, a.cm_max_fanout = row.cm_max_fanout,
-                a.sqale_debt_ratio = row.sqale_debt_ratio, a.bugs = row.bugs,
-                a.vulnerabilities = row.vulnerabilities, a.duplicated_lines_density = row.duplicated_lines_density,
-                a.loc = row.loc,
-                a.cyclomatic_complexity = row.cyclomatic_complexity,
-                a.coupling_afferent = row.coupling_afferent,
-                a.coupling_efferent = row.coupling_efferent,
-                a.lcom = row.lcom
+        self._import_batch(apps, f"""
+            MERGE (a:Application {{id: row.id}})
+            SET {_set_clause("a", ["name", "role", "app_type", "version"] + _SHARED_COMPONENT_PROPERTIES)}
         """, tx=tx)
         # Conditionally set optional classification fields only when present in the source data
-        self._import_batch(apps, """
-            MATCH (a:Application {id: row.id})
-            FOREACH (_ IN CASE WHEN row.criticality IS NOT NULL THEN [1] ELSE [] END |
-                SET a.criticality = row.criticality)
-            FOREACH (_ IN CASE WHEN row.priority IS NOT NULL THEN [1] ELSE [] END |
-                SET a.priority = row.priority)
-            FOREACH (_ IN CASE WHEN row.hotstandby IS NOT NULL THEN [1] ELSE [] END |
-                SET a.hotstandby = row.hotstandby)
+        self._import_batch(apps, f"""
+            MATCH (a:Application {{id: row.id}})
+{_set_if_present_clause("a", ["criticality", "priority", "hotstandby"])}
         """, tx=tx)
 
     def _import_libraries(self, libs_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import libraries with code metrics and hierarchy."""
         libs = [serialization.flatten_component(l, "Library") for l in libs_data]
-        self._import_batch(libs, """
-            MERGE (l:Library {id: row.id})
-            SET l.name = row.name, l.version = row.version,
-                l.csc_name = row.csc_name, l.csci_name = row.csci_name,
-                l.css_name = row.css_name, l.csms_name = row.csms_name,
-                l.cm_total_loc = row.cm_total_loc, l.cm_total_classes = row.cm_total_classes,
-                l.cm_total_methods = row.cm_total_methods, l.cm_total_fields = row.cm_total_fields,
-                l.cm_total_wmc = row.cm_total_wmc, l.cm_avg_wmc = row.cm_avg_wmc, l.cm_max_wmc = row.cm_max_wmc,
-                l.cm_avg_lcom = row.cm_avg_lcom, l.cm_max_lcom = row.cm_max_lcom,
-                l.cm_avg_cbo = row.cm_avg_cbo, l.cm_max_cbo = row.cm_max_cbo,
-                l.cm_avg_rfc = row.cm_avg_rfc, l.cm_max_rfc = row.cm_max_rfc,
-                l.cm_avg_fanin = row.cm_avg_fanin, l.cm_max_fanin = row.cm_max_fanin,
-                l.cm_avg_fanout = row.cm_avg_fanout, l.cm_max_fanout = row.cm_max_fanout,
-                l.sqale_debt_ratio = row.sqale_debt_ratio, l.bugs = row.bugs,
-                l.vulnerabilities = row.vulnerabilities, l.duplicated_lines_density = row.duplicated_lines_density,
-                l.loc = row.loc,
-                l.cyclomatic_complexity = row.cyclomatic_complexity,
-                l.coupling_afferent = row.coupling_afferent,
-                l.coupling_efferent = row.coupling_efferent,
-                l.lcom = row.lcom
+        self._import_batch(libs, f"""
+            MERGE (l:Library {{id: row.id}})
+            SET {_set_clause("l", ["name", "version"] + _SHARED_COMPONENT_PROPERTIES)}
         """, tx=tx)
 
 
     def _import_relationships(self, data: Dict[str, Any], tx: Any = None) -> None:
         """
         Import structural relationships (Phase 2) with entity validation.
-        
+
         Validates that referenced source and target entities exist before
         creating edges. Missing entities raise ValueError to trigger rollback.
         """
         rels = data.get("relationships", {})
-        
-        # Mapping: key -> (RelationType, SourceLabels, TargetLabels)
-        # Labels are used for performance optimization (matching indexed constraints)
-        rel_config = {
-            "runs_on": ("RUNS_ON", "Application|Broker", "Node"),
-            "routes": ("ROUTES", "Broker", "Topic"),
-            "publishes_to": ("PUBLISHES_TO", "Application|Library", "Topic"),
-            "subscribes_to": ("SUBSCRIBES_TO", "Application|Library", "Topic"),
-            "connects_to": ("CONNECTS_TO", "Node", "Node"),
-            "uses": ("USES", "Application|Library", "Library"),
-        }
-        
-        for key, (rel_type, src_labels, tgt_labels) in rel_config.items():
+
+        for key, (rel_type, src_labels, tgt_labels) in STRUCTURAL_RELATIONSHIPS.items():
             items = rels.get(key, [])
             if not items:
                 continue
 
-            batch = [{"from": r.get("from", r.get("source")), 
+            batch = [{"from": r.get("from", r.get("source")),
                       "to": r.get("to", r.get("target"))} for r in items]
-            
-            # 1. Validate existence
-            # OPTIONAL MATCH identifies precisely which rows refer to missing entities.
-            validation_query = """
-                UNWIND $rows AS row
-                OPTIONAL MATCH (src {id: row.from})
-                OPTIONAL MATCH (tgt {id: row.to})
-                WITH row, src, tgt
-                WHERE src IS NULL OR tgt IS NULL
-                RETURN row.from as src_id, src IS NOT NULL as src_exists,
-                       row.to as tgt_id, tgt IS NOT NULL as tgt_exists
-                LIMIT 100
-            """
-            if tx:
-                res = tx.run(validation_query, {"rows": batch})
-            else:
-                with self.driver.session(database=self.database) as _session:
-                    res = list(_session.run(validation_query, {"rows": batch}))
 
-            errors = []
-            for record in res:
-                if not record["src_exists"]:
-                    errors.append(f"Source entity missing (id='{record['src_id']}')")
-                if not record["tgt_exists"]:
-                    errors.append(f"Target entity missing (id='{record['tgt_id']}')")
+            self._validate_endpoints_exist(batch, key, rel_type, tx=tx)
 
-            if errors:
-                example_errs = "; ".join(errors[:5])
-                raise ValueError(
-                    f"Structural integrity violation in '{key}' ('{rel_type}') relationship: "
-                    f"Referenced entities must exist. Found {len(errors)} errors including: {example_errs}"
-                )
-
-            # 2. Create edges using label-optimized match
+            # Create edges using label-optimized match
             query = f"""
                 MATCH (a:{src_labels} {{id: row.from}}), (b:{tgt_labels} {{id: row.to}})
                 MERGE (a)-[:{rel_type}]->(b)
@@ -491,61 +421,62 @@ class Neo4jRepository:
                 t.publisher_count = pub_count
         """, tx=tx)
 
+    @staticmethod
+    def _score_case_cypher(attribute: str, scores: Dict[str, float]) -> str:
+        """
+        Render a Cypher CASE that maps one QoS attribute to its score.
+
+        The branches are generated from the ``QoSPolicy`` tables rather than
+        spelled out, so the Cypher scorer cannot drift from the Python one —
+        the drift that once made a CRITICAL topic score like a LOW one.
+        Values scoring 0.0 are left to the ELSE branch.
+        """
+        branches = " ".join(
+            f"WHEN '{value}' THEN {score}"
+            for value, score in scores.items() if score
+        )
+        return f"CASE {attribute} {branches} ELSE 0.0 END"
+
     def _get_qos_weight_cypher(self, topic_var: str) -> str:
         """
-        Generate Cypher expression for QoS weight calculation.
-        
-        Implements: W_topic = max(ε, β * QoS_score + (1-β) * S_size)
-        Uses scoring constants from QoSPolicy class to ensure consistency.
+        Generate the Cypher expression for the Topic weight (docs/graph-model.md §4.3):
+
+            w(t) = max(ε, β * QoS_score + (1-β) * size_norm)
         """
-        rel_scores = QoSPolicy.RELIABILITY_SCORES
-        dur_scores = QoSPolicy.DURABILITY_SCORES
-        pri_scores = QoSPolicy.PRIORITY_SCORES
-        
         beta = TOPIC_QOS_WEIGHT_BETA
         one_minus_beta = round(1.0 - beta, 4)
-        
-        # Build the QoS score expression
-        qos_score = f"""
-        ({QoSPolicy.W_RELIABILITY} * CASE {topic_var}.qos_reliability WHEN 'RELIABLE' THEN {rel_scores['RELIABLE']} ELSE 0.0 END +
-         {QoSPolicy.W_DURABILITY} * CASE {topic_var}.qos_durability 
-             WHEN 'PERSISTENT' THEN {dur_scores['PERSISTENT']} 
-             WHEN 'TRANSIENT' THEN {dur_scores['TRANSIENT']} 
-             WHEN 'TRANSIENT_LOCAL' THEN {dur_scores['TRANSIENT_LOCAL']} 
-             ELSE 0.0 END +
-         {QoSPolicy.W_PRIORITY} * CASE {topic_var}.qos_transport_priority
-             WHEN 'HIGHEST' THEN 1.0
-             WHEN 'CRITICAL' THEN 1.0
-             WHEN 'URGENT' THEN {pri_scores['URGENT']}
-             WHEN 'HIGH' THEN {pri_scores['HIGH']}
-             WHEN 'MEDIUM' THEN {pri_scores['MEDIUM']}
-             ELSE 0.0 END)
-        """
-        
-        # Build the size norm expression (capped at 1.0)
-        size_norm = f"""
-        CASE WHEN {topic_var}.size <= 0 THEN 0.0
-              WHEN (log(1 + {topic_var}.size / 1024.0) / (log(2) * 50.0)) > 1.0 THEN 1.0
-              ELSE (log(1 + {topic_var}.size / 1024.0) / (log(2) * 50.0))
-         END
-        """
-        
+        size_kb = f"{topic_var}.size / 1024.0"
+        log2_size = f"(log(1 + {size_kb}) / (log(2) * 50.0))"
+
+        qos_score = (
+            f"({QoSPolicy.W_RELIABILITY} * "
+            f"{self._score_case_cypher(f'{topic_var}.qos_reliability', QoSPolicy.RELIABILITY_SCORES)} + "
+            f"{QoSPolicy.W_DURABILITY} * "
+            f"{self._score_case_cypher(f'{topic_var}.qos_durability', QoSPolicy.DURABILITY_SCORES)} + "
+            f"{QoSPolicy.W_PRIORITY} * "
+            f"{self._score_case_cypher(f'{topic_var}.qos_transport_priority', QoSPolicy.PRIORITY_SCORES)})"
+        )
+
+        # Size norm, capped at 1.0 and undefined for non-positive payloads
+        size_norm = (
+            f"CASE WHEN {topic_var}.size <= 0 THEN 0.0 "
+            f"WHEN {log2_size} > 1.0 THEN 1.0 "
+            f"ELSE {log2_size} END"
+        )
+
         weighted_sum = f"({beta} * {qos_score} + {one_minus_beta} * {size_norm})"
-        
-        # Apply minimum weight floor: max(ε, weighted_sum)
-        return f"""
-        CASE WHEN {weighted_sum} < {MIN_TOPIC_WEIGHT} THEN {MIN_TOPIC_WEIGHT}
-             ELSE {weighted_sum}
-        END
-        """
+
+        # Apply the minimum weight floor: max(ε, weighted_sum)
+        return (
+            f"CASE WHEN {weighted_sum} < {MIN_TOPIC_WEIGHT} THEN {MIN_TOPIC_WEIGHT} "
+            f"ELSE {weighted_sum} END"
+        )
 
     def _calculate_intrinsic_weights(self, tx: Any = None) -> None:
         """
-        Step 3: Compute intrinsic weights for Topic nodes.
-        
-        Implements Equation 1 (Topic Weight):
-            w(topic) = β * QoS_score + (1-β) * Size_Norm
-        Where β = TOPIC_QOS_WEIGHT_BETA (0.85).
+        Phase 3: Compute intrinsic Topic weights and propagate them to edges.
+
+            w(topic) = max(ε, β * QoS_score + (1-β) * size_norm),  β = 0.85
         """
         qos_calc = self._get_qos_weight_cypher("t")
 
@@ -573,19 +504,9 @@ class Neo4jRepository:
 
     def _calculate_aggregate_weights(self, tx: Any = None) -> None:
         """
-        Step 5: Compute aggregate weights for secondary infrastructure components.
-        
-        Propagates weights from topics up the dependency chain using max/hybrid 
-        blending. This ensures that a node or broker's importance reflects 
-        the most critical data it carries.
-        
-        Aggregation Rules:
-            Application: w(a) = max w(t) for direct topics
-            Library:     w(l) = max w(app) for consuming apps
-            Broker:      w(b) = 0.70 * max(w(t)) + 0.30 * mean(w(t))
-            Node:        w(n) = max w(c) for hosted components
-            app_to_lib:  w(e) = w(App)
-            broker_to_broker: w(e) = w(Node)
+        Phase 5a: propagate Topic weights up to Applications, Libraries,
+        Brokers and Nodes, so that a component's importance reflects the most
+        critical data it carries. See docs/graph-model.md §4.5.
         """
         # 1. Application Weight (hybrid: 0.80 * max + 0.20 * mean)
         self._run_query(f"""
@@ -644,84 +565,69 @@ class Neo4jRepository:
             SET n.weight = coalesce(hosted_max, 0.01)
         """, tx=tx)
         
+    def _merge_dependency(
+        self, match: str, source: str, target: str, dep_type: str, tx: Any = None
+    ) -> None:
+        """
+        Aggregate the topics matched by ``match`` into one DEPENDS_ON edge.
+
+        ``match`` must bind ``source``, ``target`` and a Topic ``t``. The edge
+        carries the worst-case topic weight and the number of mediating topics.
+        ON CREATE / ON MATCH are max-preserving, so a later rule matching the
+        same pair can only raise the weight, never lower it.
+        """
+        self._run_query(f"""
+            {match.strip()}
+            WITH {source}, {target}, count(DISTINCT t) as path_count, max(t.weight) as max_weight
+            MERGE ({source})-[d:DEPENDS_ON {{dependency_type: '{dep_type}'}}]->({target})
+            ON CREATE SET d.weight = coalesce(max_weight, 0.01), d.path_count = path_count
+            ON MATCH SET d.weight = CASE WHEN coalesce(max_weight, 0.01) > coalesce(d.weight, 0.0)
+                                         THEN coalesce(max_weight, 0.01) ELSE d.weight END,
+                         d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0)
+                                             THEN path_count ELSE d.path_count END
+        """, tx=tx)
+
     def _derive_dependencies(self, tx: Any = None) -> None:
         """
         Derive DEPENDS_ON relationships from structural edges (Phase 4).
 
-        Implements Definition 2, Rules 1–6 from docs/graph-model.md.
-        All rules use max-preserving ON CREATE / ON MATCH semantics so
-        that a later rule can only raise a weight, never lower it.
+        Implements Rules 1–6 from docs/graph-model.md §4.4. Rules 1 and 2 each
+        run three times: once for directly attached components and twice for
+        components reaching the topic through a USES chain of up to three hops.
         """
-        # Rule 1: app_to_app — subscriber depends on publisher (via shared topic)
-        # Note: This captures direct pub/sub. Library transitive paths are handled
-        # by additional queries below.
-        self._run_query("""
+        # Rule 1: app_to_app — a subscriber depends on the publishers of its topics
+        self._merge_dependency("""
             MATCH (subscriber)-[:SUBSCRIBES_TO]->(t:Topic)<-[:PUBLISHES_TO]-(publisher)
             WHERE subscriber <> publisher
               AND (subscriber:Application OR subscriber:Library)
               AND (publisher:Application OR publisher:Library)
-            WITH subscriber, publisher, count(DISTINCT t) as path_count, max(t.weight) as max_weight
-            MERGE (subscriber)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(publisher)
-            ON CREATE SET d.weight = coalesce(max_weight, 0.01), d.path_count = path_count
-            ON MATCH SET d.weight = CASE WHEN coalesce(max_weight, 0.01) > coalesce(d.weight, 0.0)
-                                         THEN max_weight ELSE d.weight END,
-                         d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0)
-                                             THEN path_count ELSE d.path_count END
-        """, tx=tx)
-        
-        # Rule 1 (transitive): app depends on publisher via library chain
-        # App-A -[USES]-> Lib-X -[SUBSCRIBES_TO]-> Topic-T <-[PUBLISHES_TO]- App-B
-        self._run_query("""
+        """, "subscriber", "publisher", "app_to_app", tx=tx)
+
+        # Rule 1 (transitive): App-A -[USES*]-> Lib-X -[SUBSCRIBES_TO]-> T <-[PUBLISHES_TO]- App-B
+        self._merge_dependency("""
             MATCH (app:Application)-[:USES*1..3]->(lib)-[:SUBSCRIBES_TO]->(t:Topic)<-[:PUBLISHES_TO]-(publisher)
             WHERE app <> publisher
               AND (publisher:Application OR publisher:Library)
-            WITH app, publisher, count(DISTINCT t) as path_count, max(t.weight) as max_weight
-            MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(publisher)
-            ON CREATE SET d.weight = coalesce(max_weight, 0.01), d.path_count = path_count
-            ON MATCH SET d.weight = CASE WHEN coalesce(max_weight, 0.01) > coalesce(d.weight, 0.0) 
-                                         THEN max_weight ELSE d.weight END,
-                         d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0) 
-                                             THEN path_count ELSE d.path_count END
-        """, tx=tx)
-        
-        # Rule 1 (transitive, reverse): app publishes via library chain
-        # App-A -[SUBSCRIBES_TO]-> Topic-T <-[PUBLISHES_TO]- Lib-Y <-[USES*]- App-B
-        self._run_query("""
+        """, "app", "publisher", "app_to_app", tx=tx)
+
+        # Rule 1 (transitive, reverse): App-A -[SUBSCRIBES_TO]-> T <-[PUBLISHES_TO]- Lib-Y <-[USES*]- App-B
+        self._merge_dependency("""
             MATCH (subscriber)-[:SUBSCRIBES_TO]->(t:Topic)<-[:PUBLISHES_TO]-(lib)<-[:USES*1..3]-(app:Application)
             WHERE subscriber <> app
               AND (subscriber:Application OR subscriber:Library)
-            WITH subscriber, app, count(DISTINCT t) as path_count, max(t.weight) as max_weight
-            MERGE (subscriber)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(app)
-            ON CREATE SET d.weight = coalesce(max_weight, 0.01), d.path_count = path_count
-            ON MATCH SET d.weight = CASE WHEN coalesce(max_weight, 0.01) > coalesce(d.weight, 0.0) 
-                                         THEN max_weight ELSE d.weight END,
-                         d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0) 
-                                             THEN path_count ELSE d.path_count END
-        """, tx=tx)
-        
-        # Rule 2: app_to_broker — app depends on broker that routes its topics
-        self._run_query("""
+        """, "subscriber", "app", "app_to_app", tx=tx)
+
+        # Rule 2: app_to_broker — a component depends on the brokers routing its topics
+        self._merge_dependency("""
             MATCH (app)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
             WHERE app:Application OR app:Library
-            WITH app, broker, max(t.weight) as max_w, count(DISTINCT t) as path_count
-            MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker)
-            ON CREATE SET d.weight = coalesce(max_w, 0.01), d.path_count = path_count
-            ON MATCH SET d.weight = CASE WHEN coalesce(max_w, 0.01) > coalesce(d.weight, 0.0)
-                                         THEN max_w ELSE d.weight END,
-                         d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0)
-                                             THEN path_count ELSE d.path_count END
-        """, tx=tx)
- 
-        # Rule 2 (transitive): app depends on broker via library chain
-        self._run_query("""
+        """, "app", "broker", "app_to_broker", tx=tx)
+
+        # Rule 2 (transitive): the same, reached through a library chain
+        self._merge_dependency("""
             MATCH (app:Application)-[:USES*1..3]->(lib)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
-            WITH app, broker, max(t.weight) as max_w, count(DISTINCT t) as path_count
-            MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker)
-            ON CREATE SET d.weight = coalesce(max_w, 0.01), d.path_count = path_count
-            ON MATCH SET d.weight = CASE WHEN coalesce(max_w, 0.01) > coalesce(d.weight, 0) THEN coalesce(max_w, 0.01) ELSE d.weight END,
-                         d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0) THEN path_count ELSE d.path_count END
-        """, tx=tx)
- 
+        """, "app", "broker", "app_to_broker", tx=tx)
+
         # Rule 3: node_to_node — lifted from component-level app_to_app / app_to_broker dependencies.
         # Explicitly filtering to the source dependency types that carry RUNS_ON context,
         # making this resilient to rule reordering.
@@ -746,8 +652,8 @@ class Neo4jRepository:
         """, tx=tx)
  
         # Rule 6: broker_to_broker — colocation dependency via shared node
-        # Weight is set to a placeholder (0.01) here; Phase 5 step 6 overwrites it
-        # with the finalized Node weight once all component weights are computed.
+        # Weight is a placeholder (0.01) here; Phase 5b overwrites it with the
+        # shared Node's weight, which was computed back at import time.
         self._run_query("""
             MATCH (b1:Broker)-[:RUNS_ON]->(n:Node)<-[:RUNS_ON]-(b2:Broker)
             WHERE b1 <> b2
@@ -758,8 +664,8 @@ class Neo4jRepository:
         """, tx=tx)
  
         # Rule 5: app_to_lib — app depends on shared library
-        # Weight is set to a placeholder (0.01) here; Phase 5 step 5 overwrites it
-        # with the finalized Application weight once all component weights are computed.
+        # Weight is a placeholder (0.01) here; Phase 5b overwrites it with the
+        # consuming Application's weight, computed back at import time.
         self._run_query("""
             MATCH (app)-[:USES]->(lib:Library)
             WHERE app:Application OR app:Library
@@ -789,38 +695,34 @@ class Neo4jRepository:
         """
         components = []
         edges = []
-        
+
         with self.driver.session(database=self.database) as session:
             # Fetch components
-            all_types = component_types or ["Application", "Broker", "Node", "Topic", "Library"]
-            for comp_type in all_types:
+            for comp_type in component_types or COMPONENT_LABELS:
                 result = session.run(
                     f"MATCH (n:{comp_type}) RETURN n.id as id, n.name as name, n.weight as weight, "
                     f"labels(n)[0] as type, properties(n) as props"
                 )
                 for record in result:
                     props = dict(record["props"])
+                    props.pop("id", None)
+                    props.pop("weight", None)
                     # Ensure name is present, fallback to ID
-                    name = record["name"] or record["id"]
-                    props["name"] = name
-                    
-                    # Clean up props to avoid duplication
-                    for key in ["id", "weight"]:
-                        props.pop(key, None)
-                        
+                    props["name"] = record["name"] or record["id"]
+
                     components.append(ComponentData(
                         id=record["id"],
                         component_type=record["type"],
                         weight=record["weight"] or 1.0,
                         properties=props,
                     ))
-            
+
             # Fetch DEPENDS_ON edges
             dep_filter = ""
             if dependency_types:
                 types_str = ", ".join(f"'{t}'" for t in dependency_types)
                 dep_filter = f" WHERE d.dependency_type IN [{types_str}]"
-            
+
             result = session.run(
                 f"MATCH (s)-[d:DEPENDS_ON]->(t){dep_filter} "
                 f"RETURN s.id as src, t.id as tgt, labels(s)[0] as stype, "
@@ -837,11 +739,10 @@ class Neo4jRepository:
                     weight=record["weight"] or 1.0,
                     path_count=record["path_count"] or 1,
                 ))
-            
+
             # Optionally include raw structural edges
             if include_raw:
-                for rel_type in ["PUBLISHES_TO", "SUBSCRIBES_TO", "ROUTES", 
-                                 "RUNS_ON", "CONNECTS_TO", "USES"]:
+                for rel_type, _, _ in STRUCTURAL_RELATIONSHIPS.values():
                     result = session.run(
                         f"MATCH (s)-[r:{rel_type}]->(t) "
                         f"RETURN s.id as src, t.id as tgt, labels(s)[0] as stype, "
@@ -857,54 +758,40 @@ class Neo4jRepository:
                             relation_type=rel_type,
                             weight=record["weight"] or 1.0,
                         ))
-        
+
         return GraphData(components=components, edges=edges)
 
     def get_layer_data(self, layer: str) -> GraphData:
         """
-        Retrieve graph data for a specific architectural layer.
-        
-        Implements Definition 3 (Layer Projection) by filtering components
-        and dependencies to those relevant for the requested layer.
-        
+        Retrieve graph data for a specific architectural layer (layer projection).
+
         Args:
             layer: Layer name — canonical (app, infra, mw, system) or
                    legacy alias (application, infrastructure, app_broker, complete)
         """
-        canonical = _resolve_layer(layer)
-        defn = LAYER_DEFINITIONS[canonical]
+        defn = get_layer_definition(resolve_layer(layer))
         return self.get_graph_data(
-            component_types=defn["component_types"],
-            dependency_types=defn["dependency_types"],
+            component_types=sorted(defn.component_types),
+            dependency_types=sorted(defn.dependency_types),
         )
 
     def get_statistics(self) -> Dict[str, int]:
         """Retrieve counts of components and dependencies by type."""
-        all_component_types = ["Application", "Broker", "Node", "Topic", "Library"]
-        all_relationship_types = ["RUNS_ON", "ROUTES", "PUBLISHES_TO", "SUBSCRIBES_TO", "CONNECTS_TO", "USES"]
-        all_dependency_types = ["app_to_app", "app_to_lib", "app_to_broker", "node_to_node", "node_to_broker", "broker_to_broker"]
-        
-        stats = {}
+        counts = {
+            "total_nodes": "MATCH (n) WHERE NOT n:Metadata RETURN count(n) as c",
+            "total_relationships": "MATCH ()-[r]->() RETURN count(r) as c",
+        }
+        for label in COMPONENT_LABELS:
+            counts[f"{label.lower()}_count"] = f"MATCH (n:{label}) RETURN count(n) as c"
+        for rel_type, _, _ in STRUCTURAL_RELATIONSHIPS.values():
+            counts[f"{rel_type.lower()}_count"] = f"MATCH ()-[r:{rel_type}]->() RETURN count(r) as c"
+        for dep_type in DEPENDENCY_TYPES:
+            counts[f"{dep_type}_count"] = (
+                f"MATCH ()-[r:DEPENDS_ON {{dependency_type: '{dep_type}'}}]->() RETURN count(r) as c"
+            )
+
         with self.driver.session(database=self.database) as session:
-            # Capture total metrics
-            result = session.run("MATCH (n) WHERE NOT n:Metadata RETURN count(n) as c")
-            stats["total_nodes"] = result.single()["c"]
-            
-            result = session.run("MATCH ()-[r]->() RETURN count(r) as c")
-            stats["total_relationships"] = result.single()["c"]
-            
-            for comp_type in all_component_types:
-                result = session.run(f"MATCH (n:{comp_type}) RETURN count(n) as c")
-                stats[f"{comp_type.lower()}_count"] = result.single()["c"]
-            for rel_type in all_relationship_types:
-                result = session.run(f"MATCH ()-[r:{rel_type}]->() RETURN count(r) as c")
-                stats[f"{rel_type.lower()}_count"] = result.single()["c"]
-            for dep_type in all_dependency_types:
-                result = session.run(
-                    f"MATCH ()-[r:DEPENDS_ON {{dependency_type: '{dep_type}'}}]->() RETURN count(r) as c"
-                )
-                stats[f"{dep_type}_count"] = result.single()["c"]
-        return stats
+            return {key: session.run(query).single()["c"] for key, query in counts.items()}
 
     def _get_metadata_dict(self) -> Dict[str, Any]:
         """

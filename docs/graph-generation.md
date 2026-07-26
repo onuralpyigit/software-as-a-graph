@@ -1,8 +1,10 @@
 # Graph Generation
 
-**Offline synthetic graph generation, configuration presets, and command-line reference.**
+**Offline synthetic graph generation: what it produces, how the two generation modes differ, and how the generator pipeline works internally.**
 
 [README](../README.md) | → [Step 1: Model (Import)](graph-model.md)
+
+For the full CLI flag reference (`generate_graph.py`, `batch`, `validate`), see [cli-pipeline-guide.md — Stage 0](cli-pipeline-guide.md#stage-0-offline-prep--generate). For scenario file details and validation objectives, see [scenario.md](scenario.md).
 
 ---
 
@@ -12,13 +14,11 @@
 2. [Architecture of the Generation Stack](#2-architecture-of-the-generation-stack)
 3. [Graph Model — Node and Edge Types](#3-graph-model--node-and-edge-types)
 4. [Generation Modes](#4-generation-modes)
-5. [The `generate_graph.py` CLI](#5-the-generate_graphpy-cli)
-6. [The `generate_graph.py batch` Subcommand](#6-the-generate_graphpy-batch-subcommand)
-7. [Scenario Configuration Files](#7-scenario-configuration-files)
-8. [The `StatisticalGraphGenerator`](#8-the-statisticalgraphgenerator)
-9. [Output Format](#9-output-format)
-10. [Programmatic API](#10-programmatic-api)
-11. [Known Limitations and Open Issues](#11-known-limitations-and-open-issues)
+5. [Scenario Configuration Files](#5-scenario-configuration-files)
+6. [The `StatisticalGraphGenerator` Pipeline](#6-the-statisticalgraphgenerator-pipeline)
+7. [Output Format](#7-output-format)
+8. [Programmatic API](#8-programmatic-api)
+9. [Known Limitations and Open Issues](#9-known-limitations-and-open-issues)
 
 ---
 
@@ -75,12 +75,12 @@ A generated graph contains five node types and six structural edge types.
 
 | Edge | From → To | Meaning |
 |:---|:---|:---|
-| `PUBLISHES_TO` | Application $\rightarrow$ Topic | App produces messages on this topic |
-| `SUBSCRIBES_TO` | Application $\rightarrow$ Topic | App consumes messages from this topic |
+| `PUBLISHES_TO` | Application/Library $\rightarrow$ Topic | Publishes messages on this topic |
+| `SUBSCRIBES_TO` | Application/Library $\rightarrow$ Topic | Consumes messages from this topic |
 | `ROUTES` | Broker $\rightarrow$ Topic | Broker is responsible for routing this topic |
 | `RUNS_ON` | Application/Broker $\rightarrow$ Node | Component is deployed on this infrastructure node |
-| `USES` | Application / Library $\rightarrow$ Library | Component or library depends on this shared library (transitive dependencies are also generated with 30% probability) |
-| `CONNECTS_TO` | Node $\rightarrow$ Node | Network link between infrastructure nodes (30% probability by default) |
+| `USES` | Application/Library $\rightarrow$ Library | Component or library depends on this shared library (transitive chains also generated, 30% probability per library) |
+| `CONNECTS_TO` | Node $\rightarrow$ Node | Network link between infrastructure nodes (30% probability by default, `--connection-density`) |
 
 These six edge types constitute the **structural graph $G_{\text{structural}}$**, which is used by the simulation stage (Step 4) to trace failure propagation. A separate **analysis graph $G_{\text{analysis}}$** is derived from $G_{\text{structural}}$ by computing `DEPENDS_ON` edges, which are used exclusively by Steps 2 and 3 (analysis and prediction). The separation ensures that prediction and simulation remain independent.
 
@@ -90,18 +90,18 @@ These six edge types constitute the **structural graph $G_{\text{structural}}$**
 
 ### 4.1 Scale-Preset Mode
 
-The fastest way to generate a graph. Six named presets are built in:
+The fastest way to generate a graph. Six named presets are built in ([tools/generation/models.py](../tools/generation/models.py) `SCALE_PRESETS`):
 
-| Preset | Applications | Topics | Brokers | Nodes | Libraries | Total Nodes | Typical Use |
-|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---|
-| `tiny` | 5 | 5 | 1 | 2 | 2 | 15 | Unit tests |
-| `small` | 15 | 10 | 2 | 4 | 5 | 36 | Quick checks |
-| `medium` | 50 | 30 | 3 | 8 | 10 | 101 | Development |
-| `large` | 150 | 100 | 6 | 20 | 30 | 306 | Integration tests |
-| `jumbo` | 300 | 120 | 10 | 40 | 50 | 520 | Large-scale benchmarks |
-| `xlarge` | 500 | 300 | 10 | 50 | 100 | 960 | Performance benchmarks |
+| Preset | Applications | Topics | Brokers | Nodes | Libraries | Typical Use |
+|:---|:---:|:---:|:---:|:---:|:---:|:---|
+| `tiny` | 5 | 5 | 1 | 2 | 2 | Unit tests |
+| `small` | 15 | 10 | 2 | 4 | 5 | Quick checks |
+| `medium` | 50 | 30 | 3 | 8 | 10 | Development |
+| `large` | 150 | 100 | 6 | 20 | 30 | Integration tests |
+| `jumbo` | 300 | 120 | 10 | 40 | 50 | Large-scale benchmarks (matches scenario_07 counts) |
+| `xlarge` | 500 | 300 | 10 | 50 | 100 | Performance benchmarks |
 
-In scale-preset mode, QoS values for each topic are sampled uniformly from the full option space. Node placement, publish/subscribe wiring, and library usage are assigned using simple random selection without statistical distributions. This mode is suitable for benchmarking and quick smoke tests. Total edge counts are seed-dependent; for scale-preset graphs expect roughly 4–10$\times$ the total node count in edges.
+In scale-preset mode, QoS values for each topic are sampled uniformly from the full option space, and node placement, publish/subscribe wiring, and library usage use the same cluster-affinity logic as statistical mode (§6) but with no distribution targets to steer toward. Total edge counts are seed-dependent; expect roughly 4–10$\times$ the total node count in edges.
 
 ```bash
 PYTHONPATH=. python cli/generate_graph.py --scale medium --seed 42 --output output/graph.json
@@ -109,14 +109,7 @@ PYTHONPATH=. python cli/generate_graph.py --scale medium --seed 42 --output outp
 
 ### 4.2 Statistical-Config Mode (YAML)
 
-The primary mode for validation work. A YAML configuration file fully specifies:
-- exact component counts
-- statistical distributions for node loading, publish counts, subscribe counts, and topic fan-in/fan-out
-- categorical distributions for QoS durability, reliability, and transport priority
-- role and criticality distributions for applications
-- library usage distributions
-
-When a YAML config is loaded, the generator uses `StatisticalMetric` sampling (clamped Gaussian via `random.gauss`) for continuous quantities and weighted-list sampling for categorical quantities. This produces topologies whose structural properties closely match the declared distributions, enabling repeatable validation experiments.
+The primary mode for validation work. A YAML configuration file fully specifies exact component counts plus statistical distributions for node loading, pub/sub fan-in/out, QoS categories, and criticality (see §5 for the schema). When loaded, the generator uses clamped-Gaussian sampling (`StatisticalMetric`) for continuous quantities and weighted-list sampling for categorical ones, producing topologies whose structural properties closely match the declared distributions.
 
 ```bash
 PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_01_autonomous_vehicle.yaml \
@@ -127,392 +120,211 @@ PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_01_au
 
 ### 4.3 Domain and Scenario Enrichment
 
-Two optional flags add realistic naming and domain-matched QoS mappings to either generation mode.
+Two optional flags add realistic naming and domain-matched QoS mappings to either generation mode:
 
-`--domain` selects a domain name pool (`av`, `iot`, `finance`, `healthcare`, `enterprise`, `robotics`, `e-commerce`). When active, application names are drawn from domain-specific name lists (e.g. `PlanningEngine`, `RiskManager`, `VitalSignsMonitor`) rather than generic `App-{n}` identifiers. Library names, broker names, and system hierarchy labels are similarly drawn from domain pools.
+- **`--domain`** selects a domain name pool: `av`, `iot`, `finance`, `healthcare`, `hub-and-spoke`, `microservices`, `enterprise`, `atm` (defined in [tools/generation/datasets.py](../tools/generation/datasets.py) `DOMAIN_DATASETS`). Application, library, broker, and topic names are drawn from domain-specific lists (e.g. `path-planner`, `object-detector`) instead of generic `App-{n}` identifiers; system-hierarchy labels are similarly domain-specific.
+- **`--scenario`** selects a QoS mapping table (same choice list) that overrides the statistical distribution for each topic's QoS based on name pattern matching — e.g. under the `av` scenario, topics whose names contain `cmd` receive `RELIABLE`/`HIGHEST` QoS regardless of the general distribution.
 
-`--scenario` selects a QoS mapping table that overrides the statistical distribution for each topic's QoS settings. For instance, `--scenario av` ensures that topics whose names contain navigation or safety keywords receive `RELIABLE / TRANSIENT_LOCAL / HIGH` QoS regardless of the general distribution. The available scenario values are `av`, `iot`, `finance`, `healthcare`, `hub-and-spoke`, `microservices`, and `enterprise`.
-
-Domain and scenario can be combined with either `--scale` or `--config`. When a YAML config is used and specifies `domain:` and `scenario:` fields at the top level, those values are used automatically without needing to pass them on the CLI.
-
----
-
-## 5. The `generate_graph.py` CLI
-
-Located at `cli/generate_graph.py`. This is the primary generation entry point. In its default mode (no subcommand) it generates a single graph file. It also exposes two subcommands: `batch` (batch dataset generation — see Section 6) and `validate` (topology-class validation — see Section 5.3).
-
-### 5.1 Arguments Reference
-
-| Argument | Type | Default | Description |
-|:---|:---|:---|:---|
-| `--scale` | choice | — | Named scale preset: `tiny`, `small`, `medium`, `large`, `jumbo`, `xlarge`. Mutually exclusive with `--config`. |
-| `--config` | path | — | Path to a YAML scenario configuration file. Mutually exclusive with `--scale`. |
-| `--output` | path | `output/graph.json` | Destination path for the generated JSON file. Parent directories are created automatically. |
-| `--seed` | int | `42` | Random seed. Any integer value gives a deterministic, reproducible output. |
-| `--domain` | str | — | Domain name pool: `av`, `iot`, `finance`, `healthcare`, `hub-and-spoke`, `microservices`, `enterprise`, `atm`. Silently falls back to generic naming on unsupported strings. |
-| `--scenario` | choice | — | QoS scenario mapping: `av`, `iot`, `finance`, `healthcare`, `hub-and-spoke`, `microservices`, `enterprise`, `atm`. |
-| `--connection-density` | float | `0.3` | Connection density (probability of `connects_to` edges between physical infrastructure nodes). |
-| `--verbose` / `-v` | flag | off | Print full tracebacks on error. |
-
-When `--config` is provided, the seed embedded in the YAML (`graph.seed`) is used and the `--seed` CLI argument is ignored. When `--scale` is provided without `--seed`, the default seed of 42 is used.
-
-### 5.2 Usage Examples
-
-```bash
-# Minimal: medium graph, default seed
-PYTHONPATH=. python cli/generate_graph.py --scale medium --output output/graph.json
-
-# Reproducible small graph for a unit test
-PYTHONPATH=. python cli/generate_graph.py --scale small --seed 123 --output output/small_123.json
-
-# Autonomous vehicle scenario from YAML config
-PYTHONPATH=. python cli/generate_graph.py \
-    --config data/scenarios/scenario_01_autonomous_vehicle.yaml \
-    --output output/av_system.json
-
-# IoT scenario with domain naming
-PYTHONPATH=. python cli/generate_graph.py \
-    --config data/scenarios/scenario_02_iot_smart_city.yaml \
-    --domain iot \
-    --output output/iot_system.json
-
-# Quick large graph for benchmarking
-PYTHONPATH=. python cli/generate_graph.py --scale large --seed 2024 --output output/large_bench.json
-
-# Followed immediately by the full pipeline
-PYTHONPATH=. python cli/run.py --all --input output/av_system.json
-
-# Generation as stage 1 of run.py orchestrator
-PYTHONPATH=. python cli/run.py --all --config data/scenarios/scenario_01_autonomous_vehicle.yaml \
-    --input output/av_system.json --output-dir output/av_results
-```
-
-### 5.3 Subcommands: batch and validate
-
-`generate_graph.py` exposes two named subcommands beyond single-graph generation:
-- **`batch`** — Generates all scenario datasets in a single invocation. Accepts all the arguments documented in Section 6.
-  ```bash
-  PYTHONPATH=. python cli/generate_graph.py batch [OPTIONS]
-  ```
-- **`validate`** — Runs topology-class validation across the generated datasets, checking that each scenario falls into the correct expected class (fan-out dominated, dense pubsub, anti-pattern / SPOF, or sparse). The implementation lives in `cli/common/dataset_validation.py`.
-  ```bash
-  PYTHONPATH=. python cli/generate_graph.py validate [OPTIONS]
-  ```
+Both flags accept the same eight values; an unrecognized string is rejected by argparse (`--domain`/`--scenario` are `choices=[...]`-constrained), it does not silently fall back. Domain and scenario can be combined with either `--scale` or `--config`; a YAML config's own `domain:`/`scenario:` fields are used automatically if the CLI flags are omitted.
 
 ---
 
-## 6. The `generate_graph.py batch` Subcommand
+## 5. Scenario Configuration Files
 
-Invoked as `PYTHONPATH=. python cli/generate_graph.py batch`. Generates all scenario datasets in a single invocation, with optional multi-seed variants and legacy dataset refresh. The implementation lives in `cli/common/batch_generation.py`.
+Each `data/scenarios/scenario_*.yaml` file is a self-contained specification for one validation scenario, passed via `cli/generate_graph.py --config`. For the full list of scenarios, their stress parameters, and topology-class objectives, see [scenario.md](scenario.md).
 
-### 6.1 Arguments Reference
+### 5.1 YAML Schema Reference
 
-| Argument | Default | Description |
-|:---|:---|:---|
-| `--input-dir` | `data/scenarios/` | Directory containing `scenario_*.yaml` files. |
-| `--output-dir` | `output/` | Output directory for generated JSON files. |
-| `--refresh-legacy` | off | Regenerate `data/system.json` (medium, seed=42) and `data/dataset.json` (small, seed=42) using the current generator, adding `code_metrics` and `system_hierarchy`. |
-| `--multi-seed` | off | Generate per-seed variants for scenarios 01–06 using all seeds in `--seeds`. Scenarios 07–09 are excluded. |
-| `--seeds` | `42,123,456,789,2024` | Comma-separated seed list for `--multi-seed` mode. |
-| `--scenario` | — | Substring filter — only generate matching scenario names (e.g. `scenario_03`). |
-| `--force` | off | Overwrite existing output files. |
-| `--manifest` | `output/dataset_manifest.json` | Path for the JSON manifest recording metadata for every generated file. |
-| `--dry-run` | off | Print the execution plan without writing any files. |
-| `--verbose` / `-v` | off | Print topology breakdown (node counts, edge counts, QoS distribution) per scenario. |
-
-### 6.2 Usage Examples
-
-```bash
-# Generate all scenario datasets (skips existing by default)
-PYTHONPATH=. python cli/generate_graph.py batch
-
-# Full preparation run before a validation session
-PYTHONPATH=. python cli/generate_graph.py batch --multi-seed --refresh-legacy
-
-# Preview the plan without writing anything
-PYTHONPATH=. python cli/generate_graph.py batch --multi-seed --refresh-legacy --dry-run
-
-# Regenerate only the financial and healthcare scenarios
-PYTHONPATH=. python cli/generate_graph.py batch --scenario scenario_03 --force
-PYTHONPATH=. python cli/generate_graph.py batch --scenario scenario_04 --force
-
-# Generate all scenarios with verbose topology output
-PYTHONPATH=. python cli/generate_graph.py batch --verbose
-
-# Custom seeds for multi-seed stability sweep
-PYTHONPATH=. python cli/generate_graph.py batch --multi-seed --seeds 42,100,200,300,400
-```
-
-### 6.3 Output Layout and Manifest
-
-```
-output/
-├── scenario_08_tiny_regression.json         ← smoke test generated first
-├── scenario_01_autonomous_vehicle.json
-├── scenario_02_iot_smart_city.json
-├── scenario_03_financial_trading.json
-├── scenario_04_healthcare.json
-├── scenario_05_hub_and_spoke.json
-├── scenario_06_microservices.json
-├── scenario_07_enterprise_xlarge.json
-├── scenario_09_xlarge_stress.json
-│
-├── multi_seed/                               ← only with --multi-seed
-│   ├── scenario_01_autonomous_vehicle/
-│   │   ├── scenario_01_autonomous_vehicle_seed42.json
-│   │   ├── scenario_01_autonomous_vehicle_seed123.json
-│   │   ├── scenario_01_autonomous_vehicle_seed456.json
-│   │   ├── scenario_01_autonomous_vehicle_seed789.json
-│   │   └── scenario_01_autonomous_vehicle_seed2024.json
-│   └── ... (scenarios 02–06)
-│
-└── dataset_manifest.json                     ← metadata for every generated file
-```
-
-The manifest JSON records metadata details (`scenario_name`, `source_config`, `output_path`, `seed`, `counts`, `edge_counts`, `qos_distribution`, `criticality_distribution`, etc.) and validation status checks (`"ok"`, `"skipped"`, or `"error"`).
-
----
-
-## 7. Scenario Configuration Files
-
-Each `data/scenarios/scenario_*.yaml` configuration file is a self-contained specification for one validation scenario. The file is passed directly to the generator via `cli/generate_graph.py --config`.
-
-> [!NOTE]
-> For a full list of available validation scenarios, details on their stress parameters, seed presets, and topology configurations, refer to the central scenario guide: [scenario.md](scenario.md).
-
-### 7.1 YAML Schema Reference
-
-Every scenario YAML follows this structure:
+Every scenario YAML follows this structure (see [scenario_01_autonomous_vehicle.yaml](../data/scenarios/scenario_01_autonomous_vehicle.yaml) for a complete real example):
 
 ```yaml
 graph:
-  seed: <integer>           # Unique per scenario; determines full reproducibility
-  domain: <string>          # Optional: av | iot | finance | healthcare | enterprise
-  scenario: <string>        # Optional: matches --scenario QoS mapping table
-  connection_density: <float> # Optional: probability of physical node reachability (default: 0.3)
+  seed: <integer>              # Determines full reproducibility
+  domain: <string>             # Optional: av | iot | finance | healthcare | hub-and-spoke | microservices | enterprise | atm
+  scenario: <string>           # Optional: same values, QoS mapping table
+  connection_density: <float>  # Optional: probability of connects_to edges (default 0.3)
+  intra_cluster_coupling: <float> # Optional: p_intra for cluster-biased sampling (default 0.65)
 
   counts:
-    nodes: <int>            # Infrastructure nodes
-    applications: <int>     # Application (CSU) components
-    libraries: <int>        # Shared libraries
-    topics: <int>           # Message topics
-    brokers: <int>          # Message brokers
+    nodes: <int>
+    applications: <int>
+    libraries: <int>
+    topics: <int>
+    brokers: <int>
 
-  # Statistical distribution for node loading
-  node_stats:
-    applications_per_node:
-      mean: <float>
-      median: <float>
-      std: <float>
-      min: <int>
-      max: <int>
-      q1: <float>
-      q3: <float>
-      iqr: <float>
-
-  # Statistical distributions for application connectivity
   application_stats:
     direct_publish_count: { mean, median, std, min, max, q1, q3, iqr }
-    direct_subscribe_count: { mean, median, std, min, max, q1, q3, iqr }
-    total_publish_count_including_libraries: { ... }
+    direct_subscribe_count: { ... }
+    total_publish_count_including_libraries: { ... }   # takes priority over direct_* when present
     total_subscribe_count_including_libraries: { ... }
-    app_role_distribution:
-      total_count: <int>
-      category_counts: { pub: <int>, sub: <int>, pubsub: <int> }
-      mode: <string>
-      mode_count: <int>
-      mode_percentage: <float>
     app_criticality_distribution:
-      total_count: <int>
       category_counts: { critical: <int>, non_critical: <int> }
-      mode: <string>
-      mode_count: <int>
-      mode_percentage: <float>
+      # (+ total_count, mode, mode_count, mode_percentage — see StatisticalMetric-style fields above)
 
-  # Statistical distributions for library connectivity
   library_stats:
     applications_using_this_library: { mean, median, std, min, max, q1, q3, iqr }
     direct_publish_count: { ... }
     direct_subscribe_count: { ... }
-    total_publish_count_including_libraries: { ... }
-    total_subscribe_count_including_libraries: { ... }
 
-  # Statistical distribution for topic sizing and fanin/fanout
   topic_stats:
     topic_size_bytes: { mean, median, std, min, max, q1, q3, iqr }
-    applications_publishing_to_this_topic: { mean, median, std, min, max, q1, q3, iqr }
-    applications_subscribing_to_this_topic: { mean, median, std, min, max, q1, q3, iqr }
+    applications_publishing_to_this_topic: { ... }
+    applications_subscribing_to_this_topic: { ... }
 
-  # Categorical QoS distributions (counts must equal topic count)
   qos_stats:
     qos_durability_distribution:
-      total_count: <int>
-      category_counts:
-        volatile: <int>
-        transient_local: <int>
-        transient: <int>
-        persistent: <int>
-      mode: <string>
-      mode_count: <int>
-      mode_percentage: <float>
+      category_counts: { volatile: <int>, transient_local: <int>, transient: <int>, persistent: <int> }
     qos_reliability_distribution:
-      total_count: <int>
-      category_counts:
-        best_effort: <int>
-        reliable: <int>
-      mode: <string>
-      mode_count: <int>
-      mode_percentage: <float>
+      category_counts: { best_effort: <int>, reliable: <int> }
     qos_transport_priority_distribution:
-      total_count: <int>
-      category_counts:
-        low: <int>
-        medium: <int>
-        high: <int>
-        critical: <int>
-      mode: <string>
-      mode_count: <int>
-      mode_percentage: <float>
+      category_counts: { low: <int>, medium: <int>, high: <int>, critical: <int> }
 ```
 
-### 7.2 Writing a New Scenario
+`node_stats.applications_per_node` is accepted for backward compatibility (its presence still flips `metadata.generation_mode` to `"statistical"`) but is not read by the generator — node loading falls out of the cluster-affine `RUNS_ON` placement in §6, not a direct distribution target.
+
+Four pub/sub wiring strategies are selected by which stats section is present, in this priority order: `total_publish_count_including_libraries` > `direct_publish_count` (application-level) > `applications_publishing_to_this_topic` (topic-level) > uniform random fallback when no stats are configured at all. Only one strategy runs per generation.
+
+### 5.2 Writing a New Scenario
 
 - **Copy Template** — Copy the closest existing scenario file and rename it `scenario_NN_<name>.yaml`.
-- **Set Unique Seed** — Set `graph.seed` to a unique value (e.g. `1010` for scenario 10).
-- **Scale Component Counts** — Adjust `graph.counts` to the desired scale using the presets table in Section 4.1.
+- **Set Unique Seed** — Set `graph.seed` to a value not used by another scenario.
+- **Scale Component Counts** — Adjust `graph.counts` using the presets table in §4.1 as a reference point.
 - **Tune Statistical Distributions** — Configure distributions to reflect specific topological properties (e.g. increase subscriber fan-out to test Reliability, or reduce broker count to force SPOFs).
-- **Configure QoS Distributions** — Set QoS durability and reliability variables to match the target domain profile.
-- **Document expected outcomes** — Write a clear comment block at the top of the file describing the scenario's validation objectives.
+- **Configure QoS Distributions** — Set QoS durability/reliability/priority category counts to match the target domain profile.
+- **Document expected outcomes** — Write a comment block at the top of the file describing the scenario's validation objective (see [scenario.md](scenario.md) for the expected-topology-class taxonomy).
 
 ---
 
-## 8. The `StatisticalGraphGenerator`
+## 6. The `StatisticalGraphGenerator` Pipeline
 
-Located at `tools/generation/generator.py`. This class performs the actual graph construction. It is instantiated by `GenerationService` and should not normally be called directly.
+Located at [tools/generation/generator.py](../tools/generation/generator.py). `generate()` runs as an ordered sequence of phase methods, each with a single responsibility; `GenerationService` instantiates and calls this class and should be used instead of calling it directly.
 
-### 8.1 Generation Pipeline
+### 6.1 Pass 1 — Entities
 
-The generator runs in two passes.
+| Phase | Method | Produces |
+|:---|:---|:---|
+| Infrastructure | `_build_infrastructure` | `Node`, `Broker` entities |
+| Topics | `_build_topics` | `Topic` entities: QoS, size, domain-aware frequency, noisy criticality |
+| Hierarchy clusters | `_assign_clusters` | Pre-assigns apps/libs/topics to `css_name` clusters so later wiring is structurally coherent, not an independent label |
+| Applications | `_build_apps` | `Application` entities (criticality left `False`; assigned in Pass 2) |
+| Libraries | `_build_libs` | `Library` entities and the cluster→libs grouping |
 
-**Pass 1 — Nodes and Attribute Initialization.** All five node types are created first, before any edges, in the following order: infrastructure nodes, brokers, topics, applications, libraries.
-- **Topic Frequency** — Sampled via `_sample_topic_frequency()` from a per-domain log-uniform distribution, capturing differences in message frequencies (e.g. HFT tick feeds vs. environmental sensors).
-- **Topic Criticality** — Derived from QoS scores. The generator injects controlled label noise (~17% flip rate) to prevent GNN prediction leakage, forcing models to rely on structural context rather than simple QoS parameter lookups.
-- **Hierarchy Cluster Pre-assignment** — Pre-assigns applications and topics to hierarchy clusters (`css_name` CSC boundaries). This ensures subsequent wiring preferentially routes communication within clusters, making system hierarchies structurally meaningful.
+**Topic frequency** is sampled by `_sample_topic_frequency()` from a per-domain log-uniform range (`_DOMAIN_FREQ_BOUNDS`), then snapped to the nearest of a fixed Hz set. **Topic criticality** is derived from the QoS weight via a threshold table, then has ~17% label noise injected (`_derive_topic_criticality_with_noise()`) so a GNN cannot recover it from QoS features via lookup alone — it must use structural context. Both draws use an isolated RNG stream (`topic_attr_rng`), so changing them never perturbs the main topology RNG and existing seeded outputs for unrelated fields stay stable.
 
-**Pass 2 — Relationships.** Edges are constructed in strict dependency order to resolve inherited library publish/subscribe counts:
-1. `RUNS_ON` — Places applications and brokers on hardware hosts nodes. Uses 70% cluster-affine node placement to co-locate related applications on shared infrastructure.
-2. `ROUTES` — Assigns routing brokers to topics. Adjusts broker placement to co-locate brokers with the applications they serve.
-3. `USES` — Resolves library dependencies (app-to-lib and lib-to-lib), establishing transitive chains.
-4. `PUBLISHES_TO` / `SUBSCRIBES_TO` — Wires pub/sub relationships. Implements QoS topic partition affinity, steering gateway/controller components to high-priority reliable topics and sensors to best-effort topics.
-5. **Post-Topology Quality Passes** — Enforces role constraints (e.g. ensuring `pub`-only apps do not subscribe) and assigns application criticality based on structural degree hubs.
+### 6.2 Pass 2 — Relationships
 
-### 8.2 Code-Metrics Generation
+Edges are constructed in dependency order because later steps consume earlier ones (e.g. `PUBLISHES_TO` wiring needs each app's *inherited* library-publish count, which needs `USES` edges to already exist):
 
-Every `Application` and `Library` node carries a `code_metrics` block feeding the RMAV Maintainability $M(v)$ penalty. Metrics are generated from type-specific archetypes in `_CODE_METRICS_PARAMS` and `_LIB_CODE_METRICS_PARAMS`, outputting the following schema:
+1. **`RUNS_ON`** (apps) — `_assign_apps_to_nodes()`: 70% cluster-affine placement, so functionally related apps share infrastructure (this matters for node-level betweenness / SPOF detection).
+2. **`ROUTES`** — `_wire_routes()`: each topic gets 1–2 brokers (30% chance of a redundant second broker); a guard assigns any unrouted broker a topic round-robin so no broker is invisible to ROUTES-based metrics.
+3. **`RUNS_ON`** (brokers) — `_rewrite_broker_placement()`: places each broker on a node in the plurality cluster of the topics it routes, co-locating brokers with the apps they serve.
+4. **`USES`** and library-direct pub/sub — `_wire_uses()`: lib→lib transitive dependencies (30% chance per library), then, if configured, direct library `PUBLISHES_TO`/`SUBSCRIBES_TO` edges, then app→lib usage.
+5. **`PUBLISHES_TO`/`SUBSCRIBES_TO`** (apps) — `_wire_pubsub()` dispatches to one of four mutually-exclusive strategies (§5.1's priority order). All four apply cluster-biased sampling (`_sample_biased`, `p_intra` = `intra_cluster_coupling`) and QoS-affinity steering (`_qos_preferred_topics()`: gateway/controller apps draw from `RELIABLE`/`HIGH` topics first, sensors from `BEST_EFFORT`/`LOW`).
+6. **`CONNECTS_TO`** — `_wire_connects()`: probabilistic node mesh, guarded against a fully disconnected result.
+7. **Post-topology passes** — `_apply_post_topology()`: guarantees every app has at least one pub/sub edge (isolated apps would otherwise inflate F1 scores trivially), then assigns `criticality = True` to the structurally highest-degree apps (`_assign_criticality_two_pass()`) now that the topology — and therefore each app's degree — is known.
+
+### 6.3 Code-Metrics Generation
+
+Every `Application` and `Library` node carries a `code_metrics` block feeding the RMAV Maintainability $M(v)$ penalty, generated from type-specific archetype ranges (`_CODE_METRICS_PARAMS`, `_LIB_CODE_METRICS_PARAMS`):
 - **Size** — `total_loc`, `total_classes`, `total_methods`, `total_fields`.
 - **Complexity** — `total_wmc`, `avg_wmc`, `max_wmc`.
 - **Cohesion** — `avg_lcom`, `max_lcom`.
 - **Coupling** — `avg_cbo`, `max_cbo`, `avg_rfc`, `max_rfc`, `avg_fanin`, `max_fanin`, `avg_fanout`, `max_fanout`.
 
-### 8.3 System-Hierarchy Assignment
+### 6.4 System-Hierarchy Assignment
 
-Every application and library is assigned a `system_hierarchy` block representing its position in the MIL-STD-498 decomposition hierarchy (CSCI, CSC, CSU cluster, and system label), drawing from `SYSTEM_HIERARCHY_POOLS` based on the configured domain.
+Every application and library carries a `system_hierarchy` block (`csc_name`, `csci_name`, `css_name`, `csms_name`) representing its position in the MIL-STD-498 decomposition hierarchy, drawn from `SYSTEM_HIERARCHY_POOLS` for the configured domain (or `GENERIC_HIERARCHY_POOL` when no domain is set). `css_name` is the same value used for hierarchy-cluster pre-assignment in §6.1 — it is not an independent random draw.
 
-### 8.4 QoS Assignment
+### 6.5 QoS Assignment
 
-Topics receive one categorical value for durability, reliability, and transport priority. The QoS weight for a topic is computed from `QoSPolicy` score mappings. Topics carrying `PERSISTENT + RELIABLE + CRITICAL` traffic receive the maximum QoS weight ($1.0$), which multiplies the directed articulation point score to produce the full QSPOF Availability $A(v)$ term.
+Topics receive one categorical value each for durability, reliability, and transport priority. The QoS weight (`QoSPolicy.calculate_weight()`) drives both the criticality threshold lookup (§6.1) and, downstream in analysis, the QSPOF Availability $A(v)$ term — topics carrying `PERSISTENT + RELIABLE + CRITICAL` traffic receive the maximum QoS weight ($1.0$).
 
 ---
 
-## 9. Output Format
+## 7. Output Format
 
-The generator produces a single JSON file structured as follows:
+The generator produces a single JSON file. Field values below are from an actual `--scale tiny --seed 1 --domain av --scenario av` run (some fields randomized further for illustration):
 
 ```json
 {
   "metadata": {
-    "scale": {
-      "apps": 50,
-      "topics": 30,
-      "brokers": 3,
-      "nodes": 8,
-      "libs": 10
-    },
-    "seed": 42,
-    "generation_mode": "statistical",
+    "scale": { "apps": 5, "topics": 5, "brokers": 1, "nodes": 2, "libs": 2 },
+    "seed": 1,
+    "generation_mode": "random",
     "domain": "av",
     "scenario": "av"
   },
   "nodes": [
-    { "id": "N0", "name": "ComputeNode-Alpha", "cpu_cores": 8, "memory_gb": 32 }
+    { "id": "N0", "name": "nav-computer" }
   ],
   "brokers": [
-    { "id": "B0", "name": "DDS-Participant-0" }
+    { "id": "B0", "name": "zenoh-router" }
   ],
   "topics": [
     {
       "id": "T0",
-      "name": "/lidar/point_cloud",
-      "size": 4096,
-      "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
-      },
-      "frequency": 10.0,
-      "criticality": "high"
+      "name": "goal_pose",
+      "size": 8192,
+      "qos": { "durability": "TRANSIENT_LOCAL", "reliability": "RELIABLE", "transport_priority": "HIGH" },
+      "frequency": 1.0,
+      "criticality": "critical"
     }
   ],
   "applications": [
     {
       "id": "A0",
-      "name": "SensorFusion",
-      "role": "pubsub",
-      "app_type": "processor",
-      "criticality": true,
-      "version": "2.3.1",
+      "name": "state-estimator",
+      "version": "2.3.3",
+      "app_type": "service",
+      "role": ["Engineer", "Supervisor"],
+      "criticality": false,
+      "priority": "HIGH",
+      "hotstandby": true,
       "system_hierarchy": {
-        "csc_name": "Autonomous Vehicle Platform",
-        "csci_name": "Perception Software",
-        "css_name": "Sensor Fusion",
-        "csms_name": "Point Cloud Processing"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Control Software",
+        "css_name": "Path Planning",
+        "csms_name": "AV"
       },
       "code_metrics": {
-        "size":       { "total_loc": 1850, "total_classes": 24, "total_methods": 187, "total_fields": 48 },
-        "complexity": { "total_wmc": 437, "avg_wmc": 18.2, "max_wmc": 49 },
-        "cohesion":   { "avg_lcom": 42.5, "max_lcom": 170.0 },
-        "coupling":   { "avg_cbo": 11.3, "max_cbo": 24,
-                        "avg_rfc": 34.7, "max_rfc": 74,
-                        "avg_fanin": 5.0, "max_fanin": 18,
-                        "avg_fanout": 9.0, "max_fanout": 24 }
+        "size":       { "total_loc": 1198, "total_classes": 14, "total_methods": 123, "total_fields": 28 },
+        "complexity": { "total_wmc": 199, "avg_wmc": 14.24, "max_wmc": 41 },
+        "cohesion":   { "avg_lcom": 47.81, "max_lcom": 203.4 },
+        "coupling":   { "avg_cbo": 4.24, "max_cbo": 6, "avg_rfc": 26.99, "max_rfc": 66,
+                        "avg_fanin": 2.91, "max_fanin": 7, "avg_fanout": 5.95, "max_fanout": 12 }
       }
     }
   ],
   "libraries": [
     {
       "id": "L0",
-      "name": "NavCore",
-      "version": "1.4.2",
-      "system_hierarchy": {},
-      "code_metrics": {}
+      "name": "nav-core",
+      "version": "1.1.4",
+      "system_hierarchy": { "csc_name": "Autonomous Vehicle Platform", "csci_name": "Perception Software",
+                             "css_name": "Sensor Fusion", "csms_name": "AV" },
+      "code_metrics": { "size": { "total_loc": 2544, "total_classes": 19, "total_methods": 235, "total_fields": 71 },
+                        "complexity": { "total_wmc": 300, "avg_wmc": 15.81, "max_wmc": 24 },
+                        "cohesion": { "avg_lcom": 57.84, "max_lcom": 210.6 },
+                        "coupling": { "avg_cbo": 12.13, "max_cbo": 22, "avg_rfc": 39.89, "max_rfc": 80,
+                                      "avg_fanin": 4.03, "max_fanin": 11, "avg_fanout": 4.06, "max_fanout": 11 } }
     }
   ],
   "relationships": {
-    "runs_on":      [{ "from": "A0", "to": "N2" }],
+    "runs_on":      [{ "from": "A0", "to": "N1" }],
     "routes":       [{ "from": "B0", "to": "T0" }],
-    "publishes_to": [{ "from": "A0", "to": "T0" }],
-    "subscribes_to":[{ "from": "A3", "to": "T0" }],
-    "connects_to":  [{ "from": "N0", "to": "N1" }],
-    "uses":         [{ "from": "A0", "to": "L0" }]
+    "publishes_to": [{ "from": "A1", "to": "T0" }],
+    "subscribes_to":[{ "from": "A1", "to": "T0" }],
+    "connects_to":  [{ "from": "N1", "to": "N0" }],
+    "uses":         [{ "from": "L1", "to": "L0" }]
   }
 }
 ```
 
+Note `role` is a list of user-facing role tags (drawn from `Operative`/`Engineer`/`Analyst`/`Administrator`/`Supervisor`), not a pub/sub direction indicator; `Node` and `Broker` carry no fields beyond `id`/`name` (no `cpu_cores`, `memory_gb`, or similar — infrastructure capacity is not modeled by the generator).
+
 ---
 
-## 10. Programmatic API
-
-The generation service can be called directly from Python:
+## 8. Programmatic API
 
 ```python
 from tools.generation import GenerationService, load_config, generate_graph
@@ -533,20 +345,16 @@ for name, preset in SCALE_PRESETS.items():
 
 ---
 
-## 11. Known Limitations and Open Issues
+## 9. Known Limitations and Open Issues
 
-*Document last updated: June 2026. Maintained alongside `tools/generation/` and `cli/generate_graph.py`.*
+*Document last updated: July 2026. Maintained alongside `tools/generation/` and `cli/generate_graph.py`.*
 
 | # | Area | Description | Status |
 |:---|:---|:---|:---|
-| 1 | `--domain` validation | Invalid domain strings are silently accepted and fall back to generic naming with no warning. | Open |
-| 2 | `generation_mode` field | The `metadata.generation_mode` field is `"statistical"` only when a YAML config with at least one `*_stats` section is provided. A YAML file that specifies only `counts` and no stats sections will produce `generation_mode: "random"`. | Open |
-| 3 | Pub/sub duplicate edges | The pub/sub wiring strategies do not deduplicate edges: the same `(app, topic)` pair can appear more than once in `publishes_to` / `subscribes_to` if both topic-driven and app-driven wiring write the same edge. The import pipeline deduplicates on ingest. | Open |
-| 4 | Broker guard semantics | The unrouted-broker guard (round-robin assignment) is deterministic but can assign a stranded broker to an already over-routed topic, skewing broker betweenness scores in topologies with many brokers and few topics. | Open |
-| 5 | Hierarchy clustering | Hierarchy labels were formerly assigned independently from a flat pool with no structural effect. As of April 2026 the generator performs a seeded cluster pre-assignment and uses `_sample_biased()` (p_intra = 0.65) to make intra-cluster pub/sub edges more probable. | **Resolved** |
-| 6 | Infrastructure placement | `RUNS_ON` edges were previously assigned uniformly at random (or sequentially by count distribution), with no cluster awareness. As of April 2026 `_assign_apps_to_nodes()` applies 70 % cluster-affine placement, co-locating functionally related apps on the same infrastructure node. | **Resolved** |
-| 7 | Broker placement | Brokers were previously placed on nodes via round-robin index, ignoring which cluster of topics they route. As of April 2026 `_rewrite_broker_placement()` reads the completed routes list and places each broker on a node in its plurality cluster. | **Resolved** |
-| 8 | Criticality coherence | Criticality was previously sampled before topology was built, so critical apps could be structural leaf nodes. As of April 2026 `_assign_criticality_two_pass()` assigns `critical=True` after topology is built, biased toward high-degree (hub) applications. | **Resolved** |
-| 9 | Role constraint drift | The `topic_stats` pub/sub wiring path could assign subscribe edges to `pub`-only apps. As of April 2026 `_validate_role_constraints()` removes such violations before deduplication. | **Resolved** |
-| 10 | QoS–topology coherence | Topic selection during pub/sub wiring was cluster-biased but QoS-agnostic. As of April 2026 `_partition_topics_by_qos_affinity()` steers gateway/controller apps toward `RELIABLE`/`HIGH` topics and sensor apps toward `BEST_EFFORT`/`LOW` topics. | **Resolved** |
-| 11 | Topic attribute leakage | Deterministic QoS-to-criticality mappings allowed GNNs to bypass structural learning. The generator now samples topic frequency from log-uniform domain distributions and injects ~17% label noise into topic criticality, forcing GNNs to exploit multi-hop context. | **Resolved** |
+| 1 | `--domain` validation | Constrained by argparse `choices=[...]`; an unsupported string is rejected outright rather than silently falling back. | Clarified (an earlier draft of this doc claimed a silent fallback) |
+| 2 | `generation_mode` field | `metadata.generation_mode` is `"statistical"` only when the YAML config has at least one `*_stats` section (including `node_stats`, which is otherwise unused — see §5.1). A config with only `counts` produces `generation_mode: "random"`. | Open |
+| 3 | Pub/sub duplicate edges | The four wiring strategies do not deduplicate against each other's output: the same `(app, topic)` pair can appear twice if paths overlap. The import pipeline deduplicates on ingest; `validate_and_clean_schema()` also deduplicates within each relationship type before the file is written. | Open |
+| 4 | Broker guard semantics | The unrouted-broker guard (round-robin assignment) is deterministic but can assign a stranded broker to an already over-routed topic, skewing broker betweenness scores when there are many brokers and few topics. | Open |
+| 5 | Domain frequency-bounds keys | `_DOMAIN_FREQ_BOUNDS` was keyed on descriptive domain names (`autonomous_vehicle`, `iot_smart_city`, `financial_trading`, `hub_and_spoke`) that never matched the real `--domain` values (`av`, `iot`, `finance`, `hub-and-spoke`), so those domains' topic frequencies silently used the generic 0.1–100 Hz range instead of a domain-matched one. | **Resolved** (July 2026) |
+
+Earlier resolved items (cluster-affine hierarchy assignment, infrastructure/broker placement, criticality two-pass assignment, role-constraint enforcement, QoS–topology coherence, topic-attribute leakage prevention) are no longer listed here — see git history for `tools/generation/generator.py` for that record.

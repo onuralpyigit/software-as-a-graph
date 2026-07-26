@@ -161,6 +161,32 @@ class TestScenario08GoldenFile:
         )
 
 
+class TestDomainFrequencyBoundsCoverage:
+    """Regression guard for GEN-12: _DOMAIN_FREQ_BOUNDS keys must match the
+    domain values actually reachable via --domain / scenario YAML `domain:`,
+    not the descriptive names used elsewhere. A stale/renamed key silently
+    falls back to _DOMAIN_FREQ_BOUNDS_DEFAULT with no error, so a mismatch is
+    otherwise invisible.
+    """
+
+    # Mirrors the --domain / --scenario choices in cli/generate_graph.py.
+    _CLI_DOMAIN_CHOICES = [
+        "av", "iot", "finance", "healthcare", "hub-and-spoke",
+        "microservices", "enterprise", "atm",
+    ]
+
+    def test_every_cli_domain_has_frequency_bounds(self):
+        from tools.generation.generator import _DOMAIN_FREQ_BOUNDS
+        missing = [d for d in self._CLI_DOMAIN_CHOICES if d not in _DOMAIN_FREQ_BOUNDS]
+        assert not missing, f"--domain choices missing from _DOMAIN_FREQ_BOUNDS: {missing}"
+
+    def test_every_hierarchy_pool_domain_has_frequency_bounds(self):
+        from tools.generation.generator import _DOMAIN_FREQ_BOUNDS
+        from tools.generation.datasets import SYSTEM_HIERARCHY_POOLS
+        missing = [d for d in SYSTEM_HIERARCHY_POOLS if d not in _DOMAIN_FREQ_BOUNDS]
+        assert not missing, f"SYSTEM_HIERARCHY_POOLS domains missing from _DOMAIN_FREQ_BOUNDS: {missing}"
+
+
 class TestTopicDerivedFields:
     """Regression for topic frequency and criticality derived from QoS during generation."""
 

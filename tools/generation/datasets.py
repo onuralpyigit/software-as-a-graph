@@ -6,8 +6,15 @@ import random
 from saag.core.models import QoSPolicy
 
 # --------------------------------------------------------------------------
-# System Hierarchy pools per domain 
+# System Hierarchy pools per domain
 # --------------------------------------------------------------------------
+_ATM_HIERARCHY_POOL: Dict[str, List[str]] = {
+    "component": ["Air Traffic Control Platform", "Surveillance Data System", "Flight Data Processing System"],
+    "config_item": ["Radar Data Processing", "Flight Plan Management", "Conflict Alert Software", "Weather Integration"],
+    "domain": ["Surveillance", "Flight Planning", "Separation Assurance", "Airspace Management", "Meteorology"],
+    "system": ["ATM"],
+}
+
 SYSTEM_HIERARCHY_POOLS: Dict[str, Dict[str, List[str]]] = {
     "av": {
         "component": ["Autonomous Vehicle Platform", "Vehicle Computing System", "Robotic Systems"],
@@ -51,12 +58,10 @@ SYSTEM_HIERARCHY_POOLS: Dict[str, Dict[str, List[str]]] = {
         "domain": ["Order Processing", "Customer Relations", "Employee Portal", "Stock Management", "Invoice Processing"],
         "system": ["Enterprise"],
     },
-    "atm": {
-        "component": ["Air Traffic Control Platform", "Surveillance Data System", "Flight Data Processing System"],
-        "config_item": ["Radar Data Processing", "Flight Plan Management", "Conflict Alert Software", "Weather Integration"],
-        "domain": ["Surveillance", "Flight Planning", "Separation Assurance", "Airspace Management", "Meteorology"],
-        "system": ["ATM"],
-    },
+    "atm": _ATM_HIERARCHY_POOL,
+    # "air_traffic_management" is the domain value used by scenario YAMLs;
+    # "atm" is the shorter --domain / --scenario CLI alias. Same pool.
+    "air_traffic_management": _ATM_HIERARCHY_POOL,
 }
 
 # Generic hierarchy pool (used when no domain is specified)
@@ -68,6 +73,14 @@ GENERIC_HIERARCHY_POOL: Dict[str, List[str]] = {
 }
 
 # Predefined datasets for various domains mapping to scenario.md
+_ATM_DATASET: Dict[str, List[str]] = {
+    "nodes": ["surveillance-server", "fdps-main", "radar-gateway", "controller-workstation", "weather-node"],
+    "apps": ["radar-tracker", "flight-plan-processor", "conflict-detector", "weather-analyzer", "clearance-router", "trajectory-predictor"],
+    "topics": ["radar.tracks", "flight.plans", "alert.conflict", "weather.updates", "clearance.cmd", "trajectory.predicted"],
+    "libraries": ["asterix-parser", "aero-math-lib", "icao-protocol", "spatial-index"],
+    "brokers": ["kafka-atm", "solace-surveillance"],
+}
+
 DOMAIN_DATASETS: Dict[str, Dict[str, List[str]]] = {
     "av": {
         "nodes": ["vision-compute", "motion-controller", "sensor-hub", "nav-computer", "lidar-processor", "main-brain"],
@@ -118,17 +131,21 @@ DOMAIN_DATASETS: Dict[str, Dict[str, List[str]]] = {
         "libraries": ["soap-client", "xml-parser", "enterprise-auth", "legacy-db-driver"],
         "brokers": ["ibm-mq", "kafka-enterprise"]
     },
-    "atm": {
-        "nodes": ["surveillance-server", "fdps-main", "radar-gateway", "controller-workstation", "weather-node"],
-        "apps": ["radar-tracker", "flight-plan-processor", "conflict-detector", "weather-analyzer", "clearance-router", "trajectory-predictor"],
-        "topics": ["radar.tracks", "flight.plans", "alert.conflict", "weather.updates", "clearance.cmd", "trajectory.predicted"],
-        "libraries": ["asterix-parser", "aero-math-lib", "icao-protocol", "spatial-index"],
-        "brokers": ["kafka-atm", "solace-surveillance"]
-    }
+    "atm": _ATM_DATASET,
+    "air_traffic_management": _ATM_DATASET,
 }
 
 # Default QoS mappings based on topic name patterns within a scenario/domain
 # Format: List of (pattern, (durability, reliability, transport_priority))
+_ATM_QOS_MAPPING = [
+    ("tracks", ("VOLATILE", "BEST_EFFORT", "HIGH")),
+    ("plans", ("PERSISTENT", "RELIABLE", "HIGH")),
+    ("conflict", ("TRANSIENT_LOCAL", "RELIABLE", "CRITICAL")),
+    ("cmd", ("PERSISTENT", "RELIABLE", "CRITICAL")),
+    ("weather", ("TRANSIENT_LOCAL", "BEST_EFFORT", "MEDIUM")),
+    ("default", ("TRANSIENT_LOCAL", "RELIABLE", "HIGH")),
+]
+
 QOS_MAPPINGS = {
     "av": [
         ("camera", ("TRANSIENT_LOCAL", "RELIABLE", "HIGH")),
@@ -170,14 +187,8 @@ QOS_MAPPINGS = {
     "enterprise": [
         ("default", ("TRANSIENT_LOCAL", "RELIABLE", "MEDIUM"))
     ],
-    "atm": [
-        ("tracks", ("VOLATILE", "BEST_EFFORT", "HIGH")),
-        ("plans", ("PERSISTENT", "RELIABLE", "HIGH")),
-        ("conflict", ("TRANSIENT_LOCAL", "RELIABLE", "CRITICAL")),
-        ("cmd", ("PERSISTENT", "RELIABLE", "CRITICAL")),
-        ("weather", ("TRANSIENT_LOCAL", "BEST_EFFORT", "MEDIUM")),
-        ("default", ("TRANSIENT_LOCAL", "RELIABLE", "HIGH"))
-    ]
+    "atm": _ATM_QOS_MAPPING,
+    "air_traffic_management": _ATM_QOS_MAPPING,
 }
 
 def get_scenario_for_topic(topic_name: str, domain: str, scenario: str = None) -> str:
@@ -306,10 +317,4 @@ def get_lib_archetype_for_name(lib_name: str) -> str:
         return "framework"
         
     return "utility"
-
-
-# Add aliases for air_traffic_management
-SYSTEM_HIERARCHY_POOLS["air_traffic_management"] = SYSTEM_HIERARCHY_POOLS["atm"]
-DOMAIN_DATASETS["air_traffic_management"] = DOMAIN_DATASETS["atm"]
-QOS_MAPPINGS["air_traffic_management"] = QOS_MAPPINGS["atm"]
 

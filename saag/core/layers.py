@@ -4,7 +4,7 @@ Graph Layer Definitions
 Unified layer definitions for analysis and simulation.
 This is the **canonical** layer definition used by all CLI scripts and services.
 
-Corresponds to Definition 3 (Layer Projection) in docs/graph-model.md:
+Corresponds to Layer Projections in docs/graph-model.md §5:
 
     π_l(G) = G_l = (V_l, E_l, τ_V|_l, τ_E|_l, w|_l)
 
@@ -14,7 +14,7 @@ Analysis Layers project DEPENDS_ON relationships:
     π_mw     → {app_to_broker, node_to_broker, broker_to_broker}  Analyse Brokers
     π_system → all six subtypes                                Analyse all components
 
-Scope constraint (§1.5): The app layer includes app_to_lib edges so that shared-library
+Scope constraint: The app layer includes app_to_lib edges so that shared-library
 blast-radius risk is visible when running --layer app. Without this, a Library used by
 N applications has DG_in = 0 in the app projection and R(Library) ≈ 0 regardless of
 fan-out. Engineers running --layer app (not --layer system) would receive no signal about
@@ -24,7 +24,7 @@ multi-consumer blast) are distinct from app_to_app sequential cascades.
 
 Simulation Layers use RAW structural relationships (PUBLISHES_TO, RUNS_ON, etc.)
 for failure cascade and event propagation simulation. This implements the
-G_structural vs G_analysis distinction described in §1.6.
+G_structural vs G_analysis distinction described in docs/graph-model.md §6.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ class AnalysisLayer(Enum):
     """
     Enumeration of graph layers for both analysis and simulation.
 
-    Each layer represents a specific architectural view (Definition 3):
+    Each layer represents a specific architectural view:
         APP    — Service-level dependencies  (π_app)
         INFRA  — Infrastructure topology     (π_infra)
         MW     — Middleware/broker coupling   (π_mw)
@@ -98,7 +98,7 @@ class LayerDefinition:
     """
     Definition of a graph analysis layer (π_l).
     
-    Maps to Definition 3 in docs/graph-model.md:
+    Maps to the layer projection table in docs/graph-model.md §5:
         T_l  → component_types   (vertex types included in the projection)
         T_a  → analyze_types     (vertex types that appear in analysis results)
         D_l  → dependency_types  (DEPENDS_ON subtypes included in projection)
@@ -213,7 +213,7 @@ class SimulationLayerDefinition:
     with raw relationships like PUBLISHES_TO, RUNS_ON, etc. This enables
     realistic failure cascade simulation through actual communication paths.
     
-    See docs/graph-model.md §1.6 for the G_structural vs G_analysis distinction.
+    See docs/graph-model.md §6 for the G_structural vs G_analysis distinction.
     
     Attributes:
         name:             Human-readable layer name

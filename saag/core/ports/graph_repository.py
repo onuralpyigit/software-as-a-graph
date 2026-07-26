@@ -34,9 +34,9 @@ class IGraphRepository(Protocol):
         Derive DEPENDS_ON relationships from the structural graph.
 
         This is a pre-analysis step that must be called after save_graph()
-        and before any analysis is performed.  It implements Definition 2,
-        Rules 1–6 (DEPENDS_ON derivation) and finalises edge weights that
-        depend on fully-computed component weights.
+        and before any analysis is performed.  It applies Rules 1–6
+        (docs/graph-model.md §4.4) and finalises the edge weights that depend
+        on fully-computed component weights.
         """
         ...
 

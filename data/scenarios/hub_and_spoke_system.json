@@ -106,7 +106,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "high"
     },
     {
@@ -118,7 +118,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "high"
     },
     {
@@ -154,7 +154,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 50.0,
+      "frequency": 25.0,
       "criticality": "high"
     },
     {
@@ -190,7 +190,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "high"
     },
     {
@@ -214,7 +214,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 25.0,
+      "frequency": 10.0,
       "criticality": "medium"
     },
     {
@@ -238,7 +238,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 50.0,
+      "frequency": 25.0,
       "criticality": "high"
     },
     {
@@ -274,7 +274,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 100.0,
+      "frequency": 50.0,
       "criticality": "high"
     },
     {
@@ -310,7 +310,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "high"
     },
     {
@@ -322,7 +322,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 100.0,
+      "frequency": 50.0,
       "criticality": "high"
     },
     {
@@ -334,7 +334,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "high"
     },
     {
@@ -382,7 +382,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 50.0,
+      "frequency": 25.0,
       "criticality": "high"
     },
     {
@@ -418,7 +418,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "high"
     },
     {

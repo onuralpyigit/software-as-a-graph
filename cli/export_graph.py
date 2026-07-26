@@ -60,12 +60,11 @@ def main() -> None:
         if args.format == "analysis":
             layer = args.layer or "system"
             console.print_step(f"Exporting graph in analysis format (layer={layer}, structural={args.include_structural})...")
-            from saag.infrastructure.neo4j_repo import LAYER_DEFINITIONS, _resolve_layer
-            canonical = _resolve_layer(layer)
-            defn = LAYER_DEFINITIONS[canonical]
+            from saag.core.layers import get_layer_definition, resolve_layer
+            defn = get_layer_definition(resolve_layer(layer))
             graph_data = client.get_graph_data(
-                component_types=defn["component_types"],
-                dependency_types=defn["dependency_types"],
+                component_types=sorted(defn.component_types),
+                dependency_types=sorted(defn.dependency_types),
                 include_raw=args.include_structural,
             )
             data = graph_data.to_dict()

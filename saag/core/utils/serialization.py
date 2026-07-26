@@ -1,6 +1,50 @@
+"""
+Flat ⇄ nested translation between topology JSON and graph-store properties.
 
-from typing import Dict, Any, List, Optional
+Graph stores hold scalar properties only, so the nested ``code_metrics`` and
+``system_hierarchy`` sub-objects of the topology JSON are flattened on import
+(``flatten_*``) and rebuilt on export (``reconstruct_*``). Both directions read
+the same field tables below, so a new metric is added in exactly one place.
+"""
+
+from typing import Any, Dict, Iterable, List
 from saag.core.models import ComponentData, GraphData
+
+#: Flat property name -> nested key, grouped by ``code_metrics`` section.
+CODE_METRIC_FIELDS: Dict[str, Dict[str, str]] = {
+    "size": {
+        "cm_total_loc": "total_loc", "cm_total_classes": "total_classes",
+        "cm_total_methods": "total_methods", "cm_total_fields": "total_fields",
+    },
+    "complexity": {
+        "cm_total_wmc": "total_wmc", "cm_avg_wmc": "avg_wmc", "cm_max_wmc": "max_wmc",
+    },
+    "cohesion": {
+        "cm_avg_lcom": "avg_lcom", "cm_max_lcom": "max_lcom",
+    },
+    "coupling": {
+        "cm_avg_cbo": "avg_cbo", "cm_max_cbo": "max_cbo", "cm_avg_rfc": "avg_rfc",
+        "cm_max_rfc": "max_rfc", "cm_avg_fanin": "avg_fanin", "cm_max_fanin": "max_fanin",
+        "cm_avg_fanout": "avg_fanout", "cm_max_fanout": "max_fanout",
+    },
+    "quality": {
+        "sqale_debt_ratio": "sqale_debt_ratio", "bugs": "bugs",
+        "vulnerabilities": "vulnerabilities", "duplicated_lines_density": "duplicated_lines_density",
+    },
+}
+
+#: Flat property names of the system-decomposition hierarchy.
+HIERARCHY_FIELDS = ("csms_name", "css_name", "csc_name", "csci_name")
+
+
+def _normalize_role(value: Any) -> List[str]:
+    """Coerce an Application ``role`` to a list (accepts a bare string)."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return value
+    return ["Operative"]
+
 
 def reconstruct_metadata_dict(props: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -33,92 +77,76 @@ def reconstruct_component_dict(comp: ComponentData) -> Dict[str, Any]:
     # Base fields
     res = {"id": comp.id, "name": props.get("name", comp.id), "weight": comp.weight}
     
-    # 1. System Hierarchy reconstruction
-    sh = {}
-    for key in ["csms_name", "css_name", "csc_name", "csci_name"]:
-        if val := props.get(key):
-            if val != "": # Don't export empty strings
-                sh[key] = val
+    # 1. System Hierarchy reconstruction (empty strings are not exported)
+    sh = {key: props[key] for key in HIERARCHY_FIELDS if props.get(key)}
     if sh:
         res["system_hierarchy"] = sh
 
-    # 2. Code Metrics reconstruction (Size, Complexity, Cohesion, Coupling, Quality)
-    cm = {"size": {}, "complexity": {}, "cohesion": {}, "coupling": {}, "quality": {}}
-    
-    # Mapping definition for un-flattening
-    metrics_mapping = {
-        "size": {
-            "cm_total_loc": "total_loc", "cm_total_classes": "total_classes", 
-            "cm_total_methods": "total_methods", "cm_total_fields": "total_fields"
-        },
-        "complexity": {
-            "cm_total_wmc": "total_wmc", "cm_avg_wmc": "avg_wmc", "cm_max_wmc": "max_wmc"
-        },
-        "cohesion": {
-            "cm_avg_lcom": "avg_lcom", "cm_max_lcom": "max_lcom"
-        },
-        "coupling": {
-            "cm_avg_cbo": "avg_cbo", "cm_max_cbo": "max_cbo", "cm_avg_rfc": "avg_rfc",
-            "cm_max_rfc": "max_rfc", "cm_avg_fanin": "avg_fanin", "cm_max_fanin": "max_fanin",
-            "cm_avg_fanout": "avg_fanout", "cm_max_fanout": "max_fanout"
-        },
-        "quality": {
-            "sqale_debt_ratio": "sqale_debt_ratio", "bugs": "bugs", 
-            "vulnerabilities": "vulnerabilities", "duplicated_lines_density": "duplicated_lines_density"
+    # 2. Code Metrics reconstruction, dropping sections with no stored fields
+    cm = {}
+    for section, fields in CODE_METRIC_FIELDS.items():
+        section_data = {
+            nest_key: props[flat_key]
+            for flat_key, nest_key in fields.items()
+            if flat_key in props
         }
-    }
-    
-    for section, fields in metrics_mapping.items():
-        for flat_key, nest_key in fields.items():
-            if flat_key in props:
-                cm[section][nest_key] = props[flat_key]
-    
-    # Filter out empty sections
-    cm = {k: v for k, v in cm.items() if v}
+        if section_data:
+            cm[section] = section_data
     if cm:
         res["code_metrics"] = cm
 
-    # 3. Type-specific logic and property normalization
-    if comp.component_type == "Topic":
-        res["size"] = props.get("size", 256)
-        # Preserve uppercase QoS values — the canonical format and weight calculations
-        # both use uppercase (RELIABLE, TRANSIENT_LOCAL, HIGH, etc.). Lowercasing here
-        # would cause silent weight mismatches on round-trip import.
-        res["qos"] = {
+    # 3. Type-specific properties
+    res.update(_RECONSTRUCT_BY_TYPE.get(comp.component_type, lambda _: {})(props))
+    return res
+
+
+def _reconstruct_topic(props: Dict[str, Any]) -> Dict[str, Any]:
+    # Preserve uppercase QoS values — the canonical format and weight calculations
+    # both use uppercase (RELIABLE, TRANSIENT_LOCAL, HIGH, etc.). Lowercasing here
+    # would cause silent weight mismatches on round-trip import.
+    res = {
+        "size": props.get("size", 256),
+        "qos": {
             "reliability": props.get("qos_reliability", "BEST_EFFORT"),
             "durability": props.get("qos_durability", "VOLATILE"),
             "transport_priority": props.get("qos_transport_priority", "MEDIUM"),
-        }
-        # Restore derived fields if present; backend caller is responsible for
-        # ensuring they are populated (import backfill or frontend recompute).
-        if "topic_frequency" in props:
-            res["frequency"] = props["topic_frequency"]
-        if "topic_criticality" in props:
-            res["criticality"] = props["topic_criticality"]
-    elif comp.component_type == "Application":
-        role_val = props.get("role", ["Operative"])
-        if isinstance(role_val, str):
-            role_val = [role_val]
-        elif not isinstance(role_val, list):
-            role_val = ["Operative"]
-        res.update({
-            "app_type": props.get("app_type", "service"),
-            "role": role_val,
-            "criticality": props.get("criticality", "LOW"),
-            "priority": props.get("priority", "MEDIUM"),
-            "hotstandby": props.get("hotstandby", False),
-        })
-        if props.get("version"): res["version"] = props["version"]
-    elif comp.component_type == "Library":
-        if props.get("version"): res["version"] = props["version"]
-    elif comp.component_type == "Node":
-        for key in ["ip_address", "cpu_cores", "memory_gb", "os_type"]:
-            if key in props: res[key] = props[key]
-    elif comp.component_type == "Broker":
-        for key in ["type", "max_connections", "host"]:
-            if key in props: res[key] = props[key]
-    
+        },
+    }
+    # Restore derived fields if present; backend caller is responsible for
+    # ensuring they are populated (import backfill or frontend recompute).
+    if "topic_frequency" in props:
+        res["frequency"] = props["topic_frequency"]
+    if "topic_criticality" in props:
+        res["criticality"] = props["topic_criticality"]
     return res
+
+
+def _reconstruct_application(props: Dict[str, Any]) -> Dict[str, Any]:
+    res = {
+        "app_type": props.get("app_type", "service"),
+        "role": _normalize_role(props.get("role", ["Operative"])),
+        "criticality": props.get("criticality", "LOW"),
+        "priority": props.get("priority", "MEDIUM"),
+        "hotstandby": props.get("hotstandby", False),
+    }
+    if props.get("version"):
+        res["version"] = props["version"]
+    return res
+
+
+def _present_keys(props: Dict[str, Any], keys: Iterable[str]) -> Dict[str, Any]:
+    """Carry over only the keys actually stored on the vertex."""
+    return {key: props[key] for key in keys if key in props}
+
+
+#: Per-vertex-type reconstruction of the properties not shared by all types.
+_RECONSTRUCT_BY_TYPE = {
+    "Topic": _reconstruct_topic,
+    "Application": _reconstruct_application,
+    "Library": lambda props: {"version": props["version"]} if props.get("version") else {},
+    "Node": lambda props: _present_keys(props, ("ip_address", "cpu_cores", "memory_gb", "os_type")),
+    "Broker": lambda props: _present_keys(props, ("type", "max_connections", "host")),
+}
 
 def reconstruct_export_payload(graph_data: GraphData, metadata: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -204,44 +232,20 @@ def flatten_component(comp: Dict[str, Any], comp_type: str) -> Dict[str, Any]:
     if "weight" in comp:
         res["weight"] = comp["weight"]
 
-    # 2. System Hierarchy
+    # 2. System Hierarchy (every field is written, absent ones as empty strings)
     sh = comp.get("system_hierarchy") or {}
-    for key in ["csms_name", "css_name", "csc_name", "csci_name"]:
+    for key in HIERARCHY_FIELDS:
         res[key] = sh.get(key, "")
 
-    # 3. Code Metrics
+    # 3. Code Metrics — every field is written so vertices have a uniform schema
     cm = comp.get("code_metrics") or {}
-    metrics_mapping = {
-        "size": {
-            "cm_total_loc": "total_loc", "cm_total_classes": "total_classes", 
-            "cm_total_methods": "total_methods", "cm_total_fields": "total_fields"
-        },
-        "complexity": {
-            "cm_total_wmc": "total_wmc", "cm_avg_wmc": "avg_wmc", "cm_max_wmc": "max_wmc"
-        },
-        "cohesion": {
-            "cm_avg_lcom": "avg_lcom", "cm_max_lcom": "max_lcom"
-        },
-        "coupling": {
-            "cm_avg_cbo": "avg_cbo", "cm_max_cbo": "max_cbo", "cm_avg_rfc": "avg_rfc",
-            "cm_max_rfc": "max_rfc", "cm_avg_fanin": "avg_fanin", "cm_max_fanin": "max_fanin",
-            "cm_avg_fanout": "avg_fanout", "cm_max_fanout": "max_fanout"
-        },
-        "quality": {
-            "sqale_debt_ratio": "sqale_debt_ratio", "bugs": "bugs", 
-            "vulnerabilities": "vulnerabilities", "duplicated_lines_density": "duplicated_lines_density"
-        }
-    }
-    
-    for section, fields in metrics_mapping.items():
+    for section, fields in CODE_METRIC_FIELDS.items():
         section_data = cm.get(section, {})
-        # Support both nested (cm[section][key]) and legacy flat (comp[key]) if needed,
-        # but here we focus on canonical nested input.
         for flat_key, nest_key in fields.items():
-            res[flat_key] = section_data.get(nest_key, 0)
-            # Support floats for average/ratio fields
-            if "avg" in nest_key or "ratio" in nest_key or "density" in nest_key:
-                res[flat_key] = float(res[flat_key])
+            value = section_data.get(nest_key, 0)
+            # Averages, ratios and densities are fractional; counts stay as-is
+            is_fractional = any(t in nest_key for t in ("avg", "ratio", "density"))
+            res[flat_key] = float(value) if is_fractional else value
 
     # 3.1 Additional flat aliases for common analysis fields (Issue 7 hardening)
     # These ensure compatibility with extract_layer_subgraph and basic Cypher queries.
@@ -253,53 +257,51 @@ def flatten_component(comp: Dict[str, Any], comp_type: str) -> Dict[str, Any]:
         res["coupling_efferent"] = int(cm.get("coupling", {}).get("avg_fanout", 0))
 
     # 4. Type-specific properties
-    if comp_type == "Topic":
-        qos = comp.get("qos", comp.get("qos_policy", {}))
-        res.update({
-            "size": comp.get("size", 256),
-            "qos_reliability": qos.get("reliability", "BEST_EFFORT"),
-            "qos_durability": qos.get("durability", "VOLATILE"),
-            "qos_transport_priority": qos.get("transport_priority", "MEDIUM"),
-        })
-        # Only include derived/optional fields if explicitly present in the source data
-        freq = comp.get("frequency")
-        if freq is not None:
-            res["topic_frequency"] = freq
-        crit = comp.get("criticality")
-        if crit is not None:
-            res["topic_criticality"] = crit
-    elif comp_type == "Application":
-        role_val = comp.get("role", ["Operative"])
-        if isinstance(role_val, str):
-            role_val = [role_val]
-        elif not isinstance(role_val, list):
-            role_val = ["Operative"]
-        res.update({
-            "app_type": comp.get("app_type", "service"),
-            "role": role_val,
-            "version": comp.get("version", ""),
-        })
-        # Only include optional classification fields if explicitly present in the source data
-        if "criticality" in comp:
-            res["criticality"] = comp["criticality"]
-        if "priority" in comp:
-            res["priority"] = comp["priority"]
-        if "hotstandby" in comp:
-            res["hotstandby"] = comp["hotstandby"]
-    elif comp_type == "Library":
-        res["version"] = comp.get("version", "")
-    elif comp_type == "Node":
-        res.update({
-            "ip_address": comp.get("ip_address", ""),
-            "cpu_cores": comp.get("cpu_cores", 0),
-            "memory_gb": comp.get("memory_gb", 0),
-            "os_type": comp.get("os_type", "linux"),
-        })
-    elif comp_type == "Broker":
-        res.update({
-            "type": comp.get("type", "mqtt"),
-            "max_connections": comp.get("max_connections", 0),
-            "host": comp.get("host", ""),
-        })
-
+    res.update(_FLATTEN_BY_TYPE.get(comp_type, lambda _: {})(comp))
     return res
+
+
+def _flatten_topic(comp: Dict[str, Any]) -> Dict[str, Any]:
+    qos = comp.get("qos", comp.get("qos_policy", {}))
+    res = {
+        "size": comp.get("size", 256),
+        "qos_reliability": qos.get("reliability", "BEST_EFFORT"),
+        "qos_durability": qos.get("durability", "VOLATILE"),
+        "qos_transport_priority": qos.get("transport_priority", "MEDIUM"),
+    }
+    # Only include derived/optional fields if explicitly present in the source data
+    if comp.get("frequency") is not None:
+        res["topic_frequency"] = comp["frequency"]
+    if comp.get("criticality") is not None:
+        res["topic_criticality"] = comp["criticality"]
+    return res
+
+
+def _flatten_application(comp: Dict[str, Any]) -> Dict[str, Any]:
+    res = {
+        "app_type": comp.get("app_type", "service"),
+        "role": _normalize_role(comp.get("role", ["Operative"])),
+        "version": comp.get("version", ""),
+    }
+    # Only include optional classification fields if explicitly present in the source data
+    res.update(_present_keys(comp, ("criticality", "priority", "hotstandby")))
+    return res
+
+
+#: Per-vertex-type flattening of the properties not shared by all types.
+_FLATTEN_BY_TYPE = {
+    "Topic": _flatten_topic,
+    "Application": _flatten_application,
+    "Library": lambda comp: {"version": comp.get("version", "")},
+    "Node": lambda comp: {
+        "ip_address": comp.get("ip_address", ""),
+        "cpu_cores": comp.get("cpu_cores", 0),
+        "memory_gb": comp.get("memory_gb", 0),
+        "os_type": comp.get("os_type", "linux"),
+    },
+    "Broker": lambda comp: {
+        "type": comp.get("type", "mqtt"),
+        "max_connections": comp.get("max_connections", 0),
+        "host": comp.get("host", ""),
+    },
+}

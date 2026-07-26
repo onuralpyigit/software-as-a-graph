@@ -70,7 +70,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -82,7 +82,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -94,7 +94,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 25.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -106,7 +106,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -118,7 +118,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 10.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -130,7 +130,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 100.0,
       "criticality": "high"
     },
     {
@@ -142,7 +142,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 100.0,
       "criticality": "critical"
     },
     {
@@ -154,7 +154,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 100.0,
       "criticality": "critical"
     },
     {
@@ -166,7 +166,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -178,7 +178,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -190,7 +190,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "medium"
     },
     {
@@ -202,7 +202,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "medium"
     },
     {
@@ -214,7 +214,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "medium"
     },
     {
@@ -226,7 +226,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "high"
     },
     {
@@ -238,7 +238,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "high"
     },
     {
@@ -250,7 +250,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 10.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -262,7 +262,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -274,7 +274,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -286,7 +286,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 10.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -298,7 +298,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "high"
     },
     {
@@ -310,7 +310,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 1.0,
+      "frequency": 100.0,
       "criticality": "critical"
     },
     {
@@ -322,7 +322,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "minimal"
     },
     {
@@ -334,7 +334,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "medium"
     },
     {
@@ -346,7 +346,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -358,7 +358,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 25.0,
+      "frequency": 200.0,
       "criticality": "high"
     },
     {
@@ -370,7 +370,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -382,7 +382,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 10.0,
+      "frequency": 200.0,
       "criticality": "high"
     },
     {
@@ -394,7 +394,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "medium"
     },
     {
@@ -406,7 +406,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -418,7 +418,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 10.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -430,7 +430,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 25.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -442,7 +442,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "medium"
     },
     {
@@ -454,7 +454,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 1.0,
+      "frequency": 100.0,
       "criticality": "low"
     },
     {
@@ -466,7 +466,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL"
       },
-      "frequency": 10.0,
+      "frequency": 200.0,
       "criticality": "critical"
     },
     {
@@ -478,7 +478,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 1.0,
+      "frequency": 200.0,
       "criticality": "minimal"
     }
   ],
