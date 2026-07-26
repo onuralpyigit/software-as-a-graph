@@ -170,7 +170,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 50.0,
+      "frequency": 1.0,
       "criticality": "medium"
     },
     {
@@ -182,7 +182,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 50.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -194,7 +194,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -230,7 +230,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
@@ -266,7 +266,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "low"
     },
     {
@@ -302,7 +302,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 100.0,
+      "frequency": 1.0,
       "criticality": "medium"
     },
     {
@@ -338,7 +338,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -362,7 +362,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 100.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -374,7 +374,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 50.0,
+      "frequency": 1.0,
       "criticality": "high"
     },
     {
@@ -446,7 +446,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
@@ -482,7 +482,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 25.0,
+      "frequency": 1.0,
       "criticality": "medium"
     },
     {
@@ -506,7 +506,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -518,7 +518,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
@@ -530,7 +530,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 50.0,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
@@ -542,7 +542,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "low"
     },
     {
@@ -614,7 +614,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 50.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -626,7 +626,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 25.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -638,7 +638,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 25.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -650,7 +650,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 50.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -662,7 +662,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 50.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -674,7 +674,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 25.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -710,7 +710,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
@@ -746,7 +746,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "medium"
     },
     {
@@ -770,7 +770,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 50.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -806,7 +806,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -830,7 +830,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "high"
     },
     {
@@ -842,7 +842,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -854,7 +854,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -902,7 +902,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 50.0,
+      "frequency": 1.0,
       "criticality": "medium"
     },
     {
@@ -926,7 +926,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -950,7 +950,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 25.0,
+      "frequency": 1.0,
       "criticality": "medium"
     },
     {
@@ -974,7 +974,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 100.0,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
@@ -986,7 +986,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 50.0,
+      "frequency": 1.0,
       "criticality": "critical"
     },
     {
@@ -998,7 +998,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
-      "frequency": 50.0,
+      "frequency": 1.0,
       "criticality": "high"
     },
     {
@@ -1070,7 +1070,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "medium"
     },
     {
@@ -1094,7 +1094,7 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 10.0,
+      "frequency": 1.0,
       "criticality": "medium"
     },
     {
@@ -1106,7 +1106,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 25.0,
+      "frequency": 1.0,
       "criticality": "minimal"
     },
     {
@@ -1118,7 +1118,7 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       },
-      "frequency": 50.0,
+      "frequency": 1.0,
       "criticality": "medium"
     }
   ],

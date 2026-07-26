@@ -161,21 +161,24 @@ def _can_subscribe(app_type: str) -> bool:
 #   Hub-and-spoke/micro:  service calls 0.01–50 Hz
 # Domains not listed fall back to the generic range (0.1–100 Hz).
 #
-# NOTE (GEN-12): these keys must match the domain values actually passed via
-# --domain / scenario YAML `domain:` (see datasets.py's DOMAIN_DATASETS /
-# SYSTEM_HIERARCHY_POOLS keys), not the descriptive names used elsewhere in
-# this file's docstrings. See docs/graph-generation.md §11 for the historical
-# mismatch on this table.
+# Keys must match the domain values actually passed via --domain / scenario
+# YAML `domain:` (the same strings used as keys in datasets.py's
+# DOMAIN_DATASETS / SYSTEM_HIERARCHY_POOLS), not descriptive names. Prior to
+# this fix, "autonomous_vehicle" / "iot_smart_city" / "financial_trading" /
+# "hub_and_spoke" never matched the real values ("av" / "iot" / "finance" /
+# "hub-and-spoke"), so those four domains silently fell back to
+# _DOMAIN_FREQ_BOUNDS_DEFAULT. See docs/graph-generation.md §11.
 # ---------------------------------------------------------------------------
 _DOMAIN_FREQ_BOUNDS: Dict[str, tuple] = {
-    "air_traffic_management": (1.0,   200.0),
-    "autonomous_vehicle":     (0.1,   100.0),
-    "financial_trading":      (100.0, 10000.0),
-    "iot_smart_city":         (0.01,  5.0),
+    "av":                     (0.1,   100.0),
+    "iot":                    (0.01,  5.0),
+    "finance":                (100.0, 10000.0),
     "healthcare":             (0.001, 2.0),
     "enterprise":             (0.001, 10.0),
-    "hub_and_spoke":          (0.01,  50.0),
+    "hub-and-spoke":          (0.01,  50.0),
     "microservices":          (0.01,  50.0),
+    "atm":                    (1.0,   200.0),
+    "air_traffic_management": (1.0,   200.0),
 }
 _DOMAIN_FREQ_BOUNDS_DEFAULT: tuple = (0.1, 100.0)
 
