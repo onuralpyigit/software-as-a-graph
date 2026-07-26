@@ -16,15 +16,17 @@
    - 3.1 [Definition](#31-definition)
    - 3.2 [User-Side Failure Signature](#32-user-side-failure-signature)
    - 3.3 [The RMAV Model](#33-the-rmav-model)
-   - 3.4 [Mapping RMAV to Quality-in-Use](#34-mapping-rmav-to-quality-in-use)
-   - 3.5 [Criticality Classification](#35-criticality-classification)
+   - 3.4 [What the Component Carries: the Weight Channel](#34-what-the-component-carries-the-weight-channel)
+   - 3.5 [Mapping RMAV to Quality-in-Use](#35-mapping-rmav-to-quality-in-use)
+   - 3.6 [Criticality Classification](#36-criticality-classification)
 4. [Relationship (Edge) Criticality](#4-relationship-edge-criticality)
    - 4.1 [Definition](#41-definition)
    - 4.2 [Why a Link Needs Its Own Score](#42-why-a-link-needs-its-own-score)
    - 4.3 [Structural Edge Signals](#43-structural-edge-signals)
-   - 4.4 [Edge RMAV Decomposition](#44-edge-rmav-decomposition)
-   - 4.5 [Learned Edge Scoring (GNN)](#45-learned-edge-scoring-gnn)
-   - 4.6 [Ranking Critical Edges](#46-ranking-critical-edges)
+   - 4.4 [What the Relationship Carries: the Weight Channel](#44-what-the-relationship-carries-the-weight-channel)
+   - 4.5 [Edge RMAV Decomposition](#45-edge-rmav-decomposition)
+   - 4.6 [Learned Edge Scoring (GNN)](#46-learned-edge-scoring-gnn)
+   - 4.7 [Ranking Critical Edges](#47-ranking-critical-edges)
 5. [From Score to Stakeholder Narrative](#5-from-score-to-stakeholder-narrative)
    - 5.1 [Worked Example](#51-worked-example)
    - 5.2 [Reading a Score as a Quality-in-Use Statement](#52-reading-a-score-as-a-quality-in-use-statement)
@@ -54,7 +56,9 @@ Two distinct but related concepts are in scope:
 | **Component criticality** | Nodes ($v \in V$: Application, Broker, Topic, Node, Library) | RMAV scores $R(v), M(v), A(v), V(v), Q(v)$ + five-tier classification | The component itself goes away. E.g. MainBroker fails → every application routed through it loses its only path to publish/subscribe; the user's task stops outright, it doesn't merely slow down ([§5.1](#51-worked-example)). |
 | **Relationship criticality** | Edges ($e \in E$: physical pub-sub links and derived `DEPENDS_ON` edges) | Structural bridge/betweenness signals + edge RMAV composite + GNN edge score $Q_{\text{GNN}}(u,v)$ | Both components survive, but one specific *link* between them breaks. The stakeholder sees a partial outage — one data flow stops while the rest of the system stays up ([§4.2](#42-why-a-link-needs-its-own-score)). |
 
-The RMAV structural metrics (Reliability, Maintainability, Availability, Vulnerability) used throughout are **proxies** for Quality-in-Use loss — graph-computable stand-ins, used because you cannot survey real stakeholders for every simulated failure. Their mapping to the standard is stated in [§3.4](#34-mapping-rmav-to-quality-in-use) and their limits in [§6](#6-limits-of-the-proxy).
+The RMAV structural metrics (Reliability, Maintainability, Availability, Vulnerability) used throughout are **proxies** for Quality-in-Use loss — graph-computable stand-ins, used because you cannot survey real stakeholders for every simulated failure. Their mapping to the standard is stated in [§3.5](#35-mapping-rmav-to-quality-in-use) and their limits in [§6](#6-limits-of-the-proxy).
+
+Both concepts are scored over the **weighted** graph, never over bare topology: the QoS-derived weights $w(v)$ and $w(e)$ computed in Step 1 carry the declared delivery guarantee of each component and each dependency into every RMAV dimension. Structure says how many stakeholder outcomes route through an element; weight says how strongly each of those outcomes was promised. [§3.4](#34-what-the-component-carries-the-weight-channel) and [§4.4](#44-what-the-relationship-carries-the-weight-channel) trace that channel term by term.
 
 ---
 
@@ -142,9 +146,17 @@ $$
 \text{criticality}(v) \;=\; f\big(\underbrace{R(v)}_{\text{it spreads}},\; \underbrace{M(v)}_{\text{it resists change}},\; \underbrace{A(v)}_{\text{it stops everything}},\; \underbrace{V(v)}_{\text{it invites attack}}\big)
 $$
 
-The four dimensions are *not* four separate definitions of criticality; they are four separable causes of the same stakeholder harm, kept apart because each has a different remedy and a different owner ([§2.2](#22-stakeholders-who-is-harmed-vs-who-acts)). Per-dimension definitions are given in [§3.3](#33-the-rmav-model) and their edge counterparts in [§4.4](#44-edge-rmav-decomposition).
+The four dimensions are *not* four separate definitions of criticality; they are four separable causes of the same stakeholder harm, kept apart because each has a different remedy and a different owner ([§2.2](#22-stakeholders-who-is-harmed-vs-who-acts)). Per-dimension definitions are given in [§3.3](#33-the-rmav-model) and their edge counterparts in [§4.5](#45-edge-rmav-decomposition).
 
-Criticality is computed, not asserted: it is derived entirely from a component's position in $G_{\text{analysis}}(l)$ (the layer-projected dependency graph produced by [graph-model.md](graph-model.md)), never from manual tagging.
+**Two inputs, not one.** Each dimension is computed over the **weighted** dependency graph, so criticality is a function of both where a component sits *and* what it carries:
+
+$$
+\text{criticality}(v) \;=\; f\big(\;\underbrace{\text{position of } v \text{ in } G_{\text{analysis}}(l)}_{\text{structure — how many outcomes route through it}},\;\; \underbrace{w(v),\; \{w(e) : e \text{ incident to } v\}}_{\text{weight — how much each of those outcomes is guaranteed}}\;\big)
+$$
+
+Structure alone cannot separate a SPOF carrying `RELIABLE`/`PERSISTENT` safety telemetry from a topologically identical SPOF carrying `BEST_EFFORT`/`VOLATILE` debug logs; from the stakeholder's side those are not the same failure. The QoS-derived weights $w(v)$ and $w(e)$ computed in Step 1 ([graph-model.md §4.3, §4.5](graph-model.md#43-phase-3--intrinsic-weight-computation)) are what encode that difference, and [§3.4](#34-what-the-component-carries-the-weight-channel) traces exactly where they enter each dimension.
+
+Criticality is computed, not asserted: no component carries a manually assigned criticality label, and no score is hand-tuned per component. It is derived from the component's position in $G_{\text{analysis}}(l)$ (the layer-projected dependency graph produced by [graph-model.md](graph-model.md)) together with the weights derived from its declared QoS policies. The QoS policy *is* an authored input — so criticality inherits the delivery guarantees the architect declared, while remaining independent of any opinion the architect holds about what is important ([§3.4](#34-what-the-component-carries-the-weight-channel) closes with what that dependency costs).
 
 ### 3.2 User-Side Failure Signature
 
@@ -164,10 +176,12 @@ Component criticality is decomposed into four orthogonal structural dimensions �
 
 | Dimension | Question Answered | Driven Primarily By | Estimates (§2.4) |
 |:---|:---|:---|:---|
-| **R — Reliability** | How broadly/deeply does failure propagate? | Reverse PageRank, in-degree, Cascade Depth Potential | Efficiency, Satisfaction |
-| **M — Maintainability** | How hard is this to change safely? | Betweenness, efferent coupling, Code Quality Penalty | Efficiency (engineering-side) |
-| **A — Availability** | Is this a structural single point of failure? | Directed articulation point score, bridge ratio, QoS-SPOF | Effectiveness, Freedom from risk |
-| **V — Vulnerability** | How attractive a target is this for attack? | Reverse eigenvector/closeness centrality, QoS-weighted in-degree | Freedom from risk, Satisfaction |
+| **R — Reliability** | How broadly/deeply does failure propagate? | Reverse PageRank *(QoS-weighted)*, in-degree, Cascade Depth Potential | Efficiency, Satisfaction |
+| **M — Maintainability** | How hard is this to change safely? | Betweenness *(QoS-weighted)*, QoS-weighted efferent coupling, Code Quality Penalty | Efficiency (engineering-side) |
+| **A — Availability** | Is this a structural single point of failure? | Directed articulation point score, bridge ratio, QoS-SPOF *(uses $w(v)$)* | Effectiveness, Freedom from risk |
+| **V — Vulnerability** | How attractive a target is this for attack? | Reverse eigenvector *(QoS-weighted)*/closeness centrality, QoS-weighted in-degree | Freedom from risk, Satisfaction |
+
+The italicised terms are where the Step 1 weights enter; [§3.4](#34-what-the-component-carries-the-weight-channel) traces each one.
 
 > **Terminology — Vulnerability vs. Security.** The conceptual dimension is **Vulnerability** ($V$): how exposed a component is to compromise. The serialized field in `QualityScores` and `CriticalityRanking` is named **`security`** ([saag/core/metrics.py#L243-L258](../saag/core/metrics.py#L243-L258)). They are the same dimension viewed from opposite ends — high vulnerability *is* low security — and a **high** `security` score means **worse** (more exposed), matching the direction of the other three dimensions where high always means more critical. This document uses $V$ / "Vulnerability" for the concept and `security` when naming the field.
 
@@ -219,7 +233,7 @@ Each dimension is itself a full criticality definition, scoped to one failure me
 | Quality-in-Use effect | **Freedom from risk** (security/legal/compliance exposure) and **Satisfaction** (confidence loss even without an incident) |
 | Acted on by | Security Engineer — hardening, segmentation, access control |
 
-The dimensions are scored and classified **independently** ([§3.5](#35-criticality-classification)), so a component carries a four-way profile rather than one label — the profile, not the composite, is what identifies *which* kind of criticality is present and therefore which remedy applies.
+The dimensions are scored and classified **independently** ([§3.6](#36-criticality-classification)), so a component carries a four-way profile rather than one label — the profile, not the composite, is what identifies *which* kind of criticality is present and therefore which remedy applies.
 
 $$
 Q(v) = 0.43 \cdot A(v) + 0.24 \cdot R(v) + 0.17 \cdot M(v) + 0.16 \cdot V(v)
@@ -229,7 +243,67 @@ $$
 
 See [saag/core/criticality.py](../saag/core/criticality.py) for the `CriticalityRanking` DTO that carries these scores through the pipeline.
 
-### 3.4 Mapping RMAV to Quality-in-Use
+### 3.4 What the Component Carries: the Weight Channel
+
+Two components can occupy identical positions in the graph and still differ in criticality, because the *guarantees attached to the data they handle* differ. That difference reaches the RMAV scores through the **weight channel** — the QoS-derived weights computed in Step 1.
+
+#### From declared QoS to a component's weight
+
+```
+declared QoS policy + message size          (topology JSON, per Topic)
+        │  reliability / durability / transport_priority, AHP-weighted
+        ▼
+w(t) ∈ [0,1]                                 Step 1, Phase 3
+        │  inherited by PUBLISHES_TO / SUBSCRIBES_TO / ROUTES edges
+        ▼
+w(v) ∈ [0,1]  for App, Library, Broker, Node  Step 1, Phase 5a (hybrid max/mean, fan-out amplified for libraries)
+w(e) ∈ [0,1]  for every DEPENDS_ON edge        Step 1, Phases 4 and 5b (worst-case QoS over the mediating topics)
+        │
+        ├─ w(v), and the per-node sums w_in = Σw(e), w_out = Σw(e)
+        │       → rank-normalised across the analysed layer
+        └─ w(e) itself → used as-is, as centrality edge weight and in edge scoring
+        ▼
+weight-bearing terms of R, M, A, V            Step 2
+```
+
+Full derivation of $w(t)$, $w(v)$ and $w(e)$ is in [graph-model.md §4.3–§4.5](graph-model.md#43-phase-3--intrinsic-weight-computation). What matters here is the semantics carried along: **$w$ is a delivery-guarantee proxy** — how strongly the system promises that this data arrives — not a measure of traffic volume, revenue, or safety class ([§6.3](#63-real-world-drivers-vs-structural-proxies)).
+
+#### Where weight enters each dimension
+
+Every RMAV dimension is weight-aware, but through different mechanisms. Coefficients are the AHP defaults from [structural-analysis.md §11](structural-analysis.md#11-analyze-stage--rule-based-rmav-scoring):
+
+| Dimension | Weight-bearing term | Mechanism | Reading |
+|:---|:---|:---|:---|
+| **R** | `RPR` (0.45) | Reverse PageRank uses $w(e)$ as edge *importance* on $G^T$ | Cascade reach is measured along the strongly-guaranteed paths, so a fault that would travel over `RELIABLE`/`PERSISTENT` dependencies scores higher than one travelling over best-effort links |
+| **M** | `w_out` (0.30), `BT` (0.35) | `w_out(v) = Σ w(e)` over efferent edges, rank-normalised; betweenness uses $1/w(e)$ as *distance* | Depending on many high-guarantee components makes change expensive — each is an SLA obligation that a change must not break |
+| **A** | `QSPOF` (0.25), `w(v)` (0.05) | $\text{QSPOF} = \text{AP\_c\_directed} \times w(v)$, plus a direct additive term | A SPOF is amplified in proportion to what it guarantees: a partition on high-QoS traffic is a worse Effectiveness loss than the same partition on volatile traffic |
+| **V** | `QADS` = `w_in` (0.25), `REV` (0.40) | `w_in(v) = Σ w(e)` over afferent edges, rank-normalised; reverse eigenvector uses $w(e)$ as importance | A component is an attractive target in proportion to the guarantees its dependents rely on — compromising it breaks the promises that matter most |
+
+Two structural companions of the weight travel with it:
+
+- **`path_count`** — the number of topics (or shared nodes) mediating one `DEPENDS_ON` edge ([graph-model.md §3](graph-model.md#3-formal-graph-definition)). It is deliberately *not* folded into $w(e)$ — that would break the $w \in [0,1]$ contract — so it enters criticality separately: through `MPCI`, which *amplifies* the cascade-depth term of $R$ (three shared topics between the same pair are three simultaneous failure vectors, a tighter coupling than three independent single-topic links), and through `path_complexity`, which raises $M$'s coupling-risk term. Note the node/edge duality: multiplicity makes the *pair* more fragile while making each *individual* channel more replaceable ([§4.3](#43-structural-edge-signals)).
+- **Topic fan-out** — `subscriber_count` / `publisher_count`, computed in Phase 2, drive `FOC` and the Topic-specific form of $R$. Note that Topic reliability is scored from fan-out and message *frequency*, not from $w(t)$: $w(t)$ reaches Topics' neighbours instead, through the aggregation above.
+
+#### Two different things called "weight"
+
+The word is overloaded in this project and the two senses never mix:
+
+| | Graph weight | Dimension weight |
+|:---|:---|:---|
+| Written | $w(v)$, $w(e)$ | $q_R, q_M, q_A, q_V$ and the per-metric coefficients |
+| Comes from | Declared QoS policy + message size, per component/edge | AHP pairwise comparison of the dimensions, once for the whole model |
+| Varies | Per component and per edge, within one system | Per model configuration, not per component |
+| Answers | "How strongly is *this* flow guaranteed?" | "How much does *this kind* of criticality count?" |
+
+They meet in exactly one place: the composite coefficients $q_*$ are themselves adapted to the system's aggregate QoS profile before scoring (`adapt_qos_weights`, on by default). A system whose topics are predominantly `PERSISTENT`/`RELIABLE`/high-priority shifts weight toward $R$ and $A$; a predominantly `VOLATILE`/`BEST_EFFORT` system shifts it toward $M$ and $V$ — the same structural graph therefore yields a different composite ranking in a mission-critical deployment than in a best-effort one, which is [§2.3](#23-context-of-use)'s context-of-use argument made computable.
+
+#### What this dependency costs
+
+- **Weights are relative, not absolute.** $w(v)$, `w_in` and `w_out` are rank-normalised across the components of the analysed layer before entering RMAV, so the weight channel expresses *ordering within one system*, matching the relative reading of the tiers in [§3.6](#36-criticality-classification). Raising every topic in a system to `RELIABLE`/`PERSISTENT` does not raise everything's criticality; it only flattens the channel's ability to discriminate.
+- **A mis-declared QoS policy is a mis-scored component.** If the topology declares `BEST_EFFORT` on a flow the business actually treats as critical, the weight channel faithfully reproduces that error. This is the one place where criticality inherits an authored judgement, and it is the first thing to check when a score contradicts operational experience.
+- **The floor is not zero.** $w(t) \geq 0.01$ by construction, so an unguaranteed flow still contributes structure; the weight channel modulates criticality, it never switches it off.
+
+### 3.5 Mapping RMAV to Quality-in-Use
 
 RMAV is a set of **structural proxies** for Quality-in-Use loss under failure — graph-computable, deterministic, and requiring no live stakeholders. This table states which characteristic each dimension primarily operationalizes, and why:
 
@@ -243,7 +317,7 @@ RMAV is a set of **structural proxies** for Quality-in-Use loss under failure �
 
 The mapping is many-to-many by design: no single RMAV dimension is a characteristic, and no characteristic is fully captured by one dimension. Coverage gaps are enumerated in [§6.2](#62-characteristic-coverage).
 
-### 3.5 Criticality Classification
+### 3.6 Criticality Classification
 
 Raw $Q(v)$ scores are mapped onto five tiers using **adaptive box-plot thresholding**, relative to the system's own score distribution rather than fixed cutoffs — full definition in [structural-analysis.md §11.7](structural-analysis.md#117-criticality-classification):
 
@@ -278,7 +352,15 @@ $$
 \text{criticality}(u,v) \;=\; f\big(\underbrace{R(u,v)}_{\text{it conducts faults}},\; \underbrace{M(u,v)}_{\text{it binds the two sides}},\; \underbrace{A(u,v)}_{\text{it is the only route}},\; \underbrace{V(u,v)}_{\text{it is a path in}}\big)
 $$
 
-Using one dimension set for both nodes and edges is deliberate: it makes the two comparable in a single ranking, and it lets a remediation owner ([§2.2](#22-stakeholders-who-is-harmed-vs-who-acts)) read node and edge findings in the same vocabulary — an SRE reads $A$ on both, a Security Engineer reads $V$ on both. Per-dimension edge definitions are in [§4.4](#44-edge-rmav-decomposition).
+Using one dimension set for both nodes and edges is deliberate: it makes the two comparable in a single ranking, and it lets a remediation owner ([§2.2](#22-stakeholders-who-is-harmed-vs-who-acts)) read node and edge findings in the same vocabulary — an SRE reads $A$ on both, a Security Engineer reads $V$ on both. Per-dimension edge definitions are in [§4.5](#45-edge-rmav-decomposition).
+
+As with a component ([§3.1](#31-definition)), each dimension is computed over the weighted graph, so a link's criticality combines its position with the guarantees of the flow crossing it:
+
+$$
+\text{criticality}(u,v) \;=\; f\big(\;\underbrace{\text{position of } (u,v) \text{ in } G_{\text{analysis}}(l)}_{\text{is this link replaceable?}},\;\; \underbrace{w(u,v),\; \text{path\_count}(u,v)}_{\text{what does it guarantee, over how many channels?}},\;\; \underbrace{R,M,A,V \text{ of } u \text{ and } v}_{\text{what does it connect?}}\;\big)
+$$
+
+The third argument is what distinguishes an edge score from a node score: an edge is scored *in the context of its endpoints* — it can be no more reliable than its riskiest end, nor more available than its weakest ([§4.5](#45-edge-rmav-decomposition)). The second is traced in [§4.4](#44-what-the-relationship-carries-the-weight-channel).
 
 ### 4.2 Why a Link Needs Its Own Score
 
@@ -299,24 +381,55 @@ Edge criticality is therefore governed by one structural question with a direct 
 Relationship criticality is assembled from per-edge structural signals computed in [saag/analysis/structural_analyzer.py](../saag/analysis/structural_analyzer.py) and carried by `EdgeMetrics` / `EdgeQuality` in [saag/core/metrics.py](../saag/core/metrics.py):
 
 - **`is_bridge`** — whether the edge is a graph bridge (cut-edge): `nx.bridges()` over the undirected projection. Removing a bridge disconnects a subgraph from the rest of the system — the Effectiveness case above.
-- **`betweenness`** — edge betweenness centrality (`nx.edge_betweenness_centrality`, QoS-weighted): the fraction of shortest dependency paths that traverse this specific edge — the Efficiency case (how much traffic must reroute).
-- **`weight`** — the edge's QoS-derived weight from [graph-model.md](graph-model.md), a delivery-guarantee proxy for how much the flow is depended upon.
+- **`betweenness`** — edge betweenness centrality (`nx.edge_betweenness_centrality`) computed over the **inverted-weight** graph, where each edge's length is $1/w(e)$: the fraction of shortest dependency paths that traverse this specific edge — the Efficiency case (how much traffic must reroute). Inversion is what makes strongly-guaranteed dependencies *short*, so they attract the shortest paths rather than repelling them.
+- **`weight`** — $w(e)$, the edge's QoS-derived weight from [graph-model.md](graph-model.md): the worst-case guarantee over every topic mediating this dependency, a proxy for how strongly the flow across it is promised. Traced through the edge dimensions in [§4.4](#44-what-the-relationship-carries-the-weight-channel).
+- **`path_count`** — how many distinct topics (or shared nodes) establish this one edge. Deliberately kept out of $w(e)$ to preserve $w \in [0,1]$, so it acts as a separate coupling-intensity signal.
 
 These are distinct from two *node-level* metrics that are easy to mistake for edge scores because they are edge-derived:
 
 - **Bridge Ratio `BR(v)`** ([structural-analysis.md §9.9](structural-analysis.md#99-bridge-ratio-br)) — the *fraction of a node's own connections* that are bridges. It describes a node's exposure to non-redundant edges, not a per-edge score.
 - **Multi-Path Coupling Index `MPCI(v)`** ([structural-analysis.md §9.3](structural-analysis.md#93-multi-path-coupling-index-mpci)) — counts *redundant* shared channels feeding into a node. High MPCI means a node's incoming edges are collectively low-criticality (multi-channel, no single edge is a SPOF); low MPCI (with high `DG_in`) means each incoming edge is closer to a single point of failure for that dependency.
 
-### 4.4 Edge RMAV Decomposition
+### 4.4 What the Relationship Carries: the Weight Channel
+
+An edge's weight is not an attribute of the link's shape — it is the guarantee attached to the data crossing it, and it is computed in Step 1 before any criticality is scored:
+
+```
+w(e) for a structural edge      = w(t) of the topic it attaches to      (Phase 3, inheritance)
+w(e) for a DEPENDS_ON edge      = max w(t) over the mediating topics    (Phase 4, worst case)
+      app_to_lib                = w(consuming component)                 (Phase 5b)
+      broker_to_broker          = w(shared node)                         (Phase 5b)
+path_count(e)                   = number of mediating topics / shared nodes
+```
+
+Taking the worst case rather than an average is the conservative reading required by the definition in [§4.1](#41-definition): if *any* strongly-guaranteed flow crosses this link, losing the link breaks that guarantee, regardless of how many weak flows it also carries.
+
+#### Where weight enters each edge dimension
+
+Unlike a component, an edge uses $w(e)$ **directly, un-normalised** — the Step 1 contract already puts it in $[0,1]$, so no rank normalisation is needed. Coefficients are the `e_*` defaults in [`QualityWeights`](../saag/analysis/weight_calculator.py):
+
+| Edge dimension | Weight-bearing term | Reading |
+|:---|:---|:---|
+| **R** | $w(e)$ at 0.30 — second only to betweenness | A link conducts faults in proportion to what it promises to deliver; a `RELIABLE`/`PERSISTENT` channel that fails breaks a promise a dependent was entitled to rely on |
+| **M** | $w(e)$ at 0.15 | A high-guarantee contract is expensive to renegotiate — both sides must move together |
+| **A** | **none** | Availability asks only *"is this link replaceable?"*, and redundancy is a topological fact: a bridge is a bridge whether it carries safety telemetry or debug logs. QoS amplification reaches $A$ indirectly, through the endpoints' own `QSPOF` ([§3.4](#34-what-the-component-carries-the-weight-channel)) |
+| **V** | $w(e)$ at 0.15 | A channel is worth attacking in proportion to the value of what flows over it |
+| *(via betweenness, in R and M)* | $1/w(e)$ as path length | Strongly-guaranteed edges sit on more shortest paths, raising the betweenness of the links the system leans on |
+
+`path_count` does not enter the edge score directly. It shapes the *endpoints'* $R$ and $M$ ([§3.4](#34-what-the-component-carries-the-weight-channel)), and of those only $R$ can reach the edge again — through the `max(source.R, target.R)` term of edge $R$. Edge $M$ carries no endpoint term at all, so a link's maintainability score is blind to how coupled its endpoints already are.
+
+> **Reading note — edge dimension scales.** The four edge dimensions do not draw on the same coefficient mass ($R$ sums to 0.85 of a possible 1.0, $M$ to 0.80, $A$ to 0.50, $V$ to 0.35), so raw edge scores are comparable *within* a dimension but not *across* dimensions. Since classification is box-plot relative within the edge set ([§3.6](#36-criticality-classification)), per-dimension rankings and tiers are unaffected; only the raw magnitudes are, and the composite mixes the dimensions at these differing scales. Read an edge's dimension tiers, not its absolute dimension values.
+
+### 4.5 Edge RMAV Decomposition
 
 Just as component criticality is decomposed into RMAV ([§3.3](#33-the-rmav-model)), each edge is scored on the same four dimensions in [`_score_and_classify_edges`](../saag/analysis/analyzer.py#L412-L483) — an edge is not reduced to a single number, but assessed as reliability, maintainability, availability, and vulnerability risks in its own right, blending the edge's intrinsic structural signals ([§4.3](#43-structural-edge-signals)) with its endpoints' own RMAV scores:
 
-| Dimension | Question Answered for an Edge | Formula (blend of edge-intrinsic + endpoint context) |
+| Dimension | Question Answered for an Edge | Formula (edge-intrinsic + weight channel + endpoint context) |
 |:---|:---|:---|
-| **R — Reliability** | How much does this specific link contribute to fault propagation? | Edge betweenness + edge weight (bridge proxy) + `max(source.R, target.R)` |
-| **M — Maintainability** | How much does this link add to coupling/change cost? | Edge betweenness + is-bridge flag + edge weight |
-| **A — Availability** | Does losing this specific link partition the graph? | is-bridge flag + `min(source.A, target.A)` |
-| **V — Vulnerability** | How much does this link expand the attack surface? | Edge weight (QoS-derived) + `max(source.V, target.V)` |
+| **R — Reliability** | How much does this specific link contribute to fault propagation? | `0.35·betweenness + 0.30·w(e) + 0.20·max(source.R, target.R)` |
+| **M — Maintainability** | How much does this link add to coupling/change cost? | `0.35·betweenness + 0.30·is_bridge + 0.15·w(e)` |
+| **A — Availability** | Does losing this specific link partition the graph? | `0.30·is_bridge + 0.20·min(source.A, target.A)` |
+| **V — Vulnerability** | How much does this link expand the attack surface? | `0.15·w(e) + 0.20·max(source.V, target.V)` |
 
 #### Relationship criticality per dimension
 
@@ -375,14 +488,15 @@ Each dimension restated as a definition of the link, parallel to the component d
 | **A** | Is *this component* a SPOF? | Is *this link* a SPOF, even with both components healthy? |
 | **V** | Is *this component* a valuable target? | Is *this link* a usable route to a target? |
 
-Two design choices in the formulas carry meaning:
+Three design choices in the formulas carry meaning:
 
 - **`max()` for R and V, `min()` for A** — a link is only as *reliable/secure* as its riskiest endpoint (failure or compromise on either side propagates through the edge), but it is only as *available* as its weakest endpoint (the edge cannot be more resilient than the more fragile side it connects).
 - **`is_bridge` appears in both M and A** — a non-redundant edge is expensive to reroute around (raises M, an Efficiency cost to the engineering stakeholder) *and* is a structural cut-point if removed (raises A, an Effectiveness loss to the end user) — the same structural fact, two different stakeholder consequences.
+- **`w(e)` appears in R, M and V but not A** — the guarantee crossing a link scales how much its loss costs, but not whether it can be lost at all ([§4.4](#44-what-the-relationship-carries-the-weight-channel)). Replaceability is topological; consequence is QoS-weighted.
 
-The four dimension scores are combined into the same overall composite formula used for nodes ([§3.3](#33-the-rmav-model)), giving each edge a `QualityScores` record (`reliability`, `maintainability`, `availability`, `security`, `overall`) identical in shape to a component's — see [`EdgeQuality`](../saag/core/metrics.py#L345-L378).
+The four dimension scores are combined with the same composite coefficients used for nodes ([§3.3](#33-the-rmav-model)), including the QoS-profile adaptation described in [§3.4](#34-what-the-component-carries-the-weight-channel), giving each edge a `QualityScores` record (`reliability`, `maintainability`, `availability`, `security`, `overall`) identical in shape to a component's — see [`EdgeQuality`](../saag/core/metrics.py#L345-L378).
 
-### 4.5 Learned Edge Scoring (GNN)
+### 4.6 Learned Edge Scoring (GNN)
 
 The Predict stage's GNN produces a direct, per-edge criticality prediction rather than relying on endpoint-node proxies — see [prediction.md §2.6](prediction.md#26-edge-criticality-prediction) and [design/SDD.md §6.26](design/SDD.md) for the full architecture:
 
@@ -404,11 +518,11 @@ This replaces the earlier heuristic `I_edge(u,v) = I*(u) × {1.0 if bridge else 
 
 > **What the measurement shows, and a caution.** Most individual edges cost almost nothing: on `av_system`, 4 of 40 candidates carry non-zero impact. That is the §4.2 replaceability question answered empirically — most links *are* replaceable. It also exposes a modelling gap the heuristic hid: `RUNS_ON` edges measure exactly 0.0 because the cascade routes no traffic over them ([failure-simulation.md L5](failure-simulation.md#11-known-limitations)), even though bridge detection flags them as non-redundant. A zero there means "this model cannot express that link's failure", not "that link does not matter" — the same caveat that applies to Topic and Node labels (L6).
 
-### 4.6 Ranking Critical Edges
+### 4.7 Ranking Critical Edges
 
 Edges are ranked for reporting/UI consumption via `get_critical_edges()` in [saag/analysis/service.py](../saag/analysis/service.py) and exposed through [api/routers/components.py](../api/routers/components.py), sorting by `EdgeQuality.scores.overall` (the same RMAV-style composite machinery used for nodes, applied edge-wise).
 
-Simulated edge criticality is available separately via `SimulationService.classify_edges()`, which returns `EdgeCriticality` records from the removal sweep ([§4.5](#45-learned-edge-scoring-gnn)). Two fields must be read together:
+Simulated edge criticality is available separately via `SimulationService.classify_edges()`, which returns `EdgeCriticality` records from the removal sweep ([§4.6](#46-learned-edge-scoring-gnn)). Two fields must be read together:
 
 - `combined_impact` — the measured delta. Comparable to node `composite_impact` because it uses the same weighting.
 - `evaluated` — whether the edge was in the candidate set at all. The sweep measures `bridges(G) ∪ top-q edge-betweenness`; everything else returns `evaluated: false` with `combined_impact = 0.0`. **An unevaluated edge is not a harmless edge** — sorting the two together would rank never-measured links alongside measured-as-zero ones.
@@ -419,7 +533,7 @@ Simulated edge criticality is available separately via `SimulationService.classi
 
 ### 5.1 Worked Example
 
-The formulas stay abstract until tied to an instance. [structural-analysis.md §13](structural-analysis.md#13-worked-example) computes `A(MainBroker) = 0.679` → **HIGH**, driven by `AP_c_directed = 0.65` (a directed structural SPOF) and `BR = 1.0` (every one of MainBroker's edges is a bridge — there is no redundant path around it). Read as a Quality-in-Use narrative for the end users of that system:
+The formulas stay abstract until tied to an instance. [structural-analysis.md §13](structural-analysis.md#13-worked-example) computes `A(MainBroker) = 0.679` → **HIGH**, driven by `AP_c_directed = 0.65` (a directed structural SPOF) and `BR = 1.0` (every one of MainBroker's edges is a bridge — there is no redundant path around it). Of that score, `0.25 × (0.65 × 0.71) + 0.05 × 0.71 = 0.151` — roughly a fifth — comes from the weight channel: MainBroker routes `/temperature`, a `RELIABLE`/`TRANSIENT_LOCAL`/`HIGH` topic, and that declared guarantee is what makes its normalised weight 0.71. Route only `BEST_EFFORT`/`VOLATILE` traffic through the same topological position and the same SPOF scores materially lower. Read as a Quality-in-Use narrative for the end users of that system:
 
 - **Effectiveness** — if MainBroker fails, both SensorApp and MonitorApp lose their only path to publish/subscribe on `/temperature`. The monitoring task does not degrade, it stops: `BR = 1.0` means there is no alternate route to fall back on.
 - **Efficiency** — there is no cheaper-but-slower path to fall back to either; the Efficiency characteristic is not the one at stake here, which is exactly what distinguishes a SPOF from a bottleneck.
@@ -434,7 +548,7 @@ A repeatable template for turning any RMAV profile into a stakeholder-facing sta
 
 1. **Identify the stakeholder and context** from [§2.3](#23-context-of-use). *"This is a clinical HIS; the harmed party is a clinician making a care decision."*
 2. **Take the dominant per-dimension tier**, not the composite. The composite ranks; the dimension explains.
-3. **Translate the dimension into its characteristic** via [§3.4](#34-mapping-rmav-to-quality-in-use). *High A → Effectiveness and Freedom from risk.*
+3. **Translate the dimension into its characteristic** via [§3.5](#35-mapping-rmav-to-quality-in-use). *High A → Effectiveness and Freedom from risk.*
 4. **State the consequence in the stakeholder's terms** using the failure signature in [§3.2](#32-user-side-failure-signature). *"If this fails, the vitals stream stops entirely; there is no alternate route, so the clinician sees stale data with no indication it is stale."*
 5. **Qualify with the proxy's limits** from [§6](#6-limits-of-the-proxy). *"Structurally exposed — this says nothing about how often this component actually fails or how quickly it would be restored."*
 
@@ -475,18 +589,24 @@ The two weakest rows are inherent, not implementation debt: Satisfaction and Con
 | **R** | Intrinsic failure rate (MTTF) and severity of an independent failure | Reverse PageRank + in-degree + CDPot ([§3.3](#33-the-rmav-model)): how far/deep a failure would propagate *given that it happens* | Whether the node fails often at all — $R(v)$ is purely blast-radius, silent on the component's own failure rate |
 | **M** | Change-impact risk: regression likelihood from complexity and code churn | `CQP` ([§3.3](#33-the-rmav-model), structural-analysis.md §11.2) blends `complexity_norm`, `instability_code`, `lcom_norm` from static code metrics, plus topological betweenness/coupling | Code churn as a time-series (commit frequency) — `instability_code` is a point-in-time Martin instability ratio, not a churn rate |
 | **A** | SPOF status weighted by MTTR (how long the outage lasts once it starts) | `AP_c_directed` + bridge ratio + `QSPOF` ([§3.3](#33-the-rmav-model)): whether removing the node partitions the graph | MTTR — every structural SPOF is scored the same regardless of how fast it would actually be restored |
-| **V** | Asset value (PII/secrets handled) and the component's privilege level | Reverse eigenvector/closeness centrality + QoS-weighted in-degree ([§3.3](#33-the-rmav-model)): how reachable/central the node is | Data sensitivity, privilege level, or what the component does — $V(v)$ is topology-only; a low-privilege leaf handling PII would still score MINIMAL |
+| **V** | Asset value (PII/secrets handled) and the component's privilege level | Reverse eigenvector/closeness centrality + QoS-weighted in-degree ([§3.3](#33-the-rmav-model)): how reachable/central the node is, weighted by what its dependents were promised | Data sensitivity, privilege level, or what the component does — a low-privilege leaf handling PII scores MINIMAL unless its QoS declaration happens to be high |
 
 **Relationship criticality:**
 
 | Dimension | Real-world driver | What the structural proxy actually captures | Not captured |
 |:---|:---|:---|:---|
-| **R** | Cascading-failure probability: synchronous/blocking calls with no circuit breaker | Edge betweenness + bridge factor + `max(source.R, target.R)` ([§4.4](#44-edge-rmav-decomposition)) | Whether the call is actually synchronous/blocking or backed by a circuit breaker — a runtime/code property invisible to a static graph |
-| **M** | Interface/contract volatility: how likely a change on one side breaks the other | Edge betweenness + is-bridge flag + edge weight ([§4.4](#44-edge-rmav-decomposition)) | Semantic contract coupling (e.g. a shared database schema) — only topological reachability is measured |
-| **A** | Traffic bottlenecks: throughput/bandwidth saturation, lack of redundant routing | is-bridge flag + `min(source.A, target.A)` ([§4.4](#44-edge-rmav-decomposition)): whether this specific link is structurally redundant | Live traffic volume — `weight` ([§4.3](#43-structural-edge-signals)) is the QoS delivery-guarantee proxy, not measured throughput or bandwidth |
-| **V** | Trust-boundary crossing: unencrypted channels, missing mutual TLS, lateral-movement potential | Edge weight (QoS) + `max(source.V, target.V)` ([§4.4](#44-edge-rmav-decomposition)) | Encryption status, inter-service authentication, or any security-boundary metadata — none of this exists in the schema |
+| **R** | Cascading-failure probability: synchronous/blocking calls with no circuit breaker | Edge betweenness + bridge factor + `max(source.R, target.R)` ([§4.5](#45-edge-rmav-decomposition)) | Whether the call is actually synchronous/blocking or backed by a circuit breaker — a runtime/code property invisible to a static graph |
+| **M** | Interface/contract volatility: how likely a change on one side breaks the other | Edge betweenness + is-bridge flag + edge weight ([§4.5](#45-edge-rmav-decomposition)) | Semantic contract coupling (e.g. a shared database schema) — only topological reachability is measured |
+| **A** | Traffic bottlenecks: throughput/bandwidth saturation, lack of redundant routing | is-bridge flag + `min(source.A, target.A)` ([§4.5](#45-edge-rmav-decomposition)): whether this specific link is structurally redundant | Live traffic volume — `weight` ([§4.3](#43-structural-edge-signals)) is the QoS delivery-guarantee proxy, not measured throughput or bandwidth |
+| **V** | Trust-boundary crossing: unencrypted channels, missing mutual TLS, lateral-movement potential | Edge weight (QoS) + `max(source.V, target.V)` ([§4.5](#45-edge-rmav-decomposition)) | Encryption status, inter-service authentication, or any security-boundary metadata — none of this exists in the schema |
 
-None of this makes the structural proxy wrong — [validation.md](validation.md) is precisely the check that it still tracks simulated failure impact well enough to be useful. It does mean a CRITICAL/HIGH score should be read as *"structurally exposed to Quality-in-Use loss,"* not as *"this component definitely has a high MTTF/PII/no-circuit-breaker problem"* — those specific root causes still require the engineering stakeholder from [§2.2](#22-stakeholders-who-is-harmed-vs-who-acts) to inspect the actual component or relationship.
+**What the weight channel does and does not fix.** The QoS weights ([§3.4](#34-what-the-component-carries-the-weight-channel), [§4.4](#44-what-the-relationship-carries-the-weight-channel)) are the one non-topological signal in RMAV, and they close part of every gap above: they distinguish a SPOF on guaranteed traffic from a SPOF on disposable traffic, and an attack surface that breaks strong promises from one that breaks weak ones. They close none of it fully, for three reasons:
+
+- **A declaration, not a measurement.** $w$ encodes what the architecture *promises* about delivery, not what the system *does* — no throughput, latency, failure rate, or data sensitivity is behind it. A `RELIABLE`/`PERSISTENT` topic carrying one message a day outweighs a `BEST_EFFORT` topic carrying the business's entire traffic.
+- **Delivery guarantee ≠ business criticality.** Nothing in the schema records safety class, revenue exposure, or regulatory scope, so the weight channel can only approximate those to the extent that architects happened to encode them in QoS policy.
+- **Inherited errors are invisible.** A wrong QoS declaration produces a confidently wrong criticality score, with no internal signal that anything is off ([§3.4](#34-what-the-component-carries-the-weight-channel)).
+
+None of this makes the structural proxy wrong — [validation.md](validation.md) is precisely the check that it still tracks simulated failure impact well enough to be useful. It does mean a CRITICAL/HIGH score should be read as *"structurally exposed to Quality-in-Use loss, at the guarantee level this architecture declares,"* not as *"this component definitely has a high MTTF/PII/no-circuit-breaker problem"* — those specific root causes still require the engineering stakeholder from [§2.2](#22-stakeholders-who-is-harmed-vs-who-acts) to inspect the actual component or relationship.
 
 ---
 
@@ -494,9 +614,9 @@ None of this makes the structural proxy wrong — [validation.md](validation.md)
 
 | Step | Relation to criticality |
 |:---|:---|
-| [graph-model.md](graph-model.md) | Produces $G_{\text{analysis}}(l)$ and derives `DEPENDS_ON` edges — the substrate both node and edge criticality are computed over. |
-| [structural-analysis.md](structural-analysis.md) | Computes the Tier-1 metric vector $M(v)$ and deterministic RMAV scores — see [§3.3](#33-the-rmav-model) and [§4.3](#43-structural-edge-signals) above. |
-| [prediction.md](prediction.md) | Refines RMAV into GNN-blended node scores and direct edge scores $Q_{\text{GNN}}(u,v)$ — see [§4.5](#45-learned-edge-scoring-gnn) above. |
+| [graph-model.md](graph-model.md) | Produces $G_{\text{analysis}}(l)$ and derives `DEPENDS_ON` edges — the substrate both node and edge criticality are computed over — **and** computes the QoS weights $w(v)$, $w(e)$ and `path_count` that every RMAV dimension consumes ([§3.4](#34-what-the-component-carries-the-weight-channel), [§4.4](#44-what-the-relationship-carries-the-weight-channel)). |
+| [structural-analysis.md](structural-analysis.md) | Computes the Tier-1 metric vector $M(v)$ and deterministic RMAV scores, weighting the centralities by $w(e)$ — see [§3.3](#33-the-rmav-model) and [§4.3](#43-structural-edge-signals) above. |
+| [prediction.md](prediction.md) | Refines RMAV into GNN-blended node scores and direct edge scores $Q_{\text{GNN}}(u,v)$ — see [§4.6](#46-learned-edge-scoring-gnn) above. |
 | [failure-simulation.md](failure-simulation.md) | Produces the simulated ground truth ($I^*(v)$, $I_{R/M/A/V}(v)$) that criticality proxies are trained/validated against — the closest observable stand-in for Quality-in-Use loss. |
 | [validation.md](validation.md) | Statistically checks whether structural/learned criticality tracks simulated impact — the empirical check on [§6.1](#61-proxy-not-ground-truth). |
 

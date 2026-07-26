@@ -2,6 +2,18 @@
 Criticality Domain Models
 
 Defines criticality levels and classification data structures.
+
+Criticality is the degree to which losing a component — or a single dependency
+between components — reduces the system's capacity to serve its stakeholders.
+It is computed, never asserted: no entity carries a hand-assigned criticality.
+Each score is a function of two inputs, an entity's position in the layer-projected
+dependency graph and the QoS-derived weights w(v) / w(e) that Step 1 attaches to it
+(docs/graph-model.md §4.3–§4.5), so structure says how many outcomes route through
+an entity and weight says how strongly each of those outcomes was guaranteed.
+
+Note that the ``weight`` fields of ComponentMetrics/EdgeMetrics (QoS-derived, per
+entity) and the QualityWeights coefficients (AHP-derived, per model) are unrelated
+despite the shared word — see docs/criticality.md §3.4.
 """
 
 from __future__ import annotations
@@ -204,7 +216,13 @@ class CompatNamespace:
 
 @dataclass
 class CriticalityRanking:
-    """Unified Data Transfer Object representing a component's criticality score."""
+    """
+    Unified Data Transfer Object representing a component's criticality score.
+
+    ``scores`` holds the four RMAV dimensions plus the composite, each computed
+    over the QoS-weighted dependency graph; ``levels`` holds the box-plot tier
+    per dimension, which is relative to this system's own distribution.
+    """
     id: str
     type: str
     scores: Dict[str, float]  # reliability, maintainability, availability, security, overall
