@@ -535,7 +535,7 @@ BR(v) = 0 if degree(v) = 0
 **Literature Citation:** Graph bridges (or cut-edges) represent the most critical single links between subgraphs.
 - Tarjan, R. (1972). *Depth-first search and linear graph algorithms*. SIAM Journal on Computing, 1(2), 146-160.
 
-> **Note:** BR(v) describes a *node's* exposure to bridge edges, not a per-edge score. For the direct definition of relationship (edge) criticality, see [criticality.md §4](criticality.md#4-relationship-edge-criticality).
+> **Note:** BR(v) describes a *node's* exposure to bridge edges, not a per-edge score. For the direct definition of relationship (edge) criticality, see [criticality.md §5](criticality.md#5-relationship-edge-criticality).
 
 ### 9.10 Connectivity Degradation Index (CDI)
 
@@ -690,7 +690,7 @@ Complete M(v) field listing. Every field has a tier, a RMAV dimension (or "—" 
 
 ## 11. Analyze Stage — Rule-Based RMAV Scoring
 
-> See [criticality.md](criticality.md) for the conceptual definition of component criticality and its relation to relationship (edge) criticality and ISO/IEC 25010 Quality-in-Use.
+> See [criticality.md](criticality.md) for the definitions these scores operationalize: component criticality (D1), relationship criticality (D2), why criticality is a consequence rather than a risk (D3), and why the dimension names come from SQuaRE's product-quality model while the harm is measured on Quality-in-Use ([§3.5](criticality.md#35-why-the-dimensions-are-named-after-the-other-model)).
 
 ### 11.1 The Four Quality Dimensions
 

@@ -458,7 +458,7 @@ def _compute_rmav_from_structural(
             "maintainability": float(comp.scores.maintainability),
             "availability":    float(comp.scores.availability),
             # The dimension is Vulnerability; the serialized field is `security`
-            # (see docs/criticality.md §3.3 — same dimension, opposite naming).
+            # (see docs/criticality.md §4.3 — same dimension, opposite naming).
             "vulnerability":   float(comp.scores.security),
         }
     return result

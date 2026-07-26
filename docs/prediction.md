@@ -203,7 +203,7 @@ All outputs pass through sigmoid activation, producing scores in [0, 1]. The com
 
 ### 2.6 Edge Criticality Prediction
 
-> See [criticality.md §4](criticality.md#4-relationship-edge-criticality) for the conceptual definition of relationship criticality that this section implements.
+> See [criticality.md §5](criticality.md#5-relationship-edge-criticality) for the conceptual definition of relationship criticality that this section implements.
 
 ```
 score(u, v) = TypedEdgeEncoder_r( h_u, h_v, e_{uv} )
