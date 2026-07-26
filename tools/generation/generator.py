@@ -1,10 +1,11 @@
 """
 Statistical Graph Generator
 """
+import math
 import random
 import logging
 from collections import Counter
-from typing import Dict, Any, List, Optional, Union, Tuple
+from typing import Dict, Any, List, Optional, Tuple
 
 from saag.core.models import (
     Application,
@@ -13,6 +14,7 @@ from saag.core.models import (
     Topic,
     Library,
     QoSPolicy,
+    CRITICALITY_THRESHOLDS,
 )
 from .models import (
     GraphConfig,
@@ -105,8 +107,8 @@ _LIB_CODE_METRICS_PARAMS: Dict[str, Dict[str, Any]] = {
 _LIB_ARCHETYPE_WEIGHTS = ["utility"] * 4 + ["framework"] * 2 + ["driver"] * 3 + ["middleware"] * 2 + ["protocol"] * 2
 
 # Maps app_type → preferred QoS attributes for topic selection bias.
-# Used by _partition_topics_by_qos_affinity() to steer which topics are drawn into
-# the "preferred" tier of _sample_biased(), making QoS semantics structurally
+# Used by _qos_preferred_topics() to steer which topics are drawn into the
+# "preferred" tier of _sample_biased(), making QoS semantics structurally
 # coherent: gateways/controllers prefer RELIABLE/HIGH topics; sensors stay on
 # BEST_EFFORT/LOW topics.  Falls back to the cluster pool when the preferred
 # set is empty (e.g. all topics in the cluster share the same QoS level).
@@ -146,9 +148,6 @@ def _can_subscribe(app_type: str) -> bool:
     """Return True if an app of this type is allowed to subscribe to topics."""
     return _APP_TYPE_MESSAGING_CAPABILITY.get(app_type, (True, True))[1]
 
-# --- Criticality levels for statistical generation ---
-CRITICALITY_OPTIONS = [True, False]
-
 # ---------------------------------------------------------------------------
 # Per-domain frequency bounds (Hz) for log-uniform sampling.
 # Each entry is (lo_hz, hi_hz) for ``random.uniform(log10(lo), log10(hi))``.
@@ -161,6 +160,12 @@ CRITICALITY_OPTIONS = [True, False]
 #   Financial/enterprise: order/CRM events 0.001–10 Hz
 #   Hub-and-spoke/micro:  service calls 0.01–50 Hz
 # Domains not listed fall back to the generic range (0.1–100 Hz).
+#
+# NOTE (GEN-12): these keys must match the domain values actually passed via
+# --domain / scenario YAML `domain:` (see datasets.py's DOMAIN_DATASETS /
+# SYSTEM_HIERARCHY_POOLS keys), not the descriptive names used elsewhere in
+# this file's docstrings. See docs/graph-generation.md §11 for the historical
+# mismatch on this table.
 # ---------------------------------------------------------------------------
 _DOMAIN_FREQ_BOUNDS: Dict[str, tuple] = {
     "air_traffic_management": (1.0,   200.0),
@@ -185,7 +190,7 @@ _CRITICALITY_LABELS = ["minimal", "low", "medium", "high", "critical"]
 
 class StatisticalGraphGenerator:
     """Generates graphs using statistical distributions from config."""
-    
+
     def __init__(self, config: GraphConfig) -> None:
         self.config = config
         self.rng = random.Random(config.seed)
@@ -201,15 +206,12 @@ class StatisticalGraphGenerator:
             value = metric.mean
         else:
             value = self.rng.gauss(metric.mean, metric.std)
-        
+
         value = max(metric.min, min(metric.max, value))
-        
+
         if as_int:
             return int(round(value))
         return value
-
-    def _generate_values_from_distribution(self, metric: StatisticalMetric, count: int, as_int: bool = True) -> List[float]:
-        return [self._sample_from_distribution(metric, as_int) for _ in range(count)]
 
     def _make_edge(self, src: Any, tgt: Any) -> Dict[str, str]:
         return {"from": src.id, "to": tgt.id}
@@ -218,18 +220,18 @@ class StatisticalGraphGenerator:
         """Get all libraries used by an entity (app or lib), recursively."""
         if visited is None:
             visited = set()
-        
+
         if entity_id in visited:
             return set()  # Avoid cycles
-        
+
         visited.add(entity_id)
         result = set()
-        
+
         for lib_id in self._uses_graph.get(entity_id, []):
             result.add(lib_id)
             # Recursively get libs used by this lib
             result.update(self._get_all_used_libs_recursive(lib_id, visited))
-        
+
         return result
 
     def _get_inherited_pub_count(self, entity_id: str) -> int:
@@ -339,7 +341,7 @@ class StatisticalGraphGenerator:
         }
 
     # ------------------------------------------------------------------
-    # Structural-quality helpers (called inside generate())
+    # Structural-quality helpers (called from the generation phases below)
     # ------------------------------------------------------------------
 
     def _build_cluster_to_nodes(
@@ -398,31 +400,24 @@ class StatisticalGraphGenerator:
                     runs_on.append(self._make_edge(app, standby_host))
         return runs_on
 
-    def _partition_topics_by_qos_affinity(
-        self,
-        topics: List[Topic],
-        app_type: str,
-    ) -> Tuple[List[Topic], List[Topic]]:
-        """Return (preferred_topics, other_topics) based on app_type QoS affinity.
+    def _qos_preferred_topics(self, topics: List[Topic], app_type: str) -> List[Topic]:
+        """Return the topics matching *app_type*'s QoS affinity tier.
 
-        Preferred topics match the reliability and priority tiers in
-        _APP_TYPE_QOS_AFFINITY[app_type].  Falls back to (all_topics, [])
-        when no affinity is defined or no topics match, so _sample_biased()
-        behaviour is unchanged for unknown app types or uniform QoS clusters.
+        Falls back to (a copy of) *topics* unchanged when no affinity is
+        defined for *app_type*, when *topics* is empty, or when no topic
+        matches the affinity tier (e.g. every topic in the cluster shares the
+        same QoS level).  See _APP_TYPE_QOS_AFFINITY.
         """
         affinity = _APP_TYPE_QOS_AFFINITY.get(app_type)
         if not affinity or not topics:
-            return list(topics), []
+            return list(topics)
         pref_rel = set(affinity["reliability"])
         pref_pri = set(affinity["priority"])
         preferred = [
             t for t in topics
             if t.qos.reliability in pref_rel and t.qos.transport_priority in pref_pri
         ]
-        if not preferred:
-            return list(topics), []
-        other = [t for t in topics if t not in preferred]
-        return preferred, other
+        return preferred if preferred else list(topics)
 
     def _rewrite_broker_placement(
         self,
@@ -460,41 +455,13 @@ class StatisticalGraphGenerator:
             runs_on.append(self._make_edge(broker, host))
         return runs_on
 
-    def _validate_role_constraints(
-        self,
-        apps: List[Application],
-        publishes: List[Dict[str, str]],
-        subscribes: List[Dict[str, str]],
-    ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
-        """Remove edges that violate app messaging capability constraints.
-
-        Apps whose app_type allows only publishing must not appear in *subscribes*;
-        apps whose app_type allows only subscribing must not appear in *publishes*.
-        Library edges are not affected (libraries have no app_type field).
-        """
-        pub_only_ids = {a.id for a in apps if _can_publish(a.app_type) and not _can_subscribe(a.app_type)}
-        sub_only_ids = {a.id for a in apps if _can_subscribe(a.app_type) and not _can_publish(a.app_type)}
-
-        clean_pub = [e for e in publishes if e["from"] not in sub_only_ids]
-        clean_sub = [e for e in subscribes if e["from"] not in pub_only_ids]
-
-        removed_pub = len(publishes) - len(clean_pub)
-        removed_sub = len(subscribes) - len(clean_sub)
-        if removed_pub or removed_sub:
-            self.logger.debug(
-                "Messaging capability enforcement: removed %d publish and %d subscribe edges.",
-                removed_pub, removed_sub,
-            )
-        return clean_pub, clean_sub
-
     def _sample_topic_frequency(self, domain: Optional[str], rng: Optional[random.Random] = None) -> float:
         """Sample a topic frequency from a per-domain log-uniform distribution, then map it to the closest allowed frequency."""
-        import math
         _rng = rng if rng is not None else self.rng
         lo, hi = _DOMAIN_FREQ_BOUNDS.get(domain or "", _DOMAIN_FREQ_BOUNDS_DEFAULT)
         log_val = _rng.uniform(math.log10(lo), math.log10(hi))
         freq = 10.0 ** log_val
-        
+
         ALLOWED_FREQS = [1.0, 10.0, 25.0, 50.0, 100.0, 200.0]
         closest_freq = min(ALLOWED_FREQS, key=lambda x: abs(x - freq))
         return closest_freq
@@ -532,7 +499,6 @@ class StatisticalGraphGenerator:
         Returns:
             A criticality label string (one of ``_CRITICALITY_LABELS``).
         """
-        from saag.core.models import CRITICALITY_THRESHOLDS
         _rng = rng if rng is not None else self.rng
         # --- derive base label via threshold table ---
         qos_score = qos.calculate_weight()
@@ -590,82 +556,95 @@ class StatisticalGraphGenerator:
         for app in apps:
             app.criticality = app.id in critical_ids
 
-    def generate(self) -> Dict[str, Any]:
-        c = self.config
-        name_rng = random.Random(c.seed + 12345)
-        # Dedicated RNG for topic attribute sampling (frequency, criticality).
-        # Isolated from self.rng so that topic attribute draws do NOT perturb
-        # the main topology RNG stream (broker routes, pub/sub edges, node
-        # placement), preserving reproducibility of all previously seeded tests.
-        topic_attr_rng = random.Random(c.seed + 99999)
-        # 1. Generate base entities using Core Models
-        domain_ds = None
-        if c.domain:
-            domain_ds = DomainDataset(c.domain, name_rng)
-            
+    # ------------------------------------------------------------------
+    # Generation phases (called in order from generate() below)
+    # ------------------------------------------------------------------
+
+    def _build_infrastructure(
+        self, c: GraphConfig, domain_ds: Optional[DomainDataset],
+    ) -> Tuple[List[Node], List[Broker]]:
+        """Construct Node and Broker entities (no relationships yet)."""
         nodes = [
-            Node(id=f"N{i}", name=domain_ds.get_node_name() if domain_ds else f"Node-{i}") 
+            Node(id=f"N{i}", name=domain_ds.get_node_name() if domain_ds else f"Node-{i}")
             for i in range(c.nodes)
         ]
         brokers = [
-            Broker(id=f"B{i}", name=domain_ds.get_broker_name() if domain_ds else f"Broker-{i}") 
+            Broker(id=f"B{i}", name=domain_ds.get_broker_name() if domain_ds else f"Broker-{i}")
             for i in range(c.brokers)
         ]
-        
+        return nodes, brokers
+
+    def _weighted_pool(self, dist, defaults: List[str]) -> Optional[List[str]]:
+        """Materialize a shuffled weighted pool from a categorical distribution.
+
+        Returns None (no self.rng draw) when *dist* is absent, matching the
+        "only shuffle if this specific distribution was configured" behaviour
+        of the original inline QoS-pool setup.
+        """
+        if not dist:
+            return None
+        pool = dist.to_weighted_list(defaults)
+        self.rng.shuffle(pool)
+        return pool
+
+    def _pick_categorical(self, pool: Optional[List[str]], options: List[str], i: int, rng: random.Random) -> str:
+        """Pick a categorical value for item *i*: pool[i] deterministically
+        when available, otherwise a random draw from the pool, falling back
+        to the full option space when no pool was configured at all."""
+        if pool and i < len(pool):
+            return pool[i]
+        elif pool:
+            return rng.choice(pool)
+        else:
+            return rng.choice(options)
+
+    def _build_topics(
+        self,
+        c: GraphConfig,
+        domain_ds: Optional[DomainDataset],
+        name_rng: random.Random,
+        topic_attr_rng: random.Random,
+    ) -> List[Topic]:
+        """Construct all Topic entities: QoS, size, domain-aware frequency,
+        and noisy criticality ground truth.
+
+        Draws from self.rng (size sampling, QoS-pool shuffling), name_rng
+        (naming, and QoS-pool selection when domain_ds is absent), and
+        topic_attr_rng (frequency/criticality — isolated from the main
+        topology stream so those draws never perturb it).
+        """
+        qos_stats = c.qos_stats
+        durability_pool = self._weighted_pool(
+            qos_stats.qos_durability_distribution if qos_stats else None, DURABILITY_OPTIONS
+        )
+        reliability_pool = self._weighted_pool(
+            qos_stats.qos_reliability_distribution if qos_stats else None, RELIABILITY_OPTIONS
+        )
+        priority_pool = self._weighted_pool(
+            qos_stats.qos_transport_priority_distribution if qos_stats else None, PRIORITY_OPTIONS
+        )
+
         topics: List[Topic] = []
-        durability_pool = None
-        reliability_pool = None
-        priority_pool = None
-        
-        if c.qos_stats:
-            if c.qos_stats.qos_durability_distribution:
-                durability_pool = c.qos_stats.qos_durability_distribution.to_weighted_list()
-                self.rng.shuffle(durability_pool)
-            if c.qos_stats.qos_reliability_distribution:
-                reliability_pool = c.qos_stats.qos_reliability_distribution.to_weighted_list()
-                self.rng.shuffle(reliability_pool)
-            if c.qos_stats.qos_transport_priority_distribution:
-                priority_pool = c.qos_stats.qos_transport_priority_distribution.to_weighted_list()
-                self.rng.shuffle(priority_pool)
-        
         for i in range(c.topics):
             if c.topic_stats and c.topic_stats.topic_size_bytes.mean > 0:
                 size = self._sample_from_distribution(c.topic_stats.topic_size_bytes)
             else:
                 size = self.rng.randint(64, 65536)
-            
+
             # Round to nearest power of 2
-            import math
             size = int(2 ** round(math.log2(max(1.0, float(size)))))
-            
+
             topic_name = domain_ds.get_topic_name() if domain_ds else f"Topic-{i}"
-            
+
             if domain_ds:
                 durability, reliability, transport_priority = get_qos_for_topic(
                     topic_name, c.domain, c.scenario
                 )
             else:
-                if durability_pool and i < len(durability_pool):
-                    durability = durability_pool[i]
-                elif durability_pool:
-                    durability = name_rng.choice(durability_pool)
-                else:
-                    durability = name_rng.choice(DURABILITY_OPTIONS)
-                
-                if reliability_pool and i < len(reliability_pool):
-                    reliability = reliability_pool[i]
-                elif reliability_pool:
-                    reliability = name_rng.choice(reliability_pool)
-                else:
-                    reliability = name_rng.choice(RELIABILITY_OPTIONS)
-                
-                if priority_pool and i < len(priority_pool):
-                    transport_priority = priority_pool[i]
-                elif priority_pool:
-                    transport_priority = name_rng.choice(priority_pool)
-                else:
-                    transport_priority = name_rng.choice(PRIORITY_OPTIONS)
-            
+                durability = self._pick_categorical(durability_pool, DURABILITY_OPTIONS, i, name_rng)
+                reliability = self._pick_categorical(reliability_pool, RELIABILITY_OPTIONS, i, name_rng)
+                transport_priority = self._pick_categorical(priority_pool, PRIORITY_OPTIONS, i, name_rng)
+
             qos_policy = QoSPolicy(
                 durability=durability,
                 reliability=reliability,
@@ -684,63 +663,82 @@ class StatisticalGraphGenerator:
                 frequency=self._sample_topic_frequency(c.domain, rng=topic_attr_rng),
                 criticality=self._derive_topic_criticality_with_noise(qos_policy, rng=topic_attr_rng),
             ))
+        return topics
 
-        # === Pass 1: hierarchy cluster pre-assignment ===
-        # Partition apps and topics into clusters keyed by css_name (the
-        # third level of the MIL-STD-498 hierarchy).  Apps in the same cluster
-        # share a css_name and will preferentially pub/sub to topics in the
-        # same cluster (Pass 2 below, p_intra = 0.65), making the hierarchy
-        # signal structurally meaningful for coupling analysis instead of being
-        # an independently-sampled label with no topological effect.
-        _hier_pool = SYSTEM_HIERARCHY_POOLS.get(c.domain, GENERIC_HIERARCHY_POOL)
-        _cluster_domains: List[str] = _hier_pool["domain"]
-        _n_clusters = len(_cluster_domains)
+    def _assign_clusters(
+        self, c: GraphConfig, name_rng: random.Random, topics: List[Topic],
+    ) -> Tuple[Dict[str, List[str]], List[str], List[str], List[str], Dict[str, str], str, Dict[str, List[Topic]], Dict[str, str]]:
+        """Pre-assign apps, libs, and topics to hierarchy clusters (css_name).
 
-        # Uses random weighted assignment to create natural cluster skew.
-        _app_cluster_domain: List[str] = self.rng.choices(_cluster_domains, k=c.apps)
-        _lib_cluster_domain: List[str] = self.rng.choices(_cluster_domains, k=c.libs)
-        
-        _app_id_to_cluster: Dict[str, str] = {
-            f"A{i}": _app_cluster_domain[i] for i in range(c.apps)
+        Apps/libs in the same cluster share a css_name and preferentially
+        pub/sub or depend on entities in the same cluster (later phases,
+        p_intra = c.intra_cluster_coupling), making the hierarchy signal
+        structurally meaningful for coupling analysis instead of being an
+        independently-sampled label with no topological effect.
+        """
+        hier_pool = SYSTEM_HIERARCHY_POOLS.get(c.domain, GENERIC_HIERARCHY_POOL)
+        cluster_domains: List[str] = hier_pool["domain"]
+        n_clusters = len(cluster_domains)
+
+        # Weighted random assignment creates natural cluster skew.
+        app_cluster_domain: List[str] = self.rng.choices(cluster_domains, k=c.apps)
+        lib_cluster_domain: List[str] = self.rng.choices(cluster_domains, k=c.libs)
+
+        app_id_to_cluster: Dict[str, str] = {
+            f"A{i}": app_cluster_domain[i] for i in range(c.apps)
         }
 
-        _single_csms_name: str = name_rng.choice(_hier_pool["system"])
+        single_csms_name: str = name_rng.choice(hier_pool["system"])
 
-        # Assign topics to clusters and build the reverse lookup.
-        _cluster_to_topics: Dict[str, List[Topic]] = {d: [] for d in _cluster_domains}
-        _topic_id_to_cluster: Dict[str, str] = {}
+        cluster_to_topics: Dict[str, List[Topic]] = {d: [] for d in cluster_domains}
+        topic_id_to_cluster: Dict[str, str] = {}
         for idx, topic in enumerate(topics):
-            cluster_d = _cluster_domains[idx % _n_clusters]
-            _cluster_to_topics[cluster_d].append(topic)
-            _topic_id_to_cluster[topic.id] = cluster_d
+            cluster_d = cluster_domains[idx % n_clusters]
+            cluster_to_topics[cluster_d].append(topic)
+            topic_id_to_cluster[topic.id] = cluster_d
+
+        return (hier_pool, cluster_domains, app_cluster_domain, lib_cluster_domain,
+                app_id_to_cluster, single_csms_name, cluster_to_topics, topic_id_to_cluster)
+
+    def _build_apps(
+        self,
+        c: GraphConfig,
+        domain_ds: Optional[DomainDataset],
+        name_rng: random.Random,
+        hier_pool: Dict[str, List[str]],
+        app_cluster_domain: List[str],
+        single_csms_name: str,
+        cluster_domains: List[str],
+    ) -> Tuple[List[Application], Optional[List[bool]], Dict[str, List[Application]]]:
+        """Construct all Application entities and the criticality-pool target
+        count and cluster grouping.
+
+        Criticality is NOT assigned here (every app starts with
+        criticality=False); _apply_post_topology()'s two-pass assignment sets
+        it once the topology (and therefore each app's structural degree) is
+        known.
+        """
+        criticality_pool = None
+        if c.application_stats and c.application_stats.app_criticality_distribution:
+            criticality_pool = c.application_stats.app_criticality_distribution.to_weighted_list()
+            self.rng.shuffle(criticality_pool)
 
         apps: List[Application] = []
-        criticality_pool = None
-        
-        if c.application_stats:
-            if c.application_stats.app_criticality_distribution:
-                criticality_pool = c.application_stats.app_criticality_distribution.to_weighted_list()
-                self.rng.shuffle(criticality_pool)
-        
-        _cluster_to_libs: Dict[str, List[Library]] = {d: [] for d in _cluster_domains}
-        
         for i in range(c.apps):
-            # Criticality is assigned after topology is built (two-pass approach
-            # in _assign_criticality_two_pass).  Use placeholder False here.
             app_name = domain_ds.get_app_name() if domain_ds else f"App-{i}"
             if domain_ds:
                 app_type = get_app_type_for_name(app_name)
             else:
                 app_type = name_rng.choice(APP_TYPE_OPTIONS)
-                
+
             code_metrics = self._generate_code_metrics(app_type)
             # Use the pre-assigned cluster css_name so hierarchy reflects
             # actual structural grouping rather than an independent random draw.
             hierarchy = {
-                "csc_name": name_rng.choice(_hier_pool["component"]),
-                "csci_name": name_rng.choice(_hier_pool["config_item"]),
-                "css_name": _app_cluster_domain[i],
-                "csms_name": _single_csms_name,
+                "csc_name": name_rng.choice(hier_pool["component"]),
+                "csci_name": name_rng.choice(hier_pool["config_item"]),
+                "css_name": app_cluster_domain[i],
+                "csms_name": single_csms_name,
             }
 
             priority = self.rng.choice(APP_PRIORITY_OPTIONS)
@@ -760,10 +758,23 @@ class StatisticalGraphGenerator:
                 code_metrics=code_metrics,
             ))
 
-        # Build the cluster → apps map now that all app objects exist.
-        _cluster_to_apps: Dict[str, List[Application]] = {d: [] for d in _cluster_domains}
+        cluster_to_apps: Dict[str, List[Application]] = {d: [] for d in cluster_domains}
         for i, app in enumerate(apps):
-            _cluster_to_apps[_app_cluster_domain[i]].append(app)
+            cluster_to_apps[app_cluster_domain[i]].append(app)
+
+        return apps, criticality_pool, cluster_to_apps
+
+    def _build_libs(
+        self,
+        c: GraphConfig,
+        domain_ds: Optional[DomainDataset],
+        name_rng: random.Random,
+        single_csms_name: str,
+        lib_cluster_domain: List[str],
+        cluster_domains: List[str],
+    ) -> Tuple[List[Library], Dict[str, List[Library]]]:
+        """Construct all Library entities and the cluster→libs grouping."""
+        cluster_to_libs: Dict[str, List[Library]] = {d: [] for d in cluster_domains}
 
         libs: List[Library] = []
         for i in range(c.libs):
@@ -775,10 +786,10 @@ class StatisticalGraphGenerator:
                 lib_code_metrics = self._generate_lib_code_metrics(None, name_rng)
 
             lib_hierarchy = domain_ds.get_system_hierarchy() if domain_ds else get_generic_system_hierarchy(name_rng)
-            lib_hierarchy["csms_name"] = _single_csms_name
+            lib_hierarchy["csms_name"] = single_csms_name
             if not domain_ds:
-                lib_hierarchy["css_name"] = _lib_cluster_domain[i]
-                
+                lib_hierarchy["css_name"] = lib_cluster_domain[i]
+
             libs.append(Library(
                 id=f"L{i}",
                 name=lib_name,
@@ -786,26 +797,19 @@ class StatisticalGraphGenerator:
                 system_hierarchy=lib_hierarchy,
                 code_metrics=lib_code_metrics,
             ))
-            _cluster_to_libs[_lib_cluster_domain[i]].append(libs[-1])
+            cluster_to_libs[lib_cluster_domain[i]].append(libs[-1])
+        return libs, cluster_to_libs
 
-        # 2. Relationships
-        # Build a shared cluster→node partition used for both app and broker placement.
-        _cluster_to_nodes = self._build_cluster_to_nodes(nodes, _cluster_domains)
-
-        # Apps: cluster-affine node assignment (70 % of apps land on a node
-        # from their functional cluster; 30 % are placed anywhere).  This
-        # replaces the previous sequential/random assignment and makes node-level
-        # structural metrics (betweenness, SPOF detection) realistic.
-        runs_on = self._assign_apps_to_nodes(
-            apps, nodes, _app_cluster_domain, _cluster_to_nodes
-        )
-
+    def _wire_routes(self, brokers: List[Broker], topics: List[Topic]) -> List[Dict[str, str]]:
+        """Assign each topic to 1–2 brokers (ROUTES edges), then guard
+        against any broker ending up with zero routed topics — an unrouted
+        broker would be invisible to betweenness and ROUTES-based metrics.
+        """
         routes = []
         for topic in topics:
-            # Assign each topic to 1 or 2 brokers.
-            # With len(brokers)>=2, there is a 30% chance of a second broker (redundancy).
-            # This makes broker failure impact proportional to structural importance
-            # rather than being a random lottery, improving Spearman ρ in validation.
+            # With len(brokers)>=2, there is a 30% chance of a second broker
+            # (redundancy), so broker failure impact is proportional to
+            # structural importance rather than a random lottery.
             primary_broker = self.rng.choice(brokers)
             routes.append(self._make_edge(primary_broker, topic))
             if len(brokers) >= 2 and self.rng.random() < 0.30:
@@ -814,39 +818,38 @@ class StatisticalGraphGenerator:
                     secondary_broker = self.rng.choice(other_brokers)
                     routes.append(self._make_edge(secondary_broker, topic))
 
-        # Guard: ensure every broker routes at least one topic so that no broker
-        # is invisible to betweenness and ROUTES-based metrics (which would
-        # produce anomalously low RMAV scores).  This can happen when the topic
-        # count is small relative to the broker count (e.g. custom YAML configs
-        # with many brokers and few topics).  Assign each stranded broker to a
-        # topic in round-robin order so the result is deterministic given the seed.
+        # Guard: assign each stranded broker to a topic in round-robin order
+        # (deterministic given the seed) so it is never left unrouted.
         routed_broker_ids = {edge["from"] for edge in routes}
         unrouted_brokers = [b for b in brokers if b.id not in routed_broker_ids]
         for idx, broker in enumerate(unrouted_brokers):
             topic = topics[idx % len(topics)]
             routes.append(self._make_edge(broker, topic))
+        return routes
 
-        # Brokers: cluster-affine placement based on plurality of routed topics.
-        # Called after routes (including the stranded-broker guard) are complete
-        # so every broker has at least one topic to vote its cluster.
-        broker_runs_on = self._rewrite_broker_placement(
-            brokers, nodes, routes, _topic_id_to_cluster, _cluster_to_nodes
-        )
-        runs_on.extend(broker_runs_on)
+    def _wire_uses(
+        self,
+        c: GraphConfig,
+        apps: List[Application],
+        libs: List[Library],
+        topics: List[Topic],
+        app_id_to_cluster: Dict[str, str],
+        lib_cluster_domain: List[str],
+        cluster_to_apps: Dict[str, List[Application]],
+        cluster_to_libs: Dict[str, List[Library]],
+        publishes: List[Dict[str, str]],
+        subscribes: List[Dict[str, str]],
+        uses: List[Dict[str, str]],
+    ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]], List[Dict[str, str]]]:
+        """Wire USES edges (lib→lib, app→lib) plus, when configured, direct
+        library PUBLISHES_TO/SUBSCRIBES_TO edges.
 
-        publishes = []
-        subscribes = []
-        uses = []
-        
-        for lib in libs:
-            self._uses_graph[lib.id] = []
-            self._direct_pub_counts[lib.id] = 0
-            self._direct_sub_counts[lib.id] = 0
-        for app in apps:
-            self._uses_graph[app.id] = []
-            self._direct_pub_counts[app.id] = 0
-            self._direct_sub_counts[app.id] = 0
-
+        Mutates and returns (publishes, subscribes, uses): libraries can
+        publish or subscribe directly to topics (library_stats.
+        direct_publish_count), so this phase touches all three edge lists,
+        not only `uses`.
+        """
+        # lib -> lib transitive dependencies (30% chance per lib)
         for lib in libs:
             if len(libs) > 1 and self.rng.random() < 0.3:
                 n_lib_deps = self.rng.randint(0, min(2, len(libs) - 1))
@@ -857,6 +860,7 @@ class StatisticalGraphGenerator:
                         uses.append(self._make_edge(lib, t))
                         self._uses_graph[lib.id].append(t.id)
 
+        # Direct library publish/subscribe to topics
         if c.library_stats and c.library_stats.direct_publish_count.mean > 0:
             for lib in libs:
                 pub_count = self._sample_from_distribution(c.library_stats.direct_publish_count)
@@ -866,7 +870,7 @@ class StatisticalGraphGenerator:
                     for t in pub_topics:
                         publishes.append(self._make_edge(lib, t))
                     self._direct_pub_counts[lib.id] = pub_count
-                
+
                 sub_count = self._sample_from_distribution(c.library_stats.direct_subscribe_count)
                 sub_count = min(sub_count, len(topics))
                 if sub_count > 0:
@@ -875,155 +879,262 @@ class StatisticalGraphGenerator:
                         subscribes.append(self._make_edge(lib, t))
                     self._direct_sub_counts[lib.id] = sub_count
 
+        # Library usage by applications
         if c.library_stats and c.library_stats.applications_using_this_library.mean > 0:
-            for lib in libs:
-                _lib_cluster_apps = _cluster_to_apps[_lib_cluster_domain[libs.index(lib)]]
+            for i, lib in enumerate(libs):
+                lib_cluster_apps = cluster_to_apps[lib_cluster_domain[i]]
                 usage_count = self._sample_from_distribution(c.library_stats.applications_using_this_library)
                 usage_count = min(usage_count, len(apps))
                 if usage_count > 0:
-                    using_apps = self._sample_biased(usage_count, apps, _lib_cluster_apps, p_intra=c.intra_cluster_coupling)
+                    using_apps = self._sample_biased(usage_count, apps, lib_cluster_apps, p_intra=c.intra_cluster_coupling)
                     for app in using_apps:
                         if lib.id not in self._uses_graph[app.id]:
                             uses.append(self._make_edge(app, lib))
                             self._uses_graph[app.id].append(lib.id)
         else:
             for app in apps:
-                _app_cluster_libs = _cluster_to_libs[_app_id_to_cluster[app.id]]
+                app_cluster_libs = cluster_to_libs[app_id_to_cluster[app.id]]
                 if libs:
                     max_uses = min(max(3, int(0.1 * len(libs))), len(libs))
                     n_uses = self.rng.randint(0, max_uses)
-                    targets = self._sample_biased(n_uses, libs, _app_cluster_libs, p_intra=c.intra_cluster_coupling)
+                    targets = self._sample_biased(n_uses, libs, app_cluster_libs, p_intra=c.intra_cluster_coupling)
                     for t in targets:
                         if t.id not in self._uses_graph[app.id]:
                             uses.append(self._make_edge(app, t))
                             self._uses_graph[app.id].append(t.id)
 
-        if c.application_stats and c.application_stats.total_publish_count_including_libraries.mean > 0:
-            for app in apps:
-                inherited_pub = self._get_inherited_pub_count(app.id)
-                inherited_sub = self._get_inherited_sub_count(app.id)
-                
-                total_pub_target = self._sample_from_distribution(
-                    c.application_stats.total_publish_count_including_libraries
-                )
-                total_sub_target = self._sample_from_distribution(
-                    c.application_stats.total_subscribe_count_including_libraries
-                )
-                
-                direct_pub_count = max(0, total_pub_target - inherited_pub)
-                direct_sub_count = max(0, total_sub_target - inherited_sub)
-                
-                direct_pub_count = min(direct_pub_count, len(topics))
-                direct_sub_count = min(direct_sub_count, len(topics))
-                
-                # Enforce messaging capability constraint derived from app_type
-                if not _can_publish(app.app_type): direct_pub_count = 0
-                if not _can_subscribe(app.app_type): direct_sub_count = 0
+        return publishes, subscribes, uses
 
-                # Pass 2: use cluster-biased sampling so apps in the same
-                # hierarchy cluster preferentially share topics (p_intra=0.65).
-                # QoS affinity further steers the preferred pool: gateway/controller
-                # apps draw from RELIABLE/HIGH topics first; sensors from BEST_EFFORT.
-                _app_cluster_topics = _cluster_to_topics[_app_id_to_cluster[app.id]]
-                _qos_preferred, _ = self._partition_topics_by_qos_affinity(
-                    _app_cluster_topics, app.app_type
-                )
-                _pub_pool = _qos_preferred if _qos_preferred else _app_cluster_topics
-                _sub_pool = _qos_preferred if _qos_preferred else _app_cluster_topics
+    def _wire_pubsub_from_app_totals(
+        self,
+        c: GraphConfig,
+        apps: List[Application],
+        topics: List[Topic],
+        app_id_to_cluster: Dict[str, str],
+        cluster_to_topics: Dict[str, List[Topic]],
+        publishes: List[Dict[str, str]],
+        subscribes: List[Dict[str, str]],
+    ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
+        """Strategy: application_stats.total_publish_count_including_libraries.
 
-                if direct_pub_count > 0:
-                    pub_topics = self._sample_biased(direct_pub_count, topics, _pub_pool, p_intra=c.intra_cluster_coupling)
-                    for t in pub_topics:
-                        publishes.append(self._make_edge(app, t))
-                    self._direct_pub_counts[app.id] = direct_pub_count
+        Subtracts each app's inherited library pub/sub counts from its total
+        target to get the direct count still needed, then wires it with
+        cluster + QoS-affinity biased sampling.
+        """
+        for app in apps:
+            inherited_pub = self._get_inherited_pub_count(app.id)
+            inherited_sub = self._get_inherited_sub_count(app.id)
 
-                if direct_sub_count > 0:
-                    sub_topics = self._sample_biased(direct_sub_count, topics, _sub_pool, p_intra=c.intra_cluster_coupling)
-                    for t in sub_topics:
-                        subscribes.append(self._make_edge(app, t))
-                    self._direct_sub_counts[app.id] = direct_sub_count
+            total_pub_target = self._sample_from_distribution(
+                c.application_stats.total_publish_count_including_libraries
+            )
+            total_sub_target = self._sample_from_distribution(
+                c.application_stats.total_subscribe_count_including_libraries
+            )
 
-        elif c.application_stats and c.application_stats.direct_publish_count.mean > 0:
-            for app in apps:
-                _app_cluster_topics = _cluster_to_topics[_app_id_to_cluster[app.id]]
-                _qos_preferred, _ = self._partition_topics_by_qos_affinity(
-                    _app_cluster_topics, app.app_type
-                )
-                _pub_pool = _qos_preferred if _qos_preferred else _app_cluster_topics
-                _sub_pool = _qos_preferred if _qos_preferred else _app_cluster_topics
+            direct_pub_count = max(0, total_pub_target - inherited_pub)
+            direct_sub_count = max(0, total_sub_target - inherited_sub)
 
-                pub_count = self._sample_from_distribution(c.application_stats.direct_publish_count)
-                pub_count = min(pub_count, len(topics))
-                if not _can_publish(app.app_type): pub_count = 0
+            direct_pub_count = min(direct_pub_count, len(topics))
+            direct_sub_count = min(direct_sub_count, len(topics))
 
-                if pub_count > 0:
-                    pub_topics = self._sample_biased(pub_count, topics, _pub_pool, p_intra=c.intra_cluster_coupling)
-                    for t in pub_topics:
-                        publishes.append(self._make_edge(app, t))
-                    self._direct_pub_counts[app.id] = pub_count
+            # Enforce messaging capability constraint derived from app_type
+            if not _can_publish(app.app_type):
+                direct_pub_count = 0
+            if not _can_subscribe(app.app_type):
+                direct_sub_count = 0
 
-                sub_count = self._sample_from_distribution(c.application_stats.direct_subscribe_count)
-                sub_count = min(sub_count, len(topics))
-                if not _can_subscribe(app.app_type): sub_count = 0
+            # Cluster + QoS-affinity biased sampling: gateway/controller apps
+            # draw from RELIABLE/HIGH topics first; sensors from BEST_EFFORT/LOW.
+            app_cluster_topics = cluster_to_topics[app_id_to_cluster[app.id]]
+            pool = self._qos_preferred_topics(app_cluster_topics, app.app_type)
 
-                if sub_count > 0:
-                    sub_topics = self._sample_biased(sub_count, topics, _sub_pool, p_intra=c.intra_cluster_coupling)
-                    for t in sub_topics:
-                        subscribes.append(self._make_edge(app, t))
-                    self._direct_sub_counts[app.id] = sub_count
-                    
-        elif c.topic_stats and c.topic_stats.applications_publishing_to_this_topic.mean > 0:
-            valid_pubs_all = [a for a in apps if _can_publish(a.app_type)]
-            valid_subs_all = [a for a in apps if _can_subscribe(a.app_type)]
-            for topic in topics:
-                _topic_cluster_apps = _cluster_to_apps[_topic_id_to_cluster[topic.id]]
-                _topic_cluster_pubs = [a for a in _topic_cluster_apps if _can_publish(a.app_type)]
-                _topic_cluster_subs = [a for a in _topic_cluster_apps if _can_subscribe(a.app_type)]
-                
-                pub_count = self._sample_from_distribution(c.topic_stats.applications_publishing_to_this_topic)
-                pub_count = min(pub_count, len(valid_pubs_all))
-                if pub_count > 0:
-                    pubs = self._sample_biased(pub_count, valid_pubs_all, _topic_cluster_pubs, p_intra=c.intra_cluster_coupling)
-                    for p in pubs:
-                        publishes.append(self._make_edge(p, topic))
-                        self._direct_pub_counts[p.id] = self._direct_pub_counts.get(p.id, 0) + 1
+            if direct_pub_count > 0:
+                pub_topics = self._sample_biased(direct_pub_count, topics, pool, p_intra=c.intra_cluster_coupling)
+                for t in pub_topics:
+                    publishes.append(self._make_edge(app, t))
+                self._direct_pub_counts[app.id] = direct_pub_count
 
-                sub_count = self._sample_from_distribution(c.topic_stats.applications_subscribing_to_this_topic)
-                sub_count = min(sub_count, len(valid_subs_all))
-                if sub_count > 0:
-                    subs = self._sample_biased(sub_count, valid_subs_all, _topic_cluster_subs, p_intra=c.intra_cluster_coupling)
-                    for s in subs:
-                        subscribes.append(self._make_edge(s, topic))
-                        self._direct_sub_counts[s.id] = self._direct_sub_counts.get(s.id, 0) + 1
-        else:
-            valid_pubs_all_fb = [a for a in apps if _can_publish(a.app_type)]
-            valid_subs_all_fb = [a for a in apps if _can_subscribe(a.app_type)]
-            for topic in topics:
-                _topic_cluster_apps = _cluster_to_apps[_topic_id_to_cluster[topic.id]]
-                _topic_cluster_pubs = [a for a in _topic_cluster_apps if _can_publish(a.app_type)]
-                _topic_cluster_subs = [a for a in _topic_cluster_apps if _can_subscribe(a.app_type)]
-                
-                k_pubs = self.rng.randint(1, max(2, min(5, len(valid_pubs_all_fb))))
-                k_subs = self.rng.randint(1, max(2, min(8, len(valid_subs_all_fb))))
-                pubs = self._sample_biased(k_pubs, valid_pubs_all_fb, _topic_cluster_pubs, p_intra=c.intra_cluster_coupling)
-                subs = self._sample_biased(k_subs, valid_subs_all_fb, _topic_cluster_subs, p_intra=c.intra_cluster_coupling)
+            if direct_sub_count > 0:
+                sub_topics = self._sample_biased(direct_sub_count, topics, pool, p_intra=c.intra_cluster_coupling)
+                for t in sub_topics:
+                    subscribes.append(self._make_edge(app, t))
+                self._direct_sub_counts[app.id] = direct_sub_count
+        return publishes, subscribes
+
+    def _wire_pubsub_from_app_direct(
+        self,
+        c: GraphConfig,
+        apps: List[Application],
+        topics: List[Topic],
+        app_id_to_cluster: Dict[str, str],
+        cluster_to_topics: Dict[str, List[Topic]],
+        publishes: List[Dict[str, str]],
+        subscribes: List[Dict[str, str]],
+    ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
+        """Strategy: application_stats.direct_publish_count /
+        direct_subscribe_count (no library-count subtraction)."""
+        for app in apps:
+            app_cluster_topics = cluster_to_topics[app_id_to_cluster[app.id]]
+            pool = self._qos_preferred_topics(app_cluster_topics, app.app_type)
+
+            pub_count = self._sample_from_distribution(c.application_stats.direct_publish_count)
+            pub_count = min(pub_count, len(topics))
+            if not _can_publish(app.app_type):
+                pub_count = 0
+
+            if pub_count > 0:
+                pub_topics = self._sample_biased(pub_count, topics, pool, p_intra=c.intra_cluster_coupling)
+                for t in pub_topics:
+                    publishes.append(self._make_edge(app, t))
+                self._direct_pub_counts[app.id] = pub_count
+
+            sub_count = self._sample_from_distribution(c.application_stats.direct_subscribe_count)
+            sub_count = min(sub_count, len(topics))
+            if not _can_subscribe(app.app_type):
+                sub_count = 0
+
+            if sub_count > 0:
+                sub_topics = self._sample_biased(sub_count, topics, pool, p_intra=c.intra_cluster_coupling)
+                for t in sub_topics:
+                    subscribes.append(self._make_edge(app, t))
+                self._direct_sub_counts[app.id] = sub_count
+        return publishes, subscribes
+
+    def _wire_pubsub_from_topic_stats(
+        self,
+        c: GraphConfig,
+        apps: List[Application],
+        topics: List[Topic],
+        cluster_to_apps: Dict[str, List[Application]],
+        topic_id_to_cluster: Dict[str, str],
+        publishes: List[Dict[str, str]],
+        subscribes: List[Dict[str, str]],
+    ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
+        """Strategy: topic_stats.applications_publishing_to_this_topic /
+        applications_subscribing_to_this_topic (per-topic fan-in/out targets)."""
+        valid_pubs_all = [a for a in apps if _can_publish(a.app_type)]
+        valid_subs_all = [a for a in apps if _can_subscribe(a.app_type)]
+        for topic in topics:
+            topic_cluster_apps = cluster_to_apps[topic_id_to_cluster[topic.id]]
+            topic_cluster_pubs = [a for a in topic_cluster_apps if _can_publish(a.app_type)]
+            topic_cluster_subs = [a for a in topic_cluster_apps if _can_subscribe(a.app_type)]
+
+            pub_count = self._sample_from_distribution(c.topic_stats.applications_publishing_to_this_topic)
+            pub_count = min(pub_count, len(valid_pubs_all))
+            if pub_count > 0:
+                pubs = self._sample_biased(pub_count, valid_pubs_all, topic_cluster_pubs, p_intra=c.intra_cluster_coupling)
                 for p in pubs:
                     publishes.append(self._make_edge(p, topic))
+                    self._direct_pub_counts[p.id] = self._direct_pub_counts.get(p.id, 0) + 1
+
+            sub_count = self._sample_from_distribution(c.topic_stats.applications_subscribing_to_this_topic)
+            sub_count = min(sub_count, len(valid_subs_all))
+            if sub_count > 0:
+                subs = self._sample_biased(sub_count, valid_subs_all, topic_cluster_subs, p_intra=c.intra_cluster_coupling)
                 for s in subs:
                     subscribes.append(self._make_edge(s, topic))
+                    self._direct_sub_counts[s.id] = self._direct_sub_counts.get(s.id, 0) + 1
+        return publishes, subscribes
 
+    def _wire_pubsub_uniform(
+        self,
+        c: GraphConfig,
+        apps: List[Application],
+        topics: List[Topic],
+        cluster_to_apps: Dict[str, List[Application]],
+        topic_id_to_cluster: Dict[str, str],
+        publishes: List[Dict[str, str]],
+        subscribes: List[Dict[str, str]],
+    ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
+        """Fallback strategy: no statistical config at all — uniform random
+        fan-in/out per topic, still cluster-biased via _sample_biased()."""
+        valid_pubs_all = [a for a in apps if _can_publish(a.app_type)]
+        valid_subs_all = [a for a in apps if _can_subscribe(a.app_type)]
+        for topic in topics:
+            topic_cluster_apps = cluster_to_apps[topic_id_to_cluster[topic.id]]
+            topic_cluster_pubs = [a for a in topic_cluster_apps if _can_publish(a.app_type)]
+            topic_cluster_subs = [a for a in topic_cluster_apps if _can_subscribe(a.app_type)]
+
+            k_pubs = self.rng.randint(1, max(2, min(5, len(valid_pubs_all))))
+            k_subs = self.rng.randint(1, max(2, min(8, len(valid_subs_all))))
+            pubs = self._sample_biased(k_pubs, valid_pubs_all, topic_cluster_pubs, p_intra=c.intra_cluster_coupling)
+            subs = self._sample_biased(k_subs, valid_subs_all, topic_cluster_subs, p_intra=c.intra_cluster_coupling)
+            for p in pubs:
+                publishes.append(self._make_edge(p, topic))
+            for s in subs:
+                subscribes.append(self._make_edge(s, topic))
+        return publishes, subscribes
+
+    def _wire_pubsub(
+        self,
+        c: GraphConfig,
+        apps: List[Application],
+        topics: List[Topic],
+        app_id_to_cluster: Dict[str, str],
+        cluster_to_topics: Dict[str, List[Topic]],
+        cluster_to_apps: Dict[str, List[Application]],
+        topic_id_to_cluster: Dict[str, str],
+        publishes: List[Dict[str, str]],
+        subscribes: List[Dict[str, str]],
+    ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
+        """Wire PUBLISHES_TO / SUBSCRIBES_TO edges using whichever of four
+        mutually-exclusive strategies the config selects, in priority order:
+        per-app totals (incl. inherited library counts) > per-app direct
+        counts > per-topic fan-in/out targets > uniform random fallback.
+
+        The four strategies interleave their self.rng calls differently (e.g.
+        strategy 1 samples both counts before sampling either edge set;
+        strategy 2 alternates count/sample per direction) and are kept as
+        separate methods rather than one parameterized loop for that reason:
+        unifying them would reorder self.rng draws and change output for
+        every already-seeded dataset.
+        """
+        app_stats = c.application_stats
+        if app_stats and app_stats.total_publish_count_including_libraries.mean > 0:
+            return self._wire_pubsub_from_app_totals(
+                c, apps, topics, app_id_to_cluster, cluster_to_topics, publishes, subscribes
+            )
+        elif app_stats and app_stats.direct_publish_count.mean > 0:
+            return self._wire_pubsub_from_app_direct(
+                c, apps, topics, app_id_to_cluster, cluster_to_topics, publishes, subscribes
+            )
+        elif c.topic_stats and c.topic_stats.applications_publishing_to_this_topic.mean > 0:
+            return self._wire_pubsub_from_topic_stats(
+                c, apps, topics, cluster_to_apps, topic_id_to_cluster, publishes, subscribes
+            )
+        else:
+            return self._wire_pubsub_uniform(
+                c, apps, topics, cluster_to_apps, topic_id_to_cluster, publishes, subscribes
+            )
+
+    def _wire_connects(self, nodes: List[Node], connection_density: float) -> List[Dict[str, str]]:
+        """Wire CONNECTS_TO edges between infrastructure nodes, guarding
+        against a totally disconnected mesh in tiny topologies."""
         connects = []
         for i in range(len(nodes)):
             for j in range(i + 1, len(nodes)):
-                if self.rng.random() < c.connection_density:
+                if self.rng.random() < connection_density:
                     connects.append(self._make_edge(nodes[i], nodes[j]))
-        
-        # Guard against zero-mesh tiny topologies explicitly
+
         if len(nodes) >= 2 and not connects:
             i, j = self.rng.sample(range(len(nodes)), 2)
             connects.append(self._make_edge(nodes[i], nodes[j]))
-            
-        # Ensure zero-degree apps receive at least 1 edge mapping to prevent inflated F1s
+        return connects
+
+    def _apply_post_topology(
+        self,
+        apps: List[Application],
+        topics: List[Topic],
+        publishes: List[Dict[str, str]],
+        subscribes: List[Dict[str, str]],
+        criticality_pool: Optional[List[bool]],
+    ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
+        """Post-topology quality passes: guarantee every app has at least one
+        pub/sub edge (preventing inflated F1 from trivially-isolated nodes),
+        then assign criticality to the structurally central apps now that the
+        topology (and therefore each app's degree) is known.
+        """
         connected_apps = {e["from"] for e in publishes}.union(e["from"] for e in subscribes)
         isolated_apps = [a for a in apps if a.id not in connected_apps]
         for app in isolated_apps:
@@ -1032,16 +1143,26 @@ class StatisticalGraphGenerator:
                 publishes.append(self._make_edge(app, t))
             elif _can_subscribe(app.app_type):
                 subscribes.append(self._make_edge(app, t))
-                
-        # Enforce role constraints: remove any edges that violate pub/sub role
-        # (e.g. a "pub" app appearing in subscribes due to the topic_stats path).
-        publishes, subscribes = self._validate_role_constraints(apps, publishes, subscribes)
 
-        # Two-pass criticality: now that topology is known, assign critical=True
-        # to the structurally most central apps (highest pub+sub degree), honouring
-        # the target count from the scenario YAML's criticality distribution.
         self._assign_criticality_two_pass(apps, publishes, subscribes, criticality_pool)
+        return publishes, subscribes
 
+    def _assemble(
+        self,
+        c: GraphConfig,
+        nodes: List[Node],
+        brokers: List[Broker],
+        topics: List[Topic],
+        apps: List[Application],
+        libs: List[Library],
+        runs_on: List[Dict[str, str]],
+        routes: List[Dict[str, str]],
+        publishes: List[Dict[str, str]],
+        subscribes: List[Dict[str, str]],
+        connects: List[Dict[str, str]],
+        uses: List[Dict[str, str]],
+    ) -> Dict[str, Any]:
+        """Serialize all entities/relationships and run schema validation."""
         graph_dict = {
             "metadata": {
                 "scale": c.to_scale_dict(),
@@ -1066,10 +1187,87 @@ class StatisticalGraphGenerator:
         }
         return validate_and_clean_schema(graph_dict)
 
+    def generate(self) -> Dict[str, Any]:
+        """Generate a complete graph, in two passes.
+
+        Pass 1 (entities): infrastructure, topics, hierarchy clusters, apps,
+        libraries — in that order, since topic and cluster attribute sampling
+        must complete before apps/libs can be placed into clusters.
+
+        Pass 2 (relationships): RUNS_ON, ROUTES, USES, PUBLISHES_TO/
+        SUBSCRIBES_TO, CONNECTS_TO, then the post-topology quality passes
+        (isolated-app guard, criticality assignment).  See each phase
+        method's docstring for its role; see docs/graph-generation.md §8 for
+        the narrative version of this pipeline.
+        """
+        c = self.config
+        name_rng = random.Random(c.seed + 12345)
+        # Dedicated RNG for topic attribute sampling (frequency, criticality).
+        # Isolated from self.rng so that topic attribute draws do NOT perturb
+        # the main topology RNG stream (broker routes, pub/sub edges, node
+        # placement), preserving reproducibility of all previously seeded tests.
+        topic_attr_rng = random.Random(c.seed + 99999)
+
+        domain_ds = DomainDataset(c.domain, name_rng) if c.domain else None
+
+        # --- Pass 1: entities ---
+        nodes, brokers = self._build_infrastructure(c, domain_ds)
+        topics = self._build_topics(c, domain_ds, name_rng, topic_attr_rng)
+        (hier_pool, cluster_domains, app_cluster_domain, lib_cluster_domain,
+         app_id_to_cluster, single_csms_name, cluster_to_topics, topic_id_to_cluster
+         ) = self._assign_clusters(c, name_rng, topics)
+        apps, criticality_pool, cluster_to_apps = self._build_apps(
+            c, domain_ds, name_rng, hier_pool, app_cluster_domain, single_csms_name, cluster_domains
+        )
+        libs, cluster_to_libs = self._build_libs(
+            c, domain_ds, name_rng, single_csms_name, lib_cluster_domain, cluster_domains
+        )
+
+        # --- Pass 2: relationships ---
+        cluster_to_nodes = self._build_cluster_to_nodes(nodes, cluster_domains)
+        # Apps: cluster-affine node assignment (70% of apps land on a node
+        # from their functional cluster; 30% are placed anywhere).
+        runs_on = self._assign_apps_to_nodes(apps, nodes, app_cluster_domain, cluster_to_nodes)
+
+        routes = self._wire_routes(brokers, topics)
+        # Brokers: cluster-affine placement based on plurality of routed
+        # topics.  Must run after routes (incl. the stranded-broker guard).
+        runs_on.extend(self._rewrite_broker_placement(
+            brokers, nodes, routes, topic_id_to_cluster, cluster_to_nodes
+        ))
+
+        for lib in libs:
+            self._uses_graph[lib.id] = []
+            self._direct_pub_counts[lib.id] = 0
+            self._direct_sub_counts[lib.id] = 0
+        for app in apps:
+            self._uses_graph[app.id] = []
+            self._direct_pub_counts[app.id] = 0
+            self._direct_sub_counts[app.id] = 0
+
+        publishes, subscribes, uses = self._wire_uses(
+            c, apps, libs, topics, app_id_to_cluster, lib_cluster_domain,
+            cluster_to_apps, cluster_to_libs, [], [], [],
+        )
+        publishes, subscribes = self._wire_pubsub(
+            c, apps, topics, app_id_to_cluster, cluster_to_topics,
+            cluster_to_apps, topic_id_to_cluster, publishes, subscribes,
+        )
+        connects = self._wire_connects(nodes, c.connection_density)
+
+        publishes, subscribes = self._apply_post_topology(
+            apps, topics, publishes, subscribes, criticality_pool
+        )
+
+        return self._assemble(
+            c, nodes, brokers, topics, apps, libs,
+            runs_on, routes, publishes, subscribes, connects, uses,
+        )
+
 
 def validate_and_clean_schema(graph_data: Dict[str, Any]) -> Dict[str, Any]:
     """Validate the schema of the generated graph and clean up duplicate edges.
-    
+
     Ensures all necessary top-level fields are present, deduplicates all edges
     in the relationships block, and validates that all edge references point
     to existing entities.
@@ -1079,7 +1277,7 @@ def validate_and_clean_schema(graph_data: Dict[str, Any]) -> Dict[str, Any]:
     for k in required_keys:
         if k not in graph_data:
             raise ValueError(f"Generated graph is missing required top-level key: '{k}'")
-            
+
     # 2. Collect all valid entity IDs to check for duplicates and dangling edges
     valid_ids = set()
     categories = ["nodes", "brokers", "topics", "applications", "libraries"]
@@ -1091,18 +1289,18 @@ def validate_and_clean_schema(graph_data: Dict[str, Any]) -> Dict[str, Any]:
             if entity_id in valid_ids:
                 raise ValueError(f"Duplicate entity ID found in generated graph: '{entity_id}'")
             valid_ids.add(entity_id)
-            
+
     # 3. Deduplicate and validate relationships
     relationships = graph_data["relationships"]
     required_rels = {"runs_on", "routes", "publishes_to", "subscribes_to", "connects_to", "uses"}
     for rel_type in required_rels:
         if rel_type not in relationships:
             raise ValueError(f"Relationships dict is missing required key: '{rel_type}'")
-            
+
         edges = relationships[rel_type]
         if not isinstance(edges, list):
             raise ValueError(f"Relationship key '{rel_type}' must map to a list of edges")
-            
+
         seen_edges = set()
         deduped_edges = []
         for idx, edge in enumerate(edges):
@@ -1110,22 +1308,22 @@ def validate_and_clean_schema(graph_data: Dict[str, Any]) -> Dict[str, Any]:
                 raise ValueError(f"Edge at index {idx} in '{rel_type}' is not a dictionary")
             if "from" not in edge or "to" not in edge:
                 raise ValueError(f"Edge at index {idx} in '{rel_type}' is missing 'from' or 'to' key")
-                
+
             from_id = edge["from"]
             to_id = edge["to"]
-            
+
             # Check for dangling reference
             if from_id not in valid_ids:
                 raise ValueError(f"Edge '{from_id}' -> '{to_id}' in '{rel_type}' references non-existent source ID '{from_id}'")
             if to_id not in valid_ids:
                 raise ValueError(f"Edge '{from_id}' -> '{to_id}' in '{rel_type}' references non-existent target ID '{to_id}'")
-                
+
             # Deduplicate edge pair
             edge_key = (from_id, to_id)
             if edge_key not in seen_edges:
                 seen_edges.add(edge_key)
                 deduped_edges.append(edge)
-                
+
         relationships[rel_type] = deduped_edges
-        
+
     return graph_data
