@@ -415,6 +415,30 @@ class TestMultiLayerFiltering:
         # System layer should include everything with matching edge types
         assert len(node_ids) >= 2  # At least app nodes with app_to_app
 
+    @pytest.mark.parametrize(
+        "layer", [AnalysisLayer.APP, AnalysisLayer.INFRA, AnalysisLayer.MW, AnalysisLayer.SYSTEM]
+    )
+    def test_result_reports_the_requested_layer(self, multi_layer_graph, layer):
+        """UT-ANAL-011d: the result carries the analysed layer, not a fixed default.
+
+        Regression: analyze() round-tripped the enum through
+        AnalysisLayer.from_string(), which raises AttributeError on an enum and
+        was swallowed by a bare except — so every result reported SYSTEM.
+        """
+        result = StructuralAnalyzer().analyze(multi_layer_graph, layer=layer)
+
+        assert result.layer == layer
+        assert result.graph_summary.layer == layer.value
+        assert result.to_dict()["layer"] == layer.value
+
+    def test_empty_layer_result_reports_requested_layer(self, layer=AnalysisLayer.MW):
+        """UT-ANAL-011e: the empty-graph short circuit also reports the real layer."""
+        empty = GraphData(components=[], edges=[])
+        result = StructuralAnalyzer().analyze(empty, layer=layer)
+
+        assert result.layer == layer
+        assert result.graph_summary.layer == layer.value
+
 
 # =============================================================================
 # Bridge Count and Ratio Tests (UT-ANAL-012)

@@ -126,7 +126,8 @@ def dispatch_predict(repo, args: argparse.Namespace):
 
     # If no pre-computed structural analysis, run it
     if not structural_raw:
-        analyze_uc = AnalyzeGraphUseCase(repo)
+        from saag.analysis.service import AnalysisService
+        analyze_uc = AnalyzeGraphUseCase(AnalysisService(repo))
         predict_uc = PredictGraphUseCase(repo)
         layer_result = analyze_uc.execute(layer)
         nx_graph = layer_result.graph

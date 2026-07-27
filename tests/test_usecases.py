@@ -142,3 +142,46 @@ class TestUseCaseOrchestration:
 
         assert result is not None
         assert "app" in result.layers
+
+
+class TestAnalysisServiceLayerBatching:
+    """AnalysisService.analyze_layers is the single structural-analysis entry point."""
+
+    def test_analyze_layers_derives_dependencies_once(self, repo_with_topology):
+        """Dependencies are derived once for the whole batch, not once per layer."""
+        from unittest.mock import patch
+
+        service = AnalysisService(repo_with_topology)
+        with patch.object(
+            repo_with_topology, "derive_dependencies",
+            wraps=repo_with_topology.derive_dependencies,
+        ) as derive:
+            results = service.analyze_layers(["app", "infra", "mw", "system"])
+
+        assert derive.call_count == 1
+        assert set(results) == {"app", "infra", "mw", "system"}
+
+    def test_analyze_layers_keys_are_canonical(self, repo_with_topology):
+        """Layer aliases resolve to canonical keys, and each result reports its own layer."""
+        service = AnalysisService(repo_with_topology)
+        results = service.analyze_layers(["application", "complete"])
+
+        assert set(results) == {"app", "system"}
+        for canonical, layer_res in results.items():
+            assert layer_res.layer == canonical
+            assert layer_res.structural.layer.value == canonical
+
+    def test_analyze_layer_matches_analyze_layers(self, repo_with_topology):
+        """The single-layer helper is a thin wrapper over the batch method."""
+        service = AnalysisService(repo_with_topology)
+
+        single = service.analyze_layer("app")
+        batched = service.analyze_layers(["app"])["app"]
+
+        assert single.layer == batched.layer == "app"
+        assert set(single.structural.components) == set(batched.structural.components)
+
+    def test_unknown_layer_falls_back_to_system(self, repo_with_topology):
+        """An unrecognised layer name degrades to SYSTEM rather than raising."""
+        service = AnalysisService(repo_with_topology)
+        assert service.analyze_layer("not-a-layer").layer == "system"

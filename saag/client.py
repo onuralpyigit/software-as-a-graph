@@ -33,11 +33,16 @@ class Client:
 
 
     def analyze(self, layer: str = "app", **kwargs) -> AnalysisResult:
-        """Analyze the structural graph topology."""
+        """Analyze the structural graph topology.
+
+        Extra keyword arguments are accepted and ignored — Pipeline.analyze
+        forwards RMAV options here, but they apply to the Predict stage
+        (see ``predict()``), not to structural analysis.
+        """
         from saag.usecases.analyze_graph import AnalyzeGraphUseCase
         from saag.analysis.service import AnalysisService
-        
-        service = AnalysisService(self.repo, **kwargs)
+
+        service = AnalysisService(self.repo)
         uc = AnalyzeGraphUseCase(service)
         result = uc.execute(layer=layer)
         return AnalysisResult(result)
@@ -47,6 +52,13 @@ class Client:
         analysis_result: AnalysisResult,
         mode: str = "gnn",
         gnn_checkpoint: Optional[str] = None,
+        use_ahp: bool = False,
+        equal_weights: bool = False,
+        ahp_shrinkage: float = 0.7,
+        normalization_method: str = "robust",
+        winsorize: bool = True,
+        winsorize_limit: float = 0.05,
+        run_sensitivity: bool = False,
     ) -> PredictionResult:
         """Run the unified Prediction stage (Step 3) on a prior AnalysisResult.
 
@@ -64,6 +76,14 @@ class Client:
             'gnn' for raw GNN scores (default) when a checkpoint is available.
         gnn_checkpoint:
             Path to a GNN checkpoint directory. Defaults to output/gnn_checkpoints.
+        use_ahp, equal_weights, ahp_shrinkage:
+            RMAV dimension weighting. Mutually exclusive modes: AHP-derived
+            weights (shrunk toward uniform by ``ahp_shrinkage``), equal 0.25
+            weights, or the default fixed weights.
+        normalization_method, winsorize, winsorize_limit:
+            How Tier-1 metrics are scaled to [0, 1] before the RMAV weighted sum.
+        run_sensitivity:
+            Run the Kendall τ weight-stability analysis after scoring.
         """
         from saag.prediction.service import PredictionService
 
@@ -72,9 +92,20 @@ class Client:
         layer = getattr(layer_result, "layer", "system")
 
         checkpoint = gnn_checkpoint or "output/gnn_checkpoints"
-        service = PredictionService(gnn_checkpoint_dir=checkpoint, prefer_gnn=(mode == "gnn"))
+        service = PredictionService(
+            use_ahp=use_ahp,
+            equal_weights=equal_weights,
+            ahp_shrinkage=ahp_shrinkage,
+            normalization_method=normalization_method,
+            winsorize=winsorize,
+            winsorize_limit=winsorize_limit,
+            gnn_checkpoint_dir=checkpoint,
+            prefer_gnn=(mode == "gnn"),
+        )
 
-        result = service.predict_quality_with_gnn(structural, structural.graph, layer=layer)
+        result = service.predict_quality_with_gnn(
+            structural, structural.graph, layer=layer, run_sensitivity=run_sensitivity
+        )
         return PredictionResult(result)
 
     def detect_antipatterns(self, prediction_result: Any, active_patterns: Optional[List[str]] = None) -> List[Any]:

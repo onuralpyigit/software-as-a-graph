@@ -610,7 +610,7 @@ This replaces the earlier heuristic `I_edge(u,v) = I*(u) × {1.0 if bridge else 
 
 ### 5.7 Ranking Critical Edges
 
-Edges are ranked for reporting/UI consumption via `get_critical_edges()` in [saag/analysis/service.py](../saag/analysis/service.py) and exposed through [api/routers/components.py](../api/routers/components.py), sorting by `EdgeQuality.scores.overall` (the same RMAV-style composite machinery used for nodes, applied edge-wise).
+Edges are ranked for reporting/UI consumption by the `/edges/critical` endpoint in [api/routers/components.py](../api/routers/components.py), sorting by `EdgeQuality.scores.overall` (the same RMAV-style composite machinery used for nodes, applied edge-wise).
 
 Simulated edge criticality is available separately via `SimulationService.classify_edges()`, which returns `EdgeCriticality` records from the removal sweep ([§5.6](#56-learned-edge-scoring-gnn)). Two fields must be read together:
 

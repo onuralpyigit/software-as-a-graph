@@ -67,53 +67,65 @@ G_analysis(l)          StructuralAnalyzer           Output
                         — all stored in M(v) —
 ```
 
-**Scope of this step:** M(v) contains structural observations only. Criticality scores are computed in the subsequent sub-phase of Step 2 (Analyze, RMAV sub-phase), which consumes M(v) and applies AHP-derived weights to produce criticality predictions Q(v). The steps are kept separate to preserve the prediction–simulation independence guarantee: structural features must not be contaminated by simulation outcomes.
+**Scope of this step:** M(v) contains structural observations only. Criticality scores are computed in the **RMAV sub-phase** of this same step ([§11](#11-analyze-stage--rule-based-rmav-scoring)), which consumes M(v) and applies AHP-derived weights to produce criticality predictions Q(v). The steps are kept separate to preserve the prediction–simulation independence guarantee: structural features must not be contaminated by simulation outcomes.
 
 ---
 
 ## 2. Analysis Pipeline
 
-The analysis step involves three layers of code. Understanding the call chain prevents confusion about where normalization, QoS profiling, and layer filtering happen.
+There are **two entry paths** into structural analysis, and both funnel through the same `AnalysisService.analyze_layers()` method. Knowing which path you are on tells you whether criticality scores will be present in the result.
+
+**Path A — structural only** (`cli/analyze_graph.py`, `saag.Client.analyze`, `Pipeline.analyze`):
 
 ```
-cli/analyze_graph.py          ← CLI entry point
-│   argparse flags:
-│     --layer, --norm, --winsorize
-│     --use-ahp, --equal-weights, --ahp-shrinkage
-│     --sensitivity
+cli/analyze_graph.py                    ← CLI entry point; flags: --layer, --output
 │
-├── saag.Client.analyze(layer, **kwargs)
+├── saag.Client.analyze(layer)
 │      Thin façade — wires dependencies, returns AnalysisResult
 │
 └── saag.usecases.analyze_graph.AnalyzeGraphUseCase.execute(layer)
       │
       └── saag.analysis.service.AnalysisService.analyze_layer(layer)
-            │
-            ├── AnalysisLayer.from_string(layer)      ← canonical layer resolution
-            ├── IGraphRepository.derive_dependencies() ← derive DEPENDS_ON edges
-            ├── IGraphRepository.get_graph_data()     ← load components & edges from Neo4j
-            │
-            ├── StructuralAnalyzer.analyze(graph_data, layer)
-            │       Returns StructuralAnalysisResult
-            │         .components : Dict[id, StructuralMetrics]   ← M(v)
-            │         .edges      : Dict[(src,tgt), EdgeMetrics]
-            │         .graph_summary : GraphSummary              ← S(G)
-            │         .graph      : nx.DiGraph (retained for viz)
-            │         .qos_profile: QoS distribution across topics
-            │         .rcm_order  : bandwidth-minimized node order (RCM)
-            │
-            ├── PredictionService.predict_quality(struct_result)  ← Step 2 (Analyze, RMAV sub-phase) inputs
-            ├── AntiPatternDetector.detect(quality_result)        ← smell detection
-            └── ExplanationEngine.explain_system(...)             ← human-readable text
+            └── AnalysisService.analyze_layers([layer])
+                  ├── IGraphRepository.derive_dependencies()  ← pre-analysis hook (§2.1)
+                  ├── IGraphRepository.get_graph_data()       ← load components & edges
+                  └── StructuralAnalyzer.analyze(graph_data, layer)   → per layer
 ```
 
-`AnalysisResult` (returned by `client.analyze()`) wraps `LayerAnalysisResult.raw`, which embeds both `StructuralAnalysisResult` and the immediate prediction derived from it. The CLI's `--output` flag calls `result.save(path)` to persist the full JSON.
+The result is a `LayerAnalysisResult` with **only `.structural` populated**; `.quality`, `.problems`, and `.explanation` are `None`/empty. This is the Independence Guarantee — structural features must not be contaminated by scoring or simulation outcomes (enforced by `tests/test_usecases.py`).
+
+**Path B — structural + RMAV + anti-patterns** (`saag --analyze`, the REST API):
+
+```
+api/routers/analysis.py  /  cli/common/dispatcher.py:dispatch_analyze
+│
+└── saag.usecases.multi_layer_analysis.MultiLayerAnalysisUseCase.execute(layers, …)
+      ├── AnalysisService.analyze_layers(layers)      ← same structural pass as Path A
+      ├── QualityScoringService.predict_quality(…)    ← RMAV scoring  (§11)
+      ├── AntiPatternDetector.detect(…)               ← smell detection
+      ├── GNNService.predict(…)                       ← optional, when --gnn-model is given
+      └── compute_cross_layer_insights(results)       ← cross-layer correlation (§4)
+```
+
+`StructuralAnalyzer.analyze` returns a `StructuralAnalysisResult` on both paths:
+
+| Field | Contents |
+|---|---|
+| `.layer` | The `AnalysisLayer` that was analysed |
+| `.components` | `Dict[id, StructuralMetrics]` — **M(v)** |
+| `.edges` | `Dict[(src,tgt), EdgeMetrics]` |
+| `.graph_summary` | `GraphSummary` — **S(G)** |
+| `.graph` | `nx.DiGraph`, retained for visualization and GNN feature extraction |
+| `.qos_profile` | QoS distribution across topics |
+| `.rcm_order` | Bandwidth-minimized node order (RCM) |
+
+`AnalysisResult` (returned by `client.analyze()`) wraps `LayerAnalysisResult` as `.raw`. The CLI's `--output` flag calls `result.save(path)` to persist the full JSON.
 
 ### 2.1 Pre-Analysis Hook
 
-Before structural analysis begins, `AnalysisService.analyze_layer` automatically triggers the pre-analysis hook:
-`self.repository.derive_dependencies()`
-This derives the `DEPENDS_ON` edges and establishes their weights, ensuring that structural metrics are calculated on a fresh, fully-derived topology projection.
+Before structural analysis begins, `AnalysisService.analyze_layers` triggers the pre-analysis hook `self.repository.derive_dependencies()`, which derives the `DEPENDS_ON` edges and establishes their weights. This ensures structural metrics are computed on a fresh, fully-derived topology projection.
+
+The hook and the graph load run **once per call**, not once per layer — analysing all four layers derives dependencies a single time and reuses the loaded `GraphData` for every projection.
 
 ---
 
@@ -132,7 +144,7 @@ Every call to `analyze()` targets exactly one **analysis layer** (π_l). The lay
 
 **Middleware layer note:** The `mw` subgraph includes Application and Node vertices only to preserve incoming edges to Brokers. Only Broker components appear in M(v) and S(G) results.
 
-**The `all` shorthand** expands to `["app", "infra", "mw", "system"]` and runs all four layers sequentially. When `--output` is combined with `all` or a comma-separated list, output files are named `<base>_<layer>.<ext>` (e.g. `metrics_app.json`, `metrics_system.json`).
+**The `all` shorthand** expands to `["app", "infra", "mw", "system"]` and runs all four layers. When `--output` is combined with `all` or a comma-separated list, `cli/analyze_graph.py` names its output files `<base>_<layer>.<ext>` (e.g. `metrics_app.json`, `metrics_system.json`).
 
 **Layer aliases** accepted by `AnalysisLayer.from_string()`:
 
@@ -148,7 +160,9 @@ Every call to `analyze()` targets exactly one **analysis layer** (π_l). The lay
 
 ## 4. Cross-Layer Analysis
 
-When `--layer all` (or a comma-separated layer list) is used, `AnalysisService.analyze_all_layers()` runs each layer independently and then derives **cross-layer insights** — observations that only become visible by correlating results across two or more layers.
+When more than one layer is analysed on **Path B** ([§2](#2-analysis-pipeline)), `compute_cross_layer_insights()` ([saag/analysis/cross_layer.py](../saag/analysis/cross_layer.py)) correlates the per-layer results and derives **cross-layer insights** — observations that only become visible by comparing two or more layers.
+
+> **Path A does not produce insights.** Cross-layer insights need RMAV criticality levels, which the structural-only path never computes. Use `saag --analyze --layers app,system` or the `/api/v1/analysis/layer/{layer}` endpoint; `python cli/analyze_graph.py --layer all` emits structural metrics per layer and nothing else.
 
 ### 4.1 What cross-layer insights capture
 
@@ -164,7 +178,7 @@ Three insight types are produced:
 
 ### 4.2 How the correlation works
 
-After all four layer results are assembled, `_compute_cross_layer_insights()` builds a component-indexed map across all `LayerAnalysisResult` objects:
+After the layer results are assembled, `compute_cross_layer_insights()` builds a component-indexed map across all `LayerAnalysisResult` objects:
 
 ```
 For each component id that appears in ≥ 2 layer results:
@@ -207,7 +221,7 @@ A component appears in a given layer only if its type is in that layer's `analyz
 
 ## 5. Topological Analysis Flow
 
-`StructuralAnalyzer.analyze()` runs seven internal phases in a fixed order:
+`StructuralAnalyzer.analyze()` runs seven phases in a fixed order. Each phase is a private method of the same name, so this diagram and the code can be checked against each other:
 
 ```
 Phase 1  extract_layer_subgraph()
@@ -215,62 +229,63 @@ Phase 1  extract_layer_subgraph()
          │  Build nx.DiGraph G with node attrs: component_type, name, weight,
          │    subscriber_count, loc, cyclomatic_complexity, coupling_*,
          │    lcom, ip_address, cpu_cores, ...
-         │  Build G_dist (inverted weights for distance-based algorithms)
-         │  Build G_rev (G transposed — failure-propagation direction)
+         │  Build G_rev = G.reverse()      (transposed — failure-propagation direction)
+         │  Build G_dist = build_distance_graph(G)  (inverted weights, distance semantics)
+         │  Empty subgraph → _empty_result(layer) short circuit
 
-Phase 2  Centrality metrics  (all on directed G / G_rev / G_dist)
-         │  PageRank(G, d=0.85, weight)              → pagerank
+Phase 2  _compute_centrality(G, G_rev, G_dist, n)      → _Centrality
+         │  PageRank(G, d=0.85, weight)              → pagerank (PR)
          │  PageRank(G_rev, d=0.85, weight)          → reverse_pagerank (RPR)
          │  betweenness_centrality(G_dist, weight)   → betweenness (BT)
          │  harmonic_centrality(G) / (n-1)           → closeness (CL)
          │  harmonic_centrality(G_rev) / (n-1)       → reverse_closeness (RCL)
          │  _safe_eigenvector(G)                     → eigenvector (EV)
-         │    fallback chain: eigenvector → Katz → zeros
+         │    fallback chain: eigenvector → Katz(α=0.01) → zeros
          │  _safe_eigenvector(G_rev)                 → reverse_eigenvector (REV)
+         │  edge_betweenness_centrality(G_dist)      → per-edge betweenness
 
- Phase 3  Degree & new Tier 1 metrics
-          │  in_degree, out_degree per node (raw + normalized by n-1)
-          │  MPCI(v) = Σ max(path_count(e)-1, 0) / (n-1) over InEdges(v)
-          │  path_complexity(v) = mean(log2(1+path_count(e))) over OutEdges(v)
-          │  FOC(t) = log1p(f(t)) × s(t) / max_t[log1p(f(t)) × s(t)] (Topic nodes, frequency-weighted)
-          │    where f(t) = topic message frequency in Hz, s(t) = subscriber count
+Phase 3  _compute_coupling(G, n)                       → _Coupling
+         │  MPCI(v) = Σ max(path_count(e)-1, 0) / (n-1) over InEdges(v)
+         │  path_complexity(v) = mean(log2(1+path_count(e))) over OutEdges(v)
+         │  FOC(t) = log1p(f(t)) × s(t) / max_t[log1p(f(t)) × s(t)]  (Topic nodes only)
+         │    where f(t) = topic message frequency in Hz, s(t) = subscriber count
 
-Phase 4  AP_c_directed & CDI
-         │  _compute_continuous_ap_scores(G):
-         │    For each node v:
-         │      AP_c_out(v) = 1 - |largest_CC(G_undirected \ v)| / (n-1)
-         │      AP_c_in(v)  = 1 - |largest_CC(G_T_undirected \ v)| / (n-1)
-         │      AP_c_directed(v) = max(AP_c_out, AP_c_in)
-         │      CDI(v) = min((avg_L(G\v) - avg_L(G)) / avg_L(G), 1.0)
-         │    Optimization: for |V| > 300 the CDI BFS uses the top-50
-         │    highest-degree "core" nodes (Application, Broker, Node),
-         │    ranked by in+out degree — deterministic, no randomness
+Phase 4  _compute_continuous_ap_scores(G)  +  _compute_reachability(G)
+         │  For each node v:
+         │    AP_c_out(v) = 1 - |largest_CC(G_undirected \ v)| / (n-1)
+         │    AP_c_in(v)  = 1 - |largest_CC(G_T_undirected \ v)| / (n-1)
+         │    AP_c_directed(v) = max(AP_c_out, AP_c_in)
+         │    CDI(v) = min((avg_L(G\v) - avg_L(G)) / avg_L(G), 1.0)
+         │    blast_radius(v)  = |descendants(v)|
+         │    cascade_depth(v) = longest path in the ego-subgraph rooted at v
+         │  Optimization: for |V| > 300 the CDI BFS uses the top-50
+         │  highest-degree "core" nodes (Application, Broker, Node),
+         │  ranked by in+out degree — deterministic, no randomness
 
-Phase 5  Resilience metrics  (all on undirected projection U)
+Phase 5  _compute_resilience(G)                         → _Resilience
          │  clustering_coefficient   via nx.clustering(U)
          │  is_articulation_point    via nx.articulation_points(U)
-         │  bridges                  via nx.bridges(U)
-         │  bridge_ratio = bridge_count(v) / degree(v)
+         │  is_directed_ap           via _compute_directed_articulation_points(G)
+         │  bridges                  via nx.bridges(U), counted per incident node
          │  (Disconnected graphs: AP/bridge detection runs per connected component)
 
-Phase 6  Pub-sub topology & QoS
-         │  _compute_pubsub_metrics():
-         │    Build bipartite app-topic graph from PUBLISHES_TO / SUBSCRIBES_TO edges
-         │    pubsub_degree     = degree in bipartite graph / max_degree
+Phase 6  _compute_pubsub_metrics()  +  _collect_qos_profile()
+         │  Build bipartite app-topic graph from PUBLISHES_TO / SUBSCRIBES_TO edges
+         │    pubsub_degree      = degree in bipartite graph / max_degree
          │    pubsub_betweenness = betweenness_centrality(bipartite graph)
-         │    broker_exposure   = avg distinct brokers routing app's topics / max
-         │  _collect_qos_profile():
-         │    Aggregate durability, reliability, transport_priority distributions
-         │    across all Topic nodes — passed to QualityAnalyzer for RMAV weight adjustment
+         │    broker_exposure    = avg distinct brokers routing app's topics / max
+         │    publisher_spof     = max(w(t) × min(sub_count(t)/5, 1)) over sole-pub topics
+         │  Aggregate durability, reliability, transport_priority distributions
+         │    across all Topic nodes — consumed by QualityAnalyzer for weight adjustment
 
-Phase 7  Assemble & normalize
+Phase 7  _build_component_metrics()  +  _build_edge_metrics()  +  _build_summary()
          │  Assemble StructuralMetrics per node (only for types_to_analyze)
          │  _compute_code_quality_metrics():
          │    Min-max normalize loc, cyclomatic_complexity, lcom independently
          │    per Application population and per Library population
          │    CQP = 0.10·loc_norm + 0.35·complexity_norm + 0.30·instability_code + 0.25·lcom_norm
-         │  Assemble EdgeMetrics per edge
-         │  RCM ordering: reverse_cuthill_mckee for bandwidth minimization
+         │  Assemble EdgeMetrics per edge with at least one analysed endpoint
+         │  _rcm_order(): reverse_cuthill_mckee for bandwidth minimization
          │  _build_summary() → GraphSummary S(G)
 ```
 
@@ -285,19 +300,19 @@ No single metric captures all aspects of structural criticality. Two components 
 - **Component A** has many transitive dependents (high RPR) but sits in a well-connected, redundant subgraph (low BT, AP_c_directed = 0, BR ≈ 0). It is a broad reliability risk but not a SPOF.
 - **Component B** has few direct dependents (low RPR) but is the single connection between two graph clusters (AP_c_directed = 0.82, BR = 1.0). It is a structural single point of failure despite low blast radius.
 
-A single metric misclassifies both. Fourteen RMAV-input metrics (the Tier-1 rows of [§10](#10-metric-catalogue-reference): RPR, DG_in, MPCI, FOC, BT, w_out, CC, AP_c_directed, BR, CDI, REV, RCL, w_in, PC), drawn from four different theoretical families — random walk, local topology, resilience, and QoS-weighted degree — together produce a complete and orthogonal structural fingerprint.
+A single metric misclassifies both. The fourteen Tier-1 metrics (listed once, in [§10](#10-metric-catalogue-reference)) are drawn from four different theoretical families — random walk, local topology, resilience, and QoS-weighted degree — and together produce a complete and orthogonal structural fingerprint.
 
 ---
 
 ## 7. Metric Taxonomy
 
-Every field in M(v) belongs to exactly one of three tiers. This taxonomy is the key to understanding which fields feed which later computation.
+Every field in M(v) belongs to exactly one of three tiers. This taxonomy is the key to understanding which fields feed which later computation. The `Tier` column of [§10](#10-metric-catalogue-reference) assigns every field to one of these:
 
-| Tier | Purpose | Metrics |
-|------|---------|---------| 
-| **Tier 1 — RMAV inputs** | Directly feed R(v), M(v), A(v), or V(v) in Step 2 (Analyze, RMAV sub-phase) | RPR, DG_in, MPCI, FOC, BT, w_out, CC, AP_c_directed, BR, CDI, REV, RCL, w_in, PC |
-| **Tier 2 — Diagnostic** | Computed for visualization, output reports, and GNN features; do not feed RMAV formulas | PR, CL, EV, pubsub_degree, pubsub_betweenness, broker_exposure |
-| **Tier 3 — Raw / inline-derived** | Integer counts and inline-derived scalars used only within Step 2 (Analyze, RMAV sub-phase) formulas; not stored as normalized metrics | DG_in_raw, DG_out_raw, is_articulation_point, bridge_count, CDPot, CouplingRisk_enh, QSPOF |
+| Tier | Purpose |
+|------|---------|
+| **Tier 1 — RMAV inputs** | Directly feed R(v), M(v), A(v), or V(v) in the RMAV sub-phase ([§11](#11-analyze-stage--rule-based-rmav-scoring)) |
+| **Tier 2 — Diagnostic** | Computed for visualization, output reports, and GNN features; do not feed RMAV formulas |
+| **Tier 3 — Raw / inline-derived** | Integer counts and inline-derived scalars used only *within* RMAV formulas; not stored as normalized metrics |
 
 **Why PR, CL, EV are Tier 2:** The *forward* variants (PageRank, Closeness, Eigenvector) measure how much a component itself is influenced by others — they are informative for dependency visualization but do not directly capture failure propagation outward. Their reverse counterparts (RPR, RCL, REV), computed on G^T, capture how failures at v spread to v's dependents — the reliability-relevant direction. Computing both gives the full picture for dashboards while the RMAV formulas use only the reverse variants.
 
@@ -307,7 +322,7 @@ Every field in M(v) belongs to exactly one of three tiers. This taxonomy is the 
 
 ## 8. Normalization
 
-All Tier 1 metrics are normalized to [0, 1] before being consumed by Step 2 (Analyze, RMAV sub-phase). The **default method is `robust` normalization** (rank-based scaling):
+All Tier 1 metrics are normalized to [0, 1] before being consumed by the RMAV sub-phase ([§11](#11-analyze-stage--rule-based-rmav-scoring)). The **default method is `robust` normalization** (rank-based scaling):
 
 ```
 x_robust(v) = rank(v) / (|V| − 1)
@@ -415,7 +430,7 @@ path_count(e) = number of topics (or USES edges) jointly establishing edge e
 
 **Why `path_count − 1`:** A dependency with `path_count = 1` is a single coupling — baseline. Each additional shared topic is an *extra* coupling vector. MPCI sums these extra vectors across all dependents.
 
-**High MPCI(v) means:** Multiple components are coupled to v through redundant shared channels. Each channel is an independent failure vector for those dependents. This amplifies the cascade depth that CDPot (Step 2 (Analyze, RMAV sub-phase) derived term) estimates: when a dependency collapses, it does so across all shared channels simultaneously rather than one path at a time.
+**High MPCI(v) means:** Multiple components are coupled to v through redundant shared channels. Each channel is an independent failure vector for those dependents. This amplifies the cascade depth that CDPot (a derived term, [§11.3](#113-derived-terms)) estimates: when a dependency collapses, it does so across all shared channels simultaneously rather than one path at a time.
 
 ```
 MPCI(v) = 0    → all incoming dependencies are single-channel (baseline)
@@ -443,7 +458,7 @@ where `f(t)` = topic message frequency in Hz, `s(t)` = subscriber count.
 
 **High FOC(t) means:** Topic t is a data distribution relay for many subscribers at high message rate. If t becomes unreachable (broker failure, routing failure), all subscribers simultaneously lose their data source. The `log1p` compression handles large frequency variance while preserving monotonicity.
 
-> **Usage in R(v) for Topics:** In Step 2 (Analyze, RMAV sub-phase), when computing R(v) for a Topic node, the `DG_in` term is replaced with `FOC` because the dependency graph gives Topics no in-degree. The CDPot term uses `FOC` as the reach signal in place of `DG_in` for these nodes.
+> **Usage in R(v) for Topics:** In the RMAV sub-phase, when computing R(v) for a Topic node, the `DG_in` term is replaced with `FOC` because the dependency graph gives Topics no in-degree. The CDPot term uses `FOC` as the reach signal in place of `DG_in` for these nodes.
 >
 > **Layer restriction:** FOC is non-zero only when `--layer system` is used. Topic nodes are excluded from the `app` and `mw` subgraphs. The CLI will emit a warning when the active layer has no Topic nodes.
 
@@ -496,7 +511,7 @@ Computed on undirected projection of G_analysis(l). CC(v) = 0 if deg(v) < 2.
 
 ### 9.8 Directed AP Score (AP_c_directed)
 
-*Tier 1 → A(v). Stored in M(v) (previously inline-computed in Step 2 (Analyze, RMAV sub-phase)).*
+*Tier 1 → A(v). Stored in M(v) (previously inline-computed during RMAV scoring).*
 
 The undirected AP_c measures how badly an undirected graph fragments. For a directed dependency graph, the directional variant captures how much of the *reachability structure* is lost when v is removed.
 
@@ -539,7 +554,7 @@ BR(v) = 0 if degree(v) = 0
 
 ### 9.10 Connectivity Degradation Index (CDI)
 
-*Tier 1 → A(v). Stored in M(v) (previously inline-computed in Step 2 (Analyze, RMAV sub-phase)).*
+*Tier 1 → A(v). Stored in M(v) (previously inline-computed during RMAV scoring).*
 
 Catches "soft" SPOF situations where v is not a strict articulation point but its removal still significantly lengthens paths in the surviving graph.
 
@@ -620,7 +635,7 @@ w_in(v) = Σ_{(u,v) ∈ InEdges(v)} weight(u,v)    (raw sum, then rank-normalize
 PC(v) = mean( log2(1 + path_count(e)) ) over e ∈ OutEdges(v)
 ```
 
-**High PC(v) means:** v depends on other components through multiple redundant paths (shared topics). While this adds reliability, it increases the **Maintainability** risk (M) because change impact propagation follows all available paths. A change to v's logic may require complex re-synchronization across all paths mediating its efferent dependencies. PC serves as an intensifier for the **Coupling Risk** term in Step 2 (Analyze, RMAV sub-phase).
+**High PC(v) means:** v depends on other components through multiple redundant paths (shared topics). While this adds reliability, it increases the **Maintainability** risk (M) because change impact propagation follows all available paths. A change to v's logic may require complex re-synchronization across all paths mediating its efferent dependencies. PC serves as an intensifier for the **Coupling Risk** term ([§11.3](#113-derived-terms)).
 
 
 ### 9.15 Diagnostic Metrics
@@ -641,24 +656,25 @@ PC(v) = mean( log2(1 + path_count(e)) ) over e ∈ OutEdges(v)
 
 ## 10. Metric Catalogue Reference
 
-Complete M(v) field listing. Every field has a tier, a RMAV dimension (or "—" for Tier 2), and a direction (↑ = higher is worse / more critical, ↓ = higher is better).
+Complete M(v) field listing — the single authoritative index. Every field has a tier ([§7](#7-metric-taxonomy)), a RMAV dimension (or "—" for Tier 2), and a direction (↑ = higher is worse / more critical, ↓ = higher is better). Tier-1 symbols link to their formal definition in [§9](#9-formal-definitions).
 
-| Field | Symbol | Tier | RMAV Dim | Dir | Description |
-|-------|--------|------|----------|-----|-------------|
-| `reverse_pagerank` | RPR | 1 | R | ↑ | Global cascade reach |
-| `in_degree` | DG_in | 1 | R | ↑ | Normalised direct dependent count |
-| `mpci` | MPCI | 1 | R | ↑ | Multi-path coupling intensity |
-| `fan_out_criticality` | FOC | 1 | R | ↑ | Topic fan-out (log1p(Hz) × subscribers, Topic nodes only) |
-| `betweenness` | BT | 1 | M | ↑ | Bottleneck position |
-| `dependency_weight_out` | w_out | 1 | M | ↑ | QoS-weighted efferent coupling |
-| `clustering_coefficient` | CC | 1 | M | ↓ | Local redundancy (used as 1−CC in M) |
-| `ap_c_directed` | AP_c_dir | 1 | A | ↑ | Directed SPOF severity |
-| `bridge_ratio` | BR | 1 | A | ↑ | Fraction of non-redundant edges |
-| `cdi` | CDI | 1 | A | ↑ | Path elongation on removal |
-| `reverse_eigenvector` | REV | 1 | V | ↑ | Strategic compromise reach |
-| `reverse_closeness` | RCL | 1 | V | ↑ | Adversarial propagation speed |
-| `dependency_weight_in` | w_in | 1 | V | ↑ | QoS-weighted afferent surface (QADS) |
-| `path_complexity` | PC | 1 | M | ↑ | Efferent path count complexity |
+| Field | Symbol | Tier | RMAV Dim | Dir | Notes |
+|-------|--------|------|----------|-----|-------|
+| `reverse_pagerank` | [RPR](#91-reverse-pagerank-rpr) | 1 | R | ↑ | |
+| `in_degree` | [DG_in](#92-in-degree-dg_in) | 1 | R | ↑ | |
+| `mpci` | [MPCI](#93-multi-path-coupling-index-mpci) | 1 | R | ↑ | Enters R(v) via CDPot_enh |
+| `fan_out_criticality` | [FOC](#94-fan-out-criticality-foc) | 1 | R | ↑ | Topic nodes only; substitutes for DG_in |
+| `betweenness` | [BT](#95-betweenness-centrality-bt) | 1 | M | ↑ | |
+| `dependency_weight_out` | [w_out](#96-qos-weighted-out-degree-w_out) | 1 | M | ↑ | |
+| `clustering_coefficient` | [CC](#97-clustering-coefficient-cc) | 1 | M | ↓ | Used as 1−CC in M(v) |
+| `path_complexity` | [PC](#914-path-complexity-pc) | 1 | M | ↑ | Enters M(v) via CouplingRisk_enh |
+| `ap_c_directed` | [AP_c_dir](#98-directed-ap-score-ap_c_directed) | 1 | A | ↑ | Also a factor in QSPOF |
+| `bridge_ratio` | [BR](#99-bridge-ratio-br) | 1 | A | ↑ | |
+| `cdi` | [CDI](#910-connectivity-degradation-index-cdi) | 1 | A | ↑ | |
+| `weight` | w | 1 | A | ↑ | Component QoS weight from Step 1; factor in QSPOF |
+| `reverse_eigenvector` | [REV](#911-reverse-eigenvector-centrality-rev) | 1 | V | ↑ | |
+| `reverse_closeness` | [RCL](#912-reverse-closeness-centrality-rcl) | 1 | V | ↑ | |
+| `dependency_weight_in` | [w_in](#913-qos-weighted-in-degree-w_in--qads) | 1 | V | ↑ | QADS |
 | `pagerank` | PR | 2 | — | — | Forward transitive importance |
 | `closeness` | CL | 2 | — | — | Forward propagation speed |
 | `eigenvector` | EV | 2 | — | — | Forward influence |
@@ -669,12 +685,13 @@ Complete M(v) field listing. Every field has a tier, a RMAV dimension (or "—" 
 | `in_degree_raw` | — | 3 | — | — | Raw integer in-degree (for CouplingRisk_enh derivation) |
 | `out_degree_raw` | — | 3 | — | — | Raw integer out-degree (for CouplingRisk_enh derivation) |
 | `bridge_count` | — | 3 | — | — | Integer count of bridge edges incident to v |
-| `is_articulation_point` | — | 3 | — | — | Binary AP flag (derived from undirected articulation detection) |
-| `is_directed_ap` | — | 3 | — | — | Binary flag for directed articulation (used in cross-layer systemic_spof detection) |
-| `blast_radius` | — | 3 | — | — | Number of descendants reachable if v is removed |
+| `is_articulation_point` | — | 3 | — | — | Binary AP flag (undirected articulation detection) |
+| `is_directed_ap` | — | 3 | — | — | Binary directed-articulation flag (used in `systemic_spof` detection) |
+| `blast_radius` | — | 3 | — | — | Number of descendants reachable from v |
 | `cascade_depth` | — | 3 | — | — | Longest failure propagation path from v |
 | `topic_frequency_hz` | — | 3 | — | — | Raw message rate in Hz (Topic nodes; 0.0 otherwise) |
-| `weight` | w | 1 | A | ↑ | Component QoS weight from Step 1; factor in QSPOF |
+
+Tier-2 diagnostics are described in [§9.15](#915-diagnostic-metrics).
 
 **Code quality metrics** (Application and Library nodes only; 0.0 for all other types):
 
@@ -713,14 +730,14 @@ All inputs are normalized to [0, 1] by Step 2's rank normalization unless otherw
 > **The weights printed below are the pre-shrinkage judgement, not the shipped defaults.**
 > `AHPProcessor.compute_weights()` ([saag/analysis/weight_calculator.py#L314](../saag/analysis/weight_calculator.py#L314)) applies the shrinkage factor λ to the **intra-dimension** vectors as well as the composite, and the shipped default is λ = 0.70. So every formula in this section runs with weights pulled ~30 % of the way toward uniform:
 >
-> | Dimension | λ = 1.0 (as written below) | λ = 0.70 (shipped default) |
-> |---|---|---|
-> | Q(v) — A, R, M, V | 0.458, 0.246, 0.169, 0.128 | **0.395, 0.247, 0.193, 0.165** |
-> | R(v) — RPR, DG_in, CDPot | 0.460, 0.319, 0.221 | **0.422, 0.324, 0.255** |
-> | M(v) — BT, w_out, CouplingRisk, 1−CC | 0.350, 0.300, 0.120, 0.080 | **0.305, 0.270, 0.144, 0.116** |
-> | V(v) — REV, RCL, w_in | 0.400, 0.351, 0.249 | **0.380, 0.346, 0.274** |
+> | Dimension | λ = 0.70 (shipped default) |
+> |---|---|
+> | Q(v) — A, R, M, V | 0.395, 0.247, 0.193, 0.165 |
+> | R(v) — RPR, DG_in, CDPot | 0.422, 0.324, 0.255 |
+> | M(v) — BT, w_out, CouplingRisk, 1−CC | 0.305, 0.270, 0.144, 0.116 |
+> | V(v) — REV, RCL, w_in | 0.380, 0.346, 0.274 |
 >
-> Reproduce with `AHPProcessor(shrinkage_factor=λ).compute_weights()`. The rounded values quoted in the formulas (0.45 / 0.30 / 0.25 etc.) are the design intent at λ = 1.0; use the right-hand column when reconciling against runtime output.
+> The rounded values quoted in the formulas below (0.45 / 0.30 / 0.25 etc.) are the design intent at λ = 1.0, derived from the pairwise matrices in [§11.5](#115-ahp-weight-derivation); use this table when reconciling against runtime output. Reproduce either column with `AHPProcessor(shrinkage_factor=λ).compute_weights()`.
 
 ---
 
@@ -1110,7 +1127,7 @@ The `StructuralMetrics` dataclass stores all fields above per component. The gra
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `layer` | str | Layer identifier (e.g. `"system"`) |
+| `layer` | str | Canonical identifier of the analysed layer — `"app"`, `"infra"`, `"mw"`, or `"system"` |
 | `nodes` | int | Number of components in this layer subgraph |
 | `edges` | int | Number of DEPENDS_ON edges |
 | `density` | float | `edges / (nodes × (nodes−1))` |
@@ -1215,7 +1232,7 @@ Both MainBroker and NavLib are structural SPOFs with BR = 1.0. Adding redundancy
 
 **Overall:** O(|V|² + |V|×|E|), dominated by AP_c_directed and CDI. An `xlarge` system (200 components, ~600 edges) completes in approximately 20–25 seconds. AP_c_directed and CDI together account for roughly 70% of runtime.
 
-> **Performance note:** AP_c_directed and CDI are both computed in StructuralAnalyzer (moved from QualityAnalyzer). This consolidation eliminates one redundant O(|V|²) pass previously performed in Step 2 (Analyze, RMAV sub-phase). For enterprise-scale systems (|V| > 300), the CDI BFS is restricted to the top-50 "core" nodes (Application, Broker, Node) ranked by total degree (in + out). This is fully deterministic — the same graph always produces the same CDI values — and prioritises the nodes most likely to have significant path-length impact when removed.
+> **Performance note:** AP_c_directed and CDI are both computed in StructuralAnalyzer (moved from QualityAnalyzer). This consolidation eliminates one redundant O(|V|²) pass previously performed during RMAV scoring. For enterprise-scale systems (|V| > 300), the CDI BFS is restricted to the top-50 "core" nodes (Application, Broker, Node) ranked by total degree (in + out). This is fully deterministic — the same graph always produces the same CDI values — and prioritises the nodes most likely to have significant path-length impact when removed.
 
 ---
 
@@ -1234,10 +1251,10 @@ PYTHONPATH=. python cli/analyze_graph.py --layer mw
 # Analyze the infrastructure layer (Nodes only)
 PYTHONPATH=. python cli/analyze_graph.py --layer infra
 
-# Analyze all four layers sequentially — also produces cross_layer_insights
+# Analyze all four layers
 PYTHONPATH=. python cli/analyze_graph.py --layer all
 
-# Analyze multiple specific layers (comma-separated) — also produces cross_layer_insights
+# Analyze multiple specific layers (comma-separated)
 PYTHONPATH=. python cli/analyze_graph.py --layer app,system
 
 # Export full metric vectors M(v) to JSON
@@ -1245,24 +1262,6 @@ PYTHONPATH=. python cli/analyze_graph.py --layer system --output results/metrics
 
 # Multi-layer export: produces metrics_app.json, metrics_system.json
 PYTHONPATH=. python cli/analyze_graph.py --layer app,system --output results/metrics.json
-
-# Normalization methods
-# Note: "robust" (default) performs rank-based normalization, not IQR scaling
-PYTHONPATH=. python cli/analyze_graph.py --layer system                 # rank-based (default)
-PYTHONPATH=. python cli/analyze_graph.py --layer system --norm rank       # same as default
-PYTHONPATH=. python cli/analyze_graph.py --layer system --norm minmax   # min-max normalization
-PYTHONPATH=. python cli/analyze_graph.py --layer system --norm zscore     # z-score normalization
-
-# Enable winsorization to cap extreme outliers at the 95th percentile before ranking
-PYTHONPATH=. python cli/analyze_graph.py --layer system --winsorize
-
-# Weight modes for Step 2 (Analyze, RMAV sub-phase) — do not affect M(v) computation
-PYTHONPATH=. python cli/analyze_graph.py --layer system --use-ahp              # AHP-derived weights
-PYTHONPATH=. python cli/analyze_graph.py --layer system --equal-weights        # equal 0.25 per dimension
-PYTHONPATH=. python cli/analyze_graph.py --layer system --use-ahp --ahp-shrinkage 0.5
-
-# Run AHP weight sensitivity analysis (Kendall τ stability report)
-PYTHONPATH=. python cli/analyze_graph.py --layer system --sensitivity
 
 # Connect to a non-default Neo4j instance
 PYTHONPATH=. python cli/analyze_graph.py --uri bolt://myhost:7687 --user neo4j --password secret
@@ -1273,15 +1272,11 @@ PYTHONPATH=. python cli/analyze_graph.py --layer app --verbose
 
 ### 15.1 CLI Argument Reference
 
+`cli/analyze_graph.py` computes **M(v) and S(G) only** — it takes no RMAV options, because scoring belongs to the Predict stage.
+
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--layer`, `-l` | `system` | Layer(s) to analyze. Accepts a single layer, comma-separated list, or `all`. |
-| `--norm` | `robust` | Normalization method: `robust` (rank-based), `rank` (same as robust), `minmax`, `zscore`. |
-| `--winsorize` | off | Cap raw values above the 95th percentile before normalization. |
-| `--use-ahp` | off | Use AHP-derived RMAV dimension weights (Step 2 Analyze, RMAV sub-phase only). |
-| `--equal-weights` | off | Use equal 0.25 weights for all RMAV dimensions (baseline). |
-| `--ahp-shrinkage` | `0.7` | Shrinkage factor λ ∈ [0, 1] for AHP weight blending. |
-| `--sensitivity` | off | Run Kendall τ weight sensitivity analysis after prediction. |
 | `--output`, `-o` | — | Path to save full JSON results. Parent directory created if absent. |
 | `--uri` | `bolt://localhost:7687` | Neo4j Bolt URI (overrides `NEO4J_URI` env var). |
 | `--user`, `-u` | `neo4j` | Neo4j username (overrides `NEO4J_USER` env var). |
@@ -1289,7 +1284,34 @@ PYTHONPATH=. python cli/analyze_graph.py --layer app --verbose
 | `--verbose`, `-v` | off | Enable DEBUG-level logging. |
 | `--quiet`, `-q` | off | Suppress INFO messages; show only warnings and errors. |
 
+**Where the RMAV options live.** Normalization, weighting, and sensitivity all belong to the RMAV sub-phase ([§11](#11-analyze-stage--rule-based-rmav-scoring)) and are exposed by `saag-predict` (`cli/predict_graph.py`), which runs structural analysis and then scores it:
+
+```bash
+# Normalization methods — "robust" (default) is rank-based, not IQR scaling
+PYTHONPATH=. python cli/predict_graph.py --layer system --norm minmax
+PYTHONPATH=. python cli/predict_graph.py --layer system --norm zscore
+
+# Cap extreme outliers at the 95th percentile before ranking
+PYTHONPATH=. python cli/predict_graph.py --layer system --winsorize
+
+# Weight modes — do not affect M(v) computation
+PYTHONPATH=. python cli/predict_graph.py --layer system --use-ahp
+PYTHONPATH=. python cli/predict_graph.py --layer system --equal-weights
+PYTHONPATH=. python cli/predict_graph.py --layer system --use-ahp --ahp-shrinkage 0.5
+
+# Kendall τ weight sensitivity report
+PYTHONPATH=. python cli/predict_graph.py --layer system --sensitivity
+```
+
+**Where cross-layer insights come from.** They require RMAV levels, so they are produced by the multi-layer path ([§4](#4-cross-layer-analysis)) — the `saag` orchestrator or the REST API, not `cli/analyze_graph.py`:
+
+```bash
+saag --analyze --layers app,infra,mw,system --output results/analysis.json
+```
+
 ### 15.2 Interpreting the Output
+
+The Q(v) column and the criticality labels below come from the RMAV sub-phase, so they appear on the `saag-predict` / `saag --analyze` output. `cli/analyze_graph.py` prints the summary line and the raw metric columns only.
 
 ```
 Layer: app | 35 components | 87 edges | density: 0.073
@@ -1305,7 +1327,7 @@ Topic Fan-Out Hotspots (system layer only):
   /command/velocity  FOC=0.75  subscribers=9   — blast relay for 9 applications
 ```
 
-When `--layer all` is used, the output JSON also includes a `cross_layer_insights` array:
+On the multi-layer path, the output JSON also includes a `cross_layer_insights` array:
 
 ```json
 "cross_layer_insights": [

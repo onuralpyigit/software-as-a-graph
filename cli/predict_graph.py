@@ -86,6 +86,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Shrinkage factor λ ∈ [0,1] blending AHP weights toward equal weights "
              "(default: 0.7). Ignored when --equal-weights is set.",
     )
+    weight_grp.add_argument(
+        "--norm", type=str, choices=["robust", "minmax", "zscore", "rank"], default="robust",
+        help="Normalization applied to Tier-1 metrics before the RMAV weighted sum "
+             "(default: robust, i.e. rank-based)",
+    )
+    weight_grp.add_argument(
+        "--winsorize", action="store_true",
+        help="Cap raw metric values above the 95th percentile before normalization",
+    )
+    weight_grp.add_argument(
+        "--sensitivity", action="store_true",
+        help="Run Kendall τ weight sensitivity analysis after scoring",
+    )
 
     # ── GNN inference ─────────────────────────────────────────────────────────
     gnn_grp = parser.add_argument_group("GNN inference (Step 3b, optional)")
@@ -425,16 +438,20 @@ def main() -> None:
     for layer in layers:
         display.print_step(f"[{layer.upper()}] Structural analysis…")
 
-        analysis = client.analyze(
-            layer=layer,
-            equal_weights=args.equal_weights,
-            use_ahp=args.use_ahp,
-            ahp_shrinkage=args.ahp_shrinkage,
-        )
+        analysis = client.analyze(layer=layer)
 
         # ── RMAS prediction (Step 3: unified Predict step, RMAV path) ─────────
         display.print_step(f"[{layer.upper()}] RMAS quality scoring…")
-        prediction = client.predict(analysis, mode="rmav")
+        prediction = client.predict(
+            analysis,
+            mode="rmav",
+            equal_weights=args.equal_weights,
+            use_ahp=args.use_ahp,
+            ahp_shrinkage=args.ahp_shrinkage,
+            normalization_method=args.norm,
+            winsorize=args.winsorize,
+            run_sensitivity=args.sensitivity,
+        )
 
         components = prediction.raw.components if prediction.raw else []
         total_components = len(components)

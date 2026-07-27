@@ -27,6 +27,11 @@ from dataclasses import dataclass
 import networkx as nx
 import numpy as np
 
+from saag.analysis.graph_ops import (
+    articulation_points_disconnected,
+    bridges_disconnected,
+    build_distance_graph,
+)
 from saag.analysis.structural_analyzer import extract_layer_subgraph
 from saag.core.layers import AnalysisLayer, get_layer_definition
 
@@ -1201,33 +1206,10 @@ def _build_structural_graph(graph_data: Any) -> nx.DiGraph:
     return G
 
 
-def _build_distance_graph(G: nx.DiGraph) -> nx.DiGraph:
-    """Return a copy of G with weights inverted for distance-based betweenness."""
-    G_dist = G.copy()
-    for u, v, data in G_dist.edges(data=True):
-        w = data.get("weight", 1.0)
-        data["weight"] = 1.0 / w if w > 0 else 1.0
-    return G_dist
-
-
-def _art_points_disconnected(U: nx.Graph) -> Set[str]:
-    """Articulation points across all connected components."""
-    pts: Set[str] = set()
-    for comp in nx.connected_components(U):
-        sub = U.subgraph(comp)
-        if len(sub) >= 3:
-            pts.update(nx.articulation_points(sub))
-    return pts
-
-
-def _bridges_disconnected(U: nx.Graph) -> Set:
-    """Bridges across all connected components."""
-    br = set()
-    for comp in nx.connected_components(U):
-        sub = U.subgraph(comp)
-        if len(sub) >= 2:
-            br.update(nx.bridges(sub))
-    return br
+# Shared with structural_analyzer — see saag/analysis/graph_ops.py
+_build_distance_graph = build_distance_graph
+_art_points_disconnected = articulation_points_disconnected
+_bridges_disconnected = bridges_disconnected
 
 
 def _compute_ap_c_fast(

@@ -40,8 +40,10 @@ from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass
-from typing import Dict, List, Any, Optional, Set, Tuple
+import time
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from typing import Dict, Iterator, List, Any, Optional, Set, Tuple
 
 import networkx as nx
 from networkx.utils import reverse_cuthill_mckee_ordering
@@ -53,12 +55,38 @@ from saag.core.layers import (
 )
 from saag.core.metrics import StructuralMetrics, EdgeMetrics, GraphSummary
 
+from .graph_ops import (
+    articulation_points_disconnected,
+    bridges_disconnected,
+    build_distance_graph,
+)
+
 
 # ---------------------------------------------------------------------------
 # Result container
 # ---------------------------------------------------------------------------
 
 from .models import StructuralAnalysisResult
+
+
+# ---------------------------------------------------------------------------
+# Tuning constants
+# ---------------------------------------------------------------------------
+
+#: CQP v7 weights — (loc, cyclomatic complexity, instability, LCOM).
+_CQP_WEIGHTS = (0.10, 0.35, 0.30, 0.25)
+
+#: Subscriber count at which publisher-SPOF severity saturates.
+_PSPOF_SUB_SATURATION = 5.0
+
+
+@contextmanager
+def _phase(logger: logging.Logger, label: str) -> Iterator[None]:
+    """Log the start and wall-clock duration of one analysis phase."""
+    t0 = time.perf_counter()
+    logger.info("  %s…", label)
+    yield
+    logger.info("  %s done (%.2fs)", label, time.perf_counter() - t0)
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +160,47 @@ def extract_layer_subgraph(
 
 
 # ---------------------------------------------------------------------------
+# Phase results
+#
+# Each dataclass below is the output of one phase of StructuralAnalyzer.analyze.
+# They exist to keep the orchestrator readable — the fields are unpacked into
+# StructuralMetrics by _build_component_metrics.
+# ---------------------------------------------------------------------------
+
+@dataclass
+class _Centrality:
+    """Phase 2 — centrality measures on G, G^T and the inverted-weight G_dist."""
+    pagerank: Dict[str, float]
+    reverse_pagerank: Dict[str, float]
+    betweenness: Dict[str, float]
+    closeness: Dict[str, float]
+    reverse_closeness: Dict[str, float]
+    eigenvector: Dict[str, float]
+    reverse_eigenvector: Dict[str, float]
+    edge_betweenness: Dict[Tuple[str, str], float]
+
+
+@dataclass
+class _Coupling:
+    """Phase 3 — path-count and fan-out derived metrics."""
+    mpci: Dict[str, float] = field(default_factory=dict)
+    path_complexity: Dict[str, float] = field(default_factory=dict)
+    fan_out_criticality: Dict[str, float] = field(default_factory=dict)
+    topic_frequency_hz: Dict[str, float] = field(default_factory=dict)
+
+
+@dataclass
+class _Resilience:
+    """Phase 5 — undirected resilience structure (clustering, APs, bridges)."""
+    undirected: nx.Graph
+    clustering: Dict[str, float]
+    articulation_points: Set[str]
+    directed_aps: Set[str]
+    bridges: Set[Tuple[str, str]]
+    bridge_count: Dict[str, int]
+
+
+# ---------------------------------------------------------------------------
 # Analyzer
 # ---------------------------------------------------------------------------
 
@@ -159,183 +228,247 @@ class StructuralAnalyzer:
         """
         Compute structural metrics for *graph_data* filtered by *layer*.
 
-        Steps:
-            1. Build layer-specific subgraph
-            2. Compute centrality metrics (directed, with correct weight semantics)
-            3. Compute degree metrics (directed, raw + normalized)
-            4. Detect articulation points / bridges (undirected)
-            5. Compute edge metrics (directed, inverted weights)
-            6. Assemble component metrics with all fields populated
-            7. Build graph-level summary
+        Phases (each delegates to the like-named private method):
+            1. extract_layer_subgraph  — layer-filtered DiGraph G, plus G^T and G_dist
+            2. _compute_centrality     — PageRank/RPR, betweenness, closeness, eigenvector
+            3. _compute_coupling       — MPCI, path complexity, fan-out criticality
+            4. _compute_reachability   — blast radius, cascade depth, AP_c/CDI scores
+            5. _compute_resilience     — clustering, articulation points, bridges
+            6. _compute_pubsub_metrics — bipartite app↔topic metrics + QoS profile
+            7. _build_component_metrics / _build_edge_metrics / _build_summary
         """
-        import time as _time
         defn = get_layer_definition(layer)
 
-        # --- 2a. Build layer subgraph ---
-        self._logger.info("  2a. Building layer subgraph for '%s'…", layer.value)
-        _t = _time.perf_counter()
-        G = extract_layer_subgraph(graph_data, layer)
-        self._logger.info(
-            "  2a. Subgraph ready: %d nodes, %d edges (%.2fs)",
-            G.number_of_nodes(), G.number_of_edges(), _time.perf_counter() - _t,
-        )
+        with _phase(self._logger, f"1. Building layer subgraph for '{layer.value}'"):
+            G = extract_layer_subgraph(graph_data, layer)
 
         if G.number_of_nodes() == 0:
             return self._empty_result(layer)
+
+        self._logger.info(
+            "     Subgraph: %d nodes, %d edges", G.number_of_nodes(), G.number_of_edges()
+        )
 
         # Filter components to analyse (e.g. MW only reports Brokers)
         analyze_types = defn.types_to_analyze
         n_nodes = G.number_of_nodes()
 
-        # --- Build inverted-weight graph for distance-based metrics ---
-        G_dist = self._build_distance_graph(G)
-
-        # --- 2b. PageRank centrality ---
-        self._logger.info("  2b. Computing PageRank and Reverse PageRank…")
-        _t = _time.perf_counter()
-        pagerank = nx.pagerank(G, alpha=self.damping_factor, weight="weight")
+        # G^T is the failure-propagation direction; G_dist inverts weights so
+        # distance-based algorithms treat strong dependencies as "close".
         G_rev = G.reverse()
-        reverse_pagerank = nx.pagerank(G_rev, alpha=self.damping_factor, weight="weight")
-        self._logger.info("  2b. PageRank done (%.2fs)", _time.perf_counter() - _t)
+        G_dist = build_distance_graph(G)
 
-        # --- 2c. Betweenness centrality ---
-        self._logger.info("  2c. Computing betweenness centrality…")
-        _t = _time.perf_counter()
-        betweenness = nx.betweenness_centrality(G_dist, weight="weight", normalized=True)
-        self._logger.info("  2c. Betweenness done (%.2fs)", _time.perf_counter() - _t)
+        with _phase(self._logger, "2. Computing centrality metrics"):
+            centrality = self._compute_centrality(G, G_rev, G_dist, n_nodes)
 
-        # --- 2d. Harmonic closeness centrality ---
-        self._logger.info("  2d. Computing harmonic closeness centrality…")
-        _t = _time.perf_counter()
+        with _phase(self._logger, "3. Computing MPCI / fan-out criticality / path complexity"):
+            coupling = self._compute_coupling(G, n_nodes)
+
+        with _phase(self._logger, "4. Computing AP_c / CDI, blast radius, cascade depth"):
+            ap_scores = self._compute_continuous_ap_scores(G)
+            blast_radius, cascade_depth = self._compute_reachability(G)
+
+        with _phase(self._logger, "5. Computing clustering coefficients and bridges"):
+            resilience = self._compute_resilience(G)
+        self._logger.info(
+            "     %d articulation points, %d bridges",
+            len(resilience.articulation_points), len(resilience.bridges),
+        )
+
+        with _phase(self._logger, "6. Computing pub-sub topology metrics"):
+            pubsub_metrics = self._compute_pubsub_metrics(graph_data, set(G.nodes))
+            qos_profile = self._collect_qos_profile(graph_data)
+
+        with _phase(self._logger, "7. Assembling component and edge metrics"):
+            components = self._build_component_metrics(
+                G, analyze_types, n_nodes,
+                centrality, coupling, resilience,
+                ap_scores, blast_radius, cascade_depth, pubsub_metrics,
+            )
+            edge_metrics = self._build_edge_metrics(
+                G, analyze_types, centrality.edge_betweenness, resilience.bridges,
+            )
+            rcm_order = self._rcm_order(resilience.undirected, G)
+            summary = self._build_summary(
+                G, layer, resilience.articulation_points, resilience.bridges,
+            )
+        self._logger.info("     %d components, %d edges reported", len(components), len(edge_metrics))
+
+        return StructuralAnalysisResult(
+            layer=layer,
+            components=components,
+            edges=edge_metrics,
+            graph_summary=summary,
+            graph=G,
+            qos_profile=qos_profile,
+            rcm_order=rcm_order,
+        )
+
+    # ------------------------------------------------------------------
+    # Analysis phases
+    # ------------------------------------------------------------------
+
+    def _compute_centrality(
+        self,
+        G: nx.DiGraph,
+        G_rev: nx.DiGraph,
+        G_dist: nx.DiGraph,
+        n_nodes: int,
+    ) -> _Centrality:
+        """
+        Centrality measures with layer-appropriate weight semantics.
+
+        PageRank and eigenvector use DEPENDS_ON weights directly (importance);
+        betweenness uses G_dist (inverted weights, distance semantics); harmonic
+        closeness is unweighted and normalised by (n-1).
+        """
         closeness = nx.harmonic_centrality(G)
         reverse_closeness = nx.harmonic_centrality(G_rev)
-        # Normalize harmonic centrality to [0, 1] by dividing by (n-1)
         if n_nodes > 1:
             closeness = {v: c / (n_nodes - 1) for v, c in closeness.items()}
             reverse_closeness = {v: c / (n_nodes - 1) for v, c in reverse_closeness.items()}
-        self._logger.info("  2d. Harmonic closeness done (%.2fs)", _time.perf_counter() - _t)
 
-        # --- 2e. Eigenvector centrality (Katz fallback) ---
-        self._logger.info("  2e. Computing eigenvector centrality…")
-        _t = _time.perf_counter()
-        eigenvector = self._safe_eigenvector(G)
-        reverse_eigenvector = self._safe_eigenvector(G_rev)
-        self._logger.info("  2e. Eigenvector centrality done (%.2fs)", _time.perf_counter() - _t)
+        return _Centrality(
+            pagerank=nx.pagerank(G, alpha=self.damping_factor, weight="weight"),
+            reverse_pagerank=nx.pagerank(G_rev, alpha=self.damping_factor, weight="weight"),
+            betweenness=nx.betweenness_centrality(G_dist, weight="weight", normalized=True),
+            closeness=closeness,
+            reverse_closeness=reverse_closeness,
+            eigenvector=self._safe_eigenvector(G),
+            reverse_eigenvector=self._safe_eigenvector(G_rev),
+            edge_betweenness=nx.edge_betweenness_centrality(
+                G_dist, weight="weight", normalized=True
+            ),
+        )
 
-        # --- Degree ---
-        in_deg = dict(G.in_degree())
-        out_deg = dict(G.out_degree())
+    @staticmethod
+    def _compute_coupling(G: nx.DiGraph, n_nodes: int) -> _Coupling:
+        """
+        Path-count derived coupling metrics plus Topic fan-out criticality.
 
-        # --- 2f. MPCI, Fan-Out Criticality, path complexity ---
-        self._logger.info("  2f. Computing MPCI, fan-out criticality, path complexity…")
-        _t = _time.perf_counter()
-        mpci: Dict[str, float] = {}
+            MPCI(v)            = Σ_{e ∈ InEdges(v)} max(path_count(e) − 1, 0) / (|V| − 1)
+            path_complexity(v) = mean(log2(1 + path_count(e))) over OutEdges(v)
+            FOC(t)             = log1p(f(t)) · s(t) / max_{t'} [log1p(f(t')) · s(t')]
+
+        FOC rationale: impact scales with message rate, not just structural
+        reachability. log1p compresses the 0.001–10000 Hz span to ~0–9.2 while
+        preserving strict monotonicity (log1p(0) == 0, so zero-Hz topics
+        contribute zero regardless of subscriber count, as intended). When all
+        topics share one frequency the ranking matches the structural baseline,
+        because the shared log1p(f) factor cancels in normalisation.
+
+        Q/I independence: frequency is a design-time scenario attribute, not a
+        post-deployment measurement, so its presence in Q(v) does not violate
+        the pre-deployment independence criterion.
+        """
+        result = _Coupling()
+
         for nid in G.nodes:
-            # MPCI(v) = Σ_{e ∈ InEdges(v)} max(path_count(e) − 1, 0) / (|V| − 1)
-            raw_mpci = 0.0
-            for u, v, data in G.in_edges(nid, data=True):
-                raw_mpci += max(data.get("path_count", 1) - 1, 0)
-            mpci[nid] = raw_mpci / (n_nodes - 1) if n_nodes > 1 else 0.0
+            raw_mpci = sum(
+                max(data.get("path_count", 1) - 1, 0)
+                for _u, _v, data in G.in_edges(nid, data=True)
+            )
+            result.mpci[nid] = raw_mpci / (n_nodes - 1) if n_nodes > 1 else 0.0
 
-        foc: Dict[str, float] = {}
-        topic_freq_hz: Dict[str, float] = {}   # raw Hz per Topic node (0.0 for others)
-        path_complexity: Dict[str, float] = {}
-        for nid in G.nodes:
-            # path_complexity(v) = mean(log2(1 + path_count(e))) for v -> * (efferent)
             out_edges = G.out_edges(nid, data=True)
             if out_edges:
-                log_sum = sum(math.log2(1 + data.get("path_count", 1)) for _, _, data in out_edges)
-                path_complexity[nid] = log_sum / len(out_edges)
+                log_sum = sum(
+                    math.log2(1 + data.get("path_count", 1)) for _, _, data in out_edges
+                )
+                result.path_complexity[nid] = log_sum / len(out_edges)
             else:
-                path_complexity[nid] = 0.0
+                result.path_complexity[nid] = 0.0
 
         topic_nodes = [n for n, d in G.nodes(data=True) if d.get("component_type") == "Topic"]
-        if topic_nodes:
-            # --- Frequency-Weighted Fan-Out Criticality (FOC_freq) ---
-            # FOC_freq(t) = log1p(f(t)) · s(t) / max_{t'} [ log1p(f(t')) · s(t') ]
-            #
-            # Rationale: impact now scales with message rate, not just structural
-            # reachability.  log1p compresses the 0.001–10000 Hz span to ~0–9.2
-            # while preserving strict monotonicity (log1p(0) == 0 so zero-Hz topics
-            # contribute zero regardless of subscriber count, as intended).
-            #
-            # When all topics share the same frequency the ranking is identical to
-            # the structural baseline because the shared log1p(f) factor cancels in
-            # normalisation.  Only heterogeneous-frequency scenarios are affected,
-            # which is exactly the Middleware 2026 QoS-amplified cascade claim.
-            #
-            # Q/I independence: frequency is a design-time scenario attribute, not
-            # a post-deployment measurement, so its presence in Q(v) does not
-            # violate the pre-deployment independence criterion.
-            raw_foc: Dict[str, float] = {}
-            for n in topic_nodes:
-                sub = G.nodes[n].get("subscriber_count", 0)
-                # Accept both canonical keys for backward compatibility
-                hz = float(
-                    G.nodes[n].get("frequency",
-                    G.nodes[n].get("topic_frequency", 0.0)) or 0.0
-                )
-                topic_freq_hz[n] = hz
-                raw_foc[n] = math.log1p(hz) * sub
-            max_foc = max(raw_foc.values(), default=1.0) or 1.0
-            for n in topic_nodes:
-                foc[n] = raw_foc[n] / max_foc
-        # For non-topic nodes, FOC stays 0.0 by default in StructuralMetrics
-        self._logger.info("  2f. MPCI / FOC / path complexity done (%.2fs)", _time.perf_counter() - _t)
+        if not topic_nodes:
+            # FOC stays 0.0 for non-Topic nodes via the StructuralMetrics default
+            return result
 
-        # --- 2g. Articulation points, blast radius, cascade depth ---
-        self._logger.info("  2g. Computing articulation points, blast radius, cascade depth…")
-        _t = _time.perf_counter()
-        ap_scores = self._compute_continuous_ap_scores(G)
-        
-        # Blast radius and cascade depth
+        raw_foc: Dict[str, float] = {}
+        for n in topic_nodes:
+            sub = G.nodes[n].get("subscriber_count", 0)
+            # Accept both canonical frequency keys for backward compatibility
+            hz = float(
+                G.nodes[n].get("frequency", G.nodes[n].get("topic_frequency", 0.0)) or 0.0
+            )
+            result.topic_frequency_hz[n] = hz
+            raw_foc[n] = math.log1p(hz) * sub
+
+        max_foc = max(raw_foc.values(), default=1.0) or 1.0
+        for n in topic_nodes:
+            result.fan_out_criticality[n] = raw_foc[n] / max_foc
+
+        return result
+
+    @staticmethod
+    def _compute_reachability(G: nx.DiGraph) -> Tuple[Dict[str, int], Dict[str, int]]:
+        """
+        Per-node descendant count (blast radius) and longest downstream path
+        (cascade depth), both measured on the ego-subgraph rooted at the node.
+        """
         blast_radius: Dict[str, int] = {}
         cascade_depth: Dict[str, int] = {}
+
         for nid in G.nodes:
             desc = nx.descendants(G, nid)
             blast_radius[nid] = len(desc)
-            
-            # Ego-subgraph longest path (cascade depth)
-            ego_nodes = desc | {nid}
-            ego_G = G.subgraph(ego_nodes)
+
+            ego_G = G.subgraph(desc | {nid})
             try:
-                # If it's a DAG, use the efficient method
                 cascade_depth[nid] = nx.dag_longest_path_length(ego_G)
             except nx.NetworkXUnfeasible:
-                # If cycles exist, fall back to BFS-based depth (max shortest path from root)
+                # Cycles present — fall back to max BFS depth from the root
                 depths = nx.single_source_shortest_path_length(ego_G, nid)
                 cascade_depth[nid] = max(depths.values()) if depths else 0
-        self._logger.info("  2g. Articulation points / blast radius done (%.2fs)", _time.perf_counter() - _t)
 
-        # --- 2h. Clustering, bridges (undirected resilience) ---
-        self._logger.info("  2h. Computing clustering coefficients and bridges…")
-        _t = _time.perf_counter()
+        return blast_radius, cascade_depth
+
+    def _compute_resilience(self, G: nx.DiGraph) -> _Resilience:
+        """
+        Undirected resilience structure: clustering, articulation points and
+        bridges (per connected component when the graph is disconnected), plus
+        directed articulation points computed on G itself.
+        """
         U = G.to_undirected()
-        clustering = nx.clustering(U)
-        art_points = set(nx.articulation_points(U)) if nx.is_connected(U) else self._art_points_disconnected(U)
-        
-        # Directed articulation points (SPOFs)
-        directed_aps = self._compute_directed_articulation_points(G)
-        
-        bridges = set(nx.bridges(U)) if nx.is_connected(U) else self._bridges_disconnected(U)
-        self._logger.info(
-            "  2h. Clustering / bridges done: %d articulation points, %d bridges (%.2fs)",
-            len(art_points), len(bridges), _time.perf_counter() - _t,
+        connected = nx.is_connected(U)
+
+        art_points = (
+            set(nx.articulation_points(U)) if connected
+            else articulation_points_disconnected(U)
+        )
+        bridges = set(nx.bridges(U)) if connected else bridges_disconnected(U)
+
+        bridge_count: Dict[str, int] = {}
+        for (u, v) in bridges:
+            bridge_count[u] = bridge_count.get(u, 0) + 1
+            bridge_count[v] = bridge_count.get(v, 0) + 1
+
+        return _Resilience(
+            undirected=U,
+            clustering=nx.clustering(U),
+            articulation_points=art_points,
+            directed_aps=self._compute_directed_articulation_points(G),
+            bridges=bridges,
+            bridge_count=bridge_count,
         )
 
-        # --- Bridge count per node ---
-        node_bridge_count: Dict[str, int] = {}
-        for (u, v) in bridges:
-            node_bridge_count[u] = node_bridge_count.get(u, 0) + 1
-            node_bridge_count[v] = node_bridge_count.get(v, 0) + 1
+    def _build_component_metrics(
+        self,
+        G: nx.DiGraph,
+        analyze_types: Any,
+        n_nodes: int,
+        centrality: _Centrality,
+        coupling: _Coupling,
+        resilience: _Resilience,
+        ap_scores: Dict[str, Dict[str, float]],
+        blast_radius: Dict[str, int],
+        cascade_depth: Dict[str, int],
+        pubsub_metrics: Dict[str, Dict[str, float]],
+    ) -> Dict[str, StructuralMetrics]:
+        """Assemble StructuralMetrics per analysed node, then normalise code quality."""
+        in_deg = dict(G.in_degree())
+        out_deg = dict(G.out_degree())
 
-        # --- 2i. Edge betweenness ---
-        self._logger.info("  2i. Computing edge betweenness centrality…")
-        _t = _time.perf_counter()
-        edge_betweenness = nx.edge_betweenness_centrality(G_dist, weight="weight", normalized=True)
-        self._logger.info("  2i. Edge betweenness done (%.2fs)", _time.perf_counter() - _t)
-
-        # --- Dependency weights per node ---
         dep_weight_in: Dict[str, float] = {nid: 0.0 for nid in G.nodes}
         dep_weight_out: Dict[str, float] = {nid: 0.0 for nid in G.nodes}
         for u, v, data in G.edges(data=True):
@@ -343,20 +476,6 @@ class StructuralAnalyzer:
             dep_weight_out[u] += w
             dep_weight_in[v] += w
 
-        # --- 2j. Pub-sub topology metrics ---
-        self._logger.info("  2j. Computing pub-sub topology metrics…")
-        _t = _time.perf_counter()
-        # allowed_ids = all component IDs in the layer subgraph
-        allowed_ids: Set[str] = set(G.nodes)
-        pubsub_metrics = self._compute_pubsub_metrics(graph_data, allowed_ids)
-        self._logger.info("  2j. Pub-sub metrics done (%.2fs)", _time.perf_counter() - _t)
-
-        # --- QoS profile from topic nodes ---
-        qos_profile = self._collect_qos_profile(graph_data)
-
-        # --- 2k. Assemble component metrics + code quality normalisation ---
-        self._logger.info("  2k. Assembling component metrics and normalising code quality…")
-        _t = _time.perf_counter()
         components: Dict[str, StructuralMetrics] = {}
         for nid in G.nodes:
             ntype = G.nodes[nid].get("component_type", "Unknown")
@@ -366,7 +485,7 @@ class StructuralAnalyzer:
             raw_in = in_deg.get(nid, 0)
             raw_out = out_deg.get(nid, 0)
             total_raw = raw_in + raw_out
-            bc = node_bridge_count.get(nid, 0)
+            bc = resilience.bridge_count.get(nid, 0)
             ps = pubsub_metrics.get(nid, {})
 
             # Raw code-quality values (0.0 for non-qualifying node types)
@@ -387,13 +506,13 @@ class StructuralAnalyzer:
                 name=G.nodes[nid].get("name", nid),
                 type=ntype,
                 # Centrality
-                pagerank=pagerank.get(nid, 0.0),
-                reverse_pagerank=reverse_pagerank.get(nid, 0.0),
-                betweenness=betweenness.get(nid, 0.0),
-                closeness=closeness.get(nid, 0.0),
-                reverse_closeness=reverse_closeness.get(nid, 0.0),
-                eigenvector=eigenvector.get(nid, 0.0),
-                reverse_eigenvector=reverse_eigenvector.get(nid, 0.0),
+                pagerank=centrality.pagerank.get(nid, 0.0),
+                reverse_pagerank=centrality.reverse_pagerank.get(nid, 0.0),
+                betweenness=centrality.betweenness.get(nid, 0.0),
+                closeness=centrality.closeness.get(nid, 0.0),
+                reverse_closeness=centrality.reverse_closeness.get(nid, 0.0),
+                eigenvector=centrality.eigenvector.get(nid, 0.0),
+                reverse_eigenvector=centrality.reverse_eigenvector.get(nid, 0.0),
                 # Degree (normalized)
                 degree=total_raw / (2 * (n_nodes - 1)) if n_nodes > 1 else 0.0,
                 in_degree=raw_in / (n_nodes - 1) if n_nodes > 1 else 0.0,
@@ -402,9 +521,9 @@ class StructuralAnalyzer:
                 in_degree_raw=raw_in,
                 out_degree_raw=raw_out,
                 # Resilience
-                clustering_coefficient=clustering.get(nid, 0.0),
-                is_articulation_point=nid in art_points,
-                is_directed_ap=nid in directed_aps,
+                clustering_coefficient=resilience.clustering.get(nid, 0.0),
+                is_articulation_point=nid in resilience.articulation_points,
+                is_directed_ap=nid in resilience.directed_aps,
                 ap_c_directed=ap_scores.get(nid, {}).get("ap_c_dir", 0.0),
                 cdi=ap_scores.get(nid, {}).get("cdi", 0.0),
                 blast_radius=blast_radius.get(nid, 0),
@@ -417,10 +536,10 @@ class StructuralAnalyzer:
                 pubsub_betweenness=ps.get("pubsub_betweenness", 0.0),
                 broker_exposure=ps.get("broker_exposure", 0.0),
                 publisher_spof=ps.get("publisher_spof", 0.0),
-                fan_out_criticality=foc.get(nid, 0.0),
-                topic_frequency_hz=topic_freq_hz.get(nid, 0.0),
-                mpci=mpci.get(nid, 0.0),
-                path_complexity=path_complexity.get(nid, 0.0),
+                fan_out_criticality=coupling.fan_out_criticality.get(nid, 0.0),
+                topic_frequency_hz=coupling.topic_frequency_hz.get(nid, 0.0),
+                mpci=coupling.mpci.get(nid, 0.0),
+                path_complexity=coupling.path_complexity.get(nid, 0.0),
                 topic_subscriber_count=int(ps.get("topic_subscriber_count", 0)),
                 topic_publisher_count=int(ps.get("topic_publisher_count", 0)),
                 # Infrastructure Metrics
@@ -449,67 +568,49 @@ class StructuralAnalyzer:
                 dependency_weight_out=dep_weight_out.get(nid, 0.0),
             )
 
-        # --- Code-quality normalisation (Application and Library nodes, separately) ---
-        # Min-max scales loc_norm, complexity_norm, lcom_norm across each type's population,
-        # then computes code_quality_penalty = 0.40·CC + 0.35·instability + 0.25·LCOM
+        # Min-max scales loc_norm / complexity_norm / lcom_norm across each type's
+        # population, then fills code_quality_penalty.
         self._compute_code_quality_metrics(components)
-        self._logger.info(
-            "  2k. Component metrics assembled: %d components (%.2fs)",
-            len(components), _time.perf_counter() - _t,
-        )
+        return components
 
-        # --- 2l. Assemble edge metrics, RCM ordering, graph summary ---
-        self._logger.info("  2l. Assembling edge metrics and graph summary…")
-        _t = _time.perf_counter()
-        # --- Assemble edge metrics ---
+    @staticmethod
+    def _build_edge_metrics(
+        G: nx.DiGraph,
+        analyze_types: Any,
+        edge_betweenness: Dict[Tuple[str, str], float],
+        bridges: Set[Tuple[str, str]],
+    ) -> Dict[Tuple[str, str], EdgeMetrics]:
+        """Assemble EdgeMetrics for edges with at least one analysed endpoint."""
         edge_metrics: Dict[Tuple[str, str], EdgeMetrics] = {}
         for (u, v), data in G.edges.items():
-            # Only report edges where at least one endpoint is in analyze_types
             u_type = G.nodes[u].get("component_type")
             v_type = G.nodes[v].get("component_type")
             if u_type not in analyze_types and v_type not in analyze_types:
                 continue
-            key = (u, v)
-            edge_metrics[key] = EdgeMetrics(
+            edge_metrics[(u, v)] = EdgeMetrics(
                 source=u,
                 target=v,
                 source_type=u_type,
                 target_type=v_type,
                 dependency_type=data.get("dependency_type", "unknown"),
                 weight=data.get("weight", 1.0),
-                betweenness=edge_betweenness.get(key, 0.0),
+                betweenness=edge_betweenness.get((u, v), 0.0),
                 is_bridge=(u, v) in bridges or (v, u) in bridges,
             )
+        return edge_metrics
 
-        # --- Bandwidth minimization (RCM Ordering) ---
-        # Used for topological reordering of the dependency matrix to surface
-        # structural clusters.
+    def _rcm_order(self, U: nx.Graph, G: nx.DiGraph) -> List[str]:
+        """
+        Reverse Cuthill-McKee node ordering (bandwidth minimisation).
+
+        Used to reorder the dependency matrix so structural clusters surface.
+        Falls back to insertion order if the ordering cannot be computed.
+        """
         try:
-            rcm_order = list(reverse_cuthill_mckee_ordering(U))
+            return list(reverse_cuthill_mckee_ordering(U))
         except Exception as e:
-            self._logger.warning(f"RCM ordering failed: {e}")
-            rcm_order = list(G.nodes)
-
-        # --- Graph-level summary ---
-        summary = self._build_summary(G, layer, art_points, bridges)
-        self._logger.info("  2l. Edge metrics and graph summary done (%.2fs)", _time.perf_counter() - _t)
-
-        from saag.core.layers import AnalysisLayer
-        try:
-            enum_layer = AnalysisLayer.from_string(layer)
-        except:
-            # Fallback for unexpected layer strings
-            enum_layer = AnalysisLayer.SYSTEM
-
-        return StructuralAnalysisResult(
-            layer=enum_layer,
-            components=components,
-            edges=edge_metrics,
-            graph_summary=summary,
-            graph=G,
-            qos_profile=qos_profile,
-            rcm_order=rcm_order,
-        )
+            self._logger.warning("RCM ordering failed: %s", e)
+            return list(G.nodes)
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -533,11 +634,7 @@ class StructuralAnalyzer:
         All other component types (Broker, Node, Topic) are skipped; their
         code_quality_penalty stays 0.0.
         """
-        # CQP v7 weights (Hardening Phase)
-        W_LOC  = 0.10
-        W_CC   = 0.35
-        W_INS  = 0.30
-        W_LCOM = 0.25
+        W_LOC, W_CC, W_INS, W_LCOM = _CQP_WEIGHTS
 
         def _mm(values: list, lo: float, hi: float) -> list:
             """Min-max normalization with solitary population handling."""
@@ -690,9 +787,11 @@ class StructuralAnalyzer:
                 # If this app is the sole publisher and there are subscribers
                 if ti["pub_count"] == 1 and ti["sub_count"] >= 1:
                     # Formula from Middleware 2026 validation strategy:
-                    # qos_weight * min(sub_count / 5.0, 1.0)
+                    # qos_weight * min(sub_count / _PSPOF_SUB_SATURATION, 1.0)
                     # Note: sub_count >= 2 is common for SPOF, but even 1 sub is a risk
-                    current_pspof = ti["weight"] * min(ti["sub_count"] / 5.0, 1.0)
+                    current_pspof = ti["weight"] * min(
+                        ti["sub_count"] / _PSPOF_SUB_SATURATION, 1.0
+                    )
                     max_pspof = max(max_pspof, current_pspof)
             
             result[app_id]["publisher_spof"] = max_pspof
@@ -753,24 +852,6 @@ class StructuralAnalyzer:
             "total_topics": total,
         }
 
-    @staticmethod
-    def _build_distance_graph(G: nx.DiGraph) -> nx.DiGraph:
-        """
-        Create a copy of G with inverted edge weights for distance-based metrics.
-
-        DEPENDS_ON weights represent dependency strength (importance).
-        Betweenness centrality interprets weights as distances.
-        Inversion ensures strongly-weighted dependencies are treated as
-        "close" (preferred for shortest paths).
-
-        w_distance = 1.0 / w_importance
-        """
-        G_dist = G.copy()
-        for u, v, data in G_dist.edges(data=True):
-            w = data.get("weight", 1.0)
-            data["weight"] = 1.0 / w if w > 0 else 1.0
-        return G_dist
-
     def _safe_eigenvector(self, G: nx.DiGraph) -> Dict[str, float]:
         """
         Compute eigenvector centrality with Katz centrality fallback.
@@ -794,26 +875,6 @@ class StructuralAnalyzer:
                     "Katz centrality also failed; returning zeros"
                 )
                 return {n: 0.0 for n in G.nodes}
-
-    @staticmethod
-    def _art_points_disconnected(U: nx.Graph) -> Set[str]:
-        """Articulation points across all connected components."""
-        pts: Set[str] = set()
-        for comp in nx.connected_components(U):
-            sub = U.subgraph(comp)
-            if len(sub) >= 3:
-                pts.update(nx.articulation_points(sub))
-        return pts
-
-    @staticmethod
-    def _bridges_disconnected(U: nx.Graph) -> Set[Tuple[str, str]]:
-        """Bridges across all connected components."""
-        br: Set[Tuple[str, str]] = set()
-        for comp in nx.connected_components(U):
-            sub = U.subgraph(comp)
-            if len(sub) >= 2:
-                br.update(nx.bridges(sub))
-        return br
 
     @staticmethod
     def _compute_directed_articulation_points(G: nx.DiGraph) -> Set[str]:
@@ -1071,9 +1132,9 @@ class StructuralAnalyzer:
             diameter=diameter,
             avg_path_length=avg_path,
             assortativity=assortativity,
-node_types=node_types,
-             edge_types=edge_types,
-         )
+            node_types=node_types,
+            edge_types=edge_types,
+        )
 
     @staticmethod
     def _empty_result(layer: AnalysisLayer) -> StructuralAnalysisResult:

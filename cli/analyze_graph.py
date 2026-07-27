@@ -19,16 +19,13 @@ from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setu
 from cli.common.console import ConsoleDisplay
 
 def main():
-    parser = argparse.ArgumentParser(description="Multi-layer graph analysis for distributed pub-sub systems.")
-    
-    # Specific args
-    parser.add_argument("--use-ahp", action="store_true", help="Use AHP-derived weights instead of default fixed weights")
-    parser.add_argument("--equal-weights", action="store_true", help="Use equal 0.25 weights for all Q(v) dimensions (baseline)")
-    parser.add_argument("--ahp-shrinkage", type=float, default=0.7, help="Shrinkage factor λ for AHP weights [0, 1] (default: 0.7)")
-    parser.add_argument("--norm", type=str, choices=["robust", "minmax", "zscore", "rank"], default="robust", help="Normalization method (e.g. robust, rank, minmax)")
-    parser.add_argument("--winsorize", action="store_true", help="Apply winsorization to cap extreme outliers")
-    parser.add_argument("--sensitivity", action="store_true", help="Run weight sensitivity analysis")
-    
+    parser = argparse.ArgumentParser(
+        description="Multi-layer structural graph analysis for distributed pub-sub systems.",
+        epilog="Computes structural metrics M(v) and the graph summary S(G) only. "
+               "RMAV weighting, normalization, and sensitivity options belong to the "
+               "Predict stage — see `saag-predict --help`.",
+    )
+
     add_neo4j_arguments(parser)
     add_common_arguments(parser)
     
@@ -51,15 +48,7 @@ def main():
             console.print_step(f"Analyzing layer: {layer}...")
             
             # Analyze returns AnalysisResult which wraps StructuralAnalysisResult
-            result = client.analyze(
-                layer=layer,
-                use_ahp=args.use_ahp,
-                equal_weights=args.equal_weights,
-                ahp_shrinkage=args.ahp_shrinkage,
-                normalization_method=args.norm,
-                winsorize=args.winsorize,
-                run_sensitivity=args.sensitivity
-            )
+            result = client.analyze(layer=layer)
             
             console.display_layer_result(result.raw)
 

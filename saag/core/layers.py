@@ -328,7 +328,7 @@ def get_all_layers() -> List[AnalysisLayer]:
 
 
 def get_primary_layers() -> List[AnalysisLayer]:
-    """The four primary layers used by ``analyze_all_layers``."""
+    """The four primary layers analysed when no explicit layer list is given."""
     return [AnalysisLayer.APP, AnalysisLayer.INFRA, AnalysisLayer.MW, AnalysisLayer.SYSTEM]
 
 

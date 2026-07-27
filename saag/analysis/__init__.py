@@ -2,6 +2,7 @@
 Analysis Package
 """
 from .service import AnalysisService
+from .cross_layer import compute_cross_layer_insights
 from .structural_analyzer import StructuralAnalyzer
 from .statistics import (
     extract_cross_cutting_data,
@@ -25,6 +26,7 @@ from .problem_detector import ProblemDetector
 
 __all__ = [
     "AnalysisService",
+    "compute_cross_layer_insights",
     "StructuralAnalyzer",
     "StructuralAnalysisResult",
     "LayerAnalysisResult",

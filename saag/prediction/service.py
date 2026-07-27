@@ -118,6 +118,7 @@ class PredictionService(QualityScoringService):
         simulation_results=None,
         layer: str = "system",
         active_patterns: Optional[List[str]] = None,
+        run_sensitivity: bool = False,
     ) -> Union[QualityAnalysisResult, Any]:
         """Return GNN predictions when a checkpoint exists, else fall back to RMAV.
 
@@ -127,7 +128,7 @@ class PredictionService(QualityScoringService):
         derived from the RMAV scores and attached to whichever result
         (GNN or RMAV) is ultimately returned.
         """
-        rmav_result = self.predict_quality(structural_result)
+        rmav_result = self.predict_quality(structural_result, run_sensitivity=run_sensitivity)
         problems, problem_summary, explanation = self._detect_problems_and_explain(
             rmav_result, layer=layer, active_patterns=active_patterns
         )

@@ -644,7 +644,7 @@ cli/import_graph.py
 cli/analyze_graph.py (or AnalysisService)
   └─ saag.Client.analyze(layer)
        └─ saag.usecases.analyze_graph.AnalyzeGraphUseCase.execute()
-            └─ saag.analysis.service.AnalysisService.analyze()
+            └─ saag.analysis.service.AnalysisService.analyze_layers()
                  └─ Neo4jRepository.derive_dependencies()
                       ├─ Phase 4:  _derive_dependencies()
                       └─ Phase 5b: _finalize_dependency_weights()

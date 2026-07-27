@@ -3,19 +3,12 @@ Analysis endpoints for system, type, and layer analysis.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict, Any, List
+from typing import Any
 import logging
-import time
-
-from types import SimpleNamespace
 
 from api.dependencies import get_client
 from saag import Client
 from saag.models import AnalysisResult as SaagAnalysisResult, PredictionResult as SaagPredictionResult
-from saag.prediction import ProblemDetector, PredictionService, DetectedProblem
-from saag.usecases.predict_graph import PredictGraphUseCase as _PredictGraphUseCase
-from saag.analysis.structural_analyzer import StructuralAnalyzer
-from saag.analysis.antipattern_detector import AntiPatternDetector
 from saag.core.layers import AnalysisLayer
 from api.presenters import analysis_presenter
 from api.models import AnalysisEnvelope
@@ -23,49 +16,26 @@ from api.models import AnalysisEnvelope
 router = APIRouter(prefix="/api/v1/analysis", tags=["analysis"])
 logger = logging.getLogger(__name__)
 
-# Loggers whose records should be captured for the analysis log output.
-_CAPTURE_LOGGERS = [
-    "api.routers.analysis",
-    "saag.analysis.structural_analyzer",
-    "saag.analysis.service",
-    "saag.analysis.antipattern_detector",
-    "saag.prediction",
-]
 
+def _analyze(client: Client, layer: str, **presenter_kwargs: Any) -> AnalysisEnvelope:
+    """
+    Run the multi-layer analysis use case for one layer and present the result.
 
-class _ListHandler(logging.Handler):
-    """Logging handler that appends formatted records to a list."""
+    Shared by all three endpoints; ``presenter_kwargs`` carries the endpoint-
+    specific context/description fields through to the presenter.
+    """
+    from saag.usecases.multi_layer_analysis import MultiLayerAnalysisUseCase
 
-    def __init__(self, records: List[str]) -> None:
-        super().__init__(level=logging.DEBUG)
-        self._records = records
-        self.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+    use_case = MultiLayerAnalysisUseCase(client.repo)
+    res = use_case.execute(layers=[layer])
+    layer_res = res.layers[layer]
 
-    def emit(self, record: logging.LogRecord) -> None:
-        try:
-            self._records.append(self.format(record))
-        except Exception:
-            pass
-
-
-class _AnalysisLogCapture:
-    """Context-manager that attaches a list handler to the analysis loggers."""
-
-    def __init__(self) -> None:
-        self.records: List[str] = []
-        self._handler = _ListHandler(self.records)
-        self._loggers: List[logging.Logger] = []
-
-    def __enter__(self) -> "_AnalysisLogCapture":
-        for name in _CAPTURE_LOGGERS:
-            lg = logging.getLogger(name)
-            lg.addHandler(self._handler)
-            self._loggers.append(lg)
-        return self
-
-    def __exit__(self, *args: object) -> None:
-        for lg in self._loggers:
-            lg.removeHandler(self._handler)
+    return analysis_presenter.build_analysis_response(
+        SaagAnalysisResult(layer_res),
+        SaagPredictionResult(layer_res.prediction or layer_res.quality),
+        layer_res.problems,
+        **presenter_kwargs,
+    )
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────
@@ -82,20 +52,7 @@ async def analyze_full_system(
     """
     try:
         logger.info("Running full system analysis via MultiLayerAnalysisUseCase")
-        from saag.usecases.multi_layer_analysis import MultiLayerAnalysisUseCase
-        
-        use_case = MultiLayerAnalysisUseCase(client.repo)
-        res = use_case.execute(layers=["system"])
-        layer_res = res.layers["system"]
-        
-        analysis = SaagAnalysisResult(layer_res)
-        prediction = SaagPredictionResult(layer_res.prediction or layer_res.quality)
-        
-        return analysis_presenter.build_analysis_response(
-            analysis,
-            prediction,
-            layer_res.problems,
-        )
+        return _analyze(client, "system")
     except Exception as e:
         logger.error(f"Full analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
@@ -126,23 +83,11 @@ async def analyze_by_type(
 
     try:
         logger.info(f"Analyzing component type: {component_type} (normalized to {normalized_type})")
-        from saag.usecases.multi_layer_analysis import MultiLayerAnalysisUseCase
-
-        use_case = MultiLayerAnalysisUseCase(client.repo)
-        res = use_case.execute(layers=["system"])
-        layer_res = res.layers["system"]
-        
-        analysis = SaagAnalysisResult(layer_res)
-        prediction = SaagPredictionResult(layer_res.prediction or layer_res.quality)
-
-        return analysis_presenter.build_analysis_response(
-            analysis,
-            prediction,
-            layer_res.problems,
+        return _analyze(
+            client, "system",
             context=f"{normalized_type} Components Analysis",
             description=f"Analysis filtered by component type: {normalized_type}",
             component_type=normalized_type,
-            logs=cap.records,
         )
     except Exception as e:
         logger.error(f"Type analysis failed: {str(e)}")
@@ -151,15 +96,14 @@ async def analyze_by_type(
 
 @router.post("/layer/{layer}", response_model=AnalysisEnvelope)
 async def analyze_layer(
-    layer: str, 
+    layer: str,
     client: Client = Depends(get_client),
 ):
     """
     Analyze a specific architectural layer.
     """
     try:
-        layer_enum = AnalysisLayer.from_string(layer)
-        layer_canonical = layer_enum.value
+        layer_canonical = AnalysisLayer.from_string(layer).value
     except ValueError as e:
         raise HTTPException(
             status_code=400,
@@ -168,20 +112,7 @@ async def analyze_layer(
 
     try:
         logger.info(f"Analyzing layer: {layer_canonical} (input: {layer})")
-        from saag.usecases.multi_layer_analysis import MultiLayerAnalysisUseCase
-        
-        use_case = MultiLayerAnalysisUseCase(client.repo)
-        res = use_case.execute(layers=[layer_canonical])
-        layer_res = res.layers[layer_canonical]
-        
-        analysis = SaagAnalysisResult(layer_res)
-        prediction = SaagPredictionResult(layer_res.prediction or layer_res.quality)
-        
-        return analysis_presenter.build_analysis_response(
-            analysis,
-            prediction,
-            layer_res.problems,
-        )
+        return _analyze(client, layer_canonical)
     except Exception as e:
         logger.error(f"Layer analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")

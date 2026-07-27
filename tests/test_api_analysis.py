@@ -161,3 +161,83 @@ def test_analyze_full_system(mock_analysis_result):
             mock_usecase.execute.assert_called_with(layers=["system"])
         finally:
             app.dependency_overrides = {}
+
+
+def _patched_usecase(mock_analysis_result, layer_key="system"):
+    """Build a patched MultiLayerAnalysisUseCase returning mock_analysis_result."""
+    mock_layer_enum = MagicMock()
+    mock_layer_enum.value = layer_key
+    mock_analysis_result.layer = mock_layer_enum
+    mock_analysis_result.prediction = None
+
+    summary = mock_analysis_result.structural.graph_summary
+    mock_analysis_result.graph_summary = summary
+    summary.avg_clustering = 0.0
+    summary.is_connected = True
+    summary.num_components = 1
+    summary.num_articulation_points = 0
+    summary.num_bridges = 0
+    summary.connectivity_health = "HEALTHY"
+    summary.node_types = {}
+    summary.edge_types = {}
+
+    mock_result = MagicMock()
+    mock_result.layers = {layer_key: mock_analysis_result}
+    return mock_result
+
+
+def test_analyze_by_type_returns_200(mock_analysis_result):
+    """Regression: the endpoint referenced an undefined `cap.records`, so every
+    call raised NameError and was returned as HTTP 500."""
+    mock_client_instance = MagicMock()
+
+    with patch("saag.usecases.multi_layer_analysis.MultiLayerAnalysisUseCase") as MockUseCaseClass:
+        mock_usecase = MagicMock()
+        MockUseCaseClass.return_value = mock_usecase
+        mock_usecase.execute.return_value = _patched_usecase(mock_analysis_result)
+
+        app.dependency_overrides[get_client] = lambda: mock_client_instance
+        try:
+            response = client.post("/api/v1/analysis/type/app", json={
+                "credentials": {"uri": "bolt://localhost", "user": "n", "password": "p"}
+            })
+
+            assert response.status_code == 200, response.text
+            assert response.json()["success"] is True
+            mock_usecase.execute.assert_called_with(layers=["system"])
+        finally:
+            app.dependency_overrides = {}
+
+
+def test_analyze_by_type_rejects_unknown_type():
+    """Unknown component types are a 400, not a 500."""
+    app.dependency_overrides[get_client] = lambda: MagicMock()
+    try:
+        response = client.post("/api/v1/analysis/type/wombat", json={
+            "credentials": {"uri": "bolt://localhost", "user": "n", "password": "p"}
+        })
+        assert response.status_code == 400
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_analyze_layer_endpoint(mock_analysis_result):
+    """The per-layer endpoint resolves aliases and runs the use case for that layer."""
+    mock_client_instance = MagicMock()
+
+    with patch("saag.usecases.multi_layer_analysis.MultiLayerAnalysisUseCase") as MockUseCaseClass:
+        mock_usecase = MagicMock()
+        MockUseCaseClass.return_value = mock_usecase
+        mock_usecase.execute.return_value = _patched_usecase(mock_analysis_result, "app")
+
+        app.dependency_overrides[get_client] = lambda: mock_client_instance
+        try:
+            # "application" is a legacy alias for the canonical "app" layer
+            response = client.post("/api/v1/analysis/layer/application", json={
+                "credentials": {"uri": "bolt://localhost", "user": "n", "password": "p"}
+            })
+
+            assert response.status_code == 200, response.text
+            mock_usecase.execute.assert_called_with(layers=["app"])
+        finally:
+            app.dependency_overrides = {}

@@ -27,9 +27,15 @@ logger = logging.getLogger(__name__)
 
 class _SafeAnalysisService:
     """
-    Wraps structural analysis without calling AntiPatternDetector, which
-    incorrectly receives a StructuralAnalysisResult instead of a LayerAnalysisResult
-    and crashes accessing .quality. Only the fields used by ValidationService are populated.
+    Minimal ``analyze_layer`` for ValidationService, without the
+    ``derive_dependencies()`` pre-analysis hook that AnalysisService performs.
+
+    ValidationService calls ``analyze_layer`` once per requested layer, so using
+    AnalysisService here would re-derive DEPENDS_ON edges on every layer of every
+    validation run. Only the fields ValidationService reads are populated.
+
+    TODO: fold into ``AnalysisService.analyze_layers``, which already derives once
+    and loops — that removes this duplicate without the redundant derives.
     """
 
     def __init__(self, repo):

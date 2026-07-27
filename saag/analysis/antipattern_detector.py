@@ -309,7 +309,8 @@ CATALOG: Dict[str, PatternSpec] = {
 class AntiPatternDetector:
     """
     Unified engine for detecting architectural anti-patterns and bad smells.
-    Consolidates SmellDetector and ProblemDetector catalogs and logic.
+    The single catalog and detection path; ``ProblemDetector`` is a thin
+    back-compat wrapper around it.
     """
 
     def __init__(self, active_patterns: Optional[List[str]] = None) -> None:

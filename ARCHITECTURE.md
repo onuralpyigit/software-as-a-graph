@@ -162,7 +162,7 @@ A single step that always computes rule-based RMAV scores, blends in ML/GNN infe
 - `GNNService` — Loads a checkpoint containing `NodeCriticalityGNN`: `N` stacked stock `torch_geometric.nn.HGTConv` layers, with an `EdgeFeatureEncoder` injecting edge features before each layer ([core.py:146-290](saag/prediction/models/core.py#L146-L290)). Runs inductive prediction.
 - `ExplanationEngine` (from `explanation/`) — Generates the natural-language narrative attached to each Predict-stage result.
 
-> **Back-compat shims — not architectural components.** `saag/adapters/`, `saag/core/graph_generator.py`, `saag/analysis/quality_scoring_service.py`, and `saag/prediction/{analyzer,classifier,problem_detector,weight_calculator}.py` are thin re-export stubs kept for import compatibility. Their real implementations live in `saag/analysis/` (`analyzer.py`, `classifier.py`, `weight_calculator.py`) and `tools/generation/`. Do not extend the shims directly.
+> **Back-compat shims — not architectural components.** `saag/adapters/`, `saag/core/graph_generator.py`, and `saag/prediction/{analyzer,classifier,problem_detector,weight_calculator}.py` are thin re-export stubs kept for import compatibility. Their real implementations live in `saag/analysis/` (`analyzer.py`, `classifier.py`, `weight_calculator.py`) and `tools/generation/`. Do not extend the shims directly.
 
 ### `simulation/` — Step 4 Simulation Engine
 A discrete-event and BFS cascade failure simulation suite evaluating propagation boundaries on raw structural edges.

@@ -4,22 +4,26 @@ Use case for running multi-layer system analysis.
 
 import logging
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, List, Optional
 
-from saag.analysis.models import LayerAnalysisResult, MultiLayerAnalysisResult
-from saag.analysis.structural_analyzer import StructuralAnalyzer
-from saag.prediction.quality_scoring_service import QualityScoringService
 from saag.analysis.antipattern_detector import AntiPatternDetector
-from saag.core.layers import AnalysisLayer, get_layer_definition
+from saag.analysis.cross_layer import compute_cross_layer_insights
+from saag.analysis.models import MultiLayerAnalysisResult
+from saag.analysis.service import AnalysisService
+from saag.prediction.quality_scoring_service import QualityScoringService
 
 logger = logging.getLogger(__name__)
 
+#: Extra kwargs forwarded from execute(**kwargs) to QualityScoringService.predict_quality.
+_QUALITY_KWARG_KEYS = ("run_sensitivity", "sensitivity_perturbations", "sensitivity_noise")
+
+
 class MultiLayerAnalysisUseCase:
     """
-    Use case for orchestrating multi-layer structural analysis, deterministic RMAV quality scoring,
-    anti-pattern detection, and optional GNN prediction.
+    Orchestrates multi-layer structural analysis (Step 2), deterministic RMAV
+    quality scoring, anti-pattern detection, and optional GNN prediction.
     """
-    
+
     def __init__(self, repository: Any):
         self.repository = repository
 
@@ -35,76 +39,55 @@ class MultiLayerAnalysisUseCase:
         ahp_shrinkage: float = 0.7,
         **kwargs
     ) -> MultiLayerAnalysisResult:
-        # Pre-analysis stage: derive DEPENDS_ON edges
-        self.repository.derive_dependencies()
-        graph_data = self.repository.get_graph_data()
-        
-        # Initialize analyzers
-        structural_analyzer = StructuralAnalyzer()
-        
-        pred_svc = QualityScoringService(
+        # 1. Structural analysis — derives dependencies and loads the graph once.
+        results_map = AnalysisService(self.repository).analyze_layers(layers)
+
+        scorer = QualityScoringService(
             use_ahp=use_ahp,
             normalization_method=normalization_method,
             winsorize=winsorize,
             winsorize_limit=winsorize_limit,
             equal_weights=equal_weights,
-            ahp_shrinkage=ahp_shrinkage
+            ahp_shrinkage=ahp_shrinkage,
         )
-        smell_detector = AntiPatternDetector()
-        
-        results_map = {}
-        for layer in layers:
-            try:
-                layer_enum = AnalysisLayer.from_string(layer)
-            except ValueError:
-                layer_enum = AnalysisLayer.SYSTEM
-                
-            layer_def = get_layer_definition(layer_enum)
-            
-            # 1. Structural Analysis
-            struct_result = structural_analyzer.analyze(graph_data, layer=layer_enum)
-            
-            # 2. Quality Analysis (RMAV)
-            pred_quality_kwargs = {k: v for k, v in kwargs.items() if k in ["run_sensitivity", "sensitivity_perturbations", "sensitivity_noise"]}
-            quality_result = pred_svc.predict_quality(struct_result, **pred_quality_kwargs)
-            
-            # 3. Anti-Pattern Detection
-            problems = smell_detector.detect(quality_result, layer=layer)
-            problem_summary = pred_svc.summarize_problems(problems)
-            
-            layer_res = LayerAnalysisResult(
-                layer=layer_enum.value,
-                layer_name=layer_def.name,
-                description=layer_def.description,
-                structural=struct_result,
-                quality=quality_result,
-                problems=problems,
-                problem_summary=problem_summary
-            )
-            
-            # 4. Optional GNN Prediction
+        detector = AntiPatternDetector()
+        quality_kwargs = {k: v for k, v in kwargs.items() if k in _QUALITY_KWARG_KEYS}
+
+        for layer, layer_res in results_map.items():
+            # 2. Quality analysis (RMAV)
+            layer_res.quality = scorer.predict_quality(layer_res.structural, **quality_kwargs)
+
+            # 3. Anti-pattern detection
+            layer_res.problems = detector.detect(layer_res.quality, layer=layer)
+            layer_res.problem_summary = scorer.summarize_problems(layer_res.problems)
+
+            # 4. Optional GNN prediction
             if gnn_model:
-                try:
-                    from saag.prediction.gnn_service import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict
-                    gnn_svc = GNNService.from_checkpoint(gnn_model, graph=layer_res.structural.graph)
-                    prediction_result = gnn_svc.predict(
-                        graph=layer_res.structural.graph,
-                        structural_metrics=extract_structural_metrics_dict(layer_res.structural),
-                        rmav_scores=extract_rmav_scores_dict(layer_res.quality)
-                    )
-                    layer_res.prediction = prediction_result.to_dict()
-                except Exception as e:
-                    logger.error(f"GNN prediction for layer {layer} failed: {e}")
-                    
-            results_map[layer] = layer_res
-            
+                self._add_gnn_prediction(layer_res, layer, gnn_model)
+
         # 5. Cross-layer insights
-        from saag.analysis.service import AnalysisService
-        svc = AnalysisService(self.repository)
-        insights = svc._compute_cross_layer_insights(results_map)
-        
         return MultiLayerAnalysisResult(
             timestamp=datetime.now().isoformat(),
             layers=results_map,
-            cross_layer_insights=insights
+            cross_layer_insights=compute_cross_layer_insights(results_map),
         )
+
+    @staticmethod
+    def _add_gnn_prediction(layer_res: Any, layer: str, gnn_model: str) -> None:
+        """Attach GNN-derived criticality to *layer_res*; log and skip on failure."""
+        try:
+            from saag.prediction.gnn_service import (
+                GNNService,
+                extract_structural_metrics_dict,
+                extract_rmav_scores_dict,
+            )
+
+            gnn_svc = GNNService.from_checkpoint(gnn_model, graph=layer_res.structural.graph)
+            prediction_result = gnn_svc.predict(
+                graph=layer_res.structural.graph,
+                structural_metrics=extract_structural_metrics_dict(layer_res.structural),
+                rmav_scores=extract_rmav_scores_dict(layer_res.quality),
+            )
+            layer_res.prediction = prediction_result.to_dict()
+        except Exception as e:
+            logger.error(f"GNN prediction for layer {layer} failed: {e}")

@@ -169,10 +169,6 @@ def main() -> None:
             if not repo:
                 raise ValueError("No repository connection established.")
 
-            # We need the inner repository here to get the raw graph
-            from saag.usecases import AnalyzeGraphUseCase
-            analyze_uc = AnalyzeGraphUseCase(repo)
-
             if structural_dict is None or rmav_dict is None:
                 display.print_step("[Step 2+3] Running analysis and quality scoring...")
                 analysis_svc = AnalysisService(repo)
