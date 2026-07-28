@@ -425,32 +425,25 @@ class EventSimulator:
 
     def _process_event(self, event: Event, scenario: EventScenario) -> None:
         """Dispatch a single event to the appropriate handler."""
-        if event.event_type == EventType.PUBLISH:
-            msg = self._messages.get(event.message_id)
-            if msg is not None and not msg.dropped:
-                self._handle_publish(event, msg, scenario)
-
-        elif event.event_type == EventType.ROUTE:
-            msg = self._messages.get(event.message_id)
-            if msg is not None and not msg.dropped:
-                self._handle_route(event, msg, scenario)
-
-        elif event.event_type == EventType.DELIVER:
-            msg = self._messages.get(event.message_id)
-            if msg is not None and not msg.dropped:
-                self._handle_deliver(event, msg, scenario)
-
-        elif event.event_type == EventType.DROP:
-            msg = self._messages.get(event.message_id)
-            if msg is not None:
-                self._handle_drop(event, msg, scenario)
-
-        # [POISSON] new event types
-        elif event.event_type == EventType.FAIL_COMPONENT:
+        # Poisson failure/recovery events carry no message.
+        if event.event_type == EventType.FAIL_COMPONENT:
             self._handle_poisson_fail(event)
-
-        elif event.event_type == EventType.RECOVER_COMPONENT:
+            return
+        if event.event_type == EventType.RECOVER_COMPONENT:
             self._handle_poisson_recover(event)
+            return
+
+        handler = {
+            EventType.PUBLISH: self._handle_publish,
+            EventType.ROUTE: self._handle_route,
+            EventType.DELIVER: self._handle_deliver,
+        }.get(event.event_type)
+        if handler is None:
+            return
+
+        msg = self._messages.get(event.message_id)
+        if msg is not None and not msg.dropped:
+            handler(event, msg, scenario)
 
     # ─────────────────────────────────────────────────────────────────────────
     # [POISSON] Failure / recovery handlers
@@ -536,6 +529,13 @@ class EventSimulator:
         brokers = self.graph.get_routing_brokers(msg.topic_id)
 
         if not brokers:
+            # Distinguish a brokered topic whose brokers have all failed from a
+            # genuinely brokerless (DDS-style) one. Only the latter may deliver
+            # directly; otherwise a broker outage would silently repair itself.
+            if self.graph.has_configured_brokers(msg.topic_id):
+                self._drop_message(msg, "broker_failed")
+                return
+
             # No brokers — try direct delivery to subscribers
             subscribers = self.graph.get_subscribers(msg.topic_id)
             if not subscribers:
@@ -643,11 +643,6 @@ class EventSimulator:
             sub_comp.total_latency += latency
 
         msg.hops += 1
-
-    def _handle_drop(self, event: Event, msg: Message, scenario: EventScenario) -> None:
-        """Handle message drop event."""
-        reason = event.data.get("reason", "unknown")
-        self._drop_message(msg, reason)
 
     def _drop_message(self, msg: Message, reason: str) -> None:
         """Drop a message and record reason."""

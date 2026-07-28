@@ -104,10 +104,9 @@ class ComplexityProcessor:
 
             lib_penalty = 0.0
             if beta > 0.0:
-                out_edges = self.graph.out_edges.get(app_id, {})
-                for target_id, relation in out_edges.items():
-                    if relation == "USES" and target_id in lib_norm:
-                        lib_penalty += lib_norm[target_id]
+                for lib_id in self.graph.get_used_libraries(app_id):
+                    if lib_id in lib_norm:
+                        lib_penalty += lib_norm[lib_id]
 
             pt_eff = pt + (beta * lib_penalty)
             comp.properties['processing_latency'] = pt_eff

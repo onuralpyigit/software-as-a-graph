@@ -1,6 +1,9 @@
 import ast
 import pathlib
 
+import pytest
+
+
 def test_simulation_does_not_import_prediction():
     """Enforce the independence guarantee: I(v) must not derive from Q(v)."""
     
@@ -21,11 +24,13 @@ def test_simulation_does_not_import_prediction():
     for py_file in sim_dir.rglob("*.py"):
         try:
             tree = ast.parse(py_file.read_text(encoding="utf-8"))
-        except SyntaxError as e:
-            # If there's a syntax error in the file, we can't parse it, but we shouldn't fail the test
-            # unless the project itself is completely broken.
-            continue
-            
+        except SyntaxError as exc:
+            # Skipping an unparseable file would let it smuggle in a forbidden
+            # import unchecked, silently voiding the guarantee this test exists
+            # to enforce.
+            pytest.fail(f"cannot parse {py_file}: {exc}")
+
+
         for node in ast.walk(tree):
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 # Handle `import X` and `from X import Y`

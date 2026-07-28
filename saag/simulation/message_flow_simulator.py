@@ -46,7 +46,7 @@ import logging
 import random
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, Generator, List, Optional, Set
+from typing import Any, Dict, Generator, List, Optional, Set, Tuple
 
 try:
     import simpy  # type: ignore
@@ -57,6 +57,8 @@ except ImportError as exc:  # pragma: no cover
     ) from exc
 
 import networkx as nx
+
+from ._stats import percentile
 
 from .simulation_results import (
     FaultEventRecord,
@@ -260,18 +262,6 @@ def _publisher_process(
             window_counts["post"] += 1
 
 
-def _pct(samples: list, q: float) -> Optional[float]:
-    """Linear-interpolated percentile of an unsorted list; None if empty."""
-    if not samples:
-        return None
-    s = sorted(samples)
-    if len(s) == 1:
-        return s[0]
-    pos = (len(s) - 1) * (q / 100.0)
-    lo = int(pos)
-    frac = pos - lo
-    hi = min(lo + 1, len(s) - 1)
-    return s[lo] + (s[hi] - s[lo]) * frac
 
 
 def _subscriber_process(
@@ -449,151 +439,193 @@ class MessageFlowSimulator:
             return base_rate / num_pubs
         return base_rate
 
+    # ── Setup helpers ───────────────────────────────────────────────────────
+
+    def _edges_by_type(self) -> Dict[str, List[Tuple[str, str, dict]]]:
+        """
+        Bucket the graph's edges by relationship type in a single pass.
+
+        Ordering within each bucket is the graph's own edge order, which the
+        callers rely on: SimPy resolves same-timestamp events by process
+        creation order, so the sequence in which publisher and subscriber
+        processes are spawned is part of the simulation's determinism.
+        """
+        buckets: Dict[str, List[Tuple[str, str, dict]]] = defaultdict(list)
+        for src, tgt, data in self.graph.edges(data=True):
+            buckets[data.get("type")].append((src, tgt, data))
+        return buckets
+
+    def _build_topics(self) -> Tuple[Dict[str, QoSProfile], Dict[str, TopicFlowStats]]:
+        """Resolve every Topic node's QoS profile and seed its stats record."""
+        topic_qos: Dict[str, QoSProfile] = {}
+        topic_stats: Dict[str, TopicFlowStats] = {}
+
+        for node, data in self.graph.nodes(data=True):
+            if data.get("type") != "Topic":
+                continue
+            qos = _extract_qos(data, self.default_queue_size)
+            topic_qos[node] = qos
+            topic_stats[node] = TopicFlowStats(
+                topic_id=node,
+                topic_name=data.get("name", node),
+                reliability_policy=qos.reliability,
+                deadline_ms=qos.deadline_ms,
+                durability_policy=qos.durability,
+            )
+        return topic_qos, topic_stats
+
+    def _build_subscribers(
+        self,
+        env: simpy.Environment,
+        sub_edges: List[Tuple[str, str, dict]],
+        fanouts: Dict[str, TopicFanout],
+    ) -> Tuple[Dict[str, SubscriberFlowStats], Dict[Tuple[str, str], SubscriberQueue]]:
+        """Register one queue per (topic, subscriber) pair and seed subscriber stats."""
+        sub_topics: Dict[str, List[str]] = defaultdict(list)
+        for src, tgt, _ in sub_edges:
+            sub_topics[src].append(tgt)
+
+        sub_stats = {
+            sub_id: SubscriberFlowStats(subscriber_id=sub_id, subscribed_topics=topics)
+            for sub_id, topics in sub_topics.items()
+        }
+
+        sub_queues: Dict[Tuple[str, str], SubscriberQueue] = {}
+        for src, tgt, _ in sub_edges:
+            sub_queues[(tgt, src)] = fanouts[tgt].register(env, src)
+
+        return sub_stats, sub_queues
+
+    def _subscriber_qos(self, edge_data: dict, topic_qos: QoSProfile) -> QoSProfile:
+        """Subscriber-side QoS, with the topic-level deadline taking precedence."""
+        qos = _extract_qos(edge_data, self.default_queue_size)
+        if topic_qos.deadline_ms:
+            qos.deadline_ms = topic_qos.deadline_ms
+        return qos
+
+    def _node_processing_times(self) -> Dict[str, float]:
+        """Per-node processing time, falling back to the configured default."""
+        proc_time: Dict[str, float] = {}
+        for node, data in self.graph.nodes(data=True):
+            try:
+                proc_time[node] = float(
+                    data.get("processing_time", self.default_processing_time_s))
+            except (TypeError, ValueError):
+                proc_time[node] = self.default_processing_time_s
+        return proc_time
+
+    def _annotate_fault_cascade(
+        self,
+        record: FaultEventRecord,
+        edges: Dict[str, List[Tuple[str, str, dict]]],
+        fanouts: Dict[str, TopicFanout],
+        pub_window: Dict[str, Dict[str, int]],
+        del_window: Dict[str, Dict[str, int]],
+        latency_windows: Dict[str, list],
+    ) -> None:
+        """
+        Fill in what the fault actually cost: which topics it orphaned, which
+        subscribers lost a feed, and the delivery/latency shift across the
+        fault boundary.
+        """
+        # A topic is only orphaned if the faulted node was its *last* publisher.
+        publishers_of: Dict[str, Set[str]] = defaultdict(set)
+        for src, tgt, _ in edges["PUBLISHES_TO"]:
+            publishers_of[tgt].add(src)
+
+        orphaned = sorted({
+            tgt for src, tgt, _ in edges["PUBLISHES_TO"]
+            if src == self.fault_node and not (publishers_of[tgt] - {self.fault_node})
+        })
+        impacted = sorted({
+            src for src, tgt, _ in edges["SUBSCRIBES_TO"] if tgt in orphaned
+        })
+
+        # Delivery rates come from the windowed counters, normalised against
+        # fan-out (one publish becomes N expected deliveries).
+        def _rate(window: str) -> float:
+            delivered = sum(dw[window] for dw in del_window.values())
+            expected = sum(
+                pub_window[tid][window] * max(1, len(fanouts[tid].subscriber_ids))
+                for tid in fanouts
+            )
+            return min(1.0, delivered / expected if expected else 0.0)
+
+        record.cascade_silenced_publishers = [self.fault_node]
+        record.cascade_orphaned_topics = orphaned
+        record.cascade_impacted_subscribers = impacted
+        record.delivery_rate_before = _rate("pre")
+        record.delivery_rate_after = _rate("post")
+        record.latency_p50_before = percentile(latency_windows["pre"], 50)
+        record.latency_p50_after = percentile(latency_windows["post"], 50)
+        record.latency_p95_before = percentile(latency_windows["pre"], 95)
+        record.latency_p95_after = percentile(latency_windows["post"], 95)
+
+    # ── Public API ──────────────────────────────────────────────────────────
+
     def run(self) -> MessageFlowResult:
         """Execute the simulation and return a MessageFlowResult."""
         rng = random.Random(self.seed)
         env = simpy.Environment()
         failed_nodes: Set[str] = set()
+        msg_counter: List[int] = [0]   # shared, mutable message-id counter
 
-        # BUG-MFS-6 FIX: instance-level counter via single-element list
-        msg_counter: List[int] = [0]
-
-        # ── Topic QoS and stats ───────────────────────────────────────────
-
-        topic_qos: Dict[str, QoSProfile] = {}
-        topic_stats: Dict[str, TopicFlowStats] = {}
-
-        for node, data in self.graph.nodes(data=True):
-            if data.get("type") == "Topic":
-                qos = _extract_qos(data, self.default_queue_size)
-                topic_qos[node] = qos
-                topic_stats[node] = TopicFlowStats(
-                    topic_id=node,
-                    topic_name=data.get("name", node),
-                    reliability_policy=qos.reliability,
-                    deadline_ms=qos.deadline_ms,
-                    durability_policy=qos.durability,
-                )
-
-        # ── Fan-out objects (one per topic) ───────────────────────────────
-
-        fanouts: Dict[str, TopicFanout] = {
-            tid: TopicFanout(tid, topic_qos[tid], topic_stats[tid])
-            for tid in topic_qos
+        edges = self._edges_by_type()
+        topic_qos, topic_stats = self._build_topics()
+        fanouts = {
+            tid: TopicFanout(tid, topic_qos[tid], topic_stats[tid]) for tid in topic_qos
         }
 
-        # ── Subscriber stats and receive queues ───────────────────────────
+        pub_edges = [e for e in edges["PUBLISHES_TO"] if e[1] in fanouts]
+        sub_edges = [e for e in edges["SUBSCRIBES_TO"] if e[1] in fanouts]
 
-        sub_stats: Dict[str, SubscriberFlowStats] = {}
-        sub_topics: Dict[str, List[str]] = defaultdict(list)
-        # (topic_id, sub_id) → SubscriberQueue
-        sub_queues: Dict[tuple, SubscriberQueue] = {}
+        sub_stats, sub_queues = self._build_subscribers(env, sub_edges, fanouts)
+        proc_time = self._node_processing_times()
 
-        for src, tgt, data in self.graph.edges(data=True):
-            if data.get("type") == "SUBSCRIBES_TO" and tgt in fanouts:
-                sub_topics[src].append(tgt)
-
-        for sub_id, topics in sub_topics.items():
-            sub_stats[sub_id] = SubscriberFlowStats(
-                subscriber_id=sub_id, subscribed_topics=topics
-            )
-
-        for src, tgt, data in self.graph.edges(data=True):
-            if data.get("type") == "SUBSCRIBES_TO" and tgt in fanouts:
-                # Merge subscriber-side and topic-level QoS
-                sub_qos = _extract_qos(data, self.default_queue_size)
-                topic_level_qos = topic_qos[tgt]
-                # Topic-level deadline takes precedence if set
-                if topic_level_qos.deadline_ms:
-                    sub_qos.deadline_ms = topic_level_qos.deadline_ms
-
-                sq = fanouts[tgt].register(env, src)
-                sub_queues[(tgt, src)] = sq
-
-                if src not in sub_stats:
-                    sub_stats[src] = SubscriberFlowStats(
-                        subscriber_id=src, subscribed_topics=[tgt]
-                    )
-
-        # ── Node processing times ─────────────────────────────────────────
-
-        proc_time: Dict[str, float] = {}
-        for node, data in self.graph.nodes(data=True):
-            pt = data.get("processing_time", self.default_processing_time_s)
-            try:
-                proc_time[node] = float(pt)
-            except (TypeError, ValueError):
-                proc_time[node] = self.default_processing_time_s
-
-        # ── BUG-MFS-2 FIX: per-topic window publish/delivery counters ─────
-
-        pub_window: Dict[str, Dict[str, int]] = {
-            tid: {"pre": 0, "post": 0} for tid in fanouts
-        }
-        del_window: Dict[str, Dict[str, int]] = {
-            tid: {"pre": 0, "post": 0} for tid in fanouts
-        }
+        # Per-topic publish/delivery counters, split on the fault boundary.
+        pub_window = {tid: {"pre": 0, "post": 0} for tid in fanouts}
+        del_window = {tid: {"pre": 0, "post": 0} for tid in fanouts}
         latency_windows: Dict[str, list] = {"pre": [], "post": []}
 
-        # ── Spawn publisher processes ─────────────────────────────────────
+        fault_time = self.fault_time if self.fault_node else None
 
-        for src, tgt, data in self.graph.edges(data=True):
-            if data.get("type") == "PUBLISHES_TO" and tgt in fanouts:
-                rate = self.generate_workload(tgt)
+        for src, tgt, _ in pub_edges:
+            topic_node = self.graph.nodes[tgt] if tgt in self.graph.nodes else {}
+            env.process(_publisher_process(
+                env=env,
+                app_id=src,
+                topic_id=tgt,
+                rate_hz=self.generate_workload(tgt),
+                fanout=fanouts[tgt],
+                failed_nodes=failed_nodes,
+                fault_time=fault_time,
+                window_counts=pub_window[tgt],
+                msg_counter=msg_counter,
+                rng=rng,
+                processing_time_s=proc_time.get(src, self.default_processing_time_s),
+                use_poisson=str(topic_node.get("workload_type", "")).lower() == "poisson",
+            ))
 
-                topic_node = self.graph.nodes[tgt] if tgt in self.graph.nodes else {}
-                use_poisson = str(topic_node.get("workload_type", "")).lower() == "poisson"
-
-                env.process(
-                    _publisher_process(
-                        env=env,
-                        app_id=src,
-                        topic_id=tgt,
-                        rate_hz=rate,
-                        fanout=fanouts[tgt],
-                        failed_nodes=failed_nodes,
-                        fault_time=self.fault_time if self.fault_node else None,
-                        window_counts=pub_window[tgt],
-                        msg_counter=msg_counter,
-                        rng=rng,
-                        processing_time_s=proc_time.get(src, self.default_processing_time_s),
-                        use_poisson=use_poisson,
-                    )
-                )
-
-
-        # ── Spawn subscriber processes ────────────────────────────────────
-
-        for src, tgt, data in self.graph.edges(data=True):
-            if data.get("type") == "SUBSCRIBES_TO" and tgt in fanouts:
-                sq = sub_queues.get((tgt, src))
-                if sq is None:
-                    continue
-
-                sub_qos = _extract_qos(data, self.default_queue_size)
-                if topic_qos[tgt].deadline_ms:
-                    sub_qos.deadline_ms = topic_qos[tgt].deadline_ms
-
-                env.process(
-                    _subscriber_process(
-                        env=env,
-                        app_id=src,
-                        topic_id=tgt,
-                        sq=sq,
-                        qos=sub_qos,
-                        failed_nodes=failed_nodes,
-                        fault_time=self.fault_time if self.fault_node else None,
-                        sub_stats=sub_stats[src],
-                        topic_stats=topic_stats[tgt],
-                        delivery_window_counts=del_window[tgt],
-                        rng=rng,
-                        max_latency_samples=self.max_latency_samples,
-                        processing_time_s=proc_time.get(src, self.default_processing_time_s),
-                        latency_windows=latency_windows,
-                    )
-                )
-
-        # ── Fault injection process ───────────────────────────────────────
+        for src, tgt, data in sub_edges:
+            sq = sub_queues.get((tgt, src))
+            if sq is None:
+                continue
+            env.process(_subscriber_process(
+                env=env,
+                app_id=src,
+                topic_id=tgt,
+                sq=sq,
+                qos=self._subscriber_qos(data, topic_qos[tgt]),
+                failed_nodes=failed_nodes,
+                fault_time=fault_time,
+                sub_stats=sub_stats[src],
+                topic_stats=topic_stats[tgt],
+                delivery_window_counts=del_window[tgt],
+                rng=rng,
+                max_latency_samples=self.max_latency_samples,
+                processing_time_s=proc_time.get(src, self.default_processing_time_s),
+                latency_windows=latency_windows,
+            ))
 
         fault_event_record: Optional[FaultEventRecord] = None
 
@@ -620,8 +652,6 @@ class MessageFlowSimulator:
 
             env.process(_fault_process(env))
 
-        # ── Run simulation ────────────────────────────────────────────────
-
         logger.info(
             "Message-flow sim: duration=%.1fs | fault=%s | seed=%d",
             self.duration, self.fault_node or "none", self.seed,
@@ -629,87 +659,32 @@ class MessageFlowSimulator:
         env.run(until=self.duration)
         logger.info("Simulation complete.")
 
-        # ── Aggregate results ─────────────────────────────────────────────
-
-        total_published = sum(ts.total_published for ts in topic_stats.values())
         total_delivered = sum(ts.total_delivered for ts in topic_stats.values())
-        total_deadline_viol = sum(ts.total_dropped_deadline for ts in topic_stats.values())
-        total_overflow = sum(ts.total_dropped_queue_full for ts in topic_stats.values())
-
-        # Delivery rate: total_delivered / (total_published * avg_subscriber_count)
-        # A message is "fully delivered" when every subscriber receives it.
-        # We normalise against published×fan-out to get a per-copy rate.
+        # A message is "fully delivered" once every subscriber receives it, so
+        # normalise against published × fan-out to get a per-copy rate.
         total_expected = sum(
             ts.total_published * max(1, len(fanouts[tid].subscriber_ids))
             for tid, ts in topic_stats.items()
         )
         system_delivery = total_delivered / total_expected if total_expected else 0.0
 
-        # ── Fault cascade annotation ──────────────────────────────────────
-
         if fault_event_record is not None:
-            # BUG-MFS-3 FIX: check for other live publishers before marking
-            # a topic as orphaned.
-            other_pubs: Dict[str, Set[str]] = defaultdict(set)
-            for s2, t2, d2 in self.graph.edges(data=True):
-                if d2.get("type") == "PUBLISHES_TO":
-                    other_pubs[t2].add(s2)
-
-            orphaned: List[str] = []
-            for s2, t2, d2 in self.graph.edges(data=True):
-                if d2.get("type") == "PUBLISHES_TO" and s2 == self.fault_node:
-                    remaining = other_pubs[t2] - {self.fault_node}
-                    if not remaining:
-                        orphaned.append(t2)
-
-            impacted: List[str] = []
-            for t2 in orphaned:
-                for s2, tgt2, d2 in self.graph.edges(data=True):
-                    if d2.get("type") == "SUBSCRIBES_TO" and tgt2 == t2:
-                        impacted.append(s2)
-
-            # BUG-MFS-2 FIX: accurate before/after rates from window counters
-            total_pre_pub = sum(pw["pre"] for pw in pub_window.values())
-            total_post_pub = sum(pw["post"] for pw in pub_window.values())
-            total_pre_del = sum(dw["pre"] for dw in del_window.values())
-            total_post_del = sum(dw["post"] for dw in del_window.values())
-
-            # Normalise against fan-out (each pub fans to N subscribers)
-            pre_expected = sum(
-                pub_window[tid]["pre"] * max(1, len(fanouts[tid].subscriber_ids))
-                for tid in fanouts
-            )
-            post_expected = sum(
-                pub_window[tid]["post"] * max(1, len(fanouts[tid].subscriber_ids))
-                for tid in fanouts
+            self._annotate_fault_cascade(
+                fault_event_record, edges, fanouts,
+                pub_window, del_window, latency_windows,
             )
 
-            fault_event_record.cascade_silenced_publishers = [self.fault_node]
-            fault_event_record.cascade_orphaned_topics = sorted(set(orphaned))
-            fault_event_record.cascade_impacted_subscribers = sorted(set(impacted))
-            fault_event_record.delivery_rate_before = min(
-                1.0, total_pre_del / pre_expected if pre_expected else 0.0
-            )
-            fault_event_record.delivery_rate_after = min(
-                1.0, total_post_del / post_expected if post_expected else 0.0
-            )
-            fault_event_record.latency_p50_before = _pct(latency_windows["pre"], 50)
-            fault_event_record.latency_p50_after  = _pct(latency_windows["post"], 50)
-            fault_event_record.latency_p95_before = _pct(latency_windows["pre"], 95)
-            fault_event_record.latency_p95_after  = _pct(latency_windows["post"], 95)
-
-        result = MessageFlowResult(
+        return MessageFlowResult(
             graph_id=self.graph.graph.get("id", ""),
             simulation_duration=self.duration,
             seed=self.seed,
             fault_event=fault_event_record,
             system_delivery_rate=round(min(1.0, system_delivery), 4),
             system_drop_rate=round(max(0.0, 1.0 - system_delivery), 4),
-            total_messages_published=total_published,
+            total_messages_published=sum(ts.total_published for ts in topic_stats.values()),
             total_messages_delivered=total_delivered,
-            total_deadline_violations=total_deadline_viol,
-            total_queue_overflows=total_overflow,
+            total_deadline_violations=sum(ts.total_dropped_deadline for ts in topic_stats.values()),
+            total_queue_overflows=sum(ts.total_dropped_queue_full for ts in topic_stats.values()),
             topic_stats=topic_stats,
             subscriber_stats=sub_stats,
         )
-        return result

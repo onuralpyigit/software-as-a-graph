@@ -42,6 +42,34 @@ FRAGMENTATION_SEVERITY_COEFF: float = 0.30
 TOPIC_CRITICALITY_BLEND: float = 0.50
 
 
+@dataclass
+class _DependencyView:
+    """The derived DEPENDS_ON graph, shared by the IM(v) and IV(v) post-passes."""
+
+    #: (source, target, weight) arcs of the derived dependency graph.
+    edges: List[Tuple[str, str, float]]
+    component_ids: List[str]
+    weights: Dict[str, float]
+    in_degrees: Dict[str, int]
+    out_degrees: Dict[str, int]
+
+
+@dataclass
+class _CascadeState:
+    """Mutable bookkeeping threaded through one cascade traversal."""
+
+    #: Per-component impact in [0, 1]; monotonically non-decreasing.
+    impact: Dict[str, float]
+    #: Mirror of `1.0 - impact`, owned by the caller.
+    performance: Dict[str, float]
+    #: Components driven all the way to impact >= 1.0.
+    failed_set: Set[str]
+    #: Ordered log of what failed, why, and at which depth.
+    cascade_sequence: List[CascadeEvent]
+    #: BFS frontier of (component_id, depth).
+    queue: List[Tuple[str, int]] = field(default_factory=list)
+
+
 class FailureSimulator:
     """
     Simulates component failures and cascade propagation.
@@ -60,7 +88,6 @@ class FailureSimulator:
         >>> print(f"Impact: {result.impact.composite_impact}")
     """
 
-    STARVATION_THRESHOLD = 0.2  # documented class-level fallback; instances use self.propagation_threshold
     DEGRADED_PERFORMANCE = 0.5
 
     def __init__(self, graph: SimulationGraph, telemetry_profile: Optional[RuntimeTelemetryProfile] = None,
@@ -97,10 +124,16 @@ class FailureSimulator:
         # Random generator
         self._rng = random.Random()
         
-        # Baseline metrics (computed once per exhaustive run, or per simulate call)
+        # Baseline metrics (computed once per exhaustive run, or per simulate
+        # call). Seeded here as well as in _compute_baseline so that reaching
+        # _calculate_impact without a baseline yields zeroed metrics rather than
+        # an AttributeError.
         self._initial_paths_list: List[Tuple[str, str, str, float]] = []
         self._initial_connected_components: int = 1
         self._initial_total_weight: float = 0.0
+        self._initial_paths: int = 0
+        self._initial_capacity_sum: float = 0.0
+        self._initial_components: int = 0
         self._baseline_flows: Set[Tuple[str, str, str]] = set()
         self._initial_stranded_severity: float = 0.0
         self._baseline_computed: bool = False
@@ -314,7 +347,6 @@ class FailureSimulator:
         self.graph.reset()
         if not self._baseline_computed:
             self._compute_baseline()
-            self._baseline_computed = True
 
         # ``_calculate_impact`` is not zero on a pristine graph: topics that
         # already lack a publisher or a subscriber are counted as lost
@@ -383,7 +415,6 @@ class FailureSimulator:
 
         self.graph.reset()
         self._compute_baseline()
-        self._baseline_computed = True
         self._null_impact_cache = None
 
         results = []
@@ -472,7 +503,6 @@ class FailureSimulator:
         # Compute baseline once (C5 fix: avoid recomputing per simulation)
         self.graph.reset()
         self._compute_baseline()
-        self._baseline_computed = True
         
         try:
             for comp_id in component_ids:
@@ -509,225 +539,144 @@ class FailureSimulator:
         
         # Sort by composite impact (highest first)
         results.sort(key=lambda r: r.impact.composite_impact, reverse=True)
-        
-        # --- IR(v) post-pass --------------------------------------------------
-        # Compute the three Reliability-specific sub-fields for each result.
-        # Requires knowing total graph size and weight; executed after all runs
-        # so normalisation denominators are available.
-        
-        total_components = len(self.graph.components)
-        
-        # Total QoS weight across all components in the graph
-        total_weight = sum(
-            getattr(c, 'weight', 1.0)
-            for c in self.graph.components.values()
+
+        # RMAV sub-metric post-passes. They run after the sweep because their
+        # normalisation denominators (graph size, total weight, max observed
+        # depth) are only known once every component has been simulated.
+        dep_view = self._build_dependency_view()
+        self._postpass_reliability(results)
+        self._postpass_maintainability(results, dep_view)
+        self._postpass_security(results, dep_view)
+        self._postpass_availability(results)
+
+        return results
+
+    def _build_dependency_view(self) -> "_DependencyView":
+        """
+        Derive the DEPENDS_ON view of the graph once, for the IM(v) and IV(v)
+        post-passes (which previously each rebuilt it identically).
+
+        Each component's total outgoing dependency weight is spread evenly over
+        its outgoing arcs, which is the approximation both propagation
+        simulators were already written against.
+        """
+        components = self.graph.components
+        targets_of = {cid: self.graph.get_depends_on_targets(cid) for cid in components}
+
+        out_deg = {cid: len(targets) for cid, targets in targets_of.items()}
+        in_deg = {cid: 0 for cid in components}
+        for targets in targets_of.values():
+            for tgt in targets:
+                if tgt in in_deg:
+                    in_deg[tgt] += 1
+
+        dep_edges: List[Tuple[str, str, float]] = []
+        for cid, targets in targets_of.items():
+            weight_out = sum(
+                self.graph.graph[cid][tgt].get("weight", 1.0)
+                if self.graph.graph.has_edge(cid, tgt) else 1.0
+                for tgt in targets
+            )
+            per_edge_w = weight_out / out_deg[cid] if out_deg[cid] > 0 else 0.0
+            dep_edges.extend((cid, tgt, per_edge_w) for tgt in targets)
+
+        return _DependencyView(
+            edges=dep_edges,
+            component_ids=list(components.keys()),
+            weights={cid: getattr(c, "weight", 1.0) for cid, c in components.items()},
+            in_degrees=in_deg,
+            out_degrees=out_deg,
         )
-        if total_weight <= 0:
-            total_weight = max(total_components, 1)
-        
+
+    def _postpass_reliability(self, results: List[FailureResult]) -> None:
+        """IR(v): how far and how heavily the runtime failure cascade spread."""
+        total_components = len(self.graph.components)
+        total_weight = sum(
+            getattr(c, "weight", 1.0) for c in self.graph.components.values()
+        ) or max(total_components, 1)
+
         max_observed_depth = max(
             (r.impact.cascade_depth for r in results if r.impact.cascade_depth > 0),
             default=1
         )
-        
+        n = total_components - 1  # exclude the failed component itself
+
         for r in results:
-            n = total_components - 1  # exclude the failed component itself
-            
-            # cascade_reach = fraction of all (other) components that failed
-            r.impact.cascade_reach = (
-                len(r.cascaded_failures) / n if n > 0 else 0.0
-            )
-            
-            # weighted_cascade_impact = importance-weighted failure fraction
             cascaded_weight = sum(
-                getattr(self.graph.components[cid], 'weight', 1.0)
+                getattr(self.graph.components[cid], "weight", 1.0)
                 for cid in r.cascaded_failures
                 if cid in self.graph.components
             )
+            r.impact.cascade_reach = len(r.cascaded_failures) / n if n > 0 else 0.0
             r.impact.weighted_cascade_impact = cascaded_weight / total_weight
-            
-            # normalized_cascade_depth = depth relative to run-wide maximum
             r.impact.normalized_cascade_depth = (
-                r.impact.cascade_depth / max_observed_depth
-                if max_observed_depth > 0 else 0.0
-            )
-        
-        # --- IM(v) & IV(v) dynamic metric computation -------------------------
-        # Precompute structural metrics dynamically on the derived dependency graph
-        comp_out_deg = {
-            cid: len(self.graph.get_depends_on_targets(cid))
-            for cid in self.graph.components
-        }
-        comp_in_deg = {cid: 0 for cid in self.graph.components}
-        for cid in self.graph.components:
-            for tgt in self.graph.get_depends_on_targets(cid):
-                if tgt in comp_in_deg:
-                    comp_in_deg[tgt] += 1
-
-        comp_dep_weight_out = {}
-        for cid in self.graph.components:
-            targets = self.graph.get_depends_on_targets(cid)
-            w_sum = 0.0
-            for tgt in targets:
-                if self.graph.graph.has_edge(cid, tgt):
-                    w_sum += self.graph.graph[cid][tgt].get("weight", 1.0)
-                else:
-                    w_sum += 1.0
-            comp_dep_weight_out[cid] = w_sum
-
-        # --- IM(v) post-pass --------------------------------------------------
-        # Compute the three Maintainability-specific sub-fields for each result.
-        # Uses ChangePropagationSimulator on the transposed DEPENDS_ON graph (G^T).
-        # This is a development-time change propagation model, distinct from the
-        # runtime failure cascade above.
-        try:
-            from .change_propagation import ChangePropagationSimulator
-
-            # Build DEPENDS_ON edge list from the analysis graph.
-            # We use the raw graph relationships annotated with edge weights.
-            # dependency_weight is the QoS-derived weight on each DEPENDS_ON arc.
-            dep_edges: List[Tuple[str, str, float]] = []
-            for comp_id in self.graph.components:
-                out_raw = comp_out_deg[comp_id]
-                weight_out = comp_dep_weight_out[comp_id]
-                # Distribute weight evenly across outgoing edges as an approximation
-                per_edge_w = weight_out / out_raw if out_raw > 0 else 0.0
-                # Retrieve outgoing neighbors from the raw adjacency
-                for neighbor_id in self.graph.get_depends_on_targets(comp_id):
-                    dep_edges.append((comp_id, neighbor_id, per_edge_w))
-
-            all_ids = list(self.graph.components.keys())
-            comp_weights = {
-                cid: getattr(c, 'weight', 1.0)
-                for cid, c in self.graph.components.items()
-            }
-
-            cp_sim = ChangePropagationSimulator(theta_loose=0.20, theta_stable=0.20)
-            cp_results = cp_sim.simulate_all(
-                component_ids=all_ids,
-                dependency_edges=dep_edges,
-                component_weights=comp_weights,
-                component_in_degrees=comp_in_deg,
-                component_out_degrees=comp_out_deg,
+                r.impact.cascade_depth / max_observed_depth if max_observed_depth > 0 else 0.0
             )
 
-            # Map IM(v) sub-metrics back into each FailureResult.impact
-            for r in results:
-                cid = r.target_id
-                cp = cp_results.get(cid)
-                if cp is not None:
-                    r.impact.change_reach = cp.change_reach
-                    r.impact.weighted_change_impact = cp.weighted_change_impact
-                    r.impact.normalized_change_depth = cp.normalized_change_depth
+    def _postpass_maintainability(
+        self, results: List[FailureResult], dep: "_DependencyView"
+    ) -> None:
+        """
+        IM(v): development-time change propagation over the transposed
+        DEPENDS_ON graph — distinct from the runtime failure cascade.
+        """
+        from .change_propagation import ChangePropagationSimulator
 
-            self.logger.debug(
-                "IM(v) post-pass complete: %d components, "
-                "avg_change_reach=%.3f",
-                len(results),
-                sum(r.impact.change_reach for r in results) / max(len(results), 1),
+        cp_results = ChangePropagationSimulator(
+            theta_loose=0.20, theta_stable=0.20
+        ).simulate_all(
+            component_ids=dep.component_ids,
+            dependency_edges=dep.edges,
+            component_weights=dep.weights,
+            component_in_degrees=dep.in_degrees,
+            component_out_degrees=dep.out_degrees,
+        )
+
+        for r in results:
+            cp = cp_results.get(r.target_id)
+            if cp is not None:
+                r.impact.change_reach = cp.change_reach
+                r.impact.weighted_change_impact = cp.weighted_change_impact
+                r.impact.normalized_change_depth = cp.normalized_change_depth
+
+    def _postpass_security(
+        self, results: List[FailureResult], dep: "_DependencyView"
+    ) -> None:
+        """IV(v): compromise propagation and attack paths over G^T."""
+        from .compromise_propagation import CompromisePropagationSimulator
+
+        cp_results = CompromisePropagationSimulator(theta_trust=0.30).simulate_all(
+            component_ids=dep.component_ids,
+            dependency_edges=dep.edges,
+            component_weights=dep.weights,
+        )
+
+        for r in results:
+            cp = cp_results.get(r.target_id)
+            if cp is not None:
+                r.impact.attack_reach = cp.attack_reach
+                r.impact.weighted_attack_impact = cp.weighted_attack_impact
+                r.impact.high_value_contamination = cp.high_value_contamination
+                r.impact.critical_paths = cp.critical_paths
+
+    def _postpass_availability(self, results: List[FailureResult]) -> None:
+        """
+        IA(v): connectivity disruption.
+
+        Reachability loss and fragmentation are already QoS-weighted by
+        `_calculate_impact` (fragmentation carries the 0.70/0.30 structural /
+        QoS-mass blend itself), so they carry straight over — re-blending here
+        would apply the split twice. Only the partition/cascade split of
+        throughput loss is new: a high cascade_reach means most of the loss came
+        from subscriber starvation rather than from structural path-breaking.
+        """
+        for r in results:
+            im = r.impact
+            im.weighted_reachability_loss = im.reachability_loss
+            im.weighted_fragmentation = im.fragmentation
+            im.path_breaking_throughput_loss = (
+                im.throughput_loss * max(0.0, 1.0 - im.cascade_reach)
             )
-        except Exception as _im_err:
-            # Never let the maintainability post-pass break the existing simulation
-            self.logger.warning(
-                "IM(v) change propagation post-pass skipped: %s", _im_err
-            )
-
-        # --- IV(v) post-pass --------------------------------------------------
-        # Compute Vulnerability-specific sub-fields for each result.
-        # Uses CompromisePropagationSimulator on the transposed DEPENDS_ON graph (G^T).
-        try:
-            from .compromise_propagation import CompromisePropagationSimulator
-
-            dep_edges_v: List[Tuple[str, str, float]] = []
-            for comp_id in self.graph.components:
-                out_raw = comp_out_deg[comp_id]
-                weight_out = comp_dep_weight_out[comp_id]
-                per_edge_w = weight_out / out_raw if out_raw > 0 else 0.0
-                for neighbor_id in self.graph.get_depends_on_targets(comp_id):
-                    dep_edges_v.append((comp_id, neighbor_id, per_edge_w))
-
-            all_ids_v = list(self.graph.components.keys())
-            comp_weights_v = {
-                cid: getattr(c, 'weight', 1.0)
-                for cid, c in self.graph.components.items()
-            }
-
-            cp_sim = CompromisePropagationSimulator(theta_trust=0.30)
-            cp_results = cp_sim.simulate_all(
-                component_ids=all_ids_v,
-                dependency_edges=dep_edges_v,
-                component_weights=comp_weights_v,
-            )
-
-            for r in results:
-                cid = r.target_id
-                cp = cp_results.get(cid)
-                if cp is not None:
-                    r.impact.attack_reach = cp.attack_reach
-                    r.impact.weighted_attack_impact = cp.weighted_attack_impact
-                    r.impact.high_value_contamination = cp.high_value_contamination
-                    r.impact.critical_paths = cp.critical_paths
-
-            self.logger.debug(
-                "IV(v) post-pass complete: %d components, "
-                "avg_attack_reach=%.3f",
-                len(results),
-                sum(r.impact.attack_reach for r in results) / max(len(results), 1),
-            )
-        except Exception as _iv_err:
-            self.logger.warning(
-                "IV(v) compromise propagation post-pass skipped: %s", _iv_err
-            )
-
-        # --- IA(v) post-pass --------------------------------------------------
-        # Compute Availability-specific sub-fields for each result.
-        # Uses QoS-weighted reachability and fragmentation from the already-computed
-        # impact metrics, plus a PARTITION_LOSS heuristic to separate structural
-        # path-breaking from cascade-induced throughput loss.
-        try:
-            total_topic_weight = self._initial_total_weight or 1.0
-
-            for r in results:
-                im = r.impact
-                n_comp = max(self._initial_components, 1)
-
-                # WeightedReachabilityLoss:
-                # Already computed as reachability_loss; re-weight using
-                # initial_capacity_sum proportionally (already QoS-weighted via pub-sub paths).
-                im.weighted_reachability_loss = im.reachability_loss  # inherently QoS-weighted
-
-                # WeightedFragmentation:
-                # The base fragmentation term now carries the QoS-mass blend itself
-                # (see _calculate_impact), so re-blending here would apply the
-                # 0.70/0.30 split twice. Under qos_weighting=False the base term is
-                # deliberately structural-only and this stays structural too.
-                im.weighted_fragmentation = im.fragmentation
-
-                # PathBreakingThroughputLoss:
-                # Heuristic: throughput loss that stems from PARTITION_LOSS (structural
-                # SPOF removal) vs CASCADE_LOSS (subscriber starvation).
-                # Approximation: the fraction attributable to partition ≈
-                # throughput_loss × (1 − cascade_reach), because high cascade_reach
-                # indicates much of the loss came from cascade, not partition.
-                cascade_fraction = im.cascade_reach  # from IR(v) post-pass (0 if not yet set)
-                partition_fraction = max(0.0, 1.0 - cascade_fraction)
-                im.path_breaking_throughput_loss = im.throughput_loss * partition_fraction
-
-            self.logger.debug(
-                "IA(v) post-pass complete: %d components, "
-                "avg_wrl=%.3f, avg_wfrag=%.3f, avg_pbtl=%.3f",
-                len(results),
-                sum(r.impact.weighted_reachability_loss for r in results) / max(len(results), 1),
-                sum(r.impact.weighted_fragmentation for r in results) / max(len(results), 1),
-                sum(r.impact.path_breaking_throughput_loss for r in results) / max(len(results), 1),
-            )
-        except Exception as _ia_err:
-            # Never let the availability post-pass break the existing simulation
-            self.logger.warning(
-                "IA(v) connectivity disruption post-pass skipped: %s", _ia_err
-            )
-
-        return results
 
 
     def simulate_pairwise(
@@ -756,7 +705,6 @@ class FailureSimulator:
         
         self.graph.reset()
         self._compute_baseline()
-        self._baseline_computed = True
         
         try:
             for i in range(n):
@@ -851,6 +799,183 @@ class FailureSimulator:
         total = sum(self.topic_severity(tid) for tid in self.graph.topics)
         return total if total > 0 else float(len(self.graph.topics))
     
+    def _apply_impact(
+        self,
+        state: "_CascadeState",
+        comp_id: str,
+        new_impact: float,
+        cause: str,
+        depth: int,
+    ) -> None:
+        """
+        Raise *comp_id*'s impact to *new_impact*, if that is an increase.
+
+        Every cascade rule ends the same way: take the worse of the two impacts,
+        mirror it into the component's performance, flip the component to failed
+        or degraded, record the event and enqueue it for further propagation.
+        Monotonic by construction — a component's impact never decreases.
+        """
+        if new_impact <= state.impact[comp_id]:
+            return
+
+        state.impact[comp_id] = new_impact
+        comp = self.graph.components[comp_id]
+        comp.custom_performance = 1.0 - new_impact
+        state.performance[comp_id] = 1.0 - new_impact
+
+        if new_impact >= 1.0:
+            self.graph.fail_component(comp_id)
+            state.failed_set.add(comp_id)
+        else:
+            self.graph.set_degraded(comp_id)
+
+        state.cascade_sequence.append(CascadeEvent(
+            component_id=comp_id,
+            component_type=comp.type,
+            cause=cause,
+            depth=depth,
+        ))
+        state.queue.append((comp_id, depth))
+
+    def _blast_library_consumers(
+        self,
+        initial_targets: List[str],
+        state: "_CascadeState",
+    ) -> None:
+        """
+        Shared-library blast semantics: a failed Library takes every transitive
+        consumer with it as a step function at T0, before the depth-bounded
+        cascade starts. Recorded at depth 0 and not routed through
+        `_apply_impact`, which would enqueue these for a second traversal.
+        """
+        failed_libs = [
+            tid for tid in initial_targets
+            if self.graph.components[tid].type == "Library" and state.impact[tid] >= 1.0
+        ]
+        if not failed_libs:
+            return
+
+        to_blast = set(failed_libs)
+        visited: Set[str] = set()
+        queue_blast = [(lid, lid) for lid in failed_libs]
+        while queue_blast:
+            curr, _cause = queue_blast.pop(0)
+            if curr in visited:
+                continue
+            visited.add(curr)
+            for consumer in self.graph.get_uses_consumers(curr):
+                if consumer in to_blast:
+                    continue
+                to_blast.add(consumer)
+                state.impact[consumer] = 1.0
+                comp = self.graph.components.get(consumer)
+                state.cascade_sequence.append(CascadeEvent(
+                    component_id=consumer,
+                    component_type=comp.type if comp else "Application",
+                    cause=f"uses_library:{curr}",
+                    depth=0,
+                ))
+                queue_blast.append((consumer, curr))
+
+    def _cascade_physical(self, scenario, state, current_id, current_impact, depth) -> None:
+        """Rule 1: a Node takes down everything it hosts."""
+        for comp_id in self.graph.get_hosted_components(current_id):
+            if self._rng.random() < scenario.cascade_probability:
+                self._apply_impact(state, comp_id, current_impact,
+                                   f"hosted_on:{current_id}", depth + 1)
+
+    def _cascade_library(self, scenario, state, current_id, current_impact, depth) -> None:
+        """Rule 4: a Library takes down the applications that use it."""
+        lib_prob = (scenario.library_cascade_probability
+                    if scenario.library_cascade_probability is not None
+                    else scenario.cascade_probability)
+        for app_id in self.graph.get_uses_consumers(current_id):
+            if self._rng.random() < lib_prob:
+                self._apply_impact(state, app_id, current_impact,
+                                   f"uses_library:{current_id}", depth + 1)
+
+    def _topic_weight(self, topic_id: str) -> float:
+        """w(t) calibrated by the topic's observed message rate (telemetry, else 1.0)."""
+        runtime_rate = self.telemetry.msg_rate_per_sec.get(topic_id, 1.0)
+        topic_info = self.graph.topics.get(topic_id)
+        return getattr(topic_info, "weight", 1.0) * runtime_rate if topic_info else runtime_rate
+
+    def _edge_prob(self, src: str, dst: str, edge_weight, scenario) -> float:
+        """
+        Per-edge operational failure probability.
+
+        Defaults to the edge's own QoS-derived coupling weight w(e) — a
+        tightly-coupled (high-QoS) edge is likelier to actually propagate than a
+        best-effort one — falling back to the scenario's flat
+        cascade_probability when no per-edge weight was recorded. Telemetry
+        overrides both when it has measured this specific edge.
+        """
+        default_prob = edge_weight if edge_weight is not None else scenario.cascade_probability
+        return self.telemetry.edge_failure_correlation.get((src, dst), default_prob)
+
+    def _cascade_publisher_to_topic(self, scenario, state, current_id, current_impact, depth) -> None:
+        """An Application starves the topics it publishes to."""
+        publishes_to, _ = self.graph.get_app_topics(current_id)
+        for topic_id in publishes_to:
+            if topic_id not in self.graph.topics:
+                continue
+
+            publishers = self.graph._publishers.get(topic_id, [])
+            if publishers:
+                avg_pub_impact = sum(state.impact.get(p[0], 0.0) for p in publishers) / len(publishers)
+            else:
+                avg_pub_impact = current_impact
+
+            # Telemetry-calibrated starvation bound: once the average publisher
+            # is this degraded, treat the topic as fully starved.
+            starve_bound = self.telemetry.custom_starvation_bounds.get(
+                current_id, self.propagation_threshold)
+            effective = 1.0 if avg_pub_impact >= (1.0 - starve_bound) else avg_pub_impact
+
+            pub_edge_weight = next((w for aid, w in publishers if aid == current_id), None)
+            if self._rng.random() < self._edge_prob(current_id, topic_id, pub_edge_weight, scenario):
+                self._apply_impact(
+                    state, topic_id, effective * self._topic_weight(topic_id),
+                    f"sl_starvation:{avg_pub_impact:.2f} (via {current_id})", depth + 1)
+
+    def _cascade_broker_to_topic(self, scenario, state, current_id, current_impact, depth) -> None:
+        """A Broker starves the topics it routes, unless a peer broker still routes them."""
+        for topic_id, brokers in self.graph._routing.items():
+            if not any(b[0] == current_id for b in brokers):
+                continue
+
+            # min() over the routing brokers: surviving redundancy keeps the topic up.
+            routing_impact = min((state.impact.get(b[0], 0.0) for b in brokers),
+                                 default=current_impact)
+            route_edge_weight = next((w for bid, w in brokers if bid == current_id), None)
+            if self._rng.random() < self._edge_prob(current_id, topic_id, route_edge_weight, scenario):
+                self._apply_impact(
+                    state, topic_id, routing_impact * self._topic_weight(topic_id),
+                    f"no_active_brokers:{current_id}", depth + 1)
+
+    def _cascade_topic_to_subscriber(self, scenario, state, current_id, current_impact, depth) -> None:
+        """A Topic starves its subscribers, unless they have other healthy feeds."""
+        for sub in self.graph._subscribers.get(current_id, []):
+            sub_id, sub_edge_weight = sub[0], (sub[1] if len(sub) > 1 else None)
+            _, subscribed_to = self.graph.get_app_topics(sub_id)
+            # min() across feeds: one healthy subscription keeps the app alive.
+            sub_impact = min((state.impact.get(t, 0.0) for t in subscribed_to),
+                             default=current_impact)
+
+            if self._rng.random() < self._edge_prob(current_id, sub_id, sub_edge_weight, scenario):
+                self._apply_impact(state, sub_id, sub_impact,
+                                   f"subscriber_starvation:{current_id}", depth + 1)
+
+    def _cascade_network(self, scenario, state, current_id, current_impact, depth) -> None:
+        """A Node isolates its network peers that have no other connection."""
+        for neighbor_id in self.graph.get_connected_nodes(current_id):
+            all_connections = [c[0] for c in self.graph._connections.get(neighbor_id, [])]
+            other_impacts = [state.impact.get(c, 0.0) for c in all_connections if c != current_id]
+            isolation_impact = min(current_impact, min(other_impacts)) if other_impacts else current_impact
+            if self._rng.random() < scenario.cascade_probability:
+                self._apply_impact(state, neighbor_id, isolation_impact,
+                                   f"network_partition:{current_id}", depth + 1)
+
     def _propagate_cascade_multi(
         self,
         scenario: FailureScenario,
@@ -860,342 +985,113 @@ class FailureSimulator:
         performance: Dict[str, float]
     ) -> int:
         """
-        Propagate failure cascade from multiple initial targets using continuous-valued
-        state reduction with state attenuation.
-        """
-        # 1. Initialize local per-component impact state (1.0 - performance[v]).
-        #    Internal to this cascade pass only -- not the paper's I*(v) ground truth
-        #    (that is FaultInjector.impact_score); do not conflate the two.
-        impact: Dict[str, float] = {cid: 0.0 for cid in self.graph.components}
-        
-        # Set initial target impacts
-        for tid in initial_targets:
-            if scenario.failure_mode == FailureMode.DEGRADED:
-                impact[tid] = self.DEGRADED_PERFORMANCE # 0.5
-            else:
-                impact[tid] = 1.0
-                
-        # 2. Shared Library Blast Semantics (step-function failure at T0)
-        if scenario.cascade_rule in (CascadeRule.LIBRARY, CascadeRule.ALL) and scenario.failure_mode != FailureMode.DEGRADED:
-            failed_libs = [tid for tid in initial_targets if self.graph.components[tid].type == "Library" and impact[tid] >= 1.0]
-            if failed_libs:
-                to_blast = set(failed_libs)
-                visited = set()
-                queue_blast = [(lid, lid) for lid in failed_libs]
-                while queue_blast:
-                    curr, cause = queue_blast.pop(0)
-                    if curr in visited:
-                        continue
-                    visited.add(curr)
-                    consumers = self.graph.get_uses_consumers(curr)
-                    for consumer in consumers:
-                        if consumer not in to_blast:
-                            to_blast.add(consumer)
-                            impact[consumer] = 1.0
-                            comp = self.graph.components.get(consumer)
-                            cascade_sequence.append(CascadeEvent(
-                                component_id=consumer,
-                                component_type=comp.type if comp else "Application",
-                                cause=f"uses_library:{curr}",
-                                depth=0
-                            ))
-                            queue_blast.append((consumer, curr))
+        Propagate a failure cascade from multiple initial targets, using
+        continuous-valued state reduction with attenuation.
 
-        # 3. Synchronize performance, states and failed_set
-        for cid, imp in impact.items():
-            if imp > 0.0:
-                comp = self.graph.components[cid]
-                comp.custom_performance = 1.0 - imp
-                performance[cid] = 1.0 - imp
-                if imp >= 1.0:
-                    self.graph.fail_component(cid)
-                    failed_set.add(cid)
-                else:
-                    self.graph.set_degraded(cid)
-                    
-        # 4. Initialize bounded queue
-        queue: List[Tuple[str, int]] = [(cid, 0) for cid, imp in impact.items() if imp > 0.0]
+        Impact is a per-component value in [0, 1] internal to this pass — it is
+        NOT the paper's I*(v) ground truth (that is FaultInjector.impact_score);
+        do not conflate the two.
+        """
+        state = _CascadeState(
+            impact={cid: 0.0 for cid in self.graph.components},
+            performance=performance,
+            failed_set=failed_set,
+            cascade_sequence=cascade_sequence,
+        )
+
+        degraded = scenario.failure_mode == FailureMode.DEGRADED
+        for tid in initial_targets:
+            state.impact[tid] = self.DEGRADED_PERFORMANCE if degraded else 1.0
+
+        library_rule = scenario.cascade_rule in (CascadeRule.LIBRARY, CascadeRule.ALL)
+        if library_rule and not degraded:
+            self._blast_library_consumers(initial_targets, state)
+
+        # Synchronise the seeded impacts into component state before traversal.
+        for cid, imp in state.impact.items():
+            if imp <= 0.0:
+                continue
+            comp = self.graph.components[cid]
+            comp.custom_performance = 1.0 - imp
+            performance[cid] = 1.0 - imp
+            if imp >= 1.0:
+                self.graph.fail_component(cid)
+                failed_set.add(cid)
+            else:
+                self.graph.set_degraded(cid)
+
+        state.queue = [(cid, 0) for cid, imp in state.impact.items() if imp > 0.0]
+
+        physical_rule = (scenario.cascade_rule in (CascadeRule.PHYSICAL, CascadeRule.ALL)
+                         and scenario.failure_mode != FailureMode.PARTITION)
+        logical_rule = scenario.cascade_rule in (CascadeRule.LOGICAL, CascadeRule.ALL)
+        network_rule = scenario.cascade_rule in (CascadeRule.NETWORK, CascadeRule.ALL)
+
         max_depth = 0
-        
-        while queue:
-            current_id, depth = queue.pop(0)
-            
+        while state.queue:
+            current_id, depth = state.queue.pop(0)
             if depth >= scenario.max_cascade_depth:
                 continue
-                
+
             max_depth = max(max_depth, depth)
             current_comp = self.graph.components.get(current_id)
             if not current_comp:
                 continue
-                
+
             current_type = current_comp.type
-            current_impact = impact[current_id]
-            
-            # === Physical Cascade (Rule 1: Node -> Hosted Components) ===
-            if scenario.cascade_rule in (CascadeRule.PHYSICAL, CascadeRule.ALL) and scenario.failure_mode != FailureMode.PARTITION:
-                if current_type == "Node":
-                    hosted = self.graph.get_hosted_components(current_id)
-                    for comp_id in hosted:
-                        if self._rng.random() < scenario.cascade_probability:
-                            if current_impact > impact[comp_id]:
-                                impact[comp_id] = current_impact
-                                comp = self.graph.components[comp_id]
-                                comp.custom_performance = 1.0 - current_impact
-                                performance[comp_id] = 1.0 - current_impact
-                                if current_impact >= 1.0:
-                                    self.graph.fail_component(comp_id)
-                                    failed_set.add(comp_id)
-                                else:
-                                    self.graph.set_degraded(comp_id)
-                                cascade_sequence.append(CascadeEvent(
-                                    component_id=comp_id,
-                                    component_type=comp.type if comp else "Unknown",
-                                    cause=f"hosted_on:{current_id}",
-                                    depth=depth + 1
-                                ))
-                                queue.append((comp_id, depth + 1))
-                            
-            # === Library Cascade (Rule 4: Library -> Using Applications) ===
-            if scenario.cascade_rule in (CascadeRule.LIBRARY, CascadeRule.ALL):
-                if current_type == "Library":
-                    lib_prob = (scenario.library_cascade_probability
-                                if scenario.library_cascade_probability is not None
-                                else scenario.cascade_probability)
-                    users = self.graph.get_uses_consumers(current_id)
-                    for app_id in users:
-                        if self._rng.random() < lib_prob:
-                            if current_impact > impact[app_id]:
-                                impact[app_id] = current_impact
-                                comp = self.graph.components[app_id]
-                                comp.custom_performance = 1.0 - current_impact
-                                performance[app_id] = 1.0 - current_impact
-                                if current_impact >= 1.0:
-                                    self.graph.fail_component(app_id)
-                                    failed_set.add(app_id)
-                                else:
-                                    self.graph.set_degraded(app_id)
-                                cascade_sequence.append(CascadeEvent(
-                                    component_id=app_id,
-                                    component_type=comp.type if comp else "Application",
-                                    cause=f"uses_library:{current_id}",
-                                    depth=depth + 1
-                                ))
-                                queue.append((app_id, depth + 1))
-                            
-            # === Logical Cascade ===
-            if scenario.cascade_rule in (CascadeRule.LOGICAL, CascadeRule.ALL):
-                # Publisher (Application) -> Topic
+            current_impact = state.impact[current_id]
+            args = (scenario, state, current_id, current_impact, depth)
+
+            if physical_rule and current_type == "Node":
+                self._cascade_physical(*args)
+
+            if library_rule and current_type == "Library":
+                self._cascade_library(*args)
+
+            if logical_rule:
                 if current_type == "Application":
-                    publishes_to, _ = self.graph.get_app_topics(current_id)
-                    for topic_id in publishes_to:
-                        topic_info = self.graph.topics.get(topic_id)
-                        if not topic_info:
-                            continue
-                        
-                        # DYNAMIC IMPROVEMENT 1: Calibrate Topic Weight using real message throughput rate
-                        runtime_rate = self.telemetry.msg_rate_per_sec.get(topic_id, 1.0)
-                        w_topic = getattr(topic_info, 'weight', 1.0) * runtime_rate
-                        
-                        publishers = self.graph._publishers.get(topic_id, [])
-                        if publishers:
-                            avg_pub_impact = sum(impact.get(p[0], 0.0) for p in publishers) / len(publishers)
-                        else:
-                            avg_pub_impact = current_impact
-                            
-                        # DYNAMIC IMPROVEMENT 2: Telemetry-calibrated starvation bounds per component
-                        app_starve_bound = self.telemetry.custom_starvation_bounds.get(current_id, self.propagation_threshold)
-                        if avg_pub_impact >= (1.0 - app_starve_bound):
-                            effective_pub_impact = 1.0
-                        else:
-                            effective_pub_impact = avg_pub_impact
-                            
-                        attenuated_impact = effective_pub_impact * w_topic
-                        
-                        # DYNAMIC IMPROVEMENT 3: Edge-specific operational failure probability.
-                        # Default to this edge's own QoS-derived coupling weight w(e) (§3.2) —
-                        # a tightly-coupled (high-QoS) publish edge is more likely to actually
-                        # starve its topic than a best-effort one — falling back to the scenario's
-                        # flat cascade_probability only when no such per-edge weight is recorded.
-                        pub_edge_weight = next((w for aid, w in publishers if aid == current_id), None)
-                        default_prob = pub_edge_weight if pub_edge_weight is not None else scenario.cascade_probability
-                        edge_prob = self.telemetry.edge_failure_correlation.get(
-                            (current_id, topic_id), default_prob
-                        )
-
-                        if self._rng.random() < edge_prob:
-                            if attenuated_impact > impact[topic_id]:
-                                impact[topic_id] = attenuated_impact
-                                comp = self.graph.components[topic_id]
-                                comp.custom_performance = 1.0 - attenuated_impact
-                                performance[topic_id] = 1.0 - attenuated_impact
-                                if attenuated_impact >= 1.0:
-                                    self.graph.fail_component(topic_id)
-                                    failed_set.add(topic_id)
-                                else:
-                                    self.graph.set_degraded(topic_id)
-                                cascade_sequence.append(CascadeEvent(
-                                    component_id=topic_id,
-                                    component_type="Topic",
-                                    cause=f"sl_starvation:{avg_pub_impact:.2f} (via {current_id})",
-                                    depth=depth + 1
-                                ))
-                                queue.append((topic_id, depth + 1))
-                            
-                # Broker -> Topics routed by this broker (and others)
+                    self._cascade_publisher_to_topic(*args)
                 elif current_type == "Broker":
-                    for topic_id, brokers in self.graph._routing.items():
-                        if any(b[0] == current_id for b in brokers):
-                            topic_info = self.graph.topics.get(topic_id)
-                            
-                            # DYNAMIC IMPROVEMENT 1: Calibrate Topic Weight using real message throughput rate
-                            runtime_rate = self.telemetry.msg_rate_per_sec.get(topic_id, 1.0)
-                            w_topic = getattr(topic_info, 'weight', 1.0) * runtime_rate if topic_info else runtime_rate
-                            
-                            if brokers:
-                                routing_impact = min(impact.get(b[0], 0.0) for b in brokers)
-                            else:
-                                routing_impact = current_impact
-                            attenuated_impact = routing_impact * w_topic
-                            
-                            # DYNAMIC IMPROVEMENT 3: Edge-specific operational failure probability.
-                            # Default to this ROUTES edge's own QoS-derived weight w(e) (§3.2),
-                            # falling back to the scenario's flat cascade_probability only when
-                            # no such per-edge weight is recorded.
-                            route_edge_weight = next((w for bid, w in brokers if bid == current_id), None)
-                            default_prob = route_edge_weight if route_edge_weight is not None else scenario.cascade_probability
-                            edge_prob = self.telemetry.edge_failure_correlation.get(
-                                (current_id, topic_id), default_prob
-                            )
-
-                            if self._rng.random() < edge_prob:
-                                if attenuated_impact > impact[topic_id]:
-                                    impact[topic_id] = attenuated_impact
-                                    comp = self.graph.components[topic_id]
-                                    comp.custom_performance = 1.0 - attenuated_impact
-                                    performance[topic_id] = 1.0 - attenuated_impact
-                                    if attenuated_impact >= 1.0:
-                                        self.graph.fail_component(topic_id)
-                                        failed_set.add(topic_id)
-                                    else:
-                                        self.graph.set_degraded(topic_id)
-                                    cascade_sequence.append(CascadeEvent(
-                                        component_id=topic_id,
-                                        component_type="Topic",
-                                        cause=f"no_active_brokers:{current_id}",
-                                        depth=depth + 1
-                                    ))
-                                    queue.append((topic_id, depth + 1))
-                                
-                # Topic -> Subscribers (Application)
+                    self._cascade_broker_to_topic(*args)
                 elif current_type == "Topic":
-                    subscribers = self.graph._subscribers.get(current_id, [])
-                    for sub in subscribers:
-                        sub_id, sub_edge_weight = sub[0], (sub[1] if len(sub) > 1 else None)
-                        _, subscribed_to = self.graph.get_app_topics(sub_id)
-                        if subscribed_to:
-                            sub_impact = min(impact.get(t, 0.0) for t in subscribed_to)
-                        else:
-                            sub_impact = current_impact
+                    self._cascade_topic_to_subscriber(*args)
 
-                        # DYNAMIC IMPROVEMENT 3: Edge-specific operational failure probability.
-                        # Default to this SUBSCRIBES_TO edge's own QoS-derived weight w(e) (§3.2),
-                        # falling back to the scenario's flat cascade_probability only when no
-                        # such per-edge weight is recorded.
-                        default_prob = sub_edge_weight if sub_edge_weight is not None else scenario.cascade_probability
-                        edge_prob = self.telemetry.edge_failure_correlation.get(
-                            (current_id, sub_id), default_prob
-                        )
+            if network_rule and current_type == "Node":
+                self._cascade_network(*args)
 
-                        if self._rng.random() < edge_prob:
-                            if sub_impact > impact[sub_id]:
-                                impact[sub_id] = sub_impact
-                                comp = self.graph.components[sub_id]
-                                comp.custom_performance = 1.0 - sub_impact
-                                performance[sub_id] = 1.0 - sub_impact
-                                if sub_impact >= 1.0:
-                                    self.graph.fail_component(sub_id)
-                                    failed_set.add(sub_id)
-                                else:
-                                    self.graph.set_degraded(sub_id)
-                                cascade_sequence.append(CascadeEvent(
-                                    component_id=sub_id,
-                                    component_type=comp.type if comp else "Application",
-                                    cause=f"subscriber_starvation:{current_id}",
-                                    depth=depth + 1
-                                ))
-                                queue.append((sub_id, depth + 1))
-                            
-            # === Network Cascade (Node -> Connected Nodes) ===
-            if scenario.cascade_rule in (CascadeRule.NETWORK, CascadeRule.ALL):
-                if current_type == "Node":
-                    connected = self.graph.get_connected_nodes(current_id)
-                    for neighbor_id in connected:
-                        all_connections = [c[0] for c in self.graph._connections.get(neighbor_id, [])]
-                        other_impacts = [impact.get(c, 0.0) for c in all_connections if c != current_id]
-                        if other_impacts:
-                            isolation_impact = min(current_impact, min(other_impacts))
-                        else:
-                            isolation_impact = current_impact
-                        if self._rng.random() < scenario.cascade_probability:
-                            if isolation_impact > impact[neighbor_id]:
-                                impact[neighbor_id] = isolation_impact
-                                comp = self.graph.components[neighbor_id]
-                                comp.custom_performance = 1.0 - isolation_impact
-                                performance[neighbor_id] = 1.0 - isolation_impact
-                                if isolation_impact >= 1.0:
-                                    self.graph.fail_component(neighbor_id)
-                                    failed_set.add(neighbor_id)
-                                else:
-                                    self.graph.set_degraded(neighbor_id)
-                                cascade_sequence.append(CascadeEvent(
-                                    component_id=neighbor_id,
-                                    component_type="Node",
-                                    cause=f"network_partition:{current_id}",
-                                    depth=depth + 1
-                                ))
-                                queue.append((neighbor_id, depth + 1))
         return max_depth
-    
-    def _calculate_impact(
-        self,
-        target_id: str,
-        failed_set: Set[str]
-    ) -> ImpactMetrics:
-        """
-        Calculate impact metrics after failure cascade.
-        
-        Metrics use weighted formulation where applicable (Reachability, Throughput).
-        """
-        # === Reachability Loss (weighted path capacity) ===
+
+    def _impact_reachability(self) -> Tuple[int, float]:
+        """Weighted pub-sub path capacity still available. Returns (paths, loss)."""
         weighted_paths = self.graph.get_weighted_pub_sub_paths(active_only=True)
-        remaining_paths = len(weighted_paths)
         remaining_capacity_sum = sum(p[3] for p in weighted_paths)
-        
+
         if self._initial_capacity_sum > 0:
-            reachability_loss = 1.0 - (remaining_capacity_sum / self._initial_capacity_sum)
+            loss = 1.0 - (remaining_capacity_sum / self._initial_capacity_sum)
         else:
-            reachability_loss = 0.0
-        
-        # === Fragmentation (connected components) ===
+            loss = 0.0
+        return len(weighted_paths), loss
+
+    def _impact_fragmentation(self) -> Tuple[int, float]:
+        """
+        Connectivity loss. Returns (final_connected_components, fragmentation).
+
+        The structural term is the share of newly created islands, out of the
+        most that could have been created. Counting islands says nothing about
+        what is inside them, though — stranding one broker carrying every
+        safety-critical topic reads the same as stranding an idle logger — so
+        under QoS weighting the stranded QoS mass is blended in.
+        """
         final_cc = self.graph.count_active_connected_components()
         initial_cc = self._initial_connected_components
-        
-        # Normalize: how many new disconnected islands were created,
-        # relative to the maximum possible fragmentation
-        # relative to the maximum possible fragmentation (N-1)
+
         if self._initial_components > 1:
-            # Max CCs = N (each component is isolated)
-            # fragmentation = (final_cc - initial_cc) / (N - initial_cc)
             denom = max(1, self._initial_components - initial_cc)
             new_cc = max(0, final_cc - initial_cc)
             fragmentation = min(1.0, new_cc / denom)
         else:
             fragmentation = 0.0
 
-        # Counting islands says nothing about what is inside them: stranding one
-        # broker carrying every safety-critical topic reads the same as stranding
-        # an idle logger. Blend in the QoS mass cut off from the main island,
-        # mirroring the IA(v) weighting that already existed downstream.
         if self.qos_weighting:
             new_stranded = max(
                 0.0,
@@ -1205,33 +1101,31 @@ class FailureSimulator:
                 FRAGMENTATION_STRUCTURAL_COEFF * fragmentation
                 + FRAGMENTATION_SEVERITY_COEFF * new_stranded
             )
-        
-        # === Throughput Loss (QoS-weighted, continuous) ===
-        # Loss is the fraction of a topic's delivery capability that is gone, not a
-        # binary "did it lose every publisher". Broker loss counts too: a topic whose
-        # only routing broker died delivers nothing, which the previous all-or-nothing
-        # publisher/subscriber test scored as fully healthy.
-        total_weight = self._initial_total_weight
+        return final_cc, fragmentation
+
+    def _impact_throughput(self) -> Tuple[float, float, int]:
+        """
+        QoS-weighted delivery capacity lost. Returns (lost_weight, loss, topics).
+
+        Loss is continuous — the fraction of a topic's delivery capability that
+        is gone, not a binary "did it lose every publisher". Broker loss counts
+        too: a topic whose only routing broker died delivers nothing.
+        """
         lost_weight = 0.0
         affected_topics = 0
 
         for topic_id in self.graph.topics:
-            topic_weight = self.topic_severity(topic_id)
-
-            live_pubs = self.graph.get_publishers(topic_id)
-            live_brokers = self.graph.get_routing_brokers(topic_id)
             live_subs = self.graph.get_subscribers(topic_id)
-
-            all_pubs = self.graph._publishers.get(topic_id, [])
-            all_brokers = self.graph._routing.get(topic_id, [])
-
             if not live_subs:
                 # Nothing consumes the topic; its whole throughput is moot.
                 topic_loss = 1.0
             else:
-                pub_loss = (
-                    1.0 - (len(live_pubs) / len(all_pubs)) if all_pubs else 0.0
-                )
+                all_pubs = self.graph._publishers.get(topic_id, [])
+                all_brokers = self.graph._routing.get(topic_id, [])
+                live_pubs = self.graph.get_publishers(topic_id)
+                live_brokers = self.graph.get_routing_brokers(topic_id)
+
+                pub_loss = 1.0 - (len(live_pubs) / len(all_pubs)) if all_pubs else 0.0
                 # Brokerless (DDS direct) topologies have no routing tier to lose.
                 broker_loss = (
                     1.0 - (len(live_brokers) / len(all_brokers)) if all_brokers else 0.0
@@ -1239,71 +1133,113 @@ class FailureSimulator:
                 topic_loss = max(pub_loss, broker_loss)
 
             if topic_loss > 1e-9:
-                lost_weight += topic_weight * topic_loss
+                lost_weight += self.topic_severity(topic_id) * topic_loss
                 affected_topics += 1
 
-        if total_weight > 0:
-            throughput_loss = min(1.0, lost_weight / total_weight)
-        else:
-            throughput_loss = 0.0
-            
-        # === DASA: Directed IA(v) (ia_out, ia_in) ===
-        ia_out = 0.0
-        ia_in = 0.0
-        if self._initial_capacity_sum > 0:
-            # Check which initial paths are broken by the FAILED SET
-            # A path (p, t, s, cap) is broken if p, t, s, or any routing broker are failed
-            # ia_out: broken paths where target_id is publisher or broker
-            # ia_in: broken paths where target_id is subscriber
-            broken_out_w = 0.0
-            broken_in_w = 0.0
-            
-            for p_id, t_id, s_id, cap in self._initial_paths_list:
-                brokers = [b[0] for b in self.graph._routing.get(t_id, [])]
-                
-                # Is it broken?
-                is_p_failed = p_id in failed_set
-                is_t_failed = t_id in failed_set
-                is_s_failed = s_id in failed_set
-                is_b_failed = any(b in failed_set for b in brokers)
-                
-                if is_p_failed or is_t_failed or is_s_failed or is_b_failed:
-                    # It's broken. Who gets the "blame" for DASA comparison?
-                    # We attribute to the TARGET_ID (the initial failure)
-                    if target_id == p_id or any(target_id == b for b in brokers) or target_id == t_id:
-                        broken_out_w += cap
-                    elif target_id == s_id:
-                        broken_in_w += cap
-            
-            ia_out = broken_out_w / self._initial_capacity_sum
-            ia_in = broken_in_w / self._initial_capacity_sum
-        
-        # === Infrastructure stats ===
+        total_weight = self._initial_total_weight
+        loss = min(1.0, lost_weight / total_weight) if total_weight > 0 else 0.0
+        return lost_weight, loss, affected_topics
+
+    def _impact_directed(self, target_id: str, failed_set: Set[str]) -> Tuple[float, float]:
+        """
+        DASA directed availability: (ia_out, ia_in).
+
+        Splits the capacity of every broken baseline path by the role
+        *target_id* played on it — upstream (publisher / topic / routing broker)
+        versus downstream (subscriber).
+        """
+        if self._initial_capacity_sum <= 0:
+            return 0.0, 0.0
+
+        broken_out_w = 0.0
+        broken_in_w = 0.0
+        for p_id, t_id, s_id, cap in self._initial_paths_list:
+            brokers = [b[0] for b in self.graph._routing.get(t_id, [])]
+            path_broken = (
+                p_id in failed_set or t_id in failed_set or s_id in failed_set
+                or any(b in failed_set for b in brokers)
+            )
+            if not path_broken:
+                continue
+            # Attribute the loss to the role the initial target played.
+            if target_id in (p_id, t_id) or target_id in brokers:
+                broken_out_w += cap
+            elif target_id == s_id:
+                broken_in_w += cap
+
+        return (broken_out_w / self._initial_capacity_sum,
+                broken_in_w / self._initial_capacity_sum)
+
+    def _impact_affected_sets(self) -> Tuple[int, int]:
+        """Distinct publishers and subscribers sitting on a broken topic."""
+        affected_pubs: Set[str] = set()
+        affected_subs: Set[str] = set()
+
+        for topic_id in self.graph.topics:
+            # A topic is affected if any link of its delivery chain is broken.
+            if (not self.graph.get_publishers(topic_id)
+                    or not self.graph.get_routing_brokers(topic_id)
+                    or not self.graph.get_subscribers(topic_id)):
+                # These indices hold (component_id, weight) tuples; collect the
+                # ids only, so an app on two differently-weighted edges to the
+                # same topic is not counted twice.
+                affected_pubs.update(p[0] for p in self.graph._publishers.get(topic_id, []))
+                affected_subs.update(s[0] for s in self.graph._subscribers.get(topic_id, []))
+
+        return len(affected_pubs), len(affected_subs)
+
+    def _impact_flow_disruption(self) -> float:
+        """
+        FD(v): the share of baseline message flows that no longer complete.
+
+        Each broken flow counts for the severity of the topic it carried, so
+        silencing one safety-critical channel outweighs silencing several
+        best-effort telemetry ones. With qos_weighting off every severity is
+        1.0 and this collapses to the broken/total count ratio.
+        """
+        if not self._baseline_flows:
+            return 0.0
+
+        broken_weight = 0.0
+        total_flow_weight = 0.0
+        for pub_id, topic_id, sub_id in self._baseline_flows:
+            severity = self.topic_severity(topic_id)
+            total_flow_weight += severity
+
+            # is_active() treats DEGRADED as active, which is the intended
+            # weakest-link semantics here.
+            endpoints_up = (self.graph.is_active(pub_id)
+                            and self.graph.is_active(topic_id)
+                            and self.graph.is_active(sub_id))
+            brokers = self.graph.get_routing_brokers(topic_id)
+            if not endpoints_up or not any(self.graph.is_active(b) for b in brokers):
+                broken_weight += severity
+
+        return broken_weight / total_flow_weight if total_flow_weight > 0 else 0.0
+
+    def _calculate_impact(
+        self,
+        target_id: str,
+        failed_set: Set[str]
+    ) -> ImpactMetrics:
+        """
+        Assemble the impact metrics for the post-cascade graph state.
+
+        Each term is computed by its own helper; this method only wires them
+        into the result. Reachability and throughput are QoS-weighted.
+        """
+        remaining_paths, reachability_loss = self._impact_reachability()
+        final_cc, fragmentation = self._impact_fragmentation()
+        lost_weight, throughput_loss, affected_topics = self._impact_throughput()
+        ia_out, ia_in = self._impact_directed(target_id, failed_set)
+        affected_publishers, affected_subscribers = self._impact_affected_sets()
+
         remaining_active = len([
             c for c in self.graph.components.values()
             if c.type in ("Application", "Broker", "Node")
             and c.state == ComponentState.ACTIVE
         ])
-        failed_count = self._initial_components - remaining_active
-        
-        # === Affected Entities ===
-        affected_pubs: Set[str] = set()
-        affected_subs: Set[str] = set()
-        
-        for topic_id in self.graph.topics:
-            publishers = self.graph.get_publishers(topic_id)
-            brokers = self.graph.get_routing_brokers(topic_id)
-            subscribers = self.graph.get_subscribers(topic_id)
-            
-            # Topic is affected if any part of the delivery chain is broken
-            if not publishers or not brokers or not subscribers:
-                # Track all parties on the broken topic
-                all_pubs = self.graph._publishers.get(topic_id, [])
-                all_subs = self.graph._subscribers.get(topic_id, [])
-                affected_pubs.update(all_pubs)
-                affected_subs.update(all_subs)
-        
-        # === Cascade by Type ===
+
         cascade_by_type: Dict[str, int] = defaultdict(int)
         for comp_id in failed_set:
             if comp_id == target_id:
@@ -1312,56 +1248,29 @@ class FailureSimulator:
             if comp:
                 cascade_by_type[comp.type] += 1
 
-        # === Flow Disruption FD(v) ===
-        # Each broken flow counts for the severity of the topic it carried, so
-        # silencing one safety-critical channel outweighs silencing several
-        # best-effort telemetry ones. With qos_weighting off every severity is
-        # 1.0 and this is the original broken/total count ratio.
-        if self._baseline_flows:
-            broken_weight = 0.0
-            total_flow_weight = 0.0
-            for pub_id, topic_id, sub_id in self._baseline_flows:
-                severity = self.topic_severity(topic_id)
-                total_flow_weight += severity
-
-                # Flow is broken if Pub, Topic, or Sub is not active
-                # is_active() already considers DEGRADED as active, which is correct for "weakest link" model
-                if not (self.graph.is_active(pub_id) and
-                        self.graph.is_active(topic_id) and
-                        self.graph.is_active(sub_id)):
-                    broken_weight += severity
-                    continue
-
-                # Flow is also broken if no routing broker is active for the topic
-                brokers = self.graph.get_routing_brokers(topic_id)
-                if not any(self.graph.is_active(b) for b in brokers):
-                    broken_weight += severity
-
-            flow_disruption = broken_weight / total_flow_weight if total_flow_weight > 0 else 0.0
-        else:
-            flow_disruption = 0.0
-
+        total_weight = self._initial_total_weight
         return ImpactMetrics(
             initial_paths=self._initial_paths,
             remaining_paths=remaining_paths,
             reachability_loss=reachability_loss,
             initial_components=self._initial_components,
-            failed_components=failed_count,
-            initial_connected_components=initial_cc,
+            failed_components=self._initial_components - remaining_active,
+            initial_connected_components=self._initial_connected_components,
             final_connected_components=final_cc,
             fragmentation=fragmentation,
             initial_throughput=total_weight,
             remaining_throughput=total_weight - lost_weight,
             throughput_loss=throughput_loss,
-            flow_disruption=flow_disruption,
+            flow_disruption=self._impact_flow_disruption(),
             affected_topics=affected_topics,
-            affected_subscribers=len(affected_subs),
-            affected_publishers=len(affected_pubs),
+            affected_subscribers=affected_subscribers,
+            affected_publishers=affected_publishers,
             cascade_by_type=dict(cascade_by_type),
             ia_out=ia_out,
             ia_in=ia_in
         )
-    
+
+
     def _calculate_layer_impacts(self, failed_set: Set[str]) -> Dict[str, float]:
         """Calculate impact per analysis layer."""
         layer_impacts = {}

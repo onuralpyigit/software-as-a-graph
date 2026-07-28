@@ -89,31 +89,10 @@ logger = logging.getLogger("simulate_graph")
 
 def _load_graph(input_path: Path):
     """
-    Load a SaG graph from a JSON file and return a NetworkX DiGraph.
-
-    Tries to use the project's GraphBuilder / GraphExporter pipeline first.
-    Falls back to a lightweight inline loader for environments where the
-    full src/ package is not importable.
+    Load a SaG graph from a scenario JSON file and return a NetworkX DiGraph.
     """
     import networkx as nx
 
-    # ── Try project pipeline ─────────────────────────────────────────────
-    try:
-        from saag.core.graph_builder import GraphBuilder
-        from saag.core.graph_exporter import GraphExporter
-
-        builder = GraphBuilder()
-        model = builder.build_from_json(str(input_path))
-        exporter = GraphExporter()
-        g = exporter.export_to_networkx(model)
-        g.graph["id"] = input_path.stem
-        logger.info("Graph loaded via GraphBuilder: %d nodes, %d edges",
-                    len(g.nodes), len(g.edges))
-        return g
-    except Exception as exc:
-        logger.debug("GraphBuilder unavailable (%s); using fallback loader.", exc)
-
-    # ── Fallback loader ───────────────────────────────────────────────────
     with open(input_path) as fh:
         data = json.load(fh)
 

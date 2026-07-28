@@ -32,17 +32,25 @@ For each candidate node v (Application or Broker by default):
       orphaning.  [FIX: BUG-FI-1]
 
   Cascade propagation (waves 1, 2, …)
-    • For each orphaned topic, find all subscribers.
-    • A subscriber propagates the cascade when its feed-loss fraction exceeds
-      *propagation_threshold* (default 0.2 = aggressive feed loss starvation threshold) AND it was
-      itself a publisher on other topics.  [DESIGN-FI-1]
-    • A set-based pending queue prevents duplicate processing when a node
-      loses feeds from multiple topics in the same wave.  [FIX: BUG-FI-2]
-    • Repeat until fixpoint or cascade_depth_limit is reached.
+    Each wave runs two phases:
+
+    Phase A — direct DEPENDS_ON propagation. A dependent fails outright when
+      the dependency is a Library (dependency_type == "app_to_lib", or the
+      source node is itself typed Library); other DEPENDS_ON arcs do not
+      propagate.
+    Phase B — topic-mediated soft propagation. Each topic's feed loss L(t) is
+      the rate-weighted share of its publishers that are down (or, for a topic
+      with no publishers, the share of its routing brokers). A subscriber's
+      loss is the mean L(t) over its feeds, scaled by the topic QoS factor;
+      once that exceeds *propagation_threshold* it fails with probability
+      min(1, loss/threshold) × depth_damp, where depth_damp decays by 0.15 per
+      wave down to a floor of 0.25.
+
+    Repeat until fixpoint or cascade_depth_limit is reached.
 
   I(v) computation
-    • feed_loss_fraction(a) = |lost_feeds(a)| / |all_subscribed_feeds(a)|
-    • I(v) = mean_{a ∈ all_subscribers} feed_loss_fraction(a)
+    • I(v) = mean over all subscribers of the continuous, rate-weighted and
+      QoS-scaled feed-loss fraction — not a count of fully lost feeds.
 
 MULTI-SEED STABILITY
 ────────────────────
@@ -528,7 +536,6 @@ class FaultInjector:
         orphaned_topics: Set[str] = set()
         directly_orphaned: Set[str] = set()
         impacted_subscribers: Set[str] = set()
-        subscriber_lost_feeds: Dict[str, Set[str]] = defaultdict(set)
         waves: List[CascadeWave] = []
         wave_idx = 0
 
@@ -612,7 +619,6 @@ class FaultInjector:
                     for sub in idx.subscribers_of(topic):
                         if sub in failed_nodes:
                             continue
-                        subscriber_lost_feeds[sub].add(topic)
                         if sub not in impacted_subscribers:
                             wave_new_impacted.add(sub)
                             impacted_subscribers.add(sub)
@@ -671,24 +677,6 @@ class FaultInjector:
             cascade_depth=wave_idx,
             waves=waves,
         )
-
-    def _should_propagate(
-        self,
-        sub: str,
-        subscriber_lost_feeds: Dict[str, Set[str]],
-        idx: _PubSubIndex,
-    ) -> bool:
-        """
-        Return True when *sub* has lost enough feeds to trigger cascade
-        propagation, as determined by self.propagation_threshold.
-        """
-        if not idx.app_publishes.get(sub):
-            return False  # not a publisher; cannot spread cascade
-        all_feeds = idx.app_subscribes.get(sub, set())
-        if not all_feeds:
-            return False
-        lost = subscriber_lost_feeds.get(sub, set())
-        return (len(lost) / len(all_feeds)) >= self.propagation_threshold
 
 
 # ─────────────────────────────────────────────────────────────────────────────

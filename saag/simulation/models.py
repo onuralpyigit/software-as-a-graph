@@ -3,6 +3,8 @@ from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Set, Tuple, Any, Optional, Union
 from enum import Enum
 
+from ._stats import nearest_rank
+
 
 # =============================================================================
 # Core Simulation Enums
@@ -17,16 +19,6 @@ class ComponentState(Enum):
     COMPROMISED = "compromised"
 
 
-class RelationType(Enum):
-    """RAW structural relationship types in the pub-sub graph."""
-    PUBLISHES_TO = "PUBLISHES_TO"
-    SUBSCRIBES_TO = "SUBSCRIBES_TO"
-    ROUTES = "ROUTES"
-    RUNS_ON = "RUNS_ON"
-    CONNECTS_TO = "CONNECTS_TO"
-    USES = "USES"
-
-
 class EventType(Enum):
     """Types of discrete events in the simulation."""
     PUBLISH = "publish"       # Message published by app
@@ -35,6 +27,8 @@ class EventType(Enum):
     ACK = "ack"               # Acknowledgment (for reliable delivery)
     TIMEOUT = "timeout"       # Delivery timeout
     DROP = "drop"             # Message dropped
+    FAIL_COMPONENT = "fail_component"       # Poisson-injected component failure
+    RECOVER_COMPONENT = "recover_component" # Recovery after a Poisson failure
 
 
 class FailureMode(Enum):
@@ -131,17 +125,6 @@ class TopicInfo:
         """Numeric priority for scheduling."""
         return {"URGENT": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}.get(self.qos_priority, 1)
     
-    @property
-    def persistence_factor(self) -> float:
-        """Factor for persistence overhead."""
-        return {
-            "PERSISTENT": 1.5,
-            "TRANSIENT": 1.2,
-            "TRANSIENT_LOCAL": 1.1,
-            "VOLATILE": 1.0,
-        }.get(self.qos_durability, 1.0)
-
-
 # =============================================================================
 # Event Simulation Models
 # =============================================================================
@@ -213,7 +196,6 @@ class RuntimeMetrics:
     messages_published: int = 0
     messages_delivered: int = 0
     messages_dropped: int = 0
-    messages_in_flight: int = 0
     total_latency: float = 0.0
     min_latency: float = float('inf')
     max_latency: float = 0.0
@@ -239,12 +221,8 @@ class RuntimeMetrics:
     
     @property
     def p99_latency(self) -> float:
-        """99th percentile latency."""
-        if not self.latencies:
-            return 0.0
-        sorted_lat = sorted(self.latencies)
-        idx = int(len(sorted_lat) * 0.99)
-        return sorted_lat[min(idx, len(sorted_lat) - 1)]
+        """99th percentile latency (nearest-rank; see saag/simulation/_stats.py)."""
+        return nearest_rank(self.latencies, 99)
     
     @property
     def throughput(self) -> float:
@@ -792,7 +770,6 @@ class EdgeCriticality:
     connectivity_impact: float = 0.0
     combined_impact: float = 0.0
     level: str = "minimal"
-    messages_traversed: int = 0
     evaluated: bool = True
 
     def to_dict(self) -> Dict[str, Any]:

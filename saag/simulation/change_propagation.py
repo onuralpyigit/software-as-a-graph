@@ -134,13 +134,7 @@ class ChangePropagationSimulator:
         # Original: u --[w]--> v  means "u depends on v"
         # G^T:      v --[w]--> u  means "v changing may force u to adapt"
         gt_adj: Dict[str, List[Tuple[str, float]]] = {cid: [] for cid in component_ids}
-        # Also keep original edge weights for stop-condition lookup
-        edge_weight_map: Dict[Tuple[str, str], float] = {}  # (u, v) -> w
-
         for (src, tgt, w) in dependency_edges:
-            # Store original edge weight src→tgt
-            edge_weight_map[(src, tgt)] = w
-            # Add to G^T: tgt → src
             if tgt in gt_adj:
                 gt_adj[tgt].append((src, w))
 
@@ -161,7 +155,7 @@ class ChangePropagationSimulator:
         results: Dict[str, ChangePropagationResult] = {}
         for v in component_ids:
             res = self._bfs_change_propagation(
-                v, n, gt_adj, edge_weight_map, instability, cw, total_weight,
+                v, n, gt_adj, instability, cw, total_weight,
             )
             results[v] = res
 
@@ -190,7 +184,6 @@ class ChangePropagationSimulator:
         source: str,
         total_n: int,
         gt_adj: Dict[str, List[Tuple[str, float]]],
-        edge_weight_map: Dict[Tuple[str, str], float],
         instability: Dict[str, float],
         component_weights: Dict[str, float],
         total_weight: float,
@@ -226,18 +219,17 @@ class ChangePropagationSimulator:
                 # The edge connecting current to neighbor in G_analysis is:
                 # neighbor --[original_w]--> current  (neighbor depends on current)
                 # edge_w already carries this weight from the G^T construction.
-                original_edge_w = edge_w
 
                 # Always count the neighbor as reached (u must potentially adapt)
                 reached.add(neighbor)
                 depth_map[neighbor] = current_depth + 1
                 path_weight_map[neighbor] = max(
                     path_weight_map.get(current, 0.0),
-                    original_edge_w,
+                    edge_w,
                 )
 
                 # --- Stop conditions (gate further propagation through neighbor) ---
-                stop_loose = original_edge_w < self.theta_loose
+                stop_loose = edge_w < self.theta_loose
                 stop_stable = instability.get(neighbor, 0.5) < self.theta_stable
 
                 if not (stop_loose or stop_stable):
@@ -270,45 +262,3 @@ class ChangePropagationSimulator:
             theta_loose=self.theta_loose,
             theta_stable=self.theta_stable,
         )
-
-    # ------------------------------------------------------------------
-    # Sensitivity grid
-    # ------------------------------------------------------------------
-
-    def sensitivity_grid(
-        self,
-        component_ids: List[str],
-        dependency_edges: List[Tuple[str, str, float]],
-        component_weights: Optional[Dict[str, float]] = None,
-        component_in_degrees: Optional[Dict[str, int]] = None,
-        component_out_degrees: Optional[Dict[str, int]] = None,
-        theta_loose_values: Optional[List[float]] = None,
-        theta_stable_values: Optional[List[float]] = None,
-    ) -> Dict[Tuple[float, float], Dict[str, ChangePropagationResult]]:
-        """
-        Run change propagation across a grid of (θ_loose, θ_stable) values.
-
-        Returns a dict mapping (θ_loose, θ_stable) -> per-component results.
-        Used for the sensitivity analysis required by the validation framework.
-
-        Default grid:
-            θ_loose  ∈ {0.10, 0.20, 0.30}
-            θ_stable ∈ {0.10, 0.20, 0.30}
-        """
-        if theta_loose_values is None:
-            theta_loose_values = [0.10, 0.20, 0.30]
-        if theta_stable_values is None:
-            theta_stable_values = [0.10, 0.20, 0.30]
-
-        grid_results: Dict[Tuple[float, float], Dict[str, ChangePropagationResult]] = {}
-        for tl in theta_loose_values:
-            for ts in theta_stable_values:
-                sim = ChangePropagationSimulator(theta_loose=tl, theta_stable=ts)
-                grid_results[(tl, ts)] = sim.simulate_all(
-                    component_ids=component_ids,
-                    dependency_edges=dependency_edges,
-                    component_weights=component_weights,
-                    component_in_degrees=component_in_degrees,
-                    component_out_degrees=component_out_degrees,
-                )
-        return grid_results

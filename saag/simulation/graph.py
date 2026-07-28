@@ -8,12 +8,12 @@ relationships without deriving DEPENDS_ON.
 
 from __future__ import annotations
 import logging
-from typing import Dict, List, Set, Tuple, Any, Optional, FrozenSet
+from typing import Dict, List, Set, Tuple, Any, Optional
 from collections import defaultdict
 
 import networkx as nx
 
-from .models import ComponentState, RelationType, ComponentInfo, TopicInfo
+from .models import ComponentState, ComponentInfo, TopicInfo
 from saag.core.layers import SimulationLayer, SIMULATION_LAYERS
 from saag.core.models import QoSPolicy
 
@@ -58,6 +58,8 @@ class SimulationGraph:
         self._connections: Dict[str, List[Tuple[str, float]]] = defaultdict(list)  # node -> [(nodes, weight)]
         self._uses: Dict[str, List[str]] = defaultdict(list)                       # app/lib -> [libs]
         self._used_by: Dict[str, List[str]] = defaultdict(list)                    # lib -> [apps/libs]
+        self._app_publishes: Dict[str, List[str]] = defaultdict(list)              # app -> [topics]
+        self._app_subscribes: Dict[str, List[str]] = defaultdict(list)             # app -> [topics]
 
         # Severed relationships, as (source, target) pairs. Distinct from a
         # failed *component*: both endpoints stay up and every other link they
@@ -142,7 +144,31 @@ class SimulationGraph:
             elif rel == "USES":
                 self._uses[src].append(tgt)
                 self._used_by[tgt].append(src)
-    
+
+        self._build_app_topic_index()
+
+    def _build_app_topic_index(self) -> None:
+        """
+        Invert the topic-keyed endpoint indices into app -> [topics].
+
+        Ordering matters: the cascade draws one random number per topic in this
+        list, so the sequence must stay exactly what the previous per-call scan
+        produced — topics in `_publishers` / `_subscribers` insertion order, not
+        in the order this app's own edges were read.
+        """
+        self._app_publishes = defaultdict(list)
+        self._app_subscribes = defaultdict(list)
+
+        for index, target in ((self._publishers, self._app_publishes),
+                              (self._subscribers, self._app_subscribes)):
+            for topic_id, endpoints in index.items():
+                seen: Set[str] = set()
+                for app_id, _weight in endpoints:
+                    if app_id not in seen:
+                        seen.add(app_id)
+                        target[app_id].append(topic_id)
+
+
     # =========================================================================
     # State Management
     # =========================================================================
@@ -195,20 +221,33 @@ class SimulationGraph:
     # Graph Queries
     # =========================================================================
     
+    def _live_endpoints(
+        self, index: Dict[str, List[Tuple[str, float]]], topic_id: str
+    ) -> List[str]:
+        """Endpoints of *topic_id* in *index* whose component and edge are both live."""
+        return [e[0] for e in index.get(topic_id, [])
+                if self.is_active(e[0]) and (e[0], topic_id) not in self._failed_edges]
+
     def get_publishers(self, topic_id: str) -> List[str]:
         """Get all publishers for a topic (live component *and* live edge)."""
-        return [p[0] for p in self._publishers.get(topic_id, [])
-                if self.is_active(p[0]) and (p[0], topic_id) not in self._failed_edges]
+        return self._live_endpoints(self._publishers, topic_id)
 
     def get_subscribers(self, topic_id: str) -> List[str]:
         """Get all subscribers for a topic (live component *and* live edge)."""
-        return [s[0] for s in self._subscribers.get(topic_id, [])
-                if self.is_active(s[0]) and (s[0], topic_id) not in self._failed_edges]
+        return self._live_endpoints(self._subscribers, topic_id)
+
+    def has_configured_brokers(self, topic_id: str) -> bool:
+        """
+        Whether the topic has any ROUTES broker at all, regardless of state.
+
+        Distinguishes a genuinely brokerless (DDS-style) topic from one whose
+        brokers have all failed — `get_routing_brokers` returns [] for both.
+        """
+        return bool(self._routing.get(topic_id))
 
     def get_routing_brokers(self, topic_id: str) -> List[str]:
         """Get all brokers that route a topic (live component *and* live edge)."""
-        return [b[0] for b in self._routing.get(topic_id, [])
-                if self.is_active(b[0]) and (b[0], topic_id) not in self._failed_edges]
+        return self._live_endpoints(self._routing, topic_id)
     
     def get_hosted_components(self, node_id: str) -> List[str]:
         """Get all components hosted on a node."""
@@ -223,19 +262,15 @@ class SimulationGraph:
         return [n[0] for n in self._connections.get(node_id, []) if self.is_active(n[0])]
     
     def get_app_topics(self, app_id: str) -> Tuple[List[str], List[str]]:
-        """Get topics an application publishes to and subscribes from."""
-        publishes = []
-        subscribes = []
-        
-        for topic_id, publisher_list in self._publishers.items():
-            if any(p[0] == app_id for p in publisher_list):
-                publishes.append(topic_id)
-        
-        for topic_id, subscriber_list in self._subscribers.items():
-            if any(s[0] == app_id for s in subscriber_list):
-                subscribes.append(topic_id)
-        
-        return publishes, subscribes
+        """
+        Get topics an application publishes to and subscribes from.
+
+        Served from an index built once at load time. This used to rescan every
+        topic's full endpoint list on each call, which made it O(|E|) inside the
+        cascade's inner loop.
+        """
+        return (self._app_publishes.get(app_id, []),
+                self._app_subscribes.get(app_id, []))
     
     def get_pub_sub_paths(self, active_only: bool = True):  # -> List[Tuple[str, str, str]]
         """
@@ -334,7 +369,6 @@ class SimulationGraph:
             Number of weakly-connected components among active components.
             Returns 0 if no active components exist.
         """
-        import networkx as nx
 
         active_graph = self._build_active_undirected_graph()
         if len(active_graph) == 0:
@@ -348,7 +382,6 @@ class SimulationGraph:
         callers can weight each island by what it carries instead of only
         counting islands.
         """
-        import networkx as nx
 
         active_graph = self._build_active_undirected_graph()
         if len(active_graph) == 0:
@@ -357,7 +390,6 @@ class SimulationGraph:
 
     def _build_active_undirected_graph(self):
         """Undirected projection over active Application/Broker/Node components."""
-        import networkx as nx
 
         # Build undirected graph of active components
         active_graph = nx.Graph()
@@ -409,31 +441,6 @@ class SimulationGraph:
 
         return active_graph
     
-    def get_message_path(self, publisher: str, topic_id: str) -> List[Tuple[str, str]]:
-        """
-        Get the path a message takes from publisher to subscribers.
-        
-        Returns:
-            List of (from, to) tuples representing the path
-        """
-        path = []
-        
-        # Publisher -> Topic
-        path.append((publisher, topic_id))
-        
-        # Topic -> Broker(s)
-        brokers = self.get_routing_brokers(topic_id)
-        for broker in brokers:
-            path.append((topic_id, broker))
-        
-        # Broker(s) -> Subscribers
-        subscribers = self.get_subscribers(topic_id)
-        for broker in brokers:
-            for sub in subscribers:
-                path.append((broker, sub))
-        
-        return path
-
     def get_library_usage(self) -> Dict[str, List[str]]:
         """
         Get library usage for all components.
@@ -446,14 +453,26 @@ class SimulationGraph:
     def get_uses_consumers(self, library_id: str) -> List[str]:
         """
         Get components (Applications or Libraries) that use a specific library.
-        
+
         Args:
             library_id: ID of the library
-            
+
         Returns:
             List of component IDs that have a USES relationship to the library
         """
         return self._used_by.get(library_id, [])
+
+    def get_used_libraries(self, comp_id: str) -> List[str]:
+        """
+        Get the libraries a component uses (inverse of get_uses_consumers).
+
+        Args:
+            comp_id: ID of the Application or Library
+
+        Returns:
+            List of library IDs the component has a USES relationship to
+        """
+        return self._uses.get(comp_id, [])
 
     def get_node_allocations(self) -> Dict[str, List[str]]:
         """
@@ -467,11 +486,19 @@ class SimulationGraph:
     def get_broker_routing(self) -> Dict[str, List[str]]:
         """
         Get broker routing (Broker -> [Topics]).
-        
+
+        The internal `_routing` index is keyed by *topic*, so it is inverted
+        here to match the shape every consumer expects — the same shape as
+        `IGraphRepository.get_broker_routing`.
+
         Returns:
             Dict mapping broker ID to list of routed topic IDs
         """
-        return dict(self._routing)
+        routing: Dict[str, List[str]] = defaultdict(list)
+        for topic_id, brokers in self._routing.items():
+            for broker_id, _weight in brokers:
+                routing[broker_id].append(topic_id)
+        return dict(routing)
 
     def get_depends_on_targets(self, comp_id: str) -> List[str]:
         """
@@ -503,86 +530,52 @@ class SimulationGraph:
     # Layer Filtering
     # =========================================================================
     
+    def _layer_def(self, layer: str, warn: bool = False):
+        """Resolve a layer name to its definition, falling back to 'system'."""
+        try:
+            sim_layer = SimulationLayer.from_string(layer)
+        except ValueError:
+            if warn:
+                self.logger.warning(f"Unknown layer '{layer}', defaulting to 'system'")
+            sim_layer = SimulationLayer.SYSTEM
+        return SIMULATION_LAYERS[sim_layer]
+
     def get_components_by_layer(self, layer: str) -> List[str]:
         """
         Get component IDs included in a specific layer's simulation graph.
-        
+
         Layers:
             - app: Application, Topic, Library components
             - infra: Node, Application, Broker components
             - mw: Broker, Topic, Application components
             - system: All components
-        
+
         Args:
             layer: Layer name (app, infra, mw, system) or string alias
-            
+
         Returns:
             List of component IDs included in the layer's graph
         """
-        try:
-            sim_layer = SimulationLayer.from_string(layer)
-        except ValueError:
-            self.logger.warning(f"Unknown layer '{layer}', defaulting to 'system'")
-            sim_layer = SimulationLayer.SYSTEM
-        
-        layer_def = SIMULATION_LAYERS[sim_layer]
-        return [c.id for c in self.components.values() if c.type in layer_def.component_types]
-    
+        types = self._layer_def(layer, warn=True).component_types
+        return [c.id for c in self.components.values() if c.type in types]
+
     def get_analyze_components_by_layer(self, layer: str) -> List[str]:
         """
         Get component IDs to analyze/report for a specific layer.
-        
+
         This returns only the components that should be analyzed,
         not all components in the simulation graph.
-        
+
         Args:
             layer: Layer name (app, infra, mw, system)
-            
+
         Returns:
             List of component IDs to analyze
         """
-        try:
-            sim_layer = SimulationLayer.from_string(layer)
-        except ValueError:
-            sim_layer = SimulationLayer.SYSTEM
-        
-        layer_def = SIMULATION_LAYERS[sim_layer]
-        return [c.id for c in self.components.values() if c.type in layer_def.analyze_types]
-    
-    def get_layer_relationships(self, layer: str) -> FrozenSet[str]:
-        """
-        Get the relationship types to traverse for a specific layer.
-        
-        Args:
-            layer: Layer name (app, infra, mw, system)
-            
-        Returns:
-            FrozenSet of relationship type names
-        """
-        try:
-            sim_layer = SimulationLayer.from_string(layer)
-        except ValueError:
-            sim_layer = SimulationLayer.SYSTEM
-        
-        return SIMULATION_LAYERS[sim_layer].relationships
-    
-    def get_layer_cascade_rules(self, layer: str) -> FrozenSet[str]:
-        """
-        Get the cascade rules for failure propagation in a specific layer.
-        
-        Args:
-            layer: Layer name (app, infra, mw, system)
-            
-        Returns:
-            FrozenSet of cascade rule names (physical, logical, network)
-        """
-        try:
-            sim_layer = SimulationLayer.from_string(layer)
-        except ValueError:
-            sim_layer = SimulationLayer.SYSTEM
-        
-        return SIMULATION_LAYERS[sim_layer].cascade_rules
-    
+        types = self._layer_def(layer).analyze_types
+        return [c.id for c in self.components.values() if c.type in types]
+
+
     # =========================================================================
     # Summary Statistics
     # =========================================================================

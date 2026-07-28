@@ -149,23 +149,3 @@ class CompromisePropagationSimulator:
             for path in self._reconstruct_paths(p, source, parents):
                 paths.append(path + [target])
         return paths
-
-    def sensitivity_grid(
-        self,
-        component_ids: List[str],
-        dependency_edges: List[Tuple[str, str, float]],
-        component_weights: Optional[Dict[str, float]] = None,
-        theta_trust_values: Optional[List[float]] = None
-    ) -> Dict[float, Dict[str, CompromisePropagationResult]]:
-        if theta_trust_values is None:
-            theta_trust_values = [0.10, 0.30, 0.50]
-        
-        grid_results = {}
-        for tt in theta_trust_values:
-            sim = CompromisePropagationSimulator(theta_trust=tt)
-            grid_results[tt] = sim.simulate_all(
-                component_ids=component_ids,
-                dependency_edges=dependency_edges,
-                component_weights=component_weights
-            )
-        return grid_results

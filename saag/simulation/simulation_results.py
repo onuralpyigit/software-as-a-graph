@@ -21,6 +21,8 @@ from typing import Dict, List, Optional, Any
 import json
 from pathlib import Path
 
+from ._stats import percentile
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fault Injection
@@ -209,15 +211,15 @@ class TopicFlowStats:
 
     @property
     def latency_p50(self) -> Optional[float]:
-        return _percentile(self.latency_samples, 50)
+        return percentile(self.latency_samples, 50)
 
     @property
     def latency_p95(self) -> Optional[float]:
-        return _percentile(self.latency_samples, 95)
+        return percentile(self.latency_samples, 95)
 
     @property
     def latency_p99(self) -> Optional[float]:
-        return _percentile(self.latency_samples, 99)
+        return percentile(self.latency_samples, 99)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -354,10 +356,3 @@ class MessageFlowResult:
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _percentile(data: List[float], p: int) -> Optional[float]:
-    if not data:
-        return None
-    sorted_data = sorted(data)
-    k = (len(sorted_data) - 1) * p / 100
-    lo, hi = int(k), min(int(k) + 1, len(sorted_data) - 1)
-    return sorted_data[lo] + (sorted_data[hi] - sorted_data[lo]) * (k - lo)

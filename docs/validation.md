@@ -412,7 +412,7 @@ Three rules now hold across Tables 3, 4 and 5:
 > (`constant_signal` / `too_few_nodes`), never as `0.0`, and `aggregate_per_type` preserves that
 > through seed and fold averaging. Reporting 0.0 made Topic, Node and Library appear as measured
 > failures in the per-type table when in fact they carry no ground truth at all
-> ([failure-simulation.md L6](failure-simulation.md#12-known-limitations)) — a coverage gap
+> ([failure-simulation.md §12 L6](failure-simulation.md#12-known-limitations)) — a coverage gap
 > masquerading as a model result.
 
 ### 5.1 Rank Correlation — Spearman ρ and Kendall τ
@@ -562,7 +562,7 @@ state how many nodes the model scored, how many carry ground truth, and how many
 was actually computed over. Nodes without labels are dropped from the inner join — they are
 evidence neither for nor against the model, and the gap must be visible rather than absorbed
 silently. Currently 30–47% of components per scenario are unlabelled (Topic and Node; see
-[failure-simulation.md §11 L6](failure-simulation.md#12-known-limitations)).
+[failure-simulation.md §12 L6](failure-simulation.md#12-known-limitations)).
 
 ### 5.4 SPOF-F1
 

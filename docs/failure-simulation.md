@@ -1,46 +1,50 @@
-# Failure Simulation
+# Step 4: Simulate — Failure Simulation
 
-This document describes the two simulation **CLI modes** available in `simulate_graph.py` and the Python modules that back them: `saag/simulation/fault_injector.py` and `saag/simulation/message_flow_simulator.py`.
+**Produces the ground-truth impact I(v) that the predicted criticality Q(v) is validated against, by simulating failures on the raw structural graph.**
+
+← [Step 3: Predict](prediction.md) | → [Step 5: Validate](validation.md)
 
 > [!NOTE]
-> **Scope of this document.** `simulate_graph.py` exposes a two-subcommand CLI surface (`fault-inject` and `message-flow`) aimed at pre-deployment ground-truth collection and message-timing analysis. The full `saag/simulation/` package additionally contains `ChangePropagationSimulator` (produces IM(v)) and `CompromisePropagationSimulator` (produces IV(v)), which are invoked by `saag.simulation.SimulationService` in EXHAUSTIVE / MONTE_CARLO / PAIRWISE modes. The README Step 4 row and SRS REQ-FS-03 refer to these **four simulation engines** in aggregate; this document covers only the two that are exposed through `simulate_graph.py`. See `ARCHITECTURE.md §simulation/` for the full engine inventory.
+> **Scope of this document.** It covers the two modes exposed by [`cli/simulate_graph.py`](../cli/simulate_graph.py) — `fault-inject` and `message-flow` — and the engines behind them, [`fault_injector.py`](../saag/simulation/fault_injector.py) and [`message_flow_simulator.py`](../saag/simulation/message_flow_simulator.py). The `saag/simulation/` package holds several further engines (§2) that are driven by `SimulationService` rather than by this CLI; the simulation modes themselves are enumerated by `SimulationMode` in [`saag/usecases/models.py`](../saag/usecases/models.py) and dispatched by [`saag/usecases/simulate_graph.py`](../saag/usecases/simulate_graph.py). See [ARCHITECTURE.md](../ARCHITECTURE.md) for the full engine inventory.
 
 ---
 
-## Contents
+## Table of Contents
 
 1. [Motivation and Design Rationale](#1-motivation-and-design-rationale)
 2. [Architecture Overview](#2-architecture-overview)
-   - [Which engine is canonical for what](#21-which-engine-is-canonical-for-what)
+   - 2.1 [Which engine is canonical for what](#21-which-engine-is-canonical-for-what)
 3. [Mode 1 — Fault Injection](#3-mode-1--fault-injection)
-   - [Algorithm](#31-algorithm)
-   - [I(v) Formula](#32-iv-formula)
-   - [Cascade Propagation](#33-cascade-propagation)
-   - [Broker Failure Semantics](#34-broker-failure-semantics)
-   - [Library Blast-Radius Asymmetry](#35-library-blast-radius-asymmetry)
-   - [Multi-Seed Stability, Label Noise, and Reproducibility](#36-multi-seed-stability-label-noise-and-reproducibility)
+   - 3.1 [Algorithm](#31-algorithm)
+   - 3.2 [I(v) Formula](#32-iv-formula)
+   - 3.3 [Cascade Propagation](#33-cascade-propagation)
+   - 3.4 [Broker Failure Semantics](#34-broker-failure-semantics)
+   - 3.5 [Library Blast-Radius Asymmetry](#35-library-blast-radius-asymmetry)
+   - 3.6 [Multi-Seed Stability, Label Noise, and Reproducibility](#36-multi-seed-stability-label-noise-and-reproducibility)
 4. [Mode 2 — Message Flow Simulation](#4-mode-2--message-flow-simulation)
-   - [Discrete-Event Model](#41-discrete-event-model)
-   - [Fan-Out Queue Architecture](#42-fan-out-queue-architecture)
-   - [QoS Enforcement](#43-qos-enforcement)
-   - [Fault Injection at Runtime](#44-fault-injection-at-runtime)
+   - 4.1 [Discrete-Event Model](#41-discrete-event-model)
+   - 4.2 [Fan-Out Queue Architecture](#42-fan-out-queue-architecture)
+   - 4.3 [QoS Enforcement](#43-qos-enforcement)
+   - 4.4 [Fault Injection at Runtime](#44-fault-injection-at-runtime)
 5. [CLI Reference — simulate\_graph.py](#5-cli-reference--simulate_graphpy)
-   - [fault-inject](#51-fault-inject)
-   - [message-flow](#52-message-flow)
-   - [combined](#53-combined)
-   - [Shared Flags](#54-shared-flags)
+   - 5.1 [fault-inject](#51-fault-inject)
+   - 5.2 [message-flow](#52-message-flow)
+   - 5.3 [combined](#53-combined)
+   - 5.4 [Shared Flags](#54-shared-flags)
 6. [Output Files](#6-output-files)
-   - [impact\_scores.json](#61-impact_scoresjson)
-   - [message\_flow\_results.json](#62-message_flow_resultsjson)
+   - 6.1 [impact\_scores.json](#61-impact_scoresjson)
+   - 6.2 [message\_flow\_results.json](#62-message_flow_resultsjson)
 7. [Worked Examples — ATM Dataset](#7-worked-examples--atm-dataset)
 8. [Integration with the RMAV Validation Pipeline](#8-integration-with-the-rmav-validation-pipeline)
 9. [What the Simulator Measures in Quality-in-Use Terms](#9-what-the-simulator-measures-in-quality-in-use-terms)
-   - [Coverage by characteristic](#91-coverage-by-characteristic)
-   - [The two constraints](#92-the-two-constraints)
-   - [Design sketch — not implemented](#93-design-sketch--not-implemented)
+   - 9.1 [Coverage by characteristic](#91-coverage-by-characteristic)
+   - 9.2 [The two constraints](#92-the-two-constraints)
+   - 9.3 [Design sketch — not implemented](#93-design-sketch--not-implemented)
 10. [Input Graph Format Requirements](#10-input-graph-format-requirements)
 11. [Python API](#11-python-api)
 12. [Known Limitations](#12-known-limitations)
+13. [Resolved Issues](#13-resolved-issues)
+14. [What Comes Next](#14-what-comes-next)
 
 ---
 
@@ -62,7 +66,7 @@ Both modes are **pre-deployment** — they require only the static graph JSON, n
 ## 2. Architecture Overview
 
 ```
-simulate_graph.py  (CLI entry point)
+cli/simulate_graph.py  (CLI entry point)
 ├── fault-inject subcommand (wraps FaultInjector)
 │   └── saag/simulation/fault_injector.py
 │       ├── _PubSubIndex          (O(1) lookup structures over PUBLISHES_TO / SUBSCRIBES_TO / ROUTES)
@@ -78,16 +82,32 @@ simulate_graph.py  (CLI entry point)
 │       └── MessageFlowSimulator.run()
 │
 └── combined      subcommand
-    (runs fault-inject then message-flow in sequence)
-
-saag/simulation/  (core simulation engine modules)
-├── fault_injector.py        (FaultInjector: canonical Predict-stage labeler, I*(v))
-├── failure_simulator.py      (FailureSimulator: canonical Validate-stage RMAV oracle)
-├── message_flow_simulator.py (MessageFlowSimulator: discrete-event timing simulator)
-└── simulation_results.py    (shared dataclasses for all modes)
-    ├── FaultInjectionResult / FaultInjectionRecord / CascadeWave
-    └── MessageFlowResult / TopicFlowStats / SubscriberFlowStats / FaultEventRecord
+    (runs fault-inject then message-flow in sequence — note the differing
+     defaults documented in §5.3)
 ```
+
+The full package. The two stacks below do not share a graph representation or a
+result model, and the split is stated in the package docstring
+([`__init__.py`](../saag/simulation/__init__.py)):
+
+| Module | Role |
+|---|---|
+| **Predict-stage labeler** | |
+| [`fault_injector.py`](../saag/simulation/fault_injector.py) | `FaultInjector` — canonical I\*(v) labeler. Runs on a raw `networkx.DiGraph` |
+| [`message_flow_simulator.py`](../saag/simulation/message_flow_simulator.py) | `MessageFlowSimulator` — SimPy timing/QoS simulator |
+| [`simulation_results.py`](../saag/simulation/simulation_results.py) | Result dataclasses for both of the above, plus their JSON `save()` |
+| **Validate-stage oracle** | |
+| [`failure_simulator.py`](../saag/simulation/failure_simulator.py) | `FailureSimulator` — canonical RMAV oracle (`ImpactMetrics`) |
+| [`event_simulator.py`](../saag/simulation/event_simulator.py) | `EventSimulator` — discrete-event run supplying the baseline flows |
+| [`change_propagation.py`](../saag/simulation/change_propagation.py) | `ChangePropagationSimulator` — IM(v) sub-metrics |
+| [`compromise_propagation.py`](../saag/simulation/compromise_propagation.py) | `CompromisePropagationSimulator` — IV(v) sub-metrics, attack paths |
+| [`graph.py`](../saag/simulation/graph.py) | `SimulationGraph` — state-aware view over raw structural edges |
+| [`models.py`](../saag/simulation/models.py) | `ImpactMetrics`, scenarios, enums for this stack |
+| [`service.py`](../saag/simulation/service.py) | `SimulationService` — orchestration and reporting |
+| [`processor.py`](../saag/simulation/processor.py) | `ComplexityProcessor` — complexity-derived processing latency |
+| **Shared / standalone** | |
+| [`_stats.py`](../saag/simulation/_stats.py) | The two percentile estimators, which are not interchangeable |
+| [`traffic_simulator.py`](../saag/simulation/traffic_simulator.py) | `TrafficSimulator` — closed-form bandwidth calculator (§12 L11) |
 
 ### 2.1 Which engine is canonical for what
 
@@ -142,14 +162,17 @@ For each candidate node $v$ and seed, the cascade runs as follows:
 
 For each wave (starting with the injected node $v$ in wave 0), the simulator executes two sequential phases:
 
-##### Phase A: Direct DEPENDS_ON Propagation (Stochastic)
+##### Phase A: Direct DEPENDS_ON Propagation
 For each node $u$ in the current wave's frontier:
 1. Find all incoming edges $(v_{dep}, u)$ in the graph representing $v_{dep} \xrightarrow{\text{DEPENDS\_ON}} u$ (meaning $v_{dep}$ depends on $u$).
-2. If $v_{dep}$ is not already failed, it fails stochastically with probability:
-   $$P_{\text{dep}}(v_{dep}) = \text{prob} \times \text{depth\_damp}$$
-   Where:
-   - `prob` is currently set to `0.0` in the codebase (meaning stochastic propagation through pure dependency edges is disabled by default).
-   - $\text{depth\_damp} = \max(0.25, 1.0 - \text{wave\_idx} \times 0.15)$ is a wave-depth damping factor.
+2. If $v_{dep}$ is not already failed, it fails with probability `prob`, which takes exactly two values:
+
+   | Condition on the edge $(v_{dep}, u)$ | `prob` |
+   |---|---|
+   | `dependency_type == "app_to_lib"`, **or** $u$ is itself typed `Library` | `1.0` — the dependent always fails |
+   | anything else (i.e. `app_to_app`) | `0.0` — no propagation |
+
+   Phase A applies **no depth damping**: `depth_damp` is used only in Phase B. Because the only non-zero value is `1.0`, this phase is in practice deterministic — a Library failure takes every consumer with it at wave 0, and no `app_to_app` edge ever propagates here. See [§3.5](#35-library-blast-radius-asymmetry) for what that means for Library labels.
 
 ##### Phase B: Topic-mediated Soft QoS/Rate-weighted Propagation
 1. **Continuous Topic Feed Loss**:
@@ -169,18 +192,11 @@ For each node $u$ in the current wave's frontier:
      | `wt` | $\max(0,\ 1 + \kappa\,(w(t) - \overline{w}))$ with $\kappa = 0.5$ — the same $w(t)$ the rest of the codebase uses, so **durability** participates (it carries the largest AHP sub-weight, 0.40, and the ladder ignores it entirely) |
      | `none` | `1.0` — the topology-only arm used by [`reproduce/qos_label_ablation.py`](../reproduce/qos_label_ablation.py) |
 
-> [!IMPORTANT]
-> **This factor was inert before it was fixed.** QoS was read with the flat keys
-> `qos_reliability` / `qos_priority`, but the canonical property is
-> `qos_transport_priority`, and the research loader
-> (`cli/loso_evaluate.py:_build_graph_from_json`) leaves Topic QoS in its **nested**
-> `qos: {...}` shape. On that path no key matched, so every topic scored the
-> default and $I^*(v)$ was numerically **independent of QoS** — flipping every topic
-> in `atm_system` from `PERSISTENT/RELIABLE/CRITICAL` to `VOLATILE/BEST_EFFORT/LOW`
-> moved all 39 labels by exactly `0.000000`. QoS is now resolved through
-> `QoSPolicy.from_node_attrs`, which accepts both shapes. Any $I^*(v)$ artifact
-> generated before this fix is a `--qos-factor none` label regardless of what its
-> provenance block says. See [`tests/test_qos_resolution.py`](../tests/test_qos_resolution.py).
+QoS is resolved through `QoSPolicy.from_node_attrs`, which accepts both the flat
+(`qos_transport_priority`) and nested (`qos: {...}`) attribute shapes — see
+[`tests/test_qos_resolution.py`](../tests/test_qos_resolution.py). Artifacts generated before
+this resolution was fixed carry `--qos-factor none` labels regardless of what their
+provenance block claims ([§13 R1](#13-resolved-issues)).
 
 2. **Orphaned Topic and Subscriber Impact Tracking**:
    - If $L(t) > 10^{-6}$ and the topic was not previously orphaned, it is added to `orphaned_topics`. If this occurs during Wave 0, the topic is also added to `directly_orphaned_topics`.
@@ -300,15 +316,6 @@ Measured on the regenerated LOSO caches (five seeds, `--node-types Application,B
 
 Libraries are consistently among the *highest*-impact node types, which matches their
 structural footprint rather than contradicting it.
-
-> [!IMPORTANT]
-> **Corrects an earlier claim.** This section previously stated that a Library injection
-> yields $I(v) = 0$ because `DEPENDS_ON` propagation is disabled at `prob = 0.0`. That is
-> true only for `app_to_app` dependency edges; `app_to_lib` is explicitly special-cased to
-> `prob = 1.0`. Libraries were absent from results for two unrelated reasons, both now
-> fixed: they were not in the default `--node-types`, and the CLI's fallback graph loader
-> had no `libraries` block, so Library nodes were created implicitly by their `USES` edges
-> with `type=None` and matched no type filter at all.
 
 **$T_0$ Step-Function Collapse in FailureSimulator**: `FailureSimulator` models library failure as a **$T_0$ step-function collapse**: all consuming Applications that use the Library fail immediately at depth 0. The subsequent propagation of these Application failures forward through the pub-sub topic graph is more restricted than in `FaultInjector`, so the two engines rank libraries differently. That divergence is expected — they measure different quantities (§2.1).
 
@@ -528,33 +535,44 @@ Post-simulation, the cascade annotation identifies:
 
 ## 5. CLI Reference — simulate_graph.py
 
+Pipeline context and how this step fits with the others is in
+[cli-pipeline-guide.md §Step 4](cli-pipeline-guide.md). This section is the flag reference.
+
+### 5.4 Shared Flags
+
+All three subcommands accept these:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--input PATH` | *(none)* | Path to the graph JSON file. Optional — resolved from `--layer` when omitted. |
+| `--layer NAME` | *(none)* | Resolve the input as `data/<layer>.json` instead of passing `--input`. |
+| `--output DIR` | `output/simulation/` | Output directory; created if absent. |
+| `--export-json` | off | Write the JSON result files and their `.txt` summaries to `--output`. |
+| `--verbose` / `-v` | off | Enable DEBUG logging (per-node I(v), per-topic stats). |
+
 ### 5.1 `fault-inject`
 
 Runs BFS cascade fault injection and produces `impact_scores.json`.
 
-```
-python simulate_graph.py fault-inject [options]
+```bash
+PYTHONPATH=. python cli/simulate_graph.py fault-inject [options]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--input PATH` | *(required)* | Path to the graph JSON file. |
-| `--output DIR` | `output/simulation/` | Output directory; created if absent. |
-| `--export-json` | off | Write `impact_scores.json` and `impact_scores_summary.txt` to `--output`. |
 | `--nodes ID1,ID2,...` | all matching `--node-types` | Comma-separated node IDs to inject. Overrides `--node-types`. |
 | `--node-types TYPE1,TYPE2` | `Application,Broker,Library` | Node types eligible for injection. Types omitted here get **no** ground truth and are listed in the artifact's `unlabeled_node_ids`. |
 | `--seeds 42,123,...` | `42,123,456,789,2024` | Comma-separated integer seeds. Labels are the per-node mean; ≥ 2 seeds are required for `label_stability` to be measurable. |
 | `--cascade-depth N` | `0` (unlimited) | Maximum cascade wave depth. |
-| `--verbose` / `-v` | off | Enable DEBUG logging. |
-
-> **Propagation threshold** is currently only configurable via the Python API (`FaultInjector(propagation_threshold=0.5)`), not the CLI. This is intentional — it is a research parameter that should be set deliberately, not accidentally via a flag.
+| `--propagation-threshold F` | `0.2` | Minimum average feed loss before a subscriber is eligible to cascade ([§3.3](#33-cascade-propagation)). |
+| `--qos-factor MODE` | `ladder` | `ladder` \| `wt` \| `none` — how topic QoS scales feed loss ([§3.1](#31-algorithm)). `none` is the topology-only ablation arm. |
 
 > [!WARNING]
 > **Do not add `Topic` or `Node` to `--node-types`.** The cascade derives `DEPENDS_ON` only
 > from `PUBLISHES_TO`, `SUBSCRIBES_TO` and `USES`, so it has no way to express the failure
 > of a Topic or a physical Node: **every** instance of either scores exactly $I(v) = 0$.
 > Those are not measurements of "no impact" — they are the absence of a model. Including
-> them adds a block of 25–45 constant-zero labels per scenario (see §11 L6) and trains the
+> them adds a block of 25–45 constant-zero labels per scenario (see [§12 L6](#12-known-limitations)) and trains the
 > model toward a constant.
 >
 > `FaultInjector.run()` detects this and emits a `DEGENERATE LABELS` warning naming any node
@@ -563,31 +581,10 @@ python simulate_graph.py fault-inject [options]
 **Example — full ATM dataset, five seeds:**
 
 ```bash
-python simulate_graph.py fault-inject \
-    --input data/atm_system.json \
+PYTHONPATH=. python cli/simulate_graph.py fault-inject \
+    --input data/scenarios/atm_system.json \
     --output output/simulation/ \
     --seeds 42,123,456,789,2024 \
-    --export-json
-```
-
-**Example — single node, unlimited cascade:**
-
-```bash
-python simulate_graph.py fault-inject \
-    --input data/atm_system.json \
-    --nodes ConflictDetector \
-    --output output/simulation/ \
-    --export-json -v
-```
-
-**Example — brokers only, max two cascade waves:**
-
-```bash
-python simulate_graph.py fault-inject \
-    --input data/atm_system.json \
-    --node-types Broker \
-    --cascade-depth 2 \
-    --seeds 42,123,456 \
     --export-json
 ```
 
@@ -595,94 +592,54 @@ python simulate_graph.py fault-inject \
 
 Runs the SimPy discrete-event message flow simulation.
 
-```
-python simulate_graph.py message-flow [options]
+```bash
+PYTHONPATH=. python cli/simulate_graph.py message-flow [options]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--input PATH` | *(required)* | Path to the graph JSON file. |
-| `--output DIR` | `output/simulation/` | Output directory; created if absent. |
-| `--export-json` | off | Write `message_flow_results.json` and `message_flow_summary.txt`. |
 | `--duration SECONDS` | `100.0` | Simulation duration in simulated seconds. |
-| `--fault-node NODE_ID` | none | Node to fault during simulation. |
-| `--fault-time SECONDS` | `duration / 2` | When to inject the fault. |
+| `--fault-node NODE_ID` | none | Node to fault during simulation. Omit for a clean baseline run. |
+| `--fault-time SECONDS` | `duration / 2` | When to inject the fault. Independent of *which* node is faulted. |
 | `--seed INT` | `42` | Random seed for publish jitter and processing time variation. |
 | `--default-rate HZ` | `10.0` | Fallback publish rate when absent from graph metadata. |
 | `--default-queue-size N` | `100` | Fallback per-subscriber queue capacity. |
-| `--verbose` / `-v` | off | Enable DEBUG logging. |
 
-> `--fault-node` and `--fault-time` are independent: `--fault-node` controls **which** node is faulted; `--fault-time` controls **when**. Omitting `--fault-node` runs a clean baseline simulation with no fault.
-
-**Example — baseline, no fault:**
+**Example — fault a broker at the midpoint:**
 
 ```bash
-python simulate_graph.py message-flow \
-    --input data/atm_system.json \
+PYTHONPATH=. python cli/simulate_graph.py message-flow \
+    --input data/scenarios/atm_system.json \
     --duration 300 \
-    --seed 42 \
-    --export-json
-```
-
-**Example — fault ConflictDetector at the midpoint:**
-
-```bash
-python simulate_graph.py message-flow \
-    --input data/atm_system.json \
-    --duration 300 \
-    --fault-node ConflictDetector \
-    --fault-time 150 \
-    --seed 42 \
-    --export-json
-```
-
-**Example — broker fault with custom queue size and rate:**
-
-```bash
-python simulate_graph.py message-flow \
-    --input data/atm_system.json \
-    --duration 200 \
     --fault-node ASTERIX_Broker \
-    --fault-time 100 \
-    --default-queue-size 50 \
-    --default-rate 20.0 \
-    --seed 123 \
+    --fault-time 150 \
     --export-json
 ```
 
 ### 5.3 `combined`
 
-Runs `fault-inject` and `message-flow` in sequence using a merged set of flags.
-
-```
-python simulate_graph.py combined [options]
-```
-
-All flags from both `fault-inject` and `message-flow` are available. The `--fault-node` flag serves both modes: it selects the node for the message-flow fault injection **and** can be combined with `--nodes` to restrict fault-inject to the same node.
-
-**Example — full combined run for ATM:**
+Runs `fault-inject` and `message-flow` in sequence. `--fault-node` serves both modes: it
+selects the message-flow fault target and can be combined with `--nodes` to restrict
+fault-inject to the same node.
 
 ```bash
-python simulate_graph.py combined \
-    --input data/atm_system.json \
-    --output output/simulation/ \
+PYTHONPATH=. python cli/simulate_graph.py combined \
+    --input data/scenarios/atm_system.json \
     --seeds 42,123,456,789,2024 \
-    --duration 300 \
-    --fault-node ASTERIX_Broker \
-    --fault-time 150 \
+    --duration 300 --fault-node ASTERIX_Broker --fault-time 150 \
     --export-json
 ```
 
-### 5.4 Shared Flags
-
-All three subcommands accept these flags:
-
-| Flag | Description |
-|------|-------------|
-| `--input PATH` | Path to the input graph JSON file. Required. |
-| `--output DIR` | Output directory. Default: `output/simulation/`. |
-| `--export-json` | Write JSON result files to `--output`. |
-| `--verbose` / `-v` | Enable DEBUG-level logging (shows per-node I(v) and per-topic stats). |
+> [!WARNING]
+> **`combined` does not inherit the subcommand defaults.** Two of its own defaults differ,
+> and both silently degrade the output:
+>
+> | Flag | `fault-inject` default | `combined` default | Consequence |
+> |---|---|---|---|
+> | `--node-types` | `Application,Broker,Library` | `Application,Broker` | Libraries get no ground truth, reproducing the exclusion [§3.5](#35-library-blast-radius-asymmetry) describes as fixed |
+> | `--seeds` | `42,123,456,789,2024` | `42` | One seed makes every `label_stability` correlation `null`, voiding the publication gate in [§8](#8-integration-with-the-rmav-validation-pipeline) |
+>
+> Pass both flags explicitly on any `combined` run whose output you intend to publish.
 
 ---
 
@@ -732,19 +689,19 @@ output/simulation/
 | `label_stability` | The labels' own reproducibility — the ceiling on any ρ reported against them. See §3.6. |
 
 > [!IMPORTANT]
-> **Absent is not zero.** `extract_simulation_dict` previously emitted
-> `"maintainability": 0.0` and `"security": 0.0` for every record. Those fabricated zeros
-> were indistinguishable from real measurements, so two of the model's five prediction heads
-> were trained and scored against a constant. The parser now emits only the dimensions the
-> labeler declared, and `networkx_to_hetero_data` derives a `dimension_mask` from them so the
-> unmeasured columns are excluded from the multitask loss.
+> **Absent is not zero.** The artifact distinguishes *not measured* from *measured as zero*,
+> in two places, and consumers must preserve the distinction:
 >
-> The same distinction applies to **nodes**: a node the simulator targeted and scored `0.0`
-> is a real observation at the low end of the ranking, while a node that was never targeted
-> is missing data. Both used to collapse to a `0.0` label, and the training code identified
-> labelled nodes with the proxy `|y_composite| > 1e-6` — which excluded genuine zeros from
-> the loss while still scoring the model on them (7–115 nodes per scenario; 37% on
-> `enterprise_system`). An explicit `label_mask` now carries presence-in-the-artifact.
+> - **Dimensions.** `extract_simulation_dict` emits only the dimensions the labeler declared
+>   in `labeled_dimensions`; `networkx_to_hetero_data` derives a `dimension_mask` from them
+>   so unmeasured columns are excluded from the multitask loss. Emitting `0.0` for
+>   `maintainability` / `security` instead would train two prediction heads against a
+>   constant ([§13 R3](#13-resolved-issues)).
+> - **Nodes.** A node the simulator targeted and scored `0.0` is a real observation at the
+>   low end of the ranking; a node never targeted is missing data. `label_mask` carries
+>   presence-in-the-artifact explicitly rather than inferring it from `|y_composite| > 1e-6`,
+>   which would drop genuine zeros from the loss while still scoring the model on them
+>   (7–115 nodes per scenario; 37% on `enterprise_system`).
 
 **Backward compatibility.** Schema 2.0 files still parse. They carry no provenance fields,
 so consumers fall back to the historical behaviour and `label_stability` is unavailable.
@@ -954,15 +911,15 @@ ASTERIX_Broker ──ROUTES──▶  T_radar, T_tracks, T_conflicts, T_meteo, T
 
 ```bash
 # Step 1: Generate ground-truth I(v)
-python simulate_graph.py fault-inject \
-    --input data/atm_system.json \
+PYTHONPATH=. python cli/simulate_graph.py fault-inject \
+    --input data/scenarios/atm_system.json \
     --output output/simulation/ \
     --seeds 42,123,456,789,2024 \
     --export-json
 
 # Step 2: Run analysis to get Q(v) predictions
-python analyze_graph.py \
-    --input data/atm_system.json \
+PYTHONPATH=. python cli/analyze_graph.py \
+    --input data/scenarios/atm_system.json \
     --output output/analysis/ \
     --export-json
 
@@ -977,8 +934,8 @@ PYTHONPATH=. python cli/validate_graph.py harness \
 ### 7.3 Message flow: observing the ConflictDetector fault
 
 ```bash
-python simulate_graph.py message-flow \
-    --input data/atm_system.json \
+PYTHONPATH=. python cli/simulate_graph.py message-flow \
+    --input data/scenarios/atm_system.json \
     --duration 300 \
     --fault-node ConflictDetector \
     --fault-time 150 \
@@ -1004,7 +961,7 @@ impact_scores.json
     │  records[node_id].impact_score  →  I(v) vector
     │
     ▼
-ValidateUseCase / validate_topology_classes.py
+ValidateGraphUseCase  (saag/usecases/validate_graph.py)
     │
     │  Spearman ρ(Q(v), I(v))   ← primary gate metric (threshold ρ ≥ 0.70)
     │  F1 @ top-k               ← secondary gate
@@ -1038,9 +995,9 @@ Every impact quantity defined above — `I*(v)`, `composite_impact`, `IR/IM/IA/I
 
 | Quality-in-Use characteristic | Status | Existing outputs that measure it |
 |:---|:---|:---|
-| **Effectiveness** — is the goal achievable at all? | **Measurable now** | `FaultEventRecord.delivery_rate_before` / `.delivery_rate_after`, `.cascade_impacted_subscribers`, `.cascade_orphaned_topics`; `SubscriberStats.missed_per_topic`, `.missed_post_fault`, `.overall_delivery_rate` ([`simulation_results.py`](../saag/simulation/simulation_results.py)); `ImpactMetrics.reachability_loss`, `.fragmentation`, `.flow_disruption` ([`models.py`](../saag/simulation/models.py)) |
+| **Effectiveness** — is the goal achievable at all? | **Measurable now** | `FaultEventRecord.delivery_rate_before` / `.delivery_rate_after`, `.cascade_impacted_subscribers`, `.cascade_orphaned_topics`; `SubscriberFlowStats.missed_per_topic`, `.missed_post_fault`, `.overall_delivery_rate` ([`simulation_results.py`](../saag/simulation/simulation_results.py)); `ImpactMetrics.reachability_loss`, `.fragmentation`, `.flow_disruption` ([`models.py`](../saag/simulation/models.py)) |
 | **Efficiency** — same goal, more resource? | **Measurable now** | `FaultEventRecord.latency_p50_before/after` and `.latency_p95_before/after` — already positioned as an independent `I_dyn(v)` oracle candidate ([§4.4](#44-fault-injection-at-runtime)); `MessageFlowResult.total_queue_overflows`; `ImpactMetrics.throughput_loss`; `RuntimeMetrics.avg_latency`, `.p99_latency`, `.throughput` |
-| **Freedom from risk** — is a contract breached? | **Blocked by the corpus, not by the method** | The machinery exists: deadline and lifespan checks against end-to-end latency ([§4.3](#43-qos-enforcement)), `TopicFlowStats.total_dropped_deadline`, `SubscriberStats.deadline_violations_per_topic`, `MessageFlowResult.total_deadline_violations`, and a `deadline=…:qos` oracle slot in the validation harness. But **no topic in the scenario corpus declares `deadline_ms` — 0 of 710** across all ten scenarios, so every counter is structurally zero |
+| **Freedom from risk** — is a contract breached? | **Blocked by the corpus, not by the method** | The machinery exists: deadline and lifespan checks against end-to-end latency ([§4.3](#43-qos-enforcement)), `TopicFlowStats.total_dropped_deadline`, `SubscriberFlowStats.deadline_violations_per_topic`, `MessageFlowResult.total_deadline_violations`, and a `deadline=…:qos` oracle slot in the validation harness. But **no topic in the scenario corpus declares `deadline_ms` — 0 of 710** across all ten scenarios, so every counter is structurally zero |
 | **Satisfaction** | **Not measurable** | Behavioural, and no correlate exists in a message-flow simulation. Repeat-outage frequency is the nearest proxy and is not the same construct |
 | **Context coverage** | **Across runs, not per fault** | Not a per-fault quantity at all: it is the stability of the impact ranking across scenarios and domains, already exercised by the LOSO and multi-scenario batch runs |
 
@@ -1075,11 +1032,10 @@ Nothing in this section is implemented. It records what the existing outputs wou
 
 ## 10. Input Graph Format Requirements
 
-The `--input` file must be a JSON file compatible with the SaG schema. The CLI loader handles two paths automatically:
-
-**Path 1 (preferred):** If `saag/core/graph_builder.py` and `saag/core/graph_exporter.py` are importable, they are used. This supports the full schema including MIL-STD-498 hierarchy metadata, Jira enrichment, and code metrics.
-
-**Path 2 (fallback):** A lightweight inline loader reads these keys directly from either the top-level of the JSON or a nested `"relationships"` object (to support exported schemas like the ATM dataset):
+The `--input` file must be a JSON file compatible with the SaG schema.
+[`_load_graph`](../cli/simulate_graph.py) reads these keys directly from either the top level
+of the JSON or a nested `"relationships"` object (to support exported schemas like the ATM
+dataset):
 
 | Key | Type | Description |
 |-----|------|-------------|
@@ -1107,7 +1063,19 @@ The `--input` file must be a JSON file compatible with the SaG schema. The CLI l
 
 All QoS fields are optional; defaults are `RELIABLE`, `VOLATILE`, no deadline, no lifespan, `queue_size=100`.
 
-**`processing_time`** on Application nodes (seconds). Used by the message-flow simulator as the per-component compute latency. Set by `ProcessingTimeEnricher` as `base_latency × (1 + α × c_norm(v))` where `c_norm(v)` is the normalised cyclomatic complexity from SonarQube. Falls back to `--default-processing-time` (default 0.001 s) when absent.
+**`processing_time`** on Application nodes (seconds). Used by the message-flow simulator as
+the per-component compute latency. Read straight from the node attributes; when absent it
+falls back to `MessageFlowSimulator(default_processing_time_s=…)`, which defaults to
+`0.001 s` and is **not** exposed as a CLI flag.
+
+> [!NOTE]
+> A separate mechanism derives processing latency from static-analysis complexity:
+> [`ComplexityProcessor`](../saag/simulation/processor.py) computes
+> `pt(v) = base_latency × (1 + α·c_norm(v)) + β·Σ c_norm(lib)` and injects it as
+> `processing_latency` on the component. It belongs to the `EventSimulator` stack, not to
+> the message-flow one, and it activates only when components carry a flat `complexity`
+> property — the scenario generator currently nests it under `code_metrics.complexity`, so
+> in practice it is a no-op on the shipped corpus.
 
 ---
 
@@ -1129,7 +1097,7 @@ injector = FaultInjector(
     propagation_threshold=0.2,      # default 0.2
 )
 
-# Inject the three labelable types. Topic and Node would score 0 everywhere (§11 L6).
+# Inject the three labelable types. Topic and Node would score 0 everywhere (§12 L6).
 result = injector.run(node_types=["Application", "Broker", "Library"])
 
 # Inject specific nodes only
@@ -1220,10 +1188,10 @@ if result.fault_event:
 
 **L7 — Only three of five label dimensions are measured.** `FaultInjector` emits a single scalar, so `maintainability` and `security` have no ground truth from this engine. They are declared absent via `labeled_dimensions` and excluded from the loss via `dimension_mask` (§6.1). The four-dimensional RMAV decomposition exists only in `FailureSimulator`, which serves the Validate stage (§2.1). Unifying them would require one engine to produce all five dimensions.
 
-**L8 — Edge-removal simulation (RESOLVED).** `EdgeCriticality` is now populated by
-`FailureSimulator.simulate_edge_removal`, which severs one relationship — leaving both endpoints
-active — and recomputes the same reachability / fragmentation / throughput / flow quantities that
-back `ImpactMetrics`. `SimulationService.classify_edges()` returns measurements rather than `[]`.
+**L8 — Edge labels are measured, with three caveats.** `EdgeCriticality` is populated by
+`FailureSimulator.simulate_edge_removal`, swept by `simulate_edge_removal_sweep`, which severs one
+relationship — leaving both endpoints active — and recomputes the same reachability / fragmentation
+/ throughput / flow quantities that back `ImpactMetrics`.
 
 Three properties of the implementation matter when reading the numbers:
 
@@ -1266,3 +1234,56 @@ properly means making broker failure contribute to feed loss even for topics tha
 publishers.
 
 **L10 — No timeout / retry modelling.** For RELIABLE QoS, the head-drop policy prevents queue overflow but does not model TCP-style retransmission or DDS heartbeat/acknowledgement. The modelled delivery rates will be optimistic relative to real network conditions.
+
+**L11 — `TrafficSimulator` bypasses the repository port.** It is the only module in
+`saag/simulation/` that reaches into `repo.driver.session(...)` and hand-writes Cypher, so it
+is coupled to a live Neo4j deployment and is untestable without one — it currently has no test
+coverage at all. It is a closed-form bandwidth/message-rate calculator rather than a
+simulator, and nothing in the labelling or validation path depends on it; only
+[`api/routers/traffic.py`](../api/routers/traffic.py) does. Bringing it behind
+`IGraphRepository` is an architectural change, not a cleanup.
+
+**L12 — `FaultInjector` labels depend on `PYTHONHASHSEED`.** Per-component seeds are derived
+with `zlib.crc32` precisely so that labels do not vary with Python's salted string hashing
+([`failure_simulator.py`](../saag/simulation/failure_simulator.py) `_derive_seed`), but the
+cascade still iterates `idx.all_subscribers` — a `set` — while drawing random numbers inside
+the loop. Set iteration order therefore permutes which subscriber consumes which draw.
+Measured on `atm_system` across two runs in the same environment: `mean_std` 0.0263 → 0.0295,
+`test_retest_spearman` 0.918 → 0.887, individual `impact_score` values shifting in the third
+decimal.
+
+> Running with `PYTHONHASHSEED=0` reproduces labels exactly. The one-line fix is to sort that
+> iteration, but doing so changes every published label value, so it is deliberately **not**
+> applied here — it is a re-baselining decision for the experiment owner, not a refactor.
+
+---
+
+## 13. Resolved Issues
+
+Behaviours that earlier revisions of this document described differently. Recorded so that
+artifacts produced before each fix can be interpreted correctly.
+
+| # | Issue | Resolution |
+|---|---|---|
+| **R1** | Topic QoS was read with flat keys only (`qos_reliability` / `qos_priority`), but the canonical property is `qos_transport_priority` and the research loader leaves QoS nested. No key matched, so I\*(v) was numerically independent of QoS — flipping every `atm_system` topic from `PERSISTENT/RELIABLE/CRITICAL` to `VOLATILE/BEST_EFFORT/LOW` moved all 39 labels by `0.000000`. | Resolved through `QoSPolicy.from_node_attrs`, which accepts both shapes. **Any artifact generated before this is a `--qos-factor none` label** whatever its provenance block says. |
+| **R2** | §3.5 stated that a Library injection yields I(v) = 0 because DEPENDS_ON propagation is disabled at `prob = 0.0`. That holds only for `app_to_app`; `app_to_lib` is special-cased to `prob = 1.0`. | Libraries were absent for two unrelated reasons, both fixed: not in the default `--node-types`, and the CLI loader had no `libraries` block, so Library nodes were created implicitly by their `USES` edges with `type=None` and matched no filter. |
+| **R3** | `extract_simulation_dict` emitted `"maintainability": 0.0` and `"security": 0.0` for every record; the fabricated zeros were indistinguishable from measurements, so two prediction heads trained against a constant. | The parser emits only declared dimensions; `dimension_mask` and `label_mask` carry absence explicitly ([§6.1](#61-impact_scoresjson)). |
+| **R4** | `SimulationService.classify_edges()` always returned `[]`; edge labels were a projection of node labels through a hand-picked bridge multiplier. | Replaced by real edge-removal measurement ([§12 L8](#12-known-limitations)), pinned by [`tests/test_edge_removal.py`](../tests/test_edge_removal.py). |
+| **R5** | `EventType` was missing the `FAIL_COMPONENT` / `RECOVER_COMPONENT` members that `EventSimulator` dispatches on, so any `EventScenario(failure_rate > 0)` raised `AttributeError`. It went unnoticed because the test file carried its own private copy of the simulator that *did* define them. | Members added; the test file now exercises the real `saag.simulation` classes. |
+| **R6** | A brokered topic whose brokers had all failed fell through to the brokerless (DDS) direct-delivery path, so a broker outage silently repaired itself and produced zero drops. | `SimulationGraph.has_configured_brokers` distinguishes *no brokers configured* from *all brokers failed*; only the former delivers directly. |
+
+---
+
+## 14. What Comes Next
+
+The labels this step produces are consumed in two directions:
+
+- **[Step 3: Predict](prediction.md)** trains against `impact_scores.json` — read from disk,
+  never by importing this package (the separation is enforced by
+  [`tests/test_predict_simulate_separation.py`](../tests/test_predict_simulate_separation.py)).
+- **[Step 5: Validate](validation.md)** correlates the predicted Q(v) against I(v) and gates
+  on Spearman ρ. Before trusting any reported ρ, check `label_stability`
+  ([§3.6](#36-multi-seed-stability-label-noise-and-reproducibility)) — it is the ceiling on
+  what any correlation against these labels can mean.
+
+← [Step 3: Predict](prediction.md) | → [Step 5: Validate](validation.md)

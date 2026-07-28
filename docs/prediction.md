@@ -219,7 +219,7 @@ The `TypedEdgeEncoder` learns relation-specific linear projections $W_r \in \mat
 I_edge(u, v) = composite_impact(G \ {(u,v)})  −  composite_impact(G)
 ```
 
-`FailureSimulator.simulate_edge_removal` severs one relationship — leaving both endpoints active, which is the partial-outage case edge criticality is about — and recomputes the same reachability / fragmentation / throughput / flow quantities that back `ImpactMetrics`. The subtraction is not cosmetic: `_calculate_impact` returns a non-zero floor on a pristine graph (composite 0.0061 on `av_system`) because topics that already lack a publisher or subscriber count as lost throughput, so a level rather than a delta would hand every edge that floor as if it were signal. See [failure-simulation.md §11 L8](failure-simulation.md#12-known-limitations).
+`FailureSimulator.simulate_edge_removal` severs one relationship — leaving both endpoints active, which is the partial-outage case edge criticality is about — and recomputes the same reachability / fragmentation / throughput / flow quantities that back `ImpactMetrics`. The subtraction is not cosmetic: `_calculate_impact` returns a non-zero floor on a pristine graph (composite 0.0061 on `av_system`) because topics that already lack a publisher or subscriber count as lost throughput, so a level rather than a delta would hand every edge that floor as if it were signal. See [failure-simulation.md §12 L8](failure-simulation.md#12-known-limitations).
 
 The candidate set is bounded to `bridges(G) ∪ top-q edge-betweenness`, since a full sweep costs one impact recomputation per edge. Edges outside it are returned with `evaluated: false` — *not measured* is distinct from *measured as harmless*, and must not be read as a zero.
 
@@ -229,7 +229,7 @@ The candidate set is bounded to `bridges(G) ∪ top-q edge-betweenness`, since a
 I_edge(u, v) = I*(u) × bridge_multiplier      bridge_multiplier = 1.0 if bridge else 0.1
 ```
 
-> **What the measurement changed.** On `av_system`, 4 of 40 candidate edges carry non-zero impact and all four are `PUBLISHES_TO`/`SUBSCRIBES_TO`. `RUNS_ON` edges measure exactly 0.0 — this cascade model routes no traffic over them ([failure-simulation.md L5](failure-simulation.md#12-known-limitations)) — even though bridge detection surfaces them as structurally non-redundant. The heuristic would have assigned those edges their source node's full blast radius. Reported edge metrics are now validated against an observation rather than against a hand-chosen constant; the magnitudes are small, which is itself the finding that most individual links are replaceable.
+> **What the measurement changed.** On `av_system`, 4 of 40 candidate edges carry non-zero impact and all four are `PUBLISHES_TO`/`SUBSCRIBES_TO`. `RUNS_ON` edges measure exactly 0.0 — this cascade model routes no traffic over them ([failure-simulation.md §12 L5](failure-simulation.md#12-known-limitations)) — even though bridge detection surfaces them as structurally non-redundant. The heuristic would have assigned those edges their source node's full blast radius. Reported edge metrics are now validated against an observation rather than against a hand-chosen constant; the magnitudes are small, which is itself the finding that most individual links are replaceable.
 
 ### 2.7 [DEPRECATED] Ensemble: GNN + RMAV
 

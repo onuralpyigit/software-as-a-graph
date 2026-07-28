@@ -4,20 +4,21 @@ Presenter for simulation results, formatting event and failure simulation data f
 
 from typing import Dict, Any, List
 
+from saag.simulation._stats import nearest_rank
+
+
 def _latency_stats(metrics: Any) -> Dict[str, float]:
     """Compute min/p50/max from raw latency samples on the RuntimeMetrics object."""
     latencies = getattr(metrics, "latencies", [])
     if not latencies:
         return {"min_latency_ms": 0.0, "p50_latency_ms": 0.0, "max_latency_ms": 0.0}
     sorted_lat = sorted(latencies)
-    n = len(sorted_lat)
     raw_min = getattr(metrics, "min_latency", sorted_lat[0])
     safe_min = raw_min if raw_min != float("inf") else sorted_lat[0]
-    p50 = sorted_lat[min(int(n * 0.50), n - 1)]
     raw_max = getattr(metrics, "max_latency", sorted_lat[-1])
     return {
         "min_latency_ms": round(safe_min * 1000, 3),
-        "p50_latency_ms": round(p50 * 1000, 3),
+        "p50_latency_ms": round(nearest_rank(latencies, 50) * 1000, 3),
         "max_latency_ms": round(raw_max * 1000, 3),
     }
 

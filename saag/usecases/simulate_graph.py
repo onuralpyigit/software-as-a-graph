@@ -35,7 +35,7 @@ class SimulateGraphUseCase:
             layers = kwargs.pop("layers", [layer])
             return self.service.generate_report(layers=layers, **kwargs)
         elif mode == SimulationMode.CLASSIFY:
-            edges = kwargs.get("edges", False)
+            edges = kwargs.pop("edges", False)
             if edges:
                 return self.service.classify_edges(layer=layer, **kwargs)
             return self.service.classify_components(layer=layer, **kwargs)

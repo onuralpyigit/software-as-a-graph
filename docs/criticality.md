@@ -606,7 +606,7 @@ I_edge(u, v) = composite_impact(G \ {(u,v)})  −  composite_impact(G)
 
 This replaces the earlier heuristic `I_edge(u,v) = I*(u) × {1.0 if bridge else 0.1}`, which encoded the §5.2 Effectiveness/Efficiency distinction as a hand-chosen 10× gap rather than observing it. That heuristic remains available for ablation.
 
-> **What the measurement shows, and a caution.** Most individual edges cost almost nothing: on `av_system`, 4 of 40 candidates carry non-zero impact. That is the §5.2 replaceability question answered empirically — most links *are* replaceable. It also exposes a modelling gap the heuristic hid: `RUNS_ON` edges measure exactly 0.0 because the cascade routes no traffic over them ([failure-simulation.md L5](failure-simulation.md#12-known-limitations)), even though bridge detection flags them as non-redundant. A zero there means "this model cannot express that link's failure", not "that link does not matter" — the same caveat that applies to Topic and Node labels (L6).
+> **What the measurement shows, and a caution.** Most individual edges cost almost nothing: on `av_system`, 4 of 40 candidates carry non-zero impact. That is the §5.2 replaceability question answered empirically — most links *are* replaceable. It also exposes a modelling gap the heuristic hid: `RUNS_ON` edges measure exactly 0.0 because the cascade routes no traffic over them ([failure-simulation.md §12 L5](failure-simulation.md#12-known-limitations)), even though bridge detection flags them as non-redundant. A zero there means "this model cannot express that link's failure", not "that link does not matter" — the same caveat that applies to Topic and Node labels (L6).
 
 ### 5.7 Ranking Critical Edges
 

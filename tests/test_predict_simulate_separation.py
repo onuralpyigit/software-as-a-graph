@@ -8,13 +8,17 @@ symbols would couple Step 3 to Step 4, breaking the independence claim.
 import ast
 import pathlib
 
+import pytest
+
 
 def _parse_imports(py_file: pathlib.Path) -> list[tuple[str, set[str]]]:
     """Return (filename, {all imported names}) for each parseable file."""
     try:
         tree = ast.parse(py_file.read_text(encoding="utf-8"))
-    except SyntaxError:
-        return []
+    except SyntaxError as exc:
+        # Returning [] here would let an unparseable file smuggle in a
+        # forbidden import unchecked, silently voiding this guarantee.
+        pytest.fail(f"cannot parse {py_file}: {exc}")
 
     imported: set[str] = set()
     for node in ast.walk(tree):
