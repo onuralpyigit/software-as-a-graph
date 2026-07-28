@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Any
 
 from saag.core.metrics import ComponentQuality, CriticalityLevel
-from saag.prediction.models import QualityAnalysisResult, DetectedProblem
+from saag.analysis.models import QualityAnalysisResult, DetectedProblem
 from saag.analysis.smells import AntiPatternReport
 
 from saag.explanation.templates import PATTERN_TEMPLATES, DEFAULT_DIMENSION_TEMPLATES

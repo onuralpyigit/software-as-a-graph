@@ -1,5 +1,5 @@
 import pytest
-from saag.prediction.analyzer import QualityAnalyzer
+from saag.analysis.analyzer import QualityAnalyzer
 from saag.core.metrics import StructuralMetrics
 from saag.core.models import COUPLING_PATH_DELTA
 

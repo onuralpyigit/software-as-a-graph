@@ -1,8 +1,9 @@
 from typing import List, Optional, Any
-from saag.core.ports.graph_repository import IGraphRepository
-from saag.prediction.analyzer import QualityAnalyzer
-from saag.prediction.models import QualityAnalysisResult, DetectedProblem
-from saag.analysis.models import StructuralAnalysisResult
+from saag.analysis.models import (
+    DetectedProblem,
+    QualityAnalysisResult,
+    StructuralAnalysisResult,
+)
 
 class PredictGraphUseCase:
     """

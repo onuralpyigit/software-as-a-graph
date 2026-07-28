@@ -91,7 +91,6 @@ interface CheckpointInfo {
   predict_edges: boolean
   has_node_model: boolean
   has_edge_model: boolean
-  has_ensemble: boolean
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -236,11 +235,6 @@ function CheckpointCard({
           {ck.has_edge_model && (
             <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-950 dark:text-green-300">
               edge model
-            </span>
-          )}
-          {ck.has_ensemble && (
-            <span className="rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-950 dark:text-purple-300">
-              ensemble
             </span>
           )}
           {ck.predict_edges && (

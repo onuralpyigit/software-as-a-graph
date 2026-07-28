@@ -7,11 +7,11 @@ not by QoS weight alone, and that Reliability and Availability remain orthogonal
 Updated for A(v) v2: uses a_qspof instead of deprecated a_articulation / a_qos_weight.
 """
 import pytest
-from saag.prediction.analyzer import QualityAnalyzer
+from saag.analysis.analyzer import QualityAnalyzer
 from saag.core.metrics import StructuralMetrics
 from saag.analysis.models import StructuralAnalysisResult
 from saag.core.layers import AnalysisLayer
-from saag.prediction.weight_calculator import QualityWeights
+from saag.analysis.weight_calculator import QualityWeights
 
 
 def test_availability_orthogonality():

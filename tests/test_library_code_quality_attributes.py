@@ -18,7 +18,7 @@ import pytest
 from saag.core.models import Application, Library, GraphData, ComponentData, EdgeData
 from saag.core.metrics import StructuralMetrics
 from saag.analysis.structural_analyzer import StructuralAnalyzer, extract_layer_subgraph
-from saag.prediction.analyzer import QualityAnalyzer
+from saag.analysis.analyzer import QualityAnalyzer
 from saag.core import AnalysisLayer
 
 

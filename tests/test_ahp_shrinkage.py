@@ -1,5 +1,5 @@
 
-from saag.prediction.weight_calculator import AHPProcessor, AHPMatrices
+from saag.analysis.weight_calculator import AHPProcessor, AHPMatrices
 from saag.core.models import AHP_SHRINKAGE_LAMBDA
 
 def test_shrinkage():

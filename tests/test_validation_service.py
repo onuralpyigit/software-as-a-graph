@@ -18,7 +18,7 @@ from saag.validation.metric_calculator import (
     bootstrap_ci,
 )
 from saag.analysis.models import LayerAnalysisResult
-from saag.prediction.models import QualityAnalysisResult
+from saag.analysis.models import QualityAnalysisResult
 from saag.simulation.models import FailureResult, ImpactMetrics
 
 @pytest.fixture

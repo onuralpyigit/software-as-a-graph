@@ -39,14 +39,15 @@ def test_mask_consistency_best_seed(mock_gnn_service):
     with patch("saag.prediction.gnn_service.create_node_splits") as mock_split:
         with patch("saag.prediction.gnn_service.evaluate", return_value=mock_metrics):
             service._node_model.return_value = {"Application": torch.randn(2, 5)}
-            service.predict_from_data(data, simulation_results={"app1": {}})
-            
-            # Verify create_node_splits was called with seed=1234
-            from unittest.mock import ANY
-            mock_split.assert_called_with(ANY, seed=1234)
+            service.predict_from_data(data, eval_labels={"app1": {}})
+
+            # Verify create_node_splits was driven by the persisted best seed,
+            # so metrics are read off the same split the checkpoint won on.
+            mock_split.assert_called_once()
+            assert mock_split.call_args.kwargs["seed"] == 1234
 
 def test_ablation_modes(mock_gnn_service):
-    """G11: Verify that mode selection filters correct scores."""
+    """Verify that mode selection picks the correct score source."""
     service = mock_gnn_service
     
     data = HeteroData()
@@ -64,8 +65,3 @@ def test_ablation_modes(mock_gnn_service):
     result_gnn = service.predict_from_data(data, mode="gnn")
     assert result_gnn.node_scores["app1"].source == "GNN"
     assert result_gnn.node_scores["app1"].composite_score == pytest.approx(0.8)
-    
-    # 3. Mode: Ensemble (deprecated fallback to GNN)
-    result_ens = service.predict_from_data(data, mode="ensemble")
-    assert result_ens.node_scores["app1"].source == "GNN"
-    assert result_ens.node_scores["app1"].composite_score == pytest.approx(0.8)

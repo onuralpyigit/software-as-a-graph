@@ -235,7 +235,7 @@ class CriticalityRanking:
     levels: Dict[str, str]    # reliability, maintainability, availability, security, overall
     overall: float
     level: str
-    provenance: str           # "rmav", "gnn", "ensemble"
+    provenance: str           # "rmav" or "gnn"
     name: str = ""
     blast_radius: int = 0
     cascade_depth: int = 0

@@ -10,11 +10,11 @@ from saag.analysis.antipattern_detector import AntiPatternDetector
 from saag.analysis.cross_layer import compute_cross_layer_insights
 from saag.analysis.models import MultiLayerAnalysisResult
 from saag.analysis.service import AnalysisService
-from saag.prediction.quality_scoring_service import QualityScoringService
+from saag.prediction.service import PredictionService
 
 logger = logging.getLogger(__name__)
 
-#: Extra kwargs forwarded from execute(**kwargs) to QualityScoringService.predict_quality.
+#: Extra kwargs forwarded from execute(**kwargs) to PredictionService.predict_quality.
 _QUALITY_KWARG_KEYS = ("run_sensitivity", "sensitivity_perturbations", "sensitivity_noise")
 
 
@@ -42,7 +42,7 @@ class MultiLayerAnalysisUseCase:
         # 1. Structural analysis — derives dependencies and loads the graph once.
         results_map = AnalysisService(self.repository).analyze_layers(layers)
 
-        scorer = QualityScoringService(
+        scorer = PredictionService(
             use_ahp=use_ahp,
             normalization_method=normalization_method,
             winsorize=winsorize,

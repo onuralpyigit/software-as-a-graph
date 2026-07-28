@@ -9,7 +9,7 @@ import logging
 from api.models import Neo4jCredentials
 from saag.adapters import create_repository
 from saag.analysis.structural_analyzer import StructuralAnalyzer
-from saag.prediction.classifier import BoxPlotClassifier
+from saag.analysis.classifier import BoxPlotClassifier
 
 router = APIRouter(prefix="/api/v1", tags=["classification"])
 logger = logging.getLogger(__name__)

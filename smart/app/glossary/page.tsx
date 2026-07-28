@@ -198,7 +198,6 @@ const ALL_TERMS: Term[] = [
   { term: "Q(v)", definition: "Overall component quality score in the Analysis page, aggregating four RMAS dimensions via AHP weights (shrinkage λ=0.7).", formula: "Q(v) = 0.24·R(v) + 0.17·M(v) + 0.43·A(v) + 0.16·S(v)" },
   { term: "QADS", definition: "QoS-weighted Attack-Dependent Surface — inbound dependency weight measuring how many high-criticality components trust this node. Input to S(v)." },
   { term: "QSPOF", definition: "QoS-scaled SPOF Severity — product of the directional articulation-point score and the component's operational weight w(v). Amplifies SPOF severity for high-criticality components. Input to A(v).", formula: "QSPOF = AP_c_directed × w(v)" },
-  { term: "Q_ensemble", definition: "Ensemble-blended quality score combining GNN inference with rule-based RMAS scoring in the Predict stage.", formula: "Q_ensemble(v) = α·Q_GNN + (1−α)·Q_RMAS" },
   // R
   { term: "Reliability Score R(v)", definition: "RMAS Reliability dimension score measuring fault-propagation reach from a component. AHP weight in Q(v): 0.24.", formula: "R(v) = 0.45·RPR + 0.30·DG_in + 0.25·CDPot_enh" },
   { term: "Reverse Closeness Centrality", definition: "Closeness centrality computed on the transposed graph G^T. Measures how quickly an adversarial compromise can propagate from this component to all others via trust-based dependency paths. Input to S(v)." },

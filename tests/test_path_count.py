@@ -2,7 +2,7 @@ import pytest
 import math
 from saag.core import GraphData, ComponentData, EdgeData, AnalysisLayer
 from saag.analysis.structural_analyzer import StructuralAnalyzer
-from saag.prediction.analyzer import QualityAnalyzer
+from saag.analysis.analyzer import QualityAnalyzer
 from saag.core.models import COUPLING_PATH_DELTA
 
 class TestPathComplexity:

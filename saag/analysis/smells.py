@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import List, Dict, Any
 from dataclasses import dataclass
 
-from saag.prediction.models import DetectedProblem
+from saag.analysis.models import DetectedProblem
 
 
 @dataclass

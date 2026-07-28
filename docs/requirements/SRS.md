@@ -178,8 +178,8 @@ The legacy "Quality Scoring" mechanism (formerly part of Step 2) has been remove
 | **REQ-GNN-01** | The system shall convert NetworkX topology representations into PyTorch Geometric `HeteroData` representations with type-partitioned nodes and edges. |
 | **REQ-GNN-02** | The system shall construct node feature tensors consisting of an 18-dimensional base topological vector augmented by type-specific properties (Application/Library: 23-dim, Broker: 19-dim, Topic: 22-dim, Node: 20-dim). |
 | **REQ-GNN-03** | The system shall construct 16-dimensional edge feature tensors containing QoS metrics, path counts, and edge-type one-hot encodings (see Appendix A.7). |
-| **REQ-GNN-04** | The system shall implement a 3-layer **EdgeAwareHGTConv (HGT)** backbone (`NodeCriticalityGNN`) with relation-specific Key/Query/Value projection matrices to learn type-specific attention weights. |
-| **REQ-GNN-05** | The system shall inject 16-dimensional edge attributes directly into the Key and Value representation of each individual edge before multi-head attention, via `EdgeAwareHGTConv`'s edge projection layers (`k_edge_proj`, `v_edge_proj`). The legacy `EdgeFeatureEncoder` (scatter-mean pre-aggregation) is retained for backward checkpoint compatibility but is not used in the active forward pass. |
+| **REQ-GNN-04** | The system shall implement a 3-layer **HGTConv (Heterogeneous Graph Transformer)** backbone (`NodeCriticalityGNN`) with relation-specific Key/Query/Value projection matrices to learn type-specific attention weights. |
+| **REQ-GNN-05** | The system shall inject 16-dimensional edge attributes into node embeddings via `EdgeFeatureEncoder`, which projects each edge vector and scatter-means it into the destination node ahead of every `HGTConv` layer, since `HGTConv` does not accept raw `edge_attr` tensors. Per-edge features reach the edge head un-averaged through `TypedEdgeEncoder`; the node backbone sees them pre-aggregated (see [prediction.md §9 L2](../prediction.md#9-known-limitations)). |
 | **REQ-GNN-06** | The system shall support a bidirectional pass option (`use_bidirectional=True`) to capture upstream and downstream architectural signals during graph convolution. |
 | **REQ-GNN-07** | The system shall deploy multi-task prediction heads (MLPs with Sigmoid activations) to predict dimension scores ($\hat{R}$, $\hat{M}$, $\hat{A}$, $\hat{V}$) and a composite score $\hat{I}^*$ concurrently. |
 | **REQ-GNN-08** | The system shall feed the outputs of the four dimension heads directly into the composite head alongside the node representation to learn non-linear dimension interactions. |
@@ -437,7 +437,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \times \mathcal{L}_{\text{d
 - **GDS**: Graph Data Science—Neo4j's algorithm framework.
 - **GNN**: Graph Neural Network—neural network operating directly on graphs.
 - **HeteroData**: PyTorch Geometric's data object containing heterogeneous nodes and edges.
-- **HGT / HGTConv / EdgeAwareHGTConv**: Heterogeneous Graph Transformer—GNN layers using type-specific attention. `EdgeAwareHGTConv` is the project’s custom extension that projects edge features directly into relation-specific Key and Value spaces before message passing, avoiding information smoothing.
+- **HGT / HGTConv**: Heterogeneous Graph Transformer—GNN layers using type-specific attention. The project uses PyTorch Geometric's stock `HGTConv`, preceded at each layer by `EdgeFeatureEncoder` because `HGTConv` cannot consume raw edge attributes.
 - **ListMLE**: Listwise maximum likelihood loss for ranking data.
 - **RMAV**: Reliability, Maintainability, Availability, and Vulnerability.
 - **SPOF**: Single Point of Failure—an active articulation point component.

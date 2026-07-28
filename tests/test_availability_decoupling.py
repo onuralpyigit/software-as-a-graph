@@ -1,7 +1,7 @@
 import pytest
 from saag.core import GraphData, ComponentData, EdgeData
 from saag.analysis.structural_analyzer import StructuralAnalyzer
-from saag.prediction.analyzer import QualityAnalyzer
+from saag.analysis.analyzer import QualityAnalyzer
 
 class TestAvailabilityDecoupling:
     """Verifies Issue 5: Decoupling structural SPOF from QoS weight."""

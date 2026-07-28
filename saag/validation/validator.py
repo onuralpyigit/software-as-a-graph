@@ -13,7 +13,7 @@ from .models import (
 from .metric_calculator import (
     calculate_correlation, calculate_error, calculate_classification, calculate_ranking, calculate_auc_pr
 )
-from saag.prediction.classifier import BoxPlotClassifier
+from saag.analysis.classifier import BoxPlotClassifier
 
 
 def robust_sigmoid_scale_dict(d: Dict[str, float], epsilon: float = 1e-9) -> Dict[str, float]:

@@ -1,30 +1,23 @@
 """
-Prediction Domain Models
+GNN Architecture
 
-Data structures for quality analysis results, classifications, and problem detection.
-GNN architecture: HGT-based heterogeneous graph neural network for criticality prediction.
+HGT-based heterogeneous graph neural network for node and edge criticality
+prediction, plus the multi-task loss it is trained with.
 """
 
 from __future__ import annotations
 import logging
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from saag.core.metrics import ComponentQuality, EdgeQuality
-from saag.core.criticality import CriticalityLevel, BoxPlotStats
-
 # Import canonical dimension constants to avoid drift between data prep and model
 from ..data_preparation import NODE_TYPE_TO_DIM, EDGE_FEATURE_DIM
 
 logger = logging.getLogger(__name__)
-
-
-from saag.analysis.models import QualityAnalysisResult, DetectedProblem, ProblemSummary
 
 
 # ── GNN Support Classes ─────────────────────────────────────────────────────────
@@ -331,30 +324,6 @@ class EdgeCriticalityGNN(nn.Module):
                 )
             edge_preds[rel] = self.typed_edge_enc(h_src, h_dst, e_feat, rel)
         return node_preds, edge_preds
-
-
-class EnsembleGNN(nn.Module):
-    """Learnable convex combination of GNN + RMAV scores.
-
-    Available as optional "ensemble" mode for research/comparison.
-    Default prediction mode is "gnn" — GNN-only output.
-    RMAV scores are used as regularization targets during training
-    but are NOT blended into the default output.
-    """
-
-    def __init__(self, num_dims: int = NUM_LABEL_DIMS):
-        super().__init__()
-        self.alpha_logit = nn.Parameter(torch.zeros(num_dims))
-
-    @property
-    def alpha(self) -> Tensor:
-        return torch.sigmoid(self.alpha_logit)
-
-    def forward(self, gnn_scores: Tensor, rmav_scores: Optional[Tensor] = None) -> Tensor:
-        if rmav_scores is None:
-            return gnn_scores
-        alpha = self.alpha.to(gnn_scores.device)
-        return alpha * gnn_scores + (1 - alpha) * rmav_scores
 
 
 # ── Loss functions ─────────────────────────────────────────────────────────────

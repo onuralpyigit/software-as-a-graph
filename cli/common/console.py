@@ -617,10 +617,8 @@ class ConsoleDisplay:
             return
 
         if not RICH_AVAILABLE:
-            is_ensemble = bool(prediction.get("ensemble_scores"))
-            title = "GNN/Ensemble Criticality Prediction" if is_ensemble else "GNN Criticality Prediction"
-            self.print_subheader(title)
-            node_scores = prediction.get("ensemble_scores") or prediction.get("node_scores")
+            self.print_subheader("GNN Criticality Prediction")
+            node_scores = prediction.get("node_scores")
             if not node_scores:
                 print(f"  {self.colored('No prediction scores available.', Colors.GRAY)}")
                 return
@@ -635,11 +633,9 @@ class ConsoleDisplay:
             if len(sorted_nodes) > limit: print(f"\n  {self.colored(f'... and {len(sorted_nodes) - limit} more components', Colors.GRAY)}")
             return
 
-        is_ensemble = bool(prediction.get("ensemble_scores"))
-        title = "GNN/Ensemble Criticality Prediction" if is_ensemble else "GNN Criticality Prediction"
-        self.print_subheader(title)
+        self.print_subheader("GNN Criticality Prediction")
 
-        node_scores = prediction.get("ensemble_scores") or prediction.get("node_scores")
+        node_scores = prediction.get("node_scores")
         if not node_scores:
             self.console.print("  [grey50]No prediction scores available.[/]")
             return

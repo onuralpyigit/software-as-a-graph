@@ -292,7 +292,6 @@ software-as-a-graph/
 │   │   ├── service.py                #     AnalysisService pipeline orchestrator
 │   │   ├── analyzer.py               #     AnalysisService backwards compatibility wrapper
 │   │   ├── structural_analyzer.py    #     StructuralAnalyzer (20-field NetworkX metric computation)
-│   │   ├── quality_scoring_service.py#     RMAV scoring formulas engine
 │   │   ├── antipattern_detector.py   #     Architectural smells / anti-pattern rules
 │   │   ├── classifier.py             #     BoxPlotClassifier / Percentile classifier
 │   │   ├── weight_calculator.py      #     AHPProcessor consistency checks and weights
@@ -304,11 +303,9 @@ software-as-a-graph/
 │   │   ├── gnn_service.py            #     PyG HeteroData GNN model inference engine
 │   │   ├── data_preparation.py       #     NetworkX-to-HeteroData layout converters
 │   │   ├── trainer.py                #     GNN model training lifecycle manager
-│   │   ├── classifier.py             #     Prediction criticality level classifier
-│   │   ├── models/                   #     PyTorch GNN models
-│   │   │   ├── core.py               #       HGTConv architecture and predictors
-│   │   │   └── baselines.py          #       Linear / shallow model baselines
-│   │   └── models.py                 #     Prediction result DTOs
+│   │   └── models/                   #     PyTorch GNN models
+│   │       ├── core.py               #       HGTConv architecture, heads, and loss
+│   │       └── baselines.py          #       Linear / shallow model baselines
 │   │
 │   ├── simulation/                   #   Simulation Package (Ground truth generators)
 │   │   ├── service.py                #     SimulationService pipeline orchestrator

@@ -11,8 +11,8 @@ Covers:
 import math
 import pytest
 
-from saag.prediction.weight_calculator import QualityWeights, AHPProcessor
-from saag.prediction.analyzer import CriticalityProfile
+from saag.analysis.weight_calculator import QualityWeights, AHPProcessor
+from saag.analysis.analyzer import CriticalityProfile
 from saag.validation.models import ValidationTargets, LayerValidationResult
 
 

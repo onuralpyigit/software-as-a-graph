@@ -260,7 +260,7 @@ def run_antipattern_detection(
 # GNN inference helper
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def run_gnn_inference(client: Client, nx_graph, analysis, prediction, layer: str, gnn_model: str, display: ConsoleDisplay):
+def run_gnn_inference(nx_graph, analysis, prediction, gnn_model: str, display: ConsoleDisplay):
     """
     Run GNN inference using a trained checkpoint.
     Returns a GNNAnalysisResult or None on failure.
@@ -292,10 +292,10 @@ def run_gnn_inference(client: Client, nx_graph, analysis, prediction, layer: str
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _RMAS_LABELS = {
-    "reliability":      ("R", "Cascade / reliability risk"),
-    "maintainability":  ("M", "Coupling / change fragility"),
-    "availability":     ("A", "SPOF / availability loss"),
-    "security":         ("S", "Outbound blast radius"),
+    "reliability":      "Cascade / reliability risk",
+    "maintainability":  "Coupling / change fragility",
+    "availability":     "SPOF / availability loss",
+    "security":         "Outbound blast radius",
 }
 
 def display_rmav_breakdown(components: list, top_n: int = 10) -> None:
@@ -323,7 +323,7 @@ def display_rmav_breakdown(components: list, top_n: int = 10) -> None:
             "security":        s.security,
         }
         dominant_dim = max(dim_scores, key=dim_scores.get)
-        _, dominant_label = _RMAS_LABELS[dominant_dim]
+        dominant_label = _RMAS_LABELS[dominant_dim]
         is_spof = getattr(comp.structural, "is_articulation_point", False)
         spof_mark = "  ✗" if is_spof else ""
 
@@ -476,7 +476,7 @@ def main() -> None:
         gnn_result = None
         if args.gnn_model:
             display.print_step(f"[{layer.upper()}] GNN inference from checkpoint: {args.gnn_model}")
-            gnn_result = run_gnn_inference(client, nx_graph, analysis, prediction, layer, args.gnn_model, display)
+            gnn_result = run_gnn_inference(nx_graph, analysis, prediction, args.gnn_model, display)
             if gnn_result:
                 top_nodes = gnn_result.top_critical_nodes(n=10)
                 print()

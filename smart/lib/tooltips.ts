@@ -147,7 +147,6 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   "GNN": "Graph Neural Network — learns node criticality directly from the graph topology using message-passing between neighbours.",
   "HeteroGAT": "Heterogeneous Graph Attention Network — a GNN variant that handles multiple node types (Application, Node, Broker, etc.) and learns separate attention weights per edge type.",
   "GAT": "Graph Attention Network — a GNN that uses learned attention weights to determine how much each neighbour influences a node's representation.",
-  "ensemble_alpha": "α blending coefficient — weight given to GNN predictions vs. RMAS rule-based scores. Q_ensemble = α·Q_GNN + (1−α)·Q_RMAS.",
   "Hidden Dim": "Number of hidden features per node in each GNN layer — larger values capture more complex patterns but require more data.",
   "Attn Heads": "Number of parallel attention heads in the GAT layers — more heads allow the model to attend to different neighbourhood aspects simultaneously.",
   "GNN Layers": "Number of message-passing hops — each layer aggregates information from 1 hop further away in the graph.",

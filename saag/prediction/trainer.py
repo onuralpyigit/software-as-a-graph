@@ -12,9 +12,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import math
+
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from scipy.stats import spearmanr
 from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score
 from torch import Tensor
@@ -173,10 +176,14 @@ class GNNTrainer:
         rmav_consistency_weight: float = 0.1,
         ranking_weight: float = 0.3,
         pairwise_ranking_weight: float = 0.1,
+        edge_loss_weight: float = 0.3,
         dimension_mask: Optional[List[bool]] = None,
     ):
         self.model = model
         self.checkpoint_dir = Path(checkpoint_dir)
+        # Weight on the edge-criticality term. Without it the TypedEdgeEncoder
+        # receives no gradient at all and its predictions stay at random init.
+        self.edge_loss_weight = edge_loss_weight
         # Length-5 vector over LABEL_COLS marking which dimensions the labeler
         # actually measured; unmeasured ones are dropped from the multitask term
         # rather than regressed toward a fabricated zero. None = all measured.
@@ -251,8 +258,14 @@ class GNNTrainer:
             ei_dict = {rel: train_batch[rel].edge_index for rel in train_batch.edge_types}
             ea_dict = {rel: train_batch[rel].edge_attr for rel in train_batch.edge_types if hasattr(train_batch[rel], "edge_attr")}
             output = self.model(x_dict, ei_dict, ea_dict)
-            node_preds = output[0] if isinstance(output, tuple) else output
-            batch_loss = self._node_loss(node_preds, train_batch)
+            if isinstance(output, tuple):
+                node_preds, edge_preds = output
+                batch_loss = self._node_loss(node_preds, train_batch)
+                batch_loss = batch_loss + self.edge_loss_weight * self._edge_loss(
+                    edge_preds, train_batch
+                )
+            else:
+                batch_loss = self._node_loss(output, train_batch)
             batch_loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
             optimizer.step()
@@ -282,6 +295,25 @@ class GNNTrainer:
             loss, _ = self.loss_fn(preds, store.y, labelled, rmav_target, self.dim_weights)
             total = total + loss
         return total
+
+    def _edge_loss(self, edge_preds: Dict[Tuple, Tensor], batch) -> Tensor:
+        """MSE on edge composite criticality over relations carrying ``y_edge``.
+
+        Averaged over relation types so a graph with many PUBLISHES_TO edges and
+        few DEPENDS_ON edges does not let one relation dominate the term.
+        Relations without labels (``y_edge`` is only written when simulation
+        results were supplied) contribute nothing.
+        """
+        total = torch.tensor(0.0, device=self.device, requires_grad=True)
+        count = 0
+        for rel, preds in edge_preds.items():
+            store = batch[rel]
+            y_edge = getattr(store, "y_edge", None)
+            if y_edge is None or y_edge.shape[0] != preds.shape[0] or preds.shape[0] == 0:
+                continue
+            total = total + F.mse_loss(preds[:, 0], y_edge[:, 0].to(preds.device))
+            count += 1
+        return total / count if count else total
 
     def _update_best(
         self,
@@ -443,7 +475,6 @@ def evaluate(
 
 def _isnan_f(x: float) -> bool:
     """True iff x is a float NaN.  Safe for None."""
-    import math
     try:
         return math.isnan(x)
     except (TypeError, ValueError):
@@ -637,13 +668,10 @@ def _collect_samples(
         y_masked = store.y[mask].detach().cpu().numpy()
         p_masked = preds[mask].detach().cpu().numpy()
 
-        # Filter to labelled nodes (composite score > 0)
+        # Filter to labelled nodes (composite score > 0). Types contributing a
+        # single node are still included — they are concatenated with the rest.
         labelled = np.abs(y_masked[:, 0]) > 1e-6
-        if labelled.sum() >= 2:
-            all_preds.append(p_masked[labelled])
-            all_targets.append(y_masked[labelled])
-        elif labelled.sum() > 0:
-            # Include partial if we have at least 1 (will be concatenated with others)
+        if labelled.any():
             all_preds.append(p_masked[labelled])
             all_targets.append(y_masked[labelled])
 

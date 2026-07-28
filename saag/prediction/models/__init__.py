@@ -1,28 +1,36 @@
 """
 saag/prediction/models/__init__.py
 ===================================
-Re-exports all public symbols from the original flat models.py (now models/core.py)
-so that existing imports continue to work unchanged.
+GNN architecture for criticality prediction.
 
-New submodule:
+  saag.prediction.models.core      — HGT node/edge models, loss, builders
   saag.prediction.models.baselines — HomogeneousGAT_Unweighted, _ScalarWeighted
 """
 
-# Re-export everything from the original flat module (backward compatibility).
-# Using star import to avoid having to enumerate every symbol manually —
-# the original models.py is now models/core.py.
-from .core import *  # noqa: F401, F403
-from .core import (  # noqa: F401 — explicit imports for IDE / type checking
-    QualityAnalysisResult,
-    DetectedProblem,
-    ProblemSummary,
-    NodeCriticalityGNN,
-    EdgeCriticalityGNN,
-    EnsembleGNN,
+from .core import (
+    EDGE_FEATURE_DIM,
+    NODE_TYPE_TO_DIM,
+    NUM_LABEL_DIMS,
     CriticalityLoss,
-    ResidualMLP,
+    EdgeCriticalityGNN,
     EdgeFeatureEncoder,
+    NodeCriticalityGNN,
+    ResidualMLP,
     TypedEdgeEncoder,
-    build_node_gnn,
     build_edge_gnn,
+    build_node_gnn,
 )
+
+__all__ = [
+    "EDGE_FEATURE_DIM",
+    "NODE_TYPE_TO_DIM",
+    "NUM_LABEL_DIMS",
+    "CriticalityLoss",
+    "EdgeCriticalityGNN",
+    "EdgeFeatureEncoder",
+    "NodeCriticalityGNN",
+    "ResidualMLP",
+    "TypedEdgeEncoder",
+    "build_edge_gnn",
+    "build_node_gnn",
+]

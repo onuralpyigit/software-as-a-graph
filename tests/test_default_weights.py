@@ -1,6 +1,6 @@
 import pytest
-from saag.prediction.weight_calculator import QualityWeights
-from saag.prediction.analyzer import QualityAnalyzer
+from saag.analysis.weight_calculator import QualityWeights
+from saag.analysis.analyzer import QualityAnalyzer
 
 def test_quality_weights_defaults_are_ahp_derived():
     """Verify that QualityWeights defaults match the AHP-derived values for Q."""

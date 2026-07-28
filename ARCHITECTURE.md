@@ -153,16 +153,15 @@ Computes structural metrics only on the layer subgraph. No RMAV/Q scores or anti
 - `StructuralAnalyzer` — NetworkX-based PageRank, Betweenness, Harmonic Closeness, Eigenvector, and Reverse PageRank, plus custom pub-sub metrics (MPCI, FOC, CDI, PC).
 - `AnalysisService` — Orchestrates layer projections and calculations against `IGraphRepository`.
 - `AntiPatternDetector` — Audits RMAV scores to flag architectural smells (SPOF, FAILURE_HUB, GOD_COMPONENT, etc.). It lives here but is invoked by `prediction/`, since it operates on Predict-stage output.
-- `QualityAnalyzer`, `BoxPlotClassifier`, `AHPProcessor` — the actual RMAV scoring, classification, and AHP-weighting implementations used by the Predict stage (see the shim note below).
+- `QualityAnalyzer`, `BoxPlotClassifier`, `AHPProcessor` — the RMAV scoring, classification, and AHP-weighting implementations used by the Predict stage. Import them from here; `saag/prediction/` no longer re-exports them.
 
 ### `prediction/` — Step 3 Predictive Engine (unified Prediction Step)
 A single step that always computes rule-based RMAV scores, blends in ML/GNN inference when available, and runs anti-pattern detection and explanation generation.
-- `QualityScoringService` — Thin wrapper delegating RMAV scoring and problem-detection to `analysis/`.
-- `PredictionService` — Orchestrates the unified Predict stage: RMAV (always) → GNN (when a checkpoint is available, else falls back to RMAV) → anti-pattern detection → explanation generation.
+- `PredictionService` — The single entry point for the unified Predict stage: RMAV scoring and problem detection (delegated to `analysis/`), then GNN inference when a checkpoint is available (else falling back to RMAV), then anti-pattern detection and explanation generation.
 - `GNNService` — Loads a checkpoint containing `NodeCriticalityGNN`: `N` stacked stock `torch_geometric.nn.HGTConv` layers, with an `EdgeFeatureEncoder` injecting edge features before each layer ([core.py:146-290](saag/prediction/models/core.py#L146-L290)). Runs inductive prediction.
 - `ExplanationEngine` (from `explanation/`) — Generates the natural-language narrative attached to each Predict-stage result.
 
-> **Back-compat shims — not architectural components.** `saag/adapters/`, `saag/core/graph_generator.py`, and `saag/prediction/{analyzer,classifier,problem_detector,weight_calculator}.py` are thin re-export stubs kept for import compatibility. Their real implementations live in `saag/analysis/` (`analyzer.py`, `classifier.py`, `weight_calculator.py`) and `tools/generation/`. Do not extend the shims directly.
+> **Back-compat shims — not architectural components.** `saag/adapters/` and `saag/core/graph_generator.py` are thin re-export stubs kept for import compatibility; their real implementations live in `tools/generation/`. Do not extend the shims directly.
 
 ### `simulation/` — Step 4 Simulation Engine
 A discrete-event and BFS cascade failure simulation suite evaluating propagation boundaries on raw structural edges.

@@ -164,11 +164,18 @@ def _mock_service_for_train(service):
     service._node_model.state_dict.return_value = {"w": w}
 
 
-def test_normalize_labels_robust_applied_to_all_inductive_graphs(tmp_path):
-    """Regression test for the LOSO label-scale bug: normalize_labels_robust must
-    run on every graph passed via inductive_graphs, not just the primary graph —
-    otherwise the primary and auxiliary scenarios train against label distributions
-    on different numeric scales within the same backward pass.
+def test_normalize_labels_robust_applied_once_to_every_graph(tmp_path):
+    """Two regressions at once.
+
+    LOSO label-scale bug: normalize_labels_robust must run on every graph passed
+    via inductive_graphs, not just the primary graph — otherwise the primary and
+    auxiliary scenarios train against label distributions on different numeric
+    scales within the same backward pass.
+
+    Per-seed compounding bug: it must run *exactly once* per graph regardless of
+    how many seeds are trained. It mutates `.y` in place, so calling it inside
+    the seed loop squashes each graph's labels through the sigmoid again for
+    every additional seed, and seed N trains on different labels than seed 1.
     """
     service = GNNService(checkpoint_dir=str(tmp_path / "ckpt"))
     G = nx.DiGraph()
@@ -192,7 +199,7 @@ def test_normalize_labels_robust_applied_to_all_inductive_graphs(tmp_path):
     metrics = EvalMetrics(spearman_rho=0.5, f1_score=0.5, rmse=1.0, mae=1.0,
                            top_5_overlap=0.0, top_10_overlap=0.0, ndcg_10=0.0)
 
-    with patch("saag.prediction.data_preparation.normalize_labels_robust", side_effect=spy), \
+    with patch("saag.prediction.gnn_service.normalize_labels_robust", side_effect=spy), \
          patch("saag.prediction.gnn_service.GNNTrainer") as MockTrainer, \
          patch("saag.prediction.gnn_service.evaluate", return_value=metrics):
         mock_trainer_instance = MagicMock()
@@ -201,8 +208,9 @@ def test_normalize_labels_robust_applied_to_all_inductive_graphs(tmp_path):
 
         _mock_service_for_train(service)
 
+        # Three seeds: the count below must not scale with this.
         service.train(
-            G, seeds=[1],
+            G, seeds=[1, 2, 3],
             simulation_results={"1": {"composite": 1.0, "reliability": 0.0,
                                        "maintainability": 0.0, "availability": 0.0,
                                        "security": 0.0}},
@@ -213,8 +221,8 @@ def test_normalize_labels_robust_applied_to_all_inductive_graphs(tmp_path):
     # The primary graph (built internally from G) plus both inductive graphs
     # must each have gone through normalize_labels_robust exactly once.
     assert len(seen_graphs) == 3
-    assert ig1 in seen_graphs
-    assert ig2 in seen_graphs
+    assert seen_graphs.count(ig1) == 1
+    assert seen_graphs.count(ig2) == 1
 
 
 def test_gnn_trainer_validates_against_primary_graph_in_loso(tmp_path):

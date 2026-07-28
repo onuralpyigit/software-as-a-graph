@@ -254,7 +254,7 @@ Analyzes the imported graph in Neo4j to compute centrality metrics, anti-pattern
 ### 5.4 Step 3: GNN Training & Prediction
 
 #### GNN Model Training
-Trains the EdgeAwareHGTConv (HGT) GNN on simulated fault labels to predict component criticality.
+Trains the HGT (Heterogeneous Graph Transformer) GNN on simulated fault labels to predict component criticality.
 - **Script:** [cli/train_graph.py]
 - **Arguments:**
   - `--layer`: Targets specific system layer (`app`, `infra`, `mw`, `system`).

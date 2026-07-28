@@ -392,7 +392,7 @@ def _compute_rmav_from_structural(
     from saag.analysis.models import StructuralAnalysisResult
     from saag.core.metrics import StructuralMetrics, GraphSummary
     from saag.core.layers import AnalysisLayer
-    from saag.prediction.analyzer import QualityAnalyzer
+    from saag.analysis.analyzer import QualityAnalyzer
 
     if not structural_features:
         return {}

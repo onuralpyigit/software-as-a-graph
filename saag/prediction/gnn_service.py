@@ -25,7 +25,7 @@ Typical inference workflow (no training data available):
     ...     rmav_scores=rmav_dict,
     ... )
     >>> gnn_result.node_scores          # {node_name: GNNCriticalityScore}
-    >>> gnn_result.edge_scores          # {(src, dst): GNNCriticalityScore}
+    >>> gnn_result.edge_scores          # [GNNEdgeCriticalityScore, ...]
 
 Training workflow:
 
@@ -47,39 +47,44 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch import Tensor
-
-from saag.core.metrics import ComponentQuality, EdgeQuality, QualityScores, QualityLevels, StructuralMetrics
-from saag.core.criticality import CriticalityLevel
-
 import numpy as np
 import torch
+from torch import Tensor
 
-from .classifier import BoxPlotClassifier
+from saag.analysis.classifier import BoxPlotClassifier
+from saag.core.criticality import CriticalityLevel
+from saag.core.metrics import ComponentQuality, EdgeQuality, QualityScores, QualityLevels, StructuralMetrics
 
 from .data_preparation import (
     GraphConversionResult,
-    NODE_TYPES,
     apply_external_splits,
     create_node_splits,
     extract_rmav_scores_dict,
     extract_simulation_dict,
     extract_structural_metrics_dict,
     networkx_to_hetero_data,
+    normalize_labels_robust,
 )
-from .models import (
-    EdgeCriticalityGNN,
-    EnsembleGNN,
-    NodeCriticalityGNN,
-    build_edge_gnn,
-    build_node_gnn,
-)
+from .models import build_edge_gnn, build_node_gnn
 from .trainer import EvalMetrics, GNNTrainer, evaluate
 
 logger = logging.getLogger(__name__)
+
+
+def _to_level(val: float) -> CriticalityLevel:
+    """Map a score in [0, 1] to a level using fixed absolute cutoffs.
+
+    Only used for the four RMAV sub-dimensions, which carry no adaptive
+    classification of their own. The composite always reuses the per-scenario
+    box-plot level already stored on the score object.
+    """
+    if val >= 0.75:
+        return CriticalityLevel.CRITICAL
+    if val >= 0.55:
+        return CriticalityLevel.HIGH
+    if val >= 0.35:
+        return CriticalityLevel.MEDIUM
+    return CriticalityLevel.LOW if val >= 0.15 else CriticalityLevel.MINIMAL
 
 
 # ── Result dataclasses ─────────────────────────────────────────────────────────
@@ -97,7 +102,7 @@ class GNNCriticalityScore:
     maintainability_score: float
     availability_score: float
     security_score: float
-    source: str = "GNN"           # "GNN", "RMAV", or "Ensemble"
+    source: str = "GNN"           # "GNN" or "RMAV"
 
     criticality_level: str = "MINIMAL"    # Calculated via adaptive thresholds
 
@@ -152,18 +157,13 @@ class GNNAnalysisResult:
 
     # Node-level predictions
     node_scores: Dict[str, GNNCriticalityScore] = field(default_factory=dict)
-    # Edge-level predictions  
+    # Edge-level predictions
     edge_scores: List[GNNEdgeCriticalityScore] = field(default_factory=list)
-    # Ensemble predictions (GNN + RMAV blended)
-    ensemble_scores: Dict[str, GNNCriticalityScore] = field(default_factory=dict)
     # Validation metrics (when simulation ground truth is available)
     gnn_metrics: Optional[EvalMetrics] = None
-    ensemble_metrics: Optional[EvalMetrics] = None
-    # Learned ensemble alpha (per RMAV dimension)
-    ensemble_alpha: Optional[List[float]] = None
     # Adaptive classification stats
     stats: Dict[str, Any] = field(default_factory=dict)
-    # Effective prediction mode (Literal["ensemble", "gnn_only", "rmav_only"])
+    # Effective prediction mode (Literal["gnn_only", "rmav_only"])
     prediction_mode: str = "gnn_only"
     # Internal: structural metadata for shimming
     _structural_cache: Dict[str, Any] = field(default_factory=dict, repr=False)
@@ -172,10 +172,8 @@ class GNNAnalysisResult:
     @property
     def components(self) -> List[ComponentQuality]:
         """Backward-compatibility shim for anti-pattern detection."""
-        from saag.core.criticality import CriticalityLevel
         comps = []
-        scores_map = self.ensemble_scores or self.node_scores
-        for node_id, score in scores_map.items():
+        for node_id, score in self.node_scores.items():
             qs = QualityScores(
                 reliability=score.reliability_score,
                 maintainability=score.maintainability_score,
@@ -183,12 +181,6 @@ class GNNAnalysisResult:
                 security=score.security_score,
                 overall=score.composite_score
             )
-            def _to_level(val: float) -> CriticalityLevel:
-                if val >= 0.75: return CriticalityLevel.CRITICAL
-                if val >= 0.55: return CriticalityLevel.HIGH
-                if val >= 0.35: return CriticalityLevel.MEDIUM
-                return CriticalityLevel.LOW if val >= 0.15 else CriticalityLevel.MINIMAL
-
             ql = QualityLevels(
                 reliability=_to_level(qs.reliability),
                 maintainability=_to_level(qs.maintainability),
@@ -209,8 +201,6 @@ class GNNAnalysisResult:
     @property
     def edges(self) -> List[EdgeQuality]:
         """Backward-compatibility shim for anti-pattern detection."""
-        from saag.core.metrics import EdgeMetrics
-        from saag.core.criticality import CriticalityLevel
         eqs = []
         for es in self.edge_scores:
             qs = QualityScores(reliability=es.reliability_score, maintainability=es.maintainability_score, 
@@ -222,9 +212,10 @@ class GNNAnalysisResult:
                                    target_type="GNN_Node", dependency_type=es.edge_type, scores=qs, level=CriticalityLevel[es.criticality_level]))
         return eqs
 
-    def top_critical_nodes(self, n: int = 10, use_ensemble: bool = True) -> List[GNNCriticalityScore]:
-        scores = self.ensemble_scores if use_ensemble and self.ensemble_scores else self.node_scores
-        sorted_scores = sorted(scores.values(), key=lambda s: s.composite_score, reverse=True)
+    def top_critical_nodes(self, n: int = 10) -> List[GNNCriticalityScore]:
+        sorted_scores = sorted(
+            self.node_scores.values(), key=lambda s: s.composite_score, reverse=True
+        )
         return sorted_scores[:n]
 
     def top_critical_edges(self, n: int = 10) -> List[GNNEdgeCriticalityScore]:
@@ -234,25 +225,24 @@ class GNNAnalysisResult:
         return {
             "node_scores": {k: v.to_dict() for k, v in self.node_scores.items()},
             "edge_scores": [e.to_dict() for e in self.edge_scores],
-            "ensemble_scores": {k: v.to_dict() for k, v in self.ensemble_scores.items()},
             "gnn_metrics": self.gnn_metrics.to_dict() if self.gnn_metrics else None,
-            "ensemble_metrics": self.ensemble_metrics.to_dict() if self.ensemble_metrics else None,
-            "ensemble_alpha": self.ensemble_alpha,
             "prediction_mode": self.prediction_mode,
         }
 
     def summary(self) -> dict:
-        scores = self.ensemble_scores or self.node_scores
-        levels = [s.criticality_level for s in scores.values()]
+        # Levels are normalised here rather than assumed uppercase: hand-built
+        # results and older checkpoints carry the box-plot classifier's
+        # lowercase values, which would silently count as zero.
+        levels = [s.criticality_level.upper() for s in self.node_scores.values()]
         return {
-            "total_components": len(scores),
+            "total_components": len(self.node_scores),
             "critical": levels.count("CRITICAL"),
             "high": levels.count("HIGH"),
             "medium": levels.count("MEDIUM"),
             "low": levels.count("LOW"),
             "minimal": levels.count("MINIMAL"),
             "critical_edges": sum(
-                1 for e in self.edge_scores if e.criticality_level == "CRITICAL"
+                1 for e in self.edge_scores if e.criticality_level.upper() == "CRITICAL"
             ),
         }
 
@@ -298,12 +288,10 @@ class GNNService:
         self.predict_edges = predict_edges
         self.checkpoint_dir = Path(checkpoint_dir)
         self.device = device if device else torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
         self._node_model = None
         self._edge_model = None
-        self._ensemble = None
         self._best_seed = 42
         self.layer = "unknown"
         self._conversion_result: Optional[GraphConversionResult] = None
@@ -316,20 +304,50 @@ class GNNService:
     # ── Model initialisation ──────────────────────────────────────────────────
 
     def _init_models(self, metadata: Tuple) -> None:
-        """Build models from PyG metadata."""
+        """Build models from PyG metadata.
+
+        When ``predict_edges`` is set, ``_node_model`` is the *same object* as
+        ``_edge_model.node_gnn`` rather than a second, independent network.
+        Training only ever optimises ``_edge_model``, so a separate
+        ``_node_model`` would stay at random initialisation and then be used for
+        the reported metrics and written to ``node_model.pt``.
+        """
         logger.info("Initialising GNN models from metadata.")
         self.metadata = metadata
-        self._node_model = build_node_gnn(
-            metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout
-        )
         if self.predict_edges:
             self._edge_model = build_edge_gnn(
                 metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout
             )
-        self._ensemble = None
-        self._node_model.to(self.device)
-        if self._edge_model:
+            self._node_model = self._edge_model.node_gnn
             self._edge_model.to(self.device)
+        else:
+            self._edge_model = None
+            self._node_model = build_node_gnn(
+                metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout
+            )
+            self._node_model.to(self.device)
+
+    @property
+    def _trained_model(self):
+        """The network the optimizer actually updates.
+
+        With ``predict_edges`` this is the edge model, whose ``node_gnn`` *is*
+        ``self._node_model`` — so training it trains both.
+        """
+        return self._edge_model if self.predict_edges else self._node_model
+
+    @staticmethod
+    def _apply_splits(data, conv, node_splits, train_ratio, val_ratio, seed) -> None:
+        """Assign train/val/test masks for one seed.
+
+        An externally pinned split lets several model variants be trained and
+        scored on an identical sample, which is what makes a like-for-like
+        comparison table meaningful; otherwise each seed draws a fresh split.
+        """
+        if node_splits:
+            apply_external_splits(data, conv, node_splits)
+        else:
+            create_node_splits(data, train_ratio, val_ratio, seed=seed)
 
     # ── Main public API ───────────────────────────────────────────────────────
 
@@ -355,6 +373,7 @@ class GNNService:
         rmav_consistency_weight: float = 0.1,
         ranking_weight: float = 0.3,
         pairwise_ranking_weight: float = 0.1,
+        edge_loss_weight: float = 0.3,
         node_splits: Optional[Dict[str, Iterable[str]]] = None,
     ) -> GNNAnalysisResult:
         """Process graphs and train the GNN model using a multi-seed approach.
@@ -417,49 +436,43 @@ class GNNService:
         else:
             training_input = data
 
+        # IQR-normalize labels to reduce outlier impact on loss scale.
+        # Applied per-graph so every scenario's labels land on the same
+        # (0,1) scale — otherwise the primary graph's normalized labels
+        # and the inductive graphs' raw-scale labels would produce
+        # inconsistent gradients for the same scale-sensitive loss terms.
+        # Must run exactly once, outside the seed loop: normalize_labels_robust
+        # mutates `.y` in place, so calling it per seed would compound the
+        # sigmoid squash and leave each seed training on different labels.
+        normalize_labels_robust(data)
+        if inductive_graphs:
+            for ig in inductive_graphs:
+                normalize_labels_robust(ig)
+
         # Handle multi-seed training (Issue G6)
         training_seeds = seeds if seeds else [42]
         all_metrics = []
         best_val_rho = -1.0
         best_state: Optional[Dict[str, Tensor]] = None
         best_seed = training_seeds[0]
-        
+
         for seed in training_seeds:
             if len(training_seeds) > 1:
                 logger.info("── Training seed %d ────────────────────────────────", seed)
-            
+
             torch.manual_seed(seed)
             np.random.seed(seed)
             random.seed(seed)
-            
-            # Fresh split per seed (Issue G6/G8), unless the caller pinned one.
-            # An externally pinned split lets several model variants be trained
-            # and scored on an identical sample, which is required for a
-            # like-for-like comparison table.
-            if node_splits:
-                apply_external_splits(data, conv, node_splits)
-            else:
-                create_node_splits(data, train_ratio, val_ratio, seed=seed)
+
+            self._apply_splits(data, conv, node_splits, train_ratio, val_ratio, seed)
             if inductive_graphs:
                 for ig in inductive_graphs:
                     create_node_splits(ig, train_ratio, val_ratio, seed=seed)
 
-            # IQR-normalize labels to reduce outlier impact on loss scale.
-            # Applied per-graph so every scenario's labels land on the same
-            # (0,1) scale — otherwise the primary graph's normalized labels
-            # and the inductive graphs' raw-scale labels would produce
-            # inconsistent gradients for the same scale-sensitive loss terms.
-            from .data_preparation import normalize_labels_robust
-            normalize_labels_robust(data)
-            if inductive_graphs:
-                for ig in inductive_graphs:
-                    normalize_labels_robust(ig)
-
             # Initialise models for this seed
             self._init_models(data.metadata())
 
-            # Train node model
-            model_to_train = self._edge_model if self.predict_edges else self._node_model
+            model_to_train = self._trained_model
             trainer = GNNTrainer(
                 model=model_to_train,
                 checkpoint_dir=str(self.checkpoint_dir),
@@ -472,6 +485,7 @@ class GNNService:
                 rmav_consistency_weight=rmav_consistency_weight,
                 ranking_weight=ranking_weight,
                 pairwise_ranking_weight=pairwise_ranking_weight,
+                edge_loss_weight=edge_loss_weight,
             )
             _, best_val_metrics = trainer.train(
                 training_input, primary_data=data if inductive_graphs else None
@@ -489,16 +503,12 @@ class GNNService:
             test_metrics = evaluate(model_to_train, data, "test_mask", self.device)
             all_metrics.append(test_metrics)
 
-        # Restore best model and masks
+        # Restore best model and re-apply its splits so inference sees the same
+        # masks the winning seed was scored on.
         if best_state is not None:
             logger.info("Restoring best model from seed %d (Val Rho: %.4f)", best_seed, best_val_rho)
-            model_to_restore = self._edge_model if self.predict_edges else self._node_model
-            model_to_restore.load_state_dict(best_state)
-            # Re-apply best seed splits to ensure splits are correct
-            if node_splits:
-                apply_external_splits(data, conv, node_splits)
-            else:
-                create_node_splits(data, train_ratio, val_ratio, seed=best_seed)
+            self._trained_model.load_state_dict(best_state)
+            self._apply_splits(data, conv, node_splits, train_ratio, val_ratio, best_seed)
 
         # ── Final Inference ──────────────────────────────────────────────────
         # Best state is already loaded in self._node_model via GNNTrainer.train
@@ -513,7 +523,6 @@ class GNNService:
         eval_labels=None,
         mode: str = "gnn",
         qos_enabled: bool = True,
-        **kwargs,
     ) -> GNNAnalysisResult:
         """Run inference on a graph without training.
 
@@ -526,17 +535,13 @@ class GNNService:
         structural_metrics:
             Structural analysis results (for node features).
         rmav_scores:
-            Existing RMAV predictions (for ensemble blending).
+            Existing RMAV predictions, used as the ``mode='rmav'`` source and
+            as the consistency-regularisation target during training.
         eval_labels:
             Optional: if provided, validation metrics are computed.
         mode:
-            Ablation mode: 'rmav', 'gnn', or 'ensemble'.
+            Ablation mode: 'gnn' or 'rmav'.
         """
-        # Backward compatibility with simulation_results parameter
-        simulation_results = kwargs.pop("simulation_results", None)
-        if eval_labels is None:
-            eval_labels = simulation_results
-
         if self._node_model is None:
             raise RuntimeError(
                 "Models not initialised. Call train() or from_checkpoint() first."
@@ -561,27 +566,21 @@ class GNNService:
         )
 
     def predict_from_data(
-        self, 
-        data, 
-        eval_labels=None, 
+        self,
+        data,
+        eval_labels=None,
         mode: str = "gnn",
         structural_metrics: Optional[Dict[str, Any]] = None,
         layer: str = "system",
-        **kwargs,
     ) -> GNNAnalysisResult:
         """Run inference directly on a HeteroData object.
-        
+
         Parameters
         ----------
         data: HeteroData
         eval_labels: Optional dict
-        mode: 'rmav', 'gnn', or 'ensemble'
+        mode: 'gnn' or 'rmav'
         """
-        # Support backward compatibility with simulation_results parameter
-        simulation_results = kwargs.pop("simulation_results", None)
-        if eval_labels is None:
-            eval_labels = simulation_results
-
         if self._node_model is None:
             raise RuntimeError("Models not initialised.")
 
@@ -624,75 +623,31 @@ class GNNService:
                 edge_pred_dict = {}
 
         result = GNNAnalysisResult()
-        result.mode = mode
 
-        # ── Node scores ───────────────────────────────────────────────────────
-        for nt, preds in pred_dict.items():
-            if conv is None or nt not in conv.node_id_map:
-                continue
-            node_names = conv.node_id_map[nt]
-            preds_cpu = preds.cpu().numpy()
-            for i, name in enumerate(node_names):
-                result.node_scores[name] = GNNCriticalityScore(
-                     component=name,
-                     composite_score=float(preds_cpu[i, 0]),
-                     reliability_score=float(preds_cpu[i, 1]),
-                     maintainability_score=float(preds_cpu[i, 2]),
-                     availability_score=float(preds_cpu[i, 3]),
-                     security_score=float(preds_cpu[i, 4]),
-                     source="GNN",
-                )
-
-        # ── Edge scores ───────────────────────────────────────────────────────
-        for rel, e_preds in edge_pred_dict.items():
-            src_type, edge_type, dst_type = rel
-            if conv is None:
-                continue
-            if rel not in conv.edge_name_map:
-                continue
-            edge_names = conv.edge_name_map[rel]
-            e_preds_cpu = e_preds.cpu().numpy()
-            for i, (src_name, dst_name) in enumerate(edge_names):
-                result.edge_scores.append(
-                    GNNEdgeCriticalityScore(
-                        source_node=src_name,
-                        target_node=dst_name,
-                        edge_type=edge_type,
-                        composite_score=float(e_preds_cpu[i, 0]),
-                        reliability_score=float(e_preds_cpu[i, 1]),
-                        maintainability_score=float(e_preds_cpu[i, 2]),
-                        availability_score=float(e_preds_cpu[i, 3]),
-                        security_score=float(e_preds_cpu[i, 4]),
-                    )
-                )
-
-        # ── Assemble Results based on Mode (Issue G11, G12) ───────────────────
+        # ── Node scores: RMAV ground truth, or the GNN's own predictions ──────
         has_rmav = any(hasattr(data_dev[nt], "y_rmav") for nt in data_dev.node_types)
-        
+        if mode == "rmav" and not has_rmav:
+            logger.warning("Mode 'rmav' requested but no RMAV scores available. Falling back to GNN.")
+            mode = "gnn"
+
         if mode == "rmav":
-            if not has_rmav:
-                logger.warning("Mode 'rmav' requested but no RMAV scores available. Falling back to GNN.")
-                result.prediction_mode = "gnn_only"
-                self._populate_node_scores(result, pred_dict, conv)
-            else:
-                result.prediction_mode = "rmav_only"
-                self._populate_scores_from_rmav(result, data_dev, conv)
-        else: # gnn, or deprecated ensemble
+            result.prediction_mode = "rmav_only"
+            self._populate_scores_from_rmav(result, data_dev, conv)
+        else:
             result.prediction_mode = "gnn_only"
             self._populate_node_scores(result, pred_dict, conv)
-            if mode == "ensemble":
-                logger.warning("Ensemble mode is deprecated and removed. Falling back to GNN-only.")
 
         # ── Edge scores (always GNN) ──────────────────────────────────────────
         self._populate_edge_scores(result, edge_pred_dict, conv)
 
-        # ── Validation metrics (Issue G9, G10) ────────────────────────────────
+        # ── Validation metrics ────────────────────────────────────────────────
+        # Re-derive the winning seed's masks so metrics are read off the same
+        # test split the checkpoint was selected on.
         if eval_labels:
-            if getattr(self, "_pinned_splits", None):
-                apply_external_splits(data_dev, conv, self._pinned_splits)
-            else:
-                create_node_splits(data_dev, seed=self._best_seed)
-            # 1. GNN Validation
+            self._apply_splits(
+                data_dev, conv, getattr(self, "_pinned_splits", None),
+                train_ratio=0.6, val_ratio=0.2, seed=self._best_seed,
+            )
             result.gnn_metrics = evaluate(self._node_model, data_dev, "test_mask", self.device)
 
         # ── Adaptive Classification ───────────────────────────────────────────
@@ -735,99 +690,80 @@ class GNNService:
 
     def detect_problems(self, result: GNNAnalysisResult) -> List[Any]:
         """Unified SDK entry point for anti-pattern detection on GNN results."""
-        from .problem_detector import ProblemDetector
-        detector = ProblemDetector()
-        return detector.detect(result)
+        from saag.analysis.problem_detector import ProblemDetector
+        return ProblemDetector().detect(result)
 
     # ── Score Population Helpers ──────────────────────────────────────────────
+    #
+    # Every score tensor here is (n, 5), column-ordered
+    # [composite, reliability, maintainability, availability, security],
+    # matching NodeCriticalityGNN.decode() and the y/y_rmav label layout.
 
-    def _populate_node_scores(self, result: GNNAnalysisResult, pred_dict: Dict[str, Tensor], conv: GraphConversionResult) -> None:
-        """Fill result.node_scores from GNN predictions."""
-        for nt, preds in pred_dict.items():
-            if conv is None or nt not in conv.node_id_map:
+    @staticmethod
+    def _populate_node_scores(
+        result: GNNAnalysisResult,
+        score_dict: Dict[str, Tensor],
+        conv: GraphConversionResult,
+        source: str = "GNN",
+    ) -> None:
+        """Fill result.node_scores from a {node_type: (n, 5) tensor} mapping."""
+        if conv is None:
+            return
+        for nt, scores in score_dict.items():
+            if nt not in conv.node_id_map:
                 continue
-            node_names = conv.node_id_map[nt]
-            preds_cpu = preds.cpu().numpy()
-            for i, name in enumerate(node_names):
+            rows = scores.cpu().numpy()
+            for i, name in enumerate(conv.node_id_map[nt]):
+                composite, r, m, a, s = (float(v) for v in rows[i, :5])
                 result.node_scores[name] = GNNCriticalityScore(
                     component=name,
-                    composite_score=float(preds_cpu[i, 0]),
-                    reliability_score=float(preds_cpu[i, 1]),
-                    maintainability_score=float(preds_cpu[i, 2]),
-                    availability_score=float(preds_cpu[i, 3]),
-                    security_score=float(preds_cpu[i, 4]),
-                    source="GNN",
+                    composite_score=composite,
+                    reliability_score=r,
+                    maintainability_score=m,
+                    availability_score=a,
+                    security_score=s,
+                    source=source,
                 )
 
-    def _populate_scores_from_rmav(self, result: GNNAnalysisResult, data: 'HeteroData', conv: GraphConversionResult) -> None:
-        """Fill result.node_scores from RMAV ground truth inside data_dev."""
-        for nt in data.node_types:
-            store = data[nt]
-            if not hasattr(store, "y_rmav") or conv is None or nt not in conv.node_id_map:
-                continue
-            node_names = conv.node_id_map[nt]
-            rmav_cpu = store.y_rmav.cpu().numpy()
-            for i, name in enumerate(node_names):
-                result.node_scores[name] = GNNCriticalityScore(
-                    component=name,
-                    composite_score=float(rmav_cpu[i, 0]),
-                    reliability_score=float(rmav_cpu[i, 1]),
-                    maintainability_score=float(rmav_cpu[i, 2]),
-                    availability_score=float(rmav_cpu[i, 3]),
-                    security_score=float(rmav_cpu[i, 4]),
-                    source="RMAV",
-                )
+    def _populate_scores_from_rmav(
+        self, result: GNNAnalysisResult, data: 'HeteroData', conv: GraphConversionResult
+    ) -> None:
+        """Fill result.node_scores from the RMAV scores carried on the graph."""
+        rmav = {
+            nt: data[nt].y_rmav
+            for nt in data.node_types
+            if hasattr(data[nt], "y_rmav")
+        }
+        self._populate_node_scores(result, rmav, conv, source="RMAV")
 
-    def _populate_edge_scores(self, result: GNNAnalysisResult, edge_pred_dict: Dict[Tuple, Tensor], conv: GraphConversionResult) -> None:
-        """Fill result.edge_scores from GNN predictions."""
+    @staticmethod
+    def _populate_edge_scores(
+        result: GNNAnalysisResult,
+        edge_pred_dict: Dict[Tuple, Tensor],
+        conv: GraphConversionResult,
+    ) -> None:
+        """Fill result.edge_scores from a {relation: (e, 5) tensor} mapping."""
+        if conv is None:
+            return
         for rel, e_preds in edge_pred_dict.items():
-            src_type, edge_type, dst_type = rel
-            if conv is None or rel not in conv.edge_name_map:
+            if rel not in conv.edge_name_map:
                 continue
-            edge_names = conv.edge_name_map[rel]
-            e_preds_cpu = e_preds.cpu().numpy()
-            for i, (src_name, dst_name) in enumerate(edge_names):
+            _, edge_type, _ = rel
+            rows = e_preds.cpu().numpy()
+            for i, (src_name, dst_name) in enumerate(conv.edge_name_map[rel]):
+                composite, r, m, a, s = (float(v) for v in rows[i, :5])
                 result.edge_scores.append(
                     GNNEdgeCriticalityScore(
                         source_node=src_name,
                         target_node=dst_name,
                         edge_type=edge_type,
-                        composite_score=float(e_preds_cpu[i, 0]),
-                        reliability_score=float(e_preds_cpu[i, 1]),
-                        maintainability_score=float(e_preds_cpu[i, 2]),
-                        availability_score=float(e_preds_cpu[i, 3]),
-                        security_score=float(e_preds_cpu[i, 4]),
+                        composite_score=composite,
+                        reliability_score=r,
+                        maintainability_score=m,
+                        availability_score=a,
+                        security_score=s,
                     )
                 )
-
-    def _format_scores_as_dict(self, scores: Dict[str, GNNCriticalityScore], conv: GraphConversionResult) -> Dict[str, Tensor]:
-        """Convert result.node_scores back to a pred_dict-like structure for evaluation."""
-        out = {}
-        # We need to map back which score belongs to which node type
-        # We can use conv.node_id_map which is {type: [names]}
-        for nt, names in conv.node_id_map.items():
-            type_scores = []
-            for name in names:
-                if name in scores:
-                    s = scores[name]
-                    type_scores.append([
-                        s.composite_score, s.reliability_score, s.maintainability_score, 
-                        s.availability_score, s.security_score
-                    ])
-                else:
-                    type_scores.append([0.0] * 5)
-            out[nt] = torch.tensor(type_scores, device=self.device)
-        return out
-
-    # ── Ensemble helpers ──────────────────────────────────────────────────────
-
-    def _train_ensemble(self, data, num_epochs: int = 100, lr: float = 1e-3) -> None:
-        """Deprecated: ensemble blending is removed."""
-        pass
-        
-    def _compute_ensemble_scores(self, data, pred_dict, conv) -> Dict[str, GNNCriticalityScore]:
-        """Deprecated: ensemble blending is removed."""
-        return {}
 
     # ── Serialisation ─────────────────────────────────────────────────────────
 
@@ -840,8 +776,6 @@ class GNNService:
             torch.save(self._node_model.state_dict(), save_dir / "node_model.pt")
         if self._edge_model:
             torch.save(self._edge_model.state_dict(), save_dir / "edge_model.pt")
-        if self._ensemble:
-            torch.save(self._ensemble.state_dict(), save_dir / "ensemble.pt")
 
         self._save_service_config(save_dir)
         logger.info("GNNService saved to '%s'.", save_dir)
@@ -910,23 +844,20 @@ class GNNService:
         )
 
     def _load_model_weights(self, ckpt_dir: Path) -> None:
-        """Load node_model, edge_model, and ensemble state dicts from ckpt_dir."""
-        paths = {
-            "node": ckpt_dir / "node_model.pt",
-            "edge": ckpt_dir / "edge_model.pt",
-            "ensemble": ckpt_dir / "ensemble.pt",
-        }
-        models = {
-            "node": self._node_model,
-            "edge": self._edge_model,
-            "ensemble": self._ensemble,
-        }
-        for key, path in paths.items():
-            model = models[key]
+        """Load node_model and edge_model state dicts from ckpt_dir.
+
+        Order matters: when ``predict_edges`` is set, ``_node_model`` is the
+        edge model's inner ``node_gnn``, so ``edge_model.pt`` is applied second
+        and its ``node_gnn.*`` weights win. That is what makes checkpoints
+        written before the two models were unified still load correctly.
+        """
+        for key, path, model in (
+            ("node", ckpt_dir / "node_model.pt", self._node_model),
+            ("edge", ckpt_dir / "edge_model.pt", self._edge_model),
+        ):
             if path.exists() and model is not None:
                 sd = torch.load(path, map_location=self.device)
-                strict = key == "ensemble"
-                model.load_state_dict(sd, strict=strict)
+                model.load_state_dict(sd, strict=False)
                 logger.info("Loaded %s model from '%s'.", key, path)
 
     @classmethod

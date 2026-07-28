@@ -14,8 +14,8 @@ Covers:
   - calculate_rri: true-negative rate arithmetic
 """
 import pytest
-from saag.prediction.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
-from saag.prediction.analyzer import QualityAnalyzer
+from saag.analysis.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
+from saag.analysis.analyzer import QualityAnalyzer
 from saag.analysis.structural_analyzer import StructuralAnalyzer
 from saag.simulation.models import ImpactMetrics
 from saag.validation.metric_calculator import (

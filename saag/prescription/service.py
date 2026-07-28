@@ -303,7 +303,7 @@ class PrescribeService:
             elif not all_comps and hasattr(prediction_result, "raw"):
                 # Handle GNN prediction facade
                 raw_pred = prediction_result.raw
-                node_scores = getattr(raw_pred, "node_scores", {}) or getattr(raw_pred, "ensemble_scores", {})
+                node_scores = getattr(raw_pred, "node_scores", {})
                 if isinstance(node_scores, dict):
                     for comp_id, comp_info in node_scores.items():
                         level = getattr(comp_info, "criticality_level", "MINIMAL").upper()

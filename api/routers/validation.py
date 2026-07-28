@@ -16,7 +16,7 @@ from saag.analysis.structural_analyzer import StructuralAnalyzer
 from saag.analysis.models import LayerAnalysisResult
 from saag.core.layers import AnalysisLayer, get_layer_definition
 from saag.prediction import PredictionService
-from saag.prediction.models import ProblemSummary
+from saag.analysis.models import ProblemSummary
 from saag.simulation import SimulationService
 from saag.validation import ValidationService, ValidationTargets
 from saag import Client

@@ -8,8 +8,8 @@ from saag.core.metrics import (
     ComponentQuality, QualityScores, QualityLevels, StructuralMetrics
 )
 from saag.core.criticality import CriticalityLevel
-from saag.prediction.analyzer import CriticalityProfile
-from saag.prediction.models import QualityAnalysisResult, DetectedProblem
+from saag.analysis.analyzer import CriticalityProfile
+from saag.analysis.models import QualityAnalysisResult, DetectedProblem
 from saag.analysis.smells import AntiPatternReport
 from saag.explanation.engine import ExplanationEngine
 

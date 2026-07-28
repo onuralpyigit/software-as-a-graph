@@ -85,8 +85,6 @@ interface TrainResult {
   checkpoint_dir: string
   summary: TrainSummary
   gnn_metrics: GNNMetrics | null
-  ensemble_metrics: GNNMetrics | null
-  ensemble_alpha: number[] | null
   top_critical: GNNScore[]
   top_critical_edges: GNNEdgeScore[]
 }
@@ -417,7 +415,7 @@ export default function TrainPage() {
               </div>
 
               {/* Metrics */}
-              {(result.gnn_metrics || result.ensemble_metrics) && (
+              {result.gnn_metrics && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-base">
@@ -426,36 +424,23 @@ export default function TrainPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className={`grid grid-cols-1 gap-4 ${result.gnn_metrics && result.ensemble_metrics ? "sm:grid-cols-2" : ""}`}>
-                      {[
-                        { label: "GNN", metrics: result.gnn_metrics },
-                        { label: "Ensemble (GNN + RMAS)", metrics: result.ensemble_metrics },
-                      ].map(({ label, metrics }) => metrics && (
-                        <div key={label} className="rounded-lg border p-4 space-y-2">
-                          <p className="font-medium text-sm">{label}</p>
-                          <div className="space-y-1 text-sm">
-                            {[
-                              ["Spearman ρ", metrics.spearman_rho],
-                              ["F1", metrics.f1_score],
-                              ["NDCG@10", metrics.ndcg_10],
-                              ["RMSE", metrics.rmse],
-                              ["MAE", metrics.mae],
-                            ].map(([k, v]) => v != null && (
-                              <div key={String(k)} className="flex items-center justify-between gap-4">
-                                <span className="text-muted-foreground"><TermTooltip term={String(k)}>{k}</TermTooltip></span>
-                                <span className="font-mono font-medium tabular-nums">{(v as number).toFixed(4)}</span>
-                              </div>
-                            ))}
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <p className="font-medium text-sm">GNN</p>
+                      <div className="space-y-1 text-sm">
+                        {[
+                          ["Spearman ρ", result.gnn_metrics.spearman_rho],
+                          ["F1", result.gnn_metrics.f1_score],
+                          ["NDCG@10", result.gnn_metrics.ndcg_10],
+                          ["RMSE", result.gnn_metrics.rmse],
+                          ["MAE", result.gnn_metrics.mae],
+                        ].map(([k, v]) => v != null && (
+                          <div key={String(k)} className="flex items-center justify-between gap-4">
+                            <span className="text-muted-foreground"><TermTooltip term={String(k)}>{k}</TermTooltip></span>
+                            <span className="font-mono font-medium tabular-nums">{(v as number).toFixed(4)}</span>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                    {result.ensemble_alpha && (
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        Ensemble α (per RMAS dim):&nbsp;
-                        {result.ensemble_alpha.map(a => a.toFixed(3)).join(", ")}
-                      </p>
-                    )}
                   </CardContent>
                 </Card>
               )}

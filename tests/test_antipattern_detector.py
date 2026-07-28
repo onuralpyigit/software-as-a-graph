@@ -4,7 +4,7 @@ Tests for the consolidated AntiPatternDetector.
 import pytest
 from types import SimpleNamespace
 from saag.analysis.antipattern_detector import CATALOG, AntiPatternDetector
-from saag.prediction.models import QualityAnalysisResult, DetectedProblem
+from saag.analysis.models import QualityAnalysisResult, DetectedProblem
 from saag.core.metrics import ComponentQuality, EdgeQuality, EdgeMetrics, QualityScores, QualityLevels, StructuralMetrics
 from saag.core.criticality import CriticalityLevel
 
@@ -384,7 +384,7 @@ def test_detector_unstable_interface_low_coupling_not_flagged():
 
 def test_problem_detector_wrapper(mock_quality_result):
     """Verify the backward-compatible ProblemDetector wrapper."""
-    from saag.prediction.problem_detector import ProblemDetector
+    from saag.analysis.problem_detector import ProblemDetector
     
     wrapper = ProblemDetector()
     problems = wrapper.detect(mock_quality_result)

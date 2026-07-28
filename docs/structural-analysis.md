@@ -101,7 +101,7 @@ api/routers/analysis.py  /  cli/common/dispatcher.py:dispatch_analyze
 │
 └── saag.usecases.multi_layer_analysis.MultiLayerAnalysisUseCase.execute(layers, …)
       ├── AnalysisService.analyze_layers(layers)      ← same structural pass as Path A
-      ├── QualityScoringService.predict_quality(…)    ← RMAV scoring  (§11)
+      ├── PredictionService.predict_quality(…)        ← RMAV scoring  (§11)
       ├── AntiPatternDetector.detect(…)               ← smell detection
       ├── GNNService.predict(…)                       ← optional, when --gnn-model is given
       └── compute_cross_layer_insights(results)       ← cross-layer correlation (§4)

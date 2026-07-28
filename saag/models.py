@@ -8,7 +8,8 @@ from typing import List, Optional, Any
 from dataclasses import dataclass
 
 from saag.analysis.models import LayerAnalysisResult as _LayerAnalysisResult, StructuralAnalysisResult as _StructuralAnalysisResult
-from saag.prediction.models import QualityAnalysisResult as _QualityAnalysisResult, ComponentQuality as _ComponentQuality, DetectedProblem as _DetectedProblem
+from saag.analysis.models import QualityAnalysisResult as _QualityAnalysisResult, DetectedProblem as _DetectedProblem
+from saag.core.metrics import ComponentQuality as _ComponentQuality
 from saag.validation.models import LayerValidationResult as _LayerValidationResult
 from saag.usecases.models import ImportStats as _ImportStats
 from saag.core.criticality import CriticalityRanking, CompatNamespace
@@ -211,18 +212,6 @@ class PredictionResult:
                     )
                     for k, v in inner.get("node_scores", {}).items()
                 },
-                ensemble_scores={
-                    k: SimpleNamespace(
-                        component=v.get("component", k),
-                        composite_score=v.get("composite_score", 0.0),
-                        reliability_score=v.get("reliability_score", 0.0),
-                        maintainability_score=v.get("maintainability_score", 0.0),
-                        availability_score=v.get("availability_score", 0.0),
-                        security_score=v.get("security_score", 0.0),
-                        criticality_level=v.get("criticality_level", "MINIMAL"),
-                    )
-                    for k, v in inner.get("ensemble_scores", {}).items()
-                },
                 edges=[
                     SimpleNamespace(
                         source=e.get("source"),
@@ -265,9 +254,7 @@ class PredictionResult:
             # GNN path (GNNAnalysisResult or SimpleNamespace) — discriminate on
             # node_scores rather than prediction_mode, since QualityAnalysisResult
             # (RMAV path) now also carries a prediction_mode field.
-            source_dict = getattr(self._inner, "ensemble_scores", getattr(self._inner, "node_scores", {}))
-            if not source_dict:
-                source_dict = getattr(self._inner, "node_scores", {})
+            source_dict = getattr(self._inner, "node_scores", {})
             provenance = getattr(self._inner, "prediction_mode", "gnn_only")
             if provenance == "gnn_only":
                 provenance = "gnn"
@@ -376,7 +363,7 @@ class PredictionResult:
 
     @property
     def prediction_mode(self) -> str:
-        """Which scoring path produced this result: 'rmav' or 'gnn_only'/'ensemble'."""
+        """Which scoring path produced this result: 'rmav', 'gnn_only' or 'rmav_only'."""
         return getattr(self._inner, "prediction_mode", "rmav")
 
     def save(self, filepath: str) -> None:

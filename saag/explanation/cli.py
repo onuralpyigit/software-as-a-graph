@@ -5,7 +5,7 @@ from typing import List, Optional
 import sys
 
 from .engine import ComponentExplanation, DimensionExplanation, ExplanationEngine
-from saag.prediction.models import QualityAnalysisResult, DetectedProblem
+from saag.analysis.models import QualityAnalysisResult, DetectedProblem
 
 class CLIFormatter:
     """

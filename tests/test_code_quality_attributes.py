@@ -20,8 +20,8 @@ import math
 from saag.core.models import Application, GraphData, ComponentData, EdgeData
 from saag.core.metrics import StructuralMetrics
 from saag.analysis.structural_analyzer import StructuralAnalyzer, extract_layer_subgraph
-from saag.prediction.analyzer import QualityAnalyzer
-from saag.prediction.weight_calculator import QualityWeights
+from saag.analysis.analyzer import QualityAnalyzer
+from saag.analysis.weight_calculator import QualityWeights
 from saag.core import AnalysisLayer
 
 

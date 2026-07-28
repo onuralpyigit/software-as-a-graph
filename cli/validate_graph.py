@@ -267,7 +267,7 @@ def compute_rmav(G: nx.DiGraph, qos: bool = True, normalization: str = "robust")
     """
     Compute RMAV for ALL nodes using central QualityAnalyzer.
     """
-    from saag.prediction.analyzer import QualityAnalyzer
+    from saag.analysis.analyzer import QualityAnalyzer
     from saag.core.metrics import StructuralMetrics
     
     # 1. Primitives

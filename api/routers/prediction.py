@@ -12,6 +12,13 @@ import asyncio
 import logging
 
 from api.dependencies import get_client
+from api.presenters.prediction_presenter import (
+    format_checkpoint_info,
+    format_edge_scores,
+    format_metrics,
+    format_node_scores,
+    format_summary,
+)
 from saag import Client
 
 router = APIRouter(prefix="/api/v1/graph/prediction", tags=["prediction"])
@@ -96,8 +103,6 @@ class TrainResponse(BaseModel):
     checkpoint_dir: str
     summary: TrainSummaryModel
     gnn_metrics: Optional[GNNMetricsModel] = None
-    ensemble_metrics: Optional[GNNMetricsModel] = None
-    ensemble_alpha: Optional[List[float]] = None
     top_critical: List[GNNScoreModel]
     top_critical_edges: List[GNNEdgeScoreModel]
 
@@ -115,67 +120,6 @@ class PredictResponse(BaseModel):
     summary: TrainSummaryModel
     scores: List[GNNScoreModel]
     edge_scores: List[GNNEdgeScoreModel]
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _metrics_from_eval(m) -> Optional[GNNMetricsModel]:
-    if m is None:
-        return None
-    return GNNMetricsModel(
-        spearman_rho=getattr(m, "spearman_rho", None),
-        f1_score=getattr(m, "f1_score", None),
-        rmse=getattr(m, "rmse", None),
-        mae=getattr(m, "mae", None),
-        ndcg_10=getattr(m, "ndcg_10", None),
-    )
-
-
-def _node_score_model(s, name_lookup: dict = {}) -> GNNScoreModel:
-    d = s.to_dict()
-    node_id = d["component"]
-    return GNNScoreModel(
-        component=node_id,
-        node_name=name_lookup.get(node_id, node_id),
-        composite_score=d["composite_score"],
-        reliability_score=d["reliability_score"],
-        maintainability_score=d["maintainability_score"],
-        availability_score=d["availability_score"],
-        security_score=d["security_score"],
-        criticality_level=d["criticality_level"].upper(),
-        source=d.get("source", "GNN"),
-    )
-
-
-def _edge_score_model(e, name_lookup: dict = {}) -> GNNEdgeScoreModel:
-    d = e.to_dict()
-    src = d["source"]
-    tgt = d["target"]
-    return GNNEdgeScoreModel(
-        source=src,
-        source_name=name_lookup.get(src, src),
-        target=tgt,
-        target_name=name_lookup.get(tgt, tgt),
-        edge_type=d["edge_type"],
-        composite_score=d["composite_score"],
-        criticality_level=d["criticality_level"].upper(),
-    )
-
-
-def _build_summary(result) -> TrainSummaryModel:
-    scores = result.node_scores
-    levels = [s.criticality_level.upper() for s in scores.values()]
-    return TrainSummaryModel(
-        total_components=len(scores),
-        critical=levels.count("CRITICAL"),
-        high=levels.count("HIGH"),
-        medium=levels.count("MEDIUM"),
-        low=levels.count("LOW"),
-        minimal=levels.count("MINIMAL"),
-        critical_edges=sum(
-            1 for e in result.edge_scores if e.criticality_level.upper() == "CRITICAL"
-        ),
-    )
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -197,39 +141,10 @@ class CheckpointInfo(BaseModel):
     predict_edges: bool
     has_node_model: bool
     has_edge_model: bool
-    has_ensemble: bool
 
 
 class CheckpointListResponse(BaseModel):
     checkpoints: List[CheckpointInfo]
-
-
-def _read_checkpoint_info(directory: Path) -> Optional[CheckpointInfo]:
-    """Return a CheckpointInfo if *directory* looks like a valid GNN checkpoint."""
-    cfg_path = directory / "service_config.json"
-    node_path = directory / "node_model.pt"
-    best_path = directory / "best_model.pt"
-    # Accept either node_model.pt or best_model.pt as the model file marker
-    has_any_model = node_path.exists() or best_path.exists()
-    if not cfg_path.exists() or not has_any_model:
-        return None
-    try:
-        cfg = json.loads(cfg_path.read_text())
-    except Exception:
-        return None
-    return CheckpointInfo(
-        path=str(directory),
-        name=directory.name,
-        layer=cfg.get("layer", ""),
-        hidden_channels=cfg.get("hidden_channels", 64),
-        num_heads=cfg.get("num_heads", 4),
-        num_layers=cfg.get("num_layers", 3),
-        dropout=cfg.get("dropout", 0.2),
-        predict_edges=cfg.get("predict_edges", True),
-        has_node_model=node_path.exists(),
-        has_edge_model=(directory / "edge_model.pt").exists(),
-        has_ensemble=False,
-    )
 
 
 @router.get("/checkpoints", response_model=CheckpointListResponse)
@@ -243,9 +158,9 @@ async def list_checkpoints():
     if ckpt_root.exists():
         for sub in sorted(ckpt_root.iterdir(), reverse=True):
             if sub.is_dir():
-                info = _read_checkpoint_info(sub)
+                info = format_checkpoint_info(sub)
                 if info:
-                    found.append(info)
+                    found.append(CheckpointInfo(**info))
     return CheckpointListResponse(checkpoints=found)
 
 
@@ -341,19 +256,14 @@ async def train_gnn(
     try:
         ckpt_dir, gnn_result, name_lookup = await asyncio.to_thread(_run_training)
 
-        top_nodes = [_node_score_model(s, name_lookup) for s in gnn_result.top_critical_nodes(n=10)]
-        top_edges = [_edge_score_model(e, name_lookup) for e in gnn_result.top_critical_edges(n=10)]
-
         return TrainResponse(
             success=True,
             layer=request.layer,
             checkpoint_dir=str(ckpt_dir),
-            summary=_build_summary(gnn_result),
-            gnn_metrics=_metrics_from_eval(gnn_result.gnn_metrics),
-            ensemble_metrics=None,
-            ensemble_alpha=None,
-            top_critical=top_nodes,
-            top_critical_edges=top_edges,
+            summary=format_summary(gnn_result),
+            gnn_metrics=format_metrics(gnn_result.gnn_metrics),
+            top_critical=format_node_scores(gnn_result.top_critical_nodes(n=10), name_lookup),
+            top_critical_edges=format_edge_scores(gnn_result.top_critical_edges(n=10), name_lookup),
         )
     except Exception as e:
         logger.error("GNN training failed: %s", e, exc_info=True)
@@ -449,20 +359,19 @@ async def predict_gnn(
     try:
         ckpt_dir, gnn_result, name_lookup = await asyncio.to_thread(_run_inference)
 
-        scores = [_node_score_model(s, name_lookup) for s in sorted(
+        ranked = sorted(
             gnn_result.node_scores.values(),
             key=lambda s: s.composite_score,
             reverse=True,
-        )]
-        edge_scores = [_edge_score_model(e, name_lookup) for e in gnn_result.top_critical_edges(n=20)]
+        )
 
         return PredictResponse(
             success=True,
             layer=request.layer,
             checkpoint_dir=ckpt_dir,
-            summary=_build_summary(gnn_result),
-            scores=scores,
-            edge_scores=edge_scores,
+            summary=format_summary(gnn_result),
+            scores=format_node_scores(ranked, name_lookup),
+            edge_scores=format_edge_scores(gnn_result.top_critical_edges(n=20), name_lookup),
         )
     except Exception as e:
         logger.error("GNN inference failed: %s", e, exc_info=True)

@@ -39,46 +39,117 @@ def test_layer_validation_missing_ok(temp_checkpoint):
     service2 = GNNService.from_checkpoint(str(temp_checkpoint))
     assert service2.layer == "app"
 
-def test_ensemble_fallback_warning(caplog):
-    """G12: Verify warning log and gnn_only mode when ensemble is requested."""
-    service = GNNService()
-    service._node_model = MagicMock()
-    service._node_model.predict_edges = False
-    service._node_model.to.return_value = service._node_model
-    service._node_model.eval.return_value = None
-    service._node_model.return_value = {"Application": torch.randn(2, 5)}
-    
-    # Mock conversion result
-    conv = MagicMock()
-    conv.node_id_map = {"Application": ["app1", "app2"]}
-    service._conversion_result = conv
-    
-    data = HeteroData()
-    data["Application"].x = torch.randn(2, 23)
-    
-    import logging
-    with caplog.at_level(logging.WARNING):
-        service.predict_from_data(data, mode="ensemble")
-        assert "Ensemble mode is deprecated and removed" in caplog.text
-
-def test_ensemble_mode_reporting():
-    """G12: Verify prediction_mode Literal reporting."""
+def test_prediction_mode_reporting():
+    """Verify prediction_mode reporting for the two supported modes."""
     service = GNNService()
     service._node_model = MagicMock()
     service._node_model.predict_edges = False
     service._node_model.return_value = {"Application": torch.randn(2, 5)}
     service._conversion_result = MagicMock()
     service._conversion_result.node_id_map = {"Application": ["app1", "app2"]}
-    
+
     data = HeteroData()
     data["Application"].x = torch.randn(2, 23)
     data["Application"].y_rmav = torch.randn(2, 5)
-    
-    result = service.predict_from_data(data, mode="ensemble")
-    assert result.prediction_mode == "gnn_only"
-    
+
     result_gnn = service.predict_from_data(data, mode="gnn")
     assert result_gnn.prediction_mode == "gnn_only"
-    
+
     result_rmav = service.predict_from_data(data, mode="rmav")
     assert result_rmav.prediction_mode == "rmav_only"
+
+
+def test_rmav_mode_falls_back_to_gnn_without_rmav_scores(caplog):
+    """mode='rmav' on a graph carrying no y_rmav must degrade to GNN, not crash."""
+    service = GNNService()
+    service._node_model = MagicMock()
+    service._node_model.predict_edges = False
+    service._node_model.return_value = {"Application": torch.randn(2, 5)}
+    service._conversion_result = MagicMock()
+    service._conversion_result.node_id_map = {"Application": ["app1", "app2"]}
+
+    data = HeteroData()
+    data["Application"].x = torch.randn(2, 23)
+
+    import logging
+    with caplog.at_level(logging.WARNING):
+        result = service.predict_from_data(data, mode="rmav")
+
+    assert result.prediction_mode == "gnn_only"
+    assert result.node_scores["app1"].source == "GNN"
+    assert "no RMAV scores available" in caplog.text
+
+
+def test_edge_head_receives_gradient_from_edge_loss():
+    """The TypedEdgeEncoder must actually be trained.
+
+    `y_edge` labels were written by data_preparation but no loss term ever read
+    them, so the edge head kept its random initialisation and every edge score
+    the CLI/API emitted was noise. GNNTrainer._edge_loss closes that gap.
+    """
+    from saag.prediction.models import build_edge_gnn
+    from saag.prediction.trainer import GNNTrainer
+
+    rel = ("Application", "DEPENDS_ON", "Application")
+    metadata = (["Application"], [rel])
+    model = build_edge_gnn(metadata, hidden_channels=16, num_heads=2, num_layers=1)
+
+    data = HeteroData()
+    data["Application"].x = torch.randn(4, 23)
+    data["Application"].y = torch.rand(4, 5)
+    data["Application"].train_mask = torch.ones(4, dtype=torch.bool)
+    data["Application"].label_mask = torch.ones(4, dtype=torch.bool)
+    data[rel].edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
+    data[rel].edge_attr = torch.randn(3, 16)
+    data[rel].y_edge = torch.rand(3, 5)
+
+    trainer = GNNTrainer(model=model, checkpoint_dir="/tmp/_edge_loss_test", num_epochs=1)
+
+    head = model.typed_edge_enc.out_head.fc1.weight
+    before = head.detach().clone()
+
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.5)
+    trainer._run_epoch([data], optimizer)
+
+    assert not torch.equal(before, head.detach()), (
+        "edge head weights unchanged after a training step — no edge gradient"
+    )
+
+
+def test_edge_loss_is_zero_without_edge_labels():
+    """Graphs converted without simulation results carry no y_edge; the edge
+    term must contribute nothing rather than raise or fabricate a target."""
+    from saag.prediction.models import build_edge_gnn
+    from saag.prediction.trainer import GNNTrainer
+
+    rel = ("Application", "DEPENDS_ON", "Application")
+    model = build_edge_gnn((["Application"], [rel]), hidden_channels=16, num_heads=2, num_layers=1)
+    trainer = GNNTrainer(model=model, checkpoint_dir="/tmp/_edge_loss_test")
+
+    data = HeteroData()
+    data[rel].edge_index = torch.tensor([[0], [1]])
+    edge_preds = {rel: torch.rand(1, 5)}
+
+    assert trainer._edge_loss(edge_preds, data).item() == 0.0
+
+
+def test_node_model_is_edge_models_inner_gnn():
+    """The edge model must not carry a second, independently-initialised node GNN.
+
+    Training only ever optimises `_edge_model`; if `_node_model` were a separate
+    network it would stay at random init and then be used for the reported
+    metrics and written to node_model.pt.
+    """
+    metadata = (
+        ["Application"],
+        [("Application", "DEPENDS_ON", "Application")],
+    )
+
+    service = GNNService(hidden_channels=16, predict_edges=True)
+    service._init_models(metadata)
+    assert service._node_model is service._edge_model.node_gnn
+
+    node_only = GNNService(hidden_channels=16, predict_edges=False)
+    node_only._init_models(metadata)
+    assert node_only._edge_model is None
+    assert node_only._node_model is not None

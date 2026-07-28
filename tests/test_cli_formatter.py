@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from saag.explanation.cli import CLIFormatter
 from saag.explanation.engine import ComponentExplanation, DimensionExplanation, SystemReport
-from saag.prediction.models import QualityAnalysisResult, ComponentQuality
+from saag.analysis.models import QualityAnalysisResult, ComponentQuality
 from saag.core.metrics import QualityLevels
 from saag.core.criticality import CriticalityLevel
 
