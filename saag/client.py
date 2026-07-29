@@ -2,9 +2,14 @@
 saag/client.py
 """
 import json
-from typing import Optional, List, Dict, Any
+from typing import TYPE_CHECKING, Optional, List, Dict, Any
 
 from .models import AnalysisResult, PredictionResult, ValidationResult, ValidationPipelineFacade, ImportResult
+
+if TYPE_CHECKING:
+    # Import-time only: pulling saag.prescription in eagerly would drag the
+    # validation stack (and numpy) into every `import saag`.
+    from saag.prescription.models import PrescribeResult
 
 class Client:
     """
@@ -168,7 +173,7 @@ class Client:
         layer: str = "system",
         gnn_checkpoint: Optional[str] = None,
         **kwargs: Any,
-    ) -> Any:
+    ) -> "PrescribeResult":
         """Run the prescriptive Stage 6 optimization on critical items and smells.
 
         ``kwargs`` is forwarded to ``PrescribeService.prescribe`` — notably

@@ -2,7 +2,127 @@
 saag/prescription/models.py
 """
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional, Union
+
+
+@dataclass(frozen=True)
+class TopicSplit:
+    """Split a congested topic into one dedicated sub-topic per publisher."""
+    KIND: ClassVar[str] = "topic_split"
+
+    topic: str
+    publishers: List[str]
+    subscribers: List[str]
+
+    @property
+    def target(self) -> str:
+        return self.topic
+
+    def describe(self) -> str:
+        return (
+            f"Split topic '{self.topic}' into sub-topics per publisher: "
+            f"{', '.join(self.publishers)}"
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "topic": self.topic,
+            "publishers": list(self.publishers),
+            "subscribers": list(self.subscribers),
+        }
+
+
+@dataclass(frozen=True)
+class NodeReallocation:
+    """Move a co-located process off a SPOF/critical host onto its own node."""
+    KIND: ClassVar[str] = "node_reallocation"
+
+    component: str
+    from_node: str
+    to_node: str
+
+    @property
+    def target(self) -> str:
+        return self.component
+
+    def describe(self) -> str:
+        return (
+            f"Moved process '{self.component}' from SPOF node '{self.from_node}' "
+            f"to isolated node '{self.to_node}'"
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "component": self.component,
+            "from_node": self.from_node,
+            "to_node": self.to_node,
+        }
+
+
+@dataclass(frozen=True)
+class QosUpgrade:
+    """Harden a critical channel's transport contract."""
+    KIND: ClassVar[str] = "qos_upgrade"
+
+    topic: str
+    original_reliability: str
+    original_durability: str
+    target_reliability: str = "RELIABLE"
+    target_durability: str = "TRANSIENT"
+
+    @property
+    def target(self) -> str:
+        return self.topic
+
+    def describe(self) -> str:
+        return (
+            f"Hardened QoS on topic '{self.topic}': "
+            f"Reliability -> {self.target_reliability}, "
+            f"Durability -> {self.target_durability}"
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "topic": self.topic,
+            "original_reliability": self.original_reliability,
+            "original_durability": self.original_durability,
+            "target_reliability": self.target_reliability,
+            "target_durability": self.target_durability,
+        }
+
+
+#: Any of the three transformation operators that make up a policy.
+PolicyEdit = Union[TopicSplit, NodeReallocation, QosUpgrade]
+
+#: Which PrescriptionPolicy bucket each operator belongs in.
+_EDIT_BUCKETS = {
+    TopicSplit: "topic_splits",
+    NodeReallocation: "node_reallocations",
+    QosUpgrade: "qos_upgrades",
+}
+
+
+@dataclass(frozen=True)
+class ThresholdStat:
+    """One propagation threshold's slice of an edit's verification sweep.
+
+    ``sigma_seed`` is the spread across *seeds at this threshold only*. Pooling
+    seeds and thresholds into one sigma would measure threshold sensitivity, not
+    simulator noise, and inflate the acceptance bar accordingly.
+    """
+    mean_delta: float
+    sigma_seed: float
+
+    def margin(self, kappa: float) -> float:
+        """How far the mean reduction clears the noise bar. Positive accepts."""
+        return self.mean_delta - kappa * self.sigma_seed
+
+    def to_dict(self) -> Dict[str, float]:
+        return {
+            "mean_delta": round(self.mean_delta, 6),
+            "sigma_seed": round(self.sigma_seed, 6),
+        }
+
 
 @dataclass
 class EditVerdict:
@@ -10,75 +130,83 @@ class EditVerdict:
 
     A policy used to be applied wholesale and judged by a single end-state SRI
     check, so an edit that made the system worse could ride along with edits
-    that made it better — the mechanism behind the reported +4.61% mean that
-    concealed regressions of up to -31.67%. Each edit now carries its own
-    verdict from its own counterfactual simulation.
+    that made it better. Each edit now carries its own verdict from its own
+    counterfactual simulation.
     """
-    kind: str                       # "topic_split" | "node_reallocation" | "qos_upgrade"
+    #: Bumped when the ``to_dict()`` shape changes. 2 replaced the scalar
+    #: ``delta_impact``/``sigma_seed`` pair with per-threshold statistics.
+    SCHEMA: ClassVar[int] = 2
+
+    kind: str                       # TopicSplit.KIND | NodeReallocation.KIND | QosUpgrade.KIND
     target: str                     # topic or component id the edit acts on
-    delta_impact: float = 0.0       # mean I(v) reduction; positive is an improvement
-    sigma_seed: float = 0.0         # across-seed std of that reduction
     kappa: float = 1.0              # acceptance multiple required of sigma
     accepted: bool = False
     reason: str = ""
-    #: Per-threshold delta across the propagation-threshold sweep. An edit is
-    #: accepted only if it clears the bar at *every* threshold, so acceptance
+    #: Per-threshold statistics across the propagation-threshold sweep. An edit
+    #: is accepted only if it clears the bar at *every* threshold, so acceptance
     #: cannot be an artifact of the canonical 0.2 default.
-    per_threshold: Dict[str, float] = field(default_factory=dict)
+    per_threshold: Dict[str, ThresholdStat] = field(default_factory=dict)
+
+    @property
+    def worst_delta(self) -> float:
+        """Smallest mean impact reduction over the threshold sweep."""
+        return min((s.mean_delta for s in self.per_threshold.values()), default=0.0)
+
+    @property
+    def worst_margin(self) -> float:
+        """The quantity acceptance is decided on: min over thresholds of
+        ``mean_delta - kappa * sigma_seed``. Accepted iff strictly positive."""
+        return min(
+            (s.margin(self.kappa) for s in self.per_threshold.values()),
+            default=0.0,
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         return {
+            "schema": self.SCHEMA,
             "kind": self.kind,
             "target": self.target,
-            "delta_impact": round(self.delta_impact, 6),
-            "sigma_seed": round(self.sigma_seed, 6),
             "kappa": self.kappa,
             "accepted": self.accepted,
             "reason": self.reason,
-            "per_threshold": {k: round(v, 6) for k, v in self.per_threshold.items()},
+            "worst_delta": round(self.worst_delta, 6),
+            "per_threshold": {k: s.to_dict() for k, s in self.per_threshold.items()},
         }
 
 
 @dataclass
 class PrescriptionPolicy:
-    """Represents the compiled optimization policy Delta(G) to be applied to the graph."""
-    topic_splits: List[Dict[str, Any]] = field(default_factory=list)
-    node_reallocations: List[Dict[str, Any]] = field(default_factory=list)
-    qos_upgrades: List[Dict[str, Any]] = field(default_factory=list)
+    """The compiled optimization policy Delta(G) to be applied to the graph."""
+    topic_splits: List[TopicSplit] = field(default_factory=list)
+    node_reallocations: List[NodeReallocation] = field(default_factory=list)
+    qos_upgrades: List[QosUpgrade] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "topic_splits": self.topic_splits,
-            "node_reallocations": self.node_reallocations,
-            "qos_upgrades": self.qos_upgrades,
+            bucket: [edit.to_dict() for edit in getattr(self, bucket)]
+            for bucket in _EDIT_BUCKETS.values()
         }
 
     def is_empty(self) -> bool:
         return not (self.topic_splits or self.node_reallocations or self.qos_upgrades)
 
-    def edits(self) -> List[tuple]:
-        """Flatten to ``(kind, target, payload)`` triples for per-edit verification."""
-        out = []
-        for split in self.topic_splits:
-            out.append(("topic_split", split.get("topic", ""), split))
-        for realloc in self.node_reallocations:
-            out.append(("node_reallocation", realloc.get("component", ""), realloc))
-        for upgrade in self.qos_upgrades:
-            out.append(("qos_upgrade", upgrade.get("topic", ""), upgrade))
-        return out
+    def edits(self) -> List[PolicyEdit]:
+        """Flatten to a single ordered list for per-edit verification.
+
+        The order — splits, then reallocations, then upgrades — is part of the
+        contract: ``PrescribeService.prescribe`` zips verdicts against this list
+        positionally, and ``applied_changes`` is rendered in the same order.
+        """
+        return [*self.topic_splits, *self.node_reallocations, *self.qos_upgrades]
 
     @classmethod
-    def from_edits(cls, edits: List[tuple]) -> "PrescriptionPolicy":
-        """Rebuild a policy from the subset of ``edits()`` triples that passed."""
+    def from_edits(cls, edits: List[PolicyEdit]) -> "PrescriptionPolicy":
+        """Rebuild a policy from the subset of ``edits()`` that passed."""
         policy = cls()
-        for kind, _target, payload in edits:
-            if kind == "topic_split":
-                policy.topic_splits.append(payload)
-            elif kind == "node_reallocation":
-                policy.node_reallocations.append(payload)
-            elif kind == "qos_upgrade":
-                policy.qos_upgrades.append(payload)
+        for edit in edits:
+            getattr(policy, _EDIT_BUCKETS[type(edit)]).append(edit)
         return policy
+
 
 @dataclass
 class PrescribeResult:

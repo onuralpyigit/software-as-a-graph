@@ -388,7 +388,52 @@ Append `:qos` to a ground-truth source to mark it QoS-coupled (triggers independ
 
 ---
 
-## Step 6: Visualize
+## Step 6: Prescribe
+
+**Script:** `cli/prescribe_graph.py` (no console-script entry point — invoke directly)
+**Purpose:** Compile refactoring recommendations, verify each one in a counterfactual
+simulation, and report the closed-loop resilience change.
+
+```bash
+PYTHONPATH=. python cli/prescribe_graph.py --input data/scenarios/atm_system.json --layer system
+PYTHONPATH=. python cli/prescribe_graph.py --layer system --output output/prescribe.json
+
+# Tune the per-edit acceptance filter
+PYTHONPATH=. python cli/prescribe_graph.py --input data/scenarios/atm_system.json \
+    --kappa 1.0 --thresholds 0.1 0.2 0.5 --seeds 42 123 456
+```
+
+### Arguments
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--input` / `-i` | `None` | Run against a topology JSON in memory instead of Neo4j |
+| `--layer` | `app` | Analysis layer (`app`, `infra`, `mw`, `system`) |
+| `--gnn-checkpoint` | `None` | Trained GNN checkpoint directory |
+| `--kappa` | `1.0` | Acceptance multiple; an edit must beat `kappa * sigma_seed` at every threshold |
+| `--seeds` | `42 123 456` | Simulation seeds used to estimate seed noise |
+| `--thresholds` | `0.1 0.2 0.5` | Propagation thresholds the edit must clear at every value |
+| `--output` | `None` | Write the full `PrescribeResult` JSON |
+
+### Output
+
+Candidate policy counts, per-edit accept/reject verdicts with the reason each rejection was
+made, the applied subset, and baseline vs. mutated SRI. An empty applied set is a normal
+outcome — it means no candidate cleared the acceptance filter.
+
+Verification costs one exhaustive simulation sweep per (edit × threshold × seed), so runtime
+scales with candidate count. See
+[prescription.md — Cost Model](prescription.md#32-cost-model).
+
+Batch across the seven benchmark scenarios:
+
+```bash
+PYTHONPATH=. python reproduce/run_prescribe_all.py --kappa 1.0 --output results/prescribe_all.json
+```
+
+---
+
+## Step 7: Visualize
 
 **Script:** `cli/visualize_graph.py`  
 **Purpose:** Generate multi-layer HTML dashboards.

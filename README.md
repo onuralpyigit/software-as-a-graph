@@ -290,7 +290,7 @@ if result.prescription:
 | [AnalysisResult](saag/models.py#L102) | `saag.AnalysisResult` | Stage 2 — structural metrics |
 | [PredictionResult](saag/models.py#L190) | `saag.PredictionResult` | Stage 3 — RMAV/GNN scores, anti-patterns, explanation |
 | [ValidationResult](saag/models.py#L396) | `saag.ValidationResult` | Stage 5 — per-layer correlations and gate outcomes |
-| [PrescribeResult](saag/prescription/models.py#L84) | `saag.prescription.PrescribeResult` | Stage 6 — accepted policy and SRI delta |
+| [PrescribeResult](saag/prescription/models.py#L212) | `saag.prescription.PrescribeResult` | Stage 6 — accepted policy, per-edit verdicts and SRI delta |
 
 More runnable examples — including a round-trip persistence check and per-stage ATM walkthroughs — are in [`examples/`](examples/).
 

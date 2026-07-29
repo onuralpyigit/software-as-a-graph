@@ -184,7 +184,12 @@ Correlates predictions against simulation ground-truth metrics to verify thesis 
 - `ValidationService` — Evaluates the nine-gate tier system (see [README §Validation Gates](README.md#validation-gates)) and computes system health indices (SRI, RCI).
 
 ### `prescription/` — Step 6 Prescriptive Engine
-Generates rule-based architectural optimization policies (logical splitting, host anti-affinity container reallocations, and transport contract QoS upgrades) and validates resilience improvements in-memory via `SimulationService`, accepting only edits with a positive counterfactual delta.
+Generates rule-based architectural optimization policies (logical splitting, host anti-affinity container reallocations, and transport contract QoS upgrades) and validates resilience improvements in-memory, accepting only edits whose counterfactual impact reduction beats the simulator's seed noise at every propagation threshold. See [docs/prescription.md](docs/prescription.md).
+- `rules.compile_policy` — Compiles the candidate policy Δ(G) from analysis + prediction. Pure: no repository, no simulation.
+- `mutator.apply_policy` — Rewrites the flat JSON topology export. Pure.
+- `GraphEvaluator` — Runs Analyze → Predict → Simulate → Validate over a repository; one simulation sweep feeds SRI, metrics and the per-component impact map.
+- `EditVerifier` — The per-edit acceptance filter and its arithmetic.
+- `PrescribeService` — Orchestrates the above and assembles the `PrescribeResult`.
 
 ### `visualization/` — Step 7 Visualization Engine
 Compiles the metrics, classifications, problems, and simulations into visual dashboard formats.

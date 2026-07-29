@@ -24,7 +24,7 @@ Every entry carries a `PatternSpec.recommendation` string — narrative remediat
 
 ## 2. Prescription: three automated operators
 
-`PrescribeService` (`saag/prescription/service.py`) compiles a mutation policy $\Delta(G)$ from exactly **three** rule-based operators:
+`compile_policy` (`saag/prescription/rules.py`) compiles a mutation policy $\Delta(G)$ from exactly **three** rule-based operators:
 
 | Operator | Trigger | What it does |
 |---|---|---|
@@ -37,7 +37,7 @@ Every entry carries a `PatternSpec.recommendation` string — narrative remediat
 Two separate signals feed these triggers, and only one of them ties back to specific catalog IDs:
 
 - **Generic criticality tier** — any component classified `CRITICAL`/`HIGH` on the RMAV dimensional scale can trigger any operator, regardless of which (if any) specific anti-pattern was detected on it.
-- **Detected-problem name matching** (`service.py:164-171`) — the only channel that links back to particular catalog entries, and it works by substring-matching `DetectedProblem.name` (the human-readable `PatternSpec.name`), not a dedicated pattern-ID field.
+- **Detected-problem name matching** (`rules.py`, `_smells`) — the only channel that links back to particular catalog entries, and it works by substring-matching `DetectedProblem.name` (the human-readable `PatternSpec.name`), not a dedicated pattern-ID field.
 
 Following that name-matching channel through to the catalog, only **5 of the 21** patterns are directly wired into an operator:
 
@@ -59,13 +59,14 @@ This is a principled boundary, not an oversight: the three operators only automa
 
 Every compiled policy is verified before it is ever reported as viable — and it is *never* applied to the live system:
 
-1. **Baseline** — the source graph runs through analyze → simulate → validate, producing a baseline System Risk Index (SRI).
-2. **Mutate in memory** — the graph is exported to flat JSON, $\Delta(G)$ is applied to that JSON (never to the production Neo4j graph), producing $G'$.
-3. **Sandbox reload** — $G'$ is loaded into a temporary `MemoryRepository`; dependency edges are re-derived from scratch.
-4. **Re-run the full suite** — analyze → simulate → validate re-executes on $G'$, under the same fault scenarios and seeds as the baseline.
-5. **Accept/reject gate** — $\Delta\text{SRI} = \text{SRI}_{\text{baseline}} - \text{SRI}_{\text{mutated}}$; the policy is marked `accepted = true` iff $\Delta\text{SRI} > 0$.
+1. **Baseline** — the source graph runs through analyze → simulate → validate, producing a baseline System Risk Index (SRI) and a per-component cascade impact map $I(v)$.
+2. **Per-edit acceptance filter** — every candidate operator is applied *alone* to a counterfactual copy of the graph and simulated across a propagation-threshold sweep and a seed set. It is kept only if its mean impact reduction clears a margin over seed noise, $\Delta I > \kappa \cdot \sigma_{\text{seed}}$, at **every** threshold. Rejected operators never reach the mutated graph.
+3. **Mutate in memory** — the graph is exported to flat JSON, the *accepted subset* of $\Delta(G)$ is applied to that JSON (never to the production Neo4j graph), producing $G'$.
+4. **Sandbox reload** — $G'$ is loaded into a temporary `MemoryRepository`; dependency edges are re-derived from scratch.
+5. **Re-run the full suite** — analyze → simulate → validate re-executes on $G'$, under the same fault scenarios and seeds as the baseline.
+6. **Accept/reject gate** — $\Delta\text{SRI} = \text{SRI}_{\text{baseline}} - \text{SRI}_{\text{mutated}}$; the policy is marked `accepted = true` iff $\Delta\text{SRI} > 0$.
 
-This is the criterion actually implemented (`service.py:78-79`) and the one documented in [prescription.md](prescription.md#3-closed-loop-verification-mechanics) — a **whole-policy** gate. There is no per-edit acceptance filter: all compiled operators in a policy are applied together and evaluated as one unit, so a policy can be accepted even if one of its operators is individually harmful, so long as the net effect is a lower SRI. A stricter per-edit filter — rejecting each mutation individually unless its improvement clears a margin over seed noise ($\Delta I > \kappa \cdot \sigma_{\text{seed}}$) — is a known, explicitly tracked future-work item, not a currently-enforced criterion.
+Both criteria are implemented — see [prescription.md](prescription.md#3-closed-loop-verification-mechanics) for the exact acceptance rule and its parameters. The per-edit filter (`saag/prescription/verifier.py`) is what stops an individually harmful operator riding along with helpful ones; the whole-policy gate in step 6 is what catches a regression in the *interaction* between operators that each passed on their own.
 
 A rejected policy is still returned in full, with its before/after metrics, for the architect to inspect — nothing is silently discarded.
 
@@ -73,7 +74,7 @@ A rejected policy is still returned in full, with its before/after metrics, for 
 
 ## 4. From blueprint to deployment
 
-The output of a `prescribe()` call is a remediation blueprint: an itemized `applied_changes` list plus before/after metrics (reachability loss, fragmentation, throughput loss), surfaced in the SMART dashboard ([visualization.md](visualization.md)). The architect is the one who turns this into real deployment artifacts — topic redesign in middleware config, Kubernetes anti-affinity scheduling constraints, DDS/MQTT QoS profile changes. The framework diagnoses and simulates the treatment; it never administers it to the live system.
+The output of a `prescribe()` call is a remediation blueprint: an itemized `applied_changes` list, per-edit verdicts for everything that was declined, and before/after metrics (reachability loss, fragmentation, throughput loss). It is reachable from the SDK and the CLI — Stage 6 has no REST router and is not rendered in the SMART dashboard. The architect is the one who turns this into real deployment artifacts — topic redesign in middleware config, Kubernetes anti-affinity scheduling constraints, DDS/MQTT QoS profile changes. The framework diagnoses and simulates the treatment; it never administers it to the live system.
 
 ---
 

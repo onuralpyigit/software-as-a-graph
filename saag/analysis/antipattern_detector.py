@@ -30,8 +30,8 @@ class PatternSpec:
 
 
 # NOTE: PatternSpec.name must not contain "Bottleneck" or "Hub" substrings unless the pattern
-# is intentionally meant to route into saag/prescription/service.py's god_components remediation
-# bucket, which substring-matches on `name` (see prescription/service.py:159-166).
+# is intentionally meant to route into the prescription stage's god_components remediation
+# bucket, which substring-matches on `name` (see saag/prescription/rules.py, `_smells`).
 CATALOG: Dict[str, PatternSpec] = {
 
     # ── Availability ─────────────────────────────────────────────────────────

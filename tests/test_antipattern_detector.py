@@ -181,7 +181,7 @@ def test_detector_bottleneck_edge_adaptive_fence():
 
 
 def test_catalog_names_avoid_prescription_collision():
-    """Guard: prescription/service.py substring-matches PatternSpec.name for 'Bottleneck'/'Hub'.
+    """Guard: prescription/rules.py substring-matches PatternSpec.name for 'Bottleneck'/'Hub'.
 
     Scoped to the 7 patterns newly added in this change — FAILURE_HUB is a pre-existing
     pattern whose name already contains "Hub" (a known, pre-existing collision, not

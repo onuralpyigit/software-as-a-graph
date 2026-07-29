@@ -4,7 +4,7 @@ Public SDK Data Models
 These models provide a stable, discoverable facade over the internal
 SoftwareAsAGraph result structures.
 """
-from typing import List, Optional, Any
+from typing import TYPE_CHECKING, List, Optional, Any
 from dataclasses import dataclass
 
 from saag.analysis.models import LayerAnalysisResult as _LayerAnalysisResult, StructuralAnalysisResult as _StructuralAnalysisResult
@@ -13,6 +13,11 @@ from saag.core.metrics import ComponentQuality as _ComponentQuality
 from saag.validation.models import LayerValidationResult as _LayerValidationResult
 from saag.usecases.models import ImportStats as _ImportStats
 from saag.core.criticality import CriticalityRanking, CompatNamespace
+
+if TYPE_CHECKING:
+    # Import-time only: saag.prescription's package init pulls in the whole
+    # Analyze/Predict/Simulate/Validate stack the evaluator runs.
+    from saag.prescription.models import PrescribeResult
 
 
 class ComponentFacade:
@@ -451,7 +456,7 @@ class PipelineExecutionResult:
     prediction: Optional[PredictionResult] = None
     simulation: Optional[Any] = None
     validation: Optional[ValidationPipelineFacade] = None
-    prescription: Optional[Any] = None
+    prescription: Optional["PrescribeResult"] = None
 
     def save(self, filepath: str) -> None:
         """Export the full pipeline result to a JSON file."""
