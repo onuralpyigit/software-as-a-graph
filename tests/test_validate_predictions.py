@@ -20,7 +20,7 @@ structure, by constructing data with a known answer:
 
 import numpy as np
 
-from cli.validate_graph import (
+from cli.validation.harness import (
     GroundTruthSource, Prediction, align, build_report, precision_at_k,
     rank_displacement, stratified,
 )
@@ -49,7 +49,7 @@ def test_simpson_paradox_recovered():
     preds, gt = _make_simpson_fixture()
     rows = align(preds, gt)
 
-    from cli.validate_graph import _safe_corr
+    from cli.validation.harness import _safe_corr
     pooled = _safe_corr([r[2] for r in rows], [r[3] for r in rows])
     strat = stratified(rows)
 

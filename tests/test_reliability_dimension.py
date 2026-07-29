@@ -284,11 +284,22 @@ class TestCCRAtK:
 
     def test_partial_overlap(self):
         """Partial top-K overlap → CCR@K = |intersection| / K."""
-        pred  = {"a": 1.0, "b": 0.9, "c": 0.8, "d": 0.7, "e": 0.1}
-        actual = {"a": 1.0, "c": 0.9, "f": 0.8, "g": 0.7, "b": 0.1}
-        # Top-4 pred: {a,b,c,d}; Top-4 actual: {a,c,f,g}; common: {a,c} → 2/4
+        pred   = {"a": 1.0, "b": 0.9, "c": 0.8, "d": 0.7, "e": 0.1, "f": 0.05}
+        actual = {"a": 1.0, "c": 0.9, "e": 0.8, "f": 0.7, "b": 0.1, "d": 0.05}
+        # Top-4 pred: {a,b,c,d}; Top-4 actual: {a,c,e,f}; common: {a,c} → 2/4
         ccr = calculate_ccr_at_k(pred, actual, k=4)
         assert ccr == pytest.approx(2 / 4, abs=1e-9)
+
+    def test_scored_by_only_one_side_is_excluded(self):
+        """Ids the ground truth never scored are not counted against the predictor.
+
+        CCR@K compares two rankings over the components both sides scored; K is
+        clamped to that shared set. Here only {a,b,c} are common, so the metric
+        is a top-3 comparison and both rank them identically.
+        """
+        pred   = {"a": 1.0, "b": 0.9, "c": 0.8, "d": 0.7, "e": 0.1}
+        actual = {"a": 1.0, "c": 0.9, "f": 0.8, "g": 0.7, "b": 0.1}
+        assert calculate_ccr_at_k(pred, actual, k=4) == pytest.approx(1.0, abs=1e-9)
 
     def test_empty_inputs(self):
         """Empty inputs should return 0.0 safely."""

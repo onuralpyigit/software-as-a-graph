@@ -97,6 +97,10 @@ class TestValidationService:
             comp.scores.overall = values[i]
             comp.structural.name = f"App {char}"
             comp.structural.is_articulation_point = (i == 0)
+            # Numeric structural metrics the dimension specialists read
+            comp.structural.betweenness = values[i]
+            comp.structural.dependency_weight_out = values[i]
+            comp.structural.weight = 1.0
             comps.append(comp)
             
             # Simulation

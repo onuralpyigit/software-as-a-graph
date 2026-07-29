@@ -61,7 +61,8 @@ def main():
     # Let's import it dynamically:
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from cli.validate_graph import load_graph, compute_rmav, compute_gnn_scores
+    from cli.validation.graph_io import load_graph
+    from cli.validation.scoring import compute_gnn_scores, compute_rmav
     
     G, raw = load_graph(json_path)
     

@@ -54,14 +54,18 @@ class Validator:
         predicted_scores: Dict[str, float],
         actual_scores: Dict[str, float],
         component_types: Optional[Dict[str, str]] = None,
-        impact_data: Optional[List[Any]] = None,
         layer: str = "system",
         context: str = "Validation",
     ) -> ValidationResult:
+        """Compare predicted criticality against simulated impact.
+
+        ``actual_scores`` are expected **raw** — this method is the single place
+        the robust-sigmoid label scaling is applied, so every caller passes
+        unscaled simulation output.
+        """
         actual_scores = robust_sigmoid_scale_dict(actual_scores)
         timestamp = datetime.now().isoformat()
         warnings: List[str] = []
-        impact_data = impact_data or []
 
         # Data alignment
         pred_ids = set(predicted_scores.keys())
@@ -77,9 +81,6 @@ class Validator:
             warnings.append("Insufficient data (n < 3)")
             return self._empty_result(timestamp, layer, context, len(pred_ids), len(actual_ids), len(common_ids), warnings)
 
-        # 0. Impact Stats pre-calculation (for summary reporting)
-        ia_stats = self._calculate_impact_stats(impact_data)
-        
         if len(common_ids) < 10:
             warnings.append(f"Low statistical power (n={len(common_ids)} < 10)")
 
@@ -118,41 +119,6 @@ class Validator:
             gates=overall.gates,
             warnings=warnings,
         )
-
-    def _calculate_impact_stats(self, impact_data: List[Any]) -> Dict[str, Any]:
-        if not impact_data: return {}
-        
-        ia_out = []
-        ia_in = []
-        for d in impact_data:
-            impact = getattr(d, 'impact', d)
-            if hasattr(impact, 'ia_out'):
-                ia_out.append(impact.ia_out)
-            if hasattr(impact, 'ia_in'):
-                ia_in.append(impact.ia_in)
-        
-        import numpy as np
-        # Ensure we have numeric lists (handle mocks and non-numeric data safely)
-        ia_out_clean = []
-        for v in ia_out:
-            try:
-                ia_out_clean.append(float(v))
-            except (ValueError, TypeError):
-                continue
-                
-        ia_in_clean = []
-        for v in ia_in:
-            try:
-                ia_in_clean.append(float(v))
-            except (ValueError, TypeError):
-                continue
-        
-        return {
-            "ia_out_avg": float(np.mean(ia_out_clean)) if ia_out_clean else 0.0,
-            "ia_out_max": float(np.max(ia_out_clean)) if ia_out_clean else 0.0,
-            "ia_in_avg": float(np.mean(ia_in_clean)) if ia_in_clean else 0.0,
-            "ia_in_max": float(np.max(ia_in_clean)) if ia_in_clean else 0.0,
-        }
 
     def _validate_group(
         self,

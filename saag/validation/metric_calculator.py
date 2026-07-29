@@ -5,9 +5,82 @@ Provides pure-function metric computation for the validation step.
 """
 import math
 import random
-from typing import Callable, Sequence, List, Dict, Tuple, Any, Optional
+import warnings
+from typing import Callable, Sequence, List, Dict, Set, Tuple, Optional
+
+import numpy as np
+from scipy import stats
 
 from .models import CorrelationMetrics, ErrorMetrics, ClassificationMetrics, RankingMetrics
+
+
+def _correlate(fn: Callable, predicted: Sequence[float], actual: Sequence[float]) -> Tuple[float, float]:
+    """Run a scipy correlation, mapping degenerate input to this module's (0.0, 1.0) contract.
+
+    scipy returns NaN for constant input; callers here (notably bootstrap resampling)
+    rely on a numeric 0.0 instead.
+    """
+    if len(predicted) < 3 or len(actual) < 3:
+        return 0.0, 1.0
+    with warnings.catch_warnings(), np.errstate(invalid="ignore", divide="ignore"):
+        # Constant input is a normal case here (e.g. every Topic scoring 0.0);
+        # it is reported as rho = 0.0 rather than warned about.
+        warnings.simplefilter("ignore")
+        result = fn(predicted, actual)
+    rho, p = float(result[0]), float(result[1])
+    if math.isnan(rho):
+        return 0.0, 1.0
+    return rho, (1.0 if math.isnan(p) else p)
+
+
+def _top_k_overlap(
+    predicted: Dict[str, float],
+    actual: Dict[str, float],
+    k: int,
+) -> Tuple[float, Set[str], Set[str]]:
+    """Fraction of the top-K set shared by two scorings, over their common ids.
+
+    Single definition behind CCR@K, COCR@K and AHCR@K. ``k`` is clamped to the
+    number of common ids, so the rate stays in [0, 1] for small systems.
+    """
+    common = set(predicted) & set(actual)
+    if not common or k <= 0:
+        return 0.0, set(), set()
+    effective_k = min(k, len(common))
+    pred_top = set(sorted(common, key=lambda c: predicted[c], reverse=True)[:effective_k])
+    actual_top = set(sorted(common, key=lambda c: actual[c], reverse=True)[:effective_k])
+    return len(pred_top & actual_top) / effective_k, pred_top, actual_top
+
+
+def _bootstrap_percentile_ci(
+    statistic: Callable[[List[int]], float],
+    n: int,
+    n_bootstrap: int = 1000,
+    confidence: float = 0.95,
+    seed: int = 42,
+) -> Tuple[float, float]:
+    """Shared resample-sort-percentile core for every bootstrap CI in this module.
+
+    ``statistic`` receives a list of resampled indices and returns a float, or
+    raises ZeroDivisionError/ValueError to skip that resample.
+    """
+    rng = random.Random(seed)
+    samples: List[float] = []
+    for _ in range(n_bootstrap):
+        indices = [rng.randint(0, n - 1) for _ in range(n)]
+        try:
+            samples.append(statistic(indices))
+        except (ZeroDivisionError, ValueError):
+            continue
+
+    if not samples:
+        return 0.0, 0.0
+
+    samples.sort()
+    alpha = (1 - confidence) / 2
+    lo_idx = max(0, int(alpha * len(samples)))
+    hi_idx = min(len(samples) - 1, int((1 - alpha) * len(samples)))
+    return samples[lo_idx], samples[hi_idx]
 
 
 def calculate_correlation(
@@ -18,8 +91,8 @@ def calculate_correlation(
     seed: int = 42,
 ) -> CorrelationMetrics:
     spearman_rho, spearman_p = spearman_correlation(predicted, actual)
-    pearson_r, pearson_p = pearson_correlation(predicted, actual)
-    kendall_tau = kendall_correlation(predicted, actual)
+    pearson_r, pearson_p = _correlate(stats.pearsonr, predicted, actual)
+    kendall_tau, _ = _correlate(stats.kendalltau, predicted, actual)
 
     ci_lower, ci_upper = 0.0, 0.0
     if len(predicted) >= 5:
@@ -242,37 +315,21 @@ def _bootstrap_ranking_ci(
     confidence: float = 0.95,
     seed: int = 42,
 ) -> Tuple[float, float]:
-    rng = random.Random(seed)
     keys = list(predicted.keys())
     n = len(keys)
     if n < k:
         return 0.0, 0.0
 
-    samples: List[float] = []
-    for _ in range(n_bootstrap):
-        # Sample with replacement from keys
-        indices = [rng.randint(0, n - 1) for _ in range(n)]
-        s_keys = [keys[i] for i in indices]
-        
-        # In bootstrap for overlap, we need to be careful.
-        # If we just resample the set, the 'Top-K' changes.
-        s_pred = {f"k_{i}": predicted[k] for i, k in enumerate(s_keys)}
-        s_actual = {f"k_{i}": actual[k] for i, k in enumerate(s_keys)}
-        
-        p_sorted = sorted(s_pred.items(), key=lambda x: x[1], reverse=True)
-        a_sorted = sorted(s_actual.items(), key=lambda x: x[1], reverse=True)
-        
-        p_top = set(x[0] for x in p_sorted[:k])
-        a_top = set(x[0] for x in a_sorted[:k])
-        
-        overlap = len(p_top & a_top) / k
-        samples.append(overlap)
+    def _overlap(indices: List[int]) -> float:
+        # Resampled ids are relabelled so that duplicate draws stay distinct
+        # entries — otherwise the resampled top-K would shrink below k.
+        s_pred = {i: predicted[keys[j]] for i, j in enumerate(indices)}
+        s_actual = {i: actual[keys[j]] for i, j in enumerate(indices)}
+        p_top = set(sorted(s_pred, key=lambda i: s_pred[i], reverse=True)[:k])
+        a_top = set(sorted(s_actual, key=lambda i: s_actual[i], reverse=True)[:k])
+        return len(p_top & a_top) / k
 
-    samples.sort()
-    alpha = (1 - confidence) / 2
-    lo_idx = max(0, int(alpha * len(samples)))
-    hi_idx = min(len(samples) - 1, int((1 - alpha) * len(samples)))
-    return samples[lo_idx], samples[hi_idx]
+    return _bootstrap_percentile_ci(_overlap, n, n_bootstrap, confidence, seed)
 
 
 def bootstrap_ci(
@@ -283,33 +340,17 @@ def bootstrap_ci(
     confidence: float = 0.95,
     seed: int = 42,
 ) -> Tuple[float, float]:
-    rng = random.Random(seed)
     n = len(predicted)
     if n < 3:
         return 0.0, 0.0
 
     pred_list = list(predicted)
     actual_list = list(actual)
-    samples: List[float] = []
 
-    for _ in range(n_bootstrap):
-        indices = [rng.randint(0, n - 1) for _ in range(n)]
-        p_sample = [pred_list[i] for i in indices]
-        a_sample = [actual_list[i] for i in indices]
-        try:
-            val = metric_fn(p_sample, a_sample)
-            samples.append(val)
-        except (ZeroDivisionError, ValueError):
-            continue
+    def _metric(indices: List[int]) -> float:
+        return metric_fn([pred_list[i] for i in indices], [actual_list[i] for i in indices])
 
-    if not samples:
-        return 0.0, 0.0
-
-    samples.sort()
-    alpha = (1 - confidence) / 2
-    lo_idx = max(0, int(alpha * len(samples)))
-    hi_idx = min(len(samples) - 1, int((1 - alpha) * len(samples)))
-    return samples[lo_idx], samples[hi_idx]
+    return _bootstrap_percentile_ci(_metric, n, n_bootstrap, confidence, seed)
 
 
 def cohens_kappa(
@@ -334,90 +375,8 @@ def cohens_kappa(
 
 
 def spearman_correlation(predicted: Sequence[float], actual: Sequence[float]) -> Tuple[float, float]:
-    n = len(predicted)
-    if n < 3:
-        return 0.0, 1.0
-    rank_pred = _get_ranks(predicted)
-    rank_actual = _get_ranks(actual)
-    return pearson_correlation(rank_pred, rank_actual)
-
-
-def pearson_correlation(predicted: Sequence[float], actual: Sequence[float]) -> Tuple[float, float]:
-    n = len(predicted)
-    if n < 3:
-        return 0.0, 1.0
-    mean_p = sum(predicted) / n
-    mean_a = sum(actual) / n
-    num = sum((p - mean_p) * (a - mean_a) for p, a in zip(predicted, actual))
-    den = math.sqrt(
-        sum((p - mean_p) ** 2 for p in predicted)
-        * sum((a - mean_a) ** 2 for a in actual)
-    )
-    if den == 0:
-        return 0.0, 1.0
-    r = num / den
-    r = max(-1.0, min(1.0, r))
-    if abs(r) >= 1.0:
-        return r, 0.0
-    t = r * math.sqrt((n - 2) / (1 - r ** 2))
-    p = 2 * (1 - _t_cdf(abs(t), n - 2))
-    return r, p
-
-
-def kendall_correlation(predicted: Sequence[float], actual: Sequence[float]) -> float:
-    n = len(predicted)
-    if n < 2:
-        return 0.0
-    concordant = discordant = 0
-    for i in range(n):
-        for j in range(i + 1, n):
-            sign_p = predicted[i] - predicted[j]
-            sign_a = actual[i] - actual[j]
-            if sign_p * sign_a > 0:
-                concordant += 1
-            elif sign_p * sign_a < 0:
-                discordant += 1
-    total = concordant + discordant
-    return (concordant - discordant) / total if total > 0 else 0.0
-
-
-def _get_ranks(values: Sequence[float]) -> List[float]:
-    n = len(values)
-    indexed = [(v, i) for i, v in enumerate(values)]
-    indexed.sort(key=lambda x: x[0], reverse=True)
-    rank = [0.0] * n
-    i = 0
-    while i < n:
-        j = i
-        while j < n - 1 and indexed[j][0] == indexed[j + 1][0]:
-            j += 1
-        avg_rank = (i + j) / 2 + 1
-        for k in range(i, j + 1):
-            rank[indexed[k][1]] = avg_rank
-        i = j + 1
-    return rank
-
-
-def _t_cdf(t: float, df: int) -> float:
-    if df > 30:
-        return 0.5 * (1 + math.erf(t / math.sqrt(2)))
-    x = df / (df + t ** 2)
-    return 1 - 0.5 * _incomplete_beta(df / 2, 0.5, x)
-
-
-def _incomplete_beta(a: float, b: float, x: float) -> float:
-    if x <= 0:
-        return 0.0
-    if x >= 1:
-        return 1.0
-    steps = 100
-    dx = x / steps
-    res = 0.0
-    for i in range(steps):
-        xi = (i + 0.5) * dx
-        res += (xi ** (a - 1)) * ((1 - xi) ** (b - 1)) * dx
-    beta_ab = math.gamma(a) * math.gamma(b) / math.gamma(a + b)
-    return res / beta_ab
+    """Spearman ρ and its two-sided p-value. Returns (0.0, 1.0) for n < 3 or constant input."""
+    return _correlate(stats.spearmanr, predicted, actual)
 
 
 def _calculate_ndcg(ranked_ids: List[str], relevance: Dict[str, float], k: int) -> float:
@@ -432,28 +391,30 @@ def _calculate_ndcg(ranked_ids: List[str], relevance: Dict[str, float], k: int) 
     return dcg / idcg if idcg > 0 else 0.0
 
 
-def calculate_ccr_at_k(
+def calculate_capture_rate_at_k(
     predicted: Dict[str, float],
     actual: Dict[str, float],
     k: int = 5,
 ) -> float:
-    """Cascade Capture Rate @ K.
+    """Top-K agreement between a dimension predictor and its simulated ground truth.
 
-    CCR@K = |Top-K(R(v)) ∩ Top-K(IR(v))| / K
+    capture@K = |Top-K(pred) ∩ Top-K(actual)| / K, over the ids both dicts score.
 
-    Measures how many of the top-K reliability-critical components
-    identified by the topology predictor also appear in the top-K
-    cascade-producing components from simulation ground truth.
-    Target: CCR@5 ≥ 0.80.
+    Three dimensions each name this metric differently but compute it identically:
+
+    | Alias   | Dimension       | Predictor / ground truth | Target |
+    |---------|-----------------|--------------------------|--------|
+    | CCR@K   | Reliability     | R(v) vs IR(v)            | ≥ 0.80 |
+    | COCR@K  | Maintainability | M(v) vs IM(v)            | ≥ 0.75 |
+    | AHCR@K  | Security        | S(v) vs IS(v)            | ≥ 0.70 |
     """
-    if not predicted or not actual or k <= 0:
-        return 0.0
-    pred_sorted = sorted(predicted.items(), key=lambda x: x[1], reverse=True)
-    actual_sorted = sorted(actual.items(), key=lambda x: x[1], reverse=True)
-    pred_top_k = {x[0] for x in pred_sorted[:k]}
-    actual_top_k = {x[0] for x in actual_sorted[:k]}
-    common = pred_top_k & actual_top_k
-    return len(common) / k
+    return _top_k_overlap(predicted, actual, k)[0]
+
+
+# Domain-specific aliases — same statistic, different dimension and target.
+calculate_ccr_at_k = calculate_capture_rate_at_k    # Cascade Capture Rate (Reliability)
+calculate_cocr_at_k = calculate_capture_rate_at_k   # Change Obligation Capture Rate (Maintainability)
+calculate_ahcr_at_k = calculate_capture_rate_at_k   # Attack Hub Capture Rate (Security)
 
 
 def calculate_cme(
@@ -473,13 +434,13 @@ def calculate_cme(
     if n < 2:
         return 0.0
 
-    def _rank_map(scores: Dict[str, float], ids: List[str]) -> Dict[str, int]:
+    def _rank_map(scores: Dict[str, float]) -> Dict[str, int]:
         """Return 1-based rank for each id (lower score = higher rank number)."""
         sorted_ids = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         return {cid: i + 1 for i, (cid, _) in enumerate(sorted_ids)}
 
-    pred_ranks = _rank_map(predicted, common)
-    actual_ranks = _rank_map(actual, common)
+    pred_ranks = _rank_map(predicted)
+    actual_ranks = _rank_map(actual)
 
     total_rank_error = sum(
         abs(pred_ranks.get(cid, n) - actual_ranks.get(cid, n))
@@ -495,14 +456,11 @@ def _bootstrap_classification_ci(
     confidence: float = 0.95,
     seed: int = 42,
 ) -> Tuple[float, float]:
-    rng = random.Random(seed)
     n = len(pred_crit)
     if n < 3:
         return 0.0, 0.0
 
-    samples: List[float] = []
-    for _ in range(n_bootstrap):
-        indices = [rng.randint(0, n - 1) for _ in range(n)]
+    def _f1(indices: List[int]) -> float:
         p_sample = [pred_crit[i] for i in indices]
         a_sample = [actual_crit[i] for i in indices]
         tp = sum(1 for p, a in zip(p_sample, a_sample) if p and a)
@@ -510,40 +468,14 @@ def _bootstrap_classification_ci(
         fn = sum(1 for p, a in zip(p_sample, a_sample) if not p and a)
         prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
         rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0.0
-        samples.append(f1)
+        return 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0.0
 
-    samples.sort()
-    alpha = (1 - confidence) / 2
-    lo_idx = max(0, int(alpha * len(samples)))
-    hi_idx = min(len(samples) - 1, int((1 - alpha) * len(samples)))
-    return samples[lo_idx], samples[hi_idx]
+    return _bootstrap_percentile_ci(_f1, n, n_bootstrap, confidence, seed)
 
 
 # =============================================================================
 # Maintainability-Specific Metrics  (M(v) v5 / IM(v))
 # =============================================================================
-
-def calculate_cocr_at_k(
-    predicted: Dict[str, float],
-    actual: Dict[str, float],
-    k: int = 5,
-) -> float:
-    """Change Obligation Capture Rate @ K  (COCR@K).
-
-    COCR@K = |Top-K(M(v)) ∩ Top-K(IM(v))| / K
-
-    Structurally identical to CCR@K for Reliability.
-    Target: COCR@5 ≥ 0.75.
-    """
-    common = sorted(set(predicted) & set(actual))
-    if not common or k <= 0:
-        return 0.0
-    effective_k = min(k, len(common))
-    pred_top = set(sorted(common, key=lambda c: predicted[c], reverse=True)[:effective_k])
-    actual_top = set(sorted(common, key=lambda c: actual[c], reverse=True)[:effective_k])
-    return len(pred_top & actual_top) / effective_k
-
 
 def calculate_weighted_kappa_cta(
     predicted: Dict[str, float],
@@ -756,26 +688,7 @@ def calculate_rri(
 # =============================================================================
 # Vulnerability-Specific Metrics (V(v) v2 / IV(v))
 # =============================================================================
-
-def calculate_ahcr_at_k(
-    predicted: Dict[str, float],
-    actual: Dict[str, float],
-    k: int = 5,
-) -> float:
-    """Attack Hub Capture Rate @ K (AHCR@K).
-
-    AHCR@K = |Top-K(V(v)) \\cap Top-K(IV(v))| / K
-
-    Target: AHCR@5 >= 0.70.
-    """
-    common = sorted(set(predicted) & set(actual))
-    if not common or k <= 0:
-        return 0.0
-    effective_k = min(k, len(common))
-    pred_top = set(sorted(common, key=lambda c: predicted[c], reverse=True)[:effective_k])
-    actual_top = set(sorted(common, key=lambda c: actual[c], reverse=True)[:effective_k])
-    return len(pred_top & actual_top) / effective_k
-
+# AHCR@K is `calculate_ahcr_at_k`, aliased to calculate_capture_rate_at_k above.
 
 def calculate_ftr(
     predicted: Dict[str, float],

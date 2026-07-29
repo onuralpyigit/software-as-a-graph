@@ -869,65 +869,6 @@ class ConsoleDisplay:
         if passed: return Colors.GREEN
         return Colors.YELLOW if (higher_better and value >= target * 0.9) or (not higher_better and value <= target * 1.1) else Colors.RED
 
-    def display_pipeline_validation_result(self, result: "PipelineResult") -> None:
-        """Display full validation results."""
-        self.print_header("VALIDATION PIPELINE RESULTS", "═")
-        print(f"\n  Timestamp:      {result.timestamp}\n  Components:     {result.total_components}")
-        print(f"\n  Overall Status: {self.status_text(result.all_passed)}\n  Layers Validated: {len(result.layers)}\n  Layers Passed:    {result.layers_passed}")
-        self.print_subheader("Layer Summary")
-        print(f"\n  {'Layer':<12} {'N':<6} {'Spearman':<10} {'F1':<10} {'Status':<10}")
-        print(f"  {'-' * 48}")
-        targets = result.targets
-        for layer_name, layer_res in result.layers.items():
-            s_color = self.metric_color(layer_res.spearman, targets.spearman)
-            f_color = self.metric_color(layer_res.f1_score, targets.f1_score)
-            print(f"  {layer_name:<12} {layer_res.matched_components:<6} {self.colored(f'{layer_res.spearman:>8.4f}', s_color)}   {self.colored(f'{layer_res.f1_score:>8.4f}', f_color)}   {self.status_text(layer_res.passed)}")
-        for layer_res in result.layers.values():
-            self.display_layer_validation_result(layer_res, targets)
-
-    def display_layer_validation_result(self, result: "LayerValidationResult", targets: "ValidationTargets") -> None:
-        """Display detailed layer validation results."""
-        self.print_subheader(f"Layer: {result.layer_name} ({result.layer})")
-        print(f"\n  Matched Components:    {result.matched_components}")
-        if result.warnings:
-            print(f"\n  {self.colored('Warnings:', Colors.YELLOW)}")
-            for w in result.warnings: print(f"    ⚠ {w}")
-        if not result.validation_result: return
-        ov = result.validation_result.overall
-        print(f"\n  {self.colored('Correlation Metrics:', Colors.CYAN)}")
-        print(f"    {'Spearman ρ':<15} {ov.correlation.spearman:>8.4f}     ≥{targets.spearman:<8.2f}")
-        print(f"\n  {self.colored('Classification Metrics:', Colors.CYAN)}")
-        print(f"    {'F1 Score':<15} {ov.classification.f1_score:>8.4f}     ≥{targets.f1_score:<8.2f}")
-        cm = ov.classification.confusion_matrix
-        print(f"\n    Confusion Matrix:\n                            Actual Critical    Actual Non-Critical\n      Pred Critical           {self.colored(str(cm['tp']), Colors.GREEN):>3}                {self.colored(str(cm['fp']), Colors.RED):>3}\n      Pred Non-Critical       {self.colored(str(cm['fn']), Colors.RED):>3}                {self.colored(str(cm['tn']), Colors.GREEN):>3}")
-        print(f"\n  {self.colored('Error Metrics:', Colors.CYAN)}\n    RMSE: {ov.error.rmse:.4f} {'≤' if ov.error.rmse <= targets.rmse_max else '>'} {targets.rmse_max}")
-    def display_gate_verdicts(self, gates: Dict[str, bool]) -> None:
-        """Display G1-G8 gate verdicts."""
-        if not gates:
-            return
-            
-        print(f"\n  {self.colored('Gate Verdicts:', Colors.WHITE, bold=True)}")
-        
-        tier1_keys = ["G1_spearman", "G2_pvalue", "G3_f1", "G4_top5"]
-        tier1 = {k: v for k, v in gates.items() if k in tier1_keys}
-        tier2 = {k: v for k, v in gates.items() if k not in tier1_keys}
-        
-        print("    Tier 1 (Critical):", end=" ")
-        for g, passed in tier1.items():
-            status = "✓" if passed else "✗"
-            color = Colors.GREEN if passed else Colors.RED
-            label = g.split('_')[0]
-            print(self.colored(f"{label}:{status}", color), end="  ")
-        
-        print("\n    Tier 2 (Reported):", end=" ")
-        for g, passed in tier2.items():
-            status = "✓" if passed else "✗"
-            # Tier 2 failure is a warning, not a critical error
-            color = Colors.CYAN if passed else Colors.YELLOW
-            label = g.split('_')[0]
-            print(self.colored(f"{label}:{status}", color), end="  ")
-        print()
-
     def display_import_summary(self, stats: Any) -> None:
         """Display summary of graph import results."""
         self.print_subheader("Graph Import Summary")
@@ -1199,11 +1140,12 @@ class ConsoleDisplay:
         print("  " + "-" * 55)
         
         for layer_name, res in layers_dict.items():
-            rho = getattr(res, "spearman_rho", 0.0)
+            rho = getattr(res, "spearman", 0.0)
             f1 = getattr(res, "f1_score", 0.0)
-            
-            # Simple heuristic for status
-            status = "PASSED" if rho > 0.6 and f1 > 0.6 else "WEAK"
+
+            # The service already evaluated the Tier-1 gates; reuse that verdict
+            # rather than re-deriving one from a threshold heuristic.
+            status = "PASSED" if getattr(res, "passed", False) else "WEAK"
             status_color = Colors.GREEN if status == "PASSED" else Colors.YELLOW
             
             print(
@@ -1313,32 +1255,3 @@ class ConsoleDisplay:
 
         if derived:
             print(f"\n  {'Derived (DEPENDS_ON):':<20} {len(derived)} (informational snapshot)")
-
-    def display_dimensional_results(self, dimensional_validation: Dict[str, Any]) -> None:
-        """Display dimension-specific metrics (RMAV)."""
-        if not dimensional_validation:
-            return
-            
-        self.print_subheader("Dimensional Analysis Detail")
-        
-        # Reliability
-        if r := dimensional_validation.get("reliability"):
-            print(f"  {self.colored('Reliability [IR(v)]:', Colors.CYAN):<30} ρ={r['spearman']:.4f}, CCR@5={r['ccr_5']:.3f}, CME={r['cme']:.4f}")
-            
-        # Maintainability
-        if m := dimensional_validation.get("maintainability"):
-            print(f"  {self.colored('Maintainability [IM(v)]:', Colors.CYAN):<30} ρ={m['spearman']:.4f}, κ_CTA={m['weighted_kappa_cta']:.3f}, BP={m['bottleneck_precision']:.3f}")
-            
-        # Availability
-        if a := dimensional_validation.get("availability"):
-            print(f"  {self.colored('Availability [IA(v)]:', Colors.CYAN):<30} ρ={a['spearman']:.4f}, SPOF_F1={a['spof_f1']:.3f}, RRI={a['rri']:.3f}")
-            
-        # Security
-        if v := dimensional_validation.get("security"):
-            print(f"  {self.colored('Security [IV(v)]:', Colors.CYAN):<30} ρ={v['spearman']:.4f}, AHCR@5={v['ahcr_5']:.3f}, FTR={v['ftr']:.3f}")
-
-        # Composite
-        if c := dimensional_validation.get("composite"):
-            pg = c.get("predictive_gain", 0)
-            pg_colored = self.colored(f"{pg:+.3f}", Colors.GREEN if pg > 0 else Colors.RESET)
-            print(f"  {self.colored('Composite [I*(v)]:', Colors.WHITE, bold=True):<30} ρ={c['spearman']:.4f}, Predictive Gain={pg_colored}")

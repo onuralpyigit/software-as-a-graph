@@ -234,27 +234,6 @@ def dispatch_simulate(repo, args: argparse.Namespace):
     return result
 
 
-def dispatch_validate(repo, args: argparse.Namespace):
-    """Dispatch validation stage."""
-    from saag.usecases import ValidateGraphUseCase
-    from saag.validation import ValidationTargets
-    
-    use_case = ValidateGraphUseCase(repo)
-    layers = getattr(args, 'layer', 'app,infra,mw,system')
-    if layers:
-        layers_to_validate = [l.strip() for l in layers.split(",")]
-    else:
-        layers_to_validate = ["app", "infra", "mw", "system"]
-        
-    result = use_case.execute(layers=layers_to_validate)
-    
-    if getattr(args, 'output', None):
-        with open(args.output, 'w') as f:
-            json.dump(result.to_dict(), f, indent=2)
-            
-    return result
-
-
 def dispatch_visualize(repo, args: argparse.Namespace):
     """Dispatch visualization stage."""
     from saag.usecases import VisualizeGraphUseCase, VisOptions

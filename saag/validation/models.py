@@ -8,64 +8,65 @@ from typing import Dict, List, Any, Optional, Tuple
 
 @dataclass
 class ValidationTargets:
-    """Target thresholds for validation success as per unified gate table."""
-    # Tier 1 — Primary Gates (all must pass for HIGH-BAR)
-    spearman: float = 0.70             # G1: ρ ≥ 0.70
-    f1_score: float = 0.75             # G2: F1 ≥ 0.75
-    precision: float = 0.80            # G3: Precision ≥ 0.80
-    top_5_overlap: float = 0.60        # G4: Top-5 ≥ 0.60
+    """Thresholds the validation gates are evaluated against.
 
-    # Tier 2 — Secondary Gates
+    Every field below is read by something. The gate that consumes each one is
+    named in its comment; fields with no gate are consumed by the frontend
+    (``/api/v1/validation/targets``) or by the reported-only metrics.
+    """
+
+    # Tier 1 — primary gates. `LayerValidationResult.passed` is G1 ∧ G2 ∧ G3 ∧ G4.
+    spearman: float = 0.70              # G1: ρ(Q, I) ≥ 0.70
+    f1_score: float = 0.75              # G2: F1@K ≥ 0.75
+    precision: float = 0.80             # G3: Precision@K ≥ 0.80
+    top_5_overlap: float = 0.60         # G4: Top-5 overlap ≥ 0.60
+
+    # Tier 2 — secondary gates (reported, not part of `passed`)
     predictive_gain: float = 0.03       # G5: PG > 0.03
-    weighted_kappa_cta: float = 0.70   # G6: κ_CTA ≥ 0.70
-    cdcc_max: float = 0.30             # G7: CDCC < 0.30
+    weighted_kappa_cta: float = 0.70    # G6: κ_CTA ≥ 0.70
+    cdcc_max: float = 0.30              # G7: CDCC < 0.30
 
-    # Tier 3 — Dimension-Specific Specialist Gates
-    bottleneck_precision_target: float = 0.70  # G8: BP ≥ 0.70
-    ftr_max: float = 0.20                      # G9: FTR ≤ 0.20
-    ahcr_5: float = 0.70                       # AHCR@5 ≥ 0.70
-    spof_f1: float = 0.90                      # SPOF_F1 ≥ 0.90
-    ccr_5: float = 0.80                        # CCR@5 ≥ 0.80
+    # Tier 3 — dimension-specific specialist gates
+    bottleneck_precision_target: float = 0.70   # G8: BP ≥ 0.70
+    ftr_max: float = 0.20                       # G9: FTR ≤ 0.20
 
-    # Reported only / Legacy compatibility / Additional targets
-    spearman_p_max: float = 0.05
-    rmse_max: float = 0.25
-    mae_max: float = 0.20
+    # Per-group gates evaluated inside Validator._validate_group
+    spearman_p_max: float = 0.05        # p_value_pass: p ≤ 0.05
+    rmse_max: float = 0.25              # G5_rmse: RMSE ≤ 0.25 (also read by the web UI)
+
+    # Rule-based baseline and GNN forecasting acceptance thresholds
+    baseline_spearman: float = 0.85
+    baseline_macro_f1: float = 0.88
+    baseline_ndcg_10: float = 0.90
+
+    # Security specialist metric parameters (not gates — inputs to FTR/APAR)
+    security_v_threshold: float = 0.60
+    security_reach_threshold: float = 0.10
+
+    # Composite Q*(v) vs I*(v) and dimension orthogonality
+    composite_spearman: float = 0.85        # ρ(Q*, I*) ≥ 0.85
+    composite_f1: float = 0.90              # F1(Q*, I*) ≥ 0.90
+    composite_top5_overlap: float = 0.80    # Top-5(Q*, I*) ≥ 0.80
+    max_interdim_correlation: float = 0.40  # orthogonality warning threshold
+
+    # Reported only — surfaced by the web UI, no gate reads them
+    recall: float = 0.80
     pearson: float = 0.65
     kendall: float = 0.50
-    recall: float = 0.80
-    accuracy: float = 0.75
-    cohens_kappa: float = 0.60
     top_10_overlap: float = 0.50
-    ndcg_10: float = 0.70
-    
-    # Reliability-specific
-    cme: float = 0.10
-    reliability_spearman: float = 0.75
 
-    # Maintainability-specific
-    maintainability_spearman: float = 0.70
-    cocr_5: float = 0.75
-
-    # Availability-specific
-    availability_spearman: float = 0.80
-    hsrr: float = 0.65
-    dasa: float = 0.70
-    rri: float = 0.80
-
-    # Security-specific
-    security_spearman: float = 0.70
-    apar: float = 0.60
-    cdcc: float = 0.40  # default label
-    cdcc: float = 0.40  # default / general
-
-    # Composite / Orthogonality
-    composite_spearman: float = 0.85         # ρ(Q*(v), I*(v)) ≥ 0.85
-    max_interdim_correlation: float = 0.40  # CDCC target
-    composite_f1: float = 0.90              # F1(Q*(v), I*(v)) ≥ 0.90
-    composite_top5_overlap: float = 0.80   # Top-5(Q*(v), I*(v)) ≥ 0.80
+    # Non-scalar configuration. `to_dict` filters these out, so they never reach
+    # the API payload — keep any new entry here non-numeric for that reason.
+    dimension_weights: Dict[str, float] = field(
+        default_factory=lambda: {"r": 0.25, "m": 0.25, "a": 0.25, "s": 0.25}
+    )
+    node_type_rho: Dict[str, float] = field(
+        default_factory=lambda: {"Application": 0.75, "Broker": 0.70, "Node": 0.65, "Library": 0.60}
+    )
+    node_type_rho_default: float = 0.70
 
     def to_dict(self) -> Dict[str, float]:
+        """Scalar targets only — the shape the API and web UI consume."""
         return {k: v for k, v in asdict(self).items() if isinstance(v, (float, int))}
 
 
