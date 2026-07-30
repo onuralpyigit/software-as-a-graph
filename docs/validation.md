@@ -15,8 +15,9 @@ For the full CLI flag reference (`validate_graph.py`), see [cli-pipeline-guide.m
 3. [Ground Truth: I(v)](#3-ground-truth-iv)
    - 3.1 [Notation — three quantities, three symbols](#31-notation--three-quantities-three-symbols)
    - 3.2 [Measured agreement between the oracles](#32-measured-agreement-between-the-oracles)
-   - 3.3 [Simulation mechanics](#33-simulation-mechanics)
-   - 3.4 [Ground truth derivation](#34-ground-truth-derivation)
+   - 3.3 [The behavioural oracle I_dyn(v)](#33-the-behavioural-oracle-i_textdynv)
+   - 3.4 [Simulation mechanics](#34-simulation-mechanics)
+   - 3.5 [Ground truth derivation](#35-ground-truth-derivation)
 4. [Prediction: Q(v)](#4-prediction-qv)
 5. [Statistical Battery](#5-statistical-battery)
    - 5.1 [The one-population evaluation contract](#51-the-one-population-evaluation-contract)
@@ -173,10 +174,11 @@ Mixing the two oracles within one stage is a correctness error, guarded by
 
 ### 3.2 Measured agreement between the oracles
 
-$I^*(v)$ and $I_{\text{comp}}(v)$ are on different scales, so only their rank agreement is
-meaningful. Measured across the seven-scenario cohort
+The oracles are on different scales, so only their rank agreement is meaningful. Measured across
+the seven-scenario cohort
 ([results/convergent_validity.json](../results/convergent_validity.json), produced by
-[reproduce/convergent_validity.py](../reproduce/convergent_validity.py)):
+[reproduce/convergent_validity.py](../reproduce/convergent_validity.py)), for
+$I^*(v)$ against $I_{\text{comp}}(v)$:
 
 | Scenario | Spearman ρ | Kendall τ | top-20 % Jaccard | n |
 |---|---:|---:|---:|---:|
@@ -213,7 +215,76 @@ of whether the shared `w(t)` inflates their agreement. Measured with
 Rank agreement did not improve; it fell slightly. The disagreement is structural — between a mean
 subscriber feed-loss and a weighted composite of four connectivity terms.
 
-### 3.3 Simulation mechanics
+### 3.3 The behavioural oracle $I_{\text{dyn}}(v)$
+
+$I^*$ and $I_{\text{comp}}$ are both topological cascade engines over the same substrate, so §3.2
+measures agreement between two constructions that share their assumptions. It cannot answer the
+sharper objection: that a topology-derived $Q(v)$ is being validated against topology-derived
+labels.
+
+$I_{\text{dyn}}(v)$ is the third oracle, produced by
+[`MessageFlowSimulator`](../saag/simulation/message_flow_simulator.py) and reported by the same
+[reproduce/convergent_validity.py](../reproduce/convergent_validity.py). It is the drop in
+delivered message rate that **surviving** consumers experience when $v$ fails, measured by
+discrete-event simulation of actual traffic rather than by reachability over edges:
+
+$$I_{\text{dyn}}(v) = \text{delivery\_rate}_{\text{before}} - \text{delivery\_rate}_{\text{after}}$$
+
+Both windows exclude the faulted node's own receipts and its share of the fan-out, and a silenced
+publisher's demand stays in the denominator. Measured across the same cohort at `duration=60`:
+
+| Scenario | ρ($I_{\text{dyn}}$, $I^*$) | n | ρ($I^*$, $I_{\text{comp}}$) from §3.2 |
+|---|---:|---:|---:|
+| iot_smart_city_system | 0.739 | 210 | 0.289 |
+| financial_trading_system | 0.722 | 78 | 0.194 |
+| enterprise_system | 0.635 | 350 | 0.548 |
+| av_system | 0.629 | 100 | 0.483 |
+| hub_and_spoke_system | 0.573 | 95 | 0.564 |
+| healthcare_system | 0.551 | 61 | 0.063 |
+| microservices_system | 0.542 | 119 | 0.693 |
+| **mean** | **0.627** | — | **0.405** |
+| **min** | **0.542** | — | **0.060** |
+
+Two things matter here, and the second matters more than the first.
+
+**The mean is higher** — 0.627 against 0.405. **The minimum is far higher** — 0.542 against 0.060.
+$I^*$ and $I_{\text{comp}}$ collapse to near-independence on `healthcare_system` and stay weak on
+`financial_trading_system` (0.194) and `iot_smart_city_system` (0.289); $I_{\text{dyn}}$ agrees
+with $I^*$ at 0.55–0.74 on those same three. The behavioural oracle does not have a worst case in
+this cohort. That is what makes §3.2's warning readable: where the two topological engines
+disagree, simulated traffic sides with $I^*$, so the disagreement is a property of how
+$I_{\text{comp}}$ is constructed rather than a genuine ambiguity in which components are critical.
+
+**What this is and is not evidence of.** $I_{\text{dyn}}$ and $I^*$ are close in *construct* —
+both are ultimately about subscriber feed loss — so their agreement is convergent validity across
+**methods**, not across constructs. It rules out the cascade *algorithm* (BFS over derived
+`DEPENDS_ON`) being the artifact, since discrete-event simulation of real traffic reproduces its
+ranking. It does not independently corroborate the prior assumption that criticality *means*
+feed loss. Claiming more than that would overstate it.
+
+**Top-K membership is the weaker half.** Mean top-20% Jaccard is 0.223 for
+$I_{\text{dyn}}$/$I^*$ — slightly *below* the 0.283 of $I^*$/$I_{\text{comp}}$. Rank correlation
+is strong while the identity of the top-K set still churns, which is consistent with the ~40%
+top-K churn across label seeds noted in §3.6 of
+[failure-simulation.md](failure-simulation.md). Read the ρ, not the set overlap, as the result.
+
+> [!IMPORTANT]
+> $I_{\text{dyn}}$ is **delivery-based and QoS-agnostic**. It does not measure latency or deadline
+> conformance: topic QoS never resolves on this corpus (L13) and latency carries no signal at
+> corpus load (L14), both in
+> [failure-simulation.md §12](failure-simulation.md#12-known-limitations). It is also **not** a
+> validation gate and does **not** produce training labels — it is a reported construct-validity
+> check, and it scores only components carrying pub/sub traffic, with Brokers and Nodes recorded
+> in `unlabeled_node_ids` rather than scored 0.0.
+>
+> The accounting this rests on is load-bearing and was wrong until recently: counting the faulted
+> node's own lost feed as damage, and letting a silenced publisher's messages leave the numerator
+> and denominator together, together put ρ($I_{\text{dyn}}$, $I^*$) at **−0.25** on `atm_system`
+> (publisher population, outside this cohort), driven by a +0.75 correlation with the faulted
+> node's own subscription count.
+> [tests/test_message_flow_oracle.py](../tests/test_message_flow_oracle.py) pins both properties.
+
+### 3.4 Simulation mechanics
 
 For each node v, the `FaultInjector` runs a BFS cascade in two sequential phases per wave.
 
@@ -242,7 +313,7 @@ For each node v, the `FaultInjector` runs a BFS cascade in two sequential phases
 2. **Orphan tracking.** If $L(t) > 10^{-6}$ the topic is marked orphaned and its not-yet-failed subscribers are marked impacted.
 3. **Stochastic subscriber failure.** For subscriber $s$ with mean feed loss $\text{sub\_loss}(s)$ over its subscribed topics, if $\text{sub\_loss}(s) \ge 0.2$ (the propagation threshold) it fails with probability $\min\left(1.0, \frac{\text{sub\_loss}(s)}{0.2}\right) \times \text{depth\_damp}$, where $\text{depth\_damp} = \max(0.25,\ 1.0 - \text{wave\_idx} \times 0.15)$ prevents runaway cascades.
 
-### 3.4 Ground truth derivation
+### 3.5 Ground truth derivation
 
 ```python
 rng_seeds = [seed + i * 37 for i in range(n_repeats)]   # default n_repeats = 5
@@ -808,7 +879,7 @@ rank, node_id, node_type, Q, R, M, A, S, I, cascade_depth, nodes_affected, is_ar
 | HSRR, DASA and RRI have no data source ([§5.5](#55-per-dimension-validation)) | Three of the four availability specialist metrics are unmeasured |
 | $I^*(v)$ and $I_{\text{comp}}(v)$ agree at mean ρ = 0.405 ([§3.2](#32-measured-agreement-between-the-oracles)) | Results are not transferable between the two entry points |
 | IM(v) and IS(v) share a substrate with M(v) and S(v) ([§2](#2-two-entry-points-two-gate-systems)) | Those two correlations are consistency checks, not independent tests |
-| Library-node I(v) is partially coupled to R(v) via Phase A ([§3.3](#33-simulation-mechanics)) | ρ restricted to Libraries is not a clean empirical test |
+| Library-node I(v) is partially coupled to R(v) via Phase A ([§3.4](#34-simulation-mechanics)) | ρ restricted to Libraries is not a clean empirical test |
 | 30–47 % of components carry no label | Topic and Node strata report `undefined`, not a score |
 | Top-K set membership churns ~40 % between label seeds on some scenarios ([§5.2](#52-rank-correlation-and-the-label-noise-ceiling)) | Every top-K-cut metric inherits that variance |
 

@@ -1005,28 +1005,35 @@ Every impact quantity defined above — `I*(v)`, `composite_impact`, `IR/IM/IA/I
 
 ### 9.2 The two constraints
 
-**Cost.** `MessageFlowSimulator(graph, duration, fault_node, fault_time, seed, …)` injects **one fault per run** ([§11.2](#112-messageflowsimulator)). A per-component Effectiveness/Efficiency oracle therefore costs one discrete-event run per candidate component, which is materially more expensive than the graph-based sweep that produces `I*(v)` — the reason the cheap oracle is the one wired into the pipeline today.
+**Cost.** `MessageFlowSimulator(graph, duration, fault_node, fault_time, seed, …)` injects **one fault per run** ([§11.2](#112-messageflowsimulator)). A per-component Effectiveness/Efficiency oracle therefore costs one discrete-event run per candidate component, which is materially more expensive than the graph-based sweep that produces `I*(v)` — the reason the cheap oracle remains the one wired into the training pipeline.
+
+Measured, the cost is tolerable at validation scale but not at training scale: at `duration=60`, sweeping `atm_system` (20 publishers) takes well under a minute, `healthcare_system` (39) and `microservices_system` (92) complete in a few minutes, while `iot_smart_city_system` exceeds two. Use `--max-candidates` in [reproduce/convergent_validity.py](../reproduce/convergent_validity.py) on the larger scenarios. This bounds `I_dyn` to a periodically-reported validity check rather than a per-epoch label source.
 
 **Unlocking Freedom from risk is not free.** Every topic in the corpus carries `frequency` (Hz) — 710 of 710 — so a deadline is derivable from the publication period. But emitting `deadline_ms` changes generated topology bytes: all `data/scenarios/*.json` would regenerate and the golden SHA-256 in `tests/test_generation_service.py` would need re-baselining, and simulation outputs produced before and after would not be comparable. That is a deliberate change to the Generate capability, not a side effect to slip into a simulation run.
 
-### 9.3 Design sketch — not implemented
+### 9.3 `I_dyn(v)` — the effectiveness term, implemented
 
-Should a Quality-in-Use-denominated oracle be wanted, it would re-summarize the existing per-fault record rather than add instrumentation:
+The effectiveness half of the sketch below is now built and reported as `I_dyn(v)`, the third oracle in [reproduce/convergent_validity.py](../reproduce/convergent_validity.py). The other two terms remain unavailable for the reasons given under each:
 
 ```
 I_QiU(v) = ( effectiveness_loss , efficiency_loss [, risk_loss] )
 
-effectiveness_loss = delivery_rate_before − delivery_rate_after
+effectiveness_loss = delivery_rate_before − delivery_rate_after   ← implemented as I_dyn(v)
 efficiency_loss    = (latency_p95_after − latency_p95_before) / latency_p95_before
+                     ← no signal at corpus load; see §12
 risk_loss          = deadline_violations_after / messages_delivered_after   ← always 0 today
 ```
 
-Two properties would matter for it to be usable:
+`I_dyn(v)` measures the loss suffered by the components that **survived** the fault. Both the faulted node's own receipts and its share of the fan-out are excluded from the before and after windows, and a silenced publisher's demand stays in the denominator. Neither is a detail: without them the score inverts, tracking how much a component consumed instead of how much depended on it (`ρ(I_dyn, I*) = −0.25` on `atm_system`, driven by `ρ = +0.75` against the faulted node's own subscription count). [tests/test_message_flow_oracle.py](../tests/test_message_flow_oracle.py) pins both properties.
 
-- **It is a third quantity, not a replacement.** `I*(v)` (the Predict-stage labeler) and `composite_impact` (the Validate-stage oracle) are already distinct and must not be conflated ([§2.1](#21-which-engine-is-canonical-for-what)); `I_QiU` would be a third named quantity under the same rule, leaving both existing meanings untouched.
-- **No new validation machinery is needed.** `cli/validate_graph.py harness` already accepts repeated `--ground-truth NAME=PATH[:qos]` sources and computes a convergent-validity block between every pair of them. Agreement between `I_QiU` and the cascade oracle would therefore be a *reported result* rather than an assumption — which is exactly the check that [criticality.md §7.1](criticality.md#71-the-validation-chain-has-two-links) says is missing.
+Two properties matter for it to be usable:
 
-Nothing in this section is implemented. It records what the existing outputs would support, so that the claim "impact is measured in Quality-in-Use terms" is not made before the aggregation exists.
+- **It is a third quantity, not a replacement.** `I*(v)` (the Predict-stage labeler) and `composite_impact` (the Validate-stage oracle) are already distinct and must not be conflated ([§2.1](#21-which-engine-is-canonical-for-what)); `I_dyn` is a third named quantity under the same rule, leaving both existing meanings untouched. It is **not** a gate and does **not** produce training labels.
+- **No new validation machinery is needed.** `cli/validate_graph.py harness` already accepts repeated `--ground-truth NAME=PATH[:qos]` sources and computes a convergent-validity block between every pair of them. Agreement between `I_dyn` and the cascade oracles is therefore a *reported result* rather than an assumption — which is exactly the check that [criticality.md §7.1](criticality.md#71-the-validation-chain-has-two-links) says is missing.
+
+Why it is worth the cost: `I*(v)` and `composite_impact` are both topological cascade engines over the same substrate, so their agreement cannot rule out a shared construction artifact — the objection that a topology-derived `Q(v)` is being validated against topology-derived labels. `I_dyn` observes message delivery under load instead of reachability over edges, so its agreement with `I*` is evidence of a different kind. Measured across the seven-scenario cohort at `duration=60`: mean `ρ(I_dyn, I*)` = **0.627** with a **minimum of 0.542**, against mean `ρ(I*, I_comp)` = 0.405 with a minimum of 0.060. The lifted floor is the substantive part — `I_dyn` has no worst case in this cohort, while the two topological oracles fall to near-independence on `healthcare_system`. Full table and the limits of the claim: [validation.md §3.3](validation.md#33-the-behavioural-oracle-i_textdynv).
+
+`I_dyn` is **delivery-based and QoS-agnostic** in this study. It does not measure latency or deadline conformance; see §12 for why.
 
 ---
 
@@ -1255,6 +1262,31 @@ decimal.
 > Running with `PYTHONHASHSEED=0` reproduces labels exactly. The one-line fix is to sort that
 > iteration, but doing so changes every published label value, so it is deliberately **not**
 > applied here — it is a re-baselining decision for the experiment owner, not a refactor.
+
+**L13 — Topic QoS never resolves on any scenario in the corpus.** `_extract_qos`
+([`message_flow_simulator.py`](../saag/simulation/message_flow_simulator.py)) reads `qos_profile`
+or `qos_policy` from the node's attributes, but the topology JSON states topic QoS under `qos`
+(`data/scenarios/atm_system.json`), and no file under `data/` uses either key that the simulator
+looks for. **Every** message-flow run in this corpus therefore resolves to the defaults:
+`RELIABLE`, `queue_size=100`, `deadline_ms=None`, `lifespan_ms=None`. The consequence is that
+`total_dropped_deadline`, `total_dropped_best_effort` and the lifespan path are structurally zero
+rather than measured-as-zero, and §4.3's QoS enforcement is untested against real inputs.
+
+Edge-level QoS does not compensate: `_project_topic_qos_onto_edges` writes `qos_profile` onto the
+pub/sub edges, but queues are constructed from *topic*-level QoS
+(`TopicFanout.register`), so edge `reliability` and `queue_size` reach nothing, and
+`QoSPolicy.to_dict()` emits only `durability`/`reliability`/`transport_priority` — never a
+deadline. `I_dyn(v)` is consequently a **delivery-based, QoS-agnostic** measure, and should be
+described as such rather than as a QoS-aware runtime oracle.
+
+**L14 — Latency carries no signal at corpus load.** At the corpus's publication rates (~1 Hz
+typical) against `default_processing_time_s = 0.001`, utilisation is far below saturation and
+queues never build. Measured on `atm_system`, `latency_p95` sits at ≈1.2 ms both before and after
+the fault for every faulted node, varying by less than the run-to-run jitter. `latency_p50_before/after`
+and `latency_p95_before/after` on `FaultEventRecord` are therefore **not usable as an impact
+dimension** — the `efficiency_loss` term in §9.3 would be dividing noise by noise. Making them
+meaningful needs a load multiplier that drives utilisation near saturation, which is an
+experimental-design change, not a bug fix.
 
 ---
 

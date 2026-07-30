@@ -188,7 +188,9 @@ class TopicFanout:
         Fan out *msg* to all live subscriber queues.
 
         Returns the number of queues the message was placed into.
-        Increments stats.total_published once regardless of fan-out width.
+        Increments stats.total_published once regardless of fan-out width —
+        including when no queue accepted it, so that this denominator agrees
+        with the windowed publish counters used for the fault-impact rates.
         """
         n_queued = 0
         for sub_id, sq in self._queues.items():
@@ -196,8 +198,7 @@ class TopicFanout:
                 continue
             if sq._try_put(msg, self.stats):
                 n_queued += 1
-        if n_queued > 0:
-            self.stats.total_published += 1
+        self.stats.total_published += 1
         return n_queued
 
     @property
@@ -238,9 +239,19 @@ def _publisher_process(
 
         yield env.timeout(interval)
 
+        # Count the demand this workload places on the topic in the correct time
+        # window, whether or not the publisher is still alive to serve it. A
+        # silenced publisher's subscribers still expect the feed, so its lost
+        # messages have to stay in the denominator — otherwise they leave the
+        # numerator and denominator together and the fault cancels itself out.
+        if fault_time is not None and env.now < fault_time:
+            window_counts["pre"] += 1
+        else:
+            window_counts["post"] += 1
 
+        # Failed publishers keep generating demand but emit nothing.
         if app_id in failed_nodes:
-            return
+            continue
 
         # Optional processing delay before publish
         if processing_time_s > 0:
@@ -254,12 +265,6 @@ def _publisher_process(
             created_at=env.now,
         )
         fanout.publish(msg, failed_nodes)
-
-        # BUG-MFS-2 FIX: count publishes in the correct time window
-        if fault_time is not None and env.now < fault_time:
-            window_counts["pre"] += 1
-        else:
-            window_counts["post"] += 1
 
 
 
@@ -311,6 +316,8 @@ def _subscriber_process(
         if app_id in failed_nodes:
             # Message is already dequeued and lost — count as missed
             sub_stats.missed_per_topic[received_key] += 1
+            if fault_time is not None and env.now >= fault_time:
+                sub_stats.missed_post_fault += 1
             return
 
         enqueue_time = msg.created_at
@@ -324,9 +331,13 @@ def _subscriber_process(
         delivery_time = env.now
         e2e_latency_ms = (delivery_time - enqueue_time) * 1000.0
 
+        post_fault = fault_time is not None and arrival_time >= fault_time
+
         # Lifespan check (message may have expired while queued)
         if qos.lifespan_ms is not None and e2e_latency_ms > qos.lifespan_ms:
             sub_stats.missed_per_topic[received_key] += 1
+            if post_fault:
+                sub_stats.missed_post_fault += 1
             continue
 
         # Deadline check (DDS deadline = end-to-end)
@@ -334,21 +345,24 @@ def _subscriber_process(
             sub_stats.deadline_violations_per_topic[received_key] += 1
             topic_stats.total_dropped_deadline += 1
             sub_stats.missed_per_topic[received_key] += 1
+            if post_fault:
+                sub_stats.missed_post_fault += 1
             continue
 
         # Delivered
         sub_stats.received_per_topic[received_key] += 1
         topic_stats.total_delivered += 1
 
-        # BUG-MFS-2 FIX: count deliveries in the correct time window
+        # BUG-MFS-2 FIX: count deliveries in the correct time window.
+        # Mirrored onto sub_stats so _annotate_fault_cascade can subtract the
+        # faulted node's own receipts out of both windows.
         if fault_time is not None and arrival_time < fault_time:
             delivery_window_counts["pre"] += 1
+            sub_stats.received_pre_fault += 1
         else:
             delivery_window_counts["post"] += 1
-
-        # Post-fault tracking on sub_stats
-        if fault_time is not None and arrival_time >= fault_time:
-            sub_stats.received_post_fault += 1
+            if fault_time is not None:
+                sub_stats.received_post_fault += 1
 
         # Latency sample
         if len(topic_stats.latency_samples) < max_latency_samples:
@@ -522,11 +536,17 @@ class MessageFlowSimulator:
         pub_window: Dict[str, Dict[str, int]],
         del_window: Dict[str, Dict[str, int]],
         latency_windows: Dict[str, list],
+        sub_stats: Dict[str, SubscriberFlowStats],
     ) -> None:
         """
         Fill in what the fault actually cost: which topics it orphaned, which
         subscribers lost a feed, and the delivery/latency shift across the
         fault boundary.
+
+        The delivery rates measure harm to the components that *survived*. The
+        faulted node's own undelivered messages are excluded from both windows:
+        counting them makes the impact score track how much the node consumed
+        rather than how much the rest of the system depended on it.
         """
         # A topic is only orphaned if the faulted node was its *last* publisher.
         publishers_of: Dict[str, Set[str]] = defaultdict(set)
@@ -542,14 +562,27 @@ class MessageFlowSimulator:
         })
 
         # Delivery rates come from the windowed counters, normalised against
-        # fan-out (one publish becomes N expected deliveries).
+        # fan-out (one publish becomes N expected deliveries). Both the faulted
+        # node's receipts and its share of the fan-out are removed, so the two
+        # windows describe the same surviving population.
+        faulted = sub_stats.get(self.fault_node)
+        own = {
+            "pre": faulted.received_pre_fault if faulted else 0,
+            "post": faulted.received_post_fault if faulted else 0,
+        }
+        surviving_subs = {
+            tid: len([s for s in fo.subscriber_ids if s != self.fault_node])
+            for tid, fo in fanouts.items()
+        }
+
         def _rate(window: str) -> float:
-            delivered = sum(dw[window] for dw in del_window.values())
+            delivered = sum(dw[window] for dw in del_window.values()) - own[window]
             expected = sum(
-                pub_window[tid][window] * max(1, len(fanouts[tid].subscriber_ids))
-                for tid in fanouts
+                pub_window[tid][window] * surviving_subs[tid] for tid in fanouts
             )
-            return min(1.0, delivered / expected if expected else 0.0)
+            if not expected:
+                return 0.0
+            return min(1.0, max(0.0, delivered / expected))
 
         record.cascade_silenced_publishers = [self.fault_node]
         record.cascade_orphaned_topics = orphaned
@@ -661,9 +694,11 @@ class MessageFlowSimulator:
 
         total_delivered = sum(ts.total_delivered for ts in topic_stats.values())
         # A message is "fully delivered" once every subscriber receives it, so
-        # normalise against published × fan-out to get a per-copy rate.
+        # normalise against published × fan-out to get a per-copy rate. Topics
+        # with no subscribers drop out rather than being credited an expectation
+        # that nobody actually holds.
         total_expected = sum(
-            ts.total_published * max(1, len(fanouts[tid].subscriber_ids))
+            ts.total_published * len(fanouts[tid].subscriber_ids)
             for tid, ts in topic_stats.items()
         )
         system_delivery = total_delivered / total_expected if total_expected else 0.0
@@ -671,8 +706,14 @@ class MessageFlowSimulator:
         if fault_event_record is not None:
             self._annotate_fault_cascade(
                 fault_event_record, edges, fanouts,
-                pub_window, del_window, latency_windows,
+                pub_window, del_window, latency_windows, sub_stats,
             )
+
+        # This engine can only observe components that carry pub/sub traffic.
+        # Brokers (ROUTES) and Nodes (RUNS_ON) are invisible to it, so faulting
+        # one is a no-op — they are reported unlabelled rather than scored 0.0,
+        # because an omitted component is unmeasured, not measured as harmless.
+        labeled = {s for s, _, _ in pub_edges} | {s for s, _, _ in sub_edges}
 
         return MessageFlowResult(
             graph_id=self.graph.graph.get("id", ""),
@@ -687,4 +728,6 @@ class MessageFlowSimulator:
             total_queue_overflows=sum(ts.total_dropped_queue_full for ts in topic_stats.values()),
             topic_stats=topic_stats,
             subscriber_stats=sub_stats,
+            labeled_node_ids=sorted(labeled),
+            unlabeled_node_ids=sorted(set(self.graph.nodes) - labeled),
         )

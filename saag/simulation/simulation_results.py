@@ -251,7 +251,10 @@ class SubscriberFlowStats:
     missed_per_topic: Dict[str, int] = field(default_factory=dict)       # topic_id → count
     deadline_violations_per_topic: Dict[str, int] = field(default_factory=dict)
 
-    # Post-fault statistics (populated only when fault injection is enabled)
+    # Fault-windowed statistics (populated only when fault injection is enabled).
+    # Both windows are recorded so that a faulted node's own receipts can be
+    # subtracted out of the before/after comparison.
+    received_pre_fault: int = 0
     received_post_fault: int = 0
     missed_post_fault: int = 0
 
@@ -278,6 +281,7 @@ class SubscriberFlowStats:
             "total_received": self.total_received,
             "total_missed": self.total_missed,
             "overall_delivery_rate": round(self.overall_delivery_rate, 4),
+            "received_pre_fault": self.received_pre_fault,
             "received_post_fault": self.received_post_fault,
             "missed_post_fault": self.missed_post_fault,
         }
@@ -328,6 +332,15 @@ class MessageFlowResult:
     topic_stats: Dict[str, TopicFlowStats] = field(default_factory=dict)
     subscriber_stats: Dict[str, SubscriberFlowStats] = field(default_factory=dict)
 
+    # Which components this engine could actually observe. It sees only
+    # PUBLISHES_TO / SUBSCRIBES_TO traffic, so Brokers (ROUTES) and Nodes
+    # (RUNS_ON) are structurally invisible: faulting one is a no-op. They are
+    # listed as unlabelled rather than scored 0.0, so that a component nobody
+    # measured is never mistaken for one measured to be harmless.
+    labeler: str = "MessageFlowSimulator"
+    labeled_node_ids: List[str] = field(default_factory=list)
+    unlabeled_node_ids: List[str] = field(default_factory=list)
+
     def to_dict(self) -> Dict[str, Any]:
         d = {
             "schema_version": self.schema_version,
@@ -343,6 +356,9 @@ class MessageFlowResult:
             "total_queue_overflows": self.total_queue_overflows,
             "topic_stats": {tid: ts.to_dict() for tid, ts in self.topic_stats.items()},
             "subscriber_stats": {sid: ss.to_dict() for sid, ss in self.subscriber_stats.items()},
+            "labeler": self.labeler,
+            "labeled_node_ids": self.labeled_node_ids,
+            "unlabeled_node_ids": self.unlabeled_node_ids,
         }
         return d
 
