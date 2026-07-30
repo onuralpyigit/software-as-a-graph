@@ -1,9 +1,9 @@
 # Experimental Harness & Evaluation Suite
 
 This document provides a technical deep-dive into the reproducibility infrastructure for the paper
-**"Heterogeneous Graph Learning for Cascade Impact Prediction in Distributed Publish-Subscribe
-Middleware"** (originally submitted to Middleware 2026; now extended for the JSS special issue
-VSI:AI4MSS — see `docs/research/jss/si_middleware_extension.md`).
+**"Graph Neural Networks for Reliability and Dependability Analysis in Complex Distributed Systems
+based on Publish–Subscribe Architecture"** (JSS special issue VSI:AI4MSS — see
+`docs/research/jss/draft.md`).
 
 ---
 

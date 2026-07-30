@@ -226,7 +226,7 @@ class HomogeneousGAT_Unweighted(_HomoGATBase):
 
     Ablation: topology structure only (no QoS signal at all).
 
-    Paper name: **GL** (Table 1, docs/research/jss/si_middleware_extension.md). Internal
+    Paper name: **GL** (Section 7.2, docs/research/jss/draft.md). Internal
     identifier ``homo_unweighted`` (CLI ``--variant``, checkpoint/output naming) predates the
     paper's terminology and is kept as-is to avoid a wide, low-value rename across
     api/routers/prediction.py, cli/train_graph.py, scripts/train_all_variants.sh, and
@@ -271,7 +271,7 @@ class HomogeneousGAT_ScalarWeighted(_HomoGATBase):
     Ablation: captures the bulk QoS signal (w(e) = 0.3·R + 0.4·D + 0.3·P)
     without per-dimension decomposition.  Sits between Unweighted and HeteroQoS.
 
-    Paper name: **GL-QoS** (Table 1, docs/research/jss/si_middleware_extension.md). Internal
+    Paper name: **GL-QoS** (Section 7.2, docs/research/jss/draft.md). Internal
     identifier ``homo_scalar`` kept as-is; see HomogeneousGAT_Unweighted's docstring for why.
     """
 

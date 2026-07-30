@@ -355,8 +355,8 @@ class ImpactMetrics:
     solely by ``saag.simulation.fault_injector.FaultInjector`` (rate-weighted feed-loss fractions
     times topic QoS factors) and reported as ``FaultInjectionRecord.impact_score``. The two
     engines compute genuinely different quantities from genuinely different formulas; see
-    docs/research/jss/si_middleware_extension.md Section 3 ("Formal Definitions") for the
-    canonical I*(v) definition.
+    docs/research/jss/draft.md Section 7.5 ("Ground Truth: Two Oracles") for the canonical
+    I*(v) definition and the measured agreement between the two engines.
     """
     initial_paths: int = 0
     remaining_paths: int = 0

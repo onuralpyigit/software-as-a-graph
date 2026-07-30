@@ -1,10 +1,12 @@
 # Reproducing HGL-QoS
 
-> **Heterogeneous Graph Learning for Cascade Impact Prediction in Distributed Publish-Subscribe Middleware**
-> Originally submitted to ACM Middleware 2026 (rejected); revised and extended for submission to the
-> *Journal of Systems and Software* Special Issue **VSI:AI4MSS** (AI Techniques for Performance,
-> Reliability, and Sustainability of Modern Software Systems). See
-> `docs/research/jss/si_middleware_extension.md` for the paper text this package reproduces.
+> **Graph Neural Networks for Reliability and Dependability Analysis in Complex Distributed Systems
+> based on Publish–Subscribe Architecture**
+> Submitted to the *Journal of Systems and Software* Special Issue **VSI:AI4MSS** (AI Techniques for
+> Performance, Reliability, and Sustainability of Modern Software Systems). See
+> `docs/research/jss/draft.md` for the paper text this package reproduces, and
+> `docs/research/jss/methodology_revision_findings.md` for the pre-submission audit that regenerated
+> its numbers.
 
 This directory contains everything needed to reproduce the paper's results from scratch.
 A Docker image is provided for exact environment replication.
@@ -65,12 +67,13 @@ make -f reproduce/Makefile table3
 # Output: results/table3_main_results.tex  /  .csv  /  .md
 ```
 
-> **Table-number mapping.** This harness's internal name "Table 3" predates the JSS revision. In
-> the current paper (`si_middleware_extension.md`), this output corresponds to **Table 4** (Global
-> Ranking Performance) and **Table 5** (Identification and Regression Metrics) — table numbers
-> shifted when Table 2b/3 (scenario characterization) were inserted earlier in the paper during the
-> JSS extension. The underlying evaluation design is unchanged: 7 scenarios × 6 variants × 5 seeds
-> = 210 cells (140 GNN + 70 structural), matching the paper's Table 1 factorial design exactly.
+> **Table-number mapping.** This harness's internal name "Table 3" is also the paper's: in
+> `draft.md` §8.1 this output is the in-distribution Spearman ρ table (Table 3), with the LOSO table
+> below it (Table 4). The evaluation design is 7 scenarios × 6 variants × 5 seeds = 210 cells
+> (140 GNN + 70 structural), over the predictor matrix of `draft.md` §7.2. Every variant is scored
+> through the single evaluation contract described in §7.3 — one key set, one pinned split — which
+> is a correction over earlier runs of this harness and is why its numbers supersede any figures
+> quoted from a pre-audit draft.
 
 ### Step 3 — Table 4 → paper's Table 7 (LOSO inductive, ~3–8 h CPU)
 

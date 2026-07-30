@@ -150,3 +150,11 @@ smart/node_modules/
 smart/.next/
 smart/out/
 smart/.env*
+
+# LaTeX build artifacts (manuscripts under docs/research/; *.log already covered above)
+*.aux
+*.out
+*.spl
+*.bbl
+*.blg
+*.synctex.gz

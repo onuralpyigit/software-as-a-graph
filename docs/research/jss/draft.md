@@ -1050,16 +1050,16 @@ The stage obeys three invariants that mirror the predictor/simulator separation 
 
 1. **Generate never reads $I(v)$.** Candidate edits come from structure and attribution only.
 2. **Verify re-invokes the canonical simulator** on $G'$ from scratch, rather than estimating the
-   counterfactual impact from the predictor. In the current implementation this re-simulation is
-   performed once on the fully mutated graph (all compiled edits applied together), not once per
-   individual candidate edit — see §6.4 for what that gap means for the accept/reject semantics.
+   counterfactual impact from the predictor. The re-simulation is performed *per candidate edit*, on
+   a graph containing that edit alone, across the propagation-threshold sweep and the seed set; only
+   the accepted subset is then applied and re-checked at system level (§6.4).
 3. **No Verify result feeds back into Generate within a run.** There is no closed-loop search that
    would let simulated impact influence which edits are proposed, which would reintroduce the
    circularity the framework is built to avoid.
 
 Together these keep the diagnostic and evaluation signals separate: the thing that proposes a fix
-and the thing that measures it are never the same signal, even though — per §6.4 — the measurement
-is not yet used to filter individual proposals.
+and the thing that measures it are never the same signal, so an edit is admitted only on evidence
+the proposing signal did not produce.
 
 ## 6.6 CI/CD Quality Gate Implementation
 
@@ -1678,20 +1678,24 @@ criticality into orthogonal, interpretable RMAV dimensions (integrating local co
 and failure-impact analysis, which predicts cascade impact with both the interpretable composite and
 a learned heterogeneous graph transformer, validated against discrete-event simulation under a
 strict input–label independence guarantee. A prescriptive remediation stage generates topology-level
-hardening edits from structure alone and measures their effect end to end against the canonical
-simulator; we report that measurement honestly as a mixed result, since the per-edit acceptance test
-that would filter out counterproductive edits is not yet implemented (§6.4, §6.7).
+hardening edits from structure alone and verifies each one individually against the canonical
+simulator, admitting it only when its benefit exceeds the simulator's own seed noise at every
+propagation threshold; under that filter 29 of 213 candidates survive and five of six scenarios
+admit no edit, which we report as the substantive — and negative — result of that stage (§6.4, §6.7).
 
 Integrated directly into pipelines as a delta-aware, blocking CI/CD Quality Gate, the framework
 verifies architectural changes and blocks regression in seconds, bridging the "Architecture-Code
-Gap" at commit time. Across a synthetic scenario suite, the framework shows when interpretable
-attribution suffices and when learning is required, exposes failure modes — a shared-library blast
-radius and a node-type stratification effect — that single-score centrality cannot, and demonstrates
-that attribution computed entirely before deployment can be made both legible and actionable. By
-taking the *type* of every component and
-dependency seriously, the framework recovers structure that untyped, single-dimensional methods
-discard, and does so at the point in the lifecycle where it is most valuable: before the system
-runs.
+Gap" at commit time. Across a synthetic scenario suite, the framework establishes a scope condition
+on where typed graph learning pays — in-distribution it leads on both ranking and critical-set
+identification, while out of distribution its advantage narrows to identifying *which* components
+belong on a shortlist ($F_1@K = 0.548$ vs $0.416$) as a training-free QoS-weighted centrality matches
+it on rank correlation ($\rho = 0.609$ vs $0.597$). Alongside that, measuring edge criticality by
+removal rather than inferring it from endpoints shows most individual links to be replaceable and
+exposes a class of relations the cascade model cannot express at all, and stratified rather than
+pooled reporting caught a distortion that moved a headline figure by 0.38. By taking the *type* of
+every component and dependency seriously, the framework recovers structure that untyped,
+single-dimensional methods discard, and does so at the point in the lifecycle where it is most
+valuable: before the system runs.
 
 ---
 

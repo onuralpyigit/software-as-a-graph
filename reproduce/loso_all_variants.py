@@ -4,8 +4,8 @@ reproduce/loso_all_variants.py — Block E: LOSO × 4 variants
 =========================================================
 
 Runs cli/loso_evaluate.py for each of the 4 model variants (gl, gl_qos, hgl, hgl_qos; see
-ALL_VARIANTS below) and aggregates results into a unified JSON for the paper's Table 7
-(Leave-One-Scenario-Out Cross-Validation Results, docs/research/jss/si_middleware_extension.md).
+ALL_VARIANTS below) and aggregates results into a unified JSON for the paper's LOSO table
+(Leave-One-Scenario-Out Cross-Validation Results, docs/research/jss/draft.md Section 8.1).
 
 Usage
 -----

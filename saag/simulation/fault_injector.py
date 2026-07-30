@@ -12,7 +12,7 @@ when computing Spearman ρ between the topology-derived Q(v) predictor and
 observed impact.
 
 This is the SOLE engine that produces the I*(v) ground truth reported in
-docs/research/jss/si_middleware_extension.md (the HGL/HGL-QoS/GL/GL-QoS/
+docs/research/jss/draft.md Section 7.5 (the HGL/HGL-QoS/GL/GL-QoS/
 Topo-BL/Topo-QoS evaluation). Do not confuse this with the differently-named
 "impact"/"I(v)" quantities elsewhere in this package -- e.g.
 saag.simulation.models.ImpactMetrics.composite_impact and its IR(v)/IM(v)/
@@ -83,8 +83,8 @@ from saag.core.models import QoSPolicy, topic_weight_from_node_attrs
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# I*(v) simulation-softening constants (see docs/research/jss/si_middleware_extension.md,
-# Section 3 "Formal Definitions" -- these are the canonical values reported there).
+# I*(v) simulation-softening constants (see docs/research/jss/draft.md,
+# Section 7.5 "Ground Truth: Two Oracles" -- the canonical values reported there).
 # ─────────────────────────────────────────────────────────────────────────────
 
 #: Recommended multi-seed set for stable, reproducible I*(v) estimates.

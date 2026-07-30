@@ -50,7 +50,7 @@ class TrainRequest(BaseModel):
             "'homo_unweighted' (flat GAT, no edge_attr), "
             "'homo_scalar' (flat GAT, scalar weight), "
             "'topology_rmav' (RMAV baseline, no GNN). "
-            "Paper-name mapping (docs/research/jss/si_middleware_extension.md Table 1): "
+            "Paper-name mapping (docs/research/jss/draft.md Section 7.2): "
             "hetero_qos=HGL-QoS, homo_unweighted=GL, homo_scalar=GL-QoS."
         ),
     )

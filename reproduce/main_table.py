@@ -3,15 +3,15 @@
 reproduce/main_table.py — Block C: Main Results Table Harness
 ======================================================================
 
-Orchestrates the 7×6×5 evaluation matrix behind Table 1 / Tables 4-6 of the paper
-(docs/research/jss/si_middleware_extension.md):
+Orchestrates the 7×6×5 evaluation matrix behind Table 3 of the paper
+(docs/research/jss/draft.md Section 8.1):
   7 scenarios × 6 variants × 5 seeds = 210 evaluation cells
   (140 GNN training runs + 70 closed-form structural baseline computations),
   matching the paper's "210 evaluation cells: 140 trained GNN models and 70
   structural-baseline computations" exactly (see ALL_SCENARIOS / ALL_VARIANTS below).
 
-  Factorial design (2×3: architecture × qos), paper names (Table 1) with this file's
-  ALL_VARIANTS identifiers in parentheses:
+  Factorial design (2×3: architecture × qos), paper names (draft.md Section 7.2) with
+  this file's ALL_VARIANTS identifiers in parentheses:
     Structural BL : Topo-BL (topo_baseline) | Topo-QoS (topo_qos)
     Homogeneous   : GL      (gl)            | GL-QoS   (gl_qos)
     Heterogeneous : HGL     (hgl)           | HGL-QoS  (hgl_qos)
