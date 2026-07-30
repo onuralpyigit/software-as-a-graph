@@ -1,5 +1,5 @@
 """
-Tests for Step 6: Visualization
+Tests for Step 7: Visualization
 
 Validates the visualization pipeline components:
     - LayerData model (Definition 9: input aggregation)
@@ -17,13 +17,9 @@ import pytest
 from unittest.mock import MagicMock, patch, PropertyMock
 from dataclasses import dataclass
 
-from saag.visualization import (
-    LayerData, ComponentDetail, LAYER_DEFINITIONS,
-)
-from saag.visualization.models import ChartOutput, ColorTheme, DEFAULT_THEME
-from saag.visualization.charts import (
-    ChartGenerator, CRITICALITY_COLORS, RMAS_COLORS,
-)
+from saag.visualization import LayerData, ComponentDetail
+from saag.visualization.charts import ChartGenerator
+from saag.visualization.palette import CRITICALITY_COLORS, RMAS_COLORS
 from saag.visualization.dashboard import DashboardGenerator
 from saag.visualization.collector import LayerDataCollector
 from saag.visualization import VisualizationService
@@ -70,34 +66,6 @@ class TestLayerData:
         data.low_count = 4
         data.minimal_count = 1
         assert data.total_classified == 15
-
-    def test_scale_category_small(self):
-        """Systems with < 50 nodes are 'small'."""
-        data = LayerData(layer="app", name="App")
-        data.nodes = 30
-        assert data.scale_category == "small"
-        assert not data.recommend_matrix_only
-
-    def test_scale_category_medium(self):
-        """Systems with 50-200 nodes are 'medium'; matrix-only is recommended for >80 nodes."""
-        data = LayerData(layer="app", name="App")
-        data.nodes = 100
-        assert data.scale_category == "medium"
-        assert data.recommend_matrix_only
-
-    def test_scale_category_large(self):
-        """Systems with 200-500 nodes are 'large' and recommend matrix only."""
-        data = LayerData(layer="app", name="App")
-        data.nodes = 300
-        assert data.scale_category == "large"
-        assert data.recommend_matrix_only
-
-    def test_scale_category_xlarge(self):
-        """Systems with >= 500 nodes are 'xlarge'."""
-        data = LayerData(layer="app", name="App")
-        data.nodes = 2000
-        assert data.scale_category == "xlarge"
-        assert data.recommend_matrix_only
 
     def test_has_validation_true(self):
         """has_validation is True when spearman > 0."""
@@ -190,25 +158,6 @@ class TestChartGenerator:
         )
         assert html is None
 
-    def test_impact_ranking_generates_html(self):
-        """§6.4.3: impact_ranking returns bar chart HTML."""
-        data = [
-            ("sensor_fusion", 0.84, "CRITICAL"),
-            ("main_broker", 0.80, "CRITICAL"),
-            ("planning", 0.64, "HIGH"),
-        ]
-        html = self.charts.impact_ranking(data)
-        assert html is not None
-        assert "<canvas" in html
-
-    def test_impact_ranking_with_names(self):
-        """impact_ranking uses name mapping when provided."""
-        data = [("sf", 0.84, "CRITICAL")]
-        names = {"sf": "Sensor Fusion"}
-        html = self.charts.impact_ranking(data, names=names)
-        assert html is not None
-        assert "Sensor Fusion" in html
-
     def test_rmav_breakdown_generates_html(self):
         """§6.4.3: rmav_breakdown returns stacked bar chart."""
         components = [
@@ -262,13 +211,6 @@ class TestChartGenerator:
             "Infra Layer": {"Critical": 1, "High": 2},
         }
         html = self.charts.grouped_bar_chart(data, "Test Chart")
-        assert html is not None
-        assert "<canvas" in html
-
-    def test_pie_chart(self):
-        """pie_chart generates generic pie chart."""
-        data = {"Application": 10, "Broker": 3, "Node": 5}
-        html = self.charts.pie_chart(data)
         assert html is not None
         assert "<canvas" in html
 
@@ -680,74 +622,29 @@ class TestColorConstants:
             assert dim in RMAS_COLORS
             assert RMAS_COLORS[dim].startswith("#")
 
-    def test_layer_definitions_complete(self):
-        """All four layers are defined with required fields."""
-        expected = {"app", "infra", "mw", "system"}
-        assert set(LAYER_DEFINITIONS.keys()) == expected
-        for layer, defn in LAYER_DEFINITIONS.items():
-            assert "name" in defn
-            assert "description" in defn
-            assert "icon" in defn
-# =========================================================================
-# Merged Unit Tests from test_visualization.py
-# =========================================================================
-
-class TestColorTheme:
-    """Tests for configurable color themes."""
-    
-    def test_default_theme_has_all_colors(self):
-        """Default theme should have all required color attributes."""
-        theme = DEFAULT_THEME
-        assert theme.primary == "#3498db"
-        assert theme.success == "#2ecc71"
-        assert theme.danger == "#e74c3c"
-        assert theme.critical == "#e74c3c"
-        assert theme.layer_app == "#3498db"
-    
-    def test_custom_theme_override(self):
-        """Custom theme should override default colors."""
-        theme = ColorTheme(primary="#ff0000", success="#00ff00")
-        assert theme.primary == "#ff0000"
-        assert theme.success == "#00ff00"
-        # Non-overridden should use defaults
-        assert theme.danger == "#e74c3c"
-    
-    def test_theme_to_dict_conversions(self):
-        """Theme should convert to backwards-compatible dictionaries."""
-        theme = ColorTheme()
-        
-        colors_dict = theme.to_colors_dict()
-        assert "primary" in colors_dict
-        assert "danger" in colors_dict
-        
-        crit_dict = theme.to_criticality_dict()
-        assert "CRITICAL" in crit_dict
-        assert "LOW" in crit_dict
-        
-        layer_dict = theme.to_layer_dict()
-        assert "app" in layer_dict
-        assert "system" in layer_dict
-
-
-class TestChartOutput:
-    """Tests for chart output dataclass."""
-    
-    def test_chart_output_has_alt_text(self):
-        """ChartOutput should support alt_text for accessibility."""
-        chart = ChartOutput(
-            title="Test Chart",
-            png_base64="abc123",
-            alt_text="A bar chart showing component distribution"
+    def test_palette_is_the_single_source_of_criticality_colors(self):
+        """Badge colours are generated from the same palette as chart colours."""
+        from saag.visualization.palette import (
+            CRITICALITY_BADGE_COLORS, criticality_badge_css,
         )
-        assert chart.alt_text == "A bar chart showing component distribution"
-    
-    def test_chart_output_defaults(self):
-        """ChartOutput should have sensible defaults."""
-        chart = ChartOutput(title="Test", png_base64="data")
-        assert chart.description == ""
-        assert chart.alt_text == ""
-        assert chart.width == 600
-        assert chart.height == 400
+        assert set(CRITICALITY_BADGE_COLORS) == set(CRITICALITY_COLORS)
+        css = criticality_badge_css()
+        for level in CRITICALITY_COLORS:
+            assert f".badge-{level.lower()}" in css
+
+
+class TestLayerNaming:
+    """Layer names resolve through the canonical saag.core definitions."""
+
+    def test_layer_display_names_come_from_core(self):
+        from saag.core.layers import AnalysisLayer, LAYER_DEFINITIONS
+        for layer in ("app", "infra", "mw", "system"):
+            assert LAYER_DEFINITIONS[AnalysisLayer.from_string(layer)].name
+
+    def test_visualization_does_not_redefine_layers(self):
+        """CLAUDE.md invariant: layers are defined once, in saag.core.layers."""
+        import saag.visualization.models as viz_models
+        assert not hasattr(viz_models, "LAYER_DEFINITIONS")
 
 
 class TestDashboardGeneration:
@@ -769,3 +666,65 @@ class TestDashboardGeneration:
         assert "Metric 1" in html
         assert "100" in html
         assert "<td>A</td>" in html
+
+
+# =========================================================================
+# build_html(): the pure assembly stage shared by the CLI demo and the
+# production pipeline.
+# =========================================================================
+
+class TestBuildHtml:
+    """Tests for VisualizationService.build_html()."""
+
+    @staticmethod
+    def _service() -> VisualizationService:
+        # build_html() is pure, so unwired backends are sufficient.
+        return VisualizationService(None, None, None, None, None)
+
+    def test_demo_fixture_renders_all_six_tabs(self):
+        """--demo drives the production assembler, not a parallel one."""
+        from cli.visualize_graph import _demo_layer_data
+
+        html = self._service().build_html([_demo_layer_data()])
+
+        for tab_id in ("overview", "components", "validation",
+                       "cascade", "topology", "hierarchy"):
+            assert f'id="tab-{tab_id}"' in html
+
+    def test_widget_css_classes_are_defined(self):
+        """
+        Regression guard: the RMAV segmented bar and the per-dimension ρ bars
+        emit these classes, and previously nothing defined them.
+        """
+        from cli.visualize_graph import _demo_layer_data
+
+        html = self._service().build_html([_demo_layer_data()])
+
+        for css_class in (".rmas-bar", ".rmas-seg", ".dim-row",
+                          ".dim-bar-outer", ".dim-bar-inner", ".dim-val"):
+            assert css_class in html, f"{css_class} used but never styled"
+
+    def test_rmav_segments_carry_a_single_style_attribute(self):
+        """A duplicate style= made the browser drop every segment width."""
+        import re
+        from cli.visualize_graph import _demo_layer_data
+
+        html = self._service().build_html([_demo_layer_data()])
+
+        segments = re.findall(r'<div class="rmas-seg"[^>]*>', html)
+        assert segments
+        for seg in segments:
+            assert seg.count("style=") == 1
+            assert "width:" in seg
+
+    def test_build_html_touches_no_filesystem(self, tmp_path):
+        """build_html() is pure — generate_dashboard() owns the write."""
+        from cli.visualize_graph import _demo_layer_data
+
+        before = set(tmp_path.iterdir())
+        self._service().build_html([_demo_layer_data()])
+        assert set(tmp_path.iterdir()) == before
+
+    def test_empty_layer_list_rejected(self):
+        with pytest.raises(ValueError):
+            self._service().build_html([])

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Graph Visualization CLI (Step 6)
+Graph Visualization CLI (Step 7)
 ================================
 Generates multi-layer analysis dashboards using the VisualizationService.
 
@@ -22,7 +22,6 @@ Usage
       --open
 """
 
-import json
 import sys
 from pathlib import Path
 
@@ -34,28 +33,19 @@ import argparse
 import webbrowser
 import os
 from saag import Client
+from saag.visualization import ComponentDetail, LayerData, VisualizationService
 from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay
 
 
-def run_demo(output_file: str, open_browser: bool) -> int:
-    """Generate a demo dashboard with sample data (no Neo4j required).
-
-    Exercises all chart code paths — criticality, RMAV breakdown, scatter,
-    cascade risk (§6.4.5), multi-seed stability (§6.4.6), and dim-ρ bars —
-    so the demo mode is a useful smoke test for the visualization layer.
+def _demo_layer_data() -> LayerData:
     """
-    display = ConsoleDisplay()
-    display.print_header("Software-as-a-Graph Demo Mode")
-    display.print_step("Generating mock analysis data...")
+    Hand-built LayerData covering every optional dashboard section.
 
-    from saag.visualization import LayerData, ComponentDetail
-    from saag.visualization.charts import ChartGenerator
-    from saag.visualization.dashboard import DashboardGenerator
-
-    dash = DashboardGenerator("Software-as-a-Graph Demo Dashboard")
-    charts = ChartGenerator()
-
+    Feeding this through VisualizationService.build_html() renders exactly
+    the production dashboard, so --demo doubles as a smoke test that needs
+    no Neo4j.
+    """
     # ── Core layer data ──────────────────────────────────────────────────────
     demo_data = LayerData(
         layer="system", name="Demo System", nodes=48, edges=127, density=0.056,
@@ -145,111 +135,63 @@ def run_demo(output_file: str, open_browser: bool) -> int:
     demo_data.cascade_wilcoxon_p = 0.031
     demo_data.cascade_delta_rho = 0.052
 
-    # ── Tab 1: Executive Overview ──────────────────────────────────────────
-    dash.add_tab("Overview", "overview")
-    dash.start_section("📊 Demo Overview")
-    dash.add_kpis(
-        {"Total components": 14, "Critical / SPOFs": "2 / 2", "Validation \u03c1": 0.876, "F1 score": 0.893},
-        {"Critical / SPOFs": "danger", "Validation \u03c1": "success"}
-    )
+    # Topology: drives both the Cytoscape network and the dependency matrix.
+    demo_data.network_nodes = [
+        {
+            "id": c.id,
+            "label": c.name,
+            "type": c.type,
+            "level": c.level,
+            "value": c.overall * 30 + 10,
+            "title": f"<b>{c.id}</b><br>Type: {c.type}<br>Q(v): {c.overall:.3f}",
+        }
+        for c in demo_data.component_details
+    ]
+    demo_data.network_edges = [
+        {"source": "sensor_fusion",   "target": "main_broker",     "weight": 2.5},
+        {"source": "planning_engine", "target": "main_broker",     "weight": 1.2},
+        {"source": "main_broker",     "target": "telemetry_topic", "weight": 1.0},
+        {"source": "planning_engine", "target": "nav_lib",         "weight": 1.0},
+    ]
+
+    demo_data.anti_patterns = [
+        {
+            "pattern_id": "SPOF",
+            "name": "Single Point of Failure",
+            "severity": "critical",
+            "description": "Main Broker is an articulation point — its removal partitions the graph.",
+            "components": ["main_broker"],
+        },
+    ]
+
+    demo_data.gates = {
+        "G1_spearman": True, "G2_f1": True,
+        "G3_precision": True, "G4_top5": True,
+    }
+
+    return demo_data
+
+
+def run_demo(output_file: str, open_browser: bool) -> int:
+    """Generate a demo dashboard with sample data (no Neo4j required)."""
+    display = ConsoleDisplay()
+    display.print_header("Software-as-a-Graph Demo Mode")
+    display.print_step("Generating mock analysis data...")
+
+    demo_data = _demo_layer_data()
 
     display.print_step("Assembling interactive charts...")
-    charts_main = []
-    if c := charts.criticality_distribution(demo_data.classification_distribution):
-        charts_main.append(c)
-    if c := charts.rmav_breakdown(demo_data.component_details, "RMAV dimension comparison — top 6", top_n=6):
-        charts_main.append(c)
-    dash.add_charts(charts_main)
-    
-    dash.add_top5_bars(demo_data.component_details)
-    dash.end_section()
-    dash.end_tab()
-
-    # ── Tab 2: Component Table ─────────────────────────────────────────────
-    dash.add_tab("Component table", "components")
-    dash.start_section("Detailed component analysis")
-    headers = ["Component", "Type", "R", "M", "A", "S", "Q(v)", "Impact", "Level", "SPOF"]
-    rows = []
-    for c in demo_data.component_details:
-        rows.append([
-            c.name, c.type, f"{c.reliability:.2f}", f"{c.maintainability:.2f}", 
-            f"{c.availability:.2f}", f"{c.security:.2f}", f"{c.overall:.3f}", 
-            f"{c.impact:.3f}", f'<span class="badge badge-{c.level.lower()}">{c.level}</span>',
-            '<span class="badge badge-spof">SPOF</span>' if c.spof else ""
-        ])
-    dash.add_interactive_table(headers, rows, title="ATM System Components", type_col=1, level_col=8)
-    dash.end_section()
-    dash.end_tab()
-
-    # ── Tab 3: Validation ──────────────────────────────────────────────────
-    dash.add_tab("Validation", "validation")
-    dash.start_section("Prediction Correlation & Stability")
-    dash.add_kpis({
-        "Spearman \u03c1": 0.876, "F1 (top-k)": 0.893, "Precision": 0.912, "Recall": 0.857
-    }, {"Spearman \u03c1": "success", "F1 (top-k)": "success"})
-    
-    if sc := charts.correlation_scatter(demo_data.scatter_data, spearman=0.876):
-        dash.add_charts([sc])
-    
-    dim_rho_html = charts.dim_rho_bars(demo_data.dim_rho)
-    seed_chart = charts.multiseed_line_chart(demo_data.multiseed_seeds, demo_data.multiseed_rho, demo_data.multiseed_f1)
-    dash.add_dim_rho_panel(dim_rho_html, seed_chart)
-    dash.end_section()
-    dash.end_tab()
-
-    # ── Tab 4: Cascade Risk ───────────────────────────────────────────────
-    dash.add_tab("Cascade risk", "cascade")
-    dash.start_section("QoS-enriched failure propagation")
-    class _CProxy:
-        def __init__(self, d):
-            self.name = d["name"]; self.cascade_risk = d["cascade_risk"]; self.cascade_risk_topo = d["cascade_risk_topo"]
-    proxies = [_CProxy(r) for r in demo_data.cascade_results]
-    proxies.sort(key=lambda x: x.cascade_risk, reverse=True)
-    cascade_chart = charts.cascade_risk_chart(proxies)
-    dash.add_cascade_risk_panel(
-        cascade_chart_html=cascade_chart, qos_gini=demo_data.qos_gini,
-        wilcoxon_p=demo_data.cascade_wilcoxon_p, delta_rho=demo_data.cascade_delta_rho,
-        note="QoS enrichment adds statistically significant predictive signal."
+    # build_html() is pure — it reads only the LayerData it is handed, so the
+    # service needs no wired-up backends here.
+    service = VisualizationService(None, None, None, None, None)
+    html = service.build_html(
+        [demo_data], title="Software-as-a-Graph Demo Dashboard"
     )
-    dash.end_section()
-    dash.end_tab()
 
-    # ── Tab 5: Topology ────────────────────────────────────────────────────
-    dash.add_tab("Topology", "topology")
-    dash.start_section("Network Graph")
-    mock_nodes = [
-        {"id": "sf",   "label": "Sensor Fusion",  "type": "Application", "level": "CRITICAL", "value": 40},
-        {"id": "pe",   "label": "Planning Engine", "type": "Application", "level": "HIGH",     "value": 30},
-        {"id": "mb",   "label": "Main Broker",     "type": "Broker",      "level": "CRITICAL", "value": 35},
-        {"id": "nl",   "label": "NavLib",          "type": "Library",     "level": "MEDIUM",   "value": 25},
-        {"id": "tele", "label": "Telemetry",       "type": "Topic",       "level": "LOW",      "value": 20},
-    ]
-    mock_edges = [
-        {"source": "sf",   "target": "mb",   "weight": 2.5, "dependency_type": "publishes_to"},
-        {"source": "pe",   "target": "mb",   "weight": 1.2, "dependency_type": "subscribes_to"},
-        {"source": "mb",   "target": "tele", "weight": 1.0, "dependency_type": "broadcasts"},
-    ]
-    dash.add_cytoscape_network("demo-net", mock_nodes, mock_edges, "System Connectivity (Demo)")
-    dash.end_section()
-    
-    dash.start_section("Dependency Matrix")
-    dash.add_dependency_matrix("demo-matrix", mock_nodes, mock_edges)
-    dash.end_section()
-    dash.end_tab()
-
-    # ── Tab 6: MIL-STD-498 ─────────────────────────────────────────────────
-    dash.add_tab("MIL-STD-498", "hierarchy")
-    dash.start_section("Hierarchy tree — BPA_\u03b2 rollup scores")
-    dash.add_hierarchy_tree(demo_data.hierarchy_data)
-    dash.end_section()
-    dash.end_tab()
-
-    # ── Write output ─────────────────────────────────────────────────────────
     display.print_step("Finalizing dashboard export...")
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(dash.generate())
+    output_path.write_text(html, encoding="utf-8")
 
     display.display_visualization_summary(str(output_path))
 
@@ -290,16 +232,16 @@ def main():
     parser.add_argument(
         "--multi-seed", nargs="*", metavar="JSON_PATH", default=[],
         help="Paths to per-seed validation JSON files "
-             "(e.g. results/val_s*.json). Used to render §8 stability panel.",
+             "(e.g. results/val_s*.json). Renders the multi-seed stability "
+             "panel on the Validation tab.",
     )
 
-    # --cascade-file: path to the qos_ablation_experiment.py output JSON.
-    # Wires directly into VisualizationService.generate_dashboard(cascade_file=).
+    # --cascade-file wires straight into generate_dashboard(cascade_file=).
     parser.add_argument(
         "--cascade-file",
         metavar="JSON_PATH",
-        help="Path to QoS ablation experiment JSON (output of "
-             "qos_ablation_experiment.py). Enables §9a Cascade Risk section.",
+        help="Path to a QoS cascade-risk JSON (schema in "
+             "docs/visualization.md §3.4). Enables the Cascade risk tab.",
     )
 
     # Use -b (browser) for --open to avoid conflict with -o (output).
@@ -349,6 +291,8 @@ def main():
         abs_path = os.path.abspath(out_path)
         webbrowser.open(f"file://{abs_path}")
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

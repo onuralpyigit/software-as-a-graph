@@ -4,11 +4,14 @@ Visualization Data Collector
 Collects and aggregates data from analysis, simulation, and validation
 services into LayerData structures for dashboard generation.
 """
+import json
 import logging
-from typing import Dict, List, Any, Optional, Tuple
+from pathlib import Path
+from typing import Dict, List, Any, Optional
 
-from .models import LayerData, ComponentDetail, LAYER_DEFINITIONS
+from .models import LayerData, ComponentDetail
 from saag.analysis.antipattern_detector import AntiPatternDetector
+from saag.core.layers import AnalysisLayer, LAYER_DEFINITIONS
 
 
 class LayerDataCollector:
@@ -37,11 +40,9 @@ class LayerDataCollector:
         """
         Collect all data for a specific layer.
         """
-        if layer not in LAYER_DEFINITIONS:
-            raise ValueError(f"Unknown layer: {layer}")
-
-        layer_def = LAYER_DEFINITIONS[layer]
-        data = LayerData(layer=layer, name=layer_def["name"])
+        # Raises ValueError for an unrecognised layer name.
+        layer_def = LAYER_DEFINITIONS[AnalysisLayer.from_string(layer)]
+        data = LayerData(layer=layer, name=layer_def.name)
 
         # 1. Structural & Quality Analysis
         # Cache the analysis result so downstream steps (anti-pattern detection)
@@ -65,10 +66,13 @@ class LayerDataCollector:
         return data
 
 
-    def _collect_analysis_data(self, data: LayerData, layer: str) -> None:
+    def _collect_analysis_data(self, data: LayerData, layer: str) -> Any:
         """
         Run analysis and populate graph statistics, quality scores,
         and classification counts.
+
+        Returns the LayerAnalysisResult so callers can reuse it instead of
+        paying for a second analyze_layer(); None if analysis failed.
         """
         try:
             analysis = self.analysis_service.analyze_layer(layer)
@@ -153,27 +157,12 @@ class LayerDataCollector:
                 # to the real simulation value in _collect_simulation_data().
                 data.scatter_data.append((c.id, overall, 0.0, level))
 
-            data.csc_names = {
-                c.id: c.structural.name
-                for c in prediction.components
-                if hasattr(c, "structural")
-            }
-            data.rcm_order = analysis.structural.rcm_order
-            
-            # Legacy fields for backward compat
-            data.top_components = [
-                {"id": d.id, "type": d.type, "score": d.overall, "level": d.level}
-                for d in data.component_details[:10]
-            ]
-            
-            # Return enriched analysis-like object for downstream (used by _build_network_data)
-            # We wrap it back into a structure that looks like LayerAnalysisResult for compatibility
-            from saag.analysis.models import LayerAnalysisResult
             return analysis
 
         except Exception as e:
             self.logger.error(f"Analysis failed for layer {layer}: {e}")
             self.logger.exception("Analysis failure details")
+            return None
 
     def _collect_simulation_data(self, data: LayerData, layer: str) -> None:
         """Run simulation and populate impact metrics."""
@@ -274,9 +263,6 @@ class LayerDataCollector:
         _collect_analysis_data(). Passed in to avoid re-invoking
         analyze_layer() (which is expensive) when no file is provided.
         """
-        import json
-        from pathlib import Path
-
         try:
             smells = []
             if antipatterns_file and Path(antipatterns_file).exists():
@@ -371,9 +357,7 @@ class LayerDataCollector:
                 {
                     "id": c.id,
                     "label": f"{c.id}\n({c.structural.name})",
-                    "group": level,
                     "type": c.type,
-                    "shape": c.structural.vis_shape if hasattr(c.structural, "vis_shape") else "ellipse",
                     "level": level,
                     "value": value,
                     "title": "<br>".join(title_parts),
@@ -433,26 +417,6 @@ class LayerDataCollector:
                         "dependency_type": dep_type,
                     }
                 )
-
-        try:
-            # Expecting repository to have get_raw_edges or similar
-            if hasattr(self.repository, "get_raw_edges"):
-                raw_edges = self.repository.get_raw_edges(data.layer)
-                if raw_edges:
-                    for edge in raw_edges:
-                        w_val = edge.get("weight", 1.0)
-                        weight = get_edge_weight(edge.get("source", ""), edge.get("target", ""), w_val)
-                        data.network_edges.append(
-                            {
-                                "source": edge.get("source", ""),
-                                "target": edge.get("target", ""),
-                                "weight": weight,
-                                "relation_type": edge.get("type", "STRUCTURAL"),
-                                "dependency_type": edge.get("type", "structural"),
-                            }
-                        )
-        except Exception:
-            pass
 
 
 def _safe_float(value: Any) -> float:

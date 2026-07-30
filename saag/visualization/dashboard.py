@@ -1,20 +1,26 @@
 """
-Dashboard Generator Service
+Dashboard Generator
 
-v3.1 changes (aligned with interactive prototype):
-  - HTML_TEMPLATE redesigned: flat white, clean nav, no glassmorphism
-  - add_interactive_table()   — client-side sort + filter (JS inline)
-  - add_cascade_risk_panel()  — dual-bar QoS/topo + stat cards
-  - add_hierarchy_tree()      — MIL-STD-498 CSS→CSCI→CSC→CSU tree
-  - add_dim_rho_panel()       — per-dimension ρ bars + multi-seed chart
-  - add_dependency_matrix()   — re-enabled
+Assembles a self-contained HTML dashboard from HTML fragments. Content is
+grouped into tabs; each `add_*` method renders one widget and appends it to
+the tab currently open.
+
+Interactive widgets (sortable tables, Cytoscape networks, D3 matrices) emit
+their JavaScript into `self.scripts`, which is flushed once at the end of
+`generate()` so that scripts run after all markup exists.
 """
 import json
+import math
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from dataclasses import dataclass
 
-from .models import ChartOutput
+from .palette import (
+    BRAND_PURPLE,
+    CRITICALITY_COLORS,
+    DEFAULT_COLOR,
+    HIERARCHY_COLORS,
+    criticality_badge_css,
+)
 
 
 # Component type → layer mapping for Cytoscape compound nodes
@@ -27,9 +33,9 @@ COMPONENT_LAYER_MAP = {
 }
 
 LAYER_COMPOUNDS = {
-    "layer-app":   {"label": "Application Layer",    "icon": "App",   "order": 0},
-    "layer-mw":    {"label": "Middleware Layer",      "icon": "MW",    "order": 1},
-    "layer-infra": {"label": "Infrastructure Layer",  "icon": "Infra", "order": 2},
+    "layer-app":   "Application Layer",
+    "layer-mw":    "Middleware Layer",
+    "layer-infra": "Infrastructure Layer",
 }
 
 # ─── HTML Template ────────────────────────────────────────────────────────────
@@ -178,11 +184,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       display: inline-block; padding: 2px 7px; border-radius: 4px;
       font-size: 11px; font-weight: 500;
     }}
-    .badge-critical  {{ background: #FCEBEB; color: #791F1F; }}
-    .badge-high      {{ background: #FAEEDA; color: #633806; }}
-    .badge-medium    {{ background: #E6F1FB; color: #0C447C; }}
-    .badge-low       {{ background: #EAF3DE; color: #27500A; }}
-    .badge-minimal   {{ background: #F1EFE8; color: #444441; }}
+{badge_css}
     .badge-passed    {{ background: #EAF3DE; color: #27500A; }}
     .badge-failed    {{ background: #FCEBEB; color: #791F1F; }}
     .badge-spof      {{ background: #F4C0D1; color: #72243E; }}
@@ -217,6 +219,26 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-size: 11px; font-weight: 500; margin-left: 6px;
     }}
     .hier-q {{ margin-left: auto; font-size: 12px; font-weight: 500; }}
+    /* ── RMAV segmented bar (component table) ── */
+    .rmas-bar {{
+      display: flex; height: 8px; width: 100px;
+      border-radius: 4px; overflow: hidden; background: #f3f4f6;
+    }}
+    .rmas-seg {{ height: 100%; }}
+    /* ── Per-dimension ρ bars ── */
+    .dim-row {{
+      display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+    }}
+    .dim-label {{ font-size: 12px; color: var(--muted); width: 150px; flex-shrink: 0; }}
+    .dim-bar-outer {{
+      flex: 1; height: 8px; background: #f3f4f6;
+      border-radius: 4px; overflow: hidden;
+    }}
+    .dim-bar-inner {{ height: 100%; border-radius: 4px; transition: width .3s; }}
+    .dim-val {{
+      font-size: 12px; font-weight: 500; width: 48px;
+      text-align: right; flex-shrink: 0;
+    }}
     /* ── Metrics box ── */
     .metrics-box {{
       border: 0.5px solid var(--border); border-radius: var(--radius-md);
@@ -280,7 +302,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <body>
   <div class="sag-main">
     <div class="sag-header">
-      <div class="meta">Step 6 · Visualization · {timestamp}</div>
+      <div class="meta">Step 7 · Visualization · {timestamp}</div>
       <h1>{title}</h1>
     </div>
     <div class="db">
@@ -308,12 +330,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 """
 
 
-@dataclass
-class NavLink:
-    label: str
-    anchor: str
-
-
 class DashboardGenerator:
     """
     Assembles responsive HTML dashboards with interactive charts,
@@ -323,21 +339,28 @@ class DashboardGenerator:
 
     def __init__(self, title: str):
         self.title = title
-        self.sections: List[str] = []
-        self.nav_links: List[NavLink] = []
         self.scripts: List[str] = []
         self.tabs: List[Dict[str, Any]] = []
         self._current_tab: Optional[Dict[str, Any]] = None
         self._table_counter = 0
 
+    def _emit(self, html: str) -> None:
+        """
+        Append rendered HTML to the open tab.
+
+        Widgets added before any `add_tab()` call land in a default tab so
+        that callers are never required to open one explicitly.
+        """
+        if self._current_tab is None:
+            if not self.tabs:
+                self.add_tab("Main")
+            self._current_tab = self.tabs[0]
+        self._current_tab["sections"].append(html)
+
     def add_tab(self, name: str, anchor_id: str = "") -> None:
         """Start a new tab group."""
         tid = anchor_id or name.lower().replace(" ", "-")
-        new_tab = {
-            "id": tid,
-            "title": name,
-            "sections": []
-        }
+        new_tab = {"id": tid, "title": name, "sections": []}
         self.tabs.append(new_tab)
         self._current_tab = new_tab
 
@@ -347,51 +370,29 @@ class DashboardGenerator:
 
     def start_section(self, title: str, anchor_id: str = "") -> None:
         sid = anchor_id or title.lower().replace(" ", "-")
-        html = (
+        self._emit(
             f'<div class="section" id="{sid}">'
             f'<div class="section-header"><h2>{title}</h2></div>'
         )
-        if self._current_tab is not None:
-            self._current_tab["sections"].append(html)
-        else:
-            # Fallback if no tab is open
-            if not self.tabs:
-                self.add_tab("Main")
-            self.tabs[0]["sections"].append(html)
 
     def end_section(self) -> None:
-        html = "</div>"
-        if self._current_tab is not None:
-            self._current_tab["sections"].append(html)
-        else:
-            self.tabs[0]["sections"].append(html)
+        self._emit("</div>")
 
     def add_subsection(self, title: str) -> None:
-        html = f'<div class="subsection"><h3>{title}</h3></div>'
-        if self._current_tab is not None:
-            self._current_tab["sections"].append(html)
-        else:
-            self.tabs[0]["sections"].append(html)
+        self._emit(f'<div class="subsection"><h3>{title}</h3></div>')
 
     # ── KPI Cards ──────────────────────────────────────────────────────────
 
     def add_kpis(self, kpis: Dict[str, Any], styles: Dict[str, str] = None) -> None:
         styles = styles or {}
-        html = ['<div class="grid4">']
-        for label, value in kpis.items():
-            style_class = styles.get(label, "info")
-            html.append(
-                f'<div class="kpi">'
-                f'<div class="kpi-label">{label}</div>'
-                f'<div class="kpi-val {style_class}">{value}</div>'
-                f'</div>'
-            )
-        html.append("</div>")
-        content = "".join(html)
-        if self._current_tab:
-            self._current_tab["sections"].append(content)
-        else:
-            self.tabs[0]["sections"].append(content)
+        cards = "".join(
+            f'<div class="kpi">'
+            f'<div class="kpi-label">{label}</div>'
+            f'<div class="kpi-val {styles.get(label, "info")}">{value}</div>'
+            f'</div>'
+            for label, value in kpis.items()
+        )
+        self._emit(f'<div class="grid4">{cards}</div>')
 
     # ── Chart Grid ─────────────────────────────────────────────────────────
 
@@ -399,15 +400,8 @@ class DashboardGenerator:
         valid = [c for c in charts if c is not None]
         if not valid:
             return
-        html = [f'<div class="{grid_class}">']
-        for chart in valid:
-            html.append(f'<div class="chart-card">{chart}</div>')
-        html.append("</div>")
-        content = "".join(html)
-        if self._current_tab:
-            self._current_tab["sections"].append(content)
-        else:
-            self.tabs[0]["sections"].append(content)
+        cards = "".join(f'<div class="chart-card">{c}</div>' for c in valid)
+        self._emit(f'<div class="{grid_class}">{cards}</div>')
 
     # ── Static Table ───────────────────────────────────────────────────────
 
@@ -438,11 +432,7 @@ class DashboardGenerator:
                 html.append(f"<td>{cell_html}</td>")
             html.append("</tr>")
         html.append("</tbody></table></div>")
-        content = "".join(html)
-        if self._current_tab:
-            self._current_tab["sections"].append(content)
-        else:
-            self.tabs[0]["sections"].append(content)
+        self._emit("".join(html))
 
     # ── Interactive Table (sort + filter) ──────────────────────────────────
 
@@ -554,10 +544,7 @@ class DashboardGenerator:
         }})();
         </script>
         """
-        if self._current_tab:
-            self._current_tab["sections"].append("".join(html))
-        else:
-            self.tabs[0]["sections"].append("".join(html))
+        self._emit("".join(html))
         self.scripts.append(script)
 
     # ── Cascade Risk Panel ─────────────────────────────────────────────────
@@ -594,22 +581,13 @@ class DashboardGenerator:
 
         if cascade_chart_html:
             html.append(f'<div class="chart-card"><h4>Cascade risk distribution</h4>{cascade_chart_html}</div>')
-        
-        content = "".join(html)
-        if self._current_tab:
-            self._current_tab["sections"].append(content)
-        else:
-            self.tabs[0]["sections"].append(content)
+
+        self._emit("".join(html))
 
     def add_top5_bars(self, components: List[Any]) -> None:
-        """Add the Top 5 components bar list from prototype."""
-        LEVEL_COLORS = {
-            'CRITICAL': '#A32D2D', 'HIGH': '#854F0B', 'MEDIUM': '#185FA5',
-            'LOW': '#3B6D11', 'MINIMAL': '#5F5E5A'
-        }
-        top5 = components[:5]
+        """Horizontal Q(v) bar list for the five highest-scoring components."""
         html = ['<div class="chart-card"><h4>Top 5 components by Q(v)</h4>']
-        for c in top5:
+        for c in components[:5]:
             q = getattr(c, 'overall', 0.0)
             level = getattr(c, 'level', 'MINIMAL')
             spof = getattr(c, 'spof', False)
@@ -621,15 +599,11 @@ class DashboardGenerator:
                     <span style="font-weight:600">{q:.3f}</span>
                   </div>
                   <div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
-                    <div style="height:100%;width:{q*100:.1f}%;background:{LEVEL_COLORS.get(level, '#ccc')};border-radius:4px;transition:width .3s"></div>
+                    <div style="height:100%;width:{q*100:.1f}%;background:{CRITICALITY_COLORS.get(level, DEFAULT_COLOR)};border-radius:4px;transition:width .3s"></div>
                   </div>
                 </div>""")
         html.append('</div>')
-        content = "".join(html)
-        if self._current_tab:
-            self._current_tab["sections"].append(content)
-        else:
-            self.tabs[0]["sections"].append(content)
+        self._emit("".join(html))
 
     # ── Per-Dimension ρ Panel ──────────────────────────────────────────────
 
@@ -641,32 +615,26 @@ class DashboardGenerator:
         """
         Two-column panel: per-dim ρ progress bars (left) + multi-seed line (right).
         """
-        content = (
+        seed_card = (
+            f'<div class="chart-card"><h4>Multi-seed stability</h4>{seed_chart_html}</div>'
+            if seed_chart_html else ""
+        )
+        self._emit(
             f'<div class="grid2">'
             f'<div class="chart-card"><h4>Per-dimension Spearman ρ</h4>{dim_rho_html}</div>'
-            + (f'<div class="chart-card"><h4>Multi-seed stability</h4>{seed_chart_html}</div>' if seed_chart_html else "")
-            + '</div>'
+            f'{seed_card}'
+            f'</div>'
         )
-        if self._current_tab:
-            self._current_tab["sections"].append(content)
-        else:
-            self.tabs[0]["sections"].append(content)
 
     # ── MIL-STD-498 Hierarchy Tree ──────────────────────────────────────────
 
     def add_hierarchy_tree(self, tree: Dict[str, Any]) -> None:
-        """Render vertical tree."""
-        COLORS = {
-            "CSS":  ("#EEEDFE", "#534AB7"),
-            "CSCI": ("#E1F5EE", "#0F6E56"),
-            "CSC":  ("#E6F1FB", "#185FA5"),
-            "CSU":  ("#F1EFE8", "#5F5E5A"),
-        }
+        """Render the CSS→CSCI→CSC→CSU tree as an indented vertical list."""
 
         def _render(node: Dict[str, Any], depth: int) -> List[str]:
             parts = []
             level = node.get("level", "CSU")
-            bg, accent = COLORS.get(level, COLORS["CSU"])
+            bg, accent = HIERARCHY_COLORS.get(level, HIERARCHY_COLORS["CSU"])
             q = node.get("q")
             cbci = node.get("cbci")
             indent = f"margin-left:{depth * 24}px"
@@ -693,11 +661,7 @@ class DashboardGenerator:
                 parts.extend(_render(child, depth + 1))
             return parts
 
-        content = "".join(_render(tree, 0))
-        if self._current_tab:
-            self._current_tab["sections"].append(content)
-        else:
-            self.tabs[0]["sections"].append(content)
+        self._emit("".join(_render(tree, 0)))
 
     # ── Metrics Box ────────────────────────────────────────────────────────
 
@@ -719,11 +683,7 @@ class DashboardGenerator:
                 f'</div>'
             )
         html.append("</div>")
-        content = "".join(html)
-        if self._current_tab:
-            self._current_tab["sections"].append(content)
-        else:
-            self.tabs[0]["sections"].append(content)
+        self._emit("".join(html))
 
     # ── Explanation Cards ──────────────────────────────────────────────────
 
@@ -744,11 +704,7 @@ class DashboardGenerator:
                     f'</div>'
                 )
         if html:
-            content = "".join(html)
-            if self._current_tab:
-                self._current_tab["sections"].append(content)
-            else:
-                self.tabs[0]["sections"].append(content)
+            self._emit("".join(html))
 
     # ── Anti-Pattern Catalog ───────────────────────────────────────────────
 
@@ -773,11 +729,8 @@ class DashboardGenerator:
                     + f'</div>'
                 )
             content = "".join(html)
-        
-        if self._current_tab:
-            self._current_tab["sections"].append(content)
-        else:
-            self.tabs[0]["sections"].append(content)
+
+        self._emit(content)
 
     # ── Cytoscape.js Network Graph ─────────────────────────────────────────
 
@@ -791,22 +744,12 @@ class DashboardGenerator:
     ) -> None:
         elements = []
         if use_compound_nodes:
-            for layer_id, layer_info in LAYER_COMPOUNDS.items():
+            for layer_id, label in LAYER_COMPOUNDS.items():
                 elements.append({
-                    "data": {
-                        "id": layer_id,
-                        "label": layer_info["label"],
-                        "isCompound": True,
-                        "order": layer_info["order"],
-                    },
+                    "data": {"id": layer_id, "label": label, "isCompound": True},
                     "classes": "compound",
                 })
 
-        CRIT_HEX = {
-            "CRITICAL": "#A32D2D", "HIGH": "#854F0B",
-            "MEDIUM": "#185FA5",   "LOW": "#3B6D11",
-            "MINIMAL": "#5F5E5A",
-        }
         for node in nodes:
             node_type = node.get("type", "Application")
             parent = COMPONENT_LAYER_MAP.get(node_type) if use_compound_nodes else None
@@ -819,7 +762,7 @@ class DashboardGenerator:
                     "level": level,
                     "score": node.get("value", 10),
                     "title": node.get("title", ""),
-                    "color": CRIT_HEX.get(level, "#5F5E5A"),
+                    "color": CRITICALITY_COLORS.get(level, DEFAULT_COLOR),
                 },
                 "classes": f"node-{node_type.lower()} level-{level.lower()}",
             }
@@ -829,13 +772,12 @@ class DashboardGenerator:
 
         for edge in edges:
             weight = edge.get("weight", 1.0)
-            if weight != weight:
+            if weight != weight:  # NaN
                 weight = 1.0
-            
-            # Calculate thickness dynamically using log-scaling of weight (frequency)
-            import math
+
+            # Log-scale the frequency weight so heavy flows stay legible.
             thickness = 1.5 + 2.5 * math.log10(1.0 + max(0.0, weight))
-            
+
             elements.append({
                 "data": {
                     "id": f"e_{edge['source']}_{edge['target']}",
@@ -858,9 +800,9 @@ class DashboardGenerator:
             }},
             {"selector": ".compound", "style": {
                 "label": "data(label)", "font-size": "11px",
-                "background-opacity": 0.06, "background-color": "#534AB7",
-                "border-color": "#534AB7", "border-width": "0.5px",
-                "color": "#534AB7", "text-valign": "top",
+                "background-opacity": 0.06, "background-color": BRAND_PURPLE,
+                "border-color": BRAND_PURPLE, "border-width": "0.5px",
+                "color": BRAND_PURPLE, "text-valign": "top",
                 "text-halign": "center",
             }},
             {"selector": "edge", "style": {
@@ -880,17 +822,14 @@ class DashboardGenerator:
         )
         legend_items = "".join(
             f'<div class="cy-legend-item">'
-            f'<div class="cy-swatch" style="background:{c}"></div>{lv.capitalize()}'
+            f'<div class="cy-swatch" style="background:{CRITICALITY_COLORS[lv]}"></div>'
+            f'{lv.capitalize()}'
             f'</div>'
-            for lv, c in [("critical", "#A32D2D"), ("high", "#854F0B"),
-                          ("medium", "#185FA5"), ("low", "#3B6D11")]
+            for lv in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
         )
         content += f'<div class="cy-legend">{legend_items}</div>'
-        
-        if self._current_tab:
-            self._current_tab["sections"].append(content)
-        else:
-            self.tabs[0]["sections"].append(content)
+
+        self._emit(content)
 
         script = f"""
         <script>
@@ -917,13 +856,6 @@ class DashboardGenerator:
         """
         self.scripts.append(script)
 
-    # backward-compat alias
-    def add_network_graph(
-        self, graph_id: str, nodes: List[Dict[str, Any]],
-        edges: List[Dict[str, Any]], title: str = "Network Graph"
-    ) -> None:
-        self.add_cytoscape_network(graph_id, nodes, edges, title, use_compound_nodes=True)
-
     # ── D3 Dependency Matrix ───────────────────────────────────────────────
 
     def add_dependency_matrix(
@@ -936,15 +868,12 @@ class DashboardGenerator:
         """Adjacency matrix sorted by Q(v)."""
         nodes_json = json.dumps(nodes)
         edges_json = json.dumps(edges)
-        content = (
+        crit_colors_json = json.dumps(CRITICALITY_COLORS)
+        self._emit(
             f'<p style="font-size:13px;font-weight:500;margin-bottom:12px">{title}</p>'
             f'<div id="{matrix_id}" style="overflow-x:auto"></div>'
         )
-        if self._current_tab:
-            self._current_tab["sections"].append(content)
-        else:
-            self.tabs[0]["sections"].append(content)
-            
+
         script = f"""
         <script>
         (function() {{
@@ -953,8 +882,10 @@ class DashboardGenerator:
           var rawEdges = {edges_json};
           if (!rawNodes.length) return;
 
+          // Order most-critical-first. Node size ('value') is derived from Q(v),
+          // so sorting on it is equivalent to sorting on Q(v) descending.
           rawNodes.sort(function(a, b) {{
-            return (b.score || 0) - (a.score || 0);
+            return (b.value || 0) - (a.value || 0);
           }});
 
           var n = rawNodes.length;
@@ -974,10 +905,7 @@ class DashboardGenerator:
             if (si != null && ti != null) matrix[si][ti] = e.weight || 1;
           }});
 
-          var crit_colors = {{
-            CRITICAL: '#A32D2D', HIGH: '#854F0B',
-            MEDIUM: '#185FA5', LOW: '#3B6D11', MINIMAL: '#5F5E5A'
-          }};
+          var crit_colors = {crit_colors_json};
 
           var maxVal = 0;
           rawEdges.forEach(function(e) {{ if (e.weight > maxVal) maxVal = e.weight; }});
@@ -989,7 +917,7 @@ class DashboardGenerator:
             .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
           rawNodes.forEach(function(nd, i) {{
-            var clr = crit_colors[nd.level] || '#5F5E5A';
+            var clr = crit_colors[nd.level] || '{DEFAULT_COLOR}';
             g.append('text')
               .attr('x', -4).attr('y', i * cellSize + cellSize / 2)
               .attr('text-anchor', 'end').attr('dominant-baseline', 'middle')
@@ -1012,7 +940,7 @@ class DashboardGenerator:
                 .attr('x', c * cellSize).attr('y', r * cellSize)
                 .attr('width', cellSize - 1).attr('height', cellSize - 1)
                 .attr('rx', 1)
-                .attr('fill', val > 0 ? '#534AB7' : '#f3f4f6')
+                .attr('fill', val > 0 ? '{BRAND_PURPLE}' : '#f3f4f6')
                 .attr('opacity', val > 0 ? 0.2 + 0.8 * (val / maxVal) : 1)
                 .attr('stroke', '#e5e7eb').attr('stroke-width', 0.5);
             }}
@@ -1048,6 +976,7 @@ class DashboardGenerator:
         return HTML_TEMPLATE.format(
             title=self.title,
             timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            badge_css=criticality_badge_css(),
             tabs_html="".join(tabs_html),
             content="".join(content_html),
             scripts="".join(self.scripts),

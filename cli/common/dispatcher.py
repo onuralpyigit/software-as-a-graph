@@ -237,12 +237,12 @@ def dispatch_simulate(repo, args: argparse.Namespace):
 def dispatch_visualize(repo, args: argparse.Namespace):
     """Dispatch visualization stage."""
     from saag.usecases import VisualizeGraphUseCase, VisOptions
-    from saag.visualization import LAYER_DEFINITIONS
-    
+    from saag.core.layers import AnalysisLayer
+
     use_case = VisualizeGraphUseCase(repo)
-    
+
     if getattr(args, 'all', False):
-        layers = list(LAYER_DEFINITIONS.keys())
+        layers = [l.value for l in AnalysisLayer]
     elif getattr(args, 'layer', None):
         layers = [args.layer]
     else:

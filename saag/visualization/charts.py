@@ -5,60 +5,30 @@ Generates HTML/JS chart snippets using Chart.js for embedding in the dashboard.
 Each chart type maps to a specific visualization in the taxonomy (§6.4):
 
     criticality_distribution  → §6.4.2 Distribution Charts (Doughnut)
-    pie_chart                 → §6.4.2 Distribution Charts (Pie)
-    impact_ranking            → §6.4.3 Ranking Charts (Bar)
     rmav_breakdown            → §6.4.3 Ranking Charts (Stacked Bar, AHP-weighted)
-    correlation_scatter       → §6.4.4 Correlation Charts (Scatter + diagonal)
     grouped_bar_chart         → §6.4.3 Ranking Charts (Grouped Bar)
-    cascade_risk_chart        → §6.4.5 Cascade Risk (Dual horizontal bar)  [NEW]
-    multiseed_line_chart      → §6.4.6 Stability (Line chart over seeds)   [NEW]
-    dim_rho_bars              → §6.4.4 Per-dimension ρ (HTML progress bars) [NEW]
+    correlation_scatter       → §6.4.4 Correlation Charts (Scatter + diagonal)
+    dim_rho_bars              → §6.4.4 Per-dimension ρ (HTML progress bars)
+    cascade_risk_chart        → §6.4.5 Cascade Risk (Dual horizontal bar)
+    multiseed_line_chart      → §6.4.6 Stability (Line chart over seeds)
 
-Color palette update (v3.0):
-    CRITICALITY_COLORS — aligned with accessibility-tested ramps
-    RMAV_COLORS        — aligned with AHP dimension semantics:
-                         R=purple (structural authority), M=teal (maintainability),
-                         A=coral (operational risk), V=pink (exposure)
+Colours come from `palette.py`, which every renderer shares.
 """
 import json
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
+from .palette import (
+    AHP_WEIGHTS,
+    BRAND_PURPLE,
+    CATEGORICAL_PALETTE,
+    CRITICALITY_COLORS,
+    DEFAULT_COLOR,
+    NEUTRAL_GREY,
+    RMAS_COLORS,
+)
+
 logger = logging.getLogger(__name__)
-
-# ── Color palette ──────────────────────────────────────────────────────────────
-# Criticality: distinct, accessible, matched to dashboard badge classes
-CRITICALITY_COLORS: Dict[str, str] = {
-    "CRITICAL": "#A32D2D",   # red-800
-    "HIGH":     "#854F0B",   # amber-800
-    "MEDIUM":   "#185FA5",   # blue-800
-    "LOW":      "#3B6D11",   # green-800
-    "MINIMAL":  "#5F5E5A",   # gray-800
-}
-
-# RMAS: AHP-calibrated semantics. Weights: A=0.43, R=0.24, M=0.17, S=0.16
-RMAS_COLORS: Dict[str, str] = {
-    "reliability":     "#534AB7",   # purple
-    "maintainability": "#0F6E56",   # teal
-    "availability":    "#993C1D",   # coral
-    "security":        "#993556",   # pink
-}
-
-# AHP dimension weights — used in rmav_breakdown for weighted bar segments
-AHP_WEIGHTS: Dict[str, float] = {
-    "availability":    0.43,
-    "reliability":     0.24,
-    "maintainability": 0.17,
-    "security":        0.16,
-}
-
-TYPE_COLORS: Dict[str, str] = {
-    "Application": "#534AB7",
-    "Broker":      "#0F6E56",
-    "Node":        "#185FA5",
-    "Topic":       "#993C1D",
-    "Library":     "#3B6D11",
-}
 
 
 class ChartGenerator:
@@ -94,72 +64,32 @@ class ChartGenerator:
         filtered = {k: v for k, v in counts.items() if v > 0}
         if not filtered:
             return None
-        labels = list(filtered.keys())
-        values = list(filtered.values())
-        colors = [CRITICALITY_COLORS.get(l, "#95A5A6") for l in labels]
-        return self._doughnut_chart_html(
-            self._next_id("crit_dist"), labels, values, colors, title
-        )
-
-    def pie_chart(
-        self,
-        data: Dict[str, int],
-        title: str = "Distribution",
-    ) -> Optional[str]:
-        """Generic pie chart for composition data (e.g. node types)."""
-        if not data:
-            return None
-        labels = list(data.keys())
-        values = list(data.values())
-        default_palette = list(TYPE_COLORS.values()) + [
-            "#378ADD", "#639922", "#BA7517", "#A32D2D"
-        ]
-        colors = [
-            TYPE_COLORS.get(l, default_palette[i % len(default_palette)])
-            for i, l in enumerate(labels)
-        ]
-        return self._pie_chart_html(
-            self._next_id("pie"), labels, values, colors, title
-        )
-
-    # ─── §6.4.3: Ranking Charts ──────────────────────────────────────────
-
-    def impact_ranking(
-        self,
-        data: List[Tuple[str, float, str]],
-        title: str = "Top Components by Impact",
-        names: Optional[Dict[str, str]] = None,
-    ) -> Optional[str]:
-        """Horizontal bar chart ranking components by score."""
-        if not data:
-            return None
-        names = names or {}
-        chart_id = self._next_id("ranking")
-        labels = [names.get(d[0], d[0]) for d in data]
-        values = [d[1] for d in data]
-        colors = [CRITICALITY_COLORS.get(d[2], "#95A5A6") for d in data]
         config = {
-            "type": "bar",
+            "type": "doughnut",
             "data": {
-                "labels": labels,
-                "datasets": [{"data": values, "backgroundColor": colors, "borderWidth": 0}],
+                "labels": list(filtered.keys()),
+                "datasets": [{
+                    "data": list(filtered.values()),
+                    "backgroundColor": [
+                        CRITICALITY_COLORS.get(l, DEFAULT_COLOR) for l in filtered
+                    ],
+                    "borderWidth": 2,
+                    "borderColor": "#ffffff",
+                }],
             },
             "options": {
-                "indexAxis": "y",
                 "responsive": True,
                 "maintainAspectRatio": False,
+                "cutout": "55%",
                 "plugins": {
                     "title": {"display": True, "text": title, "font": {"size": 13}},
-                    "legend": {"display": False},
-                },
-                "scales": {
-                    "x": {"beginAtZero": True, "max": 1.0,
-                          "title": {"display": True, "text": "Score"}},
+                    "legend": {"display": True, "position": "bottom"},
                 },
             },
         }
-        height = max(250, len(data) * 32 + 80)
-        return self._chart_html(chart_id, config, height=height)
+        return self._chart_html(self._next_id("crit_dist"), config, height=260)
+
+    # ─── §6.4.3: Ranking Charts ──────────────────────────────────────────
 
     def rmav_breakdown(
         self,
@@ -236,17 +166,13 @@ class ChartGenerator:
             for m in metrics:
                 if m not in all_metrics:
                     all_metrics.append(m)
-        palette = [
-            "#534AB7", "#0F6E56", "#993C1D", "#993556",
-            "#185FA5", "#3B6D11", "#854F0B",
-        ]
         datasets = []
         for i, metric in enumerate(all_metrics):
             values = [data[g].get(metric, 0) for g in groups]
             datasets.append({
                 "label": metric,
                 "data": values,
-                "backgroundColor": palette[i % len(palette)],
+                "backgroundColor": CATEGORICAL_PALETTE[i % len(CATEGORICAL_PALETTE)],
             })
         config = {
             "type": "bar",
@@ -398,29 +324,11 @@ class ChartGenerator:
             extra_plugins=[diagonal_plugin],
         )
 
-    def correlation_scatter_per_dimension(
-        self,
-        scatter_data: List[Tuple[str, float, float, str]],
-        dimension: str,
-        spearman: float = 0.0,
-    ) -> Optional[str]:
-        """
-        Per-dimension diagnostic scatter (R, M, A, or V) vs its ground-truth
-        component. Used in §6.2 Section 4 dimensional diagnostics.
-        """
-        dim_label = dimension.capitalize()
-        return self.correlation_scatter(
-            scatter_data,
-            title=f"{dim_label} Dimension",
-            spearman=spearman,
-            title_suffix=f"{dim_label[0]}(v) vs I{dim_label[0]}(v)",
-        )
-
-    # ─── §6.4.5: Cascade Risk Chart (NEW) ───────────────────────────────
+    # ─── §6.4.5: Cascade Risk Chart ─────────────────────────────────────
 
     def cascade_risk_chart(
         self,
-        components: List[Any],
+        components: List[Dict[str, Any]],
         title: str = "Cascade Risk Score — QoS-enriched vs topology-only",
         top_n: int = 12,
     ) -> Optional[str]:
@@ -430,17 +338,20 @@ class ChartGenerator:
           - topology-only (grey baseline)
           - QoS-enriched (purple, the Middleware 2026 contribution)
 
-        components must have attributes: name/id, cascade_risk (float),
-        cascade_risk_topo (float, baseline without QoS).
-        Falls back gracefully if cascade_risk_topo is absent.
+        Each component is a dict with keys `id`, `name`, `cascade_risk` and
+        optionally `cascade_risk_topo`. When the topology-only baseline is
+        absent it is approximated as 88 % of the enriched score.
         """
         if not components:
             return None
         top = components[:top_n]
         chart_id = self._next_id("cascade")
-        labels = [getattr(c, "name", c.id) if hasattr(c, "id") else str(c) for c in top]
-        qos_vals = [round(getattr(c, "cascade_risk", 0.0), 4) for c in top]
-        topo_vals = [round(getattr(c, "cascade_risk_topo", getattr(c, "cascade_risk", 0.0) * 0.88), 4) for c in top]
+        labels = [c.get("name") or c.get("id", "") for c in top]
+        qos_vals = [round(float(c.get("cascade_risk", 0.0)), 4) for c in top]
+        topo_vals = [
+            round(float(c.get("cascade_risk_topo", float(c.get("cascade_risk", 0.0)) * 0.88)), 4)
+            for c in top
+        ]
         config = {
             "type": "bar",
             "data": {
@@ -449,13 +360,13 @@ class ChartGenerator:
                     {
                         "label": "Topology-only baseline",
                         "data": topo_vals,
-                        "backgroundColor": "#B4B2A9",
+                        "backgroundColor": NEUTRAL_GREY,
                         "borderWidth": 0,
                     },
                     {
                         "label": "QoS-enriched",
                         "data": qos_vals,
-                        "backgroundColor": "#534AB7",
+                        "backgroundColor": BRAND_PURPLE,
                         "borderWidth": 0,
                     },
                 ],
@@ -488,7 +399,7 @@ class ChartGenerator:
     ) -> Optional[str]:
         """
         Line chart showing Spearman ρ (and optionally F1) across multiple
-        random seeds. Used in §6.2 Section 8 to demonstrate stability of
+        random seeds. Shown on the Validation tab to demonstrate stability of
         the topology-based prediction under different graph instantiations.
         """
         if not seeds or not rho_values:
@@ -541,19 +452,15 @@ class ChartGenerator:
         }
         return self._chart_html(chart_id, config, height=240)
 
-    # ─── §6.4.4: Per-Dimension ρ Bars (NEW, HTML not canvas) ────────────
+    # ─── §6.4.4: Per-Dimension ρ Bars (HTML, not canvas) ────────────────
 
-    def dim_rho_bars(
-        self,
-        dim_rho: Dict[str, float],
-        include_infra: bool = True,
-    ) -> str:
+    def dim_rho_bars(self, dim_rho: Dict[str, float]) -> str:
         """
         Pure HTML progress-bar panel for per-dimension Spearman ρ values.
         Returns an HTML string (not a canvas snippet) for direct embedding.
 
-        dim_rho: dict with keys reliability, maintainability, availability,
-                 vulnerability, and optionally infrastructure.
+        dim_rho: dict keyed by availability, reliability, maintainability
+                 and security — see LayerData.dim_rho.
         """
         rows = [
             ("Availability (A)",    "availability",    RMAS_COLORS["availability"]),
@@ -561,8 +468,6 @@ class ChartGenerator:
             ("Maintainability (M)", "maintainability", RMAS_COLORS["maintainability"]),
             ("Security (S)",        "security",        RMAS_COLORS["security"]),
         ]
-        if include_infra:
-            rows.append(("Infrastructure", "infrastructure", "#B4B2A9"))
 
         html_parts = ['<div class="dim-rho-panel">']
         for label, key, color in rows:
@@ -591,68 +496,6 @@ class ChartGenerator:
         return "\n".join(html_parts)
 
     # ─── Internal HTML Generation ────────────────────────────────────────
-
-    def _doughnut_chart_html(
-        self,
-        chart_id: str,
-        labels: List[str],
-        values: List[int],
-        colors: List[str],
-        title: str,
-    ) -> str:
-        """Doughnut chart with cutout for a cleaner look than a full pie."""
-        config = {
-            "type": "doughnut",
-            "data": {
-                "labels": labels,
-                "datasets": [{
-                    "data": values,
-                    "backgroundColor": colors,
-                    "borderWidth": 2,
-                    "borderColor": "#ffffff",
-                }],
-            },
-            "options": {
-                "responsive": True,
-                "maintainAspectRatio": False,
-                "cutout": "55%",
-                "plugins": {
-                    "title": {"display": True, "text": title, "font": {"size": 13}},
-                    "legend": {"display": True, "position": "bottom"},
-                },
-            },
-        }
-        return self._chart_html(chart_id, config, height=260)
-
-    def _pie_chart_html(
-        self,
-        chart_id: str,
-        labels: List[str],
-        values: List[int],
-        colors: List[str],
-        title: str,
-    ) -> str:
-        config = {
-            "type": "pie",
-            "data": {
-                "labels": labels,
-                "datasets": [{
-                    "data": values,
-                    "backgroundColor": colors,
-                    "borderWidth": 2,
-                    "borderColor": "#ffffff",
-                }],
-            },
-            "options": {
-                "responsive": True,
-                "maintainAspectRatio": False,
-                "plugins": {
-                    "title": {"display": True, "text": title, "font": {"size": 13}},
-                    "legend": {"display": True, "position": "bottom"},
-                },
-            },
-        }
-        return self._chart_html(chart_id, config, height=260)
 
     def _chart_html(
         self,

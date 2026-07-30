@@ -1,25 +1,32 @@
 """
 Visualization Application Service
 
-v3.1 changes:
-  §6.2 Section 3  — component table now uses add_interactive_table()
-  §6.2 Section 4  — per-dimension ρ panel added via add_dim_rho_panel()
-  §6.2 Section 6  — dependency matrix re-enabled via add_dependency_matrix()
-  §6.2 Section 9a — cascade risk section added (_add_cascade_risk_section)
-  §6.2 Section 10 — MIL-STD-498 hierarchy section (_add_hierarchy_section)
-  multi_seed fix   — accepts List[str] of JSON paths, int seed count, or 0
-  cascade_file     — new optional param to generate_dashboard()
+Orchestrates Step 7. Work is split into three stages so that each can be
+used on its own:
+
+    collect()            services + files → List[LayerData]
+    build_html()         List[LayerData]  → dashboard HTML  (pure)
+    generate_dashboard() collect → build_html → write to disk
+
+`build_html()` touches neither the repository nor the filesystem, which is
+what lets `cli/visualize_graph.py --demo` render the production dashboard
+from a fixture without a database.
 """
 import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .models import LayerData, LAYER_DEFINITIONS
-from .charts import ChartGenerator, RMAS_COLORS
+from .models import LayerData
+from .charts import ChartGenerator
+from .palette import RMAS_COLORS
 from .dashboard import DashboardGenerator
 from .collector import LayerDataCollector
+from saag.core.layers import AnalysisLayer
 from saag.core.ports.graph_repository import IGraphRepository
+
+DEFAULT_LAYERS = ["app", "infra", "mw", "system"]
+DASHBOARD_TITLE = "Software-as-a-Graph Analysis Dashboard"
 
 
 class VisualizationService:
@@ -59,55 +66,64 @@ class VisualizationService:
         cascade_file: Optional[str] = None,
     ) -> str:
         """
-        Generate a comprehensive multi-layer analysis dashboard.
-
-        §6.2 Dashboard Structure (10 sections):
-          1  Executive Overview
-          2  Layer Comparison        (multi-layer only)
-          3  Component Details       (interactive table + RMAV chart)
-          3.5 Architectural Explanations
-          4  Validation Diagnostics  (scatter + per-dim ρ)
-          5  Network Graph
-          6  Dependency Matrix       (re-enabled)
-          7  Validation Report
-          8  Multi-Seed Stability    (when multi_seed data available)
-          9  Anti-Pattern Catalog
-          9a Cascade Risk            (when cascade_file provided)
-          10 MIL-STD-498 Hierarchy   (when hierarchy_data present)
+        Collect every requested layer, render the dashboard, write it to disk
+        and return the path written.
 
         Args:
-            cascade_file: path to JSON output of qos_ablation_experiment.py
-            multi_seed:   int (seed count), list of JSON paths, or 0 to skip
+            cascade_file: path to a QoS cascade-risk JSON (see _load_cascade_data
+                          for the expected schema)
+            multi_seed:   list of validation JSON paths, a space-separated
+                          string of them, or 0 to skip the stability panel
         """
-        if layers is None:
-            layers = ["app", "infra", "mw", "system"]
+        layer_data_list = self.collect(
+            layers=layers,
+            include_validation=include_validation,
+            antipatterns_file=antipatterns_file,
+            multi_seed=multi_seed,
+            cascade_file=cascade_file,
+        )
+        html = self.build_html(
+            layer_data_list,
+            include_network=include_network,
+            include_matrix=include_matrix,
+            include_validation=include_validation,
+            include_per_dim_scatter=include_per_dim_scatter,
+        )
 
-        # Normalise multi_seed → int seed count + optional path list
-        seed_paths: List[str] = []
-        n_seeds: int = 0
-        if isinstance(multi_seed, list):
-            seed_paths = [str(p) for p in multi_seed if str(p).endswith(".json")]
-            n_seeds = len(seed_paths)
-        elif isinstance(multi_seed, str):
-            # Shell-expanded glob arrives as space-separated string
-            seed_paths = [s for s in multi_seed.split() if s.endswith(".json")]
-            n_seeds = len(seed_paths)
-        elif isinstance(multi_seed, int):
-            n_seeds = multi_seed
+        output_path = Path(output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(html, encoding="utf-8")
+        return str(output_path)
 
-        dash = DashboardGenerator("Software-as-a-Graph Analysis Dashboard")
+    def collect(
+        self,
+        layers: Optional[List[str]] = None,
+        include_validation: bool = True,
+        antipatterns_file: Optional[str] = None,
+        multi_seed: Any = 0,
+        cascade_file: Optional[str] = None,
+    ) -> List[LayerData]:
+        """
+        Gather one LayerData per requested layer from the analysis, simulation
+        and validation services, enriched with any supplied result files.
 
-        # ── Phase 1: Data Collection ──────────────────────────────────────
+        Unknown or failing layers are logged and skipped; raises ValueError
+        only when nothing at all could be collected.
+        """
+        layers = layers or DEFAULT_LAYERS
+        seed_paths = _normalise_seed_paths(multi_seed)
+
         layer_data_list: List[LayerData] = []
         for layer in layers:
-            if layer not in LAYER_DEFINITIONS:
+            try:
+                AnalysisLayer.from_string(layer)
+            except ValueError:
                 self.logger.warning(f"Unknown layer: {layer}, skipping")
                 continue
             try:
                 data = self.collector.collect_layer_data(
                     layer, include_validation, antipatterns_file
                 )
-                # Optionally load multi-seed stability results
                 if seed_paths:
                     self._load_multiseed_data(data, seed_paths)
                 layer_data_list.append(data)
@@ -117,17 +133,38 @@ class VisualizationService:
         if not layer_data_list:
             raise ValueError("No layer data collected. Cannot generate dashboard.")
 
-        primary_data = next(
-            (d for d in layer_data_list if d.layer == "system"),
-            layer_data_list[0],
-        )
-
-        # Optionally load cascade risk results
         if cascade_file:
-            self._load_cascade_data(primary_data, cascade_file)
+            self._load_cascade_data(_primary_layer(layer_data_list), cascade_file)
 
-        # ── Phase 2: Dashboard Assembly ───────────────────────────────────
-        
+        return layer_data_list
+
+    def build_html(
+        self,
+        layer_data_list: List[LayerData],
+        include_network: bool = True,
+        include_matrix: bool = True,
+        include_validation: bool = True,
+        include_per_dim_scatter: bool = True,
+        title: str = DASHBOARD_TITLE,
+    ) -> str:
+        """
+        Render collected layers into dashboard HTML. Pure: no repository
+        access, no file I/O.
+
+        Tabs, in order:
+          Overview      KPIs, criticality doughnut, RMAV chart, top-5, layer comparison
+          Components    interactive table + architectural explanations
+          Validation    scatter, per-dimension ρ, gates, multi-seed stability
+          Cascade risk  QoS ablation panel (when cascade data was loaded)
+          Topology      Cytoscape network, dependency matrix, anti-patterns
+          MIL-STD-498   hierarchy tree (when hierarchy data is present)
+        """
+        if not layer_data_list:
+            raise ValueError("No layer data supplied. Cannot generate dashboard.")
+
+        primary_data = _primary_layer(layer_data_list)
+        dash = DashboardGenerator(title)
+
         # 1. Overview Tab
         dash.add_tab("Overview", "overview")
         self._add_executive_overview(dash, layer_data_list)
@@ -159,7 +196,7 @@ class VisualizationService:
             self._add_validation_plots(dash, primary_data, include_per_dim_scatter)
             if primary_data.has_validation:
                 self._add_validation_report(dash, primary_data)
-            if n_seeds > 0 and primary_data.multiseed_rho:
+            if primary_data.multiseed_rho:
                 self._add_multiseed_stability(dash, primary_data)
         dash.end_tab()
 
@@ -199,13 +236,7 @@ class VisualizationService:
             dash.end_section()
         dash.end_tab()
 
-        # ── Phase 3: Write Output ─────────────────────────────────────────
-        output_path = Path(output_file)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        html = dash.generate()
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(html)
-        return str(output_path)
+        return dash.generate()
 
     # ─────────────────────────────────────────────────────────────────────────
     # Section builders
@@ -284,27 +315,20 @@ class VisualizationService:
         """
         gen.start_section("Component Details", "details")
 
-        RMAS_STYLE = (
-            f'style="background:{RMAS_COLORS["availability"]}"',
-            f'style="background:{RMAS_COLORS["reliability"]}"',
-            f'style="background:{RMAS_COLORS["maintainability"]}"',
-            f'style="background:{RMAS_COLORS["security"]}"',
-        )
-
         headers = [
             "ID", "Name", "Type", "Q(v)", "Level",
             "Impact", "R", "M", "A", "V", "RMAV", "SPOF",
         ]
         rows = []
         for c in data.component_details[:100]:
-            rmas_bar = (
-                f'<div class="rmas-bar">'
-                f'<div class="rmas-seg" {RMAS_STYLE[0]} style="width:{c.availability*25:.0f}%;background:{RMAS_COLORS["availability"]}"></div>'
-                f'<div class="rmas-seg" {RMAS_STYLE[1]} style="width:{c.reliability*25:.0f}%;background:{RMAS_COLORS["reliability"]}"></div>'
-                f'<div class="rmas-seg" {RMAS_STYLE[2]} style="width:{c.maintainability*25:.0f}%;background:{RMAS_COLORS["maintainability"]}"></div>'
-                f'<div class="rmas-seg" {RMAS_STYLE[3]} style="width:{c.security*25:.0f}%;background:{RMAS_COLORS["security"]}"></div>'
-                f'</div>'
+            # Each dimension contributes up to 25 % of the bar width, so a
+            # component scoring 1.0 across RMAV fills it completely.
+            segments = "".join(
+                f'<div class="rmas-seg" style="width:{getattr(c, dim) * 25:.0f}%;'
+                f'background:{RMAS_COLORS[dim]}"></div>'
+                for dim in ("availability", "reliability", "maintainability", "security")
             )
+            rmas_bar = f'<div class="rmas-bar">{segments}</div>'
             spof_html = '<span class="badge badge-spof">SPOF</span>' if c.spof else ""
             rows.append([
                 c.id,
@@ -497,7 +521,7 @@ class VisualizationService:
         self, gen: DashboardGenerator, data: LayerData
     ) -> None:
         """
-        Section 9a: QoS-enriched cascade risk view (Middleware 2026 nucleus).
+        Cascade risk tab: QoS-enriched cascade risk (Middleware 2026 nucleus).
 
         Dual-bar chart (topology-only vs QoS-enriched) + stat cards
         (QoS Gini coefficient, Wilcoxon p, Δρ).
@@ -511,20 +535,12 @@ class VisualizationService:
             "This QoS signal is the primary novel contribution for Middleware 2026."
         )
 
-        # Build ComponentDetail-like objects from cascade_results dict list
-        class _CascadeProxy:
-            def __init__(self, d: Dict[str, Any]):
-                self.id = d.get("id", "")
-                self.name = d.get("name", self.id)
-                self.cascade_risk = float(d.get("cascade_risk", 0.0))
-                self.cascade_risk_topo = float(
-                    d.get("cascade_risk_topo", self.cascade_risk * 0.88)
-                )
-
-        proxies = [_CascadeProxy(r) for r in data.cascade_results[:14]]
-        proxies.sort(key=lambda x: x.cascade_risk, reverse=True)
-
-        chart = self.charts.cascade_risk_chart(proxies)
+        ranked = sorted(
+            data.cascade_results,
+            key=lambda r: float(r.get("cascade_risk", 0.0)),
+            reverse=True,
+        )[:14]
+        chart = self.charts.cascade_risk_chart(ranked)
         gen.add_cascade_risk_panel(
             cascade_chart_html=chart,
             qos_gini=data.qos_gini,
@@ -538,7 +554,7 @@ class VisualizationService:
         self, gen: DashboardGenerator, data: LayerData
     ) -> None:
         """
-        Section 10: MIL-STD-498 hierarchy tree with BPA_β rollup scores.
+        MIL-STD-498 tab: hierarchy tree with BPA_β rollup scores.
 
         Gated on data.hierarchy_data being populated (requires structurally
         grounded hierarchy assignment — not random pool selection).
@@ -596,7 +612,7 @@ class VisualizationService:
         Load QoS ablation experiment JSON output and populate
         data.cascade_results, qos_gini, cascade_wilcoxon_p, cascade_delta_rho.
 
-        Expected JSON schema (from qos_ablation_experiment.py):
+        Expected JSON schema:
         {
           "components": [
             {"id": "...", "name": "...", "cascade_risk": 0.xx,
@@ -626,3 +642,31 @@ class VisualizationService:
             )
         except Exception as e:
             self.logger.error(f"Failed to load cascade file {cascade_file}: {e}")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Module helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _primary_layer(layer_data_list: List[LayerData]) -> LayerData:
+    """The layer the single-layer sections render: 'system' when present."""
+    return next(
+        (d for d in layer_data_list if d.layer == "system"),
+        layer_data_list[0],
+    )
+
+
+def _normalise_seed_paths(multi_seed: Any) -> List[str]:
+    """
+    Accept the several shapes --multi-seed arrives in and return JSON paths.
+
+    A list of paths (argparse nargs='*'), a space-separated string (an
+    unexpanded shell glob), or 0/None to skip the stability panel.
+    """
+    if isinstance(multi_seed, str):
+        candidates = multi_seed.split()
+    elif isinstance(multi_seed, (list, tuple)):
+        candidates = [str(p) for p in multi_seed]
+    else:
+        return []
+    return [c for c in candidates if c.endswith(".json")]
