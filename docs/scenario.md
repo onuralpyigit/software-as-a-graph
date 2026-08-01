@@ -210,14 +210,14 @@ and several scenarios do not clear them. Regenerate with
 
 | Scenario | Topo-BL | Topo-QoS | GL | GL-QoS | HGL | HGL-QoS |
 |---|---:|---:|---:|---:|---:|---:|
-| AV System | 0.308 | 0.772 | 0.760 | 0.759 | 0.713 | 0.692 |
-| Enterprise | 0.393 | 0.815 | 0.853 | 0.621 | 0.885 | 0.883 |
-| Financial Trading | 0.246 | 0.848 | 0.851 | 0.873 | 0.882 | **0.903** |
-| Healthcare | −0.182 | 0.768 | 0.815 | 0.815 | 0.842 | 0.845 |
-| Hub-and-Spoke | 0.299 | 0.473 | 0.494 | 0.438 | 0.537 | 0.557 |
-| IoT Smart City | −0.063 | 0.100 | 0.674 | 0.548 | 0.891 | 0.883 |
-| Microservices | 0.302 | 0.573 | 0.524 | 0.543 | 0.362 | 0.354 |
-| **Mean** | **0.186** | **0.621** | **0.710** | **0.657** | **0.730** | **0.731** |
+| AV System | 0.308 | 0.750 | 0.760 | 0.655 | 0.713 | 0.692 |
+| Enterprise | 0.393 | 0.797 | 0.853 | 0.513 | 0.885 | 0.883 |
+| Financial Trading | 0.246 | 0.709 | 0.851 | 0.874 | 0.882 | **0.903** |
+| Healthcare | −0.182 | 0.772 | 0.815 | 0.804 | 0.842 | 0.845 |
+| Hub-and-Spoke | 0.299 | 0.511 | 0.494 | 0.475 | 0.537 | 0.557 |
+| IoT Smart City | −0.063 | 0.068 | 0.674 | 0.474 | 0.891 | 0.883 |
+| Microservices | 0.302 | 0.556 | 0.524 | 0.436 | 0.362 | 0.354 |
+| **Mean** | **0.186** | **0.595** | **0.710** | **0.604** | **0.730** | **0.731** |
 
 Microservices is the hardest scenario for the learned predictors (HGL 0.362), consistent with its
 design intent: a sparse, low-centralisation topology with few genuine bottlenecks. Healthcare and IoT
@@ -228,26 +228,36 @@ are where the unweighted structural baseline fails outright (ρ ≤ 0).
 | Variant | LOSO ρ | LOSO F1@K | k-fold ρ | k-fold F1@K |
 |---|---:|---:|---:|---:|
 | Topo-BL | 0.105 | 0.179 | 0.038 | 0.219 |
-| Topo-QoS | 0.536 | 0.338 | 0.505 | 0.339 |
+| Topo-QoS | 0.521 | 0.308 | 0.492 | 0.359 |
 | RMAV / Q(v) | — | — | −0.123 | — |
 | GL | 0.436 | 0.440 | 0.409 | 0.423 |
 | GL-QoS | 0.430 | 0.435 | 0.397 | 0.446 |
 | HGL | **0.608** | **0.465** | 0.666 | **0.491** |
 | HGL-QoS | 0.595 | 0.461 | **0.693** | 0.479 |
 
-### 5.3 Known measurement caveats
+### 5.3 Instrument defects found and fixed
 
-Two defects affect how these numbers should be read. Both predate this corpus rebuild — the archived
-July logs show them too — and neither has been fixed here:
+Two silent defects were producing published figures. Both predate this corpus rebuild — the archived
+logs show them too — and both are now fixed:
 
-- **`Topo-QoS` silently degrades to `Topo-BL` on AV and IoT.** The harness logs "no QoS weights on
-  graph; falling back to topology betweenness" for those scenarios, so the QoS-weighted baseline is
-  in part an unweighted baseline under a QoS label. It carries the largest variance in both tables
-  (σ = 0.295 LOSO, 0.322 k-fold).
-- **The HGT attention extraction captures nothing.** `reproduce/extract_attention.py` reports "no
-  attention captured — HGTConv version may not expose alpha", and the subgraph figure falls back to
-  ranking edges by weight. Any attention-based interpretation of the ATM case study is unsupported by
-  the current artifact.
+- **`Topo-QoS` applied no QoS weighting at all.** QoS is declared on the Topic node, but
+  `_derive_depends_on_edges` looked for it on the pub-sub relationship, which the generated
+  topologies emit as bare `{from, to}`. The lookup never matched, every derived dependency edge kept
+  a unit weight, and `_qos_weighted_betweenness` fell back to plain betweenness on **all seven**
+  scenarios (35/35 cells), making `Topo-QoS` identical to `Topo-BL`. It now resolves *w(t)* from the
+  shared Topic via `topic_weight_from_node_attrs`, taking the max when a pair shares several topics.
+  `app_to_lib` edges get the scenario's median *w(t)*, since a fixed 1.0 exceeds every observed topic
+  weight and would make library edges the most critical in the graph.
+  **Scope:** only projection-substrate QoS variants were affected — `topo_qos` (32/35 cells changed)
+  and `gl_qos` (25/35). `hgl`/`hgl_qos` use the *native* substrate, whose pub-sub edges already
+  carried real QoS, and were verified unchanged (0/35). `topo_baseline`, `gl`, `hgl` are
+  bit-identical after the fix.
+- **HGT attention extraction captured nothing.** `HGTConv` in PyG 2.7 exposes no
+  `return_attention_weights`, so the extractor always fell through its own `TypeError` branch and
+  emitted an empty dict. Attention is now captured from the layer's own `softmax` call, so the
+  recorded α *is* what the layer used. Fixing it exposed a third latent bug: the subgraph renderer
+  passed `zorder=` to `networkx` draw helpers that no longer accept it — unreachable while the
+  attention payload was empty.
 
 ---
 

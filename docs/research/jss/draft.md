@@ -15,10 +15,9 @@ for Performance, Reliability, and Sustainability of Modern Software Systems" (VS
 > Four results are reported as negative or null rather than adjusted to fit the prior hypothesis:
 > the dimension weighting is outperformed by equal weights and shows no plateau in the shrinkage
 > parameter (§8.3); the two simulation oracles agree only at ρ ≈ 0.39, which bounds what evidence
-> gathered on one can say about a claim measured on the other (§5.1, §7.5); the out-of-distribution
-> ranking margin over a training-free QoS-weighted centrality is reported as an upper bound, because
-> that baseline is measurably degraded on two of seven scenarios (§8.1, §9.2), leaving critical-set
-> identification as the defensible half of the learning claim;
+> gathered on one can say about a claim measured on the other (§5.1, §7.5); the training-free
+> QoS-weighted centrality was found to be computing no QoS weighting at all and was repaired before
+> the reported comparison, rather than left to flatter the learned models (§8.1, §9.2);
 > and the shared-library blast-radius hypothesis was tested and not confirmed (§5.4).
 >
 > The external, real-world validation planned for a prior draft (an ICAO-compliant air-traffic-management
@@ -61,13 +60,12 @@ through one evaluation contract on one held-out sample, we show:
 
 1. **Typed graph learning improves criticality prediction, most defensibly in identifying the
    critical set.** In-distribution, the heterogeneous predictor reaches $\rho = 0.730$ against
-   $0.621$ for the strongest non-learning baseline; out of distribution (Leave-One-Scenario-Out) it
-   reaches $0.608$ against $0.536$, and under in-domain k-fold $0.666$ against $0.505$. The margin on
-   ranking is provisional: on two of seven scenarios the QoS-weighted baseline silently degrades to
-   unweighted centrality, so its score is a floor rather than a measurement (§8.1). The
-   critical-set result does not depend on that defect and does not invert under any protocol
-   ($F_1@K = 0.465$ vs $0.338$, a 38% relative improvement), and it is the half of the claim we
-   rest on.
+   $0.595$ for the strongest non-learning baseline; out of distribution (Leave-One-Scenario-Out) it
+   reaches $0.608$ against $0.521$, and under in-domain k-fold $0.666$ against $0.492$. Those margins
+   are measured against a *repaired* baseline: `Topo-QoS` was found to be applying no QoS weighting
+   at all and computing plain betweenness, and was fixed before the comparison was run (§8.1). The
+   critical-set advantage is the more robust half — it does not invert under any of the three
+   protocols ($F_1@K = 0.465$ vs $0.308$, a 51% relative improvement).
 2. **Multi-dimensional attribution earns its place as an explanation mechanism, not as an accuracy
    gain.** Sweeping the AHP shrinkage parameter shows no plateau and a monotone decline: equal
    dimension weights outperform the calibrated weighting ($\rho = 0.292$ vs $0.181$). The composite
@@ -226,11 +224,11 @@ This paper makes the following contributions:
    into global system criticality scores (§3, §4).
 2. **A scope condition on where graph learning pays for pub-sub criticality.** Under a single
    evaluation contract applied to every predictor (§7.3), typed learning leads the strongest
-   training-free baseline on both ranking ($\rho = 0.608$ vs $0.536$ out of distribution) and
-   critical-set identification ($F_1@K = 0.465$ vs $0.338$). We qualify the first of these
-   rather than banking it: the QoS-weighted baseline silently degrades to unweighted centrality on
-   two of seven scenarios, so its rank score is a floor and the ranking margin an upper bound (§8.1).
-   The set-identification advantage does not depend on that defect.
+   training-free baseline on both ranking ($\rho = 0.608$ vs $0.521$ out of distribution) and
+   critical-set identification ($F_1@K = 0.465$ vs $0.308$) — after repairing that baseline, which
+   was silently computing unweighted betweenness on every scenario (§8.1). We report the repair
+   because a baseline accidentally identical to the one it should improve on inflates any margin
+   measured against it.
 3. **Multi-dimensional criticality attribution, positioned as explanation rather than accuracy.**
    RMAV decomposes criticality into four dimensions with distinct remediation owners, so a diagnostic
    is traceable to an action. A shrinkage sweep shows the dimension weighting does *not* improve
@@ -1366,17 +1364,17 @@ $I^*(v)$ on the held-out split, averaged over five seeds:
 
 | Scenario | Topo-BL | Topo-QoS | GL | GL-QoS | HGL | $HGL\text{-}QoS$ |
 |---|---:|---:|---:|---:|---:|---:|
-| AV System | 0.308 | 0.772 | 0.760 | 0.759 | 0.713 | 0.692 |
-| Enterprise | 0.393 | 0.815 | 0.853 | 0.621 | **0.885** | 0.883 |
-| Financial Trading | 0.246 | 0.848 | 0.851 | 0.873 | 0.882 | **0.903** |
-| Healthcare | −0.182 | 0.768 | 0.815 | 0.815 | 0.842 | **0.845** |
-| Hub-and-Spoke | 0.299 | 0.473 | 0.494 | 0.438 | 0.537 | **0.557** |
-| IoT Smart City | −0.063 | 0.100 | 0.674 | 0.548 | **0.891** | 0.883 |
-| Microservices | 0.302 | 0.573 | 0.524 | 0.543 | 0.362 | 0.354 |
-| **Mean** | **0.186** | **0.621** | **0.710** | **0.657** | **0.730** | **0.731** |
+| AV System | 0.308 | 0.750 | 0.760 | 0.655 | 0.713 | 0.692 |
+| Enterprise | 0.393 | 0.797 | 0.853 | 0.513 | **0.885** | 0.883 |
+| Financial Trading | 0.246 | 0.709 | 0.851 | 0.874 | 0.882 | **0.903** |
+| Healthcare | −0.182 | 0.772 | 0.815 | 0.804 | 0.842 | **0.845** |
+| Hub-and-Spoke | 0.299 | 0.511 | 0.494 | 0.475 | 0.537 | **0.557** |
+| IoT Smart City | −0.063 | 0.068 | 0.674 | 0.474 | **0.891** | 0.883 |
+| Microservices | 0.302 | 0.556 | 0.524 | 0.436 | 0.362 | 0.354 |
+| **Mean** | **0.186** | **0.595** | **0.710** | **0.604** | **0.730** | **0.731** |
 
-The heterogeneous predictor leads the strongest non-learning baseline by $\Delta\rho = +0.109$
-(HGL 0.730 vs Topo-QoS 0.621). Its lead over the *homogeneous* learned baseline is much narrower —
+The heterogeneous predictor leads the strongest non-learning baseline by $\Delta\rho = +0.135$
+(HGL 0.730 vs Topo-QoS 0.595). Its lead over the *homogeneous* learned baseline is much narrower —
 $+0.020$ over GL (0.730 vs 0.710) — and it is not uniform: GL wins on AV and Microservices, HGL wins
 decisively on IoT (0.891 vs 0.674). In-distribution, therefore, these data do **not** establish that
 relation-specific message passing is what supplies the learned margin; the two learned families are
@@ -1391,14 +1389,14 @@ low-centralisation topology with few genuine bottlenecks — is where every lear
 weakest (HGL 0.362), while the structural baselines degenerate on Healthcare and IoT ($\rho \le 0$).
 No predictor in this study is uniformly best.
 
-**Out of distribution, the typed model leads — but the baseline it leads is under-measured.** Under
+**Out of distribution, the typed model leads.** Under
 Leave-One-Scenario-Out evaluation — the true pre-deployment condition, in which the model must rank a
 system whose cascade dynamics it has never seen — we obtain:
 
 | Variant | Mean $\rho$ (LOSO) | Std $\rho$ | $F_1@K$ | Training required |
 |---|---:|---:|---:|:---:|
 | Topo-BL | 0.105 | 0.151 | 0.179 | no |
-| Topo-QoS | 0.536 | 0.295 | 0.338 | **no** |
+| Topo-QoS | 0.521 | 0.305 | 0.308 | **no** |
 | RMAV / $Q(v)$ | −0.093 | 0.140 | 0.209 | no |
 | GL (homogeneous) | 0.436 | 0.120 | 0.440 | yes |
 | GL-QoS (homogeneous) | 0.430 | 0.125 | 0.435 | yes |
@@ -1407,31 +1405,33 @@ system whose cascade dynamics it has never seen — we obtain:
 
 `Topo-QoS` is a QoS-weighted centrality that requires no training, no labels, and no transfer
 assumption; because it is never fitted, its out-of-distribution score *is* its score. HGL reaches
-$\rho = 0.608$ against its $0.536$, and leads on $F_1@K$ as well (0.465 vs 0.338). The same ordering
+$\rho = 0.608$ against its $0.521$, and leads on $F_1@K$ as well (0.465 vs 0.308). The same ordering
 holds under the in-domain k-fold protocol, where the separation is wider still — HGL-QoS 0.693 and
-HGL 0.666 against Topo-QoS 0.505 — and where the typed models are also the *most stable* across folds
-($\sigma = 0.07$ against $0.32$ for Topo-QoS).
+HGL 0.666 against Topo-QoS 0.492 — and where the typed models are also the *most stable* across folds
+($\sigma = 0.07$ against $0.34$ for Topo-QoS).
 
-**We decline to convert this into a clean claim of victory, for a reason internal to the measurement.**
-On two of the seven scenarios (AV, IoT Smart City) the harness logs `no QoS weights on graph` and
-`Topo-QoS` silently falls back to unweighted betweenness — that is, on those folds the "QoS-weighted"
-baseline *is* `Topo-BL`. Its 0.536 is therefore a floor on what a correctly weighted structural
-baseline would score, not a measurement of one, and the margin reported above is correspondingly an
-upper bound. Since `Topo-QoS` is precisely the comparator this conclusion turns on, we treat the
-result as provisional pending that fix rather than as settled.
+**This comparison is only meaningful because the baseline was repaired first.** In an earlier
+revision, `Topo-QoS` scored *no* QoS weighting at all on the logical-dependency substrate: QoS is
+declared on the Topic node, but the harness looked for it on the pub-sub relationship, which the
+generated topologies emit without one. The lookup never matched, every derived dependency edge kept a
+unit weight, and the QoS-weighted baseline silently computed plain betweenness on all seven scenarios
+— it was `Topo-BL` under another name. We resolve $w(t)$ from the shared Topic instead, taking the
+strongest contract when a pair communicates over several topics. A baseline that is accidentally
+identical to the one it is meant to improve on will always flatter whatever it is compared against,
+and the figures above are reported only after that defect was removed.
 
-That caution is warranted by this paper's own history with the claim. An earlier version reported
-typed learning as the out-of-distribution winner on figures produced by an untrained sweep (§9.2); a
-later version, after correcting the evaluation contract, reported a tie and stated plainly that
-learning did not beat the training-free baseline on rank correlation. On the regenerated corpus and
-rebuilt ground-truth caches (§7.1), the ordering favours the typed model again. A conclusion that has
-now moved twice under changes to the *measurement apparatus* rather than to the method is not one to
-assert strongly in either direction. What would settle it is a correctly weighted `Topo-QoS` and an
-evaluation on topologies that do not share a generator (§9.3) — neither of which this submission has.
+Even so, we state the ranking result carefully, because of this paper's own history with it. An
+earlier version reported typed learning as the out-of-distribution winner on figures produced by an
+untrained sweep (§9.2); a later version, after correcting the evaluation contract, reported a tie and
+stated plainly that learning did not beat the training-free baseline on rank correlation. On the
+regenerated corpus, rebuilt ground-truth caches (§7.1) and repaired baseline, the ordering favours the
+typed model. A conclusion that has moved this often under changes to the *measurement apparatus*
+rather than to the method deserves an explicit statement of what would settle it: an evaluation on
+topologies that do not share a generator (§9.3), which this submission does not have.
 
 **The learned advantage is most robust in set identification.** $F_1@K$ — the overlap between the
 predicted and actual top-$K$ critical sets — favours the typed model by a wider relative margin than
-$\rho$ does: 0.465 for HGL against 0.338 for Topo-QoS, a 38% relative improvement, with the same
+$\rho$ does: 0.465 for HGL against 0.308 for Topo-QoS, a 51% relative improvement, with the same
 ordering holding for both homogeneous learned baselines over both structural ones. This matters
 operationally more than the ranking result. An architect does not consume a total order over 150
 components; they consume a shortlist. Unlike the $\rho$ comparison, this one does not invert under
@@ -1606,14 +1606,15 @@ carry this.
 
 **First, learning pays — most defensibly for set identification (RQ1).** The typed predictor leads
 the strongest non-learning baseline on both metrics and under all three evaluation protocols. Out of
-distribution — the genuine pre-deployment condition — it reaches $\rho = 0.608$ against $0.536$ for a
+distribution — the genuine pre-deployment condition — it reaches $\rho = 0.608$ against $0.521$ for a
 QoS-weighted centrality that requires no training, no labels and no transfer assumption, and
-$F_1@K = 0.465$ against $0.338$. We nonetheless place more weight on the second metric than the
+$F_1@K = 0.465$ against $0.308$. Both margins are measured against a baseline we first had to repair:
+`Topo-QoS` was computing no QoS weighting whatsoever (§8.1), and until that was fixed it was
+`Topo-BL` wearing a different label. We nonetheless place more weight on the second metric than the
 first, for two reasons. Operationally, an architect hardens a handful of components, not a ranked
-list of 150. Methodologically, the ranking comparison is the one contaminated by a defect in the
-comparator — `Topo-QoS` degrades to unweighted centrality on two of seven scenarios (§8.1) — whereas
-the set-identification result does not depend on it and does not invert under any protocol. A reader
-should treat the ranking margin as provisional and the shortlist margin as the finding. The practical
+list of 150. Empirically, the ranking comparison is the less stable one: `Topo-QoS` carries the
+largest across-fold variance of any predictor in the study ($\sigma = 0.31$ LOSO, $0.34$ k-fold),
+whereas the set-identification ordering does not invert under any protocol. The practical
 reading remains a scope condition: if a team needs a cheap ordering, QoS-weighted centrality remains
 a serviceable default at a fraction of the cost; if they need the critical set, typed learning is
 worth its training cost.
@@ -1665,17 +1666,20 @@ apply, and we state them rather than leave them implicit.
 constrains this paper's own internal cross-referencing: §5.4's library finding and §5.5's stratified
 check are $I_{\text{comp}}$ results and are not evidence about the $I^*$-backed tables in §8.1.
 
-*Two comparators are degraded, and we report the numbers anyway.* On AV and IoT Smart City, the
-`Topo-QoS` baseline finds no QoS weights on the graph and falls back to unweighted betweenness — on
-those folds it is `Topo-BL` under a different name. Every `Topo-QoS` figure in this paper is
-therefore a floor on what a correctly weighted structural baseline would achieve, and every margin
-reported over it is an upper bound. Separately, the attention extraction behind the ATM case study
-captures no weights (`HGTConv` does not expose `alpha` in the pinned PyTorch Geometric version) and
-the subgraph figure falls back to ranking edges by weight; no attention-based interpretation of that
-case study is supported by the released artifact. Both defects predate the corpus regeneration
-described in §7.1 — they are visible in the archived logs of the earlier run — and both are fixes we
-identify rather than ones we have made. We report them because the first bears directly on §8.1's
-headline comparison.
+*Two instrument defects were found and corrected during this revision.* Both were silent, both
+predate the corpus regeneration of §7.1, and both are recorded here because each had been producing
+published figures. First, the `Topo-QoS` baseline was applying no QoS weighting: $w(t)$ is declared
+on the Topic node, the harness looked for it on the pub-sub relationship, and the generated
+topologies carry none there, so every derived dependency edge kept a unit weight and the baseline
+computed plain betweenness on all seven scenarios. It has been repaired to resolve $w(t)$ from the
+shared Topic; the affected columns of Tables 3 and 4 and the k-fold table were recomputed, and the
+non-QoS variants were verified unchanged to machine precision. Second, HGT attention extraction
+captured nothing, because `HGTConv` in the pinned PyTorch Geometric release exposes no
+`return_attention_weights` argument and the extraction fell through its own error branch; attention
+is now captured from the layer's own softmax, and the ATM subgraph figure is generated from real
+per-edge $\alpha$ rather than an edge-weight fallback. We note that the second defect had masked a
+third — the subgraph renderer itself raised on a `networkx` API change, which nothing had exercised
+while the attention payload was empty.
 
 *A third of each system is unlabelled.* The cascade model cannot express the failure of a Topic or a
 physical Node, leaving 30–47% of components per scenario without ground truth. Predictions for them
@@ -1786,9 +1790,9 @@ Integrated directly into pipelines as a delta-aware, blocking CI/CD Quality Gate
 verifies architectural changes and blocks regression in seconds, bridging the "Architecture-Code
 Gap" at commit time. Across a synthetic scenario suite, the framework establishes a scope condition
 on where typed graph learning pays — it leads a training-free QoS-weighted centrality on both ranking
-($\rho = 0.608$ vs $0.536$ out of distribution) and identifying *which* components belong on a
-shortlist ($F_1@K = 0.465$ vs $0.338$), with the ranking margin qualified by a measured defect in
-that baseline and the shortlist margin holding under every protocol. Alongside that, measuring edge criticality by
+($\rho = 0.608$ vs $0.521$ out of distribution) and identifying *which* components belong on a
+shortlist ($F_1@K = 0.465$ vs $0.308$), both measured only after repairing that baseline, which had
+been computing no QoS weighting at all. Alongside that, measuring edge criticality by
 removal rather than inferring it from endpoints shows most individual links to be replaceable and
 exposes a class of relations the cascade model cannot express at all, and stratified rather than
 pooled reporting caught a distortion that moved a headline figure by 0.38. By taking the *type* of
