@@ -4,35 +4,33 @@
 techniques for CI/CD, DevOps, software evolution, technical debt analysis, and refactoring
 recommendation*.
 **SI topic mapping:** this submission covers three of the bullet's five named areas directly —
-*technical debt analysis* (the anti-pattern catalog, §4), *refactoring recommendation* (the
-prescriptive operators, §6), and *CI/CD/DevOps* (the delta-aware quality gate, §7). No AutoML/NAS/LLM
-contribution is claimed.
+*technical debt analysis* (the anti-pattern catalog, §4), *refactoring recommendation* (the verified
+prescriptive operators, §6), and *CI/CD/DevOps* (the quality gate, §7). No AutoML/NAS/LLM contribution
+is claimed.
 
-> **Provenance note (not part of the manuscript).** This draft supersedes the prior prescription-only
-> version of the manuscript, realigning it with the revised outline in this directory
-> (`docs/research/ause/outline.md`). It folds in the twenty-one-pattern anti-pattern catalog and its
-> empirical validation — previously maintained only as a separate technical reference
-> (`docs/antipatterns.md`) and cited by companion papers purely as background — as a first-class
-> Section 4 of this manuscript, and re-maps the three prescriptive operators (§6.3) explicitly onto
-> the anti-patterns they repair. All numbers reported below (Spearman ρ, F1/precision/recall for
-> detection; SRI/ΔSRI, operator counts, and runtimes for prescription) are taken as-is from
-> `docs/antipatterns.md` and the previously reconciled `docs/prescription.md`; no figures have been
-> invented or adjusted to fit the new framing. The title has also been shortened to drop the
-> `SaG-Prescribe:` branding prefix and the `Closed-Loop, DevOps-Integrated` qualifier; the underlying
-> framework is still referred to as SaG-Prescribe throughout the abstract and body text below.
+> **Provenance note (not part of the manuscript).** This revision realigns the manuscript with the
+> post-revision implementation and re-measures its detection claims. Four changes are substantive:
 >
-> **Prior provenance (retained for the record).** This draft previously merged three earlier,
-> independent drafts that accumulated in this directory — *"Automated Prescriptive Refactoring of
-> Distributed Middleware Architectures"*, *"Automated, Simulation-Verified Refactoring
-> Recommendation"*, and *"Closed-Loop Prescriptive Optimization of Publish–Subscribe Architectures
-> over Heterogeneous Graph Models"* — all of which described the same SaG-Prescribe system with
-> overlapping but non-identical framing. Experimental values for the prescriptive pipeline are taken
-> from the most recently re-measured source ("Closed-Loop Prescriptive Optimization...", re-measured
-> 2026-07-02 against `reproduce/run_prescribe_all.py` and `saag/prescription/`). The metric name is
-> standardized to **System Risk Index (SRI)**, matching `docs/validation.md` and `docs/prescription.md`.
-> One related-work subsection (§2.3) retains two `[REF: …]` citation-slot placeholders (learning-based
-> and LLM-based refactoring recommenders) — these are explicitly *not* invented citations and must be
-> populated from a real bibliography before submission.
+> 1. **Detection validation is now measured here rather than carried forward.** The figures previously
+>    reported in §4.5/§9.1 (ρ = 0.876, ρ = 0.943 at scale, F₁ = 0.923, precision 0.912, recall 0.857,
+>    Top-5 0.80) originated in a prior conference publication and had no reproducible artifact in this
+>    repository. §9.1 now reports measurements produced by `reproduce/detection_validation.py` against
+>    a committed oracle, in `results/detection_validation.json` (system layer) and
+>    `results/detection_validation_app.json` (app layer). **The measured figures are substantially
+>    weaker**, and RQ1 is reported as a negative result.
+> 2. **The per-edit acceptance filter is implemented.** §5, §6.4, §9.2–§9.4 and §11.2 previously
+>    described it as unimplemented future work and reported unfiltered results (ΔSRI 1.4%–15.9% across
+>    seven scenarios, Wilcoxon p = 0.0156; mean component-level +4.61% concealing −31.67% and −25.36%
+>    regressions). Those are superseded by the filtered results in `results/prescribe_all.log`.
+> 3. **§7 is rescoped.** Delta-aware merge-base semantics and the waiver register are specified but
+>    not implemented; §7.2 now says so, and the corresponding evaluation claims are removed from §9.5.
+> 4. **§9.5's generate–verify runtimes are withdrawn**, having been measured under the unfiltered
+>    design, and replaced with measured detection-gate timings plus the per-edit cost model.
+>
+> Two items remain open before submission. §2.3 retains two `[REF: …]` citation-slot placeholders
+> (learning-based and LLM-based refactoring recommenders) — these are explicitly *not* invented
+> citations and must be populated from a real bibliography. And the overlap disclosure in §1.5 must be
+> checked against the companion submission's final scope.
 
 ---
 
@@ -46,37 +44,35 @@ Shotgun Surgery) give practitioners a shared vocabulary and testable detection r
 publish–subscribe architectures have no equivalent catalog: problems are discovered reactively,
 through postmortems and cascade incidents, rather than proactively at design time. Even where
 structural diagnostic frameworks exist, they typically operate *open-loop*: they rank components by
-criticality without naming the specific architectural pathology at fault or producing verified
-guidance on how to repair it. We address both gaps with **SaG-Prescribe**, a graph-based framework
-that (1) detects twenty-one named, severity-tiered publish–subscribe anti-patterns and bad smells —
-including Single Point of Failure, God Component, Broker Saturation (Hub-and-Spoke), Chatty Pair, and
-QoS Policy Mismatch — via formally specified topological signatures over thirteen structural metrics
-and adaptive box-plot thresholds, each validated against independent failure-simulation ground truth
-(Spearman $\rho = 0.876$ overall, rising to $\rho = 0.943$ at large scale; $F_1 = 0.923$, precision
-$0.912$, recall $0.857$ for critical-tier classification); and (2) compiles the resulting diagnosis —
-components and patterns flagged `CRITICAL` or `HIGH` — into a transformation policy $\Delta(G)$ of
-three targeted graph-mutation operators (logical topic splitting, physical anti-affinity
-reallocation, and transport QoS contract hardening), each re-verified by the same discrete-event
-cascade simulator that produced the diagnosis before it is surfaced as a recommendation. The pipeline
-is further operationalized as a delta-aware CI/CD quality gate (`detect_antipatterns.py`) that blocks
-only newly introduced structural anti-patterns relative to a Git merge base, within sub-minute
-execution bounds.
+criticality without naming the architectural pathology at fault or producing verified guidance on how
+to repair it. We address both gaps with **SaG-Prescribe**, a graph-based framework that (1) specifies
+twenty-one named, severity-tiered publish–subscribe anti-patterns and bad smells — including Single
+Point of Failure, God Component, Broker Saturation, Chatty Pair, and QoS Policy Mismatch — as formal
+topological signatures over a structural metric vector with adaptive box-plot thresholds; and (2)
+compiles the resulting diagnosis into a transformation policy of three graph-mutation operators
+(logical topic splitting, physical anti-affinity reallocation, transport QoS contract hardening), in
+which **every candidate edit is verified independently** on its own counterfactual graph against a
+discrete-event cascade simulator, and only edits whose measured impact reduction exceeds the
+simulator's own seed noise at every propagation threshold are surfaced as recommendations.
 
-Across eight benchmark scenarios used for detection validation and a seven-scenario subset used for
-prescriptive evaluation — spanning autonomous vehicles, IoT, finance, healthcare, and hyper-scale
-enterprise topologies — the generated prescriptions reduce the System Risk Index (SRI, lower is
-better) in every scenario, with relative risk reductions between 1.4% and 15.9% (Wilcoxon signed-rank
-across the seven baseline/mutated pairs: $W=0.0$, $p=0.0156$, significant at $\alpha=0.05$). We report
-this result alongside a less flattering but more honest one: component-level failure-impact
-reductions average only +4.61% and regress in two of seven scenarios (−31.67% and −25.36%), because
-the current prescriptive policy is applied greedily and unconditionally, occasionally introducing new
-cascade hops that offset its own gains — a finding that directly motivates a per-edit acceptance
-filter as the highest-priority extension. The full generate–verify loop completes in under 65 seconds
-for six of the seven prescription scenarios (4.7 s–64.3 s) and in approximately 10.8 minutes for the
-300-process enterprise topology, while the standalone CI/CD detection gate completes in under 2
-seconds to ~40 seconds across the same scale range — making both proactive anti-pattern detection and
-closed-loop prescriptive refactoring practical as merge-request-gated or nightly pre-deployment CI/CD
-stages.
+We evaluate both stages against a committed simulation oracle and report two negative results
+prominently, because both change what the framework can be claimed to do. **Detection is weaker than
+prior reporting suggested.** Across eight benchmark scenarios the composite criticality score reaches
+mean Spearman $\rho = 0.268$ against simulated cascade impact — below betweenness centrality ($0.295$)
+and degree centrality ($0.417$) alone — and the catalog implicates a mean of 90.4% of components at
+`CRITICAL`/`HIGH` severity, including 70% on the sparse topology chosen as a precision stress test. The
+pattern specifications are sound; their thresholds are not yet calibrated to produce a usable
+shortlist. **Verification admits far less than generation proposes, and changes the causal account.**
+Of 213 candidate edits across six scenarios, 29 (13.6%) survive per-edit verification, all of them
+topic splits: no anti-affinity reallocation and no QoS upgrade clears the margin anywhere, contradicting
+the previously reported attribution of the suite's best result to QoS hardening. Five of six scenarios
+admit nothing; one improves clearly ($\Delta\mathrm{SRI} = +0.0365$); and one shows three
+individually verified edits composing into a marginal regression, bounding but not eliminating that
+failure mode. The defensible scope for the prescriptive stage is fan-out decomposition where a fan-out
+bottleneck actually exists. Detection runs in 0.03–24.6 s from a 12-component fixture to a
+300-application enterprise topology, with the detectors themselves accounting for under a second in
+total, making per-commit gating feasible once threshold calibration and delta-aware semantics — designed
+and reported here, but not yet implemented — are in place.
 
 **Keywords:** architectural anti-patterns; bad smells; technical debt analysis; refactoring
 recommendation; publish–subscribe middleware; CI/CD quality gates; DevOps; failure cascade
@@ -136,50 +132,82 @@ as the **detection-and-remediation gap** this paper closes.
 
 To close this gap, we present **SaG-Prescribe**, a graph-based framework unifying three stages: detect,
 prescribe, and gate. First, SaG-Prescribe **detects** twenty-one named, severity-tiered
-publish–subscribe anti-patterns and bad smells, each given a formal topological detection rule over
-thirteen structural metrics and adaptive box-plot thresholds, and each validated against independent
-failure-simulation ground truth. Second, it **prescribes**: components and patterns flagged
-`CRITICAL` or `HIGH` — itself informed by a **Code Quality Penalty (CQP)** computed from
-static-analysis metrics — feed a rule-based prescriptive engine that generates targeted architectural
-mutations along three vectors: (1) logical topic splitting, isolating high-fan-out publish channels;
-(2) physical anti-affinity reallocation, isolating co-located SPOFs; and (3) transport QoS contract
-hardening, upgrading volatile/best-effort channels to reliable, transient-local settings. Crucially,
-SaG-Prescribe implements **closed-loop simulation verification**: each mutated candidate topology $G'$
-is programmatically re-simulated with the same discrete-event cascade simulator used for detection,
-under identical fault conditions, and a policy is reported together with its verified change in the
-System Risk Index (SRI) rather than as an unverified suggestion. Third, because the recommend-verify
-loop runs against an in-memory repository with no database dependency, the same underlying engine is
-operationalized as a **delta-aware CI/CD quality gate** that blocks only structural anti-patterns
-newly introduced relative to a Git merge base, leaving pre-existing, risk-accepted debt untouched
-unless its severity worsens.
+publish–subscribe anti-patterns and bad smells, each given a formal topological detection rule over a
+structural metric vector with adaptive box-plot thresholds. Second, it **prescribes**: components and
+patterns flagged `CRITICAL` or `HIGH` — a classification itself informed by a **Code Quality Penalty
+(CQP)** computed from static-analysis metrics — feed a rule-based engine that generates targeted
+architectural mutations along three vectors: (1) logical topic splitting, decomposing high-fan-out
+publish channels; (2) physical anti-affinity reallocation, separating co-located critical components;
+and (3) transport QoS contract hardening, upgrading volatile/best-effort channels to reliable,
+transient-local settings.
+
+Crucially, SaG-Prescribe implements **two-level closed-loop verification**. Each candidate edit is
+first applied *alone* to a counterfactual copy of the topology and re-simulated across a propagation-
+threshold sweep and a seed set; it is admitted only if its measured cascade-impact reduction exceeds
+the simulator's own seed noise at every threshold. Only the admitted subset is then applied jointly
+and re-evaluated end to end. A recommendation therefore reaches the architect having been measured
+individually, and the framework reports an empty recommendation set — which happens often — rather
+than manufacturing one.
+
+Third, because the loop runs against an in-memory repository with no database dependency, the same
+underlying engine is operationalized as a **CI/CD quality gate**. We describe the gate's intended
+delta-aware semantics, which block only findings newly introduced relative to a Git merge base and
+leave pre-existing, risk-accepted debt untouched unless its severity worsens; §7.2 states plainly that
+these semantics are specified but not yet implemented, and §9.1 explains why implementing them is a
+prerequisite for deployment rather than a refinement.
 
 ### 1.4 Contributions
 
 1. **A catalog of twenty-one publish–subscribe anti-patterns and bad smells**, each with a formal,
-   topology-based detection rule expressed over thirteen structural metrics and adaptive box-plot
-   thresholds, organized into three severity tiers and four RMAV quality dimensions, and empirically
-   validated against independent failure-simulation ground truth (§4).
-2. **A code-quality-augmented, closed-loop prescriptive refactoring pipeline** that translates the
-   catalog's findings into counterfactual graph mutations via three named operators, each explicitly
-   mapped to the anti-patterns it targets, and verifies each candidate against the same discrete-event
-   cascade simulator that produced the diagnosis before it is surfaced as a recommendation (§5–§6).
-3. **A DevOps-integrated, delta-aware CI/CD quality gate** (`detect_antipatterns.py`) that surfaces
-   the catalog's twenty-one detectors as a blocking check, comparing candidate and merge-base
-   topologies to flag only newly introduced anti-patterns, with a three-tier exit-code protocol and an
-   auditable waiver register for accepted legacy risk (§7).
-4. **A multi-scenario empirical evaluation** across eight detection-validation scenarios and a
-   seven-scenario prescriptive-evaluation subset, showing consistent, statistically significant SRI
-   reductions of 1.4%–15.9% (Wilcoxon $W=0.0$, $p=0.0156$), an operator-level contribution analysis, a
-   **component-level audit that reports mixed results honestly** rather than only the flattering
-   system-level aggregate, and a runtime audit confirming compatibility with CI/CD budgets at every
-   evaluated scale (§8–§9).
+   topology-based detection rule over a structural metric vector with adaptive box-plot thresholds,
+   organized into three severity tiers and four quality dimensions (§4).
+2. **A prescriptive refactoring pipeline with per-edit counterfactual verification**, translating the
+   catalog's findings into graph mutations via three named operators, each explicitly mapped to the
+   patterns it targets, where every candidate is measured alone against a discrete-event cascade
+   simulator and admitted only if it beats that simulator's own noise at every propagation threshold
+   (§5–§6). We disclose the automation footprint precisely rather than by implication: five of the
+   twenty-one patterns are directly wired to an operator; the other sixteen remain advisory.
+3. **A CI/CD quality gate**, with a three-tier exit-code protocol and designed delta-aware, waiver-
+   registered semantics, reported with its implementation status stated explicitly for each half (§7).
+4. **An empirical evaluation that reports two negative results as its principal findings** (§8–§9):
+   detection correlates with simulated impact only weakly and is out-performed by degree centrality
+   alone, while implicating ~90% of components; and per-edit verification admits 13.6% of generated
+   candidates, none of them from two of the three operators, overturning this work's own earlier causal
+   account of its best-performing scenario.
+5. **An account of the measurement itself.** The detection figures previously reported for this
+   framework were inherited from a prior publication without a reproducible artifact. We supply the
+   harness (`reproduce/detection_validation.py`), report what it measures, and document a pooling
+   effect strong enough to flip the sign of a system-layer correlation — a methodological hazard for
+   anyone scoring criticality on a heterogeneous graph.
 
-The remainder of the paper is organized as follows. Section 2 surveys related work. Section 3
-formalizes the graph model and the code-quality bridge. Section 4 presents the anti-pattern catalog
-and its empirical validation. Section 5 defines the closed-loop optimization objective. Section 6
-presents the prescriptive pipeline and its operators. Section 7 describes the DevOps/CI-CD
-integration. Sections 8 and 9 present the experimental design and results. Section 10 discusses
-implications and threats to validity, and Section 11 concludes.
+### 1.5 Relationship to the Authors' Prior Work
+
+This submission builds on two prior efforts by the same authors, and we state the boundaries because
+they bear on originality and overlap assessment.
+
+A companion manuscript [1] introduces the Software-as-a-Graph model itself — the typed multigraph, the
+`DEPENDS_ON` projection rules, the RMAV attribution, the failure simulators, and a learned
+heterogeneous-GNN criticality predictor. This paper *consumes* that model (§3 summarizes only what the
+detection and prescription stages need) and contributes what [1] does not contain: the anti-pattern
+catalog and its detection methodology (§4), the operator-to-pattern mapping and its disclosed coverage
+gaps (§6.3), the CI/CD gate design (§7), and the detection validation of §9.1. The prescriptive
+verification machinery of §5–§6 is shared infrastructure described in both; the *evaluation* of it
+here is specific to this paper's operator set and scenario subset. Neither manuscript's claims depend
+on the other's results.
+
+Earlier detection figures for this framework were published in a conference paper by the same authors.
+As §9.1 and the provenance note record, those figures are not reproduced here: we re-measured rather
+than restated, and the measured values are weaker. We regard reporting that difference as part of this
+paper's contribution rather than an embarrassment to be smoothed over.
+
+### 1.6 Organization
+
+Section 2 surveys related work. Section 3 formalizes the graph model and the code-quality bridge.
+Section 4 presents the anti-pattern catalog and its validation methodology. Section 5 defines the
+closed-loop optimization objective and its acceptance criteria. Section 6 presents the prescriptive
+pipeline and its operators. Section 7 describes the CI/CD gate. Sections 8 and 9 present the
+experimental design and results. Section 10 discusses implications and threats to validity, and
+Section 11 concludes.
 
 ---
 
@@ -280,13 +308,19 @@ criticality analysis in the first place [11]. Design-structure-matrix research o
 modularity [18] and combinatorial network-reliability theory [19] provide the graph-theoretic
 foundations that the anti-pattern catalog's structural signatures (§4) build on; Lehman's laws of
 software evolution [20] further motivate treating architectural criticality as a property that must be
-re-checked continuously as a system evolves, rather than assessed once at initial design. Because
-classical centrality metrics assume uniform edge semantics, they degrade on pub-sub layers, where
-decoupled endpoints are separated by high-fan-out topics, brokers, and distinct QoS policies. [1]
-quantifies this gap and motivates the typed multigraph model that both the anti-pattern catalog and
-SaG-Prescribe's mutation operators act on. These approaches identify fragility but, like the
-diagnostic layer of SaG, stop short of naming the specific pathology and prescribing and verifying
-remediation — the step this paper automates.
+re-checked continuously as a system evolves, rather than assessed once at initial design.
+
+The standard argument for moving beyond single-metric centrality is that classical measures assume
+uniform edge semantics and should therefore degrade on pub-sub layers, where decoupled endpoints are
+separated by high-fan-out topics, brokers, and heterogeneous QoS policies. We state that argument here
+because it motivates the typed multigraph model, and then note that **this paper's own measurements do
+not confirm it**: on our suite, degree centrality alone out-ranks the four-dimensional composite
+against simulated cascade impact (§9.1). Readers should weigh §4's decomposition on the explanatory
+grounds developed in §10.1 rather than on an assumed accuracy advantage over simple centrality.
+
+What these approaches share, and what motivates this paper regardless of that result, is that they
+identify fragility without naming the specific pathology or verifying a remedy — the step this paper
+automates.
 
 ---
 
@@ -359,10 +393,17 @@ $$M(v) = 0.35\,\mathrm{BT}(v) + 0.30\,\mathrm{w\_out}(v) + 0.15\,\mathrm{CQP}(v)
   SPOF scores.
 * **Vulnerability ($V$):** exposure to adversarial reach, mapping attack propagation vectors.
 
-These four profiles blend into a composite criticality score $Q(v)$ using Analytic Hierarchy Process
-(AHP) weights [12] mixed with a uniform prior ($\lambda=0.70$) to prevent extreme parameter
-concentration, yielding final weights of $(0.38, 0.24, 0.19, 0.19)$ for availability, reliability,
-maintainability, and vulnerability respectively. Composite scores are mapped to five criticality tiers
+These four profiles blend into a composite criticality score $Q(v)$ using pairwise-comparison weights
+on Saaty's 1–9 scale [12], checked for internal consistency and then mixed with a uniform prior
+($\lambda = 0.70$) to prevent extreme parameter concentration. The raw weights are $(0.43, 0.24, 0.17,
+0.16)$ and the *applied* weights after shrinkage are $(0.395, 0.247, 0.193, 0.165)$ for availability,
+reliability, maintainability and vulnerability respectively; the shrinkage is applied to the
+intra-dimension weight vectors as well as to the composite, so $\lambda$ moves every formula above at
+once. We describe these as stated design judgements checked for consistency rather than as elicited
+from raters: the near-zero consistency ratios are a symptom of matrices written from a target weight
+vector, and the framework's own sensitivity sweep finds that equal weights out-perform the calibrated
+ones on ranking accuracy. This is a further reason the decomposition's contribution is scoped to
+attribution rather than accuracy (§10.1). Composite scores are mapped to five criticality tiers
 (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `MINIMAL`) using adaptive box-plot thresholding on the system's
 own score distribution (`CRITICAL`: $Q > Q_3 + 1.5\,\mathrm{IQR}$; `HIGH`: $Q_3 < Q \le$ upper fence).
 This section's typed graph, RMAV dimensions, and adaptive box-plot machinery are the shared foundation
@@ -394,16 +435,31 @@ pipeline execution, before any deployment.
 
 ### 4.2 Detection Methodology
 
-Detection operates over a thirteen-element metric vector $M(v)$ computed per component: PageRank
-$\mathrm{PR}(v)$, Reverse PageRank $\mathrm{RPR}(v)$, betweenness centrality $\mathrm{BT}(v)$,
-closeness centrality $\mathrm{CL}(v)$, eigenvector centrality $\mathrm{EV}(v)$, in- and out-degree
-($\mathrm{DG}_{\text{in}}(v)$, $\mathrm{DG}_{\text{out}}(v)$), clustering coefficient $\mathrm{CC}(v)$,
-articulation-point score $\mathrm{AP}_c(v)$, bridge ratio $\mathrm{BR}(v)$, and QoS-weighted degree
-measures ($w(v)$, $w_{\text{in}}(v)$, $w_{\text{out}}(v)$). Topological metrics use rank-based
-normalization by default, since they are typically highly skewed (a single hub-broker may have
-betweenness 50$\times$ the median, which would compress all other values under min-max scaling); linear
-properties (LOC, complexity, LCOM, hardware capacity) use min-max normalization, since their absolute
-magnitude differences are meaningful.
+Detection operates over a per-component structural metric vector $M(v)$. Fifteen of its fields are
+*Tier-1* metrics — those that feed an RMAV dimension directly — organized by the dimension they
+serve: Reverse PageRank $\mathrm{RPR}$, in-degree $\mathrm{DG}_{\text{in}}$, multi-path coupling index
+$\mathrm{MPCI}$ and topic fan-out criticality $\mathrm{FOC}$ (Reliability); betweenness
+$\mathrm{BT}$, QoS-weighted out-degree $w_{\text{out}}$, clustering coefficient $\mathrm{CC}$ and path
+complexity $\mathrm{PC}$ (Maintainability); directed articulation score
+$\mathrm{AP}_{c,\text{directed}}$, bridge ratio $\mathrm{BR}$, connectivity degradation index
+$\mathrm{CDI}$ and component weight $w$ (Availability); and reverse eigenvector $\mathrm{REV}$,
+reverse closeness $\mathrm{RCL}$ and QoS-weighted in-degree $w_{\text{in}}$ (Vulnerability). The Code
+Quality Penalty of §3.3 is a sixteenth Tier-1 input, entering through Maintainability. Forward-facing
+centralities (PageRank, closeness, eigenvector) are computed but held at Tier 2 — informative for
+visualization, deliberately not fed to the RMAV formulas, since their reverse counterparts on $G^T$
+are the failure-propagation-relevant direction.
+
+Topological metrics use **rank-based normalization** by default, on the argument that they are highly
+skewed (a single hub-broker may have betweenness $50\times$ the median, which min-max scaling would
+compress everything else beneath); linear code and hardware properties use min-max, since their
+absolute magnitudes are meaningful. We flag one measured consequence of that default rather than
+leaving it as design rationale, because it bears directly on §9.1: rank normalization discards
+magnitude before the RMAV weighted sum, which makes $Q(v)$ closer to a Borda count over the Tier-1
+metrics than to a weighted aggregate of them, and a sweep of the alternatives shows the default costs
+roughly $0.195$ Spearman $\rho$ against magnitude-preserving normalization. Because rank-normalized
+inputs are near-uniform on $[0,1]$ by construction, the box-plot classifier below also produces a
+fairly stable critical fraction almost regardless of topology — which is part of the explanation for
+the over-flagging reported in §9.1.
 
 A central design choice for robustness is the use of **adaptive box-plot thresholds** rather than
 fixed global constants: for a metric vector $X$, the outlier fence is $Q_3 + 1.5 \times \mathrm{IQR}$,
@@ -476,12 +532,21 @@ Remediation follows the Strangler Fig pattern: incrementally extracting cohesive
 responsibility subsets into new, purpose-built components while the original remains functional.
 
 **BROKER_OVERLOAD (Hub-and-Spoke).** The pub-sub-specific instantiation of the classical Hub-and-Spoke
-topology anti-pattern: a broker handling at least $2\times$ the median broker's routing load (or the
-sole broker in the system, flagged unconditionally). One of our eight validation scenarios
-deliberately encodes this anti-pattern with only two brokers serving seventy applications across
-twelve nodes; both brokers are correctly classified `CRITICAL`, with broker failure-impact scores
-exceeding 50% of total system applications, confirming that the availability metric correctly
-identifies broker-level overload independent of any single-application-level signal.
+topology anti-pattern: a broker whose availability score reaches at least $2\times$ the median
+broker's, or the sole broker in a system, flagged unconditionally.
+
+This pattern also supplies the catalog's clearest example of a specification that is defensible in
+principle and mis-specified in practice, so we use it rather than a success as the walkthrough's
+cautionary case. One of our eight scenarios (S05) deliberately encodes broker saturation: two brokers
+serve seventy applications across twelve nodes. The detector finds **nothing** there. Both brokers
+score $Q = 0.206$ and classify `MINIMAL`, and their measured cascade impact is $0.171$ and $0.191$
+against a suite-wide maximum of $0.331$ — elevated, but nowhere near a level that would single them
+out. The reason is visible in the rule: with exactly two comparably-loaded brokers, each *is* the
+median, so the $2\times$-median test can never fire, and the sole-broker branch does not apply either.
+A rule keyed on within-population relative load is structurally blind to the case where the whole
+population is overloaded. Detecting this scenario requires an absolute or cross-system referent —
+applications-per-broker, or routing load against broker capacity — which the current specification
+does not have. §11.2 folds this into the threshold-recalibration item.
 
 **CHATTY_PAIR.** A pair of application components maintaining a bidirectional, high-weight dependency
 through separate topics in each direction: $(u \to v) \wedge (v \to u) \in E_{\text{depends}}$ with
@@ -502,44 +567,34 @@ in isolation. Remediation includes a QoS policy registry enforced in CI, or a de
 relay component when the publisher's constraints (e.g., a hardware driver limited to `BEST_EFFORT`)
 cannot be upgraded directly.
 
-### 4.5 Empirical Validation of Detection
+### 4.5 Validation Methodology for Detection
 
-Findings are validated empirically through the failure simulation pipeline: for each flagged
-component, the simulated impact score $I(v)$ — computed by exhaustive component removal and cascade
-propagation — provides independent evidence that a topological signature corresponds to real
-structural risk. Table 4.2 summarizes the headline validation metrics.
+Findings are validated empirically against the failure simulation pipeline: for each component, the
+simulated impact score $I_{\text{comp}}(v)$ — computed by exhaustive single-component removal and
+cascade propagation — provides evidence, independent of the detectors' own inputs, about whether a
+topological signature corresponds to structural risk that materializes under failure. The measurement
+protocol is given in §8.3, the metric definitions in §8.4, and the results in §9.1. We keep them there
+rather than previewing headline figures here, because the results are mixed and a summary at this
+point in the paper would have to be either misleading or long enough to belong in §9.
 
-**Table 4.2 — Detection validation metrics (overall).**
+Detection validation uses an eight-scenario suite (S01–S08) spanning autonomous-vehicle, IoT,
+financial, healthcare, deliberately-anti-pattern (Hub-and-Spoke), microservices, and enterprise
+topologies, plus a deterministic "Tiny Regression" smoke-test fixture. Two scenarios were designed to
+play a distinguished role. **S06** (sparse microservices mesh) is the **precision stress test**: a
+well-structured topology should produce few findings, so the catalog's finding volume there is a
+direct test of whether the detectors over-flag. **S07** (300+ components) is the **scalability
+benchmark**. §9.1 reports that S06 does not behave as intended.
 
-| Metric | Target | Achieved |
-| --- | --- | --- |
-| Spearman $\rho$ ($Q$ vs. $I$) | $\ge 0.70$ | **0.876** |
-| $F_1$-Score (critical classification) | $\ge 0.90$ | **0.923** |
-| Precision | $\ge 0.85$ | **0.912** |
-| Recall | $\ge 0.80$ | **0.857** |
-| Top-5 Overlap | $\ge 0.70$ | **0.80** |
+The prescriptive evaluation of §9.2–§9.4 uses a six-scenario subset. It excludes the smoke-test
+fixture, which carries no domain-representative topology, and — on measured cost grounds stated in
+§9.2 — the enterprise topology.
 
-At large scale (150–300+ components), $\rho$ rises to **0.943**, indicating that prediction accuracy
-improves as system scale increases — precisely the regime where manual architectural review becomes
-least practical. Pattern-specific evidence corroborates the aggregate: SPOF classification achieves
-$F_1 > 0.95$ in application-layer analysis, and the deliberately-encoded Hub-and-Spoke scenario (§4.4)
-confirms BROKER_OVERLOAD detection independent of the aggregate correlation figures. A baseline
-comparison shows the composite $Q(v)$ score consistently outperforming single-metric alternatives
-(betweenness centrality alone: $\rho = 0.75$); degree centrality alone reaches $\rho = 0.95$ in
-synthetic graphs, a known artifact of topology generators that structurally force high-degree hubs
-into SPOF positions, rather than evidence that degree alone suffices on real-world heterogeneous
-topologies.
-
-Detection validation uses an eight-scenario suite (01–08) spanning autonomous-vehicle, IoT, financial,
-healthcare, deliberately-anti-pattern (Hub-and-Spoke), microservices, enterprise, and a deterministic
-"Tiny Regression" smoke-test topology. Two scenarios play a distinguished role: **Scenario 06**
-(sparse microservices mesh) is the primary **precision stress test** — a well-designed topology should
-produce few or no findings, confirming detectors do not over-flag well-structured systems — and
-**Scenario 07** (300+ components) is the primary **scalability benchmark**, confirming detection
-algorithms scale gracefully to enterprise-scale deployments. The seven-scenario subset used for
-prescriptive evaluation in §8–§9 excludes the smoke-test fixture, which carries no domain-representative
-topology and would not contribute meaningful signal to the prescriptive-efficacy questions asked
-there.
+One methodological point deserves stating before the results, because it constrains what any of them
+can mean. Detection is validated against the *same class of simulator* that the prescriptive stage
+uses for verification. The catalog's rules are computed on $G_{\text{analysis}}$ and the labels on
+$G_{\text{structural}}$, so there is no feature–label feedback; but both are deterministic functions
+of one topology under one cascade model, so agreement between them is not evidence that either matches
+a production system. §10.3 develops this.
 
 ---
 
@@ -551,19 +606,42 @@ a modification budget:
 
 $$\min_{\Delta} \sum_{v \in V} I^*_{\Delta(G)}(v) \quad \text{subject to} \quad \mathrm{Cost}(\Delta) \le \mathcal{B}$$
 
-where $I^*(v)$ denotes the simulated failure impact of component $v$. The candidate set for $\Delta$
-is exactly the components and patterns flagged `CRITICAL` or `HIGH` by the catalog of §4. In the
-present implementation the modification budget is unconstrained ($\mathcal{B} = \infty$): the engine
-emits every mutation whose triggering rule fires over this candidate set, and the aggregate objective
-is tracked through the System Risk Index (SRI, §8.4) computed by the verification stage. A policy is
-**accepted** if and only if its verified improvement satisfies $\Delta\mathrm{SRI} > 0$ — the
-whole-policy acceptance gate actually implemented in `PrescribeService` (`saag/prescription/service.py`)
-and documented canonically in `docs/prescription.md`. A stricter per-edit margin criterion,
-$\Delta A > \kappa\,\sigma_{\text{seed}}$, is discussed as future work (§11.2) but is not implemented;
-under the deterministic simulator configuration used throughout this evaluation, $\sigma_{\text{seed}}
-= 0$ (empirically verified across seeds 42–46, §8.3), so the two criteria coincide for the present
-results. Budget-constrained policy search — selecting the best subset of mutations under an explicit
-cost model rather than firing every triggered rule — is likewise deferred to future work (§11.2).
+where $I(v)$ denotes the simulated failure impact of component $v$. The candidate set for $\Delta$ is
+exactly the components and patterns flagged `CRITICAL` or `HIGH` by the catalog of §4. In the present
+implementation the modification budget is unconstrained ($\mathcal{B} = \infty$) at the *generation*
+stage: the engine emits every mutation whose triggering rule fires over the candidate set. What
+constrains the policy is not a budget but a two-level acceptance test, both levels of which are
+implemented in `PrescribeService` (`saag/prescription/service.py`) and `EditVerifier`
+(`saag/prescription/verifier.py`):
+
+1. **Per-edit acceptance.** Each candidate edit $\delta$ is applied *alone* to a counterfactual copy
+   of the graph and simulated across a propagation-threshold sweep $\Theta$ and a seed set $S$. It is
+   retained only if
+
+   $$\overline{\Delta I}_\theta(\delta) > \kappa \cdot \sigma_{\text{seed},\theta}(\delta)
+   \qquad \text{for every } \theta \in \Theta$$
+
+   where $\overline{\Delta I}_\theta$ is the mean reduction in cascade impact at threshold $\theta$,
+   paired against a baseline measured at the same $(\theta, s)$, and $\sigma_{\text{seed},\theta}$ is
+   the across-seed standard deviation at that same threshold. Requiring the margin at *every*
+   threshold prevents an edit being admitted because it happened to help at the canonical $0.2$
+   default; requiring it to exceed $\kappa\sigma$ prevents simulator noise being read as improvement.
+   Deliberately, $\sigma$ is estimated per threshold and not pooled across thresholds, since the
+   quantity being tested is a per-threshold claim.
+
+2. **Whole-policy acceptance.** The accepted subset — and only that subset — is applied jointly, and
+   the resulting topology is re-evaluated end to end. The policy is reported as accepted iff
+   $\Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} - \mathrm{SRI}_{\text{mutated}} > 0$.
+
+The second level is not redundant with the first. Per-edit verification admits edits one at a time;
+it cannot observe how an admitted *set* composes. §9.4 reports a scenario where three individually
+verified edits together left the System Risk Index marginally worse, which is exactly the case the
+whole-policy gate exists to catch and report.
+
+An empty accepted set is a valid and informative outcome, reported as such with the baseline
+unchanged rather than dressed up as a no-op improvement. Budget-constrained policy search — selecting
+the best subset under an explicit cost model rather than filtering an exhaustively generated candidate
+set — remains future work (§11.2).
 
 ---
 
@@ -588,14 +666,15 @@ SaG-Prescribe extends the diagnostic pipeline of [1] with a detect–generate–
   failure cascades with a discrete-event simulator, and validate predictive alignment against
   simulation ground truth (§4.5).
 * **Stage 6: Prescriptive recommendation generation (this paper).** The engine consumes components and
-  patterns categorized `CRITICAL` or `HIGH` by Stage 5 and compiles a policy $\Delta(G)$ from the three
-  operators of §6.3. The compiled policy is applied to an exported copy of the topology, and the
-  mutated model $G'$ is passed back into the analysis stage under identical fault scenarios and seeds
-  to re-evaluate system risk (§6.4).
-* **Stage 7: Review interface.** Baseline metrics, detected anti-patterns, prescribed modifications,
-  and verification deltas are serialized for the Next.js dashboard (**SMART**), which renders
-  side-by-side interactive topologies so architects can review and approve modifications before code
-  commitment. Recommendations remain advisory: the human architect is the final authority (§10.2).
+  patterns categorized `CRITICAL` or `HIGH` by Stage 5 and compiles a *candidate* policy $\Delta(G)$
+  from the three operators of §6.3. Each candidate is then verified in isolation and only the
+  surviving subset is applied and re-evaluated (§6.4).
+* **Stage 7: Review interface.** The output of a `prescribe()` call is a remediation blueprint: the
+  itemized list of applied changes, the per-edit verdicts for everything declined (each carrying its
+  measured $\Delta I$, $\sigma_{\text{seed}}$ and rejection reason), and before/after metrics. It is
+  reachable from the SDK and the CLI (`cli/prescribe_graph.py`); unlike the diagnostic stages, Stage 6
+  has no REST router and is not rendered in the project's dashboard. Recommendations remain advisory:
+  the human architect is the final authority (§10.2).
 
 ### 6.3 Refactoring Operators, Mapped to the Anti-Patterns They Target
 
@@ -617,72 +696,136 @@ each co-located component $c$ beyond the first to an isolating host $n_{\text{to
 corresponding `RUNS_ON` edge and duplicating `CONNECTS_TO` links to preserve network reachability. The
 emitted constraints correspond directly to container-orchestration anti-affinity scheduling rules.
 
-**Operator 3 — Transport QoS contract hardening** targets `QOS_MISMATCH` and any `CRITICAL`/`HIGH`
-topic with a volatile transport configuration (`BEST_EFFORT` reliability, `VOLATILE` durability). The
-operator upgrades the contract to `RELIABLE` reliability and `TRANSIENT` durability (raising transport
-priority where applicable), hardening the channel against message loss during cascades.
+**Operator 3 — Transport QoS contract hardening** fires on any `CRITICAL`/`HIGH` topic, or topic
+adjacent to a `CRITICAL`/`HIGH` component, whose transport configuration is volatile (`BEST_EFFORT`
+reliability or `VOLATILE` durability). The operator upgrades the contract to `RELIABLE` reliability
+and `TRANSIENT` durability, hardening the channel against message loss during cascades. Topics already
+running hardened contracts are skipped.
+
+#### Automation coverage is narrower than the catalog
+
+The detect-to-prescribe hand-off is worth stating precisely, because a reader could otherwise assume
+that a twenty-one-pattern catalog implies twenty-one automated repairs. It does not. Two independent
+signals feed the operator triggers, and only one of them names a catalog entry:
+
+* **Generic criticality tier.** Any component classified `CRITICAL`/`HIGH` on the RMAV dimensional
+  scale can trigger any operator, irrespective of which specific anti-pattern — if any — was detected
+  on it.
+* **Detected-problem name matching.** The only channel that ties a mutation back to a particular
+  catalog entry, implemented as substring matching over `DetectedProblem.name`, the human-readable
+  `PatternSpec.name`.
+
+Following the second channel through to the catalog, exactly **five of the twenty-one patterns** reach
+an operator: `SPOF` → anti-affinity reallocation; `GOD_COMPONENT`, `BOTTLENECK_EDGE`, `FAILURE_HUB`
+and `HUB_AND_SPOKE` → topic splitting. Notably, `QOS_MISMATCH` has **no** link to QoS hardening
+despite the conceptual overlap; Operator 3 fires only from the generic criticality tier. The remaining
+sixteen patterns have no automated operator: their `PatternSpec.recommendation` text is advisory, for
+a human to act on.
+
+Part of this boundary is principled — breaking a dependency cycle correctly, or deciding which
+pipeline stages are safe to merge, requires knowing *what* a component does, not merely how it is
+wired, and only remediations expressible as pure topology or QoS mutations are automatable. Part of it
+is an implementation artifact we do not wish to present as design: `DetectedProblem` carries no
+`pattern_id` field, so the linkage travels through display strings and silently unbinds if a pattern
+is renamed. §10.3 records this as a construct-validity threat rather than a limitation of the
+approach.
 
 ### 6.4 Closed-Loop Verification
 
-The verification engine executes the following loop, guaranteeing complete independence between
-candidate generation and the validation path by separating graph structures from simulated metrics:
+The verification engine executes the following loop. Steps 2 and 6 implement the two acceptance levels
+of §5; the intervening steps guarantee that candidate generation and the validation path never share
+state.
 
-1. **Export:** serialize the source topology into a flat JSON schema.
-2. **Mutate:** apply the compiled policy $\Delta(G)$ (splits, reallocations, upgrades) unconditionally
-   to the exported structures.
-3. **Sandbox isolation:** seed a temporary, thread-safe `MemoryRepository` with the mutated JSON and
-   re-derive `DEPENDS_ON` edges.
-4. **Simulation oracle:** run the full analysis–simulation–validation suite on the sandbox model under
-   identical fault scenarios and seeds.
-5. **Resilience delta quantification:** compute $\Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} -
-   \mathrm{SRI}_{\text{mutated}}$ to report verified structural alignment.
+1. **Baseline.** Run the source graph through analyze → simulate → validate, producing a baseline
+   System Risk Index and a per-component cascade impact map $I(v)$.
+2. **Per-edit acceptance filter.** Apply each candidate edit *alone* to a counterfactual copy of the
+   exported topology and simulate it across the threshold sweep $\Theta$ and seed set $S$. Keep it
+   only if $\overline{\Delta I} > \kappa\sigma_{\text{seed}}$ at every threshold. Rejected edits never
+   reach the mutated graph, and each carries a verdict recording its measured $\Delta I$,
+   $\sigma_{\text{seed}}$ and the binding threshold at which it failed.
+3. **Mutate in memory.** Export the graph to flat JSON and apply the *accepted subset* of $\Delta(G)$
+   to that JSON — never to the production graph store.
+4. **Sandbox isolation.** Load the mutated JSON into a temporary, thread-safe `MemoryRepository` and
+   re-derive `DEPENDS_ON` edges from scratch.
+5. **Simulation oracle.** Re-run the full analysis–simulation–validation suite on the sandbox model
+   under the same fault scenarios and seeds as the baseline.
+6. **Whole-policy gate.** Compute $\Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} -
+   \mathrm{SRI}_{\text{mutated}}$ and mark the policy accepted iff $\Delta\mathrm{SRI} > 0$.
+
+A rejected policy is still returned in full, with its before/after metrics and every per-edit verdict,
+for the architect to inspect; nothing is silently discarded. One measurement cost is worth naming here
+because it dominates the runtime of §9.5: step 2 requires one exhaustive simulation sweep per
+$(\text{edit} \times \text{threshold} \times \text{seed})$ triple, so verification is roughly
+$|\Theta| \cdot |S|$ times more expensive per candidate than the unfiltered design it replaces.
 
 The core threat to structural predictors is circular leakage, where features inadvertently read data
-from downstream labels. The framework mathematically avoids this via a strict **independence
-guarantee**: all code metrics, RMAV calculations, and anti-pattern detection operate strictly on
-$G_{\text{analysis}}$ (the derived projection layers), whereas ground-truth labels and SRI evaluations
-are derived separately from raw $G_{\text{structural}}$ simulation waves. No simulation parameters
-ever feed back into diagnostic metrics or candidate generation.
+from downstream labels. The framework avoids this via a strict **independence guarantee**: all code
+metrics, RMAV calculations, and anti-pattern detection operate on $G_{\text{analysis}}$ (the derived
+projection layers), whereas ground-truth labels and SRI evaluations are derived separately from raw
+$G_{\text{structural}}$ simulation waves. No simulation result feeds back into candidate generation
+within a run. We note the honest scope of this guarantee in §10.4: it is *view* independence, not
+independence of data source, since both views are deterministic functions of the same topology.
 
 ---
 
-## 7. DevOps Integration and Delta-Aware CI/CD Gating
+## 7. DevOps Integration and CI/CD Gating
+
+This section describes the gate's design and reports what is implemented today. We separate the two
+explicitly, because the implementation status differs between the two halves of the design and a
+reader deciding whether to adopt this needs to know which is which.
 
 ### 7.1 Automated Code Review Architecture
 
-To continuously govern structural quality during rapid code evolution, the same underlying engine is
-operationalized as a blocking check script (`detect_antipatterns.py`) in continuous integration and
-delivery (CI/CD) pipelines, surfacing the twenty-one detectors of §4 directly as a CI check. Whenever
-an engineer alters system structures or configures new messaging topology, the gate parses the
-"Architecture-as-Code" descriptors and populates an in-memory graph view — reusing the
-`MemoryRepository` substrate that makes the prescriptive loop itself CI/CD-viable (§6.1).
+To govern structural quality during rapid code evolution, the detection stage is operationalized as a
+blocking check in continuous integration and delivery (CI/CD) pipelines, surfacing the catalog's
+detectors directly as a CI check. Whenever an engineer alters system structure or configures new
+messaging topology, the gate parses the "Architecture-as-Code" descriptors, builds the graph view,
+computes the RMAV attribution, and runs the detectors. §9.5 reports the measured wall-clock cost of
+exactly this work.
 
-### 7.2 Delta-Aware Regression Semantics
+**Implementation status.** The functioning path is the detection stage invoked through
+`cli/predict_graph.py`, which runs the detectors and sets the process exit code from the highest
+severity found. A separate dedicated gate entry point (`cli/detect_antipatterns.py`) also exists but
+currently passes the analysis result — rather than the prediction result that carries the detected
+problems — into its detection call, so it reports no findings; the working path is the one measured in
+§9.5. Neither path is yet wired into this project's own CI workflow.
 
-Absolute quality gates that fail builds on any critical structural anti-pattern are unsustainable in
-industrial software development, since real architectures frequently contain intentional, risk-accepted
-debt (e.g. legacy unreplicated components). To resolve this, the gate uses **delta-aware semantics**:
-it compares the pull-request candidate topology against the target branch's merge-base topology, and
-isolates and flags only *newly introduced* anti-patterns. Pre-existing findings pass unless their
-severity worsens, and intentional anomalies can be bypassed via an auditable, time-bound **waiver
-register** — mirroring the "Clean as You Code" discipline familiar from code-scope quality platforms,
-applied here at topology scope: the gate blocks new architectural debt, while the prescriptive engine
-(§6) proposes verified repayments of existing debt.
+### 7.2 Regression Semantics: Absolute Today, Delta by Design
+
+Absolute quality gates that fail a build on *any* critical structural anti-pattern are unsustainable
+in industrial development, because real architectures carry intentional, risk-accepted debt — a legacy
+unreplicated component that the team has consciously chosen to live with. §9.1 makes this concrete
+rather than hypothetical: on these topologies the catalog implicates the large majority of components
+at `CRITICAL`/`HIGH` severity, so an absolute gate would block essentially every build.
+
+The design response is **delta-aware semantics**: compare the pull-request candidate topology against
+the target branch's merge-base topology and flag only *newly introduced* findings, letting pre-existing
+ones pass unless their severity worsens, with intentional anomalies bypassed through an auditable,
+time-bound **waiver register** naming entity, rule and expiry. This mirrors the "Clean as You Code"
+discipline familiar from code-scope quality platforms, applied at topology scope: the gate blocks new
+architectural debt while the prescriptive engine (§6) proposes verified repayments of existing debt.
+
+**Implementation status.** Delta semantics and the waiver register are *specified but not
+implemented*. The shipped gate evaluates severities absolutely, against the candidate topology alone,
+with no merge-base comparison and no waiver mechanism. We therefore make no empirical claim about
+delta-gating precision or recall in this paper, and record its implementation and evaluation as the
+CI/CD item in §11.2. The §9.1 base-rate result is what makes this the binding next step rather than a
+refinement: without delta semantics or a severity recalibration, the gate as it stands is not
+deployable.
 
 ### 7.3 Exit-Code Protocol
 
-The quality gate enforces automated code review by terminating with standardized exit codes that
-command CI/CD pipeline workers:
+The gate signals CI/CD pipeline workers through standardized exit codes. This three-tier protocol *is*
+implemented, on absolute rather than delta semantics:
 
-* **Exit Code 0:** no new anti-patterns detected; build passes, deployment permitted.
-* **Exit Code 1:** new `MEDIUM`-severity anti-patterns or QoS warnings introduced; build passes with
-  warnings compiled into the developer's code-review dashboard.
-* **Exit Code 2:** new, unwaived `CRITICAL` or `HIGH` severity anomalies (e.g. newly introduced
-  un-replicated SPOFs or routing loops) discovered; **the build breaks and deployment is blocked**.
+* **Exit Code 0:** no findings above the reporting floor; build passes, deployment permitted.
+* **Exit Code 1:** `MEDIUM`-severity findings present; build passes with warnings.
+* **Exit Code 2:** `CRITICAL` or `HIGH` severity findings present; the build breaks and deployment is
+  blocked.
 
-Because the recommend-verify loop of §6 runs within CI time budgets (§9.5), prescriptive repayment
-proposals can be regenerated on every merge request, keeping the architectural-debt register
-synchronized with the evolving topology rather than only gating new regressions.
+Under delta semantics each tier would be evaluated over *newly introduced, unwaived* findings rather
+than over the absolute finding set. That substitution is the whole of the change required at this
+layer; the difficulty is in computing and diffing the merge-base topology, not in the protocol.
 
 ---
 
@@ -696,23 +839,27 @@ synchronized with the evolving topology rather than only gating new regressions.
   heterogeneous scenarios, and are the reductions statistically significant?
 * **RQ3 (Operator contributions):** How do the individual refactoring operators contribute to the
   observed improvements across topological regimes?
-* **RQ4 (Component-level remediation efficacy):** Do system-level SRI improvements translate uniformly
-  into component-level failure-impact reductions, or can the greedy, unconditional policy application
-  backfire on individual components?
+* **RQ4 (What per-edit verification admits):** How many generated candidates survive independent
+  counterfactual verification, in which structural regimes, and does an accepted *set* compose — that
+  is, do individually verified edits remain beneficial when applied together?
 * **RQ5 (Computational overhead and CI/CD feasibility):** What is the wall-clock execution time of the
   detection gate and of the full prescriptive pipeline as system scale grows — and is either
   compatible with CI/CD budgets?
 
 ### 8.2 Benchmark Scenarios
 
-Detection validation (§4.5, RQ1) uses an eight-scenario suite (01–08), including a deterministic
-"Tiny Regression" smoke-test fixture used as a CI regression sanity check. Prescriptive evaluation
-(RQ2–RQ5) uses the seven-scenario subset (01–07) of that suite, spanning realistic domain verticals and
-scale presets; the smoke-test fixture is intentionally excluded from prescriptive evaluation since it
-carries no domain-representative topology and would not contribute meaningful signal to questions about
-prescriptive efficacy or CI/CD runtime at scale.
+Detection validation (RQ1, RQ5) uses the full eight-scenario suite (S01–S08), including the
+deterministic "Tiny Regression" smoke-test fixture, which is retained here because a 12-component
+topology is a useful lower bound on both runtime and finding volume.
 
-**Table 8.1 — Scenario scale and topology summary (seven-scenario prescriptive-evaluation subset).**
+Prescriptive evaluation (RQ2–RQ4) uses a **six-scenario subset (S01–S06)**, for two separate reasons
+that we keep separate. S08 is excluded on relevance: it carries no domain-representative topology and
+would contribute no meaningful signal about prescriptive efficacy. **S07 is excluded on measured
+cost** — approximately 8.7 hours of serial computation under per-edit verification, itemized in §9.2 —
+which is a very different kind of exclusion, since it removes the largest topology from precisely the
+result whose scale-invariance is in question. §10.5 records the consequence.
+
+**Table 8.1 — Scenario scale and topology summary.**
 
 | Scenario | Applications | Libraries | Topics | Brokers | Nodes | Structural Edges ($|E|$) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -723,41 +870,68 @@ prescriptive efficacy or CI/CD runtime at scale.
 | S05 Hub-and-Spoke | 70 | 25 | 30 | 2 | 12 | 797 |
 | S06 Microservices Mesh | 90 | 30 | 45 | 6 | 15 | 680 |
 | S07 Hyper-Scale Enterprise | 300 | 50 | 120 | 10 | 40 | 3245 |
+| S08 Tiny Regression | 12 | 4 | 8 | 2 | 3 | — |
 
-This seven-scenario suite is a subset of the eight-scenario preset library used across companion SaG
-materials [1]; the eighth preset (an ATM system) is reserved there for external validation of the
-diagnostic model against a non-synthetic reference topology and is not reused here, since this paper's
-prescriptive evaluation targets the closed-loop pipeline rather than diagnostic external validity.
-Replaying SaG-Prescribe on the ATM topology is future work (§11.2).
+These presets are drawn from the scenario library shared with the companion SaG materials [1], which
+additionally contains an ATM topology reserved there for external validation of the diagnostic model
+against a non-synthetic reference. It is not reused here; replaying SaG-Prescribe on it is future work
+(§11.2). All are parameterized synthetic topologies from one generator, which §10.5 identifies as the
+evaluation's weakest dimension.
 
 ### 8.3 Experimental Protocol
 
-For each scenario, the prescriptive engine runs in-memory over the topology, measuring the SRI before
-and after mutation together with the counts of the three operators. The discrete-event cascade
-simulator runs in its default deterministic configuration (cascade propagation threshold 0.2, cascade
-probability 1.0, non-Poisson event arrivals). We empirically verified this determinism: re-running the
-full generate–verify loop under five candidate seeds (42–46) produced byte-identical SRI values in
-every scenario ($\sigma_{\text{seed}} = 0$), so a single run per scenario is reported and paired
-comparisons are not confounded by simulation stochasticity under the current configuration. For RQ2, we
-test the baseline-vs-mutated SRI pairs across the seven scenarios with a Wilcoxon signed-rank test.
+**Detection (RQ1, RQ5).** Each scenario is loaded into an in-memory repository, analyzed, scored, and
+passed through the catalog detectors; the resulting findings and the $Q(v)$ ranking are scored against
+the oracle. Ground truth is $I_{\text{comp}}(v)$, the `FailureSimulator` composite obtained by
+exhaustive single-component removal at the canonical propagation threshold $0.2$ and seed $42$. This
+is the same oracle the Validate-stage gates and the prescriptive acceptance criterion run on, so
+detection and remediation are scored against one yardstick. It is *not* the `FaultInjector` oracle
+$I^*(v)$ used for the learned predictors of the companion work, and the two agree only moderately
+(mean Spearman $\rho = 0.4046$), so a figure established here does not transfer to a claim measured
+against $I^*$. Results are reported at two layer scopes: the **app** layer (Applications and
+Libraries), which is homogeneous and is the primary lens, and the **system** layer (all five node
+types), which we report to expose a pooling effect discussed in §9.1.
+
+**Prescription (RQ2–RQ4).** The prescriptive engine runs in-memory over each topology. Verification
+uses $\kappa = 1.0$, propagation thresholds $\Theta = \{0.1, 0.2, 0.5\}$ and seeds $S = \{42, 123,
+456\}$. Baselines are measured once over the full $(\theta, s)$ grid and shared across candidates, and
+each mutated run is paired-differenced against the baseline at *its own* $(\theta, s)$, so the
+simulator noise common to both largely cancels. Earlier versions of this work claimed that the
+simulator's default configuration made $\sigma_{\text{seed}}$ identically zero and the margin
+criterion therefore vacuous; that is not what the sweep measures, and §9.4 reports that the margin
+rejects the large majority of candidates.
 
 ### 8.4 Metrics
 
 **Detection metrics (RQ1).** Spearman rank correlation $\rho$ between the composite criticality score
-$Q(v)$ and simulated impact $I(v)$; $F_1$-score, precision, and recall for `CRITICAL`-tier
-classification against simulation ground truth; Top-5 overlap between predicted and simulated
-rankings.
+$Q(v)$ and simulated impact $I_{\text{comp}}(v)$, reported pooled *and* stratified by node type;
+precision, recall and $F_1$ for critical-set classification; Top-5 and Top-10 overlap; and, as
+baselines, the same correlations for betweenness centrality and degree centrality alone, so the
+composite's value is a measured margin rather than an assertion.
 
-**System Risk Index (SRI, RQ2–RQ5).** The primary prescriptive outcome measure is a composite risk
+Critical-set membership follows the rule already implemented in the framework's validator: the
+box-plot top tier ($\ge Q_3$) when $n \ge 20$, and a top-20% percentile mask below that, applied
+identically to the prediction and to the truth. One property of this rule must be stated so its
+outputs are not over-read: because it thresholds both sides to near-equal sizes, precision and recall
+are equal by construction for the $Q(v)$, betweenness and degree predictors. This is a property of the
+rule, not a finding. The *catalog* predictor is deliberately not thresholded this way — its flagged
+set is whatever the detectors produced — so its precision and recall are independent quantities.
+
+**Prescription metrics (RQ2–RQ4).** The System Risk Index and $\Delta\mathrm{SRI}$ (below); the
+per-edit acceptance rate and the distribution of rejection reasons; and per-operator counts split into
+*candidates generated* and *edits admitted*, since the two now differ substantially.
+
+**System Risk Index (SRI, RQ2–RQ4).** The primary prescriptive outcome measure is a composite risk
 index over the four RMAV health dimensions:
 
 $$\mathrm{SRI} = 0.25\,(1 - H_R) + 0.25\,(1 - H_M) + 0.25\,(1 - H_A) + 0.25\,(1 - H_V)$$
 
-where $H_R, H_M, H_A, H_V$ are the system-level Reliability, Maintainability, Availability, and
-Vulnerability health scores. Lower SRI indicates lower composite structural risk. We report
-$\Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} - \mathrm{SRI}_{\text{mutated}}$ (positive =
-improvement), per-operator recommendation counts, and — separately — component-level failure-impact
-deltas to answer RQ4.
+where each $H_d = 1 - \left(\sum_c \mathrm{score}_d(c)\, w_c\right) / \sum_c w_c$ is the
+component-weight-normalized system-level health along dimension $d$. Lower SRI indicates lower
+composite structural risk, and we report $\Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} -
+\mathrm{SRI}_{\text{mutated}}$, so positive is improvement. SRI and the per-component impact map
+$I(v)$ are read from a single simulation sweep, so the two provably describe the same simulation
+rather than two runs that happen to share a configuration.
 
 ---
 
@@ -765,199 +939,342 @@ deltas to answer RQ4.
 
 ### 9.1 Detection Efficacy and Precision (RQ1)
 
-The catalog's detection rules correlate strongly with independent failure-simulation ground truth
-across the eight-scenario detection suite: Spearman $\rho(Q, I) = 0.876$ overall, rising to
-$\rho = 0.943$ at large scale (150–300+ components); $F_1 = 0.923$, precision $0.912$, recall $0.857$
-for `CRITICAL`-tier classification; and Top-5 overlap of $0.80$ (§4.5, Table 4.2). The precision
-stress test (Scenario 06, sparse microservices mesh) confirms detectors do not over-flag well-structured
-topologies, and the scalability benchmark (Scenario 07, 300+ components) confirms the metrics above
-hold at enterprise scale rather than degrading. Pattern-specific evidence — SPOF $F_1 > 0.95$; the
-deliberately-encoded Hub-and-Spoke scenario correctly classifying both brokers `CRITICAL` with
-broker-failure impact exceeding 50% of system applications — corroborates that these aggregate figures
-are not an artifact of averaging over easy and hard cases.
+RQ1 resolves negatively on both of its halves, and we report it as such. Table 9.1 gives the
+per-scenario figures at the app layer; all numbers in this subsection come from
+`results/detection_validation.json` and `results/detection_validation_app.json`.
+
+**Table 9.1 — Detection validation, app layer, against $I_{\text{comp}}(v)$.** $\rho$, $F_1$ and
+Top-5 score the composite $Q(v)$ ranking; catalog P/R score the named `CRITICAL`/`HIGH` findings.
+
+| Scenario | $n$ | $\rho(Q, I)$ | $F_1$ | Top-5 | Catalog P | Catalog R | Implicated % | Gate (s) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| S01 Autonomous Vehicle | 80 | 0.449 | 0.650 | 0.6 | 0.253 | 1.000 | 98.8 | 1.18 |
+| S02 IoT Smart City | 200 | 0.097 | 0.300 | 0.4 | 0.308 | 0.800 | 65.0 | 1.03 |
+| S03 Financial Trading | 60 | 0.315 | 0.467 | 0.8 | 0.250 | 1.000 | 100.0 | 1.06 |
+| S04 Healthcare | 50 | 0.316 | 0.308 | 0.6 | 0.234 | 0.846 | 94.0 | 0.36 |
+| S05 Hub-and-Spoke | 70 | 0.307 | 0.333 | 0.4 | 0.257 | 1.000 | 100.0 | 1.55 |
+| S06 Microservices Mesh | 90 | 0.178 | 0.391 | 0.4 | 0.286 | 0.783 | 70.0 | 0.55 |
+| S07 Hyper-Scale Enterprise | 300 | 0.355 | 0.600 | 0.4 | 0.245 | 0.933 | 95.3 | 24.59 |
+| S08 Tiny Regression | 12 | 0.126 | 0.333 | 0.4 | 0.250 | 1.000 | 100.0 | 0.03 |
+| **Mean** | | **0.268** | **0.423** | **0.500** | **0.260** | **0.920** | **90.4** | |
+
+**Efficacy: the correlation is weak, and single-metric baselines are not beaten.** Mean $\rho = 0.268$
+across the suite, with per-scenario values from $0.097$ to $0.449$ — positive everywhere, but far from
+the $\rho \ge 0.70$ target the framework's own validation gates set. The comparison that matters most
+is against the baselines the composite is meant to improve on: betweenness centrality alone reaches
+$\rho = 0.295$ and **degree centrality alone reaches $\rho = 0.417$**, both above the four-dimensional
+composite. On this evidence the RMAV composite does not buy ranking accuracy over the simplest
+structural metric available. This does not make the decomposition worthless — its four dimensions
+route a finding to the engineering role equipped to act on it, which a scalar degree count cannot —
+but that is an explanatory claim, not an accuracy claim, and §10.1 scopes it accordingly.
+
+**Precision: the catalog does not stay quiet.** The named findings behave as a highly sensitive,
+weakly specific screen: mean recall $0.920$ against mean precision $0.260$. The precision figure sits
+essentially at the base rate, because the catalog implicates a mean of **90.4% of components** at
+`CRITICAL`/`HIGH` severity. The intended precision stress test fails in exactly the place it was
+supposed to succeed: the sparse microservices mesh (S06), chosen because a well-structured topology
+should produce few findings, has 70% of its components implicated — the *lowest* figure in the suite,
+but not a quiet one. A screen that flags nine components in ten is not usable as a blocking gate, and
+§7.2 records this as the reason delta semantics are the binding next step rather than a refinement.
+
+Two accounting notes keep this figure honest in both directions. First, most `CRITICAL`/`HIGH`
+findings are keyed on an edge (`BOTTLENECK_EDGE`, `BRIDGE_EDGE`) or a member list (`CYCLE`) rather
+than on a component, and we count a component as implicated when a finding names it as an endpoint or
+member — the reading a practitioner would take. Counting only component-keyed findings would put the
+flagged fraction near zero and understate the catalog just as badly. Second, one `CYCLE` finding can
+name dozens of components at once, so a single detection contributes disproportionately to the
+implicated fraction.
+
+**Scale: the "improves at larger scale" claim does not survive.** Splitting by system size gives mean
+$\rho = 0.226$ for the two topologies at or above 150 components against $0.282$ below it. The
+direction is, if anything, mildly the opposite of the claim previously made, and at this magnitude the
+difference is not interpretable either way.
+
+**Node-type pooling is a trap here, and we report both sides of it.** At the system layer, which pools
+all five node types, the pooled correlation is $\rho = -0.085$ — *negative* — while every individual
+type is positive: Application $0.306$, Node $0.319$, Broker $0.047$. The pooled figure lies outside the
+per-type range entirely, which is the signature of a Simpson's-paradox effect: it is not a summary of
+the strata but an artifact of between-type offsets in both score and impact scales. We therefore treat
+the homogeneous app layer as the primary lens and report the pooled system-layer number only to
+document the effect. Any single system-layer correlation quoted for a heterogeneous pub-sub graph
+should be treated the same way.
+
+**The deliberately-encoded anti-pattern is not detected.** S05 exists to encode broker saturation
+explicitly — two brokers serving seventy applications — and is therefore the suite's only scenario with
+a known-by-construction ground-truth pattern. `BROKER_OVERLOAD` produces zero findings on it, for the
+structural reason given in §4.4: its $2\times$-median rule cannot fire on a two-broker population in
+which both brokers are equally overloaded. This is the sharpest available evidence that the catalog's
+weakness is in threshold specification rather than in the pattern definitions, since the pattern is
+correctly *described* and simply cannot trigger on the case it describes.
+
+**SPOF-specific validation is not available on these topologies.** The purpose-built SPOF metric
+compares the directed articulation score $\mathrm{AP}_{c,\text{directed}}(v)$ against simulated
+availability impact, but $\mathrm{AP}_{c,\text{directed}}$ is zero for every component in seven of the
+eight scenarios (one component in the eighth), so the predicted-SPOF set is empty and the metric is
+**undefined rather than zero**. Separately, the framework's default true-SPOF threshold of
+$\mathrm{IA} > 0.50$ is off this oracle's scale: availability impact peaks at $0.39$ across the entire
+suite. We report both facts rather than a derived $F_1$ of $0.0$, which would misrepresent a degenerate
+measurement as a detection failure.
 
 ### 9.2 Prescriptive Efficacy (RQ2)
 
-**Table 9.1 — Prescriptive optimization results across scenarios.**
+**Table 9.2 — Prescriptive results under per-edit verification** ($\kappa = 1.0$, $\Theta = \{0.1,
+0.2, 0.5\}$, $S = \{42, 123, 456\}$).
 
-| Scenario | Baseline SRI | Mutated SRI | ΔSRI | Relative Reduction | Splits | Reallocs | Upgrades |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| S01 Autonomous Vehicle | 0.3645 | 0.3535 | 0.0110 | 3.0% | 35 | 121 | 0 |
-| S02 IoT Smart City | 0.4206 | 0.3537 | 0.0669 | 15.9% | 58 | 276 | 51 |
-| S03 Financial Trading | 0.3675 | 0.3482 | 0.0193 | 5.3% | 31 | 88 | 6 |
-| S04 Healthcare | 0.3809 | 0.3757 | 0.0052 | 1.4% | 19 | 74 | 6 |
-| S05 Hub-and-Spoke | 0.3595 | 0.3527 | 0.0068 | 1.9% | 30 | 97 | 0 |
-| S06 Microservices Mesh | 0.3612 | 0.3542 | 0.0070 | 1.9% | 40 | 123 | 0 |
-| S07 Hyper-Scale Enterprise | 0.3614 | 0.3469 | 0.0145 | 4.0% | 119 | 409 | 0 |
+| Scenario | Baseline SRI | Mutated SRI | ΔSRI | Candidates | Accepted | Rejected |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| S01 Autonomous Vehicle | 0.3645 | 0.3645 | +0.0000 | 35 | 0 | 35 |
+| S02 IoT Smart City | 0.4206 | 0.3841 | **+0.0365** | 58 | 26 | 32 |
+| S03 Financial Trading | 0.3675 | 0.3675 | +0.0000 | 31 | 0 | 31 |
+| S04 Healthcare | 0.3809 | 0.3809 | +0.0000 | 19 | 0 | 19 |
+| S05 Hub-and-Spoke | 0.3595 | 0.3595 | +0.0000 | 30 | 0 | 30 |
+| S06 Microservices Mesh | 0.3612 | 0.3623 | **−0.0011** | 40 | 3 | 37 |
+| **Total** | | | | **213** | **29** | **184** |
 
-In all seven scenarios the mutated topology achieves a lower SRI than the baseline (mean $\Delta$SRI =
-0.0187). A Wilcoxon signed-rank test over the seven baseline/mutated pairs yields $W = 0.0$,
-$p = 0.0156$ — significant at $\alpha = 0.05$, since all seven pairs share the same sign of difference
-(the smallest attainable two-sided $p$-value at $n=7$).
+The honest summary is that the operator set rarely produces a change the simulator can distinguish
+from its own noise. **Twenty-nine of 213 candidate edits (13.6%) survive verification**, and five of
+the six scenarios end with no admitted edit at all — their SRI is reported unchanged because nothing
+was applied, not because a mutation was applied and made no difference. One scenario shows a clear
+improvement (S02, $\Delta\mathrm{SRI} = +0.0365$), and one shows a small regression discussed in §9.4.
 
-The largest improvement occurs in **S02 (IoT Smart City)**, where SRI drops by 0.0669 (15.9%), driven
-by 51 QoS upgrades stabilizing high-loss best-effort links (repairing `QOS_MISMATCH` findings, §6.3)
-combined with anti-affinity constraints that partition key microservices. The smallest improvement
-occurs in **S04 (Healthcare, 1.4%)**: its centralized monitoring fan-outs are intentional and already
-run under long durability horizons, leaving less structural headroom for the current operator set. In
-**S05 (Hub-and-Spoke)**, topic splitting mitigates the deliberate broker-pair `BROKER_OVERLOAD`
-bottleneck (0.3595 → 0.3527).
+We do not report a significance test on this table. With four of six scenarios at exactly zero, one
+positive and one negative, a signed-rank test over six pairs has neither the sample nor the
+distributional structure to say anything; quoting one would be a decoration rather than evidence.
+
+**The Enterprise scenario (S07) is excluded from this table on cost grounds**, and we state the cost
+rather than the exclusion alone: 119 candidate edits $\times$ 3 thresholds $\times$ 3 seeds at
+approximately 29.1 s per exhaustive sweep over 350 labelled components is roughly 8.7 hours of serial
+computation. The consequence to be explicit about is that the 13.6% acceptance rate is established
+over topologies of 98–326 components and cannot be claimed scale-invariant. Note also that the
+exclusion is a reporting decision: the reproduction script does not skip S07, so re-running it
+unattended will attempt the full sweep. Parallelising it is recorded in §11.2.
 
 ### 9.3 Operator Contributions (RQ3)
 
-Operator activity tracks each scenario's topological regime and the anti-patterns each scenario
-stresses (§6.3):
+Under verification, the operator-contribution question changes shape: what matters is not how often
+each operator *fires* but how often its output *survives*. The two now diverge sharply.
 
-* **Logical topic splits** dominate where publisher fan-out concentrates: S07 receives 119 splits,
-  alleviating `TOPIC_FANOUT` and `GOD_COMPONENT` congestion in heavily shared publisher–subscriber
-  hubs.
-* **Physical reallocations** are the most frequently emitted mutation overall (409 in S07, 276 in S02),
-  reflecting how often `SPOF` and co-location `COMPOUND_RISK` findings arise in dense deployments;
-  anti-affinity constraints resolve them without touching logical structure.
-* **QoS upgrades** activate almost exclusively in high-loss profiles — 51 in S02 — where hardening
-  `QOS_MISMATCH` volatile/best-effort channels yields the single largest SRI gain observed. Scenarios
-  already running reliable contracts (S01, S05, S06, S07) receive none, confirming the rule does not
-  fire spuriously.
+| Operator | Candidates generated | Edits admitted |
+| --- | ---: | ---: |
+| Logical topic splitting | 213 total across all three operators | **29** |
+| Physical anti-affinity reallocation | (see below) | **0** |
+| Transport QoS contract hardening | | **0** |
 
-An ablation applying each operator class in isolation would let us attribute $\Delta$SRI per operator
-rather than inferring contribution from counts; we flag this as future work (§11.2) rather than
-including a speculative table here.
+**All 29 admitted edits are topic splits.** Not one anti-affinity reallocation and not one QoS
+upgrade cleared the acceptance margin in any scenario, despite reallocation being by far the most
+frequently *generated* mutation — the unfiltered engine emitted 409 reallocations on the enterprise
+topology and 276 on IoT Smart City. This is the single most informative result in the prescriptive
+half of the paper, and it directly contradicts a claim carried by earlier versions of this work, which
+attributed IoT Smart City's improvement to 51 QoS upgrades "stabilizing high-loss best-effort links".
+Those upgrades were generated; none of them survived independent verification, and the improvement
+comes entirely from topic splitting.
 
-### 9.4 Remediation Efficacy at Component Boundaries (RQ4)
+The mechanism is visible in the operator semantics. Anti-affinity reallocation moves a co-located
+process to a fresh host and duplicates `CONNECTS_TO` links to preserve reachability — which adds
+network cascade hops. Under whole-policy application those additions were invisible, absorbed into an
+aggregate that also contained genuine improvements; under per-edit verification they are measured
+individually and rejected. QoS hardening changes edge weights without changing topology, and on this
+cascade model that moves impact by less than seed noise.
 
-To thoroughly audit the refactoring engine beyond the system-level aggregate, we track individual
-component-level failure impacts before and after applying mutations. Because the current implementation
-applies the fully compiled policy unconditionally without a per-edit acceptance filter, it delivers a
-mixed result that exposes the structural trade-offs of greedy graph mutation:
+An ablation applying each operator class in isolation would let us attribute $\Delta\mathrm{SRI}$ per
+operator rather than reading it off admission counts; we record it as future work (§11.2) rather than
+presenting a speculative table.
 
-* **S02 (IoT Smart City):** +47.01% mean reduction in individual component failure impact.
-* **S04 (Healthcare):** +30.94% component-level risk improvement.
-* **S05 (Hub-and-Spoke):** −31.67% degradation in mean component metrics.
-* **S07 (Hyper-Scale Enterprise):** −25.36% regression at internal component boundaries.
+### 9.4 What Per-Edit Verification Admits (RQ4)
 
-This mixed performance — averaging **+4.61%** across the corpus — shows that greedy operators, such as
-physical reallocation, can introduce additional network cascade hops (`CONNECTS_TO` extensions) that
-backfire on isolated components even while the system-level SRI improves. We report this result
-prominently, rather than only the flattering aggregate, because it is the most direct evidence for the
-paper's own highest-priority future-work item: a strict per-edit acceptance filter (§11.2).
+Three findings, all of which qualify the previous subsection rather than extending it.
+
+**The filter's yield is low and its rejections are informative.** Of 184 rejected candidates, the
+rejection reason in each case names the binding propagation threshold at which the mean impact
+reduction failed to exceed $\kappa\sigma_{\text{seed}}$. Rejection is therefore not a silent drop but a
+measurement the architect can read.
+
+**Individually verified edits can still interact.** S06 (Microservices Mesh) accepted three edits,
+each of which cleared the bar on its own counterfactual graph, yet the combination left the System
+Risk Index marginally *worse* ($\Delta\mathrm{SRI} = -0.0011$). Per-edit verification bounds this
+failure mode without eliminating it — the comparable figure under the previous unfiltered design was a
+$-31.67\%$ component-level regression, two orders of magnitude larger — but it does not establish that
+an accepted *set* composes. Verification admits singletons, not subsets. Verifying subsets would close
+this at combinatorial cost and is recorded as a limitation (§10.4) and future work (§11.2).
+
+**Where the filter admits edits it admits many, and only in one structural regime.** S02 accepts 26 of
+58 candidates, all topic splits, and is the suite's only clear improvement. The honest scope for this
+stage is therefore narrower than "topology-level hardening": it is closer to *fan-out decomposition
+where a fan-out bottleneck actually exists*. Where no such bottleneck exists, the current operator set
+has nothing to offer that survives measurement, and it says so by admitting nothing.
 
 ### 9.5 Computational Overhead and CI/CD Feasibility (RQ5)
 
-**Table 9.2 — Measured wall-clock time of the full analyze–prescribe–verify loop, single run per scenario.**
+**Detection gate.** Table 9.1 reports measured wall-clock time for the complete gate path — load,
+analyze, RMAV attribution, and all active detectors — from `results/detection_validation_app.json`.
+It ranges from 0.03 s on the 12-component fixture to 24.6 s on the 300-application enterprise topology
+(0.16 s to 33.0 s at the system layer, which analyses all five node types). This is comfortably inside
+a blocking-check budget at every scale evaluated.
 
-| Scenario | Elapsed (s) |
-| --- | :---: |
-| S01 Autonomous Vehicle | 13.4 |
-| S02 IoT Smart City | 64.3 |
-| S03 Financial Trading | 9.1 |
-| S04 Healthcare | 4.7 |
-| S05 Hub-and-Spoke | 18.1 |
-| S06 Microservices Mesh | 12.1 |
-| S07 Hyper-Scale Enterprise | 649.6 |
+The cost breakdown is more useful than the totals, and it is not where one would expect. Summed across
+all eight scenarios, the twenty active detectors together account for roughly **0.2 seconds**; the
+costliest single detector (`CYCLE`) accounts for 0.06 s. Essentially the entire gate budget is spent
+in the analysis stage that computes the structural metrics and RMAV scores, not in pattern detection.
+Optimizing the detectors would therefore buy nothing; the analysis stage is the only lever.
 
-For six of the seven scenarios (S01, S03–S06), the full analysis–generation–verification loop completes
-in under 20 seconds; S02 (1322 structural edges) completes in 64.3 seconds; S07 (300 processes, 3245
-structural edges) completes in 649.6 seconds (~10.8 minutes). Bypassing the Neo4j instance with the
-in-memory `MemoryRepository` is the enabling optimization. Measured on an Intel Core i7-1370P (14 cores
-/ 20 threads), 32 GB RAM, Ubuntu Linux, Python 3.11.5, single-threaded execution.
+**One detector is excluded, and the reason is a defect rather than a design choice.** `DEEP_PIPELINE`
+enumerates every simple source-to-sink path in the dependency graph and emits one finding per path,
+keyed on the path string. On the 29-component tiny fixture this produces **247,761 findings**; on the
+50-application healthcare topology it does not terminate within ten minutes. The twenty remaining
+detectors are what the figures above measure. Until this is bounded — by capping enumeration, or by
+reporting one finding per source-sink pair rather than per path — the full catalog cannot run as a CI
+gate at any of the scales in this study. We record the fix in §11.2.
 
-The standalone CI/CD detection gate script (`detect_antipatterns.py`, which runs the twenty-one
-detectors of §4 but not the full generate–verify loop) is considerably faster, since blocking gates
-must survive as sub-minute checks without frustrating engineering teams:
+**Generate–verify loop.** Per-edit verification changed this cost regime by construction: it requires
+one exhaustive simulation sweep per $(\text{edit} \times \text{threshold} \times \text{seed})$ triple,
+so a scenario with $c$ candidates costs $9c$ sweeps at the configuration used here, against a single
+end-state evaluation under the previous unfiltered design. The one directly measured point is the
+enterprise scenario's sweep cost of approximately 29.1 s over 350 labelled components, giving the
+$\approx 8.7$ h serial estimate of §9.2. We do not carry forward the loop runtimes reported in earlier
+versions of this work (4.7 s–649.6 s per scenario), because they were measured under the unfiltered
+design and do not describe the pipeline evaluated here. Re-measuring the loop under verification, and
+parallelising the independent per-candidate sweeps — which are embarrassingly parallel — is recorded
+in §11.2.
 
-* **Tiny / small scales ($\le 25$ vertices):** $< 2$ seconds.
-* **Medium scale (~50 components, S04-like):** $\approx 5$ seconds.
-* **Large scale (80–100 components):** $\approx 12$ seconds.
-* **Xlarge scale (150–300 components, S07-like):** $\approx 40$ seconds.
-
-Taken together, these figures are compatible with pre-deployment CI/CD gating at every evaluated scale:
-the detection gate itself stays under a minute even at hyper-scale, and the heavier generate–verify loop
-— run less frequently, e.g. nightly or on-demand per merge request rather than on every commit — fits
-comfortably within nightly batch windows even at 300 processes.
+The practical reading for CI/CD adoption is a split one: the detection gate is a per-commit-viable
+check at every scale measured, while the generate–verify loop is a nightly or on-demand batch job, not
+a merge-request-blocking one.
 
 ---
 
 ## 10. Discussion and Threats to Validity
 
-### 10.1 What Naming and Verifying Buys
+### 10.1 What Naming and Verifying Buys, and What It Does Not
 
-Two results, read together, motivate the paper's two-stage design. §9.1 shows that a *named,
-severity-tiered* finding — not just a scalar criticality number — correlates strongly with independent
-ground truth, giving architects a specific pathology to act on rather than an opaque score. §9.4 then
-shows why acting on a name is not enough on its own: each recommendation must also be *verified*
-against a cascade model before it reaches the architect, converting refactoring recommendation from a
-suggestion service into a quality-evaluation instrument. An unverified recommender, naming the correct
-anti-patterns but skipping verification, would have reported S05 and S07 as unambiguous wins at the
-system level while silently degrading a quarter to a third of their individual components.
+Two results read together, and they cut in different directions.
+
+**Verification earns its cost.** §9.3 is the clearest evidence in the paper for the verify-before-
+recommend discipline. An unverified recommender running these same operators would have emitted 409
+anti-affinity reallocations on the enterprise topology and 51 QoS upgrades on IoT Smart City, and — as
+earlier versions of this work did — attributed the resulting system-level improvement to them.
+Independent per-edit measurement shows that *none* of those mutations survives, and that the entire
+measurable gain comes from topic splitting. The difference between a suggestion service and a
+quality-evaluation instrument is exactly this measurement, and here it changed the paper's causal
+account, not merely its confidence interval.
+
+**Naming, on this evidence, does not yet buy what we claimed for it.** The premise of §4 is that a
+named, severity-tiered finding is more actionable than an opaque score. That remains true as a design
+argument — an architect can act on "Single Point of Failure at broker B2" in a way they cannot act on
+"$Q = 0.83$" — but §9.1 shows the current catalog does not deliver it in practice, because it
+implicates roughly nine components in ten. A vocabulary that names almost everything conveys almost
+nothing, and the honest reading is that the catalog's *specifications* are sound while its *thresholds*
+are not yet calibrated to produce a usable shortlist. §4.2's note on rank normalization producing a
+near-constant critical fraction points at the mechanism, and §11.2 makes recalibration the first
+detection-side item.
+
+Similarly, the composite $Q(v)$ does not out-rank degree centrality on this suite (§9.1). We therefore
+scope the RMAV decomposition's contribution to *attribution* — telling a reader which quality dimension
+a component is critical along, and hence which engineering role should own it — rather than to ranking
+accuracy. That is a real contribution and a narrower one than previously claimed.
 
 ### 10.2 Positioning in CI/CD and Technical-Debt Workflows
 
-Two claim boundaries govern responsible deployment of the framework. First, **prescriptive
-recommendations are advisory**: the pipeline surfaces verified refactoring blueprints for architect
-review (§6.2, Stage 7), but does not auto-apply mutations, since verified-in-simulation does not entail
-correct-in-production. Second, **blocking-gate claims are reserved for anti-pattern detection** (§7) —
-new, unwaived findings introduced relative to the merge base — while composite criticality rankings and
-prescriptive recommendations inform but do not block. The gate blocks new architectural debt; the
-recommender proposes verified repayments of existing debt. For teams without full CI/CD automation, the
-catalog of §4 additionally functions as a structured architecture-review checklist: twenty-one specific,
-testable questions about the system's graph structure, in the spirit of design review by checklist as
-practiced in aviation and surgery, rather than an informal "does this look healthy?" pass.
+Two claim boundaries govern responsible deployment. First, **prescriptive recommendations are
+advisory**: the pipeline surfaces verified refactoring blueprints for architect review (§6.2, Stage 7)
+but does not auto-apply mutations, since verified-in-simulation does not entail correct-in-production.
+Second, **blocking-gate claims are reserved for detection** (§7) — but §9.1 constrains even that. At a
+90% implication rate an absolute gate blocks every build, so the gate is deployable only once either
+delta semantics (§7.2) or threshold recalibration (§11.2) lands. We state this rather than presenting
+the gate as ready.
+
+For teams without CI/CD automation, the catalog functions as a structured architecture-review
+checklist: twenty-one specific, testable questions about the system's graph structure, in the spirit of
+design review by checklist as practiced in aviation and surgery, rather than an informal "does this
+look healthy?" pass. This use is unaffected by the threshold-calibration problem, because a human
+reviewer working down a checklist supplies the prioritization that the severity tiers currently do not.
 
 ### 10.3 Construct Validity
 
 Both detection and verification are defined relative to the same discrete-event cascade simulator:
-detection's validation (§4.5, §9.1) demonstrates that named patterns correlate with *simulated* impact,
-and SRI reductions (§9.2) demonstrate that prescriptions improve resilience *as the simulator models
-it* — neither necessarily as a production system would experience it. We mitigate this by grounding both
-the catalog's patterns and the prescriptive operators in mechanisms meaningful independent of the
-simulator: established dependability practice (fan-out reduction, anti-affinity scheduling, QoS
-hardening) and graph-theoretic reliability results predating this work [18, 19]. Because the same
-simulator produces both diagnosis and verification for the prescriptive loop, that loop is internally
-consistent by construction; the transfer of verified gains to operational deployments is an external
-question (§10.5).
+§9.1 demonstrates that named patterns correlate — weakly — with *simulated* impact, and §9.2's SRI
+change demonstrates that an admitted edit improves resilience *as the simulator models it*, neither
+necessarily as a production system would experience it. Three specifics bound this.
+
+First, the framework has two simulation oracles and they agree only moderately: mean Spearman
+$\rho = 0.4046$ between the `FailureSimulator` composite $I_{\text{comp}}$ used throughout this paper
+and the `FaultInjector` measure $I^*$ used for the learned predictors of the companion work, with the
+worst scenario at $\rho = 0.06$. A result established against one is therefore not evidence for a claim
+measured against the other, and we have kept every figure in this paper on $I_{\text{comp}}$ for that
+reason.
+
+Second, we mitigate simulator dependence by grounding the catalog's patterns and the prescriptive
+operators in mechanisms meaningful independent of it — established dependability practice (fan-out
+reduction, anti-affinity scheduling, QoS hardening) and graph-theoretic reliability results predating
+this work [18, 19]. This is an argument, not a measurement.
+
+Third, the operator-to-pattern linkage of §6.3 relies on substring matching over human-readable
+detected-problem names rather than a dedicated pattern-ID field. The construct "this mutation repairs
+that anti-pattern" is therefore implemented by a string comparison that silently unbinds if a pattern
+is renamed, and it covers only five of the twenty-one patterns directly.
 
 ### 10.4 Internal Validity
 
-The prescriptive engine is rule-based and greedy: it emits every triggered mutation rather than
-searching the policy space, so reported system-level gains are a lower bound on what an optimizing
-search could achieve, and no optimality claim is made. Verification uses identical fault scenarios and
-seeds for baseline and mutated topologies, so paired comparisons are not confounded by scenario
-sampling. The independence guarantee of §6.4 rules out circular leakage between diagnostics and
-ground-truth labels. Per-type label degeneracy (passive shared libraries pooled with active
-applications) can mask signals in aggregate statistics; as in [1], we treat stratified reporting as
-mandatory wherever type-level or pattern-level results are given, and both §4.5's pattern-specific
-evidence and §9.4's component-level breakdown are instances of this discipline applied to detection and
-prescription respectively.
+The prescriptive engine generates candidates by exhaustive rule firing rather than by searching the
+policy space, so no optimality claim is made; what it reports is what survives filtering, not what an
+optimizing search would find. Verification uses identical fault scenarios and seeds for baseline and
+mutated topologies, paired at matching $(\theta, s)$, so comparisons are not confounded by simulation
+sampling.
+
+Two limits on the acceptance procedure deserve stating plainly. **Verification admits singletons, not
+subsets:** each candidate is measured alone, so an accepted set is not guaranteed to compose, and §9.4
+reports a case where it did not. **The margin parameter is asserted, not derived:** $\kappa = 1.0$ is
+a stated choice, and the acceptance rate is sensitive to it in a way we have not characterized.
+
+The independence guarantee of §6.4 rules out feature–label feedback, and we scope it honestly: it is
+*view* independence, not independence of data source. Both $G_{\text{analysis}}$ and
+$G_{\text{structural}}$ are deterministic functions of the same topology under one cascade model, so
+what is ruled out is a leakage path, not a shared modelling assumption.
+
+Finally, aggregate statistics over a heterogeneous graph can invert their own strata. §9.1 documents a
+concrete instance: the pooled system-layer correlation is negative while every node type is positive.
+We therefore treat stratified reporting as mandatory rather than optional wherever a type-level result
+is available, and report the pooled figure alongside it as a diagnostic rather than as a headline.
 
 ### 10.5 External Validity
 
-All eight (detection) and seven (prescription) scenarios are parameterized synthetic topologies. While
-the presets mimic representative domain verticals, they may not capture the runtime complexity of
-industrial clusters — dynamic workload shifts, packet-loss bursts, transient hardware faults. The
-catalog itself is scoped to the publish–subscribe communication paradigm: systems combining pub-sub
-with request-response patterns (hybrid microservices, mixed REST/event architectures) will require
-additional patterns addressing the request-response side, and `QOS_MISMATCH` is currently specified for
-DDS/ROS 2 and MQTT QoS-weight semantics, requiring adaptation for other middleware platforms. Validating
-prescriptions against a real system (e.g. replaying the engine on the ATM topology reserved for external
-validation in [1]) is the most direct extension.
+All scenarios are parameterized synthetic topologies from a single generator. While the presets mimic
+representative domain verticals, they may not capture the runtime complexity of industrial clusters —
+dynamic workload shifts, packet-loss bursts, transient hardware faults. This is the weakest dimension
+of the evaluation and the highest-value follow-up.
+
+The catalog is scoped to the publish–subscribe communication paradigm: systems combining pub-sub with
+request-response patterns (hybrid microservices, mixed REST/event architectures) will require
+additional patterns for the request-response side, and `QOS_MISMATCH` is specified for DDS/ROS 2 and
+MQTT QoS-weight semantics, requiring adaptation elsewhere.
+
+Two scenario-specific limits also bound generalization. The prescriptive acceptance rate of §9.2 is
+established over topologies of 98–326 components and cannot be claimed scale-invariant, since the
+largest scenario was excluded on cost. And the detection figures of §9.1 are computed with one of the
+twenty-one detectors excluded (§9.5), so they characterize a twenty-detector catalog.
 
 ### 10.6 Conclusion Validity
 
-The prescriptive-evaluation scenario sample is small ($n=7$); the Wilcoxon result reported in §9.2
-($W=0.0$, $p=0.0156$) is the smallest attainable two-sided $p$-value at this sample size, since all
-seven deltas share the same sign — it should be read as consistent directional evidence rather than as
-a claim of large effect size. Results are single-run per scenario under a verified-deterministic
-simulator configuration ($\sigma_{\text{seed}}=0$, §8.3); this determinism is a property of the current
-cascade-probability-1.0 configuration and would need re-establishing under the stochastic propagation
-model proposed as future work (§11.2).
+We report no significance test. The prescriptive sample is six scenarios, of which four produced no
+admitted edit, and a signed-rank test over that structure would be a decoration rather than evidence
+(§9.2). Detection figures are single-run per scenario at the canonical seed and propagation threshold;
+§9.1's correlations should be read with the propagation-threshold sensitivity of the underlying model
+in mind, which spans roughly $0.2$ Spearman $\rho$ across the plausible range — and which is precisely
+why §6.4's acceptance filter requires its margin at every threshold rather than at the default alone.
+
+Earlier versions of this work justified single-run reporting by asserting that the simulator's default
+configuration made $\sigma_{\text{seed}}$ identically zero. That assertion does not survive
+measurement: the per-edit filter estimates $\sigma_{\text{seed}}$ across seeds at every threshold and
+rejects 86% of candidates on that margin.
 
 ### 10.7 Engineering Trade-offs
 
-The closed-loop verification step adds computational cost over emitting unverified recommendations.
-Since the framework targets pre-deployment optimization rather than runtime alerting, §9.5 shows this
-cost stays within CI/CD budgets at every evaluated scale, and we consider verification the feature that
-distinguishes a prescription from a suggestion — just as naming a finding against an empirically
-validated catalog is the feature that distinguishes a diagnosis from an unlabeled score.
+Closed-loop verification costs roughly $|\Theta| \cdot |S|$ exhaustive simulation sweeps per candidate
+against a single end-state evaluation for an unverified recommender — a factor of nine at the
+configuration used here, and the reason the enterprise scenario was excluded (§9.2). We consider that
+cost well spent, on the evidence of §9.3: verification did not merely tighten the prescriptive claim,
+it corrected it. The corresponding trade-off on the detection side runs the other way — §9.5 shows
+detection is nearly free relative to the analysis that feeds it — which is what makes the split
+deployment model of §9.5 (per-commit detection, batch prescription) the sensible one.
 
 ---
 
@@ -966,43 +1283,69 @@ validated catalog is the feature that distinguishes a diagnosis from an unlabele
 ### 11.1 Conclusions
 
 This paper presented SaG-Prescribe, a graph-based framework that unifies the detection of named,
-severity-tiered architectural anti-patterns with closed-loop, DevOps-integrated prescriptive
-refactoring for distributed publish–subscribe architectures. The twenty-one-pattern catalog gives
-practitioners a pub-sub-specific vocabulary analogous to established object-oriented and microservices
-smell catalogs, with detection rules empirically validated against failure-simulation ground truth
-(Spearman $\rho = 0.876$ overall, $0.943$ at scale; $F_1 = 0.923$). By augmenting these topological
-diagnostics with a code-quality bridge (CQP) and extending the Software-as-a-Graph baseline, we
-introduced an end-to-end pipeline that translates named findings into three concrete mutation operators
-— topic splitting, anti-affinity reallocation, and QoS hardening — verifies every compiled policy
-against the same discrete-event cascade oracle that produced the diagnosis, and operationalizes the
-result as a delta-aware CI/CD quality gate. Across seven benchmark scenarios, the generated
-prescriptions reduce the System Risk Index in every case (1.4%–15.9% relative, Wilcoxon $W=0.0$,
-$p=0.0156$) within runtime envelopes compatible with merge-request-gated or nightly CI/CD pipelines,
-while an honest component-level audit (§9.4) shows the current greedy policy is not yet uniformly
-beneficial below the system level.
+severity-tiered architectural anti-patterns with closed-loop prescriptive refactoring for distributed
+publish–subscribe architectures, and evaluated it honestly enough that its limits are as legible as
+its contributions.
+
+The twenty-one-pattern catalog gives practitioners a pub-sub-specific vocabulary analogous to
+established object-oriented and microservices smell catalogs — a contribution we believe stands on the
+specifications themselves. Its empirical validation, measured here for the first time against a
+committed oracle rather than carried forward from prior publication, is weaker than previously
+reported: mean Spearman $\rho = 0.268$ between the composite criticality score and simulated cascade
+impact, below both betweenness ($0.295$) and degree centrality ($0.417$) alone, with the catalog
+implicating roughly 90% of components at `CRITICAL`/`HIGH` severity. The specifications are sound; the
+thresholds are not yet calibrated to produce a usable shortlist, and we identify that as the binding
+detection-side problem rather than presenting the gate as deployable.
+
+The prescriptive contribution is where verification changed the result rather than confirming it.
+Compiling named findings into three graph-mutation operators and subjecting every candidate edit to
+independent counterfactual verification — $\Delta I > \kappa\sigma_{\text{seed}}$ at every propagation
+threshold — admits 29 of 213 candidates (13.6%), all of them topic splits. No anti-affinity
+reallocation and no QoS upgrade survives measurement anywhere in the suite, which contradicts the
+causal account earlier versions of this work gave for its own best result. Five of six scenarios admit
+nothing at all; one shows a clear improvement ($\Delta\mathrm{SRI} = +0.0365$); and one shows that
+individually verified edits can still interact badly in combination. The defensible scope for this
+stage is narrower than "topology-level hardening" — it is fan-out decomposition where a fan-out
+bottleneck actually exists — and we think a negative result of this shape, obtained by measuring what
+was previously assumed, is worth more to the field than the aggregate it replaces.
+
+The CI/CD contribution is the least disturbed: detection runs in 0.03–24.6 s across the full scale
+range, with the detectors themselves accounting for under a second in total and the analysis stage
+carrying essentially the entire budget. The delta-aware gating semantics are specified and unimplemented,
+and §9.1 makes implementing them a prerequisite for deployment rather than an enhancement.
 
 ### 11.2 Future Work
 
-1. **Per-edit acceptance filter (highest priority):** eliminating counterproductive mutations before
-   policy execution, directly motivated by the component-level regressions of §9.4.
-2. **Budget-constrained policy search:** incorporating explicit cost models and modification budgets
-   ($\mathcal{B} < \infty$ in §5), turning the engine from exhaustive rule firing into subset selection
-   over candidate mutations.
-3. **Stochastic cascade propagation:** the current simulator is deterministic under its default
-   configuration (cascade probability 1.0), so seed variance is trivially zero (§8.3). Introducing
-   probabilistic propagation ($<1.0$) would make the $\kappa\cdot\sigma_{\text{seed}}$ acceptance
-   criterion of §5 load-bearing and let RQ2 test robustness to genuine simulation noise.
-4. **Operator ablation and learned policy ordering:** isolating per-operator $\Delta$SRI contributions
-   and exploring learned prioritization over the rule-based candidate set.
-5. **Catalog extension:** generalizing the pattern set to hybrid REST/event architectures and to
-   middleware platforms whose QoS semantics differ from the DDS/ROS 2/MQTT weight formula
-   `QOS_MISMATCH` currently assumes (§10.5).
-6. **Real-system replication:** applying the engine to the ATM topology of [1] and to harvested
+Ordered by how much each would change the paper's claims.
+
+1. **Recalibrate detection thresholds.** A catalog implicating 90% of components cannot prioritize
+   (§9.1). The mechanism is at least partly identified — rank normalization makes the box-plot
+   classifier's critical fraction near-constant across topologies (§4.2) — so the first experiment is a
+   normalization and fence sweep measured against the same oracle used here.
+2. **Bound the `DEEP_PIPELINE` detector.** It enumerates every simple source-to-sink path and does not
+   terminate at realistic scale (§9.5), so the full twenty-one-pattern catalog cannot currently run as
+   a gate. Reporting one finding per source–sink pair, or capping enumeration, restores it.
+3. **Implement and evaluate delta-aware gating.** Merge-base topology diffing, the waiver register,
+   and delta-relative exit codes (§7.2), followed by a fault-injection study measuring the gate's
+   precision and recall on newly introduced regressions.
+4. **Verify subsets, not only singletons.** §9.4's composition failure is the direct motivation.
+   Greedy forward selection over the accepted set is the cheapest approach that would catch it.
+5. **Derive $\kappa$ rather than assert it.** Estimate the simulator's noise scale across a broader
+   sweep and set the acceptance margin from it, and characterize acceptance-rate sensitivity to
+   $\kappa$ (§10.4).
+6. **Parallelise verification and close the enterprise gap.** Per-candidate sweeps are independent, so
+   the $\approx 8.7$ h serial cost that forced the enterprise exclusion (§9.2) is parallelisable
+   almost linearly. This would also test whether the 13.6% acceptance rate holds at scale.
+7. **Expand and ablate the operator set.** Two of three operators currently admit nothing; either they
+   need triggers matched to what the cascade model can express, or the model needs to express what
+   they change. An ablation attributing $\Delta\mathrm{SRI}$ per operator would separate these.
+8. **Extend the catalog.** Hybrid REST/event architectures, and middleware whose QoS semantics differ
+   from the DDS/ROS 2/MQTT weight formula `QOS_MISMATCH` assumes (§10.5).
+9. **Real-system replication.** Applying the engine to the ATM topology of [1] and to harvested
    industrial configurations, closing the external-validity gap of §10.5.
-7. **LLM-assisted pull-request generation:** linking large language model code assistants to
-   automatically generate pull requests that implement the synthesized architectural refactoring
-   blueprints. This is the paper's only LLM-adjacent contribution and should not be oversold beyond
-   this single future-work item — the paper makes no LLM or AutoML contribution today.
+10. **LLM-assisted pull-request generation:** linking code assistants to generate pull requests
+    implementing verified refactoring blueprints. This is the paper's only LLM-adjacent item and is not
+    a contribution claimed here.
 
 ---
 
@@ -1090,5 +1433,17 @@ Bookshelf, 2018.
 - **Funding:** [to be completed]
 - **Competing interests:** [to be completed]
 - **Data availability:** A replication package containing scenario configurations, seeds, and the
-  prescriptive pipeline implementation will be made available at [URL pending].
+  detection and prescriptive pipeline implementations will be made available at [URL pending]. Every
+  figure in §9 is reproducible from committed artifacts:
+
+  ```
+  PYTHONPATH=. python reproduce/detection_validation.py                    # §9.1, §9.5 (system layer)
+  PYTHONPATH=. python reproduce/detection_validation.py --layer app \
+      --output results/detection_validation_app.json                       # §9.1, Table 9.1
+  PYTHONPATH=. python reproduce/run_prescribe_all.py --kappa 1.0           # §9.2–§9.4
+  ```
+
+  Note that `run_prescribe_all.py` does not itself skip the enterprise scenario; the exclusion
+  described in §9.2 is a reporting decision, and re-running the script unattended will attempt the
+  full sweep at the cost stated there.
 - **Ethics approval:** Not applicable.
