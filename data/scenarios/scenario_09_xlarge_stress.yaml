@@ -7,9 +7,10 @@
 #              500 apps · 300 topics · 10 brokers · 50 nodes · 100 libs
 # Purpose  : Named, reproducible validation point at the full xlarge scale.
 #            Fills the gap between scenario_07 (300 apps) and the benchmark
-#            --full-suite.  Validates that ρ ≥ 0.70 and F1 ≥ 0.88 hold at
-#            500-component scale and that CRITICAL classification does not
-#            inflate beyond 10 % of the population.
+#            --full-suite.  Exercises pipeline scaling at 500-component scale
+#            and checks that CRITICAL classification does not inflate beyond
+#            10 % of the population.  Scale fixture — not part of the paper's
+#            evaluation suite (see docs/scenario.md).
 #
 # Topology fingerprint:
 #   • 50 physical/virtual nodes — mix of control-plane and data-plane hosts
@@ -23,7 +24,6 @@
 #     produces measurable broker-to-broker coupling
 #
 # Expected analysis outcomes:
-#   • Overall: ρ(Q, I) ≥ 0.70, F1 ≥ 0.88
 #   • CRITICAL tier ≤ 10 % of components (classifier must not over-flag at scale)
 #   • At least 2 platform SDK libraries in the CRITICAL reliability tier
 #     (high blast radius from wide fan-out)
@@ -33,7 +33,7 @@
 #   • SYSTEMIC_RISK anti-pattern must NOT fire (critical nodes < 20 % cap)
 #
 # Usage:
-#   python bin/generate_graph.py --config data/scenario_09_xlarge_stress.yaml \
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_09_xlarge_stress.yaml \
 #          --output output/xlarge_platform.json
 # =============================================================================
 

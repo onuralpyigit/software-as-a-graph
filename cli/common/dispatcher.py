@@ -151,7 +151,7 @@ def dispatch_predict(repo, args: argparse.Namespace):
         graph=nx_graph,
         structural_metrics=structural_dict,
         rmav_scores=rmav_dict,
-        simulation_results=simulation_raw
+        eval_labels=simulation_raw,   # predict()'s name for train()'s simulation_results
     )
 
     if getattr(args, 'output', None):

@@ -218,7 +218,31 @@ def _derive_depends_on_edges(topology: Dict) -> List[Dict]:
         if src and dst:
             topic_subscribers.setdefault(str(dst), set()).add(str(src))
 
-    # Collect qos_profiles from publishes_to and subscribes_to
+    # QoS lives on the Topic node, not on the pub/sub relationship — the committed
+    # topologies emit publishes_to/subscribes_to as bare {from, to}. Reading
+    # r["qos_profile"] therefore never matched, every derived edge kept weight 1.0,
+    # and _qos_weighted_betweenness fell back to unweighted betweenness on every
+    # scenario, silently making Topo-QoS identical to Topo-BL. Resolve w(t) from the
+    # shared Topic with the same helper the rest of the codebase uses
+    # (saag.evaluation.metrics._topic_qos_weights).
+    from saag.core.models import topic_weight_from_node_attrs
+
+    topic_attrs: Dict[str, Dict] = {
+        str(t["id"]): t for t in topology.get("topics", []) if t.get("id") is not None
+    }
+    topic_weight: Dict[str, float] = {}
+    for tid, attrs in topic_attrs.items():
+        existing = attrs.get("weight")
+        if isinstance(existing, (int, float)) and existing > 0:
+            topic_weight[tid] = float(existing)
+        else:
+            topic_weight[tid] = float(topic_weight_from_node_attrs(attrs))
+
+    import statistics as _stats
+    neutral_weight = _stats.median(topic_weight.values()) if topic_weight else 1.0
+
+    # Per-relationship qos_profile when a topology does supply one; otherwise the
+    # Topic's own qos block is the authority.
     pub_qos: Dict[Tuple[str, str], Dict] = {}
     for r in rels.get("publishes_to", []):
         src = r.get("source") or r.get("application_id") or r.get("from")
@@ -236,23 +260,38 @@ def _derive_depends_on_edges(topology: Dict) -> List[Dict]:
     edges: List[Dict] = []
     seen: set = set()
 
-    # Rule 1 — app_to_app: subscriber depends on publisher (via shared topic)
+    # Rule 1 — app_to_app: subscriber depends on publisher (via shared topic).
+    # One pair may share several topics; the strongest QoS contract between them
+    # governs the dependency, so we keep the max w(t) rather than the first seen.
+    edge_index: Dict[Tuple[str, str], int] = {}
     for topic_id, publishers in topic_publishers.items():
+        w = topic_weight.get(topic_id, 1.0)
         for subscriber in topic_subscribers.get(topic_id, set()):
             for publisher in publishers:
-                if subscriber != publisher:
-                    key = (subscriber, publisher)
-                    if key not in seen:
-                        seen.add(key)
-                        # Extract the qos_profile associated with this pub/sub connection
-                        qp = pub_qos.get((publisher, topic_id)) or sub_qos.get((subscriber, topic_id)) or {}
-                        edges.append({
-                            "source": subscriber,
-                            "target": publisher,
-                            "type": "app_to_app",
-                            "weight": 1.0,
-                            "qos_profile": qp,
-                        })
+                if subscriber == publisher:
+                    continue
+                key = (subscriber, publisher)
+                qp = (pub_qos.get((publisher, topic_id))
+                      or sub_qos.get((subscriber, topic_id))
+                      or (topic_attrs.get(topic_id, {}).get("qos") or {}))
+                if key in edge_index:
+                    e = edges[edge_index[key]]
+                    if w > e["qos_weight"]:
+                        e["qos_weight"] = w
+                        e["qos_profile"] = qp
+                        e["via_topic"] = topic_id
+                    continue
+                seen.add(key)
+                edge_index[key] = len(edges)
+                edges.append({
+                    "source": subscriber,
+                    "target": publisher,
+                    "type": "app_to_app",
+                    "weight": 1.0,
+                    "qos_weight": w,
+                    "qos_profile": qp,
+                    "via_topic": topic_id,
+                })
 
     # Rule 5 — app_to_lib: application depends on library (USES edge)
     for r in rels.get("uses", []):
@@ -268,6 +307,13 @@ def _derive_depends_on_edges(topology: Dict) -> List[Dict]:
                     "target": str(dst),
                     "type": "app_to_lib",
                     "weight": 1.0,
+                    # No topic mediates a USES edge, so there is no QoS contract to
+                    # weight it by. Use the scenario's median w(t): a fixed 1.0 sits
+                    # above every observed topic weight (max ≈ 0.68), which would
+                    # silently make library dependencies the most critical edges in
+                    # the graph. The median keeps them neutral against the QoS-bearing
+                    # edges instead of privileging or suppressing them.
+                    "qos_weight": neutral_weight,
                     "qos_profile": qp,
                 })
 
@@ -549,12 +595,52 @@ def _merge_structural_dicts(nx_features: Dict, cached: Dict) -> Dict:
     return merged
 
 
+def _assert_cache_matches_dataset(scenario: str, cached: Dict, dataset_path: Path) -> None:
+    """Fail when a LOSO cache topology no longer matches its committed dataset.
+
+    Set SAAG_ALLOW_STALE_CACHE=1 to downgrade to a warning; results produced that
+    way are not reproducible from data/scenarios and must not be published.
+    """
+    import hashlib
+
+    if not dataset_path.exists():
+        return
+
+    def _sha(d: Dict) -> str:
+        return hashlib.sha256(
+            json.dumps(d, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+
+    committed = json.loads(dataset_path.read_text())
+    if _sha(cached) == _sha(committed):
+        return
+
+    msg = (
+        f"LOSO cache for '{scenario}' does not match {dataset_path}. The cache was built "
+        f"from a different topology, so any metric computed here describes a graph that no "
+        f"longer exists in the repository. Rebuild it:\n"
+        f"    rm -rf output/loso_cache/{scenario} && "
+        f"bash scripts/populate_loso_cache.sh {scenario}"
+    )
+    if os.environ.get("SAAG_ALLOW_STALE_CACHE") == "1":
+        logger.warning("STALE CACHE (allowed via SAAG_ALLOW_STALE_CACHE): %s", msg)
+        return
+    raise ValueError(msg)
+
+
 def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[Any, Dict, Dict, Dict, bool]:
     """Load graph + structural/simulation/RMAV data for a scenario.
 
     Topology source priority: (1) LOSO cache topology.json, (2) data/scenarios/<name>.json.
     The cache topology was used when computing RMAV quality and structural metrics,
     so using it ensures feature/label consistency.
+
+    That preference is only safe while the cache still corresponds to the committed
+    dataset. It silently stopped doing so once before: caches built from an older
+    generator (scalar `role`, no `hotstandby`/`priority`) kept feeding published
+    numbers after the datasets were regenerated, so `make table3` reproduced the
+    paper only because the stale cache won. _assert_cache_matches_dataset makes that
+    divergence loud instead of invisible.
 
     Structural feature source priority: SAAG StructuralAnalyzer (with derived
     DEPENDS_ON edges) > cached structural_metrics.json > NX-derived fallback.
@@ -569,6 +655,7 @@ def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[A
 
     if cache_topo_path and cache_topo_path.exists():
         topology = json.loads(cache_topo_path.read_text())
+        _assert_cache_matches_dataset(scenario, topology, scenario_path)
     elif scenario_path.exists():
         topology = json.loads(scenario_path.read_text())
     else:
@@ -625,6 +712,9 @@ def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[A
                 src, dst = str(e["source"]), str(e["target"])
                 if src in allowed and dst in allowed:
                     dep_graph.add_edge(src, dst, weight=float(e.get("weight", 1.0)),
+                                       # Carried separately from `weight` so the
+                                       # unweighted Topo-BL arm stays unweighted.
+                                       qos_weight=float(e.get("qos_weight", 1.0)),
                                        type="DEPENDS_ON",
                                        dependency_type=e.get("type", "app_to_app"),
                                        qos_profile=e.get("qos_profile", {}))

@@ -2,7 +2,7 @@
 # Scenario 08 — Tiny Regression / Smoke Test
 # =============================================================================
 # Domain   : Minimal viable pub-sub system (CI pipeline smoke test)
-# Scale    : Tiny (12 apps, 8 topics, 2 brokers, 3 nodes)
+# Scale    : 12 apps, 8 topics, 2 brokers, 3 nodes — matches SCALE_PRESETS["tiny"] counts
 # Purpose  : Fast smoke test that validates the full six-step pipeline
 #            completes correctly on a deterministic, hand-verifiable dataset.
 #            Also used as a regression fixture: expected criticality outputs
@@ -22,7 +22,7 @@
 #   • Output used as golden fixture for unit tests
 #
 # Usage:
-#   python bin/generate_graph.py --config data/scenario_08_tiny_regression.yaml \
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_08_tiny_regression.yaml \
 #          --output output/regression_system.json
 #   # Then run full pipeline:
 #   python bin/run.py --all --input output/regression_system.json

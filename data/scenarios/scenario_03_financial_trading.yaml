@@ -2,7 +2,7 @@
 # Scenario 03 — Financial Trading Platform
 # =============================================================================
 # Domain   : High-frequency trading / market-data distribution system
-# Scale    : Medium (60 apps, 35 topics, 5 brokers, 6 nodes)
+# Scale    : 60 apps, 35 topics, 5 brokers, 6 nodes
 # Purpose  : Validate that QoS-weighted criticality scoring correctly elevates
 #            components on paths carrying CRITICAL / HIGH priority, PERSISTENT
 #            market-data streams, where latency and reliability are paramount.
@@ -22,7 +22,7 @@
 #   • QoS weight contribution clearly differentiates execution vs. analytics path
 #
 # Usage:
-#   python bin/generate_graph.py --config data/scenario_03_financial_trading.yaml \
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_03_financial_trading.yaml \
 #          --output output/trading_system.json
 # =============================================================================
 

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -87,8 +88,18 @@ def _extract_from_main_table(path: Path) -> Dict[str, Dict[str, Dict[str, float]
             continue
         buf.setdefault(variant, {})
         for nt, rho in per_type.items():
-            if rho is not None and not (isinstance(rho, float) and (rho != rho)):  # skip NaN
-                buf[variant].setdefault(nt, []).append(float(rho))
+            # main_table.py emits {"rho": float, "n": int} per node type; older
+            # runs emitted a bare float. Accept both rather than crashing on one.
+            if isinstance(rho, dict):
+                rho = rho.get("rho")
+            if rho is None:
+                continue
+            try:
+                val = float(rho)
+            except (TypeError, ValueError):
+                continue
+            if not math.isnan(val):
+                buf[variant].setdefault(nt, []).append(val)
 
     result = {}
     for var, nt_dict in buf.items():

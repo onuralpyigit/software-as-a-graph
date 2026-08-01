@@ -1,0 +1,155 @@
+{
+  "generated_at": "2026-08-01T07:31:12+00:00",
+  "generator_commit": "0ae4f8b76177793665be1c79dc888091ce80c6ab",
+  "regenerate_with": "PYTHONPATH=. python cli/generate_graph.py batch --input-dir data/scenarios --output-dir <dir> --force",
+  "pooled_evaluation_suite": {
+    "applications": 850,
+    "topics": 375,
+    "brokers": 36,
+    "nodes": 119,
+    "libraries": 165,
+    "total": 1545
+  },
+  "datasets": {
+    "av_system": {
+      "config": "scenario_01_autonomous_vehicle.yaml",
+      "role": "evaluation",
+      "seed": 1001,
+      "domain": "av",
+      "counts": {
+        "applications": 80,
+        "topics": 40,
+        "brokers": 4,
+        "nodes": 8,
+        "libraries": 20
+      },
+      "sha256": "f6566746ed867125629e05d16846057c583f412b43351b25ecde59713421abc0"
+    },
+    "iot_smart_city_system": {
+      "config": "scenario_02_iot_smart_city.yaml",
+      "role": "evaluation",
+      "seed": 2002,
+      "domain": "iot",
+      "counts": {
+        "applications": 200,
+        "topics": 80,
+        "brokers": 6,
+        "nodes": 30,
+        "libraries": 10
+      },
+      "sha256": "19e97dd3e1e3cc5982f6d382fdcd33349e180d0ffb07b861f6300cc1d40de6d4"
+    },
+    "financial_trading_system": {
+      "config": "scenario_03_financial_trading.yaml",
+      "role": "evaluation",
+      "seed": 3003,
+      "domain": "finance",
+      "counts": {
+        "applications": 60,
+        "topics": 35,
+        "brokers": 5,
+        "nodes": 6,
+        "libraries": 18
+      },
+      "sha256": "103f897ba3fb1051d0b6ce99d24a61268d7abf12009138d3230cd1388a334cb1"
+    },
+    "healthcare_system": {
+      "config": "scenario_04_healthcare.yaml",
+      "role": "evaluation",
+      "seed": 4004,
+      "domain": "healthcare",
+      "counts": {
+        "applications": 50,
+        "topics": 25,
+        "brokers": 3,
+        "nodes": 8,
+        "libraries": 12
+      },
+      "sha256": "187320d76f0baa88003a2a58a918e672997df7f10e29dc7557f33f043c6d5c36"
+    },
+    "hub_and_spoke_system": {
+      "config": "scenario_05_hub_and_spoke.yaml",
+      "role": "evaluation",
+      "seed": 5005,
+      "domain": "hub-and-spoke",
+      "counts": {
+        "applications": 70,
+        "topics": 30,
+        "brokers": 2,
+        "nodes": 12,
+        "libraries": 25
+      },
+      "sha256": "5467d8c3c2d54331a3041d40adb43a11d803b657d1f832e66eb050431767ad06"
+    },
+    "microservices_system": {
+      "config": "scenario_06_microservices.yaml",
+      "role": "evaluation",
+      "seed": 6006,
+      "domain": "microservices",
+      "counts": {
+        "applications": 90,
+        "topics": 45,
+        "brokers": 6,
+        "nodes": 15,
+        "libraries": 30
+      },
+      "sha256": "497072b38a6d201774e95085519a1d161b62d508c0da62f1016693935f96794d"
+    },
+    "enterprise_system": {
+      "config": "scenario_07_enterprise_xlarge.yaml",
+      "role": "evaluation",
+      "seed": 7007,
+      "domain": "enterprise",
+      "counts": {
+        "applications": 300,
+        "topics": 120,
+        "brokers": 10,
+        "nodes": 40,
+        "libraries": 50
+      },
+      "sha256": "dbee398969049606d5fa84e6bd7591a3bad2da05a61b93d09612bb5e30070b79"
+    },
+    "tiny_system": {
+      "config": "scenario_08_tiny_regression.yaml",
+      "role": "fixture",
+      "seed": 8008,
+      "domain": "enterprise",
+      "counts": {
+        "applications": 12,
+        "topics": 8,
+        "brokers": 2,
+        "nodes": 3,
+        "libraries": 4
+      },
+      "sha256": "134aa536ae49bcc86684227b4bd2c2bca874f75487f7767d0ccc9f3e8b384d16"
+    },
+    "xlarge_system": {
+      "config": "scenario_09_xlarge_stress.yaml",
+      "role": "fixture",
+      "seed": 9009,
+      "domain": "enterprise",
+      "counts": {
+        "applications": 500,
+        "topics": 300,
+        "brokers": 10,
+        "nodes": 50,
+        "libraries": 100
+      },
+      "sha256": "244a59dc505cda0eb4dc58861cf4b253e5aec203e9faa8025be6349ac7e5efb1"
+    },
+    "atm_system": {
+      "config": "scenario_10_atm_system.yaml",
+      "role": "case_study",
+      "seed": 42,
+      "domain": "air_traffic_management",
+      "counts": {
+        "applications": 26,
+        "topics": 27,
+        "brokers": 5,
+        "nodes": 8,
+        "libraries": 8
+      },
+      "sha256": "8b0a313a3b1751935e03b8349a0d4344be90c1ec4c5ac04ba29fbeea6dc7d18a"
+    }
+  }
+}

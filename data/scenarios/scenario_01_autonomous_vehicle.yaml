@@ -2,7 +2,7 @@
 # Scenario 01 — Autonomous Vehicle / ROS 2
 # =============================================================================
 # Domain   : Safety-critical autonomous driving system (ROS 2-style DDS)
-# Scale    : Medium (80 apps, 40 topics, 4 brokers / DDS participants, 8 nodes)
+# Scale    : 80 apps, 40 topics, 4 brokers / DDS participants, 8 nodes
 # Purpose  : Validate criticality detection in systems where a small number of
 #            sensor-fusion and motion-planning nodes act as articulation points
 #            with extreme downstream impact.
@@ -17,10 +17,10 @@
 # Expected analysis outcomes:
 #   • Sensor-fusion apps should score in the CRITICAL box-plot tier
 #   • Multiple articulation points concentrated in the middleware layer
-#   • Spearman ρ should remain ≥ 0.876 on the generated dataset
+#   • Measured per-scenario ρ is reported in docs/scenario.md, not asserted here
 #
 # Usage:
-#   python bin/generate_graph.py --config data/scenario_01_autonomous_vehicle.yaml \
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_01_autonomous_vehicle.yaml \
 #          --output output/av_system.json
 # =============================================================================
 

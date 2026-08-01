@@ -285,6 +285,14 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
         logger.warning("  [%s] missing %s — skipping.", scenario_id, ", ".join(missing))
         return None
 
+    # A cache whose topology has drifted from its committed dataset describes a graph
+    # that no longer exists in the repository; evaluating against it silently publishes
+    # unreproducible numbers. Same guard reproduce/main_table.py applies.
+    from reproduce.main_table import _assert_cache_matches_dataset
+    _assert_cache_matches_dataset(
+        scenario_id, topology, Path("data/scenarios") / f"{scenario_id}.json"
+    )
+
     graph = _build_graph_from_json(topology)
     structural = extract_structural_metrics_dict(structural_raw)
 
@@ -609,7 +617,11 @@ def run_one_fold(
                     graph=holdout_graph,
                     structural_metrics=holdout_sm,
                     rmav_scores=holdout.rmav,
-                    simulation_results=holdout.simulation,
+                    # GNNService.train() names this simulation_results, predict() names
+                    # it eval_labels. Passing the train() spelling here raised TypeError
+                    # inside the per-seed try/except, so every HGL/HGL-QoS seed was
+                    # skipped and the fold aggregated to nan.
+                    eval_labels=holdout.simulation,
                     mode=effective_mode,
                     qos_enabled=use_qos,
                 )

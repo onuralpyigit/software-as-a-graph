@@ -64,6 +64,7 @@ class Client:
         winsorize: bool = True,
         winsorize_limit: float = 0.05,
         run_sensitivity: bool = False,
+        active_patterns: Optional[List[str]] = None,
     ) -> PredictionResult:
         """Run the unified Prediction stage (Step 3) on a prior AnalysisResult.
 
@@ -89,6 +90,12 @@ class Client:
             How Tier-1 metrics are scaled to [0, 1] before the RMAV weighted sum.
         run_sensitivity:
             Run the Kendall τ weight-stability analysis after scoring.
+        active_patterns:
+            Anti-pattern IDs to run. ``None`` runs the whole catalogue; an empty
+            list skips detection entirely. The distinction matters for callers
+            that only want RMAV scores: DEEP_PIPELINE enumerates every simple
+            source-to-sink path and does not terminate in practical time on
+            topologies of a few hundred components.
         """
         from saag.prediction.service import PredictionService
 
@@ -109,7 +116,8 @@ class Client:
         )
 
         result = service.predict_quality_with_gnn(
-            structural, structural.graph, layer=layer, run_sensitivity=run_sensitivity
+            structural, structural.graph, layer=layer, run_sensitivity=run_sensitivity,
+            active_patterns=active_patterns,
         )
         return PredictionResult(result)
 

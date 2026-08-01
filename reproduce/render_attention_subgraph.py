@@ -157,21 +157,31 @@ def _render_subgraph(edges: List[Dict], output_path: Path, title: str, dpi: int 
     # Nodes
     node_colors = [_NODE_COLORS.get(node_type_map.get(n, ""), _DEFAULT_COLOR)
                    for n in G.nodes()]
-    nx.draw_networkx_nodes(G, pos, ax=ax, node_color=node_colors,
-                           node_size=600, alpha=0.9, zorder=2)
-    nx.draw_networkx_labels(G, pos, ax=ax,
-                            labels={n: n[:20] + "…" if len(n) > 20 else n for n in G.nodes()},
-                            font_size=7, font_color="white", font_weight="bold", zorder=3)
+    # networkx >= 3.x drawing helpers take no **kwargs, so zorder has to be set on
+    # the returned artists rather than passed through. This path was unreachable
+    # while attention extraction returned nothing, which is why the TypeError only
+    # surfaces now.
+    node_artist = nx.draw_networkx_nodes(G, pos, ax=ax, node_color=node_colors,
+                                         node_size=600, alpha=0.9)
+    node_artist.set_zorder(2)
+    label_artists = nx.draw_networkx_labels(
+        G, pos, ax=ax,
+        labels={n: n[:20] + "…" if len(n) > 20 else n for n in G.nodes()},
+        font_size=7, font_color="white", font_weight="bold")
+    for _text in label_artists.values():
+        _text.set_zorder(3)
 
     # Edges coloured by attention
     cmap = cm.YlOrRd
     edge_colors = [cmap(na) for na in norm_a]
     edge_widths  = [1.0 + 4.0 * na for na in norm_a]
-    nx.draw_networkx_edges(G, pos, ax=ax,
-                           edge_color=edge_colors, width=edge_widths,
-                           arrows=True, arrowsize=15,
-                           connectionstyle="arc3,rad=0.08",
-                           zorder=1)
+    edge_artists = nx.draw_networkx_edges(G, pos, ax=ax,
+                                          edge_color=edge_colors, width=edge_widths,
+                                          arrows=True, arrowsize=15,
+                                          connectionstyle="arc3,rad=0.08")
+    for _patch in (edge_artists if isinstance(edge_artists, list) else [edge_artists]):
+        if hasattr(_patch, "set_zorder"):
+            _patch.set_zorder(1)
 
     # Colourbar
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(min_a, max_a))

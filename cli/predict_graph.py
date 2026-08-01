@@ -451,6 +451,11 @@ def main() -> None:
             normalization_method=args.norm,
             winsorize=args.winsorize,
             run_sensitivity=args.sensitivity,
+            # predict() attaches anti-patterns internally, so --no-antipatterns has
+            # to be honoured here too — skipping only the Step 3c scan below still
+            # paid the full catalogue's cost (and DEEP_PIPELINE does not terminate
+            # in practical time above ~100 components).
+            active_patterns=[] if args.no_antipatterns else None,
         )
 
         components = prediction.raw.components if prediction.raw else []

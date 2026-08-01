@@ -2,7 +2,7 @@
 # Scenario 05 — Hub-and-Spoke Anti-Pattern (Centralization Stress Test)
 # =============================================================================
 # Domain   : Deliberately over-centralized publish-subscribe system
-# Scale    : Medium (70 apps, 30 topics, 2 brokers, 12 nodes)
+# Scale    : 70 apps, 30 topics, 2 brokers, 12 nodes
 # Purpose  : Confirm that the methodology reliably detects architectural
 #            anti-patterns — specifically the "god broker" / hub-and-spoke
 #            topology where two brokers become critical SPOFs for the entire
@@ -20,10 +20,10 @@
 #   • Broker failure impact score ≥ 0.5 * total system apps in simulation
 #   • Topic betweenness centrality highly concentrated on ≤ 5 hub topics
 #   • Methodology correctly recommends broker redundancy (refactoring hint)
-#   • F1-score for critical classification should remain ≥ 0.90
+#   • Measured per-scenario ρ is reported in docs/scenario.md, not asserted here
 #
 # Usage:
-#   python bin/generate_graph.py --config data/scenario_05_hub_and_spoke.yaml \
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_05_hub_and_spoke.yaml \
 #          --output output/hub_spoke_system.json
 # =============================================================================
 

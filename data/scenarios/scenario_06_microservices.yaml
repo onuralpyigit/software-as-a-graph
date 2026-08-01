@@ -2,7 +2,7 @@
 # Scenario 06 — Microservices / Low-Coupling (Sparse Graph)
 # =============================================================================
 # Domain   : Cloud-native microservices architecture with event-driven messaging
-# Scale    : Medium (90 apps, 45 topics, 6 brokers, 15 nodes)
+# Scale    : 90 apps, 45 topics, 6 brokers, 15 nodes
 # Purpose  : Validate that the methodology produces a well-distributed
 #            criticality spectrum (not all critical, not all non-critical) in
 #            a loosely-coupled system where few true bottlenecks exist.
@@ -22,10 +22,10 @@
 #   • Only API-gateway and event-bus-bridge apps reach CRITICAL tier
 #   • Betweenness centrality well-distributed (low Gini coefficient)
 #   • Validates that methodology avoids false-positive critical classifications
-#   • Precision ≥ 0.85 with low recall penalty on this sparse topology
+#   • Measured per-scenario ρ is reported in docs/scenario.md, not asserted here
 #
 # Usage:
-#   python bin/generate_graph.py --config data/scenario_06_microservices.yaml \
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_06_microservices.yaml \
 #          --output output/microservices_system.json
 # =============================================================================
 

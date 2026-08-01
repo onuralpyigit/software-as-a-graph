@@ -199,9 +199,15 @@ class PredictionService:
         from saag.analysis.smells import AntiPatternReport
         from saag.explanation.engine import ExplanationEngine
 
-        problems = AntiPatternDetector(active_patterns=active_patterns).detect(
-            quality_result, layer=layer
-        )
+        # An empty list is an explicit opt-out, distinct from None ("run the whole
+        # catalogue"). AntiPatternDetector treats both as falsy and would run
+        # everything, so the caller's opt-out has to be honoured here.
+        if active_patterns is not None and len(active_patterns) == 0:
+            problems = []
+        else:
+            problems = AntiPatternDetector(active_patterns=active_patterns).detect(
+                quality_result, layer=layer
+            )
         problem_summary = self.summarize_problems(problems)
         smell_report = AntiPatternReport(
             problems=problems,

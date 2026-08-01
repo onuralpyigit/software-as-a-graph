@@ -2,7 +2,7 @@
 # Scenario 04 — Healthcare / Clinical Information System
 # =============================================================================
 # Domain   : Hospital-grade patient monitoring and clinical workflow platform
-# Scale    : Medium (50 apps, 25 topics, 3 brokers, 8 nodes)
+# Scale    : 50 apps, 25 topics, 3 brokers, 8 nodes
 # Purpose  : Verify that the methodology correctly identifies SPOF nodes in
 #            systems with regulatory compliance requirements, where data-loss
 #            intolerance produces a PERSISTENT / RELIABLE-heavy QoS profile and
@@ -23,7 +23,7 @@
 #   • Failure of any single broker affects an entire clinical department
 #
 # Usage:
-#   python bin/generate_graph.py --config data/scenario_04_healthcare.yaml \
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_04_healthcare.yaml \
 #          --output output/healthcare_system.json
 # =============================================================================
 

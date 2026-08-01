@@ -22,7 +22,7 @@ Structural metrics (betweenness, bridge ratio, etc.) are computed on this refine
 
 ### B. Remapping & Normalization
 - **Node ID Alignment**: Handles inconsistent naming across simulation logs (e.g., remapping `A1` to `A01` to match architectural JSONs).
-- **RMAV Label Substitution**: In scenarios where failure simulation results are extremely sparse (density < 20%), the harness automatically substitutes ground-truth labels with **RMAV quality scores**. This provides a consistent training target derived from the same `DEPENDS_ON` features, resolving "cold-start" training issues.
+- **RMAV Label Substitution (disabled by default)**: When failure-simulation labels are sparse (< 20% non-zero composite), the harness *used to* substitute **RMAV quality scores** as the training target. It no longer does: RMAV is computed from the same structural metrics that form the GNN's input features, so substituting it makes the labels a function of the features and invalidates every correlation metric. `_load_cache_dicts` now raises instead; `--allow-rmav-substitution` opts back in and tags the affected results `RMAV-sub` rather than `Sim`. Sparse labels are a signal to fix the labeler, not to swap in a proxy.
 
 ### C. Resilience & Resumption
 - **Incremental Saving**: Results are saved to `results/main_table.json` after every single cell (seed-variant-scenario) completion.

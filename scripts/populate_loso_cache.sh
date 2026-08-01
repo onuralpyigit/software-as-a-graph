@@ -108,10 +108,16 @@ for scenario in "${TARGETS[@]}"; do
     fi
 
     # Step 5: RMAV quality scores
+    # --no-antipatterns: the cache consumes RMAV scores only, and detection is
+    # measured separately by reproduce/detection_validation.py. Leaving it on
+    # also makes this step hang — DEEP_PIPELINE enumerates every simple path and
+    # does not terminate on the larger topologies (see DEFAULT_EXCLUDED_PATTERNS
+    # in reproduce/detection_validation.py). It also forces a non-zero exit via
+    # the deployment gate, which this script would report as a spurious error.
     if [ ! -f "$out/quality_scores.json" ]; then
         echo "  [5/5] Computing RMAV quality scores ..."
         PYTHONPATH=. python cli/predict_graph.py \
-            --layer app \
+            --layer app --no-antipatterns \
             --output "$out/quality_scores.json" 2>&1 | tail -2 || \
             echo "  (predict_graph error — skipping)"
     else

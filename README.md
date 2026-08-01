@@ -188,7 +188,7 @@ These are the **per-dimension** gates. The stricter **composite** targets for $Q
 
 ## Empirical Results
 
-Validated across the eleven domain scenarios in [`data/scenarios/`](data/scenarios/) — autonomous vehicles, IoT smart city, high-frequency trading, healthcare, ATM/air-traffic, microservices, hub-and-spoke, and enterprise-scale stress topologies.
+Validated across the seven-scenario evaluation suite in [`data/scenarios/`](data/scenarios/) — autonomous vehicles, IoT smart city, high-frequency trading, healthcare, hub-and-spoke, microservices, and enterprise-scale pub-sub — plus an ATM/air-traffic case study. See [docs/scenario.md](docs/scenario.md) for the corpus, its provenance manifest, and which scenario backs which result.
 
 | Metric | Target | Achieved |
 |:---|:---:|:---:|

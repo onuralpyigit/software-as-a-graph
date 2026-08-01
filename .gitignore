@@ -158,3 +158,9 @@ smart/.env*
 *.bbl
 *.blg
 *.synctex.gz
+
+# Pre-rebuild snapshots of results/ and output/ (local only)
+archive/
+
+# Batch-generation intermediates (canonical datasets are data/scenarios/*_system.json)
+data/scenarios/scenario_*.json

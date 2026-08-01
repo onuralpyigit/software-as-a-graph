@@ -2,7 +2,7 @@
 # Scenario 10 — Air Traffic Management (ATM) / ICAO SWIM
 # =============================================================================
 # Domain   : Safety-critical Air Traffic Management (ICAO Global Concept)
-# Scale    : Medium (26 apps, 27 topics, 5 brokers, 8 nodes)
+# Scale    : 26 apps, 27 topics, 5 brokers, 8 nodes
 # Purpose  : Validate criticality prediction in ultra-reliable real-time
 #            surveillance and separation management systems.
 #
@@ -18,7 +18,7 @@
 #   • High QoS weight due to "critical" transport priority distribution
 #
 # Usage:
-#   python bin/generate_graph.py --config data/scenarios/scenario_10_atm_system.yaml \
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_10_atm_system.yaml \
 #          --output output/atm_system.json
 # =============================================================================
 

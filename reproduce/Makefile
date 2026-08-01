@@ -4,7 +4,8 @@
 #
 # Usage:
 #   make setup           — install Python deps
-#   make scenarios       — generate the 8 reference scenario JSONs
+#   make scenarios       — regenerate the scenario corpus + verify its manifest
+#   make cache           — rebuild output/loso_cache from the corpus (needs Neo4j)
 #   make block0          — W1 QoS pipeline audit (go/no-go gate)
 #   make table3          — Table 3: 8×4×5 training matrix
 #   make table4          — Table 4: LOSO × 4 variants
@@ -19,14 +20,20 @@ PYTHON     ?= python
 PYTHONPATH := .
 export PYTHONPATH
 
+# loso_all_variants.py / kfold_all_variants.py take one comma-separated string;
+# main_table.py takes nargs="+" ints. Keep both spellings of the same seed set.
+comma      := ,
+empty      :=
+space      := $(empty) $(empty)
 SEEDS      ?= 42,123,456,789,2024
+SEEDS_LIST  = $(subst $(comma),$(space),$(SEEDS))
 EPOCHS     ?= 300
 EPOCHS_FAST ?= 50      # for quick smoke-test
 SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios block0 table3 table4 kfold figure4 figure5 \
+.PHONY: setup scenarios cache block0 table3 table4 kfold figure4 figure5 \
         all smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -43,19 +50,19 @@ setup:
 
 scenarios:
 	@mkdir -p $(SCENARIOS_DIR) $(OUTPUT_DIR)/loso_cache
-	@for scenario in atm_system av_system iot_smart_city_system \
-	                 financial_trading_system healthcare_system \
-	                 hub_and_spoke_system microservices_system enterprise_system; do \
-	    out=$(SCENARIOS_DIR)/$$scenario.json; \
-	    if [ ! -f $$out ]; then \
-	        echo "Generating $$scenario ..."; \
-	        $(PYTHON) cli/generate_graph.py --config data/scenario_configs/$$scenario.yaml \
-	                  --output $$out 2>/dev/null || echo "  SKIP (config not found)"; \
-	    else \
-	        echo "EXISTS: $$out"; \
-	    fi; \
-	done
-	@echo "✓ Scenarios ready."
+	$(PYTHON) cli/generate_graph.py batch \
+	    --input-dir $(SCENARIOS_DIR) --output-dir $(SCENARIOS_DIR) --force
+	$(PYTHON) scripts/write_scenario_manifest.py --check
+	@echo "✓ Scenarios ready (regenerated from data/scenarios/scenario_*.yaml)."
+
+# Rebuild the ground-truth caches the evaluation harnesses read. Deletes first:
+# every step in populate_loso_cache.sh is guarded by "if file missing", so a
+# partial cache would otherwise survive and keep feeding stale labels.
+# Requires a live Neo4j (import/analyze/predict run against it).
+cache: scenarios
+	rm -rf $(OUTPUT_DIR)/loso_cache
+	bash scripts/populate_loso_cache.sh
+	@echo "✓ LOSO caches rebuilt from $(SCENARIOS_DIR)."
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Block 0: W1 QoS Pipeline Audit (go/no-go gate — MUST pass before Table 3)
@@ -73,7 +80,7 @@ block0:
 table3: block0
 	$(PYTHON) reproduce/main_table.py \
 	    --output $(RESULTS_DIR)/main_table.json \
-	    --seeds $(SEEDS) \
+	    --seeds $(SEEDS_LIST) \
 	    --epochs $(EPOCHS) \
 	    --resume
 	$(PYTHON) reproduce/render_table.py \

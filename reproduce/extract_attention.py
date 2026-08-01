@@ -31,7 +31,9 @@ Usage
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -40,6 +42,8 @@ import numpy as np
 
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+logger = logging.getLogger(__name__)
 
 _RESULTS_DIR = Path("output/atm_case_study")
 _LOSO_CACHE  = Path("output/loso_cache")
@@ -90,39 +94,80 @@ class _AttentionCapture:
         return hook
 
 
+@contextlib.contextmanager
+def _capture_hgt_alpha():
+    """Capture per-edge attention from HGTConv on PyG versions without an API for it.
+
+    `HGTConv.forward` in PyG 2.x accepts no `return_attention_weights`, so the
+    previous implementation always hit its own TypeError branch and emitted an
+    empty result — every "attention" figure in this study was silently an empty
+    dict. HGTConv concatenates all relations into one bipartite edge index and
+    calls `propagate` once; inside `message` the attention is exactly the return
+    value of `torch_geometric.utils.softmax`. We intercept that symbol where
+    hgt_conv imported it, so the captured tensor *is* the alpha the layer used —
+    no reimplementation of the scoring formula, and nothing about the forward
+    pass changes.
+    """
+    import torch_geometric.nn.conv.hgt_conv as _hgt
+
+    captured: List[Any] = []
+    original = _hgt.softmax
+
+    def _recording_softmax(src, index=None, ptr=None, num_nodes=None, *args, **kwargs):
+        out = original(src, index, ptr, num_nodes, *args, **kwargs)
+        captured.append(out.detach())
+        return out
+
+    _hgt.softmax = _recording_softmax
+    try:
+        yield captured
+    finally:
+        _hgt.softmax = original
+
+
 def _extract_via_return_attention_weights(
     model, x_dict, edge_index_dict, edge_attr_dict
 ) -> Dict[str, Dict]:
-    """Alternative: call each HGTConv with return_attention_weights=True."""
-    import torch
+    """Run the encoder layer by layer, capturing each HGTConv's attention."""
     h = {nt: model.input_proj[nt](x_dict[nt]) for nt in x_dict if nt in model.input_proj}
     all_weights: Dict[str, Dict] = {}
+
+    # HGTConv builds its bipartite edge index by iterating edge_index_dict in order,
+    # so the captured alpha rows follow that same concatenation order.
+    rel_order = [(rel, edge_index_dict[rel].size(1)) for rel in edge_index_dict]
 
     for layer_idx, (conv, edge_enc) in enumerate(zip(model.convs, model.edge_encoders)):
         if edge_attr_dict:
             h = edge_enc(h, edge_index_dict, edge_attr_dict)
-        try:
-            h_new, alphas = conv(h, edge_index_dict, return_attention_weights=True)
-        except TypeError:
-            # PyG version doesn't support return_attention_weights for HGTConv
+
+        with _capture_hgt_alpha() as captured:
             h_new = conv(h, edge_index_dict)
-            all_weights[f"layer_{layer_idx}"] = {}
-            h = {nt: h_new.get(nt, h.get(nt)) for nt in h}
-            continue
 
         layer_key = f"layer_{layer_idx}"
         all_weights[layer_key] = {}
-        if isinstance(alphas, dict):
-            for rel, (ei, alpha) in alphas.items():
+
+        if captured:
+            # One propagate() per layer → one softmax call over the concatenated index.
+            alpha = captured[-1].cpu().numpy()          # (E_total, heads)
+            offset = 0
+            for rel, n_edges in rel_order:
                 src_t, etype, dst_t = rel
-                key = f"{src_t}__{etype}__{dst_t}"
-                alpha_np = alpha.detach().cpu().numpy()  # (E, H)
-                ei_np = ei.cpu().numpy().T.tolist()       # List of [src, dst]
-                all_weights[layer_key][key] = {
+                block = alpha[offset:offset + n_edges]
+                offset += n_edges
+                if block.size == 0:
+                    continue
+                ei_np = edge_index_dict[rel].cpu().numpy().T.tolist()
+                all_weights[layer_key][f"{src_t}__{etype}__{dst_t}"] = {
                     "edges":      ei_np,
-                    "heads":      alpha_np.tolist(),
-                    "mean_alpha": alpha_np.mean(axis=-1).tolist(),
+                    "heads":      block.tolist(),
+                    "mean_alpha": block.mean(axis=-1).tolist(),
                 }
+            if offset != alpha.shape[0]:
+                logger.warning(
+                    "Attention rows (%d) do not match summed relation edges (%d) in "
+                    "layer %d; relation slicing may be misaligned.",
+                    alpha.shape[0], offset, layer_idx,
+                )
 
         if isinstance(h_new, dict):
             for nt in h_new:

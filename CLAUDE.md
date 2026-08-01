@@ -120,6 +120,7 @@ These are enforced by tests — breaking one will fail CI, not just review:
 - **`FaultInjector` and `FailureSimulator` are not interchangeable.** `FaultInjector` is the Predict-stage labeler; `FailureSimulator` is the Validate-stage oracle. Never substitute one for the other within a stage. Enforced by `tests/test_groundtruth_contract.py`.
 - **Predict does not import Simulate.** The dependency runs the other way at the pipeline level (Simulate produces training labels; Predict consumes them from disk), not as a live import. Enforced by `tests/test_predict_simulate_separation.py`.
 - **Layer names are exactly `app` / `infra` / `mw` / `system`.** Defined once in [saag/core/layers.py](saag/core/layers.py); `app` includes both `Application` and `Library` nodes.
+- **Committed datasets are exactly what their configs generate.** Every `data/scenarios/*_system.json` must regenerate byte-identically from its `scenario_*.yaml`, and `data/scenarios/MANIFEST.json` must match what is on disk. Enforced by `tests/test_scenario_corpus.py`. After changing the generator, regenerate the corpus, refresh the manifest, and rebuild the caches (`make -f reproduce/Makefile cache`) — a stale `output/loso_cache/` silently outranks the datasets in `reproduce/main_table.py` and has published wrong numbers before.
 
 ## Known Gotchas
 
@@ -127,8 +128,6 @@ Documented so they aren't mistaken for correctly-working code; not fixed in this
 
 | Symptom | Cause |
 |:---|:---|
-| `cli/run_scenarios.sh` fails to find scenario files | It globs `input/scenario_*.yaml`, a directory that no longer exists — scenarios live in `data/scenarios/` |
-| `make -f reproduce/Makefile scenarios` silently skips every scenario | Target reads configs from `data/scenario_configs/`, which does not exist |
 | `data/benchmarks/scenarios_suite.yaml` configs don't resolve | Its `graph_config` paths point one directory too high |
 | `NEO4J_USERNAME` in `.env`/Compose has no effect on the CLI | `cli/common/arguments.py` reads `NEO4J_USER` instead |
 | Editing `.env` doesn't change local `python cli/*.py` behavior | Nothing in the Python code loads `.env` — it is consumed only by Docker Compose and Next.js |

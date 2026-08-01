@@ -51,7 +51,7 @@ done
 # ---------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-INPUT_DIR="$PROJECT_ROOT/input"
+INPUT_DIR="$PROJECT_ROOT/data/scenarios"
 OUTPUT_DIR="$PROJECT_ROOT/output"
 GNN_DIR="$OUTPUT_DIR/gnn_checkpoints"
 

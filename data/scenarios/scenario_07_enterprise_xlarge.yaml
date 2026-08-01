@@ -2,11 +2,12 @@
 # Scenario 07 — Enterprise-Scale Stress Test (xlarge)
 # =============================================================================
 # Domain   : Large enterprise integration platform (ESB / event mesh hybrid)
-# Scale    : XLarge (300 apps, 120 topics, 10 brokers, 40 nodes)
+# Scale    : 300 apps, 120 topics, 10 brokers, 40 nodes
 # Purpose  : Stress-test the scalability of graph construction, centrality
 #            computation, and failure simulation pipelines.  Validates that
-#            the methodology maintains statistical accuracy (ρ ≥ 0.7, F1 ≥ 0.9)
-#            and completes within acceptable time bounds at enterprise scale.
+#            the methodology maintains statistical accuracy and completes
+#            within acceptable time bounds at enterprise scale.  Measured
+#            per-scenario ρ is reported in docs/scenario.md, not asserted here.
 #
 # Topology fingerprint:
 #   • Very large component count — pushes NetworkX algorithm limits
@@ -23,7 +24,7 @@
 #   • Validates benchmark.py scalability measurements for thesis appendix
 #
 # Usage:
-#   python bin/generate_graph.py --config data/scenario_07_enterprise_xlarge.yaml \
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_07_enterprise_xlarge.yaml \
 #          --output output/enterprise_system.json
 # =============================================================================
 

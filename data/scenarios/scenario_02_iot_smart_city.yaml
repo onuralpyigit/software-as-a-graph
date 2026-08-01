@@ -2,7 +2,7 @@
 # Scenario 02 — IoT Smart City
 # =============================================================================
 # Domain   : Large-scale urban IoT deployment (smart grid, traffic, air quality)
-# Scale    : Large (200 apps, 80 topics, 6 brokers, 30 nodes)
+# Scale    : 200 apps, 80 topics, 6 brokers, 30 nodes
 # Purpose  : Stress-test scalability of the graph model and validate that
 #            broker-level bottlenecks and hub topics are correctly ranked
 #            as critical even when individual apps are low-complexity.
@@ -22,7 +22,7 @@
 #   • SPF detection: each district mapped to a single broker (SPOF)
 #
 # Usage:
-#   python bin/generate_graph.py --config data/scenario_02_iot_smart_city.yaml \
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_02_iot_smart_city.yaml \
 #          --output output/iot_system.json
 # =============================================================================
 
