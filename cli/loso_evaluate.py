@@ -330,8 +330,17 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
     return bundle
 
 
-def discover_scenarios(cache_dir: Path, skip: List[str]) -> List[ScenarioBundle]:
-    """Walk cache_dir and load all valid scenario bundles."""
+def discover_scenarios(
+    cache_dir: Path, skip: List[str], min_scenarios: int = 2
+) -> List[ScenarioBundle]:
+    """Walk cache_dir and load all valid scenario bundles.
+
+    ``min_scenarios`` defaults to 2 because LOSO (this module's own use) is
+    undefined on fewer — there is no "other scenario" to train on. K-fold
+    evaluation (``cli/kfold_evaluate.py``) trains and tests within one
+    scenario's own graph and has no such requirement; it passes
+    ``min_scenarios=1``.
+    """
     bundles: List[ScenarioBundle] = []
     for sub in sorted(p for p in cache_dir.iterdir() if p.is_dir()):
         if any(s in sub.name for s in skip):
@@ -341,9 +350,9 @@ def discover_scenarios(cache_dir: Path, skip: List[str]) -> List[ScenarioBundle]
         if b is not None and b.n_labelled >= 3:
             bundles.append(b)
 
-    if len(bundles) < 2:
+    if len(bundles) < min_scenarios:
         raise ValueError(
-            f"Need ≥ 2 scenarios for LOSO; found {len(bundles)} usable in {cache_dir}."
+            f"Need >= {min_scenarios} scenario(s); found {len(bundles)} usable in {cache_dir}."
         )
     return bundles
 

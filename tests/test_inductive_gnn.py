@@ -193,7 +193,7 @@ def test_normalize_labels_robust_applied_once_to_every_graph(tmp_path):
 
     seen_graphs = []
 
-    def spy(hetero_data):
+    def spy(hetero_data, **kwargs):
         seen_graphs.append(hetero_data)
 
     metrics = EvalMetrics(spearman_rho=0.5, f1_score=0.5, rmse=1.0, mae=1.0,

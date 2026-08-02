@@ -411,6 +411,147 @@ class TestQoSPredictionDelta:
         )
 
 
+class TestQoSInjectionSite:
+    """Stage 4 / RQ3 re-test: `qos_injection="typed"` re-routes the 7 QoS edge
+    dims through a per-relation-type projection instead of `EdgeFeatureEncoder`'s
+    single shared linear layer, where QoS is mean-pooled together with the
+    7-dim edge-type one-hot before HGTConv ever sees it. A null RQ3 result
+    measured only through the pooled path measures QoS-after-mean-pooling
+    with a structurally dominant one-hot, not QoS encoding on its own merits;
+    these tests pin that the typed path is a real, distinct, non-degenerate
+    alternative before any accuracy claim is made either way.
+    """
+
+    def test_typed_encoder_has_independent_weights_per_relation(self):
+        """No accidental weight-sharing across relation types' QoS projections."""
+        import torch
+        from saag.prediction.data_preparation import networkx_to_hetero_data
+        from saag.prediction.models import build_node_gnn
+
+        g = _build_minimal_graph(_RELIABLE_QOS)
+        sm = _build_structural_metrics(g)
+        sr = _build_simulation_results(g)
+        conv = networkx_to_hetero_data(g, sm, sr)
+        data = conv.hetero_data
+
+        model = build_node_gnn(
+            data.metadata(), hidden_channels=16, num_heads=2, num_layers=2,
+            qos_injection="typed",
+        )
+        qos_proj = model.edge_encoders[0].qos_proj
+        assert len(qos_proj) >= 2, "expected a per-relation-type QoS projection for each relation"
+
+        keys = list(qos_proj.keys())
+        weights = [qos_proj[k].weight for k in keys]
+        # At least one pair of relations must have genuinely different weight
+        # tensors (they're independently initialised nn.Linear layers, not
+        # views onto one shared matrix).
+        assert any(
+            not torch.equal(weights[i], weights[j])
+            for i in range(len(weights)) for j in range(i + 1, len(weights))
+        ), "QoS projections for different relation types are identical — weights are shared, not typed"
+
+    def test_typed_injection_changes_edge_to_node_computation(self):
+        """The 'typed' path must produce a different node embedding than
+        'pooled' for the identical input — proving the injection site
+        actually changed the computation, not just its name."""
+        import torch
+        from saag.prediction.data_preparation import networkx_to_hetero_data
+        from saag.prediction.models import build_node_gnn
+
+        g = _build_minimal_graph(_RELIABLE_QOS)
+        sm = _build_structural_metrics(g)
+        sr = _build_simulation_results(g)
+        conv = networkx_to_hetero_data(g, sm, sr)
+        data = conv.hetero_data
+
+        torch.manual_seed(SEED)
+        model_pooled = build_node_gnn(
+            data.metadata(), hidden_channels=16, num_heads=2, num_layers=2,
+            qos_injection="pooled",
+        )
+        torch.manual_seed(SEED)
+        model_typed = build_node_gnn(
+            data.metadata(), hidden_channels=16, num_heads=2, num_layers=2,
+            qos_injection="typed",
+        )
+
+        x = {nt: data[nt].x for nt in data.node_types if hasattr(data[nt], "x")}
+        ei = {rel: data[rel].edge_index for rel in data.edge_types}
+        ea = {rel: data[rel].edge_attr for rel in data.edge_types if hasattr(data[rel], "edge_attr")}
+
+        h0 = {nt: model_pooled.input_proj[nt](x[nt]) for nt in x if nt in model_pooled.input_proj}
+        out_pooled = model_pooled.edge_encoders[0](h0, ei, ea)
+        out_typed = model_typed.edge_encoders[0](h0, ei, ea)
+
+        topic_pooled = out_pooled.get("Topic")
+        topic_typed = out_typed.get("Topic")
+        assert topic_pooled is not None and topic_typed is not None
+        assert (topic_pooled - topic_typed).abs().max().item() > 1e-6, (
+            "'typed' and 'pooled' produced identical Topic embeddings from the same "
+            "edge_attr — the injection site is not actually different."
+        )
+
+    def test_typed_injection_still_carries_qos_mutation_gradient(self):
+        """The non-degeneracy check test_prediction_changes_after_qos_mutation
+        already runs for the default 'pooled' path — pin the same guarantee
+        for 'typed': QoS must still enter the computation graph, just via a
+        different projection."""
+        from saag.prediction.data_preparation import networkx_to_hetero_data
+        from saag.prediction.models import build_node_gnn
+
+        g = _build_minimal_graph(_RELIABLE_QOS)
+        sm = _build_structural_metrics(g)
+        sr = _build_simulation_results(g)
+        conv = networkx_to_hetero_data(g, sm, sr)
+        data = conv.hetero_data
+
+        model = build_node_gnn(
+            data.metadata(), hidden_channels=16, num_heads=2, num_layers=2,
+            qos_injection="typed",
+        )
+        enc = model.edge_encoders[0]
+        x = {nt: data[nt].x for nt in data.node_types if hasattr(data[nt], "x")}
+        ei = {rel: data[rel].edge_index for rel in data.edge_types}
+        h = {nt: model.input_proj[nt](x[nt]) for nt in x if nt in model.input_proj}
+
+        ea_leaves = {}
+        for rel in data.edge_types:
+            if rel[1] in {"PUBLISHES_TO", "SUBSCRIBES_TO"} and hasattr(data[rel], "edge_attr"):
+                t = data[rel].edge_attr.float().clone().detach().requires_grad_(True)
+                ea_leaves[rel] = t
+            elif hasattr(data[rel], "edge_attr"):
+                ea_leaves[rel] = data[rel].edge_attr.float()
+
+        augmented = enc(h, ei, ea_leaves)
+        topic_h = augmented.get("Topic")
+        assert topic_h is not None
+        topic_h.sum().backward()
+
+        grads = [
+            ea_leaves[rel].grad.abs().sum().item()
+            for rel in ea_leaves
+            if rel[1] in {"PUBLISHES_TO", "SUBSCRIBES_TO"} and ea_leaves[rel].grad is not None
+        ]
+        assert any(g > 0 for g in grads), (
+            "Gradient through pub/sub edge_attr under qos_injection='typed' is zero — "
+            f"grad sums: {grads}"
+        )
+
+    def test_invalid_qos_injection_value_rejected(self):
+        from saag.prediction.data_preparation import networkx_to_hetero_data
+        from saag.prediction.models import build_node_gnn
+
+        g = _build_minimal_graph(_RELIABLE_QOS)
+        sm = _build_structural_metrics(g)
+        sr = _build_simulation_results(g)
+        conv = networkx_to_hetero_data(g, sm, sr)
+        metadata = conv.hetero_data.metadata()
+
+        with pytest.raises(ValueError):
+            build_node_gnn(metadata, hidden_channels=16, qos_injection="bogus")
+
+
 class TestScenarioAudit:
     """Test 0.4 / Go-No-Go: test on real scenario JSONs if available."""
 

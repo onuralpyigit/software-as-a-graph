@@ -280,12 +280,14 @@ class GNNService:
         predict_edges: bool = True,
         checkpoint_dir: str = "output/gnn_checkpoints",
         device: Optional[torch.device] = None,
+        qos_injection: str = "pooled",
     ):
         self.hidden_channels = hidden_channels
         self.num_heads = num_heads
         self.num_layers = num_layers
         self.dropout = dropout
         self.predict_edges = predict_edges
+        self.qos_injection = qos_injection
         self.checkpoint_dir = Path(checkpoint_dir)
         self.device = device if device else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -316,14 +318,16 @@ class GNNService:
         self.metadata = metadata
         if self.predict_edges:
             self._edge_model = build_edge_gnn(
-                metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout
+                metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout,
+                qos_injection=self.qos_injection,
             )
             self._node_model = self._edge_model.node_gnn
             self._edge_model.to(self.device)
         else:
             self._edge_model = None
             self._node_model = build_node_gnn(
-                metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout
+                metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout,
+                qos_injection=self.qos_injection,
             )
             self._node_model.to(self.device)
 
@@ -375,6 +379,8 @@ class GNNService:
         pairwise_ranking_weight: float = 0.1,
         edge_loss_weight: float = 0.3,
         node_splits: Optional[Dict[str, Iterable[str]]] = None,
+        rank_normalize_features: bool = False,
+        rank_normalize_labels: bool = False,
     ) -> GNNAnalysisResult:
         """Process graphs and train the GNN model using a multi-seed approach.
 
@@ -402,6 +408,13 @@ class GNNService:
         inductive_graphs:
             Optional list of additional HeteroData graphs for
             inductive multi-graph training (e.g., all 8 domain scenarios).
+        rank_normalize_features:
+            Apply within-graph rank normalization to node features (see
+            `_rank_normalize_base_columns`). Off by default; the
+            un-normalized path remains the ablation arm.
+        rank_normalize_labels:
+            Use rank normalization instead of IQR+sigmoid for label
+            targets (see `normalize_labels_robust`). Off by default.
         """
         # Normalise inputs
         if structural_metrics is not None and not isinstance(structural_metrics, dict):
@@ -413,7 +426,8 @@ class GNNService:
 
         # Convert to HeteroData
         conv = networkx_to_hetero_data(
-            graph, structural_metrics, simulation_results, rmav_scores, qos_enabled=qos_enabled
+            graph, structural_metrics, simulation_results, rmav_scores, qos_enabled=qos_enabled,
+            rank_normalize_features=rank_normalize_features,
         )
         self._conversion_result = conv
         self._pinned_splits = node_splits
@@ -444,10 +458,10 @@ class GNNService:
         # Must run exactly once, outside the seed loop: normalize_labels_robust
         # mutates `.y` in place, so calling it per seed would compound the
         # sigmoid squash and leave each seed training on different labels.
-        normalize_labels_robust(data)
+        normalize_labels_robust(data, rank_normalize=rank_normalize_labels)
         if inductive_graphs:
             for ig in inductive_graphs:
-                normalize_labels_robust(ig)
+                normalize_labels_robust(ig, rank_normalize=rank_normalize_labels)
 
         # Handle multi-seed training (Issue G6)
         training_seeds = seeds if seeds else [42]

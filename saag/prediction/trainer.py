@@ -322,10 +322,18 @@ class GNNTrainer:
         best_combined: float,
         best_val_loss: float,
     ) -> Tuple[float, bool]:
-        """Compute combined metric and return (combined_score, is_improved)."""
-        loss_improvement = max(0.0, 1.0 - val_loss / (best_val_loss + 1e-8))
-        combined = 0.6 * val_metrics.spearman_rho + 0.4 * loss_improvement
-        return combined, combined > best_combined
+        """Return (selection_score, is_improved).
+
+        Selects purely on Spearman rho — the headline metric every reported
+        table scores this model against. The previous criterion blended in
+        a `loss_improvement` term derived from raw validation loss, which
+        mixes the composite MSE/ranking/pairwise loss scale into checkpoint
+        choice even though none of that scale is itself reported; a model
+        could win selection by shrinking a loss term the evaluation never
+        looks at, at the expense of the metric it does. `val_loss` and
+        `best_val_loss` are threaded through for logging/history only.
+        """
+        return val_metrics.spearman_rho, val_metrics.spearman_rho > best_combined
 
     def _log_split_sizes(self, batch) -> None:
         for nt in batch.node_types:

@@ -298,6 +298,27 @@ def test_update_best_detects_improvement():
     assert improved is False
 
 
+def test_update_best_selects_purely_on_rho():
+    """Selection tracks Spearman rho only — val_loss must not move the score.
+
+    Pins the fix: the previous 0.6*rho + 0.4*loss_improvement blend let a
+    checkpoint win selection by shrinking validation loss (a scale-dependent
+    quantity no reported table scores against) even when rho was unchanged.
+    """
+    from saag.prediction.trainer import GNNTrainer, EvalMetrics
+    data = _minimal_hetero_data()
+    model = _build_gnn(data)
+    trainer = GNNTrainer(model, checkpoint_dir="/tmp/test_ckpt")
+
+    metrics = EvalMetrics(spearman_rho=0.55, f1_score=0.5, rmse=0.2, mae=0.2,
+                          top_5_overlap=0.4, top_10_overlap=0.4, ndcg_10=0.5)
+
+    # Wildly different val_loss / best_val_loss must not change the score.
+    score_a, _ = trainer._update_best(metrics, val_loss=0.05, best_combined=0.0, best_val_loss=1.0)
+    score_b, _ = trainer._update_best(metrics, val_loss=5.0, best_combined=0.0, best_val_loss=0.01)
+    assert score_a == pytest.approx(score_b) == pytest.approx(0.55)
+
+
 # ── Label normalization ───────────────────────────────────────────────────────
 
 def test_normalize_labels_robust_clips_outlier():

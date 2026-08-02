@@ -126,6 +126,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import networkx as nx
 import numpy as np
 import torch
+from scipy.stats import rankdata
 from torch import Tensor
 
 from saag.core.models import (
@@ -466,6 +467,37 @@ def _normalize_infra_features(
     return infra
 
 
+def _rank_normalize_base_columns(feat_matrix: np.ndarray) -> None:
+    """In-place within-graph rank normalization of the ``BASE_METRIC_KEYS`` columns.
+
+    ``KEYS_BY_TYPE`` always places ``BASE_METRIC_KEYS`` first, so columns
+    ``[0, len(BASE_METRIC_KEYS))`` are the scale-dependent centrality/topology
+    metrics (pagerank, betweenness, mpci, qos_weight, ...) for every node
+    type; later columns are type-specific extras already normalized to
+    [0, 1] (``*_norm``, ordinals) and are left untouched.
+
+    Each column is mapped to ``rank / (n - 1)`` using average-rank tie
+    handling (matching :func:`scipy.stats.spearmanr`'s own convention), so
+    the transform is exactly rank-preserving: re-ranking the normalized
+    column reproduces the original ordering, ties included. PageRank sums to
+    1 over all nodes, so its mean tracks 1/N — under a corpus spanning
+    74-to-520-node graphs that is nearly an order of magnitude of pure scale
+    difference with no ranking information in it; rank-normalizing removes
+    that cross-graph scale artefact while leaving within-graph order intact.
+
+    A node type with 0 or 1 members has no ranking to express; those columns
+    are set to the neutral midpoint (0.5) rather than raising or emitting NaN.
+    """
+    n = feat_matrix.shape[0]
+    n_base_cols = min(len(BASE_METRIC_KEYS), feat_matrix.shape[1])
+    if n <= 1:
+        feat_matrix[:, :n_base_cols] = 0.5
+        return
+    for col in range(n_base_cols):
+        ranks = rankdata(feat_matrix[:, col], method="average")
+        feat_matrix[:, col] = (ranks - 1.0) / (n - 1)
+
+
 # ── Public API ─────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -501,6 +533,7 @@ def networkx_to_hetero_data(
     simulation_results: Optional[Dict[str, Dict[str, float]]] = None,
     rmav_scores: Optional[Dict[str, Dict[str, float]]] = None,
     qos_enabled: bool = True,
+    rank_normalize_features: bool = False,
 ) -> GraphConversionResult:
     """Convert a NetworkX DiGraph to a PyG HeteroData object.
 
@@ -519,6 +552,12 @@ def networkx_to_hetero_data(
     rmav_scores:
         ``{node_name: {overall, reliability, maintainability,
                         availability, security}}`` for node predictions.
+    rank_normalize_features:
+        Apply within-graph rank normalization (see
+        :func:`_rank_normalize_base_columns`) to the ``BASE_METRIC_KEYS``
+        columns of every node type's feature matrix. Off by default so
+        existing callers are unaffected; the un-normalized path remains the
+        ablation arm against this one.
 
     Returns
     -------
@@ -608,6 +647,9 @@ def networkx_to_hetero_data(
                 ):
                     val = 0.0
                 feat_matrix[local_idx, col] = float(val)
+
+        if rank_normalize_features:
+            _rank_normalize_base_columns(feat_matrix)
 
         data[node_type].x = torch.from_numpy(feat_matrix)
         data[node_type].num_nodes = n
@@ -950,12 +992,38 @@ def create_kfold_masks(
 
 
 
-def normalize_labels_robust(hetero_data) -> None:
-    """In-place IQR normalization of .y label tensors, preserving zeros.
+def normalize_labels_robust(hetero_data, rank_normalize: bool = False) -> None:
+    """In-place normalization of .y label tensors, preserving zeros.
 
-    Computes global median and IQR over non-zero labelled nodes, then maps non-zero
-    labels through (x - median) / IQR, clamps to [-3, 3], and applies sigmoid
-    to keep values in (0, 1) for use with the sigmoid output heads. Zeros remain 0.0.
+    Computes statistics over non-zero labelled nodes (pooled across node
+    types, matching the transductive scope the reported metrics are computed
+    over), then maps non-zero labels onto (0, 1). Zeros remain 0.0.
+
+    Parameters
+    ----------
+    rank_normalize:
+        Default (``False``): IQR normalization — ``(x - median) / IQR``,
+        clamped to [-3, 3], then sigmoid. Preserves relative *magnitude*
+        alongside rank.
+
+        ``True``: within-graph rank normalization (average-rank ties,
+        ``rank / (n + 1)``), per column, in the same spirit as the transform
+        applied to node features in :func:`_rank_normalize_base_columns`.
+        The headline metric this model is scored on is Spearman rho — a
+        purely rank-based statistic — so a target that preserves magnitude
+        spends gradient budget getting inter-node spacing right in a way
+        the evaluation never rewards. This is independent of any
+        cross-graph concern: `normalize_labels_robust` already runs once
+        per graph (see call site in gnn_service.py), so there is no
+        cross-scenario pooling for either variant to fix.
+
+        Deliberately ``rank / (n + 1)`` rather than ``rank / (n - 1)``:
+        the latter maps the lowest rank to exactly 0.0, colliding with the
+        "0.0 means no observation" sentinel this module's ``.abs() > 1e-6``
+        checks rely on everywhere (a real node's genuinely-lowest rank
+        would silently read back as unlabelled on the next pass). Adding
+        one on each side keeps every value strictly inside (0, 1) for any
+        n, including n=1, with no separate small-n branch needed.
     """
     all_labels = [
         hetero_data[nt].y
@@ -965,18 +1033,52 @@ def normalize_labels_robust(hetero_data) -> None:
     if not all_labels:
         return
     concat = torch.cat(all_labels, dim=0)   # (N_total, 5)
-    
+
     # Mask out original zeros to preserve zero structure
     non_zero_mask = concat[:, 0].abs() > 1e-6
     if not non_zero_mask.any():
         return
-        
+
     non_zero_concat = concat[non_zero_mask]
+
+    if rank_normalize:
+        n = non_zero_concat.shape[0]
+        arr = non_zero_concat.detach().cpu().numpy()
+        ranked = np.empty_like(arr)
+        for col in range(arr.shape[1]):
+            ranks = rankdata(arr[:, col], method="average")   # 1-indexed, ties averaged
+            ranked[:, col] = ranks / (n + 1)
+        ranked = torch.from_numpy(ranked).to(non_zero_concat.dtype)
+
+        # Snapshot every store's non-zero mask from the ORIGINAL (pre-mutation)
+        # labels before scattering anything back. Overwriting one type's `.y`
+        # must not change the non-zero count computed for a later type — the
+        # lowest rank in a store can legitimately be small but is never 0.0
+        # (see the docstring), so this is purely about read/write ordering,
+        # not about the zero-collision the ranking formula already avoids.
+        nz_masks = {
+            nt: hetero_data[nt].y[:, 0].abs() > 1e-6
+            for nt in hetero_data.node_types
+            if hasattr(hetero_data[nt], "y") and hetero_data[nt].y.numel() > 0
+        }
+
+        offset = 0
+        for nt in hetero_data.node_types:
+            nz = nz_masks.get(nt)
+            if nz is not None and nz.any():
+                count = int(nz.sum().item())
+                store = hetero_data[nt]
+                new_y = store.y.clone()
+                new_y[nz] = ranked[offset:offset + count]
+                store.y = new_y
+                offset += count
+        return
+
     q25 = torch.quantile(non_zero_concat, 0.25, dim=0)
     q75 = torch.quantile(non_zero_concat, 0.75, dim=0)
     iqr = (q75 - q25).clamp(min=1e-6)
     median = torch.median(non_zero_concat, dim=0).values
-    
+
     for nt in hetero_data.node_types:
         store = hetero_data[nt]
         if hasattr(store, "y") and store.y.numel() > 0:

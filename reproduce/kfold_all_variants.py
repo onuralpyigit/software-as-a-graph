@@ -124,11 +124,60 @@ _VARIANT_LABELS = {
 }
 
 
+def _confidence_interval(values: List[float], confidence: float = 0.95):
+    """t-distribution CI, appropriate for the small (scenario-count-sized)
+    samples this table works with — a normal-approximation CI understates
+    width at n < ~10. Degenerates gracefully: n=0 -> (None, None), n=1 ->
+    (value, value) since a single observation has no dispersion to bound.
+    """
+    n = len(values)
+    if n == 0:
+        return (None, None)
+    if n == 1:
+        return (round(float(values[0]), 4), round(float(values[0]), 4))
+
+    import numpy as np
+    from scipy.stats import t as t_dist
+
+    mean = float(np.mean(values))
+    sem = float(np.std(values, ddof=1)) / (n ** 0.5)
+    if sem < 1e-12:
+        return (round(mean, 4), round(mean, 4))
+    half_width = t_dist.ppf((1 + confidence) / 2, df=n - 1) * sem
+    return (round(mean - half_width, 4), round(mean + half_width, 4))
+
+
+def _paired_deltas(
+    a_by_scenario: Dict[str, float], b_by_scenario: Dict[str, float]
+) -> Optional[Dict]:
+    """Per-scenario (a - b) deltas, matched by scenario id, plus their mean and CI.
+
+    Comparing two variants' pooled means treats each variant's scenario
+    spread as independent, when in practice a scenario that is hard for one
+    variant tends to be hard for all of them — the pooled comparison can
+    show overlapping spreads even when the SAME-scenario delta is
+    consistently one-directional. Pairing by scenario removes that
+    confound. Only scenarios present in both are compared.
+    """
+    common = sorted(set(a_by_scenario) & set(b_by_scenario))
+    if not common:
+        return None
+    deltas = [a_by_scenario[s] - b_by_scenario[s] for s in common]
+    lo, hi = _confidence_interval(deltas)
+    return {
+        "n_paired_scenarios": len(common),
+        "mean_delta": round(sum(deltas) / len(deltas), 4),
+        "ci_95": [lo, hi],
+        "per_scenario_delta": {s: round(d, 4) for s, d in zip(common, deltas)},
+    }
+
+
 def _build_comparison_table(
     results_by_variant: Dict[str, Dict]
 ) -> Dict:
     """Merge per-variant k-fold results into a unified comparison table."""
     table = {}
+    rho_by_scenario_by_variant: Dict[str, Dict[str, float]] = {}
     for variant, data in results_by_variant.items():
         if data is None:
             continue
@@ -137,14 +186,20 @@ def _build_comparison_table(
         scenarios = data.get("scenarios", [])
         rho_vals = [s.get("mean_metrics", {}).get("spearman_rho", 0.0) for s in scenarios]
         f1_vals  = [s.get("mean_metrics", {}).get("f1_at_k", 0.0) for s in scenarios]
+        rho_by_scenario_by_variant[variant] = {
+            s.get("scenario_id"): s.get("mean_metrics", {}).get("spearman_rho", 0.0)
+            for s in scenarios
+        }
 
         import numpy as np
         n = len(rho_vals)
+        ci_lo, ci_hi = _confidence_interval(rho_vals)
         table[variant] = {
             "label": label,
             "n_scenarios": n,
             "mean_rho": round(float(np.mean(rho_vals)), 4) if rho_vals else None,
             "std_rho":  round(float(np.std(rho_vals)), 4) if rho_vals else None,
+            "ci95_rho": [ci_lo, ci_hi],
             "mean_f1":  round(float(np.mean(f1_vals)), 4) if f1_vals else None,
             "per_scenario": [
                 {
@@ -156,16 +211,29 @@ def _build_comparison_table(
             ],
         }
 
-    # Compute Δρ (hgl_qos vs best baseline)
+    # Paired per-scenario delta (hgl_qos vs each baseline), replacing the
+    # single difference-of-pooled-means figure: pairing by scenario controls
+    # for scenario difficulty instead of comparing two independent spreads.
     if "hgl_qos" in table:
-        hq_rho = table["hgl_qos"].get("mean_rho", 0.0)
-        baseline_rhos = [
-            v.get("mean_rho", 0.0)
-            for k, v in table.items()
-            if k != "hgl_qos" and v.get("mean_rho") is not None
-        ]
-        best_baseline = max(baseline_rhos, default=0.0)
-        table["hgl_qos"]["delta_vs_best_baseline"] = round(hq_rho - best_baseline, 4)
+        hq_by_scenario = rho_by_scenario_by_variant.get("hgl_qos", {})
+        deltas_vs_baseline = {}
+        for variant in table:
+            if variant == "hgl_qos":
+                continue
+            paired = _paired_deltas(hq_by_scenario, rho_by_scenario_by_variant.get(variant, {}))
+            if paired is not None:
+                deltas_vs_baseline[variant] = paired
+        table["hgl_qos"]["paired_delta_vs_baseline"] = deltas_vs_baseline
+
+        best_baseline_variant = max(
+            deltas_vs_baseline,
+            key=lambda v: table[v].get("mean_rho") or float("-inf"),
+            default=None,
+        )
+        if best_baseline_variant is not None:
+            table["hgl_qos"]["delta_vs_best_baseline"] = (
+                deltas_vs_baseline[best_baseline_variant]["mean_delta"]
+            )
 
     return table
 
@@ -184,7 +252,7 @@ def _print_comparison_table(table: Dict):
         std  = f"{r.get('std_rho', 0):.4f}" if r.get('std_rho') is not None else "—"
         f1   = f"{r.get('mean_f1', 0):.4f}" if r.get('mean_f1') is not None else "—"
         delta = r.get("delta_vs_best_baseline")
-        delta_s = f"+{delta:.4f}" if delta is not None else "—"
+        delta_s = f"{delta:+.4f}" if delta is not None else "—"
         label = r.get("label", variant)
         print(f"  {label:<25} {rho:<10} {std:<10} {f1:<8} {delta_s}")
     print("  ═══════════════════════════════════════════════════════════════")

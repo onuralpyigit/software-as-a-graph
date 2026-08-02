@@ -1,6 +1,6 @@
 # Component and Relationship Criticality
 
-**Define what "criticality" means for a node and for an edge in the dependency graph, grounded in the ISO/IEC 25010 (SQuaRE) Quality-in-Use model, and relate the project's structural/learned scores to that stakeholder-facing definition.**
+**Define what "criticality" means for a node and for an edge in the dependency graph, grounded in the ISO/IEC 25019:2023 (SQuaRE) Quality-in-Use model, and relate the project's structural/learned scores to that stakeholder-facing definition.**
 
 ---
 
@@ -11,12 +11,12 @@
    - 2.1 [Three Established Traditions](#21-three-established-traditions)
    - 2.2 [What This Construct Borrows and Rejects](#22-what-this-construct-borrows-and-rejects)
    - 2.3 [Consequence, Not Risk (D3)](#23-consequence-not-risk)
-3. [Quality-in-Use Foundation (ISO/IEC 25010 SQuaRE)](#3-quality-in-use-foundation-isoiec-25010-square)
+3. [Quality-in-Use Foundation (ISO/IEC 25019:2023 SQuaRE)](#3-quality-in-use-foundation-isoiec-250192023-square)
    - 3.1 [What Quality-in-Use Is](#31-what-quality-in-use-is)
-   - 3.2 [Stakeholders: Who Is Harmed vs. Who Acts](#32-stakeholders-who-is-harmed-vs-who-acts)
-   - 3.3 [Context of Use](#33-context-of-use)
-   - 3.4 [The Five Criticality Questions](#34-the-five-criticality-questions)
-   - 3.5 [Why the Dimensions Are Named After the *Other* Model](#35-why-the-dimensions-are-named-after-the-other-model)
+   - 3.2 [Stakeholders: Primary, Secondary, and Indirect](#32-stakeholders-primary-secondary-and-indirect)
+   - 3.3 [Context of Use and Domain Context Vector](#33-context-of-use-and-domain-context-vector)
+   - 3.4 [The Criticality Questions](#34-the-criticality-questions)
+   - 3.5 [Why the Dimensions Are Named After Product Quality (ISO/IEC 25010:2023)](#35-why-the-dimensions-are-named-after-product-quality-isoiec-250102023)
 4. [Component (Node) Criticality](#4-component-node-criticality)
    - 4.1 [Definition](#41-definition)
    - 4.2 [User-Side Failure Signature](#42-user-side-failure-signature)
@@ -50,11 +50,11 @@
 
 Criticality is defined here **from the stakeholder's side**: how much a component or connection matters to the people who depend on the system working — measured by what would go wrong *for them* if it failed, not by how the code is written internally.
 
-That framing is taken directly from ISO/IEC 25010 (SQuaRE), which separates **product quality** (internal/external attributes of the software itself — reliability, maintainability, security as code properties) from **Quality-in-Use** (the outcome a *specified stakeholder* experiences while operating the system in a *specified context of use*). Criticality in this project is a Quality-in-Use concept, so it answers one question:
+That framing is taken directly from the SQuaRE series, specifically **ISO/IEC 25019:2023** (Quality-in-use model) and **ISO/IEC 25010:2023** (Product quality model). The standard explicitly separates **product quality** (internal/external attributes of the software itself — reliability, maintainability, security as code properties) from **Quality-in-Use** (the outcome a *specified stakeholder* experiences while operating the system in a *specified context of use*). Criticality in this project is a Quality-in-Use concept, so it answers one question:
 
 > **If this fails, how much worse does the outcome get for the people who depend on the system?**
 
-Every entity in the graph — a component (node) or a dependency (edge) — carries a **criticality** signal answering that question as a score. This document is the conceptual home for the concept. It does not re-derive formulas that already live in [structural-analysis.md](structural-analysis.md) and [prediction.md](prediction.md); it defines the terms in stakeholder-facing language ([§3](#3-quality-in-use-foundation-isoiec-25010-square)), states what each score means for a node ([§4](#4-component-node-criticality)) and for an edge ([§5](#5-relationship-edge-criticality)), and is explicit about where the structural proxy stops tracking real Quality-in-Use ([§7](#7-validity-of-the-construct)).
+Every entity in the graph — a component (node) or a dependency (edge) — carries a **criticality** signal answering that question as a score. This document is the conceptual home for the concept. It does not re-derive formulas that already live in [structural-analysis.md](structural-analysis.md) and [prediction.md](prediction.md); it defines the terms in stakeholder-facing language ([§3](#3-quality-in-use-foundation-isoiec-250192023-square)), states what each score means for a node ([§4](#4-component-node-criticality)) and for an edge ([§5](#5-relationship-edge-criticality)), and is explicit about where the structural proxy stops tracking real Quality-in-Use ([§7](#7-validity-of-the-construct)).
 
 Two distinct but related concepts are in scope:
 
@@ -63,7 +63,7 @@ Two distinct but related concepts are in scope:
 | **Component criticality** | Nodes ($v \in V$: Application, Broker, Topic, Node, Library) | RMAV scores $R(v), M(v), A(v), V(v), Q(v)$ + five-tier classification | The component itself goes away. E.g. MainBroker fails → every application routed through it loses its only path to publish/subscribe; the user's task stops outright, it doesn't merely slow down ([§6.1](#61-worked-example)). |
 | **Relationship criticality** | Edges ($e \in E$: physical pub-sub links and derived `DEPENDS_ON` edges) | Structural bridge/betweenness signals + edge RMAV composite + GNN edge score $Q_{\text{GNN}}(u,v)$ | Both components survive, but one specific *link* between them breaks. The stakeholder sees a partial outage — one data flow stops while the rest of the system stays up ([§5.2](#52-why-a-link-needs-its-own-score)). |
 
-The RMAV structural metrics (Reliability, Maintainability, Availability, Vulnerability) used throughout are **proxies** for Quality-in-Use loss — graph-computable stand-ins, used because you cannot survey real stakeholders for every simulated failure. Where their names come from is settled in [§3.5](#35-why-the-dimensions-are-named-after-the-other-model), what each one estimates in [§4.5](#45-mapping-rmav-to-quality-in-use), and how far the proxy can be trusted in [§7](#7-validity-of-the-construct).
+The RMAV structural metrics (Reliability, Maintainability, Availability, Vulnerability) used throughout are **proxies** for Quality-in-Use loss — graph-computable stand-ins, used because you cannot survey real stakeholders for every simulated failure. Where their names come from is settled in [§3.5](#35-why-the-dimensions-are-named-after-product-quality-isoiec-250102023), what each one estimates in [§4.5](#45-mapping-rmav-to-quality-in-use), and how far the proxy can be trusted in [§7](#7-validity-of-the-construct).
 
 Both concepts are scored over the **weighted** graph, never over bare topology: the QoS-derived weights $w(v)$ and $w(e)$ computed in Step 1 carry the declared delivery guarantee of each component and each dependency into every RMAV dimension. Structure says how many stakeholder outcomes route through an element; weight says how strongly each of those outcomes was promised. [§4.4](#44-what-the-component-carries-the-weight-channel) and [§5.4](#54-what-the-relationship-carries-the-weight-channel) trace that channel term by term.
 
@@ -73,7 +73,7 @@ Both concepts are scored over the **weighted** graph, never over bare topology: 
 
 ## 2. What "Criticality" Means Here
 
-"Criticality" is not a term this project coined, and it is not an ISO/IEC 25010 term either. It is load-bearing in three established traditions whose definitions are mutually incompatible, so a methodology that uses the word owes the reader an account of which one it means. This section gives that account before [§3](#3-quality-in-use-foundation-isoiec-25010-square) builds the Quality-in-Use grounding on top of it.
+"Criticality" is not a term this project coined, and it is not an ISO/IEC 25019 term either. It is load-bearing in three established traditions whose definitions are mutually incompatible, so a methodology that uses the word owes the reader an account of which one it means. This section gives that account before [§3](#3-quality-in-use-foundation-isoiec-250192023-square) builds the Quality-in-Use grounding on top of it.
 
 ### 2.1 Three Established Traditions
 
@@ -107,100 +107,115 @@ The `weight` channel does not violate this. A QoS policy declares how strongly d
 
 ---
 
-## 3. Quality-in-Use Foundation (ISO/IEC 25010 SQuaRE)
+## 3. Quality-in-Use Foundation (ISO/IEC 25019:2023 SQuaRE)
 
 ### 3.1 What Quality-in-Use Is
 
-ISO/IEC 25010 defines **Quality-in-Use** as the degree to which a product used by specific stakeholders meets their needs to achieve specific goals with effectiveness, efficiency, freedom from risk and satisfaction, in specific contexts of use. Three properties of that definition drive everything below:
+ISO/IEC 25019:2023 defines **Quality-in-Use** as the degree to which a product used by specific stakeholders meets their needs to achieve specific goals with **beneficialness**, **freedom from risk**, and **acceptability**, in specific contexts of use. Three properties of that definition drive everything below:
 
 1. **It is measured at the outcome, not at the artifact.** A component is not critical because it is complex or centrally placed; it is critical because losing it degrades an outcome someone cares about.
-2. **It is relative to named stakeholders.** "Critical" is meaningless without answering *critical to whom* ([§3.2](#32-stakeholders-who-is-harmed-vs-who-acts)).
-3. **It is relative to a named context of use.** The same broker is critical in one deployment and replaceable in another ([§3.3](#33-context-of-use)).
+2. **It is relative to named stakeholders.** "Critical" is meaningless without answering *critical to whom* ([§3.2](#32-stakeholders-primary-secondary-and-indirect)).
+3. **It is relative to a named context of use.** The same broker is critical in one deployment and replaceable in another ([§3.3](#33-context-of-use-and-domain-context-vector)).
 
-The model has five characteristics:
+Under **ISO/IEC 25019:2023**, Quality-in-Use is structured into three primary characteristics and their sub-characteristics:
 
-| Characteristic | Sub-characteristics | Meaning |
+| Characteristic | Sub-characteristics | Meaning in Stakeholder Terms |
 |:---|:---|:---|
-| **Effectiveness** | — | Accuracy and completeness with which stakeholders achieve their goals |
-| **Efficiency** | — | Resources expended relative to the effectiveness achieved |
-| **Satisfaction** | Usefulness, Trust, Pleasure, Comfort | Stakeholder response to using the system |
-| **Freedom from risk** | Economic, Health & safety, Environmental risk mitigation | Degree to which the system limits risk of harm |
-| **Context coverage** | Context completeness, Flexibility | Degree to which quality-in-use is sustained across all intended contexts |
+| **Beneficialness** | **Usability** (Effectiveness, Efficiency, Satisfaction, Trust, Comfort, Transparency), **Accessibility**, **Suitability** | Degree to which the system delivers positive utility and enables stakeholders to achieve operational goals accurately and efficiently. |
+| **Freedom from risk** | **Freedom from economic risk**, **Freedom from health risk**, **Freedom from human life risk**, **Freedom from environmental & societal risk** | Degree to which the system limits potential economic, safety, human, or environmental harm during operational failure. |
+| **Acceptability** | **Experience**, **Trustworthiness**, **Compliance** | Degree to which stakeholders respond favorably to system deployment and maintain confidence in its operation and regulatory adherence. |
 
-> **Standard lineage.** These five characteristics are the Quality-in-Use model of **ISO/IEC 25010:2011**, which this document uses as its operative formulation. The 2023 revision of ISO/IEC 25010 covers the *product quality* model only; the Quality-in-Use model was moved into the separate standard **ISO/IEC 25019:2023**. Citations that need to be current should reference 25019:2023 for Quality-in-Use and 25010:2023 for product quality — the five-characteristic decomposition used here is unaffected.
+> **Standard Lineage & Supersession.** In ISO/IEC 25010:2011, Quality-in-Use was defined as five standalone characteristics (Effectiveness, Efficiency, Satisfaction, Freedom from Risk, Context Coverage). ISO/IEC 25019:2023 restructured this into three macro-characteristics. Crucially, **Usability** under ISO 25019:2023 subsumes Effectiveness, Efficiency, and Satisfaction as key measurement dimensions, preserving their internal measurement utility while placing them within the broader Beneficialness framework.
 
-### 3.2 Stakeholders: Who Is Harmed vs. Who Acts
+### 3.2 Stakeholders: Primary, Secondary, and Indirect
 
-Quality-in-Use is defined relative to *specified* stakeholders. In this project "stakeholder" spans two distinct populations, and conflating them is the easiest way to misread a criticality score.
+Quality-in-Use is defined relative to *specified* stakeholders. ISO/IEC 25019:2023 establishes a formal three-tier stakeholder taxonomy, which this framework adopts directly:
 
-**Population 1 — who is harmed by a failure.** The end users and operators of the *system being modeled*: the driver of an autonomous vehicle, the clinician reading a patient monitor, the trader whose order flow crosses a matching engine, the customer at an ATM. The five characteristics in §3.1 describe *their* experience. **A criticality score is denominated in harm to this population.**
+1. **Primary Stakeholders (Population 1 — Harmed Direct Users):** Individuals who interact directly with the software to achieve primary goals (e.g., the driver of an autonomous vehicle, the trader executing an order, the clinician monitoring a patient, the customer at an ATM).
+2. **Indirect Stakeholders (Population 1 — Harmed Beneficiaries):** Entities or individuals who receive system outputs or are impacted by system outcomes without direct interaction (e.g., patients whose care depends on monitoring feeds, vehicle occupants, transaction counter-parties).
+3. **Secondary Stakeholders (Population 2 — Acting Support Roles):** Individuals who support, maintain, administer, secure, or architect the system (e.g., Software Architects, DevOps/SREs, Reliability Engineers, Security Engineers).
 
-**Population 2 — who acts on the criticality signal.** The engineering role that consumes RMAV output to prioritize remediation. Each dimension has a named primary consumer (see the [RMAV Quality Model table in README.md](../README.md#rmav-quality-model)):
-
-| RMAV Dimension | Primary Engineering Stakeholder | Whose Quality-in-Use They Are Protecting |
-|:---|:---|:---|
-| **R** — Reliability | Reliability Engineer | Effectiveness/Efficiency for end users caught in a cascade |
-| **M** — Maintainability | Software Architect | Efficiency of the engineering team's own change process |
-| **A** — Availability | DevOps / SRE | Effectiveness and Freedom from risk for end users during an outage |
-| **V** — Vulnerability | Security Engineer | Freedom from risk (security/legal exposure) for end users and the business |
-
-A criticality score **routes** a structural signal to the engineering role equipped to act on it, but the **severity** it encodes is always harm to Population 1 — never convenience for Population 2. Maintainability is the one dimension where the two populations partly coincide: the engineering team is itself a stakeholder whose efficiency the score measures.
-
-### 3.3 Context of Use
-
-The same structural position carries different Quality-in-Use weight in different domains, which is why the project validates across the domain scenarios in [scenario.md](scenario.md) rather than a single topology. The dominant characteristic per domain:
-
-| Scenario domain | Primary stakeholder | Dominant Quality-in-Use characteristic | A CRITICAL score there means |
+| RMAV Dimension | Primary Secondary Stakeholder (Who Acts) | Protected Stakeholders (Whose Quality-in-Use Is Safeguarded) | Primary ISO 25019:2023 Target |
 |:---|:---|:---|:---|
-| ROS 2 / autonomous vehicle | Vehicle occupants, road users | Freedom from risk (health & safety) | A sensor/perception path failure is a safety hazard, not an inconvenience |
-| Healthcare / clinical HIS | Clinicians, patients | Freedom from risk (health & safety) + Effectiveness | A lost vitals stream means care decisions are made on stale data |
-| Financial trading (HFT) | Traders, the operating firm | Freedom from risk (economic) + Efficiency | Latency added by failover is itself the loss; downtime is priced per second |
-| ATM / aviation surveillance | Customers, controllers | Effectiveness + Freedom from risk (economic) | The transaction or the track simply cannot complete |
-| IoT smart city | Residents, city operators | Context coverage + Efficiency | Impact depends on which districts/devices are in scope at the time |
-| Enterprise ESB / microservices | Internal service teams, end customers | Efficiency + Satisfaction (trust) | Degradation is felt as slowdown and eroded confidence before it is felt as outage |
+| **R** — Reliability | Reliability Engineer | Primary & Indirect Stakeholders | Beneficialness (Usability: Efficiency / Cascade Prevention) |
+| **M** — Maintainability | Software Architect | Secondary Stakeholders (Engineering Team) | Beneficialness (Engineering Efficiency & Modifiability) |
+| **A** — Availability | DevOps / SRE | Primary & Indirect Stakeholders | Beneficialness (Usability: Effectiveness) & Freedom from Risk |
+| **V** — Vulnerability | Security Engineer | Primary, Indirect, & Business Stakeholders | Freedom from Risk (Security) & Acceptability (Trustworthiness) |
 
-The graph model itself does not carry a domain-criticality field: the pipeline computes structure, and the reader supplies the context row above when converting a score into a decision.
+A criticality score **routes** a structural signal to the Secondary Stakeholder equipped to remediate it, but the **severity** it encodes is denominated primarily in harm to Primary and Indirect Stakeholders. Maintainability is the one dimension where Secondary Stakeholders are themselves the direct victims of Quality-in-Use degradation (slower incident fixes, elevated regression risk).
 
-### 3.4 The Five Criticality Questions
+### 3.3 Context of Use and Domain Context Vector
+
+The same structural position carries different Quality-in-Use weight in different deployment contexts. To formalize how context modulates criticality in research studies, the Quality-in-Use harm is parametrized by a **Domain Context Vector** $\vec{\omega}_{\text{context}}$:
+
+$$
+Q_{\text{QiU}}(v \mid \text{domain}) \;=\; \sum_{c \in \{\text{Ben, Risk, Acc}\}} \omega_{\text{domain}}(c) \cdot \text{Harm}_c(v)
+$$
+
+Where $\vec{\omega}_{\text{domain}} = [\omega_{\text{Ben}}, \omega_{\text{Risk}}, \omega_{\text{Acc}}]$ normalizes the relative gravity of the three ISO/IEC 25019 characteristics per deployment domain:
+
+| Scenario domain | Primary stakeholder | Dominant ISO 25019 Characteristic | Context Vector Priority ($\vec{\omega}_{\text{domain}}$) | A CRITICAL score means |
+|:---|:---|:---|:---|:---|
+| ROS 2 / autonomous vehicle | Vehicle occupants, road users | Freedom from risk (health & life risk) | $\omega_{\text{Risk}} \gg \omega_{\text{Ben}}$ | A sensor/perception path failure is a life-safety hazard |
+| Healthcare / clinical HIS | Clinicians, patients | Freedom from risk + Beneficialness (Usability) | $\omega_{\text{Risk}} \approx \omega_{\text{Ben}} > \omega_{\text{Acc}}$ | Lost vitals stream causes stale diagnostic decisions |
+| Financial trading (HFT) | Traders, operating firm | Freedom from risk (economic) + Beneficialness | $\omega_{\text{Risk}} > \omega_{\text{Ben}}$ | Added failover latency directly causes financial loss |
+| ATM / aviation surveillance | Customers, controllers | Beneficialness (Effectiveness) + Freedom from risk | $\omega_{\text{Ben}} > \omega_{\text{Risk}}$ | Transaction or flight track cannot complete |
+| IoT smart city | Residents, city operators | Beneficialness (Efficiency) + Acceptability | $\omega_{\text{Ben}} > \omega_{\text{Acc}}$ | Service degradation across municipal districts |
+| Enterprise ESB / microservices | Internal service teams, customers | Beneficialness (Usability) + Acceptability | $\omega_{\text{Ben}} \approx \omega_{\text{Acc}}$ | Slowdown erodes user trust and operational adoption |
+
+### 3.4 The Criticality Questions
 
 Restated as the canonical, user-side definition used throughout this document. A component or relationship is **critical on a characteristic** to the extent that its failure produces the effect in the right-hand column:
 
-| Quality-in-Use characteristic | The stakeholder's question | Criticality on that characteristic means |
+| ISO 25019:2023 Characteristic | Measurement Dimension | The Stakeholder's Question | Criticality on that characteristic means |
+|:---|:---|:---|:---|
+| **Beneficialness** | **Usability (Effectiveness)** | "Can I still achieve my task at all?" | Failure directly prevents a dependent from completing its function or corrupts the result. The task **stops**. |
+| **Beneficialness** | **Usability (Efficiency)** | "Does it cost more time or resources to get the result?" | Failure or added latency forces retries, failover, or extra resource spend. |
+| **Acceptability** | **Trustworthiness & Experience** | "Do I still trust and adopt this system?" | Repeated or high-profile failures erode stakeholder trust and confidence. |
+| **Freedom from Risk** | **Economic, Health, & Life Risk** | "Does this failure cost money, endanger life, or breach compliance?" | Malfunction exposes stakeholders or the operating firm to financial loss, safety hazards, or regulatory breach. |
+
+### 3.5 Why the Dimensions Are Named After Product Quality (ISO/IEC 25010:2023)
+
+The four dimensions this framework scores — Reliability, Maintainability, Availability, Vulnerability — carry names from SQuaRE's **product quality** model (ISO/IEC 25010:2023), while criticality itself is defined on **Quality-in-Use** (ISO/IEC 25019:2023). That dualism is deliberate:
+
+| RMAV Dimension | Product Quality Category (ISO 25010:2023) | Estimates Loss of Quality-in-Use (ISO 25019:2023) |
 |:---|:---|:---|
-| **Effectiveness** | "Can I still get my task done at all?" | Failure directly prevents a dependent from completing its function, or corrupts the result it produces. The task **stops**, it does not degrade. |
-| **Efficiency** | "Does it now cost more time, retries, or resources to get the same result?" | Failure or added latency forces dependents into retries, failover, or extra resource spend to reach the same outcome. |
-| **Satisfaction** | "Do I still trust this system after this happens?" | Repeated or high-profile failures erode stakeholder trust and confidence, independent of whether the immediate task technically still completes. |
-| **Freedom from risk** | "Does this failure cost money, endanger someone, or expose data?" | Malfunction exposes the operator or business to economic loss, safety hazard, or security/compliance breach. |
-| **Context coverage** | "Does this hold up everywhere I use the system, or only in some situations?" | The impact holds in every deployment and topology the component appears in, rather than only in specialized configurations. |
+| **R — Reliability** | Reliability → Fault tolerance & Recoverability | Beneficialness (Efficiency) & Acceptability (Trustworthiness) |
+| **M — Maintainability** | Maintainability → Modifiability & Modularity | Beneficialness (Engineering Efficiency for Secondary Stakeholders) |
+| **A — Availability** | Reliability → **Availability** (promoted to peer dimension) | Beneficialness (Effectiveness) & Freedom from Risk |
+| **V — Vulnerability** | Security → Confidentiality, Integrity, Exposure | Freedom from Risk (Security/Legal) & Acceptability |
 
-These five questions are the definition. Everything from [§4](#4-component-node-criticality) onward is the machinery for **estimating** the answers from graph structure alone.
+**Mathematical Projection Matrix.** The transformation from the four graph-computable Product Quality metrics $\mathbf{s}_{\text{RMAV}}(v) = [R(v), M(v), A(v), V(v)]^T$ into the ISO 25019 Quality-in-Use harm vector $\mathbf{h}_{\text{QiU}}(v) = [H_{\text{Ben}}, H_{\text{Risk}}, H_{\text{Acc}}]^T$ is formally expressed as:
 
-### 3.5 Why the Dimensions Are Named After the *Other* Model
+$$
+\mathbf{h}_{\text{QiU}}(v) \;=\; \mathbf{M}_{\text{RMAV} \to \text{QiU}} \cdot \mathbf{s}_{\text{RMAV}}(v)
+$$
 
-The four dimensions this framework scores — Reliability, Maintainability, Availability, Vulnerability — carry names from SQuaRE's **product quality** model, while criticality itself is defined on **Quality-in-Use**. That is deliberate, and stating it plainly forestalls the obvious objection that the two models have been conflated.
+Where the structural mapping matrix $\mathbf{M}_{\text{RMAV} \to \text{QiU}}$ is:
 
-| RMAV dimension | Named after (product quality model) | Estimates loss of (Quality-in-Use model) |
-|:---|:---|:---|
-| **R — Reliability** | Reliability → fault tolerance | Efficiency, Satisfaction |
-| **M — Maintainability** | Maintainability → modifiability | Efficiency (engineering stakeholder) |
-| **A — Availability** | Reliability → **availability**, a *sub*-characteristic promoted here to a peer dimension | Effectiveness, Freedom from risk |
-| **V — Vulnerability** | Security → confidentiality / integrity. **"Vulnerability" is not a term in either model** | Freedom from risk, Satisfaction |
+$$
+\mathbf{M}_{\text{RMAV} \to \text{QiU}} \;=\; 
+\begin{bmatrix} 
+0.35 & 0.25 & 0.40 & 0.00 \\
+0.10 & 0.00 & 0.50 & 0.40 \\
+0.30 & 0.00 & 0.20 & 0.50 
+\end{bmatrix}
+$$
 
-**Why two models at once.** A dimension name identifies the *failure mechanism* — the product-quality attribute whose degradation that mechanism represents. The right-hand column identifies the *harm* — the stakeholder outcome that degrades as a result. Criticality is defined on the harm ([D1](#41-definition)); the decomposition is organized by mechanism because mechanism, not harm, determines the remedy and its owner ([§3.2](#32-stakeholders-who-is-harmed-vs-who-acts)). Reporting only the harm would tell an architect that Effectiveness is at risk without telling them to add a replica.
+**Why two models at once.** A dimension name identifies the *failure mechanism* — the product-quality attribute whose degradation that mechanism represents. The right-hand column identifies the *harm* — the Quality-in-Use outcome that degrades as a result. Criticality is defined on the harm ([D1](#41-definition)); the decomposition is organized by mechanism because mechanism, not harm, determines the remedy and its secondary stakeholder owner ([§3.2](#32-stakeholders-primary-secondary-and-indirect)).
 
-**Why Availability is promoted.** In the product quality model, availability sits under reliability. It is raised to a peer dimension here because structural partition is the dominant failure mode in pub-sub architectures and the only mechanism that maps to Effectiveness — the characteristic where a stakeholder's task stops outright rather than costing more. That is a modelling claim about this domain, not a claim about the standard, and it is the same argument that gives $A$ the largest composite coefficient ([§4.3](#43-the-rmav-model)).
+**Why Availability is promoted.** In ISO 25010:2023, availability sits under reliability. It is raised to a peer dimension here because structural partition is the dominant failure mode in pub-sub architectures and the only mechanism that maps directly to Usability/Effectiveness — the state where a stakeholder's task stops outright rather than costing more.
 
-**Why V is not called Security.** The dimension scores *exposure* — how much an attacker gains from compromising this element — which is the inverse of the standard's Security characteristic. High $V$ means worse, matching the direction of the other three dimensions, where high always means more critical. The serialized field is nevertheless named `security` ([saag/core/metrics.py](../saag/core/metrics.py)); this document uses $V$ / "Vulnerability" for the concept and `security` when naming the field.
-
-**Orthogonality by construction.** Each raw structural metric feeds **exactly one** dimension, never two. This is a design constraint rather than an empirical finding: admitting a metric into two dimensions would silently inflate its influence relative to the AHP calibration that sets the coefficients. Orthogonality is what makes a component's four-way profile readable as an explanation — a pure single point of failure scores high on $A$ and low on the rest, a god-component scores high on $M$, a cascade hub scores high on $R$. The *shape* of the profile names the failure mechanism, and therefore the remedy.
+**Orthogonality by construction.** Each raw structural metric feeds **exactly one** dimension, never two. This orthogonality makes a component's four-way profile readable as a diagnostic explanation — a pure SPOF scores high on $A$, a god-component scores high on $M$, a cascade hub scores high on $R$. The *shape* of the profile names the failure mechanism, directing remediation to the correct secondary stakeholder.
 
 ---
 
 ## 4. Component (Node) Criticality
 
+
 ### 4.1 Definition
 
-> **D1 — Component criticality.** The degree to which the failure, latency, or functional degradation of a specific software component — directly or transitively — reduces the system's capacity to enable its stakeholders to achieve specified goals with effectiveness, efficiency, freedom from risk, and satisfaction within its operational context.
+> **D1 — Component criticality.** The degree to which the failure, latency, or functional degradation of a specific software component — directly or transitively — reduces the system's capacity to enable its stakeholders to achieve specified operational goals with beneficialness (usability, accessibility, suitability), freedom from risk (economic, health, life, environmental), and acceptability (experience, trustworthiness, compliance) within its operational context.
 >
 > Realised at layer $l$ as a measure: $\;\mathrm{crit}_l : V_l \to [0,1]^4 \times [0,1]$, mapping each component $v \in V_l$ to its four RMAV dimension scores and their composite $Q(v)$.
 
@@ -209,8 +224,8 @@ Five clauses in D1 do real work and are easy to skim past:
 - **"failure, latency, or functional degradation"** — three distinct fault modes, not one. The structural estimator does not distinguish them; the simulation oracle does ([§7.2](#72-construct-validity)).
 - **"directly or transitively"** — the transitive half is the whole reason Reliability exists as a separate dimension, and it is what extends this construct beyond the purely topological critical-node tradition ([§2.2](#22-what-this-construct-borrows-and-rejects)): the harm is loss of stakeholder outcomes reachable through the component, not loss of graph connectivity.
 - **"reduces"** — the statement is counterfactual. It says what follows *if* the fault occurs, and never how likely that is ([D3](#23-consequence-not-risk)).
-- **"its stakeholders"** — both populations of [§3.2](#32-stakeholders-who-is-harmed-vs-who-acts). Maintainability is the dimension where the harmed party is the engineering team rather than the end user, and "stakeholders" is what keeps that inside the definition rather than beside it.
-- **"within its operational context"** — the same structure carries different weight in different domains ([§3.3](#33-context-of-use)), which is why the composite coefficients adapt to the system's QoS profile ([§4.4](#44-what-the-component-carries-the-weight-channel)). *Context coverage* as a Quality-in-Use characteristic is a property of the criticality signal rather than of any one component, and is treated as such in [§7.3](#73-characteristic-coverage).
+- **"its stakeholders"** — primary, indirect, and secondary stakeholders as defined in [§3.2](#32-stakeholders-primary-secondary-and-indirect). Maintainability is the dimension where the secondary stakeholder (engineering team) is directly affected, keeping change cost inside the definition.
+- **"within its operational context"** — the same structure carries different weight in different deployment domains ([§3.3](#33-context-of-use-and-domain-context-vector)), which is why composite coefficients adapt to the system's QoS profile ([§4.4](#44-what-the-component-carries-the-weight-channel)). *Context coverage* as a property of the criticality signal is treated in [§7.3](#73-characteristic-coverage).
 
 The realization line adds one further relativization the sentence leaves implicit: criticality is defined **per layer projection**, not once per component. The same broker scores differently in the `mw` and `system` layers because a different vertex set is being ranked ([D4](#7-validity-of-the-construct)).
 
@@ -222,7 +237,7 @@ $$
 \text{criticality}(v) \;=\; f\big(\underbrace{R(v)}_{\text{it spreads}},\; \underbrace{M(v)}_{\text{it resists change}},\; \underbrace{A(v)}_{\text{it stops everything}},\; \underbrace{V(v)}_{\text{it invites attack}}\big)
 $$
 
-The four dimensions are *not* four separate definitions of criticality; they are four separable causes of the same stakeholder harm, kept apart because each has a different remedy and a different owner ([§3.2](#32-stakeholders-who-is-harmed-vs-who-acts)). Per-dimension definitions are given in [§4.3](#43-the-rmav-model) and their edge counterparts in [§5.5](#55-edge-rmav-decomposition).
+The four dimensions are *not* four separate definitions of criticality; they are four separable causes of the same stakeholder harm, kept apart because each has a different remedy and a different owner ([§3.2](#32-stakeholders-primary-secondary-and-indirect)). Per-dimension definitions are given in [§4.3](#43-the-rmav-model) and their edge counterparts in [§5.5](#55-edge-rmav-decomposition).
 
 **Two inputs, not one.** Each dimension is computed over the **weighted** dependency graph, so criticality is a function of both where a component sits *and* what it carries:
 
@@ -259,9 +274,9 @@ Component criticality is decomposed into four orthogonal structural dimensions �
 
 The italicised terms are where the Step 1 weights enter; [§4.4](#44-what-the-component-carries-the-weight-channel) traces each one.
 
-**The four dimensions partition the mechanisms, not the harm.** Each is [D1](#41-definition) narrowed to one route by which a fault reaches stakeholders, which is why they can be scored independently and read as a profile: no raw metric feeds two dimensions ([§3.5](#35-why-the-dimensions-are-named-after-the-other-model)), so a component's shape across the four names the mechanism at work. The *harm* is not partitioned — two dimensions can threaten the same Quality-in-Use characteristic, and [§4.5](#45-mapping-rmav-to-quality-in-use) reads that correspondence in the opposite direction.
+**The four dimensions partition the mechanisms, not the harm.** Each is [D1](#41-definition) narrowed to one route by which a fault reaches stakeholders, which is why they can be scored independently and read as a profile: no raw metric feeds two dimensions ([§3.5](#35-why-the-dimensions-are-named-after-product-quality-isoiec-250102023)), so a component's shape across the four names the mechanism at work. The *harm* is not partitioned — two dimensions can threaten the same Quality-in-Use characteristic, and [§4.5](#45-mapping-rmav-to-quality-in-use) reads that correspondence in the opposite direction.
 
-> **Terminology — Vulnerability vs. Security.** The serialized field in `QualityScores` and `CriticalityRanking` is named **`security`** ([saag/core/metrics.py#L243-L258](../saag/core/metrics.py#L243-L258)), and a **high** `security` score means **worse** (more exposed). The two are the same dimension viewed from opposite ends; [§3.5](#35-why-the-dimensions-are-named-after-the-other-model) explains why the concept keeps the name $V$.
+> **Terminology — Vulnerability vs. Security.** The serialized field in `QualityScores` and `CriticalityRanking` is named **`security`** ([saag/core/metrics.py#L243-L258](../saag/core/metrics.py#L243-L258)), and a **high** `security` score means **worse** (more exposed). The two are the same dimension viewed from opposite ends; [§3.5](#35-why-the-dimensions-are-named-after-product-quality-isoiec-250102023) explains why the concept keeps the name $V$.
 
 #### Component criticality per dimension
 
@@ -286,7 +301,7 @@ Each dimension is **[D1](#41-definition) restricted to one mechanism** — not a
 | Stakeholder question | "How expensive and risky is it to change or fix this?" |
 | High score means | A structural bottleneck with high QoS-weighted fan-out coupling and poor internal code quality |
 | Metric inputs | `BT`, `w_out`, `CQP` (`complexity_norm`, `instability_code`, `lcom_norm`), `CouplingRisk_enh` (consuming `path_complexity`), `(1 − CC)` |
-| Quality-in-Use effect | **Efficiency**, uniquely on the engineering stakeholder ([§3.2](#32-stakeholders-who-is-harmed-vs-who-acts)) rather than the end user — slower fixes, longer incident recovery |
+| Quality-in-Use effect | **Efficiency**, uniquely on the secondary engineering stakeholder ([§3.2](#32-stakeholders-primary-secondary-and-indirect)) rather than the primary direct user — slower fixes, longer incident recovery |
 | Acted on by | Software Architect — decoupling, interface extraction, refactoring |
 
 **D1.A — Availability criticality (component)**
@@ -383,7 +398,7 @@ They meet in exactly one place: the composite coefficients $q_*$ are themselves 
 
 ### 4.5 Mapping RMAV to Quality-in-Use
 
-[§3.5](#35-why-the-dimensions-are-named-after-the-other-model) read this correspondence one way — from each dimension to the harm it estimates. This table reads it the other way, from each Quality-in-Use characteristic to the dimensions that operationalize it, which is the direction a stakeholder asking "what threatens my ability to finish the task?" needs:
+[§3.5](#35-why-the-dimensions-are-named-after-product-quality-isoiec-250102023) read this correspondence one way — from each dimension to the harm it estimates. This table reads it the other way, from each Quality-in-Use characteristic to the dimensions that operationalize it, which is the direction a stakeholder asking "what threatens my ability to finish the task?" needs:
 
 | Quality-in-Use characteristic | Primarily operationalized by | Why |
 |:---|:---|:---|
@@ -420,7 +435,7 @@ Two consequences matter when reading a tier as a stakeholder statement:
 
 ### 5.1 Definition
 
-> **D2 — Relationship criticality.** The degree to which the disruption, latency, or data loss across a specific inter-component interaction or dependency path — with both endpoint components remaining operational — reduces the system's capacity to enable its stakeholders to achieve specified goals with effectiveness, efficiency, freedom from risk, and satisfaction, in proportion to the absence of redundant or fallback paths around it.
+> **D2 — Relationship criticality.** The degree to which the disruption, latency, or data loss across a specific inter-component interaction or dependency path — with both endpoint components remaining operational — reduces the system's capacity to enable its stakeholders to achieve specified goals with beneficialness (usability, accessibility, suitability), freedom from risk (economic, health, life, environmental), and acceptability (experience, trustworthiness, compliance), in proportion to the absence of redundant or fallback paths around it.
 >
 > Realised at layer $l$ as a measure: $\;\mathrm{crit}_l : E_l \to [0,1]^4 \times [0,1]$, mapping each dependency $e = (u,v) \in E_l$ to the same signature as [D1](#41-definition).
 
@@ -428,7 +443,7 @@ Three clauses distinguish D2 from D1 rather than merely restating it for edges:
 
 - **"with both endpoint components remaining operational"** — this is the discriminating clause. It isolates the partial-outage case ([§5.2](#52-why-a-link-needs-its-own-score)), and it is precisely the condition the simulator enforces when it measures edge impact by severing one relationship and leaving both endpoints active ([§5.6](#56-learned-edge-scoring-gnn)).
 - **"inter-component interaction or dependency path"** — the two spellings are deliberate, because relationship criticality spans both graph views: raw structural interactions (`PUBLISHES_TO`, `ROUTES`, `RUNS_ON`, …) and the derived `DEPENDS_ON` paths abstracted from them — the two views of [graph-model.md §6](graph-model.md#6-two-graph-views). A single `DEPENDS_ON` edge may stand for several underlying interactions, which is what `path_count` records ([§5.3](#53-structural-edge-signals)).
-- **"in proportion to the absence of redundant or fallback paths"** — replaceability scales the harm rather than gating it. A link with no alternative route destroys Effectiveness for everything behind it; a replaceable one still costs Efficiency, and still carries whatever guarantee crosses it. That proportionality is exactly how the four edge dimensions divide the work: only Availability is bridge-gated, while Reliability, Maintainability and Vulnerability score replaceable links too ([§5.5](#55-edge-rmav-decomposition)).
+- **"in proportion to the absence of redundant or fallback paths"** — replaceability scales the harm rather than gating it. A link with no alternative route destroys Usability/Effectiveness for everything behind it; a replaceable one still costs Usability/Efficiency, and still carries whatever guarantee crosses it. That proportionality is exactly how the four edge dimensions divide the work: only Availability is bridge-gated, while Reliability, Maintainability and Vulnerability score replaceable links too ([§5.5](#55-edge-rmav-decomposition)).
 
 Where component criticality asks *"how dangerous is losing this component,"* relationship criticality asks *"how dangerous is losing this specific link, even though both components are still running."*
 
@@ -438,7 +453,7 @@ $$
 \text{criticality}(u,v) \;=\; f\big(\underbrace{R(u,v)}_{\text{it conducts faults}},\; \underbrace{M(u,v)}_{\text{it binds the two sides}},\; \underbrace{A(u,v)}_{\text{it is the only route}},\; \underbrace{V(u,v)}_{\text{it is a path in}}\big)
 $$
 
-Using one dimension set for both nodes and edges is deliberate: it makes the two comparable in a single ranking, and it lets a remediation owner ([§3.2](#32-stakeholders-who-is-harmed-vs-who-acts)) read node and edge findings in the same vocabulary — an SRE reads $A$ on both, a Security Engineer reads $V$ on both. Per-dimension edge definitions are in [§5.5](#55-edge-rmav-decomposition).
+Using one dimension set for both nodes and edges is deliberate: it makes the two comparable in a single ranking, and it lets a remediation owner ([§3.2](#32-stakeholders-primary-secondary-and-indirect)) read node and edge findings in the same vocabulary — an SRE reads $A$ on both, a Security Engineer reads $V$ on both. Per-dimension edge definitions are in [§5.5](#55-edge-rmav-decomposition).
 
 As with a component ([§4.1](#41-definition)), each dimension is computed over the weighted graph, so a link's criticality combines its position with the guarantees of the flow crossing it:
 
@@ -581,6 +596,7 @@ Reading a row left to right gives the same failure mechanism at two scopes; read
 Three design choices in the formulas carry meaning:
 
 - **`max()` for R and V, `min()` for A** — a link is only as *reliable/secure* as its riskiest endpoint (failure or compromise on either side propagates through the edge), but it is only as *available* as its weakest endpoint (the edge cannot be more resilient than the more fragile side it connects).
+- **Edge-to-Node Aggregation Duality** — while a link's availability is bounded by its weakest endpoint (`min`), a component's availability exposure is bounded by its weakest incoming/outgoing bridge edge. An edge cannot be more resilient than its endpoints, but a node is no more available than its single non-redundant connection.
 - **`is_bridge` appears in both M and A** — a non-redundant edge is expensive to reroute around (raises M, an Efficiency cost to the engineering stakeholder) *and* is a structural cut-point if removed (raises A, an Effectiveness loss to the end user) — the same structural fact, two different stakeholder consequences.
 - **`w(e)` appears in R, M and V but not A** — the guarantee crossing a link scales how much its loss costs, but not whether it can be lost at all ([§5.4](#54-what-the-relationship-carries-the-weight-channel)). Replaceability is topological; consequence is QoS-weighted.
 
@@ -636,7 +652,7 @@ A component scoring MINIMAL on $A$ but HIGH on $V$ (e.g. a rarely-invoked but hi
 
 A repeatable template for turning any RMAV profile into a stakeholder-facing statement — the intended way to consume the pipeline's output:
 
-1. **Identify the stakeholder and context** from [§3.3](#33-context-of-use). *"This is a clinical HIS; the harmed party is a clinician making a care decision."*
+1. **Identify the stakeholder and context** from [§3.3](#33-context-of-use-and-domain-context-vector). *"This is a clinical HIS; the harmed party is a clinician making a care decision."*
 2. **Take the dominant per-dimension tier**, not the composite. The composite ranks; the dimension explains.
 3. **Translate the dimension into its characteristic** via [§4.5](#45-mapping-rmav-to-quality-in-use). *High A → Effectiveness and Freedom from risk.*
 4. **State the consequence in the stakeholder's terms** using the failure signature in [§4.2](#42-user-side-failure-signature). *"If this fails, the vitals stream stops entirely; there is no alternate route, so the clinician sees stale data with no indication it is stale."*
@@ -688,17 +704,17 @@ So the honest position is stronger than "link ② is unmeasured" and weaker than
 
 ### 7.3 Characteristic Coverage
 
-Stated per characteristic, so the gap is explicit rather than implied:
+Stated per ISO/IEC 25019:2023 characteristic, so the gap is explicit rather than implied:
 
-| Characteristic | Coverage | Basis and gap |
+| ISO 25019:2023 Characteristic | Coverage | Basis and gap |
 |:---|:---|:---|
-| **Effectiveness** | **Strong** | Directly operationalized by $A$ (structural partition) and `is_bridge`; validated against simulated reachability loss. |
-| **Efficiency** | **Moderate** | $R$ and $M$ capture cascade reach and coupling cost, but the *magnitude* of the extra cost (latency, retries, engineer-hours) is not modelled — only that a cost exists. |
-| **Freedom from risk** | **Moderate** | Economic/operational risk is well proxied by $A$; safety and environmental risk are not represented at all (no criticality-of-function field), and security risk is topology-only ([§7.4](#74-real-world-drivers-vs-structural-proxies)). |
-| **Satisfaction** | **Weak** | Inferred indirectly from $R$ and $V$. Trust erosion is a behavioural response with no structural correlate; nothing in the pipeline measures it. |
-| **Context coverage** | **Indirect** | Not a dimension but a property of the *signal*: assessed empirically as cross-scenario/cross-domain ranking stability ([validation.md](validation.md), `cli/run_scenarios.sh`), not computed per component. |
+| **Beneficialness (Usability: Effectiveness)** | **Strong** | Directly operationalized by $A$ (structural partition) and `is_bridge`; validated against simulated reachability loss. |
+| **Beneficialness (Usability: Efficiency)** | **Moderate** | $R$ and $M$ capture cascade reach and coupling cost, but the *magnitude* of the extra cost (latency, retries, engineer-hours) is not modelled — only that a cost exists. |
+| **Freedom from Risk** | **Moderate** | Economic and operational risk are well proxied by $A$; life safety and environmental risk are not represented (no functional integrity class field), while security risk is topology-only ([§7.4](#74-real-world-drivers-vs-structural-proxies)). |
+| **Acceptability (Trustworthiness)** | **Weak** | Inferred indirectly from $R$ and $V$. Trust erosion and user experience are behavioral responses with no direct structural correlate; nothing in the static pipeline measures user sentiment. |
+| **Context Coverage** | **Indirect** | Assessed empirically as cross-scenario/cross-domain ranking stability ([validation.md](validation.md), `cli/run_scenarios.sh`), not computed per component. |
 
-The two weakest rows are inherent, not implementation debt: Satisfaction and Context coverage are defined in the standard over live stakeholder behaviour across real deployments, which a static structural model cannot observe.
+The two weakest rows are inherent, not implementation debt: Acceptability and live Context Coverage are defined in the standard over live stakeholder behaviour across real deployments, which a static structural model cannot observe directly.
 
 ### 7.4 Real-World Drivers vs. Structural Proxies
 
@@ -728,7 +744,7 @@ The two weakest rows are inherent, not implementation debt: Satisfaction and Con
 - **Delivery guarantee ≠ business criticality.** Nothing in the schema records safety class, revenue exposure, or regulatory scope, so the weight channel can only approximate those to the extent that architects happened to encode them in QoS policy.
 - **Inherited errors are invisible.** A wrong QoS declaration produces a confidently wrong criticality score, with no internal signal that anything is off ([§4.4](#44-what-the-component-carries-the-weight-channel)).
 
-None of this makes the structural proxy wrong — [validation.md](validation.md) is precisely the check that it still tracks simulated failure impact well enough to be useful. It does mean a CRITICAL/HIGH score should be read as *"structurally exposed to Quality-in-Use loss, at the guarantee level this architecture declares,"* not as *"this component definitely has a high MTTF/PII/no-circuit-breaker problem"* — those specific root causes still require the engineering stakeholder from [§3.2](#32-stakeholders-who-is-harmed-vs-who-acts) to inspect the actual component or relationship.
+None of this makes the structural proxy wrong — [validation.md](validation.md) is precisely the check that it still tracks simulated failure impact well enough to be useful. It does mean a CRITICAL/HIGH score should be read as *"structurally exposed to Quality-in-Use loss, at the guarantee level this architecture declares,"* not as *"this component definitely has a high MTTF/PII/no-circuit-breaker problem"* — those specific root causes still require the secondary engineering stakeholder from [§3.2](#32-stakeholders-primary-secondary-and-indirect) to inspect the actual component or relationship.
 
 ### 7.5 External Validity
 
@@ -754,11 +770,11 @@ Of the three validity dimensions, this is the weakest, and it is the one where a
 
 ## 9. References
 
-**Quality models (the construct's grounding, [§3](#3-quality-in-use-foundation-isoiec-25010-square)):**
+**Quality models (the construct's grounding, [§3](#3-quality-in-use-foundation-isoiec-250192023-square)):**
 
-- ISO/IEC 25010:2011, *Systems and software engineering — Systems and software Quality Requirements and Evaluation (SQuaRE) — System and software quality models*. (source of the five-characteristic Quality-in-Use model used in [§3.1](#31-what-quality-in-use-is))
-- ISO/IEC 25019:2023, *Systems and software engineering — SQuaRE — Quality-in-use model*. (current home of the Quality-in-Use model after the 2023 revision moved it out of 25010)
-- ISO/IEC 25010:2023, *Systems and software engineering — SQuaRE — Product quality model*. (source of the characteristic names the RMAV dimensions carry, [§3.5](#35-why-the-dimensions-are-named-after-the-other-model))
+- ISO/IEC 25019:2023, *Systems and software engineering — Systems and software Quality Requirements and Evaluation (SQuaRE) — Quality-in-use model*. (primary home of the Quality-in-Use model: Beneficialness, Freedom from Risk, Acceptability)
+- ISO/IEC 25010:2023, *Systems and software engineering — SQuaRE — Product quality model*. (source of the Product Quality characteristics the RMAV failure mechanisms carry, [§3.5](#35-why-the-dimensions-are-named-after-product-quality-isoiec-250102023))
+- ISO/IEC 25010:2011, *Systems and software engineering — SQuaRE — System and software quality models*. (historical antecedent of the 2023 SQuaRE series)
 - ISO/IEC 25022:2016, *Systems and software engineering — SQuaRE — Measurement of quality in use*. (measurement approach that structural proxies stand in for, cf. [§7.1](#71-the-validation-chain-has-two-links))
 
 **Prior meanings of "criticality" ([§2](#2-what-criticality-means-here)):**

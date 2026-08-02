@@ -15,7 +15,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 # Import canonical dimension constants to avoid drift between data prep and model
-from ..data_preparation import NODE_TYPE_TO_DIM, EDGE_FEATURE_DIM
+from ..data_preparation import NODE_TYPE_TO_DIM, EDGE_FEATURE_DIM, _EDGE_BASE_DIM, _QOS_EXTRA_DIM
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +96,80 @@ class EdgeFeatureEncoder(nn.Module):
         return augmented
 
 
+class TypedQoSEdgeFeatureEncoder(nn.Module):
+    """Per-relation-type alternative to `EdgeFeatureEncoder`'s pooled injection.
+
+    `EdgeFeatureEncoder` projects the full ``EDGE_FEATURE_DIM`` (16) vector —
+    weight, path_count_norm, a 7-dim edge-type one-hot, and 7 QoS dims
+    (reliability_score, durability_score, priority_score, has_deadline,
+    deadline_ns_log, max_blocking_ms_log, qos_heterogeneity_flag) — through
+    ONE shared linear layer, so QoS signal is averaged together with the
+    edge-type one-hot before HGTConv ever sees it. A null RQ3 result
+    measured through that path measures QoS-after-mean-pooling with a
+    structurally dominant one-hot, not QoS encoding on its own merits.
+
+    This variant splits the two apart: the base 9 dims keep the existing
+    shared projection (this is not what RQ3 is asking about), while the 7
+    QoS dims get their own linear projection **per relation type** — a
+    PUBLISHES_TO edge's QoS contract and a RUNS_ON edge's are not the same
+    kind of signal, and one shared matrix cannot represent that. The two
+    projected components are aggregated into the destination node
+    separately and summed, so the QoS pathway's weights are never
+    entangled with the base pathway's.
+    """
+
+    def __init__(
+        self,
+        hidden_channels: int,
+        edge_types: List[Tuple],
+        base_dim: int = _EDGE_BASE_DIM,
+        qos_dim: int = _QOS_EXTRA_DIM,
+    ):
+        super().__init__()
+        self.base_dim = base_dim
+        self.qos_dim = qos_dim
+        self.base_proj = nn.Linear(base_dim, hidden_channels)
+        self.qos_proj = nn.ModuleDict({
+            TypedEdgeEncoder._rel_key(rel): nn.Linear(qos_dim, hidden_channels)
+            for rel in edge_types
+        })
+
+    def forward(
+        self,
+        h_dict: Dict[str, Tensor],
+        edge_index_dict: Dict,
+        edge_attr_dict: Dict,
+    ) -> Dict[str, Tensor]:
+        try:
+            from torch_scatter import scatter_mean
+        except ImportError:
+            def scatter_mean(src, index, dim, dim_size):
+                out = torch.zeros(dim_size, src.size(1), device=src.device, dtype=src.dtype)
+                count = torch.zeros(dim_size, 1, device=src.device, dtype=src.dtype)
+                out.index_add_(0, index, src)
+                count.index_add_(0, index, torch.ones(src.size(0), 1, device=src.device))
+                return out / count.clamp(min=1)
+
+        augmented = {k: v.clone() for k, v in h_dict.items()}
+        for rel, edge_index in edge_index_dict.items():
+            _, _, dst_type = rel
+            if rel not in edge_attr_dict or dst_type not in h_dict:
+                continue
+            attr = edge_attr_dict[rel]
+            n_dst = h_dict[dst_type].size(0)
+
+            base = self.base_proj(attr[:, :self.base_dim])
+            aggr = scatter_mean(base, edge_index[1], dim=0, dim_size=n_dst)
+            augmented[dst_type] = augmented[dst_type] + aggr
+
+            rel_key = TypedEdgeEncoder._rel_key(rel)
+            if rel_key in self.qos_proj and attr.shape[1] >= self.base_dim + self.qos_dim:
+                qos = self.qos_proj[rel_key](attr[:, self.base_dim:self.base_dim + self.qos_dim])
+                qos_aggr = scatter_mean(qos, edge_index[1], dim=0, dim_size=n_dst)
+                augmented[dst_type] = augmented[dst_type] + qos_aggr
+        return augmented
+
+
 class TypedEdgeEncoder(nn.Module):
     """Per-relation-type edge encoder for EdgeCriticalityGNN.
 
@@ -154,6 +228,7 @@ class NodeCriticalityGNN(nn.Module):
         num_layers: int = 3,
         dropout: float = 0.2,
         use_bidirectional: bool = True,
+        qos_injection: str = "pooled",
     ):
         _require_pyg()
         super().__init__()
@@ -167,6 +242,9 @@ class NodeCriticalityGNN(nn.Module):
         self.dropout_p = dropout
         self.out_dims = NUM_LABEL_DIMS
         self.use_bidirectional = use_bidirectional
+        if qos_injection not in ("pooled", "typed"):
+            raise ValueError(f"qos_injection must be 'pooled' or 'typed', got {qos_injection!r}")
+        self.qos_injection = qos_injection
 
         # Per-type input projections — dims sourced from data_preparation constants
         self.input_proj = nn.ModuleDict({
@@ -188,8 +266,16 @@ class NodeCriticalityGNN(nn.Module):
             )
             for _ in range(num_layers)
         ])
+        # "pooled" (default): EDGE_FEATURE_DIM projected through one shared
+        # linear layer, QoS dims mean-pooled together with the edge-type
+        # one-hot. "typed": TypedQoSEdgeFeatureEncoder — QoS gets its own
+        # per-relation-type projection, summed in separately (RQ3 re-test).
         self.edge_encoders = nn.ModuleList([
-            EdgeFeatureEncoder(EDGE_FEATURE_DIM, hidden_channels)
+            (
+                TypedQoSEdgeFeatureEncoder(hidden_channels, edge_types)
+                if qos_injection == "typed"
+                else EdgeFeatureEncoder(EDGE_FEATURE_DIM, hidden_channels)
+            )
             for _ in range(num_layers)
         ])
         self.norms = nn.ModuleList([
@@ -462,10 +548,11 @@ def build_node_gnn(
     num_layers: int = 3,
     dropout: float = 0.2,
     use_bidirectional: bool = True,
+    qos_injection: str = "pooled",
 ) -> NodeCriticalityGNN:
     return NodeCriticalityGNN(
         metadata, hidden_channels, num_heads, num_layers, dropout,
-        use_bidirectional=use_bidirectional,
+        use_bidirectional=use_bidirectional, qos_injection=qos_injection,
     )
 
 
@@ -476,8 +563,10 @@ def build_edge_gnn(
     num_layers: int = 3,
     dropout: float = 0.2,
     use_bidirectional: bool = True,
+    qos_injection: str = "pooled",
 ) -> EdgeCriticalityGNN:
     node_gnn = build_node_gnn(
-        metadata, hidden_channels, num_heads, num_layers, dropout, use_bidirectional
+        metadata, hidden_channels, num_heads, num_layers, dropout, use_bidirectional,
+        qos_injection=qos_injection,
     )
     return EdgeCriticalityGNN(node_gnn, hidden_channels=hidden_channels, dropout=dropout)

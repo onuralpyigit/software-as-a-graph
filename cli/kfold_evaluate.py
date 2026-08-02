@@ -167,6 +167,9 @@ def run_one_scenario(
     rmav_consistency_weight: float,
     ranking_weight: float,
     pairwise_ranking_weight: float,
+    rank_normalize_features: bool = False,
+    rank_normalize_labels: bool = False,
+    qos_injection: str = "pooled",
 ) -> ScenarioResult:
     """Repeated stratified k-fold within a single scenario's own graph."""
     scenario_dir = workdir / bundle.scenario_id
@@ -235,7 +238,7 @@ def run_one_scenario(
                     # construction, so all variants see the same test set.
                     _conv = networkx_to_hetero_data(
                         train_graph, train_sm, bundle.simulation, bundle.rmav,
-                        qos_enabled=use_qos,
+                        qos_enabled=use_qos, rank_normalize_features=rank_normalize_features,
                     )
                     create_kfold_masks(_conv.hetero_data, k=k, fold_idx=fold_idx, seed=split_seed)
                     _test_ids = _test_node_ids(_conv.hetero_data, _conv.node_id_map)
@@ -249,7 +252,8 @@ def run_one_scenario(
                     from saag.prediction.trainer import GNNTrainer
 
                     conv = networkx_to_hetero_data(
-                        train_graph, train_sm, bundle.simulation, bundle.rmav, qos_enabled=use_qos
+                        train_graph, train_sm, bundle.simulation, bundle.rmav, qos_enabled=use_qos,
+                        rank_normalize_features=rank_normalize_features,
                     )
                     data = conv.hetero_data
                     create_kfold_masks(data, k=k, fold_idx=fold_idx, seed=split_seed)
@@ -309,6 +313,7 @@ def run_one_scenario(
                             num_layers=layers,
                             dropout=dropout,
                             predict_edges=False,
+                            qos_injection=qos_injection,
                         )
                         service.train(
                             graph=train_graph,
@@ -328,6 +333,8 @@ def run_one_scenario(
                             pairwise_ranking_weight=pairwise_ranking_weight,
                             seeds=[seed],
                             mode=effective_mode,
+                            rank_normalize_features=rank_normalize_features,
+                            rank_normalize_labels=rank_normalize_labels,
                         )
                         conv = service._conversion_result
                         test_ids = _test_node_ids(conv.hetero_data, conv.node_id_map)
@@ -459,6 +466,9 @@ def run_kfold(
     rmav_consistency_weight: float,
     ranking_weight: float,
     pairwise_ranking_weight: float,
+    rank_normalize_features: bool = False,
+    rank_normalize_labels: bool = False,
+    qos_injection: str = "pooled",
 ) -> KFoldReport:
     output_dir.mkdir(parents=True, exist_ok=True)
     workdir = output_dir / "workspace"
@@ -489,6 +499,9 @@ def run_kfold(
                 rmav_consistency_weight=rmav_consistency_weight,
                 ranking_weight=ranking_weight,
                 pairwise_ranking_weight=pairwise_ranking_weight,
+                rank_normalize_features=rank_normalize_features,
+                rank_normalize_labels=rank_normalize_labels,
+                qos_injection=qos_injection,
             )
             scenario_results.append(result)
         except Exception as exc:
@@ -673,6 +686,16 @@ def parse_args() -> argparse.Namespace:
                     help="CriticalityLoss weight for the pairwise margin-ranking term")
     p.add_argument("--rmav-consistency-weight", type=float, default=0.1,
                     help="CriticalityLoss weight for RMAV consistency regularization on unlabeled nodes")
+    p.add_argument("--rank-normalize-features", action="store_true",
+                    help="Within-graph rank-normalize node features (BASE_METRIC_KEYS columns). "
+                         "Off by default; ablation arm against the raw-feature path.")
+    p.add_argument("--rank-normalize-labels", action="store_true",
+                    help="Use within-graph rank normalization instead of IQR+sigmoid for label "
+                         "targets. Off by default; ablation arm against the IQR+sigmoid path.")
+    p.add_argument("--qos-injection", choices=["pooled", "typed"], default="pooled",
+                    help="'pooled' (default): QoS edge dims mean-pooled with the edge-type "
+                         "one-hot through one shared projection. 'typed': QoS gets its own "
+                         "per-relation-type projection (RQ3 injection-site re-test).")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -703,7 +726,9 @@ def main() -> int:
         logger.error("See cli/loso_evaluate.py's module docstring for the cache-population loop.")
         return 2
 
-    bundles = discover_scenarios(args.cache_dir, skip=skip)
+    # K-fold trains and tests within one scenario's own graph — unlike LOSO,
+    # a single scenario is a valid target.
+    bundles = discover_scenarios(args.cache_dir, skip=skip, min_scenarios=1)
     logger.info("Loaded %d scenarios for k-fold evaluation.", len(bundles))
 
     t0 = time.time()
@@ -717,6 +742,9 @@ def main() -> int:
         rmav_consistency_weight=args.rmav_consistency_weight,
         ranking_weight=args.ranking_weight,
         pairwise_ranking_weight=args.pairwise_ranking_weight,
+        rank_normalize_features=args.rank_normalize_features,
+        rank_normalize_labels=args.rank_normalize_labels,
+        qos_injection=args.qos_injection,
     )
     elapsed = time.time() - t0
     logger.info("K-fold evaluation complete in %.1f s.", elapsed)
