@@ -84,3 +84,36 @@ python reproduce/render_table.py --table3 results/main_table.json
 ```
 
 The resulting `results/table3_id_metrics.md` will contain the F1, Precision, Recall, and Top-K breakdown for each scenario.
+
+---
+
+## 5. Oracle Agreement (`convergent_validity.py`)
+
+The harness above scores predictors against $I^*(v)$. The project has **three** simulation oracles,
+and this script measures how far they agree — a construct-validity check, not a predictor
+evaluation. It never scores $Q(v)$ or a trained model.
+
+| Oracle | Engine | Quantity |
+|---|---|---|
+| $I^*(v)$ | `FaultInjector` | Mean subscriber feed-loss fraction under a BFS cascade |
+| $I_{\text{comp}}(v)$ | `FailureSimulator` | Weighted composite of reachability, fragmentation, throughput, and flow terms |
+| $I_{\text{dyn}}(v)$ | `MessageFlowSimulator` | Drop in delivered message rate that *surviving* consumers experience, by SimPy discrete-event simulation of actual traffic |
+
+For each unordered pair the script reports Spearman ρ (with $p$), Kendall τ, and top-20% Jaccard
+**over the node set the two oracles share** — the three differ in coverage, so `n_common` is
+reported per pair and is not the scenario size. Scales differ, so only rank agreement is meaningful.
+
+$I^*$ and $I_{\text{comp}}$ are both topological cascade engines over the same substrate, so their
+agreement cannot rule out a shared construction artifact. $I_{\text{dyn}}$ is the one that can:
+it reaches the same ranking by simulating traffic rather than by traversing edges. It is
+delivery-based and QoS-agnostic on this corpus, produces no training labels, and gates nothing.
+
+```bash
+make -f reproduce/Makefile convergent-validity
+# or, bounding the expensive oracle on large scenarios:
+python reproduce/convergent_validity.py --max-candidates 100
+```
+
+$I_{\text{dyn}}$ costs one discrete-event run per candidate component, so runtime scales with
+corpus size rather than with epochs; `enterprise_system` dominates. `--skip-message-flow` falls
+back to the two topological oracles. Output is `results/convergent_validity.json`.

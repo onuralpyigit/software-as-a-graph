@@ -1,0 +1,10 @@
+graph:
+  seed: 2026
+  domain: cloud_microservices
+  scenario: production_ecommerce_cloud_microservices_mesh
+  counts:
+    nodes: 6
+    applications: 22
+    libraries: 8
+    topics: 20
+    brokers: 4

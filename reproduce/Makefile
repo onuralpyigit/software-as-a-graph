@@ -10,6 +10,7 @@
 #   make table3          — Table 3: 8×4×5 training matrix
 #   make table4          — Table 4: LOSO × 4 variants
 #   make kfold           — Per-domain k-fold × 5 variants (opt-in; primary validation protocol)
+#   make convergent-validity — Three-oracle rank agreement (opt-in; expensive)
 #   make figure4         — Figure 4: Stratified per-node-type ρ
 #   make figure5         — Figure 5: ATM attention subgraph
 #   make all             — full end-to-end pipeline
@@ -33,8 +34,8 @@ SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios cache block0 table3 table4 kfold figure4 figure5 \
-        all smoke-test clean clean-all
+.PHONY: setup scenarios cache block0 table3 table4 kfold convergent-validity \
+        figure4 figure5 all smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 0. Environment
@@ -119,6 +120,20 @@ kfold:
 	    --table-kfold $(RESULTS_DIR)/kfold_all_variants.json \
 	    --output-dir $(RESULTS_DIR)
 	@echo "✓ K-fold ready: $(RESULTS_DIR)/table4_kfold_results.tex"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Three-oracle rank agreement — I*, I_comp, I_dyn (construct-validity check).
+# Opt-in (not part of `all`): I_dyn needs one discrete-event simulation run per
+# candidate component, so cost scales with corpus size rather than with epochs.
+# Use --max-candidates to bound it on the larger scenarios.
+# ─────────────────────────────────────────────────────────────────────────────
+
+convergent-validity:
+	$(PYTHON) reproduce/convergent_validity.py \
+	    --seeds $(SEEDS_LIST) \
+	    --output $(RESULTS_DIR)/convergent_validity.json \
+	    --verbose
+	@echo "✓ Oracle agreement ready: $(RESULTS_DIR)/convergent_validity.json"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Block F: Figure 4 — stratified per-node-type ρ

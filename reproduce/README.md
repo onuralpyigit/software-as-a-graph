@@ -226,6 +226,10 @@ reproduce/
 ├── hardening_budget.py              — risk-mass coverage by top-K selection method (Table 9)
 │
 │   Auxiliary / support scripts for this paper:
+├── convergent_validity.py       — pairwise rank agreement across the three simulation oracles
+│                                   (I*, I_comp, I_dyn). Opt-in via `make convergent-validity`;
+│                                   backs docs/validation.md §3.3. I_dyn costs one discrete-event
+│                                   run per candidate — use --max-candidates on large scenarios
 ├── qos_pipeline_inspect.py      — stage-by-stage QoS attribute trace (source data for a figure)
 ├── pilot_hgl_native.py          — Go/No-Go sanity pilot for the HGL-native variant
 ├── recalibrate_main_table.py    — post-hoc F1 recalibration utility for main_table.json

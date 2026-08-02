@@ -82,6 +82,43 @@ def judge(
     return verdict
 
 
+import concurrent.futures
+import os
+
+
+def _verify_single_edit_worker(
+    args_tuple: Tuple[Any, Dict[str, Any], float, List[float], List[int], Dict[Tuple[float, int], Dict[str, float]]]
+) -> EditVerdict:
+    """Top-level worker function for parallel candidate edit evaluation across CPU cores."""
+    edit, original_json, kappa, thresholds, seeds, baselines = args_tuple
+    single = PrescriptionPolicy.from_edits([edit])
+    failure_reason = ""
+    per_threshold: Dict[str, ThresholdStat] = {}
+    evaluator = GraphEvaluator()
+    try:
+        repo = repo_from_json(apply_policy(original_json, single))
+        for threshold in thresholds:
+            deltas = [
+                mean_reduction(
+                    baselines[(threshold, seed)],
+                    evaluator.impact(repo, threshold=threshold, seed=seed),
+                )
+                for seed in seeds
+            ]
+            per_threshold[str(threshold)] = ThresholdStat(
+                mean_delta=statistics.fmean(deltas),
+                sigma_seed=statistics.stdev(deltas) if len(deltas) > 1 else 0.0,
+            )
+    except Exception as exc:
+        logger.warning("Edit %s/%s failed to simulate in worker: %s", getattr(edit, 'KIND', 'UNKNOWN'), getattr(edit, 'target', 'UNKNOWN'), exc)
+        failure_reason = f"simulation_error: {exc}"
+
+    return judge(
+        edit.KIND, edit.target, per_threshold,
+        kappa, len(thresholds), failure_reason,
+    )
+
+
 class EditVerifier:
     """Runs the counterfactual sweep behind the acceptance filter."""
 
@@ -102,6 +139,7 @@ class EditVerifier:
         base_repo: Any,
         original_json: Dict[str, Any],
         candidate_policy: PrescriptionPolicy,
+        n_jobs: Optional[int] = -1,
     ) -> List[EditVerdict]:
         """Return one verdict per candidate edit, in ``candidate_policy.edits()`` order."""
         edits = candidate_policy.edits()
@@ -109,23 +147,57 @@ class EditVerifier:
             return []
 
         baselines = self._baselines(base_repo)
-        verdicts: List[EditVerdict] = []
-        for edit in edits:
-            single = PrescriptionPolicy.from_edits([edit])
-            failure_reason = ""
-            per_threshold: Dict[str, ThresholdStat] = {}
-            try:
-                repo = repo_from_json(apply_policy(original_json, single))
-                per_threshold = self._sweep(repo, baselines)
-            except Exception as exc:  # noqa: BLE001 - one bad edit must not abort the sweep
-                logger.warning("Edit %s/%s failed to simulate: %s", edit.KIND, edit.target, exc)
-                failure_reason = f"simulation_error: {exc}"
+        
+        # Determine CPU parallelism
+        num_workers = n_jobs if (n_jobs is not None and n_jobs > 0) else (os.cpu_count() or 1)
+        if n_jobs == 1 or len(edits) <= 1 or num_workers <= 1:
+            # Serial execution path
+            verdicts: List[EditVerdict] = []
+            for edit in edits:
+                single = PrescriptionPolicy.from_edits([edit])
+                failure_reason = ""
+                per_threshold: Dict[str, ThresholdStat] = {}
+                try:
+                    repo = repo_from_json(apply_policy(original_json, single))
+                    per_threshold = self._sweep(repo, baselines)
+                except Exception as exc:  # noqa: BLE001 - one bad edit must not abort the sweep
+                    logger.warning("Edit %s/%s failed to simulate: %s", edit.KIND, edit.target, exc)
+                    failure_reason = f"simulation_error: {exc}"
 
-            verdicts.append(judge(
-                edit.KIND, edit.target, per_threshold,
-                self.kappa, len(self.thresholds), failure_reason,
-            ))
-        return verdicts
+                verdicts.append(judge(
+                    edit.KIND, edit.target, per_threshold,
+                    self.kappa, len(self.thresholds), failure_reason,
+                ))
+            return verdicts
+
+        # Parallel execution path using ProcessPoolExecutor
+        tasks = [
+            (edit, original_json, self.kappa, self.thresholds, self.seeds, baselines)
+            for edit in edits
+        ]
+        try:
+            with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
+                verdicts = list(executor.map(_verify_single_edit_worker, tasks))
+            return verdicts
+        except Exception as exc:
+            logger.warning("ProcessPoolExecutor failed (%s); falling back to serial verification.", exc)
+            # Fallback to serial execution if process pool allocation fails
+            verdicts = []
+            for edit in edits:
+                single = PrescriptionPolicy.from_edits([edit])
+                failure_reason = ""
+                per_threshold = {}
+                try:
+                    repo = repo_from_json(apply_policy(original_json, single))
+                    per_threshold = self._sweep(repo, baselines)
+                except Exception as exc_inner:
+                    failure_reason = f"simulation_error: {exc_inner}"
+
+                verdicts.append(judge(
+                    edit.KIND, edit.target, per_threshold,
+                    self.kappa, len(self.thresholds), failure_reason,
+                ))
+            return verdicts
 
     def _baselines(self, base_repo: Any) -> Dict[Tuple[float, int], Dict[str, float]]:
         """Unmutated impact at every point of the sweep grid.

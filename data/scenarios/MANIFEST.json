@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-02T19:15:27+00:00",
-  "generator_commit": "cf38aabaa222947df79475579c1d27610e282f85",
+  "generated_at": "2026-08-02T19:28:00+00:00",
+  "generator_commit": "dbbc809b160a2bab334310539f3ceca4a7ea29fe",
   "regenerate_with": "PYTHONPATH=. python cli/generate_graph.py batch --input-dir data/scenarios --output-dir <dir> --force",
   "pooled_evaluation_suite": {
     "applications": 850,

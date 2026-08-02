@@ -48,17 +48,35 @@ def load_graph(path: str) -> Tuple[nx.DiGraph, dict]:
 
     # ── edges ──────────────────────────────────────────────────────────────────
     rels = raw.get("relationships", {})
+    if isinstance(rels, list):
+        # Convert list of relationship dicts into categorized dict
+        categorized_rels = defaultdict(list)
+        for r in rels:
+            rtype = (r.get("type") or r.get("etype") or "").lower()
+            if rtype == "publishes_to" or rtype == "publishes":
+                categorized_rels["publishes"].append({"app": r.get("source") or r.get("app"), "topic": r.get("target") or r.get("topic")})
+            elif rtype == "subscribes_to" or rtype == "subscribes":
+                categorized_rels["subscribes"].append({"app": r.get("source") or r.get("app"), "topic": r.get("target") or r.get("topic")})
+            elif rtype == "routes":
+                categorized_rels["routes"].append({"from": r.get("source") or r.get("from"), "to": r.get("target") or r.get("to")})
+            elif rtype == "runs_on":
+                categorized_rels["runs_on"].append({"from": r.get("source") or r.get("from"), "to": r.get("target") or r.get("to")})
+            elif rtype == "uses":
+                categorized_rels["uses"].append({"from": r.get("source") or r.get("from"), "to": r.get("target") or r.get("to")})
+            elif rtype == "connects_to" or rtype == "connects":
+                categorized_rels["connects"].append({"from": r.get("source") or r.get("from"), "to": r.get("target") or r.get("to")})
+        rels = categorized_rels
 
     def _edges(key, src_field, tgt_field, etype):
         # Support both root-level and relationships-level keys
         # Support both singular and plural (publishes vs publishes_to)
-        items = raw.get(key, []) + rels.get(key, [])
+        items = raw.get(key, []) + (rels.get(key, []) if isinstance(rels, dict) else [])
         if not items and "_" not in key:
-            items += raw.get(f"{key}_to", []) + rels.get(f"{key}_to", [])
+            items += raw.get(f"{key}_to", []) + (rels.get(f"{key}_to", []) if isinstance(rels, dict) else [])
         
         for e in items:
-            s = e.get(src_field) or e.get("from") or e.get("app") or e.get("src")
-            t = e.get(tgt_field) or e.get("to") or e.get("topic") or e.get("tgt")
+            s = e.get(src_field) or e.get("from") or e.get("app") or e.get("src") or e.get("source")
+            t = e.get(tgt_field) or e.get("to") or e.get("topic") or e.get("tgt") or e.get("target")
             if s and t and G.has_node(s) and G.has_node(t):
                 G.add_edge(s, t, etype=etype, type=etype)
 
@@ -67,6 +85,7 @@ def load_graph(path: str) -> Tuple[nx.DiGraph, dict]:
     _edges("routes",       "from", "to",   "ROUTES")
     _edges("runs_on",      "from", "to",   "RUNS_ON")
     _edges("uses",         "from", "to",   "USES")
+    _edges("connects",     "from", "to",   "CONNECTS_TO")
     # Legacy support
     _edges("publish_edges",   "app", "topic", "PUBLISHES_TO")
     _edges("subscribe_edges", "app", "topic", "SUBSCRIBES_TO")

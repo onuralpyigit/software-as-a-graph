@@ -1,0 +1,10 @@
+graph:
+  seed: 2026
+  domain: autoware_ros2
+  scenario: autoware_universe_ros2_autonomous_driving
+  counts:
+    nodes: 6
+    applications: 32
+    libraries: 10
+    topics: 24
+    brokers: 3
