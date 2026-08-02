@@ -41,6 +41,7 @@ CORPUS = {
     "scenario_08_tiny_regression": ("tiny_system", "fixture"),
     "scenario_09_xlarge_stress": ("xlarge_system", "fixture"),
     "scenario_10_atm_system": ("atm_system", "case_study"),
+    "scenario_11_integration_hub_migration": ("integration_hub_migration_system", "fixture"),
 }
 
 ENTITY_KEYS = ("applications", "topics", "brokers", "nodes", "libraries")

@@ -529,6 +529,7 @@ def run_batch_generation(args: argparse.Namespace) -> int:
         "scenario_08_tiny_regression": "tiny_system",
         "scenario_09_xlarge_stress": "xlarge_system",
         "scenario_10_atm_system": "atm_system",
+        "scenario_11_integration_hub_migration": "integration_hub_migration_system",
     }
 
     for yaml_path in yaml_files:

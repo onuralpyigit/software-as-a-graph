@@ -56,11 +56,26 @@ QoS pipeline trace) and is deliberately smaller and hand-shaped after the ICAO G
 |---|---|---|---:|---|---|
 | `scenario_08_tiny_regression.yaml` | `tiny_system.json` | 12 / 8 / 2 / 3 / 4 | 8008 | `134aa536ae49` | generator golden-hash test; anti-pattern detection validation |
 | `scenario_09_xlarge_stress.yaml` | `xlarge_system.json` | 500 / 300 / 10 / 50 / 100 | 9009 | `244a59dc505c` | pipeline scaling ceiling |
+| `scenario_11_integration_hub_migration.yaml` | `integration_hub_migration_system.json` | 40 / 20 / 4 / 6 / 10 | 1111 | `fb566155214a` | Stage 5 corpus-diversity fixture — see below |
 
 `tiny_system` is load-bearing despite its size: `scenario_08`'s canonical hash is pinned in
 [`tests/test_generation_service.py`](../tests/test_generation_service.py) as the generator's
 regression baseline, and the dataset is in `DETECTION_SCENARIOS` in
 [`reproduce/detection_validation.py`](../reproduce/detection_validation.py). Do not delete either.
+
+`integration_hub_migration_system` deliberately targets two properties no evaluation scenario has:
+a meaningful, by-design population of publisher-less topics (2/20, both sole-routed — the only code
+path through which `FaultInjector` lets a Broker failure register at all, see
+[fault_injector.py:589-598](../saag/simulation/fault_injector.py#L589-L598)), and genuinely mixed
+QoS (no durability/reliability/priority category exceeds 55%, versus one or two categories
+dominating every evaluation scenario per §4.2). It omits `graph.domain` intentionally: `DomainDataset`
+falls back to a curated per-domain QoS/naming lookup whenever `domain` is set at all
+([tools/generation/datasets.py:228](../tools/generation/datasets.py#L228)), which silently overrides
+`qos_stats` regardless of its content — true for every existing scenario, not just this one, since
+none of them omit `domain`. A standalone `fault-inject` run (no training) confirmed the design intent
+lands on this scenario: Broker went from 3 unique impact values out of 4 (existing scenarios are
+typically 1-2, several fully degenerate) and Library 9 unique out of 10 with zero degenerate entries.
+Fixture role only — not in the evaluation suite, not part of Table 3/4 or any LOSO/k-fold split.
 
 ---
 

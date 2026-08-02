@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-01T07:31:12+00:00",
-  "generator_commit": "0ae4f8b76177793665be1c79dc888091ce80c6ab",
+  "generated_at": "2026-08-02T19:15:27+00:00",
+  "generator_commit": "cf38aabaa222947df79475579c1d27610e282f85",
   "regenerate_with": "PYTHONPATH=. python cli/generate_graph.py batch --input-dir data/scenarios --output-dir <dir> --force",
   "pooled_evaluation_suite": {
     "applications": 850,
@@ -150,6 +150,20 @@
         "libraries": 8
       },
       "sha256": "8b0a313a3b1751935e03b8349a0d4344be90c1ec4c5ac04ba29fbeea6dc7d18a"
+    },
+    "integration_hub_migration_system": {
+      "config": "scenario_11_integration_hub_migration.yaml",
+      "role": "fixture",
+      "seed": 1111,
+      "domain": null,
+      "counts": {
+        "applications": 40,
+        "topics": 20,
+        "brokers": 4,
+        "nodes": 6,
+        "libraries": 10
+      },
+      "sha256": "fb566155214a76fb20edadd3a95d673a7e8a4a6eb97ccdfd370a97a2119436ff"
     }
   }
 }

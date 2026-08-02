@@ -1,0 +1,286 @@
+# =============================================================================
+# Scenario 11 — Integration Hub / Event-Bus Migration (fixture)
+# =============================================================================
+# Domain   : Enterprise integration hub mid-migration to a new event-bus
+#            generation; legacy and modern feeds coexist on the same brokers.
+# Scale    : 40 apps, 20 topics, 4 brokers, 6 nodes, 10 libraries
+# Purpose  : Stage 5 corpus-diversity fixture. Targets two properties no
+#            existing scenario has by design:
+#              1. A meaningful population of PUBLISHER-LESS topics — legacy
+#                 feeds whose producers have already been decommissioned but
+#                 whose subscribers are still draining them during cutover.
+#                 FaultInjector's broker-impact cascade only fires for
+#                 publisher-less topics (saag/simulation/fault_injector.py:
+#                 589-598); every evaluation scenario has 0-2 such topics as
+#                 an accident of generation, not by design, which is why
+#                 Broker labels are near-degenerate corpus-wide (see Stage 2
+#                 finding). This scenario deliberately targets a nonzero,
+#                 meaningful count via topic_stats.applications_publishing_
+#                 to_this_topic (min: 0, mean well below 1).
+#              2. Genuinely heterogeneous QoS — no single durability/
+#                 reliability/priority category exceeds ~55% of topics,
+#                 spanning the full VOLATILE..PERSISTENT and LOW..CRITICAL
+#                 ranges in one scenario (contrast docs/scenario.md §4.2:
+#                 every existing evaluation scenario is dominated by one or
+#                 two categories). Gives the Stage 4 typed-QoS-injection
+#                 variant a topology where QoS actually varies edge-to-edge.
+#
+# Topology fingerprint:
+#   • Mixed durability in near-equal quarters (legacy volatile through
+#     newly-migrated persistent), not one dominant class
+#   • ~30% of topics have zero current publishers (decommissioned producers)
+#     but retain >=1 subscriber (migration not yet complete on the consumer
+#     side) — subscriber count is bounded away from 0 for this reason
+#   • Moderate broker fan-out (4 brokers / 20 topics) — enough redundancy
+#     that most topics are not sole-routed, isolating publisher-less-ness
+#     (not router scarcity) as the variable under test
+#   • Service-integration library layer (10 libs) sized similarly to the
+#     microservices scenario, since this is the closest existing analog
+#     domain
+#
+# Expected analysis outcomes:
+#   • A visible cluster of topics with impact_score contributed only by
+#     broker-side (not publisher-side) failure — the FaultInjector code path
+#     essentially absent elsewhere in the corpus
+#   • Fixture role only: not in MANIFEST.json's evaluation suite, not part
+#     of Table 3/4 or the LOSO/k-fold splits (docs/scenario.md §6)
+#
+# Usage:
+#   PYTHONPATH=. python cli/generate_graph.py \
+#          --config data/scenarios/scenario_11_integration_hub_migration.yaml \
+#          --output output/integration_hub_migration_system.json
+# =============================================================================
+
+graph:
+  seed: 1111
+  # domain / scenario deliberately omitted (default None): DomainDataset
+  # falls back to a curated per-domain QoS/name lookup whenever `domain` is
+  # set at all (tools/generation/datasets.py:228, get_qos_for_topic), which
+  # silently overrides qos_stats below regardless of its content — every
+  # existing scenario sets `domain`, so none of them actually drives QoS
+  # from qos_stats either. Leaving domain unset is what makes qos_stats and
+  # topic_stats.applications_publishing_to_this_topic (below) the ones
+  # actually consulted, at the cost of generic Topic-N/App-N naming instead
+  # of domain-flavored names. That trade is the point of this fixture.
+
+  counts:
+    nodes: 6
+    applications: 40
+    libraries: 10
+    topics: 20
+    brokers: 4
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 6.67
+      median: 6.0
+      std: 2.5
+      min: 3
+      max: 12
+      q1: 5.0
+      q3: 8.0
+      iqr: 3.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS
+  # ---------------------------------------------------------------------------
+  application_stats:
+    # All four pub/sub count fields below are deliberately zeroed. _wire_pubsub
+    # (tools/generation/generator.py:1072) picks a wiring strategy in priority
+    # order: app totals > app direct > topic_stats > uniform fallback, testing
+    # only the *publish*-side means. Nonzero here would win over topic_stats
+    # and silently defeat the min:0-publisher design goal below, exactly as
+    # it did on the first generation attempt. Under the topic_stats strategy
+    # these four fields are not consulted at all; app_role_distribution below
+    # still governs who is eligible to publish/subscribe.
+    direct_publish_count:
+      mean: 0.0
+      median: 0.0
+      std: 0.0
+      min: 0
+      max: 0
+      q1: 0.0
+      q3: 0.0
+      iqr: 0.0
+
+    direct_subscribe_count:
+      mean: 0.0
+      median: 0.0
+      std: 0.0
+      min: 0
+      max: 0
+      q1: 0.0
+      q3: 0.0
+      iqr: 0.0
+
+    total_publish_count_including_libraries:
+      mean: 0.0
+      median: 0.0
+      std: 0.0
+      min: 0
+      max: 0
+      q1: 0.0
+      q3: 0.0
+      iqr: 0.0
+
+    total_subscribe_count_including_libraries:
+      mean: 0.0
+      median: 0.0
+      std: 0.0
+      min: 0
+      max: 0
+      q1: 0.0
+      q3: 0.0
+      iqr: 0.0
+
+    app_role_distribution:
+      total_count: 40
+      category_counts:
+        pub: 9        # producers already cut over to modern topics
+        sub: 11        # legacy consumers still draining decommissioned feeds
+        pubsub: 20     # integration adapters bridging old and new
+      mode: pubsub
+      mode_count: 20
+      mode_percentage: 50.0
+
+    app_criticality_distribution:
+      total_count: 40
+      category_counts:
+        critical: 9
+        non_critical: 31
+      mode: non_critical
+      mode_count: 31
+      mode_percentage: 77.5
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS — integration/adapter SDKs, shared across services
+  # ---------------------------------------------------------------------------
+  library_stats:
+    applications_using_this_library:
+      mean: 4.0
+      median: 3.0
+      std: 3.0
+      min: 1
+      max: 14
+      q1: 2.0
+      q3: 6.0
+      iqr: 4.0
+
+    direct_publish_count:
+      mean: 1.2
+      median: 1.0
+      std: 0.8
+      min: 0
+      max: 3
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    direct_subscribe_count:
+      mean: 1.2
+      median: 1.0
+      std: 0.8
+      min: 0
+      max: 3
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    total_publish_count_including_libraries:
+      mean: 2.0
+      median: 1.5
+      std: 1.2
+      min: 0
+      max: 5
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    total_subscribe_count_including_libraries:
+      mean: 2.0
+      median: 1.5
+      std: 1.2
+      min: 0
+      max: 5
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS — the deliberately publisher-sparse block
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    topic_size_bytes:
+      mean: 1024.0
+      median: 768.0
+      std: 900.0
+      min: 128
+      max: 6144
+      q1: 384.0
+      q3: 1280.0
+      iqr: 896.0
+
+    # min: 0 + mean well under 1 is the load-bearing setting: it makes a
+    # meaningful share of topics publisher-less (decommissioned producers),
+    # which is what gives Broker failure a non-trivial code path under
+    # FaultInjector's cascade (see header).
+    applications_publishing_to_this_topic:
+      mean: 0.9
+      median: 1.0
+      std: 0.85
+      min: 0
+      max: 3
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    # Subscribers are NOT allowed to hit 0 — the migration-in-progress
+    # framing requires every topic to still have at least one consumer
+    # draining it, publisher-less or not.
+    applications_subscribing_to_this_topic:
+      mean: 2.1
+      median: 2.0
+      std: 1.1
+      min: 1
+      max: 5
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — genuinely mixed; no category dominates
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 20
+      category_counts:
+        volatile: 6          # legacy, no-guarantee feeds slated for removal
+        transient_local: 5   # in-flight migration topics
+        transient: 5         # actively used integration topics
+        persistent: 4        # already-migrated durable feeds
+      mode: volatile
+      mode_count: 6
+      mode_percentage: 30.0
+
+    qos_reliability_distribution:
+      total_count: 20
+      category_counts:
+        best_effort: 9
+        reliable: 11
+      mode: reliable
+      mode_count: 11
+      mode_percentage: 55.0
+
+    qos_transport_priority_distribution:
+      total_count: 20
+      category_counts:
+        low: 5
+        medium: 6
+        high: 6
+        critical: 3
+      mode: medium
+      mode_count: 6
+      mode_percentage: 30.0
