@@ -26,7 +26,8 @@ from saag.core.metrics import StructuralMetrics
 def test_node_feature_dimensions():
     """GNN-CQ-001: Verify type-specific feature dimensions."""
     assert NODE_TYPE_TO_DIM["Application"] == 23
-    assert NODE_TYPE_TO_DIM["Library"] == 23
+    # +2 library_uses_reach_norm, library_downstream_subs_norm (Stage 2 causal features)
+    assert NODE_TYPE_TO_DIM["Library"] == 25
     assert NODE_TYPE_TO_DIM["Broker"] == 19   # +1 max_connections_norm
     assert NODE_TYPE_TO_DIM["Topic"] == 22    # +4 subscriber_count_norm, publisher_count_norm, log1p_frequency_norm, topic_qos_criticality_ord
     assert NODE_TYPE_TO_DIM["Node"] == 20     # +2 cpu_cores_norm, memory_gb_norm
@@ -63,7 +64,7 @@ def test_networkx_to_hetero_data_feature_mapping():
 
     # Check widths
     assert data["Application"].x.shape[1] == 23
-    assert data["Library"].x.shape[1] == 23
+    assert data["Library"].x.shape[1] == 25  # 23 + Stage 2 causal features
     assert data["Broker"].x.shape[1] == 19   # 18 base + max_connections_norm
 
     # Check A1 CQ features at indices 18-22

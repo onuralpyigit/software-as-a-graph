@@ -205,10 +205,23 @@ TOPIC_RUNTIME_KEYS: List[str] = [
 # Defined in saag.core.models so the simulation severity model can share it.
 TOPIC_CRITICALITY_ORD: Dict[str, float] = _TOPIC_CRITICALITY_ORD
 
+# Library-only extras (indices 23-24): causal drivers of a library's blast
+# radius under both simulators' rules (transitive USES-consumer failure),
+# which the code-quality metrics in CQ_METRIC_KEYS do not capture. See
+# _normalize_infra_features's Library branch for how these are computed.
+LIBRARY_EXTRA_KEYS: List[str] = [
+    "library_uses_reach_norm",         # 23 — |transitive reverse-USES closure|, per-graph max-normalized
+    "library_downstream_subs_norm",    # 24 — distinct subscribers reachable from that closure's
+                                        #      published topics, per-graph max-normalized
+]
+
 # Per-type feature key mapping used during feature extraction
 KEYS_BY_TYPE: Dict[str, List[str]] = {
     "Application": TOPOLOGICAL_METRIC_KEYS,
-    "Library":     TOPOLOGICAL_METRIC_KEYS,
+    # A separate list, not TOPOLOGICAL_METRIC_KEYS + LIBRARY_EXTRA_KEYS in place —
+    # Application and Library used to share the same TOPOLOGICAL_METRIC_KEYS list
+    # object; appending here would have silently widened Application too.
+    "Library":     TOPOLOGICAL_METRIC_KEYS + LIBRARY_EXTRA_KEYS,
     "Broker":      BASE_METRIC_KEYS + BROKER_EXTRA_KEYS,
     "Topic":       BASE_METRIC_KEYS + TOPIC_RUNTIME_KEYS,
     "Node":        BASE_METRIC_KEYS + NODE_INFRA_KEYS,
@@ -216,7 +229,7 @@ KEYS_BY_TYPE: Dict[str, List[str]] = {
 
 NODE_TYPE_TO_DIM: Dict[str, int] = {
     "Application": 23,
-    "Library":     23,
+    "Library":     25,   # +2: library_uses_reach_norm, library_downstream_subs_norm
     "Broker":      19,   # +1: max_connections_norm
     "Topic":       22,   # +4: subscriber_count_norm, publisher_count_norm,
                          #      log1p_frequency_norm, topic_qos_criticality_ord
@@ -355,10 +368,27 @@ def _normalize_infra_features(
     - Topic: subscriber_count_norm, publisher_count_norm  (from graph edge topology)
     - Topic: log1p_frequency_norm (per-scenario z-score of log1p(Hz))
     - Topic: topic_qos_criticality_ord (ordinal 0–4 of the 5-level QoS label)
+    - Library: library_uses_reach_norm, library_downstream_subs_norm (see below)
 
     All values are normalized to [0, 1] via per-graph max, EXCEPT
     log1p_frequency_norm which uses z-score normalization limited to the
     Topic nodes present in *this* graph (per-scenario, not global).
+
+    Library reach features
+    -----------------------
+    USES edges run consumer -> library and are transitive (a library can use
+    another library), matching the blast-radius rule both simulators apply on
+    a library failure: FailureSimulator._blast_library_consumers walks "every
+    transitive consumer"; FaultInjector's cascade pushes app_to_lib dependents
+    onto the next BFS frontier. library_uses_reach_norm is the size of that
+    reverse-USES closure; library_downstream_subs_norm is the distinct set of
+    topic subscribers reachable from what the closure publishes — the closer
+    proxy for the label, since simulated impact is subscriber feed loss, not
+    raw consumer count. Both are per-graph max-normalized like the rest of
+    this function. These are deliberately isomorphic to the label's causal
+    mechanism (see data_preparation module notes / Stage 2 plan) — legitimate
+    for a pre-deployment predictor, but that framing must travel with any
+    reported Library ρ improvement.
 
     Per-scenario frequency normalization rationale
     -----------------------------------------------
@@ -377,6 +407,7 @@ def _normalize_infra_features(
     topic_pubs: Dict[str, float] = {}
     topic_freq_raw: Dict[str, float] = {}    # raw Hz values for all Topic nodes
     topic_crit_ord: Dict[str, float] = {}   # ordinal criticality values
+    library_nodes: List[str] = []
 
     for n, attrs in graph.nodes(data=True):
         nt = attrs.get("type") or attrs.get("component_type") or "Application"
@@ -400,6 +431,17 @@ def _normalize_infra_features(
                 attrs.get("criticality", attrs.get("topic_criticality", "minimal"))
             ).lower()
             topic_crit_ord[n] = TOPIC_CRITICALITY_ORD.get(crit_str, 0.0) if qos_enabled else 0.0
+        elif nt == "Library":
+            library_nodes.append(n)
+
+    # used_by[lib]: nodes that directly USE lib (reverse USES, for the
+    # transitive consumer closure below). pubs_topics[member]: topics a
+    # closure member publishes to. subs_of_topic[topic]: that topic's
+    # subscribers. All three built in the same pass as the existing
+    # PUBLISHES_TO/SUBSCRIBES_TO counters, to avoid a second full edge scan.
+    used_by: Dict[str, set] = {}
+    pubs_topics: Dict[str, set] = {}
+    subs_of_topic: Dict[str, set] = {}
 
     # PUBLISHES_TO: Application → Topic; SUBSCRIBES_TO: Application → Topic.
     # Both counts are from the Topic's perspective (how many publishers/subscribers it has).
@@ -407,8 +449,14 @@ def _normalize_infra_features(
         etype = attrs.get("type", "")
         if etype == "SUBSCRIBES_TO":
             topic_subs[dst] = topic_subs.get(dst, 0.0) + 1.0
+            subs_of_topic.setdefault(dst, set()).add(src)
         elif etype == "PUBLISHES_TO":
             topic_pubs[dst] = topic_pubs.get(dst, 0.0) + 1.0
+            pubs_topics.setdefault(src, set()).add(dst)
+        elif etype == "USES":
+            # consumer -> library; reversed here so a closure walk starting
+            # from the library reaches its consumers.
+            used_by.setdefault(dst, set()).add(src)
 
     max_cpu = max(node_cpu.values(), default=1.0) or 1.0
     max_mem = max(node_mem.values(), default=1.0) or 1.0
@@ -449,6 +497,35 @@ def _normalize_infra_features(
         if variance < 1e-9:
             topic_crit_ord = {n: 0.0 for n in all_topic_nodes}
 
+    # --- Library transitive reverse-USES closure ---------------------------
+    # Consumers (Applications or other Libraries) that fail if this library
+    # fails, found by walking `used_by` outward from the library. Iterative
+    # (not recursive) to avoid stack limits on deep USES chains.
+    def _uses_closure(start: str) -> set:
+        seen: set = set()
+        stack = [start]
+        while stack:
+            cur = stack.pop()
+            for consumer in used_by.get(cur, ()):
+                if consumer not in seen:
+                    seen.add(consumer)
+                    stack.append(consumer)
+        return seen
+
+    library_reach: Dict[str, float] = {}
+    library_downstream: Dict[str, float] = {}
+    for lib in library_nodes:
+        closure = _uses_closure(lib)
+        library_reach[lib] = float(len(closure))
+        downstream: set = set()
+        for member in closure:
+            for topic in pubs_topics.get(member, ()):
+                downstream |= subs_of_topic.get(topic, set())
+        library_downstream[lib] = float(len(downstream))
+
+    max_reach = max(library_reach.values(), default=1.0) or 1.0
+    max_downstream = max(library_downstream.values(), default=1.0) or 1.0
+
     infra: Dict[str, Dict[str, float]] = {}
     for n in node_cpu:
         infra[n] = {
@@ -463,6 +540,11 @@ def _normalize_infra_features(
             "publisher_count_norm": topic_pubs.get(n, 0.0) / max_pubs,
             "log1p_frequency_norm": log1p_freq_norm.get(n, 0.0),
             "topic_qos_criticality_ord": topic_crit_ord.get(n, 0.0) / max_crit_ord,
+        }
+    for n in library_nodes:
+        infra[n] = {
+            "library_uses_reach_norm": library_reach.get(n, 0.0) / max_reach,
+            "library_downstream_subs_norm": library_downstream.get(n, 0.0) / max_downstream,
         }
     return infra
 

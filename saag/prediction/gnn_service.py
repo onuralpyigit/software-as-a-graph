@@ -817,7 +817,7 @@ class GNNService:
                     "node_feature_dims": NODE_TYPE_TO_DIM,
                     "best_seed": self._best_seed,
                     "layer": self.layer,
-                    "feature_version": 3,
+                    "feature_version": 4,
                     "default_mode": "gnn",
                     "metadata": metadata_json,
                 },
@@ -829,11 +829,12 @@ class GNNService:
         """Validate checkpoint feature dims against current code; raise on mismatch for v2+."""
         from .data_preparation import NODE_TYPE_TO_DIM
         feature_version = cfg.get("feature_version", 1)
-        if feature_version < 3:
+        if feature_version < 4:
             logger.warning(
-                "Checkpoint uses feature_version=%d (current is 3). "
+                "Checkpoint uses feature_version=%d (current is 4). "
                 "Node dims changed: Broker 18→19, Topic 18→22 "
-                "(+log1p_frequency_norm, +topic_qos_criticality_ord), Node 18→20. "
+                "(+log1p_frequency_norm, +topic_qos_criticality_ord), Node 18→20, "
+                "Library 23→25 (+library_uses_reach_norm, +library_downstream_subs_norm). "
                 "Re-training required. Loading in strict=False mode.",
                 feature_version,
             )
