@@ -100,8 +100,10 @@ def test_extract_structural_metrics_dict_includes_cq():
             
     res = MockResult([mock_comp])
     out = extract_structural_metrics_dict(res)
-    
-    metrics = out["App1"]
+
+    # Keyed by the graph node id ("A1"), not the human-readable name ("App1") —
+    # networkx_to_hetero_data looks components up by the id nodes carry in the graph.
+    metrics = out["A1"]
     assert metrics["loc_norm"] == 0.5
     assert metrics["complexity_norm"] == 0.6
     assert metrics["instability_code"] == 0.7

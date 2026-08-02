@@ -1081,7 +1081,16 @@ def extract_structural_metrics_dict(structural_result) -> Dict[str, Dict[str, fl
     def _from_component(comp):
         def _get(obj, attr, default=0.0):
             if isinstance(obj, dict):
-                return obj.get(attr, default)
+                if attr in obj:
+                    return obj[attr]
+                # Older/reduced serializations nest a subset of metrics under
+                # "metrics" instead of the flat StructuralMetrics shape; fall
+                # back there before giving up, so a stale cache degrades to
+                # partial data instead of an all-zero feature vector.
+                nested = obj.get("metrics")
+                if isinstance(nested, dict) and attr in nested:
+                    return nested[attr]
+                return default
             return getattr(obj, attr, default)
 
         return {
@@ -1119,7 +1128,10 @@ def extract_structural_metrics_dict(structural_result) -> Dict[str, Dict[str, fl
         if hasattr(components, "values"):
             components = components.values()
         for comp in components:
-            name = getattr(comp, "component_id", getattr(comp, "name", str(getattr(comp, "id", comp))))
+            # `id` is the graph node identifier StructuralMetrics is keyed by
+            # everywhere else in this module; `name`/`component_id` are only
+            # fallbacks for objects that lack it (StructuralMetrics never does).
+            name = getattr(comp, "id", getattr(comp, "component_id", getattr(comp, "name", str(comp))))
             out[name] = _from_component(comp)
     elif isinstance(structural_result, dict):
         components = structural_result.get("components", structural_result)
@@ -1128,9 +1140,9 @@ def extract_structural_metrics_dict(structural_result) -> Dict[str, Dict[str, fl
                 out[name] = _from_component(comp)
         elif isinstance(components, list):
             for comp in components:
-                name = getattr(comp, "component_id", getattr(comp, "name", str(getattr(comp, "id", comp))))
+                name = getattr(comp, "id", getattr(comp, "component_id", getattr(comp, "name", str(comp))))
                 if isinstance(comp, dict):
-                    name = comp.get("component_id", comp.get("name", comp.get("id", str(comp))))
+                    name = comp.get("id", comp.get("component_id", comp.get("name", str(comp))))
                 out[name] = _from_component(comp)
         else:
             for name, comp in structural_result.items():

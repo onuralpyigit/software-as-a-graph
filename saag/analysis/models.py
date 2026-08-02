@@ -196,9 +196,15 @@ class LayerAnalysisResult:
             "description": self.description,
             "graph_summary": self.structural.graph_summary.to_dict(),
             "structural_analysis": {
+                # Full flat StructuralMetrics fields (pagerank, closeness, eigenvector,
+                # ap_c_directed, cdi, mpci, ...) so consumers reading this JSON back
+                # (e.g. cli/loso_evaluate.py's extract_structural_metrics_dict) see the
+                # same metrics the live analysis object carries, not just the four
+                # reproduced below. The nested "metrics" key is kept verbatim for
+                # reproduce/main_table.py's _parse_structural_metrics, which still reads it.
                 "components": [
                     {
-                        "id": c.id,
+                        **c.to_dict(),
                         "metrics": {
                             "betweenness": c.betweenness,
                             "degree": c.degree,
