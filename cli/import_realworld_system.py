@@ -40,6 +40,17 @@ def main():
         json.dump(cloud_data, f, indent=2)
     print(f"Generated {cloud_json_path} (apps: {len(cloud_data['applications'])}, topics: {len(cloud_data['topics'])}, libs: {len(cloud_data['libraries'])})")
 
+    # 3. Train-Ticket Microservices topology
+    trainticket_data = RealWorldAdapter.create_trainticket_microservices_topology()
+    trainticket_json_path = scenarios_dir / "scenario_13_realworld_trainticket.json"
+    trainticket_alias_path = scenarios_dir / "realworld_trainticket.json"
+    
+    with open(trainticket_json_path, "w") as f:
+        json.dump(trainticket_data, f, indent=2)
+    with open(trainticket_alias_path, "w") as f:
+        json.dump(trainticket_data, f, indent=2)
+    print(f"Generated {trainticket_json_path} (apps: {len(trainticket_data['applications'])}, topics: {len(trainticket_data['topics'])}, libs: {len(trainticket_data['libraries'])})")
+
     # Generate YAML scenario files to support batch scenario discovery
     autoware_yaml = """graph:
   seed: 2026
@@ -69,8 +80,23 @@ def main():
     with open(scenarios_dir / "scenario_12_realworld_cloud_microservices.yaml", "w") as f:
         f.write(cloud_yaml)
 
+    trainticket_yaml = """graph:
+  seed: 2026
+  domain: trainticket_microservices
+  scenario: production_trainticket_benchmark_microservices_mesh
+  counts:
+    nodes: 8
+    applications: 41
+    libraries: 8
+    topics: 30
+    brokers: 3
+"""
+    with open(scenarios_dir / "scenario_13_realworld_trainticket.yaml", "w") as f:
+        f.write(trainticket_yaml)
+
     print("Real-world scenario files and YAML descriptors generated successfully!")
 
 
 if __name__ == "__main__":
     main()
+

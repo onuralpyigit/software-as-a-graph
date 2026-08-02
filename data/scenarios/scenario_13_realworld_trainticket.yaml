@@ -1,0 +1,10 @@
+graph:
+  seed: 2026
+  domain: trainticket_microservices
+  scenario: production_trainticket_benchmark_microservices_mesh
+  counts:
+    nodes: 8
+    applications: 41
+    libraries: 8
+    topics: 30
+    brokers: 3

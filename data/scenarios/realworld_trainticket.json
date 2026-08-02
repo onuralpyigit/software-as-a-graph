@@ -1,0 +1,2296 @@
+{
+  "metadata": {
+    "scale": {
+      "apps": 41,
+      "topics": 30,
+      "brokers": 3,
+      "nodes": 8,
+      "libs": 8
+    },
+    "seed": 2026,
+    "generation_mode": "realworld_open_source",
+    "domain": "trainticket_microservices",
+    "scenario": "production_trainticket_benchmark_microservices_mesh",
+    "description": "Authentic production-grade Train-Ticket benchmark microservices mesh (Fudan University benchmark) containing order, travel, preserve, route, seat, payment, food, security, and admin services."
+  },
+  "nodes": [
+    {
+      "id": "N0",
+      "name": "k8s-control-plane",
+      "type": "Node",
+      "spec": "AWS c6i.4xlarge"
+    },
+    {
+      "id": "N1",
+      "name": "k8s-worker-node-1",
+      "type": "Node",
+      "spec": "AWS c6i.8xlarge"
+    },
+    {
+      "id": "N2",
+      "name": "k8s-worker-node-2",
+      "type": "Node",
+      "spec": "AWS c6i.8xlarge"
+    },
+    {
+      "id": "N3",
+      "name": "k8s-worker-node-3",
+      "type": "Node",
+      "spec": "AWS m6i.8xlarge"
+    },
+    {
+      "id": "N4",
+      "name": "mysql-db-cluster",
+      "type": "Node",
+      "spec": "AWS r6g.4xlarge"
+    },
+    {
+      "id": "N5",
+      "name": "mongo-db-cluster",
+      "type": "Node",
+      "spec": "AWS r6g.4xlarge"
+    },
+    {
+      "id": "N6",
+      "name": "redis-cache-cluster",
+      "type": "Node",
+      "spec": "AWS r6g.2xlarge"
+    },
+    {
+      "id": "N7",
+      "name": "edge-ingress-gateway",
+      "type": "Node",
+      "spec": "AWS c6i.2xlarge"
+    }
+  ],
+  "brokers": [
+    {
+      "id": "B0",
+      "name": "rabbitmq-broker-cluster",
+      "type": "Broker",
+      "protocol": "AMQP"
+    },
+    {
+      "id": "B1",
+      "name": "redis-pubsub-eventbus",
+      "type": "Broker",
+      "protocol": "Redis"
+    },
+    {
+      "id": "B2",
+      "name": "spring-eureka-naming-server",
+      "type": "Broker",
+      "protocol": "HTTP-Discovery"
+    }
+  ],
+  "topics": [
+    {
+      "id": "T0",
+      "name": "ts.order.create.event",
+      "size": 1024,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "CRITICAL"
+      },
+      "frequency": 80.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T1",
+      "name": "ts.order.cancel.event",
+      "size": 512,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 10.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T2",
+      "name": "ts.travel.query.request",
+      "size": 2048,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 150.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T3",
+      "name": "ts.ticket.preserve.command",
+      "size": 1024,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "CRITICAL"
+      },
+      "frequency": 60.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T4",
+      "name": "ts.seat.allocate.request",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "CRITICAL"
+      },
+      "frequency": 100.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T5",
+      "name": "ts.payment.pay.event",
+      "size": 512,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "CRITICAL"
+      },
+      "frequency": 50.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T6",
+      "name": "ts.payment.refund.event",
+      "size": 512,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 5.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T7",
+      "name": "ts.consign.record.event",
+      "size": 256,
+      "qos": {
+        "durability": "TRANSIENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 15.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T8",
+      "name": "ts.food.order.event",
+      "size": 512,
+      "qos": {
+        "durability": "TRANSIENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 25.0,
+      "criticality": "medium"
+    },
+    {
+      "id": "T9",
+      "name": "ts.notification.email.send",
+      "size": 2048,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 40.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T10",
+      "name": "ts.notification.sms.send",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 30.0,
+      "criticality": "medium"
+    },
+    {
+      "id": "T11",
+      "name": "ts.security.check.event",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "CRITICAL"
+      },
+      "frequency": 120.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T12",
+      "name": "ts.user.login.audit",
+      "size": 256,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 45.0,
+      "criticality": "medium"
+    },
+    {
+      "id": "T13",
+      "name": "ts.user.register.event",
+      "size": 512,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 10.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T14",
+      "name": "ts.route.update.event",
+      "size": 1024,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 2.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T15",
+      "name": "ts.train.status.update",
+      "size": 512,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 5.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T16",
+      "name": "ts.price.config.sync",
+      "size": 256,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 1.0,
+      "criticality": "medium"
+    },
+    {
+      "id": "T17",
+      "name": "ts.station.list.sync",
+      "size": 2048,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 0.5,
+      "criticality": "medium"
+    },
+    {
+      "id": "T18",
+      "name": "ts.voucher.issue.event",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 8.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T19",
+      "name": "ts.contacts.sync.event",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 20.0,
+      "criticality": "medium"
+    },
+    {
+      "id": "T20",
+      "name": "ts.admin.basic.update",
+      "size": 1024,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 0.2,
+      "criticality": "medium"
+    },
+    {
+      "id": "T21",
+      "name": "ts.admin.travel.update",
+      "size": 1024,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 0.2,
+      "criticality": "medium"
+    },
+    {
+      "id": "T22",
+      "name": "ts.admin.order.update",
+      "size": 1024,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 0.2,
+      "criticality": "medium"
+    },
+    {
+      "id": "T23",
+      "name": "ts.admin.user.update",
+      "size": 1024,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 0.2,
+      "criticality": "medium"
+    },
+    {
+      "id": "T24",
+      "name": "ts.telemetry.metrics.stream",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 500.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T25",
+      "name": "ts.audit.access.log",
+      "size": 512,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 300.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T26",
+      "name": "ts.cache.invalidation.event",
+      "size": 256,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 100.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T27",
+      "name": "ts.assurance.purchase.event",
+      "size": 256,
+      "qos": {
+        "durability": "TRANSIENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 12.0,
+      "criticality": "medium"
+    },
+    {
+      "id": "T28",
+      "name": "ts.inside.payment.event",
+      "size": 512,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "CRITICAL"
+      },
+      "frequency": 40.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T29",
+      "name": "ts.wait.order.process",
+      "size": 512,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 15.0,
+      "criticality": "high"
+    }
+  ],
+  "applications": [
+    {
+      "id": "A0",
+      "name": "ts-ui-dashboard",
+      "app_type": "sensor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4800,
+          "total_classes": 26,
+          "total_methods": 142
+        },
+        "complexity": {
+          "avg_wmc": 16.8
+        },
+        "cohesion": {
+          "avg_lcom": 18.2
+        },
+        "coupling": {
+          "avg_cbo": 9.2,
+          "avg_rfc": 30.5
+        }
+      }
+    },
+    {
+      "id": "A1",
+      "name": "ts-gateway-service",
+      "app_type": "sensor",
+      "criticality": true,
+      "priority": "CRITICAL",
+      "code_metrics": {
+        "size": {
+          "total_loc": 5800,
+          "total_classes": 31,
+          "total_methods": 182
+        },
+        "complexity": {
+          "avg_wmc": 24.0
+        },
+        "cohesion": {
+          "avg_lcom": 25.5
+        },
+        "coupling": {
+          "avg_cbo": 13.5,
+          "avg_rfc": 43.0
+        }
+      }
+    },
+    {
+      "id": "A2",
+      "name": "ts-auth-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "CRITICAL",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3400,
+          "total_classes": 18,
+          "total_methods": 105
+        },
+        "complexity": {
+          "avg_wmc": 16.2
+        },
+        "cohesion": {
+          "avg_lcom": 15.0
+        },
+        "coupling": {
+          "avg_cbo": 8.5,
+          "avg_rfc": 27.0
+        }
+      }
+    },
+    {
+      "id": "A3",
+      "name": "ts-user-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2900,
+          "total_classes": 15,
+          "total_methods": 92
+        },
+        "complexity": {
+          "avg_wmc": 14.1
+        },
+        "cohesion": {
+          "avg_lcom": 13.2
+        },
+        "coupling": {
+          "avg_cbo": 7.1,
+          "avg_rfc": 23.0
+        }
+      }
+    },
+    {
+      "id": "A4",
+      "name": "ts-verification-code-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 1200,
+          "total_classes": 6,
+          "total_methods": 38
+        },
+        "complexity": {
+          "avg_wmc": 7.2
+        },
+        "cohesion": {
+          "avg_lcom": 6.1
+        },
+        "coupling": {
+          "avg_cbo": 3.8,
+          "avg_rfc": 12.0
+        }
+      }
+    },
+    {
+      "id": "A5",
+      "name": "ts-contacts-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2600,
+          "total_classes": 14,
+          "total_methods": 84
+        },
+        "complexity": {
+          "avg_wmc": 12.8
+        },
+        "cohesion": {
+          "avg_lcom": 12.0
+        },
+        "coupling": {
+          "avg_cbo": 6.5,
+          "avg_rfc": 21.0
+        }
+      }
+    },
+    {
+      "id": "A6",
+      "name": "ts-order-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "CRITICAL",
+      "code_metrics": {
+        "size": {
+          "total_loc": 8200,
+          "total_classes": 42,
+          "total_methods": 260
+        },
+        "complexity": {
+          "avg_wmc": 33.5
+        },
+        "cohesion": {
+          "avg_lcom": 36.0
+        },
+        "coupling": {
+          "avg_cbo": 18.0,
+          "avg_rfc": 58.0
+        }
+      }
+    },
+    {
+      "id": "A7",
+      "name": "ts-order-other-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 7100,
+          "total_classes": 37,
+          "total_methods": 225
+        },
+        "complexity": {
+          "avg_wmc": 29.0
+        },
+        "cohesion": {
+          "avg_lcom": 31.5
+        },
+        "coupling": {
+          "avg_cbo": 15.5,
+          "avg_rfc": 49.0
+        }
+      }
+    },
+    {
+      "id": "A8",
+      "name": "ts-preserve-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "CRITICAL",
+      "code_metrics": {
+        "size": {
+          "total_loc": 9400,
+          "total_classes": 48,
+          "total_methods": 310
+        },
+        "complexity": {
+          "avg_wmc": 42.0
+        },
+        "cohesion": {
+          "avg_lcom": 45.0
+        },
+        "coupling": {
+          "avg_cbo": 22.0,
+          "avg_rfc": 71.0
+        }
+      }
+    },
+    {
+      "id": "A9",
+      "name": "ts-preserve-other-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 8500,
+          "total_classes": 44,
+          "total_methods": 275
+        },
+        "complexity": {
+          "avg_wmc": 37.5
+        },
+        "cohesion": {
+          "avg_lcom": 40.0
+        },
+        "coupling": {
+          "avg_cbo": 19.5,
+          "avg_rfc": 63.0
+        }
+      }
+    },
+    {
+      "id": "A10",
+      "name": "ts-travel-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "CRITICAL",
+      "code_metrics": {
+        "size": {
+          "total_loc": 9100,
+          "total_classes": 46,
+          "total_methods": 295
+        },
+        "complexity": {
+          "avg_wmc": 40.0
+        },
+        "cohesion": {
+          "avg_lcom": 43.0
+        },
+        "coupling": {
+          "avg_cbo": 21.0,
+          "avg_rfc": 67.0
+        }
+      }
+    },
+    {
+      "id": "A11",
+      "name": "ts-travel2-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 8100,
+          "total_classes": 41,
+          "total_methods": 260
+        },
+        "complexity": {
+          "avg_wmc": 35.0
+        },
+        "cohesion": {
+          "avg_lcom": 38.0
+        },
+        "coupling": {
+          "avg_cbo": 18.5,
+          "avg_rfc": 59.0
+        }
+      }
+    },
+    {
+      "id": "A12",
+      "name": "ts-travel-plan-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 6400,
+          "total_classes": 33,
+          "total_methods": 200
+        },
+        "complexity": {
+          "avg_wmc": 27.5
+        },
+        "cohesion": {
+          "avg_lcom": 29.0
+        },
+        "coupling": {
+          "avg_cbo": 14.2,
+          "avg_rfc": 46.0
+        }
+      }
+    },
+    {
+      "id": "A13",
+      "name": "ts-route-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "CRITICAL",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4500,
+          "total_classes": 23,
+          "total_methods": 145
+        },
+        "complexity": {
+          "avg_wmc": 19.5
+        },
+        "cohesion": {
+          "avg_lcom": 20.8
+        },
+        "coupling": {
+          "avg_cbo": 10.2,
+          "avg_rfc": 33.0
+        }
+      }
+    },
+    {
+      "id": "A14",
+      "name": "ts-route-plan-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 5200,
+          "total_classes": 27,
+          "total_methods": 165
+        },
+        "complexity": {
+          "avg_wmc": 22.8
+        },
+        "cohesion": {
+          "avg_lcom": 24.0
+        },
+        "coupling": {
+          "avg_cbo": 11.8,
+          "avg_rfc": 38.5
+        }
+      }
+    },
+    {
+      "id": "A15",
+      "name": "ts-train-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "CRITICAL",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3600,
+          "total_classes": 19,
+          "total_methods": 118
+        },
+        "complexity": {
+          "avg_wmc": 15.8
+        },
+        "cohesion": {
+          "avg_lcom": 16.5
+        },
+        "coupling": {
+          "avg_cbo": 8.1,
+          "avg_rfc": 26.0
+        }
+      }
+    },
+    {
+      "id": "A16",
+      "name": "ts-station-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2800,
+          "total_classes": 15,
+          "total_methods": 90
+        },
+        "complexity": {
+          "avg_wmc": 12.2
+        },
+        "cohesion": {
+          "avg_lcom": 12.8
+        },
+        "coupling": {
+          "avg_cbo": 6.2,
+          "avg_rfc": 20.5
+        }
+      }
+    },
+    {
+      "id": "A17",
+      "name": "ts-seat-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "CRITICAL",
+      "code_metrics": {
+        "size": {
+          "total_loc": 5900,
+          "total_classes": 30,
+          "total_methods": 190
+        },
+        "complexity": {
+          "avg_wmc": 26.0
+        },
+        "cohesion": {
+          "avg_lcom": 27.5
+        },
+        "coupling": {
+          "avg_cbo": 13.8,
+          "avg_rfc": 44.0
+        }
+      }
+    },
+    {
+      "id": "A18",
+      "name": "ts-price-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3300,
+          "total_classes": 17,
+          "total_methods": 105
+        },
+        "complexity": {
+          "avg_wmc": 14.5
+        },
+        "cohesion": {
+          "avg_lcom": 15.2
+        },
+        "coupling": {
+          "avg_cbo": 7.5,
+          "avg_rfc": 24.0
+        }
+      }
+    },
+    {
+      "id": "A19",
+      "name": "ts-config-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2200,
+          "total_classes": 11,
+          "total_methods": 70
+        },
+        "complexity": {
+          "avg_wmc": 9.8
+        },
+        "cohesion": {
+          "avg_lcom": 10.0
+        },
+        "coupling": {
+          "avg_cbo": 5.0,
+          "avg_rfc": 16.0
+        }
+      }
+    },
+    {
+      "id": "A20",
+      "name": "ts-payment-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "CRITICAL",
+      "code_metrics": {
+        "size": {
+          "total_loc": 5100,
+          "total_classes": 26,
+          "total_methods": 160
+        },
+        "complexity": {
+          "avg_wmc": 22.0
+        },
+        "cohesion": {
+          "avg_lcom": 23.0
+        },
+        "coupling": {
+          "avg_cbo": 11.5,
+          "avg_rfc": 37.0
+        }
+      }
+    },
+    {
+      "id": "A21",
+      "name": "ts-inside-payment-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "CRITICAL",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4600,
+          "total_classes": 24,
+          "total_methods": 148
+        },
+        "complexity": {
+          "avg_wmc": 20.2
+        },
+        "cohesion": {
+          "avg_lcom": 21.0
+        },
+        "coupling": {
+          "avg_cbo": 10.5,
+          "avg_rfc": 34.0
+        }
+      }
+    },
+    {
+      "id": "A22",
+      "name": "ts-execute-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3900,
+          "total_classes": 20,
+          "total_methods": 125
+        },
+        "complexity": {
+          "avg_wmc": 17.0
+        },
+        "cohesion": {
+          "avg_lcom": 18.0
+        },
+        "coupling": {
+          "avg_cbo": 8.8,
+          "avg_rfc": 28.0
+        }
+      }
+    },
+    {
+      "id": "A23",
+      "name": "ts-cancel-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "CRITICAL",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4400,
+          "total_classes": 22,
+          "total_methods": 140
+        },
+        "complexity": {
+          "avg_wmc": 19.0
+        },
+        "cohesion": {
+          "avg_lcom": 19.8
+        },
+        "coupling": {
+          "avg_cbo": 9.9,
+          "avg_rfc": 32.0
+        }
+      }
+    },
+    {
+      "id": "A24",
+      "name": "ts-rebook-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4900,
+          "total_classes": 25,
+          "total_methods": 155
+        },
+        "complexity": {
+          "avg_wmc": 21.5
+        },
+        "cohesion": {
+          "avg_lcom": 22.4
+        },
+        "coupling": {
+          "avg_cbo": 11.0,
+          "avg_rfc": 35.5
+        }
+      }
+    },
+    {
+      "id": "A25",
+      "name": "ts-assurance-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2100,
+          "total_classes": 11,
+          "total_methods": 65
+        },
+        "complexity": {
+          "avg_wmc": 9.2
+        },
+        "cohesion": {
+          "avg_lcom": 9.5
+        },
+        "coupling": {
+          "avg_cbo": 4.8,
+          "avg_rfc": 15.0
+        }
+      }
+    },
+    {
+      "id": "A26",
+      "name": "ts-consign-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2700,
+          "total_classes": 14,
+          "total_methods": 82
+        },
+        "complexity": {
+          "avg_wmc": 11.8
+        },
+        "cohesion": {
+          "avg_lcom": 12.0
+        },
+        "coupling": {
+          "avg_cbo": 6.0,
+          "avg_rfc": 19.5
+        }
+      }
+    },
+    {
+      "id": "A27",
+      "name": "ts-consign-price-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "LOW",
+      "code_metrics": {
+        "size": {
+          "total_loc": 1500,
+          "total_classes": 8,
+          "total_methods": 45
+        },
+        "complexity": {
+          "avg_wmc": 6.5
+        },
+        "cohesion": {
+          "avg_lcom": 6.8
+        },
+        "coupling": {
+          "avg_cbo": 3.4,
+          "avg_rfc": 11.0
+        }
+      }
+    },
+    {
+      "id": "A28",
+      "name": "ts-food-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3200,
+          "total_classes": 16,
+          "total_methods": 98
+        },
+        "complexity": {
+          "avg_wmc": 13.8
+        },
+        "cohesion": {
+          "avg_lcom": 14.0
+        },
+        "coupling": {
+          "avg_cbo": 7.2,
+          "avg_rfc": 23.0
+        }
+      }
+    },
+    {
+      "id": "A29",
+      "name": "ts-food-map-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "LOW",
+      "code_metrics": {
+        "size": {
+          "total_loc": 1800,
+          "total_classes": 9,
+          "total_methods": 54
+        },
+        "complexity": {
+          "avg_wmc": 8.0
+        },
+        "cohesion": {
+          "avg_lcom": 8.2
+        },
+        "coupling": {
+          "avg_cbo": 4.0,
+          "avg_rfc": 13.0
+        }
+      }
+    },
+    {
+      "id": "A30",
+      "name": "ts-notification-service",
+      "app_type": "actuator",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2300,
+          "total_classes": 12,
+          "total_methods": 72
+        },
+        "complexity": {
+          "avg_wmc": 10.2
+        },
+        "cohesion": {
+          "avg_lcom": 10.5
+        },
+        "coupling": {
+          "avg_cbo": 5.2,
+          "avg_rfc": 16.5
+        }
+      }
+    },
+    {
+      "id": "A31",
+      "name": "ts-security-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "CRITICAL",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4100,
+          "total_classes": 21,
+          "total_methods": 130
+        },
+        "complexity": {
+          "avg_wmc": 18.0
+        },
+        "cohesion": {
+          "avg_lcom": 19.0
+        },
+        "coupling": {
+          "avg_cbo": 9.5,
+          "avg_rfc": 30.0
+        }
+      }
+    },
+    {
+      "id": "A32",
+      "name": "ts-voucher-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "LOW",
+      "code_metrics": {
+        "size": {
+          "total_loc": 1900,
+          "total_classes": 10,
+          "total_methods": 58
+        },
+        "complexity": {
+          "avg_wmc": 8.5
+        },
+        "cohesion": {
+          "avg_lcom": 8.8
+        },
+        "coupling": {
+          "avg_cbo": 4.2,
+          "avg_rfc": 13.8
+        }
+      }
+    },
+    {
+      "id": "A33",
+      "name": "ts-admin-user-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2400,
+          "total_classes": 12,
+          "total_methods": 74
+        },
+        "complexity": {
+          "avg_wmc": 10.5
+        },
+        "cohesion": {
+          "avg_lcom": 11.0
+        },
+        "coupling": {
+          "avg_cbo": 5.5,
+          "avg_rfc": 17.5
+        }
+      }
+    },
+    {
+      "id": "A34",
+      "name": "ts-admin-travel-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2600,
+          "total_classes": 13,
+          "total_methods": 80
+        },
+        "complexity": {
+          "avg_wmc": 11.2
+        },
+        "cohesion": {
+          "avg_lcom": 11.8
+        },
+        "coupling": {
+          "avg_cbo": 5.8,
+          "avg_rfc": 18.5
+        }
+      }
+    },
+    {
+      "id": "A35",
+      "name": "ts-admin-order-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2800,
+          "total_classes": 14,
+          "total_methods": 86
+        },
+        "complexity": {
+          "avg_wmc": 12.0
+        },
+        "cohesion": {
+          "avg_lcom": 12.5
+        },
+        "coupling": {
+          "avg_cbo": 6.2,
+          "avg_rfc": 19.8
+        }
+      }
+    },
+    {
+      "id": "A36",
+      "name": "ts-admin-route-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2300,
+          "total_classes": 11,
+          "total_methods": 70
+        },
+        "complexity": {
+          "avg_wmc": 10.0
+        },
+        "cohesion": {
+          "avg_lcom": 10.2
+        },
+        "coupling": {
+          "avg_cbo": 5.1,
+          "avg_rfc": 16.2
+        }
+      }
+    },
+    {
+      "id": "A37",
+      "name": "ts-admin-basic-info-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2500,
+          "total_classes": 12,
+          "total_methods": 76
+        },
+        "complexity": {
+          "avg_wmc": 10.8
+        },
+        "cohesion": {
+          "avg_lcom": 11.2
+        },
+        "coupling": {
+          "avg_cbo": 5.6,
+          "avg_rfc": 17.8
+        }
+      }
+    },
+    {
+      "id": "A38",
+      "name": "ts-delivery-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "LOW",
+      "code_metrics": {
+        "size": {
+          "total_loc": 1600,
+          "total_classes": 8,
+          "total_methods": 48
+        },
+        "complexity": {
+          "avg_wmc": 7.0
+        },
+        "cohesion": {
+          "avg_lcom": 7.2
+        },
+        "coupling": {
+          "avg_cbo": 3.6,
+          "avg_rfc": 11.5
+        }
+      }
+    },
+    {
+      "id": "A39",
+      "name": "ts-wait-order-service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3700,
+          "total_classes": 19,
+          "total_methods": 115
+        },
+        "complexity": {
+          "avg_wmc": 16.0
+        },
+        "cohesion": {
+          "avg_lcom": 16.8
+        },
+        "coupling": {
+          "avg_cbo": 8.2,
+          "avg_rfc": 26.5
+        }
+      }
+    },
+    {
+      "id": "A40",
+      "name": "ts-news-service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "LOW",
+      "code_metrics": {
+        "size": {
+          "total_loc": 1100,
+          "total_classes": 5,
+          "total_methods": 32
+        },
+        "complexity": {
+          "avg_wmc": 5.2
+        },
+        "cohesion": {
+          "avg_lcom": 5.5
+        },
+        "coupling": {
+          "avg_cbo": 2.8,
+          "avg_rfc": 9.0
+        }
+      }
+    }
+  ],
+  "libraries": [
+    {
+      "id": "L0",
+      "name": "spring-boot-starter-web",
+      "version": "3.2.1",
+      "description": "Spring MVC REST web framework starter"
+    },
+    {
+      "id": "L1",
+      "name": "spring-cloud-starter-netflix-eureka-client",
+      "version": "4.1.0",
+      "description": "Eureka service discovery client"
+    },
+    {
+      "id": "L2",
+      "name": "ts-common-dto-library",
+      "version": "1.0.0",
+      "description": "Train-Ticket common Data Transfer Objects & Response wrappers"
+    },
+    {
+      "id": "L3",
+      "name": "mybatis-spring-boot-starter",
+      "version": "3.0.3",
+      "description": "MyBatis SQL mapping ORM library"
+    },
+    {
+      "id": "L4",
+      "name": "spring-boot-starter-data-redis",
+      "version": "3.2.1",
+      "description": "Redis cache & Session management client"
+    },
+    {
+      "id": "L5",
+      "name": "spring-boot-starter-amqp",
+      "version": "3.2.1",
+      "description": "RabbitMQ message listener & template wrapper"
+    },
+    {
+      "id": "L6",
+      "name": "jjwt-api-auth",
+      "version": "0.12.3",
+      "description": "JSON Web Token auth & verification library"
+    },
+    {
+      "id": "L7",
+      "name": "spring-boot-starter-actuator",
+      "version": "3.2.1",
+      "description": "Prometheus & Micrometer production telemetry SDK"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "A0",
+      "target": "T12",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A0",
+      "target": "T13",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A1",
+      "target": "T2",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A1",
+      "target": "T3",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A1",
+      "target": "T11",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A1",
+      "target": "T25",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A2",
+      "target": "T12",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A3",
+      "target": "T13",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A5",
+      "target": "T19",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A31",
+      "target": "T11",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A8",
+      "target": "T0",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A8",
+      "target": "T4",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A8",
+      "target": "T27",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A9",
+      "target": "T0",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A10",
+      "target": "T2",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A11",
+      "target": "T2",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A6",
+      "target": "T0",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A6",
+      "target": "T1",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A7",
+      "target": "T0",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A20",
+      "target": "T5",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A20",
+      "target": "T6",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A21",
+      "target": "T28",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A23",
+      "target": "T1",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A23",
+      "target": "T6",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A26",
+      "target": "T7",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A28",
+      "target": "T8",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A30",
+      "target": "T9",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A30",
+      "target": "T10",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A32",
+      "target": "T18",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A39",
+      "target": "T29",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A13",
+      "target": "T14",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A15",
+      "target": "T15",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A18",
+      "target": "T16",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A16",
+      "target": "T17",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A33",
+      "target": "T23",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A34",
+      "target": "T21",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A35",
+      "target": "T22",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A37",
+      "target": "T20",
+      "type": "PUBLISHES_TO"
+    },
+    {
+      "source": "A1",
+      "target": "T12",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A2",
+      "target": "T13",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A6",
+      "target": "T0",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A6",
+      "target": "T4",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A6",
+      "target": "T19",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A8",
+      "target": "T2",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A8",
+      "target": "T11",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A10",
+      "target": "T14",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A10",
+      "target": "T15",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A17",
+      "target": "T4",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A20",
+      "target": "T0",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A21",
+      "target": "T5",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A23",
+      "target": "T0",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A30",
+      "target": "T0",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A30",
+      "target": "T5",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A31",
+      "target": "T12",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A39",
+      "target": "T0",
+      "type": "SUBSCRIBES_TO"
+    },
+    {
+      "source": "A0",
+      "target": "L0",
+      "type": "USES"
+    },
+    {
+      "source": "A0",
+      "target": "L7",
+      "type": "USES"
+    },
+    {
+      "source": "A1",
+      "target": "L0",
+      "type": "USES"
+    },
+    {
+      "source": "A1",
+      "target": "L1",
+      "type": "USES"
+    },
+    {
+      "source": "A1",
+      "target": "L6",
+      "type": "USES"
+    },
+    {
+      "source": "A1",
+      "target": "L7",
+      "type": "USES"
+    },
+    {
+      "source": "A2",
+      "target": "L0",
+      "type": "USES"
+    },
+    {
+      "source": "A2",
+      "target": "L2",
+      "type": "USES"
+    },
+    {
+      "source": "A2",
+      "target": "L6",
+      "type": "USES"
+    },
+    {
+      "source": "A6",
+      "target": "L0",
+      "type": "USES"
+    },
+    {
+      "source": "A6",
+      "target": "L1",
+      "type": "USES"
+    },
+    {
+      "source": "A6",
+      "target": "L2",
+      "type": "USES"
+    },
+    {
+      "source": "A6",
+      "target": "L3",
+      "type": "USES"
+    },
+    {
+      "source": "A6",
+      "target": "L4",
+      "type": "USES"
+    },
+    {
+      "source": "A6",
+      "target": "L5",
+      "type": "USES"
+    },
+    {
+      "source": "A8",
+      "target": "L0",
+      "type": "USES"
+    },
+    {
+      "source": "A8",
+      "target": "L1",
+      "type": "USES"
+    },
+    {
+      "source": "A8",
+      "target": "L2",
+      "type": "USES"
+    },
+    {
+      "source": "A8",
+      "target": "L5",
+      "type": "USES"
+    },
+    {
+      "source": "A10",
+      "target": "L0",
+      "type": "USES"
+    },
+    {
+      "source": "A10",
+      "target": "L1",
+      "type": "USES"
+    },
+    {
+      "source": "A10",
+      "target": "L2",
+      "type": "USES"
+    },
+    {
+      "source": "A10",
+      "target": "L3",
+      "type": "USES"
+    },
+    {
+      "source": "A10",
+      "target": "L4",
+      "type": "USES"
+    },
+    {
+      "source": "A17",
+      "target": "L0",
+      "type": "USES"
+    },
+    {
+      "source": "A17",
+      "target": "L2",
+      "type": "USES"
+    },
+    {
+      "source": "A17",
+      "target": "L4",
+      "type": "USES"
+    },
+    {
+      "source": "A20",
+      "target": "L0",
+      "type": "USES"
+    },
+    {
+      "source": "A20",
+      "target": "L2",
+      "type": "USES"
+    },
+    {
+      "source": "A20",
+      "target": "L3",
+      "type": "USES"
+    },
+    {
+      "source": "A30",
+      "target": "L0",
+      "type": "USES"
+    },
+    {
+      "source": "A30",
+      "target": "L5",
+      "type": "USES"
+    },
+    {
+      "source": "A31",
+      "target": "L0",
+      "type": "USES"
+    },
+    {
+      "source": "A31",
+      "target": "L6",
+      "type": "USES"
+    },
+    {
+      "source": "A0",
+      "target": "N7",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A1",
+      "target": "N7",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A2",
+      "target": "N1",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A3",
+      "target": "N1",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A4",
+      "target": "N1",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A5",
+      "target": "N1",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A6",
+      "target": "N1",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A7",
+      "target": "N1",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A8",
+      "target": "N1",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A9",
+      "target": "N1",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A10",
+      "target": "N2",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A11",
+      "target": "N2",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A12",
+      "target": "N2",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A13",
+      "target": "N2",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A14",
+      "target": "N2",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A15",
+      "target": "N2",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A16",
+      "target": "N2",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A17",
+      "target": "N2",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A18",
+      "target": "N2",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A19",
+      "target": "N2",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A20",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A21",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A22",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A23",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A24",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A25",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A26",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A27",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A28",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A29",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A30",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A31",
+      "target": "N1",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A32",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A33",
+      "target": "N0",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A34",
+      "target": "N0",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A35",
+      "target": "N0",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A36",
+      "target": "N0",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A37",
+      "target": "N0",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A38",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A39",
+      "target": "N1",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "A40",
+      "target": "N3",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "B0",
+      "target": "N1",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "B1",
+      "target": "N6",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "B2",
+      "target": "N0",
+      "type": "RUNS_ON"
+    },
+    {
+      "source": "B0",
+      "target": "T0",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B0",
+      "target": "T1",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B0",
+      "target": "T5",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B0",
+      "target": "T6",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B0",
+      "target": "T7",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B0",
+      "target": "T8",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B0",
+      "target": "T9",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B0",
+      "target": "T10",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B0",
+      "target": "T27",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B0",
+      "target": "T28",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B0",
+      "target": "T29",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B1",
+      "target": "T4",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B1",
+      "target": "T19",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B1",
+      "target": "T26",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B2",
+      "target": "T2",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B2",
+      "target": "T3",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B2",
+      "target": "T11",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B2",
+      "target": "T14",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B2",
+      "target": "T15",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B2",
+      "target": "T16",
+      "type": "ROUTES"
+    },
+    {
+      "source": "B2",
+      "target": "T17",
+      "type": "ROUTES"
+    },
+    {
+      "source": "N7",
+      "target": "N1",
+      "type": "CONNECTS_TO"
+    },
+    {
+      "source": "N1",
+      "target": "N2",
+      "type": "CONNECTS_TO"
+    },
+    {
+      "source": "N1",
+      "target": "N3",
+      "type": "CONNECTS_TO"
+    },
+    {
+      "source": "N2",
+      "target": "N4",
+      "type": "CONNECTS_TO"
+    },
+    {
+      "source": "N2",
+      "target": "N5",
+      "type": "CONNECTS_TO"
+    },
+    {
+      "source": "N3",
+      "target": "N6",
+      "type": "CONNECTS_TO"
+    },
+    {
+      "source": "N0",
+      "target": "N1",
+      "type": "CONNECTS_TO"
+    },
+    {
+      "source": "N0",
+      "target": "N2",
+      "type": "CONNECTS_TO"
+    }
+  ]
+}
