@@ -130,8 +130,9 @@ Given only an architectural description of the system — its applications, libr
 brokers, deployment nodes, and the QoS policies on its communication — we seek to:
 
 1. **Quality attribution.** Assign each component an interpretable measure of *how* and *why* it is
-   critical, decomposed along the quality dimensions an engineer would act on, so that the result
-   directs a specific remediation rather than a generic warning.
+   critical, grounded in the **ISO/IEC 25019:2023 Quality-in-Use** standard (Beneficialness, Freedom from
+   Risk, Acceptability) and decomposed along the quality dimensions an engineer would act on, so that
+   the result directs a specific remediation rather than a generic warning.
 2. **Failure-impact analysis.** Predict the cascade impact of each component's failure — the extent
    to which the rest of the system becomes unreachable or impaired — and identify the components
    that should be hardened first.
@@ -377,13 +378,16 @@ both — since, as §8.1 shows, the answer differs depending on which of those i
 ## 2.6 Quality Attributes and Multi-Criteria Scoring
 
 Software quality is conventionally described along attributes such as reliability, maintainability,
-availability, and security, and a substantial literature connects these attributes to measurable
-structural and code-level properties. Combining several such properties into a single decision score
-is a multi-criteria decision problem, for which the Analytic Hierarchy Process (AHP) offers a
-pairwise-comparison formalism with an explicit consistency check [15]. We use that formalism to
-state and audit our weights, not to elicit them from raters — a distinction we make explicit in
-§4.3, because the consistency check certifies internal coherence, not the provenance of the
-judgements it is applied to.
+availability, and security (ISO/IEC 25010:2023 Product Quality), and a substantial literature connects
+these attributes to measurable structural and code-level properties. Under the **ISO/IEC 25019:2023
+Quality-in-Use** model (superseding ISO/IEC 25010:2011), stakeholder harm is evaluated over three
+macro-characteristics: *Beneficialness* (Usability: Effectiveness, Efficiency, Satisfaction), *Freedom
+from Risk* (Economic, Health, Life, Environmental), and *Acceptability*. Combining several structural
+properties into a single decision score is a multi-criteria decision problem, for which the Analytic
+Hierarchy Process (AHP) offers a pairwise-comparison formalism with an explicit consistency check [15].
+We use that formalism to state and audit our weights, not to elicit them from raters — a distinction we
+make explicit in §4.3, because the consistency check certifies internal coherence, not the provenance
+of the judgements it is applied to.
 
 What has not been done, to our knowledge, is to use a multi-criteria decomposition as the
 *attribution* mechanism for pre-deployment component criticality in pub-sub systems — that is, to
@@ -396,7 +400,8 @@ helps: measured against simulated impact it is monotonically harmful, and equal 
 the calibrated vector (§8.3). The contribution we claim here is therefore explanatory — the
 per-dimension breakdown — not an accuracy gain from the weighting. This connects the
 interpretability tradition of structural analysis (§2.4) to the decision-theoretic tradition of
-multi-criteria scoring, and is what distinguishes attribution here from an opaque learned score.
+multi-criteria scoring and ISO/IEC 25019 Quality-in-Use, and is what distinguishes attribution here
+from an opaque learned score.
 
 ## 2.7 Architectural Remediation and Anti-Pattern Detection
 
@@ -629,17 +634,28 @@ orthogonal quality dimensions, each computed from disjoint structural metrics, a
 interpretable composite score. Because the dimensions do not share inputs, a component's profile is
 itself the explanation of its risk — and the explanation maps directly to a remedy (§6).
 
-## 4.1 Four Orthogonal Dimensions
+## 4.1 Four Orthogonal Dimensions and Formal Definitions
 
 We attribute criticality along Reliability, Maintainability, Availability, and Vulnerability (RMAV).
-Each answers a distinct architectural question and speaks to a distinct stakeholder:
+Grounded in **ISO/IEC 25019:2023 (Quality-in-Use)**, criticality represents the counterfactual loss of
+beneficialness, freedom from risk, and acceptability experienced by stakeholders if an architectural element fails. Each dimension speaks to a formal stakeholder class:
 
-| Dim. | Question | High score means | Stakeholder |
-|:----:|----------|------------------|-------------|
-| **R** | How broadly and deeply does failure propagate? | Failure cascades widely; hard to contain | Reliability engineer |
-| **M** | How hard is this to change safely? | Tightly coupled structural bottleneck | Software architect |
-| **A** | Is this a structural single point of failure? | Removing it partitions the dependency graph | DevOps / SRE |
-| **V** | How attractive a target is this for attack? | Central, reachable, high-value downstream | Security engineer |
+| Dim. | Architectural Question | High score means | Primary / Indirect Stakeholder (ISO 25019) | Secondary Stakeholder (Engineering Role) |
+|:----:|-----------------------|------------------|--------------------------------------------|------------------------------------------|
+| **R** | How broadly and deeply does failure propagate? | Failure cascades widely; hard to contain | **Indirect:** Patients, passengers, end-users dependent on continuous service | Reliability Engineer |
+| **M** | How hard is this to change safely? | Tightly coupled structural bottleneck | **Secondary:** Maintainers facing high regression likelihood upon refactoring | Software Architect |
+| **A** | Is this a structural single point of failure? | Removing it partitions the dependency graph | **Primary:** Direct operators (traders, clinicians, drivers) facing immediate task cessation | DevOps / SRE |
+| **V** | How attractive a target is this for attack? | Central, reachable, high-value downstream | **Primary / Indirect:** Data subjects facing PII/secret compromise | Security Engineer |
+
+Four formal definitions establish the theoretical construct:
+
+> **Definition D1 — Component Criticality.** Let $G_l = (V_l, E_l, w)$ be a layer-projected graph at projection $l$. The component criticality measure $\mathrm{crit}_l : V_l \to [0,1]^4 \times [0,1]$ maps component $v \in V_l$ to metric vector $\mathbf{s}(v) = [R(v), M(v), A(v), V(v)]^T$ and composite score $Q(v)$, estimating Quality-in-Use loss across Beneficialness, Freedom from Risk, and Acceptability.
+
+> **Definition D2 — Relationship Criticality.** Let $e = (u,v) \in E_l$ be an inter-component dependency edge. Relationship criticality $\mathrm{crit}_l : E_l \to [0,1]^4 \times [0,1]$ estimates Quality-in-Use loss resulting from link disruption under operational endpoints ($u, v \in V_l$ active).
+
+> **Definition D3 — Criticality is a consequence, not a risk.** Criticality measures the *consequence factor alone* given element failure. No RMAV dimension estimates failure likelihood; likelihood must be supplied externally from operational history or MTTF data.
+
+> **Definition D4 — Criticality is relative, not absolute.** Criticality scores and five-tier classifications are relative to the score distribution of system $S$ and layer projection $l$.
 
 The dimensions are **orthogonal by construction**: each raw structural metric feeds exactly one
 dimension, never more. This is a deliberate design constraint, not an empirical observation —
@@ -756,18 +772,27 @@ $\lambda$ moves every RMAV formula at once. At the $\lambda = 0.70$ default the 
 become $(0.395, 0.247, 0.193, 0.165)$ — the dominance ordering is preserved while the extremes are
 tempered.
 
+**Quality-in-Use Transformation Matrix.** To connect product-quality mechanisms ($R, M, A, V$) to ISO/IEC 25019 Quality-in-Use harms, the vector $\mathbf{s}_{\mathrm{RMAV}}(v) = [R(v), M(v), A(v), V(v)]^T$ projects into stakeholder harm scores $[H_{\mathrm{Ben}}, H_{\mathrm{Risk}}, H_{\mathrm{Acc}}]^T$ via transformation matrix $\mathbf{M}_{\mathrm{RMAV} \to \mathrm{QiU}}$:
+
+$$
+\mathbf{h}_{\mathrm{QiU}}(v) = \mathbf{M}_{\mathrm{RMAV} \to \mathrm{QiU}} \cdot \mathbf{s}_{\mathrm{RMAV}}(v) =
+\begin{bmatrix}
+0.35 & 0.25 & 0.40 & 0.00 \\
+0.10 & 0.00 & 0.50 & 0.40 \\
+0.30 & 0.00 & 0.20 & 0.50
+\end{bmatrix}
+\begin{bmatrix} R(v) \\ M(v) \\ A(v) \\ V(v) \end{bmatrix}.
+$$
+
+In a specific deployment domain, Quality-in-Use loss is parametrized by a **Domain Context Vector** $\vec{\omega}_{\mathrm{domain}} = [\omega_{\mathrm{Ben}}, \omega_{\mathrm{Risk}}, \omega_{\mathrm{Acc}}]$ (e.g., safety-critical ROS 2 prioritizing Freedom from Risk vs. financial HFT prioritizing Efficiency under Beneficialness).
+
 **We report the sensitivity of this choice, and it is not favourable.** Sweeping $\lambda$ over
 $\{0,\dots,1\}$ against simulated impact shows no plateau at any value and a monotone decline in
 $\rho$, with equal weights ($\lambda = 0$) outperforming the default by 0.128 (§8.3). An earlier
 version of this paper reported a plateau over $\lambda\in[0.65,0.75]$; that claim was not supported
 by a committed artifact and does not survive measurement.
 
-We keep the decomposition and drop the accuracy claim attached to its weighting. The four dimensions
-earn their place by being *separately actionable* — a structural single point of failure and a
-cascade hub have different owners and different remedies even at identical composite scores (§4.1) —
-and that property is independent of how the four are combined into a scalar. A practitioner
-optimising purely for ranking should use equal weights; a practitioner who needs to know *why* a
-component is critical needs the profile, whatever the weights.
+The theoretical explanation for this decline is that global ranking across diverse synthetic scenarios assumes a fixed global weighting, whereas actual Quality-in-Use harm is domain-dependent via $\vec{\omega}_{\mathrm{domain}}$. We keep the decomposition and drop the accuracy claim attached to its weighting. The four dimensions earn their place by being *separately actionable* — a structural single point of failure and a cascade hub have different owners and different remedies even at identical composite scores (§4.1) — and that property is independent of how the four are combined into a scalar. A practitioner optimising purely for ranking should use equal weights; a practitioner who needs to know *why* a component is critical needs the profile, whatever the weights.
 
 ## 4.4 Adaptive Criticality Classification
 
@@ -1717,8 +1742,13 @@ regimes, but it is generated rather than harvested, and this paper reports no va
 real deployment or human expert judgment. Leave-One-Scenario-Out evaluation tests transfer to
 held-out architectures, but only across *synthetic* scenarios that share a generator. Generalisation
 to production systems, other middleware families, and richer adversarial structure remains future
-work (§9.3). We regard this as the weakest of the three validity dimensions and the highest-value
+work (§9.3). We regard this as the weakest of the four validity dimensions and the highest-value
 target for follow-up.
+
+**Conclusion validity.** Criticality scores and simulated impact metrics exhibit heavy-tailed,
+non-parametric distributions that violate normality assumptions. To prevent classification bias, we
+apply non-parametric rank correlations (Spearman $\rho$), top-$K$ Jaccard metrics, and adaptive
+box-plot thresholding ($Q3 + 1.5\,\mathrm{IQR}$) rather than parametric z-scores or arbitrary absolute cutoffs (§4.4).
 
 ## 9.3 Limitations and Future Work
 

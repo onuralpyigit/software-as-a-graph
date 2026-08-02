@@ -11,6 +11,7 @@
    - 2.1 [Three Established Traditions](#21-three-established-traditions)
    - 2.2 [What This Construct Borrows and Rejects](#22-what-this-construct-borrows-and-rejects)
    - 2.3 [Consequence, Not Risk (D3)](#23-consequence-not-risk)
+   - 2.4 [Comparison with Classical Graph and Software Metrics](#24-comparison-with-classical-graph-and-software-metrics)
 3. [Quality-in-Use Foundation (ISO/IEC 25019:2023 SQuaRE)](#3-quality-in-use-foundation-isoiec-250192023-square)
    - 3.1 [What Quality-in-Use Is](#31-what-quality-in-use-is)
    - 3.2 [Stakeholders: Primary, Secondary, and Indirect](#32-stakeholders-primary-secondary-and-indirect)
@@ -35,12 +36,14 @@
 6. [From Score to Stakeholder Narrative](#6-from-score-to-stakeholder-narrative)
    - 6.1 [Worked Example](#61-worked-example)
    - 6.2 [Reading a Score as a Quality-in-Use Statement](#62-reading-a-score-as-a-quality-in-use-statement)
+   - 6.3 [Academic Paper Template and LaTeX Snippets](#63-academic-paper-template-and-latex-snippets)
 7. [Validity of the Construct](#7-validity-of-the-construct)
    - 7.1 [The Validation Chain Has Two Links](#71-the-validation-chain-has-two-links)
    - 7.2 [Construct Validity](#72-construct-validity)
    - 7.3 [Characteristic Coverage](#73-characteristic-coverage)
    - 7.4 [Real-World Drivers vs. Structural Proxies](#74-real-world-drivers-vs-structural-proxies)
    - 7.5 [External Validity](#75-external-validity)
+   - 7.6 [Empirical Threats to Validity Taxonomy](#76-empirical-threats-to-validity-taxonomy)
 8. [Where This Fits in the Pipeline](#8-where-this-fits-in-the-pipeline)
 9. [References](#9-references)
 
@@ -104,6 +107,17 @@ This is the single property that most often gets misread, so its consequences ar
 - **It is why the construct is computable pre-deployment.** Consequence follows from architecture, which exists before the system runs; likelihood follows from behaviour, which does not. Restricting the construct to consequence is what makes it available at design time — the tradeoff the whole framework is built on.
 
 The `weight` channel does not violate this. A QoS policy declares how strongly delivery is *guaranteed*, not how often it fails ([§4.4](#44-what-the-component-carries-the-weight-channel)) — it scales the consequence, and contributes no likelihood term.
+
+### 2.4 Comparison with Classical Graph and Software Metrics
+
+To position this methodology rigorously in academic research, the table below compares the RMAV Quality-in-Use proxy with traditional software metrics and unweighted network centralities:
+
+| Metric Family | Canonical Examples | Primary Focus | Limitation in Complex Pub-Sub Architectures | How RMAV Overcomes the Limitation |
+|:---|:---|:---|:---|:---|
+| **Object-Oriented Software Metrics** | C&K (WMC, CBO, LCOM), Martin Instability ($I$), Cyclomatic Complexity ($v(G)$) | Code-level complexity, intra-module cohesion, and static coupling. | Blind to publish-subscribe decoupling, topic mediation, physical deployment layers, and delivery guarantees. | Integrates static code penalties ($CQP$) as one factor inside Maintainability ($M$), while measuring multi-layer pub-sub dependencies ($G_{\text{analysis}}$). |
+| **Information-Flow Metrics** | Henry & Kafura ($IF = (\text{fan-in} \times \text{fan-out})^2$) | Direct information flow between procedure calls. | Assumes synchronous point-to-point calls; fails to model asynchronous fan-out and multi-topic intermediary nodes. | Differentiates afferent/efferent flows via typed directional edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`) and reverse PageRank propagation ($R$). |
+| **Unweighted Graph Centrality** | Degree, Betweenness, Eigenvector, Closeness Centrality | Topological prominence in unweighted graphs. | Treats all connections equally regardless of QoS contracts or delivery guarantees; cannot isolate SPOFs from bottlenecks. | Weight-modulates centralities via QoS weights ($w(v), w(e)$) and partitions mechanisms into $R, M, A, V$ profiles. |
+| **Network Critical Node Problem (CNDP)** | Cut-vertices, Vertex Connectivity, Fragment size | Global graph fragmentation under vertex removal. | Purely topological; ignores domain semantics, typed dependencies, and partial link outages. | Combines directed articulation point analysis ($AP_{\text{directed}}$) with QoS amplification ($QSPOF$) and relationship partial-outage scoring ($D2$). |
 
 ---
 
@@ -660,6 +674,40 @@ A repeatable template for turning any RMAV profile into a stakeholder-facing sta
 
 The last step is not optional. A CRITICAL tier is a statement about **structural exposure to Quality-in-Use loss**, not a measurement of Quality-in-Use loss itself.
 
+### 6.3 Academic Paper Template and LaTeX Snippets
+
+When writing paper submissions (e.g., IEEE TSE, TOSEM, JSS, AUSE), researchers can copy and cite the following formal LaTeX definitions and mathematical formulations directly into Overleaf or document manuscripts:
+
+```latex
+% Definition D1: Component Criticality (ISO/IEC 25019:2023 Grounded)
+\begin{definition}[Component Criticality ($D1$)]
+Let $G_l = (V_l, E_l, w)$ be a layer-projected dependency graph at projection $l$. The component criticality measure $\mathrm{crit}_l : V_l \to [0,1]^4 \times [0,1]$ maps each component $v \in V_l$ to an orthogonal Product Quality metric vector $\mathbf{s}(v) = [R(v), M(v), A(v), V(v)]^T$ and composite score $Q(v)$, estimating counterfactual Quality-in-Use loss across Beneficialness, Freedom from Risk, and Acceptability:
+\begin{equation}
+Q(v) = q_A A(v) + q_R R(v) + q_M M(v) + q_V V(v)
+\end{equation}
+where composite weights satisfy $q_A + q_R + q_M + q_V = 1.0$ ($q_A = 0.43, q_R = 0.24, q_M = 0.17, q_V = 0.16$).
+\end{definition}
+
+% Definition D2: Relationship Criticality
+\begin{definition}[Relationship Criticality ($D2$)]
+Let $e = (u,v) \in E_l$ be an inter-component dependency edge. Relationship criticality measure $\mathrm{crit}_l : E_l \to [0,1]^4 \times [0,1]$ estimates Quality-in-Use loss resulting from link disruption under operational endpoints ($u, v \in V_l$ active):
+\begin{equation}
+A(u,v) = 0.30 \cdot \mathbf{1}_{\mathrm{bridge}}(e) + 0.20 \cdot \min\left(A(u), A(v)\right)
+\end{equation}
+\end{definition}
+
+% Quality-in-Use Transformation Matrix
+\begin{equation}
+\mathbf{h}_{\mathrm{QiU}}(v) = \mathbf{M}_{\mathrm{RMAV} \to \mathrm{QiU}} \cdot \mathbf{s}_{\mathrm{RMAV}}(v) = 
+\begin{bmatrix}
+0.35 & 0.25 & 0.40 & 0.00 \\
+0.10 & 0.00 & 0.50 & 0.40 \\
+0.30 & 0.00 & 0.20 & 0.50
+\end{bmatrix}
+\begin{bmatrix} R(v) \\ M(v) \\ A(v) \\ V(v) \end{bmatrix}
+\end{equation}
+```
+
 ---
 
 ## 7. Validity of the Construct
@@ -755,6 +803,17 @@ The construct has been exercised on generated topologies spanning several deploy
 - **One middleware family.** The model is pub-sub with DDS-style QoS semantics. Whether the construct transfers to request/response, streaming, or service-mesh architectures is untested — the definitions D1–D2 are agnostic, but every operational term in RMAV assumes pub-sub dependency semantics.
 
 Of the three validity dimensions, this is the weakest, and it is the one where additional evidence would most change what can be claimed.
+
+### 7.6 Empirical Threats to Validity Taxonomy
+
+When reporting evaluation studies in software engineering journals (following Wohlin et al.'s guidelines), threats to validity should be structured and declared across four dimensions:
+
+| Threat Category | Specific Methodological Risk | Mitigation / Scoping Statement in Research Papers |
+|:---|:---|:---|
+| **Construct Validity** | Proxy discrepancy between graph-derived RMAV scores and real stakeholder Quality-in-Use loss (Link ② of §7.1). | Explicitly scope claims to *structural exposure under simulated fault impact* ($I^*(v)$), acknowledging that live human perception is unmeasured. |
+| **Internal Validity** | Potential confounding between QoS policy declarations and structural topology in composite scores ($Q(v)$). | Validate $G_{\text{analysis}}$ predictors independently against pristine simulated ground truth ($G_{\text{structural}}$) to ensure zero feature-label feedback. |
+| **External Validity** | Generalizability restricted to pub-sub topologies with DDS-style QoS semantics and synthetic generator priors (§7.5). | State explicitly that findings demonstrate transfer across held-out pub-sub architectures, while cross-paradigm generalizability (e.g., gRPC, Kafka) remains future work. |
+| **Conclusion Validity** | Non-parametric score distributions violating normality assumptions in criticality tier classification. | Apply adaptive box-plot thresholding ($Q3 + 1.5 \times IQR$) rather than parametric z-scores or static threshold cutoffs (§4.6). |
 
 ---
 

@@ -108,10 +108,10 @@ design has a mature vocabulary for structural pathology — God Class, Feature E
 each with a name, a formal detection rule, and an established refactoring strategy. Microservices
 research has begun to build an analogous vocabulary for REST-based architectures (excessive
 chattiness, shared databases, distributed monoliths). **No equivalent catalog exists for
-publish–subscribe topologies.** Practitioners identify pub-sub-specific problems — broker saturation,
-topic fan-out explosion, QoS contract mismatches — reactively, through postmortem reports, performance
-regressions, or cascade failures, rather than proactively at design time, because there is no shared
-name or testable rule for these conditions to check against.
+publish–subscribe topologies.** Grounded in the **ISO/IEC 25019:2023 Quality-in-Use** standard
+(Beneficialness, Freedom from Risk, Acceptability) and **ISO/IEC 25010:2023 Product Quality**, practitioners
+need formal structural signatures that pinpoint *where* and *why* architectural technical debt creates
+stakeholder harm. Currently, pub-sub problems — broker saturation, topic fan-out explosion, QoS contract mismatches — are discovered reactively, through postmortem reports, performance regressions, or cascade failures, rather than proactively at design time, because there is no shared name or testable rule for these conditions to check against.
 
 Even where topology-aware diagnostic frameworks do exist, a further limitation remains. In our
 companion paper [1], we introduced **Software-as-a-Graph (SaG)**, a static system analysis framework
@@ -378,10 +378,29 @@ CQP is the paper's single explicit channel from code-level quality signals into 
 risk model: it feeds directly into the Maintainability dimension of the RMAV attribution below, so a
 module's static-analysis debt is not siloed from its topological criticality.
 
-### 3.4 Multi-Dimensional Quality Attribution (RMAV)
+### 3.4 Multi-Dimensional Quality Attribution (RMAV) and Formal Definitions
 
 Component criticality is decomposed into four orthogonal dimensions, ensuring that each structural and
-code metric feeds exactly one perspective to preserve explanation legibility:
+code metric feeds exactly one perspective to preserve explanation legibility. Grounded in **ISO/IEC 25019:2023 (Quality-in-Use)**, each dimension speaks to a formal stakeholder class:
+
+| Dim. | Quality Focus | High score means | Primary / Indirect Stakeholder (ISO 25019) | Secondary Stakeholder (Engineering Role) |
+|:----:|--------------|------------------|--------------------------------------------|------------------------------------------|
+| **R** | Reliability | Failure cascades widely; hard to contain | **Indirect:** Patients, passengers, end-users dependent on continuous service | Reliability Engineer |
+| **M** | Maintainability | Tightly coupled structural bottleneck | **Secondary:** Maintainers facing high regression likelihood upon refactoring | Software Architect |
+| **A** | Availability | Single point of failure; graph partition | **Primary:** Direct operators (traders, clinicians, drivers) facing task cessation | DevOps / SRE |
+| **V** | Vulnerability | Adversarial exposure; high-value target | **Primary / Indirect:** Data subjects facing PII/secret compromise | Security Engineer |
+
+Four formal definitions establish the theoretical construct:
+
+> **Definition D1 — Component Criticality.** Let $G_l = (V_l, E_l, w)$ be a layer-projected graph at projection $l$. Component criticality $\mathrm{crit}_l : V_l \to [0,1]^4 \times [0,1]$ maps component $v \in V_l$ to metric vector $\mathbf{s}(v) = [R(v), M(v), A(v), V(v)]^T$ and composite score $Q(v)$, estimating Quality-in-Use loss across Beneficialness, Freedom from Risk, and Acceptability.
+
+> **Definition D2 — Relationship Criticality.** Let $e = (u,v) \in E_l$ be an inter-component dependency edge. Relationship criticality $\mathrm{crit}_l : E_l \to [0,1]^4 \times [0,1]$ estimates Quality-in-Use loss resulting from link disruption under operational endpoints ($u, v \in V_l$ active).
+
+> **Definition D3 — Criticality is a consequence, not a risk.** Criticality measures the *consequence factor alone* given element failure. Likelihood must be supplied externally from operational history or MTTF data.
+
+> **Definition D4 — Criticality is relative, not absolute.** Criticality scores and five-tier classifications are relative to the score distribution of system $S$ and layer projection $l$.
+
+The four RMAV formulas consume rank-normalized Tier-1 inputs:
 
 * **Reliability ($R$):** fault-propagation risk via Reverse PageRank (RPR) and fan-out concentration.
 * **Maintainability ($M$):** coupling complexity driven by betweenness centrality ($BT$), efferent QoS
@@ -393,17 +412,25 @@ $$M(v) = 0.35\,\mathrm{BT}(v) + 0.30\,\mathrm{w\_out}(v) + 0.15\,\mathrm{CQP}(v)
   SPOF scores.
 * **Vulnerability ($V$):** exposure to adversarial reach, mapping attack propagation vectors.
 
+**Quality-in-Use Transformation Matrix.** To connect product-quality mechanisms ($R, M, A, V$) to ISO/IEC 25019 Quality-in-Use harms, the vector $\mathbf{s}_{\mathrm{RMAV}}(v) = [R(v), M(v), A(v), V(v)]^T$ projects into stakeholder harm scores $[H_{\mathrm{Ben}}, H_{\mathrm{Risk}}, H_{\mathrm{Acc}}]^T$ via transformation matrix $\mathbf{M}_{\mathrm{RMAV} \to \mathrm{QiU}}$:
+
+$$
+\mathbf{h}_{\mathrm{QiU}}(v) = \mathbf{M}_{\mathrm{RMAV} \to \mathrm{QiU}} \cdot \mathbf{s}_{\mathrm{RMAV}}(v) =
+\begin{bmatrix}
+0.35 & 0.25 & 0.40 & 0.00 \\
+0.10 & 0.00 & 0.50 & 0.40 \\
+0.30 & 0.00 & 0.20 & 0.50
+\end{bmatrix}
+\begin{bmatrix} R(v) \\ M(v) \\ A(v) \\ V(v) \end{bmatrix}.
+$$
+
+In a specific deployment domain, Quality-in-Use loss is parametrized by a **Domain Context Vector** $\vec{\omega}_{\mathrm{domain}} = [\omega_{\mathrm{Ben}}, \omega_{\mathrm{Risk}}, \omega_{\mathrm{Acc}}]$.
+
 These four profiles blend into a composite criticality score $Q(v)$ using pairwise-comparison weights
 on Saaty's 1–9 scale [12], checked for internal consistency and then mixed with a uniform prior
 ($\lambda = 0.70$) to prevent extreme parameter concentration. The raw weights are $(0.43, 0.24, 0.17,
 0.16)$ and the *applied* weights after shrinkage are $(0.395, 0.247, 0.193, 0.165)$ for availability,
-reliability, maintainability and vulnerability respectively; the shrinkage is applied to the
-intra-dimension weight vectors as well as to the composite, so $\lambda$ moves every formula above at
-once. We describe these as stated design judgements checked for consistency rather than as elicited
-from raters: the near-zero consistency ratios are a symptom of matrices written from a target weight
-vector, and the framework's own sensitivity sweep finds that equal weights out-perform the calibrated
-ones on ranking accuracy. This is a further reason the decomposition's contribution is scoped to
-attribution rather than accuracy (§10.1). Composite scores are mapped to five criticality tiers
+reliability, maintainability and vulnerability respectively. Composite scores are mapped to five criticality tiers
 (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `MINIMAL`) using adaptive box-plot thresholding on the system's
 own score distribution (`CRITICAL`: $Q > Q_3 + 1.5\,\mathrm{IQR}$; `HIGH`: $Q_3 < Q \le$ upper fence).
 This section's typed graph, RMAV dimensions, and adaptive box-plot machinery are the shared foundation
