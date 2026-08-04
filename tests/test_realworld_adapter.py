@@ -34,14 +34,15 @@ def test_cloud_microservices_topology_structure():
 
 
 def test_realworld_scenarios_loadable_by_graph_io():
-    json_path = Path("data/scenarios/scenario_11_realworld_autoware_ros2.json")
+    repo_root = Path(__file__).resolve().parents[1]
+    json_path = repo_root / "data" / "scenarios" / "scenario_11_realworld_autoware_ros2.json"
     assert json_path.exists()
     G, raw = load_graph(json_path)
     assert G is not None
     assert G.number_of_nodes() > 0
     assert G.number_of_edges() > 0
 
-    cloud_path = Path("data/scenarios/scenario_12_realworld_cloud_microservices.json")
+    cloud_path = repo_root / "data" / "scenarios" / "scenario_12_realworld_cloud_microservices.json"
     assert cloud_path.exists()
     G_cloud, raw_cloud = load_graph(cloud_path)
     assert G_cloud is not None

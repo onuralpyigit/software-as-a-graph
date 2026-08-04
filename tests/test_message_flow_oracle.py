@@ -177,7 +177,8 @@ def test_impact_tracks_dependency_not_consumption_on_a_real_scenario():
 
     from cli.loso_evaluate import _build_graph_from_json
 
-    topology = json.loads(Path("data/scenarios/atm_system.json").read_text())
+    repo_root = Path(__file__).resolve().parents[1]
+    topology = json.loads((repo_root / "data" / "scenarios" / "atm_system.json").read_text())
     graph = _build_graph_from_json(topology)
 
     subscriptions = {}

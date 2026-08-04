@@ -558,7 +558,8 @@ class TestScenarioAudit:
     @pytest.mark.parametrize("scenario_name", ["atm_system", "av_system", "iot_smart_city_system"])
     def test_scenario_qos_flow(self, scenario_name):
         """QoS pipeline audit on the real scenario JSONs (skip if file missing)."""
-        scenario_path = Path(f"data/scenarios/{scenario_name}.json")
+        repo_root = Path(__file__).resolve().parents[1]
+        scenario_path = repo_root / "data" / "scenarios" / f"{scenario_name}.json"
         if not scenario_path.exists():
             pytest.skip(f"Scenario file not found: {scenario_path}")
 
