@@ -182,18 +182,18 @@ $I^*(v)$ against $I_{\text{comp}}(v)$:
 
 | Scenario | Spearman ρ | Kendall τ | top-20 % Jaccard | n |
 |---|---:|---:|---:|---:|
-| microservices_system | 0.693 | 0.543 | 0.357 | 96 |
-| hub_and_spoke_system | 0.564 | 0.469 | 0.333 | 72 |
-| enterprise_system | 0.548 | 0.429 | 0.393 | 310 |
-| av_system | 0.483 | 0.349 | 0.214 | 84 |
-| iot_smart_city_system | 0.289 | 0.226 | 0.344 | 206 |
-| financial_trading_system | 0.194 | 0.171 | 0.182 | 65 |
-| healthcare_system | 0.063 | 0.037 | 0.158 | 53 |
-| **mean** | **0.405** | — | **0.283** | — |
+| enterprise_system | 0.578 | 0.453 | 0.393 | 310 |
+| av_system | 0.521 | 0.397 | 0.308 | 84 |
+| healthcare_system | 0.424 | 0.312 | 0.294 | 53 |
+| financial_trading_system | 0.405 | 0.318 | 0.300 | 65 |
+| microservices_system | 0.382 | 0.284 | 0.226 | 96 |
+| iot_smart_city_system | 0.359 | 0.274 | 0.262 | 206 |
+| hub_and_spoke_system | 0.092 | 0.093 | 0.217 | 72 |
+| **mean** | **0.394** | — | **0.286** | — |
 
 > [!WARNING]
-> **The two oracles agree only moderately.** Mean ρ = 0.405 and mean top-K Jaccard = 0.283; on
-> `healthcare_system` they are effectively uncorrelated (ρ = 0.063, τ = 0.037). This is a
+> **The two oracles agree only moderately.** Mean ρ = 0.394 and mean top-K Jaccard = 0.286; on
+> `hub_and_spoke_system` they are effectively uncorrelated (ρ = 0.092, τ = 0.093). This is a
 > **construct-validity bound**: an argument established against one oracle does not transfer to a
 > claim measured against the other. Any result that moves between them — for example a stratified
 > analysis run on $I_{\text{comp}}$ used to interpret a table computed on $I^*$ — must either be
@@ -215,6 +215,12 @@ of whether the shared `w(t)` inflates their agreement. Measured with
 Rank agreement did not improve; it fell slightly. The disagreement is structural — between a mean
 subscriber feed-loss and a weighted composite of four connectivity terms.
 
+> [!NOTE]
+> This ablation pair predates the 2026-08-04 regeneration that produced the table above and has not
+> been re-run against it. The default-QoS row (0.4050) is close to the current default-QoS mean
+> (0.394) but was not recomputed from the same run; treat this sub-table as indicative pending a
+> `--no-qos` re-run rather than as re-verified.
+
 ### 3.3 The behavioural oracle $I_{\text{dyn}}(v)$
 
 $I^*$ and $I_{\text{comp}}$ are both topological cascade engines over the same substrate, so §3.2
@@ -235,25 +241,25 @@ publisher's demand stays in the denominator. Measured across the same cohort at 
 
 | Scenario | ρ($I_{\text{dyn}}$, $I^*$) | n | ρ($I^*$, $I_{\text{comp}}$) from §3.2 |
 |---|---:|---:|---:|
-| iot_smart_city_system | 0.739 | 210 | 0.289 |
-| financial_trading_system | 0.722 | 78 | 0.194 |
-| enterprise_system | 0.635 | 350 | 0.548 |
-| av_system | 0.629 | 100 | 0.483 |
-| hub_and_spoke_system | 0.573 | 95 | 0.564 |
-| healthcare_system | 0.551 | 61 | 0.063 |
-| microservices_system | 0.542 | 119 | 0.693 |
-| **mean** | **0.627** | — | **0.405** |
-| **min** | **0.542** | — | **0.060** |
+| healthcare_system | 0.938 | 61 | 0.424 |
+| iot_smart_city_system | 0.875 | 210 | 0.359 |
+| financial_trading_system | 0.780 | 78 | 0.405 |
+| av_system | 0.779 | 100 | 0.521 |
+| enterprise_system | 0.774 | 349 | 0.578 |
+| microservices_system | 0.662 | 118 | 0.382 |
+| hub_and_spoke_system | 0.548 | 95 | 0.092 |
+| **mean** | **0.765** | — | **0.394** |
+| **min** | **0.548** | — | **0.092** |
 
 Two things matter here, and the second matters more than the first.
 
-**The mean is higher** — 0.627 against 0.405. **The minimum is far higher** — 0.542 against 0.060.
-$I^*$ and $I_{\text{comp}}$ collapse to near-independence on `healthcare_system` and stay weak on
-`financial_trading_system` (0.194) and `iot_smart_city_system` (0.289); $I_{\text{dyn}}$ agrees
-with $I^*$ at 0.55–0.74 on those same three. The behavioural oracle does not have a worst case in
-this cohort. That is what makes §3.2's warning readable: where the two topological engines
-disagree, simulated traffic sides with $I^*$, so the disagreement is a property of how
-$I_{\text{comp}}$ is constructed rather than a genuine ambiguity in which components are critical.
+**The mean is higher** — 0.765 against 0.394. **The minimum is far higher** — 0.548 against 0.092.
+$I^*$ and $I_{\text{comp}}$ collapse to near-independence on exactly one scenario,
+`hub_and_spoke_system` (§3.2); $I_{\text{dyn}}$ still agrees with $I^*$ there at 0.548 — its lowest
+agreement in the cohort, but nowhere near uncorrelated. That is what makes §3.2's warning readable:
+where the two topological engines disagree most, simulated traffic still sides with $I^*$, so the
+disagreement is a property of how $I_{\text{comp}}$ is constructed rather than a genuine ambiguity in
+which components are critical.
 
 **What this is and is not evidence of.** $I_{\text{dyn}}$ and $I^*$ are close in *construct* —
 both are ultimately about subscriber feed loss — so their agreement is convergent validity across
@@ -262,10 +268,10 @@ both are ultimately about subscriber feed loss — so their agreement is converg
 ranking. It does not independently corroborate the prior assumption that criticality *means*
 feed loss. Claiming more than that would overstate it.
 
-**Top-K membership is the weaker half.** Mean top-20% Jaccard is 0.223 for
-$I_{\text{dyn}}$/$I^*$ — slightly *below* the 0.283 of $I^*$/$I_{\text{comp}}$. Rank correlation
-is strong while the identity of the top-K set still churns, which is consistent with the ~40%
-top-K churn across label seeds noted in §3.6 of
+**Top-K membership is the weaker half.** Mean top-20% Jaccard is 0.316 for
+$I_{\text{dyn}}$/$I^*$ — close to the 0.286 of $I^*$/$I_{\text{comp}}$, not meaningfully better.
+Rank correlation is strong while the identity of the top-K set still churns, which is consistent
+with the ~40% top-K churn across label seeds noted in §3.6 of
 [failure-simulation.md](failure-simulation.md). Read the ρ, not the set overlap, as the result.
 
 > [!IMPORTANT]

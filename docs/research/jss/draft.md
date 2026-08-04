@@ -67,10 +67,14 @@ through one evaluation contract on one held-out sample, we show:
    score also fails to transfer inductively at all ($\rho = -0.093$ LOSO). We therefore
    position RMAV as *attribution* — a per-dimension account of why a component is critical, which a
    single centrality score cannot give — and drop the claim that its weighting improves ranking.
-3. **Two simulation oracles built for this framework agree only weakly** (mean $\rho = 0.393$,
-   top-$K$ Jaccard $0.262$). Reported because it bounds construct validity: evidence gathered against
-   one oracle does not transfer to a claim measured against the other, a constraint we apply to our
-   own analyses rather than leaving implicit.
+3. **Two topological simulation oracles built for this framework agree only weakly** (mean
+   $\rho = 0.394$, top-$K$ Jaccard $0.286$). Reported because it bounds construct validity: evidence
+   gathered against one oracle does not transfer to a claim measured against the other, a constraint
+   we apply to our own analyses rather than leaving implicit. A third, behavioural oracle — discrete-
+   event simulation of actual message traffic rather than graph traversal — agrees with the primary
+   cascade oracle far more strongly (mean $\rho = 0.765$) and does not share its worst case, which
+   rules out the cascade algorithm itself as the source of that ranking without resolving the
+   deeper question of shared modelling assumptions across all three simulators.
 4. **Edge criticality is measured rather than inferred.** Removing each candidate relationship and
    recomputing impact — instead of projecting node labels through a hand-chosen bridge multiplier —
    shows that most individual links are replaceable, and exposes a class of structurally
@@ -1351,14 +1355,27 @@ $1.0$ for library cascade), `propagation_threshold` default $0.2$, a $10$-epoch 
 five seeds of §7.4, $\{42, 123, 456, 789, 2024\}$. $I_{\text{dyn}}$ shares the seed set and runs
 $60$ simulated seconds per component, with the fault injected at the midpoint.
 
-**Measured agreement between them is weak.** Their scales differ, so only rank agreement is
-meaningful; across the seven scenarios, mean Spearman $\rho = 0.393$ and mean top-20% Jaccard
-$= 0.262$, ranging from $\rho = 0.577$ (Enterprise) down to $\rho = 0.097$ (Hub-and-Spoke, where they
-are effectively uncorrelated). All seven correlations are positive, which is a weak convergent-validity
-argument — two differently-constructed simulators do agree directionally, so neither is purely an
-artifact of its own construction — but at $\rho \approx 0.39$ it is weak, and we apply the resulting
-constraint to our own analyses: a result established against one oracle is not evidence for a claim
-measured against the other. §8.2 flags where this bites.
+**Measured agreement between the two cascade oracles is weak.** Their scales differ, so only rank
+agreement is meaningful; across the seven scenarios, mean Spearman $\rho = 0.394$ and mean top-20%
+Jaccard $= 0.286$, ranging from $\rho = 0.578$ (Enterprise) down to $\rho = 0.092$ (Hub-and-Spoke,
+where they are effectively uncorrelated). All seven correlations are positive, which is a weak
+convergent-validity argument — two differently-constructed simulators do agree directionally, so
+neither is purely an artifact of its own construction — but at $\rho \approx 0.39$ it is weak, and we
+apply the resulting constraint to our own analyses: a result established against one oracle is not
+evidence for a claim measured against the other. §8.2 flags where this bites.
+
+**$I_{\text{dyn}}$ agrees with $I^*$ far more strongly, and — crucially — does not share its worst
+case.** Mean Spearman $\rho(I_{\text{dyn}}, I^*) = 0.765$, minimum $0.548$ (Hub-and-Spoke) — against
+mean $0.394$, minimum $0.092$ for the two topological oracles above. Hub-and-Spoke is precisely where
+$I^*$ and $I_{\text{comp}}$ collapse to near-independence; $I_{\text{dyn}}$ still agrees with $I^*$
+there at $\rho = 0.548$, its lowest agreement in the cohort but far from uncorrelated. Because
+$I_{\text{dyn}}$ reaches this ranking by simulating traffic through queues rather than by traversing
+`DEPENDS_ON`, the result is evidence of a different kind than §7.5's first finding: it rules out the
+cascade *algorithm* as the source of $I^*$'s ranking, which the $I_{\text{comp}}$ comparison alone
+cannot do (§9.2). Top-$K$ membership is the weaker half of this result — mean top-20% Jaccard is
+$0.316$, comparable to the $0.286$ of the two topological oracles — so this is corroboration of
+*ranking*, not of critical-set identification; no $F_1@K$ claim in §8.1 is supported by
+$I_{\text{dyn}}$.
 
 **Label coverage and the noise ceiling.** Three further properties bound what any reported figure can
 mean. First, the cascade model has no rule expressing the failure of a Topic or of a physical Node,
