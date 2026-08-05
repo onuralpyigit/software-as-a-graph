@@ -77,6 +77,20 @@ lands on this scenario: Broker went from 3 unique impact values out of 4 (existi
 typically 1-2, several fully degenerate) and Library 9 unique out of 10 with zero degenerate entries.
 Fixture role only — not in the evaluation suite, not part of Table 3/4 or any LOSO/k-fold split.
 
+### Real-world open-source benchmarks — authentic software system topologies
+
+| Config | Dataset | Domain | Counts | Seed | SHA-256 |
+|---|---|---|---|---:|---|
+| `scenario_11_realworld_autoware_ros2.yaml` | `realworld_autoware_ros2.json` | `autoware_ros2` | 32 / 24 / 3 / 6 / 10 | 2026 | `a81aaf2b8f8b` |
+| `scenario_12_realworld_cloud_microservices.yaml` | `realworld_cloud_microservices.json` | `cloud_microservices` | 22 / 20 / 4 / 6 / 8 | 2026 | `2eb2dcf4365b` |
+| `scenario_13_realworld_trainticket.yaml` | `realworld_trainticket.json` | `trainticket_microservices` | 41 / 30 / 3 / 8 / 8 | 2026 | `e7795e8a8812` |
+
+These three datasets represent authentic, real-world open-source software architectures converted into canonical SaG typed multigraph format via [`saag.adapters.realworld_adapter.RealWorldAdapter`](../saag/adapters/realworld_adapter.py) and generated via [`cli/import_realworld_system.py`](../cli/import_realworld_system.py):
+
+* **`realworld_autoware_ros2.json` (`autoware_ros2`)**: Authentic ROS 2 pub-sub architecture of [Autoware.universe](https://github.com/autowarefoundation/autoware.universe), the open-source autonomous driving software platform. Spans 32 Applications (perception, sensing, localization, planning, control, vehicle interface, emergency safety), 24 DDS Topics with explicit DDS QoS profiles (e.g., `VOLATILE`/`TRANSIENT_LOCAL` durability, `BEST_EFFORT`/`RELIABLE` reliability, `CRITICAL`/`HIGHEST`/`HIGH` transport priority), 3 Brokers (DDS middleware: Eclipse CycloneDDS, eProsima FastDDS, Zenoh Router), 6 Deployment ECUs (Main Brain EPYC, Perception GPU Orin AGX, Sensing FPGA, Vehicle Actuation Aurix MCU, Teleop HMI, Gateway), and 10 shared C++/ROS 2 libraries (`autoware_universe_utils`, `tier4_autoware_utils`, `motion_utils`, `rclcpp_core`, etc.). Incorporates SonarQube code quality metrics (LOC, WMC, LCOM, CBO, RFC) and provides an end-to-end execution script in [`examples/run_autoware_ros2_pipeline.py`](../examples/run_autoware_ros2_pipeline.py).
+* **`realworld_cloud_microservices.json` (`cloud_microservices`)**: Cloud-native pub-sub microservice mesh topology modeled after production e-commerce stacks (e.g., Google Online Boutique reference architecture). Contains 22 Applications (frontend, API gateway, auth, cart, checkout, order processor, payment, inventory reservation, notification workers, fraud detection, recommendation engine), 20 Topics with message broker QoS profiles, 4 Message Brokers (Apache Kafka cluster, RabbitMQ exchange, Redis PubSub, NATS JetStream), 6 Infrastructure/K8s deployment nodes (`k8s-control-plane`, worker nodes, cloud managed DB, edge ingress gateway), and 8 shared SDKs/libraries (`shared-auth-jwt-client`, `kafka-common-producer`, `grpc-telemetry-sdk`, `redis-cache-utils`, `spring-cloud-circuitbreaker`, etc.).
+* **`realworld_trainticket.json` (`trainticket_microservices`)**: Industrial Train-Ticket microservices benchmark (Fudan University benchmark suite for SOA microservice management and fault diagnosis). Contains 41 Applications (order, travel, preserve, route, seat, payment, food, security, user, verification, admin, gateway services), 30 Pub-Sub topics for asynchronous event delivery and REST/gRPC message routes, 3 Message Brokers, 8 Deployment Nodes, and 8 Shared Libraries.
+
 ---
 
 ## 2. Which Scenario Backs Which Result
@@ -92,10 +106,11 @@ Fixture role only — not in the evaluation suite, not part of Table 3/4 or any 
 | Remediation SRI table (§6.7) | 6 evaluation — **Enterprise excluded** | `reproduce/run_prescribe_all.py` |
 | Anti-pattern catalog efficacy (§6) | 7 evaluation + `tiny_system` | `reproduce/detection_validation.py` |
 | Expert study (§9) | ATM only | `reproduce/run_expert_study.py` |
+| Real-world system benchmarks | `realworld_autoware_ros2.json`, `realworld_cloud_microservices.json`, `realworld_trainticket.json` | `cli/import_realworld_system.py`, `examples/run_autoware_ros2_pipeline.py`, `tests/test_realworld_adapter.py` |
 
 **Two scope exceptions, both stated in the paper.** Enterprise is excluded from §6.7 on measured cost
 (≈8.7 h of serial per-edit verification for that scenario alone), and ATM is a case study rather than
-an evaluation fold, so it appears in no LOSO or k-fold split.
+an evaluation fold, so it appears in no LOSO or k-fold split. Real-world scenarios serve as authentic open-source benchmark targets for end-to-end execution, adapter verification, and cross-domain validation.
 
 ---
 
@@ -111,11 +126,15 @@ make -f reproduce/Makefile scenarios
 PYTHONPATH=. python cli/generate_graph.py batch \
   --input-dir data/scenarios --output-dir data/scenarios --force
 PYTHONPATH=. python scripts/write_scenario_manifest.py
+
+# Real-world open-source software topologies:
+PYTHONPATH=. python cli/import_realworld_system.py
 ```
 
 `batch` writes `scenario_NN_*.json` and copies each to its canonical `<name>_system.json` through
 `SCENARIO_SYSTEM_MAP` in [`cli/common/batch_generation.py`](../cli/common/batch_generation.py). The
 `scenario_NN_*.json` intermediates are gitignored; only the `*_system.json` files are committed.
+Real-world datasets and YAML descriptors are generated directly by [`cli/import_realworld_system.py`](../cli/import_realworld_system.py).
 
 A single scenario:
 
@@ -130,6 +149,7 @@ PYTHONPATH=. python cli/generate_graph.py \
 ```bash
 PYTHONPATH=. python scripts/write_scenario_manifest.py --check   # hashes only
 PYTHONPATH=. python -m pytest tests/test_scenario_corpus.py -q   # + regeneration
+PYTHONPATH=. python -m pytest tests/test_realworld_adapter.py -q # real-world adapter tests
 PYTHONPATH=. python cli/generate_graph.py validate               # topology-class checks
 ```
 
@@ -151,8 +171,12 @@ exists", so a partial cache would otherwise survive and keep serving stale label
 ### Run the full pipeline on one scenario
 
 ```bash
+# Synthetic scenario
 PYTHONPATH=. python cli/run.py --all --input data/scenarios/av_system.json \
   --output-dir output/av_results
+
+# Real-world Autoware ROS 2 worked example
+PYTHONPATH=. python examples/run_autoware_ros2_pipeline.py
 ```
 
 ---
@@ -178,6 +202,8 @@ dominate in different scenarios:
 The ATM case study adds a sixth regime — safety-critical real-time surveillance with ultra-reliable,
 high-priority feeds — but contributes no evaluation fold.
 
+Real-world open-source benchmarks (Autoware ROS 2, Cloud Microservices, Train-Ticket Microservices) complement these with authentic production topologies featuring real-world DDS/K8s/Kafka pub-sub networks, deployment ECUs/nodes, and SonarQube code quality metrics.
+
 ### 4.2 QoS weight variation
 
 Dominant QoS settings per scenario, from the `qos_stats` block of each config:
@@ -194,6 +220,9 @@ Dominant QoS settings per scenario, from the `qos_stats` block of each config:
 | 10 ATM (case study) | VOLATILE | RELIABLE | HIGH/CRITICAL |
 | 08 Tiny (fixture) | balanced | balanced | balanced |
 | 09 XLarge (fixture) | mixed | RELIABLE | MEDIUM |
+| 11 Autoware ROS 2 (real-world) | VOLATILE / TRANSIENT_LOCAL | RELIABLE / BEST_EFFORT | CRITICAL / HIGHEST / HIGH |
+| 12 Cloud Microservices (real-world) | PERSISTENT / TRANSIENT / VOLATILE | RELIABLE / BEST_EFFORT | CRITICAL / HIGHEST / HIGH / LOW |
+| 13 Train-Ticket Microservices (real-world) | PERSISTENT / TRANSIENT | RELIABLE | HIGH / MEDIUM |
 
 ### 4.3 A note on `--scale` presets
 
