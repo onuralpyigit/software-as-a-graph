@@ -220,6 +220,7 @@ Dominant QoS settings per scenario, from the `qos_stats` block of each config:
 | 10 ATM (case study) | VOLATILE | RELIABLE | HIGH/CRITICAL |
 | 08 Tiny (fixture) | balanced | balanced | balanced |
 | 09 XLarge (fixture) | mixed | RELIABLE | MEDIUM |
+| 11 Integration Hub Migration (fixture) | mixed | RELIABLE / BEST_EFFORT | LOW..CRITICAL |
 | 11 Autoware ROS 2 (real-world) | VOLATILE / TRANSIENT_LOCAL | RELIABLE / BEST_EFFORT | CRITICAL / HIGHEST / HIGH |
 | 12 Cloud Microservices (real-world) | PERSISTENT / TRANSIENT / VOLATILE | RELIABLE / BEST_EFFORT | CRITICAL / HIGHEST / HIGH / LOW |
 | 13 Train-Ticket Microservices (real-world) | PERSISTENT / TRANSIENT | RELIABLE | HIGH / MEDIUM |
@@ -313,7 +314,7 @@ logs show them too — and both are now fixed:
    correlations belong in §5 of this file, computed, not asserted in a YAML comment.
 4. Register the config → dataset mapping in `SCENARIO_SYSTEM_MAP`
    ([`cli/common/batch_generation.py`](../cli/common/batch_generation.py)) and in `CORPUS`
-   ([`scripts/write_scenario_manifest.py`](../scripts/write_scenario_manifest.py)), with its role.
+   ([`scripts/write_scenario_manifest.py`](../scripts/write_scenario_manifest.py)), with its role. For real-world open-source system adapters, define the topology builder in [`saag/adapters/realworld_adapter.py`](../saag/adapters/realworld_adapter.py) and register dataset import in [`cli/import_realworld_system.py`](../cli/import_realworld_system.py).
 5. Regenerate, refresh the manifest, rebuild the caches:
    `make -f reproduce/Makefile scenarios cache`.
 6. Add it to §1 and §2 above.
