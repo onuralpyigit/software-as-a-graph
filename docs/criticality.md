@@ -346,7 +346,14 @@ $$
 Q(v) = 0.43 \cdot A(v) + 0.24 \cdot R(v) + 0.17 \cdot M(v) + 0.16 \cdot V(v)
 $$
 
-**Why $A$ dominates the weighting, in Quality-in-Use terms.** Availability is the only dimension that maps onto **Effectiveness** — the characteristic where the stakeholder's task stops outright rather than costing more. A structural SPOF partitions the graph *deterministically*, whereas cascade propagation (R), coupling risk (M), and attack exposure (V) are *probabilistic* and typically surface as Efficiency or Freedom-from-risk loss. Weighting $A$ at 0.43 is therefore a statement about stakeholder harm — total loss of a goal outranks a more expensive path to it — not merely a statement about graph topology.
+These are the static `QualityWeights` defaults — the vector actually used when `use_ahp=False`, which is the default and the configuration behind the reported results. Two qualifications travel with it:
+
+- **An AHP path exists and does not produce this vector.** With `use_ahp=True`, `AHPProcessor` computes weights from the comparison matrices and blends them toward a uniform prior by a shrinkage factor $\lambda$ (default 0.7). At $\lambda = 1$ the composite is $(0.458, 0.246, 0.169, 0.128)$ and at $\lambda = 0.7$ it is $(0.395, 0.247, 0.193, 0.165)$ — neither equals the static vector above. The AHP path is used for the shrinkage sensitivity sweep, not for production scoring; do not describe the static vector as "the AHP weights".
+- **QoS-profile adaptation is applied on top** (`adapt_qos_weights`, on by default), so the *effective* composite is per-system — see [§4.4](#44-what-the-component-carries-the-weight-channel).
+
+**Why $A$ is weighted highest, in Quality-in-Use terms.** Availability is the only dimension that maps onto **Effectiveness** — the characteristic where the stakeholder's task stops outright rather than costing more. A structural SPOF partitions the graph *deterministically*, whereas cascade propagation (R), coupling risk (M), and attack exposure (V) are *probabilistic* and typically surface as Efficiency or Freedom-from-risk loss. Weighting $A$ highest is therefore a statement about stakeholder harm — total loss of a goal outranks a more expensive path to it — not merely a statement about graph topology.
+
+> **This is a mechanism argument, not an accuracy claim.** Measured against simulated impact, the stated weighting does *not* improve ranking: a sweep of the shrinkage parameter shows a monotone decline with no plateau, and equal dimension weights outperform every weighting that expresses the intended ordering. The decomposition is retained as an *attribution* mechanism — the four dimensions have distinct remedies and distinct owners — and the accuracy claim attached to the weighting is withdrawn. A consumer optimising purely for ranking should use equal weights.
 
 See [saag/core/criticality.py](../saag/core/criticality.py) for the `CriticalityRanking` DTO that carries these scores through the pipeline.
 
@@ -637,6 +644,8 @@ I_edge(u, v) = composite_impact(G \ {(u,v)})  −  composite_impact(G)
 This replaces the earlier heuristic `I_edge(u,v) = I*(u) × {1.0 if bridge else 0.1}`, which encoded the §5.2 Effectiveness/Efficiency distinction as a hand-chosen 10× gap rather than observing it. That heuristic remains available for ablation.
 
 > **What the measurement shows, and a caution.** Most individual edges cost almost nothing: on `av_system`, 4 of 40 candidates carry non-zero impact. That is the §5.2 replaceability question answered empirically — most links *are* replaceable. It also exposes a modelling gap the heuristic hid: `RUNS_ON` edges measure exactly 0.0 because the cascade routes no traffic over them ([failure-simulation.md §12 L5](failure-simulation.md#12-known-limitations)), even though bridge detection flags them as non-redundant. A zero there means "this model cannot express that link's failure", not "that link does not matter" — the same caveat that applies to Topic and Node labels (L6).
+>
+> ⚠️ **Both figures need re-verification against the current code.** A direct run of `FailureSimulator.simulate_edge_removal_sweep(layer="system")` on `av_system` at defaults returns **50** candidates of which **48** carry non-zero impact (max `combined_impact` = 0.0087), and the candidate set contains **no `RUNS_ON` edges at all** — it is `ROUTES` (40), `SUBSCRIBES_TO` (7), `DEPENDS_ON` (2), `PUBLISHES_TO` (1). Either the "4 of 40" and "`RUNS_ON` = 0.0" observations were made under a different configuration (layer, `top_q`, or an earlier candidate selector), or they are stale. Do not cite either number in a manuscript until the run is reproduced. The qualitative claim that most links are replaceable is unaffected by the count, but the *magnitude* claim ("cost almost nothing") is now better supported by the near-zero maximum than by the non-zero count.
 
 ### 5.7 Ranking Critical Edges
 
@@ -685,8 +694,10 @@ Let $G_l = (V_l, E_l, w)$ be a layer-projected dependency graph at projection $l
 \begin{equation}
 Q(v) = q_A A(v) + q_R R(v) + q_M M(v) + q_V V(v)
 \end{equation}
-where composite weights satisfy $q_A + q_R + q_M + q_V = 1.0$ ($q_A = 0.43, q_R = 0.24, q_M = 0.17, q_V = 0.16$).
+where composite weights satisfy $q_A + q_R + q_M + q_V = 1.0$ (stated defaults $q_A = 0.43, q_R = 0.24, q_M = 0.17, q_V = 0.16$, adapted per system from its aggregate QoS profile).
 \end{definition}
+% NOTE: these are the stated static defaults, not AHP output, and not the shrunk vector.
+% See §4.3 before describing them as "AHP-derived" in a manuscript.
 
 % Definition D2: Relationship Criticality
 \begin{definition}[Relationship Criticality ($D2$)]
@@ -754,15 +765,17 @@ So the honest position is stronger than "link ② is unmeasured" and weaker than
 
 Stated per ISO/IEC 25019:2023 characteristic, so the gap is explicit rather than implied:
 
-| ISO 25019:2023 Characteristic | Coverage | Basis and gap |
+| Characteristic | Coverage | Basis and gap |
 |:---|:---|:---|
 | **Beneficialness (Usability: Effectiveness)** | **Strong** | Directly operationalized by $A$ (structural partition) and `is_bridge`; validated against simulated reachability loss. |
 | **Beneficialness (Usability: Efficiency)** | **Moderate** | $R$ and $M$ capture cascade reach and coupling cost, but the *magnitude* of the extra cost (latency, retries, engineer-hours) is not modelled — only that a cost exists. |
 | **Freedom from Risk** | **Moderate** | Economic and operational risk are well proxied by $A$; life safety and environmental risk are not represented (no functional integrity class field), while security risk is topology-only ([§7.4](#74-real-world-drivers-vs-structural-proxies)). |
 | **Acceptability (Trustworthiness)** | **Weak** | Inferred indirectly from $R$ and $V$. Trust erosion and user experience are behavioral responses with no direct structural correlate; nothing in the static pipeline measures user sentiment. |
-| **Context Coverage** | **Indirect** | Assessed empirically as cross-scenario/cross-domain ranking stability ([validation.md](validation.md), `cli/run_scenarios.sh`), not computed per component. |
+| *Context coverage* (ISO/IEC 25010:**2011**) | **Indirect** | Assessed empirically as cross-scenario/cross-domain ranking stability ([validation.md](validation.md), `cli/run_scenarios.sh`), not computed per component. |
 
-The two weakest rows are inherent, not implementation debt: Acceptability and live Context Coverage are defined in the standard over live stakeholder behaviour across real deployments, which a static structural model cannot observe directly.
+The first four rows are ISO/IEC 25019:2023 characteristics. **Context coverage is not**: it was a standalone Quality-in-Use characteristic in ISO/IEC 25010:2011 and has no direct counterpart in the 2023 model ([§3.1](#31-what-quality-in-use-is)). It is retained here because ranking stability across topologies is a genuine property of the criticality signal worth reporting, but it should be labelled as a 2011 notion rather than presented as 25019:2023 coverage. The same applies wherever this document uses *Effectiveness*, *Efficiency* and *Satisfaction* as shorthand ([§4.2](#42-user-side-failure-signature), [§4.5](#45-mapping-rmav-to-quality-in-use)): under the 2023 model these are measurement dimensions *within* Beneficialness → Usability, not top-level characteristics.
+
+The two weakest rows are inherent, not implementation debt: Acceptability and live context coverage are defined over live stakeholder behaviour across real deployments, which a static structural model cannot observe directly.
 
 ### 7.4 Real-World Drivers vs. Structural Proxies
 
@@ -825,7 +838,10 @@ When reporting evaluation studies in software engineering journals (following Wo
 | [structural-analysis.md](structural-analysis.md) | Computes the Tier-1 metric vector $M(v)$ and deterministic RMAV scores, weighting the centralities by $w(e)$ — see [§4.3](#43-the-rmav-model) and [§5.3](#53-structural-edge-signals) above. |
 | [prediction.md](prediction.md) | Refines RMAV into GNN-blended node scores and direct edge scores $Q_{\text{GNN}}(u,v)$ — see [§5.6](#56-learned-edge-scoring-gnn) above. |
 | [failure-simulation.md](failure-simulation.md) | Produces the simulated ground truth ($I^*(v)$, $I_{R/M/A/V}(v)$) that criticality proxies are trained/validated against — the closest observable stand-in for Quality-in-Use loss. |
-| [validation.md](validation.md) | Statistically checks whether structural/learned criticality tracks simulated impact — link ① of [§7.1](#71-the-validation-chain-has-two-links). |
+| [validation.md](validation.md) | Statistically checks whether structural/learned criticality tracks simulated impact — link ① of [§7.1](#71-the-validation-chain-has-two-links). For **nodes** only; see the note below. |
+| [research/jss/draft.md §4.7](research/jss/draft.md) | The canonical published statement of D2 and the edge RMAV formulas, with the scoping conditions on what validates them. |
+
+> **Edge criticality has no link ① yet.** Node scores and node labels are defined on the same vertex set, so they can be correlated. Edges are not: attribution ([§5.5](#55-edge-rmav-decomposition)) is scored over derived `DEPENDS_ON` edges of $G_{\text{analysis}}$, while the removal oracle ([§5.6](#56-learned-edge-scoring-gnn)) severs raw structural edges of $G_{\text{structural}}$. On `av_system` that is 3,753 derived edges against a candidate set drawn from `ROUTES`, `SUBSCRIBES_TO` and `PUBLISHES_TO` — populations that barely intersect. Until measured structural-edge impact is lifted onto the derived edges it mediates, or the sweep is run directly on `DEPENDS_ON`, **edge criticality rests on construction rather than measurement**, and the §5.6 sweep should not be described as validating the §5.5 scores.
 
 ## 9. References
 
