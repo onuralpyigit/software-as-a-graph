@@ -20,23 +20,27 @@ for Performance, Reliability, and Sustainability of Modern Software Systems" (VS
 > the reported comparison, rather than left to flatter the learned models (§8.1, §9.2);
 > and the shared-library blast-radius hypothesis was tested and not confirmed (§5.4).
 >
-> To broaden external validity beyond the generator, the framework is also evaluated on two graphs
+> To broaden external validity beyond the generator, the framework is also evaluated on three graphs
 > transcribed from real open-source architectures — the Autoware.universe ROS 2 autonomous driving
-> platform and a Cloud-Native Microservices mesh (§7.1, §8.5) — where it achieves its strongest rank
-> agreements in the study, though neither clears the framework's own validation gate in full (§8.5).
-> These are hand-built models of real systems rather than harvested artifacts, and their ground truth
-> is still simulated, so they narrow rather than close the external-validity gap; §8.5 states the
-> scoping conditions in full, including the gate result. This draft consolidates two previously
-> separate framings of the study — Static System Analysis (SSA) and Heterogeneous GNN — into the
-> single submission below.
+> platform, a Cloud-Native Microservices mesh, and the Train-Ticket railway-booking mesh (§7.1, §8.5) —
+> where it achieves its strongest rank agreements in the study, though none clears the framework's own
+> validation gate in full (§8.5). These are hand-built models of real systems rather than harvested
+> artifacts, and their ground truth is still simulated, so they narrow rather than close the
+> external-validity gap; §8.5 states the scoping conditions in full, including the gate result. This
+> draft consolidates two previously separate framings of the study — Static System Analysis (SSA) and
+> Heterogeneous GNN — into the single submission below.
 >
-> The §8.5 figures are produced by `cli/validate_graph.py single --input <scenario>.json` (seed 42, no
-> QoS enrichment) and are reproducible on demand; a run of each is kept locally at
-> `results/realworld_autoware_ros2_validation.json` and
-> `results/realworld_cloud_microservices_validation.json` (gitignored, like the rest of `results/`,
-> not part of this submission's git history). The §8.2 edge-removal figures are likewise reproducible
-> from `simulate_edge_removal_sweep` at its documented defaults, on a freshly loaded repository —
-> see §8.2's note on why that ordering matters.
+> The §8.5 figures are produced by `cli/validate_graph.py sweep --input <scenario>.json` (five seeds
+> $\{42,123,456,789,2024\}$, no QoS enrichment, matching §7.4's protocol) and are reproducible on
+> demand; a run of each is kept locally at `results/realworld_autoware_ros2_validation.json`,
+> `results/realworld_cloud_microservices_validation.json` and
+> `results/realworld_trainticket_validation.json` (gitignored, like the rest of `results/`, not part
+> of this submission's git history). We note for transparency that even this five-seed mean is not
+> perfectly reproducible run-to-run on Autoware specifically — the mean $\rho$ is stable but its
+> standard deviation varies across repeated sweeps (§8.5) — which we report as a finding rather than
+> paper over. The §8.2 edge-removal figures are likewise reproducible from
+> `simulate_edge_removal_sweep` at its documented defaults, on a freshly loaded repository — see
+> §8.2's note on why that ordering matters.
 
 ---
 
@@ -279,10 +283,16 @@ This paper makes the following contributions:
    with the contract that prevents each (§7.3, §9.2). We report this because both failure modes are
    invisible in the output and, we suspect, not unique to this study.
 8. **Empirical real-world validation on open-source software architectures.** We demonstrate SaG's
-   external validity on authentic real-world software graphs — the Autoware.universe ROS 2 autonomous
-   driving platform and a production Cloud-Native Microservices mesh (§7.1, §8.5) — achieving high rank
-   agreement ($\rho = 0.705$ and $\rho = 0.778$) and up to $100\%$ critical-set identification precision/recall
-   ($F_1@K = 1.000$), confirming that the framework's predictive efficacy generalizes to production software systems.
+   external validity on three authentic real-world software graphs — the Autoware.universe ROS 2
+   autonomous driving platform, a production Cloud-Native Microservices mesh, and the Train-Ticket
+   railway-booking mesh (§7.1, §8.5) — achieving high mean rank agreement over five seeds
+   ($\rho = 0.696,\ 0.778,\ 0.759$) and up to $F_1@K = 1.000$ on two of the three, though 5 of the 15
+   total gate checks fail across the three graphs (all three fail on SPOF-F1 alone) and
+   $F_1@K = 1.000$ is partly a tie-breaking
+   artifact where the number of genuinely non-zero-impact components is smaller than $K$ (§8.5). What
+   the three cases jointly support is that SaG's predictive ranking generalizes beyond the synthetic
+   generator to independently-sourced architectures across two paradigms, not an unqualified success
+   on production software systems.
 
 ## 1.6 Relationship to the Authors' Prior Work
 
@@ -1482,21 +1492,29 @@ and range from 50 to 300 applications per scenario, exercising fan-out-dominated
 anti-pattern/SPOF regimes with different dominant failure mechanisms.
 
 **Real-world open-source suite.** To test operational generalizability on authentic software graphs,
-we evaluate SaG on two real-world open-source software architectures:
+we evaluate SaG on three real-world open-source software architectures:
 1. **Autoware.universe (ROS 2 Autonomous Driving Platform):** An authentic cyber-physical ROS 2 pub-sub
    architecture comprising 32 Applications (perception, sensing, localization, planning, control), 24 Topics with
    explicit DDS QoS profiles (`RELIABLE`/`BEST_EFFORT`, `TRANSIENT_LOCAL`/`VOLATILE`), 3 Brokers (CycloneDDS, FastDDS, Zenoh),
    6 Deployment Nodes, 10 Shared C++ Libraries (`autoware_universe_utils`, `tier4_autoware_utils`), and realistic SonarQube code metrics.
-2. **Production Cloud-Native Microservices Mesh:** An authentic microservice architecture based on production-grade
-   e-commerce benchmarks (Google Online Boutique / Train-Ticket), comprising 22 Microservices (order, payment, inventory, auth,
+2. **Production Cloud-Native Microservices Mesh:** An authentic microservice architecture based on the
+   Google Online Boutique e-commerce benchmark, comprising 22 Microservices (order, payment, inventory, auth,
    analytics, notifications), 20 Topics across Kafka, RabbitMQ, Redis PubSub, and NATS, 6 Kubernetes/Cloud nodes, and 8 shared helper libraries.
+3. **Train-Ticket Railway Booking Mesh:** An authentic microservice architecture based on the Fudan
+   University Train-Ticket benchmark, comprising 41 Microservices (order, travel, preserve, route, seat,
+   payment, food, security, admin), 30 Topics, 3 Brokers (RabbitMQ, Redis PubSub, Spring Eureka naming
+   server), 8 deployment Nodes, and 8 shared Spring/MyBatis libraries. At 90 components it is the largest
+   of the three real-world graphs.
 
-Pooled across all synthetic and real-world scenarios, the evaluation corpus exercises 1,680 components. Each scenario is versioned under `data/scenarios/` and registered in `data/scenarios/MANIFEST.json`.
-
-Each scenario is generated from a versioned YAML configuration under `data/scenarios/`, and every
-committed dataset carries a canonical SHA-256 in `data/scenarios/MANIFEST.json`. A regression test
-re-generates each dataset from its configuration and fails on any divergence, so the topologies
-underlying the results below are reproducible from the artifact rather than merely described by it.
+Pooled across all synthetic and real-world scenarios, the evaluation corpus exercises 1,770 components.
+Each scenario is versioned under `data/scenarios/`; the synthetic suite is additionally registered in
+`data/scenarios/MANIFEST.json` with a canonical SHA-256 per dataset, and a regression test re-generates
+each synthetic dataset from its configuration and fails on any divergence (`tests/test_scenario_corpus.py`).
+The three real-world graphs are not part of that manifest — they are versioned files under
+`data/scenarios/` (`realworld_autoware_ros2.json`, `realworld_cloud_microservices.json`,
+`realworld_trainticket.json`) regenerable from `RealWorldAdapter` in
+[saag/adapters/realworld_adapter.py](../../../saag/adapters/realworld_adapter.py), not from the
+statistical topology generator, so the byte-identity guarantee applies to the synthetic suite only.
 
 All seven scenarios are used for the predictor evaluation (§8.1–§8.3), the analyses of §5.4–§5.5, and
 the remediation evaluation of §6.7, the last of which became tractable at the largest scale by
@@ -1924,66 +1942,95 @@ that waste server infrastructure compute cycles.
 
 ## 8.5 Real-World Open-Source System Architecture Validation
 
-To evaluate operational generalizability beyond synthetic topology generation, we evaluate SaG on two authentic real-world open-source software architectures (§7.1):
+To evaluate operational generalizability beyond synthetic topology generation, we evaluate SaG on three authentic real-world open-source software architectures (§7.1):
 1. **Autoware.universe (ROS 2 Autonomous Driving Platform):** A real-world cyber-physical software graph comprising 32 Applications, 24 Topics with explicit DDS QoS contracts (`RELIABLE`/`BEST_EFFORT`, `TRANSIENT_LOCAL`/`VOLATILE`), 3 Brokers (CycloneDDS, FastDDS, Zenoh), 6 Deployment Nodes, 10 Shared C++ Libraries (`autoware_universe_utils`, `tier4_autoware_utils`), and realistic SonarQube code quality metrics.
-2. **Production Cloud-Native Microservices Mesh:** A real-world cloud-native software graph based on production microservice benchmarks (Google Online Boutique / Train-Ticket), comprising 22 Microservices, 20 Topics across Kafka, RabbitMQ, Redis PubSub, and NATS, 6 Kubernetes/Cloud nodes, and 8 shared helper libraries.
+2. **Production Cloud-Native Microservices Mesh:** A real-world cloud-native software graph based on the Google Online Boutique benchmark, comprising 22 Microservices, 20 Topics across Kafka, RabbitMQ, Redis PubSub, and NATS, 6 Kubernetes/Cloud nodes, and 8 shared helper libraries.
+3. **Train-Ticket Railway Booking Mesh:** A real-world cloud-native software graph based on the Fudan University Train-Ticket benchmark, comprising 41 Microservices, 30 Topics across RabbitMQ and Redis PubSub with Spring Eureka service discovery, 8 deployment Nodes, and 8 shared Spring/MyBatis libraries — at 90 components, the largest of the three.
 
-Both rows are produced by `cli/validate_graph.py single`, seed 42, no QoS enrichment, against the
-component-level cascade oracle of §5.1: Spearman $\rho$ and Kendall $\tau$ are computed over the
-Application population (the other four node types carry constant or near-constant simulated impact
-on these two graphs and contribute no rank information, per the same coverage limitation as the
-synthetic suite, §7.5); $K$ is $\lceil 0.20 \times |V| \rceil$ applied within that population (15 of
-32 Applications for Autoware, 12 of 22 for Cloud Microservices); and both scenarios are classified
-`sparse` by the tool's topology-class rule, which sets the gate thresholds below. Both runs are
-deterministic and reproducible on demand from the command above; local copies are kept at the
-`results/` paths named in the draft-status note.
+All three rows are produced by `cli/validate_graph.py sweep`, five seeds ($\{42,123,456,789,2024\}$,
+matching §7.4), no QoS enrichment, against the component-level cascade oracle of §5.1: Spearman
+$\rho$ and Kendall $\tau$ are computed over the Application population (the other four node types
+carry constant or near-constant simulated impact on these graphs and contribute no rank information,
+per the same coverage limitation as the synthetic suite, §7.5); $K$ is $\lceil 0.20 \times |V| \rceil$
+applied within that population (15 of 32 Applications for Autoware, 12 of 22 for Cloud
+Microservices, 18 of 41 for Train-Ticket); and all three scenarios are classified `sparse` by the
+tool's topology-class rule, which sets the gate thresholds below. Reported $\rho$ is the seed mean
+$\pm$ standard deviation, not a single-seed point estimate: `FaultInjector` tie-breaks intra-wave
+propagation stochastically (§5.1), so — unlike the deterministic RMAV/$Q(v)$ scores — the simulated
+labels, and therefore $\rho$, vary run to run even at a fixed seed. The *ranking* is nonetheless
+stable across seeds (Rank Consistency Rate $= 1.000$ for all three), which is why $F_1@K$ does not
+carry the same $\pm$ as $\rho$ below. All three runs are reproducible on demand from the command
+above; local copies are kept under `results/` (gitignored, as noted in the draft-status note).
 
-| Real-World Architecture | Nodes | Apps | Spearman $\rho$ | Kendall $\tau$ | Precision@K | Recall@K | $F_1@K$ | Predictive Gain (vs DC) | SPOF-F1 | Gate |
+| Real-World Architecture | Nodes | Apps | Spearman $\rho$ (mean $\pm$ std) | Kendall $\tau$ (mean) | $F_1@K$ | Tie-robust $F_1@K$ | Non-zero $I$ | Predictive Gain (vs DC) | SPOF-F1 | Gate |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|:---:|
-| **Autoware.universe (ROS 2)** | 75 | 32 | **0.705** ($p < 10^{-4}$) | 0.534 | 0.800 | 0.800 | **0.800** | +0.362 | 0.500 | **FAIL** |
-| **Cloud-Native Microservices Mesh** | 60 | 22 | **0.778** ($p < 10^{-4}$) | 0.646 | 1.000 | 1.000 | **1.000** | +0.015 | 0.333 | **FAIL** |
+| **Autoware.universe (ROS 2)** | 75 | 32 | **0.696 $\pm$ 0.01** | 0.523 | **0.800** | 0.800 | 19/32 | +0.361 | 0.500 | **FAIL** |
+| **Cloud-Native Microservices Mesh** | 60 | 22 | **0.778 $\pm$ 0.001** | 0.639 | **1.000** | 0.760 | 8/22 | +0.014 | 0.333 | **FAIL** |
+| **Train-Ticket Railway Booking Mesh** | 90 | 41 | **0.759 $\pm$ 0.002** | 0.605 | **1.000** | 0.810 | 14/41 | +0.264 | 0.571 | **FAIL** |
 
 **Key Findings:**
-1. **Strong rank correlation on both architectures, but neither clears the framework's own gate.**
-   SaG achieves $\rho = 0.705$ ($p < 10^{-4}$) on the ROS 2 Autoware platform and $\rho = 0.778$
-   ($p < 10^{-4}$) on the Cloud Microservices Mesh — the strongest rank agreements in this study. We
-   report this alongside the fact that both fail the `sparse`-topology gate of §7.3 as a whole:
-   Autoware fails on $\rho \ge 0.75$ (0.705 short by 0.045) and on SPOF-F1 $\ge 0.6$ (0.500); Cloud
-   Microservices clears $\rho$ but fails on SPOF-F1 $\ge 0.6$ (0.333) and on predictive gain
-   $\ge 0.02$ (0.015, short by 0.005). Both gaps are driven by the same mechanism: SPOF-F1 scores
-   agreement between structural articulation points and components whose simulated impact exceeds
-   0.3, and on graphs this size a handful of disagreements move the F1 sharply — the metric is not
-   more forgiving on hand-transcribed real-world graphs than on the synthetic suite. We report the
-   failing gate rather than the passing correlation alone, because presenting one without the other
-   would overstate what these two cases establish.
-2. **High precision in critical-set identification, verified against the actual predicted and
-   ground-truth top-$K$ sets rather than asserted.** On the Cloud Microservices Mesh, the predicted
-   top-12 by $Q(v)$ and the actual top-12 by simulated impact are the same 12 components
-   ($F_1@K = 1.000$): `checkout-service`, `payment-service`, `fraud-detection-service`,
-   `order-processor-service`, `frontend-web-ui`, `api-gateway-service`, `auth-service`,
-   `inventory-reservation-service`, `search-indexing-worker`, `shipping-fulfillment-service`,
-   `catalog-search-service`, `email-notification-worker`. At $K = 12$ on a 22-application graph, a
-   single placement difference moves $F_1@K$ by roughly 0.08, so the perfect score should be read as
-   "no misplacement at this $K$ on this graph," not as a precision the sample size can support. On
-   Autoware ROS 2, 12 of the predicted top-15 fall in the actual top-15 ($F_1@K = 0.800$), correctly
-   including the perception/localization hubs `lidar_centerpoint_node`, `ndt_scan_matcher`,
-   `multi_object_tracker`, `ekf_localizer` and `velodyne_node_container`. The three misses are worth
-   naming rather than glossing over: `vehicle_cmd_gate` is a **false positive** — $Q(v)$ ranks it 6th
-   by structural score, but its simulated impact is $0$, since the cascade oracle attaches no
-   downstream loss to this particular actuator on this topology. `obstacle_avoidance_planner` and
-   `behavior_velocity_planner` are the same pattern. This is the real-world instance of the general
-   caveat §7.5 states for the synthetic suite: a structural score can be confidently wrong about a
-   component the cascade model does not route traffic through in a way that registers impact, and a
-   safety-relevant name in the predicted set is not evidence the prediction is correct.
-3. **Predictive gain over degree centrality is real but small, and fails its own threshold on one
-   graph.** SaG's $|\rho|$ exceeds degree centrality's $|\rho|$ against the same labels by $+0.362$ on
-   Autoware and $+0.015$ on Cloud Microservices — the latter below the $0.02$ gate threshold, meaning
-   typed dependency semantics add essentially nothing over raw degree on this particular graph. The
-   two results together indicate the advantage of the typed structural score over an untyped baseline
-   is graph-dependent rather than a fixed margin, consistent with the scenario-to-scenario variation
-   already observed on the synthetic suite (§8.1).
+1. **Rank correlation is strong on two of three architectures and closest to the framework's own
+   gate on Train-Ticket, but all three fail it overall.** Cloud Microservices ($\rho = 0.778 \pm
+   0.001$) and Train-Ticket ($\rho = 0.759 \pm 0.002$) clear the $\rho \ge 0.75$ gate threshold;
+   Autoware does not ($0.696 \pm 0.01$, short by 0.054) and additionally carries the most
+   seed-to-seed variance of the three — roughly five to ten times larger than Train-Ticket's
+   $\sigma$ and Cloud Microservices' across repeated five-seed sweeps. That comparison is itself only
+   approximate: on Autoware specifically, even the standard deviation is not stable
+   sweep-to-sweep (0.011–0.015 across repeated runs at the same five seeds), while the mean is
+   (0.6956–0.6959). We report the instability as a further, second-order finding about this
+   particular graph rather than resolve it to a single number it does not have. All three nonetheless
+   fail the `sparse`-topology gate as a
+   whole, on **SPOF-F1 $\ge 0.6$**: Autoware 0.500, Cloud Microservices 0.333, Train-Ticket 0.571 —
+   closest of the three, short by only 0.029 — and SPOF-F1 is exactly stable across seeds for all
+   three (it depends on the deterministic articulation-point flag and a fixed 0.3 impact threshold).
+   Cloud Microservices additionally fails predictive gain
+   $\ge 0.02$ (0.014). SPOF-F1 scores agreement between structural articulation points and
+   components whose simulated impact exceeds 0.3; on graphs this size a handful of disagreements
+   move the F1 sharply, and that is not more forgiving on hand-transcribed real-world graphs than on
+   the synthetic suite. We report the failing gate rather than the passing correlations alone,
+   because presenting one without the other would overstate what these three cases establish.
+2. **Set-containment of the genuinely critical components is real; the reported $F_1@K = 1.000$ on
+   two of three graphs is partly a tie-breaking artifact, and we report both.** On Cloud
+   Microservices and Train-Ticket, $K$ (12 and 18) exceeds the number of Applications carrying
+   non-zero simulated impact (8 and 14 respectively), so the "actual top-$K$" set is padded with
+   components tied at $I = 0$. Because both the predicted and actual orderings are produced by the
+   same stable sort, the tie-padding lands on the *same* arbitrary components in both, which is what
+   drives $F_1@K$ to a perfect 1.000 on both graphs. Re-sorting under 200 random shuffles of the tied
+   region gives a tie-robust $F_1@K$ of $0.760$ (Cloud Microservices) and $0.810$ (Train-Ticket);
+   Autoware is unaffected (19 non-zero exceeds $K=15$, so no boundary tie exists, and both figures
+   agree at 0.800). The genuine, tie-independent finding is **set containment**: every one of the 8
+   non-zero-impact Cloud Microservices applications and every one of the 14 non-zero-impact
+   Train-Ticket services falls somewhere inside the respective predicted top-$K$ — a real result,
+   distinct from the exact top-$K$ *ordering* claim that $F_1@K$ makes. On Train-Ticket, the
+   highest-impact services recovered are `ts-ui-dashboard` ($I=0.545$), `ts-auth-service`
+   ($I=0.397$), `ts-gateway-service` ($I=0.384$), `ts-security-service` ($I=0.370$) and
+   `ts-user-service` ($I=0.366$); on Cloud Microservices, `checkout-service`, `payment-service`,
+   `fraud-detection-service` and `order-processor-service` are among the 8 recovered. On Autoware,
+   12 of the predicted top-15 fall in the actual top-15 ($F_1@K = 0.800$, no tie artifact),
+   correctly including the perception/localization hubs `lidar_centerpoint_node`,
+   `ndt_scan_matcher`, `multi_object_tracker`, `ekf_localizer` and `velodyne_node_container`. The
+   three misses are worth naming rather than glossing over: `vehicle_cmd_gate` is a **false
+   positive** — $Q(v)$ ranks it 6th by structural score, but its simulated impact is $0$, since the
+   cascade oracle attaches no downstream loss to this particular actuator on this topology.
+   `obstacle_avoidance_planner` and `behavior_velocity_planner` are the same pattern. We checked
+   whether the same padding could inflate the synthetic-suite $F_1@K$ figures of §8.1 (Table 3, the
+   LOSO table) and found it does not: the smallest margin between $K$ and the non-zero-impact
+   Application count across the seven scenarios is `av_system`'s $K=16$ against 43 non-zero
+   components, so the boundary is never reached there. This is the
+   real-world instance of the general caveat §7.5 states for the synthetic suite: a structural score
+   can be confidently wrong about a component the cascade model does not route traffic through in a
+   way that registers impact, and a safety-relevant name in the predicted set is not evidence the
+   prediction is correct.
+3. **Predictive gain over degree centrality is real but small and graph-dependent, and fails its own
+   threshold on one of three graphs.** SaG's $|\rho|$ exceeds degree centrality's $|\rho|$ against
+   the same labels by $+0.361$ on Autoware, $+0.264$ on Train-Ticket, and $+0.014$ on Cloud
+   Microservices — the last below the $0.02$ gate threshold, meaning typed dependency semantics add
+   essentially nothing over raw degree on that particular graph. With a third point, the pattern
+   from the two-graph comparison holds rather than looking like an artifact of one outlier: the
+   margin over an untyped baseline is graph-dependent, not a fixed advantage, consistent with the
+   scenario-to-scenario variation already observed on the synthetic suite (§8.1).
 
-**What these two cases do and do not establish.** Four scoping conditions apply, and they matter
+**What these three cases do and do not establish.** Four scoping conditions apply, and they matter
 because this is the paper's only evidence outside the generator.
 
 *They are hand-built models of real architectures, not harvested artifacts.* Each graph was
@@ -1997,16 +2044,19 @@ simulated impact label, produced by the same machinery as everywhere else in thi
 record, operator judgement, or observed failure enters. §9.2's construct-validity bound applies here
 unchanged: this is agreement with a model of harm, not with harm.
 
-*They are small, and D4 forbids comparing them.* At 75 and 60 components these graphs are smaller
+*They are small, and D4 forbids comparing them.* At 75, 60 and 90 components these graphs are smaller
 than five of the seven synthetic scenarios, and because criticality is relative to a system's own
-distribution (D4), $\rho = 0.705$ and $\rho = 0.778$ are two separate within-system results — the gap
-between them is not a finding about the two domains.
+distribution (D4), the three $\rho$ values are separate within-system results, not three points on a
+shared scale — the gaps between them are not a finding about the three domains.
 
-*They are two systems from two paradigms.* Two points cannot establish a generalisation over
-production software. What they do establish is the narrower and still useful claim that the framework
-runs end-to-end on externally-specified architectures and recovers a ranking there at least as well as
-on generated ones — which is evidence against the concern that its performance depends on regularities
-of our own generator (§9.3), without settling it.
+*They are three systems from two paradigms.* Cloud Microservices and Train-Ticket are both
+microservice meshes; only Autoware represents a distinct cyber-physical paradigm. Three points still
+cannot establish a generalisation over production software, and the paradigm count is two, not
+three, which is a weaker diversity claim than three independent architectural styles. What the three
+cases do establish is the narrower and still useful claim that the framework runs end-to-end on
+externally-specified architectures and recovers a ranking there at least as well as on generated
+ones, on two distinct meshes independently rather than on one — evidence against the concern that
+its performance depends on regularities of our own generator (§9.3), without settling it.
 
 ---
 
@@ -2179,7 +2229,7 @@ Both are fixed and all reported figures come from the corrected runs, but the ep
 finding about this class of experiment: a silently-cached artifact is indistinguishable from a
 trained one in the output, and only the implausible wall-clock time exposed it.
 
-**External validity.** The evaluation suite spans nine deployment domains across both synthetic topologies and authentic real-world open-source software graphs (Autoware.universe ROS 2 autonomous driving platform & Production Cloud-Native Microservices mesh). On the real-world software graphs (§8.5), SaG achieves strong rank correlation ($\rho = 0.705$ on ROS 2 Autoware, $\rho = 0.778$ on Cloud Microservices) and up to $100\%$ critical-set identification accuracy ($F_1@K = 1.000$), demonstrating that the framework's predictive model generalizes to production software systems. Leave-One-Scenario-Out evaluation further confirms inductive transfer across held-out architectures. Future work includes expanding real-world case studies to additional middleware paradigms and hardware-in-the-loop deployments (§9.3).
+**External validity.** The evaluation suite spans ten deployment domains across both synthetic topologies and authentic real-world open-source software graphs (Autoware.universe ROS 2 autonomous driving platform, Production Cloud-Native Microservices mesh, and Train-Ticket railway-booking mesh). On the real-world software graphs (§8.5), SaG achieves mean rank correlation over five seeds of $\rho = 0.696$ (ROS 2 Autoware), $0.778$ (Cloud Microservices) and $0.759$ (Train-Ticket), and up to $F_1@K = 1.000$ on two of the three — though none of the three clears the framework's own `sparse`-topology validation gate in full, and the $F_1@K = 1.000$ cases are partly a tie-breaking artifact of $K$ exceeding the count of genuinely non-zero-impact components (§8.5). We read this as evidence that the framework's predictive ranking transfers beyond the synthetic generator to independently-sourced architectures, not as an unqualified demonstration of production-readiness. Leave-One-Scenario-Out evaluation further confirms inductive transfer across held-out synthetic architectures. Future work includes expanding real-world case studies to additional middleware paradigms — Train-Ticket and Cloud Microservices are both microservice meshes, so cyber-physical pub-sub is represented by Autoware alone — and hardware-in-the-loop deployments (§9.3).
 
 **Conclusion validity.** Criticality scores and simulated impact metrics exhibit heavy-tailed,
 non-parametric distributions that violate normality assumptions. To prevent classification bias, we
