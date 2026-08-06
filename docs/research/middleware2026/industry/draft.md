@@ -1,4 +1,4 @@
-# Graph-Based Pre-Deployment Architecture Verification for Mission-Critical Pub/Sub Middleware: Requirements, Prototype, and Deployment Experience
+# An Architectural Digital Twin for Pre-Deployment Verification and CI/CD Gating in Distributed Middleware Systems
 
 **Track:** ACM Middleware 2026 — Industrial Track (6 pages)
 **Submission deadline:** August 24, 2026
@@ -10,8 +10,8 @@ affiliation. See [data/clearance.md](data/clearance.md).
 PAGE BUDGET (ACM sigconf, 6 pages incl. references)
   §1 Introduction ................................. 0.75
   §2 System overview & graph model ................ 1.00
-  §3 Verification engine (incl. §3.4 gap table) ... 1.25
-  §4 CI/CD gating ................................. 0.75
+  §3 Verification engine (incl. §3.4 gap table) ... 1.10
+  §4 CI/CD gating .................................. 0.90
   §5 Evaluation ................................... 1.75
   §6 Related work + §7 Conclusion ................. 0.50
 
@@ -29,34 +29,40 @@ CAPABILITY RULE — enforced throughout §2-§4:
 
 ## Abstract
 
-Mission-critical distributed systems built on publish/subscribe middleware (DDS, ROS 2, enterprise
-message buses) are deployed across multi-core processing units, operator consoles, and networked
-execution nodes. Their most damaging defects are not local: overlapping CPU core allocations,
-incompatible Quality-of-Service (QoS) contracts between a publisher and its subscribers, topics that
-lost their last consumer during a refactor, and circular package dependencies all pass unit and
-integration testing and surface as field failures. Reproducing them requires the assembled target
-hardware, which is exactly the resource a continuous-delivery pipeline cannot hold.
+Distributed systems built on publish/subscribe and broker-mediated middleware (DDS, ROS 2,
+enterprise message buses) are deployed across multi-core processing units, operator consoles, and
+networked execution nodes. Their most damaging defects are not local: overlapping CPU core
+allocations, incompatible Quality-of-Service (QoS) contracts between a publisher and its
+subscribers, topics that lost their last consumer during a refactor, and circular package
+dependencies all pass unit and integration testing and surface as field failures. Reproducing them
+requires the assembled target hardware, which is exactly the resource a continuous-delivery pipeline
+cannot hold.
 
-This paper reports on **System as a Graph (SaaG)**, a pre-deployment architecture verification
-approach built for a mission-critical pub/sub program. We contribute three things. First, a
-**requirements baseline**: 112 verifiable requirements that specify what static architecture
-verification must cover for such a program, derived with its engineering organization and reusable
-by others facing the same gap. Second, an **open prototype** implementing the graph model —
-five component classes, six structural relation types, and six typed projection rules that derive
-logical dependencies from physical pub/sub linkage — together with the subset of checks built so
-far: orphaned topics, dependency cycles, and cascade-impact simulation. Third, **deployment
-experience**: measurements from the program's continuous-delivery pipeline, and an honest account
-of the distance between the specification and the prototype. We report the prototype's static
-analysis cost from 29 to 520 components across a corpus of eleven generated and three transcribed
-real-world architectures, repeated over five oracle seeds, and the detection catalog's agreement
-with a cascade oracle: near-chance Cohen's $\kappa$ on the generated corpus, widening to fair
-agreement on the transcribed architectures — a small-sample (n=3) but mechanistically explained
-split we report as found rather than smoothing into one number. We argue that the gap between what
-such a system is specified to check and what any implementation actually checks is the most useful
-thing an industrial report can make explicit.
+This paper reports on **System as a Graph (SaaG)**, an architectural digital twin for pre-deployment
+verification and CI/CD gating, built for a mission-critical pub/sub program. The twin is *static*: a
+typed graph reconstructed fresh from the candidate system version for each pipeline run, not a
+continuously live-synchronized model — the dynamic half of a full digital twin, telemetry overlay
+and drift detection against the design, is specified but not yet built, and we say so explicitly
+rather than blur the line. We contribute three things. First, the **digital twin model and its
+requirements baseline**: five component classes, six structural relation types, and six typed
+projection rules that derive logical dependencies from physical pub/sub linkage, backed by 112
+verifiable requirements that specify what static architecture verification must cover for a program
+like this one, derived with its engineering organization and reusable by others facing the same gap.
+Second, a **CI/CD gate**: an implemented severity-based exit-code gate, paired with a scored
+suitability model specified but not yet built, over a checks catalog covering orphaned topics,
+dependency cycles, and cascade-impact simulation. Third, **deployment experience**: measurements
+from the program's continuous-delivery pipeline, and an honest account of the distance between the
+specification and the prototype. We report the prototype's static analysis cost from 29 to 520
+components across a corpus of eleven generated and three transcribed real-world architectures,
+repeated over five oracle seeds, and the detection catalog's agreement with a cascade oracle:
+near-chance Cohen's $\kappa$ on the generated corpus, widening to fair agreement on the transcribed
+architectures — a small-sample (n=3) but mechanistically explained split we report as found rather
+than smoothing into one number. We argue that the gap between what such a system is specified to
+check and what any implementation actually checks is the most useful thing an industrial report can
+make explicit.
 
-**Keywords:** pre-deployment verification, pub/sub middleware, QoS contracts, architecture
-verification, CI/CD quality gating, DDS.
+**Keywords:** architectural digital twin, pre-deployment verification, pub/sub middleware, QoS
+contracts, CI/CD gating, DDS.
 
 ---
 
@@ -71,9 +77,9 @@ pipeline can test remains confined to a software unit's own logic and its immedi
 
 ### 1.1 The pre-deployment verification gap
 
-In a mission-critical deployment, applications run on multi-core processing nodes, operator
-consoles, and networked execution units. Introducing one updated software unit creates non-local
-interactions that no unit test observes:
+In a large distributed pub/sub deployment, applications run on multi-core processing nodes,
+operator consoles, and networked execution units. Introducing one updated software unit creates
+non-local interactions that no unit test observes:
 
 * **Core contention.** Two latency-sensitive units are pinned to overlapping cores, or a node's
   allocations exceed its physical core count. The build is green; the timing violation appears only
@@ -98,12 +104,13 @@ We describe SaaG, an approach that models the system as a typed graph and audits
 installation. The paper is deliberately structured around three artifacts at different maturity
 levels, and is explicit about which is which:
 
-1. **A requirements baseline (§2, §3.4).** 112 verifiable requirements covering model construction,
-   scenario generation, field-record management, and design verification, developed with the
-   program's engineering organization. We report it because the requirements themselves — not any
-   one implementation — are what generalize.
-2. **An open prototype (§2.3, §3.1–§3.3).** A working implementation of the graph model and a
-   subset of the specified checks, with a CI-usable command-line gate.
+1. **A digital twin model and its requirements baseline (§2, §3.4).** The static graph model itself,
+   plus 112 verifiable requirements covering model construction, scenario generation, field-record
+   management, and design verification, developed with the program's engineering organization. We
+   report the requirements because they — not any one implementation — are what generalize.
+2. **A CI/CD gate: implemented and specified halves (§4).** A working exit-code gate over the
+   detector catalog (§3.1–§3.3), and the scored installation-suitability model the specification
+   calls for but the prototype does not yet build.
 3. **Deployment experience (§5).** Measurements from the program's pipeline, paired with
    reproducible measurements on the open prototype.
 
@@ -133,6 +140,15 @@ Distinguishing these matters for reading §5, so we state it once, plainly:
 
 Measurements from one are never presented as evidence for the other. Where SaaG-D implements a check
 that SaaG-P does not, §3.4 says so.
+
+**What kind of digital twin this is.** "Digital twin" is used precisely here, not loosely: SaaG-P
+builds a *static* twin — a graph reconstructed fresh for each candidate build (§2.4), not a model
+kept continuously synchronized with the running system. A full digital twin has a dynamic half too:
+overlaying live telemetry onto the model and detecting drift between the designed graph and what is
+actually observed at runtime. That half is specified (SSS Req 6.37–6.39) and is not implemented in
+SaaG-P; §3.4 lists it alongside the other specified-but-unbuilt checks rather than folding it
+silently into what the prototype already does. Everything this paper reports as a capability of
+SaaG-P is the static half.
 
 ### 2.2 Model setup data generation
 
@@ -243,7 +259,7 @@ cost is dominated by acquiring a domain model the graph does not carry.
 | **Payload schema consistency** — same topic name, divergent content definition | 6.21.3 | Requires parsing and comparing IDL/message definitions across units; the prototype's extractor does not yet resolve type definitions. |
 | **Core allocation conformance** — capacity, conflicting pinning, dedicated cores for high-performance units | 6.24–6.27 | Core counts and memory sizes are carried as node attributes but no rule evaluates them. Needs the deployment's core-assignment descriptors, which live outside the sources the prototype ingests. |
 | **OS and runtime configuration audit** — OS settings and runtime memory parameters against allocation | 6.25–6.26 | Same cause: the configuration is not in the prototype's input set. |
-| **Architectural drift** — designed vs. observed topology from field telemetry | 6.37–6.39 | Requires a field-record store and a graph-diff over observed communication edges. Neither exists in the prototype. |
+| **Architectural drift** — designed vs. observed topology from field telemetry (the dynamic half of the digital twin described in §2.1) | 6.37–6.39 | Requires a field-record store and a graph-diff over observed communication edges. Neither exists in the prototype. |
 | **Installation suitability scoring** — four evaluation headings, per-rule weights, blocking flags, aggregate score | 6.51–6.54 | The prototype's gate is severity-based, not score-based (§4). The scoring model is specified in §4.2 as a requirement, not reported as a result. |
 | **CMDB and network topology ingestion** | 1.2 | Prototype consumes descriptor files instead. |
 
@@ -253,9 +269,9 @@ model ingests. That ratio is our main lesson for teams attempting the same thing
 
 ---
 
-## 4. CI/CD Pipeline Integration
+## 4. CI/CD Gating
 
-<!-- 0.75 pages -->
+<!-- 0.90 pages -->
 
 ```
  Developer      Source Repo       CI Server        SaaG           Target Env
@@ -291,6 +307,9 @@ tolerated one:
   deployed as-is would block every build in this corpus, which is precisely the failure mode that
   gets a gate disabled rather than heeded. Delta semantics (fail only on findings the candidate
   *introduces*) and a waiver register for accepted findings are the first changes we would make.
+  A learned, delta-aware, simulation-verified gate is exactly what the companion manuscript
+  [Anon-A] reports — that paper's contribution is the gate this one identifies as missing, and we
+  cite it as the direction rather than duplicating it here.
 * **There is no severity budget.** One HIGH finding and three hundred are the same decision.
 
 ### 4.2 The specified scoring model
@@ -512,15 +531,23 @@ delivery pipeline is maintenance: the model is authored separately from the impl
 drifts. SaaG's model is reconstructed per candidate build from the artifacts the build already
 produces, which trades expressiveness for currency.
 
-**Static code analysis.** SonarQube, Coverity, and similar platforms analyze source and local
-control flow. They are structurally unable to see topic bindings, QoS contracts, core assignments,
-or node topology — the system exists only in the composition of the units they analyze
-individually. SaaG complements them at the architectural boundary rather than competing.
+**Static code analysis and runtime observability.** SonarQube, Coverity, and similar platforms
+analyze source and local control flow; they are structurally unable to see topic bindings, QoS
+contracts, core assignments, or node topology, since the system exists only in the composition of
+the units they analyze individually. Observability platforms (Prometheus, Dynatrace, distributed
+tracing) see the deployed system with fidelity no static model matches, but only after the
+non-conforming artifact is already running. SaaG complements the former at the architectural
+boundary and — through the specified drift detection of §3.4 — aims to route the latter's kind of
+observation back into pre-deployment verification rather than after-the-fact alerting.
 
-**Runtime observability.** Prometheus, Dynatrace, and distributed tracing observe the deployed
-system with fidelity no static model matches, but only after the non-conforming artifact is running.
-The specified drift detection of §3.4 is precisely an attempt to route that observation back into
-pre-deployment verification.
+**Digital twins.** The term is established in manufacturing and Industry 4.0, where a digital twin
+synchronizes a model against a physical asset via continuous sensor telemetry [Tao et al.]. The
+object and the fidelity are both different here: the twin in this paper models a
+*software architecture*, not a physical asset, and — as scoped in §2.1 — is *static*, reconstructed
+per candidate build rather than continuously live. We use the term because the reconstruct-and-audit
+pattern is the same one digital-twin systems apply to physical assets, and because the specified,
+not-yet-built dynamic half (§3.4) is exactly the telemetry-synchronization step that literature
+describes; we do not use it to claim a live-synchronized model we have not built.
 
 **Middleware dependability.** Pub/sub dependability has been studied at the protocol, broker
 overlay, and runtime levels. Our contribution is neither a protocol nor a runtime mechanism but a
@@ -529,8 +556,12 @@ pipeline-integrated static check over the deployment's own descriptors.
 <!-- TODO(refs): expand from 6 to ~18 citations before submission. Reuse the bibliography assembled
      in docs/research/middleware2026/research/middleware26_revision_plan.md §A1 (Eugster, Carzaniga,
      DDS spec, MQTT, Freeman, Brandes). Add: DDS QoS conformance literature; deployment/config
-     verification (e.g. configuration error studies); CI quality-gate practice. The prior main-track
-     rejection cited a reference-free introduction as a weakness — §1 needs citations woven in. -->
+     verification (e.g. configuration error studies); CI quality-gate practice; a manufacturing/
+     Industry 4.0 digital-twin survey to back the "[Tao et al.]" placeholder in the new Digital
+     Twins paragraph above (added when the title reverted to "architectural digital twin" — this
+     citation is now load-bearing, not optional, since it's what lets the paper reuse the term
+     against the literature that owns it). The prior main-track rejection cited a reference-free
+     introduction as a weakness — §1 needs citations woven in. -->
 
 ---
 
@@ -538,10 +569,11 @@ pipeline-integrated static check over the deployment's own descriptors.
 
 <!-- 0.25 pages -->
 
-We reported a graph-based approach to pre-deployment architecture verification for mission-critical
-pub/sub middleware: a 112-requirement baseline developed with an industrial program, an open
-prototype implementing the graph model and a subset of the specified checks, and measurements from
-both the deployment and the prototype.
+We reported an architectural digital twin — reconstructed per candidate build, not continuously
+live — for pre-deployment verification and CI/CD gating in distributed pub/sub middleware systems:
+a 112-requirement baseline developed with an industrial program, an open prototype implementing the
+graph model, the detector catalog, and a severity-based CI/CD gate, and measurements from both the
+deployment and the prototype.
 
 The findings we would most want carried forward are the negative ones, plus one we did not expect.
 Building the graph and running structural rules is cheap — all twenty detectors cost under 0.2 s on

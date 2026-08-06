@@ -1,7 +1,7 @@
 # Outline — Middleware 2026 Industrial Track submission
 
-**Paper:** Graph-Based Pre-Deployment Architecture Verification for Mission-Critical Pub/Sub
-Middleware: Requirements, Prototype, and Deployment Experience
+**Paper:** An Architectural Digital Twin for Pre-Deployment Verification and CI/CD Gating in
+Distributed Middleware Systems
 **Format:** 6 pages, ACM `sigconf`, including references
 **Deadline:** August 24, 2026
 **Draft:** [draft.md](draft.md) · **Requirements baseline:** [system_requirements.md](system_requirements.md) ·
@@ -11,35 +11,52 @@ Middleware: Requirements, Prototype, and Deployment Experience
 
 ## Framing
 
-Three artifacts at different maturity levels, kept distinct throughout:
+The title names two things and the paper must earn both without overclaiming either:
 
-1. **Requirements baseline** — 112 verifiable requirements developed with the program's engineering
-   organization. The most transferable contribution.
-2. **Open prototype (SaaG-P)** — implements the graph model and a subset of the checks. Everything
-   in §5.2 is reproducible from it.
-3. **Deployment experience (SaaG-D)** — cleared measurements from the program's pipeline (§5.1).
+- **"Architectural digital twin."** Scoped precisely in §2.1: the twin is *static* — a graph
+  reconstructed fresh per candidate build, not continuously synchronized with the running system.
+  The dynamic half (telemetry overlay, live drift detection) is specified (SSS Req 6.37–6.39) and
+  explicitly listed as unbuilt in §3.4, not folded into what the prototype does. §6 adds a paragraph
+  distinguishing this from the manufacturing/Industry 4.0 sense of the term. **This scoping is the
+  one thing that must survive every future edit** — the term was dropped from an earlier draft
+  precisely because it implied telemetry/drift capability that didn't exist; reintroducing it without
+  the static/dynamic split would reopen that problem.
+- **"CI/CD gating."** §4 (renamed from "CI/CD Pipeline Integration") covers the implemented
+  severity-exit-code gate and the specified-but-unbuilt scored suitability model. §4.1 now carries
+  one sentence distinguishing this gate from the companion JSS manuscript's delta-aware,
+  simulation-verified gate — see JSS disjointness below, now higher-stakes since the title puts
+  gating in its headline.
 
-The paper's thesis is the *gap between the specification and any implementation*, stated explicitly
-in §3.4 rather than glossed over. The lesson: four of seven unbuilt checks are blocked on input
-data acquisition, not on analysis technique.
+Underneath both, the same three artifacts from the prior revision, now relabeled to match:
+
+1. **Digital twin model + requirements baseline (§2, §3.4).** 112 verifiable requirements developed
+   with the program's engineering organization. The most transferable contribution.
+2. **CI/CD gate — implemented and specified halves (§4).** Open prototype (SaaG-P) implements the
+   graph model, detector catalog, and exit-code gate; everything in §5.2 is reproducible from it.
+3. **Deployment experience (SaaG-D, §5.1).** Cleared measurements from the program's pipeline.
+
+The paper's thesis is unchanged: the *gap between the specification and any implementation*, stated
+explicitly in §3.4 rather than glossed over. Four of seven unbuilt checks — including the twin's own
+dynamic half — are blocked on input data acquisition, not on analysis technique.
 
 ## Two non-negotiable rules
 
 - **Provenance.** Every number tagged `[I]` (industrial deployment) or `[P]` (open prototype), and
   carries an $n$ and a window. Enforced in §5.
 - **Capability voice.** Present tense only for behaviour implemented in the prototype. Everything
-  specified-but-unbuilt lives in §3.4 or §4.2 and is written in the requirements voice.
+  specified-but-unbuilt lives in §3.4 or §4.2 and is written in the requirements voice. This now
+  explicitly covers the twin's dynamic half, not only the CI/CD scoring model.
 
 ## Page budget
 
 | § | Content | Pages |
 |---|---|---|
 | 1 | Introduction; the pre-deployment verification gap; what this paper reports | 0.75 |
-| 2 | Two artifacts (§2.1); model setup data; graph model; candidate isolation | 1.00 |
-| 3 | Implemented checks; cascade simulation; scenario generation; **§3.4 specified-not-implemented** | 1.25 |
-| 4 | Implemented exit-code gate + its two limitations; specified scoring model; findings format | 0.75 |
+| 2 | Two artifacts (§2.1); **what kind of digital twin this is**; model setup data; graph model; candidate isolation | 1.00 |
+| 3 | Implemented checks; cascade simulation; scenario generation; **§3.4 specified-not-implemented** | 1.10 |
+| 4 | **CI/CD Gating** — implemented exit-code gate + its two limitations incl. JSS division of labor; specified scoring model; findings format | 0.90 |
 | 5 | **Evaluation** — §5.1 deployment `[I]`, §5.2 prototype `[P]`, threats | 1.75 |
-| 6–7 | Related work; conclusion | 0.50 |
+| 6–7 | Related work (incl. new Digital Twins paragraph distinguishing from Industry 4.0 usage); conclusion | 0.50 |
 
 Deliberately cut (companion-manuscript material, and needed for JSS disjointness): weight-propagation
 derivations, layer projections, the six-rule derivation table, all GNN prediction claims.
@@ -87,10 +104,16 @@ revision removed the dead normalizer block it lived next to). Not citable.
 2. **Author block** with the industry-affiliated co-author — CFP requires at least one.
 3. **References:** 8 → ~18. Reuse the bibliography in
    [middleware26_revision_plan.md](../research/middleware26_revision_plan.md) §A1; add DDS QoS
-   conformance and configuration-verification literature. The prior main-track rejection flagged a
-   reference-free introduction — weave citations into §1.
+   conformance and configuration-verification literature. **Now also load-bearing, not optional:** a
+   manufacturing/Industry 4.0 digital-twin survey to back the "[Tao et al.]" placeholder in §6's new
+   Digital Twins paragraph — without it, the title's core term has no citation behind the
+   distinction the paper draws. The prior main-track rejection flagged a reference-free
+   introduction — weave citations into §1.
 4. **ACM `sigconf` conversion** and page fitting (~half a day; no LaTeX skeleton exists yet).
-5. **JSS disjointness:** narrow the JSS §6 gating claim, add reciprocal companion citations, confirm
-   the JSS §1.6 no-parallel-submission declaration remains accurate.
+5. **JSS disjointness:** §4.1 now carries one sentence pointing delta-aware gating at the companion
+   manuscript by name, which is the industry paper's half of the division of labor. Still open: go to
+   the JSS draft and narrow its §6 gating claim / confirm its §1.6 no-parallel-submission declaration
+   still holds now that this paper's title puts "CI/CD Gating" in its headline — higher-stakes than
+   before, not resolved by this pass.
 6. **Commit the cited artifacts** — `results/` and `output/` are currently untracked, so nothing the
    paper cites is in version control.
