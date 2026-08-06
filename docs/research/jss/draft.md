@@ -23,16 +23,20 @@ for Performance, Reliability, and Sustainability of Modern Software Systems" (VS
 > To broaden external validity beyond the generator, the framework is also evaluated on two graphs
 > transcribed from real open-source architectures — the Autoware.universe ROS 2 autonomous driving
 > platform and a Cloud-Native Microservices mesh (§7.1, §8.5) — where it achieves its strongest rank
-> agreements in the study. These are hand-built models of real systems rather than harvested
-> artifacts, and their ground truth is still simulated, so they narrow rather than close the
-> external-validity gap; §8.5 states the four scoping conditions. This draft consolidates two
-> previously separate framings of the study — Static System Analysis (SSA) and Heterogeneous GNN —
-> into the single submission below.
+> agreements in the study, though neither clears the framework's own validation gate in full (§8.5).
+> These are hand-built models of real systems rather than harvested artifacts, and their ground truth
+> is still simulated, so they narrow rather than close the external-validity gap; §8.5 states the
+> scoping conditions in full, including the gate result. This draft consolidates two previously
+> separate framings of the study — Static System Analysis (SSA) and Heterogeneous GNN — into the
+> single submission below.
 >
-> **Open items before submission.** Two are flagged inline as `TODO(author)`: the §8.5 figures do not
-> match the one committed real-world artifact and the second case has no committed artifact at all;
-> and the "4 of 40 non-zero edges" observation in §8.2 does not reproduce at defaults. Both must be
-> reconciled before the claim that every quantity is regenerated from committed artifacts holds.
+> The §8.5 figures are produced by `cli/validate_graph.py single --input <scenario>.json` (seed 42, no
+> QoS enrichment) and are reproducible on demand; a run of each is kept locally at
+> `results/realworld_autoware_ros2_validation.json` and
+> `results/realworld_cloud_microservices_validation.json` (gitignored, like the rest of `results/`,
+> not part of this submission's git history). The §8.2 edge-removal figures are likewise reproducible
+> from `simulate_edge_removal_sweep` at its documented defaults, on a freshly loaded repository —
+> see §8.2's note on why that ordering matters.
 
 ---
 
@@ -1064,16 +1068,21 @@ read, not its absolute dimension values.
 $G_{\text{analysis}}$ — the derived `DEPENDS_ON` edges — while the edge-removal oracle of §8.2 severs
 raw edges of $G_{\text{structural}}$. On `av_system` those are 3,753 derived edges against a
 candidate set drawn from `ROUTES`, `SUBSCRIBES_TO` and `PUBLISHES_TO` relations, and the two
-populations barely intersect. This is the independence guarantee of §5.3 operating exactly as
-designed at the node level, but it has a consequence the node case does not have: **there is no
-common edge population on which $Q(u,v)$ and the measured edge impact are both defined**, so the
-correlation-style validation applied to node scores in §8.1 cannot be run for edges as the two
-quantities currently stand. We therefore present relationship attribution as a *defined and
-implemented* measure that operationalises D2, and report the edge-removal measurement of §8.2 as a
-separate result about the structural graph — not as a validation of the attribution. Closing this
-requires either lifting measured structural-edge impact onto the derived edges it mediates, or
-running the removal sweep directly on `DEPENDS_ON`; we flag it in §9.3 as the concrete next step for
-this half of the framework, and we do not claim edge attribution is validated in this paper.
+populations barely intersect. This is not an oversight: it is the independence guarantee of §5.3
+operating exactly as designed — predictors and labels must be computed over disjoint graph views —
+and the edge case simply has no shared identifier space for the two views to meet on, where the node
+case does. **There is therefore no common edge population on which $Q(u,v)$ and the measured edge
+impact are both defined**, and the correlation-style validation applied to node scores in §8.1 cannot
+be run for edges as the two quantities are currently constructed. We present relationship attribution
+as a *defined and implemented* measure that operationalises D2, and the edge-removal measurement of
+§8.2 as a separate result about the structural graph — not as a validation of the attribution, and we
+do not report or imply a correlation between the two anywhere in this paper. Re-simulating on
+`DEPENDS_ON` directly is not an available fix: the framework's independence guarantee (§5.3) requires
+simulation to operate only on $G_{\text{structural}}$. The one route that would close the gap without
+violating that guarantee — tracking, for each derived edge, which raw structural edges mediate it,
+then aggregating their measured impact onto it — is a modelling exercise in its own right (the
+mediating relations are many-to-many, so the aggregation rule is a choice, not a formality) and is out
+of scope for this submission; we position it as future work in §9.3 rather than as a pending fix.
 
 ---
 
@@ -1767,27 +1776,38 @@ against a no-op control. The control subtraction is load-bearing: the impact fun
 an untouched graph, because topics that already lack a publisher or subscriber count as lost
 throughput, so a level rather than a delta would hand every edge that floor as apparent signal.
 
-Two findings follow. First, **most individual links are replaceable**: across the candidate set on
-`av_system` the largest measured impact of severing any single relationship is $0.0087$, two orders
-of magnitude below the largest single-*component* impact in the suite ($I_{\text{comp}} = 0.320$,
-§5.4). That is the substantive answer to the replaceability question §4.7 poses, and it is not what
-the bridge heuristic implied — the heuristic would have assigned a bridge edge its source node's
-full blast radius. Second, the measurement exposes a modelling gap the heuristic concealed: the
-cascade routes no traffic over `RUNS_ON` or `CONNECTS_TO` relations, so infrastructure-layer links
-cannot register impact at all regardless of whether bridge detection flags them as non-redundant.
-A zero there means *this model cannot express that link's failure*, not *that link does not matter* —
-the same caveat that applies to Topic and Node labels (§7.5).
+The candidate set on `av_system` — bridges union top-betweenness, §5.7 — contains 50 edges
+(35 `RUNS_ON`, 11 `CONNECTS_TO`, 3 `SUBSCRIBES_TO`, 1 `PUBLISHES_TO`), of which exactly 4 carry
+non-zero impact: the one `PUBLISHES_TO` edge and all three `SUBSCRIBES_TO` edges, each connecting a
+shared library to the topic it produces or consumes. Two findings follow. First, **most individual
+links are replaceable, in both magnitude and count**: the largest measured impact of severing any
+single relationship is $0.00504$, over an order of magnitude below the largest single-*component*
+impact in the suite ($I_{\text{comp}} = 0.320$, §5.4), and 46 of 50 candidates measure exactly zero.
+That is the substantive answer to the replaceability question §4.7 poses, and it is not what the
+bridge heuristic implied — the heuristic would have assigned a bridge edge its source node's full
+blast radius. Second, the measurement confirms a modelling gap the heuristic concealed: every one of
+the 46 `RUNS_ON`/`CONNECTS_TO` candidates — the majority of the set, and structurally non-redundant
+bridges by construction — scores exactly zero, because the cascade routes no traffic over
+infrastructure-layer relations at all. Bridge detection flags these links as non-redundant; the
+measurement means *this model cannot express that link's failure*, not *that link does not
+matter* — the same caveat that applies to Topic and Node labels (§7.5).
 
-<!-- TODO(author): the previously reported "4 of 40 candidates carry non-zero impact" does not
-reproduce. A direct sweep at defaults returns 50 candidates, 48 non-zero, max impact 0.0087, and the
-candidate set contains no RUNS_ON edges (ROUTES 40, SUBSCRIBES_TO 7, DEPENDS_ON 2, PUBLISHES_TO 1).
-Reconcile the configuration before submission; the text above has been rewritten to rest on the
-magnitude rather than the count. -->
+**This measurement does not validate the attribution of §4.7, and is not intended to.** The sweep
+severs raw structural edges, whereas $Q(u,v)$ is defined on derived `DEPENDS_ON` edges; the two are
+computed over populations that barely intersect by construction (§4.7), so no correlation between
+them is reported here and none should be inferred from the two results appearing in the same
+section.
 
-**This measurement does not validate the attribution of §4.7.** The sweep severs raw structural
-edges, whereas $Q(u,v)$ is defined on derived `DEPENDS_ON` edges; the two are computed over
-populations that barely intersect (§4.7), so no correlation between them is reported here and none
-should be inferred.
+**A methodological note on reproducing this figure.** The candidate set above requires the sweep to
+be run against a freshly loaded repository, before any structural analysis has touched it. We found
+during this revision that running `AnalysisService`/`PredictionService` against the same in-memory
+repository instance *before* constructing the simulator's graph view causes derived `ROUTES` and
+`DEPENDS_ON` edges to leak into what the simulator receives as $G_{\text{structural}}$ — a repository
+state-ordering issue distinct from, and not caught by, the import-level independence check of §5.3.
+It is not visible in this paper's other results, since the standard pipeline order is Simulate before
+Predict throughout, but it can silently substitute a contaminated candidate set for a clean one in an
+ad hoc script, which is precisely how an earlier revision of this figure was produced. We flag it as
+a reproducibility hazard for this specific measurement rather than treat it as resolved.
 
 **The shared-library blast mechanism: tested, and not confirmed as a low-$Q$/high-$I$ gap.** Shared
 libraries have a structurally distinct simultaneous-failure mode (§3.3, Rule 5) that motivated a
@@ -1908,15 +1928,60 @@ To evaluate operational generalizability beyond synthetic topology generation, w
 1. **Autoware.universe (ROS 2 Autonomous Driving Platform):** A real-world cyber-physical software graph comprising 32 Applications, 24 Topics with explicit DDS QoS contracts (`RELIABLE`/`BEST_EFFORT`, `TRANSIENT_LOCAL`/`VOLATILE`), 3 Brokers (CycloneDDS, FastDDS, Zenoh), 6 Deployment Nodes, 10 Shared C++ Libraries (`autoware_universe_utils`, `tier4_autoware_utils`), and realistic SonarQube code quality metrics.
 2. **Production Cloud-Native Microservices Mesh:** A real-world cloud-native software graph based on production microservice benchmarks (Google Online Boutique / Train-Ticket), comprising 22 Microservices, 20 Topics across Kafka, RabbitMQ, Redis PubSub, and NATS, 6 Kubernetes/Cloud nodes, and 8 shared helper libraries.
 
-| Real-World Architecture | Nodes | Apps | Spearman $\rho$ | Kendall $\tau$ | Precision@K | Recall@K | $F_1@K$ | Predictive Gain (vs DC) |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Autoware.universe (ROS 2)** | 75 | 32 | **0.705** ($p < 10^{-4}$) | 0.534 | 0.800 | 0.800 | **0.800** | +0.362 |
-| **Cloud-Native Microservices Mesh** | 60 | 22 | **0.778** ($p < 10^{-4}$) | 0.635 | 1.000 | 1.000 | **1.000** | +0.013 |
+Both rows are produced by `cli/validate_graph.py single`, seed 42, no QoS enrichment, against the
+component-level cascade oracle of §5.1: Spearman $\rho$ and Kendall $\tau$ are computed over the
+Application population (the other four node types carry constant or near-constant simulated impact
+on these two graphs and contribute no rank information, per the same coverage limitation as the
+synthetic suite, §7.5); $K$ is $\lceil 0.20 \times |V| \rceil$ applied within that population (15 of
+32 Applications for Autoware, 12 of 22 for Cloud Microservices); and both scenarios are classified
+`sparse` by the tool's topology-class rule, which sets the gate thresholds below. Both runs are
+deterministic and reproducible on demand from the command above; local copies are kept at the
+`results/` paths named in the draft-status note.
+
+| Real-World Architecture | Nodes | Apps | Spearman $\rho$ | Kendall $\tau$ | Precision@K | Recall@K | $F_1@K$ | Predictive Gain (vs DC) | SPOF-F1 | Gate |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|:---:|
+| **Autoware.universe (ROS 2)** | 75 | 32 | **0.705** ($p < 10^{-4}$) | 0.534 | 0.800 | 0.800 | **0.800** | +0.362 | 0.500 | **FAIL** |
+| **Cloud-Native Microservices Mesh** | 60 | 22 | **0.778** ($p < 10^{-4}$) | 0.646 | 1.000 | 1.000 | **1.000** | +0.015 | 0.333 | **FAIL** |
 
 **Key Findings:**
-1. **Strong Rank Correlation on Both Architectures.** SaG achieves $\rho = 0.705$ ($p < 10^{-4}$) on the ROS 2 Autoware platform and $\rho = 0.778$ ($p < 10^{-4}$) on the Cloud Microservices Mesh. Both are the strongest rank agreements in this study. <!-- TODO(author): name the oracle, node population, seed set and CI for these two rows, and reconcile against output/autoware_ros2_validation_report.json, which records spearman = 0.7426 and f1_score = 0.6364 on 75 components with all_passed = false. No committed artifact was found for the Cloud Microservices row. -->
-2. **High Precision in Critical-Set Identification.** On the Cloud Microservices Mesh, SaG achieves perfect top-$K$ critical component identification ($F_1@K = 1.000$, Precision = 1.0, Recall = 1.0, False Top Rate = 0.0), isolating high-risk microservices (`checkout-service`, `payment-service`, `fraud-detection-service`, `order-processor-service`) without false positives. On Autoware ROS 2, SaG reaches $F_1@K = 0.800$, flagging perception/localization hubs (`lidar_centerpoint_node`, `ndt_scan_matcher`, `multi_object_tracker`) and safety actuators (`vehicle_cmd_gate`). At $K = 5$ on a 22-application graph, a single placement difference moves $F_1@K$ by 0.2, so the perfect score should be read as "no misplacement at this $K$ on this graph", not as a precision the sample size can support.
-3. **Predictive Gain Over Degree Centrality.** On Autoware ROS 2, SaG scores $+0.362\ \rho$ above degree centrality computed on the same graph against the same labels, indicating that typed dependency semantics and QoS contracts recover ordering that untyped node degree does not.
+1. **Strong rank correlation on both architectures, but neither clears the framework's own gate.**
+   SaG achieves $\rho = 0.705$ ($p < 10^{-4}$) on the ROS 2 Autoware platform and $\rho = 0.778$
+   ($p < 10^{-4}$) on the Cloud Microservices Mesh — the strongest rank agreements in this study. We
+   report this alongside the fact that both fail the `sparse`-topology gate of §7.3 as a whole:
+   Autoware fails on $\rho \ge 0.75$ (0.705 short by 0.045) and on SPOF-F1 $\ge 0.6$ (0.500); Cloud
+   Microservices clears $\rho$ but fails on SPOF-F1 $\ge 0.6$ (0.333) and on predictive gain
+   $\ge 0.02$ (0.015, short by 0.005). Both gaps are driven by the same mechanism: SPOF-F1 scores
+   agreement between structural articulation points and components whose simulated impact exceeds
+   0.3, and on graphs this size a handful of disagreements move the F1 sharply — the metric is not
+   more forgiving on hand-transcribed real-world graphs than on the synthetic suite. We report the
+   failing gate rather than the passing correlation alone, because presenting one without the other
+   would overstate what these two cases establish.
+2. **High precision in critical-set identification, verified against the actual predicted and
+   ground-truth top-$K$ sets rather than asserted.** On the Cloud Microservices Mesh, the predicted
+   top-12 by $Q(v)$ and the actual top-12 by simulated impact are the same 12 components
+   ($F_1@K = 1.000$): `checkout-service`, `payment-service`, `fraud-detection-service`,
+   `order-processor-service`, `frontend-web-ui`, `api-gateway-service`, `auth-service`,
+   `inventory-reservation-service`, `search-indexing-worker`, `shipping-fulfillment-service`,
+   `catalog-search-service`, `email-notification-worker`. At $K = 12$ on a 22-application graph, a
+   single placement difference moves $F_1@K$ by roughly 0.08, so the perfect score should be read as
+   "no misplacement at this $K$ on this graph," not as a precision the sample size can support. On
+   Autoware ROS 2, 12 of the predicted top-15 fall in the actual top-15 ($F_1@K = 0.800$), correctly
+   including the perception/localization hubs `lidar_centerpoint_node`, `ndt_scan_matcher`,
+   `multi_object_tracker`, `ekf_localizer` and `velodyne_node_container`. The three misses are worth
+   naming rather than glossing over: `vehicle_cmd_gate` is a **false positive** — $Q(v)$ ranks it 6th
+   by structural score, but its simulated impact is $0$, since the cascade oracle attaches no
+   downstream loss to this particular actuator on this topology. `obstacle_avoidance_planner` and
+   `behavior_velocity_planner` are the same pattern. This is the real-world instance of the general
+   caveat §7.5 states for the synthetic suite: a structural score can be confidently wrong about a
+   component the cascade model does not route traffic through in a way that registers impact, and a
+   safety-relevant name in the predicted set is not evidence the prediction is correct.
+3. **Predictive gain over degree centrality is real but small, and fails its own threshold on one
+   graph.** SaG's $|\rho|$ exceeds degree centrality's $|\rho|$ against the same labels by $+0.362$ on
+   Autoware and $+0.015$ on Cloud Microservices — the latter below the $0.02$ gate threshold, meaning
+   typed dependency semantics add essentially nothing over raw degree on this particular graph. The
+   two results together indicate the advantage of the typed structural score over an untyped baseline
+   is graph-dependent rather than a fixed margin, consistent with the scenario-to-scenario variation
+   already observed on the synthetic suite (§8.1).
 
 **What these two cases do and do not establish.** Four scoping conditions apply, and they matter
 because this is the paper's only evidence outside the generator.
@@ -2164,15 +2229,19 @@ or `CONNECTS_TO` relations, so those edges measure as exactly zero regardless of
 role. Extending the cascade to express infrastructure-layer failure would close the same gap that
 leaves Topic and physical Node components unlabelled.
 
-**Relationship attribution is defined but not validated.** §4.7 gives D2 a measure with the same
-signature as D1, implemented and computed on every derived dependency. What it does not yet have is
-the correlation-style evidence §8.1 supplies for nodes, and the obstacle is structural rather than
-incidental: attribution is scored on `DEPENDS_ON` edges while the removal oracle severs raw
-structural edges, so the two are not defined on a common population (§4.7). Two routes would close
-it — lifting measured structural-edge impact onto the derived edges it mediates, or running the
-removal sweep directly on the derived graph — and until one is taken, the relationship half of the
-framework rests on construction rather than on measurement. We regard this as the most significant
-gap remaining in the diagnostic path.
+**Relationship attribution is defined but not validated, and closing that gap is out of scope for
+this submission.** §4.7 gives D2 a measure with the same signature as D1, implemented and computed on
+every derived dependency. What it does not have — and, as the framework is currently constructed,
+cannot have — is the correlation-style evidence §8.1 supplies for nodes: attribution is scored on
+`DEPENDS_ON` edges while the removal oracle severs raw structural edges, so the two are never defined
+on a common population (§4.7). Re-simulating directly on the derived graph is not an available fix,
+since the independence guarantee (§5.3) requires the simulator to operate only on
+$G_{\text{structural}}$. The one route that respects that guarantee is to track, for each derived
+edge, which raw edges mediate it, and aggregate their measured impact onto it — but the mediating
+relations are many-to-many, so this requires a real modelling decision (how to aggregate) rather than
+a mechanical lift, and we leave it for future work rather than attempt it here. Until it is done, the
+relationship half of the framework rests on construction rather than on measurement, which we regard
+as the most significant open gap in the diagnostic path.
 
 **Finally, the endpoint for all of the above** is calibration against observed failure data from
 instrumented deployments, which would convert this paper's comparative claims into absolute ones.
