@@ -1481,816 +1481,828 @@
       "description": "Prometheus & Micrometer production telemetry SDK"
     }
   ],
-  "relationships": [
-    {
-      "source": "A0",
-      "target": "T12",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A0",
-      "target": "T13",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A1",
-      "target": "T2",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A1",
-      "target": "T3",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A1",
-      "target": "T11",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A1",
-      "target": "T25",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A2",
-      "target": "T12",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A3",
-      "target": "T13",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A5",
-      "target": "T19",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A31",
-      "target": "T11",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A8",
-      "target": "T0",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A8",
-      "target": "T4",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A8",
-      "target": "T27",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A9",
-      "target": "T0",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A10",
-      "target": "T2",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A11",
-      "target": "T2",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A6",
-      "target": "T0",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A6",
-      "target": "T1",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A7",
-      "target": "T0",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A20",
-      "target": "T5",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A20",
-      "target": "T6",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A21",
-      "target": "T28",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A23",
-      "target": "T1",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A23",
-      "target": "T6",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A26",
-      "target": "T7",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A28",
-      "target": "T8",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A30",
-      "target": "T9",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A30",
-      "target": "T10",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A32",
-      "target": "T18",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A39",
-      "target": "T29",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A13",
-      "target": "T14",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A15",
-      "target": "T15",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A18",
-      "target": "T16",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A16",
-      "target": "T17",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A33",
-      "target": "T23",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A34",
-      "target": "T21",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A35",
-      "target": "T22",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A37",
-      "target": "T20",
-      "type": "PUBLISHES_TO"
-    },
-    {
-      "source": "A1",
-      "target": "T12",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A2",
-      "target": "T13",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A6",
-      "target": "T0",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A6",
-      "target": "T4",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A6",
-      "target": "T19",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A8",
-      "target": "T2",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A8",
-      "target": "T11",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A10",
-      "target": "T14",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A10",
-      "target": "T15",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A17",
-      "target": "T4",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A20",
-      "target": "T0",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A21",
-      "target": "T5",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A23",
-      "target": "T0",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A30",
-      "target": "T0",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A30",
-      "target": "T5",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A31",
-      "target": "T12",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A39",
-      "target": "T0",
-      "type": "SUBSCRIBES_TO"
-    },
-    {
-      "source": "A0",
-      "target": "L0",
-      "type": "USES"
-    },
-    {
-      "source": "A0",
-      "target": "L7",
-      "type": "USES"
-    },
-    {
-      "source": "A1",
-      "target": "L0",
-      "type": "USES"
-    },
-    {
-      "source": "A1",
-      "target": "L1",
-      "type": "USES"
-    },
-    {
-      "source": "A1",
-      "target": "L6",
-      "type": "USES"
-    },
-    {
-      "source": "A1",
-      "target": "L7",
-      "type": "USES"
-    },
-    {
-      "source": "A2",
-      "target": "L0",
-      "type": "USES"
-    },
-    {
-      "source": "A2",
-      "target": "L2",
-      "type": "USES"
-    },
-    {
-      "source": "A2",
-      "target": "L6",
-      "type": "USES"
-    },
-    {
-      "source": "A6",
-      "target": "L0",
-      "type": "USES"
-    },
-    {
-      "source": "A6",
-      "target": "L1",
-      "type": "USES"
-    },
-    {
-      "source": "A6",
-      "target": "L2",
-      "type": "USES"
-    },
-    {
-      "source": "A6",
-      "target": "L3",
-      "type": "USES"
-    },
-    {
-      "source": "A6",
-      "target": "L4",
-      "type": "USES"
-    },
-    {
-      "source": "A6",
-      "target": "L5",
-      "type": "USES"
-    },
-    {
-      "source": "A8",
-      "target": "L0",
-      "type": "USES"
-    },
-    {
-      "source": "A8",
-      "target": "L1",
-      "type": "USES"
-    },
-    {
-      "source": "A8",
-      "target": "L2",
-      "type": "USES"
-    },
-    {
-      "source": "A8",
-      "target": "L5",
-      "type": "USES"
-    },
-    {
-      "source": "A10",
-      "target": "L0",
-      "type": "USES"
-    },
-    {
-      "source": "A10",
-      "target": "L1",
-      "type": "USES"
-    },
-    {
-      "source": "A10",
-      "target": "L2",
-      "type": "USES"
-    },
-    {
-      "source": "A10",
-      "target": "L3",
-      "type": "USES"
-    },
-    {
-      "source": "A10",
-      "target": "L4",
-      "type": "USES"
-    },
-    {
-      "source": "A17",
-      "target": "L0",
-      "type": "USES"
-    },
-    {
-      "source": "A17",
-      "target": "L2",
-      "type": "USES"
-    },
-    {
-      "source": "A17",
-      "target": "L4",
-      "type": "USES"
-    },
-    {
-      "source": "A20",
-      "target": "L0",
-      "type": "USES"
-    },
-    {
-      "source": "A20",
-      "target": "L2",
-      "type": "USES"
-    },
-    {
-      "source": "A20",
-      "target": "L3",
-      "type": "USES"
-    },
-    {
-      "source": "A30",
-      "target": "L0",
-      "type": "USES"
-    },
-    {
-      "source": "A30",
-      "target": "L5",
-      "type": "USES"
-    },
-    {
-      "source": "A31",
-      "target": "L0",
-      "type": "USES"
-    },
-    {
-      "source": "A31",
-      "target": "L6",
-      "type": "USES"
-    },
-    {
-      "source": "A0",
-      "target": "N7",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A1",
-      "target": "N7",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A2",
-      "target": "N1",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A3",
-      "target": "N1",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A4",
-      "target": "N1",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A5",
-      "target": "N1",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A6",
-      "target": "N1",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A7",
-      "target": "N1",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A8",
-      "target": "N1",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A9",
-      "target": "N1",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A10",
-      "target": "N2",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A11",
-      "target": "N2",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A12",
-      "target": "N2",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A13",
-      "target": "N2",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A14",
-      "target": "N2",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A15",
-      "target": "N2",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A16",
-      "target": "N2",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A17",
-      "target": "N2",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A18",
-      "target": "N2",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A19",
-      "target": "N2",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A20",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A21",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A22",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A23",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A24",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A25",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A26",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A27",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A28",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A29",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A30",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A31",
-      "target": "N1",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A32",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A33",
-      "target": "N0",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A34",
-      "target": "N0",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A35",
-      "target": "N0",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A36",
-      "target": "N0",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A37",
-      "target": "N0",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A38",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A39",
-      "target": "N1",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "A40",
-      "target": "N3",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "B0",
-      "target": "N1",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "B1",
-      "target": "N6",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "B2",
-      "target": "N0",
-      "type": "RUNS_ON"
-    },
-    {
-      "source": "B0",
-      "target": "T0",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B0",
-      "target": "T1",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B0",
-      "target": "T5",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B0",
-      "target": "T6",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B0",
-      "target": "T7",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B0",
-      "target": "T8",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B0",
-      "target": "T9",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B0",
-      "target": "T10",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B0",
-      "target": "T27",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B0",
-      "target": "T28",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B0",
-      "target": "T29",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B1",
-      "target": "T4",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B1",
-      "target": "T19",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B1",
-      "target": "T26",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B2",
-      "target": "T2",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B2",
-      "target": "T3",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B2",
-      "target": "T11",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B2",
-      "target": "T14",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B2",
-      "target": "T15",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B2",
-      "target": "T16",
-      "type": "ROUTES"
-    },
-    {
-      "source": "B2",
-      "target": "T17",
-      "type": "ROUTES"
-    },
-    {
-      "source": "N7",
-      "target": "N1",
-      "type": "CONNECTS_TO"
-    },
-    {
-      "source": "N1",
-      "target": "N2",
-      "type": "CONNECTS_TO"
-    },
-    {
-      "source": "N1",
-      "target": "N3",
-      "type": "CONNECTS_TO"
-    },
-    {
-      "source": "N2",
-      "target": "N4",
-      "type": "CONNECTS_TO"
-    },
-    {
-      "source": "N2",
-      "target": "N5",
-      "type": "CONNECTS_TO"
-    },
-    {
-      "source": "N3",
-      "target": "N6",
-      "type": "CONNECTS_TO"
-    },
-    {
-      "source": "N0",
-      "target": "N1",
-      "type": "CONNECTS_TO"
-    },
-    {
-      "source": "N0",
-      "target": "N2",
-      "type": "CONNECTS_TO"
-    }
-  ]
+  "relationships": {
+    "publishes_to": [
+      {
+        "from": "A0",
+        "to": "T12",
+        "weight": 1.0
+      },
+      {
+        "from": "A0",
+        "to": "T13",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "T2",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "T3",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "T11",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "T25",
+        "weight": 1.0
+      },
+      {
+        "from": "A2",
+        "to": "T12",
+        "weight": 1.0
+      },
+      {
+        "from": "A3",
+        "to": "T13",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "T19",
+        "weight": 1.0
+      },
+      {
+        "from": "A31",
+        "to": "T11",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "T4",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "T27",
+        "weight": 1.0
+      },
+      {
+        "from": "A9",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "T2",
+        "weight": 1.0
+      },
+      {
+        "from": "A11",
+        "to": "T2",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "T1",
+        "weight": 1.0
+      },
+      {
+        "from": "A7",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A20",
+        "to": "T5",
+        "weight": 1.0
+      },
+      {
+        "from": "A20",
+        "to": "T6",
+        "weight": 1.0
+      },
+      {
+        "from": "A21",
+        "to": "T28",
+        "weight": 1.0
+      },
+      {
+        "from": "A23",
+        "to": "T1",
+        "weight": 1.0
+      },
+      {
+        "from": "A23",
+        "to": "T6",
+        "weight": 1.0
+      },
+      {
+        "from": "A26",
+        "to": "T7",
+        "weight": 1.0
+      },
+      {
+        "from": "A28",
+        "to": "T8",
+        "weight": 1.0
+      },
+      {
+        "from": "A30",
+        "to": "T9",
+        "weight": 1.0
+      },
+      {
+        "from": "A30",
+        "to": "T10",
+        "weight": 1.0
+      },
+      {
+        "from": "A32",
+        "to": "T18",
+        "weight": 1.0
+      },
+      {
+        "from": "A39",
+        "to": "T29",
+        "weight": 1.0
+      },
+      {
+        "from": "A13",
+        "to": "T14",
+        "weight": 1.0
+      },
+      {
+        "from": "A15",
+        "to": "T15",
+        "weight": 1.0
+      },
+      {
+        "from": "A18",
+        "to": "T16",
+        "weight": 1.0
+      },
+      {
+        "from": "A16",
+        "to": "T17",
+        "weight": 1.0
+      },
+      {
+        "from": "A33",
+        "to": "T23",
+        "weight": 1.0
+      },
+      {
+        "from": "A34",
+        "to": "T21",
+        "weight": 1.0
+      },
+      {
+        "from": "A35",
+        "to": "T22",
+        "weight": 1.0
+      },
+      {
+        "from": "A37",
+        "to": "T20",
+        "weight": 1.0
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "A1",
+        "to": "T12",
+        "weight": 1.0
+      },
+      {
+        "from": "A2",
+        "to": "T13",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "T4",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "T19",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "T2",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "T11",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "T14",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "T15",
+        "weight": 1.0
+      },
+      {
+        "from": "A17",
+        "to": "T4",
+        "weight": 1.0
+      },
+      {
+        "from": "A20",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A21",
+        "to": "T5",
+        "weight": 1.0
+      },
+      {
+        "from": "A23",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A30",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A30",
+        "to": "T5",
+        "weight": 1.0
+      },
+      {
+        "from": "A31",
+        "to": "T12",
+        "weight": 1.0
+      },
+      {
+        "from": "A39",
+        "to": "T0",
+        "weight": 1.0
+      }
+    ],
+    "routes": [
+      {
+        "from": "B0",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T1",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T5",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T6",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T7",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T8",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T9",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T10",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T27",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T28",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T29",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T4",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T19",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T26",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T2",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T3",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T11",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T14",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T15",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T16",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T17",
+        "weight": 1.0
+      }
+    ],
+    "runs_on": [
+      {
+        "from": "A0",
+        "to": "N7",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "N7",
+        "weight": 1.0
+      },
+      {
+        "from": "A2",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A3",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A4",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A7",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A9",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "A11",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "A12",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "A13",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "A14",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "A15",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "A16",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "A17",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "A18",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "A19",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "A20",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A21",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A22",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A23",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A24",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A25",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A26",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A27",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A28",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A29",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A30",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A31",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A32",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A33",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A34",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A35",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A36",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A37",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A38",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A39",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A40",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "N6",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "N0",
+        "weight": 1.0
+      }
+    ],
+    "connects_to": [
+      {
+        "from": "N7",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "N1",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "N1",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "N2",
+        "to": "N4",
+        "weight": 1.0
+      },
+      {
+        "from": "N2",
+        "to": "N5",
+        "weight": 1.0
+      },
+      {
+        "from": "N3",
+        "to": "N6",
+        "weight": 1.0
+      },
+      {
+        "from": "N0",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "N0",
+        "to": "N2",
+        "weight": 1.0
+      }
+    ],
+    "uses": [
+      {
+        "from": "A0",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A0",
+        "to": "L7",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "L1",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "L6",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "L7",
+        "weight": 1.0
+      },
+      {
+        "from": "A2",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A2",
+        "to": "L2",
+        "weight": 1.0
+      },
+      {
+        "from": "A2",
+        "to": "L6",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "L1",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "L2",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "L3",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "L4",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "L5",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "L1",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "L2",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "L5",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "L1",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "L2",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "L3",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "L4",
+        "weight": 1.0
+      },
+      {
+        "from": "A17",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A17",
+        "to": "L2",
+        "weight": 1.0
+      },
+      {
+        "from": "A17",
+        "to": "L4",
+        "weight": 1.0
+      },
+      {
+        "from": "A20",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A20",
+        "to": "L2",
+        "weight": 1.0
+      },
+      {
+        "from": "A20",
+        "to": "L3",
+        "weight": 1.0
+      },
+      {
+        "from": "A30",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A30",
+        "to": "L5",
+        "weight": 1.0
+      },
+      {
+        "from": "A31",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A31",
+        "to": "L6",
+        "weight": 1.0
+      }
+    ]
+  }
 }

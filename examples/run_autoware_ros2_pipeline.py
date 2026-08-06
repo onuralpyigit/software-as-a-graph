@@ -119,47 +119,6 @@ def run_autoware_ros2_pipeline(args):
     with open(json_path, "r") as f:
         topology_data = json.load(f)
 
-    # Normalize relationships if stored as flat list (realworld schema)
-    rel_input = topology_data.get("relationships", {})
-    if isinstance(rel_input, list):
-        rel_dict = {
-            "publishes_to": [],
-            "subscribes_to": [],
-            "runs_on": [],
-            "uses": [],
-            "routes": [],
-            "connects_to": []
-        }
-        type_mapping = {
-            "PUBLISHES": "publishes_to",
-            "PUBLISHES_TO": "publishes_to",
-            "SUBSCRIBES": "subscribes_to",
-            "SUBSCRIBES_TO": "subscribes_to",
-            "RUNS_ON": "runs_on",
-            "USES": "uses",
-            "USES_LIBRARY": "uses",
-            "ROUTES": "routes",
-            "ROUTES_TO": "routes",
-            "CONNECTS_TO": "connects_to",
-            "publishes_to": "publishes_to",
-            "subscribes_to": "subscribes_to",
-            "runs_on": "runs_on",
-            "uses": "uses",
-            "uses_library": "uses",
-            "routes": "routes",
-            "routes_to": "routes",
-            "connects_to": "connects_to",
-        }
-        for item in rel_input:
-            raw_type = str(item.get("type", ""))
-            target_key = type_mapping.get(raw_type, type_mapping.get(raw_type.upper(), "publishes_to"))
-            rel_dict[target_key].append({
-                "from": item.get("from", item.get("source")),
-                "to": item.get("to", item.get("target")),
-                "weight": item.get("weight", 1.0)
-            })
-        topology_data["relationships"] = rel_dict
-
     # 2. Select Repository
     if args.neo4j:
         print(f"Initializing Neo4jRepository (URI: {args.uri})...")

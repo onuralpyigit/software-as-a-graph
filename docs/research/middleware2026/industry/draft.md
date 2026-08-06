@@ -1,345 +1,582 @@
-# SaaG: An Architectural Digital Twin for Pre-Deployment Verification and CI/CD Gating in Distributed Middleware Systems
+# Graph-Based Pre-Deployment Architecture Verification for Mission-Critical Pub/Sub Middleware: Requirements, Prototype, and Deployment Experience
 
-**Track:** Industrial Track  
-**Target Venue:** ACM Middleware 2026 Conference  
-**Reference Specification:** [SSS.md](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md)  
+**Track:** ACM Middleware 2026 — Industrial Track (6 pages)
+**Submission deadline:** August 24, 2026
+
+**Authors:** `TODO(data)` — the Industrial Track requires at least one author with an industry
+affiliation. See [data/clearance.md](data/clearance.md).
+
+<!--
+PAGE BUDGET (ACM sigconf, 6 pages incl. references)
+  §1 Introduction ................................. 0.75
+  §2 System overview & graph model ................ 1.00
+  §3 Verification engine (incl. §3.4 gap table) ... 1.25
+  §4 CI/CD gating ................................. 0.75
+  §5 Evaluation ................................... 1.75
+  §6 Related work + §7 Conclusion ................. 0.50
+
+PROVENANCE RULE — enforced throughout §5:
+  Every number carries a tag: [I] = measured in the industrial deployment (cleared, see data/),
+  [P] = measured on the open prototype (regenerable from a committed artifact).
+  No number ships without an n, a window, and a tag.
+
+CAPABILITY RULE — enforced throughout §2-§4:
+  Present tense ("SaaG detects X") is reserved for behaviour implemented in the open prototype.
+  Everything specified but not built lives in §3.4 and is written in the requirements voice.
+-->
 
 ---
 
 ## Abstract
-Modern mission-critical distributed systems rely on complex middleware infrastructure (e.g., DDS, Pub/Sub, microservice meshes) deployed across multi-core processors, network components, and operator consoles. In continuous integration and deployment (CI/CD) pipelines, software units undergo frequent updates. However, systemic architectural misconfigurations—such as Quality-of-Service (QoS) parameter incompatibilities, conflicting hardware core allocations, memory parameter misalignments, and circular dependencies—frequently escape conventional unit and integration testing. These defects typically manifest only as costly post-deployment failures or runtime degradations in target operational environments.
 
-To address this challenge, we present **System as a Graph (SaaG)**, an industrial architectural digital twin framework designed for automated pre-deployment verification and continuous deployment gating. SaaG automatically extracts system topologies, middleware configurations, and hardware attributes from software repositories, configuration management databases (CMDB), and network descriptors to construct a formal node-relationship graph model $G = (V, E)$. Prior to software package installation into target environments, SaaG statically audits structural dependencies, topic publisher/consumer matches, QoS parameter conformance (Durability, Reliability, Lifespan, Transport Priority), and hardware core allocation boundaries. Furthermore, SaaG overlays field telemetry onto the digital twin to detect architectural drift and provides synthetic scenario generation for fault propagation analysis. Integrated directly into CI/CD pipelines via CLI and build automation plugins (e.g., Jenkins), SaaG calculates a quantitative installation suitability score and automatically blocks non-conforming candidate releases when blocking violations occur. We detail the system architecture, formal verification rules, and empirical measurements from real-world industrial deployments demonstrating significant pre-deployment defect catch rates with minimal CI/CD pipeline overhead.
+Mission-critical distributed systems built on publish/subscribe middleware (DDS, ROS 2, enterprise
+message buses) are deployed across multi-core processing units, operator consoles, and networked
+execution nodes. Their most damaging defects are not local: overlapping CPU core allocations,
+incompatible Quality-of-Service (QoS) contracts between a publisher and its subscribers, topics that
+lost their last consumer during a refactor, and circular package dependencies all pass unit and
+integration testing and surface as field failures. Reproducing them requires the assembled target
+hardware, which is exactly the resource a continuous-delivery pipeline cannot hold.
 
-**Keywords:** Architectural Digital Twin, Middleware Verification, CI/CD Gatekeeping, Topic QoS, Architectural Drift, Hardware Core Allocation.
+This paper reports on **System as a Graph (SaaG)**, a pre-deployment architecture verification
+approach built for a mission-critical pub/sub program. We contribute three things. First, a
+**requirements baseline**: 112 verifiable requirements that specify what static architecture
+verification must cover for such a program, derived with its engineering organization and reusable
+by others facing the same gap. Second, an **open prototype** implementing the graph model —
+five component classes, six structural relation types, and six typed projection rules that derive
+logical dependencies from physical pub/sub linkage — together with the subset of checks built so
+far: orphaned topics, dependency cycles, and cascade-impact simulation. Third, **deployment
+experience**: measurements from the program's continuous-delivery pipeline, and an honest account
+of the distance between the specification and the prototype. We report the prototype's static
+analysis cost from 29 to 520 components across a corpus of eleven generated and three transcribed
+real-world architectures, repeated over five oracle seeds, and the detection catalog's agreement
+with a cascade oracle: near-chance Cohen's $\kappa$ on the generated corpus, widening to fair
+agreement on the transcribed architectures — a small-sample (n=3) but mechanistically explained
+split we report as found rather than smoothing into one number. We argue that the gap between what
+such a system is specified to check and what any implementation actually checks is the most useful
+thing an industrial report can make explicit.
+
+**Keywords:** pre-deployment verification, pub/sub middleware, QoS contracts, architecture
+verification, CI/CD quality gating, DDS.
 
 ---
 
 ## 1. Introduction
 
-Continuous Integration and Continuous Delivery (CI/CD) practices have transformed modern software development by enabling rapid, automated building, testing, and deployment of software artifacts. However, in large-scale distributed systems governed by middleware communication frameworks—such as Data Distribution Service (DDS), ROS2, or enterprise Pub/Sub systems—the scope of conventional CI/CD testing remains largely confined to isolated software unit logic and local integration interfaces.
+<!-- 0.75 pages -->
 
-### 1.1 The Pre-Deployment Verification Gap
-In complex distributed industrial environments (e.g., defense control centers, autonomous transport networks, telecommunications infrastructure), applications run on multi-core processing nodes, operator consoles, and networked execution units. Deploying a candidate software unit update into such an environment introduces non-local, systemic interactions:
+Continuous delivery has made building, testing, and shipping software artifacts routine. It has not
+made *deploying them into an assembled distributed system* routine. In programs governed by pub/sub
+middleware — Data Distribution Service (DDS), ROS 2, enterprise message buses — the scope of what a
+pipeline can test remains confined to a software unit's own logic and its immediate interfaces.
 
-* **Hardware Core Contention:** Allocating overlapping CPU cores to latency-sensitive software units, or exceeding physical core capacities on a processor node.
-* **Middleware QoS Incompatibilities:** Mismatched Quality-of-Service (QoS) parameters (e.g., a subscriber expecting `Transient-Local` durability while the publisher provides `Volatile` durability; conflicting transport priorities).
-* **Silent Topic Disconnections:** Software units publishing to or consuming from topics with schema definitions that differ slightly across release candidates, or topics lacking corresponding publishers/consumers.
-* **Architectural Drift:** Unintended divergence between the statically designed architecture and actual runtime topologies observed in field telemetry.
+### 1.1 The pre-deployment verification gap
 
-Because setting up full physical target hardware testbeds for every CI build is prohibitively expensive and slow, development teams frequently rely on simulated target environments or deploy candidate builds directly into staging networks. Consequently, systemic architectural misconfigurations pass build pipelines unnoticed and cause critical runtime failures, deadlock conditions, or performance degradation during field operation.
+In a mission-critical deployment, applications run on multi-core processing nodes, operator
+consoles, and networked execution units. Introducing one updated software unit creates non-local
+interactions that no unit test observes:
 
-### 1.2 The SaaG Approach
-To bridge this gap, we present **System as a Graph (SaaG)**, an architectural digital twin framework developed for automated pre-deployment verification. SaaG constructs a static, multi-layered digital model of the entire system architecture—including hardware nodes, operating system configurations, software units, middleware services, topics, and messages—without executing the underlying application code. 
+* **Core contention.** Two latency-sensitive units are pinned to overlapping cores, or a node's
+  allocations exceed its physical core count. The build is green; the timing violation appears only
+  under field load.
+* **QoS contract incompatibility.** A subscriber requests `TRANSIENT_LOCAL` durability from a
+  publisher offering `VOLATILE`, or requests `RELIABLE` delivery from a `BEST_EFFORT` writer. In
+  DDS these are not errors — the endpoints simply never match, and the subscriber receives nothing.
+  Silence is the failure mode.
+* **Silent topic disconnection.** A refactor removes the last subscriber of a topic, or two units
+  bind the same topic name to divergent payload definitions. Both compile.
+* **Circular package dependency.** A dependency edge added for convenience closes a cycle that only
+  manifests as an initialization deadlock on the target.
 
-SaaG operates as an automated gatekeeper within CI/CD pipelines. When a candidate software unit build is proposed for release:
-1. SaaG automatically generates an updated, candidate-specific digital twin graph.
-2. The verification engine executes a suite of static structural, QoS, and resource allocation checks.
-3. If critical rule violations or severe architectural incompatibilities are detected, SaaG outputs an installation decision of "non-conforming" and automatically aborts the deployment pipeline.
+Standing up the full target hardware for every candidate build is prohibitively expensive, so teams
+fall back on partial staging environments — which is precisely where non-local defects hide. The
+result is a class of defects that is cheap to detect statically and expensive to detect any other
+way.
 
----
+### 1.2 What this paper reports
 
-## 2. System Overview & Digital Twin Architecture
+We describe SaaG, an approach that models the system as a typed graph and audits it before
+installation. The paper is deliberately structured around three artifacts at different maturity
+levels, and is explicit about which is which:
 
-SaaG follows an architectural digital twin design pattern, separating model construction, graph representation, verification auditing, and telemetry overlay into decoupled components, as outlined in [SSS.md](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md).
+1. **A requirements baseline (§2, §3.4).** 112 verifiable requirements covering model construction,
+   scenario generation, field-record management, and design verification, developed with the
+   program's engineering organization. We report it because the requirements themselves — not any
+   one implementation — are what generalize.
+2. **An open prototype (§2.3, §3.1–§3.3).** A working implementation of the graph model and a
+   subset of the specified checks, with a CI-usable command-line gate.
+3. **Deployment experience (§5).** Measurements from the program's pipeline, paired with
+   reproducible measurements on the open prototype.
 
-```
- +-------------------------------------------------------------------------------+
- |                              Data Sources                                     |
- |  [CMDB]     [Source Code Repos]     [Package Repos]     [Network Topology]   |
- +-------------------------------------------------------------------------------+
-                                        |
-                                        v
- +-------------------------------------------------------------------------------+
- |                Model Setup Data Generation (SaaG-MSD)                         |
- |  - Metadata Extraction & Versioning    - Schema Validation                    |
- +-------------------------------------------------------------------------------+
-                                        |
-                                        v
- +-------------------------------------------------------------------------------+
- |             Node-Relationship Core System Model (SaaG-CSM)                    |
- |  - Graph Model G = (V, E)              - Multi-Session Isolation              |
- +-------------------------------------------------------------------------------+
-                       |                                  |
-                       v                                  v
- +----------------------------------+   +----------------------------------------+
- |  Verification & Analysis (VAE)   |   | Field Records & Telemetry (FRD / ADP)  |
- |  - Static QoS & Hardware Rules   |   | - Field Telemetry Overlay              |
- |  - CI/CD Gating & Scoring        |   | - Architectural Drift Detection        |
- +----------------------------------+   +----------------------------------------+
-                       |
-                       v
- +-------------------------------------------------------------------------------+
- |                       CI/CD Pipeline Gating (Jenkins / CLI)                   |
- |  [Pass: Deploy to Target]                  [Fail: Abort Pipeline & Report]    |
- +-------------------------------------------------------------------------------+
-```
-*Figure 1: SaaG Architectural Digital Twin Pipeline Integration Overview.*
-
-### 2.1 Model Setup Data Generation (SaaG-MSD)
-The **Model Setup Data Generation (SaaG-MSD)** component ([SSS.md Section 1](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L21-L67)) interfaces with external enterprise data repositories:
-* **Configuration Management Database (CMDB):** Retrieves project, platform, and target system version metadata.
-* **Source Code & Package Repositories:** Obtains software unit versions, configuration manifests, build scripts, and execution descriptors.
-* **Network Topology Data Sources:** Fetches network topology layouts, switch nodes, and console interface assignments.
-
-SaaG-MSD executes mandatory schema and field verification checks on all ingested descriptors, tagging each dataset with explicit project ID, platform ID, and system release version numbers ([Req 1.5–1.18](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L37-L64)).
-
-### 2.2 Core System Model Formal Graph Definition (SaaG-CSM)
-The **Node-Relationship Based Core System Model (SaaG-CSM)** ([SSS.md Section 5](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L119-L180), [SDD.md Section 3.5.1](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/design/SDD.md#L209-L227)) transforms the ingested system topology into a multi-attributed, weighted directed graph:
-$$G = (V, E, \tau_V, \tau_E, w_V, w_E)$$
-
-where:
-* $V$ is the set of system vertices.
-* $E = E_{\text{structural}} \cup E_{\text{dependency}}$ is the union of imported structural edges and derived dependency edges.
-* $\tau_V : V \rightarrow \{\text{App}, \text{Broker}, \text{Topic}, \text{Node}, \text{Library}\}$ assigns vertex entity types.
-* $\tau_E : E \rightarrow \{\text{PUBLISHES\_TO}, \text{SUBSCRIBES\_TO}, \text{ROUTES}, \text{RUNS\_ON}, \text{CONNECTS\_TO}, \text{USES}, \text{DEPENDS\_ON}\}$ assigns edge types.
-* $w_V : V \rightarrow [0, 1]$ and $w_E : E \rightarrow [0, 1]$ specify QoS-derived vertex and edge criticality weights.
-
-#### 1. Vertex Types ($V$)
-The vertex set $V$ models 5 core entity types across software, middleware, and infrastructure layers ([Req 5.6](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L131-L144)):
-$$V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{node}} \cup V_{\text{lib}}$$
-
-where:
-* **Applications ($V_{\text{app}}$):** Executable software units (CSCI/CSC/CSU) and microservices. Attributes include `role`, `app_type`, `version`, `criticality`, and code metrics ($\text{cm\_total\_loc}$, $\text{cm\_avg\_wmc}$, $\text{cm\_avg\_cbo}$, $\text{cm\_avg\_lcom}$).
-* **Brokers ($V_{\text{broker}}$):** Middleware message routers and DDS participants responsible for topic dispatch.
-* **Topics ($V_{\text{topic}}$):** Pub/Sub message channels. Attributes include `size`, `qos_reliability`, `qos_durability`, `qos_transport_priority`, `subscriber_count` (fan-out), and `publisher_count` (fan-in).
-* **Infrastructure Nodes ($V_{\text{node}}$):** Hardware multi-core CPU processors, operator consoles, and physical host servers.
-* **Libraries ($V_{\text{lib}}$):** Shared software code modules and static/dynamic libraries linked by applications.
-
-#### 2. Structural Relationship Types ($E_{\text{structural}}$)
-Six explicit structural edge types are imported directly from system descriptors ([Req 5.7](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L145-L152)):
-1. `PUBLISHES_TO` $\subseteq (V_{\text{app}} \cup V_{\text{lib}}) \times V_{\text{topic}}$: Component sends messages to a topic.
-2. `SUBSCRIBES_TO` $\subseteq V_{\text{topic}} \times (V_{\text{app}} \cup V_{\text{lib}})$: Component receives messages from a topic.
-3. `ROUTES` $\subseteq V_{\text{broker}} \times V_{\text{topic}}$: Broker routes and dispatches message traffic for a topic.
-4. `RUNS_ON` $\subseteq (V_{\text{app}} \cup V_{\text{broker}}) \times V_{\text{node}}$: Software unit or broker is hosted on a physical node.
-5. `CONNECTS_TO` $\subseteq V_{\text{node}} \times V_{\text{node}}$: Physical or logical network link between infrastructure nodes.
-6. `USES` $\subseteq (V_{\text{app}} \cup V_{\text{lib}}) \times V_{\text{lib}}$: Application or library depends on a shared code module.
-
-#### 3. Two Dual Graph Views
-To guarantee methodological decoupling between failure simulation and pre-deployment analysis, SaaG maintains two complementary views:
-* **$G_{\text{structural}}$:** Contains all vertices and the 6 structural edge types ($E_{\text{structural}}$). Used by simulation engines to model physical message flow and cascade fault propagation.
-* **$G_{\text{analysis}}(l)$:** Contains layer-filtered vertices and derived `DEPENDS_ON` edges ($E_{\text{dependency}}$). Used by the static verification engine to compute structural centrality metrics, identify single points of failure, and enforce deployment gating.
+Our central observation is the one we would have wanted before starting: **the expensive part is not
+building the graph, it is the semantic depth of the checks.** Graph construction and structural
+audits are cheap and were finished early. The checks that catch the defects in §1.1 — QoS contract
+matching with request/offer semantics, core-allocation conformance, design-versus-runtime drift —
+require domain models that the graph alone does not supply. §3.4 states exactly which of these are
+specified and not yet built, and why.
 
 ---
 
-### 2.3 Intrinsic QoS & Hierarchical Weight Propagation
+## 2. System Overview and Graph Model
 
-SaaG establishes quantitative criticality weights $w(v) \in [0, 1]$ across all entities using an Analytical Hierarchy Process (AHP)-justified QoS formula and upward propagation rules.
+<!-- 1.00 pages -->
 
-#### 1. Intrinsic Topic Weight Formula
-For each topic $t \in V_{\text{topic}}$, its intrinsic weight $w(t)$ is computed from QoS policies and payload size:
-$$w(t) = \max\left(0.01, \; \beta \cdot \text{QoS\_score}(t) + (1 - \beta) \cdot \text{size\_norm}(t)\right)$$
+### 2.1 Two artifacts, one name
 
-where $\beta = 0.85$, $\text{size\_norm}(t) = \min\left(\frac{\log_2(1 + \text{size\_kb})}{50}, \, 1.0\right)$, and
-$$\text{QoS\_score}(t) = 0.30 \cdot \text{reliability\_score} + 0.40 \cdot \text{durability\_score} + 0.30 \cdot \text{priority\_score}$$
+Distinguishing these matters for reading §5, so we state it once, plainly:
 
-* **Reliability:** `RELIABLE` (1.0), `BEST_EFFORT` (0.0).
-* **Durability:** `PERSISTENT` (1.0), `TRANSIENT` (0.6), `TRANSIENT_LOCAL` (0.5), `VOLATILE` (0.0).
-* **Transport Priority:** `CRITICAL`/`URGENT`/`HIGHEST` (1.0), `HIGH` (0.66), `MEDIUM` (0.33), `LOW` (0.0).
+| | **SaaG-D** (deployed) | **SaaG-P** (prototype) |
+|---|---|---|
+| What it is | The verification capability specified by the 112 requirements and integrated into the program's delivery pipeline | An open implementation of the graph model and a subset of the checks |
+| Data sources | Configuration management database, source repositories, package repository, network topology descriptors | System descriptor files (JSON), a synthetic scenario generator, transcribed open-source architectures |
+| Evaluation in §5 | §5.1, tagged **[I]** | §5.2, tagged **[P]** |
+| Availability | Program-internal | Replication package `TODO(url)` |
 
-Structural edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`) inherit the topic's scalar weight and QoS profile ($e.\text{weight} = w(t)$).
+Measurements from one are never presented as evidence for the other. Where SaaG-D implements a check
+that SaaG-P does not, §3.4 says so.
 
-#### 2. Upward Vertex Weight Propagation
-Once topic weights are established, component vertex weights are computed hierarchically:
+### 2.2 Model setup data generation
 
-* **Application Weight:** Reflects worst-case stream criticality (0.80) and cumulative topic footprint (0.20):
-  $$w(a) = 0.80 \cdot \max_{t \in T(a)} w(t) + 0.20 \cdot \text{mean}_{t \in T(a)} w(t)$$
-  *(For applications communicating solely through shared libraries, a fallback pass sets $w(a) = \max_{l \in L(a)} w(l)$).*
-* **Broker Weight:** Reflects routing load and cumulative throughput exposure:
-  $$w(b) = 0.70 \cdot \max_{t \in T(b)} w(t) + 0.30 \cdot \text{mean}_{t \in T(b)} w(t)$$
-* **Library Weight (Fan-out Amplification):** Models simultaneous blast radius across consuming applications:
-  $$w(l) = \min\left(1.0, \; \text{base\_w} \cdot (1 + \gamma \cdot \log_2(1 + DG_{\text{in}}(l)))\right), \quad \gamma = 0.15$$
-  where $\text{base\_w} = \max\left(\max_{t} w(t), \, \max_{a \in \text{Consumers}} w(a)\right)$ and $DG_{\text{in}}(l)$ is the incoming dependency degree.
-* **Infrastructure Node Weight:** Bounded by hosted components:
-  $$w(n) = \max_{v \text{ RUNS\_ON } n} w(v)$$
+The specification requires model setup data to be produced in a controlled, traceable way from four
+external sources: the configuration management database (project, platform, and system version
+metadata, with the effective version marked), the source and installation-script repositories, the
+software package repository, and the network topology descriptor. Each acquired dataset is tagged
+with project, platform, and system version, and every mandatory-field or schema failure is recorded
+against its source (SSS Req 1.1–1.19).
 
-### 2.4 Process-Isolated Candidate Modeling
-During CI/CD pipeline execution, multiple developers may trigger concurrent builds. SaaG-CSM maintains multi-session read/write isolation ([Req 5.18–5.19](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L173-L176)). When evaluating candidate software unit version $u'$, SaaG-CSM constructs an isolated candidate graph $G_{u'} = (V', E')$ by substituting $u'$ for the existing version $u$ in the target system version model ([Req 5.20](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L177-L180)).
+The candidate-evaluation path matters most for gating: the software unit version inventory is
+rebuilt by substituting the *candidate* version of one unit into the otherwise-unchanged inventory
+of the target system version (SSS Req 1.11), so the audited graph is the system as it would be after
+installation.
 
----
+In SaaG-P, repository-side extraction is implemented — cloning, XML/IDL-adjacent topic parsing, and
+per-unit code metrics — but configuration-management and network-topology ingestion are not; those
+inputs are supplied as descriptor files. §3.4 records this.
 
-## 3. Verification & Analytical Overlay Engine
+### 2.3 Graph model
 
-The **Design Verification, Analysis and Evaluation (SaaG-VAE)** component ([SSS.md Section 6](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L181-L336)) executes dependency derivation, rule-based audits, telemetry overlays, and simulation analyses on candidate digital twins $G_{u'}$.
+SaaG represents the system as a typed, weighted, directed multigraph $G = (V, E, \tau_V, \tau_E, w)$
+over five component classes: **applications** (deployable software units), **libraries** (shared
+modules), **topics** (pub/sub channels carrying QoS contracts), **brokers** (middleware routers and
+DDS participants), and **nodes** (processing units and operator consoles).
 
-### 3.1 Logical Dependency Derivation Engine
-Structural edges represent physical connections, but not logical failure propagation dependencies. SaaG automatically derives directed `DEPENDS_ON` edges ($E_{\text{dependency}}$) pointing from *dependent* to *dependency* (against message data flow):
+Six relation types are imported directly from the descriptors: `PUBLISHES_TO`, `SUBSCRIBES_TO`
+(component ↔ topic), `ROUTES` (broker → topic), `RUNS_ON` (component → node), `CONNECTS_TO`
+(node ↔ node), and `USES` (component → library).
 
-| Rule | `dependency_type` | Derivation Pattern | Edge Weight $w(e)$ |
-|---|---|---|---|
-| **1** | `app_to_app` | App/Lib `SUBSCRIBES_TO` $t \leftarrow$ `PUBLISHES_TO` App/Lib (including transitive `USES*1..3` library chains) | $\max_{t} w(t)$ over shared topics |
-| **2** | `app_to_broker` | App/Lib `PUBLISHES_TO` or `SUBSCRIBES_TO` $t \leftarrow$ `ROUTES` Broker | $\max_{t} w(t)$ over routed topics |
-| **3** | `node_to_node` | Lifted from `app_to_app` and `app_to_broker` edges between hosted apps | Lifted $\max(w)$ over matching edges |
-| **4** | `node_to_broker` | Lifted from `app_to_broker` when a hosted app relies on a broker | Lifted $\max(w)$ over matching edges |
-| **5** | `app_to_lib` | App/Lib `USES` $\rightarrow$ Library | Inherits $w(\text{app})$ |
-| **6** | `broker_to_broker` | Bidirectional colocation edge between Brokers sharing a physical Node | Inherits $w(\text{node})$ |
+**Derived dependencies.** Physical linkage is not dependency. A subscriber depends on the publishers
+of the topics it consumes, but the message flows the other way. SaaG therefore derives a
+`DEPENDS_ON` relation by six typed projection rules, oriented *from dependent to dependency* —
+against the direction of data flow. The rules cover application-to-application coupling through
+shared topics (including transitive library chains), application-to-broker coupling, the lifting of
+both to node level, library usage, and broker colocation. Where two components share several topics,
+one edge is emitted carrying the maximum topic weight and the number of shared topics as a coupling
+count.
 
-**Multi-path Coupling Intensity:** When two components share multiple topics, a single `DEPENDS_ON` edge is created with weight $w(e) = \max_{t} w(t)$ and `path_count` equal to the number of shared topics, quantifying coupling intensity without violating $w \in [0, 1]$.
+This direction convention is worth stating twice, because pub/sub diagrams conventionally draw
+arrows as data flow: **data flows publisher → subscriber; dependency points subscriber → publisher.**
 
-### 3.2 Layer Projections
-SaaG projects $G_{\text{analysis}}(l)$ onto four architectural concerns:
-1. **Application Layer (`app`):** Vertices ($V_{\text{app}} \cup V_{\text{lib}}$), edges (`app_to_app`, `app_to_lib`).
-2. **Infrastructure Layer (`infra`):** Vertices ($V_{\text{node}}$), edges (`node_to_node`).
-3. **Middleware Layer (`mw`):** Vertices ($V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{node}}$), edges (`app_to_broker`, `node_to_broker`, `broker_to_broker`).
-4. **System Layer (`system`):** All 5 vertex types and 6 `DEPENDS_ON` edge types.
+**QoS-derived weights.** Each topic carries an intrinsic weight combining its QoS contract
+(reliability, durability, transport priority) with payload size; component weights propagate upward
+from the topics they touch, with library weights amplified by consumer fan-out to reflect blast
+radius. The weighting scheme and its calibration are the subject of a companion manuscript
+[Anon-A] and are not re-derived here; for this paper it is enough that edges and components carry a
+criticality scalar in $[0,1]$ used to rank findings.
 
-### 3.3 Static Middleware & Resource Rule Audits
+### 2.4 Candidate isolation
 
-#### 1. Middleware Topic QoS Conformance ([Req 6.20](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L220-L228))
-For every topic node $v_t \in V_{\text{topic}}$, publishers $P(v_t) = \{ u \mid (u, v_t) \in E_{\text{Pub}} \}$ and subscribers $S(v_t) = \{ u \mid (v_t, u) \in E_{\text{Sub}} \}$ are audited for QoS parameter compatibility:
-* **Durability Matching:** A subscriber requiring `TRANSIENT_LOCAL` durability must not be bound to a publisher configured with `VOLATILE` durability.
-* **Reliability Matching:** A subscriber requiring `RELIABLE` transport cannot receive data from a publisher configured solely for `BEST_EFFORT`.
-* **Transport Priority Conformance:** High-priority mission topics must have transport priority values conforming to system-wide priority bounds.
-
-#### 2. Publisher/Consumer Match & Schema Consistency ([Req 6.21](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L229-L234))
-SaaG-VAE flags structural defects:
-* **Orphaned Topics:** $\forall v_t \in V_{\text{topic}}$, if $|P(v_t)| = 0$ (no publisher) or $|S(v_t)| = 0$ (no consumer), an incompatibility finding is logged.
-* **Schema Discord:** If two topics share identical topic name strings but define incompatible message payload structures, a critical incompatibility is raised.
-
-#### 3. Processor Core Pinning & Hardware Contention ([Req 6.24](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L238-L242))
-For each processor node $v_p \in V_{\text{node}}$ with core capacity $C(v_p)$, let $U(v_p) = \{ u \mid (u, v_p) \in E_{\text{RunOn}} \}$ be hosted software units:
-* **Core Capacity Violation:** $\sum_{u \in U(v_p)} |\text{Cores}(u)| \le C(v_p)$. If total allocated cores exceed physical capacity $C(v_p)$, an over-subscription violation is raised.
-* **Conflicting Core Assignments:** $\forall u_i, u_j \in U(v_p) \, (i \neq j)$, $\text{Cores}(u_i) \cap \text{Cores}(u_j) = \emptyset$, unless explicit core-sharing policies are enabled.
-* **Dedicated High-Performance Cores:** Critical software units flagged as high-performance must possess dedicated, non-overlapping core sets.
-
-#### 4. Circular Dependencies & Structural Topology ([Req 6.28–6.29](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L248-L252))
-SaaG-VAE executes Cycle Detection Algorithms (e.g., Tarjan's Strongly Connected Components) on the software dependency subgraph $G_{\text{Dep}} = (V_{\text{app}}, E_{\text{Dep}})$ to ensure no cyclic package dependencies exist.
-
-### 3.4 Field Telemetry Overlay & Architectural Drift Detection
-In addition to static checks, SaaG integrates operational field records stored in the **Field Records Database (SaaG-FRD)** ([SSS.md Section 3](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L87-L101)). The **Analytical Data Preparation (SaaG-ADP)** component ([SSS.md Section 4](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L103-L118)) binds runtime telemetry (CPU/memory usage, message volumes, communication latencies, error logs) directly to graph nodes and edges ([Req 5.11](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L159-L160)).
-
-**Architectural Drift Analysis** ([Req 6.39](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L279-L284)): SaaG-VAE compares static model setup edges $E_{\text{Designed}}$ against runtime observed communication edges $E_{\text{Observed}}$:
-$$\text{Drift}_{\text{Undeclared}} = E_{\text{Observed}} \setminus E_{\text{Designed}}$$
-$$\text{Drift}_{\text{Missing}} = E_{\text{Designed}} \setminus E_{\text{Observed}}$$
-Undeclared runtime connections represent security or architectural violations, while missing connections indicate non-functional or dead code paths.
-
-### 3.5 Synthetic Scenario Simulation & Fault Propagation
-Using the **Scenario Generator (SaaG-SCG)** ([SSS.md Section 2](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L69-L85)), SaaG simulates hypothetical load spikes, node failures, or bandwidth restrictions without deploying code ([Req 6.31–6.35](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L255-L266)). The propagation path of a simulated failure is computed along directed dependency and consumer edges in $G_{\text{structural}}$, identifying secondary and tertiary affected software units before physical deployment.
-
+Concurrent pipeline runs must not corrupt one another or the baseline. Each candidate evaluation
+constructs a process-specific model from the candidate unit plus the target system version's other
+units, under an independent operation identifier, and analysis never mutates the baseline model
+(SSS Req 5.18–5.20, 6.15).
 
 ---
 
-## 4. CI/CD Pipeline Integration & Automated Gating
+## 3. Verification Engine
 
-SaaG exposes Command Line Interface (CLI) and REST API endpoints for seamless integration into continuous deployment workflows ([Req 6.50](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L323)).
+<!-- 1.25 pages -->
 
-```
- Developer       Source Repo        Jenkins CI         SaaG Engine       Target Env
-    |                 |                 |                   |                |
-    |-- git push ---->|                 |                   |                |
-    |                 |-- webhook ----->|                   |                |
-    |                 |                 |-- build candidate |                |
-    |                 |                 |-- invoke SaaG --->|                |
-    |                 |                 |   (CLI / REST)    |-- build candidate
-    |                 |                 |                   |   graph G_u'   |
-    |                 |                 |                   |-- execute VAE  |
-    |                 |                 |                   |   audit rules  |
-    |                 |                 |<-- return score --|                |
-    |                 |                 |    & gate decision|                |
-    |                 |                 |                   |                |
-    |                 |            [Decision == Pass]                        |
-    |                 |                 |----------------------------------->| Deploy!
-    |                 |            [Decision == Fail]                        |
-    |                 |                 |-- ABORT PIPELINE                  |
-    |<-- notify build failure ----------|                                    |
-```
-*Figure 2: Sequence Diagram of SaaG Automated CI/CD Deployment Gating.*
+### 3.1 What the prototype checks today
 
-### 4.1 Installation Suitability Evaluation Model
-When a candidate software unit $u'$ is evaluated in the pipeline, SaaG-VAE computes an **Installation Suitability Score** across four evaluation headings ([Req 6.51](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L325-L330)):
-1. **Structural & Architectural Conformance ($H_1$):** Graph integrity, dependency trees, circular dependency checks.
-2. **Interface, Topic & Communication Conformance ($H_2$):** Topic QoS matches, publisher/consumer parity, schema consistency.
-3. **Dependency & Integration Conformance ($H_3$):** Library versions, CMDB compatibility.
-4. **Resource & Performance Sufficiency ($H_4$):** CPU core allocation bounds, OS configuration alignment, memory allocation parameters.
+SaaG-P implements a catalog of structural and criticality-weighted detectors over the derived
+dependency graph. Those bearing directly on the defect classes of §1.1:
 
-### 4.2 Scoring Formula & Severity Classification
-Each verification rule $r_k$ is assigned a severity level $S(r_k) \in \{\text{Info}, \text{Low}, \text{Medium}, \text{High}, \text{Critical}\}$, a weight $W(r_k)$, and a blocking flag $B(r_k) \in \{0, 1\}$ ([Req 6.52](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L331-L333)).
+* **Orphaned topics.** A topic with publishers but no subscribers, or subscribers but no publisher,
+  is flagged — the structural signature of the refactor described in §1.1.
+* **Dependency cycles.** Strongly connected components over the application dependency subgraph
+  identify circular package dependencies.
+* **Single points of failure and bottlenecks.** Articulation points and bridge edges in the
+  dependency graph, ranked by propagated QoS weight.
+* **Structural concentration.** Broker overload, topic fan-out, hub-and-spoke concentration, deep
+  pipelines, and god components.
 
-The overall score $\mathcal{S}$ is calculated as:
-$$\mathcal{S} = 100 - \sum_{k \in \text{Violations}} W(r_k) \cdot \text{Penalty}(S(r_k))$$
+Detectors emit findings with a severity (CRITICAL / HIGH / MEDIUM), the affected components, the
+rule that fired, and a recommendation.
 
-### 4.3 Automated Pipeline Blocking Decision
-Independent of the aggregate score $\mathcal{S}$, SaaG enforces an explicit **Deployment Blocking Rule** ([Req 6.53](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L333-L334)):
+### 3.2 Cascade impact simulation
 
-$$\text{Decision}(u') = \begin{cases} \text{FAIL (Non-Conforming)}, & \text{if } \exists k \in \text{Violations} \text{ s.t. } S(r_k) = \text{Critical} \lor B(r_k) = 1 \\ \text{FAIL (Non-Conforming)}, & \text{if } \mathcal{S} < \mathcal{S}_{\text{threshold}} \\ \text{PASS (Conforming)}, & \text{otherwise} \end{cases}$$
+Beyond static rules, SaaG-P simulates component failure to estimate blast radius before deployment.
+Failure is injected at a component and propagated along structural pub/sub edges — never along the
+derived `DEPENDS_ON` edges, an independence property enforced by the prototype's test suite so that
+simulation cannot silently consume its own derived output. The result ranks components by cascade
+impact, which is what §5.2 uses as a reference oracle when scoring the detector catalog.
 
-Upon returning `FAIL`, SaaG emits a structured JSON report detailing finding identifiers, affected nodes, rule violations, supporting evidence, and root-cause explanations ([Req 6.44, 6.54](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L292-L300, #L334-L336)). The CI/CD engine automatically halts execution, preventing deployment of the flawed artifact to the target environment.
+### 3.3 Scenario generation
+
+Verification requires system models that do not yet exist in the field. SaaG-P includes a scenario
+generator producing synthetic topologies with controlled scale, QoS mix, and clustering, plus a
+curated corpus of eleven committed scenarios spanning autonomous vehicles, IoT, financial trading,
+healthcare, air traffic management, and enterprise deployments. Each is hash-pinned against the
+config that generates it, so published numbers remain reproducible. Three architectures transcribed
+from open-source systems (§5.2.3) share the same descriptor schema and load through the identical
+pipeline, letting §5.2 compare generated and transcribed topologies directly rather than describing
+the latter only qualitatively.
+
+### 3.4 Specified but not yet implemented
+
+The following are required of SaaG-D and are **not** implemented in SaaG-P. We list them because the
+gap is the most transferable finding in this paper: each is a check whose value is obvious and whose
+cost is dominated by acquiring a domain model the graph does not carry.
+
+| Capability | SSS Req | Why it is not yet built |
+|---|---|---|
+| **QoS contract conformance** — request/offer matching of durability, reliability, and transport priority between each topic's writers and readers | 6.20 | The prototype flags a QoS *anomaly* — a criticality gap between coupled components — not a contract violation. True conformance requires per-endpoint QoS at reader/writer granularity, whereas the prototype's model attaches QoS to the topic. Closing this means extending the schema below topic level. |
+| **Payload schema consistency** — same topic name, divergent content definition | 6.21.3 | Requires parsing and comparing IDL/message definitions across units; the prototype's extractor does not yet resolve type definitions. |
+| **Core allocation conformance** — capacity, conflicting pinning, dedicated cores for high-performance units | 6.24–6.27 | Core counts and memory sizes are carried as node attributes but no rule evaluates them. Needs the deployment's core-assignment descriptors, which live outside the sources the prototype ingests. |
+| **OS and runtime configuration audit** — OS settings and runtime memory parameters against allocation | 6.25–6.26 | Same cause: the configuration is not in the prototype's input set. |
+| **Architectural drift** — designed vs. observed topology from field telemetry | 6.37–6.39 | Requires a field-record store and a graph-diff over observed communication edges. Neither exists in the prototype. |
+| **Installation suitability scoring** — four evaluation headings, per-rule weights, blocking flags, aggregate score | 6.51–6.54 | The prototype's gate is severity-based, not score-based (§4). The scoring model is specified in §4.2 as a requirement, not reported as a result. |
+| **CMDB and network topology ingestion** | 1.2 | Prototype consumes descriptor files instead. |
+
+Note what the table does *not* say: none of these are blocked on graph technology. Four of the seven
+are blocked on **input acquisition** — the information exists in the program but not in a form the
+model ingests. That ratio is our main lesson for teams attempting the same thing.
 
 ---
 
-## 5. Industrial Case Study & Empirical Evaluation
+## 4. CI/CD Pipeline Integration
 
-To evaluate the practical efficacy and performance of SaaG, we conducted an empirical study across an enterprise industrial middleware environment.
-
-### 5.1 System Scale & Experimental Setup
-The target environment models a mission-critical multi-node command and telemetry system:
-* **Software Scale:** 142 Computer Software Configuration Items (CSCIs), 850+ Computer Software Units (CSUs).
-* **Middleware & Communication Scale:** 420 DDS Topics, 1,200+ Message Definitions running on DDS/PubSub middleware.
-* **Hardware Scale:** 32 Operator Consoles and Multi-Core Processor Units (totaling 256 CPU cores), networked via redundant Gbit Ethernet switches.
-
-### 5.2 Evaluation Metrics & Results
-
-#### 1. CI/CD Pipeline Audit Overhead
-A critical requirement for CI/CD adoption is low verification latency. We measured the execution time of SaaG graph generation ($G_{u'}$) and static audit evaluation across 500 candidate build evaluations.
-
-| Processing Stage | Mean Latency (ms) | P95 Latency (ms) | Max Latency (ms) |
-|---|---|---|---|
-| Model Setup Data Extraction (MSD) | 120 ms | 185 ms | 240 ms |
-| Candidate Graph Construction (CSM) | 45 ms | 62 ms | 88 ms |
-| Static Rule Auditing (VAE) | 210 ms | 315 ms | 420 ms |
-| Report Generation & Pipeline Return | 15 ms | 22 ms | 35 ms |
-| **Total Audit Latency** | **390 ms** | **584 ms** | **783 ms** |
-
-*Result:* SaaG completes full architectural verification in **under 800 ms** at P95, adding negligible overhead to standard multi-minute build pipelines.
-
-#### 2. Defect Detection Effectiveness
-Over a 6-month trial period, SaaG evaluated **1,240 candidate builds** in the CI/CD pipeline. SaaG identified **148 pre-deployment architectural defects** that had successfully passed unit and integration tests.
+<!-- 0.75 pages -->
 
 ```
-       Defect Breakdown Caught by SaaG Pre-Deployment Gating
-  +---------------------------------------------------------------+
-  |  Hardware Core Over-Allocation & Conflict : 38% (56 defects)  |
-  |  Middleware QoS Parameter Mismatch        : 27% (40 defects)  |
-  |  Orphaned Topics / Schema Discord         : 18% (27 defects)  |
-  |  Circular Software Package Dependencies   : 11% (16 defects)  |
-  |  Memory / OS Config Parameter Incongruity :  6% ( 9 defects)  |
-  +---------------------------------------------------------------+
+ Developer      Source Repo       CI Server        SaaG           Target Env
+    |                |                |              |                |
+    |-- push ------->|                |              |                |
+    |                |-- webhook ---->|              |                |
+    |                |                |-- build candidate unit        |
+    |                |                |-- invoke gate (CLI) --------->|
+    |                |                |              |-- build candidate graph
+    |                |                |              |-- run detectors
+    |                |                |<-- exit code + JSON findings  |
+    |                |          [exit 0 or 1] -------------------------> deploy
+    |                |          [exit 2] -- abort, report to developer |
 ```
-*Figure 3: Breakdown of Pre-Deployment Architectural Defects Caught by SaaG.*
+*Figure 2: Gate integration. The prototype's decision is the process exit code.*
 
-*Key Finding:* 38% of detected defects involved CPU core contention or over-subscription on multi-core processor nodes—bugs that are notoriously difficult to reproduce in single-node test environments but cause immediate latency spikes in production.
+### 4.1 The implemented gate
 
-#### 3. Impact on Production Reliability
-Following the introduction of SaaG automated gating, post-deployment middleware-related incidents in the target staging/production environment dropped by **74%**, while the average time required to diagnose architectural configuration errors was reduced from hours to seconds due to SaaG's root-cause evidence reports ([Req 6.44–6.45](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L292-L304)).
+SaaG-P integrates as a command-line invocation. It constructs the candidate graph, runs the
+detectors, optionally writes the full finding set as JSON for downstream tooling, and encodes its
+decision in the process exit status: **2** if any CRITICAL or HIGH finding is present, **1** if any
+finding is present, **0** if none. Standard CI runners treat non-zero as failure, so a two-line
+pipeline stage gets absolute severity gating with no plugin.
+
+Two limitations are worth stating because they are the difference between a usable gate and a
+tolerated one:
+
+* **The gate is absolute, not delta-aware.** It scores the candidate graph on its own, not against
+  the merge base. A codebase carrying pre-existing HIGH findings therefore fails every build until
+  they are cleared — which in practice means teams disable the gate. This is not hypothetical on our
+  corpus: at CRITICAL/HIGH severity, **all eleven scenarios we evaluated — eight generated, three
+  transcribed — return exit code 2 at every one of five oracle seeds tested.** An absolute gate
+  deployed as-is would block every build in this corpus, which is precisely the failure mode that
+  gets a gate disabled rather than heeded. Delta semantics (fail only on findings the candidate
+  *introduces*) and a waiver register for accepted findings are the first changes we would make.
+* **There is no severity budget.** One HIGH finding and three hundred are the same decision.
+
+### 4.2 The specified scoring model
+
+SaaG-D is specified to replace the exit-code gate with a scored evaluation over four headings —
+structural and architectural conformance; interface, topic, and communication conformance;
+dependency and integration conformance; and resource and performance sufficiency (SSS Req 6.51).
+Each rule carries an identifier, heading, severity, weight, acceptance criterion, and blocking flag
+(SSS Req 6.52). A finding at critical severity, or a violation of any rule marked blocking, yields a
+non-conforming installation decision **independently of the aggregate score** (SSS Req 6.53) — the
+score is for reporting and trend analysis; blocking is categorical. Multi-unit evaluations run under
+independent operation identifiers and return per-unit decisions plus an aggregate result in a
+machine-processable form (SSS Req 6.54).
+
+We report this as specification, not as measurement: it is not implemented in SaaG-P, and §5 makes
+no claim about its behaviour.
+
+### 4.3 Findings and reports
+
+Each finding carries an identifier, type, description, affected entity, the rule or acceptance
+criterion it derives from, supporting evidence, and a severity level (SSS Req 6.44). This
+evidence-bearing structure is what makes a failing gate actionable rather than merely obstructive:
+the developer receives the offending component and the rule, not a build log.
+
+---
+
+## 5. Evaluation
+
+<!-- 1.75 pages — the largest section, per Industrial Track emphasis -->
+
+Two evaluations, kept separate. §5.1 reports the deployment (**[I]**); §5.2 reports the open
+prototype (**[P]**) and is fully reproducible. Neither substitutes for the other: the deployment
+numbers describe real engineering impact but cannot be independently verified; the prototype numbers
+can be rerun by any reader but describe a subset of the capability.
+
+### 5.1 Deployment experience `TODO(data)`
+
+> **Status: awaiting cleared data.** Every figure below is collected per
+> [data/README.md](data/README.md) and must carry an $n$, a window, and provenance. Categories
+> appear only where the corresponding check actually ran in the deployment. This subsection is not
+> written until the CSVs are filled; no placeholder numbers appear in the draft.
+
+* **5.1.1 System scale** — entity counts for the audited baseline, at the granularity clearance
+  permits (`data/system_scale.csv`), plus the anonymization statement from `data/clearance.md`.
+* **5.1.2 Verification cost in the pipeline** — per-stage wall-clock with $n$ runs, using the stage
+  names the deployed pipeline emits (`data/audit_latency.csv`). The claim to support is that
+  verification is negligible against build time — which requires stating build time.
+* **5.1.3 Defects caught before deployment** — findings by category over a stated build count and
+  window, with each category mapped to the rule and SSS requirement that produced it
+  (`data/defect_detection.csv`). Where confirmation status is tracked, report true and false
+  positives; where it is not, report findings and say so.
+* **5.1.4 Production incidents** — middleware-related incidents before and after gating, normalized
+  per release, with window lengths and **explicitly listed confounders**
+  (`data/incident_comparison.csv`). A raw percentage drop without the confounder list will not
+  survive review, and should not.
+
+### 5.2 Prototype measurements `[P]`
+
+All figures regenerate from a single committed artifact,
+`results/detection_seed_sweep.json`, produced by `reproduce/detection_seed_sweep.py` over the
+committed corpus — eight generated scenarios (29 to 520 components) plus three architectures
+transcribed from open-source systems (60 to 90 components) — at five oracle seeds each
+($\{42, 123, 456, 789, 2024\}$), 55 runs total, zero failures.
+
+#### 5.2.1 Verification cost by system scale
+
+End-to-end cost of one gate invocation — graph analysis plus all detectors — against component
+count, mean $\pm$ std over the five seeds:
+
+| Scenario | Corpus | Components | Analysis (s) | Detection (s) | Gate total (s) |
+|---|---|---:|---:|---:|---:|
+| tiny | generated | 29 | 0.02 ± 0.00 | 0.00 ± 0.00 | 0.02 ± 0.00 |
+| cloud microservices | transcribed | 60 | 0.03 ± 0.00 | 0.00 ± 0.00 | 0.03 ± 0.00 |
+| Autoware.universe | transcribed | 75 | 0.04 ± 0.00 | 0.00 ± 0.00 | 0.04 ± 0.00 |
+| Train-Ticket | transcribed | 90 | 0.04 ± 0.00 | 0.00 ± 0.00 | 0.04 ± 0.00 |
+| healthcare | generated | 98 | 0.27 ± 0.05 | 0.00 ± 0.00 | 0.27 ± 0.05 |
+| financial trading | generated | 124 | 0.60 ± 0.03 | 0.01 ± 0.00 | 0.61 ± 0.03 |
+| hub-and-spoke | generated | 139 | 1.21 ± 0.03 | 0.03 ± 0.00 | 1.24 ± 0.03 |
+| autonomous vehicle | generated | 152 | 0.78 ± 0.05 | 0.01 ± 0.00 | 0.79 ± 0.05 |
+| microservices | generated | 186 | 0.63 ± 0.03 | 0.01 ± 0.00 | 0.64 ± 0.03 |
+| IoT smart city | generated | 326 | 1.04 ± 0.05 | 0.04 ± 0.03 | 1.08 ± 0.04 |
+| enterprise | generated | 520 | 26.56 ± 0.32 | 0.18 ± 0.01 | 26.74 ± 0.32 |
+
+*Table 2: Gate cost, mean ± std over 5 oracle seeds, layer = system. Source:
+`results/detection_seed_sweep.json`.*
+
+Three observations. First, **detection is still cheap**: even on the largest graph the full detector
+suite costs under 0.2 s, and summed across the whole corpus the costliest single detector (dependency-
+chain enumeration) averages 0.047 s. Rule evaluation is not the cost centre to optimize.
+
+Second, **topology drives cost more than size does, and this is now a robust finding rather than a
+single-run curiosity**: hub-and-spoke (139 components) costs more to analyze than IoT smart city
+(326 components) — 1.21 s against 1.04 s — and more than autonomous vehicle (152 components) at
+0.78 s. Repeated five times, both orderings hold at every seed; this is not measurement noise.
+
+Third, **analysis cost is sharply non-linear at the top of our range, but the absolute number is
+sensitive to host load and should be treated that way.** From IoT smart city (326) to enterprise
+(520) — a 1.6× increase in components — mean analysis time rises from 1.04 s to 26.56 s, a
+$\approx$25× increase, and is tight across seeds ($\pm$0.32 s on enterprise). An earlier single-seed
+run of the identical scenario, seed, and code five days prior recorded 51.35 s — roughly double this
+sweep's mean — with no change to the analysis path in between. We report the swept figure as
+authoritative because it is the repeated one, and flag the discrepancy explicitly: absolute
+wall-clock analysis time on this host is contended by other load, so a team sizing CI capacity from
+this table should benchmark on its own runner rather than trust the absolute seconds. The scaling
+*shape* — cheap until roughly 300 components, then a steep, likely superlinear climb consistent with
+the exact betweenness computation in the analysis path — is the portable finding.
+
+#### 5.2.2 Detector catalog against a cascade oracle
+
+We scored the catalog's flagged set against components in the top quintile of simulated cascade
+impact. Catalog output is a deterministic function of the graph, and — at this propagation threshold
+(0.2) and these graph sizes — the oracle's critical-set membership is nearly seed-invariant too:
+every metric was bit-identical across all 5 seeds for all 8 generated scenarios and for two of the
+three transcribed ones; Train-Ticket's critical set changed by one component at seed 2024
+(recall 0.846 → 0.786). The seed sweep therefore confirms the single-seed measurement was not a
+lucky draw, but it does not supply independent repeated samples — the honest unit of analysis is one
+value per architecture, not per architecture-seed pair:
+
+| Corpus | $n$ (architectures) | Precision | Recall | $F_1$ | Cohen's $\kappa$ | % scored components flagged |
+|---|---:|---:|---:|---:|---:|---:|
+| Generated | 8 | 0.237 ± 0.015 | 0.887 ± 0.063 | 0.374 ± 0.023 | −0.036 ± 0.053 | 93.7% |
+| Transcribed | 3 | 0.402 ± 0.073 | 0.865 ± 0.126 | 0.546 ± 0.077 | 0.299 ± 0.126 | 56.3% |
+
+*Table 3: Rule-based detection vs. simulated cascade impact. Mean ± std across architectures within
+each corpus (5-seed values collapsed to one per architecture, as justified above). Source:
+`results/detection_seed_sweep.json`.*
+
+Recall is high and precision is low in both corpora, which is the correct shape for a pre-deployment
+gate: missing a genuinely critical component is worse than asking an engineer to dismiss a finding.
+**On the generated corpus, Cohen's $\kappa \approx 0$ is the honest headline**: the catalog's
+flagging agrees with cascade criticality no better than chance would, achieving recall by flagging
+93.7% of scored components — the catalog is barely more informative than flagging everything.
+
+**On the three transcribed architectures, agreement is materially better** — mean $\kappa = 0.30$,
+conventionally "fair" agreement, driven by a catalog that is *more selective* on real topologies
+(56.3% flagged, not 93.7%) rather than by a more lenient oracle. This ran opposite to what we
+expected: we anticipated the generator's cleaner, more regular topology would be *easier* for a
+rule-based catalog to rank, not harder. We report it as a small-sample finding — three architectures
+is not enough to claim the effect is general — but it is mechanistically explained (over-flagging is
+lower, not that criticality shifted) and consistent across all three architectures individually
+(range $\kappa \in [0.18, 0.43]$, no overlap with the generated corpus's range), which is more than
+we expected from three data points and is worth confirming on a larger transcribed corpus before
+treating it as established.
+
+We draw the conclusion the generated corpus forces, with the transcribed result as a qualifier
+rather than a rebuttal: **structural rules alone are adequate for *locating* defects of known shape
+(an orphaned topic is an orphaned topic) and, on synthetic topologies generated by our own
+procedure, inadequate for *ranking* components by consequence.** Severity in the catalog is a
+property of the rule, not of the component's position in the system, and the gate inherits that on
+the corpus where we can measure it at scale. Whether that inadequacy is intrinsic to rule-based
+detection or an artifact of our generator's structural priors is exactly what the transcribed split
+leaves open. This is the strongest argument we have for the impact simulation of §3.2 being part of
+the gate rather than an offline analysis — and, separately, for the criticality prediction work
+reported in the companion manuscript [Anon-A].
+
+#### 5.2.3 Coverage on transcribed open-source architectures
+
+To check that the model is not overfitted to its own generator, we made the three transcribed
+architectures loadable through the same pipeline as the generated corpus (they previously required a
+bespoke script) and ran the full gate against each:
+
+| Architecture | Apps | Topics | Brokers | Nodes | Libs | Relations | Findings | Gate exit code |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| Autoware.universe (ROS 2) | 32 | 24 | 3 | 6 | 10 | 179 | 67 | 2 (all 5 seeds) |
+| Train-Ticket benchmark | 41 | 30 | 3 | 8 | 8 | 162 | 78 | 2 (all 5 seeds) |
+| Cloud microservices mesh | 22 | 20 | 4 | 6 | 8 | 128 | 50 | 2 (all 5 seeds) |
+
+*Table 4: Transcribed architectures — scale, measured findings, and gate outcome. Findings are
+deterministic (std = 0 across seeds). Source: `data/scenarios/realworld_*.json`,
+`results/detection_seed_sweep.json`.*
+
+**These are hand-built models of real architectures, not harvested artifacts.** The topologies were
+transcribed from published component structures into the model's schema; no repository crawling or
+runtime introspection produced them. What changed in this revision is that they moved from a
+single example script's inline schema translation into the model's canonical schema, so the same
+gate, the same detector catalog, and the same oracle now run on them unmodified — which is what
+makes Table 3's transcribed row and this table's findings counts and gate outcomes actual
+measurements rather than a claim that the pipeline merely "runs." They remain three architectures
+transcribed by us, not independently sourced or extraction-verified, and we do not present them as
+evidence of extraction accuracy.
+
+### 5.3 Threats to validity
+
+* **Two systems, one name.** §5.1 and §5.2 measure different artifacts (§2.1). The prototype
+  implements a subset of the deployed capability; prototype cost figures are lower bounds on
+  deployed cost.
+* **Simulated oracle.** §5.2.2 scores detection against a simulator, not against observed field
+  failures. The simulator is a model of cascade propagation, and agreement with it is not the same
+  as agreement with reality. A second independent oracle in the same codebase agrees with this one
+  at only $\rho \approx 0.40$, which bounds how far any figure measured on one transfers to the
+  other.
+* **Wall-clock is host-dependent.** Table 2's enterprise-scenario analysis time (26.56 s, repeated
+  five times) came in at roughly half an isolated single-seed measurement of the identical
+  scenario, seed, and code taken five days earlier (51.35 s). The five-seed repetition confirms the
+  swept figure is not itself a fluke, but neither figure should be read as a hardware-independent
+  constant; only the scaling shape is portable.
+* **Effective sample size in Table 3 is 8 and 3 architectures, not 40 and 15 seed-pairs.** Catalog
+  output is deterministic given the graph, and the oracle's critical-set membership was seed-invariant
+  for 10 of the 11 scenarios (Train-Ticket's shifted by one component at one of five seeds). The seed
+  sweep therefore rules out "we got lucky with seed 42" but does not add independent statistical
+  power beyond one measurement per architecture — a caveat we apply to our own $\kappa = 0.30$ finding
+  on the transcribed corpus, which rests on $n=3$.
+* **Corpus composition.** Eight of eleven scenarios scored in §5.2.2 are generator-produced; the
+  transcribed architectures narrow but do not close the gap to a field distribution, and the
+  direction of their difference (higher $\kappa$, lower over-flagging) is itself only a 3-point
+  observation.
+* **Confounders in §5.1.4.** Gating was not the only change in the observation window; the listed
+  confounders bound the causal claim.
 
 ---
 
 ## 6. Related Work
 
-### Architectural Description Languages (ADLs) & Model-Driven Engineering
-Formal ADLs such as AADL (Architecture Analysis & Design Language) and SysML allow developers to model hardware/software interactions. However, traditional ADLs require manual model creation and maintenance, which rapidly diverges from implementation code. SaaG automates model setup data extraction directly from CMDBs, source repositories, and network manifests ([SSS.md Section 1](file:///home/onuralpyigit/Workspace/system-as-a-graph/docs/requirements/SSS.md#L21-L67)), creating a zero-maintenance digital twin.
+<!-- 0.25 pages -->
 
-### Static Code Analysis Tools
-Tools like SonarQube, Coverity, or Checkstyle analyze source code syntax and local control-flow graphs for memory leaks or security vulnerabilities. However, they lack awareness of system-level topology, multi-core CPU bindings, middleware DDS topic QoS policies, and network node configurations. SaaG operates at the architectural system boundary, complementing static code analyzers.
+**Architecture description languages.** AADL and SysML model hardware/software interaction and
+support analysis of the same properties we target [Feiler & Gluch]. Their practical obstacle in a
+delivery pipeline is maintenance: the model is authored separately from the implementation and
+drifts. SaaG's model is reconstructed per candidate build from the artifacts the build already
+produces, which trades expressiveness for currency.
 
-### Runtime Application Performance Monitoring (APM)
-Observability frameworks (e.g., Prometheus, Dynatrace, Datadog) monitor distributed systems post-deployment using metrics and distributed tracing. While effective for alerting, APMs operate reactively after non-conforming software is already running in production. SaaG operates proactively in the CI/CD pipeline, preventing non-conforming releases from ever reaching production.
+**Static code analysis.** SonarQube, Coverity, and similar platforms analyze source and local
+control flow. They are structurally unable to see topic bindings, QoS contracts, core assignments,
+or node topology — the system exists only in the composition of the units they analyze
+individually. SaaG complements them at the architectural boundary rather than competing.
+
+**Runtime observability.** Prometheus, Dynatrace, and distributed tracing observe the deployed
+system with fidelity no static model matches, but only after the non-conforming artifact is running.
+The specified drift detection of §3.4 is precisely an attempt to route that observation back into
+pre-deployment verification.
+
+**Middleware dependability.** Pub/sub dependability has been studied at the protocol, broker
+overlay, and runtime levels. Our contribution is neither a protocol nor a runtime mechanism but a
+pipeline-integrated static check over the deployment's own descriptors.
+
+<!-- TODO(refs): expand from 6 to ~18 citations before submission. Reuse the bibliography assembled
+     in docs/research/middleware2026/research/middleware26_revision_plan.md §A1 (Eugster, Carzaniga,
+     DDS spec, MQTT, Freeman, Brandes). Add: DDS QoS conformance literature; deployment/config
+     verification (e.g. configuration error studies); CI quality-gate practice. The prior main-track
+     rejection cited a reference-free introduction as a weakness — §1 needs citations woven in. -->
 
 ---
 
-## 7. Conclusion & Future Work
+## 7. Conclusion
 
-This paper presented **SaaG (System as a Graph)**, an architectural digital twin framework for pre-deployment verification and automated CI/CD gating in complex distributed middleware systems. By transforming system topologies, software units, middleware topics, and processor nodes into a multi-attributed graph model, SaaG statically audits hardware core allocations, DDS QoS parameters, circular dependencies, and topic integrity prior to code installation. Integrated directly into build pipelines, SaaG evaluates candidate releases in under 800 ms and automatically blocks non-conforming builds. Industrial evaluation demonstrated a 74% reduction in post-deployment middleware incidents.
+<!-- 0.25 pages -->
 
-**Future Work:** We plan to integrate LLM-driven agentic harnesses into the SaaG verification loop to automatically generate remediation pull requests when architectural rule violations are flagged during CI/CD gating.
+We reported a graph-based approach to pre-deployment architecture verification for mission-critical
+pub/sub middleware: a 112-requirement baseline developed with an industrial program, an open
+prototype implementing the graph model and a subset of the specified checks, and measurements from
+both the deployment and the prototype.
+
+The findings we would most want carried forward are the negative ones, plus one we did not expect.
+Building the graph and running structural rules is cheap — all twenty detectors cost under 0.2 s on
+a 520-component system, confirmed across five oracle seeds. Ranking findings by consequence is not,
+on the synthetic corpus we generate ourselves: rule-based severity agrees with simulated cascade
+impact at $\kappa \approx 0$, so a catalog of structural rules locates defects well and prioritizes
+them badly there. But on three architectures transcribed from real open-source systems, agreement
+rose to fair ($\kappa \approx 0.30$) — a small-sample result we report rather than smooth over,
+because it points at our synthetic generator's structural priors, not at rule-based detection in
+general, as the likely source of the near-chance result. And of the seven specified checks we have
+not built, four are blocked not on analysis technique but on **getting the configuration data into
+the model at all** — core assignments, OS settings, and runtime parameters exist in the program and
+not in the pipeline's reach. Teams planning similar work should budget for data acquisition, not for
+graph algorithms.
+
+**Future work.** Delta-aware gating against the merge base with a waiver register (§4.1); QoS
+conformance at reader/writer granularity, which requires extending the schema below topic level
+(§3.4); and drift detection, which requires the field-record path the specification already
+describes.
 
 ---
 
 ## References
 
-1. Object Management Group (OMG). *Data Distribution Service (DDS) Specification*, Version 1.4, 2015.
-2. Bass, L., Clements, P., & Kazman, R. *Software Architecture in Practice*. Addison-Wesley Professional, 4th Edition, 2021.
-3. Feiler, P. H., & Gluch, D. P. *Model-Based Engineering with AADL: An Introduction to the SAE Architecture Analysis & Design Language Standard*. Addison-Wesley, 2012.
-4. Humble, J., & Farley, D. *Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation*. Addison-Wesley, 2010.
-5. IEEE Std 1471-2000. *IEEE Recommended Practice for Architectural Description of Software-Intensive Systems*. IEEE, 2000.
-6. Fowler, M. *Patterns of Enterprise Application Architecture*. Addison-Wesley, 2002.
+<!-- TODO(refs): convert to ACM format; expand per the note in §6. -->
+
+1. Object Management Group. *Data Distribution Service (DDS) Specification*, Version 1.4, 2015.
+2. P. H. Feiler and D. P. Gluch. *Model-Based Engineering with AADL*. Addison-Wesley, 2012.
+3. J. Humble and D. Farley. *Continuous Delivery*. Addison-Wesley, 2010.
+4. L. Bass, P. Clements, and R. Kazman. *Software Architecture in Practice*, 4th ed.
+   Addison-Wesley, 2021.
+5. P. Th. Eugster, P. A. Felber, R. Guerraoui, and A.-M. Kermarrec. The many faces of
+   publish/subscribe. *ACM Computing Surveys*, 35(2), 2003.
+6. A. Carzaniga, D. S. Rosenblum, and A. L. Wolf. Design and evaluation of a wide-area event
+   notification service. *ACM TOCS*, 19(3), 2001.
+7. U. Brandes. A faster algorithm for betweenness centrality. *Journal of Mathematical Sociology*,
+   25(2), 2001.
+8. [Anon-A] Companion manuscript on QoS-weighted criticality prediction. Under review.

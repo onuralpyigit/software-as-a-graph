@@ -11,6 +11,39 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 
+#: Maps the flat relation-list `type` string used when authoring topologies in this module to the
+#: canonical relation-keyed dict key expected by MemoryRepository/Neo4jRepository (`save_graph`)
+#: and every other dataset in data/scenarios/.
+_RELATION_TYPE_TO_KEY = {
+    "PUBLISHES_TO": "publishes_to",
+    "SUBSCRIBES_TO": "subscribes_to",
+    "ROUTES": "routes",
+    "RUNS_ON": "runs_on",
+    "CONNECTS_TO": "connects_to",
+    "USES": "uses",
+}
+
+
+def _to_canonical_relationships(flat_relationships: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """Group a flat `[{"source", "target", "type"}, ...]` list into the canonical
+    `{"publishes_to": [{"from", "to", "weight"}], ...}` shape.
+
+    Raises on an unrecognized `type` rather than silently misrouting the edge.
+    """
+    canonical: Dict[str, List[Dict[str, Any]]] = {key: [] for key in _RELATION_TYPE_TO_KEY.values()}
+    for rel in flat_relationships:
+        raw_type = rel["type"]
+        key = _RELATION_TYPE_TO_KEY.get(raw_type)
+        if key is None:
+            raise ValueError(f"Unrecognized relationship type {raw_type!r} in real-world topology")
+        canonical[key].append({
+            "from": rel["source"],
+            "to": rel["target"],
+            "weight": rel.get("weight", 1.0),
+        })
+    return canonical
+
+
 class RealWorldAdapter:
     """Adapter for importing real-world distributed pub-sub software system architectures into SaG multigraph format."""
 
@@ -342,7 +375,7 @@ class RealWorldAdapter:
             "topics": topics,
             "applications": applications,
             "libraries": libraries,
-            "relationships": relationships
+            "relationships": _to_canonical_relationships(relationships)
         }
 
     @staticmethod
@@ -603,7 +636,7 @@ class RealWorldAdapter:
             "topics": topics,
             "applications": applications,
             "libraries": libraries,
-            "relationships": relationships
+            "relationships": _to_canonical_relationships(relationships)
         }
 
     @staticmethod
@@ -941,6 +974,6 @@ class RealWorldAdapter:
             "topics": topics,
             "applications": applications,
             "libraries": libraries,
-            "relationships": relationships
+            "relationships": _to_canonical_relationships(relationships)
         }
 

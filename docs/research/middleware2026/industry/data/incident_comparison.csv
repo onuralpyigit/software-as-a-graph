@@ -1,0 +1,7 @@
+# §5.2.3 — middleware-related production incidents before vs. after gating was enabled.
+# Both periods need explicit length and release count; an incident delta is meaningless without them.
+# `confounders` is mandatory: list anything else that changed in the same window (team size, test
+# suite expansion, platform upgrade, release cadence change). If genuinely nothing, write "none known".
+period,start_date,end_date,duration_months,n_releases,n_middleware_incidents,incident_rate_per_release,confounders,notes
+before_gating,,,,,,,,
+after_gating,,,,,,,,

@@ -1,0 +1,6 @@
+# §5.2.1 — wall-clock cost of a verification run in the deployed pipeline.
+# `stage` MUST be a stage name the deployed system actually emits — do not invent a decomposition.
+# `n_runs` is the sample size behind the statistics; all four latency columns share it.
+# Add a `total` row only if it is measured end-to-end, not summed from the stages.
+stage,n_runs,mean_ms,p50_ms,p95_ms,max_ms,measurement_window,notes
+,,,,,,,

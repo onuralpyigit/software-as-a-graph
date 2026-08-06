@@ -1,0 +1,13 @@
+# §5.1 — scale of the deployed system the industrial numbers describe.
+# One row per entity type. Leave `count` empty until the real figure is confirmed.
+# `system_version` identifies the baseline the counts were taken from; keep it constant across all files here.
+entity_type,count,system_version,notes
+CSCI,,,
+CSC,,,
+CSU,,,
+topic,,,
+message_definition,,,
+operator_console,,,
+processor_unit,,,
+cpu_core_total,,,
+network_node,,,
