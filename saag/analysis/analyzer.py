@@ -40,7 +40,7 @@ from __future__ import annotations
 
 import logging
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as dataclass_replace
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
@@ -132,19 +132,24 @@ class QualityAnalyzer:
     for adaptive threshold determination.
 
     Args:
-        k_factor: IQR multiplier for outlier fence (default 1.5).
+        k_factor: IQR multiplier for outlier fence (default 0.75).
         weights: Manually specified QualityWeights (overridden by use_ahp).
         use_ahp: If True, compute weights from default AHP matrices.
-        normalization_method: 'max' (default) or 'robust' (rank-based).
+        normalization_method: 'robust' (default, rank-based) or 'max'.
     """
 
     def __init__(self, k_factor: float = 0.75, weights: Optional[QualityWeights] = None, use_ahp: bool = False, ahp_shrinkage: float = 0.7, normalization_method: str = "robust", winsorize: bool = True, winsorize_limit: float = 0.05, adapt_qos_weights: bool = True, equal_weights: bool = False) -> None:
         weights = weights or QualityWeights()
         if equal_weights:
-            weights.q_reliability = 0.25
-            weights.q_maintainability = 0.25
-            weights.q_availability = 0.25
-            weights.q_security = 0.25
+            # Copy rather than mutate: `weights` may be a caller-owned
+            # instance shared across multiple QualityAnalyzer construction
+            # calls, and mutating it in place would corrupt every other
+            # analyzer holding a reference to the same object.
+            weights = dataclass_replace(
+                weights,
+                q_reliability=0.25, q_maintainability=0.25,
+                q_availability=0.25, q_security=0.25,
+            )
 
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
         self.weights = (

@@ -15,7 +15,25 @@ if __name__ == "__main__" and __package__ is None:
 
 from saag import Pipeline
 from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
-from cli.common.console import ConsoleDisplay
+from cli.common.console import ConsoleDisplay, Colors
+
+_ALL_LAYERS = ["app", "infra", "mw", "system"]
+
+
+def _resolve_layers(args, layer_explicit: bool) -> list:
+    """Layers for the validate/visualize stages under --all.
+
+    An explicitly-passed --layer must be honoured even under --all — it used
+    to be silently discarded there in favour of all four layers, while
+    analyze/simulate (which read args.layer directly) kept honouring it, so
+    --all --layer app analyzed "app" but validated/visualized all four.
+    """
+    if layer_explicit:
+        return [l.strip() for l in args.layer.split(",")]
+    if args.all:
+        return list(_ALL_LAYERS)
+    return [l.strip() for l in args.layer.split(",")] if args.layer else ["system"]
+
 
 def main():
     display = ConsoleDisplay()
@@ -63,19 +81,27 @@ def main():
     
     args = parser.parse_args()
     setup_logging(args)
-    
+
+    # Whether the user gave --layer/-l explicitly, as opposed to relying on
+    # add_common_arguments' "system" default — distinguishes "run --all with
+    # the default" from "run --all --layer app", which --all used to ignore
+    # for validate/visualize (see _resolve_layers below).
+    layer_explicit = any(
+        a in ("--layer", "-l") or a.startswith("--layer=") for a in sys.argv[1:]
+    )
+
     # Ensure at least one stage is selected
-    stages = [args.all, args.generate, args.input, args.analyze, args.predict, args.simulate, args.validate, args.prescribe, args.visualize]
+    stages = [args.all, args.generate, bool(args.input), args.analyze, args.predict, args.simulate, args.validate, args.prescribe, args.visualize]
     if not any(stages):
         parser.error("No stages selected. Use --all or specific stage flags.")
-        return 1
 
     # First-run guard: --all (or explicit --predict) requires a trained GNN checkpoint.
     # Without it the predict stage will fail with a cryptic FileNotFoundError.
+    skip_predict = False
     if (args.all or args.predict) and not args.gnn_model:
-        import os
-        _default_ckpt = "output/gnn_checkpoints/best_model"
-        if not os.path.isdir(_default_ckpt):
+        from saag.prediction.service import PredictionService
+        _default_ckpt = "output/gnn_checkpoints"
+        if not PredictionService._has_checkpoint(_default_ckpt):
             print(
                 "\n[WARNING] --all / --predict requires a pre-trained GNN checkpoint.\n"
                 f"  No checkpoint found at default path '{_default_ckpt}' and\n"
@@ -83,14 +109,14 @@ def main():
                 "  First-run sequence:\n"
                 "    1. python cli/run.py --input system.json --analyze --simulate\n"
                 "    2. PYTHONPATH=. python cli/train_graph.py --layer system \\\n"
-                "           --output output/gnn_checkpoints/best_model\n"
-                "    3. python cli/run.py --all --gnn-model output/gnn_checkpoints/best_model\n\n"
+                f"           --output {_default_ckpt}\n"
+                f"    3. python cli/run.py --all --gnn-model {_default_ckpt}\n\n"
                 "  The predict stage will be skipped this run to avoid a crash.\n",
                 file=sys.stderr,
             )
-            args.predict = False   # neutralise predict in --all mode for this run
+            skip_predict = True   # neutralise predict in --all mode for this run
             # Note: args.all stays True so all other stages still execute.
-        
+
     # 0. Generation Stage (Pre-Pipeline)
     # If using --all, we assume generation is desired if --config or --scale provided
     do_generate = args.generate or (args.all and (args.config or args.scale))
@@ -133,27 +159,23 @@ def main():
         
     # 2. Configure Pipeline Stages
     if args.analyze or args.all:
-        pipeline.analyze(layer=args.layer, use_ahp=args.use_ahp)
-        
-    if args.predict or args.all:
-        pipeline.predict(gnn_checkpoint=args.gnn_model)
-        
+        pipeline.analyze(layer=args.layer)
+
+    if (args.predict or args.all) and not skip_predict:
+        pipeline.predict(gnn_checkpoint=args.gnn_model, use_ahp=args.use_ahp)
+
     if args.simulate or args.all:
         pipeline.simulate(layer=args.layer, mode=args.sim_mode)
-        
+
     if args.validate or args.all:
-        # Split comma-separated layers
-        layers = [l.strip() for l in args.layer.split(",")] if args.layer else ["system"]
-        if args.all: layers = ["app", "infra", "mw", "system"]
-        pipeline.validate(layers=layers)
-        
+        pipeline.validate(layers=_resolve_layers(args, layer_explicit))
+
     if args.prescribe or args.all:
         pipeline.prescribe()
-        
+
     if args.visualize or args.all:
-        layers = [l.strip() for l in args.layer.split(",")] if args.layer else ["system"]
-        if args.all: layers = ["app", "infra", "mw", "system"]
-        
+        layers = _resolve_layers(args, layer_explicit)
+
         out_path = args.output if args.output else "dashboard.html"
         if args.output_dir:
             out_path = str(Path(args.output_dir) / (args.output or "dashboard.html"))
@@ -169,7 +191,14 @@ def main():
     # 3. Execute pipeline
     display.print_header("Analytical Pipeline Execution")
     display.print_step("Running configured stages sequentially...")
-    result = pipeline.run()
+    try:
+        result = pipeline.run()
+    except Exception as e:
+        display.print_error(f"Pipeline execution failed: {e}")
+        if getattr(args, "verbose", False):
+            import traceback
+            traceback.print_exc()
+        return 1
     
     # 4. Post-Execution reporting
     if result.analysis:
@@ -191,7 +220,6 @@ def main():
         print(f"  Mutated SRI  : {result.prescription.mutated_sri:.4f}")
         improvement = result.prescription.sri_improvement
         if improvement > 0:
-            from cli.common.console import Colors
             print(f"  Improvement  : {display.colored(f'+{improvement:.4f}', Colors.GREEN)}")
         else:
             print(f"  Improvement  : {improvement:.4f}")
@@ -207,7 +235,6 @@ def main():
     if problems and not getattr(args, "quiet", False):
         display.print_subheader(f"Architectural Anti-Patterns ({len(problems)})")
         for p in problems:
-            from cli.common.console import Colors
             severity = getattr(p, "severity", "medium").upper()
             category = getattr(p, "category", "risk")
             color = display.severity_color(severity)

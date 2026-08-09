@@ -10,7 +10,7 @@ and accuracy metrics.
 Usage:
     python cli/benchmark.py --scales tiny,small,medium --runs 3
     python cli/benchmark.py --full-suite
-    python cli/benchmark.py --config benchmarks/suite.yaml
+    python cli/benchmark.py --config data/benchmarks/scenarios_suite.yaml
     python cli/benchmark.py --scales small --layers app --runs 1 --verbose
 """
 import argparse
@@ -192,7 +192,7 @@ def build_parser() -> argparse.ArgumentParser:
 examples:
   %(prog)s --scales tiny,small,medium --runs 3     Quick multi-scale benchmark
   %(prog)s --full-suite                             Comprehensive benchmark
-  %(prog)s --config benchmarks/suite.yaml           From YAML config
+  %(prog)s --config data/benchmarks/scenarios_suite.yaml  From YAML config
   %(prog)s --scales small --layers app --runs 1     Minimal single run
 """,
     )

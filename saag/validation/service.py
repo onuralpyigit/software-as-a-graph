@@ -106,6 +106,7 @@ class ValidationService:
                     layer=layer.value,
                     layer_name=get_simulation_layer_definition(layer).name,
                     warnings=[str(e)],
+                    errored=True,
                 )
 
         return PipelineResult(
@@ -444,8 +445,13 @@ class ValidationService:
             specialists = spec.specialists(inputs)
         except Exception as e:
             # The correlation above is still valid, so report it rather than
-            # dropping the dimension — but make the missing metrics loud.
-            self.logger.warning(
+            # dropping the dimension — but make the missing metrics loud. Every
+            # gate that reads a specialist key via `.get(key, default)`
+            # (_evaluate_gates, G6-G9) already fails closed when the key is
+            # absent, so a crash here cannot manufacture a passing gate — but
+            # the traceback matters for telling "genuinely near-zero" apart
+            # from "the specialist computation raised".
+            self.logger.exception(
                 "%s specialist metrics unavailable (%s); reporting ρ only", spec.key, e
             )
             specialists = {}

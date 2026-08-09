@@ -23,6 +23,19 @@ def test_analyzer_equal_weights_override():
     assert w.q_maintainability == 0.25
     assert w.q_security == 0.25
 
+def test_equal_weights_does_not_mutate_shared_weights_instance():
+    """equal_weights=True must not mutate a caller-supplied QualityWeights in
+    place — two analyzers sharing one weights object would otherwise corrupt
+    each other's configuration."""
+    shared = QualityWeights()
+    original_availability = shared.q_availability
+
+    QualityAnalyzer(weights=shared, equal_weights=True)
+
+    assert shared.q_availability == pytest.approx(original_availability)
+    assert shared.q_availability != 0.25
+
+
 def test_analyzer_default_uses_ahp_derived():
     """Verify that QualityAnalyzer uses the new defaults by default."""
     analyzer = QualityAnalyzer()

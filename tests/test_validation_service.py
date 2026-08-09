@@ -82,6 +82,22 @@ class TestValidationService:
         assert "invalid_layer" not in result.layers
         assert len(result.layers) == 1
 
+    def test_validate_layers_marks_errored_layer(
+        self, validation_service, mock_prediction_service
+    ):
+        """A layer that throws before validation runs must be distinguishable
+        from a layer that validated and genuinely failed: LayerValidationResult
+        previously had no way to tell "crashed" apart from "0.0 across the
+        board", both of which fold into passed=False."""
+        mock_prediction_service.predict_quality.side_effect = RuntimeError("boom")
+
+        result = validation_service.validate_layers(layers=["app"])
+
+        layer_result = result.layers["app"]
+        assert layer_result.errored is True
+        assert layer_result.passed is False
+        assert "boom" in layer_result.warnings[0]
+
     def test_validate_single_layer_flow(self, validation_service, mock_analysis_service, mock_prediction_service, mock_simulation_service):
         """Test the flow of efficient sinlge layer validation."""
         # Setup Analysis Result

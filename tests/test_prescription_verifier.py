@@ -227,3 +227,84 @@ def test_verifier_survives_an_edit_that_fails_to_simulate(monkeypatch, one_edit_
 
     assert not verdict.accepted
     assert "simulation_error" in verdict.reason
+
+
+# ── parallel worker: must use the verifier's own layer/checkpoint ────────────
+#
+# `_verify_single_edit_worker` runs inside a separate process (the default
+# path: EditVerifier.verify's n_jobs=-1), so it cannot capture `self.evaluator`
+# by closure — it has to be told the layer and checkpoint explicitly. A bare
+# `GraphEvaluator()` silently defaults to layer="system", which evaluates
+# every candidate edit on the wrong layer whenever prescribe runs with
+# --layer != system while the baselines were measured on that layer.
+
+def test_worker_constructs_evaluator_with_configured_layer_and_checkpoint(
+    monkeypatch, one_edit_policy
+):
+    from saag.prescription import verifier as verifier_mod
+
+    seen = {}
+
+    class RecordingEvaluator:
+        def __init__(self, layer="system", gnn_checkpoint=None):
+            seen["layer"] = layer
+            seen["gnn_checkpoint"] = gnn_checkpoint
+
+        def impact(self, repo, *, threshold, seed):
+            return {"A1": 1.0}
+
+    monkeypatch.setattr(verifier_mod, "GraphEvaluator", RecordingEvaluator)
+
+    edit = one_edit_policy.edits()[0]
+    args_tuple = (
+        edit, {}, 1.0, [0.2], [42], {(0.2, 42): {"A1": 1.0}},
+        "app", "output/gnn_checkpoints/app_ckpt",
+    )
+    verifier_mod._verify_single_edit_worker(args_tuple)
+
+    assert seen == {"layer": "app", "gnn_checkpoint": "output/gnn_checkpoints/app_ckpt"}
+
+
+def test_parallel_and_serial_paths_agree_on_evaluator_layer(monkeypatch):
+    """End-to-end through EditVerifier.verify, forcing the real
+    ProcessPoolExecutor path (>1 edit): the mutated-graph impact the parallel
+    workers measure must come from the *same* layer as the baseline
+    (self.evaluator.layer="app"), matching what the serial path measures.
+
+    LayeredEvaluator.impact returns a layer-dependent value. The serial path
+    always uses ``self.evaluator`` for both baseline and mutated impact, so it
+    trivially agrees with itself — the real risk is a worker reconstructing
+    ``GraphEvaluator()`` with its bare default (layer="system"), which would
+    read the *wrong* layer's value and manufacture a nonzero delta out of
+    nothing. Both paths should therefore report zero delta (baseline ==
+    mutated) once the worker is threaded the configured layer correctly.
+    """
+    from saag.prescription import verifier as verifier_mod
+
+    two_edit_policy = PrescriptionPolicy(qos_upgrades=[
+        QosUpgrade(topic="T1", original_reliability="BEST_EFFORT", original_durability="VOLATILE"),
+        QosUpgrade(topic="T2", original_reliability="BEST_EFFORT", original_durability="VOLATILE"),
+    ])
+
+    class LayeredEvaluator:
+        def __init__(self, layer="system", gnn_checkpoint=None):
+            self.layer = layer
+            self.gnn_checkpoint = gnn_checkpoint
+
+        def impact(self, repo, *, threshold, seed):
+            return {"A1": 1.0 if self.layer == "app" else 5.0}
+
+    monkeypatch.setattr(verifier_mod, "GraphEvaluator", LayeredEvaluator)
+    verifier = EditVerifier(LayeredEvaluator(layer="app"), thresholds=[0.2], seeds=[42])
+
+    serial = verifier.verify(FakeRepo(), {}, two_edit_policy, n_jobs=1)
+    parallel = verifier.verify(FakeRepo(), {}, two_edit_policy, n_jobs=2)
+
+    for verdicts, label in ((serial, "serial"), (parallel, "parallel")):
+        for verdict in verdicts:
+            stat = verdict.per_threshold["0.2"]
+            assert stat.mean_delta == pytest.approx(0.0), (
+                f"{label} path measured a nonzero delta from a self-vs-self "
+                f"comparison — the mutated impact was read from a different "
+                f"layer than the baseline"
+            )

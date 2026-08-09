@@ -87,14 +87,21 @@ import os
 
 
 def _verify_single_edit_worker(
-    args_tuple: Tuple[Any, Dict[str, Any], float, List[float], List[int], Dict[Tuple[float, int], Dict[str, float]]]
+    args_tuple: Tuple[
+        Any, Dict[str, Any], float, List[float], List[int],
+        Dict[Tuple[float, int], Dict[str, float]], str, Optional[str],
+    ]
 ) -> EditVerdict:
     """Top-level worker function for parallel candidate edit evaluation across CPU cores."""
-    edit, original_json, kappa, thresholds, seeds, baselines = args_tuple
+    edit, original_json, kappa, thresholds, seeds, baselines, layer, gnn_checkpoint = args_tuple
     single = PrescriptionPolicy.from_edits([edit])
     failure_reason = ""
     per_threshold: Dict[str, ThresholdStat] = {}
-    evaluator = GraphEvaluator()
+    # Must match the layer/checkpoint the baselines were measured with
+    # (EditVerifier.evaluator) — a bare GraphEvaluator() defaults to
+    # layer="system", silently evaluating every candidate on the wrong
+    # layer whenever prescribe runs with --layer != system.
+    evaluator = GraphEvaluator(layer=layer, gnn_checkpoint=gnn_checkpoint)
     try:
         repo = repo_from_json(apply_policy(original_json, single))
         for threshold in thresholds:
@@ -172,7 +179,10 @@ class EditVerifier:
 
         # Parallel execution path using ProcessPoolExecutor
         tasks = [
-            (edit, original_json, self.kappa, self.thresholds, self.seeds, baselines)
+            (
+                edit, original_json, self.kappa, self.thresholds, self.seeds, baselines,
+                self.evaluator.layer, self.evaluator.gnn_checkpoint,
+            )
             for edit in edits
         ]
         try:

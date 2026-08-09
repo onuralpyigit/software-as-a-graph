@@ -74,8 +74,11 @@ async def classify_components(
                 else:
                     classifier = BoxPlotClassifier()
                 
-                result = classifier.classify_scores(values, item_type="component", metric_name=metric_name)
-                
+                result = classifier.classify(
+                    [{"id": comp_id, "score": score} for comp_id, score in values.items()],
+                    metric_name=metric_name,
+                )
+
                 classifications[metric_name] = {
                     "statistics": {
                         "min_val": result.stats.min_val,
@@ -86,7 +89,7 @@ async def classify_components(
                         "iqr": result.stats.iqr,
                         "upper_fence": result.stats.upper_fence
                     },
-                    "distribution": result.summary(),
+                    "distribution": result.distribution,
                     "components": [
                         {
                             "id": item.id,

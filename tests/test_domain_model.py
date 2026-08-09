@@ -358,6 +358,7 @@ def neo4j_repo():
     yield repo
     repo.close()
 
+@pytest.mark.integration
 class TestNeo4jGraphImport:
     def test_rule_5_derivation(self, neo4j_repo):
         """Test Rule 5: app_to_lib DEPENDS_ON edges are created correctly."""

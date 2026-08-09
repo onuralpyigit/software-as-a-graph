@@ -79,6 +79,10 @@ class QualityAnalysisResult:
     problem_summary: Optional["ProblemSummary"] = None
     explanation: Optional["SystemReport"] = None
     prediction_mode: str = "rmav"
+    #: Anti-pattern IDs whose detector raised while producing `problems` (see
+    #: AntiPatternDetector.failed_patterns). Empty means every active
+    #: detector ran cleanly — not just "found nothing".
+    failed_patterns: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         result = {

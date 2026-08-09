@@ -296,6 +296,12 @@ class LayerValidationResult:
     system_health: Dict[str, float] = field(default_factory=dict)
     # system_health keys: H_R, H_M, H_A, H_S, SRI, RCI
     passed: bool = False
+    #: True iff this layer never got a real validation run — analysis,
+    #: prediction, or simulation raised before comparison could happen.
+    #: `passed=False` alone doesn't distinguish "validated and failed" from
+    #: "crashed before validating"; ValidationService.validate_layers sets
+    #: this in its except branch.
+    errored: bool = False
     comparisons: List[ComponentComparison] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     csc_names: Dict[str, str] = field(default_factory=dict)
@@ -316,6 +322,7 @@ class LayerValidationResult:
             "layer": self.layer,
             "layer_name": self.layer_name,
             "passed": self.passed,
+            "errored": self.errored,
             "summary": {
                 "spearman": round(self.spearman, 4),
                 "f1_score": round(self.f1_score, 4),

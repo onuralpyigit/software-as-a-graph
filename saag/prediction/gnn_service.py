@@ -5,20 +5,22 @@ High-level integration point between the GNN module and the existing
 Software-as-a-Graph pipeline.
 
 This service mirrors the interface of ``AnalysisService`` and
-``SimulationService`` so it can be dropped into the existing six-step
-pipeline without structural changes.  It adds a **Step 3.5** between
-Prediction (Step 3) and Failure Simulation (Step 4):
+``SimulationService`` so it can be dropped into the existing seven-step
+pipeline without structural changes. It provides the ML half of Step 3
+(Predict): ``PredictionService`` always computes rule-based RMAV Q*(v), then
+blends in this service's GNN-derived Q_GNN(v) when a trained checkpoint is
+available — GNN inference is not a separate pipeline step, it is inside
+Step 3 alongside the RMAV path.
 
-    Step 3  →  RMAV Q*(v)
-    Step 3.5 → GNN  Q_GNN(v)   ← NEW
-    Step 4  →  I*(v) (unchanged)
-    Step 5  →  validate Q_gnn vs I*  (apples-to-apples with Step 3)
+    Step 3 (Predict)  →  RMAV Q*(v)  +  GNN Q_GNN(v) when a checkpoint exists
+    Step 4 (Simulate) →  I*(v) (unchanged, independent oracle)
+    Step 5 (Validate) →  validate Q*/Q_GNN vs I*
 
 Usage
 -----
 Typical inference workflow (no training data available):
 
-    >>> service = GNNService.from_checkpoint("output/gnn_checkpoints/best_model.pt")
+    >>> service = GNNService.from_checkpoint("output/gnn_checkpoints")
     >>> gnn_result = service.predict(
     ...     graph=nx_graph,
     ...     structural_metrics=structural_dict,
@@ -257,7 +259,7 @@ class GNNService:
     hidden_channels:
         GNN embedding dimension (default 64).
     num_heads:
-        GAT attention heads (default 4).
+        HGTConv attention heads (default 4).
     num_layers:
         Message-passing depth (default 3).
     dropout:
@@ -616,17 +618,27 @@ class GNNService:
         edge_attr_dict = {rel: data_dev[rel].edge_attr for rel in data_dev.edge_types
                           if rel in model_edge_types and hasattr(data_dev[rel], "edge_attr")}
         
-        # ── STRICT INDEPENDENCE INVARIANT ASSERTIONS ──────────────────────────
+        # ── STRICT INDEPENDENCE INVARIANT CHECKS ───────────────────────────────
         # Ensure that during inference (forward pass), no evaluation/simulation labels (y)
-        # are ever passed to or consumed by the GNN models.
+        # are ever passed to or consumed by the GNN models. Explicit raises, not
+        # assert: this guards the paper's core independence claim, and assert
+        # statements are silently compiled out under `python -O`.
         for nt, x in x_dict.items():
-            assert not hasattr(x, "y"), f"Violation of Independence Guarantee: Feature tensor for '{nt}' contains target label attribute 'y'."
-            assert x.shape[1] != 5 or nt == "Broker" or nt == "Node", (
-                f"Violation of Independence Guarantee: Input features for '{nt}' has 5 dimensions "
-                "which matches the label dimension, indicating potential leak of target labels."
-            )
+            if hasattr(x, "y"):
+                raise RuntimeError(
+                    f"Violation of Independence Guarantee: Feature tensor for '{nt}' "
+                    "contains target label attribute 'y'."
+                )
+            if x.shape[1] == 5 and nt not in ("Broker", "Node"):
+                raise RuntimeError(
+                    f"Violation of Independence Guarantee: Input features for '{nt}' has 5 dimensions "
+                    "which matches the label dimension, indicating potential leak of target labels."
+                )
         for k in x_dict:
-            assert k != "y" and k != "y_edge", "Violation of Independence Guarantee: Target label key present in input dict."
+            if k in ("y", "y_edge"):
+                raise RuntimeError(
+                    "Violation of Independence Guarantee: Target label key present in input dict."
+                )
 
         # ── Raw GNN Inference ────────────────────────────────────────────────
         with torch.no_grad():

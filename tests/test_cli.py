@@ -1,3 +1,4 @@
+import argparse
 import sys
 import pytest
 import importlib.util
@@ -21,8 +22,11 @@ def _run_main(module, argv: list[str]) -> int:
     with patch.object(sys, "argv", ["run.py"] + argv), \
          patch("pathlib.Path.exists", return_value=True):
         try:
-            module.main()
-            return 0
+            ret = module.main()
+            # main() returns an int exit code directly (see `sys.exit(main())`
+            # at module scope) rather than always calling sys.exit() itself —
+            # a bare `return 1` must be observed the same as `sys.exit(1)`.
+            return ret if ret is not None else 0
         except SystemExit as e:
             return e.code
 
@@ -131,9 +135,52 @@ class TestSimulateGraphCLI:
     def test_main_message_flow(self, script_module):
         with patch.object(sys, 'argv', ['simulate_graph.py', 'message-flow', '--input', 'test.json']), \
              patch.object(script_module, '_run_message_flow') as mock_run:
-            
+
             script_module.main()
             mock_run.assert_called_once()
+
+    def test_default_subcommand_not_fooled_by_option_value(self, script_module):
+        """An option *value* equal to a subcommand name (--output combined)
+        must not be mistaken for an explicit subcommand — only the first
+        positional token can be one. Previously this scanned every non-flag
+        token, so `--output combined` suppressed the default "fault-inject"
+        insertion and argparse's required subparser then raised SystemExit."""
+        with patch.object(
+            sys, 'argv',
+            ['simulate_graph.py', '--output', 'combined', '--input', 'test.json'],
+        ), patch.object(script_module, '_run_fault_inject') as mock_run:
+
+            script_module.main()
+            mock_run.assert_called_once()
+            assert mock_run.call_args[0][0].output == 'combined'
+
+    def test_combined_derives_separate_output_for_message_flow(self, script_module):
+        """_run_message_flow always mkdir()s --output; _run_fault_inject
+        treats a .json-suffixed --output as a single file it writes.
+        `combined --output results.json` used to pass the same value to
+        both, so message-flow's mkdir() collided with the file fault-inject
+        had just written (FileExistsError)."""
+        args = argparse.Namespace(output="out/results.json")
+        with patch.object(script_module, "_run_fault_inject") as mock_fi, \
+             patch.object(script_module, "_run_message_flow") as mock_mf:
+            script_module._run_combined(args)
+
+        fi_args = mock_fi.call_args[0][0]
+        mf_args = mock_mf.call_args[0][0]
+        assert fi_args.output == "out/results.json"
+        assert mf_args.output != fi_args.output
+        assert not mf_args.output.endswith(".json")
+
+    def test_combined_keeps_shared_output_dir_when_not_json(self, script_module):
+        """A directory --output (the common case) is unambiguous for both
+        runners, so it must not be split."""
+        args = argparse.Namespace(output="out/simulation")
+        with patch.object(script_module, "_run_fault_inject") as mock_fi, \
+             patch.object(script_module, "_run_message_flow") as mock_mf:
+            script_module._run_combined(args)
+
+        assert mock_fi.call_args[0][0].output == "out/simulation"
+        assert mock_mf.call_args[0][0].output == "out/simulation"
 
 
 class TestValidateGraphCLI:
@@ -262,8 +309,8 @@ class TestRunOrchestrator:
         assert ret == 0
 
         mock_class.from_json.assert_called_once()
-        mock_inst.analyze.assert_called_once_with(layer='system', use_ahp=False)
-        mock_inst.predict.assert_called_once_with(gnn_checkpoint=None)
+        mock_inst.analyze.assert_called_once_with(layer='system')
+        mock_inst.predict.assert_called_once_with(gnn_checkpoint=None, use_ahp=False)
         mock_inst.simulate.assert_called_once_with(layer='system', mode='exhaustive')
         mock_inst.validate.assert_called_once_with(layers=['app', 'infra', 'mw', 'system'])
         mock_inst.visualize.assert_called_once()
@@ -277,10 +324,13 @@ class TestRunOrchestrator:
         mock_class.assert_called_once_with(neo4j_uri=uri, user=user, password=pw)
 
     def test_pipeline_aborts_on_failure(self, run_module, mock_pipeline):
+        """main() catches pipeline.run() failures and returns 1 rather than
+        letting the exception escape uncaught — every sibling CLI
+        (import_graph.py, analyze_graph.py, ...) already does this."""
         mock_class, mock_inst = mock_pipeline
         mock_inst.run.side_effect = Exception("Failed")
-        with pytest.raises(Exception):
-            _run_main(run_module, ["--all"])
+        ret = _run_main(run_module, ["--all"])
+        assert ret == 1
 
     def test_analyze_only(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
@@ -309,13 +359,33 @@ class TestLayerHandling:
     def test_single_layer_uses_layer_flag(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
         _run_main(run_module, ["--analyze", "--layer", "system"])
-        mock_inst.analyze.assert_called_once_with(layer="system", use_ahp=False)
+        mock_inst.analyze.assert_called_once_with(layer="system")
 
     def test_visualize_multi_layer(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
         _run_main(run_module, ["--visualize", "--layer", "app"])
         kwargs = mock_inst.visualize.call_args[1]
         assert kwargs["layers"] == ["app"]
+
+    def test_all_honours_explicit_layer_for_validate_and_visualize(self, run_module, mock_pipeline):
+        """--all used to hardcode all four layers for validate/visualize
+        even when the user passed --layer explicitly, while analyze/simulate
+        (which read args.layer directly) honoured it — so --all --layer app
+        analyzed "app" but validated/visualized every layer."""
+        mock_class, mock_inst = mock_pipeline
+        _run_main(run_module, ["--all", "--layer", "app"])
+        mock_inst.analyze.assert_called_once_with(layer="app")
+        mock_inst.simulate.assert_called_once_with(layer="app", mode="exhaustive")
+        mock_inst.validate.assert_called_once_with(layers=["app"])
+        assert mock_inst.visualize.call_args[1]["layers"] == ["app"]
+
+    def test_all_defaults_to_every_layer_without_explicit_layer(self, run_module, mock_pipeline):
+        """Without an explicit --layer, --all keeps validating/visualizing
+        every layer — only an explicit --layer should narrow it."""
+        mock_class, mock_inst = mock_pipeline
+        _run_main(run_module, ["--all"])
+        mock_inst.validate.assert_called_once_with(layers=["app", "infra", "mw", "system"])
+        assert mock_inst.visualize.call_args[1]["layers"] == ["app", "infra", "mw", "system"]
 
 class TestOptionsPassthrough:
     """Tests for flag forwarding to sub-scripts in run.py"""
@@ -325,9 +395,13 @@ class TestOptionsPassthrough:
         return cli.run
 
     def test_use_ahp_forwarded(self, run_module, mock_pipeline):
+        """use_ahp belongs to the Predict stage (RMAV weighting), not
+        Analyze — Client.analyze() explicitly discards unknown kwargs, so
+        this must reach predict(), not analyze()."""
         mock_class, mock_inst = mock_pipeline
-        _run_main(run_module, ["--analyze", "--use-ahp"])
-        mock_inst.analyze.assert_called_once_with(layer='system', use_ahp=True)
+        _run_main(run_module, ["--predict", "--use-ahp"])
+        mock_inst.predict.assert_called_once_with(gnn_checkpoint=None, use_ahp=True)
+        mock_inst.analyze.assert_not_called()
 
 class TestOutputPaths:
     """Tests for output directory and file paths in run.py"""
@@ -419,6 +493,23 @@ class TestBenchmarkCLI:
         assert ret == 0
         scenario = mock_run.call_args[0][0]
         assert scenario.layers == ["app", "infra"]
+
+    def test_committed_suite_config_resolves(self, benchmark_module):
+        """data/benchmarks/scenarios_suite.yaml's graph_config paths used to
+        be one directory too high (../data/scenario_*.yaml resolves to
+        data/data/, which doesn't exist — the real files are under
+        data/scenarios/). _load_yaml_scenarios() only resolves the path, it
+        doesn't validate it (--dry-run's own success doesn't catch this —
+        the existence check happens later, inside BenchmarkRunner, which
+        --dry-run skips), so this checks the resolved paths directly."""
+        scenarios = benchmark_module._load_yaml_scenarios(
+            Path("data/benchmarks/scenarios_suite.yaml")
+        )
+        assert len(scenarios) == 7
+        for scenario in scenarios:
+            assert scenario.config_path.exists(), (
+                f"{scenario.name}: {scenario.config_path} does not exist"
+            )
 
     @patch("tools.benchmark.runner.BenchmarkRunner.run_scenario")
     @patch("tools.benchmark.runner.BenchmarkRunner.close")

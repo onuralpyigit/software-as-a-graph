@@ -548,6 +548,31 @@ class FaultInjector:
 
         get_qos_factor = self._qos_factor
 
+        def compute_topic_loss() -> Dict[str, float]:
+            """Soft per-topic feed loss given the current `failed_nodes` state."""
+            loss: Dict[str, float] = {}
+            for topic in idx.all_topics:
+                publishers = idx.publishers_of(topic)
+                if not publishers:
+                    routers = idx.topic_routers.get(topic, set())
+                    if routers:
+                        failed_routers = routers & failed_nodes
+                        loss[topic] = len(failed_routers) / len(routers)
+                    else:
+                        loss[topic] = 0.0
+                else:
+                    total_rate = sum(get_rate_hz(p, topic) for p in publishers)
+                    if total_rate > 0:
+                        failed_rate = sum(get_rate_hz(p, topic) for p in publishers if p in failed_nodes)
+                        loss[topic] = failed_rate / total_rate
+                    else:
+                        failed_pubs = publishers & failed_nodes
+                        loss[topic] = len(failed_pubs) / len(publishers)
+
+                # Apply QoS factor and clamp to [0, 1]
+                loss[topic] = min(1.0, loss[topic] * get_qos_factor(topic))
+            return loss
+
         frontier = [node_id]
 
         while frontier:
@@ -571,41 +596,19 @@ class FaultInjector:
                     edge_type = (data.get("type") or data.get("etype") or "").upper()
                     if edge_type != "DEPENDS_ON":
                         continue
-                        
-                    # Stochastic check scaled by edge weight & depth dampening
-                    prob = 0.0
+
+                    # Library dependencies fail deterministically (shared blast
+                    # radius); all other DEPENDS_ON edges are unaffected here —
+                    # non-library propagation happens via topic-mediated Phase B.
                     dep_type = data.get("dependency_type")
                     if dep_type == "app_to_lib" or idx.node_type.get(u) == "Library":
-                        prob = 1.0
-                        
-                    if prob >= 1.0 or (prob > 0.0 and rng.random() < prob):
                         failed_nodes.add(v)
                         wave_new_failed.append(v)
                         next_frontier.append(v)
 
             # --- Phase B: Topic-mediated Soft QoS/Rate-weighted Propagation ---
             # 1. Compute soft topic feed loss based on failed publishers
-            topic_loss = {}
-            for topic in idx.all_topics:
-                publishers = idx.publishers_of(topic)
-                if not publishers:
-                    routers = idx.topic_routers.get(topic, set())
-                    if routers:
-                        failed_routers = routers & failed_nodes
-                        topic_loss[topic] = len(failed_routers) / len(routers)
-                    else:
-                        topic_loss[topic] = 0.0
-                else:
-                    total_rate = sum(get_rate_hz(p, topic) for p in publishers)
-                    if total_rate > 0:
-                        failed_rate = sum(get_rate_hz(p, topic) for p in publishers if p in failed_nodes)
-                        topic_loss[topic] = failed_rate / total_rate
-                    else:
-                        failed_pubs = publishers & failed_nodes
-                        topic_loss[topic] = len(failed_pubs) / len(publishers)
-                
-                # Apply QoS factor and clamp to [0, 1]
-                topic_loss[topic] = min(1.0, topic_loss[topic] * get_qos_factor(topic))
+            topic_loss = compute_topic_loss()
 
             # 2. Update orphaned/directly_orphaned sets based on fractional feed loss
             for topic, loss in topic_loss.items():
@@ -655,15 +658,17 @@ class FaultInjector:
             wave_idx += 1
 
         # --- I(v) computation: Mean continuous feed loss across all subscribers ---
+        # Recompute once more against the final `failed_nodes` state (including
+        # subscribers failed in the last wave) rather than reusing the loop's
+        # last in-progress `topic_loss`, which predates that wave's failures.
+        final_topic_loss = compute_topic_loss()
         per_sub_loss: Dict[str, float] = {}
         for sub in idx.all_subscribers:
             all_feeds = idx.app_subscribes.get(sub, set())
             if not all_feeds:
                 per_sub_loss[sub] = 0.0
                 continue
-            # Store continuous QoS/rate-weighted feed loss
-            # topic_loss is calculated based on final failed_nodes state
-            per_sub_loss[sub] = sum(topic_loss.get(t, 0.0) for t in all_feeds) / len(all_feeds)
+            per_sub_loss[sub] = sum(final_topic_loss.get(t, 0.0) for t in all_feeds) / len(all_feeds)
 
         total_subs = len(idx.all_subscribers)
         impact_score = sum(per_sub_loss.values()) / total_subs if total_subs else 0.0

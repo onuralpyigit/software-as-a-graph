@@ -2,7 +2,7 @@
 
 **How Software-as-a-Graph goes from a flagged structural smell to a verified remediation.**
 
-This document bridges [Step 2: Analyze](structural-analysis.md) (anti-pattern detection) and [Step 6: Prescribe](prescription.md) (closed-loop remediation). For the full formal specification of each anti-pattern, see [antipatterns.md](antipatterns.md); for the full prescription API and schema, see [prescription.md](prescription.md). This page focuses on how the two connect — and where they don't.
+This document bridges [Step 3: Predict](prediction.md) (anti-pattern detection) and [Step 6: Prescribe](prescription.md) (closed-loop remediation). For the full formal specification of each anti-pattern, see [antipatterns.md](antipatterns.md); for the full prescription API and schema, see [prescription.md](prescription.md). This page focuses on how the two connect — and where they don't.
 
 ---
 

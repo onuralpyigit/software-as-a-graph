@@ -128,6 +128,4 @@ Documented so they aren't mistaken for correctly-working code; not fixed in this
 
 | Symptom | Cause |
 |:---|:---|
-| `data/benchmarks/scenarios_suite.yaml` configs don't resolve | Its `graph_config` paths point one directory too high |
-| `NEO4J_USERNAME` in `.env`/Compose has no effect on the CLI | `cli/common/arguments.py` reads `NEO4J_USER` instead |
 | Editing `.env` doesn't change local `python cli/*.py` behavior | Nothing in the Python code loads `.env` — it is consumed only by Docker Compose and Next.js |

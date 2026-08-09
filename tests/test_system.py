@@ -11,6 +11,7 @@ from saag.validation import ValidationService
 from saag.prediction import GNNService
 
 @pytest.mark.slow
+@pytest.mark.integration
 def test_system_end_to_end(tmp_path):
     """
     A proper system test that replaces the legacy subprocess-based CLI scripts.

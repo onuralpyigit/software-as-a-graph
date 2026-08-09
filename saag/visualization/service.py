@@ -24,9 +24,28 @@ from .dashboard import DashboardGenerator
 from .collector import LayerDataCollector
 from saag.core.layers import AnalysisLayer
 from saag.core.ports.graph_repository import IGraphRepository
+from saag.validation.models import ValidationTargets
 
 DEFAULT_LAYERS = ["app", "infra", "mw", "system"]
 DASHBOARD_TITLE = "Software-as-a-Graph Analysis Dashboard"
+
+#: (gate key in LayerData.gates, display label, ValidationTargets attribute,
+#: comparison symbol) for every gate ValidationService._evaluate_gates
+#: computes (saag/validation/service.py:607-617). Labels are built from this
+#: table rather than hardcoded so they cannot drift from the thresholds the
+#: gates are actually evaluated against (they previously did: "F1-score >
+#: 0.6" / "Top-K precision > 0.5" against real targets of 0.75 / 0.80).
+_GATE_SPECS = (
+    ("G1_spearman", "Spearman ρ", "spearman", "≥"),
+    ("G2_f1", "F1-score", "f1_score", "≥"),
+    ("G3_precision", "Top-K precision", "precision", "≥"),
+    ("G4_top5", "Top-5 overlap", "top_5_overlap", "≥"),
+    ("G5_predictive_gain", "Predictive gain", "predictive_gain", ">"),
+    ("G6_kappa_cta", "Weighted κ (CTA)", "weighted_kappa_cta", "≥"),
+    ("G7_cdcc", "CDCC", "cdcc_max", "<"),
+    ("G8_bottleneck_precision", "Bottleneck precision", "bottleneck_precision_target", "≥"),
+    ("G9_ftr", "FTR", "ftr_max", "≤"),
+)
 
 
 class VisualizationService:
@@ -463,17 +482,17 @@ class VisualizationService:
     def _add_validation_report(
         self, gen: DashboardGenerator, data: LayerData
     ) -> None:
-        """Section 7: Gate results G1-G4."""
+        """Section 7: Gate results G1-G9."""
         gen.start_section("Validation Report", "validation-report")
-        gate_names = {
-            "G1_spearman": "G1: Spearman \u03c1 > 0.7",
-            "G2_f1":       "G2: F1-score > 0.6",
-            "G3_precision": "G3: Top-K precision > 0.5",
-            "G4_top5":     "G4: Top-5 overlap > 0.6",
-        }
+        targets = getattr(self.validation_service, "targets", None) or ValidationTargets()
         metrics: Dict[str, str] = {}
         highlights: Dict[str, bool] = {}
-        for key, name in gate_names.items():
+        for key, label, attr, op in _GATE_SPECS:
+            if key not in data.gates:
+                continue
+            threshold = getattr(targets, attr)
+            gate_number = key.split("_", 1)[0]
+            name = f"{gate_number}: {label} {op} {threshold:.2f}"
             passed = data.gates.get(key, False)
             metrics[name] = "PASSED" if passed else "FAILED"
             highlights[name] = passed

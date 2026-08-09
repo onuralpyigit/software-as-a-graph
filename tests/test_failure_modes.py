@@ -1,10 +1,12 @@
 
+import statistics
+
 import pytest
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 
 from saag.simulation.models import FailureScenario, FailureMode, CascadeRule, ImpactMetrics
-from saag.simulation.failure_simulator import FailureSimulator
+from saag.simulation.failure_simulator import FailureSimulator, _mean_impact_metrics
 from saag.simulation.graph import SimulationGraph
 from saag.core.models import GraphData, ComponentData, EdgeData
 
@@ -85,6 +87,103 @@ def test_degraded_starvation_boundary():
     sim3 = FailureSimulator(graph3)
     res3 = sim3.simulate(FailureScenario(target_ids=["Pub1", "Pub2", "Pub3"], failure_mode=FailureMode.CRASH))
     assert "Topic1" not in res3.cascaded_failures
+
+# --- Monte Carlo trial aggregation: composite and sub-metrics must describe
+# the same statistical quantity, not an MC-mean composite paired with a
+# single arbitrary draw's other fields ---
+
+def test_mean_impact_metrics_averages_every_reported_field():
+    trials = [
+        ImpactMetrics(
+            reachability_loss=0.2, fragmentation=0.4, throughput_loss=0.6, flow_disruption=0.0,
+            cascade_count=2, cascade_depth=1, affected_topics=1,
+            affected_subscribers=2, affected_publishers=1,
+            cascade_by_type={"physical": 2},
+        ),
+        ImpactMetrics(
+            reachability_loss=0.6, fragmentation=0.8, throughput_loss=1.0, flow_disruption=0.4,
+            cascade_count=4, cascade_depth=3, affected_topics=3,
+            affected_subscribers=4, affected_publishers=3,
+            cascade_by_type={"logical": 5},
+        ),
+    ]
+    mean = _mean_impact_metrics(trials)
+
+    assert mean.reachability_loss == pytest.approx(0.4)
+    assert mean.fragmentation == pytest.approx(0.6)
+    assert mean.throughput_loss == pytest.approx(0.8)
+    assert mean.flow_disruption == pytest.approx(0.2)
+    # Count-like fields are rounded to the nearest int of the trial mean.
+    assert mean.cascade_count == 3   # mean(2, 4) = 3
+    assert mean.cascade_depth == 2   # mean(1, 3) = 2
+
+    # composite_impact is a linear combination of the four float fields
+    # above, so averaging the fields directly reproduces the mean of the
+    # per-trial composites for free -- the two must never disagree, unlike
+    # the pre-fix code which overrode only composite_impact via
+    # _manual_composite_impact and left every other field at a single
+    # arbitrary draw's value.
+    expected_composite = statistics.fmean(t.composite_impact for t in trials)
+    assert mean.composite_impact == pytest.approx(expected_composite)
+
+
+def _rns_graph():
+    """Node1 hosts three apps via RUNS_ON, so a stochastic physical cascade
+    (cascade_probability < 1) fails a variable number of them per trial."""
+    components = [
+        ComponentData("Node1", "Node"),
+        ComponentData("App1", "Application"),
+        ComponentData("App2", "Application"),
+        ComponentData("App3", "Application"),
+    ]
+    edges = [
+        EdgeData("App1", "Node1", "Application", "Node", "physical", "RUNS_ON"),
+        EdgeData("App2", "Node1", "Application", "Node", "physical", "RUNS_ON"),
+        EdgeData("App3", "Node1", "Application", "Node", "physical", "RUNS_ON"),
+    ]
+    return SimulationGraph(GraphData(components=components, edges=edges))
+
+
+def test_simulate_exhaustive_monte_carlo_matches_trial_mean():
+    """End-to-end: simulate_exhaustive(n_trials>1) must report the same
+    numbers as independently averaging the same per-trial draws it runs
+    internally (same seed derivation: _derive_seed(seed, f'{comp_id}:{trial}')).
+
+    Pre-fix, this diverged: the reported result came from one final
+    self.simulate(scenario) call using the *component's* exhaustive seed, not
+    the trial-derived seeds, with only composite_impact patched to the MC
+    mean.
+    """
+    template = FailureScenario(target_ids=["Node1"], cascade_probability=0.5)
+
+    sim = FailureSimulator(_rns_graph())
+    results = sim.simulate_exhaustive(
+        scenario_template=template, layer="system", n_trials=12, seed=7,
+    )
+    reported = next(r for r in results if r.target_id == "Node1").impact
+
+    # Independently replicate the same 12 trials this run is defined to draw.
+    replay = FailureSimulator(_rns_graph())
+    replay.graph.reset()
+    replay._compute_baseline()
+    trial_impacts = [
+        replay.simulate(FailureScenario(
+            target_ids=["Node1"], cascade_probability=0.5,
+            seed=replay._derive_seed(7, f"Node1:{trial}"),
+        )).impact
+        for trial in range(12)
+    ]
+
+    # cascade_count varies across these trials for this graph/seed (the whole
+    # point of the check) -- if it doesn't, the fixture stopped exercising
+    # the stochastic path this test depends on.
+    assert len({t.cascade_count for t in trial_impacts}) > 1
+
+    assert reported.cascade_count == round(statistics.fmean(t.cascade_count for t in trial_impacts))
+    assert reported.composite_impact == pytest.approx(
+        statistics.fmean(t.composite_impact for t in trial_impacts)
+    )
+
 
 if __name__ == "__main__":
     test_degraded_single_publisher()

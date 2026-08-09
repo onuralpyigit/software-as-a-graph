@@ -70,6 +70,41 @@ class _CascadeState:
     queue: List[Tuple[str, int]] = field(default_factory=list)
 
 
+#: ImpactMetrics fields averaged as floats vs. rounded to nearest int when
+#: aggregating Monte Carlo trials in `_mean_impact_metrics`.
+_MC_FLOAT_FIELDS: Tuple[str, ...] = (
+    "reachability_loss", "fragmentation", "initial_throughput",
+    "remaining_throughput", "throughput_loss", "flow_disruption",
+)
+_MC_INT_FIELDS: Tuple[str, ...] = (
+    "initial_paths", "remaining_paths", "initial_components", "failed_components",
+    "initial_connected_components", "final_connected_components",
+    "affected_topics", "affected_subscribers", "affected_publishers",
+    "cascade_count", "cascade_depth",
+)
+
+
+def _mean_impact_metrics(trials: List[ImpactMetrics]) -> ImpactMetrics:
+    """Aggregate per-trial ImpactMetrics into one whose every field is the
+    trial mean, so composite_impact (a linear combination of the float
+    fields) and the downstream RMAV post-passes describe the same
+    statistical quantity rather than mixing an MC-mean composite with a
+    single arbitrary draw's other fields.
+
+    `cascade_by_type` and `impact_weights` are taken from the first trial:
+    they are not per-draw scalar quantities the mean is well-defined over.
+    """
+    mean = ImpactMetrics(
+        cascade_by_type=dict(trials[0].cascade_by_type),
+        impact_weights=dict(trials[0].impact_weights),
+    )
+    for f in _MC_FLOAT_FIELDS:
+        setattr(mean, f, statistics.fmean(getattr(t, f) for t in trials))
+    for f in _MC_INT_FIELDS:
+        setattr(mean, f, round(statistics.fmean(getattr(t, f) for t in trials)))
+    return mean
+
+
 class FailureSimulator:
     """
     Simulates component failures and cascade propagation.
@@ -519,17 +554,32 @@ class FailureSimulator:
                 )
 
                 if n_trials > 1:
-                    # Run N trials and use the result from the "most average" trial or just the mean scores
-                    mc_result = self.simulate_monte_carlo(scenario, n_trials=n_trials)
-                    # For exhaustive metrics, we need a FailureResult. 
-                    # We'll run one final simulation to get a concrete result, 
-                    # but we override its composite impact with the mean.
-                    # Better: self.simulate uses the mean scores?
-                    # Simplest: self.simulate(scenario) but use its mean metrics
-                    result = self.simulate(scenario)
-                    result.impact._manual_composite_impact = mc_result.mean_impact
-                    # TODO: could average all ImpactMetrics fields if needed, 
-                    # but composite_impact is primary for ranking.
+                    # Run N trials and report the mean of every ImpactMetrics
+                    # field, not just composite_impact — a result whose
+                    # composite is an MC mean but whose reachability_loss /
+                    # fragmentation / throughput_loss / flow_disruption (and
+                    # the RMAV post-passes computed from them) come from one
+                    # arbitrary draw is internally inconsistent.
+                    trial_impacts: List[ImpactMetrics] = []
+                    representative: Optional[FailureResult] = None
+                    for trial in range(n_trials):
+                        trial_scenario = FailureScenario(
+                            target_ids=scenario.target_ids,
+                            description=f"{scenario.description} (MC trial {trial})",
+                            failure_mode=scenario.failure_mode,
+                            cascade_rule=scenario.cascade_rule,
+                            cascade_probability=scenario.cascade_probability,
+                            library_cascade_probability=scenario.library_cascade_probability,
+                            max_cascade_depth=scenario.max_cascade_depth,
+                            layer=scenario.layer,
+                            seed=self._derive_seed(seed, f"{comp_id}:{trial}"),
+                        )
+                        trial_result = self.simulate(trial_scenario)
+                        trial_impacts.append(trial_result.impact)
+                        if representative is None:
+                            representative = trial_result
+                    result = representative
+                    result.impact = _mean_impact_metrics(trial_impacts)
                 else:
                     result = self.simulate(scenario)
                 results.append(result)

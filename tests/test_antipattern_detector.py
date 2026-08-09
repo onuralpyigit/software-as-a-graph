@@ -382,6 +382,47 @@ def test_detector_unstable_interface_low_coupling_not_flagged():
     problems = detector.detect(_shim(result), "app")
     assert problems == []
 
+# --- failed_patterns: a crashing detector must not look like a clean scan ---
+
+def test_detect_records_crashing_detector_in_failed_patterns(monkeypatch, mock_quality_result):
+    """A detector that raises must be recorded on failed_patterns, and must
+    not stop the other detectors from running."""
+    detector = AntiPatternDetector()
+
+    def _boom(layer_result, layer, stats):
+        raise RuntimeError("synthetic detector failure")
+
+    monkeypatch.setattr(detector, "_detect_spof", _boom)
+
+    shim = SimpleNamespace(quality=mock_quality_result, components=mock_quality_result.components)
+    problems = detector.detect(shim, "system")
+
+    assert detector.failed_patterns == ["SPOF"]
+    # The God Component detector still ran and found comp_a's high
+    # betweenness — a crash in one detector must not abort the others.
+    mock_quality_result.components[0].levels.maintainability = CriticalityLevel.CRITICAL
+    mock_quality_result.components[0].structural.betweenness = 0.5
+    problems = detector.detect(shim, "system")
+    assert detector.failed_patterns == ["SPOF"]
+    assert any("God Component" in p.name for p in problems)
+    assert not any("Single Point of Failure" in p.name for p in problems)
+
+
+def test_detect_resets_failed_patterns_on_each_call(monkeypatch, mock_quality_result):
+    """failed_patterns must reflect only the most recent detect() call, not
+    accumulate across a reused detector instance."""
+    detector = AntiPatternDetector(active_patterns=["SPOF"])
+    monkeypatch.setattr(detector, "_detect_spof", lambda *a: (_ for _ in ()).throw(RuntimeError("boom")))
+    shim = SimpleNamespace(quality=mock_quality_result, components=mock_quality_result.components)
+
+    detector.detect(shim, "system")
+    assert detector.failed_patterns == ["SPOF"]
+
+    monkeypatch.setattr(detector, "_detect_spof", lambda layer_result, layer, stats: [])
+    detector.detect(shim, "system")
+    assert detector.failed_patterns == []
+
+
 def test_problem_detector_wrapper(mock_quality_result):
     """Verify the backward-compatible ProblemDetector wrapper."""
     from saag.analysis.problem_detector import ProblemDetector

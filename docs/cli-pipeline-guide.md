@@ -26,11 +26,14 @@ Neo4j credentials can be set via environment variables to avoid repeating flags:
 
 ```bash
 export NEO4J_URI=bolt://localhost:7687
-export NEO4J_USER=neo4j
+export NEO4J_USERNAME=neo4j
 export NEO4J_PASSWORD=password
 ```
 
-All CLI scripts read these via `cli/common/arguments.py`.
+All CLI scripts read these via `cli/common/arguments.py`. `NEO4J_USER` also
+works as a fallback, but `NEO4J_USERNAME` is what `.env`, `docker-compose.yml`,
+and the API (`saag/infrastructure/config.py`) use — set that one if you're
+running the CLI and the API/Docker stack against the same credentials.
 
 ---
 
@@ -710,7 +713,7 @@ PYTHONPATH=. python cli/train_graph.py --layer system --output output/gnn_checkp
 ### Neo4j Connection Issues
 
 - Verify `bolt://localhost:7687` is reachable.
-- Default credentials `neo4j` / `password` apply unless overridden with `--user` / `--password` or `NEO4J_USER` / `NEO4J_PASSWORD`.
+- Default credentials `neo4j` / `password` apply unless overridden with `--user` / `--password` or `NEO4J_USERNAME` / `NEO4J_PASSWORD`.
 - Use `--dry-run` with `import_graph.py` to validate JSON without touching the database.
 
 ### Case-Sensitive QoS Values

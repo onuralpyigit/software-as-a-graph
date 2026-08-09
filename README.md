@@ -97,7 +97,7 @@ docker run -d --name neo4j -p 7474:7474 -p 7687:7687 \
 ```
 
 > [!WARNING]
-> `neo4j` / `password` are local-development defaults. Change them before any shared deployment. Note that the Python CLI reads the `NEO4J_URI`, `NEO4J_USER`, and `NEO4J_PASSWORD` environment variables directly — it does not load the root `.env` file, which is consumed only by Docker Compose and Next.js.
+> `neo4j` / `password` are local-development defaults. Change them before any shared deployment. Note that the Python CLI reads the `NEO4J_URI`, `NEO4J_USERNAME` (falling back to `NEO4J_USER`), and `NEO4J_PASSWORD` environment variables directly — it does not load the root `.env` file, which is consumed only by Docker Compose and Next.js.
 
 ### 3. Run the pipeline
 

@@ -11,10 +11,14 @@ def add_neo4j_arguments(parser: argparse.ArgumentParser):
         default=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
         help="Neo4j Bolt URI (env: NEO4J_URI)",
     )
+    # NEO4J_USERNAME is what .env, docker-compose.yml, and the API
+    # (saag/infrastructure/config.py) all read; NEO4J_USER is a fallback for
+    # anyone who already set the CLI-only name this used to document.
+    default_user = os.getenv("NEO4J_USERNAME") or os.getenv("NEO4J_USER") or "neo4j"
     group.add_argument(
         "--user", "-u",
-        default=os.getenv("NEO4J_USER", "neo4j"),
-        help="Neo4j username (env: NEO4J_USER)",
+        default=default_user,
+        help="Neo4j username (env: NEO4J_USERNAME, or NEO4J_USER)",
     )
     group.add_argument(
         "--password", "-p",

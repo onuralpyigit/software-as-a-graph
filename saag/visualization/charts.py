@@ -340,7 +340,10 @@ class ChartGenerator:
 
         Each component is a dict with keys `id`, `name`, `cascade_risk` and
         optionally `cascade_risk_topo`. When the topology-only baseline is
-        absent it is approximated as 88 % of the enriched score.
+        absent, the chart renders the QoS-enriched series alone rather than
+        inventing the missing measurement — this is the figure the paper's
+        QoS-vs-topology comparison is drawn from, so a synthesised baseline
+        would misrepresent it as a real measurement.
         """
         if not components:
             return None
@@ -348,28 +351,29 @@ class ChartGenerator:
         chart_id = self._next_id("cascade")
         labels = [c.get("name") or c.get("id", "") for c in top]
         qos_vals = [round(float(c.get("cascade_risk", 0.0)), 4) for c in top]
-        topo_vals = [
-            round(float(c.get("cascade_risk_topo", float(c.get("cascade_risk", 0.0)) * 0.88)), 4)
-            for c in top
-        ]
+        has_measured_baseline = all("cascade_risk_topo" in c for c in top)
+
+        datasets = []
+        if has_measured_baseline:
+            topo_vals = [round(float(c.get("cascade_risk_topo", 0.0)), 4) for c in top]
+            datasets.append({
+                "label": "Topology-only baseline",
+                "data": topo_vals,
+                "backgroundColor": NEUTRAL_GREY,
+                "borderWidth": 0,
+            })
+        datasets.append({
+            "label": "QoS-enriched",
+            "data": qos_vals,
+            "backgroundColor": BRAND_PURPLE,
+            "borderWidth": 0,
+        })
+
         config = {
             "type": "bar",
             "data": {
                 "labels": labels,
-                "datasets": [
-                    {
-                        "label": "Topology-only baseline",
-                        "data": topo_vals,
-                        "backgroundColor": NEUTRAL_GREY,
-                        "borderWidth": 0,
-                    },
-                    {
-                        "label": "QoS-enriched",
-                        "data": qos_vals,
-                        "backgroundColor": BRAND_PURPLE,
-                        "borderWidth": 0,
-                    },
-                ],
+                "datasets": datasets,
             },
             "options": {
                 "indexAxis": "y",

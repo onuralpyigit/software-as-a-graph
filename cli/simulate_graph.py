@@ -440,9 +440,24 @@ def _write_message_flow_text_summary(result, elapsed: float, output_dir: Path) -
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _run_combined(args: argparse.Namespace) -> None:
+    """Run both simulations, deriving separate output paths when needed.
+
+    _run_fault_inject treats a `.json`-suffixed --output as a single result
+    file; _run_message_flow always treats --output as a directory it
+    creates. Passing one unmodified `args.output` to both meant
+    `combined --output results.json` had message-flow try to mkdir() a path
+    fault-inject had just written as a file, raising FileExistsError.
+    """
+    import copy
+
     logger.info("Running COMBINED simulation (fault-inject + message-flow)")
     _run_fault_inject(args)
-    _run_message_flow(args)
+
+    flow_args = args
+    if args.output.endswith(".json"):
+        flow_args = copy.copy(args)
+        flow_args.output = str(Path(args.output).parent / "message_flow")
+    _run_message_flow(flow_args)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -628,10 +643,12 @@ def _build_parser() -> argparse.ArgumentParser:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    # Check if a subcommand is specified; if not, default to "fault-inject"
-    subcommands = {"fault-inject", "message-flow", "combined"}
-    has_subcommand = any(arg in subcommands for arg in sys.argv[1:] if not arg.startswith("-"))
-    if not has_subcommand:
+    # Default to "fault-inject" when no subcommand is given. Only the first
+    # positional token can be a subcommand, so checking it alone (rather than
+    # scanning every non-flag token, as this used to) avoids mistaking an
+    # option *value* (e.g. `--output combined`) for a command — see
+    # cli/validate_graph.py's main(), which fixed the same bug.
+    if not sys.argv[1:] or sys.argv[1].startswith("-"):
         sys.argv.insert(1, "fault-inject")
 
     parser = _build_parser()

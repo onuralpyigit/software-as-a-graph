@@ -26,12 +26,18 @@ class Pipeline:
         else:
             self.client = Client(neo4j_uri=neo4j_uri, user=user, password=password)
         self.file_path = file_path
-        
+
         self._layer: str = "system"
-        self._analyze_kwargs: dict = {}
+        #: simulate()'s own layer, kept separate from self._layer so that
+        #: `.analyze("app").simulate("infra")` cannot silently redirect
+        #: analyze's layer to "infra" — the two used to share one field.
+        #: None means "use whatever analyze()/self._layer resolved to".
+        self._simulate_layer: Optional[str] = None
         self._predict_kwargs: dict = {}
         self._simulate_kwargs: dict = {}
         self._visualize_kwargs: dict = {}
+        self._clear: bool = False
+        self._validate_layers: Optional[List[str]] = None
 
         self._do_analyze = False
         self._do_predict = False
@@ -42,25 +48,25 @@ class Pipeline:
 
     @staticmethod
     def from_json(
-        filepath: str, 
-        neo4j_uri: str = "bolt://localhost:7687", 
-        user: str = "neo4j", 
+        filepath: str,
+        neo4j_uri: str = "bolt://localhost:7687",
+        user: str = "neo4j",
         password: str = "password",
         clear: bool = False,
         repo=None
     ) -> "Pipeline":
         """Initialize a new Pipeline starting from a JSON topology export."""
         pipeline = Pipeline(
-            file_path=filepath, 
-            neo4j_uri=neo4j_uri, 
-            user=user, 
+            file_path=filepath,
+            neo4j_uri=neo4j_uri,
+            user=user,
             password=password,
             repo=repo
         )
         pipeline._clear = clear
         return pipeline
 
-    def analyze(self, layer: str = "system", **kwargs) -> "Pipeline":
+    def analyze(self, layer: str = "system") -> "Pipeline":
         """Stage 2: Deterministic structural analysis — topology metrics only
         (PageRank, betweenness, closeness, articulation points, etc.).
 
@@ -70,10 +76,14 @@ class Pipeline:
         """
         self._layer = layer
         self._do_analyze = True
-        self._analyze_kwargs = kwargs
         return self
 
-    def predict(self, mode: str = "gnn", gnn_checkpoint: Optional[str] = None) -> "Pipeline":
+    def predict(
+        self,
+        mode: str = "gnn",
+        gnn_checkpoint: Optional[str] = None,
+        **kwargs,
+    ) -> "Pipeline":
         """Stage 3: Unified Prediction Step — rule-based (RMAV) + ML (GNN) scoring.
 
         Always computes the AHP-weighted RMAV composite (deterministic, closed-form).
@@ -91,20 +101,30 @@ class Pipeline:
             'gnn' for raw GNN scores (default) when a checkpoint is available.
         gnn_checkpoint:
             Path to a GNN checkpoint directory. Defaults to output/gnn_checkpoints.
+        **kwargs:
+            Forwarded to ``Client.predict`` — the RMAV weighting/normalisation
+            options (``use_ahp``, ``equal_weights``, ``ahp_shrinkage``,
+            ``normalization_method``, ``winsorize``, ``winsorize_limit``,
+            ``run_sensitivity``, ``active_patterns``). These belong to the
+            Predict stage, not analyze() — pass them here, not to analyze().
         """
         self._do_predict = True
-        self._predict_kwargs = {"mode": mode, "gnn_checkpoint": gnn_checkpoint}
+        self._predict_kwargs = {"mode": mode, "gnn_checkpoint": gnn_checkpoint, **kwargs}
         return self
-        
-    def simulate(self, layer: str = "system", mode: str = "exhaustive", **kwargs) -> "Pipeline":
-        """Stage: Simulate cascading failures."""
-        self._layer = layer
+
+    def simulate(self, layer: Optional[str] = None, mode: str = "exhaustive", **kwargs) -> "Pipeline":
+        """Stage 4: Simulate cascading failures.
+
+        layer defaults to whatever analyze() was configured with when not
+        given explicitly here.
+        """
+        self._simulate_layer = layer
         self._do_simulate = True
         self._simulate_kwargs = {"mode": mode, **kwargs}
         return self
 
     def validate(self, layers: Optional[List[str]] = None) -> "Pipeline":
-        """Stage: Validate prediction vs simulation ground truth."""
+        """Stage 5: Validate prediction vs simulation ground truth."""
         self._do_validate = True
         self._validate_layers = layers
         return self
@@ -115,31 +135,44 @@ class Pipeline:
         return self
 
     def visualize(self, output: str = "report.html", layers: Optional[List[str]] = None, **kwargs) -> "Pipeline":
-        """Stage: Generate HTML dashboard report."""
+        """Stage 7: Generate HTML dashboard report."""
         self._do_visualize = True
         self._visualize_kwargs = {"output": output, "layers": layers, **kwargs}
         return self
 
     def run(self) -> PipelineExecutionResult:
-        """Execute all configured stages sequentially and compile results."""
+        """Execute all configured stages sequentially and compile results.
+
+        Execution order (Import -> Analyze -> Simulate -> Predict -> Validate
+        -> Prescribe -> Visualize) does not match pipeline stage *identity*
+        numbers (Predict is Stage 3, Simulate is Stage 4) — Simulate runs
+        before Predict so a first run can generate the ground-truth labels
+        GNN training needs before Predict's checkpoint-dependent path runs.
+        See ARCHITECTURE.md's first-run sequencing note. Comments below name
+        both: execution position and stage identity.
+        """
         result = PipelineExecutionResult()
 
-        # 1. Import
+        # Execution step 1 — Import
         if getattr(self, "file_path", None):
             logger.info(f"Importing topology from {self.file_path}")
-            self.client.import_topology(self.file_path, clear=getattr(self, "_clear", False))
+            self.client.import_topology(self.file_path, clear=self._clear)
 
-        # 2. Analyze — deterministic: structural metrics only
+        # Execution step 2 (Stage 2: Analyze) — deterministic structural metrics only
         if self._do_analyze:
             logger.info(f"Analyzing layer '{self._layer}': structural metrics")
-            result.analysis = self.client.analyze(layer=self._layer, **self._analyze_kwargs)
+            result.analysis = self.client.analyze(layer=self._layer)
 
-        # 3. Simulate — counterfactual cascade engine; generates ground-truth labels
+        # Execution step 3 (Stage 4: Simulate) — counterfactual cascade engine;
+        # generates ground-truth labels. Uses its own layer, defaulting to
+        # analyze()'s, so simulate("infra") cannot redirect analyze's layer.
         if self._do_simulate:
             logger.info("Running fault simulation (cascade ground truth)...")
-            result.simulation = self.client.simulate(layer=self._layer, **self._simulate_kwargs)
+            sim_layer = self._simulate_layer if self._simulate_layer is not None else self._layer
+            result.simulation = self.client.simulate(layer=sim_layer, **self._simulate_kwargs)
 
-        # 4. Predict — unified: RMAV (always) + GNN (when available) + anti-patterns
+        # Execution step 4 (Stage 3: Predict) — unified: RMAV (always) + GNN
+        # (when available) + anti-patterns
         if self._do_predict:
             if result.analysis is None:
                 raise RuntimeError(
@@ -147,13 +180,13 @@ class Pipeline:
                     "Either call analyze() in this pipeline or pass a stored result via client.predict()."
                 )
 
-            # Fail-fast check for GNN checkpoint / simulation labels
+            # Fail-fast check for GNN checkpoint / simulation labels. Reuses
+            # PredictionService's own checkpoint probe rather than a second
+            # copy of the same three-file existence test (a third copy lived
+            # in cli/run.py, at a *different* default path — collapsed here).
             checkpoint_dir = self._predict_kwargs.get("gnn_checkpoint") or "output/gnn_checkpoints"
-            from pathlib import Path
-            p = Path(checkpoint_dir)
-            has_ckpt = p.exists() and (p / "service_config.json").exists() and (
-                (p / "node_model.pt").exists() or (p / "best_model.pt").exists()
-            )
+            from saag.prediction.service import PredictionService
+            has_ckpt = PredictionService._has_checkpoint(checkpoint_dir)
             if not has_ckpt and not self._do_simulate:
                 raise RuntimeError(
                     f"GNN Prediction requested but no trained GNN checkpoint was found at '{checkpoint_dir}' "
@@ -165,14 +198,16 @@ class Pipeline:
             logger.info("Running unified Prediction step (RMAV + GNN)...")
             result.prediction = self.client.predict(result.analysis, **self._predict_kwargs)
 
-        # 5. Validate — compare Predict/Analyze output against Simulate ground truth
+        # Execution step 5 (Stage 5: Validate) — compare Predict/Analyze
+        # output against Simulate ground truth
         if self._do_validate:
             logger.info("Validating against simulation ground truth...")
-            validate_layers = getattr(self, "_validate_layers", [self._layer]) or [self._layer]
+            validate_layers = self._validate_layers or [self._layer]
             gnn_checkpoint = self._predict_kwargs.get("gnn_checkpoint")
             result.validation = self.client.validate(layers=validate_layers, gnn_checkpoint=gnn_checkpoint)
 
-        # 6. Prescribe — generate recommendations and verify them in closed loop
+        # Execution step 6 (Stage 6: Prescribe) — generate recommendations
+        # and verify them in closed loop
         if self._do_prescribe:
             if result.analysis is None:
                 raise RuntimeError(
@@ -188,7 +223,7 @@ class Pipeline:
                 gnn_checkpoint=gnn_checkpoint
             )
 
-        # 7. Visualize
+        # Execution step 7 (Stage 7: Visualize)
         if self._do_visualize:
             out_file = self._visualize_kwargs.pop("output", "report.html")
             vis_layers = self._visualize_kwargs.pop("layers", [self._layer]) or [self._layer]

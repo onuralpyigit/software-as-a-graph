@@ -392,6 +392,67 @@ def test_prediction_service_fallback_to_rmav_when_no_checkpoint(tmp_path):
     assert result is mock_result  # fell back to RMAV output
 
 
+def test_attach_problems_records_failed_patterns(monkeypatch):
+    """A crashing detector's pattern ID must land on
+    QualityAnalysisResult.failed_patterns — a caller (e.g. cli/predict_graph.py,
+    which now reuses this result instead of re-running detection) needs a way
+    to tell "crashed" apart from "found nothing", and previously had none."""
+    from unittest.mock import MagicMock
+    from saag.prediction.service import PredictionService
+    from saag.analysis.models import QualityAnalysisResult
+    from saag.analysis.antipattern_detector import AntiPatternDetector
+    from saag.core.metrics import ComponentQuality, QualityLevels, QualityScores, StructuralMetrics
+
+    svc = PredictionService()
+    comp = ComponentQuality(
+        id="App1", type="Application",
+        scores=QualityScores(), levels=QualityLevels(),
+        structural=StructuralMetrics(id="App1", name="App1", type="Application"),
+    )
+    quality_result = QualityAnalysisResult(
+        timestamp="t", layer="system", context="test",
+        components=[comp], edges=[],
+        classification_summary=MagicMock(),
+    )
+
+    def _boom(self, layer_result, layer, stats):
+        raise RuntimeError("synthetic detector failure")
+
+    monkeypatch.setattr(AntiPatternDetector, "_detect_spof", _boom)
+
+    svc._attach_problems_and_explanation(quality_result, layer="system", active_patterns=["SPOF"])
+
+    assert quality_result.failed_patterns == ["SPOF"]
+
+
+def test_gnn_result_carries_failed_patterns_from_rmav_pass(tmp_path):
+    """failed_patterns from the RMAV detection pass must reach the returned
+    GNNAnalysisResult when GNN inference succeeds — problems/problem_summary/
+    explanation were already copied onto gnn_result, but failed_patterns was
+    only ever set on the discarded rmav_result."""
+    from unittest.mock import MagicMock, patch
+    from saag.prediction.service import PredictionService
+
+    (tmp_path / "service_config.json").write_text("{}")
+    (tmp_path / "node_model.pt").write_bytes(b"")
+
+    svc = PredictionService(gnn_checkpoint_dir=str(tmp_path), prefer_gnn=True)
+
+    rmav_result = MagicMock()
+    rmav_result.failed_patterns = ["SPOF"]
+    gnn_result = MagicMock()
+
+    with patch.object(svc, "predict_quality", return_value=rmav_result), \
+         patch.object(svc, "_attach_problems_and_explanation",
+                       return_value=([], MagicMock(), MagicMock())), \
+         patch("saag.prediction.gnn_service.GNNService") as mock_gnn_cls:
+        mock_gnn_cls.from_checkpoint.return_value.predict.return_value = gnn_result
+        result = svc.predict_quality_with_gnn(MagicMock(), graph=MagicMock())
+
+    assert result is gnn_result
+    assert gnn_result.failed_patterns == ["SPOF"]
+
+
 # ── Bidirectional reverse pass ────────────────────────────────────────────────
 
 def test_bidirectional_reverse_pass_modifies_embeddings():

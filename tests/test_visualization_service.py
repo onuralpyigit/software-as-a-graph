@@ -23,6 +23,7 @@ from saag.visualization.palette import CRITICALITY_COLORS, RMAS_COLORS
 from saag.visualization.dashboard import DashboardGenerator
 from saag.visualization.collector import LayerDataCollector
 from saag.visualization import VisualizationService
+from saag.simulation.models import SimulationReport, LayerMetrics, ComponentCriticality
 
 
 # =========================================================================
@@ -214,6 +215,28 @@ class TestChartGenerator:
         assert html is not None
         assert "<canvas" in html
 
+    def test_cascade_risk_chart_omits_baseline_when_unmeasured(self):
+        """When no component carries a measured cascade_risk_topo, the chart
+        must render the QoS-enriched series alone rather than fabricating the
+        missing baseline as 88% of the enriched score."""
+        components = [
+            {"id": "a", "name": "A", "cascade_risk": 0.81},
+            {"id": "b", "name": "B", "cascade_risk": 0.68},
+        ]
+        html = self.charts.cascade_risk_chart(components)
+        assert html is not None
+        assert "Topology-only baseline" not in html
+        assert "QoS-enriched" in html
+
+    def test_cascade_risk_chart_shows_measured_baseline(self):
+        """A real cascade_risk_topo measurement is rendered as-is, unscaled."""
+        components = [
+            {"id": "a", "name": "A", "cascade_risk": 0.81, "cascade_risk_topo": 0.71},
+        ]
+        html = self.charts.cascade_risk_chart(components)
+        assert "Topology-only baseline" in html
+        assert "0.71" in html
+
     def test_unique_chart_ids(self):
         """Each chart gets a unique ID."""
         data = {"CRITICAL": 5, "HIGH": 3}
@@ -265,13 +288,31 @@ def mock_analysis_service():
 
 @pytest.fixture
 def mock_simulation_service():
+    """Mocks generate_report(), not analyze_layer(): the collector calls
+    generate_report() directly so it can read the per-component breakdown
+    (ComponentCriticality) that analyze_layer() throws away. Real dataclasses
+    rather than further MagicMocks so `.get()` / iteration behave correctly.
+    """
     service = MagicMock()
-    mock_metrics = MagicMock()
-    mock_metrics.event_throughput = 1000
-    mock_metrics.event_delivery_rate = 98.5
-    mock_metrics.avg_reachability_loss = 0.15
-    mock_metrics.max_impact = 0.734
-    service.analyze_layer.return_value = mock_metrics
+    layer_metrics = LayerMetrics(
+        layer="system",
+        event_throughput=1000,
+        event_delivery_rate=98.5,
+        avg_reachability_loss=0.15,
+        max_impact=0.734,
+    )
+    component_criticality = [
+        ComponentCriticality(
+            id="sensor_fusion", type="Application",
+            combined_impact=0.734, cascade_depth=2,
+        )
+    ]
+    service.generate_report.return_value = SimulationReport(
+        timestamp="2024-01-01T00:00:00",
+        graph_summary={},
+        layer_metrics={"system": layer_metrics},
+        component_criticality=component_criticality,
+    )
     return service
 
 
@@ -392,6 +433,33 @@ class TestLayerDataCollector:
         comp_id, q_val, i_val, level = data.scatter_data[0]
         assert comp_id == "sensor_fusion"
         assert q_val == pytest.approx(0.84)
+        # I(v) sourced from ComponentCriticality.combined_impact, not the
+        # 0.0 placeholder scatter_data starts with (see
+        # test_collect_simulation_impact_reaches_component_details below —
+        # this used to stay 0.0 because analyze_layer()'s LayerMetrics has no
+        # per-component breakdown to read it from).
+        assert i_val == pytest.approx(0.734)
+
+    def test_collect_simulation_impact_reaches_component_details(
+        self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
+    ):
+        """ComponentDetail.impact/cascade_depth must be populated from the
+        simulation's per-component ComponentCriticality breakdown, not stay at
+        their 0.0/0 defaults."""
+        repository = MagicMock()
+        collector = LayerDataCollector(
+            mock_analysis_service,
+            mock_prediction_service,
+            mock_simulation_service,
+            mock_validation_service,
+            repository=repository,
+        )
+
+        data = collector.collect_layer_data("system", include_validation=False)
+
+        detail = next(d for d in data.component_details if d.id == "sensor_fusion")
+        assert detail.impact == pytest.approx(0.734)
+        assert detail.cascade_depth == 2
 
     def test_collect_top_k_overlap(
         self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
@@ -728,3 +796,30 @@ class TestBuildHtml:
     def test_empty_layer_list_rejected(self):
         with pytest.raises(ValueError):
             self._service().build_html([])
+
+    def test_validation_gate_labels_match_validation_targets(self):
+        """The gate labels the dashboard renders must match the thresholds
+        the gates are actually evaluated against (saag.validation.models.
+        ValidationTargets), and all nine gates must render — not just G1-G4.
+        Previously G2/G3's labels were hardcoded to different numbers
+        ("F1-score > 0.6", "Top-K precision > 0.5") than the real targets
+        (0.75, 0.80), and G5-G9 never appeared at all."""
+        from cli.visualize_graph import _demo_layer_data
+        from saag.validation.models import ValidationTargets
+
+        data = _demo_layer_data()
+        data.gates = {
+            "G1_spearman": True, "G2_f1": True, "G3_precision": True,
+            "G4_top5": True, "G5_predictive_gain": False,
+            "G6_kappa_cta": True, "G7_cdcc": False,
+            "G8_bottleneck_precision": True, "G9_ftr": True,
+        }
+
+        html = self._service().build_html([data])
+        targets = ValidationTargets()
+
+        assert f"G2: F1-score ≥ {targets.f1_score:.2f}" in html
+        assert f"G3: Top-K precision ≥ {targets.precision:.2f}" in html
+        assert f"G7: CDCC &lt; {targets.cdcc_max:.2f}" in html or \
+            f"G7: CDCC < {targets.cdcc_max:.2f}" in html
+        assert "G9: FTR" in html

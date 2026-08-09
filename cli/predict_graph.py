@@ -46,8 +46,6 @@ from pathlib import Path
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from types import SimpleNamespace
-
 import argparse
 from saag import Client
 from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
@@ -105,7 +103,7 @@ def build_parser() -> argparse.ArgumentParser:
     gnn_grp.add_argument(
         "--gnn-model", metavar="PATH", default=None,
         help="Path to a trained GNN checkpoint directory. "
-             "When provided, runs HeteroGAT inference and reports GNN scores.",
+             "When provided, runs HGT/HGTConv inference and reports GNN scores.",
     )
 
     # ── Anti-pattern detection ────────────────────────────────────────────────
@@ -211,52 +209,6 @@ def compute_propagation_metrics(nx_graph) -> dict[str, dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Anti-pattern detection helper (supports --pattern filter)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def run_antipattern_detection(
-    prediction,
-    layer: str,
-    active_patterns: list[str] | None,
-    severity_filter: set[str] | None,
-) -> list:
-    """
-    Run the anti-pattern detector against a PredictionResult.
-    Uses AntiPatternDetector directly so --pattern and --severity filtering
-    can be applied at the engine level rather than as a post-filter.
-
-    Falls back to client.detect_antipatterns() when no pattern filter is set,
-    preserving backward compatibility.
-    """
-    try:
-        from saag.analysis.antipattern_detector import AntiPatternDetector
-    except ImportError as exc:
-        logger.error("AntiPatternDetector not available: %s", exc)
-        return []
-
-    quality = prediction.raw
-    layer_name = getattr(quality, "layer", layer)
-    if hasattr(layer_name, "value"):
-        layer_name = layer_name.value
-
-    # Build the shim expected by AntiPatternDetector.detect()
-    shim = SimpleNamespace(
-        quality=quality,
-        components=quality.components,
-        edges=getattr(quality, "edges", []),
-    )
-
-    detector = AntiPatternDetector(active_patterns=active_patterns)
-    problems = detector.detect(shim, layer_name)
-
-    # Apply severity filter (post-detection, preserves early-exit from detector)
-    if severity_filter:
-        problems = [p for p in problems if p.severity.lower() in severity_filter]
-
-    return problems
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # GNN inference helper
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -291,7 +243,7 @@ def run_gnn_inference(nx_graph, analysis, prediction, gnn_model: str, display: C
 # RMAV dimension display helper  (Issue #4)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_RMAS_LABELS = {
+_RMAV_LABELS = {
     "reliability":      "Cascade / reliability risk",
     "maintainability":  "Coupling / change fragility",
     "availability":     "SPOF / availability loss",
@@ -323,7 +275,7 @@ def display_rmav_breakdown(components: list, top_n: int = 10) -> None:
             "security":        s.security,
         }
         dominant_dim = max(dim_scores, key=dim_scores.get)
-        dominant_label = _RMAS_LABELS[dominant_dim]
+        dominant_label = _RMAV_LABELS[dominant_dim]
         is_spof = getattr(comp.structural, "is_articulation_point", False)
         spof_mark = "  ✗" if is_spof else ""
 
@@ -433,6 +385,7 @@ def main() -> None:
 
     # ── Per-layer results accumulator ─────────────────────────────────────────
     all_problems: list = []
+    all_failed_patterns: list[str] = []
     all_output: dict = {"layers": {}}
 
     for layer in layers:
@@ -440,8 +393,8 @@ def main() -> None:
 
         analysis = client.analyze(layer=layer)
 
-        # ── RMAS prediction (Step 3: unified Predict step, RMAV path) ─────────
-        display.print_step(f"[{layer.upper()}] RMAS quality scoring…")
+        # ── RMAV prediction (Step 3: unified Predict step, RMAV path) ─────────
+        display.print_step(f"[{layer.upper()}] RMAV quality scoring…")
         prediction = client.predict(
             analysis,
             mode="rmav",
@@ -451,11 +404,13 @@ def main() -> None:
             normalization_method=args.norm,
             winsorize=args.winsorize,
             run_sensitivity=args.sensitivity,
-            # predict() attaches anti-patterns internally, so --no-antipatterns has
-            # to be honoured here too — skipping only the Step 3c scan below still
-            # paid the full catalogue's cost (and DEEP_PIPELINE does not terminate
-            # in practical time above ~100 components).
-            active_patterns=[] if args.no_antipatterns else None,
+            # predict() attaches anti-patterns internally; the Step 3c block
+            # below reuses prediction.raw.problems rather than re-running the
+            # detector, so the *real* --pattern filter has to reach this call
+            # (not a coarse "full catalogue or nothing") — a second full pass
+            # here used to also pay for DEEP_PIPELINE a second time, which
+            # does not terminate in practical time above ~100 components.
+            active_patterns=[] if args.no_antipatterns else active_patterns,
         )
 
         components = prediction.raw.components if prediction.raw else []
@@ -468,8 +423,8 @@ def main() -> None:
             display.print_step(f"[{layer.upper()}] Computing failure propagation metrics…")
             prop_metrics = compute_propagation_metrics(nx_graph)
 
-        # ── RMAS breakdown display  (Issue #4) ───────────────────────────────
-        display.print_step(f"[{layer.upper()}] Top components by RMAS score:")
+        # ── RMAV breakdown display  (Issue #4) ───────────────────────────────
+        display.print_step(f"[{layer.upper()}] Top components by RMAV score:")
         display_rmav_breakdown(components, top_n=10)
 
         # ── Propagation metrics display  (Issue #2) ──────────────────────────
@@ -498,16 +453,25 @@ def main() -> None:
                 print()
 
         # ── Anti-pattern detection  (Issue #1, #5, #6, #7) ───────────────────
+        # Reused from client.predict() above, not re-run: predict() already
+        # detected against the same active_patterns filter, so a second full
+        # AntiPatternDetector pass here only doubled the cost (DEEP_PIPELINE
+        # included) for the same result.
         layer_problems: list = []
         if not args.no_antipatterns:
             display.print_step(f"[{layer.upper()}] Anti-pattern scan…")
-            layer_problems = run_antipattern_detection(
-                prediction=prediction,
-                layer=layer,
-                active_patterns=active_patterns,
-                severity_filter=severity_filter,
-            )
+            layer_problems = prediction.raw.problems if prediction.raw else []
+            if severity_filter:
+                layer_problems = [p for p in layer_problems if p.severity.lower() in severity_filter]
+            layer_failed_patterns = getattr(prediction.raw, "failed_patterns", []) if prediction.raw else []
+
             all_problems.extend(layer_problems)
+            all_failed_patterns.extend(layer_failed_patterns)
+            if layer_failed_patterns:
+                display.print_error(
+                    f"[{layer.upper()}] {len(layer_failed_patterns)} detector(s) "
+                    f"crashed and were skipped: {', '.join(layer_failed_patterns)}"
+                )
 
             display.display_antipatterns(layer_problems, [layer], total_components)
         else:
@@ -562,6 +526,17 @@ def main() -> None:
     # ── CI/CD exit codes  (Issue #6) ─────────────────────────────────────────
     if args.no_antipatterns or args.no_exit_code:
         sys.exit(0)
+
+    # A crashed detector can silently miss a CRITICAL/HIGH finding it would
+    # otherwise have surfaced — "no findings for this pattern" must not look
+    # the same as a clean scan when the truth is "the scan didn't run".
+    if all_failed_patterns:
+        display.print_error(
+            f"DEPLOYMENT GATE: {len(all_failed_patterns)} anti-pattern detector(s) "
+            f"crashed: {', '.join(sorted(set(all_failed_patterns)))}. "
+            "Findings for these patterns are incomplete."
+        )
+        sys.exit(2)
 
     # Determine worst severity found (respecting --severity filter)
     severities_found = {p.severity for p in all_problems}

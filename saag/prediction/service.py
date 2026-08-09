@@ -95,33 +95,6 @@ class PredictionService:
 
     # ── Unified Predict step ──────────────────────────────────────────────────
 
-    def predict(
-        self,
-        structural_result: StructuralAnalysisResult,
-        layer: str = "system",
-        active_patterns: Optional[List[str]] = None,
-        run_sensitivity: bool = False,
-        sensitivity_perturbations: int = 200,
-        sensitivity_noise: float = 0.05,
-    ) -> QualityAnalysisResult:
-        """Unified Prediction Step (Step 3): rule-based RMAV scoring, anti-pattern
-        detection, and natural-language explanation in one pass.
-
-        GNN-augmented scoring is available separately via
-        :meth:`predict_quality_with_gnn`, which also attaches the anti-patterns
-        and explanation computed here onto its result.
-        """
-        quality_result = self.predict_quality(
-            structural_result,
-            run_sensitivity=run_sensitivity,
-            sensitivity_perturbations=sensitivity_perturbations,
-            sensitivity_noise=sensitivity_noise,
-        )
-        self._attach_problems_and_explanation(
-            quality_result, layer=layer, active_patterns=active_patterns
-        )
-        return quality_result
-
     def predict_quality_with_gnn(
         self,
         structural_result: StructuralAnalysisResult,
@@ -175,6 +148,7 @@ class PredictionService:
         gnn_result.problems = problems
         gnn_result.problem_summary = problem_summary
         gnn_result.explanation = explanation
+        gnn_result.failed_patterns = rmav_result.failed_patterns
         return gnn_result
 
     # ── Internals ─────────────────────────────────────────────────────────────
@@ -202,12 +176,13 @@ class PredictionService:
         # An empty list is an explicit opt-out, distinct from None ("run the whole
         # catalogue"). AntiPatternDetector treats both as falsy and would run
         # everything, so the caller's opt-out has to be honoured here.
+        failed_patterns: List[str] = []
         if active_patterns is not None and len(active_patterns) == 0:
             problems = []
         else:
-            problems = AntiPatternDetector(active_patterns=active_patterns).detect(
-                quality_result, layer=layer
-            )
+            detector = AntiPatternDetector(active_patterns=active_patterns)
+            problems = detector.detect(quality_result, layer=layer)
+            failed_patterns = detector.failed_patterns
         problem_summary = self.summarize_problems(problems)
         smell_report = AntiPatternReport(
             problems=problems,
@@ -221,4 +196,5 @@ class PredictionService:
         quality_result.problem_summary = problem_summary
         quality_result.explanation = explanation
         quality_result.prediction_mode = "rmav"
+        quality_result.failed_patterns = failed_patterns
         return problems, problem_summary, explanation

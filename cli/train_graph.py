@@ -2,7 +2,7 @@
 """
 cli/train_graph.py — Train GNN criticality models
 =================================================
-Trains a Heterogeneous Graph Attention Network (HeteroGAT) to predict
+Trains a Heterogeneous Graph Transformer (HGT/HGTConv) to predict
 component and relationship criticality using simulation ground-truth labels.
 
 Usage
@@ -21,6 +21,7 @@ import argparse
 import json
 import logging
 import sys
+import networkx as nx
 from pathlib import Path
 
 # Add project root to sys.path to support direct execution (python cli/train_graph.py)
@@ -95,7 +96,7 @@ def parse_args() -> argparse.Namespace:
         default="hetero_qos",
         help=(
             "Model architecture variant (default: hetero_qos). "
-            "hetero_qos = full QoS-aware HeteroGAT (paper contribution); "
+            "hetero_qos = full QoS-aware HGT/HGTConv (paper contribution); "
             "homo_unweighted = flat GAT, no edge_attr; "
             "homo_scalar = flat GAT, scalar QoS weight; "
             "topology_rmav = RMAV scores only, no GNN training. "
@@ -153,7 +154,12 @@ def main() -> None:
     rmav_dict = load_json(args.rmav)
     nx_graph = None
 
-    if any(x is None for x in [structural_dict, simulation_dict]):
+    # rmav_dict is included here, not just structural_dict/simulation_dict: the
+    # inner checks below already handle "structural_dict present, rmav_dict
+    # not" (e.g. --structural X --simulated Y with no --rmav), but that branch
+    # was unreachable while this outer guard ignored rmav_dict — leaving
+    # rmav_dict silently None and training with no RMAV consistency targets.
+    if any(x is None for x in [structural_dict, simulation_dict, rmav_dict]):
         display.print_step("Connecting to Neo4j to retrieve graph data...")
         try:
             from saag.analysis import AnalysisService
@@ -170,14 +176,23 @@ def main() -> None:
                 raise ValueError("No repository connection established.")
 
             if structural_dict is None or rmav_dict is None:
-                display.print_step("[Step 2+3] Running analysis and quality scoring...")
+                display.print_step("[Step 2] Running structural analysis...")
                 analysis_svc = AnalysisService(repo)
                 layer_result = analysis_svc.analyze_layer(args.layer)
                 nx_graph = layer_result.graph
                 if structural_dict is None:
                     structural_dict = extract_structural_metrics_dict(layer_result.structural)
                 if rmav_dict is None:
-                    rmav_dict = extract_rmav_scores_dict(layer_result.quality)
+                    # analyze_layer() only ever populates .structural — .quality
+                    # stays None until the Predict stage runs, so this used to
+                    # feed extract_rmav_scores_dict(None), silently returning
+                    # {} and training with no RMAV consistency targets at all.
+                    display.print_step("[Step 3] Running RMAV quality scoring...")
+                    from saag.prediction.service import PredictionService
+                    quality_result = PredictionService(use_ahp=args.use_ahp).predict_quality(
+                        layer_result.structural
+                    )
+                    rmav_dict = extract_rmav_scores_dict(quality_result)
 
             if simulation_dict is None:
                 display.print_step("[Step 4] Running failure simulation ground truth (exhaustive)...")
@@ -189,7 +204,6 @@ def main() -> None:
                 repo.close()
 
     if nx_graph is None:
-        import networkx as nx
         nx_graph = nx.DiGraph()
         for name in (structural_dict or {}).keys():
             nx_graph.add_node(name, type="Application")
@@ -200,10 +214,6 @@ def main() -> None:
         logger.info("Discovering additional scenarios for inductive training...")
         output_root = Path("output")
         for scenario_dir in output_root.glob("*_results"):
-            if scenario_dir.is_dir() and args.layer in scenario_dir.name:
-                # This is a heuristic; better would be to check config inside
-                pass
-            
             # Look for pre-computed files in the output directory
             # For simplicity, we search for standard results files
             s_path = scenario_dir / "structural_metrics.json"
@@ -327,7 +337,10 @@ def main() -> None:
 
     # ── Results ─────────────────────────────────────────────────────────────
     service.save()
-    display.print_success(f"Models saved to {args.checkpoint}")
+    # ckpt_dir, not args.checkpoint: they differ whenever --variant embeds a
+    # suffix (see ckpt_dir's derivation above) — service.save() writes to
+    # ckpt_dir, so printing args.checkpoint reported the wrong path.
+    display.print_success(f"Models saved to {ckpt_dir}")
     
     display.display_training_summary(result.summary())
     
@@ -347,7 +360,7 @@ def main() -> None:
             json.dump(result.to_dict(), f, indent=2)
         print(f"\n  {display.colored('Results exported to:', display.Colors.GREEN)} {out_path}")
 
-    print(f"\n  {display.colored('Done.', display.Colors.GREEN)} Models saved to {args.checkpoint}")
+    print(f"\n  {display.colored('Done.', display.Colors.GREEN)} Models saved to {ckpt_dir}")
 
 
 if __name__ == "__main__":

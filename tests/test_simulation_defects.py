@@ -196,3 +196,55 @@ def test_affected_publishers_counts_distinct_apps():
     result = sim.simulate(FailureScenario(target_ids=["Broker1"]))
     assert result.impact.affected_publishers == 2
     assert result.impact.affected_subscribers == 1
+
+
+# --- FaultInjector: I*(v) must reflect the final cascade wave, not the
+# in-loop `topic_loss` left over from the second-to-last wave. Sub1 is a
+# subscriber of Topic1 (published solely by the injected App1) *and* a
+# publisher of Topic2 (subscribed to by SubSub1). App1's failure orphans
+# Topic1 in wave 0, which deterministically fails Sub1 in that same wave
+# (propagation_threshold=0.2, feed loss=1.0). Sub1's own failure as a
+# *publisher* of Topic2 is only visible once topic_loss is recomputed
+# against the post-wave-0 failed_nodes state — the recomputation that a
+# cascade_depth_limit of 1 (stop after wave 0) prevents from ever running
+# in-loop. SubSub1's reported loss is the regression signal: 0.0 pre-fix,
+# 1.0 once the final state is recomputed after the loop.
+
+def test_fault_injector_impact_reflects_final_wave():
+    import networkx as nx
+    from saag.simulation.fault_injector import FaultInjector
+
+    g = nx.DiGraph()
+    for n in ("App1", "Sub1", "SubSub1"):
+        g.add_node(n, type="Application")
+    for n in ("Topic1", "Topic2"):
+        g.add_node(n, type="Topic")
+    g.add_edge("App1", "Topic1", type="PUBLISHES_TO", rate_hz=10.0)
+    g.add_edge("Sub1", "Topic1", type="SUBSCRIBES_TO")
+    g.add_edge("Sub1", "Topic2", type="PUBLISHES_TO", rate_hz=10.0)
+    g.add_edge("SubSub1", "Topic2", type="SUBSCRIBES_TO")
+
+    injector = FaultInjector(
+        g, seeds=[42], cascade_depth_limit=1,
+        propagation_threshold=0.2, qos_factor_mode="none",
+    )
+    result = injector.run(node_ids=["App1"])
+    rec = result.records["App1"]
+
+    assert "Sub1" in rec.impacted_subscriber_ids
+    assert rec.per_subscriber_feed_loss.get("SubSub1", 0.0) == pytest.approx(1.0)
+
+
+def test_fault_injector_impact_no_unbound_error_on_empty_cascade():
+    """A node with no dependents and no pub/sub edges produces a one-wave
+    cascade with zero impact; I*(v) must resolve cleanly rather than
+    referencing a while-loop-local `topic_loss` that a differently-shaped
+    graph could leave unset."""
+    import networkx as nx
+    from saag.simulation.fault_injector import FaultInjector
+
+    g = nx.DiGraph()
+    g.add_node("App1", type="Application")
+    injector = FaultInjector(g, seeds=[42], propagation_threshold=0.2)
+    result = injector.run(node_ids=["App1"])
+    assert result.records["App1"].impact_score == 0.0

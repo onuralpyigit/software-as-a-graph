@@ -318,10 +318,18 @@ class AntiPatternDetector:
         unknown = self._active - set(CATALOG.keys())
         if unknown:
             raise ValueError(f"Unknown patterns: {unknown}")
+        #: Pattern IDs whose detector raised during the most recent detect()
+        #: call. Empty (not just absent-findings) means every active detector
+        #: ran cleanly.
+        self.failed_patterns: List[str] = []
 
     def detect(self, layer_result: Any, layer: str) -> List[DetectedProblem]:
         """Run all active detectors against a LayerAnalysisResult."""
         problems: List[DetectedProblem] = []
+        # Reset per call: a crashing detector must be distinguishable from a
+        # clean scan that found nothing for that pattern. Callers that care
+        # (e.g. the predict CLI's CI gate) read this after detect() returns.
+        self.failed_patterns: List[str] = []
         components = layer_result.components if layer_result else []
         if not components:
             return problems
@@ -359,7 +367,8 @@ class AntiPatternDetector:
                 found = detector_fn(layer_result, layer, stats)
                 problems.extend(found)
             except Exception as exc:
-                logger.warning("Detector %s failed: %s", pid, exc, exc_info=True)
+                logger.exception("Detector %s failed: %s", pid, exc)
+                self.failed_patterns.append(pid)
 
         # Issue #13: Compound risk post-pass
         if "COMPOUND_RISK" in self._active:

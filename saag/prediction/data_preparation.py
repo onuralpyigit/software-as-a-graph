@@ -1341,7 +1341,11 @@ def extract_rmav_scores_dict(quality_result) -> Dict[str, Dict[str, float]]:
 
     if hasattr(quality_result, "components"):
         for comp in quality_result.components:
-            name = getattr(comp, "component_id", getattr(comp, "name", str(comp)))
+            # `id` is the graph node identifier used everywhere else in this
+            # module (see extract_structural_metrics_dict); `component_id`/
+            # `name` are only fallbacks for objects that lack it — ComponentQuality
+            # never does, it has `id`, not `component_id`.
+            name = getattr(comp, "id", getattr(comp, "component_id", getattr(comp, "name", str(comp))))
             scores = getattr(comp, "scores", None)
             if scores is not None:
                 out[name] = {
@@ -1355,9 +1359,9 @@ def extract_rmav_scores_dict(quality_result) -> Dict[str, Dict[str, float]]:
         components = quality_result.get("components", quality_result)
         if isinstance(components, list):
             for comp in components:
-                name = getattr(comp, "component_id", getattr(comp, "name", str(comp)))
+                name = getattr(comp, "id", getattr(comp, "component_id", getattr(comp, "name", str(comp))))
                 if isinstance(comp, dict):
-                    name = comp.get("component_id", comp.get("name", comp.get("id", str(comp))))
+                    name = comp.get("id", comp.get("component_id", comp.get("name", str(comp))))
                 scores = getattr(comp, "scores", None)
                 if isinstance(comp, dict):
                     scores = comp.get("scores", comp)

@@ -1,5 +1,5 @@
 import pytest
-from saag.prediction.data_preparation import extract_simulation_dict
+from saag.prediction.data_preparation import extract_simulation_dict, extract_rmav_scores_dict
 
 def test_extract_simulation_dict_records_dict():
     raw = {
@@ -95,6 +95,38 @@ def test_extract_simulation_dict_legacy_list():
             "security": 0.55
         }
     }
+
+def test_extract_rmav_scores_dict_keys_by_id():
+    # ComponentQuality has `id`, not `component_id` or `name` — a regression
+    # guard for the bug where every key fell through to str(comp), leaving
+    # networkx_to_hetero_data's name-keyed lookup (and therefore y_rmav) all
+    # zero. Uses a minimal duck-typed stand-in rather than the full
+    # ComponentQuality/QualityScores dataclasses to keep this a pure
+    # data_preparation unit test.
+    from types import SimpleNamespace
+
+    class _QualityResult:
+        def __init__(self, components):
+            self.components = components
+
+    comp = SimpleNamespace(
+        id="App1",
+        scores=SimpleNamespace(
+            overall=0.9, reliability=0.8, maintainability=0.7,
+            availability=0.6, security=0.5,
+        ),
+    )
+    res = extract_rmav_scores_dict(_QualityResult([comp]))
+    assert res == {
+        "App1": {
+            "overall": 0.9,
+            "reliability": 0.8,
+            "maintainability": 0.7,
+            "availability": 0.6,
+            "security": 0.5,
+        }
+    }
+
 
 def test_fault_injector_does_not_mutate_graph():
     import networkx as nx

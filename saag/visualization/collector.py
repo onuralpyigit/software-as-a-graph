@@ -167,31 +167,39 @@ class LayerDataCollector:
     def _collect_simulation_data(self, data: LayerData, layer: str) -> None:
         """Run simulation and populate impact metrics."""
         try:
-            layer_metrics = self.simulation_service.analyze_layer(layer)
+            # generate_report(), not analyze_layer(): analyze_layer() returns
+            # only the aggregated LayerMetrics and discards the per-component
+            # breakdown, so the `hasattr(layer_metrics, "component_impacts")`
+            # guard this used to have was permanently False — LayerMetrics has
+            # no such field, it lives on ComponentCriticality instead. This
+            # pays for the same exhaustive sweep analyze_layer() already ran.
+            report = self.simulation_service.generate_report(layers=[layer])
+            layer_metrics = report.layer_metrics.get(layer)
+            if layer_metrics is None:
+                return
             data.event_throughput = layer_metrics.event_throughput
             data.event_delivery_rate = layer_metrics.event_delivery_rate
             data.avg_impact = layer_metrics.avg_reachability_loss
             data.max_impact = layer_metrics.max_impact
 
-            # Enrich component details with impact scores
-            if hasattr(layer_metrics, "component_impacts"):
-                impact_map = {
-                    c_id: impact
-                    for c_id, impact in layer_metrics.component_impacts.items()
-                }
-                for detail in data.component_details:
-                    if detail.id in impact_map:
-                        detail.impact = impact_map[detail.id]
-                
-                # Update scatter data with actual simulation impact (Ground Truth).
-                # scatter_data items are tuples, so rebuild the entry.
-                data.scatter_data = [
-                    (cid, q, impact_map.get(cid, i_val), lvl)
-                    for cid, q, i_val, lvl in data.scatter_data
-                ]
+            # Enrich component details with per-component impact scores.
+            impact_map = {c.id: c.combined_impact for c in report.component_criticality}
+            depth_map = {c.id: c.cascade_depth for c in report.component_criticality}
+            for detail in data.component_details:
+                if detail.id in impact_map:
+                    detail.impact = impact_map[detail.id]
+                    detail.cascade_depth = depth_map[detail.id]
+
+            # Update scatter data with actual simulation impact (Ground Truth).
+            # scatter_data items are tuples, so rebuild the entry.
+            data.scatter_data = [
+                (cid, q, impact_map.get(cid, i_val), lvl)
+                for cid, q, i_val, lvl in data.scatter_data
+            ]
 
         except Exception as e:
             self.logger.error(f"Simulation failed for layer {layer}: {e}")
+            self.logger.exception("Simulation failure details")
 
     def _collect_validation_data(self, data: LayerData, layer: str) -> None:
         """Run validation and populate correlation/classification metrics."""
@@ -248,6 +256,7 @@ class LayerDataCollector:
 
         except Exception as e:
             self.logger.error(f"Validation failed for layer {layer}: {e}")
+            self.logger.exception("Validation failure details")
 
     def _collect_antipattern_data(
         self,
@@ -315,6 +324,7 @@ class LayerDataCollector:
                     
         except Exception as e:
             self.logger.error(f"Anti-pattern detection failed for layer {layer}: {e}")
+            self.logger.exception("Anti-pattern detection failure details")
 
 
     def _build_network_data(self, data: LayerData, analysis: Any) -> None:
