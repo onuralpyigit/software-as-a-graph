@@ -8,16 +8,6 @@
 
 ---
 
-# Highlights
-
-* Typed multigraph model predicts pub-sub cascading failure before deployment.
-* Heterogeneous GNN leads a training-free QoS-weighted centrality on critical-set F1.
-* Equal dimension weights outrank calibrated ones; RMAV repositioned as attribution.
-* Edge criticality is measured by simulated removal, not inferred from node labels.
-* A delta-aware CI/CD gate blocks new structural regressions in 5-40 seconds.
-
----
-
 # Abstract
 
 Publish–subscribe middleware decouples producers and consumers, improving scalability but obscuring
