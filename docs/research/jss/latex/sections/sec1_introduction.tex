@@ -12,259 +12,187 @@ The publish--subscribe (pub-sub) paradigm has become a backbone communication ab
 large-scale distributed systems, underpinning cyber-physical, cloud-native, robotics, and
 Internet-of-Things architectures. Its appeal is decoupling: producers and consumers are separated in
 time, space, and synchronization, so components can be added, removed, or scaled without direct
-knowledge of one another \cite{eugster2003faces}. Industry standards such as the Data Distribution Service (DDS) and
-MQTT formalize this model and expose deployment-time choices --- topics, brokers, reliability,
-durability, and other Quality-of-Service (QoS) policies --- that materially shape how the system
-behaves under stress \cite{omg2015dds,oasis2019mqtt}.
+knowledge of one another \cite{eugster2003faces}. Industry standards such as the Data Distribution
+Service (DDS) and MQTT formalize this model and expose deployment-time choices --- topics, brokers,
+reliability, durability, and other Quality-of-Service (QoS) policies --- that materially shape how
+the system behaves under stress \cite{omg2015dds,oasis2019mqtt}.
 
 The same decoupling that makes pub-sub flexible also obscures the dependency structure an engineer
 must reason about when a component fails. There are no explicit caller--callee edges: an application
 that publishes to a topic has no static link to the applications that subscribe to it, even though
 those subscribers are wholly dependent on it for data. Failures do not propagate along a call graph
-but along \emph{derived} paths --- through shared topics and brokers, through colocated deployment nodes,
-and, distinctively, through shared libraries whose failure strikes every consumer \emph{simultaneously}
-rather than sequentially. A raw architecture diagram does not reveal these chains, and the
-components whose failure would be most damaging are frequently not the ones a diagram makes look
-important.
+but along \emph{derived} paths --- through shared topics and brokers, through colocated deployment
+nodes, and, distinctively, through shared libraries whose failure strikes every consumer
+\emph{simultaneously} rather than sequentially. A raw architecture diagram does not reveal these
+chains, and the components whose failure would be most damaging are frequently not the ones a
+diagram makes look important.
 
-Crucially, the moment at which this reasoning is most valuable is \emph{before} deployment. Architectural
-hardening --- replication, isolation, failover, additional monitoring --- is cheapest and least
-disruptive while the system is still a design, and prohibitively expensive once it is in production.
-Yet pre-deployment is precisely when no runtime telemetry exists to identify weak points
-empirically. An engineer must therefore answer a hard question from the architecture alone: \emph{which
-components are critical, and why?}
+Crucially, this reasoning is most valuable \emph{before} deployment, when hardening is cheapest, yet
+pre-deployment is precisely when no runtime telemetry exists to identify weak points empirically. An
+engineer must therefore answer a hard question from the architecture alone: \emph{which components
+are critical, and why?} Uncontained cascading failures in production also carry a sustainability
+cost --- emergency re-provisioning, retransmission storms, and failover loops that consume compute
+and power that preventing the cascade at design time avoids.
 
-Beyond operational dependability, pre-deployment failure prevention is directly tied to \textbf{software
-sustainability and infrastructure resource efficiency}. Uncontained cascading failures in modern
-distributed systems --- ranging from cyber-physical fleets to cloud-native microservices --- trigger
-emergency server re-provisioning, redundant message re-transmission storms, and high-frequency
-failover loops that consume substantial electrical power and compute capacity. Preventing these
-architectural failure cascades at design time eliminates post-deployment energy waste and unnecessary
-infrastructure expenditure, directly supporting sustainable computing practices.
-
-\hypertarget{the-architecture-code-gap-and-problem-statement}{%
-\subsection{The Architecture-Code Gap and Problem Statement}\label{the-architecture-code-gap-and-problem-statement}}
+\hypertarget{problem-statement-and-limitations-of-existing-approaches}{%
+\subsection{Problem Statement and Limitations of Existing Approaches}\label{problem-statement-and-limitations-of-existing-approaches}}
 
 \label{sec:1.2}
 
 We address pre-deployment criticality analysis for pub-sub middleware as two coupled sub-problems.
-Given only an architectural description of the system --- its applications, libraries, topics,
-brokers, deployment nodes, and the QoS policies on its communication --- we seek to:
+Given only an architectural description --- its applications, libraries, topics, brokers, deployment
+nodes, and QoS policies --- we seek to (1) attribute each component an interpretable measure of
+\emph{how} and \emph{why} it is critical, grounded in the \textbf{ISO/IEC 25019:2023 Quality-in-Use}
+standard, so that a diagnosis directs a specific remediation rather than a generic warning; and (2)
+predict the cascade impact of each component's failure, identifying which components should be
+hardened first. Both must be computed without runtime data and remain explainable: a single opaque
+criticality number is of limited use to an architect choosing between competing interventions under
+a fixed budget.
 
-\begin{enumerate}
-\def\labelenumi{\arabic{enumi}.}
-\tightlist
-\item
-  \textbf{Quality attribution.} Assign each component an interpretable measure of \emph{how} and \emph{why} it is
-  critical, grounded in the \textbf{ISO/IEC 25019:2023 Quality-in-Use} standard (Beneficialness, Freedom from
-  Risk, Acceptability) and decomposed along the quality dimensions an engineer would act on, so that
-  the result directs a specific remediation rather than a generic warning.
-\item
-  \textbf{Failure-impact analysis.} Predict the cascade impact of each component's failure --- the extent
-  to which the rest of the system becomes unreachable or impaired --- and identify the components
-  that should be hardened first.
-\end{enumerate}
-
-Both must be computed without runtime data, and both must remain \emph{explainable}: a single opaque
-criticality number is of limited use to an architect who has to choose between competing
-interventions under a fixed budget.
-
-Historically, static verification has operated primarily at the source-code level. However, a major
-\textbf{``Architecture-Code Gap''} exists: a software system can have perfectly clean source code in every
-component (earning top scores on code-level tools), yet remain highly fragile. If the deployment
-topology contains a Single Point of Failure (SPOF) or a mismatched QoS contract, a single component
-crash can cascade and collapse the entire system. Bridging this gap requires shifting structural
-verification ``left'' into the continuous integration and delivery (CI/CD) pipeline.
-
-\hypertarget{limitations-of-existing-approaches}{%
-\subsection{Limitations of Existing Approaches}\label{limitations-of-existing-approaches}}
-
-\label{sec:1.3}
-
-Three strands of prior work bear on this problem, and each leaves a gap.
-
-\textbf{Static Code Analysis (SCA).} Platforms such as SonarQube evaluate code cleanliness, cyclomatic
-complexity, and LCOM (Lack of Cohesion of Methods) inside individual modules. While highly effective
-for intra-component quality, they are entirely blind to inter-component topologies and dynamic
-middleware cascades.
-
-\textbf{Runtime Dependability and Chaos Engineering.} A large body of work hardens pub-sub systems
-through runtime fault tolerance, replication, and chaos injection (e.g., Chaos Monkey). These
-techniques are valuable but assume a \emph{running} staging or production system; they do not answer
-which components a design should protect before it is deployed, and injecting failures at runtime
-carries operational risk.
-
-\textbf{Topology-Only and Homogeneous Learning-Based Centrality.} Classical network-science metrics
-collapse a component's risk into a single scalar that conflates distinct failure mechanisms (SPOFs
-vs.~cascade hubs), while homogeneous graph neural networks collapse typed semantics (applications,
-topics, brokers) into flattened views, leading to representation collapse.
-
-No existing approach offers an \emph{interpretable, multi-dimensional, pre-deployment} attribution over
-the \emph{typed} pub-sub graph, coupled to code-level SCA metrics, heterogeneous-GNN impact prediction,
-and automated CI/CD gating. That is the gap this paper fills.
+A major \textbf{``Architecture-Code Gap''} compounds this: a system can have perfectly clean source
+code in every component, yet remain highly fragile, because a Single Point of Failure or a mismatched
+QoS contract in the deployment topology can collapse the entire system on a single crash. Three
+strands of prior work bear on the gap, and each leaves it open. \textbf{Static Code Analysis (SCA)}
+--- SonarQube-style tools evaluating code cleanliness, complexity, and cohesion --- is entirely blind
+to inter-component topology and dynamic middleware cascades. \textbf{Runtime dependability and chaos
+engineering} hardens systems through fault tolerance, replication, and injected failure, but assumes
+a \emph{running} staging or production system and does not answer what a design should protect before
+deployment. \textbf{Topology-only and homogeneous learning-based centrality} collapses a component's
+risk into a single scalar that conflates distinct failure mechanisms (SPOFs vs.~cascade hubs), and
+homogeneous graph neural networks collapse typed pub-sub semantics into a flattened view. No existing
+approach offers an interpretable, multi-dimensional, pre-deployment attribution over the \emph{typed}
+pub-sub graph, coupled to code-level SCA metrics, heterogeneous-GNN impact prediction, and automated
+CI/CD gating. That is the gap this paper fills.
 
 \hypertarget{our-approach}{%
 \subsection{Our Approach}\label{our-approach}}
 
-\label{sec:1.4}
+\label{sec:1.3}
 
 We present \textbf{Software-as-a-Graph (SaG)}, a pre-deployment \textbf{Static System Analysis (SSA)}
-framework. SaG models a pub-sub system as a typed, weighted, directed multigraph over five node
-types (applications, libraries, topics, brokers, nodes) and derives logical \texttt{DEPENDS\_ON}
-dependencies through typed projection rules. Crucially, SaG ingests code-level SCA metrics as vertex
-attributes and performs \textbf{multi-dimensional quality attribution}, decomposing criticality into
+framework. SaG models a pub-sub system as a typed, weighted, directed multigraph over five node types
+(applications, libraries, topics, brokers, nodes) and derives logical \texttt{DEPENDS\_ON}
+dependencies through typed projection rules (Section~\ref{sec:3}). SaG ingests code-level SCA metrics
+as vertex attributes and performs multi-dimensional quality attribution, decomposing criticality into
 orthogonal Reliability, Maintainability, Availability, and Vulnerability (RMAV) dimensions under a
-stated weighting audited for Analytic Hierarchy Process (AHP) consistency (Section~\ref{sec:4.3}).
+stated weighting audited for Analytic Hierarchy Process (AHP) consistency (Section~\ref{sec:4}) --- a
+baseline whose value we show lies in explanation, not in ranking accuracy (Section~\ref{sec:8.3}).
 
-SaG then performs \textbf{failure-impact analysis}, predicting cascade impact \(I(v)\) with two predictors:
-the multi-dimensional composite \(Q(v)\) and a learned \textbf{Heterogeneous Graph Transformer} (\textbf{HGL}).
-We evaluate the learned predictor in two variants --- QoS-masked (HGL) and QoS-encoded
-(\(HGL\text{-}QoS\)) --- to isolate what explicit QoS contract features contribute; Section~\ref{sec:8.3} reports that
-contribution as a null, so every headline figure in this paper is the QoS-masked HGL, and we name the
-variants separately throughout rather than presenting the QoS-encoded model as the framework's
-predictor. Both are validated against a discrete-event simulator under an \textbf{input--label independence
-guarantee}. Finally, a \textbf{prescriptive remediation} stage generates topology-level hardening edits
-and verifies them on counterfactual graphs in-memory.
-
-To make SSA continuous, SaG integrates directly into CI/CD pipelines as a blocking gate: a dedicated
-CLI script runs the anti-pattern catalog against the candidate topology in seconds and fails the
-build (exit code 2) when it finds CRITICAL or HIGH severity structural anomalies (Section~\ref{sec:6.6}). The gate is
-currently absolute rather than delta-aware --- it evaluates the full finding set on every run rather
-than diffing against a merge-base baseline --- a limitation Section~\ref{sec:6.6} and Section~\ref{sec:9.3} discuss and scope as future
-work.
+SaG then performs \textbf{failure-impact analysis}, predicting cascade impact \(I(v)\) with two
+predictors: the interpretable composite \(Q(v)\) and a learned \textbf{Heterogeneous Graph
+Transformer} (\textbf{HGL}). We evaluate the learned predictor in two variants --- QoS-masked (HGL)
+and QoS-encoded (\(HGL\text{-}QoS\)) --- to isolate what explicit QoS contract features contribute;
+Section~\ref{sec:8.3} reports that contribution as a null, so every headline figure in this paper is
+the QoS-masked HGL. Both are validated against a discrete-event simulator under an \textbf{input--label
+independence guarantee} (Section~\ref{sec:5}). A \textbf{prescriptive remediation} stage generates
+topology-level hardening edits and verifies them on counterfactual graphs in-memory
+(Section~\ref{sec:6}), and SaG integrates directly into CI/CD pipelines as a blocking gate that fails
+the build on CRITICAL or HIGH severity structural anomalies in seconds (Section~\ref{sec:6.2}) ---
+currently absolute rather than delta-aware, a limitation Section~\ref{sec:9.3} scopes as future work.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/Figure_1}
-\caption{end-to-end SaG pipeline — architecture description → typed multigraph → \texttt{DEPENDS\_ON} projection → the two predictor paths and the simulation oracle path, with the independence boundary between them marked → remediation and the CI/CD gate.}
+\caption{End-to-end SaG pipeline --- architecture description → typed multigraph → \texttt{DEPENDS\_ON} projection → the two predictor paths and the simulation oracle path, with the independence boundary between them marked → remediation and the CI/CD gate.}
 \label{fig:1}
 \end{figure}
 
-Concretely, the paper is organized around four research questions:
+The paper is organized around four research questions:
 
 \begin{quote}
-\textbf{RQ1.} For pre-deployment criticality prediction, \emph{where} does typed graph learning improve on
-non-learning structural baselines --- in recovering the full impact ordering, in identifying the
-critical set, or both --- and does that answer differ in-distribution versus on unseen architectures?
+\textbf{RQ1.} For pre-deployment criticality prediction, \emph{where} does typed graph learning
+improve on non-learning structural baselines --- in recovering the full impact ordering, in
+identifying the critical set, or both --- and does that answer differ in-distribution versus on
+unseen architectures?
 
 \textbf{RQ2.} What does taking node and edge type seriously expose that a single-score topological
 centrality misses, and what does it fail to expose?
 
-\textbf{RQ3.} How does explicit multi-attribute QoS contract feature injection affect in-distribution
-convergence versus out-of-distribution Leave-One-Scenario-Out (LOSO) generalizability?
+\textbf{RQ3.} How does explicit multi-attribute QoS contract feature injection affect
+in-distribution convergence versus out-of-distribution Leave-One-Scenario-Out (LOSO)
+generalizability?
 
-\textbf{RQ4.} What is the feasibility and performance overhead of deploying the graph-based analyzer as
-a blocking Quality Gate in continuous integration/delivery (CI/CD) pipelines?
+\textbf{RQ4.} What is the feasibility and performance overhead of deploying the graph-based analyzer
+as a blocking Quality Gate in CI/CD pipelines?
 
-\textbf{RQ5.} Does the framework's predictive ranking transfer to architectures it did not generate ---
-that is, to systems specified independently of our topology generator?
+\textbf{RQ5.} Does the framework's predictive ranking transfer to architectures it did not generate?
 \end{quote}
 
-RQ1 is deliberately phrased as \emph{where} rather than \emph{whether}: the answer turns out to depend on which
-metric the question is asked about, and a formulation that admits only ``learning is / is not
-required'' would have obscured that (Section~\ref{sec:8.1}).
-
-RQ1, RQ2, and RQ3 are answered on the synthetic scenario suite (Section~\ref{sec:8.1}--Section~\ref{sec:8.3}); RQ4 evaluates gating
-feasibility and performance (Section~\ref{sec:8.4}); and RQ5 is answered on three graphs transcribed from real
-open-source architectures (Section~\ref{sec:8.5}). RQ5 carries the paper's external validity and is, correspondingly,
-the question our evidence answers most weakly --- Section~\ref{sec:8.5} states in full what three hand-built graphs with
-simulated ground truth can and cannot establish.
+RQ1 is deliberately phrased as \emph{where} rather than \emph{whether}: the answer depends on which
+metric is asked about (Section~\ref{sec:8.1}). RQ1--RQ3 are answered on the synthetic scenario suite
+(Section~\ref{sec:8.1}--Section~\ref{sec:8.3}); RQ4 evaluates gating feasibility
+(Section~\ref{sec:8.4}); RQ5 is answered on three real-world graphs (Section~\ref{sec:8.5}) and
+carries the paper's external validity most weakly.
 
 \hypertarget{contributions}{%
 \subsection{Contributions}\label{contributions}}
 
-\label{sec:1.5}
+\label{sec:1.4}
 
 This paper makes the following contributions:
 
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
-\tightlist
 \item
   \textbf{A typed graph model with hierarchical SCA metric integration.} We define the SaG multigraph
-  and the RMAV decomposition, which propagates code-level quality metrics (SonarQube \texttt{cm\_*} fields)
-  into global system criticality scores (Section~\ref{sec:3}, Section~\ref{sec:4}).
+  and the RMAV decomposition, which propagates code-level quality metrics into global system
+  criticality scores, and train a relation-specific Heterogeneous Graph Transformer over it
+  (Section~\ref{sec:3}--Section~\ref{sec:5}).
 \item
   \textbf{A scope condition on where graph learning pays for pub-sub criticality.} Under a single
-  evaluation contract applied to every predictor (Section~\ref{sec:7.3}), typed learning leads the strongest
-  training-free baseline on both ranking (\(\rho = 0.608\) vs \(0.521\) out of distribution) and
-  critical-set identification (\(F_1@K = 0.465\) vs \(0.308\)) --- after repairing that baseline, which
-  was silently computing unweighted betweenness on every scenario (Section~\ref{sec:8.1}). We report the repair
-  because a baseline accidentally identical to the one it should improve on inflates any margin
-  measured against it. We also report what the two halves of that claim are worth: the
-  critical-set advantage holds under every protocol and every version of the apparatus, whereas the
-  ranking margin fails a paired significance test in-distribution and rests on an unretained
-  artifact out of distribution (Section~\ref{sec:8.1}, Section~\ref{sec:9.2}). The contribution is the scope condition, not the win.
+  evaluation contract applied to every predictor (Section~\ref{sec:7.2}), typed learning leads the
+  strongest training-free baseline on both ranking (\(\rho = 0.608\) vs \(0.521\) out of
+  distribution) and critical-set identification (\(F_1@K = 0.465\) vs \(0.308\)) --- after repairing
+  that baseline, which was silently computing unweighted betweenness on every scenario
+  (Section~\ref{sec:8.1}). We report the repair because a baseline accidentally identical to the one
+  it should improve on inflates any margin measured against it. The critical-set advantage holds
+  under every protocol and every version of the apparatus; the ranking margin fails a paired
+  significance test in-distribution and rests on an unretained artifact out of distribution
+  (Section~\ref{sec:8.1}, Section~\ref{sec:9.2}). The contribution is the scope condition, not the
+  win.
 \item
   \textbf{Multi-dimensional criticality attribution, positioned as explanation rather than accuracy.}
-  RMAV decomposes criticality into four dimensions with distinct remediation owners, so a diagnostic
-  is traceable to an action. A shrinkage sweep shows the dimension weighting does \emph{not} improve
-  ranking accuracy over equal weights (Section~\ref{sec:8.3}); we report this and scope the contribution to
-  attribution accordingly (Section~\ref{sec:4}, Section~\ref{sec:8.3}).
+  RMAV decomposes criticality into four dimensions with distinct remediation owners. A shrinkage
+  sweep shows the dimension weighting does \emph{not} improve ranking accuracy over equal weights
+  (Section~\ref{sec:8.3}); we scope the contribution to attribution accordingly
+  (Section~\ref{sec:4}, Section~\ref{sec:8.3}).
 \item
-  \textbf{Relationship criticality as a first-class measure, and measured edge ground truth.} We give
-  inter-component dependencies the same four-dimensional attribution as components (Section~\ref{sec:4.7}), so that
-  the partial-outage case --- one link down, both endpoints healthy --- is scored rather than inferred
-  from endpoint scores. Separately, we obtain edge ground truth by simulating removal of each
+  \textbf{Measured edge ground truth.} We obtain edge ground truth by simulating removal of each
   candidate relationship rather than projecting node labels through a heuristic multiplier, finding
   that most individual links are replaceable and exposing a class of structurally non-redundant
-  edges the cascade model cannot express (Section~\ref{sec:8.2}). We are explicit that these two are computed over
-  different edge populations, so the second does not validate the first (Section~\ref{sec:4.7}, Section~\ref{sec:9.3}).
+  edges the cascade model cannot express (Section~\ref{sec:8.2}).
 \item
-  \textbf{An automated CI/CD quality gate.} We formulate a build-blocking gate that evaluates
-  system-level structural risk statically and executes in well under a minute on every scenario in
-  our corpus (Section~\ref{sec:6}, Section~\ref{sec:8.4}). The gate is absolute rather than delta-aware in the current implementation;
-  Section~\ref{sec:6.6} and Section~\ref{sec:9.3} scope delta-awareness and a waiver register as design work this contribution does
-  not yet include.
+  \textbf{A prescriptive remediation stage and an automated CI/CD quality gate.} We formalise a
+  Generate→Verify procedure in which every candidate edit is simulated in isolation and admitted only
+  if it improves impact by more than the simulator's seed noise (Section~\ref{sec:6}), and a
+  build-blocking gate that evaluates system-level structural risk statically, executing in well under
+  a minute on every scenario in our corpus (Section~\ref{sec:6.2}, Section~\ref{sec:8.4}). The gate
+  is absolute rather than delta-aware in the current implementation (Section~\ref{sec:9.3}).
 \item
-  \textbf{A prescriptive remediation stage with per-edit counterfactual verification.} We formalise a
-  Generate→Verify procedure in which every candidate edit is simulated in isolation and admitted
-  only if it improves impact by more than the simulator's seed noise, at every propagation threshold
-  (Section~\ref{sec:6.4}, Section~\ref{sec:6.7}).
-\item
-  \textbf{An account of the evaluation methodology itself.} We document two defects in our own harness ---
-  non-matching evaluation populations across predictor families, and a stale-checkpoint path that
-  silently skipped training --- that produced published-looking numbers of the wrong sign, together
-  with the contract that prevents each (Section~\ref{sec:7.3}, Section~\ref{sec:9.2}). We report this because both failure modes are
-  invisible in the output and, we suspect, not unique to this study.
-\item
-  \textbf{Empirical real-world validation on open-source software architectures.} We demonstrate SaG's
-  external validity on three authentic real-world software graphs --- the Autoware.universe ROS 2
-  autonomous driving platform, a production Cloud-Native Microservices mesh, and the Train-Ticket
-  railway-booking mesh (Section~\ref{sec:7.1}, Section~\ref{sec:8.5}) --- achieving high mean rank agreement over five seeds
-  (\(\rho = 0.688,\ 0.778,\ 0.759\)) and up to \(F_1@K = 1.000\) on two of the three, though 5 of the 15
-  total gate checks fail across the three graphs --- all three fail SPOF-F1, and Train-Ticket is the
-  only one for which SPOF-F1 is the \emph{sole} failure --- and
-  \(F_1@K = 1.000\) is partly a tie-breaking
-  artifact where the number of genuinely non-zero-impact components is smaller than \(K\) (Section~\ref{sec:8.5}). What
-  the three cases jointly support is that SaG's predictive ranking generalizes beyond the synthetic
-  generator to independently-sourced architectures across two paradigms, not an unqualified success
-  on production software systems.
+  \textbf{Empirical real-world validation on open-source software architectures.} We demonstrate
+  SaG's external validity on three authentic real-world software graphs --- Autoware.universe, a
+  Cloud-Native Microservices mesh, and Train-Ticket (Section~\ref{sec:7.1},
+  Section~\ref{sec:8.5}) --- achieving mean rank agreement over five seeds
+  (\(\rho = 0.688,\ 0.778,\ 0.759\)) and up to \(F_1@K = 1.000\) on two of three, though 5 of 15 gate
+  checks fail across the three graphs and \(F_1@K = 1.000\) is partly a tie-breaking artifact
+  (Section~\ref{sec:8.5}). What the three cases jointly support is that SaG's predictive ranking
+  generalizes beyond the synthetic generator to independently-sourced architectures across two
+  paradigms, not an unqualified success on production systems.
 \end{enumerate}
 
-\hypertarget{relationship-to-the-authors-prior-work}{%
-\subsection{Relationship to the Authors' Prior Work}\label{relationship-to-the-authors-prior-work}}
+\hypertarget{prior-work-and-organization}{%
+\subsection{Prior Work and Organization}\label{prior-work-and-organization}}
 
-\label{sec:1.6}
+\label{sec:1.5}
 
-This work extends the authors' earlier structural baseline of the framework --- multi-layer graph
-dependency analysis --- introduced in prior work \cite{anon-a}. The present paper consolidates that
-structural foundation with the heterogeneous graph neural network predictor, multi-dimensional
-quality attribution (Section~\ref{sec:4}), SCA metric integration, and CI/CD gating and remediation (Section~\ref{sec:6}) into a
-single, self-contained submission targeted at this special issue's focus on AI for reliability and
-dependability analysis; no companion manuscript reporting the heterogeneous-GNN predictor is
-submitted or under review in parallel with this paper.
-
-\hypertarget{organization}{%
-\subsection{Organization}\label{organization}}
-
-\label{sec:1.7}
-
-The remainder of this paper is organized as follows. Section 2 reviews related work. Section 3
-defines the Software-as-a-Graph model. Section 4 presents multi-dimensional quality attribution, and
-Section 5 presents failure-impact analysis. Section 6 introduces prescriptive remediation and CI/CD
-quality gating. Section 7 describes the experimental setup; Section 8 reports the synthetic-suite
-and gating results (RQ1--RQ4); and Section 9 discusses the findings, threats to validity, and
-conclusions.
+This work extends the authors' earlier structural baseline --- multi-layer graph dependency analysis
+--- introduced in prior work \cite{anon-a}; the present paper consolidates that foundation with the
+heterogeneous GNN predictor, quality attribution, SCA integration, and CI/CD gating into a single
+submission targeted at this special issue, with no companion manuscript under review in parallel. The
+remainder of the paper is organized as follows: Section~\ref{sec:2} reviews related work;
+Section~\ref{sec:3} defines the SaG model; Section~\ref{sec:4} presents interpretable attribution;
+Section~\ref{sec:5} presents failure-impact analysis; Section~\ref{sec:6} covers remediation and
+CI/CD gating; Section~\ref{sec:7} describes the experimental setup; Section~\ref{sec:8} reports
+results (RQ1--RQ5); and Section~\ref{sec:9} discusses findings, threats to validity, and conclusions.
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}

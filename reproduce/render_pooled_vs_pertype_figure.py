@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 """
-reproduce/render_pooled_vs_pertype_figure.py — JSS Figure 4 generator
-========================================================================
+reproduce/render_pooled_vs_pertype_figure.py — RETIRED from the JSS manuscript
+================================================================================
+
+RETIRED: this figure is no longer in docs/research/jss/draft.md. When the
+manuscript was condensed to fit JSS's page guidance, §5.5 (the stratified
+correlation check) was compressed to a single paragraph and its figure dropped;
+the full treatment now lives in
+docs/research/thesis/material/oracles_and_labels.md. The script is kept because
+the analysis is still current and a thesis chapter may want the figure -- but it
+is NOT part of `make -f reproduce/Makefile jss-figures` any more, and writing to
+Figure_4 would now overwrite the AHP shrinkage figure. Point --output somewhere
+else (or at the thesis material) before running it.
 
 Produces the pooled-versus-per-node-type Spearman rho figure between Q(v)
 and I_comp(v), with per-type sample sizes. See draft.md §5.5 (the Simpson's-

@@ -12,7 +12,16 @@
 % is a separate submission-system deliverable (see that file's header
 % comment) and is never \input here.
 
-\documentclass[preprint,review,3p]{elsarticle}
+\documentclass[preprint,3p]{elsarticle}
+% CLASS OPTIONS -- the 'review' option is intentionally NOT used.
+% elsarticle processes options in *declaration* order (preprint, review, 3p),
+% so [preprint,review,3p] nets out to jtype=3 with \@blstr{1.5}: a 1.5-spaced
+% one-column layout. That spacing alone is what made the pre-condensation
+% build 75 pages. [preprint,3p] leaves \@blstr{1} -- single-spaced, one
+% column, 10pt -- which is the layout JSS's "<36 pages single-column"
+% guidance is naturally read against. Add 'review' back if the editor asks
+% for a double-spaced reviewing copy; expect roughly 1.5x the page count.
+%
 % NOTE: the 'times' class option is intentionally omitted. It pulls in
 % mathptmx, which requires URW Times Type 1 font metrics that the
 % texlive-fonts-recommended package (not installed in the vendored,

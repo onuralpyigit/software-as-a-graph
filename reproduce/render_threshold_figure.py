@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-reproduce/render_threshold_figure.py — JSS Figure 6 generator
-===============================================================
+reproduce/render_threshold_figure.py — RETIRED from the JSS manuscript
+========================================================================
 
-Reads results/threshold_sensitivity.json and produces draft.md's own
-"Figure 5" (§8.3: mean Spearman ρ against I*(v) across the
-propagation_threshold sweep, with the canonical 0.20 default marked). See
-draft.md Table 22 / §8.3.
+RETIRED: this figure is no longer in docs/research/jss/draft.md. When the
+manuscript was condensed to fit JSS's page guidance it was dropped as redundant
+-- Table 12 (§8.3) carries exactly the same numbers -- so the sweep is still
+reported, just not plotted. The script is kept because the analysis is current
+and a thesis chapter may want the plot, but it is NOT part of
+`make -f reproduce/Makefile jss-figures` any more.
 
-NOTE on the file number: LaTeX numbers floats by reading order, not by the
-source's own figure label -- because the attention-subgraph figure (draft.md's
-"Figure 6") physically appears earlier in the text (§5.2), this one prints as
-"Fig. 6". See the numbering table in docs/research/jss/latex/README.md.
+Reads results/threshold_sensitivity.json and produces the propagation_threshold
+sweep plot (§8.3: mean Spearman ρ against I*(v) across the sweep, with the
+canonical 0.20 default marked). See draft.md Table 12 / §8.3.
 
 Output:
   docs/research/jss/latex/figures/Figure_6.png  (300 dpi)

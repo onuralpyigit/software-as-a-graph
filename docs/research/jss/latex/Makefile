@@ -6,7 +6,7 @@
 #
 # Usage:
 #   make            — full build (pdflatex -> bibtex -> pdflatex x2)
-#   make figures    — regenerate all 6 figures (delegates to reproduce/Makefile)
+#   make figures    — regenerate all 4 figures (delegates to reproduce/Makefile)
 #   make flat       — single-file manuscript_flat.tex, if a submission portal
 #                     rejects \input
 #   make clean      — remove build artifacts (keeps the PDF)
@@ -25,7 +25,7 @@ export TEXINPUTS BSTINPUTS
 all: $(MAIN).pdf
 
 $(MAIN).pdf: $(MAIN).tex sections/*.tex refs.bib figures/Figure_1.pdf figures/Figure_2.pdf \
-             figures/Figure_3.pdf figures/Figure_4.pdf figures/Figure_5.pdf figures/Figure_6.pdf
+             figures/Figure_3.pdf figures/Figure_4.pdf
 	$(PDFLATEX) -interaction=nonstopmode $(MAIN).tex
 	$(BIBTEX) $(MAIN)
 	$(PDFLATEX) -interaction=nonstopmode $(MAIN).tex

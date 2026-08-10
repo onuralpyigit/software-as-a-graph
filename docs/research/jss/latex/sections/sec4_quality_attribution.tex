@@ -1,546 +1,119 @@
-\hypertarget{multi-dimensional-quality-attribution-the-interpretable-path}{%
-\section{Multi-Dimensional Quality Attribution (The Interpretable Path)}\label{multi-dimensional-quality-attribution-the-interpretable-path}}
+\hypertarget{interpretable-attribution-as-a-baseline}{%
+\section{Interpretable Attribution as a Baseline}\label{interpretable-attribution-as-a-baseline}}
 
 \label{sec:4}
 
-Centrality answers \emph{whether} a component is important with a single number. An architect choosing
-between a replica, a reroute, and a decoupling refactor needs to know \emph{why}. This section presents
-the framework's primary diagnostic: a decomposition of each component's criticality into four
-orthogonal quality dimensions, each computed from disjoint structural metrics, and combined into an
-interpretable composite score. Because the dimensions do not share inputs, a component's profile is
-itself the explanation of its risk --- and the explanation maps directly to a remedy (Section~\ref{sec:6}).
+Centrality answers \emph{whether} a component is important with a single number; an architect
+choosing between a replica, a reroute, and a decoupling refactor needs to know \emph{why}. This
+section presents the framework's interpretable diagnostic: a decomposition of each component's
+criticality into four orthogonal quality dimensions --- Reliability, Maintainability, Availability,
+and Vulnerability (RMAV) --- each computed from disjoint structural metrics and combined into a
+composite score. Grounded in \textbf{ISO/IEC 25019:2023 (Quality-in-Use)} \cite{iso25019_2023},
+criticality represents the counterfactual loss of beneficialness, freedom from risk, and
+acceptability that stakeholders would experience if an architectural element failed.
 
-\hypertarget{four-orthogonal-dimensions-and-formal-definitions}{%
-\subsection{Four Orthogonal Dimensions and Formal Definitions}\label{four-orthogonal-dimensions-and-formal-definitions}}
+\hypertarget{four-dimensions-and-formal-definitions}{%
+\subsection{Four Dimensions and Formal Definitions}\label{four-dimensions-and-formal-definitions}}
 
 \label{sec:4.1}
 
-We attribute criticality along Reliability, Maintainability, Availability, and Vulnerability (RMAV).
-Grounded in \textbf{ISO/IEC 25019:2023 (Quality-in-Use)}, criticality represents the counterfactual loss of
-beneficialness, freedom from risk, and acceptability experienced by stakeholders if an architectural element fails. Each dimension speaks to a formal stakeholder class:
-
 \begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.05}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.17}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.14}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.33}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.32}}@{}}
-\caption{The four RMAV dimensions, the architectural question each answers, and the stakeholder and engineering role each routes to.\label{tab:7}}\tabularnewline
+  >{\centering\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.06}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.28}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.42}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.24}}@{}}
+\caption{The four RMAV dimensions, the architectural question each answers, and the engineering role each routes to.\label{tab:3}}\tabularnewline
 \toprule
-Dim. & Architectural Question & High score means & Harmed Stakeholder (ISO 25019) & Secondary Stakeholder (Engineering Role) \\
+Dim. & Architectural Question & High score means & Remediation owner \\
 \midrule
 \endfirsthead
 \toprule
-Dim. & Architectural Question & High score means & Harmed Stakeholder (ISO 25019) & Secondary Stakeholder (Engineering Role) \\
+Dim. & Architectural Question & High score means & Remediation owner \\
 \midrule
 \endhead
-\textbf{R} & How broadly and deeply does failure propagate? & Failure cascades widely; hard to contain & \textbf{Primary \& Indirect:} operators and downstream beneficiaries whose tasks retry, fail over, or degrade & Reliability Engineer \\
-\textbf{M} & How hard is this to change safely? & Tightly coupled structural bottleneck & \textbf{Secondary:} maintainers facing high regression likelihood upon refactoring & Software Architect \\
-\textbf{A} & Is this a structural single point of failure? & Removing it partitions the dependency graph & \textbf{Primary \& Indirect:} direct operators (traders, clinicians, drivers) and dependent beneficiaries facing task cessation & DevOps / SRE \\
-\textbf{V} & How attractive a target is this for attack? & Central and reachable on \(G^\top\), with many strongly-guaranteed flows converging on it & \textbf{Primary, Indirect \& business:} parties relying on the guarantees an attacker would gain control of & Security Engineer \\
+\textbf{R} & How broadly and deeply does failure propagate? & Failure cascades widely; hard to contain & Reliability Engineer \\
+\textbf{M} & How hard is this to change safely? & Tightly coupled structural bottleneck & Software Architect \\
+\textbf{A} & Is this a structural single point of failure? & Removing it partitions the dependency graph & DevOps / SRE \\
+\textbf{V} & How attractive a target is this for attack? & Central and reachable on \(G^\top\), with many strongly-guaranteed flows converging on it & Security Engineer \\
 \bottomrule
 \end{longtable}
 
-Maintainability is the one dimension whose direct victim is the secondary stakeholder; the other
-three route a finding to the engineering role equipped to act on it while denominating severity in
-harm to primary and indirect stakeholders. The \(V\) row is deliberately phrased in terms of
-\emph{guarantees} rather than asset value: \(w_{\text{in}}\) is a delivery-guarantee proxy, and the model
-carries no field for data sensitivity, privilege, or PII (Section~\ref{sec:9.2}, Section~\ref{sec:9.3}).
+For components, the dimensions are \textbf{orthogonal by construction}: each raw structural metric
+feeds exactly one dimension, never more --- a deliberate design constraint, not an empirical
+observation, since allowing a metric into two dimensions would silently inflate its weight relative
+to the stated weighting (Section~\ref{sec:4.2}). Orthogonality is what makes the breakdown legible: a
+pure single point of failure scores high on A but low on R, M, and V; a god-component scores high on
+M; a cascade hub scores high on R. The \emph{shape} of the profile names the failure mode.
 
-Four formal definitions establish the theoretical construct. Each is stated in full, because
-several clauses that are easy to skim past do real work in what follows.
+Two of the framework's formal definitions do real work in what follows. \textbf{Criticality is a
+consequence, not a risk}: no RMAV dimension estimates how \emph{probable} a component's failure is,
+only how much is lost \emph{given} that it does --- ranking \(u\) above \(v\) says that losing \(u\)
+hurts more, not that \(u\) is more likely to be lost, and restricting the construct to consequence is
+precisely what makes it computable pre-deployment, since consequence follows from architecture while
+likelihood follows from behaviour that does not yet exist. \textbf{Criticality is relative, not
+absolute (D4)}: every score and tier is relative to the score distribution of the system being
+analysed (tiers are box-plot thresholds, Section~\ref{sec:4.2}) and to the analytical layer, so
+criticality values are \textbf{not comparable across systems or layers} --- a well-designed redundant
+system still has a CRITICAL tier, and a system full of SPOFs still has a MINIMAL one. D4 constrains
+how this paper may aggregate: any figure computed over more than one scenario must be formed from
+within-scenario ranks or per-scenario statistics, never from raw scores pooled across systems
+(Section~\ref{sec:5.4}, Section~\ref{sec:8.5} carry the corresponding scoping statements).
 
-\begin{quote}
-\textbf{Definition D1 --- Component Criticality.} The degree to which the failure, latency, or functional
-degradation of a specific software component --- directly or transitively --- reduces the system's
-capacity to enable its stakeholders to achieve specified operational goals with beneficialness
-(usability, accessibility, suitability), freedom from risk (economic, health, life, environmental),
-and acceptability (experience, trustworthiness, compliance) within its operational context.
-Realised at layer \(l\) as a measure \(\mathrm{crit}_l : V_l \to [0,1]^4 \times [0,1]\) mapping each
-\(v \in V_l\) to \(\mathbf{s}(v) = [R(v), M(v), A(v), V(v)]^T\) and composite \(Q(v)\).
-\end{quote}
+The framework also gives inter-component dependencies the same four-dimensional attribution as
+components, so that a partial outage --- one link down, both endpoints healthy --- is scored rather
+than inferred from endpoint scores. We do not develop this relationship-level construction further
+here: by the framework's own independence guarantee (Section~\ref{sec:5.3}), it cannot currently be
+validated against the edge-removal measurement of Section~\ref{sec:8.2}, which operates on a
+structurally disjoint population (Section~\ref{sec:9.3}).
 
-\emph{``Failure, latency, or functional degradation''} names three distinct fault modes. The structural
-estimator does not separate them --- RMAV scores a component's \emph{exposure}, which is why one score
-covers all three --- whereas the simulation oracle does (Section~\ref{sec:5.1}). \emph{``Directly or transitively''} is why
-Reliability exists as a dimension separate from Availability: the harm is loss of stakeholder
-outcomes reachable \emph{through} the component, not loss of graph connectivity. \emph{``Within its operational
-context''} is the clause Section~\ref{sec:4.3} operationalises through the QoS-profile adaptation of the composite
-weights.
-
-\begin{quote}
-\textbf{Definition D2 --- Relationship Criticality.} The degree to which the disruption, latency, or data
-loss across a specific inter-component interaction or dependency path --- \textbf{with both endpoint
-components remaining operational} --- reduces the system's capacity to enable its stakeholders to
-achieve specified goals with beneficialness, freedom from risk, and acceptability, \textbf{in proportion
-to the absence of redundant or fallback paths around it}. Realised at layer \(l\) as
-\(\mathrm{crit}_l : E_l \to [0,1]^4 \times [0,1]\), the same signature as D1.
-\end{quote}
-
-The first emphasised clause is what makes D2 more than D1 restated for edges: it isolates the
-\emph{partial-outage} case, in which the component is up and its dashboards are green while one data flow
-has stopped. It is also exactly the condition the edge oracle enforces (Section~\ref{sec:8.2}). The second clause
-makes replaceability \emph{scale} the harm rather than gate it, which is why only the Availability
-dimension is bridge-gated while R, M and V score replaceable links too (Section~\ref{sec:4.7}).
-
-\begin{quote}
-\textbf{Definition D3 --- Criticality is a consequence, not a risk.} Under the standard decomposition of
-risk into likelihood and consequence, criticality as defined here is the \textbf{consequence factor
-alone}. No RMAV dimension estimates how probable it is that a component or relationship fails;
-every dimension estimates how much is lost \emph{given} that it does.
-\end{quote}
-
-Two consequences bear directly on how the results of Section~\ref{sec:8} should be read. Ranking \(u\) above \(v\) says
-that losing \(u\) hurts more, not that \(u\) is more likely to be lost --- so every comparison in this
-paper holds likelihood fixed. And restricting the construct to consequence is precisely what makes
-it computable pre-deployment: consequence follows from architecture, which exists before the system
-runs; likelihood follows from behaviour, which does not.
-
-\begin{quote}
-\textbf{Definition D4 --- Criticality is relative, not absolute.} Every score and tier is relative to
-(i) the score distribution of the system \(S\) being analysed, since tiers are box-plot thresholds
-over that distribution (Section~\ref{sec:4.4}), and (ii) the layer \(l\), since both the vertex set being ranked and
-the weight normalisation change with the projection. Criticality values are therefore \textbf{not
-comparable across systems or across layers}.
-\end{quote}
-
-A well-designed redundant system still has a CRITICAL tier, and a system full of SPOFs still has a
-MINIMAL tier; the tier prioritises attention inside one system rather than comparing two. D4 also
-constrains how this paper may aggregate: any figure computed over more than one scenario must be
-formed from within-scenario ranks or per-scenario statistics, never from raw scores pooled across
-systems. Section~\ref{sec:5.5} and Section~\ref{sec:8.5} carry the corresponding scoping statements.
-
-For \textbf{components}, the dimensions are \textbf{orthogonal by construction}: each raw structural metric
-feeds exactly one dimension, never more. This is a deliberate design constraint, not an empirical
-observation --- allowing a metric into two dimensions would silently inflate its weight relative to the
-stated weighting (Section~\ref{sec:4.3}). Orthogonality is what makes the breakdown legible: a pure single point of
-failure scores high on A but low on R, M, and V; a god-component scores high on M; a cascade hub
-scores high on R. The \emph{shape} of the profile names the failure mode. The constraint is specific to
-the component decomposition; the edge formulas of Section~\ref{sec:4.7} deliberately relax it in exchange for endpoint
-context, and we say so there rather than letting the claim read as framework-wide.
-
-\hypertarget{rmav-formulas}{%
-\subsection{RMAV Formulas}\label{rmav-formulas}}
+\hypertarget{the-composite-score-classification-and-determinism}{%
+\subsection{The Composite Score, Classification, and Determinism}\label{the-composite-score-classification-and-determinism}}
 
 \label{sec:4.2}
 
-All metric inputs are rank-normalized to \([0,1]\), so every RMAV score lies in \([0,1]\). Table~\ref{tab:8} fixes
-notation for every structural metric the four formulas below consume; each is computed once on
-\(G_{\text{analysis}}\) and feeds exactly one RMAV dimension (Section~\ref{sec:4.1}).
-
-\begin{footnotesize}
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.24}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.18}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.38}}
-  >{\centering\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.21}}@{}}
-\caption{RMAV input metric notation. \(G^\top\) denotes the transpose of the \texttt{DEPENDS\_ON} graph (the failure-propagation direction, since edges point dependent → dependency).\label{tab:8}}\tabularnewline
-\toprule
-Symbol & Name & Computed as & Feeds \\
-\midrule
-\endfirsthead
-\toprule
-Symbol & Name & Computed as & Feeds \\
-\midrule
-\endhead
-\(\mathrm{RPR}(v)\) & Reverse PageRank & PageRank on \(G^\top\) (\(d=0.85\)) & \(R\) \\
-\(\mathrm{DG\_in}(v)\) & In-degree (rank-norm.) & Direct dependent count on \texttt{DEPENDS\_ON} & \(R\) \\
-\(\mathrm{MPCI}(v)\) & Multi-Path Coupling Index & \(\sum_{e\in\text{InEdges}(v)} \max(\text{path\_count}(e)-1,0) / (\lvert V\rvert-1)\) & \(R\) (via CDPot\_enh) \\
-\(\mathrm{CDPot\_enh}(v)\) & Enhanced Cascade Depth Potential & RPR/DG\_in blend, amplified by MPCI (Eq. above) & \(R\) \\
-\(\mathrm{FOC}(v)\) & Fan-Out Criticality & frequency- and QoS-weighted subscriber fan-out (Topic nodes only) & \(R_{\text{topic}}\) \\
-\(\mathrm{BT}(v)\) & Betweenness centrality & Brandes' algorithm on \(G_{\text{analysis}}\), QoS-inverted edge distances & \(M\) \\
-\(w\_\text{out}(v)\) & QoS-weighted out-degree & \(\sum_{(v,u)} w(v,u)\) over outgoing dependencies & \(M\) \\
-\(\mathrm{CQP}(v)\) & Code Quality Penalty & SonarQube-derived composite (Section~\ref{sec:3.4}); 0 for non-App/Library types & \(M\) \\
-\(\mathrm{CouplingRisk\_enh}(v)\) & Enhanced coupling risk & in/out-degree balance amplified by path complexity & \(M\) \\
-\(\mathrm{CC}(v)\) & Clustering coefficient & Watts--Strogatz local clustering on the undirected projection & \(M\) (as \(1-\mathrm{CC}\)) \\
-\(\mathrm{AP\_c\_directed}(v)\) & Directed articulation score & \(\max\) of directed in/out articulation scores & \(A\) \\
-\(\mathrm{QSPOF}(v)\) & QoS-weighted SPOF severity & \(\mathrm{AP\_c\_directed}(v)\cdot w(v)\) & \(A\) \\
-\(\mathrm{BR}(v)\) & Bridge ratio & fraction of \(v\)'s undirected edges that are bridges & \(A\) \\
-\(\mathrm{CDI}(v)\) & Connectivity Degradation Index & normalized increase in average path length when \(v\) is removed & \(A\) \\
-\(\mathrm{REV}(v)\) & Reverse eigenvector centrality & eigenvector centrality on \(G^\top\) & \(V\) \\
-\(\mathrm{RCL}(v)\) & Reverse closeness (harmonic) & harmonic centrality on \(G^\top\), normalized by \(\lvert V\rvert-1\) & \(V\) \\
-\(w\_\text{in}(v)\) & QoS-weighted in-degree (QADS) & \(\sum_{(u,v)} w(u,v)\) over incoming dependencies & \(V\) \\
-\bottomrule
-\end{longtable}
-\end{footnotesize}
-
-\textbf{Reliability} --- fault-propagation risk. Because \texttt{DEPENDS\_ON} points \emph{dependent → dependency}, a
-failure propagates \emph{against} edge direction; RPR (computed on the transpose \(G^\top\)) therefore
-traverses the natural failure-propagation path. For Topic nodes, which have no \texttt{DEPENDS\_ON}
-in-degree, a fan-out form is dispatched by \(\tau_V(v)\):
+All metric inputs are rank-normalized to \([0,1]\). \textbf{Reliability} is driven by Reverse PageRank
+on the transpose \texttt{DEPENDS\_ON} graph \(G^\top\) (the failure-propagation direction, since edges
+point dependent → dependency), blended with in-degree and a cascade-depth potential amplified by
+multi-path coupling, with a fan-out form dispatched for Topic nodes, which have no
+\texttt{DEPENDS\_ON} in-degree. \textbf{Maintainability} is driven by betweenness centrality,
+QoS-weighted out-degree, and a Code Quality Penalty built from the ingested SonarQube metrics of
+Section~\ref{sec:3.1}. \textbf{Availability} is driven by the directed articulation score (rather than
+the undirected version, which both over- and under-reports in pub-sub graphs), amplified by QoS
+weight so a SPOF carrying critical traffic scores as doubly severe. \textbf{Vulnerability} is driven
+by reverse eigenvector and harmonic closeness centrality on \(G^\top\), modelling adversarial reach
+toward high-guarantee flows. The four combine into
 
 \begin{equation}
-\resizebox{.98\linewidth}{!}{$\displaystyle R(v) = 0.45\cdot\mathrm{RPR}(v) + 0.30\cdot\mathrm{DG\_in}(v) + 0.25\cdot\mathrm{CDPot\_enh}(v)
-\qquad [\tau_V(v)\neq\text{Topic}] $}
-\end{equation}
-\begin{equation}
-\resizebox{.98\linewidth}{!}{$\displaystyle \mathrm{CDPot\_enh}(v) = \min\!\Big( \frac{\mathrm{RPR}(v) + \mathrm{DG\_in}(v)}{2} \cdot \big(1 - \min(\tfrac{\mathrm{out\_degree\_raw}(v)}{\max(\mathrm{in\_degree\_raw}(v),\, \epsilon)}, 1)\big) \cdot (1 + \mathrm{MPCI}(v)),\ 1.0 \Big) $}
-\end{equation}
-\begin{equation}
-R_{\text{topic}}(v) = 0.50\cdot\mathrm{FOC}(v) + 0.50\cdot\mathrm{CDPot\_topic}(v),\quad
-\mathrm{CDPot\_topic}(v) = \mathrm{FOC}(v)\big(1 - \min(\text{publisher\_count\_norm}(v),1)\big)
+Q(v) = w_A\,A(v) + w_R\,R(v) + w_M\,M(v) + w_V\,V(v)
 \end{equation}
 
-\textbf{Maintainability} --- coupling complexity:
+under a stated weighting \((0.43, 0.24, 0.17, 0.16)\) --- a design judgement written on Saaty's 1--9
+scale and audited for Analytic Hierarchy Process consistency \cite{saaty1980ahp}
+(\(\mathrm{CR} \le 0.10\)) rather than elicited from raters --- adapted per system toward its
+aggregate QoS profile, the computable form of D1's ``within its operational context'' clause.
 
-\begin{equation}
-M(v) = 0.35\,\mathrm{BT}(v) + 0.30\,\mathrm{w\_out}(v) + 0.15\,\mathrm{CQP}(v)
-+ 0.12\,\mathrm{CouplingRisk\_enh}(v) + 0.08\,(1-\mathrm{CC}(v)),
-\end{equation}
-\begin{equation}
-\mathrm{CQP}(v) = 0.10\,\text{loc\_norm} + 0.35\,\text{complexity\_norm}
-+ 0.30\,\text{instability\_code} + 0.25\,\text{lcom\_norm}.
-\end{equation}
+We classify with an adaptive box-plot rule applied independently to each dimension and to the
+composite (CRITICAL: \(Q > Q_3 + 1.5\,\mathrm{IQR}\), down to MINIMAL: \(Q \le Q_1\), with a
+percentile fallback below \(n=12\)), so that a component can be CRITICAL on Availability yet MINIMAL
+on Vulnerability --- telling the architect to add a replica rather than harden an interface.
+Attribution is fully deterministic: every input to \(Q(v)\) is a structural metric of
+\(G_{\text{analysis}}\), none derives from the discrete-event simulation that produces the
+ground-truth labels used to evaluate the framework (Section~\ref{sec:5.1}) --- the
+\textbf{independence guarantee} that makes a measured correlation between \(Q(v)\) and simulated
+impact evidence of genuine predictive content rather than leakage.
 
-Here, the Code Quality Penalty (CQP) translates local code-level fragility into system-level
-maintainability risk. The components \texttt{loc\_norm}, \texttt{complexity\_norm}, and \texttt{lcom\_norm} represent the
-min-max normalized values of the ingested SonarQube properties \texttt{loc}, \texttt{cyclomatic\_complexity}, and
-\texttt{lcom}, respectively. These are calculated independently for Applications and Libraries to prevent
-scale differences from distorting the normalization. The metric \texttt{instability\_code} represents class
-instability (efferent coupling divided by total coupling). The CQP thus ensures that local code debt
-is penalised, but only as a sub-factor of Maintainability (\(M\)), which remains heavily weighted by
-topological metrics such as betweenness centrality (\(BT\)) and efferent QoS-weighted out-degree
-(\(w\_out\)). CQP is zero for non-Application/Library types (graceful degradation). The two
-instability signals are intentional and distinct: \texttt{instability\_code} is static-code fragility
-(local); \texttt{CouplingRisk\_enh} is runtime-topology fragility (global).
-
-\textbf{Availability} --- single-point-of-failure risk:
-
-\begin{equation}
-A(v) = 0.35\,\mathrm{AP\_c\_directed}(v) + 0.25\,\mathrm{QSPOF}(v) + 0.25\,\mathrm{BR}(v)
-+ 0.10\,\mathrm{CDI}(v) + 0.05\,w(v).
-\end{equation}
-
-The directed articulation score (rather than the undirected AP, which both over- and under-reports
-in pub-sub graphs) captures directed cut vertices; QSPOF amplifies it by the component's QoS weight,
-so a SPOF carrying critical traffic is scored as doubly severe.
-
-\textbf{Vulnerability} --- adversarial exposure:
-
-\begin{equation}
-V(v) = 0.40\,\mathrm{REV}(v) + 0.35\,\mathrm{RCL}(v) + 0.25\,\mathrm{w\_in}(v).
-\end{equation}
-
-All three terms are computed on the transpose to model attack propagation and adversarial reach
-toward high-SLA surfaces.
-
-\hypertarget{the-composite-score-qv}{%
-\subsection{\texorpdfstring{The Composite Score \(Q(v)\)}{The Composite Score Q(v)}}\label{the-composite-score-qv}}
-
-\label{sec:4.3}
-
-The four dimensions combine into a composite criticality score under a stated weighting:
-
-\begin{equation}
-Q(v) = w_A\,A(v) + w_R\,R(v) + w_M\,M(v) + w_V\,V(v).
-\end{equation}
-
-\textbf{The weights are stated design judgements, audited for coherence rather than elicited.} Each
-comparison matrix is written on Saaty's 1--9 scale to express an intended ordering, then checked with
-the Analytic Hierarchy Process \cite{saaty1980ahp}: row geometric means normalised to a weight vector, with a
-consistency ratio \(\mathrm{CR} = \mathrm{CI}/\mathrm{RI}\) required to satisfy
-\(\mathrm{CR} \le 0.10\). We describe them as ``stated and audited'' rather than ``AHP-derived'' because
-the resulting near-zero consistency ratios (\(\mathrm{CR} < 0.02\), and below \(0.002\) on the
-\(5\times5\) intra-dimension matrices) are a symptom of the construction: a matrix filled in from a
-target weight vector is consistent almost by construction, whereas genuine multi-rater elicitation
-on five criteria rarely lands that low. The audit certifies internal coherence, not provenance.
-
-\textbf{Three weighting paths exist in the implementation, and the reported results use the first.} We
-set them out explicitly, because they do not coincide and an earlier version of this paper conflated
-them:
-
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}@{}}
-\caption{The three weighting paths in the implementation. Reported results use the stated default.\label{tab:9}}\tabularnewline
-\toprule
-Path & Composite \((w_A, w_R, w_M, w_V)\) & Intra-dimension & Used by \\
-\midrule
-\endfirsthead
-\toprule
-Path & Composite \((w_A, w_R, w_M, w_V)\) & Intra-dimension & Used by \\
-\midrule
-\endhead
-\textbf{Stated default} & \((0.43,\ 0.24,\ 0.17,\ 0.16)\) & exactly the coefficients printed in Section~\ref{sec:4.2} & \textbf{all reported results} (Section~\ref{sec:8.1}--Section~\ref{sec:8.5}) \\
-AHP reconstruction, \(\lambda = 1\) & \((0.458,\ 0.246,\ 0.169,\ 0.128)\) & matches Section~\ref{sec:4.2} to three decimals & upper endpoint of the Section~\ref{sec:8.3} sweep \\
-AHP with shrinkage \(\lambda\) & \(\lambda\,w_{\mathrm{AHP}} + (1-\lambda)\tfrac{1}{n_{\text{dim}}}\); at \(\lambda = 0.70\), \((0.395,\ 0.247,\ 0.193,\ 0.165)\) & shrunk likewise & the Section~\ref{sec:8.3} sensitivity sweep \\
-\bottomrule
-\end{longtable}
-
-All three place Availability first (a SPOF is a certain graph partition), Reliability second (cascade
-reach), then Maintainability and Vulnerability. Shrinkage blends toward a uniform prior and is
-applied to the intra-dimension vectors as well as to the composite, so \(\lambda\) moves every RMAV
-formula at once; it exists because weight vectors from small comparison sets can be extreme. The
-stated default is \emph{not} a point on that \(\lambda\) axis --- it is a hand-set vector expressing the same
-ordering --- which is why Section~\ref{sec:8.3} reports the sweep as a sensitivity analysis of the ordering rather than
-as a tuning curve for a deployed parameter.
-
-\textbf{A QoS-profile adaptation is applied on top of whichever vector is in force.} Before scoring,
-the four composite coefficients are re-derived from the analysed system's aggregate QoS profile and
-renormalised to sum to one: a predominantly \texttt{PERSISTENT}/\texttt{RELIABLE}/high-priority system shifts
-weight toward \(R\) and \(A\), a predominantly \texttt{VOLATILE}/\texttt{BEST\_EFFORT} one toward \(M\) and \(V\), and a
-mixed profile keeps the stated defaults. This is D1's \emph{``within its operational context''} clause made
-computable, and it is on by default in every run reported here. Two consequences follow. The
-effective composite is therefore \textbf{per system}, so the vectors tabulated above are starting points
-rather than the coefficients any individual system is scored with --- a further sense in which D4's
-relativity holds. And it does not disturb the determinism of Section~\ref{sec:4.5}: the adaptation is a deterministic
-function of the same \(G_{\text{analysis}}\), with no learned or stochastic component.
-
-\textbf{Quality-in-Use Transformation Matrix.} To connect product-quality mechanisms (\(R, M, A, V\)) to ISO/IEC 25019 Quality-in-Use harms, the vector \(\mathbf{s}_{\mathrm{RMAV}}(v) = [R(v), M(v), A(v), V(v)]^T\) projects into stakeholder harm scores \([H_{\mathrm{Ben}}, H_{\mathrm{Risk}}, H_{\mathrm{Acc}}]^T\) via transformation matrix \(\mathbf{M}_{\mathrm{RMAV} \to \mathrm{QiU}}\):
-
-\begin{small}
-\begin{equation}
-\mathbf{h}_{\mathrm{QiU}}(v) = \mathbf{M}_{\mathrm{RMAV} \to \mathrm{QiU}} \cdot \mathbf{s}_{\mathrm{RMAV}}(v) =
-\begin{bmatrix}
-0.35 & 0.25 & 0.40 & 0.00 \\
-0.10 & 0.00 & 0.50 & 0.40 \\
-0.30 & 0.00 & 0.20 & 0.50
-\end{bmatrix}
-\begin{bmatrix} R(v) \\ M(v) \\ A(v) \\ V(v) \end{bmatrix}.
-\end{equation}
-\end{small}
-
-In a specific deployment domain, Quality-in-Use loss can be further parametrized by a \textbf{Domain
-Context Vector} \(\vec{\omega}_{\mathrm{domain}} = [\omega_{\mathrm{Ben}}, \omega_{\mathrm{Risk}}, \omega_{\mathrm{Acc}}]\) that reweights the three harm scores --- safety-critical ROS 2 prioritising
-Freedom from Risk, financial HFT prioritising Efficiency under Beneficialness, and so on.
-
-\textbf{Both \(\mathbf{M}_{\mathrm{RMAV}\to\mathrm{QiU}}\) and \(\vec{\omega}_{\mathrm{domain}}\) are stated
-mappings, and neither is used in any result reported in this paper.} They are given here because
-D1 and D2 define criticality on Quality-in-Use while the four dimensions are named after product
-quality, and a reader is owed an explicit statement of how one is meant to reach the other. But the
-coefficients are asserted, not fitted or elicited; unlike the composite weights they carry no
-consistency audit; and no table in Section~\ref{sec:8} reports an \(\mathbf{h}_{\mathrm{QiU}}\) score. They should be
-read as a specification of the intended correspondence, not as a validated instrument. Deriving them
---- and testing whether per-domain reweighting recovers the ranking accuracy that the global weighting
-does not --- is future work (Section~\ref{sec:9.3}).
-
-\textbf{We report the sensitivity of the composite weighting, and it is not favourable.} Sweeping
-\(\lambda\) over \(\{0,\dots,1\}\) against simulated impact shows no plateau at any value and a monotone
-decline in \(\rho\), with equal weights (\(\lambda = 0\)) outperforming the \(\lambda = 0.70\) setting by
-\(0.111\) (Section~\ref{sec:8.3}). An earlier version of this paper reported a plateau over \(\lambda\in[0.65,0.75]\);
-that claim was not supported by a committed artifact and does not survive measurement. Because the
-decline is monotone across the whole range, the conclusion applies to the stated default of the
-table above as well, even though that vector is not itself a point on the \(\lambda\) axis: every
-weighting that expresses the intended ordering is beaten by the uniform one on this cohort.
-
-One reading of the decline is that a single global weighting cannot fit scenarios drawn from
-domains whose harm profiles genuinely differ, which is what \(\vec{\omega}_{\mathrm{domain}}\) is
-meant to express. We flag that as a conjecture rather than an explanation: we have not run the
-per-domain reweighting that would test it, and until we do, the measured fact is simply that the
-stated weighting does not improve ranking. We keep the decomposition and drop the accuracy claim
-attached to its weighting. The four dimensions earn their place by being \emph{separately actionable} ---
-a structural single point of failure and a cascade hub have different owners and different remedies
-even at identical composite scores (Section~\ref{sec:4.1}) --- and that property is independent of how the four are
-combined into a scalar. A practitioner optimising purely for ranking should use equal weights; a
-practitioner who needs to know \emph{why} a component is critical needs the profile, whatever the weights.
-
-\hypertarget{adaptive-criticality-classification}{%
-\subsection{Adaptive Criticality Classification}\label{adaptive-criticality-classification}}
-
-\label{sec:4.4}
-
-A raw \(Q(v)\) is most useful when turned into an action threshold relative to the system's own
-distribution rather than an absolute cutoff. We classify with an adaptive box-plot rule, applied
-independently to each RMAV dimension and to the composite:
-
-\begin{equation}
-\text{CRITICAL}: Q > Q_3 + 1.5\,\mathrm{IQR};\quad
-\text{HIGH}: Q_3 < Q \le \text{upper fence};\quad
-\text{MEDIUM}: \mathrm{med} < Q \le Q_3;
-\end{equation}
-\begin{equation}
-\text{LOW}: Q_1 < Q \le \mathrm{med};\quad
-\text{MINIMAL}: Q \le Q_1.
-\end{equation}
-
-Per-dimension classification is what makes the output actionable: a component can be CRITICAL on
-Availability yet MINIMAL on Vulnerability, which tells the architect to add a replica rather than to
-harden an interface. For small graphs (\(n<12\)), where quartile fences are unstable, a percentile
-fallback is used (CRITICAL = top 10\%, HIGH = 75th--90th, MEDIUM = 50th--75th, LOW = 25th--50th,
-MINIMAL = bottom 25\%).
-
-\hypertarget{determinism-and-the-independence-guarantee}{%
-\subsection{Determinism and the Independence Guarantee}\label{determinism-and-the-independence-guarantee}}
-
-\label{sec:4.5}
-
-Attribution is fully deterministic and interpretable: the same \(G_{\text{analysis}}\) always yields
-the same scores, with no learned parameters and no stochastic component. Critically, every input to
-\(Q(v)\) is a structural metric of \(G_{\text{analysis}}\); none derives from the discrete-event
-simulation that produces the ground-truth impact labels used to evaluate the framework (Section~\ref{sec:5.1}, Section~\ref{sec:7.5}).
-This is the \textbf{independence guarantee}: the attribution path and the label path are disjoint, so a
-correlation between \(Q(v)\) and simulated impact --- under either oracle --- measures genuine predictive
-content rather than information leaked from the labels into the score.
-
-\hypertarget{worked-attribution}{%
-\subsection{Worked Attribution}\label{worked-attribution}}
-
-\label{sec:4.6}
-
-Scoring the running example of Section~\ref{sec:3.6} with the pipeline of Section~\ref{sec:4.2}--Section~\ref{sec:4.4} gives the following profile. The
-point of the table is the divergence between the last two columns:
-
-\begin{longtable}[]{@{}lrrrrrll@{}}
-\caption{Worked RMAV attribution for the running example of Section~\ref{sec:3.6}. The divergence between the last two columns is the point.\label{tab:10}}\tabularnewline
-\toprule
-Component & \(R\) & \(M\) & \(A\) & \(V\) & \(Q\) & Composite tier & Dominant dimension tier \\
-\midrule
-\endfirsthead
-\toprule
-Component & \(R\) & \(M\) & \(A\) & \(V\) & \(Q\) & Composite tier & Dominant dimension tier \\
-\midrule
-\endhead
-\(b\) (broker) & 0.569 & 0.278 & 0.335 & 0.375 & 0.356 & LOW & \textbf{CRITICAL on \(A\)} \\
-\(t\) (topic) & 0.875 & 0.305 & 0.021 & 0.188 & 0.260 & MINIMAL & \textbf{CRITICAL on \(R\)} \\
-\(a_1\) (publisher) & 0.500 & 0.627 & 0.021 & 0.667 & 0.428 & MEDIUM & \textbf{CRITICAL on \(M\)} \\
-\(n\) (host) & 0.300 & 0.405 & 0.271 & 0.438 & 0.357 & MEDIUM & HIGH on \(A\) \\
-\(\ell\) (library) & 0.450 & 0.357 & 0.050 & 0.333 & 0.266 & LOW & LOW on \(R\), \(M\), \(V\) \\
-\bottomrule
-\end{longtable}
-
-Three components illustrate how the profile names the failure mode, and each is a case the composite
-alone would mislead on. The broker \(b\) is a directed cut vertex: removing it partitions the graph, so
-it is CRITICAL on \(A\) --- driven by the directed articulation score and, because \(t\) carries
-\texttt{RELIABLE}/\texttt{TRANSIENT\_LOCAL}/\texttt{HIGH} traffic at \(w(t) = 0.596\), by QSPOF --- while scoring MINIMAL on
-\(M\). Yet its \emph{composite} tier is LOW. An architect reading only \(Q(b)\) would deprioritise the one
-component whose loss stops every dependent outright; the \(A\) tier is what routes it to the SRE for a
-second broker. The topic \(t\) inverts the same pattern on a different dimension: CRITICAL on \(R\)
-through its subscriber fan-out, MINIMAL overall. The publisher \(a_1\) is CRITICAL on \(M\) --- a
-betweenness and efferent-coupling bottleneck the architect should decouple --- at a composite of only
-MEDIUM.
-
-This is the concrete form of the claim Section~\ref{sec:8.3} arrives at empirically. The composite is a ranking
-device and, on this cohort, not a good one; the \emph{profile} is the diagnostic, and the two disagree
-often enough that reading only the scalar discards the finding. Reading the broker row as a
-stakeholder statement, in the terms of Section~\ref{sec:4.1}: if \(b\) fails, \(a_2\) and \(a_3\) lose their only path to
-\(t\), so the monitoring task does not degrade --- it stops. That is a Beneficialness/Effectiveness
-loss, and the outage window is itself a Freedom-from-risk exposure. What the score does \emph{not} say is
-how often \(b\) fails or how fast it would be restored (D3); a CRITICAL tier is a statement about
-structural exposure to Quality-in-Use loss, not a measurement of Quality-in-Use loss itself (Section~\ref{sec:9.2}).
-
-The edge scores of Section~\ref{sec:4.7} add the complementary reading. Only one dependency in the example is a
-bridge --- \(n \to b\), at \(A = 0.354\) and \(Q = 0.320\), the highest-scoring edge --- while every
-\texttt{app\_to\_broker}, \texttt{app\_to\_app} and \texttt{app\_to\_lib} edge scores \(A = 0.004\): replaceable links, whose loss
-costs Efficiency rather than Effectiveness. Those replaceable edges nonetheless carry
-\(R \approx 0.29\), because \(w(e) = 0.596\) and their endpoints' own reliability reach them through the
-endpoint term. That is D2's proportionality clause behaving as specified: redundancy scales the harm
-to near zero on \(A\) without switching the other three dimensions off.
-
-The shared library \(\ell\) illustrates
-the qualitatively distinct simultaneous-blast mechanism of Rule 5 (Section~\ref{sec:3.3}): its individual structural
-centrality need not be remarkable, yet its failure collapses \(a_1, a_2, a_3\) at once, in a single
-event rather than a propagation chain. Whether this mechanism produces a low-\(Q\)/high-\(I\) mismatch in
-practice is an empirical question we evaluate directly in Section~\ref{sec:5.4} (on our synthetic suite, it does not);
-independent of that, the mechanism is why the FanOutReduction operator (Section~\ref{sec:6}) is triggered by structural
-blast signals rather than by \(Q(v)\) itself --- a library's consumer fan-out is legible from structure
-alone, before any simulation is run.
-
-\hypertarget{relationship-criticality}{%
-\subsection{Relationship Criticality}\label{relationship-criticality}}
-
-\label{sec:4.7}
-
-D2 gives edges the same signature as nodes, and this section supplies the corresponding measure. The
-motivation is that an edge failure and a node failure produce different observable symptoms. A node
-failure is a \emph{total} outage of a capability: everything the component provides stops. An edge failure
-is a \emph{partial} outage: the component is up, its other consumers are fine, its dashboards are green ---
-but one data flow has stopped, and for the stakeholder behind that link, Effectiveness is lost just
-as completely as in a full outage. Two cases follow that endpoint scores cannot express. A
-high-criticality node may have uniformly low-criticality edges, as with a redundantly connected
-broker where losing any single link changes nothing; and a low-criticality node may sit behind a
-single highly critical bridge edge, where losing that one relationship is as consequential for its
-dependents as losing a much higher-scoring component.
-
-\textbf{Structural edge signals.} Four per-edge quantities are computed on \(G_{\text{analysis}}\):
-
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.33}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.33}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.33}}@{}}
-\caption{Per-edge structural signals computed on \(G_{\text{analysis}}\) for relationship criticality.\label{tab:11}}\tabularnewline
-\toprule
-Signal & Computed as & Reads as \\
-\midrule
-\endfirsthead
-\toprule
-Signal & Computed as & Reads as \\
-\midrule
-\endhead
-\(\mathbf{1}_{\text{bridge}}(e)\) & cut-edge test on the undirected projection & removing \(e\) disconnects a subgraph --- the Effectiveness case \\
-\(\mathrm{bt}(e)\) & edge betweenness on \textbf{inverted} weights, each edge's length \(1/w(e)\) & fraction of shortest dependency paths crossing \(e\) --- the Efficiency case (how much traffic must reroute) \\
-\(w(e)\) & worst-case (max) QoS weight over the topics mediating the dependency (Section~\ref{sec:3.3}) & how strongly the flow across \(e\) is guaranteed \\
-\(\text{path\_count}(e)\) & number of distinct mediating topics or shared hosts & coupling intensity, kept out of \(w(e)\) to preserve \(w\in[0,1]\) \\
-\bottomrule
-\end{longtable}
-
-Weight inversion is what makes strongly-guaranteed dependencies \emph{short}, so they attract shortest
-paths rather than repelling them. Unlike the node case, \(w(e)\) enters \textbf{un-normalised}: the Section~\ref{sec:3.2}
-construction already places it in \([0,1]\).
-
-\textbf{Edge RMAV.} Each edge is scored on the same four dimensions, blending its intrinsic signals with
-the endpoint scores of Section~\ref{sec:4.2}:
-
-\begin{equation}
-R(u,v) = 0.35\,\mathrm{bt} + 0.30\,w(e) + 0.20\max\big(R(u), R(v)\big)
-\end{equation}
-\begin{equation}
-M(u,v) = 0.35\,\mathrm{bt} + 0.30\,\mathbf{1}_{\text{bridge}} + 0.15\,w(e)
-\end{equation}
-\begin{equation}
-A(u,v) = 0.30\,\mathbf{1}_{\text{bridge}} + 0.20\min\big(A(u), A(v)\big)
-\end{equation}
-\begin{equation}
-V(u,v) = 0.15\,w(e) + 0.20\max\big(V(u), V(v)\big)
-\end{equation}
-
-combined into \(Q(u,v)\) with the same composite coefficients and QoS-profile adaptation as a node
-(Section~\ref{sec:4.3}), and classified by the same box-plot rule (Section~\ref{sec:4.4}) applied within the edge set.
-
-Four design choices carry meaning. \textbf{\(\max\) for \(R\) and \(V\), \(\min\) for \(A\)}: a link is only as
-reliable or as secure as its \emph{riskiest} endpoint, since failure or compromise on either side
-propagates across it, but only as available as its \emph{weakest}, since the edge cannot be more resilient
-than the more fragile side it connects. \textbf{\(\mathbf{1}_{\text{bridge}}\) appears in both \(M\) and \(A\)}:
-a non-redundant edge is expensive to route around (an Efficiency cost to the engineering stakeholder)
-\emph{and} a structural cut-point if removed (an Effectiveness loss to the end user) --- one structural
-fact, two stakeholder consequences. \textbf{\(w(e)\) appears in \(R\), \(M\) and \(V\) but not \(A\)}: the guarantee
-crossing a link scales how much its loss costs, but not whether it can be lost at all. Replaceability
-is topological; consequence is QoS-weighted. This is D2's redundancy clause made operational --- only
-\(A\) is bridge-gated, while the other three score replaceable links too. \textbf{\(\text{path\_count}\) does
-not enter the edge score directly}; it shapes the endpoints' \(R\) and \(M\) (Section~\ref{sec:4.2}), of which only \(R\)
-reaches the edge again, through the endpoint term.
-
-\textbf{Two scoping conditions.} First, the orthogonality constraint of Section~\ref{sec:4.1} is a property of the \emph{node}
-decomposition and does not carry over here: \(\mathrm{bt}\) feeds both \(R\) and \(M\),
-\(\mathbf{1}_{\text{bridge}}\) feeds both \(M\) and \(A\), and \(w(e)\) feeds three of the four. The edge
-formulas trade orthogonality for the endpoint context that distinguishes an edge score from a node
-score, and we state the claim as node-scoped rather than framework-wide. Second, the four edge
-dimensions do not draw on equal coefficient mass --- \(R\) sums to \(0.85\) of a possible \(1.0\), \(M\) to
-\(0.80\), \(A\) to \(0.50\), \(V\) to \(0.35\) --- so raw edge scores are comparable \emph{within} a dimension but not
-\emph{across} dimensions. Because classification is box-plot relative within the edge set, per-dimension
-rankings and tiers are unaffected; only the raw magnitudes are. An edge's dimension \emph{tiers} should be
-read, not its absolute dimension values.
-
-\textbf{What validates this, and what does not.} Relationship attribution is scored over
-\(G_{\text{analysis}}\) --- the derived \texttt{DEPENDS\_ON} edges --- while the edge-removal oracle of Section~\ref{sec:8.2} severs
-raw edges of \(G_{\text{structural}}\). On \texttt{av\_system} those are 3,753 derived edges against a
-candidate set of 50 raw structural edges drawn predominantly from \texttt{RUNS\_ON} and \texttt{CONNECTS\_TO}, with a
-handful of \texttt{SUBSCRIBES\_TO} and \texttt{PUBLISHES\_TO} relations (Section~\ref{sec:8.2} gives the exact composition), and the
-two populations barely intersect. This is not an oversight: it is the independence guarantee of Section~\ref{sec:5.3}
-operating exactly as designed --- predictors and labels must be computed over disjoint graph views ---
-and the edge case simply has no shared identifier space for the two views to meet on, where the node
-case does. \textbf{There is therefore no common edge population on which \(Q(u,v)\) and the measured edge
-impact are both defined}, and the correlation-style validation applied to node scores in Section~\ref{sec:8.1} cannot
-be run for edges as the two quantities are currently constructed. We present relationship attribution
-as a \emph{defined and implemented} measure that operationalises D2, and the edge-removal measurement of
-Section~\ref{sec:8.2} as a separate result about the structural graph --- not as a validation of the attribution, and we
-do not report or imply a correlation between the two anywhere in this paper. Re-simulating on
-\texttt{DEPENDS\_ON} directly is not an available fix: the framework's independence guarantee (Section~\ref{sec:5.3}) requires
-simulation to operate only on \(G_{\text{structural}}\). The one route that would close the gap without
-violating that guarantee --- tracking, for each derived edge, which raw structural edges mediate it,
-then aggregating their measured impact onto it --- is a modelling exercise in its own right (the
-mediating relations are many-to-many, so the aggregation rule is a choice, not a formality) and is out
-of scope for this submission; we position it as future work in Section~\ref{sec:9.3} rather than as a pending fix.
+\textbf{We report the sensitivity of this weighting, and it is not favourable.} Sweeping a shrinkage
+parameter that blends the stated weighting toward a uniform prior shows no plateau at any value and a
+monotone decline in ranking accuracy against simulated impact, with equal weights outperforming the
+calibrated setting by 0.111 \(\rho\) (Section~\ref{sec:8.3}, Table~\ref{tab:11}) --- the one
+robustness result in this paper that did not move under re-measurement. We draw the corresponding
+conclusion about the contribution rather than defending the weighting: \textbf{the value of the RMAV
+decomposition is attribution, not ranking accuracy.} A composite score ranks; a four-dimensional
+profile explains \emph{why} a component ranks where it does and routes the finding to the engineering
+role equipped to act on it --- a structural single point of failure and a cascade hub call for
+different remediations even at identical composite scores --- and that explanatory function is
+unaffected by the weighting result. A practitioner optimising for ranking alone should use equal
+weights; one who needs to know \emph{why} a component is critical needs the profile, whatever the
+weights.
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}

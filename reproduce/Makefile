@@ -13,7 +13,7 @@
 #   make convergent-validity — Three-oracle rank agreement (opt-in; expensive)
 #   make figure4         — Stratified per-node-type ρ (old Middleware numbering)
 #   make figure5         — ATM attention subgraph (old Middleware numbering)
-#   make jss-figures     — all 6 figures for the JSS submission (docs/research/jss/latex/figures/)
+#   make jss-figures     — all 4 figures for the JSS submission (docs/research/jss/latex/figures/)
 #   make all             — full end-to-end pipeline
 #   make clean           — remove generated outputs (keeps checkpoints)
 #   make clean-all       — remove everything including checkpoints
@@ -36,7 +36,7 @@ RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
 .PHONY: setup scenarios cache block0 table3 table4 kfold convergent-validity \
-        figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6 \
+        figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 \
         jss-figures all smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -161,14 +161,18 @@ figure5:
 	@echo "✓ Figure 5 ready: $(OUTPUT_DIR)/atm_case_study/attention_subgraph.[png|pdf]"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# JSS submission figures (docs/research/jss/latex/figures/Figure_1..6).
+# JSS submission figures (docs/research/jss/latex/figures/Figure_1..4).
 #
-# The filenames are numbered by *printed* reading order in the compiled PDF,
-# which LaTeX assigns by float position -- not by draft.md's own figure
-# labels (its "Figure 6", the attention subgraph, physically appears in §5.2,
-# before its "Figure 3" in §5.5, so the printed numbers run 1,2,3,4,5,6 while
-# draft.md's own labels for the same floats run 1,2,6,3,4,5). See the mapping
-# table in docs/research/jss/latex/README.md before touching any of this.
+# Since the manuscript was condensed to four figures, printed number, filename
+# and draft.md's own caption label all agree -- the old 1,2,6,3,4,5 mismatch is
+# gone, because the two floats that caused it (pooled-vs-per-type ρ and the
+# propagation-threshold sweep) are no longer in the paper.
+#
+# The two retired generators are kept, not deleted: their analyses still live
+# in docs/research/thesis/material/, and either figure is one command from
+# coming back. They are simply not part of `jss-figures` any more.
+#   reproduce/render_pooled_vs_pertype_figure.py  (was Figure_4)
+#   reproduce/render_threshold_figure.py          (was Figure_6)
 # ─────────────────────────────────────────────────────────────────────────────
 
 jss-fig1:
@@ -192,22 +196,14 @@ jss-fig3:
 	$(PYTHON) reproduce/render_attention_subgraph.py \
 	    --input $(OUTPUT_DIR)/atm_case_study/attention_weights.json \
 	    --output docs/research/jss/latex/figures/Figure_3
-	@echo "✓ Figure 3 (attention subgraph; draft.md's own \"Figure 6\") ready."
+	@echo "✓ Figure 3 (HGT attention subgraph) ready."
 
 jss-fig4:
-	$(PYTHON) reproduce/render_pooled_vs_pertype_figure.py
-	@echo "✓ Figure 4 (pooled vs per-type ρ; draft.md's own \"Figure 3\") ready."
-
-jss-fig5:
 	$(PYTHON) reproduce/render_shrinkage_figure.py
-	@echo "✓ Figure 5 (AHP shrinkage; draft.md's own \"Figure 4\") ready."
+	@echo "✓ Figure 4 (AHP shrinkage sensitivity) ready."
 
-jss-fig6:
-	$(PYTHON) reproduce/render_threshold_figure.py
-	@echo "✓ Figure 6 (propagation threshold; draft.md's own \"Figure 5\") ready."
-
-jss-figures: jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6
-	@echo "✓ All 6 JSS figures ready in docs/research/jss/latex/figures/."
+jss-figures: jss-fig1 jss-fig2 jss-fig3 jss-fig4
+	@echo "✓ All 4 JSS figures ready in docs/research/jss/latex/figures/."
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Full pipeline

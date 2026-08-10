@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
 """
-reproduce/render_shrinkage_figure.py — JSS Figure 5 generator
+reproduce/render_shrinkage_figure.py — JSS Figure 4 generator
 ===============================================================
 
-Reads results/ahp_shrinkage_sweep.json and produces draft.md's own "Figure 4"
+Reads results/ahp_shrinkage_sweep.json and produces the manuscript's Figure 4
 (§8.3: mean Spearman ρ against I*(v) as the AHP shrinkage parameter λ blends
 the stated composite weighting toward a uniform prior; λ=0 equal weights,
-λ=1 raw AHP judgement). See draft.md Table 21 / §8.3.
+λ=1 raw AHP judgement). See draft.md Table 11 / §8.3.
 
-NOTE on the file number: LaTeX numbers floats by reading order, not by the
-source's own figure label -- because the attention-subgraph figure (draft.md's
-"Figure 6") physically appears earlier in the text (§5.2), this one prints as
-"Fig. 5". See the numbering table in docs/research/jss/latex/README.md.
+This was Figure_5 before the manuscript was condensed to four figures; printed
+number, filename and draft.md's own caption label now all agree, so no
+numbering-mismatch caveat applies any more.
 
 Output:
-  docs/research/jss/latex/figures/Figure_5.png  (300 dpi)
-  docs/research/jss/latex/figures/Figure_5.pdf  (vector)
+  docs/research/jss/latex/figures/Figure_4.png  (300 dpi)
+  docs/research/jss/latex/figures/Figure_4.pdf  (vector)
 
 Usage
 -----
@@ -31,8 +30,8 @@ import sys
 from pathlib import Path
 
 _DEFAULT_INPUT = Path("results/ahp_shrinkage_sweep.json")
-_DEFAULT_OUTPUT = Path("docs/research/jss/latex/figures/Figure_5")
-_DEFAULT_LAMBDA = 0.70  # the stated/canonical operating point (draft.md Table 21)
+_DEFAULT_OUTPUT = Path("docs/research/jss/latex/figures/Figure_4")
+_DEFAULT_LAMBDA = 0.70  # the stated/canonical operating point (draft.md Table 11)
 
 # House palette, matching reproduce/render_stratified_figure.py's _VARIANT_COLORS.
 _LINE_COLOR = "#4C72B0"

@@ -3,54 +3,27 @@
 
 \label{sec:6}
 
-Attribution (Section~\ref{sec:4}) and impact analysis (Section~\ref{sec:5}) are diagnostic: they tell an architect \emph{which} components
-to harden and \emph{why}. This section closes the loop with a prescriptive stage that proposes concrete
-architectural edits and verifies that they actually reduce simulated failure impact, before any
-deployment. The stage is designed to preserve the same independence discipline as the rest of the
-framework: candidate edits are generated from structure alone, and only a separate simulation pass
-decides whether to accept them. The section then describes how the diagnostics are operationalised
-as a continuous, delta-aware CI/CD quality gate (Section~\ref{sec:6.6}).
+Attribution (Section~\ref{sec:4}) and impact analysis (Section~\ref{sec:5}) are diagnostic: they tell
+an architect \emph{which} components to harden and \emph{why}. This section closes the loop with a
+prescriptive stage that proposes concrete architectural edits and verifies that they reduce simulated
+failure impact before any deployment, and describes how the diagnostics are operationalised as a
+continuous CI/CD quality gate.
 
-\hypertarget{a-two-phase-generateverify-procedure}{%
-\subsection{A Two-Phase Generate--Verify Procedure}\label{a-two-phase-generateverify-procedure}}
+\hypertarget{generateverify-and-the-remediation-operators}{%
+\subsection{Generate--Verify and the Remediation Operators}\label{generateverify-and-the-remediation-operators}}
 
 \label{sec:6.1}
 
-Remediation runs in two strictly separated phases.
+Remediation runs in two strictly separated phases, preserving the independence discipline of the rest
+of the framework. \textbf{Generate}: given \(G_{\text{analysis}}\) and its attribution, four
+operators propose candidate topology edits from structure alone, never reading simulated impact:
 
-\textbf{Generate.} Given the structural model \(G_{\text{analysis}}\) and its attribution, a set of
-operators (Section~\ref{sec:6.2}) propose candidate topology edits --- each a small, concrete modification such as
-adding a replica or an alternative route. Generation reads only structure: component types, the
-derived \texttt{DEPENDS\_ON} graph, and structural blast-radius signals. It never reads simulated impact.
-
-\textbf{Verify.} Each candidate edit \(e\) is applied to produce a counterfactual graph \(G' = e(G)\), on
-which the \texttt{FailureSimulator} of Section~\ref{sec:5.1} is re-run from scratch. The edit is accepted only if it reduces
-\(I_{\text{comp}}\) by a robust margin (Section~\ref{sec:6.4}). This stage is therefore measured against
-\(I_{\text{comp}}\) throughout, not against the \(I^*\) labels behind the predictor tables of Section~\ref{sec:8.1} ---
-a scoping condition that follows from the weak agreement between the two oracles (Section~\ref{sec:5.1}, Section~\ref{sec:7.5}).
-Verification is an oracle check against ground truth, not against the score that proposed the edit.
-
-This separation matters: a stage that both proposed and scored edits using the same signal would be
-optimizing against itself. By generating from structure and verifying by simulation, the stage
-cannot manufacture an apparent improvement that the simulator does not confirm.
-
-\hypertarget{remediation-operators}{%
-\subsection{Remediation Operators}\label{remediation-operators}}
-
-\label{sec:6.2}
-
-Four operators formalize the framework's existing heuristic recommendations (SPOF redundancy,
-alternative routing for bridges, fan-out reduction for over-subscribed topics, decoupling of
-multi-topic pairs) into verifiable edits. Each is keyed to a structural trigger and targets a
-specific failure mode:
-
-\begin{footnotesize}
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.15}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.30}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.21}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.34}}@{}}
-\caption{The four remediation operators, their structural triggers, and the failure mode each targets.\label{tab:12}}\tabularnewline
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.28}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.22}}@{}}
+\caption{The four remediation operators, their structural triggers, and the failure mode each targets.\label{tab:4}}\tabularnewline
 \toprule
 Operator & Structural trigger & Edit applied & Failure mode targeted \\
 \midrule
@@ -65,198 +38,62 @@ Operator & Structural trigger & Edit applied & Failure mode targeted \\
 \textbf{SharedTopicReduction} & high multi-path coupling (large \texttt{path\_count} / MPCI between a pair) & decouple redundant shared topics between the pair & multi-channel coupling fragility \\
 \bottomrule
 \end{longtable}
-\end{footnotesize}
 
-The operators span the RMAV dimensions deliberately: RedundancyInsertion and PathDiversification
-address Availability, FanOutReduction addresses Reliability (blast radius), and
-SharedTopicReduction addresses Maintainability coupling.
-
-\hypertarget{triggering-on-blast-radius-not-on-qv}{%
-\subsection{\texorpdfstring{Triggering on Blast Radius, not on \(Q(v)\)}{Triggering on Blast Radius, not on Q(v)}}\label{triggering-on-blast-radius-not-on-qv}}
-
-\label{sec:6.3}
-
-FanOutReduction is the operator that connects remediation to the hypothesis tested in Section~\ref{sec:5.4}, and its
-trigger is deliberately \emph{not} the composite \(Q(v)\). A shared library or an over-subscribed topic
-could in principle carry only a moderate \(Q\) while nonetheless dominating simultaneous-blast impact;
-triggering on \(Q\) would then skip exactly the components most worth remediating. Instead,
-FanOutReduction fires on direct structural blast-radius signals --- subscriber fan-out for topics,
-consumer count for libraries --- so that a low-\(Q\), high-blast component is still selected for a
-candidate edit. This is
-the remediation-side expression of the paper's central claim that single-score criticality is
-insufficient: the \emph{attribution} exposes the gap, and the \emph{operator} is designed not to fall into it.
-
-This is a statement about the trigger's design, not about its yield. Section~\ref{sec:5.4} finds no low-\(Q\)/high-\(I\)
-library population in this suite for the trigger to catch, and Section~\ref{sec:6.7} shows that its yield is
-concentrated in the two topologies that actually contain a fan-out bottleneck. We retain the
-structural trigger because triggering on \(Q\) would be unsound if such a component existed, not
-because we have shown that one does.
-
-\hypertarget{acceptance-criterion}{%
-\subsection{Acceptance Criterion}\label{acceptance-criterion}}
-
-\label{sec:6.4}
-
-An edit should do more than nudge the mean impact down; it should improve impact by a margin that
-exceeds the simulator's own seed noise. For a candidate edit producing \(G'\), let
-\(\Delta I = I_{\text{comp}}(v;G) - I_{\text{comp}}(v;G')\) be the reduction in simulated impact over
-the components present in both graphs, and let \(\sigma_{\text{seed}}\) be the across-seed standard
-deviation of that reduction (Section~\ref{sec:5.1}). The acceptance rule is
+\textbf{Verify}: each candidate edit is applied to produce a counterfactual graph, on which the
+\texttt{FailureSimulator} (Section~\ref{sec:5.1}) is re-run from scratch; the edit is accepted only if
 
 \begin{equation}
-\Delta I > \kappa\,\sigma_{\text{seed}} \quad\text{for every sampled } \texttt{propagation\_threshold},
+\Delta I > \kappa\,\sigma_{\text{seed}}
 \end{equation}
 
-evaluated \textbf{per candidate edit, on its own counterfactual graph}, before the edit is committed to
-the policy. Two design choices are load-bearing. First, normalising by \(\sigma_{\text{seed}}\) ties
-the bar to the fragility of the cascade at that point, so an edit is accepted only when its benefit
-is distinguishable from propagation-order noise. Second, requiring the inequality to hold across the
-full \texttt{propagation\_threshold} sweep makes acceptance robust to the threshold's value --- which Section~\ref{sec:8.3}
-shows is not a benign parameter, since \(\rho\) against ground truth spans 0.230 across its range.
+--- the reduction in \(I_{\text{comp}}\) exceeds \(\kappa = 1.0\) times the simulator's own
+across-seed noise --- at \emph{every} sampled propagation threshold, evaluated per candidate edit
+before it is committed to the policy. This separation matters: a stage that both proposed and scored
+edits using the same signal would be optimizing against itself, and normalising the acceptance bar by
+\(\sigma_{\text{seed}}\) ties it to the fragility of the cascade at that point rather than to an
+arbitrary constant. FanOutReduction's trigger is deliberately \emph{not} the composite \(Q(v)\) but a
+direct structural blast-radius signal (subscriber fan-out, consumer count), so that a low-\(Q\),
+high-blast component is still selected --- the remediation-side expression of the paper's central
+claim that single-score criticality is insufficient, independent of whether Section~\ref{sec:5.4}
+finds such a component in this particular suite. No Verify result feeds back into Generate within a
+run, so there is no closed-loop search that would reintroduce the circularity the framework is built
+to avoid.
 
-\texttt{PrescribeService} implements this as a three-phase procedure: compile the candidate policy (Section~\ref{sec:6.2}),
-verify each candidate independently by constructing a graph containing that edit alone and
-re-simulating it across thresholds and seeds, then apply only the accepted subset and measure the
-System Risk Index before and after on the mutated graph as a whole (Section~\ref{sec:6.7}'s Table~\ref{tab:13}). Each candidate carries its measured
-\(\Delta I\), \(\sigma_{\text{seed}}\) and --- when rejected --- the threshold at which it failed, so a run
-reports what it declined and why rather than only what it applied.
+Running this procedure across the scenario suite (\(\kappa = 1.0\), three propagation thresholds,
+three seeds --- reduced from five because acceptance requires a full re-simulation per candidate per
+threshold, the most expensive experiment in the study), 162 of 332 candidate edits (48.8\%) clear the
+filter, with no scenario in the suite regressing under the per-edit filter, removing by construction
+the failure mode of an earlier, unverified design in which a regressing edit could be carried by an
+improving one. Acceptance is decided on singletons, not subsets: nothing in the procedure establishes
+that a set of individually-accepted edits remains beneficial applied together. The acceptance rate
+varies widely with topology --- 3 of 35 candidates on Autonomous Vehicle against 38 of 58 on IoT
+Smart City --- concentrated where a fan-out bottleneck actually exists, and the resulting System Risk
+Index reductions are real but small across the suite (\(+0.0025\) to \(+0.0158\)), which is the
+result we report rather than a demonstration that the prescriptive stage is yet practically valuable
+(Section~\ref{sec:9.3}).
 
-\begin{quote}
-\textbf{What this replaces.} An earlier version of this framework compiled a policy and applied all of
-it unconditionally, judging the result by a single end-state check. Under that design an edit that
-made the system worse could be carried by edits that made it better, which is the mechanism behind
-the mixed aggregate previously reported in Section~\ref{sec:6.7}. Per-edit verification removes that failure mode by
-construction: a regressing edit is rejected individually and never reaches the mutated graph.
-\end{quote}
+\hypertarget{the-cicd-quality-gate}{%
+\subsection{The CI/CD Quality Gate}\label{the-cicd-quality-gate}}
 
-An empty accepted set is a valid outcome, not a failure, and is reported as such rather than as a
-no-op mutation with an unchanged risk index. On small topologies it is common for no candidate to
-clear the bar --- which is the filter working, and is more informative than a policy applied on the
-strength of an unverified aggregate.
-
-\hypertarget{independence-invariants}{%
-\subsection{Independence Invariants}\label{independence-invariants}}
-
-\label{sec:6.5}
-
-The stage obeys three invariants that mirror the predictor/simulator separation of Section~\ref{sec:5.3}:
-
-\begin{enumerate}
-\def\labelenumi{\arabic{enumi}.}
-\tightlist
-\item
-  \textbf{Generate never reads \(I_{\text{comp}}(v)\).} Candidate edits come from structure and
-  attribution only.
-\item
-  \textbf{Verify re-invokes the canonical simulator} on \(G'\) from scratch, rather than estimating the
-  counterfactual impact from the predictor. The re-simulation is performed \emph{per candidate edit}, on
-  a graph containing that edit alone, across the propagation-threshold sweep and the seed set; only
-  the accepted subset is then applied and re-checked at system level (Section~\ref{sec:6.7}).
-\item
-  \textbf{No Verify result feeds back into Generate within a run.} There is no closed-loop search that
-  would let simulated impact influence which edits are proposed, which would reintroduce the
-  circularity the framework is built to avoid.
-\end{enumerate}
-
-Together these keep the diagnostic and evaluation signals separate: the thing that proposes a fix
-and the thing that measures it are never the same signal, so an edit is admitted only on evidence
-the proposing signal did not produce.
-
-\hypertarget{cicd-quality-gate-implementation}{%
-\subsection{CI/CD Quality Gate Implementation}\label{cicd-quality-gate-implementation}}
-
-\label{sec:6.6}
+\label{sec:6.2}
 
 To operationalise these diagnostics, SaG integrates into developer workflows as a blocking Quality
-Gate in the CI/CD pipeline. When a pull request introduces configuration or architecture
-modifications (Architecture-as-Code changes), the pipeline executes the analyzer via a dedicated CLI
-script, \texttt{detect\_antipatterns.py}, which runs the full anti-pattern catalog against the candidate
-topology and issues an exit code.
-
-\textbf{Exit-code protocol.} The gate issues exit codes that govern pipeline execution:
-- \textbf{Exit Code 0}: No architectural anomalies found; deployment is permitted.
-- \textbf{Exit Code 1}: Medium-severity architectural smells found (e.g., chatty pairs or QoS mismatch
-warnings); deployment is permitted with warnings.
-- \textbf{Exit Code 2}: CRITICAL or HIGH severity anomalies found (e.g., single points of failure, cyclic
-dependencies, or broker overload); the build is broken and \textbf{deployment is blocked}.
+Gate: when a pull request introduces Architecture-as-Code changes, the pipeline executes
+\texttt{detect\_antipatterns.py}, which runs the full anti-pattern catalog against the candidate
+topology and issues an exit code --- 0 (no anomalies, deployment permitted), 1 (medium-severity
+smells, permitted with warnings), or 2 (CRITICAL/HIGH severity anomalies --- SPOFs, cyclic
+dependencies, broker overload --- build broken, \textbf{deployment blocked}). The underlying
+machinery is in-memory via the thread-safe \texttt{MemoryRepository} port and does not require a live
+database connection, which is what makes the runtimes of Section~\ref{sec:8.4} possible.
 
 This is an \emph{absolute} gate: every run evaluates the candidate topology's full finding set, not a
-diff against a prior baseline. It has a known consequence, which we do not paper over: a real
-architecture that carries an intentional, risk-accepted single point of failure --- a sole-source
-surveillance feed, a deliberately unreplicated legacy broker --- fails the build on every commit,
-indistinguishable from a genuine regression. A \emph{delta-aware} gate that evaluates the candidate
-against a merge-base topology and blocks only on newly introduced findings, together with a waiver
-register recording accepted risk (entity, rule, expiry) so it stays visible rather than silently
-re-triggering, would close this gap; we describe the design in Section~\ref{sec:9.3} as future work rather than claim
-it here, since the mechanism is not implemented in the released tool.
+diff against a prior baseline. This has a known consequence we do not paper over: a real architecture
+carrying an intentional, risk-accepted single point of failure --- a sole-source feed, a deliberately
+unreplicated legacy broker --- fails the build on every commit, indistinguishable from a genuine
+regression. A \emph{delta-aware} gate that evaluates the candidate against a merge-base topology,
+blocking only on newly introduced findings, together with a waiver register recording accepted risk
+so it stays visible rather than silently re-triggering, would close this gap; we describe the design
+in Section~\ref{sec:9.3} as future work rather than claim it here, since the mechanism is not
+implemented in the released tool.
 
-The underlying analysis-and-detection machinery is in-memory and does not require a live database
-connection --- \texttt{saag}'s thread-safe \texttt{MemoryRepository} port satisfies the same repository interface
-\texttt{detect\_antipatterns.py} consumes, and is what the timing harness behind Section~\ref{sec:8.4}'s measurements uses.
-Wiring that path into \texttt{detect\_antipatterns.py} itself, so the packaged CLI does not require a Neo4j
-connection during a CI build, is a small remaining integration step we have not made; today the
-script connects to a running database.
-
-\hypertarget{what-remediation-yields-under-per-edit-verification}{%
-\subsection{What Remediation Yields Under Per-Edit Verification}\label{what-remediation-yields-under-per-edit-verification}}
-
-\label{sec:6.7}
-
-Running the full Generate→Verify procedure of Section~\ref{sec:6.4} across the scenario suite, with \(\kappa = 1.0\),
-three propagation thresholds \(\{0.1, 0.2, 0.5\}\) and the first three of the five canonical seeds
-\(\{42, 123, 456\}\), gives the following. The seed set is reduced here, and only here, because
-acceptance requires a full re-simulation \emph{per candidate edit per threshold}, so the sweep over 332
-candidates is the most expensive experiment in the study. The reduction is a compute concession, not
-a methodological one, and we flag the consequence rather than argue it away: \(\sigma_{\text{seed}}\) is
-the quantity the acceptance rule divides by, and a three-seed estimate of it is noisier than a
-five-seed one, which makes the filter correspondingly less reliable at the margin. ``Cand.'' is the
-number of edits the generator proposed; ``Acc.'' the number that cleared
-\(\Delta I > \kappa\,\sigma_{\text{seed}}\) at \emph{every} threshold; \(\Delta\)SRI is the system risk index
-change from applying the accepted subset (positive = risk reduced).
-
-\begin{longtable}[]{@{}lrrrrrr@{}}
-\caption{Remediation yield under per-edit verification, \(\kappa = 1.0\), thresholds \(\{0.1,0.2,0.5\}\), seeds \(\{42,123,456\}\).\label{tab:13}}\tabularnewline
-\toprule
-Scenario & Baseline SRI & Mutated SRI & \(\Delta\)SRI & Cand. & Acc. & Rej. \\
-\midrule
-\endfirsthead
-\toprule
-Scenario & Baseline SRI & Mutated SRI & \(\Delta\)SRI & Cand. & Acc. & Rej. \\
-\midrule
-\endhead
-Autonomous Vehicle & 0.3645 & 0.3615 & +0.0030 & 35 & 3 & 32 \\
-IoT Smart City & 0.4260 & 0.4102 & \textbf{+0.0158} & 58 & 38 & 20 \\
-Financial Trading & 0.3842 & 0.3785 & +0.0057 & 31 & 5 & 26 \\
-Healthcare & 0.3809 & 0.3784 & +0.0025 & 19 & 14 & 5 \\
-Hub-and-Spoke & 0.3576 & 0.3502 & +0.0074 & 30 & 14 & 16 \\
-Microservices Mesh & 0.3612 & 0.3577 & +0.0035 & 40 & 19 & 21 \\
-\textbf{Hyper-Scale Enterprise} & \textbf{0.3614} & \textbf{0.3475} & \textbf{+0.0139} & \textbf{119} & \textbf{69} & \textbf{50} \\
-\bottomrule
-\end{longtable}
-
-By parallelizing counterfactual verification across multi-core CPU worker pools (\texttt{ProcessPoolExecutor}), we evaluate the per-edit acceptance filter across all seven benchmark scenarios, including Hyper-Scale Enterprise (350+ components, 119 candidate edits). Across the full 7-scenario suite, 162 of 332 candidate edits (48.8\%) clear the multi-threshold acceptance filter (\(\Delta I > \kappa\,\sigma_{\text{seed}}\)). On Hyper-Scale Enterprise, 69 of 119 candidates clear the filter, reducing System Risk Index from 0.3614 to 0.3475 (\(\Delta\text{SRI} = +0.0139\)).
-
-\textbf{Per-edit verification prevents regressing edits.} Every admitted edit is guaranteed to reduce
-cascade impact individually across all propagation thresholds. This removes by construction the
-failure mode of the previous unverified design, in which a regressing edit could be carried by an
-improving one --- an aggregate that was arithmetically correct and substantively misleading. Under the
-per-edit filter no scenario in the suite regresses.
-
-\textbf{Individually-verified edits are not shown to compose.} Acceptance is decided on singletons: each
-candidate is simulated alone, on a graph containing only that edit. Nothing in the procedure
-establishes that a set of individually-accepted edits remains beneficial when applied together, and
-the \(\Delta\)SRI column reports the outcome of applying the accepted subset rather than a verified
-prediction of it. Verifying \emph{subsets} rather than singletons would close this at combinatorial cost;
-we note it as a limitation of the current design rather than claiming compositional safety we have
-not tested.
-
-\textbf{The acceptance rate varies widely with topology, and that is the substantive finding.} The filter
-admits 3 of 35 candidates on Autonomous Vehicle and 5 of 31 on Financial Trading, but 38 of 58 on
-IoT Smart City and 14 of 19 on Healthcare. The two largest absolute risk reductions come from IoT
-Smart City (\(\Delta\)SRI \(= +0.0158\)) and Hyper-Scale Enterprise (\(+0.0139\)) --- the two scenarios with
-pronounced hub-topic and fan-out structure. That the operator set has purchase precisely where a
-fan-out bottleneck exists is consistent with how the operators are defined (Section~\ref{sec:6.2}), and suggests the
-honest scope for this stage is narrower than ``topology-level hardening'': it is closer to ``fan-out
-decomposition where a fan-out bottleneck actually exists''. Across the suite the improvements are
-real but small in absolute terms --- between \(+0.0025\) and \(+0.0158\) SRI --- which is the result we
-report rather than a demonstration that the prescriptive stage is yet practically valuable (Section~\ref{sec:9.3}).
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}

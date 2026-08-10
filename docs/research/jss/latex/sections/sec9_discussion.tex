@@ -9,274 +9,160 @@
 \label{sec:9.1}
 
 The results converge on a single message: for pre-deployment criticality analysis of pub-sub
-middleware, \emph{how} a component is critical is at least as important as \emph{whether} it is --- and the case
-for graph learning is narrower, and more specific, than we expected when we set out. Four findings
-carry this.
+middleware, \emph{how} a component is critical is at least as important as \emph{whether} it is ---
+and the case for graph learning is narrower, and more specific, than we expected when we set out.
 
-\textbf{First, learning pays --- most defensibly for set identification (RQ1).} The typed predictor leads
-the strongest non-learning baseline on both metrics and under all three evaluation protocols. Out of
-distribution --- the genuine pre-deployment condition --- it reaches \(\rho = 0.608\) against \(0.521\) for a
-QoS-weighted centrality that requires no training, no labels and no transfer assumption, and
-\(F_1@K = 0.465\) against \(0.308\). Both margins are measured against a baseline we first had to repair:
-\texttt{Topo-QoS} was computing no QoS weighting whatsoever (Section~\ref{sec:8.1}), and until that was fixed it was
-\texttt{Topo-BL} wearing a different label. We place substantially more weight on the second metric than the
-first, for three reasons. Operationally, an architect hardens a handful of components, not a ranked
-list of 150. Empirically, the ranking comparison is the less stable one: \texttt{Topo-QoS} carries the
-largest across-fold variance of any predictor in the study (\(\sigma = 0.31\) LOSO, \(0.34\) k-fold),
-whereas the set-identification ordering does not invert under any protocol. And evidentially, the
-ranking margin is the weaker of the two: it does not survive a paired test across scenarios
-in-distribution (\(p = 0.375\), Table~\ref{tab:19}), and out of distribution it rests on a run whose artifact was
-not retained, against an earlier retained run that recorded a tie (Section~\ref{sec:8.1}). The practical reading is
-therefore a scope condition with an asymmetry in confidence: if a team needs the critical set, typed
-learning is worth its training cost on the evidence here; if they need a cheap ordering, QoS-weighted
-centrality remains a serviceable default, and we cannot presently demonstrate that learning beats it.
+\textbf{Learning pays, most defensibly for set identification (RQ1).} The typed predictor leads the
+strongest non-learning baseline on both metrics under all three evaluation protocols. Out of
+distribution --- the genuine pre-deployment condition --- it reaches \(\rho=0.608\) against \(0.521\)
+for a QoS-weighted centrality that requires no training, and \(F_1@K=0.465\) against \(0.308\). We
+place substantially more weight on the second metric, for three reasons: operationally, an architect
+hardens a handful of components, not a ranked list of 150; empirically, \texttt{Topo-QoS} carries the
+largest across-fold variance of any predictor in the study; and evidentially, the ranking margin does
+not survive a paired test in-distribution (\(p=0.375\)) and rests, out of distribution, on a run whose
+artifact was not retained (Section~\ref{sec:8.1}). If a team needs the critical set, typed learning is
+worth its training cost on the evidence here; if they need a cheap ordering, QoS-weighted centrality
+remains a serviceable default, and we cannot presently demonstrate that learning beats it.
 
-\textbf{Second, decomposition is worth having for reasons that are not accuracy (RQ2, Section~\ref{sec:8.2}; weighting
-sensitivity from RQ3's robustness analysis, Section~\ref{sec:8.3}).} The dimension
-weighting does not improve ranking --- equal weights beat the calibrated ones (Section~\ref{sec:8.3}) --- and the
-stratified check we ran to detect Simpson's-paradox masking did not find it in the \(Q\)--\(I\) relation.
-What survives is the property we think actually motivates the decomposition: a four-dimensional
-profile says \emph{why} a component is critical and routes the finding to an owner, which a scalar cannot,
-and that holds regardless of how the four are combined. The methodological discipline was also not
-wasted: pooled-versus-stratified reporting \emph{did} catch a real distortion elsewhere in this study,
-where collapsing Application and Library nodes into one correlation moved a headline figure by 0.38
-(Section~\ref{sec:5.5}). The check earned its place by catching something, just not where we pointed it.
+\textbf{Decomposition is worth having for reasons that are not accuracy (RQ2, RQ3).} The dimension
+weighting does not improve ranking, and the stratified check we ran to detect Simpson's-paradox
+masking did not find it in the \(Q\)--\(I\) relation. What survives is the property that actually
+motivates the decomposition: a four-dimensional profile says \emph{why} a component is critical and
+routes the finding to an owner, which a scalar cannot, regardless of how the four are combined. The
+methodological discipline was not wasted either: pooled-versus-stratified reporting caught a real
+distortion elsewhere in this study, where collapsing Application and Library nodes into one
+correlation moved a headline figure by 0.38 (Section~\ref{sec:5.4}).
 
-\textbf{Third, edge criticality benefits from being measured rather than assumed.} Replacing a hand-chosen
+\textbf{Edge criticality benefits from being measured rather than assumed.} Replacing a hand-chosen
 bridge multiplier with actual edge-removal simulation reversed the intuition it encoded: most
 individual links turn out to be replaceable, and a whole class of structurally non-redundant edges
 (\texttt{RUNS\_ON}) carries no measurable impact at all because the cascade model cannot express their
-failure. The heuristic would have assigned exactly those edges their source node's full blast radius.
-This is a small result with a general moral --- a plausible label-generating assumption is not a
-substitute for the observation it stands in for.
+failure. A plausible label-generating assumption is not a substitute for the observation it stands in
+for.
 
-\textbf{Fourth, remediation is now verified per edit, which is a stronger guarantee than the previous
-aggregate but not yet a demonstration of value (Section~\ref{sec:6.7}).} Each candidate is simulated in isolation and
-admitted only if it beats the simulator's own noise at every propagation threshold, so a regressing
-edit can no longer be carried by an improving one. What that filter reveals is that the operators'
-yield is highly topology-dependent --- from 3 of 35 candidates on Autonomous Vehicle to 38 of 58 on IoT
-Smart City --- and that the resulting risk reductions are uniformly small. We regard this as the
-correct outcome of an honest test rather than a failure of the mechanism: the previous design
+\textbf{Remediation is now verified per edit, which is a stronger guarantee than the previous
+aggregate but not yet a demonstration of value.} Each candidate is simulated in isolation and
+admitted only if it beats the simulator's own noise at every propagation threshold. What that filter
+reveals is that operator yield is highly topology-dependent and the resulting risk reductions are
+uniformly small. We regard this as the correct outcome of an honest test: the previous design
 reported a more favourable aggregate precisely because it never asked each edit to justify itself.
 
-\textbf{Finally, automated quality gating operationalises these checks continuously (RQ4).} By evaluating
-in-memory via the \texttt{MemoryRepository} and bypassing database round-trips, the framework runs
-anti-pattern scans and counterfactual simulations in seconds (\textasciitilde5 s medium, \textasciitilde40 s xlarge). That speed
-makes the analyzer viable as a blocking CI/CD check, and the delta-aware gate semantics (Section~\ref{sec:6.6}) make
-it sustainable: it blocks newly introduced architectural regressions at commit time --- bridging the
-Architecture--Code Gap --- without repeatedly flagging known, risk-accepted structure, in the manner of
-``Clean as You Code'' static-analysis gates. Of the four contributions this is the one least disturbed
-by the audit, and the one we would defend most confidently.
+\textbf{Automated quality gating operationalises these checks continuously (RQ4).} By evaluating
+in-memory and bypassing database round-trips, the framework runs anti-pattern scans and
+counterfactual simulations in seconds, viable as a blocking CI/CD check that bridges the
+Architecture--Code Gap at commit time --- currently an absolute gate rather than a delta-aware one
+(Section~\ref{sec:6.2}, Section~\ref{sec:9.3}), a scope we state plainly rather than claim the
+sustainable, waiver-aware semantics we have not yet implemented. Of the four contributions this is
+the one least disturbed by the audit, and the one we would defend most confidently.
 
 \hypertarget{threats-to-validity}{%
 \subsection{Threats to Validity}\label{threats-to-validity}}
 
 \label{sec:9.2}
 
-\textbf{Construct validity.} D1 and D2 define criticality as Quality-in-Use loss, and this study never
-observes Quality-in-Use. The validation chain has two links, and only the first is measured:
-
-\begin{equation}
-\underbrace{\text{structural / learned score}}_{Q(v),\ \text{HGL}}
-\;\xrightarrow{\ \text{\textcircled{1}}\ }\;
-\underbrace{\text{simulated failure impact}}_{I^*,\ I_{\text{comp}},\ I_{\text{dyn}}}
-\;\xrightarrow{\ \text{\textcircled{2}}\ }\;
-\underbrace{\text{real Quality-in-Use loss}}_{\text{what D1 and D2 define}}
-\end{equation}
-
-Link \textcircled{1} is what Section~\ref{sec:8} reports: a real, falsifiable result. Link \textcircled{2} is not measured anywhere in this
-paper --- no user study, expert elicitation, or production incident record is used, and the simulator
-is itself a \emph{model} of stakeholder harm rather than an observation of it. The defensible claim is
-therefore: \emph{RMAV and the learned predictors track simulated failure impact, and simulated failure
-impact is our stated operationalisation of Quality-in-Use loss.} The stronger claim --- that these
-scores track Quality-in-Use as stakeholders would report it --- is not supported by anything here, and
-we do not make it. Closing link \textcircled{2} requires evidence of a different kind: expert ranking studies on
-the same topologies, or post-hoc comparison against incident records from a deployed system (Section~\ref{sec:9.3}).
-
-Two qualifications keep this from being either overstated or unduly bleak. The ISO/IEC 25019
-characteristics are not equally out of reach: Effectiveness and Efficiency are in principle
-measurable from quantities the simulators already produce --- delivery rate before and after a fault,
-and the latency shift the discrete-event engine records --- so link \textcircled{2} is partly closable by
-re-summarising existing output on the Quality-in-Use axis rather than by new instrumentation.
-Freedom from risk is blocked by the corpus rather than by the method: deadline and lifespan violation
-counters exist and the harness has an oracle slot for them, but no topic in the scenario corpus
-declares a deadline, so the counters never fire. Acceptability and Satisfaction are behavioural and
-are not measurable by these means at all, which bounds what this construct can ever claim on them.
-None of that has been \emph{run}; it establishes measurability, not a measurement.
+\textbf{Construct validity.} D1 and D2 (Section~\ref{sec:4.1}) define criticality as Quality-in-Use
+loss, and this study never observes Quality-in-Use directly. The validation chain has two links: \textcircled{\scriptsize 1}
+structural/learned score → simulated failure impact, which Section~\ref{sec:8} measures and reports
+as a real, falsifiable result; and \textcircled{\scriptsize 2} simulated impact → real Quality-in-Use loss, which is not
+measured anywhere in this paper --- no user study, expert elicitation, or production incident record
+is used, and the simulator is itself a \emph{model} of stakeholder harm rather than an observation of
+it. The defensible claim is therefore: \emph{RMAV and the learned predictors track simulated failure
+impact, and simulated failure impact is our stated operationalisation of Quality-in-Use loss.} The
+stronger claim --- that these scores track Quality-in-Use as stakeholders would report it --- is not
+supported by anything here. Two qualifications keep this from being either overstated or unduly
+bleak: Effectiveness and Efficiency are in principle measurable from quantities the simulators
+already produce (delivery rate before/after a fault, latency shift), so link \textcircled{\scriptsize 2} is partly closable by
+re-summarising existing output rather than by new instrumentation; but Acceptability and Satisfaction
+are behavioural and not measurable by these means at all, which bounds what this construct can ever
+claim on them. None of that has been \emph{run}; it establishes measurability, not a measurement.
 
 Because the ground truth is simulated rather than observed, the strongest claims we can make remain
-comparative: which modelling choices perform better under identical conditions, not absolute
-predictive accuracy in operation. Four further bounds apply, and we state them rather than leave them
-implicit.
+comparative. Four further bounds apply. \emph{The two oracles agree weakly}: \(I^*(v)\) and
+\(I_{\text{comp}}(v)\) correlate at mean \(\rho=0.394\) (Section~\ref{sec:7.4}), so results
+established against one do not transfer to claims measured against the other ---
+Section~\ref{sec:5.4}'s checks are \(I_{\text{comp}}\) results and are not evidence about the
+\(I^*\)-backed tables of Section~\ref{sec:8.1}.
 
-\emph{The two oracles agree weakly.} \(I^*(v)\) and \(I_{\text{comp}}(v)\) correlate at mean \(\rho = 0.394\)
-(Section~\ref{sec:7.5}). Results established against one do not transfer to claims measured against the other, which
-constrains this paper's own internal cross-referencing: Section~\ref{sec:5.4}'s library finding and Section~\ref{sec:5.5}'s stratified
-check are \(I_{\text{comp}}\) results and are not evidence about the \(I^*\)-backed tables in Section~\ref{sec:8.1}.
+\textbf{Six silent instrument defects were found and corrected during this revision}, and are
+recorded here because each had, or could have had, a published figure resting on it: the
+\texttt{Topo-QoS} baseline computing no QoS weighting on all seven scenarios (repaired;
+Tables~\ref{tab:8} and \ref{tab:10} recomputed); HGT attention extraction silently capturing nothing
+because the pinned PyTorch Geometric release exposes no \texttt{return\_attention\_weights} argument
+(repaired; Figure~\ref{fig:3} now uses real per-edge attention); \texttt{FaultInjector}'s cascade
+iterating an unordered Python set salted per-process by \texttt{PYTHONHASHSEED}, making labels
+reproducible only within one interpreter run (repaired; verified identical \(I^*(v)\) across five
+\texttt{PYTHONHASHSEED} values); a training-target lookup keying by an attribute the underlying
+dataclass does not have, silently zeroing the RMAV-consistency loss term for any checkpoint trained
+outside the harnesses that produced this paper's tables (repaired); a parallel remediation worker
+ignoring the configured layer and checkpoint (repaired; the reported Table~\ref{tab:4} run is
+unaffected, since it used exactly the unpatched default); and a post-loop impact computation reading
+a stale intermediate variable, a no-op under the \texttt{cascade\_depth\_limit=0} setting every
+reported figure in this paper uses (repaired). Only the third defect changes reported figures --- it
+retroactively bears on two: the label test--retest ceiling of Section~\ref{sec:7.4}, and
+Section~\ref{sec:8.5}'s Autoware row, whose earlier-reported ``sweep-to-sweep instability'' was this
+defect rather than a property of that graph. The common thread is that all six were silent --- none
+raised an exception or produced an obviously wrong number --- and full detail on each, including
+which specific tables were checked unaffected and how, is retained in the replication package's
+validation log.
 
-\emph{Six instrument defects were found and corrected during this revision.} All were silent --- none
-raised an exception or produced an obviously wrong number --- and all are recorded here because each
-had, or could have had, a published figure resting on it. The first two predate the corpus
-regeneration of Section~\ref{sec:7.1}. First, the \texttt{Topo-QoS} baseline was applying no QoS weighting: \(w(t)\) is declared
-on the Topic node, the harness looked for it on the pub-sub relationship, and the generated
-topologies carry none there, so every derived dependency edge kept a unit weight and the baseline
-computed plain betweenness on all seven scenarios. It has been repaired to resolve \(w(t)\) from the
-shared Topic; the affected columns of Tables~\ref{tab:18} and~\ref{tab:20} and the k-fold table were recomputed, and the
-non-QoS variants were verified unchanged to machine precision. Second, HGT attention extraction
-captured nothing, because \texttt{HGTConv} in the pinned PyTorch Geometric release exposes no
-\texttt{return\_attention\_weights} argument and the extraction fell through its own error branch; attention
-is now captured from the layer's own softmax, and the attention subgraph of Fig.~\ref{fig:6} is generated
-from real per-edge \(\alpha\) rather than an edge-weight fallback. We note that the second defect had masked a
-third --- the subgraph renderer itself raised on a \texttt{networkx} API change, which nothing had exercised
-while the attention payload was empty.
+\emph{A third of each system is unlabelled.} The cascade model cannot express the failure of a Topic
+or a physical Node, leaving 30--47\% of components per scenario without ground truth; predictions for
+them are produced but never validated, and the per-type results report those strata as undefined
+rather than zero. \emph{Reported figures approach the labels' own reproducibility}: the ground truth
+agrees with itself at test--retest \(\rho\) of 0.807--1.000 and top-\(K\) Jaccard of 0.44--1.00 across
+seeds; a model scoring near the former has saturated the labels rather than underperformed, and every
+top-\(K\) metric inherits the latter's churn. \emph{The behavioural oracle is delivery-based, not
+QoS-aware}: \(I_{\text{dyn}}\)'s discrete-event engine resolves topic QoS from an attribute key the
+generated corpus does not write, so every run falls back to defaults, and \(I_{\text{dyn}}\) should
+be read as a \emph{throughput} oracle rather than a QoS-conformance one.
 
-Four further defects were found in a later pass that checked the implementation against this
-manuscript directly, rather than against a specific reported number.
+\textbf{Internal validity.} The chief internal risk is circular validation --- a predictor scoring
+well because its inputs leaked from its labels. The framework addresses this by \emph{view}
+separation (Section~\ref{sec:3.3}, Section~\ref{sec:5.3}): predictors operate on
+\(G_{\text{analysis}}\) while ground truth is generated by simulating \(G_{\text{structural}}\), and
+no simulation output is fed back as a predictor feature. \textbf{This is view independence, not
+independence of data source}: both views are deterministic functions of the same input topology, so
+what is ruled out is feature--label feedback, not the possibility that both encode a shared modelling
+assumption --- a distinction that matters for how much weight the guarantee can bear.
+\(I_{\text{dyn}}\) narrows this specific charge: because it reaches its ranking by simulating traffic
+through queues rather than traversing \texttt{DEPENDS\_ON} and still recovers \(I^*\)'s ordering
+(Section~\ref{sec:7.4}), the cascade \emph{algorithm} is not the artifact, though all three oracles
+remain deterministic functions of the same generated topology, and a modelling assumption shared by
+the architecture model itself would be invisible to every one of them.
 
-Third, and the one that changes reported figures, \texttt{FaultInjector}'s cascade iterated an unordered
-Python set of subscribers while consuming seeded random draws for each; set iteration order in
-Python is salted per-process by \texttt{PYTHONHASHSEED}, so the \emph{same} requested seed could assign different
-draws to different subscribers across processes, making \(I^*(v)\) reproducible only within one
-interpreter run, not across runs --- exactly the kind of instability the seed-mean-and-standard-deviation
-protocol of Section~\ref{sec:5.1} and Section~\ref{sec:7.5} was designed to average over, not diagnose. It has been repaired (the
-iteration is now sorted); cross-process reproducibility was verified directly (identical \(I^*(v)\)
-across five different \texttt{PYTHONHASHSEED} values, both on the synthetic corpus and on the real-world
-Autoware sweep of Section~\ref{sec:8.5}). Two figures rest on the pre-fix labels and are flagged rather than silently
-carried forward: the label test--retest \(\rho\)/Jaccard ceiling of Section~\ref{sec:7.5}, restated above with the
-corrected, now process-independent values (previously reported as \(\rho \in [0.928, 1.000]\), Jaccard
-\(\in [0.56, 1.00]\), both measured within a single process and so blind to this defect); and Section~\ref{sec:8.5}'s
-Autoware row, whose ``sweep-to-sweep instability'' was reported in an earlier draft as a property of
-that graph and is corrected there to what it actually was. Tables~\ref{tab:18} and~\ref{tab:20}, and every scenario in
-Table~\ref{tab:13}, are unaffected: both use \texttt{cascade\_depth\_limit=0}, the setting at which the sixth defect
-below is provably a no-op, and neither exercises the code path this defect lived in independently of
-that setting.
-
-Fourth, \texttt{extract\_rmav\_scores\_dict} --- the function that turns \texttt{PredictionService}'s RMAV output into
-the GNN's auxiliary training target --- keyed its lookup by an attribute (\texttt{component\_id}) that the
-underlying dataclass does not have (it has \texttt{id}), so every key fell through to the object's own
-\texttt{repr()} string and the lookup silently returned nothing usable; the \(0.1\)-weighted RMAV-consistency
-term of Table~\ref{tab:17} was training against an all-zero target wherever this function was on the path. It
-has been repaired to key by \texttt{id} first, matching its sibling function's already-correct convention.
-Table~\ref{tab:3}/5/6/7's reported runs are unaffected: both evaluation harnesses (\texttt{cli/loso\_evaluate.py},
-\texttt{cli/kfold\_evaluate.py}) read RMAV scores through a different loader that never called the broken
-function. Any GNN checkpoint trained via the standalone \texttt{cli/train\_graph.py} entry point without an
-explicit \texttt{-\/-rmav} file did go through the broken path and trained with no RMAV supervision; that
-entry point is not what produced the tables in this paper.
-
-Fifth, the parallel worker in the prescription stage's per-edit verifier (Section~\ref{sec:6.4}) constructed its own
-evaluator with default settings --- layer \texttt{system}, no GNN checkpoint --- regardless of what layer and
-checkpoint the run was actually configured with, so a \texttt{-\/-layer\ app} run would score every candidate
-edit's counterfactual impact on the \texttt{system} layer while its baselines were measured on \texttt{app}. It has
-been repaired to thread the configured layer and checkpoint into each worker. Table~\ref{tab:13} is unaffected:
-\texttt{reproduce/run\_prescribe\_all.py} runs at \texttt{layer="system"} with no checkpoint, which is exactly what
-the unpatched default constructed, so the mismatch could not occur for the reported run.
-
-Sixth, the post-loop computation of \(I^*(v)\) read a \texttt{topic\_loss} variable left over from the cascade's
-last executed wave rather than recomputing it against the final set of failed components, so a
-subscriber failure in the final wave was not reflected in that subscriber's own reported feed loss.
-It has been repaired to recompute once more after the loop terminates. This defect is a no-op when
-\texttt{cascade\_depth\_limit=0} (unlimited waves, the default and the setting \texttt{reproduce/} and the corpus
-generation in Section~\ref{sec:7.1} both use throughout): we verified this directly by running the pre-fix and
-post-fix simulators against the same cached topologies and confirming a maximum absolute difference
-in \(I^*(v)\) of exactly \(0\) across three scenarios. It is not a no-op under a finite
-\texttt{cascade\_depth\_limit}, which no reported figure in this paper uses.
-
-\emph{A third of each system is unlabelled.} The cascade model cannot express the failure of a Topic or a
-physical Node, leaving 30--47\% of components per scenario without ground truth. Predictions for them
-are produced but never validated. Broker labels are degenerate in three of seven scenarios for a
-related reason. Any claim of coverage across ``all five component types'' would be unsupported, and
-the per-type results report those strata as undefined rather than as zero.
-
-\emph{Reported figures approach the labels' own reproducibility.} The ground truth agrees with itself at
-test--retest \(\rho\) of 0.807--1.000 and top-\(K\) Jaccard of 0.44--1.00 across seeds (post the
-determinism fix above; these are now stable across \texttt{PYTHONHASHSEED}, unlike the figures an earlier
-draft reported). A model scoring near the former has saturated the labels rather than underperformed,
-and every top-\(K\) metric inherits the latter's churn.
-
-\emph{The behavioural oracle is delivery-based, not QoS-aware.} \(I_{\text{dyn}}\) carries the
-construct-validity argument of Section~\ref{sec:7.5}, so the limits of what it measures bound that argument too. Its
-discrete-event engine implements deadline, lifespan, and reliability enforcement, but resolves topic
-QoS from an attribute key the generated corpus does not write, so every run in this evaluation falls
-back to defaults and the deadline and best-effort drop paths are structurally zero rather than
-measured as zero. Latency is likewise uninformative here: at the corpus's publication rates,
-utilisation stays far below saturation and queues never build, leaving \(p95\) latency flat to within
-run-to-run jitter across faulted components. \(I_{\text{dyn}}\) should therefore be read as a
-\emph{throughput} oracle --- it corroborates that the cascade ranking tracks lost message delivery, and it
-makes no claim about QoS contract conformance under load.
-
-\textbf{Internal validity.} The chief internal risk is circular validation --- a predictor scoring well
-because its inputs leaked from its labels. The framework addresses this by \emph{view} separation:
-predictors operate on \(G_{\text{analysis}}\) while ground truth is generated by simulating
-\(G_{\text{structural}}\), no simulation output is fed back as a predictor feature, and remediation
-candidates are generated without reading simulated impact. \textbf{This is view independence, not independence of
-data source}: both views are deterministic functions of the same input topology, so what is ruled
-out is feature--label feedback, not the possibility that both encode a shared modelling assumption.
-The distinction matters for how much weight the guarantee can bear, and we prefer to state it than to
-let ``independent simulator'' imply more.
-
-The behavioural oracle narrows this, and it is worth being precise about by how much. A sharper form
-of the circularity objection is that \(I^*\) is an artifact of its own traversal --- that a
-topology-derived score is being validated against labels manufactured by walking the same topology.
-\(I_{\text{dyn}}\) answers that specific charge: it reaches its ranking by simulating message traffic
-through queues over simulated time, never traversing \texttt{DEPENDS\_ON}, and it recovers \(I^*\)'s ordering
-(Section~\ref{sec:7.5}). The cascade \emph{algorithm} is therefore not the artifact. What remains unaddressed is the layer
-beneath it: all three oracles are simulation rather than observed failure data, and all three are
-deterministic functions of the same generated topology. A modelling assumption shared by the
-architecture model itself would be invisible to every one of them. Calibration against instrumented
-deployments (Section~\ref{sec:9.3}) is the only thing that reaches it.
-
-Two further internal-validity issues surfaced during a pre-submission audit of this work and are
-disclosed because they invalidated previously reported numbers. First, the evaluation harness scored
-different predictor families on different node populations and different samples (Section~\ref{sec:7.3}); the
-correction changed the sign of the RQ1 conclusion. Second, the Leave-One-Scenario-Out sweep reused
-stale model checkpoints and was therefore not training at all --- the same command produces
-\(\rho = -0.576\) in 3.2 s against a dirty workspace and \(\rho = +0.594\) in 322 s against a clean one.
-Both are fixed and all reported figures come from the corrected runs, but the episode is itself a
-finding about this class of experiment: a silently-cached artifact is indistinguishable from a
-trained one in the output, and only the implausible wall-clock time exposed it.
-
-\emph{Artifact retention is uneven across the reported tables, and one headline table cannot currently be
-regenerated.} Table~\ref{tab:18} and the sensitivity sweeps of Section~\ref{sec:8.3} regenerate exactly from stored result
-files --- a claim that held only approximately before the determinism defect above was fixed, since a
-re-run in a fresh process was not guaranteed to reproduce a stored \texttt{FaultInjector} label exactly
-even at an unchanged seed. It now holds without qualification.
-The Leave-One-Scenario-Out result file behind Table~\ref{tab:20} does not exist: it was overwritten during the
-revision, and the most recent retained log for that sweep predates the baseline repair and records a
-different ordering (Section~\ref{sec:8.1}). We disclose this rather than present Table~\ref{tab:20} on the same footing as
-Table~\ref{tab:18}, and we regard it as the direct continuation of the two defects above. The common mechanism
-in all three is that an experiment's \emph{evidence} and its \emph{output} were allowed to come apart --- a
-cached checkpoint, a mismatched sample, an unretained result file --- and in each case the number
-looked entirely ordinary. The discipline this study now imposes, and did not impose soon enough, is
-that no figure enters the manuscript unless the artifact that produced it is retained and the figure
-can be recomputed from it. Table~\ref{tab:20} is the outstanding exception, and re-running it under the final
-apparatus is the first item of remaining work.
+Two further internal-validity issues surfaced during a pre-submission audit and are disclosed because
+they invalidated previously reported numbers: the evaluation harness scored different predictor
+families on different node populations (Section~\ref{sec:7.2}'s correction changed the sign of the
+RQ1 conclusion), and the Leave-One-Scenario-Out sweep reused stale model checkpoints and was
+therefore not training at all --- the same command produced \(\rho=-0.576\) in 3.2 s against a dirty
+workspace and \(\rho=+0.594\) in 322 s against a clean one. Both are fixed, but the episode is itself
+a finding: a silently-cached artifact is indistinguishable from a trained one in the output, and only
+the implausible wall-clock time exposed it. \textbf{Artifact retention is uneven across the reported
+tables, and one headline table cannot currently be regenerated}: Table~\ref{tab:8} and the sensitivity
+sweeps of Section~\ref{sec:8.3} regenerate exactly from stored result files, but the LOSO result file
+behind Table~\ref{tab:10} does not exist --- it was overwritten during the revision, and the most
+recent retained log predates the baseline repair and records a different ordering
+(Section~\ref{sec:8.1}). No figure should enter a manuscript unless the artifact that produced it is
+retained and the figure can be recomputed from it; Table~\ref{tab:10} is the outstanding exception,
+and re-running it under the final apparatus is the first item of remaining work.
 
 \textbf{External validity.} This is the weakest dimension of the study, and we regard it as the
-highest-value follow-up (Section~\ref{sec:9.3}).
-
-\emph{The corpus spans ten deployment domains, but only three architectures are not ours.} Seven scenarios
-come from a single statistical topology generator; the three real-world graphs (Autoware.universe
-ROS 2, the Cloud-Native Microservices mesh, and Train-Ticket) are transcribed from published
-open-source architectures. On the latter, SaG achieves mean rank correlation over five seeds of
-\(\rho = 0.688\), \(0.778\) and \(0.759\), and up to \(F_1@K = 1.000\) on two of the three.
-
-\emph{None of the three clears the framework's own gate.} All three fail SPOF-F1; Autoware additionally
-fails the \(\rho\) threshold and Cloud Microservices the predictive-gain threshold, for 5 failed checks
-of 15 (Section~\ref{sec:8.5}). The \(F_1@K = 1.000\) figures are partly a tie-breaking artifact of \(K\) exceeding the
-count of genuinely non-zero-impact components. We read the result as evidence that the predictive
-\emph{ranking} transfers beyond the generator to independently-sourced architectures --- not as a
-demonstration of production readiness.
-
-\emph{The paradigm count is two, not three.} Train-Ticket and Cloud Microservices are both microservice
-meshes, so cyber-physical pub-sub is represented by Autoware alone. Leave-One-Scenario-Out evaluation
-confirms inductive transfer across held-out \emph{synthetic} architectures only, since all seven share a
-generator. Expanding to further middleware paradigms and to hardware-in-the-loop deployments is
-future work (Section~\ref{sec:9.3}).
+highest-value follow-up (Section~\ref{sec:9.3}). The corpus spans ten deployment domains, but only
+three architectures are not ours: seven scenarios come from a single statistical topology generator,
+and the three real-world graphs achieve mean rank correlation over five seeds of \(\rho=0.688\),
+\(0.778\) and \(0.759\). None of the three clears the framework's own gate --- all three fail SPOF-F1
+--- and the \(F_1@K=1.000\) figures are partly a tie-breaking artifact; we read the result as evidence
+that predictive \emph{ranking} transfers beyond the generator, not as a demonstration of production
+readiness. The paradigm count is two, not three: Train-Ticket and Cloud Microservices are both
+microservice meshes, so cyber-physical pub-sub is represented by Autoware alone, and
+Leave-One-Scenario-Out evaluation confirms inductive transfer only across held-out \emph{synthetic}
+architectures, since all seven share a generator.
 
 \textbf{Conclusion validity.} Criticality scores and simulated impact metrics exhibit heavy-tailed,
 non-parametric distributions that violate normality assumptions. To prevent classification bias, we
 apply non-parametric rank correlations (Spearman \(\rho\)), top-\(K\) Jaccard metrics, and adaptive
-box-plot thresholding (\(Q3 + 1.5\,\mathrm{IQR}\)) rather than parametric z-scores or arbitrary absolute cutoffs (Section~\ref{sec:4.4}).
+box-plot thresholding (\(Q3+1.5\,\mathrm{IQR}\)) rather than parametric z-scores or arbitrary
+absolute cutoffs (Section~\ref{sec:4.2}).
 
 \hypertarget{limitations-and-future-work}{%
 \subsection{Limitations and Future Work}\label{limitations-and-future-work}}
@@ -286,76 +172,50 @@ box-plot thresholding (\(Q3 + 1.5\,\mathrm{IQR}\)) rather than parametric z-scor
 Several limitations point to concrete next steps, ordered here by how much they would change the
 paper's claims.
 
-\textbf{Real-world deployment validation and HIL execution.} Section 8.5 narrows the external-validity gap
-on three real-world open-source software architectures (Autoware.universe ROS 2, the Cloud-Native
-Microservices Mesh, and Train-Ticket), but does not close it: the graphs are hand-transcribed, their
-ground truth is still simulated, and none clears the framework's own validation gate in full.
-Validating predictions against runtime hardware-in-the-loop (HIL) fault injection on physical
-testbeds, and against harvested rather than transcribed architectures, remains the highest-value
-follow-up.
+\textbf{Real-world deployment validation and HIL execution.} Section~\ref{sec:8.5} narrows the
+external-validity gap on three real-world architectures but does not close it: the graphs are
+hand-transcribed, their ground truth is still simulated, and none clears the framework's own
+validation gate in full. Validating against runtime hardware-in-the-loop fault injection, and against
+harvested rather than transcribed architectures, remains the highest-value follow-up.
 
-\textbf{Out-of-distribution ranking is not yet a solved problem.} Section~\ref{sec:8.1} shows that a training-free
-QoS-weighted centrality matches the learned models on LOSO rank correlation, with the learned
-advantage confined to critical-set identification. Whether that ceiling reflects the difficulty of
-cross-architecture transfer, the noise floor of the labels (Section~\ref{sec:7.5}), or a limitation of the
-architecture is not resolved by these experiments. Distinguishing those three explanations ---
-plausibly by training on a substantially larger and more diverse scenario corpus --- would determine
-whether typed learning has more to offer here than it currently demonstrates.
+\textbf{Out-of-distribution ranking is not yet a solved problem.} Section~\ref{sec:8.1} shows a
+training-free QoS-weighted centrality matches the learned models on LOSO rank correlation, with the
+learned advantage confined to critical-set identification. Whether that ceiling reflects the
+difficulty of cross-architecture transfer, the label noise floor (Section~\ref{sec:7.4}), or a
+limitation of the architecture is not resolved here; distinguishing those explanations, plausibly by
+training on a larger and more diverse scenario corpus, would determine whether typed learning has
+more to offer than it currently demonstrates.
 
-\textbf{The dimension weighting does not improve accuracy.} Section~\ref{sec:8.3} finds equal weights outperform the
-calibrated AHP weighting with no plateau in the shrinkage parameter. We have repositioned RMAV as an
-attribution mechanism accordingly, but a weighting \emph{derived} rather than asserted --- fitted to
-simulated impact, or elicited from a panel of practitioners with reported inter-rater agreement ---
-would let the decomposition make an accuracy claim as well as an explanatory one.
+\textbf{The dimension weighting does not improve accuracy.} We have repositioned RMAV as an
+attribution mechanism accordingly (Section~\ref{sec:4.2}, Section~\ref{sec:8.3}), but a weighting
+\emph{derived} rather than asserted --- fitted to simulated impact, or elicited from a practitioner
+panel with reported inter-rater agreement --- would let the decomposition make an accuracy claim as
+well as an explanatory one.
 
-\textbf{The Vulnerability dimension is the lightest of the four}, resting on reachability-style proxies
-with no model of trust boundaries, privilege, or data sensitivity. A richer adversarial model would
-strengthen the V attribution and broaden the framework's security relevance.
+\textbf{Remediation is verified but not yet demonstrably effective.} The per-edit acceptance filter
+removes the possibility of an unverified regressing edit being applied, but the risk reductions it
+achieves are real and small, and yield depends heavily on whether the topology contains a fan-out
+bottleneck. Expanding the operator set, deriving the acceptance multiplier \(\kappa\) from broader
+variance data, and verifying subsets rather than singletons --- the current design admits only edits
+simulated alone --- are needed before the prescriptive stage can claim practical value or
+compositional safety.
 
-\textbf{Remediation is verified but not yet demonstrably effective.} The per-edit acceptance filter of
-Section~\ref{sec:6.4} is implemented, which removes the possibility of an unverified regressing edit being applied
-(Section~\ref{sec:6.7}). What it does not do is make the operators work: the risk reductions it achieves are real but
-small (\(+0.0025\) to \(+0.0158\) SRI), and the operator set is narrow enough that its yield depends
-heavily on whether the topology happens to contain a fan-out bottleneck. Expanding the operator set ---
-along with deriving the acceptance multiplier \(\kappa\) from broader multi-seed variance data rather
-than fixing it at 1.0 --- is needed before the prescriptive stage can claim practical value. One
-specific gap follows: verification currently admits \emph{singletons}, each simulated on a graph
-containing that edit alone, so verifying subsets rather than single edits is required before an
-accepted policy can be called compositionally safe. That is engineering work rather than an open
-research question, and we flag it as the immediate next step for this stage.
+\textbf{The CI/CD gate is absolute, not yet delta-aware.} Section~\ref{sec:6.2} implements exit-code
+gating on a candidate topology's full finding set without diffing against a merge-base topology, so
+an architecture carrying an intentional, previously-accepted risk fails the build on every commit
+rather than only when a change introduces something new. A delta-aware gate together with an
+auditable waiver register is the fix; neither is implemented today, and closing this gap is
+engineering work rather than an open research question. A related, smaller gap is that
+\texttt{detect\_antipatterns.py} requires a live database connection even though the underlying
+machinery is already usable through the database-free \texttt{MemoryRepository}.
 
-\textbf{The CI/CD gate is absolute, not yet delta-aware.} Section~\ref{sec:6.6} implements exit-code gating on a
-candidate topology's full finding set; it does not yet diff that set against a merge-base topology,
-so an architecture carrying an intentional, previously-accepted risk (a sole-source feed, a
-deliberately unreplicated legacy broker) fails the build on every commit rather than only when a
-change introduces something new. A delta-aware gate --- evaluate candidate and merge-base topologies,
-block only on findings absent from the baseline --- together with a waiver register recording accepted
-risk (entity, rule, expiry) so it stays auditable rather than silently re-suppressed on every run, is
-the fix; neither is implemented today, and closing this gap is engineering work rather than an open
-research question, similar in kind to the remediation gap above. A related, smaller gap is that
-\texttt{detect\_antipatterns.py} itself requires a live Neo4j connection even though the underlying analysis
-machinery is already usable through the database-free \texttt{MemoryRepository} --- wiring that path into the
-packaged CLI is a prerequisite for running the gate without a database in an actual CI job.
-
-\textbf{Edge-level ground truth is bounded by the cascade model.} Edge criticality is now measured by
-removal rather than inferred from endpoints (Section~\ref{sec:8.2}), but the cascade routes no traffic over \texttt{RUNS\_ON}
-or \texttt{CONNECTS\_TO} relations, so those edges measure as exactly zero regardless of their structural
-role. Extending the cascade to express infrastructure-layer failure would close the same gap that
-leaves Topic and physical Node components unlabelled.
-
-\textbf{Relationship attribution is defined but not validated, and closing that gap is out of scope for
-this submission.} Section~\ref{sec:4.7} gives D2 a measure with the same signature as D1, implemented and computed on
-every derived dependency. What it does not have --- and, as the framework is currently constructed,
-cannot have --- is the correlation-style evidence Section~\ref{sec:8.1} supplies for nodes: attribution is scored on
-\texttt{DEPENDS\_ON} edges while the removal oracle severs raw structural edges, so the two are never defined
-on a common population (Section~\ref{sec:4.7}). Re-simulating directly on the derived graph is not an available fix,
-since the independence guarantee (Section~\ref{sec:5.3}) requires the simulator to operate only on
-\(G_{\text{structural}}\). The one route that respects that guarantee is to track, for each derived
-edge, which raw edges mediate it, and aggregate their measured impact onto it --- but the mediating
-relations are many-to-many, so this requires a real modelling decision (how to aggregate) rather than
-a mechanical lift, and we leave it for future work rather than attempt it here. Until it is done, the
-relationship half of the framework rests on construction rather than on measurement, which we regard
-as the most significant open gap in the diagnostic path.
+\textbf{Relationship-level attribution is defined but not validated, and closing that gap is out of
+scope for this submission} (Section~\ref{sec:4.1}): it is scored on \texttt{DEPENDS\_ON} edges while
+the removal oracle of Section~\ref{sec:8.2} severs raw structural edges, and the two are never defined
+on a common population. The one route that would close the gap without violating the independence
+guarantee --- tracking, for each derived edge, which raw edges mediate it and aggregating their
+measured impact --- requires a real modelling decision (the mediating relations are many-to-many)
+rather than a mechanical lift, and we leave it as future work.
 
 \textbf{Finally, the endpoint for all of the above} is calibration against observed failure data from
 instrumented deployments, which would convert this paper's comparative claims into absolute ones.
@@ -365,32 +225,30 @@ instrumented deployments, which would convert this paper's comparative claims in
 
 \label{sec:9.4}
 
-We presented Software-as-a-Graph, a pre-deployment Static System Analysis (SSA) framework that
-models distributed pub-sub middleware as a typed, weighted, directed multigraph and analyzes it
-along two coupled axes: multi-dimensional quality attribution, which decomposes each component's
-criticality into orthogonal, interpretable RMAV dimensions (integrating local code quality metrics),
-and failure-impact analysis, which predicts cascade impact with both the interpretable composite and
-a learned heterogeneous graph transformer, validated against discrete-event simulation under a
-strict input--label independence guarantee. A prescriptive remediation stage generates topology-level
-hardening edits from structure alone and verifies each one individually against the canonical
-simulator, admitting it only when its benefit exceeds the simulator's own seed noise at every
-propagation threshold; under that filter 162 of 332 candidates survive across the seven scenarios,
-but the resulting risk reductions are small (\(+0.0025\) to \(+0.0158\) SRI) and concentrated in the two
-topologies with pronounced fan-out structure, which we report as the substantive --- and qualified ---
-result of that stage (Section~\ref{sec:6.4}, Section~\ref{sec:6.7}).
+We presented Software-as-a-Graph, a pre-deployment Static System Analysis framework that models
+distributed pub-sub middleware as a typed, weighted, directed multigraph and analyzes it along two
+coupled axes: an interpretable RMAV attribution baseline that decomposes each component's criticality
+into orthogonal dimensions, and failure-impact analysis, which predicts cascade impact with both that
+composite and a learned heterogeneous graph transformer, validated against discrete-event simulation
+under a strict input--label independence guarantee. A prescriptive remediation stage generates
+topology-level hardening edits from structure alone and verifies each individually against the
+canonical simulator, admitting it only when its benefit exceeds the simulator's own seed noise at
+every propagation threshold; under that filter 162 of 332 candidates survive across the seven
+scenarios, but the resulting risk reductions are small and concentrated in the two topologies with
+pronounced fan-out structure, which we report as the substantive --- and qualified --- result of that
+stage.
 
-Integrated directly into pipelines as a delta-aware, blocking CI/CD Quality Gate, the framework
-verifies architectural changes and blocks regression in seconds, bridging the ``Architecture-Code
-Gap'' at commit time. Across a synthetic scenario suite, the framework establishes a scope condition
-on where typed graph learning pays --- it leads a training-free QoS-weighted centrality on both ranking
-(\(\rho = 0.608\) vs \(0.521\) out of distribution) and identifying \emph{which} components belong on a
-shortlist (\(F_1@K = 0.465\) vs \(0.308\)), both measured only after repairing that baseline, which had
-been computing no QoS weighting at all. Alongside that, measuring edge criticality by
-removal rather than inferring it from endpoints shows most individual links to be replaceable and
-exposes a class of relations the cascade model cannot express at all, and stratified rather than
-pooled reporting caught a distortion that moved a headline figure by 0.38. By taking the \emph{type} of
-every component and dependency seriously, the framework recovers structure that untyped,
-single-dimensional methods discard, and does so at the point in the lifecycle where it is most
-valuable: before the system runs.
+Integrated directly into pipelines as a blocking CI/CD Quality Gate --- currently absolute rather
+than delta-aware --- the framework verifies architectural changes and blocks regression in seconds,
+bridging the Architecture--Code Gap at commit time. Across a synthetic scenario suite, the framework
+establishes a scope condition on where typed graph learning pays: it leads a training-free
+QoS-weighted centrality on both ranking (\(\rho=0.608\) vs \(0.521\) out of distribution) and
+identifying which components belong on a shortlist (\(F_1@K=0.465\) vs \(0.308\)), both measured only
+after repairing that baseline. Alongside that, measuring edge criticality by removal rather than
+inferring it from endpoints shows most individual links to be replaceable and exposes a class of
+relations the cascade model cannot express at all, and stratified rather than pooled reporting caught
+a distortion that moved a headline figure by 0.38. By taking the \emph{type} of every component and
+dependency seriously, the framework recovers structure that untyped, single-dimensional methods
+discard, and does so at the point in the lifecycle where it is most valuable: before the system runs.
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
