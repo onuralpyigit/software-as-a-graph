@@ -9,10 +9,18 @@ alongside the labels, every reported correlation is unbounded above and easy to
 over-read. These tests pin the diagnostic and the reproducibility it measures.
 """
 
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import networkx as nx
 import pytest
 
 from saag.simulation.fault_injector import FaultInjector, RECOMMENDED_SEEDS
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _pubsub_graph(n_apps: int = 12, n_topics: int = 5) -> nx.DiGraph:
@@ -64,6 +72,39 @@ def test_labels_are_reproducible_across_runs():
     a = {n: r.impact_score for n, r in _run([42, 123]).records.items()}
     b = {n: r.impact_score for n, r in _run([42, 123]).records.items()}
     assert a == b
+
+
+def test_labels_reproducible_across_processes_with_different_hashseed():
+    """I*(v) must not depend on PYTHONHASHSEED.
+
+    `test_labels_are_reproducible_across_runs` above cannot catch this class
+    of bug: PYTHONHASHSEED is fixed for the lifetime of one interpreter, so
+    set-iteration order — which it salts — stays constant across `_run()`
+    calls in the same process even if the code has a latent order-dependency
+    on it. This spans two real subprocesses with different hash seeds instead,
+    which is what actually varied I*(v) before `_cascade`'s subscriber loop
+    was sorted (fault_injector.py): the same seeded `rng` handed different
+    subscribers different draws depending on set-iteration order.
+    """
+    script = (
+        "import json\n"
+        "from tests.test_label_stability import _run\n"
+        "res = _run([42, 123, 456])\n"
+        "print(json.dumps({n: r.impact_score for n, r in res.records.items()}))\n"
+    )
+
+    def _run_subprocess(hashseed: str) -> dict:
+        env = {**os.environ, "PYTHONHASHSEED": hashseed, "PYTHONPATH": str(REPO_ROOT)}
+        proc = subprocess.run(
+            [sys.executable, "-c", script],
+            env=env, cwd=REPO_ROOT, capture_output=True, text=True, timeout=30,
+        )
+        assert proc.returncode == 0, proc.stderr
+        return json.loads(proc.stdout.strip().splitlines()[-1])
+
+    a = _run_subprocess("0")
+    b = _run_subprocess("1")
+    assert a == b, "I*(v) must be identical regardless of PYTHONHASHSEED"
 
 
 def test_stability_block_is_populated():

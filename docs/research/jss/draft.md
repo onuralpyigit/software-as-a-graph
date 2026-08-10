@@ -29,8 +29,10 @@ though a paired test does not establish that margin; the critical-set advantage 
 accuracy: equal dimension weights outperform the calibrated weighting. **(3)** The two cascade
 oracles agree only weakly ($\rho = 0.394$), bounding construct validity. **(4)** Edge criticality is
 measured by removal rather than inferred, showing most links replaceable. Finally, SaG operates as a
-delta-aware, blocking CI/CD quality gate, evaluating regressions in 5–40 s with perfect precision and
-recall on injected faults.
+blocking CI/CD quality gate, evaluating a candidate topology in well under a minute even at 500+
+components, though the anti-pattern catalog's agreement with the cascade oracle is modest (precision
+0.24–0.40, Cohen's $\kappa$ from $-0.04$ to $0.30$ across our corpus), and the gate is currently
+absolute rather than delta-aware.
 
 **Keywords:** publish–subscribe middleware; architectural dependability; cascading failure;
 heterogeneous graph neural networks; static system analysis; pre-deployment verification; quality
@@ -145,11 +147,12 @@ predictor. Both are validated against a discrete-event simulator under an **inpu
 guarantee**. Finally, a **prescriptive remediation** stage generates topology-level hardening edits
 and verifies them on counterfactual graphs in-memory.
 
-To make SSA continuous, SaG integrates directly into CI/CD pipelines as a *delta-aware* blocking
-gate. By utilizing a thread-safe, database-free `MemoryRepository` to bypass Neo4j database overhead
-during build time, SaG executes anti-pattern scans and counterfactual simulations in seconds, and
-fails the build (exit code 2) when a change *introduces new, unwaived* CRITICAL or HIGH severity
-structural anomalies relative to the merge base (§6.6).
+To make SSA continuous, SaG integrates directly into CI/CD pipelines as a blocking gate: a dedicated
+CLI script runs the anti-pattern catalog against the candidate topology in seconds and fails the
+build (exit code 2) when it finds CRITICAL or HIGH severity structural anomalies (§6.6). The gate is
+currently absolute rather than delta-aware — it evaluates the full finding set on every run rather
+than diffing against a merge-base baseline — a limitation §6.6 and §9.3 discuss and scope as future
+work.
 
 *(Figure 1: end-to-end SaG pipeline — architecture description → typed multigraph → `DEPENDS_ON`
 projection → the two predictor paths and the simulation oracle path, with the independence boundary
@@ -213,9 +216,11 @@ This paper makes the following contributions:
    that most individual links are replaceable and exposing a class of structurally non-redundant
    edges the cascade model cannot express (§8.2). We are explicit that these two are computed over
    different edge populations, so the second does not validate the first (§4.7, §9.3).
-5. **An automated, delta-aware CI/CD quality gate.** We formulate a build-blocking gate that
-   evaluates system-level risk statically, blocks only newly introduced and unwaived structural
-   regressions relative to the merge base, and executes in seconds via an in-memory repository (§6).
+5. **An automated CI/CD quality gate.** We formulate a build-blocking gate that evaluates
+   system-level structural risk statically and executes in well under a minute on every scenario in
+   our corpus (§6, §8.4). The gate is absolute rather than delta-aware in the current implementation;
+   §6.6 and §9.3 scope delta-awareness and a waiver register as design work this contribution does
+   not yet include.
 6. **A prescriptive remediation stage with per-edit counterfactual verification.** We formalise a
    Generate→Verify procedure in which every candidate edit is simulated in isolation and admitted
    only if it improves impact by more than the simulator's seed noise, at every propagation threshold
@@ -229,7 +234,7 @@ This paper makes the following contributions:
    external validity on three authentic real-world software graphs — the Autoware.universe ROS 2
    autonomous driving platform, a production Cloud-Native Microservices mesh, and the Train-Ticket
    railway-booking mesh (§7.1, §8.5) — achieving high mean rank agreement over five seeds
-   ($\rho = 0.696,\ 0.778,\ 0.759$) and up to $F_1@K = 1.000$ on two of the three, though 5 of the 15
+   ($\rho = 0.688,\ 0.778,\ 0.759$) and up to $F_1@K = 1.000$ on two of the three, though 5 of the 15
    total gate checks fail across the three graphs — all three fail SPOF-F1, and Train-Ticket is the
    only one for which SPOF-F1 is the *sole* failure — and
    $F_1@K = 1.000$ is partly a tie-breaking
@@ -1178,8 +1183,13 @@ are therefore distinct passes over distinct graph views. Second, no simulation o
 reachability, fragmentation, throughput, or flow disruption — is ever fed back as an input feature
 to $Q(v)$ or to the learned predictor. Consequently, a measured correlation between a predictor and
 the simulated labels, under either oracle, reflects genuine predictive content rather than leakage,
-which is the property that licenses the framework's pre-deployment claim. The same discipline
-governs the remediation stage (§6): its candidate-generation phase never reads simulated impact.
+which is the property that licenses the framework's pre-deployment claim. For the learned predictor
+specifically, the second property is also checked at inference time rather than only held as a design
+invariant: the GNN service raises before running a forward pass if a feature tensor carries a target
+label attribute, if any node type's feature width collides with the label dimensionality, or if a
+label key appears among the input keys — a defensive check against a leakage bug introduced later in
+this codebase's lifetime, not a proof that no such bug exists today. The same discipline governs the
+remediation stage (§6): its candidate-generation phase never reads simulated impact.
 
 ## 5.4 The Shared-Library Blast Mechanism: A Negative Result
 
@@ -1345,8 +1355,8 @@ shows is not a benign parameter, since $\rho$ against ground truth spans 0.230 a
 
 `PrescribeService` implements this as a three-phase procedure: compile the candidate policy (§6.2),
 verify each candidate independently by constructing a graph containing that edit alone and
-re-simulating it across thresholds and seeds, then apply only the accepted subset and run the
-system-level closed-loop check of §6.5 on the result. Each candidate carries its measured
+re-simulating it across thresholds and seeds, then apply only the accepted subset and measure the
+System Risk Index before and after on the mutated graph as a whole (§6.7's Table 13). Each candidate carries its measured
 $\Delta I$, $\sigma_{\text{seed}}$ and — when rejected — the threshold at which it failed, so a run
 reports what it declined and why rather than only what it applied.
 
@@ -1370,7 +1380,7 @@ The stage obeys three invariants that mirror the predictor/simulator separation 
 2. **Verify re-invokes the canonical simulator** on $G'$ from scratch, rather than estimating the
    counterfactual impact from the predictor. The re-simulation is performed *per candidate edit*, on
    a graph containing that edit alone, across the propagation-threshold sweep and the seed set; only
-   the accepted subset is then applied and re-checked at system level (§6.4).
+   the accepted subset is then applied and re-checked at system level (§6.7).
 3. **No Verify result feeds back into Generate within a run.** There is no closed-loop search that
    would let simulated impact influence which edits are proposed, which would reintroduce the
    circularity the framework is built to avoid.
@@ -1381,36 +1391,35 @@ the proposing signal did not produce.
 
 ## 6.6 CI/CD Quality Gate Implementation
 
-To operationalise these diagnostics and prescriptions, SaG integrates directly into developer
-workflows as a blocking Quality Gate in the CI/CD pipeline. When a pull request introduces
-configuration or architecture modifications (Architecture-as-Code changes), the pipeline executes
-the analyzer via a dedicated CLI script, `detect_antipatterns.py`.
+To operationalise these diagnostics, SaG integrates into developer workflows as a blocking Quality
+Gate in the CI/CD pipeline. When a pull request introduces configuration or architecture
+modifications (Architecture-as-Code changes), the pipeline executes the analyzer via a dedicated CLI
+script, `detect_antipatterns.py`, which runs the full anti-pattern catalog against the candidate
+topology and issues an exit code.
 
-**Delta semantics.** The gate is *delta-aware*: it evaluates the candidate topology against the
-merge-base topology and blocks only on findings that the change *introduces*. This mirrors the
-"Clean as You Code" semantics of established code-level gates (§2.3) and is a practical necessity at
-the system level: real architectures often contain *intentional*, risk-accepted single points of
-failure — a sole-source surveillance feed or a deliberately unreplicated legacy broker, for
-instance — and an absolute gate that fails any build containing a CRITICAL finding would flag them
-on every commit, training developers to bypass the gate. Pre-existing findings are carried in the
-baseline; intentional risks are recorded in a **waiver register** (the system-level analogue of a
-won't-fix/false-positive marking), each waiver naming the entity, the rule, and an expiry, so that
-accepted risk remains visible and auditable rather than silently suppressed.
+**Exit-code protocol.** The gate issues exit codes that govern pipeline execution:
+- **Exit Code 0**: No architectural anomalies found; deployment is permitted.
+- **Exit Code 1**: Medium-severity architectural smells found (e.g., chatty pairs or QoS mismatch
+  warnings); deployment is permitted with warnings.
+- **Exit Code 2**: CRITICAL or HIGH severity anomalies found (e.g., single points of failure, cyclic
+  dependencies, or broker overload); the build is broken and **deployment is blocked**.
 
-**Exit-code protocol.** The gate evaluates the resulting graph delta and issues exit codes that
-govern pipeline execution:
-- **Exit Code 0**: No new architectural anomalies introduced (or all new findings waived);
-  deployment is permitted.
-- **Exit Code 1**: New medium-severity architectural smells (e.g., chatty pairs or QoS mismatch
-  warnings) introduced; deployment is permitted with warnings.
-- **Exit Code 2**: New, unwaived CRITICAL or HIGH severity anomalies (e.g., single points of
-  failure, cyclic dependencies, or broker overload) introduced; the build is broken and
-  **deployment is blocked**.
+This is an *absolute* gate: every run evaluates the candidate topology's full finding set, not a
+diff against a prior baseline. It has a known consequence, which we do not paper over: a real
+architecture that carries an intentional, risk-accepted single point of failure — a sole-source
+surveillance feed, a deliberately unreplicated legacy broker — fails the build on every commit,
+indistinguishable from a genuine regression. A *delta-aware* gate that evaluates the candidate
+against a merge-base topology and blocks only on newly introduced findings, together with a waiver
+register recording accepted risk (entity, rule, expiry) so it stays visible rather than silently
+re-triggering, would close this gap; we describe the design in §9.3 as future work rather than claim
+it here, since the mechanism is not implemented in the released tool.
 
-By running the analysis and counterfactual failure simulation in-memory via the thread-safe
-`MemoryRepository`, SaG bypasses live database connection dependencies (Bolt connections to Neo4j)
-during build time. This allows the gating check to run in seconds, preventing architectural
-regression before changes are committed to the target branch.
+The underlying analysis-and-detection machinery is in-memory and does not require a live database
+connection — `saag`'s thread-safe `MemoryRepository` port satisfies the same repository interface
+`detect_antipatterns.py` consumes, and is what the timing harness behind §8.4's measurements uses.
+Wiring that path into `detect_antipatterns.py` itself, so the packaged CLI does not require a Neo4j
+connection during a CI build, is a small remaining integration step we have not made; today the
+script connects to a running database.
 
 ## 6.7 What Remediation Yields Under Per-Edit Verification
 
@@ -1547,7 +1556,9 @@ We report metrics in three families, plus the stratification and significance ma
   $\rho$ [51], and paired Wilcoxon signed-rank tests [49] ($p < 0.05$) for predictor comparisons
   across scenarios.
 
-**Validation gate thresholds.** The framework's own pass/fail gate is parameterised by topology
+**Validation gate thresholds.** The implementation carries two independent gate registries — a fixed
+nine-check one and the topology-class-adjusted five-check one below; Table 15 and §8.5 document only
+the latter, which is the one the reported evaluation runs against. It is parameterised by topology
 class, because a threshold that discriminates on a dense topology is either trivial or unattainable
 on a sparse one. The default targets are $\rho \ge 0.70$ and $F1 \ge 0.80$; the `sparse` class, which
 covers every graph in §8.5, applies the five checks below. We tabulate them because §8.5 reports gate
@@ -1604,7 +1615,7 @@ the attribution and learned predictors recover the criticality ordering of a *kn
 
 **Inductive (Leave-One-Scenario-Out).** To test generalization to *unseen* architectures — the true
 pre-deployment condition — we use Leave-One-Scenario-Out (LOSO) cross-validation, which closes the
-transductive-leakage gap (G4) for the learned predictor. For each held-out scenario $k$, the model
+transductive-leakage gap for the learned predictor. For each held-out scenario $k$, the model
 is trained on the remaining six scenarios (with the largest by $|V|$ used for early stopping) and
 evaluated on $k$, whose nodes never participate in any forward pass and whose labels never enter any
 loss. Results are aggregated as per-fold mean $\pm$ std across seeds, then cross-fold mean $\pm$
@@ -1670,10 +1681,13 @@ and records Brokers, physical Nodes, Topics, and purely-consumed Libraries as un
 as harmless. On `enterprise_system` that is 349 components against $I^*$'s 360 — it gives up the ten
 Brokers and one non-publishing Library, and gains nothing $I^*$ lacks. Third, the labels
 have a reproducibility ceiling: across seeds, the ground truth agrees with *itself* at test–retest
-$\rho$ of 0.928–1.000, and its own top-20% critical set agrees at Jaccard 0.56–1.00. No method can
-exceed the former, and every top-$K$ metric inherits the latter — a reported $F_1@K$ on
-`microservices_system`, where the labels' own set stability is 0.56, should not be read to a
-precision the labels do not have.
+$\rho$ of 0.807–1.000, and its own top-20% critical set agrees at Jaccard 0.44–1.00 (deterministic:
+`FaultInjector`'s cascade previously iterated an unordered subscriber set while consuming seeded
+random draws, so re-running the *same* seed in a different process could still change the label —
+this has been fixed and is disclosed as an instrument defect in §9.2, and the figures here are the
+post-fix, process-independent ones). No method can exceed the former, and every top-$K$ metric
+inherits the latter — a reported $F_1@K$ on `microservices_system`, where the labels' own set
+stability is 0.44, should not be read to a precision the labels do not have.
 
 ## 7.6 Model Configuration and Implementation
 
@@ -1796,8 +1810,9 @@ shrinkage sweeps characterise $Q(v)$'s in-distribution ranking behaviour directl
 result is in Table 20.
 
 Two boundary conditions frame the whole table. The ground truth agrees with *itself* at test–retest
-$\rho$ of 0.928–1.000 (§7.5), so HGL's 0.730 is approaching the reproducibility ceiling of what it is scored
-against, not underperforming a distant optimum. And Microservices — by construction the sparse,
+$\rho$ of 0.807–1.000 (§7.5), so HGL's mean 0.730 sits within the spread of what it is scored
+against rather than underperforming a distant optimum — though the lowest-ceiling scenario is also
+Microservices (§7.5), so the two boundary conditions below are not independent. And Microservices — by construction the sparse,
 low-centralisation topology with few genuine bottlenecks — is where every learned predictor is
 weakest (HGL 0.362), while the structural baselines degenerate on Healthcare and IoT ($\rho \le 0$).
 No predictor in this study is uniformly best.
@@ -1877,7 +1892,7 @@ on 2 of 7 scenarios. The set-identification advantage is the more defensible hal
 result that survives both the protocol changes and the apparatus changes documented above. Three
 caveats bound even that: the LOSO across-fold standard deviation remains substantial (0.177 for HGL),
 top-$K$ metrics inherit the label churn documented in §7.5 — the ground truth's own top-$K$ set
-agrees with itself at Jaccard 0.56–1.00 across seeds, with Microservices the worst at 0.56 — and the
+agrees with itself at Jaccard 0.44–1.00 across seeds, with Microservices the worst at 0.44 — and the
 interpretable RMAV predictor $Q(v)$ does not transfer at all ($\rho = -0.093$ LOSO, $-0.123$ k-fold),
 which is a negative result about the composite score's ranking use, not about its attribution use
 (§8.3). The practical recommendation we are willing to defend is correspondingly narrow: use typed
@@ -2044,36 +2059,42 @@ precisely because a single-threshold result is not trustworthy here.
 
 A primary blocker for continuous Static System Analysis (SSA) is execution time: developers will
 bypass or disable quality gates that introduce significant build delays. We evaluate the feasibility
-of deploying SaG as a blocking gate by measuring the execution time of `detect_antipatterns.py`
-across different topology scales using the isolated `MemoryRepository`.
+of deploying SaG as a blocking gate by measuring the wall-clock cost of the structural analysis and
+anti-pattern catalog — the mechanism `detect_antipatterns.py` invokes — run via the in-memory
+`MemoryRepository`, across all eleven scenarios in our corpus (mean over the five canonical seeds).
 
-Our evaluation yields the following performance footprint (mean times across 10 runs on standard CI
-runner hardware):
-- **Tiny / Small scales (≤ 25 components)**: $< 2$ seconds.
-- **Medium scale (~50 components, e.g., Autonomous Vehicle)**: $\approx 5$ seconds.
-- **Large scale (80–100 components)**: $\approx 12$ seconds.
-- **Xlarge scale (150–300 components, e.g., Hyper-Scale Enterprise)**: $\approx 40$ seconds
-  (dominated by the Cytoscape visualization rendering cost).
+The measured footprint:
+- **≤ 90 components** (`tiny_system` and all three real-world transcribed architectures): $0.02$–$0.04$ s.
+- **98–326 components** (the remaining six generated scenarios): $0.27$–$1.24$ s. Cost does not scale
+  monotonically with component count in this range — `hub_and_spoke_system` (139 components, $1.24$ s)
+  costs more than `iot_smart_city_system` (326 components, $1.08$ s) — consistent with the catalog's
+  cost being driven by specific detectors' complexity (e.g. `DEEP_PIPELINE`'s path enumeration) more
+  than by raw component count.
+- **`enterprise_system`**, the largest scenario at 520 components: $26.74 \pm 0.32$ s.
 
-The results demonstrate that execution times scale sub-quadratically, remaining well under the
-threshold for continuous build pipelines (which typically allow several minutes). By executing the
-structural metrics extraction and failure simulations in-memory via the decoupled
-`MemoryRepository`, SaG avoids database transaction latencies and Docker container spin-up overhead.
+All eleven scenarios complete in well under the several-minute budget continuous build pipelines
+typically allow.
 
-In terms of gating efficacy, we injected architectural regressions (manually adding single points of
-failure, QoS mismatches, and cyclic dependencies) on top of baseline configurations across the
-scenario suite, and evaluated the gate under its delta semantics (§6.6). The gate achieved a **100%
-detection rate (precision = 1.0, recall = 1.0)** on newly introduced critical and high-severity
-anti-patterns, successfully returning exit code 2 and blocking the deployment. Conversely, baselines
-containing only pre-existing or waived findings passed the gate without false positives —
-demonstrating that the delta-aware design blocks *regressions* rather than punishing known, accepted
-architectural risk.
+In terms of gating efficacy: the gate is currently absolute rather than delta-aware (§6.6), so there
+is no merge-base diff to evaluate detection against; what we can and do measure is the anti-pattern
+catalog's raw agreement with the cascade oracle — the property the gate is a proxy for. Scoring
+CRITICAL/HIGH findings (with edge-keyed findings crediting both endpoints) against the oracle's own
+critical set gives, across five seeds: precision $0.237 \pm 0.014$, recall $0.887 \pm 0.059$, F1
+$0.374 \pm 0.022$, Cohen's $\kappa = -0.036 \pm 0.049$ on the seven generated scenarios ($n=40$
+scenario–seed pairs), and precision $0.402 \pm 0.059$, recall $0.861 \pm 0.105$, F1 $0.544 \pm
+0.061$, $\kappa = 0.296 \pm 0.100$ on the three real-world architectures ($n=15$). Recall is high and
+precision is not: the catalog over-flags relative to the oracle's critical set, and near-zero $\kappa$
+on the generated corpus means the agreement it does show is close to what chance flagging at the
+catalog's own base rate would produce. We read this as a genuine limitation of the pattern catalog as
+a *stand-alone* predictor of simulated impact — a finding pattern catalog and rank predictor serve
+different purposes (naming a structural smell versus ranking by predicted impact, §9.1), but the gap
+here is wide enough that the catalog's findings should not be read as impact-calibrated. The composite
+$Q(v)$ of §4 remains the ranking signal validated against the oracle in §8.1.
 
 From a **sustainability and resource efficiency** standpoint, evaluating architectural risks statically
-in-memory ($\approx 5\text{ s} - 40\text{ s}$) yields significant energy savings in CI/CD pipelines.
-Catching structural flaws statically at commit time avoids spinning up energy-intensive staging clusters,
-executing heavy chaos engineering fault-injection suites on doomed builds, or deploying fragile configurations
-that waste server infrastructure compute cycles.
+in-memory ($0.02\text{ s}$–$26.74\text{ s}$ across our corpus) yields energy savings relative to
+spinning up staging clusters or running heavier dynamic checks per build, though we have not measured
+that comparison directly.
 
 ## 8.5 RQ5 — Real-World Open-Source System Architecture Validation
 
@@ -2091,32 +2112,36 @@ applied within that population (15 of 32 Applications for Autoware, 12 of 22 for
 Microservices, 18 of 41 for Train-Ticket); and all three scenarios are classified `sparse` by the
 tool's topology-class rule, which sets the gate thresholds below. Reported $\rho$ is the seed mean
 $\pm$ standard deviation, not a single-seed point estimate: `FaultInjector` tie-breaks intra-wave
-propagation stochastically (§5.1), so — unlike the deterministic RMAV/$Q(v)$ scores — the simulated
-labels, and therefore $\rho$, vary run to run even at a fixed seed. The *ranking* is nonetheless
-stable across seeds (Rank Consistency Rate $= 1.000$ for all three), which is why $F_1@K$ does not
-carry the same $\pm$ as $\rho$ below. All three runs are reproducible on demand from the replication
-package; see the data-availability statement for what is archived.
+propagation stochastically by design (§5.1), so — unlike the deterministic RMAV/$Q(v)$ scores — the
+simulated labels, and therefore $\rho$, genuinely vary *across* the five seeds within one sweep. At a
+*fixed* seed the label is now reproducible process to process; an earlier draft of this evaluation
+was not, for the instrument-defect reason disclosed in §9.2, and the figures below are the corrected,
+reproducible ones. The *ranking* is nonetheless stable across seeds (Rank Consistency Rate $= 1.000$
+for all three), which is why $F_1@K$ does not carry the same $\pm$ as $\rho$ below. All three runs
+are reproducible on demand from the replication package; see the data-availability statement for
+what is archived.
 
 **Table 23. Real-world open-source architecture validation**, five seeds, against the component-level cascade oracle of §5.1.
 
 | Real-World Architecture | Nodes | Apps | Spearman $\rho$ (mean $\pm$ std) | Kendall $\tau$ (mean) | $F_1@K$ | Tie-robust $F_1@K$ | Non-zero $I$ | Predictive Gain (vs DC) | SPOF-F1 | Gate |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|:---:|
-| **Autoware.universe (ROS 2)** | 75 | 32 | **0.696 $\pm$ 0.01** | 0.523 | **0.800** | 0.800 | 19/32 | +0.361 | 0.500 | **FAIL** |
+| **Autoware.universe (ROS 2)** | 75 | 32 | **0.688 $\pm$ 0.009** | 0.517 | **0.800** | 0.800 | 19/32 | +0.360 | 0.500 | **FAIL** |
 | **Cloud-Native Microservices Mesh** | 60 | 22 | **0.778 $\pm$ 0.001** | 0.639 | **1.000** | 0.760 | 8/22 | +0.014 | 0.333 | **FAIL** |
-| **Train-Ticket Railway Booking Mesh** | 90 | 41 | **0.759 $\pm$ 0.002** | 0.605 | **1.000** | 0.810 | 14/41 | +0.264 | 0.571 | **FAIL** |
+| **Train-Ticket Railway Booking Mesh** | 90 | 41 | **0.759 $\pm$ 0.001** | 0.605 | **1.000** | 0.810 | 14/41 | +0.264 | 0.571 | **FAIL** |
 
 **Key Findings:**
 1. **Rank correlation is strong on two of three architectures and closest to the framework's own
    gate on Train-Ticket, but all three fail it overall.** Cloud Microservices ($\rho = 0.778 \pm
-   0.001$) and Train-Ticket ($\rho = 0.759 \pm 0.002$) clear the $\rho \ge 0.75$ gate threshold;
-   Autoware does not ($0.696 \pm 0.01$, short by 0.054) and additionally carries the most
-   seed-to-seed variance of the three — roughly five to ten times larger than Train-Ticket's
-   $\sigma$ and Cloud Microservices' across repeated five-seed sweeps. That comparison is itself only
-   approximate: on Autoware specifically, even the standard deviation is not stable
-   sweep-to-sweep (0.011–0.015 across repeated runs at the same five seeds), while the mean is
-   (0.6956–0.6959). We report the instability as a further, second-order finding about this
-   particular graph rather than resolve it to a single number it does not have. All three nonetheless
-   fail the `sparse`-topology gate as a
+   0.001$) and Train-Ticket ($\rho = 0.759 \pm 0.001$) clear the $\rho \ge 0.75$ gate threshold;
+   Autoware does not ($0.688 \pm 0.009$, short by 0.062) and carries the most seed-to-seed variance
+   of the three — roughly seven to fifteen times larger than Train-Ticket's $\sigma$ and Cloud
+   Microservices'. An earlier draft of this sweep additionally reported the *sweep-to-sweep* mean
+   and standard deviation themselves as unstable at a fixed seed set (mean 0.6956–0.6959, std
+   0.011–0.015 across repeated runs), which we took at the time to be a further, second-order
+   property of this graph. It was not: the cause was the instrument defect disclosed in §9.2 (an
+   unordered iteration inside `FaultInjector` fed seeded random draws in a process-dependent order),
+   now fixed. Sweep-to-sweep reruns at the figures above are identical to the precision shown. All
+   three nonetheless fail the `sparse`-topology gate as a
    whole, on **SPOF-F1 $\ge 0.6$**: Autoware 0.500, Cloud Microservices 0.333, Train-Ticket 0.571 —
    closest of the three, short by only 0.029 — and SPOF-F1 is exactly stable across seeds for all
    three (it depends on the deterministic articulation-point flag and a fixed 0.3 impact threshold).
@@ -2302,9 +2327,10 @@ implicit.
 constrains this paper's own internal cross-referencing: §5.4's library finding and §5.5's stratified
 check are $I_{\text{comp}}$ results and are not evidence about the $I^*$-backed tables in §8.1.
 
-*Two instrument defects were found and corrected during this revision.* Both were silent, both
-predate the corpus regeneration of §7.1, and both are recorded here because each had been producing
-published figures. First, the `Topo-QoS` baseline was applying no QoS weighting: $w(t)$ is declared
+*Six instrument defects were found and corrected during this revision.* All were silent — none
+raised an exception or produced an obviously wrong number — and all are recorded here because each
+had, or could have had, a published figure resting on it. The first two predate the corpus
+regeneration of §7.1. First, the `Topo-QoS` baseline was applying no QoS weighting: $w(t)$ is declared
 on the Topic node, the harness looked for it on the pub-sub relationship, and the generated
 topologies carry none there, so every derived dependency edge kept a unit weight and the baseline
 computed plain betweenness on all seven scenarios. It has been repaired to resolve $w(t)$ from the
@@ -2317,6 +2343,57 @@ from real per-edge $\alpha$ rather than an edge-weight fallback. We note that th
 third — the subgraph renderer itself raised on a `networkx` API change, which nothing had exercised
 while the attention payload was empty.
 
+Four further defects were found in a later pass that checked the implementation against this
+manuscript directly, rather than against a specific reported number.
+
+Third, and the one that changes reported figures, `FaultInjector`'s cascade iterated an unordered
+Python set of subscribers while consuming seeded random draws for each; set iteration order in
+Python is salted per-process by `PYTHONHASHSEED`, so the *same* requested seed could assign different
+draws to different subscribers across processes, making $I^*(v)$ reproducible only within one
+interpreter run, not across runs — exactly the kind of instability the seed-mean-and-standard-deviation
+protocol of §5.1 and §7.5 was designed to average over, not diagnose. It has been repaired (the
+iteration is now sorted); cross-process reproducibility was verified directly (identical $I^*(v)$
+across five different `PYTHONHASHSEED` values, both on the synthetic corpus and on the real-world
+Autoware sweep of §8.5). Two figures rest on the pre-fix labels and are flagged rather than silently
+carried forward: the label test–retest $\rho$/Jaccard ceiling of §7.5, restated above with the
+corrected, now process-independent values (previously reported as $\rho \in [0.928, 1.000]$, Jaccard
+$\in [0.56, 1.00]$, both measured within a single process and so blind to this defect); and §8.5's
+Autoware row, whose "sweep-to-sweep instability" was reported in an earlier draft as a property of
+that graph and is corrected there to what it actually was. Tables 18 and 20, and every scenario in
+Table 13, are unaffected: both use `cascade_depth_limit=0`, the setting at which the sixth defect
+below is provably a no-op, and neither exercises the code path this defect lived in independently of
+that setting.
+
+Fourth, `extract_rmav_scores_dict` — the function that turns `PredictionService`'s RMAV output into
+the GNN's auxiliary training target — keyed its lookup by an attribute (`component_id`) that the
+underlying dataclass does not have (it has `id`), so every key fell through to the object's own
+`repr()` string and the lookup silently returned nothing usable; the $0.1$-weighted RMAV-consistency
+term of Table 17 was training against an all-zero target wherever this function was on the path. It
+has been repaired to key by `id` first, matching its sibling function's already-correct convention.
+Table 3/5/6/7's reported runs are unaffected: both evaluation harnesses (`cli/loso_evaluate.py`,
+`cli/kfold_evaluate.py`) read RMAV scores through a different loader that never called the broken
+function. Any GNN checkpoint trained via the standalone `cli/train_graph.py` entry point without an
+explicit `--rmav` file did go through the broken path and trained with no RMAV supervision; that
+entry point is not what produced the tables in this paper.
+
+Fifth, the parallel worker in the prescription stage's per-edit verifier (§6.4) constructed its own
+evaluator with default settings — layer `system`, no GNN checkpoint — regardless of what layer and
+checkpoint the run was actually configured with, so a `--layer app` run would score every candidate
+edit's counterfactual impact on the `system` layer while its baselines were measured on `app`. It has
+been repaired to thread the configured layer and checkpoint into each worker. Table 13 is unaffected:
+`reproduce/run_prescribe_all.py` runs at `layer="system"` with no checkpoint, which is exactly what
+the unpatched default constructed, so the mismatch could not occur for the reported run.
+
+Sixth, the post-loop computation of $I^*(v)$ read a `topic_loss` variable left over from the cascade's
+last executed wave rather than recomputing it against the final set of failed components, so a
+subscriber failure in the final wave was not reflected in that subscriber's own reported feed loss.
+It has been repaired to recompute once more after the loop terminates. This defect is a no-op when
+`cascade_depth_limit=0` (unlimited waves, the default and the setting `reproduce/` and the corpus
+generation in §7.1 both use throughout): we verified this directly by running the pre-fix and
+post-fix simulators against the same cached topologies and confirming a maximum absolute difference
+in $I^*(v)$ of exactly $0$ across three scenarios. It is not a no-op under a finite
+`cascade_depth_limit`, which no reported figure in this paper uses.
+
 *A third of each system is unlabelled.* The cascade model cannot express the failure of a Topic or a
 physical Node, leaving 30–47% of components per scenario without ground truth. Predictions for them
 are produced but never validated. Broker labels are degenerate in three of seven scenarios for a
@@ -2324,9 +2401,10 @@ related reason. Any claim of coverage across "all five component types" would be
 the per-type results report those strata as undefined rather than as zero.
 
 *Reported figures approach the labels' own reproducibility.* The ground truth agrees with itself at
-test–retest $\rho$ of 0.928–1.000 and top-$K$ Jaccard of 0.56–1.00 across seeds. A model scoring near
-the former has saturated the labels rather than underperformed, and every top-$K$ metric inherits the
-latter's churn.
+test–retest $\rho$ of 0.807–1.000 and top-$K$ Jaccard of 0.44–1.00 across seeds (post the
+determinism fix above; these are now stable across `PYTHONHASHSEED`, unlike the figures an earlier
+draft reported). A model scoring near the former has saturated the labels rather than underperformed,
+and every top-$K$ metric inherits the latter's churn.
 
 *The behavioural oracle is delivery-based, not QoS-aware.* $I_{\text{dyn}}$ carries the
 construct-validity argument of §7.5, so the limits of what it measures bound that argument too. Its
@@ -2371,7 +2449,10 @@ finding about this class of experiment: a silently-cached artifact is indistingu
 trained one in the output, and only the implausible wall-clock time exposed it.
 
 *Artifact retention is uneven across the reported tables, and one headline table cannot currently be
-regenerated.* Table 18 and the sensitivity sweeps of §8.3 regenerate exactly from stored result files.
+regenerated.* Table 18 and the sensitivity sweeps of §8.3 regenerate exactly from stored result
+files — a claim that held only approximately before the determinism defect above was fixed, since a
+re-run in a fresh process was not guaranteed to reproduce a stored `FaultInjector` label exactly
+even at an unchanged seed. It now holds without qualification.
 The Leave-One-Scenario-Out result file behind Table 20 does not exist: it was overwritten during the
 revision, and the most recent retained log for that sweep predates the baseline repair and records a
 different ordering (§8.1). We disclose this rather than present Table 20 on the same footing as
@@ -2390,7 +2471,7 @@ highest-value follow-up (§9.3).
 come from a single statistical topology generator; the three real-world graphs (Autoware.universe
 ROS 2, the Cloud-Native Microservices mesh, and Train-Ticket) are transcribed from published
 open-source architectures. On the latter, SaG achieves mean rank correlation over five seeds of
-$\rho = 0.696$, $0.778$ and $0.759$, and up to $F_1@K = 1.000$ on two of the three.
+$\rho = 0.688$, $0.778$ and $0.759$, and up to $F_1@K = 1.000$ on two of the three.
 
 *None of the three clears the framework's own gate.* All three fail SPOF-F1; Autoware additionally
 fails the $\rho$ threshold and Cloud Microservices the predictive-gain threshold, for 5 failed checks
@@ -2452,6 +2533,19 @@ specific gap follows: verification currently admits *singletons*, each simulated
 containing that edit alone, so verifying subsets rather than single edits is required before an
 accepted policy can be called compositionally safe. That is engineering work rather than an open
 research question, and we flag it as the immediate next step for this stage.
+
+**The CI/CD gate is absolute, not yet delta-aware.** §6.6 implements exit-code gating on a
+candidate topology's full finding set; it does not yet diff that set against a merge-base topology,
+so an architecture carrying an intentional, previously-accepted risk (a sole-source feed, a
+deliberately unreplicated legacy broker) fails the build on every commit rather than only when a
+change introduces something new. A delta-aware gate — evaluate candidate and merge-base topologies,
+block only on findings absent from the baseline — together with a waiver register recording accepted
+risk (entity, rule, expiry) so it stays auditable rather than silently re-suppressed on every run, is
+the fix; neither is implemented today, and closing this gap is engineering work rather than an open
+research question, similar in kind to the remediation gap above. A related, smaller gap is that
+`detect_antipatterns.py` itself requires a live Neo4j connection even though the underlying analysis
+machinery is already usable through the database-free `MemoryRepository` — wiring that path into the
+packaged CLI is a prerequisite for running the gate without a database in an actual CI job.
 
 **Edge-level ground truth is bounded by the cascade model.** Edge criticality is now measured by
 removal rather than inferred from endpoints (§8.2), but the cascade routes no traffic over `RUNS_ON`

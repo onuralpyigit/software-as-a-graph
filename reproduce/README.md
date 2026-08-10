@@ -169,8 +169,8 @@ naming scheme — see that file's `--variant` help text for the mapping if you n
 
 | Variant flag | Description |
 |---|---|
-| `hgl_qos` | **HGL-QoS (Proposed)** — Heterogeneous GAT with 7-d edge features |
-| `hgl` | **HGL** — Heterogeneous GAT with QoS attributes masked |
+| `hgl_qos` | **HGL-QoS (Proposed)** — Heterogeneous Graph Transformer (HGTConv) with 7-d edge features |
+| `hgl` | **HGL** — Heterogeneous Graph Transformer (HGTConv) with QoS attributes masked |
 | `gl_qos` | **GL-QoS** — Homogeneous GAT with scalar QoS weight per edge |
 | `gl` | **GL** — Homogeneous GAT with no edge weighting |
 | `topo_qos` | **Topo-QoS** — QoS-weighted structural centrality baseline |

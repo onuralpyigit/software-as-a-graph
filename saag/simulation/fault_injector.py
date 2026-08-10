@@ -627,7 +627,14 @@ class FaultInjector:
                             impacted_subscribers.add(sub)
 
             # 3. Stochastic failure of impacted subscribers based on continuous average feed loss
-            for sub in idx.all_subscribers:
+            # Sorted because `all_subscribers` is a set: iteration order over a
+            # set is salted by PYTHONHASHSEED, and each iteration below consumes
+            # a draw from `rng` — so an unsorted iteration would hand different
+            # subscribers different draws across processes even at a fixed
+            # seed, making I*(v) irreproducible. See failure_simulator.py's
+            # `_derive_seed` docstring and `simulate_exhaustive`'s `sorted(...)`
+            # for the same defense in the sibling engine.
+            for sub in sorted(idx.all_subscribers):
                 if sub in failed_nodes:
                     continue
                 all_feeds = idx.app_subscribes.get(sub, set())

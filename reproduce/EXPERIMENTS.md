@@ -66,8 +66,8 @@ Measures the intersection between the top $K$ most critical components in the gr
 | `topo_qos` (`Topo-QoS`) | **Baseline**: Structural centrality weighted by local QoS edge features on `DEPENDS_ON` projection. |
 | `gl` (`GL`) | **Baseline**: Homogeneous GAT on unweighted `DEPENDS_ON` projection. |
 | `gl_qos` (`GL-QoS`) | **Baseline**: Homogeneous GAT over QoS-weighted `DEPENDS_ON` projection (edge weight = QoS-derived weight). |
-| `hgl` (`HGL`) | **Baseline/Ablation**: Heterogeneous GAT over native pub-sub graph substrate with QoS attributes masked (isolates heterogeneous structure). |
-| `hgl_qos` (`HGL-QoS`) | **Proposed Variant**: QoS-aware Heterogeneous GAT over native pub-sub graph substrate. |
+| `hgl` (`HGL`) | **Baseline/Ablation**: Heterogeneous Graph Transformer (HGTConv) over native pub-sub graph substrate with QoS attributes masked (isolates heterogeneous structure). |
+| `hgl_qos` (`HGL-QoS`) | **Proposed Variant**: QoS-aware Heterogeneous Graph Transformer (HGTConv) over native pub-sub graph substrate. |
 
 ---
 
