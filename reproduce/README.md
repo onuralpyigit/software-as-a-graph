@@ -113,6 +113,11 @@ make -f reproduce/Makefile figure4   # Stratified ρ (instantaneous, reads JSON)
 make -f reproduce/Makefile figure5   # ATM attention subgraph (~10 min)
 ```
 
+For the JSS submission's own six figures (`docs/research/jss/latex/figures/`), use
+`make -f reproduce/Makefile jss-figures` instead — see that folder's README for the full command
+list and the figure-numbering note (draft.md's own figure labels are not in reading order, so the
+printed number in the compiled PDF differs from draft.md's caption text for four of the six).
+
 ### Step 5 — Reversed-Projection Ablation & Hardening-Budget Analysis (paper's Tables 8–9, JSS revision only)
 
 These two experiments were added during the JSS revision and do not require GNN training — they

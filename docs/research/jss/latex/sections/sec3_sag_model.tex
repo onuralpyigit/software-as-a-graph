@@ -1,0 +1,321 @@
+\hypertarget{the-software-as-a-graph-model}{%
+\section{The Software-as-a-Graph Model}\label{the-software-as-a-graph-model}}
+
+\label{sec:3}
+
+This section defines the graph model on which all subsequent analysis operates. We first give the
+formal object and its node and edge types (Section~\ref{sec:3.1}), then the QoS-derived edge and vertex weights that
+encode coupling strength (Section~\ref{sec:3.2}), then the derivation of logical dependencies from structural edges
+(Section~\ref{sec:3.3}), the ingestion of code-level SCA metrics (Section~\ref{sec:3.4}), and finally the two graph views and the
+multi-layer projections that the attribution and impact stages consume (Section~\ref{sec:3.5}). A running example
+threads through the section (Section~\ref{sec:3.6}).
+
+\hypertarget{nodes-edges-and-the-formal-object}{%
+\subsection{Nodes, Edges, and the Formal Object}\label{nodes-edges-and-the-formal-object}}
+
+\label{sec:3.1}
+
+A distributed publish--subscribe system is modeled as a typed, weighted, directed multigraph
+
+\begin{equation}
+G = (V, E, \tau_V, \tau_E, w_E, w_V),
+\end{equation}
+
+where the vertex set partitions into five component types,
+
+\begin{equation}
+V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{node}} \cup V_{\text{lib}},
+\end{equation}
+
+the type functions \(\tau_V : V \to \{\text{App}, \text{Broker}, \text{Topic}, \text{Node}, \text{Library}\}\)
+and \(\tau_E\) label vertices and edges, and the weight functions \(w_E : E \to [0,1]\) and
+\(w_V : V \to [0,1]\) encode QoS-derived coupling strength. The edge set is the disjoint union of
+\emph{structural} edges imported directly from the architecture description and \emph{dependency} edges
+(\texttt{DEPENDS\_ON}) derived from them (Section~\ref{sec:3.3}).
+
+\textbf{Node types.} Each type corresponds to a distinct architectural element with its own failure
+semantics:
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.16}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.16}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.68}}@{}}
+\caption{Node types of the SaG model. Each type carries distinct failure semantics.\label{tab:1}}\tabularnewline
+\toprule
+Type & Role & Representative instances \\
+\midrule
+\endfirsthead
+\toprule
+Type & Role & Representative instances \\
+\midrule
+\endhead
+\textbf{Application} & A process that publishes and/or subscribes to topics & ROS 2 node, Kafka producer/consumer, MQTT client \\
+\textbf{Broker} & A message-routing intermediary & RabbitMQ, Mosquitto, DDS middleware \\
+\textbf{Topic} & A named message channel & \texttt{/sensor/lidar}, \texttt{order.events} \\
+\textbf{Node} & A physical or virtual host & server, cloud VM, embedded controller \\
+\textbf{Library} & A shared code dependency & sensor driver, codec, message library \\
+\bottomrule
+\end{longtable}
+
+\textbf{Structural edge types.} Six edge types are imported from the topology description and carry the
+direction in which messages or hosting relationships flow:
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.23}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.42}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.35}}@{}}
+\caption{Structural edge types, imported directly from the architecture description.\label{tab:2}}\tabularnewline
+\toprule
+Edge & Direction & Meaning \\
+\midrule
+\endfirsthead
+\toprule
+Edge & Direction & Meaning \\
+\midrule
+\endhead
+\texttt{PUBLISHES\_TO} & App/Library → Topic & component produces messages on the topic \\
+\texttt{SUBSCRIBES\_TO} & App/Library → Topic & component consumes messages from the topic \\
+\texttt{ROUTES} & Broker → Topic & broker routes the topic \\
+\texttt{RUNS\_ON} & App/Broker → Node & component is hosted on the node \\
+\texttt{CONNECTS\_TO} & Node → Node & direct network link between hosts \\
+\texttt{USES} & App → Library & application depends on the shared library \\
+\bottomrule
+\end{longtable}
+
+Retaining these types --- rather than collapsing them into a single ``communicates-with'' relation --- is
+what later lets the framework distinguish failure mechanisms that an untyped graph cannot (Section~\ref{sec:3.3}, Section~\ref{sec:5}).
+
+\hypertarget{qos-aware-edge-and-vertex-weights}{%
+\subsection{QoS-Aware Edge and Vertex Weights}\label{qos-aware-edge-and-vertex-weights}}
+
+\label{sec:3.2}
+
+Not all dependencies are equally consequential: a \texttt{RELIABLE}/\texttt{PERSISTENT} channel carrying critical
+data couples its endpoints far more tightly than a \texttt{BEST\_EFFORT}/\texttt{VOLATILE} one. Edge weights encode
+this from the Quality-of-Service policy of each pub-sub relationship, via a two-stage computation:
+
+\begin{equation}
+\text{QoS\_score} = 0.30\,r + 0.40\,d + 0.30\,p,
+\end{equation}
+\begin{equation}
+\text{size\_norm} = \min\!\left(\frac{\log_2(1 + \text{size\_kb})}{50},\ 1.0\right),
+\end{equation}
+\begin{equation}
+w(e) = \beta\cdot\text{QoS\_score} + (1-\beta)\cdot\text{size\_norm}, \qquad \beta = 0.85,
+\end{equation}
+
+where \(r, d, p\) are the reliability, durability, and transport-priority scores of the mediating
+topic, mapped from symbolic QoS values:
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.31}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.69}}@{}}
+\caption{QoS symbolic-value to numeric-score mapping used by the edge weight of Section~\ref{sec:3.2}.\label{tab:3}}\tabularnewline
+\toprule
+Dimension & Symbolic value → score \\
+\midrule
+\endfirsthead
+\toprule
+Dimension & Symbolic value → score \\
+\midrule
+\endhead
+Reliability \(r\) & \texttt{RELIABLE} → 1.0; \texttt{BEST\_EFFORT} → 0.0 \\
+Durability \(d\) & \texttt{PERSISTENT} → 1.0; \texttt{TRANSIENT} → 0.6; \texttt{TRANSIENT\_LOCAL} → 0.5; \texttt{VOLATILE} → 0.0 \\
+Priority \(p\) & \texttt{URGENT}/\texttt{CRITICAL}/\texttt{HIGHEST} → 1.0; \texttt{HIGH} → 0.66; \texttt{MEDIUM} → 0.33; \texttt{LOW} → 0.0 \\
+\bottomrule
+\end{longtable}
+
+The intra-QoS sub-weights are stated judgements checked for AHP consistency (Section~\ref{sec:4.3}): durability
+(0.40) outweighs reliability and priority
+(0.30 each) because durability governs message-state survival --- the precondition for resilience ---
+whereas reliability and priority govern transient delivery quality. A floor of \(w(e) = 0.01\) keeps
+even zero-QoS components visible to attribution.
+
+\textbf{Vertex weights} propagate QoS upward from incident edges, with type-specific aggregation that
+reflects how each component type concentrates risk:
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.46}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.54}}@{}}
+\caption{Type-specific vertex weight aggregation rules.\label{tab:4}}\tabularnewline
+\toprule
+Type & \(w_V\) \\
+\midrule
+\endfirsthead
+\toprule
+Type & \(w_V\) \\
+\midrule
+\endhead
+Application & \(0.80\cdot\max(w_{\text{topic}}) + 0.20\cdot\operatorname{mean}(w_{\text{topic}})\) \\
+Broker & \(0.70\cdot\max(w_{\text{topic}}) + 0.30\cdot\operatorname{mean}(w_{\text{topic}})\) \\
+Node & \(\max(w)\) over all hosted applications and brokers \\
+Library & \(\min\!\big(1.0,\ w_{\text{base}}\cdot(1 + \gamma\log_2(1 + \mathrm{DG\_in}))\big)\) (fan-out amplified) \\
+\bottomrule
+\end{longtable}
+
+The library rule is deliberately fan-out amplified: a library's risk grows with the number of
+applications that depend on it, anticipating the blast-radius mechanism of Section~\ref{sec:3.3} and Section~\ref{sec:5}.
+
+\hypertarget{derived-dependencies-the-depends_on-projection}{%
+\subsection{\texorpdfstring{Derived Dependencies: the \texttt{DEPENDS\_ON} Projection}{Derived Dependencies: the DEPENDS\_ON Projection}}\label{derived-dependencies-the-depends_on-projection}}
+
+\label{sec:3.3}
+
+Structural edges record physical relationships but not \emph{logical} dependency. A subscriber and a
+publisher on the same topic have no direct structural edge, yet the subscriber wholly depends on the
+publisher for data. We therefore derive a single semantic relation, \texttt{DEPENDS\_ON}, always directed
+from \emph{dependent} to \emph{dependency} (``if the target fails, the source is affected''), through six rules:
+
+\begin{longtable}[]{@{}
+  >{\centering\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.09}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.28}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.51}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.12}}@{}}
+\caption{The six \texttt{DEPENDS\_ON} projection rules deriving logical dependencies from structural edges.\label{tab:5}}\tabularnewline
+\toprule
+Rule & \texttt{dependency\_type} & Pattern (dependent → dependency) & Weight \\
+\midrule
+\endfirsthead
+\toprule
+Rule & \texttt{dependency\_type} & Pattern (dependent → dependency) & Weight \\
+\midrule
+\endhead
+1 & \texttt{app\_to\_app} & subscriber → publisher via a shared topic (incl.~transitive \texttt{USES*1..3} chains) & \(\max_t w(t)\) over shared topics \\
+2 & \texttt{app\_to\_broker} & publisher/subscriber → broker routing its topics & \(\max_t w(t)\) over routed topics \\
+3 & \texttt{node\_to\_node} & host → host, lifted from Rules 1--2 for colocated apps & lifted \(\max w\) \\
+4 & \texttt{node\_to\_broker} & host → broker, lifted from Rule 2 & lifted \(\max w\) \\
+5 & \texttt{app\_to\_lib} & application → library it \texttt{USES} --- \textbf{shared-library blast} & \(w_V(\text{app})\) \\
+6 & \texttt{broker\_to\_broker} & bidirectional, two brokers sharing a host --- \textbf{colocation} & \(w_V(\text{node})\) \\
+\bottomrule
+\end{longtable}
+
+When two applications communicate over several shared topics, a single \texttt{DEPENDS\_ON} edge records the
+worst-case weight together with a separate coupling count:
+
+\begin{equation}
+\text{edge.weight} = \max_{t \in \text{shared}} w(t), \qquad \text{edge.path\_count} = |\text{shared}|.
+\end{equation}
+
+\texttt{path\_count} is kept out of the weight to preserve the \(w \in [0,1]\) contract; a \texttt{path\_count} of 3
+denotes three simultaneous failure vectors between the same pair, which is structurally more fragile
+than three independent single-topic links.
+
+\textbf{Two qualitatively different failure modes.} This is the crux of the model. Rule 1 encodes
+\emph{sequential cascade}: a publisher's failure starves its subscribers, whose failure may in turn
+affect their dependents, propagating step by step through topics and brokers. Rule 5 encodes a
+\emph{simultaneous blast}: when a shared library fails, every application that uses it fails at once, in
+a single event, not along a propagation path. An untyped graph cannot tell these apart --- both look
+like ordinary edges --- yet they demand different predictions and different remedies. Preserving the
+\texttt{app\_to\_lib} type (Rule 5) is what lets the framework represent this simultaneous-blast mechanism at
+all, just as preserving \texttt{broker\_to\_broker} (Rule 6) makes broker-colocation risk representable.
+
+\hypertarget{ingestion-of-code-level-sca-metrics}{%
+\subsection{Ingestion of Code-Level SCA Metrics}\label{ingestion-of-code-level-sca-metrics}}
+
+\label{sec:3.4}
+
+To bridge the ``Architecture-Code Gap,'' SaG does not operate in isolation from source code. Instead,
+the framework integrates code-level quality attributes directly into the graph model. During the
+model-import stage, SaG queries static code analysis (SCA) APIs (e.g., SonarQube's web API) or
+parses local SCA report artifacts to extract modular metrics for executable \texttt{Application} and shared
+\texttt{Library} components.
+
+These metrics are stored as flat properties prefixed with \texttt{cm\_*} on each component node:
+- \texttt{cm\_total\_loc}: Total lines of code as reported by static analysis, providing a scale proxy.
+- \texttt{cm\_avg\_wmc}: Average Weighted Methods per Class, representing cognitive complexity.
+- \texttt{cm\_avg\_lcom}: Lack of Cohesion of Methods (on a raw {[}0, 1{]} scale), indicating how fragmented
+classes are.
+- \texttt{cm\_avg\_cbo}: Coupling Between Objects, indicating intra-component code coupling.
+- \texttt{cm\_avg\_rfc}: Response for a Class, measuring the number of methods invoked by a class.
+- \texttt{sqale\_debt\_ratio}: Technical debt ratio as a percentage of estimated rewrite time.
+- \texttt{bugs}: Count of static bugs identified in code.
+- \texttt{vulnerabilities}: Count of code-level security issues.
+
+These properties are normalized across the component population during structural analysis (Section~\ref{sec:4.2})
+and feed the \textbf{Code Quality Penalty (CQP)}, ensuring that local code defects are mathematically
+combined with global structural dependencies.
+
+\hypertarget{graph-views-and-multi-layer-projections}{%
+\subsection{Graph Views and Multi-Layer Projections}\label{graph-views-and-multi-layer-projections}}
+
+\label{sec:3.5}
+
+The construction produces \textbf{two complementary views} of the same system, and the separation between
+them is load-bearing for the framework's validity:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{\(G_{\text{structural}}\)} --- the imported structural graph, used by the discrete-event simulators
+  to generate the ground-truth impact labels (Section~\ref{sec:5.1}).
+\item
+  \textbf{\(G_{\text{analysis}}(\ell)\)} --- the layer-projected \texttt{DEPENDS\_ON} graph, on which all structural
+  metrics, quality attribution, and prediction are computed (Section~\ref{sec:4}).
+\end{itemize}
+
+Because attribution is computed on \(G_{\text{analysis}}\) while ground truth is generated by
+simulating \(G_{\text{structural}}\), the predictor's inputs are kept disjoint from the
+label-producing path --- the \textbf{independence guarantee} that makes the pre-deployment claims of Section~\ref{sec:4}--Section~\ref{sec:5}
+non-circular. We state and rely on this property throughout.
+
+\(G_{\text{analysis}}\) is filtered into four analytical layers, each isolating a component scope, a
+dependency subset, and the quality dimension it most informs:
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.11}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.18}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.16}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.30}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.25}}@{}}
+\caption{The four analytical layer projections and the quality dimension each most informs.\label{tab:6}}\tabularnewline
+\toprule
+Layer & Projection & Vertices & Dependency types & Quality focus \\
+\midrule
+\endfirsthead
+\toprule
+Layer & Projection & Vertices & Dependency types & Quality focus \\
+\midrule
+\endhead
+Application & \(\pi_{\text{app}}\) & App, Library & \texttt{app\_to\_app}, \texttt{app\_to\_lib} & Reliability \\
+Infrastructure & \(\pi_{\text{infra}}\) & Node & \texttt{node\_to\_node} & Availability \\
+Middleware & \(\pi_{\text{mw}}\) & Broker (in App/Node context) & \texttt{app\_to\_broker}, \texttt{node\_to\_broker}, \texttt{broker\_to\_broker} & Maintainability \\
+System & \(\pi_{\text{system}}\) & all five types & all six & Overall \\
+\bottomrule
+\end{longtable}
+
+The middleware layer includes Application and Node vertices in the subgraph to preserve incoming
+edges, but reports results only for Brokers. Components further aggregate along a MIL-STD-498 \cite{dod1994milstd498}
+hierarchy --- CSU → CSC → CSCI → CSS --- so that criticality can be rolled up from a unit to a
+configuration item to the whole system, supporting reporting at whatever granularity an
+organization's software configuration management already uses.
+
+\hypertarget{running-example}{%
+\subsection{Running Example}\label{running-example}}
+
+\label{sec:3.6}
+
+Consider three applications \(a_1, a_2, a_3\), where \(a_1\) publishes to a topic \(t\) that \(a_2\) and
+\(a_3\) subscribe to, all three depending on a shared library \(\ell\). A single broker \(b\) routes \(t\),
+and one host \(n\) runs all four processes. The topic declares
+\texttt{RELIABLE}/\texttt{TRANSIENT\_LOCAL}/\texttt{HIGH} with a 1 KiB payload, which by Section~\ref{sec:3.2} gives it a weight of
+\(w(t) = 0.596\). The structural graph records \(a_1\!\xrightarrow{\text{pub}}\!t\),
+\(a_2,a_3\!\xrightarrow{\text{sub}}\!t\), \(b\!\xrightarrow{\text{routes}}\!t\),
+\(a_i, b\!\xrightarrow{\text{runs\_on}}\!n\), and \(a_i\!\xrightarrow{\text{uses}}\!\ell\). Derivation
+adds \(a_2\!\to\!a_1\) and \(a_3\!\to\!a_1\) (\texttt{app\_to\_app}, Rule 1), \(a_i\!\to\!b\) (\texttt{app\_to\_broker},
+Rule 2), \(n\!\to\!b\) (\texttt{node\_to\_broker}, Rule 4) and \(a_i\!\to\!\ell\) (\texttt{app\_to\_lib}, Rule 5). The two
+structures encode
+different risks: losing \(a_1\) degrades \(a_2\) and \(a_3\) through a cascade that the simulator
+propagates over time, whereas losing \(\ell\) fails \(a_1, a_2, a_3\) simultaneously. A topology-only
+centrality score ranks \(\ell\) by ordinary connectivity and cannot represent that its single failure
+collapses the whole component group at once. Whether that representational difference translates
+into a scoring gap large enough to matter is an empirical question we test in Section~\ref{sec:5.4} (on our synthetic
+suite, it does not).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figures/Figure_2}
+\caption{the running example's structural graph and its derived \texttt{DEPENDS\_ON} projection, with sequential-cascade and simultaneous-blast edges visually distinguished.}
+\label{fig:2}
+\end{figure}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}

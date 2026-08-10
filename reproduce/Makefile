@@ -11,8 +11,9 @@
 #   make table4          — Table 4: LOSO × 4 variants
 #   make kfold           — Per-domain k-fold × 5 variants (opt-in; primary validation protocol)
 #   make convergent-validity — Three-oracle rank agreement (opt-in; expensive)
-#   make figure4         — Figure 4: Stratified per-node-type ρ
-#   make figure5         — Figure 5: ATM attention subgraph
+#   make figure4         — Stratified per-node-type ρ (old Middleware numbering)
+#   make figure5         — ATM attention subgraph (old Middleware numbering)
+#   make jss-figures     — all 6 figures for the JSS submission (docs/research/jss/latex/figures/)
 #   make all             — full end-to-end pipeline
 #   make clean           — remove generated outputs (keeps checkpoints)
 #   make clean-all       — remove everything including checkpoints
@@ -35,7 +36,8 @@ RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
 .PHONY: setup scenarios cache block0 table3 table4 kfold convergent-validity \
-        figure4 figure5 all smoke-test clean clean-all
+        figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6 \
+        jss-figures all smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 0. Environment
@@ -157,6 +159,55 @@ figure5:
 	    --input $(OUTPUT_DIR)/atm_case_study/attention_weights.json \
 	    --output $(OUTPUT_DIR)/atm_case_study/attention_subgraph
 	@echo "✓ Figure 5 ready: $(OUTPUT_DIR)/atm_case_study/attention_subgraph.[png|pdf]"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JSS submission figures (docs/research/jss/latex/figures/Figure_1..6).
+#
+# The filenames are numbered by *printed* reading order in the compiled PDF,
+# which LaTeX assigns by float position -- not by draft.md's own figure
+# labels (its "Figure 6", the attention subgraph, physically appears in §5.2,
+# before its "Figure 3" in §5.5, so the printed numbers run 1,2,3,4,5,6 while
+# draft.md's own labels for the same floats run 1,2,6,3,4,5). See the mapping
+# table in docs/research/jss/latex/README.md before touching any of this.
+# ─────────────────────────────────────────────────────────────────────────────
+
+jss-fig1:
+	dot -Tpdf docs/research/jss/latex/figures/src/figure1_pipeline.dot \
+	    -o docs/research/jss/latex/figures/Figure_1.pdf
+	dot -Tpng -Gdpi=300 docs/research/jss/latex/figures/src/figure1_pipeline.dot \
+	    -o docs/research/jss/latex/figures/Figure_1.png
+	@echo "✓ Figure 1 (pipeline) ready."
+
+jss-fig2:
+	dot -Tpdf docs/research/jss/latex/figures/src/figure2_running_example.dot \
+	    -o docs/research/jss/latex/figures/Figure_2.pdf
+	dot -Tpng -Gdpi=300 docs/research/jss/latex/figures/src/figure2_running_example.dot \
+	    -o docs/research/jss/latex/figures/Figure_2.png
+	@echo "✓ Figure 2 (running example) ready."
+
+jss-fig3:
+	$(PYTHON) reproduce/extract_attention.py \
+	    --scenario atm_system \
+	    --output-dir $(OUTPUT_DIR)/atm_case_study
+	$(PYTHON) reproduce/render_attention_subgraph.py \
+	    --input $(OUTPUT_DIR)/atm_case_study/attention_weights.json \
+	    --output docs/research/jss/latex/figures/Figure_3
+	@echo "✓ Figure 3 (attention subgraph; draft.md's own \"Figure 6\") ready."
+
+jss-fig4:
+	$(PYTHON) reproduce/render_pooled_vs_pertype_figure.py
+	@echo "✓ Figure 4 (pooled vs per-type ρ; draft.md's own \"Figure 3\") ready."
+
+jss-fig5:
+	$(PYTHON) reproduce/render_shrinkage_figure.py
+	@echo "✓ Figure 5 (AHP shrinkage; draft.md's own \"Figure 4\") ready."
+
+jss-fig6:
+	$(PYTHON) reproduce/render_threshold_figure.py
+	@echo "✓ Figure 6 (propagation threshold; draft.md's own \"Figure 5\") ready."
+
+jss-figures: jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6
+	@echo "✓ All 6 JSS figures ready in docs/research/jss/latex/figures/."
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Full pipeline

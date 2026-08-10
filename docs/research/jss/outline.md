@@ -16,7 +16,7 @@
 * Heterogeneous GNN leads a training-free QoS-weighted centrality on critical-set F1.
 * Equal dimension weights outrank calibrated ones; RMAV repositioned as attribution.
 * Edge criticality is measured by simulated removal, not inferred from node labels.
-* A delta-aware CI/CD gate blocks new structural regressions in 5-40 seconds.
+* SaG runs as a blocking CI/CD gate in well under a minute, even at 500+ components.
 
 ## Keywords
 
@@ -137,7 +137,21 @@ funding, data availability, generative-AI use).
 
 1. **Table 20's artifact is not retained** — re-running the LOSO sweep under the final apparatus is
    the first item of outstanding work, and is what would settle RQ1's ranking half.
-2. Figures 1–6 are captioned placeholders; the assets still need rendering and embedding.
-3. Author block, CRediT roles, funding and the archive link are stubs pending de-anonymisation.
+2. ~~Figures 1–6 are captioned placeholders~~ — resolved: all six are rendered and embedded in the
+   LaTeX conversion (see next section).
+3. Author block, CRediT roles, funding and the archive link are stubs pending de-anonymisation — see
+   `latex/title_page.tex` and `latex/sections/declarations.tex`.
 4. The manuscript remains long (~26k words, 23 tables); §4.7 and §3.4 are the compression candidates
    if the editor asks.
+
+---
+
+## LaTeX conversion
+
+The submission-ready Elsevier `elsarticle` LaTeX source lives in **[`latex/`](latex/)** — that folder,
+not this outline or `draft.md`, is what gets built and zipped for Editorial Manager. See
+[`latex/README.md`](latex/README.md) for the build, the figure-numbering mapping (draft.md's own
+figure labels are not in physical reading order — its "Figure 6" appears before its "Figure 3" — so
+the printed number in the compiled PDF differs from four of the six captions' own label text; every
+`\ref{}` in the LaTeX resolves correctly regardless), and what remains a placeholder pending
+de-anonymisation.

@@ -158,6 +158,7 @@ make -f reproduce/Makefile all          # ~6-12 h CPU, 5 seeds
 | `kfold` | `results/table4_kfold_results.tex` | **Per-domain repeated k-fold** — the in-domain protocol. Opt-in, not part of `all`: ~5× more model fits than LOSO for the same seed count |
 | `figure4` | `results/figure4_stratified_rho.pdf` | Per-node-type stratified $\rho$ |
 | `figure5` | `output/atm_case_study/attention_subgraph.pdf` | ATM attention-weight case study |
+| `jss-figures` | `docs/research/jss/latex/figures/Figure_1..6.pdf` | The six figures for the JSS manuscript ([docs/research/jss/latex/](docs/research/jss/latex/)) |
 | `all` | everything above except `kfold` | |
 
 Budget roughly 6–12 h on 8 CPU cores, or 1–2 h on a CUDA GPU. Ablations (`reproduce/qos_label_ablation.py`, `threshold_sensitivity.py`, `ahp_sensitivity.py`, `reversed_projection_ablation.py`, `hardening_budget.py`, `convergent_validity.py`) run separately and are documented in `reproduce/EXPERIMENTS.md`.

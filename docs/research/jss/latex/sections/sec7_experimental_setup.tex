@@ -1,0 +1,326 @@
+\hypertarget{experimental-setup}{%
+\section{Experimental Setup}\label{experimental-setup}}
+
+\label{sec:7}
+
+This section describes the data, predictors, metrics, and protocols used to answer RQ1--RQ4 (Section~\ref{sec:8}).
+The design follows one overriding principle, carried from the framework's independence guarantee
+(Section~\ref{sec:5.3}): every predictor is evaluated against the
+same simulator-derived ground truth produced by an independent process, so the claims we make are
+\emph{comparative} --- which modeling choices perform better under identical conditions --- rather than
+assertions of absolute accuracy in operational deployments.
+
+\hypertarget{datasets}{%
+\subsection{Datasets}\label{datasets}}
+
+\label{sec:7.1}
+
+\textbf{Synthetic suite.} We evaluate on seven synthetic pub-sub scenarios spanning distinct deployment
+domains --- autonomous vehicles, high-frequency trading, clinical healthcare integration, centralized
+hub-and-spoke enterprise systems, distributed IoT smart-city telemetry, cloud-native microservices,
+and large-scale enterprise pub-sub. The scenarios are produced by a statistical topology generator
+and range from 50 to 300 applications per scenario, exercising fan-out-dominated, dense-pub-sub, and
+anti-pattern/SPOF regimes with different dominant failure mechanisms.
+
+\textbf{Real-world open-source suite.} To test operational generalizability on authentic software graphs,
+we evaluate SaG on three real-world open-source software architectures:
+1. \textbf{Autoware.universe (ROS 2 Autonomous Driving Platform) \cite{kato2018autoware}:} An authentic cyber-physical ROS 2 pub-sub
+architecture comprising 32 Applications (perception, sensing, localization, planning, control), 24 Topics with
+explicit DDS QoS profiles (\texttt{RELIABLE}/\texttt{BEST\_EFFORT}, \texttt{TRANSIENT\_LOCAL}/\texttt{VOLATILE}), 3 Brokers (CycloneDDS, FastDDS, Zenoh),
+6 Deployment Nodes, 10 Shared C++ Libraries (\texttt{autoware\_universe\_utils}, \texttt{tier4\_autoware\_utils}), and realistic SonarQube code metrics.
+2. \textbf{Production Cloud-Native Microservices Mesh \cite{google2024onlineboutique}:} An authentic microservice architecture based on the
+Google Online Boutique e-commerce benchmark, comprising 22 Microservices (order, payment, inventory, auth,
+analytics, notifications), 20 Topics across Kafka, RabbitMQ, Redis PubSub, and NATS, 6 Kubernetes/Cloud nodes, and 8 shared helper libraries.
+3. \textbf{Train-Ticket Railway Booking Mesh \cite{zhou2021fault}:} An authentic microservice architecture based on the Fudan
+University Train-Ticket benchmark \cite{zhou2021fault}, comprising 41 Microservices (order, travel, preserve, route, seat,
+payment, food, security, admin), 30 Topics, 3 Brokers (RabbitMQ, Redis PubSub, Spring Eureka naming
+server), 8 deployment Nodes, and 8 shared Spring/MyBatis libraries. At 90 components it is the largest
+of the three real-world graphs.
+
+Pooled across all synthetic and real-world scenarios, the evaluation corpus exercises 1,770 components.
+Every scenario is versioned in the replication package. The synthetic suite is registered in a
+manifest carrying a canonical SHA-256 per dataset, and a regression test re-generates each synthetic
+dataset from its configuration and fails on any divergence, so the corpus is byte-reproducible from
+its configs. The three real-world graphs are not part of that manifest: they are versioned files
+produced by a hand-written adapter rather than by the statistical topology generator, so the
+byte-identity guarantee applies to the synthetic suite only.
+
+All seven scenarios are used for the predictor evaluation (Section~\ref{sec:8.1}--Section~\ref{sec:8.3}), the analyses of Section~\ref{sec:5.4}--Section~\ref{sec:5.5}, and
+the remediation evaluation of Section~\ref{sec:6.7}, the last of which became tractable at the largest scale by
+parallelising counterfactual verification across candidates.
+
+\hypertarget{predictors-and-baselines}{%
+\subsection{Predictors and Baselines}\label{predictors-and-baselines}}
+
+\label{sec:7.2}
+
+The evaluation compares predictors spanning the interpretability--capacity spectrum, all consuming
+the same structural analysis of each scenario:
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.37}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.43}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.20}}@{}}
+\caption{Predictors and baselines, and the factor each contrast isolates.\label{tab:14}}\tabularnewline
+\toprule
+Predictor & Description & Role \\
+\midrule
+\endfirsthead
+\toprule
+Predictor & Description & Role \\
+\midrule
+\endhead
+\textbf{RMAV / \(Q\)} & deterministic multi-dimensional composite (Section~\ref{sec:4}) & interpretable predictor \\
+\textbf{HGL} & heterogeneous graph transformer, QoS-masked & learned predictor (typed) \\
+\textbf{HGL-QoS} & heterogeneous graph transformer, QoS-encoded & learned predictor (typed + QoS) \\
+\textbf{GL / GL-QoS} & homogeneous GAT on the type-collapsed projection & learning baseline (untyped) \\
+\textbf{Topo-BL / Topo-QoS} & structural centrality (betweenness, articulation points; QoS-weighted) & non-learning baseline \\
+\bottomrule
+\end{longtable}
+
+The contrast \texttt{Topo-*} vs learned isolates the value of learning (RQ1); \texttt{GL} vs \texttt{HGL} isolates the
+value of \emph{typed} heterogeneity; \texttt{HGL} vs \texttt{HGL-QoS} isolates the value of explicit QoS encoding
+(RQ3); and \texttt{RMAV/Q} vs the learned predictors isolates when interpretable attribution suffices. The
+structural baselines' features are kept decoupled from the GNN inputs so that no comparison leaks
+information across the predictor boundary.
+
+\hypertarget{evaluation-metrics}{%
+\subsection{Evaluation Metrics}\label{evaluation-metrics}}
+
+\label{sec:7.3}
+
+We report metrics in three families, plus the stratification and significance machinery:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Ranking.} Spearman rank correlation \(\rho\) between predicted criticality and \(I^*(v)\) is the
+  primary metric, complemented by NDCG@10 and Top-5/Top-10 overlap for the practically relevant case
+  in which only a few components can be hardened.
+\item
+  \textbf{Identification.} Precision, recall, and F1 for critical-component detection, plus SPOF-F1 for
+  articulation-point classification against simulated availability impact.
+\item
+  \textbf{Regression.} RMSE and MAE between predicted and simulated scores, for calibration.
+\item
+  \textbf{Stratified reporting.} Following the consistency check of Section~\ref{sec:5.5}, \(\rho\) is always reported \emph{by
+  node type} in addition to (not instead of) any pooled figure.
+\item
+  \textbf{Statistical rigor.} Bootstrap 95\% confidence intervals \cite{efron1993introduction} (\(B = 2000\) resamples) on mean
+  \(\rho\) \cite{spearman1904proof}, and paired Wilcoxon signed-rank tests \cite{wilcoxon1945individual} (\(p < 0.05\)) for predictor comparisons
+  across scenarios.
+\end{itemize}
+
+\textbf{Validation gate thresholds.} The implementation carries two independent gate registries --- a fixed
+nine-check one and the topology-class-adjusted five-check one below; Table~\ref{tab:15} and Section~\ref{sec:8.5} document only
+the latter, which is the one the reported evaluation runs against. It is parameterised by topology
+class, because a threshold that discriminates on a dense topology is either trivial or unattainable
+on a sparse one. The default targets are \(\rho \ge 0.70\) and \(F1 \ge 0.80\); the \texttt{sparse} class, which
+covers every graph in Section~\ref{sec:8.5}, applies the five checks below. We tabulate them because Section~\ref{sec:8.5} reports gate
+\emph{failures}, and a reader cannot evaluate a failure against an unstated bar:
+
+\begin{longtable}[]{@{}lrrrr@{}}
+\caption{Topology-class validation gate thresholds. A graph's class is assigned from the density and hub ratio of its structural graph. All five checks must pass for the gate to pass.\label{tab:15}}\tabularnewline
+\toprule
+Check & \texttt{sparse} & \texttt{medium} & \texttt{dense} & \texttt{hub\_spoke} \\
+\midrule
+\endfirsthead
+\toprule
+Check & \texttt{sparse} & \texttt{medium} & \texttt{dense} & \texttt{hub\_spoke} \\
+\midrule
+\endhead
+Spearman \(\rho\) vs simulated impact & \(\ge 0.75\) & \(\ge 0.80\) & \(\ge 0.82\) & \(\ge 0.85\) \\
+\(F_1@K\) (critical-set overlap) & \(\ge 0.65\) & \(\ge 0.70\) & \(\ge 0.72\) & \(\ge 0.75\) \\
+SPOF-F1 (articulation points vs \(I > 0.3\)) & \(\ge 0.60\) & \(\ge 0.65\) & \(\ge 0.65\) & \(\ge 0.70\) \\
+FTR, false target rate (lower is better) & \(\le 0.30\) & \(\le 0.25\) & \(\le 0.25\) & \(\le 0.20\) \\
+Predictive gain over degree centrality & \(\ge 0.02\) & \(\ge 0.03\) & \(\ge 0.03\) & \(\ge 0.03\) \\
+\bottomrule
+\end{longtable}
+
+FTR is the fraction of components predicted highly vulnerable (\(V(v) > 0.60\)) whose simulated
+reachability impact is nonetheless negligible (\(< 0.10\)) --- a precision check on the Vulnerability
+dimension specifically. Note that the class adjustment is not uniformly a tightening relative to the
+\(\rho \ge 0.70\) / \(F1 \ge 0.80\) defaults: \(\rho\) rises to \(0.75\) on the sparse class, whereas the
+F1-family thresholds are \emph{relaxed}, because on a sparse graph a handful of components carries the
+whole signal and a single disagreement moves F1 sharply. We tabulate the rule rather than describe it
+as a tightening throughout.
+
+\textbf{One evaluation contract, one sample.} Every variant in every table is scored by the same function
+on the same node set. This is a correction rather than a description of prior practice: an earlier
+version of this study scored the two predictor families on different populations and different
+samples, and correcting it raised every learned variant by 0.35--0.48 \(\rho\) in-distribution while
+leaving the baselines essentially unchanged (Section~\ref{sec:9.2}). Three properties now hold:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{The evaluation key set is a function of the graph and the labels only} --- never of any variant's
+  predictions --- so all variants in a cell see an identical sample. The node population is an
+  explicit, recorded parameter (\texttt{application} by default, matching the claim that topology predicts
+  \emph{application-layer} criticality).
+\item
+  \textbf{The reported figure is held-out.} All variants share one train/validation/test split pinned by
+  node identity. A full-population score flatters a trained model by including the nodes it was
+  fitted on while leaving a training-free baseline unchanged; the transductive figure is retained
+  separately rather than reported as the headline.
+\item
+  \textbf{A variant that cannot cover the declared population fails loudly} rather than silently
+  shrinking the sample to a per-variant subset.
+\end{enumerate}
+
+\textbf{Absent is not zero.} A stratum whose predictions or labels are constant has an \emph{undefined} rank
+correlation and is reported as such, never as \(0.0\). This matters for coverage: Topic and physical
+Node components carry no simulated ground truth at all (Section~\ref{sec:7.5}), and reporting them as \(0.0\) presented
+a labelling gap as a measured model failure.
+
+\hypertarget{protocols}{%
+\subsection{Protocols}\label{protocols}}
+
+\label{sec:7.4}
+
+Two evaluation regimes are used, each answering a different generalization question.
+
+\textbf{In-distribution (per-scenario).} For each scenario, predictors are computed and compared against
+that scenario's simulated ground truth. This is the regime for RQ1 and RQ2 (Section~\ref{sec:8}): it asks how well
+the attribution and learned predictors recover the criticality ordering of a \emph{known} system.
+
+\textbf{Inductive (Leave-One-Scenario-Out).} To test generalization to \emph{unseen} architectures --- the true
+pre-deployment condition --- we use Leave-One-Scenario-Out (LOSO) cross-validation, which closes the
+transductive-leakage gap for the learned predictor. For each held-out scenario \(k\), the model
+is trained on the remaining six scenarios (with the largest by \(|V|\) used for early stopping) and
+evaluated on \(k\), whose nodes never participate in any forward pass and whose labels never enter any
+loss. Results are aggregated as per-fold mean \(\pm\) std across seeds, then cross-fold mean \(\pm\)
+std, with per-node-type \(\rho\) retained.
+
+\textbf{Multi-seed.} Every configuration is run over five seeds \(\{42, 123, 456, 789, 2024\}\); reported
+scores are seed means, and the across-seed standard deviation \(\sigma_{\text{seed}}\) is both
+reported and reused as the noise scale in the remediation acceptance criterion (Section~\ref{sec:6.4}). The one
+exception is the remediation sweep of Section~\ref{sec:6.7}, which uses the first three of these seeds for the compute
+reason stated there.
+
+\hypertarget{ground-truth-three-oracles-and-what-they-can-each-support}{%
+\subsection{Ground Truth: Three Oracles, and What They Can Each Support}\label{ground-truth-three-oracles-and-what-they-can-each-support}}
+
+\label{sec:7.5}
+
+The three oracles introduced in Section~\ref{sec:5.1} are constructed differently, measure different quantities, and
+are not interchangeable; conflating them is the most likely way to over-read a result in this paper.
+This section fixes which analysis rests on which, quantifies how far they agree, and states the
+label-coverage bounds that apply to each.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}@{}}
+\caption{The three simulation oracles, what each measures, and which results rest on which.\label{tab:16}}\tabularnewline
+\toprule
+Symbol & Engine & Quantity & Used for \\
+\midrule
+\endfirsthead
+\toprule
+Symbol & Engine & Quantity & Used for \\
+\midrule
+\endhead
+\(I^*(v)\) & \texttt{FaultInjector} & Mean subscriber feed-loss fraction under a BFS cascade & Learned-predictor labels; Tables~\ref{tab:18} and~\ref{tab:20} (Section~\ref{sec:8.1}); the sensitivity sweeps of Section~\ref{sec:8.3} \\
+\(I_{\text{comp}}(v)\) & \texttt{FailureSimulator} & \(0.35\,\text{reachability} + 0.25\,\text{fragmentation} + 0.25\,\text{throughput} + 0.15\,\text{flow}\) & Validation gates; the RMAV dimension decomposition; Section~\ref{sec:5.4} and Section~\ref{sec:5.5}; remediation acceptance (Section~\ref{sec:6.4}) \\
+\(I_{\text{dyn}}(v)\) & \texttt{MessageFlowSimulator} & Delivery-rate loss suffered by \emph{surviving} consumers, by discrete-event simulation of traffic & Reported construct-validity check only --- no labels, no gates, no tables \\
+\bottomrule
+\end{longtable}
+
+The two cascade oracles run with a step-function blast-semantics propagation scheme (probability
+\(1.0\) for library cascade), \texttt{propagation\_threshold} default \(0.2\), a \(10\)-epoch horizon, and the
+five seeds of Section~\ref{sec:7.4}, \(\{42, 123, 456, 789, 2024\}\). \(I_{\text{dyn}}\) shares the seed set and runs
+\(60\) simulated seconds per component, with the fault injected at the midpoint.
+
+\textbf{Measured agreement between the two cascade oracles is weak.} Their scales differ, so only rank
+agreement is meaningful; across the seven scenarios, mean Spearman \(\rho = 0.394\) and mean top-20\%
+Jaccard \(= 0.286\), ranging from \(\rho = 0.578\) (Enterprise) down to \(\rho = 0.092\) (Hub-and-Spoke,
+where they are effectively uncorrelated). All seven correlations are positive, which is a weak
+convergent-validity argument --- two differently-constructed simulators do agree directionally, so
+neither is purely an artifact of its own construction --- but at \(\rho \approx 0.39\) it is weak, and we
+apply the resulting constraint to our own analyses: a result established against one oracle is not
+evidence for a claim measured against the other. Section~\ref{sec:8.2} flags where this bites.
+
+\textbf{\(I_{\text{dyn}}\) agrees with \(I^*\) far more strongly, and --- crucially --- does not share its worst
+case.} Mean Spearman \(\rho(I_{\text{dyn}}, I^*) = 0.765\), minimum \(0.548\) (Hub-and-Spoke) --- against
+mean \(0.394\), minimum \(0.092\) for the two topological oracles above. Hub-and-Spoke is precisely where
+\(I^*\) and \(I_{\text{comp}}\) collapse to near-independence; \(I_{\text{dyn}}\) still agrees with \(I^*\)
+there at \(\rho = 0.548\), its lowest agreement in the cohort but far from uncorrelated. Because
+\(I_{\text{dyn}}\) reaches this ranking by simulating traffic through queues rather than by traversing
+\texttt{DEPENDS\_ON}, the result is evidence of a different kind than Section~\ref{sec:7.5}'s first finding: it rules out the
+cascade \emph{algorithm} as the source of \(I^*\)'s ranking, which the \(I_{\text{comp}}\) comparison alone
+cannot do (Section~\ref{sec:9.2}). Top-\(K\) membership is the weaker half of this result --- mean top-20\% Jaccard is
+\(0.316\), comparable to the \(0.286\) of the two topological oracles --- so this is corroboration of
+\emph{ranking}, not of critical-set identification; no \(F_1@K\) claim in Section~\ref{sec:8.1} is supported by
+\(I_{\text{dyn}}\).
+
+\textbf{Label coverage and the noise ceiling.} Three further properties bound what any reported figure can
+mean. First, the cascade model has no rule expressing the failure of a Topic or of a physical Node,
+so those types carry no ground truth at all --- 30--47\% of components per scenario are unlabelled, they
+are excluded from scoring rather than scored as zero, and predictions for them are never validated.
+Broker labels are degenerate in three of seven scenarios for a related reason. Second, the three
+oracles do not cover the same components, so every agreement figure above is computed over the
+intersection rather than over the scenario. \(I_{\text{dyn}}\) observes only what carries pub-sub
+traffic: it scores Applications and those Libraries that publish or subscribe in their own right,
+and records Brokers, physical Nodes, Topics, and purely-consumed Libraries as unmeasured rather than
+as harmless. On \texttt{enterprise\_system} that is 349 components against \(I^*\)'s 360 --- it gives up the ten
+Brokers and one non-publishing Library, and gains nothing \(I^*\) lacks. Third, the labels
+have a reproducibility ceiling: across seeds, the ground truth agrees with \emph{itself} at test--retest
+\(\rho\) of 0.807--1.000, and its own top-20\% critical set agrees at Jaccard 0.44--1.00 (deterministic:
+\texttt{FaultInjector}`s cascade previously iterated an unordered subscriber set while consuming seeded
+random draws, so re-running the \emph{same} seed in a different process could still change the label ---
+this has been fixed and is disclosed as an instrument defect in Section~\ref{sec:9.2}, and the figures here are the
+post-fix, process-independent ones). No method can exceed the former, and every top-\(K\) metric
+inherits the latter --- a reported \(F_1@K\) on \texttt{microservices\_system}, where the labels' own set
+stability is 0.44, should not be read to a precision the labels do not have.
+
+\hypertarget{model-configuration-and-implementation}{%
+\subsection{Model Configuration and Implementation}\label{model-configuration-and-implementation}}
+
+\label{sec:7.6}
+
+The learned predictors are implemented in PyTorch Geometric \cite{fey2019fast}. Table~\ref{tab:17} fixes every hyperparameter; all
+variants share it, so the contrasts of Section~\ref{sec:7.2} isolate architecture and features rather than tuning
+budget. The values were fixed before the reported runs and not tuned per scenario --- there is no
+per-scenario hyperparameter search anywhere in this study, which is a deliberate constraint (a search
+per scenario would leak held-out information under the in-distribution protocol) and also a
+limitation, since a tuned baseline might close some of the margins in Section~\ref{sec:8.1}.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.50}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.50}}@{}}
+\caption{Learned-predictor configuration. Identical across HGL, \(HGL\text{-}QoS\), GL and GL-QoS except where the architecture differs by construction.\label{tab:17}}\tabularnewline
+\toprule
+Component & Setting \\
+\midrule
+\endfirsthead
+\toprule
+Component & Setting \\
+\midrule
+\endhead
+Convolution & \texttt{HGTConv} (heterogeneous); \texttt{GATConv} for the homogeneous GL variants \\
+Layers & 3 \\
+Hidden channels & 64 \\
+Attention heads & 4 \\
+Dropout & 0.2 \\
+Input projection & per-node-type linear → LayerNorm → ReLU \\
+Output heads & four RMAV residual MLPs + one composite head, sigmoid-activated \\
+Optimizer & AdamW, learning rate \(3\times10^{-4}\), weight decay \(1\times10^{-4}\) \\
+LR schedule & \texttt{CosineAnnealingWarmRestarts}, \(T_0 = \max(50, \text{epochs}/4)\), \(T_{\text{mult}} = 2\), \(\eta_{\min} = 0.01\cdot\text{lr}\) \\
+Gradient clipping & max-norm 1.0 \\
+Epochs / early stopping & 300, patience 30 on validation loss \\
+Node splits & 60\% train / 20\% validation / 20\% test, pinned by node identity (Section~\ref{sec:7.3}) \\
+Loss & composite MSE \(+\ 0.5\,\)multitask \(+\ 0.3\,\)ListMLE ranking \(+\ 0.1\,\)pairwise margin \(+\ 0.1\,\)RMAV consistency \\
+\bottomrule
+\end{longtable}
+
+\textbf{Hardware and runtime.} Training and evaluation were run on a single workstation; the LOSO sweep is
+the dominant cost, at roughly 31 minutes for HGL and 36 for \(HGL\text{-}QoS\) across all folds and
+seeds, against 5--6 minutes for the homogeneous variants and well under a minute for the training-free
+baselines. The CI/CD gate measurements of Section~\ref{sec:8.4} were taken on the same machine rather than on hosted
+runner hardware, so they should be read as an order-of-magnitude feasibility result rather than as a
+calibrated figure for any particular CI provider.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}

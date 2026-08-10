@@ -1,0 +1,80 @@
+// Figure 2: the running example's structural graph and its derived
+// DEPENDS_ON projection (draft.md §3.6, caption at line ~642), with
+// sequential-cascade and simultaneous-blast edges visually distinguished.
+//
+// Running example: a1, a2, a3 (Application) all depend on library L; a1
+// publishes to topic t, a2/a3 subscribe; broker b routes t; host n runs
+// a1, a2, a3, b.
+//
+// Render: dot -Tpdf figure2_running_example.dot -o ../Figure_2.pdf
+//         dot -Tpng -Gdpi=300 figure2_running_example.dot -o ../Figure_2.png
+
+digraph Figure2 {
+  bgcolor="white";
+  fontname="Helvetica";
+  node [fontname="Helvetica", fontsize=12, style=filled, shape=circle, fixedsize=true, width=0.55];
+  edge [fontname="Helvetica", fontsize=9];
+  nodesep=0.35;
+  ranksep=0.5;
+
+  // House palette, matching Figure 6 (Application/Broker/Topic/Node/Library).
+  subgraph cluster_structural {
+    label = "Structural graph  G_structural  (§3.1)";
+    fontsize = 13;
+    style = "rounded";
+    color = "#888888";
+    labelloc = "t";
+
+    a1s [label="a1", fillcolor="#4C72B0", fontcolor=white];
+    a2s [label="a2", fillcolor="#4C72B0", fontcolor=white];
+    a3s [label="a3", fillcolor="#4C72B0", fontcolor=white];
+    ts  [label="t",  fillcolor="#DD8452", fontcolor=white];
+    bs  [label="b",  fillcolor="#55A868", fontcolor=white];
+    ns  [label="n",  fillcolor="#C44E52", fontcolor=white];
+    ls  [label="ℓ", fillcolor="#8172B3", fontcolor=white];
+
+    a1s -> ts [label="pub", color="#555555"];
+    a2s -> ts [label="sub", color="#555555"];
+    a3s -> ts [label="sub", color="#555555"];
+    bs  -> ts [label="routes", color="#555555"];
+    a1s -> ns [label="runs_on", color="#999999", style=dashed];
+    a2s -> ns [label="runs_on", color="#999999", style=dashed];
+    a3s -> ns [label="runs_on", color="#999999", style=dashed];
+    bs  -> ns [label="runs_on", color="#999999", style=dashed];
+    a1s -> ls [label="uses", color="#999999", style=dotted];
+    a2s -> ls [label="uses", color="#999999", style=dotted];
+    a3s -> ls [label="uses", color="#999999", style=dotted];
+  }
+
+  subgraph cluster_depends_on {
+    label = "DEPENDS_ON projection  G_analysis  (§3.3)";
+    fontsize = 13;
+    style = "rounded";
+    color = "#888888";
+    labelloc = "t";
+
+    a1d [label="a1", fillcolor="#4C72B0", fontcolor=white];
+    a2d [label="a2", fillcolor="#4C72B0", fontcolor=white];
+    a3d [label="a3", fillcolor="#4C72B0", fontcolor=white];
+    bd  [label="b",  fillcolor="#55A868", fontcolor=white];
+    nd  [label="n",  fillcolor="#C44E52", fontcolor=white];
+    ld  [label="ℓ", fillcolor="#8172B3", fontcolor=white];
+
+    // Sequential cascade: a2/a3 depend on a1 via the shared topic -- impact
+    // propagates over time (app_to_app, Rule 1).
+    a2d -> a1d [label="sequential\ncascade", color="#DD8452", penwidth=2.2];
+    a3d -> a1d [label="sequential\ncascade", color="#DD8452", penwidth=2.2];
+
+    // Simultaneous blast: all three depend on the shared library at once --
+    // losing L fails a1, a2, a3 simultaneously (app_to_lib, Rule 5).
+    a1d -> ld [label="simultaneous\nblast", color="#C44E52", penwidth=2.8];
+    a2d -> ld [label="simultaneous\nblast", color="#C44E52", penwidth=2.8];
+    a3d -> ld [label="simultaneous\nblast", color="#C44E52", penwidth=2.8];
+
+    // app_to_broker (Rule 2) and node_to_broker (Rule 4) -- shown neutral.
+    a1d -> bd [color="#999999", style=dashed];
+    a2d -> bd [color="#999999", style=dashed];
+    a3d -> bd [color="#999999", style=dashed];
+    nd  -> bd [color="#999999", style=dashed];
+  }
+}

@@ -1,0 +1,43 @@
+// Figure 1: end-to-end SaG pipeline (draft.md §1.4, caption at line ~157).
+// architecture description -> typed multigraph -> DEPENDS_ON projection ->
+// the two predictor paths and the simulation oracle path, with the
+// independence boundary between them marked -> remediation and the CI/CD gate.
+//
+// Render: dot -Tpdf figure1_pipeline.dot -o ../Figure_1.pdf
+//         dot -Tpng -Gdpi=300 figure1_pipeline.dot -o ../Figure_1.png
+
+digraph Figure1 {
+  rankdir=LR;
+  bgcolor="white";
+  fontname="Helvetica";
+  node [fontname="Helvetica", fontsize=11, style="filled,rounded", shape=box, penwidth=1.2];
+  edge [fontname="Helvetica", fontsize=9, color="#555555", penwidth=1.3];
+  nodesep=0.45;
+  ranksep=0.55;
+
+  input   [label="Architecture\ndescription", fillcolor="#EAEAEA", color="#888888"];
+  graph_s [label="Typed multigraph\nG_structural\n(§3.1)", fillcolor="#DCE6F1", color="#4C72B0"];
+  depon   [label="DEPENDS_ON\nprojection\nG_analysis (§3.3)", fillcolor="#DCE6F1", color="#4C72B0"];
+
+  subgraph cluster_predict {
+    label = "Predict (independence guarantee, §5.3)";
+    fontsize = 11;
+    style = "dashed,rounded";
+    color = "#999999";
+    labelloc = "t";
+
+    rmav [label="RMAV attribution\nQ(v)  (§4)", fillcolor="#E2F0D9", color="#55A868"];
+    hgl  [label="Heterogeneous GNN\nHGL predictor (§5.2)", fillcolor="#E2F0D9", color="#55A868"];
+  }
+
+  oracle  [label="Simulation oracle\nI*(v)  (§5.1)", fillcolor="#FBE5D6", color="#DD8452"];
+  remed   [label="Prescriptive\nremediation (§6)", fillcolor="#F2DCDB", color="#C44E52"];
+  gate    [label="CI/CD quality gate\nPASS / FAIL (exit 0/2)", fillcolor="#F2DCDB", color="#C44E52", shape=hexagon];
+
+  input -> graph_s -> depon;
+  depon -> rmav;
+  depon -> hgl;
+  rmav -> oracle [label="validated\nagainst", style=dashed];
+  hgl  -> oracle [label="validated\nagainst", style=dashed];
+  oracle -> remed -> gate;
+}
