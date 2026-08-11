@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-02T19:28:00+00:00",
-  "generator_commit": "dbbc809b160a2bab334310539f3ceca4a7ea29fe",
+  "generated_at": "2026-08-11T05:37:48+00:00",
+  "generator_commit": "610f7e73658c61e5e7569d126335421b798b0adb",
   "regenerate_with": "PYTHONPATH=. python cli/generate_graph.py batch --input-dir data/scenarios --output-dir <dir> --force",
   "pooled_evaluation_suite": {
     "applications": 850,
@@ -164,6 +164,62 @@
         "libraries": 10
       },
       "sha256": "fb566155214a76fb20edadd3a95d673a7e8a4a6eb97ccdfd370a97a2119436ff"
+    },
+    "atm_system_tiny": {
+      "config": "scenario_14_atm_tiny.yaml",
+      "role": "case_study",
+      "seed": 4214,
+      "domain": "air_traffic_management",
+      "counts": {
+        "applications": 10,
+        "topics": 11,
+        "brokers": 2,
+        "nodes": 3,
+        "libraries": 3
+      },
+      "sha256": "ba0b4c9dc64efd43e16b9065e80147a3cc0b216474cc777f51050cd032661a69"
+    },
+    "atm_system_medium": {
+      "config": "scenario_15_atm_medium.yaml",
+      "role": "case_study",
+      "seed": 4215,
+      "domain": "air_traffic_management",
+      "counts": {
+        "applications": 52,
+        "topics": 54,
+        "brokers": 10,
+        "nodes": 16,
+        "libraries": 16
+      },
+      "sha256": "1c3db4f394624412c71d717ac185741919302b2f8b831c4ced6d642e18b1411b"
+    },
+    "atm_system_large": {
+      "config": "scenario_16_atm_large.yaml",
+      "role": "case_study",
+      "seed": 4216,
+      "domain": "air_traffic_management",
+      "counts": {
+        "applications": 104,
+        "topics": 108,
+        "brokers": 20,
+        "nodes": 32,
+        "libraries": 32
+      },
+      "sha256": "05ba50d81c04f518c62106d5f439e9c7552a04aa81de069f202f3ffc3fea6075"
+    },
+    "atm_system_xlarge": {
+      "config": "scenario_17_atm_xlarge.yaml",
+      "role": "case_study",
+      "seed": 4217,
+      "domain": "air_traffic_management",
+      "counts": {
+        "applications": 156,
+        "topics": 162,
+        "brokers": 30,
+        "nodes": 48,
+        "libraries": 48
+      },
+      "sha256": "08071d8897f97b1df4e160772ec2a992c2f00dcc21e29d8c1a87ef1c0064336d"
     }
   }
 }

@@ -10,7 +10,7 @@ remain.
 1. **No number without an `n`, a window, and a provenance tag.** A latency needs a sample count; a
    defect count needs an observation window; every table row needs `industrial` or `prototype`.
 2. **Every reported category must correspond to a check that actually ran** in the deployed system.
-   If core-pinning conformance (SSS Req 6.24) is not deployed, there is no core-contention defect
+   If core-pinning conformance is not deployed, there is no core-contention defect
    category — drop the row rather than estimating it.
 3. **Stage names must be the ones the deployed system emits.** Do not retrofit the four-stage split
    that appeared in the earlier draft; record what the pipeline actually reports.

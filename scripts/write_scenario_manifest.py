@@ -42,6 +42,10 @@ CORPUS = {
     "scenario_09_xlarge_stress": ("xlarge_system", "fixture"),
     "scenario_10_atm_system": ("atm_system", "case_study"),
     "scenario_11_integration_hub_migration": ("integration_hub_migration_system", "fixture"),
+    "scenario_14_atm_tiny": ("atm_system_tiny", "case_study"),
+    "scenario_15_atm_medium": ("atm_system_medium", "case_study"),
+    "scenario_16_atm_large": ("atm_system_large", "case_study"),
+    "scenario_17_atm_xlarge": ("atm_system_xlarge", "case_study"),
 }
 
 ENTITY_KEYS = ("applications", "topics", "brokers", "nodes", "libraries")

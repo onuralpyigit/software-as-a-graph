@@ -1,8 +1,8 @@
 # §5.2.2 — architectural defects caught before deployment.
 # One row per defect category. Every category must map to a rule that actually ran in the deployment:
-# put its SSS requirement number in `sss_requirement` and the deployed rule id in `rule_id`.
+# put the deployed rule id in `rule_id`.
 # `n_builds_evaluated` and `window` are constant across rows — repeat them, they end up in the caption.
 # `n_escaped` (defects of this category that reached production anyway) is optional but makes the
 # recall claim defensible instead of assumed; leave blank if unknown rather than writing 0.
-category,rule_id,sss_requirement,n_findings,n_confirmed_true_positive,n_false_positive,n_escaped,n_builds_evaluated,window,notes
-,,,,,,,,,
+category,rule_id,n_findings,n_confirmed_true_positive,n_false_positive,n_escaped,n_builds_evaluated,window,notes
+,,,,,,,,

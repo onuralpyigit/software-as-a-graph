@@ -52,14 +52,19 @@ Second, a **CI/CD gate**: an implemented severity-based exit-code gate, paired w
 suitability model specified but not yet built, over a checks catalog covering orphaned topics,
 dependency cycles, and cascade-impact simulation. Third, **deployment experience**: measurements
 from the program's continuous-delivery pipeline, and an honest account of the distance between the
-specification and the prototype. We report the prototype's static analysis cost from 29 to 520
-components across a corpus of eleven generated and three transcribed real-world architectures,
-repeated over five oracle seeds, and the detection catalog's agreement with a cascade oracle:
-near-chance Cohen's $\kappa$ on the generated corpus, widening to fair agreement on the transcribed
-architectures — a small-sample (n=3) but mechanistically explained split we report as found rather
-than smoothing into one number. We argue that the gap between what such a system is specified to
-check and what any implementation actually checks is the most useful thing an industrial report can
-make explicit.
+specification and the prototype. We evaluate the prototype primarily on a family of five systems in
+the deployment's own domain — air traffic management — spanning 29 to 444 components with QoS mix,
+fan-out shape, and criticality proportion held fixed across scale, isolating scale as the sole
+independent variable: verification cost grows gently (0.01 s to 1.01 s end-to-end) but the detector
+catalog's agreement with a cascade oracle declines monotonically from slight to chance as the same
+system grows (Cohen's $\kappa$: 0.12 at 29 components to $-0.05$ at 444). A secondary check across
+six other synthetic domains plus three architectures transcribed from real open-source systems finds
+the same near-chance pattern on other large synthetic graphs, but materially better (fair) agreement
+on the transcribed ones — a small-sample (n=3) split, unresolved by this paper's evidence, over
+whether scale or synthetic generation is the better explanation. We argue that the gap between what
+such a system is specified to check and what any implementation actually checks — and the discovery
+that verification quality is not scale-invariant even within one domain — are the most useful things
+an industrial report can make explicit.
 
 **Keywords:** architectural digital twin, pre-deployment verification, pub/sub middleware, QoS
 contracts, CI/CD gating, DDS.
@@ -145,7 +150,7 @@ that SaaG-P does not, §3.4 says so.
 builds a *static* twin — a graph reconstructed fresh for each candidate build (§2.4), not a model
 kept continuously synchronized with the running system. A full digital twin has a dynamic half too:
 overlaying live telemetry onto the model and detecting drift between the designed graph and what is
-actually observed at runtime. That half is specified (SSS Req 6.37–6.39) and is not implemented in
+actually observed at runtime. That half is specified but not implemented in
 SaaG-P; §3.4 lists it alongside the other specified-but-unbuilt checks rather than folding it
 silently into what the prototype already does. Everything this paper reports as a capability of
 SaaG-P is the static half.
@@ -157,11 +162,11 @@ external sources: the configuration management database (project, platform, and 
 metadata, with the effective version marked), the source and installation-script repositories, the
 software package repository, and the network topology descriptor. Each acquired dataset is tagged
 with project, platform, and system version, and every mandatory-field or schema failure is recorded
-against its source (SSS Req 1.1–1.19).
+against its source.
 
 The candidate-evaluation path matters most for gating: the software unit version inventory is
 rebuilt by substituting the *candidate* version of one unit into the otherwise-unchanged inventory
-of the target system version (SSS Req 1.11), so the audited graph is the system as it would be after
+of the target system version, so the audited graph is the system as it would be after
 installation.
 
 In SaaG-P, repository-side extraction is implemented — cloning, XML/IDL-adjacent topic parsing, and
@@ -202,8 +207,7 @@ criticality scalar in $[0,1]$ used to rank findings.
 
 Concurrent pipeline runs must not corrupt one another or the baseline. Each candidate evaluation
 constructs a process-specific model from the candidate unit plus the target system version's other
-units, under an independent operation identifier, and analysis never mutates the baseline model
-(SSS Req 5.18–5.20, 6.15).
+units, under an independent operation identifier, and analysis never mutates the baseline model.
 
 ---
 
@@ -240,12 +244,16 @@ impact, which is what §5.2 uses as a reference oracle when scoring the detector
 
 Verification requires system models that do not yet exist in the field. SaaG-P includes a scenario
 generator producing synthetic topologies with controlled scale, QoS mix, and clustering, plus a
-curated corpus of eleven committed scenarios spanning autonomous vehicles, IoT, financial trading,
-healthcare, air traffic management, and enterprise deployments. Each is hash-pinned against the
-config that generates it, so published numbers remain reproducible. Three architectures transcribed
-from open-source systems (§5.2.3) share the same descriptor schema and load through the identical
-pipeline, letting §5.2 compare generated and transcribed topologies directly rather than describing
-the latter only qualitatively.
+curated corpus of fifteen committed scenarios: ten spanning autonomous vehicles, IoT, financial
+trading, healthcare, and enterprise deployments at various scales, plus — the evaluation's primary
+focus, §5.2 — a five-scenario family in the air-traffic-management domain that mirrors the deployment
+motivating this paper (§2.2), spanning 29 to 444 components and sharing an identical QoS-mix,
+fan-out-shape, and criticality-proportion profile so that scale is the only thing that varies between
+them. Each is
+hash-pinned against the config that generates it, so published numbers remain reproducible. Three
+architectures transcribed from open-source systems (§5.2.3) share the same descriptor schema and load
+through the identical pipeline, letting the secondary evaluation compare generated and transcribed
+topologies directly rather than describing the latter only qualitatively.
 
 ### 3.4 Specified but not yet implemented
 
@@ -253,15 +261,15 @@ The following are required of SaaG-D and are **not** implemented in SaaG-P. We l
 gap is the most transferable finding in this paper: each is a check whose value is obvious and whose
 cost is dominated by acquiring a domain model the graph does not carry.
 
-| Capability | SSS Req | Why it is not yet built |
-|---|---|---|
-| **QoS contract conformance** — request/offer matching of durability, reliability, and transport priority between each topic's writers and readers | 6.20 | The prototype flags a QoS *anomaly* — a criticality gap between coupled components — not a contract violation. True conformance requires per-endpoint QoS at reader/writer granularity, whereas the prototype's model attaches QoS to the topic. Closing this means extending the schema below topic level. |
-| **Payload schema consistency** — same topic name, divergent content definition | 6.21.3 | Requires parsing and comparing IDL/message definitions across units; the prototype's extractor does not yet resolve type definitions. |
-| **Core allocation conformance** — capacity, conflicting pinning, dedicated cores for high-performance units | 6.24–6.27 | Core counts and memory sizes are carried as node attributes but no rule evaluates them. Needs the deployment's core-assignment descriptors, which live outside the sources the prototype ingests. |
-| **OS and runtime configuration audit** — OS settings and runtime memory parameters against allocation | 6.25–6.26 | Same cause: the configuration is not in the prototype's input set. |
-| **Architectural drift** — designed vs. observed topology from field telemetry (the dynamic half of the digital twin described in §2.1) | 6.37–6.39 | Requires a field-record store and a graph-diff over observed communication edges. Neither exists in the prototype. |
-| **Installation suitability scoring** — four evaluation headings, per-rule weights, blocking flags, aggregate score | 6.51–6.54 | The prototype's gate is severity-based, not score-based (§4). The scoring model is specified in §4.2 as a requirement, not reported as a result. |
-| **CMDB and network topology ingestion** | 1.2 | Prototype consumes descriptor files instead. |
+| Capability | Why it is not yet built |
+|---|---|
+| **QoS contract conformance** — request/offer matching of durability, reliability, and transport priority between each topic's writers and readers | The prototype flags a QoS *anomaly* — a criticality gap between coupled components — not a contract violation. True conformance requires per-endpoint QoS at reader/writer granularity, whereas the prototype's model attaches QoS to the topic. Closing this means extending the schema below topic level. |
+| **Payload schema consistency** — same topic name, divergent content definition | Requires parsing and comparing IDL/message definitions across units; the prototype's extractor does not yet resolve type definitions. |
+| **Core allocation conformance** — capacity, conflicting pinning, dedicated cores for high-performance units | Core counts and memory sizes are carried as node attributes but no rule evaluates them. Needs the deployment's core-assignment descriptors, which live outside the sources the prototype ingests. |
+| **OS and runtime configuration audit** — OS settings and runtime memory parameters against allocation | Same cause: the configuration is not in the prototype's input set. |
+| **Architectural drift** — designed vs. observed topology from field telemetry (the dynamic half of the digital twin described in §2.1) | Requires a field-record store and a graph-diff over observed communication edges. Neither exists in the prototype. |
+| **Installation suitability scoring** — four evaluation headings, per-rule weights, blocking flags, aggregate score | The prototype's gate is severity-based, not score-based (§4). The scoring model is specified in §4.2 as a requirement, not reported as a result. |
+| **CMDB and network topology ingestion** | Prototype consumes descriptor files instead. |
 
 Note what the table does *not* say: none of these are blocked on graph technology. Four of the seven
 are blocked on **input acquisition** — the information exists in the program but not in a form the
@@ -302,9 +310,10 @@ tolerated one:
 * **The gate is absolute, not delta-aware.** It scores the candidate graph on its own, not against
   the merge base. A codebase carrying pre-existing HIGH findings therefore fails every build until
   they are cleared — which in practice means teams disable the gate. This is not hypothetical on our
-  corpus: at CRITICAL/HIGH severity, **all eleven scenarios we evaluated — eight generated, three
-  transcribed — return exit code 2 at every one of five oracle seeds tested.** An absolute gate
-  deployed as-is would block every build in this corpus, which is precisely the failure mode that
+  evaluation: at CRITICAL/HIGH severity, **all five ATM scale points (§5.2.1–§5.2.2), and all eleven
+  scenarios in the secondary corpus (§5.2.3, eight other domains plus three transcribed) — sixteen
+  systems in total — return exit code 2 at every one of five oracle seeds tested.** An absolute gate
+  deployed as-is would block every build we evaluated, which is precisely the failure mode that
   gets a gate disabled rather than heeded. Delta semantics (fail only on findings the candidate
   *introduces*) and a waiver register for accepted findings are the first changes we would make.
   A learned, delta-aware, simulation-verified gate is exactly what the companion manuscript
@@ -316,13 +325,12 @@ tolerated one:
 
 SaaG-D is specified to replace the exit-code gate with a scored evaluation over four headings —
 structural and architectural conformance; interface, topic, and communication conformance;
-dependency and integration conformance; and resource and performance sufficiency (SSS Req 6.51).
-Each rule carries an identifier, heading, severity, weight, acceptance criterion, and blocking flag
-(SSS Req 6.52). A finding at critical severity, or a violation of any rule marked blocking, yields a
-non-conforming installation decision **independently of the aggregate score** (SSS Req 6.53) — the
-score is for reporting and trend analysis; blocking is categorical. Multi-unit evaluations run under
-independent operation identifiers and return per-unit decisions plus an aggregate result in a
-machine-processable form (SSS Req 6.54).
+dependency and integration conformance; and resource and performance sufficiency. Each rule carries
+an identifier, heading, severity, weight, acceptance criterion, and blocking flag. A finding at
+critical severity, or a violation of any rule marked blocking, yields a non-conforming installation
+decision **independently of the aggregate score** — the score is for reporting and trend analysis;
+blocking is categorical. Multi-unit evaluations run under independent operation identifiers and
+return per-unit decisions plus an aggregate result in a machine-processable form.
 
 We report this as specification, not as measurement: it is not implemented in SaaG-P, and §5 makes
 no claim about its behaviour.
@@ -330,7 +338,7 @@ no claim about its behaviour.
 ### 4.3 Findings and reports
 
 Each finding carries an identifier, type, description, affected entity, the rule or acceptance
-criterion it derives from, supporting evidence, and a severity level (SSS Req 6.44). This
+criterion it derives from, supporting evidence, and a severity level. This
 evidence-bearing structure is what makes a failing gate actionable rather than merely obstructive:
 the developer receives the offending component and the rule, not a build log.
 
@@ -358,7 +366,7 @@ can be rerun by any reader but describe a subset of the capability.
   names the deployed pipeline emits (`data/audit_latency.csv`). The claim to support is that
   verification is negligible against build time — which requires stating build time.
 * **5.1.3 Defects caught before deployment** — findings by category over a stated build count and
-  window, with each category mapped to the rule and SSS requirement that produced it
+  window, with each category mapped to the rule that produced it
   (`data/defect_detection.csv`). Where confirmation status is tracked, report true and false
   positives; where it is not, report findings and say so.
 * **5.1.4 Production incidents** — middleware-related incidents before and after gating, normalized
@@ -368,154 +376,178 @@ can be rerun by any reader but describe a subset of the capability.
 
 ### 5.2 Prototype measurements `[P]`
 
-All figures regenerate from a single committed artifact,
-`results/detection_seed_sweep.json`, produced by `reproduce/detection_seed_sweep.py` over the
-committed corpus — eight generated scenarios (29 to 520 components) plus three architectures
-transcribed from open-source systems (60 to 90 components) — at five oracle seeds each
-($\{42, 123, 456, 789, 2024\}$), 55 runs total, zero failures.
+Two studies. The **primary study** (§5.2.1–§5.2.2) evaluates a family of five systems in the
+deployment's own domain — air traffic management — at five scales, regenerating from a single
+committed artifact, `results/atm_scale_sweep.json`, produced by `reproduce/atm_scale_sweep.py`. The
+**secondary study** (§5.2.3), carried forward unchanged from the prior revision, checks whether the
+primary study's pattern generalizes across *other* domains rather than across scale within one.
 
-#### 5.2.1 Verification cost by system scale
+The primary study's five systems — 29, 74 (the original `atm_system` scenario, unchanged),
+148, 296, and 444 components — are generated from configs
+(`data/scenarios/scenario_1{4,0,5,6,7}_atm_*.yaml`) that hold QoS mix, fan-out shape, and criticality
+proportion identical across scales and vary only entity counts, so **scale is the sole independent
+variable** — an improvement on the secondary study's corpus, where domain and scale changed together
+and could not be separated. Each of the five is evaluated at five oracle seeds
+($\{42, 123, 456, 789, 2024\}$), 25 runs total, zero failures.
+
+#### 5.2.1 Verification cost by ATM scale
 
 End-to-end cost of one gate invocation — graph analysis plus all detectors — against component
-count, mean $\pm$ std over the five seeds:
+count, domain held fixed, mean $\pm$ std over the five seeds:
 
-| Scenario | Corpus | Components | Analysis (s) | Detection (s) | Gate total (s) |
-|---|---|---:|---:|---:|---:|
-| tiny | generated | 29 | 0.02 ± 0.00 | 0.00 ± 0.00 | 0.02 ± 0.00 |
-| cloud microservices | transcribed | 60 | 0.03 ± 0.00 | 0.00 ± 0.00 | 0.03 ± 0.00 |
-| Autoware.universe | transcribed | 75 | 0.04 ± 0.00 | 0.00 ± 0.00 | 0.04 ± 0.00 |
-| Train-Ticket | transcribed | 90 | 0.04 ± 0.00 | 0.00 ± 0.00 | 0.04 ± 0.00 |
-| healthcare | generated | 98 | 0.27 ± 0.05 | 0.00 ± 0.00 | 0.27 ± 0.05 |
-| financial trading | generated | 124 | 0.60 ± 0.03 | 0.01 ± 0.00 | 0.61 ± 0.03 |
-| hub-and-spoke | generated | 139 | 1.21 ± 0.03 | 0.03 ± 0.00 | 1.24 ± 0.03 |
-| autonomous vehicle | generated | 152 | 0.78 ± 0.05 | 0.01 ± 0.00 | 0.79 ± 0.05 |
-| microservices | generated | 186 | 0.63 ± 0.03 | 0.01 ± 0.00 | 0.64 ± 0.03 |
-| IoT smart city | generated | 326 | 1.04 ± 0.05 | 0.04 ± 0.03 | 1.08 ± 0.04 |
-| enterprise | generated | 520 | 26.56 ± 0.32 | 0.18 ± 0.01 | 26.74 ± 0.32 |
+| Scale | Components | Analysis (s) | Detection (s) | Gate total (s) |
+|---|---:|---:|---:|---:|
+| tiny | 29 | 0.01 ± 0.00 | 0.00 ± 0.00 | 0.01 ± 0.00 |
+| small (`atm_system`) | 74 | 0.05 ± 0.00 | 0.00 ± 0.00 | 0.05 ± 0.00 |
+| medium | 148 | 0.13 ± 0.00 | 0.00 ± 0.00 | 0.13 ± 0.00 |
+| large | 296 | 0.52 ± 0.02 | 0.01 ± 0.00 | 0.53 ± 0.02 |
+| xlarge | 444 | 0.99 ± 0.03 | 0.02 ± 0.00 | 1.01 ± 0.03 |
 
-*Table 2: Gate cost, mean ± std over 5 oracle seeds, layer = system. Source:
-`results/detection_seed_sweep.json`.*
+*Table 2: Gate cost by ATM scale, mean ± std over 5 oracle seeds, layer = system. Source:
+`results/atm_scale_sweep.json`.*
 
-Three observations. First, **detection is still cheap**: even on the largest graph the full detector
-suite costs under 0.2 s, and summed across the whole corpus the costliest single detector (dependency-
-chain enumeration) averages 0.047 s. Rule evaluation is not the cost centre to optimize.
+Two observations. First, **detection is cheap here too, more so than the secondary corpus**: even at
+444 components the full detector suite costs 0.02 s, and summed across all five scales the costliest
+single detector (cycle detection) averages 0.005 s — cheaper than the secondary corpus's already-cheap
+0.047 s (§5.2.3), because this domain's fixed fan-out shape keeps the dependency graph sparse at every
+scale.
 
-Second, **topology drives cost more than size does, and this is now a robust finding rather than a
-single-run curiosity**: hub-and-spoke (139 components) costs more to analyze than IoT smart city
-(326 components) — 1.21 s against 1.04 s — and more than autonomous vehicle (152 components) at
-0.78 s. Repeated five times, both orderings hold at every seed; this is not measurement noise.
+Second, **this controlled sweep resolves an ambiguity the secondary corpus left open.** There,
+analysis cost jumped sharply between 326 and 520 components (a 25× increase for a 1.6× size increase),
+and it was unclear whether that reflected component count or the specific topology of that one
+520-component scenario. Here, holding domain and topology shape fixed and scaling components alone
+from 29 to 444 (a 15× increase) produces a **roughly proportional** cost increase — 0.01 s to 0.99 s,
+about 100× — with no cliff. The secondary corpus's steep jump was therefore a property of that one
+scenario's structure (or, per its own wall-clock caveat, of host load at measurement time), not a
+general law that cost explodes past a few hundred components. For this paper's motivating domain, at
+least, cost growth is gentle.
 
-Third, **analysis cost is sharply non-linear at the top of our range, but the absolute number is
-sensitive to host load and should be treated that way.** From IoT smart city (326) to enterprise
-(520) — a 1.6× increase in components — mean analysis time rises from 1.04 s to 26.56 s, a
-$\approx$25× increase, and is tight across seeds ($\pm$0.32 s on enterprise). An earlier single-seed
-run of the identical scenario, seed, and code five days prior recorded 51.35 s — roughly double this
-sweep's mean — with no change to the analysis path in between. We report the swept figure as
-authoritative because it is the repeated one, and flag the discrepancy explicitly: absolute
-wall-clock analysis time on this host is contended by other load, so a team sizing CI capacity from
-this table should benchmark on its own runner rather than trust the absolute seconds. The scaling
-*shape* — cheap until roughly 300 components, then a steep, likely superlinear climb consistent with
-the exact betweenness computation in the analysis path — is the portable finding.
+#### 5.2.2 Detector catalog against a cascade oracle, by ATM scale
 
-#### 5.2.2 Detector catalog against a cascade oracle
+We scored the catalog's flagged set against the oracle's critical set — box-plot top tier ($\ge Q_3$)
+once a scale has enough scored components to estimate quartiles, a top-20% mask below that, the same
+rule applied elsewhere in this codebase — at each of the five scales. Unlike §5.2.1's cost
+measurement, this result is a genuine trend across scale rather than a single robustness check, so we
+report one row per scale instead of pooling:
 
-We scored the catalog's flagged set against components in the top quintile of simulated cascade
-impact. Catalog output is a deterministic function of the graph, and — at this propagation threshold
-(0.2) and these graph sizes — the oracle's critical-set membership is nearly seed-invariant too:
-every metric was bit-identical across all 5 seeds for all 8 generated scenarios and for two of the
-three transcribed ones; Train-Ticket's critical set changed by one component at seed 2024
-(recall 0.846 → 0.786). The seed sweep therefore confirms the single-seed measurement was not a
-lucky draw, but it does not supply independent repeated samples — the honest unit of analysis is one
-value per architecture, not per architecture-seed pair:
+| Scale | Components | Precision | Recall | $F_1$ | Cohen's $\kappa$ | % scored flagged | Seed-invariant |
+|---|---:|---:|---:|---:|---:|---:|---|
+| tiny | 29 | 0.250 | 1.000 | 0.400 | 0.118 | 80.0% | Yes |
+| small | 74 | 0.273 | 0.900 | 0.419 | 0.041 | 84.6% | Yes |
+| medium | 148 | 0.269 | 0.900 | 0.414 | 0.031 | 85.9% | Yes |
+| large | 296 | 0.250 | 0.949 | 0.396 | 0.000 | 94.9% | Yes |
+| xlarge | 444 | 0.235 ± 0.002 | 0.868 ± 0.007 | 0.370 ± 0.003 | −0.045 ± 0.005 | 93.2% | No |
 
-| Corpus | $n$ (architectures) | Precision | Recall | $F_1$ | Cohen's $\kappa$ | % scored components flagged |
+*Table 3: Rule-based detection vs. simulated cascade impact, by ATM scale. "Seed-invariant" scales
+report a single value (all 5 seeds bit-identical); xlarge — the one exception — reports mean ± std
+(4 of 5 seeds agree exactly; one seed's critical set differs by a single component). Source:
+`results/atm_scale_sweep.json`.*
+
+**Agreement declines monotonically as the same ATM system grows**, from $\kappa = 0.118$ (slight
+agreement) at 29 components to $\kappa \approx -0.045$ (no better than chance) at 444, crossing zero
+at the 296-component point. The mechanism is visible in the same table: the fraction of scored
+components the catalog flags climbs from 80.0% to 93–95% as scale increases, so precision erodes
+steadily (0.273 → 0.235) while recall stays high throughout (0.868–1.000). This is the same
+over-flagging mechanism identified in the secondary corpus (§5.2.3) — but here it is a genuine trend
+*within* one domain rather than a difference *between* domains: **as this ATM family grows, findings
+volume stays cheap to compute (§5.2.1), but the catalog gets steadily less discriminating.**
+
+**This is a mechanical consequence of how the catalog verdict is built, not evidence it fails to find
+critical components.** Elsewhere in this evaluation, the RMAV composite score $Q(v)$ is deliberately
+threshold-matched to the oracle's critical-set size on both sides, so its precision and recall
+converge by construction. The catalog verdict has no such matching: it is a binary "flagged by at
+least one of the catalog's rules" decision, and its flagged fraction is whatever the union of
+independent rule firings happens to produce — not a calibrated decision boundary. Because of this,
+precision here is fully determined by three quantities,
+$\text{precision} = \text{base\_rate} \times \text{recall} \, / \, \text{flagged\_fraction}$,
+where base rate is the oracle's critical-set share — a near-constant $\approx 25\%$ at every ATM
+scale, since the threshold rule is the same one throughout. This identity reproduces the measured
+precision to three decimal places at every scale in Table 3 (xlarge: $0.252 \times 0.864 / 0.932 =
+0.234$, measured $0.235$). Once base rate and recall are both roughly fixed, **$F_1$'s entire trend
+is the flagged-fraction trend read backwards** — the same 80.0%-to-93–95% climb driving both. A
+reader expecting $F_1$ to behave like a calibrated classifier's score should not: the catalog was
+never tuned to any particular flagged-fraction, so a low $F_1$ reflects that design choice, not a
+failure to detect — recall, the metric that *does* directly measure missed detections, never drops
+below 0.868.
+
+We read the *decline itself* cautiously, independent of the mechanical point above. The generator's
+domain skin recycles the same six named application roles
+at every scale (§3.4): "444 components" means roughly seventeen additional copies of each of
+`radar-tracker`, `flight-plan-processor`, `conflict-detector`, `weather-analyzer`, `clearance-router`,
+and `trajectory-predictor`, not new subsystem types. Whether $\kappa$'s decline reflects something
+structural about rule-based detection on denser, same-shaped graphs, or is an artifact of this
+specific way of scaling a domain template, is exactly the kind of question a real, growing deployment
+could answer and a synthetic scale sweep cannot settle alone. We report the trend because it is
+measured and monotonic, not because we are confident it generalizes to how a real ATM system would
+actually grow.
+
+#### 5.2.3 External validity: generality beyond ATM
+
+The primary study asks whether verification quality holds as *one* domain scales. A separate
+question — does a pattern found on one domain generalize to *other* domains? — was the focus of the
+prior revision's evaluation, retained here as a secondary check. It used eight generated scenarios
+spanning six other domains (29 to 520 components, domain and scale varying together) plus three
+architectures transcribed from open-source systems (Autoware.universe ROS 2, the Train-Ticket
+microservices benchmark, and a cloud-native microservices mesh; 60–90 components), at the same five
+oracle seeds:
+
+| Corpus | $n$ (architectures) | Precision | Recall | $F_1$ | Cohen's $\kappa$ | % scored flagged |
 |---|---:|---:|---:|---:|---:|---:|
-| Generated | 8 | 0.237 ± 0.015 | 0.887 ± 0.063 | 0.374 ± 0.023 | −0.036 ± 0.053 | 93.7% |
-| Transcribed | 3 | 0.402 ± 0.073 | 0.865 ± 0.126 | 0.546 ± 0.077 | 0.299 ± 0.126 | 56.3% |
+| Generated (6 other domains) | 8 | 0.237 ± 0.015 | 0.887 ± 0.063 | 0.374 ± 0.023 | −0.036 ± 0.053 | 93.7% |
+| Transcribed (real architectures) | 3 | 0.402 ± 0.073 | 0.865 ± 0.126 | 0.546 ± 0.077 | 0.299 ± 0.126 | 56.3% |
 
-*Table 3: Rule-based detection vs. simulated cascade impact. Mean ± std across architectures within
-each corpus (5-seed values collapsed to one per architecture, as justified above). Source:
-`results/detection_seed_sweep.json`.*
+*Table 4: Rule-based detection vs. simulated cascade impact, cross-domain secondary corpus (unchanged
+from the prior revision). Source: `results/detection_seed_sweep.json`.*
 
-Recall is high and precision is low in both corpora, which is the correct shape for a pre-deployment
-gate: missing a genuinely critical component is worse than asking an engineer to dismiss a finding.
-**On the generated corpus, Cohen's $\kappa \approx 0$ is the honest headline**: the catalog's
-flagging agrees with cascade criticality no better than chance would, achieving recall by flagging
-93.7% of scored components — the catalog is barely more informative than flagging everything.
+Agreement on the six other generated domains was near-chance ($\kappa \approx 0$) — the same
+qualitative result as this paper's ATM finding at large scale — but agreement on the three
+*transcribed, real* architectures was materially better (fair agreement, $\kappa \approx 0.30$),
+driven by less over-flagging (56.3% vs. 93.7–94.9%) rather than a more lenient oracle. The same
+mechanical identity verified in §5.2.2 ($\text{precision} = \text{base\_rate} \times \text{recall} \,
+/ \, \text{flagged\_fraction}$) reproduces every one of this corpus's eleven precision values exactly
+as well: with the oracle's base rate pinned near 25% and recall consistently $0.75$–$1.00$ across both
+sub-corpora, the transcribed architectures' higher precision is arithmetically explained by their much
+smaller flagged fraction — not by the catalog behaving differently, rule-for-rule, on real topologies.
+Taken together
+with §5.2.2's within-ATM trend, the pattern that best fits all the evidence in this paper is: **rule-
+based flagging is least discriminating on large, synthetically-generated graphs regardless of domain,
+and more discriminating on smaller and/or non-synthetic ones** — scale and "generated-ness" point the
+same direction here, and this corpus's transcribed architectures (real, but also small: 60–90
+components) cannot cleanly separate which of the two actually drives the effect. A real, growing ATM
+deployment is the only clean way to settle that — exactly the kind of thing §5.1's pending deployment
+data could speak to if the relevant categories are collected.
 
-**On the three transcribed architectures, agreement is materially better** — mean $\kappa = 0.30$,
-conventionally "fair" agreement, driven by a catalog that is *more selective* on real topologies
-(56.3% flagged, not 93.7%) rather than by a more lenient oracle. This ran opposite to what we
-expected: we anticipated the generator's cleaner, more regular topology would be *easier* for a
-rule-based catalog to rank, not harder. We report it as a small-sample finding — three architectures
-is not enough to claim the effect is general — but it is mechanistically explained (over-flagging is
-lower, not that criticality shifted) and consistent across all three architectures individually
-(range $\kappa \in [0.18, 0.43]$, no overlap with the generated corpus's range), which is more than
-we expected from three data points and is worth confirming on a larger transcribed corpus before
-treating it as established.
-
-We draw the conclusion the generated corpus forces, with the transcribed result as a qualifier
-rather than a rebuttal: **structural rules alone are adequate for *locating* defects of known shape
-(an orphaned topic is an orphaned topic) and, on synthetic topologies generated by our own
-procedure, inadequate for *ranking* components by consequence.** Severity in the catalog is a
-property of the rule, not of the component's position in the system, and the gate inherits that on
-the corpus where we can measure it at scale. Whether that inadequacy is intrinsic to rule-based
-detection or an artifact of our generator's structural priors is exactly what the transcribed split
-leaves open. This is the strongest argument we have for the impact simulation of §3.2 being part of
-the gate rather than an offline analysis — and, separately, for the criticality prediction work
-reported in the companion manuscript [Anon-A].
-
-#### 5.2.3 Coverage on transcribed open-source architectures
-
-To check that the model is not overfitted to its own generator, we made the three transcribed
-architectures loadable through the same pipeline as the generated corpus (they previously required a
-bespoke script) and ran the full gate against each:
-
-| Architecture | Apps | Topics | Brokers | Nodes | Libs | Relations | Findings | Gate exit code |
-|---|---:|---:|---:|---:|---:|---:|---:|---|
-| Autoware.universe (ROS 2) | 32 | 24 | 3 | 6 | 10 | 179 | 67 | 2 (all 5 seeds) |
-| Train-Ticket benchmark | 41 | 30 | 3 | 8 | 8 | 162 | 78 | 2 (all 5 seeds) |
-| Cloud microservices mesh | 22 | 20 | 4 | 6 | 8 | 128 | 50 | 2 (all 5 seeds) |
-
-*Table 4: Transcribed architectures — scale, measured findings, and gate outcome. Findings are
-deterministic (std = 0 across seeds). Source: `data/scenarios/realworld_*.json`,
-`results/detection_seed_sweep.json`.*
-
-**These are hand-built models of real architectures, not harvested artifacts.** The topologies were
-transcribed from published component structures into the model's schema; no repository crawling or
-runtime introspection produced them. What changed in this revision is that they moved from a
-single example script's inline schema translation into the model's canonical schema, so the same
-gate, the same detector catalog, and the same oracle now run on them unmodified — which is what
-makes Table 3's transcribed row and this table's findings counts and gate outcomes actual
-measurements rather than a claim that the pipeline merely "runs." They remain three architectures
-transcribed by us, not independently sourced or extraction-verified, and we do not present them as
-evidence of extraction accuracy.
+This secondary corpus carries its own already-established caveats, unchanged from the prior revision:
+$n=8$ and $n=3$ architectures, not 40 and 15 seed-pairs (catalog output was seed-invariant for 10 of
+11 scenarios there), and its enterprise-scenario timing showed a 2× wall-clock discrepancy against an
+earlier isolated measurement. The transcribed architectures are hand-built models of real
+architectures, not harvested artifacts — no repository crawling or runtime introspection produced
+them — and are not evidence of extraction accuracy.
 
 ### 5.3 Threats to validity
 
 * **Two systems, one name.** §5.1 and §5.2 measure different artifacts (§2.1). The prototype
   implements a subset of the deployed capability; prototype cost figures are lower bounds on
   deployed cost.
-* **Simulated oracle.** §5.2.2 scores detection against a simulator, not against observed field
-  failures. The simulator is a model of cascade propagation, and agreement with it is not the same
-  as agreement with reality. A second independent oracle in the same codebase agrees with this one
-  at only $\rho \approx 0.40$, which bounds how far any figure measured on one transfers to the
+* **Simulated oracle.** §5.2.2 and §5.2.3 score detection against a simulator, not against observed
+  field failures. The simulator is a model of cascade propagation, and agreement with it is not the
+  same as agreement with reality. A second independent oracle in the same codebase agrees with this
+  one at only $\rho \approx 0.40$, which bounds how far any figure measured on one transfers to the
   other.
-* **Wall-clock is host-dependent.** Table 2's enterprise-scenario analysis time (26.56 s, repeated
-  five times) came in at roughly half an isolated single-seed measurement of the identical
-  scenario, seed, and code taken five days earlier (51.35 s). The five-seed repetition confirms the
-  swept figure is not itself a fluke, but neither figure should be read as a hardware-independent
-  constant; only the scaling shape is portable.
-* **Effective sample size in Table 3 is 8 and 3 architectures, not 40 and 15 seed-pairs.** Catalog
-  output is deterministic given the graph, and the oracle's critical-set membership was seed-invariant
-  for 10 of the 11 scenarios (Train-Ticket's shifted by one component at one of five seeds). The seed
-  sweep therefore rules out "we got lucky with seed 42" but does not add independent statistical
-  power beyond one measurement per architecture — a caveat we apply to our own $\kappa = 0.30$ finding
-  on the transcribed corpus, which rests on $n=3$.
-* **Corpus composition.** Eight of eleven scenarios scored in §5.2.2 are generator-produced; the
-  transcribed architectures narrow but do not close the gap to a field distribution, and the
-  direction of their difference (higher $\kappa$, lower over-flagging) is itself only a 3-point
-  observation.
+* **Same six roles, recycled, not new subsystems.** The ATM generator's domain skin (§3.4) supplies
+  six named application roles and a fixed five-cluster hierarchy regardless of scale; growing from 29
+  to 444 components means more numbered copies of the same six roles, not new subsystem types.
+  §5.2.2's scale trend describes what happens when *this generator's* ATM template is replicated,
+  which may or may not resemble how a real ATM deployment adds capacity (new sensor modalities, new
+  consoles, genuinely new subsystems).
+* **Effective sample size in Table 3 is 5 scale points, not 25 scale-seed pairs.** Four of five are
+  seed-confirmed exactly; the fifth (xlarge) to within std $\le 0.005$. The seed sweep rules out "we
+  got lucky with one seed" at every scale, but one generator draw per scale is one measured
+  trajectory, not several independent ones — the monotonic trend should be read as a single
+  observation, not an averaged effect.
+* **Corpus composition.** The primary study (§5.2.1–§5.2.2) is entirely single-domain and synthetic.
+  The only cross-domain, and only partially non-synthetic, evidence in the paper is the secondary
+  corpus (§5.2.3), which itself rests on $n=8$ and $n=3$.
 * **Confounders in §5.1.4.** Gating was not the only change in the observation window; the listed
   confounders bound the causal claim.
 
@@ -575,24 +607,27 @@ a 112-requirement baseline developed with an industrial program, an open prototy
 graph model, the detector catalog, and a severity-based CI/CD gate, and measurements from both the
 deployment and the prototype.
 
-The findings we would most want carried forward are the negative ones, plus one we did not expect.
-Building the graph and running structural rules is cheap — all twenty detectors cost under 0.2 s on
-a 520-component system, confirmed across five oracle seeds. Ranking findings by consequence is not,
-on the synthetic corpus we generate ourselves: rule-based severity agrees with simulated cascade
-impact at $\kappa \approx 0$, so a catalog of structural rules locates defects well and prioritizes
-them badly there. But on three architectures transcribed from real open-source systems, agreement
-rose to fair ($\kappa \approx 0.30$) — a small-sample result we report rather than smooth over,
-because it points at our synthetic generator's structural priors, not at rule-based detection in
-general, as the likely source of the near-chance result. And of the seven specified checks we have
-not built, four are blocked not on analysis technique but on **getting the configuration data into
-the model at all** — core assignments, OS settings, and runtime parameters exist in the program and
-not in the pipeline's reach. Teams planning similar work should budget for data acquisition, not for
-graph algorithms.
+The findings we would most want carried forward are the negative ones, plus one that surprised us.
+Building the graph and running structural rules is cheap — even the largest of five
+air-traffic-management-domain systems we tested (444 components) costs 1.01 s end-to-end, confirmed
+across five oracle seeds. Ranking findings by consequence is not, and it gets worse as the same
+system grows: rule-based severity agrees with simulated cascade impact at $\kappa = 0.12$ (slight) on
+the smallest ATM system we tested and at $\kappa \approx -0.05$ (chance) on the largest — same
+domain, same generator template, only scale different. A secondary check across six other synthetic
+domains found the same near-chance pattern, while three architectures transcribed from real
+open-source systems showed materially better (fair, $\kappa \approx 0.30$) agreement — so scale and
+synthetic generation both point toward the same failure mode, and this paper's evidence cannot
+cleanly separate which one is the true cause. And of the seven specified checks we have not built,
+four are blocked not on analysis technique but on **getting the configuration data into the model at
+all** — core assignments, OS settings, and runtime parameters exist in the program and not in the
+pipeline's reach. Teams planning similar work should budget for data acquisition, not for graph
+algorithms.
 
 **Future work.** Delta-aware gating against the merge base with a waiver register (§4.1); QoS
 conformance at reader/writer granularity, which requires extending the schema below topic level
-(§3.4); and drift detection, which requires the field-record path the specification already
-describes.
+(§3.4); drift detection, which requires the field-record path the specification already describes;
+and, highest priority given §5.2's open question, confirming the within-domain $\kappa$ decline
+against a real, growing deployment rather than a synthetic scale sweep of one generator template.
 
 ---
 
