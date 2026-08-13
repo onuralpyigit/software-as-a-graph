@@ -280,6 +280,38 @@ $$
 
 > **What the projection matrix is and is not.** Its twelve coefficients are a stated design judgement, not an estimated or validated quantity: nothing in this project measures Quality-in-Use, so nothing in this project could have fitted them. They are useful for making the many-to-many correspondence of [§4.5](#45-mapping-rmav-to-external-quality-and-quality-in-use) arithmetic rather than rhetorical, and they should be cited as an operationalization proposal. The same caution that [§4.3](#43-the-rmav-model) applies to the composite weighting — where a sensitivity sweep withdrew the accuracy claim outright — applies here with less evidence behind it, not more.
 
+#### The layered quality model, and a property of the matrix worth stating precisely
+
+The construct is now expressible as four layers, each with a declared epistemic status, implemented in [`saag/core/quality_model.py`](../saag/core/quality_model.py):
+
+| Layer | Standard | Provenance | Oracle |
+|:---|:---|:---|:---|
+| 0 — Quality Measure Elements | ISO/IEC 25021 | **MEASURED** | — |
+| 1 — Internal quality measures | ISO/IEC 25023 | **DERIVED** | — |
+| 2 — External quality attributes (R, M, A, V) | ISO/IEC 25010:2023 | **DERIVED** | IR / IM / IA / IS ([validation/dimensions.py](../saag/validation/dimensions.py)) |
+| 3 — Quality-in-use weighting | ISO/IEC 25019:2023 | **DECLARED** | — |
+
+Layer 2 is the only layer with an oracle. Layer 3 is where the projection matrix and the Domain Context Vector $\vec{\omega}_{\text{domain}}$ ([§3.3](#33-context-of-use-and-domain-context-vector)) live — and it is **not a further prediction stage stacked on top of Layer 2**. It cannot be one, for a reason that is a property of the matrix's *shape* rather than of its coefficients:
+
+> **Every row of $\mathbf{M}_{\text{RMAV} \to \text{QiU}}$ sums to 1.0.** For any domain weights $\vec{\omega}$ over $\{\text{Ben}, \text{Risk}, \text{Acc}\}$:
+> $$
+> Q_{\text{QiU}} \;=\; \vec{\omega} \cdot (\mathbf{M}\,\mathbf{s}) \;=\; (\mathbf{M}^{\mathsf T}\vec{\omega}) \cdot \mathbf{s}, \qquad \textstyle\sum(\mathbf{M}^{\mathsf T}\vec{\omega}) = \sum\vec{\omega} = 1
+> $$
+> A quality-in-use scalarisation is therefore **algebraically identical to scoring the same RMAV vector under a different composite weighting**. There is no such thing as a "quality-in-use score" that ranks components differently from *some* RMAV weighting — and this project's code does not compute one and report it as an independent quantity (`saag/core/quality_model.py` states and pins this property; `tests/test_quality_model.py::TestQiuCollapseEquivalence` enforces it).
+
+**What Layer 3 is, positively stated: a principled generator of context-dependent RMAV weights.** `derive_rmav_weights(domain)` computes $\mathbf{M}^{\mathsf T}\vec{\omega}_{\text{domain}}$ from the ordinal stakeholder priorities of [§3.3](#33-context-of-use-and-domain-context-vector) and returns it as the composite weighting — replacing the AHP pairwise-comparison judgement (whose *accuracy* claim [§4.3](#43-the-rmav-model) already withdrew) with a derivation traceable to a named domain and a named standard. Unlike the AHP vector, this is directly testable: every scenario in the corpus already carries `metadata.domain`.
+
+**Measured** ([reproduce/domain_weight_comparison.py](../reproduce/domain_weight_comparison.py), `results/domain_weight_comparison.json`, 7 synthetic scenarios + the 3 real-world RQ4 graphs, Spearman $\rho$ against $I^*(v)$):
+
+| Weighting | Mean $\rho$ | vs. static default | vs. equal weights |
+|:---|:---|:---|:---|
+| Static (current default) | 0.284 | — | — |
+| Equal (0.25 each) | 0.329 | — | — |
+| **Domain-derived** | **0.338** | **+0.054, $p=0.012$ (Wilcoxon, 8/10 wins)** | +0.009, $p=0.85$ (5/10 wins — a coin flip) |
+| AHP $\lambda=0.7$ | 0.299 | — | — |
+
+Domain-derived weighting beats the shipped static default with a nominally significant, if under-powered ($n=10$), paired result. Against **equal weights** — the harder baseline, since equal weights already beat the AHP judgement by 0.111 $\rho$ on the shrinkage sweep ([§4.3](#43-the-rmav-model)) — it is statistically indistinguishable. Read plainly: the domain derivation recovers most of what equal weighting already gets for free, non-arbitrarily and with a stated stakeholder rationale, but is not yet evidence that this specific priority encoding out-ranks the simplest possible baseline. Both figures are reported because the honest picture needs both.
+
 **Why two models at once.** A dimension name identifies the *failure mechanism* — the product-quality attribute whose degradation that mechanism represents, observable externally when the system runs. The rightmost column identifies the *harm* — the Quality-in-Use outcome that degrades as a result. Criticality is defined on the harm ([D1](#41-definition)); the decomposition is organized by mechanism because mechanism, not harm, determines the remedy and its secondary stakeholder owner ([§3.2](#32-stakeholders-primary-secondary-and-indirect)).
 
 **Why Availability is promoted.** In ISO 25010:2023, Availability is not a peer of Reliability — it is one of Reliability's four sub-characteristics, alongside Faultlessness, Fault tolerance and Recoverability ([above](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)). It is raised to a peer *dimension* here — a modelling choice about how to organize the scoring, not a claim about the standard's taxonomy — because structural partition is the dominant failure mode in pub-sub architectures and the only mechanism that maps directly to Usability/Effectiveness — the state where a stakeholder's task stops outright rather than costing more. Demoting it back into a single Reliability score would erase exactly the distinction [§4.5](#45-mapping-rmav-to-external-quality-and-quality-in-use) needs: Effectiveness loss (total, from $A$) versus Efficiency loss (partial, from $R$) are different stakeholder harms that a merged score could not separate.
@@ -839,6 +871,8 @@ Consequently the defensible claim is: *RMAV tracks simulated external quality lo
 | **A** | Availability | $I_{\text{comp}}$ `reachability_loss` / `fragmentation` | **External** — readiness for service |
 | **M** | Modularity / Modifiability | $I_M(v)$ via [`ChangePropagationSimulator`](../saag/simulation/change_propagation.py) — BFS on $G^\top$ | **Internal** — a structural model of change cost, not a behavioural observation |
 | **V** | Confidentiality / Integrity | $I_S(v)$ via `_postpass_security` compromise propagation | **Internal** — a structural model of compromise reach; no adversary is simulated |
+
+> **Where the quality-in-use *weighting* (Layer 3, [§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)) sits relative to this chain: outside it, not as a fourth link.** ③ asks whether external quality predicts stakeholder outcomes — a question about what the *scores mean*. Layer 3 answers a different question — which composite *weighting* to score with — and it does so by collapsing algebraically into a Layer-2 reweighting, never by adding a further measurement. It therefore inherits exactly link ①'s validation status (measured, per `reproduce/domain_weight_comparison.py`) and none of ③'s open question; reporting a domain-derived ranking result is a Layer-2 claim about $\rho$ against $I^*(v)$, not a claim about quality-in-use.
 
 This is why $I^*(v)$ supplies labels for `reliability` and `availability` but declares `maintainability` and `security` absent ([validation.md §3.1](validation.md#31-notation--three-quantities-three-symbols)). It is **not** an implementation gap awaiting a better simulator: maintainability is not an externally observable attribute, and security is not a fault-tolerance property, so for $M$ and $V$ link ① compares one structural model against another. Their correlations should be read as internal consistency checks, not as behavioural validation.
 

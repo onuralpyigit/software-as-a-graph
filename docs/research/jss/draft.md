@@ -522,6 +522,23 @@ that explanatory function is unaffected by the weighting result. A practitioner 
 alone should use equal weights; one who needs to know *why* a component is critical needs the profile,
 whatever the weights.
 
+**A standards-traceable alternative to the AHP judgement exists, and we test it rather than assert
+it.** Every RMAV dimension estimates an ISO/IEC 25010:2023 external quality attribute (§4.1), and each
+attribute's contribution to Quality-in-Use harm is stated per deployment domain via a Domain Context
+Vector $\vec{\omega}_{\text{domain}}$ over Beneficialness, Freedom from risk, and Acceptability. Because
+the projection from that vector onto RMAV harm is row-stochastic, deriving a composite weighting from
+$\vec{\omega}_{\text{domain}}$ collapses algebraically to $\mathbf{M}^{\mathsf T}\vec{\omega}_{\text{domain}}$
+— an ordinary reweighting of $Q(v)$, not a further prediction stage, and one directly computable since
+every scenario in our corpus carries a domain label. We measure it rather than assume its direction:
+across the seven synthetic scenarios and the three real-world graphs of §7.4, the domain-derived
+weighting beats the static default with a nominally significant paired result
+($\Delta\rho = +0.054$, Wilcoxon $p = 0.012$, 8/10 scenarios), but is statistically indistinguishable
+from equal weights ($\Delta\rho = +0.009$, $p = 0.85$, 5/10 scenarios) — it recovers most, not all, of
+what equal weighting already gets for free, while remaining traceable to a named domain and standard
+rather than arbitrary. This does not revise the conclusion above: the value we claim for the
+decomposition is attribution, and the derivation is offered as a principled alternative to an
+unfavourable weighting judgement, not as a ranking-accuracy result.
+
 ---
 
 # 5. Failure-Impact Analysis via Heterogeneous GNN and Interpretable Forecasting

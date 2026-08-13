@@ -121,6 +121,7 @@ These are enforced by tests — breaking one will fail CI, not just review:
 - **Predict does not import Simulate.** The dependency runs the other way at the pipeline level (Simulate produces training labels; Predict consumes them from disk), not as a live import. Enforced by `tests/test_predict_simulate_separation.py`.
 - **Layer names are exactly `app` / `infra` / `mw` / `system`.** Defined once in [saag/core/layers.py](saag/core/layers.py); `app` includes both `Application` and `Library` nodes.
 - **Committed datasets are exactly what their configs generate.** Every `data/scenarios/*_system.json` must regenerate byte-identically from its `scenario_*.yaml`, and `data/scenarios/MANIFEST.json` must match what is on disk. Enforced by `tests/test_scenario_corpus.py`. After changing the generator, regenerate the corpus, refresh the manifest, and rebuild the caches (`make -f reproduce/Makefile cache`) — a stale `output/loso_cache/` silently outranks the datasets in `reproduce/main_table.py` and has published wrong numbers before.
+- **A quality-in-use scalarisation is a reweighting of RMAV, never an independent score.** `saag/core/quality_model.py`'s `QIU_PROJECTION` is row-stochastic by construction, so any domain-weighted projection onto quality-in-use harm is algebraically identical to scoring the same RMAV vector under different composite weights (`M^T omega`). Do not compute a "quality-in-use score" and report it as a quantity distinct from a reweighted `Q(v)`. Enforced by `tests/test_quality_model.py::TestQiuCollapseEquivalence`.
 
 ## Known Gotchas
 

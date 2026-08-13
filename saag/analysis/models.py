@@ -83,6 +83,12 @@ class QualityAnalysisResult:
     #: AntiPatternDetector.failed_patterns). Empty means every active
     #: detector ran cleanly — not just "found nothing".
     failed_patterns: List[str] = field(default_factory=list)
+    #: Set iff QualityAnalyzer(domain_weights=...) was used: which domain,
+    #: whether it was found in saag.core.quality_model.DOMAIN_PRIORITIES
+    #: ("derived") or fell back to the static default, and the DECLARED
+    #: provenance tag — so a caller can trace any weight in `weights` back to
+    #: whether it is a design default or a domain-derived (unvalidated) one.
+    domain_weighting: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         result = {
@@ -95,6 +101,8 @@ class QualityAnalysisResult:
         }
         if self.sensitivity:
             result["sensitivity"] = self.sensitivity
+        if self.domain_weighting:
+            result["domain_weighting"] = self.domain_weighting
         return result
 
     def get_critical_components(self) -> List[ComponentQuality]:

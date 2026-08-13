@@ -61,6 +61,7 @@ from .models import StructuralAnalysisResult, QualityAnalysisResult
 from saag.core.layers import AnalysisLayer
 from saag.core.models import COUPLING_PATH_DELTA
 from .weight_calculator import AHPProcessor, QualityWeights
+from saag.core.quality_model import Provenance, derive_rmav_weights
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +139,19 @@ class QualityAnalyzer:
         normalization_method: 'robust' (default, rank-based) or 'max'.
     """
 
-    def __init__(self, k_factor: float = 0.75, weights: Optional[QualityWeights] = None, use_ahp: bool = False, ahp_shrinkage: float = 0.7, normalization_method: str = "robust", winsorize: bool = True, winsorize_limit: float = 0.05, adapt_qos_weights: bool = True, equal_weights: bool = False) -> None:
+    def __init__(self, k_factor: float = 0.75, weights: Optional[QualityWeights] = None, use_ahp: bool = False, ahp_shrinkage: float = 0.7, normalization_method: str = "robust", winsorize: bool = True, winsorize_limit: float = 0.05, adapt_qos_weights: bool = True, equal_weights: bool = False, domain_weights: Optional[str] = None) -> None:
+        """
+        Args:
+            domain_weights: A deployment-domain label (e.g. "healthcare",
+                "autoware_ros2" — the values scenario metadata.domain carries)
+                to derive the composite q_* weights from ISO/IEC 25019:2023
+                stakeholder priorities via saag.core.quality_model, in place of
+                the static/AHP default. None (the default) leaves scoring
+                byte-identical to today. See docs/criticality.md §3.5 for what
+                this derivation is and, importantly, is not: it is DECLARED
+                (a design judgement, unvalidated), not a further prediction
+                stage — see saag.core.quality_model.QIU_PROJECTION.
+        """
         weights = weights or QualityWeights()
         if equal_weights:
             # Copy rather than mutate: `weights` may be a caller-owned
@@ -160,6 +173,7 @@ class QualityAnalyzer:
         self.winsorize = winsorize
         self.winsorize_limit = winsorize_limit
         self.adapt_qos_weights = adapt_qos_weights
+        self.domain_weights = domain_weights
         self._logger = logging.getLogger(__name__)
 
     # ------------------------------------------------------------------
@@ -183,11 +197,26 @@ class QualityAnalyzer:
         layer_name = layer_val
         ctx = context or f"{layer_name} layer analysis"
 
-        # --- QoS-aware weight adjustment ----------------------------------
+        # --- Domain-derived weight adjustment (Layer 3, DECLARED) --------
+        # Applied before QoS adaptation so the two compose in one fixed
+        # order rather than silently overriding each other depending on
+        # call order; see saag.core.quality_model.
         effective_weights = self.weights
+        domain_weighting: Optional[Dict[str, Any]] = None
+        if self.domain_weights:
+            effective_weights, was_derived = derive_rmav_weights(
+                self.domain_weights, effective_weights
+            )
+            domain_weighting = {
+                "domain": self.domain_weights,
+                "derived": was_derived,
+                "provenance": Provenance.DECLARED.value,
+            }
+
+        # --- QoS-aware weight adjustment ----------------------------------
         if self.adapt_qos_weights and hasattr(structural_result, "qos_profile"):
             effective_weights = self._derive_qos_weights(
-                structural_result.qos_profile, self.weights
+                structural_result.qos_profile, effective_weights
             )
 
         # Store effective weights for the duration of this analysis
@@ -228,6 +257,7 @@ class QualityAnalyzer:
                 classification_summary=summary,
                 weights=self.weights,
                 sensitivity=sensitivity,
+                domain_weighting=domain_weighting,
             )
         finally:
             self.weights = original_weights
