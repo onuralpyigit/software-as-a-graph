@@ -228,7 +228,11 @@ stating the guarantee unconditionally.
 
 #### §4.1 Four Dimensions and Formal Definitions
 **Argues.** RMAV — Reliability, Maintainability, Availability, Vulnerability — each answers a distinct
-architectural question and routes to a distinct remediation owner. Dimensions are **orthogonal by
+architectural question, is denominated in a named **external quality attribute** (ISO/IEC 25010:2023)
+and a **dependability attribute**, and routes to a distinct remediation owner. The section opens with
+the three-view framing that governs the whole paper: criticality is **computed** from internal quality
+evidence, **validated** against simulated external quality, and **defined** on Quality-in-Use — the
+distinction §8.2's three-link chain rests on. Dimensions are **orthogonal by
 construction** (a design constraint, not an empirical finding): each raw metric feeds exactly one
 dimension. Two definitions do real work downstream: **criticality is a consequence, not a risk**
 (no dimension estimates failure probability, only loss given failure — what makes the construct
@@ -237,7 +241,11 @@ relative to the analysed system's own distribution and layer, so **scores are no
 systems or layers**. Relationship-level (edge) attribution is defined with the same four dimensions
 but explicitly *not* developed further here, since it cannot currently be validated against the
 edge-removal measurement of §8.2 (disjoint populations).
-**Evidence.** **Table 3** (four dimensions × architectural question × remediation owner).
+**Evidence.** **Table 3** (four dimensions × architectural question × external quality attribute ×
+dependability attribute × remediation owner), plus an explicit fifth row recording that **safety is
+not covered** — RMAV addresses four of the standard dependability attributes and an architecture
+description carries no hazard class, which is stated as a coverage limit rather than left implicit
+(see also §8.3).
 **Load-bearing caveats.** **D4 is the most cited definition in the paper outside the independence
 guarantee.** It is what forbids §5.4's stratified check and §8.5's three real-world $\rho$ values from
 being pooled into one cross-system number — both sections state the resulting scoping explicitly.
@@ -648,10 +656,15 @@ already flagged at their source sections.
 
 #### §9.2 Threats to Validity
 **Argues.** **Construct validity**: the D1/D2 (§4.1) Quality-in-Use construct is never directly
-observed — link ① (score→simulated impact) is measured; link ② (simulated impact→real Quality-in-Use
-loss) is not, and the simulator is itself a model of stakeholder harm, not an observation of it.
-Effectiveness/Efficiency are noted as *closable* from existing simulator output; Acceptability/
-Satisfaction are not measurable by these means at all. The two oracles' weak agreement ($\rho=0.394$)
+observed. The chain has **three** links, matching the three quality views of §4 — ① internal quality
+evidence → simulated external quality, which *is* measured; ② simulated → real (deployed) external
+quality, not measured, since the simulator is a model of the executing system rather than the system;
+and ③ external quality → Quality-in-Use loss, not measured at all. Naming the middle view corrects an
+error in both directions: the earlier two-link framing *understated* link ① (the delivery-rate oracle
+$I_{\text{dyn}}$ is built and reported, not prospective) while *overstating* the construct (delivery
+rate and latency are external product-quality measures, not Quality-in-Use measures). Freedom from
+risk is corpus-blocked (0 of 710 topics declare a deadline) and would still be external when
+unblocked; Satisfaction is not measurable by these means at all. The two oracles' weak agreement ($\rho=0.394$)
 bounds transferability between $I_{\text{comp}}$- and $I^*$-backed results. **Six silent instrument
 defects** disclosed in full: Topo-QoS's QoS-lookup bug (repaired, Tables 8/10 recomputed); HGT
 attention silently capturing nothing due to a missing PyG argument (repaired, Figure 3 now real);

@@ -125,7 +125,7 @@ Each entity in the topology JSON becomes a vertex in G. Five vertex types are cr
 
 Nested JSON sub-objects (`code_metrics`, `system_hierarchy`) are flattened to scalar properties on import and rebuilt on export — both directions read one field table in [`saag/core/utils/serialization.py`](../saag/core/utils/serialization.py).
 
-**Optional code-quality attributes** on Application and Library vertices (all default to `0`/`0.0` when absent):
+**Optional code-quality attributes** on Application and Library vertices (all default to `0`/`0.0` when absent). In SQuaRE terms these are **internal quality** measures — product-quality attributes read from the artifact at rest, without executing it ([criticality.md §3.0](criticality.md#30-three-quality-views-internal-external-and-quality-in-use)):
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -137,7 +137,7 @@ Nested JSON sub-objects (`code_metrics`, `system_hierarchy`) are flattened to sc
 | `cm_avg_fanin` | float | Average afferent coupling (Library: internal static analysis) |
 | `cm_avg_fanout` | float | Average efferent coupling (Library: internal static analysis) |
 
-These attributes feed the **Code Quality Penalty (CQP)** composite used in Step 2 (Analyze, RMAV sub-phase) Maintainability M(v) term. When absent, M(v) falls back to the topology-only formula.
+These attributes feed the **Code Quality Penalty (CQP)** composite used in Step 2 (Analyze, RMAV sub-phase) Maintainability M(v) term. When absent, M(v) falls back to the topology-only formula. They are the only artifact-internal evidence in the model: everything else the graph carries is either topology or a *declared* guarantee about runtime behaviour ([§4.3](#43-phase-3--intrinsic-weight-computation)).
 
 > **Why `subscriber_count` and `publisher_count` are listed under Phase 1 but computed in Phase 2:** These are properties of Topic vertices, but their values depend on SUBSCRIBES_TO and PUBLISHES_TO edges which don't exist until Phase 2. They are computed at the end of Phase 2 and written back onto each Topic vertex.
 
@@ -191,6 +191,18 @@ MIN_WEIGHT = 0.01
 **AHP justification for β:** QoS semantics are the primary signal for dependency criticality; payload size is a secondary amplifier. The 0.85 weight preserves the primacy of the QoS contract while allowing message volume to modulate the final score.
 
 **AHP justification for QoS sub-weights:** Durability (0.40) outweighs Reliability and Priority (0.30 each) because durability defines message state survival — fundamental for resilience — while reliability and priority govern transient delivery quality.
+
+#### What the weights encode, in quality-model terms
+
+A QoS policy is not a property of the code. `qos_reliability`, `qos_durability` and `qos_transport_priority` are statements about **how the system must behave while it executes** — whether a message is guaranteed to arrive, whether it survives a restart, how it is scheduled against competing traffic. In SQuaRE terms they are **declared external quality requirements**, not internal quality measures ([criticality.md §3.0](criticality.md#30-three-quality-views-internal-external-and-quality-in-use)).
+
+Three consequences travel downstream with that reading:
+
+- **`w(t)` is a declared-external-quality proxy.** It stands in for the external reliability attribute of a flow (fault tolerance, and through durability a limited form of recoverability) at a point in the lifecycle where the flow has never run. It is a *declaration*, so it records what the architecture promises rather than what the system delivers — no throughput, latency, failure rate, or data sensitivity is behind it ([criticality.md §7.4](criticality.md#74-real-world-drivers-vs-structural-proxies)).
+- **This is why a mis-declared policy produces a confidently wrong score.** The weight channel faithfully reproduces the declaration, including its errors, and nothing internal signals the discrepancy.
+- **The two evidence kinds stay separate downstream.** Availability scoring treats redundancy as a topological fact and refuses to let `w(e)` modulate it, precisely because replaceability is a structural property of the system while `w(e)` is a declared requirement of one flow ([criticality.md §5.4](criticality.md#54-what-the-relationship-carries-the-weight-channel)).
+
+Taken together, the graph carries **internal quality evidence** (topology plus the `cm_*` metrics of [§4.1](#41-phase-1--entity-modeling)) and **declared external quality requirements** (QoS policy). It never observes external quality, and it holds nothing at all on the Quality-in-Use view.
 
 | Component | Symbolic Value | Score |
 |-----------|----------------|-------|

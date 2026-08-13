@@ -12,18 +12,19 @@
    - 2.2 [What This Construct Borrows and Rejects](#22-what-this-construct-borrows-and-rejects)
    - 2.3 [Consequence, Not Risk (D3)](#23-consequence-not-risk)
    - 2.4 [Comparison with Classical Graph and Software Metrics](#24-comparison-with-classical-graph-and-software-metrics)
-3. [Quality-in-Use Foundation (ISO/IEC 25019:2023 SQuaRE)](#3-quality-in-use-foundation-isoiec-250192023-square)
+3. [Quality Grounding (SQuaRE)](#3-quality-grounding-square)
+   - 3.0 [Three Quality Views: Internal, External, and Quality-in-Use](#30-three-quality-views-internal-external-and-quality-in-use)
    - 3.1 [What Quality-in-Use Is](#31-what-quality-in-use-is)
    - 3.2 [Stakeholders: Primary, Secondary, and Indirect](#32-stakeholders-primary-secondary-and-indirect)
    - 3.3 [Context of Use and Domain Context Vector](#33-context-of-use-and-domain-context-vector)
    - 3.4 [The Criticality Questions](#34-the-criticality-questions)
-   - 3.5 [Why the Dimensions Are Named After Product Quality (ISO/IEC 25010:2023)](#35-why-the-dimensions-are-named-after-product-quality-isoiec-250102023)
+   - 3.5 [How the Dimensions Bind to External Quality, Dependability, and Quality-in-Use](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)
 4. [Component (Node) Criticality](#4-component-node-criticality)
    - 4.1 [Definition](#41-definition)
    - 4.2 [User-Side Failure Signature](#42-user-side-failure-signature)
    - 4.3 [The RMAV Model](#43-the-rmav-model)
    - 4.4 [What the Component Carries: the Weight Channel](#44-what-the-component-carries-the-weight-channel)
-   - 4.5 [Mapping RMAV to Quality-in-Use](#45-mapping-rmav-to-quality-in-use)
+   - 4.5 [Mapping RMAV to External Quality and Quality-in-Use](#45-mapping-rmav-to-external-quality-and-quality-in-use)
    - 4.6 [Criticality Classification](#46-criticality-classification)
 5. [Relationship (Edge) Criticality](#5-relationship-edge-criticality)
    - 5.1 [Definition](#51-definition)
@@ -38,7 +39,7 @@
    - 6.2 [Reading a Score as a Quality-in-Use Statement](#62-reading-a-score-as-a-quality-in-use-statement)
    - 6.3 [Academic Paper Template and LaTeX Snippets](#63-academic-paper-template-and-latex-snippets)
 7. [Validity of the Construct](#7-validity-of-the-construct)
-   - 7.1 [The Validation Chain Has Two Links](#71-the-validation-chain-has-two-links)
+   - 7.1 [The Validation Chain Has Three Links](#71-the-validation-chain-has-three-links)
    - 7.2 [Construct Validity](#72-construct-validity)
    - 7.3 [Characteristic Coverage](#73-characteristic-coverage)
    - 7.4 [Real-World Drivers vs. Structural Proxies](#74-real-world-drivers-vs-structural-proxies)
@@ -53,11 +54,17 @@
 
 Criticality is defined here **from the stakeholder's side**: how much a component or connection matters to the people who depend on the system working — measured by what would go wrong *for them* if it failed, not by how the code is written internally.
 
-That framing is taken directly from the SQuaRE series, specifically **ISO/IEC 25019:2023** (Quality-in-use model) and **ISO/IEC 25010:2023** (Product quality model). The standard explicitly separates **product quality** (internal/external attributes of the software itself — reliability, maintainability, security as code properties) from **Quality-in-Use** (the outcome a *specified stakeholder* experiences while operating the system in a *specified context of use*). Criticality in this project is a Quality-in-Use concept, so it answers one question:
+That framing is taken directly from the SQuaRE series, specifically **ISO/IEC 25019:2023** (Quality-in-use model) and **ISO/IEC 25010:2023** (Product quality model). The standard explicitly separates **product quality** — measurable *internally* on the artifact at rest and *externally* on the system while it executes — from **Quality-in-Use** (the outcome a *specified stakeholder* experiences while operating the system in a *specified context of use*). Criticality in this project is a Quality-in-Use concept, so it answers one question:
 
 > **If this fails, how much worse does the outcome get for the people who depend on the system?**
 
-Every entity in the graph — a component (node) or a dependency (edge) — carries a **criticality** signal answering that question as a score. This document is the conceptual home for the concept. It does not re-derive formulas that already live in [structural-analysis.md](structural-analysis.md) and [prediction.md](prediction.md); it defines the terms in stakeholder-facing language ([§3](#3-quality-in-use-foundation-isoiec-250192023-square)), states what each score means for a node ([§4](#4-component-node-criticality)) and for an edge ([§5](#5-relationship-edge-criticality)), and is explicit about where the structural proxy stops tracking real Quality-in-Use ([§7](#7-validity-of-the-construct)).
+Those three views are not interchangeable, and keeping them apart is what makes the rest of this document precise. In one sentence:
+
+> **Criticality is *computed* from internal quality evidence, *validated* against simulated external quality, and *defined* on Quality-in-Use.**
+
+[§3.0](#30-three-quality-views-internal-external-and-quality-in-use) states each view and what this project holds of it; [§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use) binds every RMAV dimension to a named external quality attribute, a dependability attribute, and a Quality-in-Use harm; [§7.1](#71-the-validation-chain-has-three-links) is explicit about which of the three transitions is measured and which are not.
+
+Every entity in the graph — a component (node) or a dependency (edge) — carries a **criticality** signal answering that question as a score. This document is the conceptual home for the concept. It does not re-derive formulas that already live in [structural-analysis.md](structural-analysis.md) and [prediction.md](prediction.md); it defines the terms in stakeholder-facing language ([§3](#3-quality-grounding-square)), states what each score means for a node ([§4](#4-component-node-criticality)) and for an edge ([§5](#5-relationship-edge-criticality)), and is explicit about where the structural proxy stops tracking real Quality-in-Use ([§7](#7-validity-of-the-construct)).
 
 Two distinct but related concepts are in scope:
 
@@ -66,7 +73,7 @@ Two distinct but related concepts are in scope:
 | **Component criticality** | Nodes ($v \in V$: Application, Broker, Topic, Node, Library) | RMAV scores $R(v), M(v), A(v), V(v), Q(v)$ + five-tier classification | The component itself goes away. E.g. MainBroker fails → every application routed through it loses its only path to publish/subscribe; the user's task stops outright, it doesn't merely slow down ([§6.1](#61-worked-example)). |
 | **Relationship criticality** | Edges ($e \in E$: physical pub-sub links and derived `DEPENDS_ON` edges) | Structural bridge/betweenness signals + edge RMAV composite + GNN edge score $Q_{\text{GNN}}(u,v)$ | Both components survive, but one specific *link* between them breaks. The stakeholder sees a partial outage — one data flow stops while the rest of the system stays up ([§5.2](#52-why-a-link-needs-its-own-score)). |
 
-The RMAV structural metrics (Reliability, Maintainability, Availability, Vulnerability) used throughout are **proxies** for Quality-in-Use loss — graph-computable stand-ins, used because you cannot survey real stakeholders for every simulated failure. Where their names come from is settled in [§3.5](#35-why-the-dimensions-are-named-after-product-quality-isoiec-250102023), what each one estimates in [§4.5](#45-mapping-rmav-to-quality-in-use), and how far the proxy can be trusted in [§7](#7-validity-of-the-construct).
+The RMAV structural metrics (Reliability, Maintainability, Availability, Vulnerability) used throughout are **proxies** for Quality-in-Use loss — graph-computable stand-ins, used because you cannot survey real stakeholders for every simulated failure. Where their names come from is settled in [§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use), what each one estimates in [§4.5](#45-mapping-rmav-to-external-quality-and-quality-in-use), and how far the proxy can be trusted in [§7](#7-validity-of-the-construct).
 
 Both concepts are scored over the **weighted** graph, never over bare topology: the QoS-derived weights $w(v)$ and $w(e)$ computed in Step 1 carry the declared delivery guarantee of each component and each dependency into every RMAV dimension. Structure says how many stakeholder outcomes route through an element; weight says how strongly each of those outcomes was promised. [§4.4](#44-what-the-component-carries-the-weight-channel) and [§5.4](#54-what-the-relationship-carries-the-weight-channel) trace that channel term by term.
 
@@ -76,7 +83,7 @@ Both concepts are scored over the **weighted** graph, never over bare topology: 
 
 ## 2. What "Criticality" Means Here
 
-"Criticality" is not a term this project coined, and it is not an ISO/IEC 25019 term either. It is load-bearing in three established traditions whose definitions are mutually incompatible, so a methodology that uses the word owes the reader an account of which one it means. This section gives that account before [§3](#3-quality-in-use-foundation-isoiec-250192023-square) builds the Quality-in-Use grounding on top of it.
+"Criticality" is not a term this project coined, and it is not an ISO/IEC 25019 term either. It is load-bearing in three established traditions whose definitions are mutually incompatible, so a methodology that uses the word owes the reader an account of which one it means. This section gives that account before [§3](#3-quality-grounding-square) builds the Quality-in-Use grounding on top of it.
 
 ### 2.1 Three Established Traditions
 
@@ -121,7 +128,25 @@ To position this methodology rigorously in academic research, the table below co
 
 ---
 
-## 3. Quality-in-Use Foundation (ISO/IEC 25019:2023 SQuaRE)
+## 3. Quality Grounding (SQuaRE)
+
+### 3.0 Three Quality Views: Internal, External, and Quality-in-Use
+
+SQuaRE does not offer one notion of quality but three, distinguished by **what you have to have in front of you in order to measure it**. The distinction is load-bearing here because this project sits on a different view at each stage of its argument, and conflating them is the most common way to overstate what a criticality score establishes.
+
+| SQuaRE view | Measured on | What this project holds of it | Observed? |
+|:---|:---|:---|:---|
+| **Internal quality** | The artifact at rest — no execution required. Product-quality attributes read from static structure (ISO/IEC 25010:2023 attributes; ISO/IEC 25023 internal measures) | The typed multigraph $G$ itself, plus the ingested `cm_*` static code metrics ([graph-model.md §4.1](graph-model.md#41-phase-1--entity-modeling)) | **Yes — and this is the *entire* input to RMAV** |
+| **External quality** | The system while it executes — the same product-quality attributes, read from observable behaviour (ISO/IEC 25023 external measures) | *Declared* as QoS policy on every topic ([graph-model.md §4.3](graph-model.md#43-phase-3--intrinsic-weight-computation)); *simulated* by the discrete-event engines as delivery rate, latency percentiles and contract conformance ([failure-simulation.md](failure-simulation.md)) | **Simulated only — never observed on a running system** |
+| **Quality-in-Use** | A specified stakeholder achieving a specified goal in a specified context of use (ISO/IEC 25019:2023 model; ISO/IEC 25022 measures) | Nothing. No user study, expert elicitation, or incident record exists anywhere in this project | **No** |
+
+Three consequences follow immediately, and each is developed later in this document:
+
+- **The predictor is an internal-quality instrument.** Every RMAV input — centralities, articulation scores, coupling terms, code-quality penalties — is a static property of an artifact that has not run. That is precisely what makes criticality available pre-deployment ([D3](#23-consequence-not-risk)), and precisely what bounds it.
+- **The oracle is an external-quality instrument.** What the simulator measures — how much of the delivered service is lost when a component fails — is an external product-quality observation, not a Quality-in-Use observation. It is a *model* of the executing system rather than the executing system itself, but it sits on the external axis, and naming it correctly is what lets [§7.1](#71-the-validation-chain-has-three-links) state what has been established and what has not.
+- **The construct is defined on the view nobody here measures.** D1 and D2 are Quality-in-Use statements. That is a deliberate choice — criticality *should* be defined by stakeholder harm rather than by whichever quantity happened to be convenient — but it means the definitions reach one view beyond the evidence, and every claim built on them inherits that reach.
+
+> **Why not simply define criticality on external quality, where the evidence is?** Because the resulting construct would not survive a change of deployment. Losing the same broker is a nuisance in one system and a life-safety event in another, and nothing in "delivery rate fell by 40%" distinguishes them. The stakeholder-facing definition is what makes [§3.3](#33-context-of-use-and-domain-context-vector)'s context sensitivity expressible at all. The cost of that choice is the unmeasured transition in [§7.1](#71-the-validation-chain-has-three-links), and this document pays it explicitly rather than hiding it.
 
 ### 3.1 What Quality-in-Use Is
 
@@ -188,16 +213,23 @@ Restated as the canonical, user-side definition used throughout this document. A
 | **Acceptability** | **Trustworthiness & Experience** | "Do I still trust and adopt this system?" | Repeated or high-profile failures erode stakeholder trust and confidence. |
 | **Freedom from Risk** | **Economic, Health, & Life Risk** | "Does this failure cost money, endanger life, or breach compliance?" | Malfunction exposes stakeholders or the operating firm to financial loss, safety hazards, or regulatory breach. |
 
-### 3.5 Why the Dimensions Are Named After Product Quality (ISO/IEC 25010:2023)
+### 3.5 How the Dimensions Bind to External Quality, Dependability, and Quality-in-Use
 
-The four dimensions this framework scores — Reliability, Maintainability, Availability, Vulnerability — carry names from SQuaRE's **product quality** model (ISO/IEC 25010:2023), while criticality itself is defined on **Quality-in-Use** (ISO/IEC 25019:2023). That dualism is deliberate:
+The four dimensions this framework scores — Reliability, Maintainability, Availability, Vulnerability — carry names from SQuaRE's **product quality** model (ISO/IEC 25010:2023), while criticality itself is defined on **Quality-in-Use** (ISO/IEC 25019:2023). That dualism is deliberate, and this table is where the two are joined. Each row reads left to right as one causal sentence: *from this static evidence, we estimate the loss of this externally observable attribute, which is this dependability property, whose degradation harms stakeholders in this way.*
 
-| RMAV Dimension | Product Quality Category (ISO 25010:2023) | Estimates Loss of Quality-in-Use (ISO 25019:2023) |
-|:---|:---|:---|
-| **R — Reliability** | Reliability → Fault tolerance & Recoverability | Beneficialness (Efficiency) & Acceptability (Trustworthiness) |
-| **M — Maintainability** | Maintainability → Modifiability & Modularity | Beneficialness (Engineering Efficiency for Secondary Stakeholders) |
-| **A — Availability** | Reliability → **Availability** (promoted to peer dimension) | Beneficialness (Effectiveness) & Freedom from Risk |
-| **V — Vulnerability** | Security → Confidentiality, Integrity, Exposure | Freedom from Risk (Security/Legal) & Acceptability |
+| RMAV Dimension | Internal evidence (what is computed) | External quality attribute (ISO/IEC 25010:2023) | Dependability attribute | Quality-in-Use harm (ISO/IEC 25019:2023) |
+|:---|:---|:---|:---|:---|
+| **R — Reliability** | `RPR`, `DG_in`, `CDPot_enh`; `FOC` for Topics | Reliability → **Fault tolerance**, secondarily **Recoverability** | **Reliability** — continuity of correct service. Scores the *error-propagation* stage of the fault→error→failure chain | Beneficialness (Usability: Efficiency) & Acceptability (Trustworthiness) |
+| **M — Maintainability** | `BT`, `w_out`, `CQP`, `CouplingRisk_enh`, `(1 − CC)` | Maintainability → **Modularity**, **Modifiability**. *Assessed on the artifact; not observable in execution at all* | **Maintainability** — aptitude to undergo modification | Beneficialness (Engineering Efficiency for Secondary Stakeholders) |
+| **A — Availability** | `AP_c_directed`, `QSPOF`, `BR`, `CDI`, `w(v)` | Reliability → **Availability** — readiness for correct service (promoted to peer dimension) | **Availability** | Beneficialness (Usability: Effectiveness) & Freedom from Risk |
+| **V — Vulnerability** | `REV`, `RCL`, `QADS` | Security → **Confidentiality**, **Integrity**. *Requires an adversary model, not a fault model* | **Confidentiality + Integrity** | Freedom from Risk (Security/Legal) & Acceptability (Trustworthiness) |
+| **— not covered —** | *none* | *Safety is not an ISO/IEC 25010:2023 characteristic* | **Safety** — absence of catastrophic consequences | Freedom from **health risk** and **human life risk** |
+
+**The dependability column is not decoration.** It is the vocabulary in which the fault→error→failure chain is stated, and that chain is what separates $R$ from $A$: a component's *fault* is the injected failure, the *error* is what propagates along `DEPENDS_ON` to its dependents (which is what $R$ measures), and the *failure* is the resulting loss of service to a stakeholder (which is what $A$ measures when the loss is total). Two dimensions that would otherwise both read as "something broke" are, in dependability terms, two different stages of one causal chain.
+
+> **The last row is a real coverage gap, not a formatting artifact.** RMAV covers four of the standard dependability attributes and omits **Safety** entirely, because the schema carries no functional integrity class, no hazard catalogue, and no safety-criticality field ([§7.4](#74-real-world-drivers-vs-structural-proxies)). This is why the ROS 2 / autonomous-vehicle row of [§3.3](#33-context-of-use-and-domain-context-vector) — whose dominant characteristic is *freedom from health and life risk* — is the one domain whose primary harm no dimension estimates directly. A safety-critical deployment can use these scores to find structural exposure; it cannot use them to discharge a safety argument, and nothing in the tiering should be read as though it could. Assigned integrity levels (SIL/ASIL/DAL) remain the complementary instrument for that ([§2.2](#22-what-this-construct-borrows-and-rejects)).
+
+**The two italicised cells explain an otherwise puzzling asymmetry in the evidence.** $M$ and $V$ are the two dimensions the simulation oracles cannot measure behaviourally ([validation.md §3.1](validation.md#31-notation--three-quantities-three-symbols)), and the reason is visible in this column rather than in the implementation: maintainability is not an externally observable attribute — no amount of watching a system run tells you what it costs to change — and security is not a fault-tolerance property, so a fault injector is the wrong instrument for it by construction. [§7.1](#71-the-validation-chain-has-three-links) develops what follows for the validation claim.
 
 **Mathematical Projection Matrix.** The transformation from the four graph-computable Product Quality metrics $\mathbf{s}_{\text{RMAV}}(v) = [R(v), M(v), A(v), V(v)]^T$ into the ISO 25019 Quality-in-Use harm vector $\mathbf{h}_{\text{QiU}}(v) = [H_{\text{Ben}}, H_{\text{Risk}}, H_{\text{Acc}}]^T$ is formally expressed as:
 
@@ -216,7 +248,9 @@ $$
 \end{bmatrix}
 $$
 
-**Why two models at once.** A dimension name identifies the *failure mechanism* — the product-quality attribute whose degradation that mechanism represents. The right-hand column identifies the *harm* — the Quality-in-Use outcome that degrades as a result. Criticality is defined on the harm ([D1](#41-definition)); the decomposition is organized by mechanism because mechanism, not harm, determines the remedy and its secondary stakeholder owner ([§3.2](#32-stakeholders-primary-secondary-and-indirect)).
+> **What the projection matrix is and is not.** Its twelve coefficients are a stated design judgement, not an estimated or validated quantity: nothing in this project measures Quality-in-Use, so nothing in this project could have fitted them. They are useful for making the many-to-many correspondence of [§4.5](#45-mapping-rmav-to-external-quality-and-quality-in-use) arithmetic rather than rhetorical, and they should be cited as an operationalization proposal. The same caution that [§4.3](#43-the-rmav-model) applies to the composite weighting — where a sensitivity sweep withdrew the accuracy claim outright — applies here with less evidence behind it, not more.
+
+**Why two models at once.** A dimension name identifies the *failure mechanism* — the product-quality attribute whose degradation that mechanism represents, observable externally when the system runs. The rightmost column identifies the *harm* — the Quality-in-Use outcome that degrades as a result. Criticality is defined on the harm ([D1](#41-definition)); the decomposition is organized by mechanism because mechanism, not harm, determines the remedy and its secondary stakeholder owner ([§3.2](#32-stakeholders-primary-secondary-and-indirect)).
 
 **Why Availability is promoted.** In ISO 25010:2023, availability sits under reliability. It is raised to a peer dimension here because structural partition is the dominant failure mode in pub-sub architectures and the only mechanism that maps directly to Usability/Effectiveness — the state where a stakeholder's task stops outright rather than costing more.
 
@@ -231,9 +265,13 @@ $$
 
 > **D1 — Component criticality.** The degree to which the failure, latency, or functional degradation of a specific software component — directly or transitively — reduces the system's capacity to enable its stakeholders to achieve specified operational goals with beneficialness (usability, accessibility, suitability), freedom from risk (economic, health, life, environmental), and acceptability (experience, trustworthiness, compliance) within its operational context.
 >
+> **Observable form.** That harm is not directly observable. D1 is estimated through the loss of the **external quality attributes** the component sustains — fault tolerance, availability, modifiability, and confidentiality/integrity, the four bound in [§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use) — computed from **internal quality** evidence alone. In dependability terms, D1 scores the consequence of a *fault* at $v$ propagating as an *error* through $v$'s dependents into a service *failure*.
+>
 > Realised at layer $l$ as a measure: $\;\mathrm{crit}_l : V_l \to [0,1]^4 \times [0,1]$, mapping each component $v \in V_l$ to its four RMAV dimension scores and their composite $Q(v)$.
 
-Five clauses in D1 do real work and are easy to skim past:
+D1 therefore spans all three quality views at once, and the clause that does that work is the one added above: the *definition* is quality-in-use, the *estimand* is external quality, the *evidence* is internal quality. [§7.1](#71-the-validation-chain-has-three-links) states which of those transitions has been measured.
+
+Five clauses in the main sentence do real work and are easy to skim past:
 
 - **"failure, latency, or functional degradation"** — three distinct fault modes, not one. The structural estimator does not distinguish them; the simulation oracle does ([§7.2](#72-construct-validity)).
 - **"directly or transitively"** — the transitive half is the whole reason Reliability exists as a separate dimension, and it is what extends this construct beyond the purely topological critical-node tradition ([§2.2](#22-what-this-construct-borrows-and-rejects)): the harm is loss of stakeholder outcomes reachable through the component, not loss of graph connectivity.
@@ -288,9 +326,9 @@ Component criticality is decomposed into four orthogonal structural dimensions �
 
 The italicised terms are where the Step 1 weights enter; [§4.4](#44-what-the-component-carries-the-weight-channel) traces each one.
 
-**The four dimensions partition the mechanisms, not the harm.** Each is [D1](#41-definition) narrowed to one route by which a fault reaches stakeholders, which is why they can be scored independently and read as a profile: no raw metric feeds two dimensions ([§3.5](#35-why-the-dimensions-are-named-after-product-quality-isoiec-250102023)), so a component's shape across the four names the mechanism at work. The *harm* is not partitioned — two dimensions can threaten the same Quality-in-Use characteristic, and [§4.5](#45-mapping-rmav-to-quality-in-use) reads that correspondence in the opposite direction.
+**The four dimensions partition the mechanisms, not the harm.** Each is [D1](#41-definition) narrowed to one route by which a fault reaches stakeholders, which is why they can be scored independently and read as a profile: no raw metric feeds two dimensions ([§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)), so a component's shape across the four names the mechanism at work. The *harm* is not partitioned — two dimensions can threaten the same Quality-in-Use characteristic, and [§4.5](#45-mapping-rmav-to-external-quality-and-quality-in-use) reads that correspondence in the opposite direction.
 
-> **Terminology — Vulnerability vs. Security.** The serialized field in `QualityScores` and `CriticalityRanking` is named **`security`** ([saag/core/metrics.py#L243-L258](../saag/core/metrics.py#L243-L258)), and a **high** `security` score means **worse** (more exposed). The two are the same dimension viewed from opposite ends; [§3.5](#35-why-the-dimensions-are-named-after-product-quality-isoiec-250102023) explains why the concept keeps the name $V$.
+> **Terminology — Vulnerability vs. Security.** The serialized field in `QualityScores` and `CriticalityRanking` is named **`security`** ([saag/core/metrics.py#L243-L258](../saag/core/metrics.py#L243-L258)), and a **high** `security` score means **worse** (more exposed). The two are the same dimension viewed from opposite ends; [§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use) explains why the concept keeps the name $V$.
 
 #### Component criticality per dimension
 
@@ -304,6 +342,7 @@ Each dimension is **[D1](#41-definition) restricted to one mechanism** — not a
 | Stakeholder question | "When this breaks, how much else breaks with it?" |
 | High score means | The component sits upstream of many transitive dependents; a fault reaches far and deep |
 | Metric inputs | `RPR`, `DG_in`, `CDPot_enh` (itself consuming `DG_out` and `MPCI`). Topics instead use `FOC` and the publisher-count norm |
+| External quality attribute | Reliability → **Fault tolerance** (ISO/IEC 25010:2023); dependability attribute **Reliability**. Scores the *error-propagation* stage of the fault→error→failure chain — how far an error travels before it is contained |
 | Quality-in-Use effect | **Efficiency** (dependents retry/fail over), then **Satisfaction** (repeated cascades erode trust) |
 | Acted on by | Reliability Engineer — bulkheads, circuit breakers, cascade containment |
 
@@ -315,6 +354,7 @@ Each dimension is **[D1](#41-definition) restricted to one mechanism** — not a
 | Stakeholder question | "How expensive and risky is it to change or fix this?" |
 | High score means | A structural bottleneck with high QoS-weighted fan-out coupling and poor internal code quality |
 | Metric inputs | `BT`, `w_out`, `CQP` (`complexity_norm`, `instability_code`, `lcom_norm`), `CouplingRisk_enh` (consuming `path_complexity`), `(1 − CC)` |
+| External quality attribute | Maintainability → **Modularity**, **Modifiability** (ISO/IEC 25010:2023); dependability attribute **Maintainability**. The one dimension whose attribute is *not externally observable*: watching the system execute never reveals what a change to it would cost, so $M$ is an internal-quality estimate of an internal-quality attribute |
 | Quality-in-Use effect | **Efficiency**, uniquely on the secondary engineering stakeholder ([§3.2](#32-stakeholders-primary-secondary-and-indirect)) rather than the primary direct user — slower fixes, longer incident recovery |
 | Acted on by | Software Architect — decoupling, interface extraction, refactoring |
 
@@ -326,6 +366,7 @@ Each dimension is **[D1](#41-definition) restricted to one mechanism** — not a
 | Stakeholder question | "If this is down, does anything still work?" |
 | High score means | Removing the node disconnects a subgraph — there is no redundant route around it |
 | Metric inputs | `AP_c_directed`, `QSPOF` (= `AP_c_directed × w(v)`), Bridge Ratio `BR`, `CDI`, `w(v)` |
+| External quality attribute | Reliability → **Availability** — readiness for correct service (ISO/IEC 25010:2023); dependability attribute **Availability**. Scores the *failure* stage of the chain: the point at which propagated error becomes service the stakeholder cannot obtain at all |
 | Quality-in-Use effect | **Effectiveness** — the only dimension where the stakeholder's task stops outright — plus **Freedom from risk** (the outage window is itself the harm) |
 | Acted on by | DevOps / SRE — redundancy, failover, replication |
 
@@ -337,6 +378,7 @@ Each dimension is **[D1](#41-definition) restricted to one mechanism** — not a
 | Stakeholder question | "If an attacker owns this, how much do they own?" |
 | High score means | Centrally reachable on $G^\top$, with many high-QoS flows converging on it |
 | Metric inputs | `REV` (reverse eigenvector), `RCL` (reverse closeness), `QADS` (= `w_in`) |
+| External quality attribute | Security → **Confidentiality**, **Integrity** (ISO/IEC 25010:2023); dependability attributes **Confidentiality + Integrity**. Unlike R and A this is not a fault-tolerance property at all: it presumes an adversary rather than a fault, which is why no fault-injection oracle can measure it ([§7.1](#71-the-validation-chain-has-three-links)) |
 | Quality-in-Use effect | **Freedom from risk** (security/legal/compliance exposure) and **Satisfaction** (confidence loss even without an incident) |
 | Acted on by | Security Engineer — hardening, segmentation, access control |
 
@@ -409,7 +451,7 @@ The word is overloaded in this project and the two senses never mix:
 | Varies | Per component and per edge, within one system | Per model configuration, not per component |
 | Answers | "How strongly is *this* flow guaranteed?" | "How much does *this kind* of criticality count?" |
 
-They meet in exactly one place: the composite coefficients $q_*$ are themselves adapted to the system's aggregate QoS profile before scoring (`adapt_qos_weights`, on by default). A system whose topics are predominantly `PERSISTENT`/`RELIABLE`/high-priority shifts weight toward $R$ and $A$; a predominantly `VOLATILE`/`BEST_EFFORT` system shifts it toward $M$ and $V$ — the same structural graph therefore yields a different composite ranking in a mission-critical deployment than in a best-effort one, which is [§3.3](#33-context-of-use)'s context-of-use argument made computable.
+They meet in exactly one place: the composite coefficients $q_*$ are themselves adapted to the system's aggregate QoS profile before scoring (`adapt_qos_weights`, on by default). A system whose topics are predominantly `PERSISTENT`/`RELIABLE`/high-priority shifts weight toward $R$ and $A$; a predominantly `VOLATILE`/`BEST_EFFORT` system shifts it toward $M$ and $V$ — the same structural graph therefore yields a different composite ranking in a mission-critical deployment than in a best-effort one, which is [§3.3](#33-context-of-use-and-domain-context-vector)'s context-of-use argument made computable.
 
 #### What this dependency costs
 
@@ -417,17 +459,18 @@ They meet in exactly one place: the composite coefficients $q_*$ are themselves 
 - **A mis-declared QoS policy is a mis-scored component.** If the topology declares `BEST_EFFORT` on a flow the business actually treats as critical, the weight channel faithfully reproduces that error. This is the one place where criticality inherits an authored judgement, and it is the first thing to check when a score contradicts operational experience.
 - **The floor is not zero.** $w(t) \geq 0.01$ by construction, so an unguaranteed flow still contributes structure; the weight channel modulates criticality, it never switches it off.
 
-### 4.5 Mapping RMAV to Quality-in-Use
+### 4.5 Mapping RMAV to External Quality and Quality-in-Use
 
-[§3.5](#35-why-the-dimensions-are-named-after-product-quality-isoiec-250102023) read this correspondence one way — from each dimension to the harm it estimates. This table reads it the other way, from each Quality-in-Use characteristic to the dimensions that operationalize it, which is the direction a stakeholder asking "what threatens my ability to finish the task?" needs:
+[§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use) read this correspondence one way — from each dimension to the attribute and harm it estimates. This table reads it the other way, from each Quality-in-Use characteristic back to the dimensions that operationalize it, which is the direction a stakeholder asking "what threatens my ability to finish the task?" needs. The middle column names the **external quality attribute** whose loss is the mechanism connecting the two:
 
-| Quality-in-Use characteristic | Primarily operationalized by | Why |
-|:---|:---|:---|
-| **Effectiveness** | **A — Availability** | A structural SPOF's removal partitions the graph — dependents cannot complete their function at all. |
-| **Efficiency** | **R — Reliability**, **M — Maintainability** | Cascades (R) force retries/failover; tight coupling (M) means every change or incident costs more engineering effort per unit of value delivered. |
-| **Satisfaction** | **R + V** | Repeated cascading outages erode trust (R); being a high-value attack target (V) undermines confidence even absent an actual incident. |
-| **Freedom from risk** | **A + V** (dominant), **R** | Availability quantifies economic/operational risk (SPOF = certain partition); Vulnerability quantifies security/legal risk (breach exposure); Reliability quantifies propagation risk. |
-| **Context coverage** | Cross-scenario/cross-domain stability of the score | A component's criticality ranking should hold across topologies and domains; instability here is a weakness of the *criticality signal itself*, checked via the per-domain repeated stratified k-fold evaluation and multi-scenario batch runs (`cli/run_scenarios.sh`). |
+| Quality-in-Use characteristic | Loss of which external quality attribute produces it | Primarily operationalized by | Why |
+|:---|:---|:---|:---|
+| **Effectiveness** | **Availability** | **A — Availability** | A structural SPOF's removal partitions the graph — dependents cannot complete their function at all. |
+| **Efficiency** | **Fault tolerance**; **Modifiability** | **R — Reliability**, **M — Maintainability** | Cascades (R) force retries/failover; tight coupling (M) means every change or incident costs more engineering effort per unit of value delivered. |
+| **Satisfaction** | **Fault tolerance**; **Confidentiality/Integrity** | **R + V** | Repeated cascading outages erode trust (R); being a high-value attack target (V) undermines confidence even absent an actual incident. |
+| **Freedom from risk** (economic, operational, security) | **Availability**; **Confidentiality/Integrity**; **Fault tolerance** | **A + V** (dominant), **R** | Availability quantifies economic/operational risk (SPOF = certain partition); Vulnerability quantifies security/legal risk (breach exposure); Reliability quantifies propagation risk. |
+| **Freedom from risk** (health, human life) | **Safety** | *— none —* | The dependability attribute RMAV does not cover ([§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)). Structural exposure is reported; hazard severity is not, and cannot be inferred from topology. |
+| **Context coverage** | *(not an attribute — a property of the ranking)* | Cross-scenario/cross-domain stability of the score | A component's criticality ranking should hold across topologies and domains; instability here is a weakness of the *criticality signal itself*, checked via the per-domain repeated stratified k-fold evaluation and multi-scenario batch runs (`cli/run_scenarios.sh`). |
 
 The mapping is many-to-many by design: no single RMAV dimension is a characteristic, and no characteristic is fully captured by one dimension. That is why this table and the per-dimension sub-definitions ([D1.R–D1.V](#43-the-rmav-model), [D2.R–D2.V](#55-edge-rmav-decomposition)) are the *same* correspondence read in opposite directions, not two competing claims: those state which harm each mechanism produces, this states which mechanisms produce each harm. Coverage gaps are enumerated in [§7.3](#73-characteristic-coverage).
 
@@ -457,6 +500,8 @@ Two consequences matter when reading a tier as a stakeholder statement:
 ### 5.1 Definition
 
 > **D2 — Relationship criticality.** The degree to which the disruption, latency, or data loss across a specific inter-component interaction or dependency path — with both endpoint components remaining operational — reduces the system's capacity to enable its stakeholders to achieve specified goals with beneficialness (usability, accessibility, suitability), freedom from risk (economic, health, life, environmental), and acceptability (experience, trustworthiness, compliance), in proportion to the absence of redundant or fallback paths around it.
+>
+> **Observable form.** As with [D1](#41-definition), the harm is estimated through the loss of **external quality attributes** — the same four bound in [§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use), scoped to one channel — computed from **internal quality** evidence alone. In dependability terms a severed link is a *fault* whose *error* is confined to a single channel; the resulting *failure* is therefore **partial** loss of service rather than total, which is what separates the external signature of an edge failure from that of a node failure ([§5.2](#52-why-a-link-needs-its-own-score)).
 >
 > Realised at layer $l$ as a measure: $\;\mathrm{crit}_l : E_l \to [0,1]^4 \times [0,1]$, mapping each dependency $e = (u,v) \in E_l$ to the same signature as [D1](#41-definition).
 
@@ -534,7 +579,7 @@ Unlike a component, an edge uses $w(e)$ **directly, un-normalised** — the Step
 |:---|:---|:---|
 | **R** | $w(e)$ at 0.30 — second only to betweenness | A link conducts faults in proportion to what it promises to deliver; a `RELIABLE`/`PERSISTENT` channel that fails breaks a promise a dependent was entitled to rely on |
 | **M** | $w(e)$ at 0.15 | A high-guarantee contract is expensive to renegotiate — both sides must move together |
-| **A** | **none** | Availability asks only *"is this link replaceable?"*, and redundancy is a topological fact: a bridge is a bridge whether it carries safety telemetry or debug logs. QoS amplification reaches $A$ indirectly, through the endpoints' own `QSPOF` ([§4.4](#44-what-the-component-carries-the-weight-channel)) |
+| **A** | **none** | Availability asks only *"is this link replaceable?"*, and redundancy is a topological fact: a bridge is a bridge whether it carries safety telemetry or debug logs. In quality-model terms the two inputs sit on different views — **replaceability is a structural property of the system** (internal quality evidence for an availability claim), while **$w(e)$ is a declared external quality requirement of one flow** ([graph-model.md §4.3](graph-model.md#43-phase-3--intrinsic-weight-computation)). Multiplying them would let a declared requirement change a topological fact. QoS amplification reaches $A$ indirectly instead, through the endpoints' own `QSPOF` ([§4.4](#44-what-the-component-carries-the-weight-channel)) |
 | **V** | $w(e)$ at 0.15 | A channel is worth attacking in proportion to the value of what flows over it |
 | *(via betweenness, in R and M)* | $1/w(e)$ as path length | Strongly-guaranteed edges sit on more shortest paths, raising the betweenness of the links the system leans on |
 
@@ -565,6 +610,7 @@ Each dimension is **[D2](#51-definition) restricted to one mechanism**, exactly 
 | Stakeholder question | "If the upstream side breaks, does this link carry the damage downstream?" |
 | High score means | A heavily traversed link whose riskiest endpoint has wide blast radius |
 | Metric inputs | Edge betweenness, $w(e)$, `max(source.R, target.R)` |
+| External quality attribute | Reliability → **Fault tolerance**; dependability attribute **Reliability**. The link is the *conduit* of the error rather than its origin — the stage of the chain at which a contained fault stops being contained |
 | Quality-in-Use effect | **Efficiency** (dependents on the far side retry or fail over), then **Satisfaction** (repeated cascades erode trust) |
 | Acted on by | Reliability Engineer — timeouts, circuit breakers, backpressure on this specific flow |
 
@@ -576,6 +622,7 @@ Each dimension is **[D2](#51-definition) restricted to one mechanism**, exactly 
 | Stakeholder question | "Can either side of this link evolve independently?" |
 | High score means | A non-redundant, heavily used link — the contract across it cannot be changed unilaterally or routed around |
 | Metric inputs | Edge betweenness, `is_bridge`, $w(e)$ |
+| External quality attribute | Maintainability → **Modularity**, **Modifiability**; dependability attribute **Maintainability**. As with [D1.M](#43-the-rmav-model), not externally observable — the cost of changing a contract is invisible to anything watching the system run |
 | Quality-in-Use effect | **Efficiency** for the engineering stakeholder — coordinated releases, higher change cost |
 | Acted on by | Software Architect — interface versioning, contract decoupling |
 
@@ -587,6 +634,7 @@ Each dimension is **[D2](#51-definition) restricted to one mechanism**, exactly 
 | Stakeholder question | "If just this connection drops, is anything cut off?" |
 | High score means | The edge is a structural bridge — this is the defining case of relationship criticality ([§5.2](#52-why-a-link-needs-its-own-score)), and the dimension where D2's redundancy clause bites hardest |
 | Metric inputs | `is_bridge`, `min(source.A, target.A)` |
+| External quality attribute | Reliability → **Availability**; dependability attribute **Availability**. The one edge dimension with a clean external measurement: severing the link and observing the delivery loss on the far side is exactly what `simulate_edge_removal` does ([§5.6](#56-learned-edge-scoring-gnn)) |
 | Quality-in-Use effect | **Effectiveness** — total task loss for everything behind the bridge, while the operator's dashboards stay green — plus **Freedom from risk** |
 | Acted on by | DevOps / SRE — redundant routing, multi-broker paths, alternate channels |
 
@@ -598,6 +646,7 @@ Each dimension is **[D2](#51-definition) restricted to one mechanism**, exactly 
 | Stakeholder question | "If an attacker gets onto this channel, where does it take them?" |
 | High score means | A high-QoS flow touching an already-exposed endpoint |
 | Metric inputs | $w(e)$, `max(source.V, target.V)` |
+| External quality attribute | Security → **Confidentiality**, **Integrity**; dependability attributes **Confidentiality + Integrity**. Presumes an adversary rather than a fault, so — as for [D1.V](#43-the-rmav-model) — no fault-removal oracle measures it |
 | Quality-in-Use effect | **Freedom from risk** (interception, injection, lateral movement) and **Satisfaction** (confidence loss even without an incident) |
 | Acted on by | Security Engineer — channel encryption, mutual authentication, segmentation |
 
@@ -625,7 +674,7 @@ The four dimension scores are combined with the same composite coefficients used
 
 ### 5.6 Learned Edge Scoring (GNN)
 
-The Predict stage's GNN produces a direct, per-edge criticality prediction rather than relying on endpoint-node proxies — see [prediction.md §2.6](prediction.md#26-edge-criticality-prediction) and [design/SDD.md §6.26](design/SDD.md) for the full architecture:
+The Predict stage's GNN produces a direct, per-edge criticality prediction rather than relying on endpoint-node proxies — see [prediction.md §2.6](prediction.md#5-edge-criticality) and [design/SDD.md §6.26](design/SDD.md) for the full architecture:
 
 ```
 score(u, v) = TypedEdgeEncoder_r( h_u, h_v, e_uv )
@@ -677,7 +726,7 @@ A repeatable template for turning any RMAV profile into a stakeholder-facing sta
 
 1. **Identify the stakeholder and context** from [§3.3](#33-context-of-use-and-domain-context-vector). *"This is a clinical HIS; the harmed party is a clinician making a care decision."*
 2. **Take the dominant per-dimension tier**, not the composite. The composite ranks; the dimension explains.
-3. **Translate the dimension into its characteristic** via [§4.5](#45-mapping-rmav-to-quality-in-use). *High A → Effectiveness and Freedom from risk.*
+3. **Translate the dimension into its characteristic** via [§4.5](#45-mapping-rmav-to-external-quality-and-quality-in-use). *High A → Effectiveness and Freedom from risk.*
 4. **State the consequence in the stakeholder's terms** using the failure signature in [§4.2](#42-user-side-failure-signature). *"If this fails, the vitals stream stops entirely; there is no alternate route, so the clinician sees stale data with no indication it is stale."*
 5. **Qualify with the proxy's limits** from [§7](#7-validity-of-the-construct). *"Structurally exposed — this says nothing about how often this component actually fails or how quickly it would be restored."*
 
@@ -689,8 +738,10 @@ When writing paper submissions (e.g., IEEE TSE, TOSEM, JSS, AUSE), researchers c
 
 ```latex
 % Definition D1: Component Criticality (ISO/IEC 25019:2023 Grounded)
+% Computed from internal quality evidence; estimates loss of external quality
+% attributes (ISO/IEC 25010:2023); defined on Quality-in-Use (ISO/IEC 25019:2023).
 \begin{definition}[Component Criticality ($D1$)]
-Let $G_l = (V_l, E_l, w)$ be a layer-projected dependency graph at projection $l$. The component criticality measure $\mathrm{crit}_l : V_l \to [0,1]^4 \times [0,1]$ maps each component $v \in V_l$ to an orthogonal Product Quality metric vector $\mathbf{s}(v) = [R(v), M(v), A(v), V(v)]^T$ and composite score $Q(v)$, estimating counterfactual Quality-in-Use loss across Beneficialness, Freedom from Risk, and Acceptability:
+Let $G_l = (V_l, E_l, w)$ be a layer-projected dependency graph at projection $l$. The component criticality measure $\mathrm{crit}_l : V_l \to [0,1]^4 \times [0,1]$ maps each component $v \in V_l$ to an orthogonal external quality attribute vector $\mathbf{s}(v) = [R(v), M(v), A(v), V(v)]^T$ --- respectively fault tolerance, modifiability, availability and confidentiality/integrity, computed from internal quality evidence alone --- and composite score $Q(v)$, estimating counterfactual Quality-in-Use loss across Beneficialness, Freedom from Risk, and Acceptability:
 \begin{equation}
 Q(v) = q_A A(v) + q_R R(v) + q_M M(v) + q_V V(v)
 \end{equation}
@@ -700,8 +751,10 @@ where composite weights satisfy $q_A + q_R + q_M + q_V = 1.0$ (stated defaults $
 % See §4.3 before describing them as "AHP-derived" in a manuscript.
 
 % Definition D2: Relationship Criticality
+% A severed link is a fault whose error is confined to one channel; the resulting
+% service failure is therefore partial rather than total (Avizienis et al., 2004).
 \begin{definition}[Relationship Criticality ($D2$)]
-Let $e = (u,v) \in E_l$ be an inter-component dependency edge. Relationship criticality measure $\mathrm{crit}_l : E_l \to [0,1]^4 \times [0,1]$ estimates Quality-in-Use loss resulting from link disruption under operational endpoints ($u, v \in V_l$ active):
+Let $e = (u,v) \in E_l$ be an inter-component dependency edge. Relationship criticality measure $\mathrm{crit}_l : E_l \to [0,1]^4 \times [0,1]$ estimates Quality-in-Use loss, through the loss of the same four external quality attributes scoped to a single channel, resulting from link disruption under operational endpoints ($u, v \in V_l$ active):
 \begin{equation}
 A(u,v) = 0.30 \cdot \mathbf{1}_{\mathrm{bridge}}(e) + 0.20 \cdot \min\left(A(u), A(v)\right)
 \end{equation}
@@ -727,27 +780,39 @@ D1 and D2 define criticality as Quality-in-Use loss. Quality-in-Use is behaviour
 
 > **D4 — Criticality is relative, not absolute.** Every score and tier is relative to (i) the score distribution of the system $S$ being analysed, since tiers are box-plot thresholds over that distribution ([§4.6](#46-criticality-classification)), and (ii) the layer $l$, since the vertex set being ranked and the weight normalisation both change with the projection ([§4.4](#44-what-the-component-carries-the-weight-channel)). Criticality values are therefore **not comparable across systems or across layers**. A well-designed redundant system still has a CRITICAL tier; a system full of SPOFs still has a MINIMAL tier.
 
-### 7.1 The Validation Chain Has Two Links
+### 7.1 The Validation Chain Has Three Links
 
-The claim "RMAV is validated" is true of one link in a two-link chain, and it is worth being precise about which:
+The claim "RMAV is validated" is true of one link in a three-link chain, and it is worth being precise about which. The three links are the three quality views of [§3.0](#30-three-quality-views-internal-external-and-quality-in-use), traversed in order:
 
 ```
-  structural / learned score  ──①──▶  simulated failure impact  ──②──▶  real Quality-in-Use loss
-        (RMAV, GNN)                    (I*(v), I_R/M/A/V(v))            (what D1 and D2 define)
+ internal quality evidence ──①──▶ simulated external quality ──②──▶ real external quality ──③──▶ Quality-in-Use loss
+   G_analysis(l), cm_* metrics      I*(v), I_comp(v), I_dyn(v)        (a deployed system)         (what D1 and D2 define)
+   RMAV scores, GNN scores          MEASURED and reported             not measured                not measured
 ```
 
-- **Link ① is measured.** Scores are validated against the simulation oracle ([failure-simulation.md](failure-simulation.md)) by correlation, F1 and SPOF-F1 ([validation.md](validation.md)). This is a real, reported, falsifiable result.
-- **Link ② is not measured.** No user study, expert elicitation, or production incident data is used anywhere in this project. The simulator is itself a model of stakeholder harm, not an observation of it.
+- **Link ① is measured.** Scores are validated against the simulation oracles ([failure-simulation.md](failure-simulation.md)) by correlation, F1 and SPOF-F1 ([validation.md](validation.md)). This is a real, reported, falsifiable result.
+- **Link ② is not measured.** The simulator is a *model* of the executing system, not the executing system. Nothing here has been checked against a deployed pub-sub system's actual delivery behaviour.
+- **Link ③ is not measured.** No user study, expert elicitation, or production incident data is used anywhere in this project.
 
-Consequently the defensible claim is: *RMAV tracks simulated failure impact, and simulated failure impact is our stated operationalization of Quality-in-Use loss.* The stronger claim — that RMAV tracks Quality-in-Use as stakeholders would report it — is **unsupported by anything in this repository**. Closing link ② requires evidence of a different kind: expert ranking studies against the same topologies, or post-hoc comparison against incident records from a deployed system.
+Consequently the defensible claim is: *RMAV tracks simulated external quality loss, and simulated external quality loss is our stated operationalization of Quality-in-Use loss.* The stronger claim — that RMAV tracks Quality-in-Use as stakeholders would report it — is **unsupported by anything in this repository**. Closing ③ requires evidence of a different kind: expert ranking studies against the same topologies, or post-hoc comparison against incident records from a deployed system.
 
-**Link ② is partly closable without any of that, and it is worth being precise about how far.** The gap is not that the simulator observes the wrong things — it is that its observations are aggregated on the *predictor's* axis (RMAV) rather than the construct's (Quality-in-Use). A field-level audit of the existing simulation outputs ([failure-simulation.md §9](failure-simulation.md#9-what-the-simulator-measures-in-quality-in-use-terms)) finds:
+**Naming the middle view correctly changes what can be claimed, in both directions.** The older two-link framing of this section treated everything past the score as "Quality-in-Use", which understated link ① and overstated the construct at the same time. Split properly:
 
-- **Effectiveness and Efficiency are measurable today**, from delivery rate before/after a fault and from the latency percentile shift the discrete-event engine already records per fault. Re-summarizing them on the Quality-in-Use axis would move link ② from unmeasured to measured *for those two characteristics*.
-- **Freedom from risk is blocked by the corpus, not by the method.** Deadline and lifespan violation counters exist and the validation harness already has an oracle slot for them, but no topic in the scenario corpus declares a deadline — 0 of 710 — so the counters never fire.
-- **Satisfaction is not measurable at all** by these means, which bounds what the construct can ever claim on that characteristic; and **Context coverage** is a property of the ranking across runs rather than of any single fault.
+- **What is now claimable and was not.** The simulation oracles measure external product quality — service delivered under fault — and this project measures that. `I_dyn(v)`, the delivery-rate oracle, is built and reported, not prospective: mean $\rho(I_{\text{dyn}}, I^*) = 0.765$ with a minimum of 0.548 across the seven-scenario cohort ([failure-simulation.md §9.3](failure-simulation.md#93-i_dynv--the-effectiveness-term-implemented), [validation.md §3.3](validation.md#33-the-behavioural-oracle-i_textdynv)). Because `I_dyn` observes message delivery under load while `I*` walks reachability over edges, their agreement is convergent evidence of a different kind — which is the strongest thing link ① can offer.
+- **What is not claimable and previously read as though it were.** Delivery rate and latency are *not* Quality-in-Use measurements. Two stakeholders can experience the same 40% delivery loss as an inconvenience and as a life-safety event; the external measurement cannot separate them, and neither can any score derived from it.
 
-So the honest position is stronger than "link ② is unmeasured" and weaker than "criticality is validated against Quality-in-Use": two of the five characteristics are measurable from data already produced, one is one generator change away, and one is permanently out of reach. Nothing in that audit has been *run* — it establishes measurability, not a measurement.
+**Two dimensions are not on the external axis at all, and this bounds link ① rather than link ③.** Per [§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use):
+
+| Dimension | External quality attribute | Oracle that measures it | Kind of evidence |
+|:---|:---|:---|:---|
+| **R** | Fault tolerance | $I^*(v)$ (subscriber feed-loss under cascade); $I_{\text{dyn}}(v)$ (delivery-rate drop under load) | **External** — service delivery observed under an injected fault |
+| **A** | Availability | $I_{\text{comp}}$ `reachability_loss` / `fragmentation` | **External** — readiness for service |
+| **M** | Modularity / Modifiability | $I_M(v)$ via [`ChangePropagationSimulator`](../saag/simulation/change_propagation.py) — BFS on $G^\top$ | **Internal** — a structural model of change cost, not a behavioural observation |
+| **V** | Confidentiality / Integrity | $I_S(v)$ via `_postpass_security` compromise propagation | **Internal** — a structural model of compromise reach; no adversary is simulated |
+
+This is why $I^*(v)$ supplies labels for `reliability` and `availability` but declares `maintainability` and `security` absent ([validation.md §3.1](validation.md#31-notation--three-quantities-three-symbols)). It is **not** an implementation gap awaiting a better simulator: maintainability is not an externally observable attribute, and security is not a fault-tolerance property, so for $M$ and $V$ link ① compares one structural model against another. Their correlations should be read as internal consistency checks, not as behavioural validation.
+
+**On the remaining Quality-in-Use characteristics.** *Freedom from risk* would need contract-conformance data: deadline and lifespan counters exist and the harness has an oracle slot for them, but no topic in the scenario corpus declares a deadline — 0 of 710 — so the counters never fire ([failure-simulation.md §9](failure-simulation.md#9-what-the-simulator-measures-in-quality-model-terms)). That is blocked by the corpus, not the method, and it would still be an *external* measurement when unblocked. *Satisfaction* has no correlate in a message-flow simulation at all, which permanently bounds what this construct can claim there. *Context coverage* is a property of the ranking across runs rather than of any single fault.
 
 ### 7.2 Construct Validity
 
@@ -763,23 +828,38 @@ So the honest position is stronger than "link ② is unmeasured" and weaker than
 
 ### 7.3 Characteristic Coverage
 
-Stated per ISO/IEC 25019:2023 characteristic, so the gap is explicit rather than implied:
+Coverage has to be stated twice, because the construct spans two views ([§3.0](#30-three-quality-views-internal-external-and-quality-in-use)) and it is much better on one than the other.
+
+**External quality coverage (ISO/IEC 25010:2023 attributes).** What the dimensions estimate, and whether any instrument here observes it:
+
+| External quality attribute | Estimated by | Coverage | Basis and gap |
+|:---|:---|:---|:---|
+| Reliability → **Availability** | $A$ | **Strong** | Directly operationalized by `AP_c_directed`, `BR` and `is_bridge`; validated against simulated reachability loss and fragmentation. |
+| Reliability → **Fault tolerance** | $R$ | **Strong** | Cascade reach validated against two independent oracles, one topological ($I^*$) and one behavioural ($I_{\text{dyn}}$, mean $\rho = 0.765$). |
+| Reliability → **Recoverability** | *— none —* | **Absent** | Requires MTTR, restart semantics, or replication state; no such field exists in the schema ([§7.4](#74-real-world-drivers-vs-structural-proxies)). Every structural SPOF scores alike regardless of how fast it would be restored. |
+| Performance efficiency → **Time behaviour**, **Capacity** | *— none —* | **Absent** | The discrete-event engine records latency percentiles, but no RMAV dimension consumes them, and `w(e)` is a delivery-*guarantee* proxy rather than a throughput measurement. |
+| **Maintainability** → Modularity, Modifiability | $M$ | **Moderate** | Well-founded on internal evidence (`CQP`, coupling, betweenness), but not externally observable in principle ([§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)), so its oracle $I_M$ is a second structural model rather than a behavioural check. |
+| **Security** → Confidentiality, Integrity | $V$ | **Weak** | Topological reachability only. No privilege, encryption, authentication, or data-sensitivity field exists, and no adversary is simulated. |
+| **Safety** | *— none —* | **Absent** | Not an ISO/IEC 25010:2023 characteristic and not a dependability attribute this framework covers ([§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)). |
+
+**Quality-in-Use coverage (ISO/IEC 25019:2023 characteristics).** What D1 and D2 are *defined* on, none of which is observed here ([§7.1](#71-the-validation-chain-has-three-links), link ③):
 
 | Characteristic | Coverage | Basis and gap |
 |:---|:---|:---|
 | **Beneficialness (Usability: Effectiveness)** | **Strong** | Directly operationalized by $A$ (structural partition) and `is_bridge`; validated against simulated reachability loss. |
 | **Beneficialness (Usability: Efficiency)** | **Moderate** | $R$ and $M$ capture cascade reach and coupling cost, but the *magnitude* of the extra cost (latency, retries, engineer-hours) is not modelled — only that a cost exists. |
-| **Freedom from Risk** | **Moderate** | Economic and operational risk are well proxied by $A$; life safety and environmental risk are not represented (no functional integrity class field), while security risk is topology-only ([§7.4](#74-real-world-drivers-vs-structural-proxies)). |
+| **Freedom from Risk** (economic, operational) | **Moderate** | Well proxied by $A$: a structural partition is a certain outage, and outage duration is where the economic exposure sits. Security risk is topology-only ([§7.4](#74-real-world-drivers-vs-structural-proxies)). |
+| **Freedom from Risk** (health, human life) | **Absent** | Requires the **Safety** dependability attribute, which no dimension covers ([§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)). This is the characteristic the ROS 2 / autonomous-vehicle and clinical domains of [§3.3](#33-context-of-use-and-domain-context-vector) rank highest, and the one the construct is least able to speak to. |
 | **Acceptability (Trustworthiness)** | **Weak** | Inferred indirectly from $R$ and $V$. Trust erosion and user experience are behavioral responses with no direct structural correlate; nothing in the static pipeline measures user sentiment. |
 | *Context coverage* (ISO/IEC 25010:**2011**) | **Indirect** | Assessed empirically as cross-scenario/cross-domain ranking stability ([validation.md](validation.md), `cli/run_scenarios.sh`), not computed per component. |
 
-The first four rows are ISO/IEC 25019:2023 characteristics. **Context coverage is not**: it was a standalone Quality-in-Use characteristic in ISO/IEC 25010:2011 and has no direct counterpart in the 2023 model ([§3.1](#31-what-quality-in-use-is)). It is retained here because ranking stability across topologies is a genuine property of the criticality signal worth reporting, but it should be labelled as a 2011 notion rather than presented as 25019:2023 coverage. The same applies wherever this document uses *Effectiveness*, *Efficiency* and *Satisfaction* as shorthand ([§4.2](#42-user-side-failure-signature), [§4.5](#45-mapping-rmav-to-quality-in-use)): under the 2023 model these are measurement dimensions *within* Beneficialness → Usability, not top-level characteristics.
+The first five rows are ISO/IEC 25019:2023 characteristics. **Context coverage is not**: it was a standalone Quality-in-Use characteristic in ISO/IEC 25010:2011 and has no direct counterpart in the 2023 model ([§3.1](#31-what-quality-in-use-is)). It is retained here because ranking stability across topologies is a genuine property of the criticality signal worth reporting, but it should be labelled as a 2011 notion rather than presented as 25019:2023 coverage. The same applies wherever this document uses *Effectiveness*, *Efficiency* and *Satisfaction* as shorthand ([§4.2](#42-user-side-failure-signature), [§4.5](#45-mapping-rmav-to-external-quality-and-quality-in-use)): under the 2023 model these are measurement dimensions *within* Beneficialness → Usability, not top-level characteristics.
 
 The two weakest rows are inherent, not implementation debt: Acceptability and live context coverage are defined over live stakeholder behaviour across real deployments, which a static structural model cannot observe directly.
 
 ### 7.4 Real-World Drivers vs. Structural Proxies
 
-[§7.1](#71-the-validation-chain-has-two-links) states the gap qualitatively; this section states it dimension-by-dimension. In a live system, each RMAV dimension is really driven by a mix of runtime, code, and security signals — most of which this project has no field for. The graph model ([graph-model.md](graph-model.md)) carries topology, a DDS-style QoS weight (`reliability`/`durability`/`transport_priority` + message size — a delivery-guarantee proxy, not live traffic or security metadata), and static code metrics (LOC, cyclomatic complexity, instability, LCOM). There is no MTTF/MTTR, privilege, encryption, or telemetry field anywhere in the schema — so every RMAV number below is a structural stand-in, never a direct read of the real-world driver.
+[§7.1](#71-the-validation-chain-has-three-links) states the gap qualitatively; this section states it dimension-by-dimension. In a live system, each RMAV dimension is really driven by a mix of runtime, code, and security signals — most of which this project has no field for. The graph model ([graph-model.md](graph-model.md)) carries topology, a DDS-style QoS weight (`reliability`/`durability`/`transport_priority` + message size — a delivery-guarantee proxy, not live traffic or security metadata), and static code metrics (LOC, cyclomatic complexity, instability, LCOM). There is no MTTF/MTTR, privilege, encryption, or telemetry field anywhere in the schema — so every RMAV number below is a structural stand-in, never a direct read of the real-world driver.
 
 **Component criticality:**
 
@@ -789,6 +869,7 @@ The two weakest rows are inherent, not implementation debt: Acceptability and li
 | **M** | Change-impact risk: regression likelihood from complexity and code churn | `CQP` ([§4.3](#43-the-rmav-model), structural-analysis.md §11.2) blends `complexity_norm`, `instability_code`, `lcom_norm` from static code metrics, plus topological betweenness/coupling | Code churn as a time-series (commit frequency) — `instability_code` is a point-in-time Martin instability ratio, not a churn rate |
 | **A** | SPOF status weighted by MTTR (how long the outage lasts once it starts) | `AP_c_directed` + bridge ratio + `QSPOF` ([§4.3](#43-the-rmav-model)): whether removing the node partitions the graph | MTTR — every structural SPOF is scored the same regardless of how fast it would actually be restored |
 | **V** | Asset value (PII/secrets handled) and the component's privilege level | Reverse eigenvector/closeness centrality + QoS-weighted in-degree ([§4.3](#43-the-rmav-model)): how reachable/central the node is, weighted by what its dependents were promised | Data sensitivity, privilege level, or what the component does — a low-privilege leaf handling PII scores MINIMAL unless its QoS declaration happens to be high |
+| **Safety** *(no dimension)* | Hazard severity and functional integrity class of what the component controls | **Nothing.** The schema has no safety-criticality field, no hazard catalogue, and no functional integrity class ([§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)) | All of it. A component whose failure is a life-safety event is indistinguishable, structurally, from one whose failure loses a debug log — unless the architect happened to encode the difference in QoS policy |
 
 **Relationship criticality:**
 
@@ -812,7 +893,7 @@ None of this makes the structural proxy wrong — [validation.md](validation.md)
 The construct has been exercised on generated topologies spanning several deployment domains and scales, never on a harvested one. Three consequences bound how far a result about criticality generalises:
 
 - **Synthetic systems share a generator.** Cross-scenario evaluation tests transfer to held-out *architectures*, but all of them come from one generator with one set of structural priors. Regularities the generator imposes cannot be distinguished from regularities of pub-sub systems.
-- **No production or expert baseline.** Nothing has been checked against a deployed system, an operator's judgement, or an incident history. This is the same gap as link ② in [§7.1](#71-the-validation-chain-has-two-links), seen from the generalisation side rather than the measurement side.
+- **No production or expert baseline.** Nothing has been checked against a deployed system, an operator's judgement, or an incident history. This is the same gap as link ② in [§7.1](#71-the-validation-chain-has-three-links), seen from the generalisation side rather than the measurement side.
 - **One middleware family.** The model is pub-sub with DDS-style QoS semantics. Whether the construct transfers to request/response, streaming, or service-mesh architectures is untested — the definitions D1–D2 are agnostic, but every operational term in RMAV assumes pub-sub dependency semantics.
 
 Of the three validity dimensions, this is the weakest, and it is the one where additional evidence would most change what can be claimed.
@@ -837,20 +918,26 @@ When reporting evaluation studies in software engineering journals (following Wo
 | [graph-model.md](graph-model.md) | Produces $G_{\text{analysis}}(l)$ and derives `DEPENDS_ON` edges — the substrate both node and edge criticality are computed over — **and** computes the QoS weights $w(v)$, $w(e)$ and `path_count` that every RMAV dimension consumes ([§4.4](#44-what-the-component-carries-the-weight-channel), [§5.4](#54-what-the-relationship-carries-the-weight-channel)). |
 | [structural-analysis.md](structural-analysis.md) | Computes the Tier-1 metric vector $M(v)$ and deterministic RMAV scores, weighting the centralities by $w(e)$ — see [§4.3](#43-the-rmav-model) and [§5.3](#53-structural-edge-signals) above. |
 | [prediction.md](prediction.md) | Refines RMAV into GNN-blended node scores and direct edge scores $Q_{\text{GNN}}(u,v)$ — see [§5.6](#56-learned-edge-scoring-gnn) above. |
-| [failure-simulation.md](failure-simulation.md) | Produces the simulated ground truth ($I^*(v)$, $I_{R/M/A/V}(v)$) that criticality proxies are trained/validated against — the closest observable stand-in for Quality-in-Use loss. |
-| [validation.md](validation.md) | Statistically checks whether structural/learned criticality tracks simulated impact — link ① of [§7.1](#71-the-validation-chain-has-two-links). For **nodes** only; see the note below. |
-| [research/jss/draft.md §4.7](research/jss/draft.md) | The canonical published statement of D2 and the edge RMAV formulas, with the scoping conditions on what validates them. |
+| [failure-simulation.md](failure-simulation.md) | Produces the simulated ground truth ($I^*(v)$, $I_{R/M/A/V}(v)$) that criticality proxies are trained/validated against — a model of **external quality** loss, and the closest observable stand-in this project has for Quality-in-Use loss ([§7.1](#71-the-validation-chain-has-three-links)). |
+| [validation.md](validation.md) | Statistically checks whether structural/learned criticality tracks simulated impact — link ① of [§7.1](#71-the-validation-chain-has-three-links). For **nodes** only; see the note below. |
+| [research/thesis/material/relationship_criticality.md](research/thesis/material/relationship_criticality.md) | The canonical manuscript statement of D2 and the edge RMAV formulas, with the scoping conditions on what validates them. It lives here rather than in the JSS submission: [research/jss/draft.md §4.1](research/jss/draft.md) deliberately *defers* the relationship construction, because the validation gap in the note below cannot be closed within that paper's independence guarantee. |
 
-> **Edge criticality has no link ① yet, and this is a structural property of the current design rather than a pending fix.** Node scores and node labels are defined on the same vertex set, so they can be correlated. Edges are not: attribution ([§5.5](#55-edge-rmav-decomposition)) is scored over derived `DEPENDS_ON` edges of $G_{\text{analysis}}$, while the removal oracle ([§5.6](#56-learned-edge-scoring-gnn)) severs raw structural edges of $G_{\text{structural}}$. On `av_system` that is 3,753 derived edges against a candidate set drawn from `ROUTES`, `SUBSCRIBES_TO` and `PUBLISHES_TO` — populations that barely intersect. Running the sweep directly on `DEPENDS_ON` is not an available fix: the independence guarantee ([§7.1](#71-the-validation-chain-has-two-links)) requires simulation to operate only on $G_{\text{structural}}$, exactly as [CLAUDE.md's invariant](../CLAUDE.md) states. The one route that respects that guarantee — lifting measured structural-edge impact onto the derived edges it mediates, via an aggregation rule over a many-to-many mapping — is future work, not a mechanical follow-up. Until it is undertaken, **edge criticality rests on construction rather than measurement**, and the §5.6 sweep should not be described as validating the §5.5 scores.
+> **Edge criticality has no link ① yet, and this is a structural property of the current design rather than a pending fix.** Node scores and node labels are defined on the same vertex set, so they can be correlated. Edges are not: attribution ([§5.5](#55-edge-rmav-decomposition)) is scored over derived `DEPENDS_ON` edges of $G_{\text{analysis}}$, while the removal oracle ([§5.6](#56-learned-edge-scoring-gnn)) severs raw structural edges of $G_{\text{structural}}$. On `av_system` that is 3,753 derived edges against a candidate set drawn from `ROUTES`, `SUBSCRIBES_TO` and `PUBLISHES_TO` — populations that barely intersect. Running the sweep directly on `DEPENDS_ON` is not an available fix: the independence guarantee ([§7.1](#71-the-validation-chain-has-three-links)) requires simulation to operate only on $G_{\text{structural}}$, exactly as [CLAUDE.md's invariant](../CLAUDE.md) states. The one route that respects that guarantee — lifting measured structural-edge impact onto the derived edges it mediates, via an aggregation rule over a many-to-many mapping — is future work, not a mechanical follow-up. Until it is undertaken, **edge criticality rests on construction rather than measurement**, and the §5.6 sweep should not be described as validating the §5.5 scores.
 
 ## 9. References
 
-**Quality models (the construct's grounding, [§3](#3-quality-in-use-foundation-isoiec-250192023-square)):**
+**Quality models (the construct's grounding, [§3](#3-quality-grounding-square)):**
 
 - ISO/IEC 25019:2023, *Systems and software engineering — Systems and software Quality Requirements and Evaluation (SQuaRE) — Quality-in-use model*. (primary home of the Quality-in-Use model: Beneficialness, Freedom from Risk, Acceptability)
-- ISO/IEC 25010:2023, *Systems and software engineering — SQuaRE — Product quality model*. (source of the Product Quality characteristics the RMAV failure mechanisms carry, [§3.5](#35-why-the-dimensions-are-named-after-product-quality-isoiec-250102023))
+- ISO/IEC 25010:2023, *Systems and software engineering — SQuaRE — Product quality model*. (source of the external quality attributes the RMAV failure mechanisms are denominated in, [§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use))
 - ISO/IEC 25010:2011, *Systems and software engineering — SQuaRE — System and software quality models*. (historical antecedent of the 2023 SQuaRE series)
-- ISO/IEC 25022:2016, *Systems and software engineering — SQuaRE — Measurement of quality in use*. (measurement approach that structural proxies stand in for, cf. [§7.1](#71-the-validation-chain-has-two-links))
+- ISO/IEC 25023:2016, *Systems and software engineering — SQuaRE — Measurement of system and software product quality*. (the internal-measure / external-measure distinction that [§3.0](#30-three-quality-views-internal-external-and-quality-in-use) rests on)
+- ISO/IEC 25022:2016, *Systems and software engineering — SQuaRE — Measurement of quality in use*. (measurement approach that structural proxies stand in for, cf. [§7.1](#71-the-validation-chain-has-three-links))
+
+**Dependability taxonomy ([§3.5](#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)):**
+
+- Avizienis, A., Laprie, J.-C., Randell, B., & Landwehr, C. (2004). *Basic concepts and taxonomy of dependable and secure computing*. IEEE Transactions on Dependable and Secure Computing, 1(1), 11–33. (the attribute set — availability, reliability, safety, integrity, maintainability, confidentiality — and the fault→error→failure chain that distinguishes $R$ from $A$)
+- Laprie, J.-C. (ed.) (1992). *Dependability: Basic Concepts and Terminology*. Springer. (the antecedent statement of the same taxonomy)
 
 **Prior meanings of "criticality" ([§2](#2-what-criticality-means-here)):**
 

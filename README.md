@@ -220,18 +220,22 @@ The graph model maps to any pub-sub middleware:
 
 ## RMAV Quality Model in Brief
 
-Criticality here is a **Quality-in-Use** construct in the ISO/IEC 25010 (SQuaRE) sense: the degree to which the failure, latency or degradation of a component — directly or transitively — reduces the system's capacity to enable its stakeholders to achieve their goals. It is a *consequence*, carrying no estimate of how likely that failure is. The formal definitions (D1–D4), and how this differs from FMECA criticality, assigned integrity levels such as SIL/ASIL, and topological critical-node detection, are in [criticality.md](docs/criticality.md).
+Criticality here is a **Quality-in-Use** construct in the ISO/IEC 25019:2023 (SQuaRE) sense: the degree to which the failure, latency or degradation of a component — directly or transitively — reduces the system's capacity to enable its stakeholders to achieve their goals. It is a *consequence*, carrying no estimate of how likely that failure is. The formal definitions (D1–D4), and how this differs from FMECA criticality, assigned integrity levels such as SIL/ASIL, and topological critical-node detection, are in [criticality.md](docs/criticality.md).
 
-It decomposes into four dimensions computed on the derived dependency graph, where edges point from *dependent* to *dependency*. The dimension names come from SQuaRE's *product quality* model and identify the failure **mechanism**; the Quality-in-Use characteristic each one threatens is the **harm** ([why both models](docs/criticality.md#35-why-the-dimensions-are-named-after-the-other-model)).
+The construct spans all three SQuaRE quality views, and they are kept apart deliberately: criticality is **computed** from internal quality evidence (topology plus static code metrics), **validated** against simulated external quality (service delivered under fault), and **defined** on Quality-in-Use ([three views](docs/criticality.md#30-three-quality-views-internal-external-and-quality-in-use)).
+
+It decomposes into four dimensions computed on the derived dependency graph, where edges point from *dependent* to *dependency*. Each dimension is denominated in an *external quality* attribute (ISO/IEC 25010:2023), which identifies the failure **mechanism**; the Quality-in-Use characteristic that attribute's loss threatens is the **harm** ([full binding](docs/criticality.md#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)).
 
 The same four dimensions score components and relationships alike: the dimension fixes the harm, the scope fixes the mechanism.
 
-| Dimension | For a component | For a relationship | Quality-in-Use harm | Stakeholder |
-|:---|:---|:---|:---|:---|
-| **R — Reliability** | Its failure spreads to transitive dependents | It carries the spread between endpoints | Efficiency, then Satisfaction | Reliability engineer |
-| **M — Maintainability** | It resists safe change | It forces both sides to change together | Efficiency (engineering) | Software architect |
-| **A — Availability** | Its loss partitions the dependency graph | It is the only route, both endpoints healthy | Effectiveness, Freedom from risk | DevOps / SRE |
-| **V — Vulnerability** | It is a valuable target | It is a usable route to a target | Freedom from risk, Satisfaction | Security engineer |
+| Dimension | For a component | For a relationship | External quality attribute | Quality-in-Use harm | Stakeholder |
+|:---|:---|:---|:---|:---|:---|
+| **R — Reliability** | Its failure spreads to transitive dependents | It carries the spread between endpoints | Reliability → fault tolerance | Efficiency, then Satisfaction | Reliability engineer |
+| **M — Maintainability** | It resists safe change | It forces both sides to change together | Maintainability → modularity, modifiability | Efficiency (engineering) | Software architect |
+| **A — Availability** | Its loss partitions the dependency graph | It is the only route, both endpoints healthy | Reliability → availability | Effectiveness, Freedom from risk | DevOps / SRE |
+| **V — Vulnerability** | It is a valuable target | It is a usable route to a target | Security → confidentiality, integrity | Freedom from risk, Satisfaction | Security engineer |
+
+These map onto four of the standard dependability attributes; **safety is not covered** — no hazard class or functional integrity field exists in the schema, so these scores locate structural exposure and cannot discharge a safety argument.
 
 Each cell is one of the eight sub-definitions D1.R–D1.V (components) and D2.R–D2.V (relationships) in [criticality.md](docs/criticality.md#43-the-rmav-model), where each is stated as D1 or D2 restricted to a single mechanism.
 

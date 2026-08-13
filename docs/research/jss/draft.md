@@ -222,9 +222,18 @@ treat it as one of two predictors rather than the sole contribution, since RQ1 a
 learning improves on non-learning alternatives rather than assuming it always does.
 
 Software quality is conventionally described along attributes such as reliability, maintainability,
-availability, and security [16]; the Quality-in-Use portion of that model is now its own standard,
-**ISO/IEC 25019:2023** [17], evaluating stakeholder harm over Beneficialness, Freedom from Risk, and
-Acceptability. The dependability vocabulary we adopt follows the standard taxonomy [31], and the
+availability, and security [16], measured *internally* on the artifact at rest and *externally* on
+the system while it executes [53]; the Quality-in-Use portion of that model is now its own standard,
+**ISO/IEC 25019:2023** [17, 54], evaluating stakeholder harm over Beneficialness, Freedom from Risk,
+and Acceptability. We use all three views, and keep them apart: our attribution is *computed* from
+internal quality evidence, *validated* against simulated external quality, and *defined* on
+Quality-in-Use (§4, §8.2). The dependability vocabulary we adopt follows the standard taxonomy [31],
+and we use it rather than merely cite it: the RMAV dimensions correspond to four of its attributes —
+availability, reliability, maintainability, and confidentiality with integrity — while **safety is
+not covered**, since no hazard class or functional integrity field exists in an architecture
+description (§8.3). That taxonomy's fault→error→failure chain is also what separates our Reliability
+dimension (error propagation through dependents) from our Availability dimension (the resulting loss
+of service), two quantities an undifferentiated criticality score conflates. The
 architecture-evaluation tradition we position against is scenario-based methods such as ATAM [32, 33, 34]. Combining several structural properties into one decision score is a multi-criteria problem, for
 which AHP offers a pairwise-comparison formalism with an explicit consistency check [15], which we use
 to *state and audit* weights rather than elicit them (§4). A related strand detects architectural
@@ -366,22 +375,44 @@ Centrality answers *whether* a component is important with a single number; an a
 between a replica, a reroute, and a decoupling refactor needs to know *why*. This section presents
 the framework's interpretable diagnostic: a decomposition of each component's criticality into four
 orthogonal quality dimensions — Reliability, Maintainability, Availability, and Vulnerability (RMAV)
-— each computed from disjoint structural metrics and combined into a composite score. Grounded in
-**ISO/IEC 25019:2023 (Quality-in-Use)**, criticality represents the counterfactual loss of
-beneficialness, freedom from risk, and acceptability that stakeholders would experience if an
-architectural element failed.
+— each computed from disjoint structural metrics and combined into a composite score.
+
+The decomposition spans all three SQuaRE quality views, and the paper's claims are only legible if
+they are kept apart. **Criticality is computed from internal quality evidence, validated against
+simulated external quality, and defined on Quality-in-Use.** Concretely: every RMAV input is a static
+property of an artifact that has not run (internal quality [16, 53]) — which is what makes the
+construct available pre-deployment at all; each dimension estimates the loss of a named externally
+observable attribute, which is what the simulation oracles of §5.1 measure and §7 reports; and the
+harm those attributes' loss produces is denominated in **ISO/IEC 25019:2023 (Quality-in-Use)**
+[17, 54], the counterfactual loss of beneficialness, freedom from risk, and acceptability that
+stakeholders would experience if an architectural element failed. Defining criticality on the third
+view rather than the second is deliberate — losing the same broker is a nuisance in one deployment
+and a life-safety event in another, and no delivery-rate measurement distinguishes them — and §8.2
+states exactly which of the three transitions this paper measures.
 
 ## 4.1 Four Dimensions and Formal Definitions
 
-**Table 3. The four RMAV dimensions**, the architectural question each answers, and the engineering
-role each routes to.
+**Table 3. The four RMAV dimensions**, the architectural question each answers, the external quality
+and dependability attribute each is denominated in, and the engineering role each routes to.
 
-| Dim. | Architectural Question | High score means | Remediation owner |
-|:----:|-------------------------|-------------------|--------------------|
-| **R** | How broadly and deeply does failure propagate? | Failure cascades widely; hard to contain | Reliability Engineer |
-| **M** | How hard is this to change safely? | Tightly coupled structural bottleneck | Software Architect |
-| **A** | Is this a structural single point of failure? | Removing it partitions the dependency graph | DevOps / SRE |
-| **V** | How attractive a target is this for attack? | Central and reachable on $G^\top$, with many strongly-guaranteed flows converging on it | Security Engineer |
+| Dim. | Architectural Question | External quality attribute [16] | Dependability attribute [31] | Remediation owner |
+|:----:|-------------------------|----------------------------------|-------------------------------|--------------------|
+| **R** | How broadly and deeply does failure propagate? | Reliability → **fault tolerance** | Reliability (*error propagation*) | Reliability Engineer |
+| **M** | How hard is this to change safely? | Maintainability → **modularity, modifiability** | Maintainability | Software Architect |
+| **A** | Is this a structural single point of failure? | Reliability → **availability** | Availability (*service failure*) | DevOps / SRE |
+| **V** | How attractive a target is this for attack? | Security → **confidentiality, integrity** | Confidentiality + integrity | Security Engineer |
+| — | *(not covered)* | *not an ISO/IEC 25010 characteristic* | **Safety** | — |
+
+Table 3's last row is a coverage statement, not an omission we expect a reader to overlook. RMAV
+addresses four of the standard dependability attributes; **safety is absent**, because an
+architecture description carries no hazard catalogue and no functional integrity class, so nothing in
+these scores distinguishes a component whose failure endangers life from one whose failure loses a
+debug log. Two consequences follow. Structurally, the domains where our scenario suite is most
+safety-relevant — the autonomous-vehicle and clinical topologies of §6.1 — are precisely those whose
+dominant Quality-in-Use characteristic (freedom from health and life risk) no dimension estimates.
+Methodologically, these scores locate structural exposure and cannot discharge a safety argument;
+assigned integrity levels such as SIL, ASIL and DAL remain the complementary instrument, and they are
+assigned by hazard analysis rather than computed from an artifact.
 
 For components, the dimensions are **orthogonal by construction**: each raw structural metric feeds
 exactly one dimension, never more — a deliberate design constraint, not an empirical observation,
@@ -405,9 +436,12 @@ from raw scores pooled across systems (§5.4, §7.4 carry the corresponding scop
 
 The framework also gives inter-component dependencies the same four-dimensional attribution as
 components, so that a partial outage — one link down, both endpoints healthy — is scored rather than
-inferred from endpoint scores. We do not develop this relationship-level construction further here:
-by the framework's own independence guarantee (§5.3), it cannot currently be validated against the
-edge-removal measurement of §7.2, which operates on a structurally disjoint population (§8.3).
+inferred from endpoint scores. In dependability terms a severed link is a fault whose error is
+confined to a single channel, so the resulting service failure is partial rather than total, and the
+edge dimensions are denominated in the same four external quality attributes as Table 3 scoped to
+that channel. We do not develop this relationship-level construction further here: by the framework's
+own independence guarantee (§5.3), it cannot currently be validated against the edge-removal
+measurement of §7.2, which operates on a structurally disjoint population (§8.3).
 
 ## 4.2 The Composite Score, Classification, and Determinism
 
@@ -467,6 +501,13 @@ over the *raw* structural graph $G_{\text{structural}}$ — directly on `PUBLISH
 `DEPENDS_ON` projection. For each component $v$, a failure is injected, the resulting disruption is
 propagated over a fixed horizon, and the residual service degradation is measured.
 
+**All three oracles measure external quality, and none measures Quality-in-Use.** What they observe
+is service delivered under fault — the externally observable half of the product-quality model [16, 53]
+— on a *model* of the executing system rather than the system itself. Being explicit about this is
+what lets §8.2 state a stronger claim for the measured link and a properly bounded one for the
+construct: a delivery-rate loss is an external quality measurement, and two stakeholders can
+experience the same loss as an inconvenience and as a hazard.
+
 **The framework contains three such oracles, and they are not interchangeable.** We name them here
 because which one backs a given number materially bounds what that number can support.
 
@@ -483,6 +524,19 @@ because which one backs a given number materially bounds what that number can su
   simulation of actual traffic — each publisher emits at its declared rate, every topic fans out into
   a bounded per-subscriber queue, and the fault is injected mid-run. $I_{\text{dyn}}$ trains nothing
   and gates nothing: it is reported in §6.4 as a construct-validity check on the other two.
+
+**Only two of the four RMAV dimensions have a behavioural oracle, and the reason is definitional
+rather than an implementation gap.** $I^*$ and $I_{\text{dyn}}$ observe service delivery and so bear
+on **fault tolerance** ($R$); $I_{\text{comp}}$'s reachability and fragmentation terms bear on
+**availability** ($A$). The maintainability and security ground truths are different in kind: $I_M$
+is a change-propagation traversal of $G^\top$ and $I_S$ a compromise-propagation pass — both
+*structural models* rather than behavioural observations. This is why $I^*(v)$ supplies labels for
+the reliability and availability columns while declaring maintainability and security absent rather
+than zero (§6.2). No better simulator would close that gap: **maintainability is not an externally
+observable attribute** — watching a system run never reveals what changing it would cost — and
+**security presumes an adversary rather than a fault**, so a fault injector is the wrong instrument
+for it by construction. For $M$ and $V$, agreement between predictor and oracle is therefore an
+internal-consistency check rather than behavioural validation, and we do not report it as the latter.
 
 $I^*$ and $I_{\text{comp}}$ agree only weakly — mean Spearman $\rho = 0.394$ across the seven
 scenarios (§6.4). We therefore treat evidence gathered against one as *not* transferring to a claim
@@ -1052,20 +1106,33 @@ plausible label-generating assumption is not a substitute for the observation it
 ## 8.2 Threats to Validity
 
 **Construct validity.** D1 and D2 (§4.1) define criticality as Quality-in-Use loss, and this study
-never observes Quality-in-Use directly. The validation chain has two links: ① structural/learned
-score → simulated failure impact, which §7 measures and reports as a real, falsifiable result; and ②
-simulated impact → real Quality-in-Use loss, which is not measured anywhere in this paper — no user
-study, expert elicitation, or production incident record is used, and the simulator is itself a
-*model* of stakeholder harm rather than an observation of it. The defensible claim is therefore: *RMAV
-and the learned predictors track simulated failure impact, and simulated failure impact is our stated
-operationalisation of Quality-in-Use loss.* The stronger claim — that these scores track Quality-in-Use
-as stakeholders would report it — is not supported by anything here. Two qualifications keep this from
-being either overstated or unduly bleak: Effectiveness and Efficiency are in principle measurable from
-quantities the simulators already produce (delivery rate before/after a fault, latency shift), so link
-② is partly closable by re-summarising existing output rather than by new instrumentation; but
-Acceptability and Satisfaction are behavioural and not measurable by these means at all, which bounds
-what this construct can ever claim on them. None of that has been *run*; it establishes measurability,
-not a measurement.
+never observes Quality-in-Use directly. Following the three quality views of §4, the validation chain
+has three links, not two: ① internal quality evidence → simulated external quality, which §7 measures
+and reports as a real, falsifiable result; ② simulated external quality → the external quality of a
+*deployed* system, which we do not measure, since the simulator is a model of the executing system
+rather than the system itself; and ③ external quality → Quality-in-Use loss, which is not measured
+anywhere in this paper — no user study, expert elicitation, or production incident record is used.
+The defensible claim is therefore: *RMAV and the learned predictors track simulated external quality
+loss, and simulated external quality loss is our stated operationalisation of Quality-in-Use loss.*
+The stronger claim — that these scores track Quality-in-Use as stakeholders would report it — is not
+supported by anything here.
+
+Naming the middle view correctly bounds the construct in both directions, and the earlier two-link
+framing of this chain got both wrong. It *understated* what is measured: the delivery-rate oracle
+$I_{\text{dyn}}$ is built and reported, not prospective (§5.1, §6.4), and because it observes message
+delivery under load while $I^*$ traverses reachability over edges, their agreement is convergent
+evidence of a genuinely different kind rather than two views of one topological computation. It also
+*overstated* the construct, by presenting delivery rate and latency as Quality-in-Use measurements
+when they are external product-quality measurements [53]: the same 40% delivery loss is an
+inconvenience in one deployment and a hazard in another, and nothing in the measurement separates
+them. What remains unmeasured is links ② and ③, and closing ③ requires evidence of a different kind —
+expert ranking studies against these topologies, or comparison against incident records from a
+deployed system. Two characteristics bound what is even reachable: *freedom from risk* would need
+contract-conformance data, and although deadline and lifespan counters exist and the harness has an
+oracle slot for them, no topic in our corpus declares a deadline (0 of 710), so the counters never
+fire — a corpus limitation rather than a methodological one, and still an *external* measurement when
+unblocked; *satisfaction* has no correlate in a message-flow simulation at all, which permanently
+bounds what this construct can claim there.
 
 Because the ground truth is simulated rather than observed, the strongest claims we can make remain
 comparative. Four further bounds apply. *The two oracles agree weakly*: $I^*(v)$ and
@@ -1152,6 +1219,16 @@ cutoffs (§4.2).
 
 Several limitations point to concrete next steps, ordered here by how much they would change the
 paper's claims.
+
+**Safety is outside the attribute set.** RMAV covers four of the standard dependability attributes
+[31] and omits safety entirely (§4.1), because an architecture description carries no hazard
+catalogue, no functional integrity class, and no safety-criticality field. The consequence is
+sharpest in exactly the domains where it matters most: for the autonomous-vehicle and clinical
+topologies, the dominant Quality-in-Use characteristic is freedom from health and life risk, and no
+dimension estimates it. Closing this needs a schema extension carrying an assigned integrity level
+per component, at which point the construct would become a hybrid of computed structural exposure and
+assigned hazard severity — a different object from the purely computed one defined here, and one
+whose validation would need a hazard-analysis baseline rather than a simulation oracle.
 
 **Real-world deployment validation and HIL execution.** §7.4 narrows the external-validity gap on
 three real-world architectures but does not close it: the graphs are hand-transcribed, their ground
@@ -1369,6 +1446,14 @@ Military Standard, 1994.
 [52] D. Chen, Y. Lin, W. Li, P. Li, J. Zhou, X. Sun, "Measuring and relieving the over-smoothing
 problem for graph neural networks from the topological view," in *Proc. AAAI Conference on Artificial
 Intelligence*, 2020, pp. 3438–3445.
+
+[53] ISO/IEC 25023:2016, "Systems and software engineering — Systems and software Quality
+Requirements and Evaluation (SQuaRE) — Measurement of system and software product quality,"
+International Organization for Standardization, 2016.
+
+[54] ISO/IEC 25022:2016, "Systems and software engineering — Systems and software Quality
+Requirements and Evaluation (SQuaRE) — Measurement of quality in use," International Organization
+for Standardization, 2016.
 
 [Anon-A] Authors' prior work on multi-layer graph dependency analysis for publish–subscribe systems.
 *Citation withheld for double-anonymised review.*

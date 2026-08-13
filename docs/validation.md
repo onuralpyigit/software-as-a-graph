@@ -169,6 +169,19 @@ are declared absent via the artifact's `labeled_dimensions`, not filled with zer
 $I_{\text{comp}}(v)$'s engine supplies all four RMAV dimensions. See
 [failure-simulation.md §6.1](failure-simulation.md#61-impact_scoresjson).
 
+**Why the coverage splits exactly there, and why a better simulator would not change it.** The two
+dimensions $I^*(v)$ does cover are the two denominated in *externally observable* quality attributes
+— fault tolerance ($R$) and availability ($A$) — which is what a fault injector watching service
+delivery can see ([criticality.md §3.5](criticality.md#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)).
+The two it does not are not observable that way at all: **maintainability is assessed on the artifact,
+not in execution** — no amount of running a system reveals what changing it would cost — and
+**security presumes an adversary rather than a fault**, so fault injection is the wrong instrument for
+it by construction. This is why the $I_M$ and $I_S$ ground truths in $I_{\text{comp}}$'s engine are a
+change-propagation BFS over $G^\top$ and a compromise-propagation pass respectively: both are
+*structural models*, not behavioural observations. Per-dimension agreement on `maintainability` and
+`security` should therefore be read as an internal-consistency check between two structural
+computations, not as behavioural validation ([criticality.md §7.1](criticality.md#71-the-validation-chain-has-three-links)).
+
 Mixing the two oracles within one stage is a correctness error, guarded by
 [`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py).
 

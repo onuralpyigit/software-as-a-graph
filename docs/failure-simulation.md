@@ -36,10 +36,10 @@
    - 6.2 [message\_flow\_results.json](#62-message_flow_resultsjson)
 7. [Worked Examples — ATM Dataset](#7-worked-examples--atm-dataset)
 8. [Integration with the RMAV Validation Pipeline](#8-integration-with-the-rmav-validation-pipeline)
-9. [What the Simulator Measures in Quality-in-Use Terms](#9-what-the-simulator-measures-in-quality-in-use-terms)
+9. [What the Simulator Measures, in Quality-Model Terms](#9-what-the-simulator-measures-in-quality-model-terms)
    - 9.1 [Coverage by characteristic](#91-coverage-by-characteristic)
    - 9.2 [The two constraints](#92-the-two-constraints)
-   - 9.3 [Design sketch — not implemented](#93-design-sketch--not-implemented)
+   - 9.3 [`I_dyn(v)` — the effectiveness term, implemented](#93-i_dynv--the-effectiveness-term-implemented)
 10. [Input Graph Format Requirements](#10-input-graph-format-requirements)
 11. [Python API](#11-python-api)
 12. [Known Limitations](#12-known-limitations)
@@ -449,7 +449,7 @@ Three types of SimPy process are spawned for the topology:
 
 All three process types share the same `failed_nodes: Set[str]` object, which serves as the inter-process fault broadcast channel.
 
-> **Latency windowing.** The subscriber process also buckets each delivered-message end-to-end latency into a shared `latency_windows` dict (`"pre"` / `"post"` keys) keyed on whether `arrival_time < fault_time`. After `env.run()`, the four summary percentiles (`latency_p50_before`, `latency_p50_after`, `latency_p95_before`, `latency_p95_after`) are aggregated via a linear-interpolated percentile helper and written to `FaultEventRecord`. These fields are `None` when no fault was injected or when a window received no deliveries. Their primary use is as an independent I_dyn(v) ground-truth candidate for convergent validity (see [validation.md §10](validation.md#10-cli-reference)).
+> **Latency windowing.** The subscriber process also buckets each delivered-message end-to-end latency into a shared `latency_windows` dict (`"pre"` / `"post"` keys) keyed on whether `arrival_time < fault_time`. After `env.run()`, the four summary percentiles (`latency_p50_before`, `latency_p50_after`, `latency_p95_before`, `latency_p95_after`) are aggregated via a linear-interpolated percentile helper and written to `FaultEventRecord`. These fields are `None` when no fault was injected or when a window received no deliveries. Their primary use is as an independent I_dyn(v) ground-truth candidate for convergent validity (see [validation.md §10](validation.md#10-interpreting-results)).
 
 ### 4.2 Fan-Out Queue Architecture
 
@@ -985,23 +985,27 @@ Validation report
 
 ---
 
-## 9. What the Simulator Measures in Quality-in-Use Terms
+## 9. What the Simulator Measures, in Quality-Model Terms
 
-Every impact quantity defined above — `I*(v)`, `composite_impact`, `IR/IM/IA/IS` — answers the question *"how much of the graph broke?"*. Criticality is defined on a different question: *"how much worse did the outcome get for stakeholders?"* — the Quality-in-Use axis of ISO/IEC 25010 that [criticality.md](criticality.md#41-definition) D1 and D2 are written on. This section asks whether the second question can be answered from what the simulator already produces.
+Every impact quantity defined above — `I*(v)`, `composite_impact`, `IR/IM/IA/IS` — answers the question *"how much of the graph broke?"*. Criticality is defined on a different question: *"how much worse did the outcome get for stakeholders?"* — the **Quality-in-Use** axis of ISO/IEC 25019:2023 that [criticality.md](criticality.md#41-definition) D1 and D2 are written on. This section places what the simulator produces on the right axis, and asks how far it reaches toward the second question.
 
-**It largely can, and without simulating anything differently.** The discrete-event engine already records delivery, latency, and contract-violation data per fault; those observations are simply aggregated along the RMAV axis (to mirror the predictor) rather than along the Quality-in-Use axis (to match the construct). What follows is a field-level audit of what each characteristic would draw on.
+**The simulator measures external quality, not Quality-in-Use.** Delivery rate, latency percentiles and contract conformance are observations of the *behaviour of the executing system* — external product-quality measures in the sense of ISO/IEC 25023 — made here on a model of that system rather than on a deployment ([criticality.md §3.0](criticality.md#30-three-quality-views-internal-external-and-quality-in-use)). That is a substantive distinction, not a labelling one: the same 40% delivery loss is an inconvenience in one deployment and a hazard in another, and no quantity below separates those two cases. Quality-in-Use measurement in the standard's sense (ISO/IEC 25022) requires a specified stakeholder pursuing a specified goal in a specified context, none of which exists anywhere in this project.
+
+**What is reachable is nonetheless more than it looks.** The discrete-event engine already records delivery, latency, and contract-violation data per fault; those observations are simply aggregated along the RMAV axis (to mirror the predictor) rather than re-summarised per characteristic. §9.1 audits, characteristic by characteristic, which of them the existing fields can speak to — with the standing caveat that every "measurable" verdict below means *measurable as external quality*, one view short of the construct.
 
 ### 9.1 Coverage by characteristic
 
-| Quality-in-Use characteristic | Status | Existing outputs that measure it |
-|:---|:---|:---|
-| **Effectiveness** — is the goal achievable at all? | **Measurable now** | `FaultEventRecord.delivery_rate_before` / `.delivery_rate_after`, `.cascade_impacted_subscribers`, `.cascade_orphaned_topics`; `SubscriberFlowStats.missed_per_topic`, `.missed_post_fault`, `.overall_delivery_rate` ([`simulation_results.py`](../saag/simulation/simulation_results.py)); `ImpactMetrics.reachability_loss`, `.fragmentation`, `.flow_disruption` ([`models.py`](../saag/simulation/models.py)) |
-| **Efficiency** — same goal, more resource? | **Measurable now** | `FaultEventRecord.latency_p50_before/after` and `.latency_p95_before/after` — already positioned as an independent `I_dyn(v)` oracle candidate ([§4.4](#44-fault-injection-at-runtime)); `MessageFlowResult.total_queue_overflows`; `ImpactMetrics.throughput_loss`; `RuntimeMetrics.avg_latency`, `.p99_latency`, `.throughput` |
-| **Freedom from risk** — is a contract breached? | **Blocked by the corpus, not by the method** | The machinery exists: deadline and lifespan checks against end-to-end latency ([§4.3](#43-qos-enforcement)), `TopicFlowStats.total_dropped_deadline`, `SubscriberFlowStats.deadline_violations_per_topic`, `MessageFlowResult.total_deadline_violations`, and a `deadline=…:qos` oracle slot in the validation harness. But **no topic in the scenario corpus declares `deadline_ms` — 0 of 710** across all ten scenarios, so every counter is structurally zero |
-| **Satisfaction** | **Not measurable** | Behavioural, and no correlate exists in a message-flow simulation. Repeat-outage frequency is the nearest proxy and is not the same construct |
-| **Context coverage** | **Across runs, not per fault** | Not a per-fault quantity at all: it is the stability of the impact ranking across scenarios and domains, already exercised by the LOSO and multi-scenario batch runs |
+Read "measurable" throughout as *measurable as external quality* — the corresponding Quality-in-Use characteristic is what it stands in for, never what is observed.
 
-**Two of five are available today; a third is one generator change away; one is permanently out of reach; one is a cross-run property rather than a per-fault measurement.**
+| Quality-in-Use characteristic | External quality attribute actually observed | Status | Existing outputs that measure it |
+|:---|:---|:---|:---|
+| **Effectiveness** — is the goal achievable at all? | Reliability → **availability**, **fault tolerance** | **Measurable now** | `FaultEventRecord.delivery_rate_before` / `.delivery_rate_after`, `.cascade_impacted_subscribers`, `.cascade_orphaned_topics`; `SubscriberFlowStats.missed_per_topic`, `.missed_post_fault`, `.overall_delivery_rate` ([`simulation_results.py`](../saag/simulation/simulation_results.py)); `ImpactMetrics.reachability_loss`, `.fragmentation`, `.flow_disruption` ([`models.py`](../saag/simulation/models.py)) |
+| **Efficiency** — same goal, more resource? | Performance efficiency → **time behaviour**, **capacity** | **Measurable now** | `FaultEventRecord.latency_p50_before/after` and `.latency_p95_before/after` — already positioned as an independent `I_dyn(v)` oracle candidate ([§4.4](#44-fault-injection-at-runtime)); `MessageFlowResult.total_queue_overflows`; `ImpactMetrics.throughput_loss`; `RuntimeMetrics.avg_latency`, `.p99_latency`, `.throughput` |
+| **Freedom from risk** — is a contract breached? | Reliability → **fault tolerance** (QoS contract conformance) | **Blocked by the corpus, not by the method** | The machinery exists: deadline and lifespan checks against end-to-end latency ([§4.3](#43-qos-enforcement)), `TopicFlowStats.total_dropped_deadline`, `SubscriberFlowStats.deadline_violations_per_topic`, `MessageFlowResult.total_deadline_violations`, and a `deadline=…:qos` oracle slot in the validation harness. But **no topic in the scenario corpus declares `deadline_ms` — 0 of 710** across all ten scenarios, so every counter is structurally zero |
+| **Satisfaction** | *— none —* | **Not measurable** | Behavioural, and no correlate exists in a message-flow simulation. Repeat-outage frequency is the nearest proxy and is not the same construct |
+| **Context coverage** | *(a property of the ranking, not an attribute)* | **Across runs, not per fault** | Not a per-fault quantity at all: it is the stability of the impact ranking across scenarios and domains, already exercised by the LOSO and multi-scenario batch runs |
+
+**Two of five are available today; a third is one generator change away; one is permanently out of reach; one is a cross-run property rather than a per-fault measurement.** All of the available ones are external quality measurements standing in for the characteristic named beside them, which is what [criticality.md §7.1](criticality.md#71-the-validation-chain-has-three-links) counts as the measured link of a three-link chain.
 
 ### 9.2 The two constraints
 
@@ -1029,7 +1033,7 @@ risk_loss          = deadline_violations_after / messages_delivered_after   ← 
 Two properties matter for it to be usable:
 
 - **It is a third quantity, not a replacement.** `I*(v)` (the Predict-stage labeler) and `composite_impact` (the Validate-stage oracle) are already distinct and must not be conflated ([§2.1](#21-which-engine-is-canonical-for-what)); `I_dyn` is a third named quantity under the same rule, leaving both existing meanings untouched. It is **not** a gate and does **not** produce training labels.
-- **No new validation machinery is needed.** `cli/validate_graph.py harness` already accepts repeated `--ground-truth NAME=PATH[:qos]` sources and computes a convergent-validity block between every pair of them. Agreement between `I_dyn` and the cascade oracles is therefore a *reported result* rather than an assumption — which is exactly the check that [criticality.md §7.1](criticality.md#71-the-validation-chain-has-two-links) says is missing.
+- **No new validation machinery is needed.** `cli/validate_graph.py harness` already accepts repeated `--ground-truth NAME=PATH[:qos]` sources and computes a convergent-validity block between every pair of them. Agreement between `I_dyn` and the cascade oracles is therefore a *reported result* rather than an assumption — which is exactly the check that [criticality.md §7.1](criticality.md#71-the-validation-chain-has-three-links) says is missing.
 
 Why it is worth the cost: `I*(v)` and `composite_impact` are both topological cascade engines over the same substrate, so their agreement cannot rule out a shared construction artifact — the objection that a topology-derived `Q(v)` is being validated against topology-derived labels. `I_dyn` observes message delivery under load instead of reachability over edges, so its agreement with `I*` is evidence of a different kind. Measured across the seven-scenario cohort at `duration=60`: mean `ρ(I_dyn, I*)` = **0.765** with a **minimum of 0.548**, against mean `ρ(I*, I_comp)` = 0.394 with a minimum of 0.092. The lifted floor is the substantive part — `I_dyn`'s worst case (Hub-and-Spoke, 0.548) is far from uncorrelated, while the two topological oracles fall to near-independence on that same scenario. Full table and the limits of the claim: [validation.md §3.3](validation.md#33-the-behavioural-oracle-i_textdynv).
 
