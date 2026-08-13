@@ -221,19 +221,26 @@ information about how failures propagate; heterogeneous GNNs address this direct
 treat it as one of two predictors rather than the sole contribution, since RQ1 asks *where* such
 learning improves on non-learning alternatives rather than assuming it always does.
 
-Software quality is conventionally described along attributes such as reliability, maintainability,
-availability, and security [16], measured *internally* on the artifact at rest and *externally* on
-the system while it executes [53]; the Quality-in-Use portion of that model is now its own standard,
-**ISO/IEC 25019:2023** [17, 54], evaluating stakeholder harm over Beneficialness, Freedom from Risk,
-and Acceptability. We use all three views, and keep them apart: our attribution is *computed* from
-internal quality evidence, *validated* against simulated external quality, and *defined* on
-Quality-in-Use (§4, §8.2). The dependability vocabulary we adopt follows the standard taxonomy [31],
-and we use it rather than merely cite it: the RMAV dimensions correspond to four of its attributes —
-availability, reliability, maintainability, and confidentiality with integrity — while **safety is
-not covered**, since no hazard class or functional integrity field exists in an architecture
-description (§8.3). That taxonomy's fault→error→failure chain is also what separates our Reliability
-dimension (error propagation through dependents) from our Availability dimension (the resulting loss
-of service), two quantities an undifferentiated criticality score conflates. The
+Software quality is conventionally described along nine characteristics — including reliability,
+maintainability, and security — in ISO/IEC 25010:2023 [16], measured *internally* on the artifact at
+rest and *externally* on the system while it executes [53]; the Quality-in-Use portion of that model
+is now its own standard, **ISO/IEC 25019:2023** [17, 54], evaluating stakeholder harm over
+Beneficialness, Freedom from Risk, and Acceptability. We use all three views, and keep them apart: our
+attribution is *computed* from internal quality evidence, *validated* against simulated external
+quality, and *defined* on Quality-in-Use (§4, §8.2). Criticality is not itself a characteristic but a
+characteristic's sensitivity to element loss, and we instantiate it primarily on **Reliability**: the
+standard defines Reliability's own sub-characteristics as faultlessness (failure frequency), fault
+tolerance and recoverability (failure duration) composing availability, and our Reliability and
+Availability dimensions are exactly the fault-tolerance and availability sub-characteristics, with
+faultlessness excluded by the same consequence-not-risk framing as D3 and recoverability left an
+explicit data gap (§4.1). Maintainability and Security are secondary, thinner instantiations — two of
+Maintainability's five sub-characteristics and two of Security's six — and Safety, one of the
+standard's nine characteristics, is not instantiated at all: **safety is not covered**, since no
+hazard class or functional integrity field exists in an architecture description (§8.3). The
+dependability vocabulary we adopt follows a complementary taxonomy [31], whose fault→error→failure
+chain is what separates our Reliability dimension (error propagation through dependents) from our
+Availability dimension (the resulting loss of service), two quantities an undifferentiated criticality
+score conflates. The
 architecture-evaluation tradition we position against is scenario-based methods such as ATAM [32, 33, 34]. Combining several structural properties into one decision score is a multi-criteria problem, for
 which AHP offers a pairwise-comparison formalism with an explicit consistency check [15], which we use
 to *state and audit* weights rather than elicit them (§4). A related strand detects architectural
@@ -374,8 +381,11 @@ simultaneous-blast edges visually distinguished.)*
 Centrality answers *whether* a component is important with a single number; an architect choosing
 between a replica, a reroute, and a decoupling refactor needs to know *why*. This section presents
 the framework's interpretable diagnostic: a decomposition of each component's criticality into four
-orthogonal quality dimensions — Reliability, Maintainability, Availability, and Vulnerability (RMAV)
-— each computed from disjoint structural metrics and combined into a composite score.
+quality dimensions computed from disjoint, metric-orthogonal structural inputs — Reliability,
+Maintainability, Availability, and Vulnerability (RMAV) — and combined into a composite score. The
+dimensions are not four independent quality attributes: Reliability and Availability are both
+sub-characteristics of ISO/IEC 25010:2023's single Reliability characteristic (§4.1), so disjoint
+*inputs* should not be read as attribute independence.
 
 The decomposition spans all three SQuaRE quality views, and the paper's claims are only legible if
 they are kept apart. **Criticality is computed from internal quality evidence, validated against
@@ -392,6 +402,18 @@ states exactly which of the three transitions this paper measures.
 
 ## 4.1 Four Dimensions and Formal Definitions
 
+Criticality is not itself a quality characteristic; it is a characteristic's sensitivity to the loss
+of an architectural element, so it must be stated relative to one. We instantiate it primarily on
+**Reliability**: ISO/IEC 25010:2023 composes Reliability from faultlessness (failure frequency), fault
+tolerance and recoverability (failure duration, jointly with faultlessness composing availability).
+Our Reliability dimension *is* fault tolerance, our Availability dimension *is* availability,
+faultlessness is excluded by the same consequence-not-risk argument as D3 below, and recoverability is
+an explicit data gap — no MTTR or replication-state field exists in the schema (§8.3). Maintainability
+and Security are secondary, thinner instantiations, covering two of Maintainability's five
+sub-characteristics and two of Security's six; nine characteristics of the standard are addressed at
+all, five are not addressed at all, and this framework covers four sub-characteristics across three of
+those nine.
+
 **Table 3. The four RMAV dimensions**, the architectural question each answers, the external quality
 and dependability attribute each is denominated in, and the engineering role each routes to.
 
@@ -401,25 +423,30 @@ and dependability attribute each is denominated in, and the engineering role eac
 | **M** | How hard is this to change safely? | Maintainability → **modularity, modifiability** | Maintainability | Software Architect |
 | **A** | Is this a structural single point of failure? | Reliability → **availability** | Availability (*service failure*) | DevOps / SRE |
 | **V** | How attractive a target is this for attack? | Security → **confidentiality, integrity** | Confidentiality + integrity | Security Engineer |
-| — | *(not covered)* | *not an ISO/IEC 25010 characteristic* | **Safety** | — |
+| — | *(not covered)* | **Safety** — a first-class ISO/IEC 25010:2023 characteristic since the 2023 revision | **Safety** | — |
 
 Table 3's last row is a coverage statement, not an omission we expect a reader to overlook. RMAV
-addresses four of the standard dependability attributes; **safety is absent**, because an
-architecture description carries no hazard catalogue and no functional integrity class, so nothing in
-these scores distinguishes a component whose failure endangers life from one whose failure loses a
-debug log. Two consequences follow. Structurally, the domains where our scenario suite is most
-safety-relevant — the autonomous-vehicle and clinical topologies of §6.1 — are precisely those whose
-dominant Quality-in-Use characteristic (freedom from health and life risk) no dimension estimates.
-Methodologically, these scores locate structural exposure and cannot discharge a safety argument;
-assigned integrity levels such as SIL, ASIL and DAL remain the complementary instrument, and they are
-assigned by hazard analysis rather than computed from an artifact.
+addresses one characteristic (Reliability) close to fully, two more (Maintainability, Security)
+partially, and leaves five of the standard's nine characteristics, including **Safety**, entirely
+unaddressed — because an architecture description carries no hazard catalogue and no functional
+integrity class, so nothing in these scores distinguishes a component whose failure endangers life
+from one whose failure loses a debug log. Two consequences follow. Structurally, the domains where our
+scenario suite is most safety-relevant — the autonomous-vehicle and clinical topologies of §6.1 — are
+precisely those whose dominant Quality-in-Use characteristic (freedom from health and life risk) no
+dimension estimates. Methodologically, these scores locate structural exposure and cannot discharge a
+safety argument; assigned integrity levels such as SIL, ASIL and DAL remain the complementary
+instrument, and they are assigned by hazard analysis rather than computed from an artifact.
 
-For components, the dimensions are **orthogonal by construction**: each raw structural metric feeds
-exactly one dimension, never more — a deliberate design constraint, not an empirical observation,
-since allowing a metric into two dimensions would silently inflate its weight relative to the stated
-weighting (§4.2). Orthogonality is what makes the breakdown legible: a pure single point of failure
-scores high on A but low on R, M, and V; a god-component scores high on M; a cascade hub scores high
-on R. The *shape* of the profile names the failure mode.
+For components, the dimensions are **orthogonal by construction at the metric level**: each raw
+structural metric feeds exactly one dimension, never more — a deliberate design constraint, not an
+empirical observation, since allowing a metric into two dimensions would silently inflate its weight
+relative to the stated weighting (§4.2). This is not attribute independence: R and A are both
+sub-characteristics of the single Reliability characteristic above, so a component scoring high on
+both is one characteristic degraded through two mechanisms, not two unrelated problems. Metric-level
+orthogonality is nonetheless what makes the breakdown legible: a pure single point of failure scores
+high on A but low on R, M, and V; a god-component scores high on M; a cascade hub scores high on R. The
+*shape* of the profile names the failure mode, and it is exactly because R and A share a characteristic
+that the composite (§4.2) weights rather than merges them.
 
 Two of the framework's formal definitions do real work in what follows. **Criticality is a
 consequence, not a risk**: no RMAV dimension estimates how *probable* a component's failure is, only
@@ -459,6 +486,19 @@ under a stated weighting $(0.43, 0.24, 0.17, 0.16)$ — a design judgement writt
 and audited for Analytic Hierarchy Process consistency [15] ($\mathrm{CR} \le 0.10$) rather than
 elicited from raters — adapted per system toward its aggregate QoS profile, the computable form of
 D1's "within its operational context" clause.
+
+**Code-level internal evidence enters this scoring asymmetrically, and the asymmetry is deliberate
+rather than incidental.** The SonarQube-derived Code Quality Penalty is the *only* code-derived term
+in the rule-based path, feeding exactly one dimension (M) at weight 0.15; R, A and V are purely
+topological, and edge scores are entirely code-free since the edge-M formula carries no endpoint-M
+term. Its effective share of the composite is $0.17 \times 0.15 \approx 2.6\%$. Whether static internal
+metrics such as these predict externally observable failure behaviour at all is itself an empirical
+question with an established literature [55, 56, 57, 58], which is why we gate the inference to one
+dimension rather than assume it generalises. The learned predictor (§5.2) makes a different choice:
+the same code features sit on every Application/Library node vector, and a shared encoder feeds all
+four RMAV heads, so code evidence reaches every dimension and propagates by message passing onto node
+types that carry no code metrics of their own — an architectural difference between the two predictors
+worth reading alongside their head-to-head comparison in §7.1.
 
 We classify with an adaptive box-plot rule applied independently to each dimension and to the
 composite (CRITICAL: $Q > Q_3 + 1.5\,\mathrm{IQR}$, down to MINIMAL: $Q \le Q_1$, with a percentile
@@ -1220,9 +1260,11 @@ cutoffs (§4.2).
 Several limitations point to concrete next steps, ordered here by how much they would change the
 paper's claims.
 
-**Safety is outside the attribute set.** RMAV covers four of the standard dependability attributes
-[31] and omits safety entirely (§4.1), because an architecture description carries no hazard
-catalogue, no functional integrity class, and no safety-criticality field. The consequence is
+**Safety is outside the attribute set.** RMAV instantiates one ISO/IEC 25010:2023 characteristic
+(Reliability) close to fully and two more (Maintainability, Security) partially, leaving Safety — a
+first-class characteristic of the same standard since its 2023 revision — entirely uncovered (§4.1),
+because an architecture description carries no hazard catalogue, no functional integrity class, and no
+safety-criticality field. The consequence is
 sharpest in exactly the domains where it matters most: for the autonomous-vehicle and clinical
 topologies, the dominant Quality-in-Use characteristic is freedom from health and life risk, and no
 dimension estimates it. Closing this needs a schema extension carrying an assigned integrity level
@@ -1454,6 +1496,18 @@ International Organization for Standardization, 2016.
 [54] ISO/IEC 25022:2016, "Systems and software engineering — Systems and software Quality
 Requirements and Evaluation (SQuaRE) — Measurement of quality in use," International Organization
 for Standardization, 2016.
+
+[55] V. R. Basili, L. C. Briand, W. L. Melo, "A validation of object-oriented design metrics as
+quality indicators," *IEEE Transactions on Software Engineering*, vol. 22, no. 10, pp. 751–761, 1996.
+
+[56] N. Nagappan, T. Ball, "Static analysis tools as early indicators of pre-release defect density,"
+in *Proc. 27th Int. Conf. on Software Engineering (ICSE)*, 2005, pp. 580–586.
+
+[57] T. Zimmermann, R. Premraj, A. Zeller, "Predicting defects for Eclipse," in *Proc. 3rd Int.
+Workshop on Predictor Models in Software Engineering (PROMISE)*, 2007.
+
+[58] T. Menzies, J. Greenwald, A. Frank, "Data mining static code attributes to learn defect
+predictors," *IEEE Transactions on Software Engineering*, vol. 33, no. 1, pp. 2–13, 2007.
 
 [Anon-A] Authors' prior work on multi-layer graph dependency analysis for publish–subscribe systems.
 *Citation withheld for double-anonymised review.*

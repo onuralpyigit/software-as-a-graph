@@ -227,25 +227,33 @@ stating the guarantee unconditionally.
 ### 4. Interpretable Attribution as a Baseline
 
 #### §4.1 Four Dimensions and Formal Definitions
-**Argues.** RMAV — Reliability, Maintainability, Availability, Vulnerability — each answers a distinct
-architectural question, is denominated in a named **external quality attribute** (ISO/IEC 25010:2023)
-and a **dependability attribute**, and routes to a distinct remediation owner. The section opens with
-the three-view framing that governs the whole paper: criticality is **computed** from internal quality
-evidence, **validated** against simulated external quality, and **defined** on Quality-in-Use — the
-distinction §8.2's three-link chain rests on. Dimensions are **orthogonal by
-construction** (a design constraint, not an empirical finding): each raw metric feeds exactly one
-dimension. Two definitions do real work downstream: **criticality is a consequence, not a risk**
-(no dimension estimates failure probability, only loss given failure — what makes the construct
-computable pre-deployment); and **criticality is relative, not absolute (D4)** — scores/tiers are
-relative to the analysed system's own distribution and layer, so **scores are not comparable across
-systems or layers**. Relationship-level (edge) attribution is defined with the same four dimensions
-but explicitly *not* developed further here, since it cannot currently be validated against the
-edge-removal measurement of §8.2 (disjoint populations).
+**Argues.** Criticality is not itself a quality characteristic but a characteristic's sensitivity to
+element loss, and is instantiated **primarily on Reliability**: ISO/IEC 25010:2023 composes
+Reliability from faultlessness (frequency), fault tolerance and recoverability (duration, jointly with
+faultlessness composing availability) — R *is* fault tolerance, A *is* availability, faultlessness is
+excluded by the same consequence-not-risk logic as D3, and recoverability is an explicit data gap (no
+MTTR field). Maintainability and Security are secondary, thinner instantiations (2/5 and 2/6
+sub-characteristics). RMAV — Reliability, Maintainability, Availability, Vulnerability — each answers a
+distinct architectural question, is denominated in a named **external quality attribute** (ISO/IEC
+25010:2023) and a **dependability attribute**, and routes to a distinct remediation owner. The section
+opens with the three-view framing that governs the whole paper: criticality is **computed** from
+internal quality evidence, **validated** against simulated external quality, and **defined** on
+Quality-in-Use — the distinction §8.2's three-link chain rests on. Dimensions are **orthogonal by
+construction at the metric level** (disjoint raw-metric inputs, a design constraint not an empirical
+finding) but **not attribute-independent**: R and A are both Reliability sub-characteristics, so a
+high score on both is one characteristic degraded two ways, not two unrelated problems — which is why
+the composite weights rather than merges them. Two definitions do real work downstream: **criticality
+is a consequence, not a risk** (no dimension estimates failure probability, only loss given failure —
+what makes the construct computable pre-deployment); and **criticality is relative, not absolute
+(D4)** — scores/tiers are relative to the analysed system's own distribution and layer, so **scores are
+not comparable across systems or layers**. Relationship-level (edge) attribution is defined with the
+same four dimensions but explicitly *not* developed further here, since it cannot currently be
+validated against the edge-removal measurement of §8.2 (disjoint populations).
 **Evidence.** **Table 3** (four dimensions × architectural question × external quality attribute ×
-dependability attribute × remediation owner), plus an explicit fifth row recording that **safety is
-not covered** — RMAV addresses four of the standard dependability attributes and an architecture
-description carries no hazard class, which is stated as a coverage limit rather than left implicit
-(see also §8.3).
+dependability attribute × remediation owner), plus an explicit fifth row correctly stating that
+**Safety** — a first-class ISO/IEC 25010:2023 characteristic since the 2023 revision, not something
+outside the standard — is not one of the characteristics this framework instantiates, because an
+architecture description carries no hazard class (see also §8.3).
 **Load-bearing caveats.** **D4 is the most cited definition in the paper outside the independence
 guarantee.** It is what forbids §5.4's stratified check and §8.5's three real-world $\rho$ values from
 being pooled into one cross-system number — both sections state the resulting scoping explicitly.

@@ -809,6 +809,10 @@ CQP(v) = 0.10 × loc_norm(v)  +  0.35 × complexity_norm(v)  +  0.30 × instabil
 
 These two often diverge: a library can have high static fan-out but only one consumer in the current deployment, or an application can have simple code but hundreds of pub-sub topics. Both signals are needed to capture the full maintenance risk picture.
 
+**Two ingested fields are not in this formula.** `cm_avg_cbo` and `cm_avg_rfc` are ingested, flattened onto the vertex, persisted, and shown in the UI, but no scoring code reads them — `CQP(v)` consumes only `loc`, `cyclomatic_complexity` (`avg_wmc`), `instability_code` (from `avg_fanin`/`avg_fanout`), and `lcom`. See [criticality.md §3.0](criticality.md#30-three-quality-views-internal-external-and-quality-in-use) for the fuller accounting of which internal-evidence fields actually reach a score.
+
+**Normalisation caveat.** `loc_norm`, `complexity_norm` and `lcom_norm` are min-max normalised as **separate populations per node type** (Application and Library independently, since their LOC/complexity scales differ) — the min-max helper falls back to `1.0` for a zero-variance population, a deliberate choice for a genuine single-node population but one that also fires, indistinguishably, when a population is uniformly zero because none of its members carry `code_metrics` at all. This is not hypothetical: it is measured to occur across every real-world scenario graph in the committed corpus (see the flagged note in [criticality.md §3.0](criticality.md#30-three-quality-views-internal-external-and-quality-in-use)).
+
 ---
 
 #### Availability A(v) — SPOF Risk

@@ -129,15 +129,15 @@ Nested JSON sub-objects (`code_metrics`, `system_hierarchy`) are flattened to sc
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `cm_total_loc` | int | Total lines of code |
-| `cm_avg_wmc` | float | Average Weighted Methods per Class |
-| `cm_avg_lcom` | float | Average Lack of Cohesion of Methods (raw SonarQube scale) |
-| `cm_avg_cbo` | float | Average Coupling Between Objects |
-| `cm_avg_rfc` | float | Average Response for a Class |
-| `cm_avg_fanin` | float | Average afferent coupling (Library: internal static analysis) |
-| `cm_avg_fanout` | float | Average efferent coupling (Library: internal static analysis) |
+| `cm_total_loc` | int | Total lines of code — reaches scoring |
+| `cm_avg_wmc` | float | Average Weighted Methods per Class — reaches scoring |
+| `cm_avg_lcom` | float | Average Lack of Cohesion of Methods (raw SonarQube scale) — reaches scoring |
+| `cm_avg_cbo` | float | Average Coupling Between Objects — **ingested only; no scoring code reads it** |
+| `cm_avg_rfc` | float | Average Response for a Class — **ingested only; no scoring code reads it** |
+| `cm_avg_fanin` | float | Average afferent coupling (Library: internal static analysis) — reaches scoring |
+| `cm_avg_fanout` | float | Average efferent coupling (Library: internal static analysis) — reaches scoring |
 
-These attributes feed the **Code Quality Penalty (CQP)** composite used in Step 2 (Analyze, RMAV sub-phase) Maintainability M(v) term. When absent, M(v) falls back to the topology-only formula. They are the only artifact-internal evidence in the model: everything else the graph carries is either topology or a *declared* guarantee about runtime behaviour ([§4.3](#43-phase-3--intrinsic-weight-computation)).
+Five of these seven attributes feed the **Code Quality Penalty (CQP)** composite used in Step 2 (Analyze, RMAV sub-phase) Maintainability M(v) term; `cm_avg_cbo` and `cm_avg_rfc` are flattened, persisted and displayed but consumed by no scoring code ([structural-analysis.md §11.2](structural-analysis.md#112-rmav-formulas)). When absent, M(v) falls back to the topology-only formula. They are the only artifact-internal evidence in the model: everything else the graph carries is either topology or a *declared* guarantee about runtime behaviour ([§4.3](#43-phase-3--intrinsic-weight-computation)).
 
 > **Why `subscriber_count` and `publisher_count` are listed under Phase 1 but computed in Phase 2:** These are properties of Topic vertices, but their values depend on SUBSCRIBES_TO and PUBLISHES_TO edges which don't exist until Phase 2. They are computed at the end of Phase 2 and written back onto each Topic vertex.
 
