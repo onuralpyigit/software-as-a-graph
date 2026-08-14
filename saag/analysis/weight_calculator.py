@@ -28,33 +28,42 @@ class QualityWeights:
 
     All weights should sum to 1.0 within each dimension.
 
-    Design principles (v5+):
+    Design principles (RM model, ISO/IEC 25010:2023):
         - Metric orthogonality: Each raw structural metric is assigned to
           **exactly one** quality dimension. No metric is double-counted.
-          (Prior to v5, In-Degree was shared across two dimensions; this was
-          resolved by reassigning w_in exclusively to the Security dimension as
-          QADS, and reinstating count-based in-degree solely in Reliability.)
         - Continuous scoring: AP uses continuous fragmentation score (AP_c),
           not a binary articulation-point flag.
+        - Hierarchical Reliability: Availability is a *sub-characteristic* of
+          Reliability, not a peer dimension. R(v) = r_alpha*FT(v) + (1-r_alpha)*A(v),
+          where FT is fault tolerance (propagation-reach signals) and A is the
+          existing 5-term availability (SPOF-risk) formula.
 
     Note on Overall Weights (q_* parameters):
-        Default weights are **AHP-derived**: A(0.43) > R(0.24) > M(0.17) ≈ S(0.16).
-        Availability dominates because SPOF-induced outages are the primary
-        failure mode in pub-sub architectures. Adjust based on system priorities:
-        - Security-critical systems: Increase q_security
-        - High-availability systems: Increase q_availability (already highest)
-        - Fast-iteration systems: Increase q_maintainability
-        - Mission-critical systems: Increase q_reliability
+        Default weights are **derived from the retired 4-D AHP composite**
+        (A=0.43, R=0.24, M=0.17, S=0.16) by dropping Vulnerability/Security and
+        renormalising: q_reliability = (0.24+0.43)/0.84 = 0.80,
+        q_maintainability = 0.17/0.84 = 0.20. With only two characteristics, a
+        2x2 AHP matrix is consistent by construction (CR=0 for n<=2) and would
+        contribute nothing — AHP is retained for the *intra*-dimension weights
+        below, not for this composite.
+
+    Note on r_alpha:
+        Likewise derived, not AHP-fitted: r_alpha = 0.24/0.67 = 0.36. It is a
+        DECLARED constant (see saag.core.quality_model.RELIABILITY_ALPHA) and
+        should be included in any weight-sensitivity perturbation alongside q_*.
     """
-    # Reliability weights (fault propagation) — R*(v) = RPR + DG_in + CDPot (v5)
-    # r_pagerank kept at 0.0 for backward-compat serialisation only.
-    # r_w_in demoted to 0.0: w_in is now exclusively assigned to V*(v) as QADS.
-    r_pagerank: float = 0.0          # Deprecated (v4): superseded; kept for compat
-    r_reverse_pagerank: float = 0.45 # AHP leader: propagation reach (RPR); weight increased from 0.40
-    r_in_degree: float = 0.30        # Reinstatement (v5): count-based immediate-dependents signal
-    r_w_in: float = 0.0             # Deprecated (v5): reassigned to V*(v) as QADS; kept for compat
-    r_cdpot: float = 0.25            # Cascade Depth Potential (derived, depth signal)
-    
+    # Fault tolerance weights (fault propagation) — FT*(v) = RPR + DG_in + CDPot (v5)
+    # ft_pagerank kept at 0.0 for backward-compat serialisation only.
+    ft_pagerank: float = 0.0          # Deprecated (v4): superseded; kept for compat
+    ft_reverse_pagerank: float = 0.45 # AHP leader: propagation reach (RPR); weight increased from 0.40
+    ft_in_degree: float = 0.30        # Reinstatement (v5): count-based immediate-dependents signal
+    ft_w_in: float = 0.0             # Deprecated (v5): was reassigned to V*(v) as QADS; kept for compat
+    ft_cdpot: float = 0.25            # Cascade Depth Potential (derived, depth signal)
+
+    # Reliability = hierarchical combination of Fault Tolerance and Availability.
+    # r_alpha weights FT within R; (1 - r_alpha) weights A. See class docstring.
+    r_alpha: float = 0.36
+
     # Maintainability weights (coupling complexity) — M(v) v6
     # Formula: 0.35*BT + 0.30*w_out + 0.15*CQP + 0.12*CouplingRisk + 0.08*(1-CC)
     m_betweenness: float = 0.35      # AHP primary: structural bottleneck position
@@ -65,7 +74,7 @@ class QualityWeights:
     # Deprecated in v5 — subsumed by m_w_out (QoS-aware). Kept for backward-compat serialisation.
     m_out_degree: float = 0.0
     
-    # Availability weights (SPOF risk) — A(v) v3
+    # Availability weights (SPOF risk) — A(v) v3, a sub-characteristic of Reliability
     # Formula: 0.35*AP_c_directed + 0.25*QSPOF + 0.25*BR + 0.10*CDI + 0.05*w(v)
     a_ap_c_directed: float = 0.35  # AHP primary: structural directed SPOF severity (baseline)
     a_qspof: float = 0.25          # QoS-weighted SPOF: AP_c_directed * w(v)
@@ -73,23 +82,12 @@ class QualityWeights:
     a_cdi: float = 0.10            # Connectivity Degradation Index
     a_qos_weight: float = 0.05     # Operational weight contribution w(v) (Issue 5: decoupling)
 
-    # Security weights (exposure risk) — S(v) v2
-    # Formula: 0.40*REV + 0.35*RCL + 0.25*QADS
-    s_reverse_eigenvector: float = 0.40 # AHP primary: G^T eigenvector (strategic attack reach)
-    s_reverse_closeness: float = 0.35   # AHP secondary: G^T closeness (propagation speed)
-    s_qads: float = 0.25                # QoS-weighted dependent surface (w_in)
-    # Deprecated in v2 — kept at 0.0 for backward-compat serialisation only
-    s_eigenvector: float = 0.0
-    s_closeness: float = 0.0
-    s_out_degree: float = 0.0
-    
     # Overall quality weights (sum should be 1.0)
-    # Formally derived via AHP: A(0.43) > R(0.24) > M(0.17) ≈ S(0.16)
-    q_reliability: float = 0.24
-    q_maintainability: float = 0.17
-    q_availability: float = 0.43
-    q_security: float = 0.16
-    
+    # Derived from the retired 4-D AHP composite by dropping Vulnerability/Security
+    # and renormalising — see class docstring. Not AHP-fitted at this level.
+    q_reliability: float = 0.80
+    q_maintainability: float = 0.20
+
     # Impact score weights I(v) (sum should be 1.0)
     # Formally derived via AHP: Reachability > Fragmentation = Throughput > FlowDisruption
     i_reachability: float = 0.35
@@ -101,7 +99,10 @@ class QualityWeights:
     e_betweenness: float = 0.35      # Path importance
     e_bridge: float = 0.30           # SPOF risk
     e_endpoint: float = 0.20         # Connected node importance
-    e_security: float = 0.15    # Endpoint security exposure
+    # Renamed from e_security: was already reused as a generic edge-weight
+    # coefficient in the (retained) Maintainability formula, not exclusively
+    # tied to the (retired) Security dimension.
+    e_qos_weight: float = 0.15       # Operational/QoS edge-weight contribution
 
 
 # Scale of Relative Importance (Saaty's Scale)
@@ -117,38 +118,36 @@ class AHPMatrices:
     """
     Stores pairwise comparison matrices for all quality dimensions.
     Default values reflect a balanced/standard architectural perspective.
-    
-    Metric assignments (v5):
-        Reliability:      Reverse PageRank (RPR), In-Degree (DG_in), CDPot    [w_in REMOVED — exclusively QADS in V*]
+
+    No composite (Reliability-vs-Maintainability) matrix is stored here: with
+    only two characteristics a 2x2 AHP matrix is consistent by construction
+    (CR=0 for n<=2, see ``_calculate_consistency_ratio``) and would contribute
+    nothing. ``QualityWeights.q_reliability``/``q_maintainability`` and
+    ``r_alpha`` are DECLARED constants instead — see that class's docstring.
+
+    Metric assignments (RM model):
+        Fault Tolerance:  Reverse PageRank (RPR), In-Degree (DG_in), CDPot
         Maintainability:  Betweenness (BT), w_out (QoS-efferent), CouplingRisk (CR), (1-CC)
         Availability:     QSPOF, Bridge Ratio (BR), AP_c_directed, CDI
-        Vulnerability:    Reverse Eigenvector (REV), Reverse Closeness (RCL), QADS (w_in)
-        Impact I*(v):     IR(v), IM(v), IA(v), IV(v) — multi-phenomenon unified ground truth
+        Impact I*(v):     IR(v), IM(v) — multi-phenomenon unified ground truth
         Impact IR(v):     Cascade Reach (CR), Weighted Cascade Impact (WCI), Normalised Depth (ND)
     """
-    
-    # Reliability v4: Reverse PageRank (RPR), QoS-Weighted In-Degree (w_in), CDPot
+
+    # Fault Tolerance: Reverse PageRank (RPR), In-Degree (DG_in), CDPot
     # RPR: primary propagation reach
-    # w_in: QoS-weighted dependent count — richer than raw DG_in
+    # DG_in: count-based immediate-dependents signal
     # CDPot: derived depth signal (no new algorithm needed)
-    criteria_reliability: List[List[float]] = None
-    
+    criteria_fault_tolerance: List[List[float]] = None
+
     # Maintainability v5: Betweenness (BT), w_out (QoS-efferent), CouplingRisk (CR), (1-CC)
     # BT: structural bottleneck; w_out: QoS-weighted contracts; CR: imbalance signal; (1-CC): proxy
     criteria_maintainability: List[List[float]] = None
-    
+
     # Availability v2: QSPOF, Bridge Ratio, AP_c_directed, CDI
     # QSPOF = AP_c_directed * w(v) — operationally weighted structural SPOF
     # AP_c_directed = max(AP_c_out, AP_c_in) — worst-case directional SPOF
     # CDI — connectivity degradation for non-AP hubs
     criteria_availability: List[List[float]] = None
-    
-    # Security v2: Reverse Eigenvector (REV), Reverse Closeness (RCL), QADS
-    # Strategic reach + propagation speed + QoS attack surface
-    criteria_security: List[List[float]] = None
-    
-    # Overall Quality: Reliability (R), Maintainability (M), Availability (A), Security (S)
-    criteria_overall: List[List[float]] = None
 
     # Topic QoS Importance: Reliability (Rel), Durability (Dur), Priority (Pri)
     # Justifies the 0.30/0.40/0.30 split used in Phase 4 modeling.
@@ -160,8 +159,8 @@ class AHPMatrices:
 
     def __post_init__(self):
         # Default initialization if None
-        if self.criteria_reliability is None:
-            self.criteria_reliability = [
+        if self.criteria_fault_tolerance is None:
+            self.criteria_fault_tolerance = [
                 # RPR   DG_in CDPot
                 [1.0,  1.5,   2.0],  # RPR  (primary propagation reach; increased from 0.40→0.45)
                 [0.67, 1.0,   1.5],  # DG_in (count-based immediate dependents; reinstated at 0.30)
@@ -193,27 +192,6 @@ class AHPMatrices:
             # Geometric mean → approx [0.35, 0.25, 0.25, 0.10, 0.05] before shrinkage
             # With shrinkage λ=0.7, weighted toward uniform (0.2)
 
-        if self.criteria_security is None:
-            self.criteria_security = [
-                # REV   RCL   QADS
-                [1.0,  1.14,  1.6],  # REV (Strategic dependent reach)
-                [0.88, 1.0,   1.4],  # RCL (Propagation speed)
-                [0.62, 0.71,  1.0],  # QADS (QoS-weighted surface)
-            ]
-            # Matrix check: geometric mean approx [0.40, 0.35, 0.25]
-            
-        if self.criteria_overall is None:
-            self.criteria_overall = [
-                # R     M     A     S
-                # Theoretically motivated: structural alignment A > R > M > S
-                # with prediction strength based on each dimension's simulation ground truth.
-                # CR ≈ 0.02 → AHP weights ≈ [0.24, 0.17, 0.43, 0.16]
-                [1.0,  1.5,  0.5,  2.0],   # R: strong vs M/S; weaker vs A
-                [0.67, 1.0,  0.33, 1.5],   # M: weakest overall
-                [2.0,  3.0,  1.0,  3.0],   # A: dominant (highest structural alignment)
-                [0.5,  0.67, 0.33, 1.0],   # S: second-weakest (G^T metric alignment)
-            ]
-        
         if self.criteria_topic_qos is None:
             self.criteria_topic_qos = [
                 # Rel  Dur  Pri
@@ -312,40 +290,38 @@ class AHPProcessor:
         return cr
 
     def compute_weights(self) -> QualityWeights:
-        """Process all matrices and return a populated QualityWeights object."""
-        
-        # 1. Reliability Weights v5 (RPR, DG_in, CDPot)
-        w_rel = self._calculate_priority_vector(self.matrices.criteria_reliability)
-        w_rel = self._shrink_weights(w_rel)
-        
+        """Process all matrices and return a populated QualityWeights object.
+
+        The composite weights (q_reliability, q_maintainability) and r_alpha are
+        NOT computed here — with only two characteristics a composite AHP matrix
+        is consistent by construction and contributes nothing (see AHPMatrices
+        docstring). They are left at the QualityWeights dataclass defaults.
+        """
+
+        # 1. Fault Tolerance Weights v5 (RPR, DG_in, CDPot)
+        w_ft = self._calculate_priority_vector(self.matrices.criteria_fault_tolerance)
+        w_ft = self._shrink_weights(w_ft)
+
         # 2. Maintainability Weights v6 (BT, w_out, CQP, CouplingRisk, (1-CC))
         w_main = self._calculate_priority_vector(self.matrices.criteria_maintainability)
         w_main = self._shrink_weights(w_main)
-        
+
         # 3. Availability Weights (AP_c, BR, w)
         w_avail = self._calculate_priority_vector(self.matrices.criteria_availability)
         w_avail = self._shrink_weights(w_avail)
-        
-        # 4. Security Weights v2 (REV, RCL, QADS)
-        w_sec = self._calculate_priority_vector(self.matrices.criteria_security)
-        w_sec = self._shrink_weights(w_sec)
 
-        # 5. Impact Weights (RL, FR, TL) - Added for formal derivation
+        # 4. Impact Weights (RL, FR, TL) - Added for formal derivation
         w_impact = self._calculate_priority_vector(self.matrices.criteria_impact)
         w_impact = self._shrink_weights(w_impact)
-        
-        # 6. Overall Weights (R, M, A, S)
-        w_over = self._calculate_priority_vector(self.matrices.criteria_overall)
-        w_over = self._shrink_weights(w_over)
-        
+
         return QualityWeights(
-            # Reliability v5: (RPR, DG_in, CDPot) — w_in now exclusively QADS in V*
-            r_pagerank=0.0,               # Deprecated
-            r_reverse_pagerank=w_rel[0],  # RPR — primary (0.45)
-            r_in_degree=w_rel[1],         # DG_in — count-based immediate dependents (0.30)
-            r_w_in=0.0,                   # Deprecated in v5; reassigned to V*(v) as QADS
-            r_cdpot=w_rel[2],             # Cascade Depth Potential (0.25)
-            
+            # Fault Tolerance v5: (RPR, DG_in, CDPot)
+            ft_pagerank=0.0,               # Deprecated
+            ft_reverse_pagerank=w_ft[0],   # RPR — primary (0.45)
+            ft_in_degree=w_ft[1],          # DG_in — count-based immediate dependents (0.30)
+            ft_w_in=0.0,                   # Deprecated
+            ft_cdpot=w_ft[2],              # Cascade Depth Potential (0.25)
+
             # Maintainability v6: (BT, w_out, CQP, CouplingRisk, (1-CC))
             m_betweenness=w_main[0],
             m_w_out=w_main[1],
@@ -353,23 +329,14 @@ class AHPProcessor:
             m_coupling_risk=w_main[3],
             m_clustering=w_main[4],
             m_out_degree=0.0,               # Deprecated in v5+
-            
+
             # Availability v3: (AP_c_directed, QSPOF, BR, CDI, w)
             a_ap_c_directed=w_avail[0],    # Structural baseline (0.35)
             a_qspof=w_avail[1],             # QoS-weighted SPOF (0.25)
             a_bridge_ratio=w_avail[2],      # Multi-edge brittleness (0.25)
             a_cdi=w_avail[3],               # Path elongation (0.10)
             a_qos_weight=w_avail[4],        # Pure operational priority (0.05)
-            
-            # Security v2: (REV, RCL, QADS)
-            s_reverse_eigenvector=w_sec[0],
-            s_reverse_closeness=w_sec[1],
-            s_qads=w_sec[2],
-            # Deprecated
-            s_eigenvector=0.0,
-            s_closeness=0.0,
-            s_out_degree=0.0,
-            
+
             # Impact — all four criteria; i_flow_disruption used to be dropped
             # here, so the fourth AHP weight was computed and then discarded.
             i_reachability=w_impact[0],
@@ -377,9 +344,6 @@ class AHPProcessor:
             i_throughput=w_impact[2],
             i_flow_disruption=w_impact[3],
 
-            # Overall
-            q_reliability=w_over[0],
-            q_maintainability=w_over[1],
-            q_availability=w_over[2],
-            q_security=w_over[3]
+            # Overall (q_reliability, q_maintainability) and r_alpha: not AHP-derived,
+            # left at dataclass defaults (0.80, 0.20, 0.36) — see docstring.
         )

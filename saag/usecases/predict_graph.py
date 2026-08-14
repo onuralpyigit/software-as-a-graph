@@ -7,7 +7,7 @@ from saag.analysis.models import (
 
 class PredictGraphUseCase:
     """
-    Use case for predicting graph quality scores (RMAV).
+    Use case for predicting graph quality scores (RM).
     
     INDEPENDENCE GUARANTEE:
     This use case accepts StructuralAnalysisResult as a parameter.

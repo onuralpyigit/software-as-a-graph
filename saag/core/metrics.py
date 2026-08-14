@@ -69,7 +69,7 @@ class StructuralMetrics:
     mpci: float = 0.0                    # Multi-path coupling intensity
     path_complexity: float = 0.0         # Efferent path count complexity: mean(log2(1+path_count))
     coupling_risk_enh: float = 0.0       # CouplingRisk_enh(v): Martin instability enriched by path_complexity
-                                          # (mirrors the value computed in analyzer.py's _compute_rmav; 0.0 for
+                                          # (mirrors the value computed in analyzer.py's _compute_rm; 0.0 for
                                           # non-Application/Library types where instability isn't meaningful)
     topic_subscriber_count: int = 0      # Raw SUBSCRIBES_TO count (Topic nodes only; 0 for all other types)
     topic_publisher_count: int = 0       # Raw PUBLISHES_TO count (Topic nodes only; 0 for all other types)
@@ -242,27 +242,31 @@ class GraphSummary:
 @dataclass
 class QualityScores:
     """
-    Composite quality scores for R, M, A dimensions.
-    
+    Composite quality scores for the RM model (ISO/IEC 25010:2023).
+
+    ``fault_tolerance`` and ``availability`` are Reliability's two
+    sub-characteristics, reported alongside the hierarchical composite
+    ``reliability`` rather than folded away — see saag/core/quality_model.py.
+
     Formulas:
-        R(v) = w_pr·PR + w_rpr·RPR + w_in·InDeg      (Reliability)
-        M(v) = w_bt·BC + w_dg·Deg + w_cl·(1-CC)      (Maintainability)
-        A(v) = w_ap·AP + w_br·BR + w_imp·Imp         (Availability)
-        V(v) = w_ev·Eig + w_cl·Close + w_in·InDeg    (Vulnerability)
-        Q(v) = w_r·R + w_m·M + w_a·A                 (Overall)
+        FT(v) = w_rpr·RPR + w_dg·DG_in + w_cd·CDPot    (Fault Tolerance)
+        A(v)  = w_ap·AP + w_br·BR + w_imp·Imp          (Availability)
+        R(v)  = r_alpha·FT(v) + (1-r_alpha)·A(v)       (Reliability, hierarchical)
+        M(v)  = w_bt·BC + w_dg·Deg + w_cl·(1-CC)       (Maintainability)
+        Q(v)  = w_r·R + w_m·M                          (Overall)
     """
-    reliability: float = 0.0        # Fault propagation risk
+    reliability: float = 0.0        # Fault propagation + availability risk (hierarchical)
     maintainability: float = 0.0    # Change/coupling complexity
-    availability: float = 0.0       # Single point of failure risk
-    security: float = 0.0          # Exposure and attack surface risk
+    fault_tolerance: float = 0.0    # Reliability sub-characteristic: propagation-reach signals
+    availability: float = 0.0       # Reliability sub-characteristic: single point of failure risk
     overall: float = 0.0            # Combined criticality
-    
+
     def to_dict(self) -> Dict[str, float]:
         return {
             "reliability": round(self.reliability, 4),
             "maintainability": round(self.maintainability, 4),
+            "fault_tolerance": round(self.fault_tolerance, 4),
             "availability": round(self.availability, 4),
-            "security": round(self.security, 4),
             "overall": round(self.overall, 4),
         }
 
@@ -271,29 +275,34 @@ class QualityScores:
 class QualityLevels:
     """
     Classified levels for each quality dimension.
-    
+
     Levels are determined by box-plot classification based on
     score distribution, not static thresholds.
     """
     reliability: CriticalityLevel = CriticalityLevel.MINIMAL
     maintainability: CriticalityLevel = CriticalityLevel.MINIMAL
+    fault_tolerance: CriticalityLevel = CriticalityLevel.MINIMAL
     availability: CriticalityLevel = CriticalityLevel.MINIMAL
-    security: CriticalityLevel = CriticalityLevel.MINIMAL
     overall: CriticalityLevel = CriticalityLevel.MINIMAL
-    
+
     def to_dict(self) -> Dict[str, str]:
         return {
             "reliability": self.reliability.value,
             "maintainability": self.maintainability.value,
+            "fault_tolerance": self.fault_tolerance.value,
             "availability": self.availability.value,
-            "security": self.security.value,
             "overall": self.overall.value,
         }
-    
+
     def max_level(self) -> CriticalityLevel:
-        """Return the highest criticality level across all dimensions."""
+        """Return the highest criticality level across the two top-level dimensions.
+
+        Sub-characteristics (fault_tolerance, availability) are reported but
+        excluded here — they are components of ``reliability``, not independent
+        dimensions, so including them would double-count Reliability's signal.
+        """
         return max(
-            [self.reliability, self.maintainability, self.availability, self.security],
+            [self.reliability, self.maintainability],
             key=lambda x: x.numeric
         )
     
@@ -309,7 +318,7 @@ class ComponentQuality:
 
     Combines raw structural metrics with computed quality scores,
     classification levels, and a CriticalityProfile (5-tuple of binary
-    criticality flags per RMAV dimension + composite).
+    criticality flags per RM dimension + composite).
     """
     id: str
     type: str

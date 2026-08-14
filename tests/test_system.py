@@ -59,9 +59,9 @@ def test_system_end_to_end(tmp_path):
         assert val_result is not None
 
         # 6. Predict (GNN)
-        from saag.prediction import extract_structural_metrics_dict, extract_rmav_scores_dict, extract_simulation_dict
+        from saag.prediction import extract_structural_metrics_dict, extract_rm_scores_dict, extract_simulation_dict
         structural_dict = extract_structural_metrics_dict(analysis_result.structural)
-        rmav_dict       = extract_rmav_scores_dict(analysis_result.quality)
+        rm_dict       = extract_rm_scores_dict(analysis_result.quality)
         simulation_dict = extract_simulation_dict(sim_results)
 
         gnn_service = GNNService(
@@ -78,7 +78,7 @@ def test_system_end_to_end(tmp_path):
             graph=analysis_result.graph,
             structural_metrics=structural_dict,
             simulation_results=simulation_dict,
-            rmav_scores=rmav_dict,
+            rm_scores=rm_dict,
             num_epochs=2,
             lr=1e-3,
         )

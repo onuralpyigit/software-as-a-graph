@@ -302,14 +302,14 @@ class ConsoleDisplay:
             if not components:
                 print(f"  {self.colored('No components found.', Colors.GRAY)}")
                 return
-            header = f"  {'ID':<20} {'Name':<20} {'Type':<10} {'R':<6} {'M':<6} {'A':<6} {'V':<6} {'Q':<6} {'Level':<10}"
+            header = f"  {'ID':<20} {'Name':<20} {'Type':<10} {'R':<6} {'M':<6} {'FT':<6} {'A':<6} {'Q':<6} {'Level':<10}"
             print(self.colored(header, Colors.WHITE, bold=True))
             print(f"  {'-' * 96}")
             for c in components:
                 level_str = c.levels.overall.name if hasattr(c.levels.overall, 'name') else str(c.levels.overall)
                 color = self.level_color(c.levels.overall)
                 ap_flag = self.colored("●", Colors.RED) if c.structural.is_articulation_point else " "
-                print(f"  {c.id:<20} {c.structural.name[:20]:<20} {c.type:<10} {c.scores.reliability:.3f}  {c.scores.maintainability:.3f}  {c.scores.availability:.3f}  {c.scores.security:.3f}  {self.colored(f'{c.scores.overall:.3f}', color)}  {self.colored(level_str, color):<10} {ap_flag}")
+                print(f"  {c.id:<20} {c.structural.name[:20]:<20} {c.type:<10} {c.scores.reliability:.3f}  {c.scores.maintainability:.3f}  {c.scores.fault_tolerance:.3f}  {c.scores.availability:.3f}  {self.colored(f'{c.scores.overall:.3f}', color)}  {self.colored(level_str, color):<10} {ap_flag}")
                 
                 # Show direct affected/related components
                 related = []
@@ -338,10 +338,10 @@ class ConsoleDisplay:
             return
 
         table = Table(
-            box=box.MINIMAL_HEAVY_HEAD, 
-            header_style="bold white", 
+            box=box.MINIMAL_HEAVY_HEAD,
+            header_style="bold white",
             padding=(0, 1),
-            caption="[grey50]R: Reliability | M: Maintainability | A: Availability | S: Security | Q: Overall | S: SPOF[/]",
+            caption="[grey50]R: Reliability | M: Maintainability | FT: Fault Tolerance (R sub-char.) | A: Availability (R sub-char.) | Q: Overall | S: SPOF[/]",
             caption_justify="left"
         )
         table.add_column("Rank", justify="center", style="grey70")
@@ -350,8 +350,8 @@ class ConsoleDisplay:
         table.add_column("Type", style="grey70")
         table.add_column("R", justify="right")
         table.add_column("M", justify="right")
+        table.add_column("FT", justify="right")
         table.add_column("A", justify="right")
-        table.add_column("V", justify="right")
         table.add_column("Score (Q)", justify="right")
         table.add_column("Level", justify="left")
         table.add_column("S", justify="center") # SPOF flag
@@ -360,7 +360,7 @@ class ConsoleDisplay:
             level_str = c.levels.overall.name if hasattr(c.levels.overall, 'name') else str(c.levels.overall)
             color = self.level_color(c.levels.overall)
             spof = "[red]●[/]" if c.structural.is_articulation_point else ""
-            
+
             table.add_row(
                 str(i),
                 c.id,
@@ -368,8 +368,8 @@ class ConsoleDisplay:
                 c.type,
                 f"{c.scores.reliability:.3f}",
                 f"{c.scores.maintainability:.3f}",
+                f"{c.scores.fault_tolerance:.3f}",
                 f"{c.scores.availability:.3f}",
-                f"{c.scores.security:.3f}",
                 Text(f"{c.scores.overall:.4f}", style=color),
                 Text(level_str.capitalize(), style=color),
                 spof
@@ -707,7 +707,7 @@ class ConsoleDisplay:
                 self.display_layer_critical_components(result)
                 self.display_sensitivity(result)
             else:
-                self.print_warning("No quality/criticality data on this result — run the Predict step (client.predict()) for RMAV+GNN scores and anti-patterns.")
+                self.print_warning("No quality/criticality data on this result — run the Predict step (client.predict()) for RM+GNN scores and anti-patterns.")
             if result.prediction:
                 self.display_gnn_prediction(result.prediction)
             if result.quality:
@@ -736,7 +736,7 @@ class ConsoleDisplay:
             self.display_layer_critical_components(result)
             self.display_sensitivity(result)
         else:
-            self.print_warning("No quality/criticality data on this result — run the Predict step (client.predict()) for RMAV+GNN scores and anti-patterns.")
+            self.print_warning("No quality/criticality data on this result — run the Predict step (client.predict()) for RM+GNN scores and anti-patterns.")
         if result.prediction:
             self.display_gnn_prediction(result.prediction)
         if result.quality:
@@ -912,7 +912,7 @@ class ConsoleDisplay:
 
 
     def display_top_critical_components(self, components: List[Any], n: int = 10) -> None:
-        """Display top-N critical components with their RMAV breakdown and cascade metrics."""
+        """Display top-N critical components with their RM breakdown and cascade metrics."""
         if not components:
             return
             
@@ -1038,7 +1038,7 @@ class ConsoleDisplay:
             print(f"  {lvl:<9} {count:>3}  {self.colored(bar, color)}")
 
         # Display Top 10
-        sorted_comps = sorted(components, key=lambda c: getattr(c, "composite_score", getattr(c, "rmav_score", 0.0)), reverse=True)
+        sorted_comps = sorted(components, key=lambda c: getattr(c, "composite_score", getattr(c, "rm_score", 0.0)), reverse=True)
         self.display_top_critical_components(sorted_comps, n=10)
 
     def display_simulation_summary(self, report: Any) -> None:

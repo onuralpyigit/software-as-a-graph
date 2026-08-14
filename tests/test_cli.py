@@ -395,7 +395,7 @@ class TestOptionsPassthrough:
         return cli.run
 
     def test_use_ahp_forwarded(self, run_module, mock_pipeline):
-        """use_ahp belongs to the Predict stage (RMAV weighting), not
+        """use_ahp belongs to the Predict stage (RM weighting), not
         Analyze — Client.analyze() explicitly discards unknown kwargs, so
         this must reach predict(), not analyze()."""
         mock_class, mock_inst = mock_pipeline

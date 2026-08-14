@@ -10,7 +10,7 @@ class AnalysisService:
     """
     Service for running structural graph analysis (Step 2).
 
-    Orchestrates StructuralAnalyzer only — RMAV/GNN scoring, anti-pattern
+    Orchestrates StructuralAnalyzer only — RM/GNN scoring, anti-pattern
     detection, and explanations are produced by the Predict stage (Step 3),
     see saag.prediction.service.PredictionService.
     """
@@ -24,7 +24,7 @@ class AnalysisService:
 
         Dependencies are derived and the graph loaded **once**, then reused for
         every layer projection. Each result has only ``structural`` populated;
-        RMAV/GNN quality scoring, anti-pattern detection, and explanations are
+        RM/GNN quality scoring, anti-pattern detection, and explanations are
         produced separately by the Predict stage (Step 3) — see
         saag.prediction.service.PredictionService.
 

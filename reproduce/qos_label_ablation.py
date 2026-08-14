@@ -9,7 +9,7 @@ Why this exists
 ---------------
 QoS already propagates into the *predictor*: w(t) inherits onto every edge, and
 from there into QSPOF, the QoS-weighted in/out degrees and QoS-weighted
-betweenness that RMAV and ``Topo-QoS`` are built from. Adding QoS to the *label*
+betweenness that RM and ``Topo-QoS`` are built from. Adding QoS to the *label*
 therefore raises those predictors' correlation whether or not the model learned
 anything — the label and the predictor now share a term.
 

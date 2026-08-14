@@ -64,7 +64,7 @@ class QualityAnalysisResult:
 
     Produced by the unified Prediction Step (Step 3): ``problems``,
     ``problem_summary``, and ``explanation`` are populated by
-    ``PredictionService`` alongside the rule-based (RMAV) or ML (GNN) scores.
+    ``PredictionService`` alongside the rule-based (RM) or ML (GNN) scores.
     """
     timestamp: str
     layer: str
@@ -78,7 +78,7 @@ class QualityAnalysisResult:
     problems: List["DetectedProblem"] = field(default_factory=list)
     problem_summary: Optional["ProblemSummary"] = None
     explanation: Optional["SystemReport"] = None
-    prediction_mode: str = "rmav"
+    prediction_mode: str = "rm"
     #: Anti-pattern IDs whose detector raised while producing `problems` (see
     #: AntiPatternDetector.failed_patterns). Empty means every active
     #: detector ran cleanly — not just "found nothing".

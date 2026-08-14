@@ -173,7 +173,7 @@ class GNNTrainer:
         weight_decay: float = 1e-4,
         warmup_T0: Optional[int] = None,
         multitask_weight: float = 0.5,
-        rmav_consistency_weight: float = 0.1,
+        rm_consistency_weight: float = 0.1,
         ranking_weight: float = 0.3,
         pairwise_ranking_weight: float = 0.1,
         edge_loss_weight: float = 0.3,
@@ -200,7 +200,7 @@ class GNNTrainer:
 
         self.loss_fn = CriticalityLoss(
             multitask_weight=multitask_weight,
-            rmav_consistency_weight=rmav_consistency_weight,
+            rm_consistency_weight=rm_consistency_weight,
             ranking_weight=ranking_weight,
             pairwise_ranking_weight=pairwise_ranking_weight,
         )
@@ -236,8 +236,8 @@ class GNNTrainer:
                 labelled = mask & _labelled_nodes(store)
                 if labelled.sum() == 0:
                     continue
-                rmav_target = store.y_rmav if hasattr(store, "y_rmav") else None
-                loss, _ = self.loss_fn(preds, store.y, labelled, rmav_target, self.dim_weights)
+                rm_target = store.y_rm if hasattr(store, "y_rm") else None
+                loss, _ = self.loss_fn(preds, store.y, labelled, rm_target, self.dim_weights)
                 total += loss.item()
                 count += 1
         return total / max(count, 1)
@@ -291,8 +291,8 @@ class GNNTrainer:
             labelled = mask & _labelled_nodes(store)
             if labelled.sum() == 0:
                 continue
-            rmav_target = store.y_rmav if hasattr(store, "y_rmav") else None
-            loss, _ = self.loss_fn(preds, store.y, labelled, rmav_target, self.dim_weights)
+            rm_target = store.y_rm if hasattr(store, "y_rm") else None
+            loss, _ = self.loss_fn(preds, store.y, labelled, rm_target, self.dim_weights)
             total = total + loss
         return total
 
@@ -536,7 +536,7 @@ def evaluate_scores(
         rho = 0.0
 
     # ── Adaptive ground-truth threshold ────────────────────────────────────────
-    # When labels are derived from RMAV (all in [0, 1] but max < 0.5),
+    # When labels are derived from RM (all in [0, 1] but max < 0.5),
     # use the 90th-percentile as the critical threshold.
     gt_threshold = 0.5
     if np.max(t_comp) < 0.5 and np.max(t_comp) > 1e-6:

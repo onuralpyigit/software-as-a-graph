@@ -81,7 +81,7 @@ class TopoClass:
     id: str
     label: str
     scenarios: List[str]           # scenario name prefixes (e.g. "scenario_01")
-    primary_dimension: str         # RMAV dimension that should dominate
+    primary_dimension: str         # RM dimension that should dominate
     discriminating_signal: str     # structural property that drives correctness
     # Gate thresholds for this class (may be tighter/looser than global defaults)
     spearman_min: float = 0.80
@@ -515,7 +515,7 @@ def build_report(class_results: Dict[str, TopoClassResult]) -> TopologyReport:
         if not r.primary_dim_dominance:
             notes.append(
                 f"{r.label}: primary dimension '{cls.primary_dimension}' "
-                "did not dominate — check RMAV weight calibration."
+                "did not dominate — check RM weight calibration."
             )
         if r.topo_class_id == "sparse" and not r.ftr_ok:
             notes.append(

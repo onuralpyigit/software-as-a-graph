@@ -61,7 +61,7 @@ def test_component_facade_mapping():
     assert facade.id == "c1"
     assert facade.name == "Test App"
     assert facade.type == "Application"
-    assert facade.rmav_score == 0.8
+    assert facade.rm_score == 0.8
     assert facade.is_critical is True
     assert facade.blast_radius == 5
     assert facade.cascade_depth == 3
@@ -79,7 +79,7 @@ def test_component_facade_mapping():
     # to_dict
     d = facade.to_dict()
     assert d["id"] == "c1"
-    assert d["rmav_score"] == 0.8
+    assert d["rm_score"] == 0.8
     assert d["is_critical"] is True
 
 def test_prediction_result_from_dict():
@@ -125,7 +125,7 @@ def test_prediction_result_from_dict():
     assert c.id == "c1"
     assert c.name == "App One"
     assert c.type == "Application"
-    assert c.rmav_score == 0.85
+    assert c.rm_score == 0.85
     assert c.criticality_level == "CRITICAL"
     assert c.blast_radius == 4
     assert c.cascade_depth == 2

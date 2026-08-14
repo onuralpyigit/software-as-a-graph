@@ -113,7 +113,7 @@ class LayerDefinition:
         component_types:  T_l — vertex labels included when building subgraph
         dependency_types: D_l — DEPENDS_ON subtypes included
         focus_metrics:    Key topological metrics for this layer
-        quality_focus:    Primary RMAV quality dimension
+        quality_focus:    Primary RM quality dimension
         analyze_types:    T_a — component types in analysis results.
                           Defaults to *component_types* when ``None``.
     """
@@ -154,7 +154,7 @@ LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
             "dependencies for reliability. Library nodes are included so that shared-library "
             "blast-radius risk (simultaneous multi-consumer failure) is visible at this layer. "
             "Scope constraint: app_to_lib blast semantics differ from app_to_app sequential "
-            "cascades — Library RMAV scores reflect fan-out severity, not propagation depth."
+            "cascades — Library RM scores reflect fan-out severity, not propagation depth."
         ),
         component_types=frozenset({"Application", "Library"}),
         dependency_types=frozenset({"app_to_app", "app_to_lib"}),

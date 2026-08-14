@@ -88,7 +88,7 @@ class TestUseCaseOrchestration:
         analyze_uc = AnalyzeGraphUseCase(analysis_service)
         predict_uc = PredictGraphUseCase(prediction_service)
 
-        # 1. Analyze — structural only; RMAV/quality is no longer computed here
+        # 1. Analyze — structural only; RM/quality is no longer computed here
         # (moved to the unified Predict step, see PredictionService.predict()).
         layer_res = analyze_uc.execute("app")
         struct_res = layer_res.structural

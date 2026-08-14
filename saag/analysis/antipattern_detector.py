@@ -231,26 +231,8 @@ CATALOG: Dict[str, PatternSpec] = {
         )
     ),
 
-    # ── Security ─────────────────────────────────────────────────────────────
-
-    "TARGET": PatternSpec(
-        id="TARGET",
-        name="High Value Target",
-        severity="CRITICAL",
-        category="Security",
-        description="Highly connected component with critical security classification.",
-        risk="A breach here provides an attacker with high reachability into the system.",
-        recommendation="Zero Trust policies, audit logging, and network isolation."
-    ),
-    "EXPOSURE": PatternSpec(
-        id="EXPOSURE",
-        name="High Exposure Surface",
-        severity="HIGH",
-        category="Security",
-        description="Easily reachable component (high closeness) with a large attack surface.",
-        risk="Easier target for initial penetration or lateral movement.",
-        recommendation="Restrict incoming connections and validate all inputs via API gateways."
-    ),
+    # NOTE: the "Security" category (TARGET, EXPOSURE) was retired along with
+    # the Vulnerability/Security dimension — see saag/core/quality_model.py.
 
     # ── Architecture ──────────────────────────────────────────────────────────
 
@@ -345,8 +327,6 @@ class AntiPatternDetector:
             "GOD_COMPONENT":      self._detect_god_component,
             "HUB_AND_SPOKE":      self._detect_hub_and_spoke,
             "BOTTLENECK_EDGE":    self._detect_bottleneck_edge,
-            "TARGET":             self._detect_target,
-            "EXPOSURE":           self._detect_exposure,
             "CYCLE":              self._detect_cycle,
             "CHAIN":              self._detect_chain,
             "ISOLATED":           self._detect_isolated,
@@ -416,7 +396,6 @@ class AntiPatternDetector:
         overall_scores = [c.scores.overall for c in components]
         avail_scores = [c.scores.availability for c in components]
         rel_scores = [c.scores.reliability for c in components]
-        sec_scores = [c.scores.security for c in components]
         total_degrees = [getattr(c.structural, 'in_degree_raw', 0) + getattr(c.structural, 'out_degree_raw', 0) for c in components]
         out_degrees = [getattr(c.structural, 'out_degree_raw', 0) for c in components]
 
@@ -424,8 +403,7 @@ class AntiPatternDetector:
         _, _, q3_deg, fence_deg = _boxplot_fence(total_degrees)
         _, _, q3_rel, fence_rel = _boxplot_fence(rel_scores)
         _, _, q3_avail, fence_avail = _boxplot_fence(avail_scores)
-        _, _, q3_sec, fence_sec = _boxplot_fence(sec_scores)
-        
+
         median_out = statistics.median(out_degrees) if out_degrees else 0
 
         # TOPIC_FANOUT: fence computed over Topic-type components only, using raw
@@ -444,7 +422,7 @@ class AntiPatternDetector:
 
         return {
             "fence_q": fence_q, "q3_degree": q3_deg, "fence_degree": fence_deg,
-            "fence_rel": fence_rel, "fence_avail": fence_avail, "fence_sec": fence_sec,
+            "fence_rel": fence_rel, "fence_avail": fence_avail,
             "median_out": median_out, "total_count": len(components),
             "fence_topic_out": fence_topic_out, "fence_edge_bt": fence_edge_bt
         }
@@ -521,23 +499,6 @@ class AntiPatternDetector:
             betweenness = getattr(e.structural, 'betweenness', 0)
             if betweenness > fence_edge_bt:
                 out.append(self._make_problem("BOTTLENECK_EDGE", e.id, {"betweenness": betweenness}, entity_type="Edge"))
-        return out
-
-    def _detect_target(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
-        out = []
-        from saag.core.criticality import CriticalityLevel
-        for c in lr.components:
-            if c.levels.security >= CriticalityLevel.CRITICAL:
-                out.append(self._make_problem("TARGET", c.id, {"security": c.scores.security}))
-        return out
-
-    def _detect_exposure(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
-        out = []
-        from saag.core.criticality import CriticalityLevel
-        for c in lr.components:
-            closeness = getattr(c.structural, 'closeness', 0)
-            if c.levels.security == CriticalityLevel.HIGH and closeness > 0.6:
-                out.append(self._make_problem("EXPOSURE", c.id, {"closeness": closeness}))
         return out
 
     def _detect_cycle(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:

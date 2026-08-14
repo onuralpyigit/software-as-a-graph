@@ -219,12 +219,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-size: 11px; font-weight: 500; margin-left: 6px;
     }}
     .hier-q {{ margin-left: auto; font-size: 12px; font-weight: 500; }}
-    /* ── RMAV segmented bar (component table) ── */
-    .rmas-bar {{
+    /* ── RM segmented bar (component table) ── */
+    .rm-bar {{
       display: flex; height: 8px; width: 100px;
       border-radius: 4px; overflow: hidden; background: #f3f4f6;
     }}
-    .rmas-seg {{ height: 100%; }}
+    .rm-seg {{ height: 100%; }}
     /* ── Per-dimension ρ bars ── */
     .dim-row {{
       display: flex; align-items: center; gap: 12px; margin-bottom: 10px;

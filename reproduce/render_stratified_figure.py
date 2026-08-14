@@ -44,20 +44,20 @@ _NODE_TYPE_LABELS = {
     "Node":        "Node",
     "Library":     "Lib",
 }
-_VARIANT_ORDER = ["topology_rmav", "gl", "gl_qos", "hgl", "hgl_qos"]
+_VARIANT_ORDER = ["topology_rm", "gl", "gl_qos", "hgl", "hgl_qos"]
 _VARIANT_LABELS = {
     "hgl_qos":         "HGL-QoS",
     "hgl":             "HGL",
     "gl_qos":          "GL-QoS",
     "gl":              "GL",
-    "topology_rmav":   "RMAV baseline",
+    "topology_rm":   "RM baseline",
 }
 _VARIANT_COLORS = {
     "hgl_qos":         "#4C72B0",
     "hgl":             "#55A868",
     "gl_qos":          "#DD8452",
     "gl":              "#8172B3",
-    "topology_rmav":   "#C44E52",
+    "topology_rm":   "#C44E52",
 }
 
 _RESULTS_DIR = Path("results")

@@ -61,7 +61,7 @@ def test_pipeline_reordered_simulate_before_predict(monkeypatch):
     assert execution_order.index("simulate") < execution_order.index("predict")
 
 def test_pipeline_predict_kwargs_reach_client(monkeypatch):
-    """RMAV weighting options passed to Pipeline.predict() must reach
+    """RM weighting options passed to Pipeline.predict() must reach
     Client.predict() — they previously only reached Pipeline.analyze(),
     whose Client.analyze() explicitly discards unknown kwargs, so
     `saag --all --use-ahp` was a silent no-op."""
@@ -79,12 +79,12 @@ def test_pipeline_predict_kwargs_reach_client(monkeypatch):
     from saag.prediction.service import PredictionService
     monkeypatch.setattr(PredictionService, "_has_checkpoint", staticmethod(lambda d: True))
 
-    pipeline.analyze("app").predict(mode="rmav", use_ahp=True, equal_weights=False)
+    pipeline.analyze("app").predict(mode="rm", use_ahp=True, equal_weights=False)
     pipeline.run()
 
     assert captured.get("use_ahp") is True
     assert captured.get("equal_weights") is False
-    assert captured.get("mode") == "rmav"
+    assert captured.get("mode") == "rm"
 
 
 def test_pipeline_simulate_layer_independent_of_analyze_layer(monkeypatch):

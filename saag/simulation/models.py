@@ -343,12 +343,28 @@ def ahp_impact_weights() -> Dict[str, float]:
         }
 
 
+def reliability_alpha() -> float:
+    """Weight of Fault Tolerance within Reliability (R = alpha*FT + (1-alpha)*A).
+
+    Taken from ``QualityWeights.r_alpha`` rather than restated, same reasoning
+    as ``ahp_impact_weights``: a literal here would go stale under weight
+    perturbation. Falls back to the documented default if the analysis package
+    is unavailable, keeping this module import-light.
+    """
+    try:
+        from saag.analysis.weight_calculator import QualityWeights
+
+        return QualityWeights().r_alpha
+    except Exception:  # pragma: no cover - defensive, keeps simulation standalone
+        return 0.36
+
+
 @dataclass
 class ImpactMetrics:
     """Impact metrics from a failure simulation.
 
     NOT the HGL/GL paper's ground truth. ``composite_impact`` below and the IR(v)/IM(v)/IA(v)/
-    IS(v) properties are AHP-weighted RMAV-dimension metrics produced by ``FailureSimulator``,
+    IS(v) properties are AHP-weighted RM-dimension metrics produced by ``FailureSimulator``,
     used for the separate multi-dimensional quality-attribution framework (Q(v) validation).
     They are unrelated to, and must not be conflated with, the paper's I*(v) cascade-impact
     ground truth used to evaluate HGL/HGL-QoS/GL/GL-QoS/Topo-BL/Topo-QoS: that I*(v) is produced
@@ -391,7 +407,7 @@ class ImpactMetrics:
     weighted_cascade_impact: float = 0.0
     normalized_cascade_depth: float = 0.0
 
-    reliability_weights: Dict[str, float] = field(default_factory=lambda: {
+    fault_tolerance_weights: Dict[str, float] = field(default_factory=lambda: {
         "cascade_reach": 0.45,
         "weighted_cascade_impact": 0.35,
         "normalized_depth": 0.20,
@@ -433,20 +449,33 @@ class ImpactMetrics:
         )
 
     @property
-    def reliability_impact(self) -> float:
-        """IR(v) — Reliability-specific ground truth from fault propagation dynamics.
+    def fault_tolerance_impact(self) -> float:
+        """IFT(v) — Fault-Tolerance-specific ground truth from propagation dynamics.
 
         Measures cascade propagation directly rather than Availability-biased
         structural connectivity loss.  Only meaningful after the exhaustive
         simulation post-pass has populated cascade_reach, weighted_cascade_impact,
         and normalized_cascade_depth.  Defaults to 0.0 until then.
         """
-        w = self.reliability_weights
+        w = self.fault_tolerance_weights
         return (
             w.get("cascade_reach", 0.45) * self.cascade_reach +
             w.get("weighted_cascade_impact", 0.35) * self.weighted_cascade_impact +
             w.get("normalized_depth", 0.20) * self.normalized_cascade_depth
         )
+
+    @property
+    def reliability_impact(self) -> float:
+        """IR(v) — Reliability ground truth: the r_alpha-blend of IFT(v) and IA(v).
+
+        Mirrors the scoring-side hierarchy (R = r_alpha*FT + (1-r_alpha)*A).
+        Blended at this raw scale as the training-label convenience form; the
+        validation path re-blends post-scaling (see saag/validation/service.py)
+        because IFT and IA have visibly different raw distributions and blending
+        before vs. after `robust_sigmoid_scale_dict` is not interchangeable.
+        """
+        alpha = reliability_alpha()
+        return alpha * self.fault_tolerance_impact + (1.0 - alpha) * self.availability_impact
 
     @property
     def maintainability_impact(self) -> float:
@@ -502,39 +531,6 @@ class ImpactMetrics:
             w.get("path_breaking_throughput", 0.15) * self.path_breaking_throughput_loss
         )
 
-    # -----------------------------------------------------------------------
-    # IS(v): Security-specific ground truth (compromise propagation)
-    # -----------------------------------------------------------------------
-    # Populated by CompromisePropagationSimulator post-pass.
-    # attack_reach = fraction of reachable components via G^T paths over threshold
-    # weighted_attack_impact = weighted sum of contaminated components
-    # high_value_contamination = distance-discounted sum of high-value paths
-    attack_reach: float = 0.0
-    weighted_attack_impact: float = 0.0
-    high_value_contamination: float = 0.0
-    critical_paths: List[List[str]] = field(default_factory=list)
-
-    security_weights: Dict[str, float] = field(default_factory=lambda: {
-        "attack_reach": 0.40,
-        "weighted_attack_impact": 0.35,
-        "high_value_contamination": 0.25,
-    })
-
-    @property
-    def security_impact(self) -> float:
-        """IS(v) — Security-specific ground truth from compromise propagation.
-
-        Measures the security impact if v is compromised, computing adversarial
-        reach over the trusted G^T topology. Only meaningful after the
-        CompromisePropagationSimulator completes its pass. Defaults to 0.0.
-        """
-        w = self.security_weights
-        return (
-            w.get("attack_reach", 0.40) * self.attack_reach +
-            w.get("weighted_attack_impact", 0.35) * self.weighted_attack_impact +
-            w.get("high_value_contamination", 0.25) * self.high_value_contamination
-        )
-
     def to_dict(self) -> Dict[str, Any]:
         return {
             "reachability": {
@@ -556,11 +552,18 @@ class ImpactMetrics:
                 "depth": self.cascade_depth,
             },
             "composite_impact": round(self.composite_impact, 4),
+            # Reliability is hierarchical: reliability_impact is the r_alpha-blend
+            # of fault_tolerance_impact and availability["availability_impact"];
+            # both sub-characteristics are nested here so the hierarchy is
+            # visible on disk, not just the blended composite.
             "reliability": {
-                "cascade_reach": round(self.cascade_reach, 4),
-                "weighted_cascade_impact": round(self.weighted_cascade_impact, 4),
-                "normalized_cascade_depth": round(self.normalized_cascade_depth, 4),
                 "reliability_impact": round(self.reliability_impact, 4),
+                "fault_tolerance": {
+                    "cascade_reach": round(self.cascade_reach, 4),
+                    "weighted_cascade_impact": round(self.weighted_cascade_impact, 4),
+                    "normalized_cascade_depth": round(self.normalized_cascade_depth, 4),
+                    "fault_tolerance_impact": round(self.fault_tolerance_impact, 4),
+                },
             },
             "maintainability": {
                 "change_reach": round(self.change_reach, 4),
@@ -575,12 +578,6 @@ class ImpactMetrics:
                 "availability_impact": round(self.availability_impact, 4),
                 "ia_out": round(self.ia_out, 4),
                 "ia_in": round(self.ia_in, 4),
-            },
-            "security": {
-                "attack_reach": round(self.attack_reach, 4),
-                "weighted_attack_impact": round(self.weighted_attack_impact, 4),
-                "high_value_contamination": round(self.high_value_contamination, 4),
-                "security_impact": round(self.security_impact, 4),
             },
         }
 

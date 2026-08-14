@@ -54,7 +54,7 @@ def main():
     group.add_argument("--generate", action="store_true", help="Run graph generation stage")
     group.add_argument("--input", "-i", metavar="FILE", help="System topology JSON file (input for import, output for generate)")
     group.add_argument("--analyze", action="store_true", help="Run analysis stage (structural metrics only)")
-    group.add_argument("--predict", action="store_true", help="Run the unified Prediction stage (RMAV always + GNN when available + anti-patterns)")
+    group.add_argument("--predict", action="store_true", help="Run the unified Prediction stage (RM always + GNN when available + anti-patterns)")
     group.add_argument("--simulate", action="store_true", help="Run failure simulation stage")
     group.add_argument("--validate", action="store_true", help="Run validation stage (compare prediction vs simulation)")
     group.add_argument("--prescribe", action="store_true", help="Run prescriptive remediation stage")

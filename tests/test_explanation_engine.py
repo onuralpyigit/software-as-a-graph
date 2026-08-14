@@ -18,13 +18,13 @@ from saag.explanation.engine import ExplanationEngine
 def sample_quality():
     """Create a sample ComponentQuality object with 'Total Hub' profile."""
     scores = QualityScores(
-        reliability=0.9, maintainability=0.85, availability=0.88, security=0.92, overall=0.9
+        reliability=0.9, maintainability=0.85, fault_tolerance=0.91, availability=0.88, overall=0.9
     )
     levels = QualityLevels(
         reliability=CriticalityLevel.CRITICAL,
         maintainability=CriticalityLevel.CRITICAL,
+        fault_tolerance=CriticalityLevel.CRITICAL,
         availability=CriticalityLevel.CRITICAL,
-        security=CriticalityLevel.CRITICAL,
         overall=CriticalityLevel.CRITICAL
     )
     structural = StructuralMetrics(
@@ -39,7 +39,7 @@ def sample_quality():
         reverse_eigenvector=0.95,
         bridge_ratio=0.75
     )
-    profile = CriticalityProfile(r_crit=True, m_crit=True, a_crit=True, s_crit=True, q_crit=True)
+    profile = CriticalityProfile(ft_crit=True, a_crit=True, m_crit=True, r_crit=True, q_crit=True)
     
     return ComponentQuality(
         id="App_Controller",
@@ -55,13 +55,13 @@ def sample_quality():
 def sample_quality_high():
     """Create a sample ComponentQuality object with HIGH level."""
     scores = QualityScores(
-        reliability=0.75, maintainability=0.7, availability=0.72, security=0.78, overall=0.75
+        reliability=0.75, maintainability=0.7, fault_tolerance=0.68, availability=0.72, overall=0.75
     )
     levels = QualityLevels(
         reliability=CriticalityLevel.HIGH,
         maintainability=CriticalityLevel.HIGH,
+        fault_tolerance=CriticalityLevel.HIGH,
         availability=CriticalityLevel.HIGH,
-        security=CriticalityLevel.HIGH,
         overall=CriticalityLevel.HIGH
     )
     structural = StructuralMetrics(
@@ -76,7 +76,7 @@ def sample_quality_high():
         reverse_eigenvector=0.4,
         bridge_ratio=0.1
     )
-    profile = CriticalityProfile(r_crit=False, m_crit=False, a_crit=True, s_crit=False, q_crit=False)
+    profile = CriticalityProfile(ft_crit=False, a_crit=True, m_crit=False, r_crit=False, q_crit=False)
     
     return ComponentQuality(
         id="Aux_Service",
@@ -134,8 +134,8 @@ def test_explain_component(sample_quality, sample_smells):
     assert "three independent failure modes" in explanation.top_risk
     assert "CyclicDependency" in explanation.anti_patterns
     
-    # Check dimensions
-    assert len(explanation.dimensions) == 4
+    # Check dimensions (reliability, maintainability, availability)
+    assert len(explanation.dimensions) == 3
     
     # Check interpolation in plain meaning (using default templates now)
     rel_dim = next((d for d in explanation.dimensions if d.dimension == "Reliability"), None)

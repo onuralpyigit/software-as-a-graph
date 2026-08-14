@@ -103,9 +103,9 @@ def test_topic_criticality_is_opt_in():
 
 
 def _write_sparse_cache(cache_dir: pathlib.Path, n: int = 10) -> set:
-    """Write a cache whose simulation labels are all zero but whose RMAV is not.
+    """Write a cache whose simulation labels are all zero but whose RM is not.
 
-    This is exactly the shape that used to trigger silent RMAV substitution.
+    This is exactly the shape that used to trigger silent RM substitution.
     """
     import json
 
@@ -122,30 +122,30 @@ def _write_sparse_cache(cache_dir: pathlib.Path, n: int = 10) -> set:
     return set(node_ids)
 
 
-def test_rmav_substitution_raises_by_default(tmp_path):
-    """Sparse simulation labels must not be silently swapped for RMAV scores.
+def test_rm_substitution_raises_by_default(tmp_path):
+    """Sparse simulation labels must not be silently swapped for RM scores.
 
-    RMAV is computed from the same structural metrics that form the GNN's input
+    RM is computed from the same structural metrics that form the GNN's input
     features, so substituting it makes the labels a function of the features.
     """
     from reproduce.main_table import _load_cache_dicts
 
     nodes = _write_sparse_cache(tmp_path / "sparse_scenario")
 
-    with pytest.raises(ValueError, match="RMAV"):
+    with pytest.raises(ValueError, match="RM"):
         _load_cache_dicts(tmp_path / "sparse_scenario", nodes)
 
 
-def test_rmav_substitution_is_tagged_when_explicitly_allowed(tmp_path):
+def test_rm_substitution_is_tagged_when_explicitly_allowed(tmp_path):
     """Opting in is permitted, but the result may never be labelled 'Sim'."""
     from reproduce.main_table import _load_cache_dicts
 
     nodes = _write_sparse_cache(tmp_path / "sparse_scenario")
 
     _, _, _, gt_source = _load_cache_dicts(
-        tmp_path / "sparse_scenario", nodes, allow_rmav_substitution=True
+        tmp_path / "sparse_scenario", nodes, allow_rm_substitution=True
     )
-    assert gt_source == "RMAV-sub", (
+    assert gt_source == "RM-sub", (
         f"substituted labels reported as {gt_source!r}; they must never be tagged 'Sim'"
     )
 

@@ -11,7 +11,7 @@ from datetime import datetime
 import numpy as np
 
 from .dimensions import (
-    DIMENSION_SPECS, GROUND_TRUTH_FIELDS,
+    DIMENSION_SPECS, SUBCHARACTERISTIC_SPECS, GROUND_TRUTH_FIELDS,
     DimensionInputs, DimensionResult, DimensionSpec,
 )
 from .metric_calculator import calculate_correlation, spearman_correlation
@@ -19,18 +19,28 @@ from .models import ValidationTargets, ValidationResult, LayerValidationResult, 
 from .validator import Validator, robust_sigmoid_scale_dict
 from saag.core.layers import AnalysisLayer, get_simulation_layer_definition
 
-#: Predictor score attributes on `component.scores`, keyed by dimension.
-_PREDICTOR_ATTRS = ("reliability", "maintainability", "availability", "security")
+#: Predictor score attributes on `component.scores`, keyed by dimension. These
+#: are the two RM composite dimensions — the scope of the composite gates
+#: (I*, predictive_gain, orthogonality) and SRI.
+_PREDICTOR_ATTRS = ("reliability", "maintainability")
+
+#: Reliability's sub-characteristics — reported diagnostics, not composite
+#: dimensions. Kept out of _PREDICTOR_ATTRS so SRI and the composite gates
+#: don't double-count Reliability's signal via its own sub-scores.
+_SUBCHARACTERISTIC_ATTRS = ("fault_tolerance", "availability")
 
 #: Pairs checked for orthogonality — two dimensions that rank components
 #: identically are not measuring distinct quality attributes.
 _INTERDIM_PAIRS = (
     ("R*vsM*", "reliability", "maintainability"),
-    ("R*vsA*", "reliability", "availability"),
-    ("R*vsS*", "reliability", "security"),
-    ("M*vsA*", "maintainability", "availability"),
-    ("M*vsS*", "maintainability", "security"),
-    ("A*vsS*", "availability", "security"),
+)
+
+#: Reported diagnostics, excluded from the orthogonality gate: FT-vs-A is
+#: expected to correlate somewhat (both feed Reliability), and its old
+#: "high = bad" reading is inverted here — a *low* rho would mean the
+#: r_alpha blend is redundant, i.e. one sub-characteristic could be dropped.
+_DIAGNOSTIC_PAIRS = (
+    ("FT*vsA*", "fault_tolerance", "availability"),
 )
 
 #: Minimum matched components for any correlation to be meaningful.
@@ -190,9 +200,13 @@ class ValidationService:
         comp_types = {c.id: c.type for c in components}
         comp_names = {c.id: c.structural.name for c in components}
         pred_scores = {c.id: c.scores.overall for c in components}
+        # Spans both the composite dimensions and the reliability sub-characteristics
+        # so SUBCHARACTERISTIC_SPECS validation and the FT-vs-A diagnostic pair can
+        # read them, without those extra keys entering _PREDICTOR_ATTRS-scoped logic
+        # (SRI, the composite gates) and double-counting Reliability's signal.
         predictions = {
             attr: {c.id: getattr(c.scores, attr) for c in components}
-            for attr in _PREDICTOR_ATTRS
+            for attr in _PREDICTOR_ATTRS + _SUBCHARACTERISTIC_ATTRS
         }
         ground_truths = self._extract_ground_truths(sim_results)
 
@@ -231,6 +245,25 @@ class ValidationService:
                 dimensional_scatter[spec.key] = result.scatter
                 confidence_intervals[spec.key] = result.ci
 
+        # 3b. Sub-characteristic diagnostics (currently: availability). Reported
+        # the same way as a dimension, but its rho does NOT enter dim_rhos —
+        # it is not a candidate for predictive_gain's "best single dimension",
+        # since it is already inside reliability_impact's blend.
+        subchar_rhos: Dict[str, float] = {}
+        for spec in SUBCHARACTERISTIC_SPECS:
+            self.logger.info(
+                "Computing %s-specific validation (%s ground truth, sub-characteristic)...",
+                spec.key, spec.ground_truth_label,
+            )
+            result = self._validate_dimension(
+                spec, predictions, ground_truths, comp_map, sim_results, sim_layer.value
+            )
+            subchar_rhos[spec.key] = result.spearman if result else 0.0
+            if result:
+                dimensional_validation[spec.key] = result.entry
+                dimensional_scatter[spec.key] = result.scatter
+                confidence_intervals[spec.key] = result.ci
+
         # 4. Composite I*(v), predictive gain, orthogonality and system health
         self.logger.info("Computing composite I*(v) and system health metrics...")
         composite = self._validate_composite(
@@ -241,6 +274,7 @@ class ValidationService:
             confidence_intervals["composite"] = composite["ci"]
 
         interdim_rhos = self._interdimension_orthogonality(predictions)
+        diagnostic_rhos = self._diagnostic_orthogonality(predictions)
         system_health = self._system_health(components)
         if system_health:
             dimensional_validation["composite"] = {
@@ -250,6 +284,7 @@ class ValidationService:
                 "best_single_dim_rho": round(composite["best_dim_rho"] if composite else 0.0, 4),
                 "interdim_rhos": interdim_rhos,
                 "interdim_max_correlation": max(interdim_rhos.values()) if interdim_rhos else 0.0,
+                "diagnostic_rhos": diagnostic_rhos,
                 "system_health": system_health,
                 "n": composite["n"] if composite else 0,
                 "ground_truth": "I*(v)",
@@ -281,8 +316,7 @@ class ValidationService:
             rmse=validation_res.overall.error.rmse,
             reliability_spearman=dim_rhos["reliability"],
             maintainability_spearman=dim_rhos["maintainability"],
-            availability_spearman=dim_rhos["availability"],
-            security_spearman=dim_rhos["security"],
+            availability_spearman=subchar_rhos.get("availability", 0.0),
             composite_spearman=composite_spearman,
             predictive_gain=predictive_gain,
             system_health=system_health,
@@ -358,7 +392,7 @@ class ValidationService:
         }
 
     def _rule_based_baseline(self, validation_res: ValidationResult) -> Dict[str, Any]:
-        """Acceptance check for the deterministic RMAV predictor."""
+        """Acceptance check for the deterministic RM predictor."""
         return self._acceptance(
             float(validation_res.overall.correlation.spearman),
             float(validation_res.overall.classification.macro_f1),
@@ -491,13 +525,16 @@ class ValidationService:
 
         Predictive Gain is ρ(Q*, I*) minus the best single-dimension ρ: it is the
         evidence that combining dimensions beats any one of them alone.
+
+        I*(v) = 0.5*IR + 0.5*IM, over reliability and maintainability only.
+        availability_impact is not a separate term here — it already feeds
+        IR(v) (reliability_impact) via the r_alpha blend — including it again
+        would double-count Reliability's ground truth.
         """
         weights = self.targets.dimension_weights
         dims = {
             "r": ground_truths["reliability_impact"],
             "m": ground_truths["maintainability_impact"],
-            "a": ground_truths["availability_impact"],
-            "s": ground_truths["security_impact"],
         }
         shared = set.intersection(*(set(d) for d in dims.values())) if dims else set()
         composite_i_star = {
@@ -552,8 +589,38 @@ class ValidationService:
                 )
         return rhos
 
+    def _diagnostic_orthogonality(
+        self, predictions: Dict[str, Dict[str, float]]
+    ) -> Dict[str, float]:
+        """ρ between Reliability's sub-characteristics (currently FT vs A).
+
+        Reported only — excluded from the max_interdim_correlation gate. Its
+        old "high = bad" reading is inverted here: since R = r_alpha*FT +
+        (1-r_alpha)*A, a *low* rho is the interesting case — it means FT and A
+        genuinely disagree, so blending them (rather than using either alone)
+        is doing real work. A high rho means the blend is close to redundant.
+        """
+        rhos: Dict[str, float] = {}
+        for label, dim_a, dim_b in _DIAGNOSTIC_PAIRS:
+            d1, d2 = predictions[dim_a], predictions[dim_b]
+            ids = sorted(set(d1) & set(d2))
+            if len(ids) < _MIN_SAMPLE:
+                continue
+            rho, _ = spearman_correlation(
+                [float(d1[k]) for k in ids], [float(d2[k]) for k in ids]
+            )
+            rhos[label] = round(rho, 4)
+        return rhos
+
     def _system_health(self, components: List[Any]) -> Dict[str, float]:
-        """Weighted dimension health H_d, the system risk index SRI, and Gini RCI."""
+        """Weighted dimension health H_d, the system risk index SRI, and Gini RCI.
+
+        SRI sums only H_R and H_M — the two composite dimensions. H_FT and H_A
+        (Reliability's sub-characteristics) are reported alongside for
+        diagnostic visibility but excluded from the sum, for the same reason
+        they are excluded from _validate_composite: they already feed H_R via
+        the r_alpha blend, and summing them too would double-count it.
+        """
         if not components:
             return {}
 
@@ -566,13 +633,11 @@ class ValidationService:
             )
             return 1.0 - (scored / weight_sum)
 
-        h = {attr: health(attr) for attr in _PREDICTOR_ATTRS}
+        h = {attr: health(attr) for attr in _PREDICTOR_ATTRS + _SUBCHARACTERISTIC_ATTRS}
         dim_weights = self.targets.dimension_weights
         sri = (
             dim_weights["r"] * (1 - h["reliability"])
             + dim_weights["m"] * (1 - h["maintainability"])
-            + dim_weights["a"] * (1 - h["availability"])
-            + dim_weights["s"] * (1 - h["security"])
         )
 
         # Risk Concentration Index: Gini coefficient of the composite scores.
@@ -585,8 +650,8 @@ class ValidationService:
         return {
             "H_R": round(h["reliability"], 4),
             "H_M": round(h["maintainability"], 4),
+            "H_FT": round(h["fault_tolerance"], 4),
             "H_A": round(h["availability"], 4),
-            "H_S": round(h["security"], 4),
             "SRI": round(sri, 4),
             "RCI": round(rci, 4),
         }
@@ -601,11 +666,15 @@ class ValidationService:
         dimensional_validation: Dict[str, Any],
         predictive_gain: float,
     ) -> Dict[str, bool]:
-        """The unified G1-G9 gate checklist. G1-G4 decide `passed`."""
+        """The unified gate checklist. G1-G4 decide `passed`.
+
+        G7 (CDCC) and G9 (FTR) were retired with the Vulnerability/Security
+        dimension — both specialist metrics were security-only. The gap in
+        the numbering is intentional; do not renumber or reuse it.
+        """
         t = self.targets
         overall = validation_res.overall
         maintainability = dimensional_validation.get("maintainability", {})
-        security = dimensional_validation.get("security", {})
 
         gates = dict(overall.gates)
         gates.update({
@@ -617,10 +686,8 @@ class ValidationService:
             # Tier 2 — secondary
             "G5_predictive_gain": float(predictive_gain) > float(t.predictive_gain),
             "G6_kappa_cta": float(maintainability.get("weighted_kappa_cta", 0.0)) >= float(t.weighted_kappa_cta),
-            "G7_cdcc": float(security.get("cdcc", 1.0)) < float(t.cdcc_max),
             # Tier 3 — dimension specialists
             "G8_bottleneck_precision": float(maintainability.get("bottleneck_precision", 0.0)) >= float(t.bottleneck_precision_target),
-            "G9_ftr": float(security.get("ftr", 1.0)) <= float(t.ftr_max),
         })
         return gates
 

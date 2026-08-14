@@ -231,7 +231,7 @@ class TestValidationService:
         mock_simulation_service.run_failure_simulation_exhaustive.return_value = sim_results
 
     def test_dimensional_validation_includes_all_metrics(self, validation_service, mock_prediction_service, mock_simulation_service):
-        """Test that all RMAV specialist metrics are computed and present."""
+        """Test that all RM specialist metrics are computed and present."""
         self._setup_mock_layer(mock_prediction_service, mock_simulation_service)
         result = validation_service.validate_layers(layers=["app"])
         layer_res = result.layers["app"]
@@ -254,12 +254,6 @@ class TestValidationService:
         assert "dasa" in avl
         assert "rri" in avl
         
-        # Check Security
-        vul = layer_res.dimensional_validation["security"]
-        assert "ahcr_5" in vul
-        assert "ftr" in vul
-        assert "apar" in vul
-
     def test_composite_section_and_predictive_gain(self, validation_service, mock_prediction_service, mock_simulation_service):
         """Test composite I* calculation and Predictive Gain."""
         self._setup_mock_layer(mock_prediction_service, mock_simulation_service)
@@ -1002,22 +996,22 @@ class TestStep5ValidationFeatures:
         )
 
         # Build analysis result mock
-        mock_comp_rmav = MagicMock()
-        mock_comp_rmav.id = "c1"
-        mock_comp_rmav.type = "Application"
-        mock_comp_rmav.scores.overall = 0.8
-        mock_comp_rmav.scores.reliability = 0.8
-        mock_comp_rmav.scores.maintainability = 0.8
-        mock_comp_rmav.scores.availability = 0.8
-        mock_comp_rmav.scores.security = 0.8
-        mock_comp_rmav.structural.name = "c1"
-        mock_comp_rmav.structural.is_articulation_point = False
-        mock_comp_rmav.structural.betweenness = 0.1
-        mock_comp_rmav.structural.dependency_weight_out = 0.1
-        mock_comp_rmav.structural.weight = 1.0
+        mock_comp_rm = MagicMock()
+        mock_comp_rm.id = "c1"
+        mock_comp_rm.type = "Application"
+        mock_comp_rm.scores.overall = 0.8
+        mock_comp_rm.scores.reliability = 0.8
+        mock_comp_rm.scores.maintainability = 0.8
+        mock_comp_rm.scores.availability = 0.8
+        mock_comp_rm.scores.security = 0.8
+        mock_comp_rm.structural.name = "c1"
+        mock_comp_rm.structural.is_articulation_point = False
+        mock_comp_rm.structural.betweenness = 0.1
+        mock_comp_rm.structural.dependency_weight_out = 0.1
+        mock_comp_rm.structural.weight = 1.0
 
         mock_quality = MagicMock(spec=QualityAnalysisResult)
-        mock_quality.components = [mock_comp_rmav]
+        mock_quality.components = [mock_comp_rm]
         mock_pred.predict_quality.return_value = mock_quality
 
         # Build GNN prediction result mock

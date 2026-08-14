@@ -61,8 +61,8 @@ def parse_args() -> argparse.Namespace:
                         help="Path to structural metrics JSON (skips Step 2)")
     inputs.add_argument("--simulated", type=str, default=None,
                         help="Path to simulation results JSON (skips Step 4)")
-    inputs.add_argument("--rmav", type=str, default=None,
-                        help="Path to RMAV scores JSON (skips Step 3)")
+    inputs.add_argument("--rm", type=str, default=None,
+                        help="Path to RM scores JSON (skips Step 3)")
 
     # GNN hyperparameters
     gnn = parser.add_argument_group("GNN hyperparameters")
@@ -78,7 +78,7 @@ def parse_args() -> argparse.Namespace:
     gnn.add_argument("--no-edge-model", action="store_true", help="Skip edge model")
     gnn.add_argument("--seeds", type=int, nargs="+", help="Seed list for stability validation")
     gnn.add_argument("--multi-scenario", action="store_true", help="Inductive training on all domain scenarios")
-    gnn.add_argument("--mode", choices=["rmav", "gnn"], default="gnn", help="Evaluation path for final summary (default: gnn)")
+    gnn.add_argument("--mode", choices=["rm", "gnn"], default="gnn", help="Evaluation path for final summary (default: gnn)")
     gnn.add_argument("--weight-decay", type=float, default=1e-4, help="AdamW weight decay")
     gnn.add_argument("--warmup-t0", type=int, default=None,
                       help="T_0 for CosineAnnealingWarmRestarts (default: max(50, epochs//4))")
@@ -88,22 +88,22 @@ def parse_args() -> argparse.Namespace:
                       help="CriticalityLoss weight for the ListMLE ranking term")
     gnn.add_argument("--pairwise-ranking-weight", type=float, default=0.1,
                       help="CriticalityLoss weight for the pairwise margin-ranking term")
-    gnn.add_argument("--rmav-consistency-weight", type=float, default=0.1,
-                      help="CriticalityLoss weight for RMAV consistency regularization on unlabeled nodes")
+    gnn.add_argument("--rm-consistency-weight", type=float, default=0.1,
+                      help="CriticalityLoss weight for RM consistency regularization on unlabeled nodes")
     gnn.add_argument(
         "--variant",
-        choices=["hetero_qos", "homo_unweighted", "homo_scalar", "topology_rmav"],
+        choices=["hetero_qos", "homo_unweighted", "homo_scalar", "topology_rm"],
         default="hetero_qos",
         help=(
             "Model architecture variant (default: hetero_qos). "
             "hetero_qos = full QoS-aware HGT/HGTConv (paper contribution); "
             "homo_unweighted = flat GAT, no edge_attr; "
             "homo_scalar = flat GAT, scalar QoS weight; "
-            "topology_rmav = RMAV scores only, no GNN training. "
+            "topology_rm = RM scores only, no GNN training. "
             "Paper-name mapping (docs/research/jss/draft.md Section 7.2): "
             "hetero_qos=HGL-QoS, homo_unweighted=GL, homo_scalar=GL-QoS. "
             "NOTE: this flag does not expose the paper's QoS-masked heterogeneous variant "
-            "(HGL) as a distinct choice, and topology_rmav (RMAV composite score) is not the "
+            "(HGL) as a distinct choice, and topology_rm (RM composite score) is not the "
             "same computation as the paper's Topo-BL/Topo-QoS structural (betweenness) "
             "baselines -- use cli/loso_evaluate.py's --variant, which has hgl/hgl_qos/gl/"
             "gl_qos choices matching the paper directly, for HGL-vs-GL comparisons."
@@ -115,7 +115,7 @@ def parse_args() -> argparse.Namespace:
     output.add_argument("--checkpoint", default="output/gnn_checkpoints",
                         help="Checkpoint directory")
     output.add_argument("--output", default=None, help="Save result JSON")
-    output.add_argument("--use-ahp", action="store_true", help="Use AHP weights for RMAV")
+    output.add_argument("--use-ahp", action="store_true", help="Use AHP weights for RM")
     add_runtime_arguments(parser)
 
     return parser.parse_args()
@@ -143,7 +143,7 @@ def main() -> None:
     # ── Imports ─────────────────────────────────────────────────────────────
     try:
         from saag.prediction import GNNService, extract_structural_metrics_dict, \
-            extract_rmav_scores_dict, extract_simulation_dict
+            extract_rm_scores_dict, extract_simulation_dict
     except ImportError as e:
         logger.error(f"GNN module not available: {e}")
         sys.exit(1)
@@ -151,15 +151,15 @@ def main() -> None:
     # ── Data Loading ────────────────────────────────────────────────────────
     structural_dict = load_json(args.structural)
     simulation_dict = load_json(args.simulated)
-    rmav_dict = load_json(args.rmav)
+    rm_dict = load_json(args.rm)
     nx_graph = None
 
-    # rmav_dict is included here, not just structural_dict/simulation_dict: the
-    # inner checks below already handle "structural_dict present, rmav_dict
-    # not" (e.g. --structural X --simulated Y with no --rmav), but that branch
-    # was unreachable while this outer guard ignored rmav_dict — leaving
-    # rmav_dict silently None and training with no RMAV consistency targets.
-    if any(x is None for x in [structural_dict, simulation_dict, rmav_dict]):
+    # rm_dict is included here, not just structural_dict/simulation_dict: the
+    # inner checks below already handle "structural_dict present, rm_dict
+    # not" (e.g. --structural X --simulated Y with no --rm), but that branch
+    # was unreachable while this outer guard ignored rm_dict — leaving
+    # rm_dict silently None and training with no RM consistency targets.
+    if any(x is None for x in [structural_dict, simulation_dict, rm_dict]):
         display.print_step("Connecting to Neo4j to retrieve graph data...")
         try:
             from saag.analysis import AnalysisService
@@ -175,24 +175,24 @@ def main() -> None:
             if not repo:
                 raise ValueError("No repository connection established.")
 
-            if structural_dict is None or rmav_dict is None:
+            if structural_dict is None or rm_dict is None:
                 display.print_step("[Step 2] Running structural analysis...")
                 analysis_svc = AnalysisService(repo)
                 layer_result = analysis_svc.analyze_layer(args.layer)
                 nx_graph = layer_result.graph
                 if structural_dict is None:
                     structural_dict = extract_structural_metrics_dict(layer_result.structural)
-                if rmav_dict is None:
+                if rm_dict is None:
                     # analyze_layer() only ever populates .structural — .quality
                     # stays None until the Predict stage runs, so this used to
-                    # feed extract_rmav_scores_dict(None), silently returning
-                    # {} and training with no RMAV consistency targets at all.
-                    display.print_step("[Step 3] Running RMAV quality scoring...")
+                    # feed extract_rm_scores_dict(None), silently returning
+                    # {} and training with no RM consistency targets at all.
+                    display.print_step("[Step 3] Running RM quality scoring...")
                     from saag.prediction.service import PredictionService
                     quality_result = PredictionService(use_ahp=args.use_ahp).predict_quality(
                         layer_result.structural
                     )
-                    rmav_dict = extract_rmav_scores_dict(quality_result)
+                    rm_dict = extract_rm_scores_dict(quality_result)
 
             if simulation_dict is None:
                 display.print_step("[Step 4] Running failure simulation ground truth (exhaustive)...")
@@ -246,20 +246,20 @@ def main() -> None:
     else:
         ckpt_dir = args.checkpoint
 
-    if variant == "topology_rmav":
-        # topology_rmav: no GNN — use RMAV scores directly as prediction
-        display.print_step("Variant 'topology_rmav': skipping GNN training (RMAV-only).")
-        if not rmav_dict:
-            display.print_error("topology_rmav requires --rmav (RMAV scores). Exiting.")
+    if variant == "topology_rm":
+        # topology_rm: no GNN — use RM scores directly as prediction
+        display.print_step("Variant 'topology_rm': skipping GNN training (RM-only).")
+        if not rm_dict:
+            display.print_error("topology_rm requires --rm (RM scores). Exiting.")
             import sys; sys.exit(1)
-        # Emit a minimal summary with RMAV scores
-        print(f"\n  RMAV scores loaded for {len(rmav_dict)} nodes.")
+        # Emit a minimal summary with RM scores
+        print(f"\n  RM scores loaded for {len(rm_dict)} nodes.")
         if args.output:
             out_path = Path(args.output)
             out_path.parent.mkdir(parents=True, exist_ok=True)
             with open(out_path, "w") as f:
-                json.dump({"variant": "topology_rmav", "rmav_scores": rmav_dict}, f, indent=2)
-            print(f"  RMAV output saved to: {out_path}")
+                json.dump({"variant": "topology_rm", "rm_scores": rm_dict}, f, indent=2)
+            print(f"  RM output saved to: {out_path}")
         return
 
     elif variant in ("homo_unweighted", "homo_scalar"):
@@ -270,7 +270,7 @@ def main() -> None:
         from saag.prediction.trainer import GNNTrainer, evaluate
 
         conv = networkx_to_hetero_data(
-            nx_graph, structural_dict, simulation_dict, rmav_dict
+            nx_graph, structural_dict, simulation_dict, rm_dict
         )
         data = conv.hetero_data
         seed = (args.seeds or [42])[0]
@@ -293,7 +293,7 @@ def main() -> None:
             weight_decay=args.weight_decay,
             warmup_T0=args.warmup_t0,
             multitask_weight=args.multitask_weight,
-            rmav_consistency_weight=args.rmav_consistency_weight,
+            rm_consistency_weight=args.rm_consistency_weight,
             ranking_weight=args.ranking_weight,
             pairwise_ranking_weight=args.pairwise_ranking_weight,
         )
@@ -317,7 +317,7 @@ def main() -> None:
         graph=nx_graph,
         structural_metrics=structural_dict,
         simulation_results=simulation_dict,
-        rmav_scores=rmav_dict,
+        rm_scores=rm_dict,
         train_ratio=args.train_ratio,
         val_ratio=args.val_ratio,
         num_epochs=args.epochs,
@@ -330,7 +330,7 @@ def main() -> None:
         weight_decay=args.weight_decay,
         warmup_T0=args.warmup_t0,
         multitask_weight=args.multitask_weight,
-        rmav_consistency_weight=args.rmav_consistency_weight,
+        rm_consistency_weight=args.rm_consistency_weight,
         ranking_weight=args.ranking_weight,
         pairwise_ranking_weight=args.pairwise_ranking_weight,
     )

@@ -16,12 +16,12 @@ a result about the setting:
     propagates the cascade. Canonical default 0.2.
 
 ``--norm``
-    How Tier-1 structural metrics are scaled before the RMAV weighted sum. The
+    How Tier-1 structural metrics are scaled before the RM weighted sum. The
     default is rank-based, which makes the composite close to a Borda count and
     discards magnitude; ``minmax`` keeps magnitude and is outlier-sensitive.
     Sweeping it answers whether the reported ordering is an artifact of ranking.
 
-Both sweeps report rho of the deterministic RMAV score against FaultInjector
+Both sweeps report rho of the deterministic RM score against FaultInjector
 labels, per scenario and in aggregate.
 
 Usage
@@ -79,15 +79,15 @@ def _labels_at_threshold(scenario: str, threshold: float, seeds: List[int]) -> D
     return {nid: float(rec.impact_score) for nid, rec in result.records.items()}
 
 
-def _rmav_scores(scenario: str, norm: str) -> Dict[str, float]:
+def _rm_scores(scenario: str, norm: str) -> Dict[str, float]:
     """Deterministic Q(v) under a given normalisation method."""
     from reproduce.ahp_sensitivity import _load_topology
-    from reproduce.main_table import _compute_rmav_from_structural, _load_scenario_data
+    from reproduce.main_table import _compute_rm_from_structural, _load_scenario_data
     from saag.analysis.analyzer import QualityAnalyzer
 
     topology = _load_topology(scenario)
     _g, structural, _sim, _r, _gt = _load_scenario_data(scenario, substrate="projection")
-    scored = _compute_rmav_from_structural(
+    scored = _compute_rm_from_structural(
         topology, structural,
         analyzer=QualityAnalyzer(use_ahp=True, normalization_method=norm),
     )
@@ -102,7 +102,7 @@ def sweep_thresholds(scenarios: List[str], thresholds: List[float], seeds: List[
         for scenario in scenarios:
             try:
                 truth = _labels_at_threshold(scenario, threshold, seeds)
-                pred = _rmav_scores(scenario, "robust")
+                pred = _rm_scores(scenario, "robust")
             except Exception as exc:      # noqa: BLE001
                 logger.warning("%s @ threshold=%.2f failed: %s", scenario, threshold, exc)
                 continue
@@ -141,7 +141,7 @@ def sweep_norms(scenarios: List[str], norms: List[str]) -> List[Dict]:
         per_scenario: Dict[str, float] = {}
         for scenario, truth in truths.items():
             try:
-                pred = _rmav_scores(scenario, norm)
+                pred = _rm_scores(scenario, norm)
             except Exception as exc:      # noqa: BLE001
                 logger.warning("%s @ norm=%s failed: %s", scenario, norm, exc)
                 continue

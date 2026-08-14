@@ -1,8 +1,10 @@
 """
-Availability Orthogonality Test.
+Availability Sub-Characteristic Test.
 
 Verifies that A(v) is driven by structural SPOF risk (AP_c_directed, QSPOF),
-not by QoS weight alone, and that Reliability and Availability remain orthogonal.
+not by QoS weight alone. A(v) is scored as a Reliability sub-characteristic
+(R = r_alpha*FT + (1-r_alpha)*A), not a peer dimension — this test pins the
+A(v) sub-formula itself, which is unchanged by that restructure.
 
 Updated for A(v) v2: uses a_qspof instead of deprecated a_articulation / a_qos_weight.
 """
@@ -40,9 +42,9 @@ def test_availability_orthogonality():
         a_ap_c_directed=0.0,
         a_cdi=0.0,
         a_qos_weight=0.0,
-        r_reverse_pagerank=1.0,
-        r_pagerank=0.0,
-        r_in_degree=0.0,
+        ft_reverse_pagerank=1.0,
+        ft_pagerank=0.0,
+        ft_in_degree=0.0,
     )
     analyzer = QualityAnalyzer(weights=weights, use_ahp=False, normalization_method="max")
     quality_result = analyzer.analyze(result)

@@ -65,7 +65,7 @@ async def get_critical_components(
             # Sort components by overall score and take top N
             components = sorted(
                 prediction.all_components,
-                key=lambda c: c.rmav_score,
+                key=lambda c: c.rm_score,
                 reverse=True
             )[:limit]
             

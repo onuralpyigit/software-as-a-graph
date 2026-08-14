@@ -377,8 +377,8 @@ def test_prediction_service_has_checkpoint_true_when_files_exist(tmp_path):
     assert PredictionService._has_checkpoint(str(tmp_path)) is True
 
 
-def test_prediction_service_fallback_to_rmav_when_no_checkpoint(tmp_path):
-    """predict_quality_with_gnn falls back to RMAV when no checkpoint exists."""
+def test_prediction_service_fallback_to_rm_when_no_checkpoint(tmp_path):
+    """predict_quality_with_gnn falls back to RM when no checkpoint exists."""
     from saag.prediction.service import PredictionService
     from unittest.mock import MagicMock, patch
 
@@ -389,7 +389,7 @@ def test_prediction_service_fallback_to_rmav_when_no_checkpoint(tmp_path):
         result = svc.predict_quality_with_gnn(MagicMock(), graph=MagicMock())
 
     mock_pq.assert_called_once()
-    assert result is mock_result  # fell back to RMAV output
+    assert result is mock_result  # fell back to RM output
 
 
 def test_attach_problems_records_failed_patterns(monkeypatch):
@@ -425,11 +425,11 @@ def test_attach_problems_records_failed_patterns(monkeypatch):
     assert quality_result.failed_patterns == ["SPOF"]
 
 
-def test_gnn_result_carries_failed_patterns_from_rmav_pass(tmp_path):
-    """failed_patterns from the RMAV detection pass must reach the returned
+def test_gnn_result_carries_failed_patterns_from_rm_pass(tmp_path):
+    """failed_patterns from the RM detection pass must reach the returned
     GNNAnalysisResult when GNN inference succeeds — problems/problem_summary/
     explanation were already copied onto gnn_result, but failed_patterns was
-    only ever set on the discarded rmav_result."""
+    only ever set on the discarded rm_result."""
     from unittest.mock import MagicMock, patch
     from saag.prediction.service import PredictionService
 
@@ -438,11 +438,11 @@ def test_gnn_result_carries_failed_patterns_from_rmav_pass(tmp_path):
 
     svc = PredictionService(gnn_checkpoint_dir=str(tmp_path), prefer_gnn=True)
 
-    rmav_result = MagicMock()
-    rmav_result.failed_patterns = ["SPOF"]
+    rm_result = MagicMock()
+    rm_result.failed_patterns = ["SPOF"]
     gnn_result = MagicMock()
 
-    with patch.object(svc, "predict_quality", return_value=rmav_result), \
+    with patch.object(svc, "predict_quality", return_value=rm_result), \
          patch.object(svc, "_attach_problems_and_explanation",
                        return_value=([], MagicMock(), MagicMock())), \
          patch("saag.prediction.gnn_service.GNNService") as mock_gnn_cls:

@@ -161,7 +161,7 @@ class MemoryRepository:
             )
 
         # 3. Applications, second pass — apps reaching topics only through libraries
-        # would otherwise stay at the floor and be invisible to RMAV scoring.
+        # would otherwise stay at the floor and be invisible to RM scoring.
         lib_weights = {l["id"]: l.get("weight", MIN_TOPIC_WEIGHT) for l in self.data["libraries"]}
         for app in self.data["applications"]:
             if app.get("weight", 1.0) > MIN_TOPIC_WEIGHT:

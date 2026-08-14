@@ -132,7 +132,7 @@ def run_statistical_tests(
     Classification metrics (F1, SPOF-F1, FTR, ICR, BCE) use all nodes but
     restrict the candidate pool to primary_type as well.
 
-    This matches the RMAV thesis claim: topology predicts *application-layer*
+    This matches the RM thesis claim: topology predicts *application-layer*
     cascade criticality — not generic structural centrality of topics/brokers.
     """
     # Primary-type subset for rank correlation

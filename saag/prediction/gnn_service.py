@@ -7,12 +7,12 @@ Software-as-a-Graph pipeline.
 This service mirrors the interface of ``AnalysisService`` and
 ``SimulationService`` so it can be dropped into the existing seven-step
 pipeline without structural changes. It provides the ML half of Step 3
-(Predict): ``PredictionService`` always computes rule-based RMAV Q*(v), then
+(Predict): ``PredictionService`` always computes rule-based RM Q*(v), then
 blends in this service's GNN-derived Q_GNN(v) when a trained checkpoint is
 available — GNN inference is not a separate pipeline step, it is inside
-Step 3 alongside the RMAV path.
+Step 3 alongside the RM path.
 
-    Step 3 (Predict)  →  RMAV Q*(v)  +  GNN Q_GNN(v) when a checkpoint exists
+    Step 3 (Predict)  →  RM Q*(v)  +  GNN Q_GNN(v) when a checkpoint exists
     Step 4 (Simulate) →  I*(v) (unchanged, independent oracle)
     Step 5 (Validate) →  validate Q*/Q_GNN vs I*
 
@@ -24,7 +24,7 @@ Typical inference workflow (no training data available):
     >>> gnn_result = service.predict(
     ...     graph=nx_graph,
     ...     structural_metrics=structural_dict,
-    ...     rmav_scores=rmav_dict,
+    ...     rm_scores=rm_dict,
     ... )
     >>> gnn_result.node_scores          # {node_name: GNNCriticalityScore}
     >>> gnn_result.edge_scores          # [GNNEdgeCriticalityScore, ...]
@@ -36,7 +36,7 @@ Training workflow:
     ...     graph=nx_graph,
     ...     structural_metrics=structural_dict,
     ...     simulation_results=sim_dict,
-    ...     rmav_scores=rmav_dict,
+    ...     rm_scores=rm_dict,
     ... )
 """
 
@@ -61,7 +61,7 @@ from .data_preparation import (
     GraphConversionResult,
     apply_external_splits,
     create_node_splits,
-    extract_rmav_scores_dict,
+    extract_rm_scores_dict,
     extract_simulation_dict,
     extract_structural_metrics_dict,
     networkx_to_hetero_data,
@@ -76,7 +76,7 @@ logger = logging.getLogger(__name__)
 def _to_level(val: float) -> CriticalityLevel:
     """Map a score in [0, 1] to a level using fixed absolute cutoffs.
 
-    Only used for the four RMAV sub-dimensions, which carry no adaptive
+    Only used for the four RM sub-dimensions, which carry no adaptive
     classification of their own. The composite always reuses the per-scenario
     box-plot level already stored on the score object.
     """
@@ -104,7 +104,7 @@ class GNNCriticalityScore:
     maintainability_score: float
     availability_score: float
     security_score: float
-    source: str = "GNN"           # "GNN" or "RMAV"
+    source: str = "GNN"           # "GNN" or "RM"
 
     criticality_level: str = "MINIMAL"    # Calculated via adaptive thresholds
 
@@ -165,7 +165,7 @@ class GNNAnalysisResult:
     gnn_metrics: Optional[EvalMetrics] = None
     # Adaptive classification stats
     stats: Dict[str, Any] = field(default_factory=dict)
-    # Effective prediction mode (Literal["gnn_only", "rmav_only"])
+    # Effective prediction mode (Literal["gnn_only", "rm_only"])
     prediction_mode: str = "gnn_only"
     # Internal: structural metadata for shimming
     _structural_cache: Dict[str, Any] = field(default_factory=dict, repr=False)
@@ -180,14 +180,12 @@ class GNNAnalysisResult:
                 reliability=score.reliability_score,
                 maintainability=score.maintainability_score,
                 availability=score.availability_score,
-                security=score.security_score,
                 overall=score.composite_score
             )
             ql = QualityLevels(
                 reliability=_to_level(qs.reliability),
                 maintainability=_to_level(qs.maintainability),
                 availability=_to_level(qs.availability),
-                security=_to_level(qs.security),
                 # Reuse the adaptive, per-scenario box-plot level already assigned
                 # to `score.criticality_level` rather than recomputing with fixed
                 # absolute cutoffs, so this shim can't disagree with node_scores.
@@ -205,8 +203,8 @@ class GNNAnalysisResult:
         """Backward-compatibility shim for anti-pattern detection."""
         eqs = []
         for es in self.edge_scores:
-            qs = QualityScores(reliability=es.reliability_score, maintainability=es.maintainability_score, 
-                               availability=es.availability_score, security=es.security_score, 
+            qs = QualityScores(reliability=es.reliability_score, maintainability=es.maintainability_score,
+                               availability=es.availability_score,
                                overall=es.composite_score)
             # Reuse the adaptive, per-scenario box-plot level already assigned to
             # `es.criticality_level` rather than recomputing with fixed cutoffs.
@@ -362,7 +360,7 @@ class GNNService:
         graph,
         structural_metrics=None,
         simulation_results=None,
-        rmav_scores=None,
+        rm_scores=None,
         train_ratio: float = 0.6,
         val_ratio: float = 0.2,
         num_epochs: int = 300,
@@ -376,7 +374,7 @@ class GNNService:
         weight_decay: float = 1e-4,
         warmup_T0: Optional[int] = None,
         multitask_weight: float = 0.5,
-        rmav_consistency_weight: float = 0.1,
+        rm_consistency_weight: float = 0.1,
         ranking_weight: float = 0.3,
         pairwise_ranking_weight: float = 0.1,
         edge_loss_weight: float = 0.3,
@@ -397,7 +395,7 @@ class GNNService:
             Dict or StructuralAnalysisResult from Step 2.
         simulation_results:
             Dict or list of FailureResult objects from Step 4.
-        rmav_scores:
+        rm_scores:
             Dict or QualityAnalysisResult from Step 3.
         train_ratio, val_ratio:
             Node split fractions for transductive training.
@@ -423,12 +421,12 @@ class GNNService:
             structural_metrics = extract_structural_metrics_dict(structural_metrics)
         if simulation_results is not None and isinstance(simulation_results, list):
             simulation_results = extract_simulation_dict(simulation_results)
-        if rmav_scores is not None and not isinstance(rmav_scores, dict):
-            rmav_scores = extract_rmav_scores_dict(rmav_scores)
+        if rm_scores is not None and not isinstance(rm_scores, dict):
+            rm_scores = extract_rm_scores_dict(rm_scores)
 
         # Convert to HeteroData
         conv = networkx_to_hetero_data(
-            graph, structural_metrics, simulation_results, rmav_scores, qos_enabled=qos_enabled,
+            graph, structural_metrics, simulation_results, rm_scores, qos_enabled=qos_enabled,
             rank_normalize_features=rank_normalize_features,
         )
         self._conversion_result = conv
@@ -498,7 +496,7 @@ class GNNService:
                 weight_decay=weight_decay,
                 warmup_T0=warmup_T0,
                 multitask_weight=multitask_weight,
-                rmav_consistency_weight=rmav_consistency_weight,
+                rm_consistency_weight=rm_consistency_weight,
                 ranking_weight=ranking_weight,
                 pairwise_ranking_weight=pairwise_ranking_weight,
                 edge_loss_weight=edge_loss_weight,
@@ -535,7 +533,7 @@ class GNNService:
         self,
         graph,
         structural_metrics=None,
-        rmav_scores=None,
+        rm_scores=None,
         eval_labels=None,
         mode: str = "gnn",
         qos_enabled: bool = True,
@@ -550,13 +548,13 @@ class GNNService:
             NetworkX DiGraph.
         structural_metrics:
             Structural analysis results (for node features).
-        rmav_scores:
-            Existing RMAV predictions, used as the ``mode='rmav'`` source and
+        rm_scores:
+            Existing RM predictions, used as the ``mode='rm'`` source and
             as the consistency-regularisation target during training.
         eval_labels:
             Optional: if provided, validation metrics are computed.
         mode:
-            Ablation mode: 'gnn' or 'rmav'.
+            Ablation mode: 'gnn' or 'rm'.
         """
         if self._node_model is None:
             raise RuntimeError(
@@ -567,10 +565,10 @@ class GNNService:
             structural_metrics = extract_structural_metrics_dict(structural_metrics)
         if eval_labels is not None and isinstance(eval_labels, list):
             eval_labels = extract_simulation_dict(eval_labels)
-        if rmav_scores is not None and not isinstance(rmav_scores, dict):
-            rmav_scores = extract_rmav_scores_dict(rmav_scores)
+        if rm_scores is not None and not isinstance(rm_scores, dict):
+            rm_scores = extract_rm_scores_dict(rm_scores)
 
-        conv = networkx_to_hetero_data(graph, structural_metrics, eval_labels, rmav_scores, qos_enabled=qos_enabled)
+        conv = networkx_to_hetero_data(graph, structural_metrics, eval_labels, rm_scores, qos_enabled=qos_enabled)
         self._conversion_result = conv
         # ── Run prediction ────────────────────────────────────────────────────
         return self.predict_from_data(
@@ -595,7 +593,7 @@ class GNNService:
         ----------
         data: HeteroData
         eval_labels: Optional dict
-        mode: 'gnn' or 'rmav'
+        mode: 'gnn' or 'rm'
         """
         if self._node_model is None:
             raise RuntimeError("Models not initialised.")
@@ -650,15 +648,15 @@ class GNNService:
 
         result = GNNAnalysisResult()
 
-        # ── Node scores: RMAV ground truth, or the GNN's own predictions ──────
-        has_rmav = any(hasattr(data_dev[nt], "y_rmav") for nt in data_dev.node_types)
-        if mode == "rmav" and not has_rmav:
-            logger.warning("Mode 'rmav' requested but no RMAV scores available. Falling back to GNN.")
+        # ── Node scores: RM ground truth, or the GNN's own predictions ──────
+        has_rm = any(hasattr(data_dev[nt], "y_rm") for nt in data_dev.node_types)
+        if mode == "rm" and not has_rm:
+            logger.warning("Mode 'rm' requested but no RM scores available. Falling back to GNN.")
             mode = "gnn"
 
-        if mode == "rmav":
-            result.prediction_mode = "rmav_only"
-            self._populate_scores_from_rmav(result, data_dev, conv)
+        if mode == "rm":
+            result.prediction_mode = "rm_only"
+            self._populate_scores_from_rm(result, data_dev, conv)
         else:
             result.prediction_mode = "gnn_only"
             self._populate_node_scores(result, pred_dict, conv)
@@ -723,7 +721,7 @@ class GNNService:
     #
     # Every score tensor here is (n, 5), column-ordered
     # [composite, reliability, maintainability, availability, security],
-    # matching NodeCriticalityGNN.decode() and the y/y_rmav label layout.
+    # matching NodeCriticalityGNN.decode() and the y/y_rm label layout.
 
     @staticmethod
     def _populate_node_scores(
@@ -751,16 +749,16 @@ class GNNService:
                     source=source,
                 )
 
-    def _populate_scores_from_rmav(
+    def _populate_scores_from_rm(
         self, result: GNNAnalysisResult, data: 'HeteroData', conv: GraphConversionResult
     ) -> None:
-        """Fill result.node_scores from the RMAV scores carried on the graph."""
-        rmav = {
-            nt: data[nt].y_rmav
+        """Fill result.node_scores from the RM scores carried on the graph."""
+        rm = {
+            nt: data[nt].y_rm
             for nt in data.node_types
-            if hasattr(data[nt], "y_rmav")
+            if hasattr(data[nt], "y_rm")
         }
-        self._populate_node_scores(result, rmav, conv, source="RMAV")
+        self._populate_node_scores(result, rm, conv, source="RM")
 
     @staticmethod
     def _populate_edge_scores(
@@ -819,6 +817,7 @@ class GNNService:
             }
         with open(d / "service_config.json", "w") as f:
             from .data_preparation import NODE_TYPE_TO_DIM
+            from .models.core import NUM_LABEL_DIMS
             json.dump(
                 {
                     "hidden_channels": self.hidden_channels,
@@ -830,10 +829,38 @@ class GNNService:
                     "best_seed": self._best_seed,
                     "layer": self.layer,
                     "feature_version": 4,
+                    "label_dims": NUM_LABEL_DIMS,
                     "default_mode": "gnn",
                     "metadata": metadata_json,
                 },
                 f, indent=2,
+            )
+
+    @staticmethod
+    def _validate_label_dims(cfg: dict) -> None:
+        """Validate checkpoint label/head dims against current code; raise on mismatch.
+
+        A rename or arity change to the RM label contract (``NUM_LABEL_DIMS``,
+        ``rm_heads``) changes both the state-dict keys and their shapes, but
+        ``load_state_dict(sd, strict=False)`` (see ``_load_model_weights``) silently
+        drops both missing and unexpected keys — so a stale checkpoint can load
+        "successfully" with its heads left at random initialisation. Checkpoints
+        written before ``label_dims`` was recorded (schema predates this guard) are
+        rejected too: their absence is itself the mismatch.
+        """
+        from .models.core import NUM_LABEL_DIMS
+        saved_label_dims = cfg.get("label_dims")
+        if saved_label_dims is None:
+            raise ValueError(
+                "GNN Checkpoint Schema Mismatch: checkpoint predates label-dims "
+                "tracking (no 'label_dims' in service_config.json). Re-training "
+                "required — the RMAV→RM migration changed the label contract and "
+                "old checkpoints cannot be safely loaded with strict=False."
+            )
+        if saved_label_dims != NUM_LABEL_DIMS:
+            raise ValueError(
+                f"GNN Label Dimension Mismatch (ckpt={saved_label_dims}, "
+                f"code={NUM_LABEL_DIMS}). Re-training required."
             )
 
     @staticmethod
@@ -909,6 +936,7 @@ class GNNService:
             )
 
         cls._validate_feature_dims(cfg)
+        cls._validate_label_dims(cfg)
 
         service = cls(
             hidden_channels=cfg.get("hidden_channels", 64),

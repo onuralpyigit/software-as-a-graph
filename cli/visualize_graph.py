@@ -56,7 +56,7 @@ def _demo_layer_data() -> LayerData:
         max_impact=0.734,
         # Per-dimension ρ
         reliability_spearman=0.841, maintainability_spearman=0.793,
-        availability_spearman=0.882, security_spearman=0.714,
+        availability_spearman=0.882,
         composite_spearman=0.876,
         composite_ci=(0.831, 0.921),
         # Multi-seed stability (§6.4.6)
@@ -69,33 +69,33 @@ def _demo_layer_data() -> LayerData:
     demo_data.component_details = [
         ComponentDetail(
             "sensor_fusion", "Sensor Fusion", "Application",
-            reliability=0.82, maintainability=0.88, availability=0.90,
-            security=0.75, overall=0.84, level="CRITICAL",
+            reliability=0.82, maintainability=0.88, fault_tolerance=0.76, availability=0.90,
+            overall=0.84, level="CRITICAL",
             impact=0.79, cascade_risk=0.81, cascade_risk_topo=0.71,
         ),
         ComponentDetail(
             "planning_engine", "Planning Engine", "Application",
-            reliability=0.75, maintainability=0.81, availability=0.85,
-            security=0.60, overall=0.72, level="HIGH",
+            reliability=0.75, maintainability=0.81, fault_tolerance=0.68, availability=0.85,
+            overall=0.72, level="HIGH",
             impact=0.65, cascade_risk=0.68, cascade_risk_topo=0.59,
         ),
         ComponentDetail(
             "main_broker", "Main Broker", "Broker",
-            reliability=0.88, maintainability=0.79, availability=0.93,
-            security=0.65, overall=0.80, level="CRITICAL",
+            reliability=0.88, maintainability=0.79, fault_tolerance=0.83, availability=0.93,
+            overall=0.80, level="CRITICAL",
             impact=0.76, cascade_risk=0.75, cascade_risk_topo=0.66,
             spof=True,
         ),
         ComponentDetail(
             "nav_lib", "NavLib", "Library",
-            reliability=0.62, maintainability=0.70, availability=0.78,
-            security=0.55, overall=0.61, level="MEDIUM",
+            reliability=0.62, maintainability=0.70, fault_tolerance=0.58, availability=0.78,
+            overall=0.61, level="MEDIUM",
             impact=0.52, cascade_risk=0.49, cascade_risk_topo=0.44,
         ),
         ComponentDetail(
             "telemetry_topic", "Telemetry", "Topic",
-            reliability=0.44, maintainability=0.55, availability=0.60,
-            security=0.40, overall=0.40, level="LOW",
+            reliability=0.44, maintainability=0.55, fault_tolerance=0.38, availability=0.60,
+            overall=0.40, level="LOW",
             impact=0.30, cascade_risk=0.28, cascade_risk_topo=0.25,
         ),
     ]

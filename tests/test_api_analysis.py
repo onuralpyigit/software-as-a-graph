@@ -63,7 +63,7 @@ def mock_analysis_result():
         "type": "Application",
         "criticality_level": "medium",
         "is_critical": False,
-        "rmav_score": 0.4,
+        "rm_score": 0.4,
         "criticality_levels": {
             "reliability": "low",
             "maintainability": "medium",

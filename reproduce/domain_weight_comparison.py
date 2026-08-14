@@ -3,8 +3,8 @@
 reproduce/domain_weight_comparison.py — does domain-derived weighting rank better?
 ====================================================================================
 
-Measures whether deriving the RMAV composite weights from a scenario's declared
-deployment domain (saag.core.quality_model.derive_rmav_weights — Layer 3 of the
+Measures whether deriving the RM composite weights from a scenario's declared
+deployment domain (saag.core.quality_model.derive_rm_weights — Layer 3 of the
 layered SQuaRE quality model, docs/criticality.md §3.5) improves ranking
 correlation against I*(v), compared to the static default, equal weights, and
 the AHP lambda=0.7 vector.
@@ -19,10 +19,10 @@ reportable: an improvement would be the first evidence that a *non-arbitrary*
 weighting beats equal weights; a null result documents that Layer 3, as
 currently specified, does not help ranking either, which still leaves its
 value as an *attribution* device (explaining criticality in stakeholder terms)
-intact per the existing scoping of the RMAV composite (docs/criticality.md §4.3).
+intact per the existing scoping of the RM composite (docs/criticality.md §4.3).
 
 Ten scenarios: the seven synthetic scenarios of reproduce/main_table.py
-ALL_SCENARIOS (LOSO-cached, scored via the same _compute_rmav_from_structural /
+ALL_SCENARIOS (LOSO-cached, scored via the same _compute_rm_from_structural /
 _load_scenario_data path as reproduce/ahp_sensitivity.py) plus the three
 real-world graphs used for RQ4 (uncached; scored via a direct structural-feature
 build and a fresh FaultInjector run, since cli.loso_evaluate._build_graph_from_json
@@ -174,7 +174,7 @@ def _load(scenario: str) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, floa
 
 def _weights_for(kind: str, domain: Optional[str]):
     from saag.analysis.weight_calculator import QualityWeights, AHPProcessor
-    from saag.core.quality_model import derive_rmav_weights
+    from saag.core.quality_model import derive_rm_weights
 
     if kind == "static":
         return QualityWeights(), None
@@ -187,16 +187,16 @@ def _weights_for(kind: str, domain: Optional[str]):
     if kind == "ahp_070":
         return AHPProcessor(shrinkage_factor=0.7).compute_weights(), None
     if kind == "domain_derived":
-        weights, derived = derive_rmav_weights(domain)
+        weights, derived = derive_rm_weights(domain)
         return weights, derived
     raise ValueError(kind)
 
 
 def _score(topology: Dict[str, Any], structural: Dict[str, Any], weights) -> Dict[str, float]:
-    from reproduce.main_table import _compute_rmav_from_structural
+    from reproduce.main_table import _compute_rm_from_structural
     from saag.analysis.analyzer import QualityAnalyzer
 
-    scored = _compute_rmav_from_structural(
+    scored = _compute_rm_from_structural(
         topology, structural, analyzer=QualityAnalyzer(weights=weights)
     )
     return {nid: float(v.get("composite", 0.0)) for nid, v in scored.items()}

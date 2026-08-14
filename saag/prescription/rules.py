@@ -14,8 +14,8 @@ from .models import NodeReallocation, PrescriptionPolicy, QosUpgrade, TopicSplit
 #: Criticality tiers that make a component eligible for remediation.
 _CRITICAL_LEVELS = ("CRITICAL", "HIGH")
 
-#: RMAV dimensions plus the aggregate, each of which can flag a component.
-_RMAV_DIMENSIONS = ("reliability", "maintainability", "availability", "security", "overall")
+#: RM dimensions plus the aggregate, each of which can flag a component.
+_RM_DIMENSIONS = ("reliability", "maintainability", "fault_tolerance", "availability", "overall")
 
 
 def compile_policy(
@@ -83,10 +83,10 @@ def _predicted_critical(prediction_result: Optional[Any]) -> Set[str]:
 
 
 def _scored_critical(analysis_result: Any, prediction_result: Optional[Any]) -> Set[str]:
-    """Component ids flagged CRITICAL/HIGH on any RMAV dimension.
+    """Component ids flagged CRITICAL/HIGH on any RM dimension.
 
     ``analysis_result.quality`` is always None now that Analyze (Step 2) is
-    structural-only, so the RMAV scores are taken from the Predict stage's raw
+    structural-only, so the RM scores are taken from the Predict stage's raw
     result instead.
     """
     quality = getattr(analysis_result, "quality", None)
@@ -100,7 +100,7 @@ def _scored_critical(analysis_result: Any, prediction_result: Optional[Any]) -> 
 
     critical = set()
     for component in quality.components:
-        for dimension in _RMAV_DIMENSIONS:
+        for dimension in _RM_DIMENSIONS:
             level = getattr(component.levels, dimension, None)
             if level and getattr(level, "name", str(level)).upper() in _CRITICAL_LEVELS:
                 critical.add(component.id)

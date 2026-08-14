@@ -37,7 +37,7 @@ def run_pilot():
         logger.info(f"=== Sanity check scenario: {scenario} ===")
 
         # 1. Load data in native substrate format
-        nx_graph, structural_dict, simulation_dict, rmav_dict, gt_source = _load_scenario_data(
+        nx_graph, structural_dict, simulation_dict, rm_dict, gt_source = _load_scenario_data(
             scenario, substrate="native"
         )
         logger.info(f"Loaded native graph: {nx_graph.number_of_nodes()} nodes, {nx_graph.number_of_edges()} edges")
@@ -60,7 +60,7 @@ def run_pilot():
             graph=nx_graph,
             structural_metrics=structural_dict,
             simulation_results=simulation_dict,
-            rmav_scores=rmav_dict,
+            rm_scores=rm_dict,
             train_ratio=0.6,
             val_ratio=0.2,
             num_epochs=15,

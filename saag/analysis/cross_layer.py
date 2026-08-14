@@ -2,7 +2,7 @@
 Cross-layer insight derivation.
 
 Observations that only become visible by correlating criticality results across
-two or more analysis layers. Requires RMAV levels, so it runs after the Predict
+two or more analysis layers. Requires RM levels, so it runs after the Predict
 stage has enriched each ``LayerAnalysisResult`` — see
 ``saag.usecases.multi_layer_analysis.MultiLayerAnalysisUseCase``.
 """

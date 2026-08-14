@@ -62,13 +62,13 @@ def main():
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from cli.validation.graph_io import load_graph
-    from cli.validation.scoring import compute_gnn_scores, compute_rmav
+    from cli.validation.scoring import compute_gnn_scores, compute_rm
     
     G, raw = load_graph(json_path)
     
-    # Compute RMAV Q(v)
-    print("Computing RMAV Q(v)...")
-    rmav_scores = compute_rmav(G, qos=True)
+    # Compute RM Q(v)
+    print("Computing RM Q(v)...")
+    rm_scores = compute_rm(G, qos=True)
     
     # Compute GNN scores
     print("Computing GNN scores...")
@@ -76,9 +76,9 @@ def main():
     if Path(gnn_checkpoint).exists():
         gnn_scores = compute_gnn_scores(G, gnn_checkpoint, qos=True)
     else:
-        # Fallback if checkpoint doesn't exist, we will use mock or RMAV as proxy
-        print(f"Warning: GNN checkpoint {gnn_checkpoint} not found. Using RMAV proxy for Learned rank.")
-        gnn_scores = rmav_scores
+        # Fallback if checkpoint doesn't exist, we will use mock or RM as proxy
+        print(f"Warning: GNN checkpoint {gnn_checkpoint} not found. Using RM proxy for Learned rank.")
+        gnn_scores = rm_scores
         
     # Compute Centrality (PageRank on the physical topology)
     # Remove DEPENDS_ON edges to get structural centrality
@@ -91,7 +91,7 @@ def main():
     nodes_all = sorted(G.nodes)
     
     # Rank by Q(v) (ascending: lowest Q quality is rank 1, meaning most critical/needs hardening)
-    q_ranked = sorted(nodes_all, key=lambda n: rmav_scores.get(n).Q if n in rmav_scores else 999.0)
+    q_ranked = sorted(nodes_all, key=lambda n: rm_scores.get(n).Q if n in rm_scores else 999.0)
     q_ranks = {nid: r for r, nid in enumerate(q_ranked, 1)}
     
     # Rank by GNN (descending: highest predicted impact is rank 1)
@@ -108,13 +108,13 @@ def main():
     # Print individual scores and overall system ranks
     print("\n--- Absolute System-Wide Ranks (1 to 74) ---")
     for nid in target_ids:
-        q_val = rmav_scores[nid].Q if nid in rmav_scores else 0.0
+        q_val = rm_scores[nid].Q if nid in rm_scores else 0.0
         g_val = gnn_scores[nid].Q if nid in gnn_scores else 0.0
         p_val = pagerank_scores.get(nid, 0.0)
         print(f"{COMPONENTS[nid]} ({nid}): Q_rank={q_ranks[nid]} (Q={q_val:.4f}), GNN_rank={gnn_ranks[nid]} (GNN={g_val:.4f}), PR_rank={pr_ranks[nid]} (PR={p_val:.4f})")
         
     # Get relative ranks (1 to 7) among the 7 components
-    rel_q_ranked = sorted(target_ids, key=lambda n: rmav_scores.get(n).Q if n in rmav_scores else 999.0)
+    rel_q_ranked = sorted(target_ids, key=lambda n: rm_scores.get(n).Q if n in rm_scores else 999.0)
     rel_q_ranks = {nid: r for r, nid in enumerate(rel_q_ranked, 1)}
     
     rel_gnn_ranked = sorted(target_ids, key=lambda n: gnn_scores.get(n).Q if n in gnn_scores else -999.0, reverse=True)

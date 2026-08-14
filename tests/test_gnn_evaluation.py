@@ -52,14 +52,14 @@ def test_ablation_modes(mock_gnn_service):
     
     data = HeteroData()
     data["Application"].x = torch.randn(2, 23)
-    data["Application"].y_rmav = torch.tensor([[0.1]*5, [0.2]*5])
+    data["Application"].y_rm = torch.tensor([[0.1]*5, [0.2]*5])
     
     service._node_model.return_value = {"Application": torch.tensor([[0.8]*5, [0.9]*5])}
     
-    # 1. Mode: RMAV
-    result_rmav = service.predict_from_data(data, mode="rmav")
-    assert result_rmav.node_scores["app1"].source == "RMAV"
-    assert result_rmav.node_scores["app1"].composite_score == pytest.approx(0.1)
+    # 1. Mode: RM
+    result_rm = service.predict_from_data(data, mode="rm")
+    assert result_rm.node_scores["app1"].source == "RM"
+    assert result_rm.node_scores["app1"].composite_score == pytest.approx(0.1)
     
     # 2. Mode: GNN
     result_gnn = service.predict_from_data(data, mode="gnn")

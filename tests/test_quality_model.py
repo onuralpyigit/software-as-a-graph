@@ -4,9 +4,9 @@ Tests for saag/core/quality_model.py — the layered SQuaRE quality model.
 Covers:
   - QIU_PROJECTION is row-stochastic (the property that makes Layer 3 a
     reweighting rather than an independent prediction stage).
-  - derive_rmav_weights sums to 1.0 for every declared domain, and falls back
+  - derive_rm_weights sums to 1.0 for every declared domain, and falls back
     to the static default for an unknown/absent domain.
-  - The equivalence this whole design rests on: scoring an RMAV vector with
+  - The equivalence this whole design rests on: scoring an RM vector with
     Mᵀω as composite weights is identical to projecting onto quality-in-use
     harm and scalarising with ω.
   - QualityAnalyzer(domain_weights=None) — the default — is byte-identical to
@@ -24,14 +24,14 @@ from saag.analysis.weight_calculator import QualityWeights
 from saag.core.quality_model import (
     QIU_PROJECTION,
     QIU_ORDER,
-    RMAV_ORDER,
+    RM_ORDER,
     DOMAIN_PRIORITIES,
     Provenance,
     Layer,
     LAYER_SPEC,
     qiu_harm,
-    effective_rmav_weights,
-    derive_rmav_weights,
+    effective_rm_weights,
+    derive_rm_weights,
 )
 
 
@@ -44,14 +44,14 @@ class TestProjectionIsRowStochastic:
     def test_every_row_sums_to_one(self):
         """Each ISO/IEC 25019 characteristic's row must sum to 1.0 — this is
         exactly the property that collapses Layer 3 into a reweighting of
-        RMAV rather than an independent score."""
+        RM rather than an independent score."""
         for row in QIU_PROJECTION:
             assert sum(row) == pytest.approx(1.0)
 
-    def test_shape_matches_rmav_and_qiu_order(self):
+    def test_shape_matches_rm_and_qiu_order(self):
         assert len(QIU_PROJECTION) == len(QIU_ORDER) == 3
         for row in QIU_PROJECTION:
-            assert len(row) == len(RMAV_ORDER) == 4
+            assert len(row) == len(RM_ORDER) == 2
 
 
 class TestDomainPriorities:
@@ -80,45 +80,60 @@ class TestDomainPriorities:
         assert "hub-and-spoke" not in DOMAIN_PRIORITIES
 
 
-class TestEffectiveRmavWeights:
+class TestEffectiveRmWeights:
 
     def test_sums_to_one_for_any_valid_omega(self):
         for omega in DOMAIN_PRIORITIES.values():
-            weights = effective_rmav_weights(omega)
+            weights = effective_rm_weights(omega)
             assert sum(weights) == pytest.approx(1.0)
+
+    def test_no_two_distinct_omegas_tie(self):
+        """The re-declared Freedom-from-risk/Acceptability rows (see
+        QIU_PROJECTION's migration note) keep the matrix rank-2 in omega —
+        unlike a mechanical fold of Availability into Reliability, which
+        would make every domain's effective weight a function of
+        Beneficialness alone and tie domains that share it (e.g. healthcare
+        and enterprise, both omega_Ben=0.40). Distinct *omega* values (not
+        domain aliases like "autoware_ros2"/"av", which intentionally share
+        one omega) must map to distinct weights."""
+        distinct_omegas = set(DOMAIN_PRIORITIES.values())
+        seen = set()
+        for omega in distinct_omegas:
+            w_r, _ = effective_rm_weights(omega)
+            key = round(w_r, 6)
+            assert key not in seen, f"domain weight {key} collides with another domain"
+            seen.add(key)
 
     def test_matches_hand_computed_atm_example(self):
         """Pin the documented worked example: ATM omega=(0.50,0.30,0.20) ->
-        R=0.265 M=0.125 A=0.390 V=0.220."""
-        r, m, a, v = effective_rmav_weights((0.50, 0.30, 0.20))
-        assert r == pytest.approx(0.265)
-        assert m == pytest.approx(0.125)
-        assert a == pytest.approx(0.390)
-        assert v == pytest.approx(0.220)
+        R=0.735 M=0.265."""
+        r, m = effective_rm_weights((0.50, 0.30, 0.20))
+        assert r == pytest.approx(0.735)
+        assert m == pytest.approx(0.265)
 
 
-class TestDeriveRmavWeights:
+class TestDeriveRmWeights:
 
     def test_known_domain_is_derived(self):
-        weights, derived = derive_rmav_weights("healthcare")
+        weights, derived = derive_rm_weights("healthcare")
         assert derived is True
-        assert weights.q_reliability + weights.q_maintainability + weights.q_availability + weights.q_security == pytest.approx(1.0)
+        assert weights.q_reliability + weights.q_maintainability == pytest.approx(1.0)
 
     def test_unknown_domain_falls_back_to_base_unchanged(self):
         base = QualityWeights()
-        weights, derived = derive_rmav_weights("not_a_real_domain", base=base)
+        weights, derived = derive_rm_weights("not_a_real_domain", base=base)
         assert derived is False
         assert weights is base
 
     def test_none_domain_falls_back(self):
         base = QualityWeights()
-        weights, derived = derive_rmav_weights(None, base=base)
+        weights, derived = derive_rm_weights(None, base=base)
         assert derived is False
         assert weights is base
 
     def test_domain_lookup_is_case_and_whitespace_insensitive(self):
-        _, derived_a = derive_rmav_weights("Healthcare")
-        _, derived_b = derive_rmav_weights("  healthcare  ")
+        _, derived_a = derive_rm_weights("Healthcare")
+        _, derived_b = derive_rm_weights("  healthcare  ")
         assert derived_a is True
         assert derived_b is True
 
@@ -126,9 +141,9 @@ class TestDeriveRmavWeights:
         """Same discipline as equal_weights: never mutate a caller-owned
         QualityWeights instance in place."""
         shared = QualityWeights()
-        original = shared.q_availability
-        derive_rmav_weights("autoware_ros2", base=shared)
-        assert shared.q_availability == pytest.approx(original)
+        original = shared.q_reliability
+        derive_rm_weights("autoware_ros2", base=shared)
+        assert shared.q_reliability == pytest.approx(original)
 
 
 # ===========================================================================
@@ -138,19 +153,19 @@ class TestDeriveRmavWeights:
 class TestQiuCollapseEquivalence:
 
     def test_scalarised_qiu_harm_equals_direct_reweighting(self):
-        """Projecting an RMAV vector onto quality-in-use harm and scalarising
-        with omega must equal scoring the same RMAV vector with M^T omega as
+        """Projecting an RM vector onto quality-in-use harm and scalarising
+        with omega must equal scoring the same RM vector with M^T omega as
         composite weights, for an arbitrary score vector and every declared
         domain. This is the finding the whole Layer 3 design rests on —
         pinned so it cannot silently stop being true."""
-        scores = (0.7, 0.2, 0.9, 0.4)  # (R, M, A, V)
+        scores = (0.7, 0.2)  # (R, M)
         for omega in DOMAIN_PRIORITIES.values():
             harm = qiu_harm(scores)
             via_projection = sum(
                 omega[i] * harm[name] for i, name in enumerate(QIU_ORDER)
             )
 
-            weights = effective_rmav_weights(omega)
+            weights = effective_rm_weights(omega)
             via_reweighting = sum(w * s for w, s in zip(weights, scores))
 
             assert via_projection == pytest.approx(via_reweighting)
@@ -180,7 +195,7 @@ class TestQualityAnalyzerDomainWeighting:
 
     @pytest.fixture
     def graph(self):
-        """A small graph with a structural SPOF, enough for RMAV scores to
+        """A small graph with a structural SPOF, enough for RM scores to
         differ meaningfully across weightings."""
         return GraphData(
             components=[
@@ -220,7 +235,7 @@ class TestQualityAnalyzerDomainWeighting:
             "derived": True,
             "provenance": Provenance.DECLARED.value,
         }
-        assert result.weights.q_reliability + result.weights.q_maintainability + result.weights.q_availability + result.weights.q_security == pytest.approx(1.0)
+        assert result.weights.q_reliability + result.weights.q_maintainability == pytest.approx(1.0)
 
     def test_unknown_domain_records_fallback_not_derived(self, graph):
         struct = StructuralAnalyzer().analyze(graph)
@@ -232,7 +247,7 @@ class TestQualityAnalyzerDomainWeighting:
             "provenance": Provenance.DECLARED.value,
         }
         # Falls back to the static defaults, not to an invented vector.
-        assert result.weights.q_availability == pytest.approx(QualityWeights().q_availability)
+        assert result.weights.q_reliability == pytest.approx(QualityWeights().q_reliability)
 
     def test_domain_weighting_leaves_original_weights_object_untouched(self, graph):
         """The instance's self.weights must be restored after analyze(), same

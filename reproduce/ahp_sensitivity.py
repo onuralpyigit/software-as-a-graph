@@ -28,7 +28,7 @@ Two things worth knowing when reading the output
    ranking is insensitive to the weighting, which is a robustness result and
    simultaneously an argument that the exact AHP numbers are not load-bearing.
 2. ``AHPProcessor`` applies shrinkage to the **intra-dimension** vectors
-   as well as the composite, so lambda moves every RMAV formula at once. The
+   as well as the composite, so lambda moves every RM formula at once. The
    sweep reports the resulting weights alongside rho so the two can be read
    together.
 
@@ -65,10 +65,10 @@ def _score_components(topology: Dict[str, Any], structural: Dict[str, Any], lam:
     Delegates to the same scorer the main table uses, so the sweep cannot drift
     from the pipeline it is claiming to characterise.
     """
-    from reproduce.main_table import _compute_rmav_from_structural
+    from reproduce.main_table import _compute_rm_from_structural
     from saag.analysis.analyzer import QualityAnalyzer
 
-    scored = _compute_rmav_from_structural(
+    scored = _compute_rm_from_structural(
         topology, structural,
         analyzer=QualityAnalyzer(use_ahp=True, ahp_shrinkage=lam),
     )

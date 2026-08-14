@@ -35,7 +35,7 @@ Cache layout (one directory per scenario)
     output/loso_cache/<scenario_id>/
         topology.json              (input — same JSON as cli/import_graph.py)
         structural_metrics.json    (output of cli/analyze_graph.py)
-        quality_scores.json        (output of cli/predict_graph.py --mode rmav)
+        quality_scores.json        (output of cli/predict_graph.py --mode rm)
         failure_impact.json        (output of cli/simulate_graph.py fault-inject)
 
 To populate the cache from existing pipeline outputs:
@@ -47,7 +47,7 @@ To populate the cache from existing pipeline outputs:
         PYTHONPATH=. python cli/generate_graph.py --config "$cfg" --output "$out/topology.json"
         PYTHONPATH=. python cli/import_graph.py    --input "$out/topology.json" --clear
         PYTHONPATH=. python cli/analyze_graph.py   --layer app --output "$out/structural_metrics.json"
-        PYTHONPATH=. python cli/predict_graph.py   --layer app --mode rmav --output "$out/quality_scores.json"
+        PYTHONPATH=. python cli/predict_graph.py   --layer app --mode rm --output "$out/quality_scores.json"
         PYTHONPATH=. python cli/simulate_graph.py  fault-inject --input "$out/topology.json" \
                                                    --output "$out/" --export-json --seeds 42
         # rename impact_scores.json -> failure_impact.json if needed
@@ -98,7 +98,7 @@ from saag.prediction.data_preparation import (
     networkx_to_hetero_data,
     extract_simulation_dict,
     extract_structural_metrics_dict,
-    extract_rmav_scores_dict,
+    extract_rm_scores_dict,
 )
 from saag.core.models import QoSPolicy, topic_weight_from_node_attrs
 
@@ -115,7 +115,7 @@ class ScenarioBundle:
     scenario_id: str
     graph: nx.DiGraph
     structural: Dict[str, Any]
-    rmav: Dict[str, Any]
+    rm: Dict[str, Any]
     simulation: Dict[str, Any]
     hetero_data: HeteroData
     n_nodes: int
@@ -271,7 +271,7 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
     scenario_id = scenario_dir.name
     topology = _load_json(scenario_dir / "topology.json")
     structural_raw = _load_json(scenario_dir / "structural_metrics.json")
-    rmav_raw = _load_json(scenario_dir / "quality_scores.json")
+    rm_raw = _load_json(scenario_dir / "quality_scores.json")
     sim_raw = _load_json(scenario_dir / "failure_impact.json")
 
     missing = [
@@ -299,21 +299,21 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
     try:
         from reproduce.main_table import _parse_failure_impact, _parse_quality_scores, _remap_node_ids
         sim_parsed = _parse_failure_impact(sim_raw)
-        rmav_parsed = _parse_quality_scores(rmav_raw) if rmav_raw else {}
+        rm_parsed = _parse_quality_scores(rm_raw) if rm_raw else {}
         graph_nodes = set(str(n) for n in graph.nodes())
         simulation = _remap_node_ids(sim_parsed, graph_nodes)
-        rmav = _remap_node_ids(rmav_parsed, graph_nodes)
+        rm = _remap_node_ids(rm_parsed, graph_nodes)
     except ImportError:
-        rmav = extract_rmav_scores_dict(rmav_raw) if rmav_raw else {}
+        rm = extract_rm_scores_dict(rm_raw) if rm_raw else {}
         simulation = extract_simulation_dict(sim_raw)
 
-    conv = networkx_to_hetero_data(graph, structural, simulation, rmav)
+    conv = networkx_to_hetero_data(graph, structural, simulation, rm)
 
     bundle = ScenarioBundle(
         scenario_id=scenario_id,
         graph=graph,
         structural=structural,
-        rmav=rmav,
+        rm=rm,
         simulation=simulation,
         hetero_data=conv.hetero_data,
         n_nodes=graph.number_of_nodes(),
@@ -325,7 +325,7 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
     logger.info(
         "  [%s] %d nodes, %d edges, %d labelled%s",
         scenario_id, bundle.n_nodes, bundle.n_edges, bundle.n_labelled,
-        "" if rmav else "  (rmav missing)",
+        "" if rm else "  (rm missing)",
     )
     return bundle
 
@@ -394,7 +394,7 @@ def run_one_fold(
     weight_decay: float = 1e-4,
     warmup_T0: Optional[int] = None,
     multitask_weight: float = 0.5,
-    rmav_consistency_weight: float = 0.1,
+    rm_consistency_weight: float = 0.1,
     ranking_weight: float = 0.3,
     pairwise_ranking_weight: float = 0.1,
 ) -> FoldResult:
@@ -403,7 +403,7 @@ def run_one_fold(
 
     Defensive invariants:
       - holdout never appears in train_ids
-      - holdout's structural/rmav are passed at predict() time (needed for features)
+      - holdout's structural/rm are passed at predict() time (needed for features)
       - holdout's simulation is passed only for evaluation, never for training
     """
     holdout = bundles[holdout_idx]
@@ -455,7 +455,7 @@ def run_one_fold(
                 # pooled rho would be carried purely by between-type offsets.
                 # This is the same substrate the in-distribution table gives it.
                 try:
-                    proj_graph, proj_struct, _sim, _rmav, _gt = _load_scenario_data(
+                    proj_graph, proj_struct, _sim, _rm, _gt = _load_scenario_data(
                         holdout.scenario_id, substrate="projection"
                     )
                 except Exception as exc:      # noqa: BLE001 - fall back to native
@@ -496,7 +496,7 @@ def run_one_fold(
                     holdout_sm    = _mask_qos_in_structural(holdout.structural)
 
                 conv = networkx_to_hetero_data(
-                    train_graph, train_sm, primary.simulation, primary.rmav, qos_enabled=use_qos
+                    train_graph, train_sm, primary.simulation, primary.rm, qos_enabled=use_qos
                 )
                 data = conv.hetero_data
                 create_node_splits(data, seed=seed)
@@ -512,14 +512,14 @@ def run_one_fold(
                                          lr=lr, num_epochs=epochs, patience=min(60, epochs),
                                          weight_decay=weight_decay, warmup_T0=warmup_T0,
                                          multitask_weight=multitask_weight,
-                                         rmav_consistency_weight=rmav_consistency_weight,
+                                         rm_consistency_weight=rm_consistency_weight,
                                          ranking_weight=ranking_weight,
                                          pairwise_ranking_weight=pairwise_ranking_weight)
                     trainer.train(data)
 
                 # Evaluate on holdout
                 conv_h = networkx_to_hetero_data(
-                    holdout_graph, holdout_sm, holdout.simulation, holdout.rmav, qos_enabled=use_qos
+                    holdout_graph, holdout_sm, holdout.simulation, holdout.rm, qos_enabled=use_qos
                 )
                 data_h = conv_h.hetero_data
                 create_node_splits(data_h, seed=seed)
@@ -551,8 +551,8 @@ def run_one_fold(
                             }
 
             else:
-                # hgl_qos (default) or hgl or topology_rmav → GNNService path
-                effective_mode = "rmav" if variant == "topology_rmav" else mode
+                # hgl_qos (default) or hgl or topology_rm → GNNService path
+                effective_mode = "rm" if variant == "topology_rm" else mode
                 if auto_layers:
                     effective_layers = 1 if primary.n_nodes <= 200 else (2 if primary.n_nodes <= 500 else layers)
                     if effective_layers != layers:
@@ -598,19 +598,19 @@ def run_one_fold(
                         graph=train_graph,
                         structural_metrics=train_sm,
                         simulation_results=primary.simulation,
-                        rmav_scores=primary.rmav,
+                        rm_scores=primary.rm,
                         inductive_graphs=[
                             networkx_to_hetero_data(
                                 b.graph if use_qos else _mask_qos_in_graph(b.graph),
                                 b.structural if use_qos else _mask_qos_in_structural(b.structural),
                                 b.simulation,
-                                b.rmav,
+                                b.rm,
                                 qos_enabled=use_qos
                             ).hetero_data
                             for b in inductives
                         ],
                         seeds=[seed],
-                        num_epochs=1 if variant == "topology_rmav" else epochs,
+                        num_epochs=1 if variant == "topology_rm" else epochs,
                         lr=lr,
                         patience=min(60, epochs),
                         layer=layer,
@@ -618,14 +618,14 @@ def run_one_fold(
                         weight_decay=weight_decay,
                         warmup_T0=warmup_T0,
                         multitask_weight=multitask_weight,
-                        rmav_consistency_weight=rmav_consistency_weight,
+                        rm_consistency_weight=rm_consistency_weight,
                         ranking_weight=ranking_weight,
                         pairwise_ranking_weight=pairwise_ranking_weight,
                     )
                 result = service.predict(
                     graph=holdout_graph,
                     structural_metrics=holdout_sm,
-                    rmav_scores=holdout.rmav,
+                    rm_scores=holdout.rm,
                     # GNNService.train() names this simulation_results, predict() names
                     # it eval_labels. Passing the train() spelling here raised TypeError
                     # inside the per-seed try/except, so every HGL/HGL-QoS seed was
@@ -757,7 +757,7 @@ def run_loso(
     weight_decay: float = 1e-4,
     warmup_T0: Optional[int] = None,
     multitask_weight: float = 0.5,
-    rmav_consistency_weight: float = 0.1,
+    rm_consistency_weight: float = 0.1,
     ranking_weight: float = 0.3,
     pairwise_ranking_weight: float = 0.1,
 ) -> LOSOReport:
@@ -795,7 +795,7 @@ def run_loso(
                 weight_decay=weight_decay,
                 warmup_T0=warmup_T0,
                 multitask_weight=multitask_weight,
-                rmav_consistency_weight=rmav_consistency_weight,
+                rm_consistency_weight=rm_consistency_weight,
                 ranking_weight=ranking_weight,
                 pairwise_ranking_weight=pairwise_ranking_weight,
             )
@@ -1072,11 +1072,11 @@ def parse_args() -> argparse.Namespace:
                    help="Comma-separated training seeds")
     p.add_argument("--skip", default="",
                    help="Comma-separated scenario id substrings to skip")
-    p.add_argument("--mode", default="gnn", choices=["gnn", "rmav"],
+    p.add_argument("--mode", default="gnn", choices=["gnn", "rm"],
                    help="Prediction mode for evaluation (default: gnn)")
     p.add_argument(
         "--variant",
-        choices=["hgl_qos", "hgl", "gl_qos", "gl", "topology_rmav", "topo_baseline", "topo_qos"],
+        choices=["hgl_qos", "hgl", "gl_qos", "gl", "topology_rm", "topo_baseline", "topo_qos"],
         default="hgl_qos",
         help=(
             "Model architecture variant (default: hgl_qos). "
@@ -1084,7 +1084,7 @@ def parse_args() -> argparse.Namespace:
             "hgl     = QoS-masked HeteroGAT on native graph; "
             "gl_qos  = QoS-weighted homogeneous GAT on projection; "
             "gl      = unweighted homogeneous GAT on projection; "
-            "topology_rmav = RMAV scores only (no GNN)."
+            "topology_rm = RM scores only (no GNN)."
         ),
     )
     p.add_argument("--epochs", type=int, default=300)
@@ -1111,8 +1111,8 @@ def parse_args() -> argparse.Namespace:
                     help="CriticalityLoss weight for the ListMLE ranking term")
     p.add_argument("--pairwise-ranking-weight", type=float, default=0.1,
                     help="CriticalityLoss weight for the pairwise margin-ranking term")
-    p.add_argument("--rmav-consistency-weight", type=float, default=0.1,
-                    help="CriticalityLoss weight for RMAV consistency regularization on unlabeled nodes")
+    p.add_argument("--rm-consistency-weight", type=float, default=0.1,
+                    help="CriticalityLoss weight for RM consistency regularization on unlabeled nodes")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -1156,7 +1156,7 @@ def main() -> int:
         weight_decay=args.weight_decay,
         warmup_T0=args.warmup_t0,
         multitask_weight=args.multitask_weight,
-        rmav_consistency_weight=args.rmav_consistency_weight,
+        rm_consistency_weight=args.rm_consistency_weight,
         ranking_weight=args.ranking_weight,
         pairwise_ranking_weight=args.pairwise_ranking_weight,
     )

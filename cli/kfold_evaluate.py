@@ -35,7 +35,7 @@ Cache layout — identical to cli/loso_evaluate.py, reused as-is
     output/loso_cache/<scenario_id>/
         topology.json              (input — same JSON as cli/import_graph.py)
         structural_metrics.json    (output of cli/analyze_graph.py)
-        quality_scores.json        (output of cli/predict_graph.py --mode rmav)
+        quality_scores.json        (output of cli/predict_graph.py --mode rm)
         failure_impact.json        (output of cli/simulate_graph.py fault-inject)
 
 See cli/loso_evaluate.py's module docstring for the cache-population loop
@@ -164,7 +164,7 @@ def run_one_scenario(
     weight_decay: float,
     warmup_T0: Optional[int],
     multitask_weight: float,
-    rmav_consistency_weight: float,
+    rm_consistency_weight: float,
     ranking_weight: float,
     pairwise_ranking_weight: float,
     rank_normalize_features: bool = False,
@@ -237,7 +237,7 @@ def run_one_scenario(
                     # membership is derived from the identical HeteroData
                     # construction, so all variants see the same test set.
                     _conv = networkx_to_hetero_data(
-                        train_graph, train_sm, bundle.simulation, bundle.rmav,
+                        train_graph, train_sm, bundle.simulation, bundle.rm,
                         qos_enabled=use_qos, rank_normalize_features=rank_normalize_features,
                     )
                     create_kfold_masks(_conv.hetero_data, k=k, fold_idx=fold_idx, seed=split_seed)
@@ -252,7 +252,7 @@ def run_one_scenario(
                     from saag.prediction.trainer import GNNTrainer
 
                     conv = networkx_to_hetero_data(
-                        train_graph, train_sm, bundle.simulation, bundle.rmav, qos_enabled=use_qos,
+                        train_graph, train_sm, bundle.simulation, bundle.rm, qos_enabled=use_qos,
                         rank_normalize_features=rank_normalize_features,
                     )
                     data = conv.hetero_data
@@ -268,7 +268,7 @@ def run_one_scenario(
                         lr=lr, num_epochs=epochs, patience=min(60, epochs),
                         weight_decay=weight_decay, warmup_T0=warmup_T0,
                         multitask_weight=multitask_weight,
-                        rmav_consistency_weight=rmav_consistency_weight,
+                        rm_consistency_weight=rm_consistency_weight,
                         ranking_weight=ranking_weight,
                         pairwise_ranking_weight=pairwise_ranking_weight,
                     )
@@ -289,16 +289,16 @@ def run_one_scenario(
                                 pred_scores[nid] = float(preds[local_idx, 0])
 
                 else:
-                    # hgl_qos (default), hgl, or topology_rmav → GNNService path.
+                    # hgl_qos (default), hgl, or topology_rm → GNNService path.
                     # GNNService.train() always calls (module-level) create_node_splits
                     # internally; monkeypatch it to our fixed k-fold split for the
                     # duration of this call so the rest of GNNService's training/
                     # inference machinery (model construction, IQR label norm,
-                    # multi-seed best-state tracking, RMAV blending) is reused unchanged.
+                    # multi-seed best-state tracking, RM blending) is reused unchanged.
                     import saag.prediction.gnn_service as gnn_service_mod
 
-                    effective_mode = "rmav" if variant == "topology_rmav" else mode
-                    effective_epochs = 1 if variant == "topology_rmav" else epochs
+                    effective_mode = "rm" if variant == "topology_rm" else mode
+                    effective_epochs = 1 if variant == "topology_rm" else epochs
 
                     def _fold_split(hd, train_ratio=0.6, val_ratio=0.2, seed=None):
                         create_kfold_masks(hd, k=k, fold_idx=fold_idx, val_ratio=val_ratio, seed=split_seed)
@@ -319,7 +319,7 @@ def run_one_scenario(
                             graph=train_graph,
                             structural_metrics=train_sm,
                             simulation_results=bundle.simulation,
-                            rmav_scores=bundle.rmav,
+                            rm_scores=bundle.rm,
                             num_epochs=effective_epochs,
                             lr=lr,
                             patience=min(60, epochs),
@@ -328,7 +328,7 @@ def run_one_scenario(
                             weight_decay=weight_decay,
                             warmup_T0=warmup_T0,
                             multitask_weight=multitask_weight,
-                            rmav_consistency_weight=rmav_consistency_weight,
+                            rm_consistency_weight=rm_consistency_weight,
                             ranking_weight=ranking_weight,
                             pairwise_ranking_weight=pairwise_ranking_weight,
                             seeds=[seed],
@@ -463,7 +463,7 @@ def run_kfold(
     weight_decay: float,
     warmup_T0: Optional[int],
     multitask_weight: float,
-    rmav_consistency_weight: float,
+    rm_consistency_weight: float,
     ranking_weight: float,
     pairwise_ranking_weight: float,
     rank_normalize_features: bool = False,
@@ -496,7 +496,7 @@ def run_kfold(
                 workdir=workdir, mode=mode, variant=variant,
                 weight_decay=weight_decay, warmup_T0=warmup_T0,
                 multitask_weight=multitask_weight,
-                rmav_consistency_weight=rmav_consistency_weight,
+                rm_consistency_weight=rm_consistency_weight,
                 ranking_weight=ranking_weight,
                 pairwise_ranking_weight=pairwise_ranking_weight,
                 rank_normalize_features=rank_normalize_features,
@@ -653,11 +653,11 @@ def parse_args() -> argparse.Namespace:
                    help="Comma-separated repeat seeds (model init randomness within each fold)")
     p.add_argument("--skip", default="",
                    help="Comma-separated scenario id substrings to skip")
-    p.add_argument("--mode", default="gnn", choices=["gnn", "rmav"],
+    p.add_argument("--mode", default="gnn", choices=["gnn", "rm"],
                    help="Prediction mode for evaluation (default: gnn)")
     p.add_argument(
         "--variant",
-        choices=["hgl_qos", "hgl", "gl_qos", "gl", "topology_rmav",
+        choices=["hgl_qos", "hgl", "gl_qos", "gl", "topology_rm",
                  "topo_baseline", "topo_qos"],
         default="hgl_qos",
         help=(
@@ -666,7 +666,7 @@ def parse_args() -> argparse.Namespace:
             "hgl     = QoS-masked HeteroGAT on native graph; "
             "gl_qos  = QoS-weighted homogeneous GAT on projection; "
             "gl      = unweighted homogeneous GAT on projection; "
-            "topology_rmav = RMAV scores only (no GNN)."
+            "topology_rm = RM scores only (no GNN)."
         ),
     )
     p.add_argument("--epochs", type=int, default=300)
@@ -684,8 +684,8 @@ def parse_args() -> argparse.Namespace:
                     help="CriticalityLoss weight for the ListMLE ranking term")
     p.add_argument("--pairwise-ranking-weight", type=float, default=0.1,
                     help="CriticalityLoss weight for the pairwise margin-ranking term")
-    p.add_argument("--rmav-consistency-weight", type=float, default=0.1,
-                    help="CriticalityLoss weight for RMAV consistency regularization on unlabeled nodes")
+    p.add_argument("--rm-consistency-weight", type=float, default=0.1,
+                    help="CriticalityLoss weight for RM consistency regularization on unlabeled nodes")
     p.add_argument("--rank-normalize-features", action="store_true",
                     help="Within-graph rank-normalize node features (BASE_METRIC_KEYS columns). "
                          "Off by default; ablation arm against the raw-feature path.")
@@ -739,7 +739,7 @@ def main() -> int:
         dropout=args.dropout, mode=args.mode, variant=args.variant,
         weight_decay=args.weight_decay, warmup_T0=args.warmup_t0,
         multitask_weight=args.multitask_weight,
-        rmav_consistency_weight=args.rmav_consistency_weight,
+        rm_consistency_weight=args.rm_consistency_weight,
         ranking_weight=args.ranking_weight,
         pairwise_ranking_weight=args.pairwise_ranking_weight,
         rank_normalize_features=args.rank_normalize_features,

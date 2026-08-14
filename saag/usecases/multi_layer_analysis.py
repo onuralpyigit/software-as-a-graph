@@ -20,7 +20,7 @@ _QUALITY_KWARG_KEYS = ("run_sensitivity", "sensitivity_perturbations", "sensitiv
 
 class MultiLayerAnalysisUseCase:
     """
-    Orchestrates multi-layer structural analysis (Step 2), deterministic RMAV
+    Orchestrates multi-layer structural analysis (Step 2), deterministic RM
     quality scoring, anti-pattern detection, and optional GNN prediction.
     """
 
@@ -54,7 +54,7 @@ class MultiLayerAnalysisUseCase:
         quality_kwargs = {k: v for k, v in kwargs.items() if k in _QUALITY_KWARG_KEYS}
 
         for layer, layer_res in results_map.items():
-            # 2. Quality analysis (RMAV)
+            # 2. Quality analysis (RM)
             layer_res.quality = scorer.predict_quality(layer_res.structural, **quality_kwargs)
 
             # 3. Anti-pattern detection
@@ -79,14 +79,14 @@ class MultiLayerAnalysisUseCase:
             from saag.prediction.gnn_service import (
                 GNNService,
                 extract_structural_metrics_dict,
-                extract_rmav_scores_dict,
+                extract_rm_scores_dict,
             )
 
             gnn_svc = GNNService.from_checkpoint(gnn_model, graph=layer_res.structural.graph)
             prediction_result = gnn_svc.predict(
                 graph=layer_res.structural.graph,
                 structural_metrics=extract_structural_metrics_dict(layer_res.structural),
-                rmav_scores=extract_rmav_scores_dict(layer_res.quality),
+                rm_scores=extract_rm_scores_dict(layer_res.quality),
             )
             layer_res.prediction = prediction_result.to_dict()
         except Exception as e:

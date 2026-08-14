@@ -1,4 +1,4 @@
-"""Q(v) scoring for the validation CLI: the RMAV baseline and the GNN predictor.
+"""Q(v) scoring for the validation CLI: the RM baseline and the GNN predictor.
 
 Both predictors need the same structural primitives from the graph, so those are
 extracted once by `extract_primitives` and then shaped differently for each
@@ -22,11 +22,12 @@ class NodeScores:
     node_id: str
     node_type: str                # Application | Broker | Topic | InfraNode | Library
 
-    # RMAS dimensions (topology-only baseline when qos=False)
-    R: float = 0.0                # Reliability exposure  (PageRank + in-degree)
+    # RM dimensions (topology-only baseline when qos=False). FT and A are
+    # Reliability's sub-characteristics, reported alongside R.
+    R: float = 0.0                # Reliability exposure (hierarchical: FT + A)
     M: float = 0.0                # Maintainability proxy (betweenness + closeness)
+    FT: float = 0.0               # Fault tolerance       (PageRank + in-degree)
     A: float = 0.0                # Availability risk     (articulation × QoS_SPOF)
-    S: float = 0.0                # Security              (out-degree + dep-density)
     Q: float = 0.0                # Composite Q(v)
 
     # Simulation ground truth
@@ -41,7 +42,7 @@ class NodeScores:
 
 @dataclass
 class StructuralPrimitives:
-    """Graph-derived quantities shared by the RMAV and GNN scorers."""
+    """Graph-derived quantities shared by the RM and GNN scorers."""
     pagerank: Dict[str, float]
     reverse_pagerank: Dict[str, float]
     betweenness: Dict[str, float]
@@ -123,8 +124,8 @@ def extract_primitives(G: nx.DiGraph, qos: bool = True) -> StructuralPrimitives:
     )
 
 
-def compute_rmav(G: nx.DiGraph, qos: bool = True, normalization: str = "robust") -> Dict[str, NodeScores]:
-    """Compute RMAV for ALL nodes using the central QualityAnalyzer."""
+def compute_rm(G: nx.DiGraph, qos: bool = True, normalization: str = "robust") -> Dict[str, NodeScores]:
+    """Compute RM for ALL nodes using the central QualityAnalyzer."""
     from saag.analysis.analyzer import QualityAnalyzer
     from saag.core.metrics import StructuralMetrics
 
@@ -160,8 +161,8 @@ def compute_rmav(G: nx.DiGraph, qos: bool = True, normalization: str = "robust")
             Q=q.scores.overall,
             R=q.scores.reliability,
             M=q.scores.maintainability,
+            FT=q.scores.fault_tolerance,
             A=q.scores.availability,
-            S=q.scores.security,
             I=0.0,
             degree_centrality=p.degree_centrality_physical.get(q.id, 0.0),
             is_articulation_point=(q.id in p.articulation_points),
@@ -171,21 +172,20 @@ def compute_rmav(G: nx.DiGraph, qos: bool = True, normalization: str = "robust")
 
 
 def compute_gnn_scores(G: nx.DiGraph, gnn_model: str, qos: bool = True) -> Dict[str, NodeScores]:
-    """Score every node with a trained GNN checkpoint instead of the RMAV formula."""
+    """Score every node with a trained GNN checkpoint instead of the RM formula."""
     from saag.prediction.gnn_service import GNNService
 
     p = extract_primitives(G, qos=qos)
 
-    # The GNN consumes the RMAV scores as input features.
-    rmav_scores = {
+    # The GNN consumes the RM scores as input features.
+    rm_scores = {
         nid: {
             "overall": ns.Q,
             "reliability": ns.R,
             "maintainability": ns.M,
             "availability": ns.A,
-            "security": ns.S,
         }
-        for nid, ns in compute_rmav(G, qos=qos).items()
+        for nid, ns in compute_rm(G, qos=qos).items()
     }
 
     structural_metrics = {
@@ -216,7 +216,7 @@ def compute_gnn_scores(G: nx.DiGraph, gnn_model: str, qos: bool = True) -> Dict[
     gnn_result = service.predict(
         graph=G,
         structural_metrics=structural_metrics,
-        rmav_scores=rmav_scores,
+        rm_scores=rm_scores,
         mode="gnn",
         qos_enabled=qos,
     )
@@ -229,7 +229,6 @@ def compute_gnn_scores(G: nx.DiGraph, gnn_model: str, qos: bool = True) -> Dict[
             R=score.reliability_score,
             M=score.maintainability_score,
             A=score.availability_score,
-            S=score.security_score,
             I=0.0,
             degree_centrality=p.degree_centrality_physical.get(nid, 0.0),
             is_articulation_point=(nid in p.articulation_points),

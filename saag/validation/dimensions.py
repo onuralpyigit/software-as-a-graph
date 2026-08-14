@@ -14,10 +14,10 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Tuple
 
 from .metric_calculator import (
-    calculate_ahcr_at_k, calculate_apar, calculate_bottleneck_precision,
+    calculate_bottleneck_precision,
     calculate_ccr_at_k, calculate_cme, calculate_cocr_at_k, calculate_dasa,
-    calculate_ftr, calculate_hsrr, calculate_rri, calculate_spof_f1,
-    calculate_weighted_kappa_cta, spearman_correlation,
+    calculate_hsrr, calculate_rri, calculate_spof_f1,
+    calculate_weighted_kappa_cta,
 )
 from .models import ValidationTargets
 
@@ -30,8 +30,8 @@ class DimensionInputs:
 
     ``predicted``/``actual`` are restricted to this dimension's common ids, while
     ``predictions``/``ground_truths`` carry every dimension's dicts so a
-    specialist can reach sideways (security's CDCC needs the availability
-    predictor; availability's DASA needs the directional ia_out/ia_in truths).
+    specialist can reach sideways (availability's DASA needs the directional
+    ia_out/ia_in truths).
     """
     ids: List[str]                              # sorted common ids, len >= 3
     predicted: Dict[str, float]                 # {id: dimension score}
@@ -114,39 +114,6 @@ def _maintainability_specialists(d: DimensionInputs) -> Dict[str, float]:
     }
 
 
-def _security_specialists(d: DimensionInputs) -> Dict[str, float]:
-    """AHCR@5, FTR, APAR, and the cross-dimensional contamination check.
-
-    CDCC is ρ(S, A) over the predictors — a *high* value means the security and
-    availability scores are not measuring distinct things, so G7 requires it to
-    stay below `cdcc_max`.
-    """
-    t = d.targets
-    reach = d.ground_truths.get("attack_reach", {})
-    reach_common = {cid: reach[cid] for cid in d.ids if cid in reach}
-
-    paths = [
-        path
-        for r in d.sim_results
-        for path in (getattr(r.impact, "critical_paths", None) or [])
-    ]
-
-    availability = d.predictions.get("availability", {})
-    shared = [cid for cid in d.ids if cid in availability]
-    cdcc = 0.0
-    if len(shared) >= 3:
-        cdcc, _ = spearman_correlation(
-            [d.predicted[c] for c in shared], [float(availability[c]) for c in shared]
-        )
-
-    return {
-        "ahcr_5": calculate_ahcr_at_k(d.predicted, d.actual, k=5),
-        "ftr": calculate_ftr(d.predicted, reach_common, t.security_v_threshold, t.security_reach_threshold),
-        "apar": calculate_apar(d.predicted, paths, t.security_v_threshold),
-        "cdcc": cdcc,
-    }
-
-
 def _availability_specialists(d: DimensionInputs) -> Dict[str, float]:
     """SPOF-F1 (with its precision/recall), HSRR, DASA and RRI.
 
@@ -181,23 +148,31 @@ def _availability_specialists(d: DimensionInputs) -> Dict[str, float]:
 
 #: Validated in this order; ``key`` is a published output key (read by
 #: saag/visualization/collector.py), so renaming one is a breaking change.
+#: These are the two RM composite dimensions. Availability is a Reliability
+#: sub-characteristic, not an independently-scored dimension, but it is still
+#: worth validating on its own terms — see SUBCHARACTERISTIC_SPECS below.
 DIMENSION_SPECS: Tuple[DimensionSpec, ...] = (
     DimensionSpec("reliability", "reliability", "reliability_impact", "IR(v)", _reliability_specialists),
     DimensionSpec("maintainability", "maintainability", "maintainability_impact", "IM(v)", _maintainability_specialists),
-    DimensionSpec("security", "security", "security_impact", "IS(v)", _security_specialists),
+)
+
+#: Sub-characteristic diagnostics: validated the same way as DIMENSION_SPECS
+#: (correlate predictor vs. ground truth, run specialists) but reported
+#: separately and excluded from the composite gates (I*, predictive_gain,
+#: orthogonality) — including them there would double-count Reliability's
+#: signal, since availability_impact also feeds reliability_impact's blend.
+SUBCHARACTERISTIC_SPECS: Tuple[DimensionSpec, ...] = (
     DimensionSpec("availability", "availability", "availability_impact", "IA(v)", _availability_specialists),
 )
 
 #: Simulation impact fields that are scaled once and shared by the specs above.
-#: The first four are the per-dimension ground truths; the rest are auxiliary
-#: signals that individual specialists read.
+#: The first three are the per-dimension/sub-characteristic ground truths; the
+#: rest are auxiliary signals that individual specialists read.
 GROUND_TRUTH_FIELDS: Tuple[str, ...] = (
     "composite_impact",
     "reliability_impact",
     "maintainability_impact",
     "availability_impact",
-    "security_impact",
-    "attack_reach",
     "ia_out",
     "ia_in",
 )

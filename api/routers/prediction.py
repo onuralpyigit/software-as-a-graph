@@ -40,7 +40,7 @@ class TrainRequest(BaseModel):
     patience: int = Field(default=30, description="Early-stopping patience")
     train_ratio: float = Field(default=0.6, description="Training split fraction")
     val_ratio: float = Field(default=0.2, description="Validation split fraction")
-    use_ahp: bool = Field(default=False, description="Use AHP weights for RMAV")
+    use_ahp: bool = Field(default=False, description="Use AHP weights for RM")
     predict_edges: bool = Field(default=True, description="Also predict edge criticality")
     variant: str = Field(
         default="hetero_qos",
@@ -49,7 +49,7 @@ class TrainRequest(BaseModel):
             "'hetero_qos' (QoS-aware HeteroGAT, default), "
             "'homo_unweighted' (flat GAT, no edge_attr), "
             "'homo_scalar' (flat GAT, scalar weight), "
-            "'topology_rmav' (RMAV baseline, no GNN). "
+            "'topology_rm' (RM baseline, no GNN). "
             "Paper-name mapping (docs/research/jss/draft.md Section 7.2): "
             "hetero_qos=HGL-QoS, homo_unweighted=GL, homo_scalar=GL-QoS."
         ),
@@ -176,7 +176,7 @@ async def train_gnn(
     """
     try:
         from saag.prediction import GNNService, extract_structural_metrics_dict, \
-            extract_rmav_scores_dict, extract_simulation_dict
+            extract_rm_scores_dict, extract_simulation_dict
         from saag.simulation import SimulationService
     except ImportError as e:
         raise HTTPException(status_code=501, detail=f"GNN module not available: {e}")
@@ -191,7 +191,7 @@ async def train_gnn(
         ckpt_dir.mkdir(parents=True, exist_ok=True)
         logger.info("GNN training: layer=%s epochs=%d checkpoint_dir=%s", request.layer, request.epochs, ckpt_dir)
 
-        # Step 2+3: structural analysis + RMAV scores
+        # Step 2+3: structural analysis + RM scores
         from saag.analysis.structural_analyzer import StructuralAnalyzer
         from saag.core.layers import AnalysisLayer
         graph_data = client.repo.get_graph_data()
@@ -212,7 +212,7 @@ async def train_gnn(
         from saag.prediction.service import PredictionService
         pred_svc = PredictionService(use_ahp=request.use_ahp)
         quality_result = pred_svc.predict_quality(struct_result)
-        rmav_dict = extract_rmav_scores_dict(quality_result)
+        rm_dict = extract_rm_scores_dict(quality_result)
 
         # Step 4: simulation ground truth
         sim_svc = SimulationService(client.repo)
@@ -232,7 +232,7 @@ async def train_gnn(
             graph=nx_graph,
             structural_metrics=structural_dict,
             simulation_results=simulation_dict,
-            rmav_scores=rmav_dict,
+            rm_scores=rm_dict,
             train_ratio=request.train_ratio,
             val_ratio=request.val_ratio,
             num_epochs=request.epochs,
@@ -311,7 +311,7 @@ async def predict_gnn(
     """
     try:
         from saag.prediction import GNNService, extract_structural_metrics_dict, \
-            extract_rmav_scores_dict
+            extract_rm_scores_dict
     except ImportError as e:
         raise HTTPException(status_code=501, detail=f"GNN module not available: {e}")
 
@@ -321,7 +321,7 @@ async def predict_gnn(
         # Resolve empty checkpoint_dir to default repo path
         ckpt_dir = request.checkpoint_dir.strip() or str(_GNN_CHECKPOINTS_DIR)
 
-        # Step 2+3: structural analysis + RMAV scores (needed for features AND metadata)
+        # Step 2+3: structural analysis + RM scores (needed for features AND metadata)
         from saag.analysis.structural_analyzer import StructuralAnalyzer
         from saag.core.layers import AnalysisLayer
         graph_data = client.repo.get_graph_data()
@@ -342,7 +342,7 @@ async def predict_gnn(
         from saag.prediction.service import PredictionService
         pred_svc = PredictionService(use_ahp=False)
         quality_result = pred_svc.predict_quality(struct_result)
-        rmav_dict = extract_rmav_scores_dict(quality_result)
+        rm_dict = extract_rm_scores_dict(quality_result)
 
         # Load trained model — pass graph so from_checkpoint can reconstruct PyG metadata
         gnn_svc = GNNService.from_checkpoint(ckpt_dir, graph=nx_graph)
@@ -350,7 +350,7 @@ async def predict_gnn(
         gnn_result = gnn_svc.predict(
             graph=nx_graph,
             structural_metrics=structural_dict,
-            rmav_scores=rmav_dict,
+            rm_scores=rm_dict,
             mode="gnn",
         )
         name_lookup = {node: attrs.get("name", node) for node, attrs in nx_graph.nodes(data=True)}

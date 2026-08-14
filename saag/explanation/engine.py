@@ -15,7 +15,7 @@ from saag.explanation.templates import PATTERN_TEMPLATES, DEFAULT_DIMENSION_TEMP
 
 @dataclass
 class DimensionExplanation:
-    """Human-readable explanation of a single RMAV dimension's score."""
+    """Human-readable explanation of a single RM dimension's score."""
     dimension: str           # "Reliability"
     score: float             # 0.891
     level: str               # "CRITICAL"
@@ -177,7 +177,6 @@ class ExplanationEngine:
             "reliability": (quality.scores.reliability, quality.levels.reliability.value.upper()),
             "maintainability": (quality.scores.maintainability, quality.levels.maintainability.value.upper()),
             "availability": (quality.scores.availability, quality.levels.availability.value.upper()),
-            "security": (quality.scores.security, quality.levels.security.value.upper()),
         }
         
         for dim, (score, level_str) in dimension_map.items():

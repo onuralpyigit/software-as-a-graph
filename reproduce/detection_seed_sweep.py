@@ -23,7 +23,7 @@ This script re-runs ``evaluate()`` — unchanged, imported directly — across:
 at five seeds — 42, 123, 456, 789, 2024, the set already standard elsewhere in this repository
 (``reproduce/main_table.py``, ``reproduce/convergent_validity.py``). The oracle is the only thing
 the seed touches (``_oracle(..., seed=seed)``); the analysis path (topology load -> analyze ->
-RMAV -> catalog detectors) does not depend on it. So the same five passes serve double duty:
+RM -> catalog detectors) does not depend on it. So the same five passes serve double duty:
 they are independent draws of the oracle *and* independent repetitions of the gate-cost timing.
 
 Usage

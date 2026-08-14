@@ -64,15 +64,15 @@ def test_bridge_aware_edge_labels():
 
 def test_consistency_loss_logic():
     """GNN-G2: Verify that consistency loss applies only to unlabeled nodes."""
-    loss_fn = CriticalityLoss(multitask_weight=0.5, rmav_consistency_weight=0.1, ranking_weight=0.3)
+    loss_fn = CriticalityLoss(multitask_weight=0.5, rm_consistency_weight=0.1, ranking_weight=0.3)
     
     # 2 nodes, 1 labeled (mask=True), 1 unlabeled (mask=False)
     pred = torch.tensor([[0.8, 0.7, 0.7, 0.7, 0.7], [0.2, 0.1, 0.1, 0.1, 0.1]])
     target = torch.tensor([[1.0, 0.9, 0.9, 0.9, 0.9], [0.0, 0.0, 0.0, 0.0, 0.0]])
     mask = torch.tensor([True, False])
-    rmav_target = torch.tensor([[0.5, 0.5, 0.5, 0.5, 0.5], [0.3, 0.3, 0.3, 0.3, 0.3]])
+    rm_target = torch.tensor([[0.5, 0.5, 0.5, 0.5, 0.5], [0.3, 0.3, 0.3, 0.3, 0.3]])
     
-    total, components = loss_fn(pred, target, mask, rmav_target)
+    total, components = loss_fn(pred, target, mask, rm_target)
     
     # Component loss: MSE(0.8, 1.0) = 0.04
     # Multitask loss: MSE([0.7]*4, [0.9]*4) = 0.04
@@ -140,7 +140,7 @@ def test_best_seed_selection():
             
         service._node_model.state_dict.side_effect = states
         
-        service.train(G, seeds=[1, 2, 3], simulation_results={"1": {}}, rmav_scores={"1": {}})
+        service.train(G, seeds=[1, 2, 3], simulation_results={"1": {}}, rm_scores={"1": {}})
         
         # Check if load_state_dict was called with state[1] (seed 2)
         # We check the content matches (it was cloned to cpu)

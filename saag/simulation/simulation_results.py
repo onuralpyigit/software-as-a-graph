@@ -109,8 +109,12 @@ class FaultInjectionResult:
     labeled_node_types: List[str] = field(default_factory=list)
     #: Label dimensions this engine genuinely produces. Anything outside this
     #: list is a structural zero, not a measurement — do not train or score on it.
+    #: "reliability" is itself the r_alpha-blend of fault-tolerance and
+    #: availability (see saag.core.quality_model), so this scalar-impact
+    #: labeler does not additionally declare "availability" as a separate
+    #: measured dimension.
     labeled_dimensions: List[str] = field(
-        default_factory=lambda: ["composite", "reliability", "availability"]
+        default_factory=lambda: ["composite", "reliability"]
     )
     #: Nodes present in the graph but never injected. Makes the coverage gap
     #: explicit instead of letting it vanish in a set intersection downstream.

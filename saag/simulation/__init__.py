@@ -15,10 +15,10 @@ Predict stage — supervised labels
 
 Validate stage — quality oracle
     `FailureSimulator` is the canonical oracle. It produces `ImpactMetrics`,
-    the four-dimensional RMAV decomposition (reliability / maintainability /
-    availability / security) that the `saag/validation/` gates are written
-    against. Runs on a `SimulationGraph` and is orchestrated by
-    `SimulationService`.
+    the RM decomposition (reliability, hierarchical over fault-tolerance and
+    availability sub-characteristics, / maintainability) that the
+    `saag/validation/` gates are written against. Runs on a `SimulationGraph`
+    and is orchestrated by `SimulationService`.
 
 Supporting engines
     `EventSimulator`            discrete-event pub-sub run; supplies the
@@ -27,7 +27,6 @@ Supporting engines
                                 enforcement; timing and delivery analysis.
     `ChangePropagationSimulator`    IM(v) sub-metrics, on the transposed
                                     DEPENDS_ON graph.
-    `CompromisePropagationSimulator` IV(v) sub-metrics and attack paths.
     `TrafficSimulator`          closed-form bandwidth calculator (talks to
                                 Neo4j directly; see docs/failure-simulation.md
                                 §12 for the caveat).
@@ -44,10 +43,6 @@ from .graph import SimulationGraph
 from .failure_simulator import FailureSimulator
 from .event_simulator import EventSimulator
 from .change_propagation import ChangePropagationSimulator, ChangePropagationResult
-from .compromise_propagation import (
-    CompromisePropagationSimulator,
-    CompromisePropagationResult,
-)
 
 # Predict-stage labeler
 from .fault_injector import FaultInjector
@@ -100,7 +95,6 @@ __all__ = [
     "FailureSimulator",
     "EventSimulator",
     "ChangePropagationSimulator",
-    "CompromisePropagationSimulator",
     # Engines — Predict stage
     "FaultInjector",
     "MessageFlowSimulator",
@@ -114,7 +108,6 @@ __all__ = [
     "MonteCarloResult",
     "CascadeEvent",
     "ChangePropagationResult",
-    "CompromisePropagationResult",
     # Results — Predict stage
     "FaultInjectionResult",
     "FaultInjectionRecord",

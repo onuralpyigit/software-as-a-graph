@@ -11,7 +11,7 @@ import numpy as np
 from scipy import stats
 
 from .ground_truth import derive_ground_truth
-from .scoring import NodeScores, compute_gnn_scores, compute_rmav
+from .scoring import NodeScores, compute_gnn_scores, compute_rm
 from .statistics import (
     GATE_THRESHOLDS, SweepReport, ValidationResult, classify_topology,
     evaluate_gates, rank_consistency_rate, run_statistical_tests, stratified_metrics,
@@ -36,7 +36,7 @@ def run_single(
     if gnn_model:
         scores = compute_gnn_scores(G, gnn_model, qos=qos)
     else:
-        scores = compute_rmav(G, qos=qos)
+        scores = compute_rm(G, qos=qos)
     scores = derive_ground_truth(G, scores, depth_limit=depth_limit, seed=seed)
 
     n = len(scores)

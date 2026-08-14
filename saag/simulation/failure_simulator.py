@@ -87,7 +87,7 @@ _MC_INT_FIELDS: Tuple[str, ...] = (
 def _mean_impact_metrics(trials: List[ImpactMetrics]) -> ImpactMetrics:
     """Aggregate per-trial ImpactMetrics into one whose every field is the
     trial mean, so composite_impact (a linear combination of the float
-    fields) and the downstream RMAV post-passes describe the same
+    fields) and the downstream RM post-passes describe the same
     statistical quantity rather than mixing an MC-mean composite with a
     single arbitrary draw's other fields.
 
@@ -558,7 +558,7 @@ class FailureSimulator:
                     # field, not just composite_impact — a result whose
                     # composite is an MC mean but whose reachability_loss /
                     # fragmentation / throughput_loss / flow_disruption (and
-                    # the RMAV post-passes computed from them) come from one
+                    # the RM post-passes computed from them) come from one
                     # arbitrary draw is internally inconsistent.
                     trial_impacts: List[ImpactMetrics] = []
                     representative: Optional[FailureResult] = None
@@ -590,13 +590,12 @@ class FailureSimulator:
         # Sort by composite impact (highest first)
         results.sort(key=lambda r: r.impact.composite_impact, reverse=True)
 
-        # RMAV sub-metric post-passes. They run after the sweep because their
+        # RM sub-metric post-passes. They run after the sweep because their
         # normalisation denominators (graph size, total weight, max observed
         # depth) are only known once every component has been simulated.
         dep_view = self._build_dependency_view()
-        self._postpass_reliability(results)
+        self._postpass_fault_tolerance(results)
         self._postpass_maintainability(results, dep_view)
-        self._postpass_security(results, dep_view)
         self._postpass_availability(results)
 
         return results
@@ -638,8 +637,8 @@ class FailureSimulator:
             out_degrees=out_deg,
         )
 
-    def _postpass_reliability(self, results: List[FailureResult]) -> None:
-        """IR(v): how far and how heavily the runtime failure cascade spread."""
+    def _postpass_fault_tolerance(self, results: List[FailureResult]) -> None:
+        """IFT(v): how far and how heavily the runtime failure cascade spread."""
         total_components = len(self.graph.components)
         total_weight = sum(
             getattr(c, "weight", 1.0) for c in self.graph.components.values()
@@ -688,26 +687,6 @@ class FailureSimulator:
                 r.impact.change_reach = cp.change_reach
                 r.impact.weighted_change_impact = cp.weighted_change_impact
                 r.impact.normalized_change_depth = cp.normalized_change_depth
-
-    def _postpass_security(
-        self, results: List[FailureResult], dep: "_DependencyView"
-    ) -> None:
-        """IV(v): compromise propagation and attack paths over G^T."""
-        from .compromise_propagation import CompromisePropagationSimulator
-
-        cp_results = CompromisePropagationSimulator(theta_trust=0.30).simulate_all(
-            component_ids=dep.component_ids,
-            dependency_edges=dep.edges,
-            component_weights=dep.weights,
-        )
-
-        for r in results:
-            cp = cp_results.get(r.target_id)
-            if cp is not None:
-                r.impact.attack_reach = cp.attack_reach
-                r.impact.weighted_attack_impact = cp.weighted_attack_impact
-                r.impact.high_value_contamination = cp.high_value_contamination
-                r.impact.critical_paths = cp.critical_paths
 
     def _postpass_availability(self, results: List[FailureResult]) -> None:
         """

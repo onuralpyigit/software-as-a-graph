@@ -71,7 +71,7 @@ class Pipeline:
         (PageRank, betweenness, closeness, articulation points, etc.).
 
         Produces a fully deterministic AnalysisResult from topology and metadata.
-        No RMAV/Q scores or anti-patterns here — see predict() for the unified
+        No RM/Q scores or anti-patterns here — see predict() for the unified
         Prediction Step that produces those.
         """
         self._layer = layer
@@ -84,13 +84,13 @@ class Pipeline:
         gnn_checkpoint: Optional[str] = None,
         **kwargs,
     ) -> "Pipeline":
-        """Stage 3: Unified Prediction Step — rule-based (RMAV) + ML (GNN) scoring.
+        """Stage 3: Unified Prediction Step — rule-based (RM) + ML (GNN) scoring.
 
-        Always computes the AHP-weighted RMAV composite (deterministic, closed-form).
+        Always computes the AHP-weighted RM composite (deterministic, closed-form).
         When a trained GNN checkpoint is available, blends in a Heterogeneous Graph
-        Transformer (HGT / HGTConv) inference pass that learns patterns the RMAV
+        Transformer (HGT / HGTConv) inference pass that learns patterns the RM
         composite cannot encode (nonlinear interactions, multi-hop motifs); falls
-        back to RMAV otherwise. Also runs anti-pattern detection and generates a
+        back to RM otherwise. Also runs anti-pattern detection and generates a
         human-readable explanation. This replaces the legacy "Quality Scoring" step
         that used to live inside Analyze.
         Requires analyze() to have been configured first.
@@ -102,7 +102,7 @@ class Pipeline:
         gnn_checkpoint:
             Path to a GNN checkpoint directory. Defaults to output/gnn_checkpoints.
         **kwargs:
-            Forwarded to ``Client.predict`` — the RMAV weighting/normalisation
+            Forwarded to ``Client.predict`` — the RM weighting/normalisation
             options (``use_ahp``, ``equal_weights``, ``ahp_shrinkage``,
             ``normalization_method``, ``winsorize``, ``winsorize_limit``,
             ``run_sensitivity``, ``active_patterns``). These belong to the
@@ -171,7 +171,7 @@ class Pipeline:
             sim_layer = self._simulate_layer if self._simulate_layer is not None else self._layer
             result.simulation = self.client.simulate(layer=sim_layer, **self._simulate_kwargs)
 
-        # Execution step 4 (Stage 3: Predict) — unified: RMAV (always) + GNN
+        # Execution step 4 (Stage 3: Predict) — unified: RM (always) + GNN
         # (when available) + anti-patterns
         if self._do_predict:
             if result.analysis is None:
@@ -195,7 +195,7 @@ class Pipeline:
                     "first to generate labels for training."
                 )
 
-            logger.info("Running unified Prediction step (RMAV + GNN)...")
+            logger.info("Running unified Prediction step (RM + GNN)...")
             result.prediction = self.client.predict(result.analysis, **self._predict_kwargs)
 
         # Execution step 5 (Stage 5: Validate) — compare Predict/Analyze

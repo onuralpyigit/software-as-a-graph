@@ -34,7 +34,7 @@ produced here is therefore not evidence for a claim measured against ``I*``.
 
 Three predictors are scored against that oracle on the same node set:
 
-``Q(v)``       the RMAV composite criticality score — the ranking the framework
+``Q(v)``       the RM composite criticality score — the ranking the framework
                actually surfaces.
 ``catalog``    the binary "was this component flagged by at least one
                CRITICAL/HIGH anti-pattern" verdict — the *named* finding, which
@@ -55,7 +55,7 @@ so results are invariant to the monotone ``robust_sigmoid_scale_dict`` rescaling
 
 Wall-clock timing
 -----------------
-``detect_seconds`` times load -> analyze -> RMAV -> all 21 detectors, i.e. exactly
+``detect_seconds`` times load -> analyze -> RM -> all 21 detectors, i.e. exactly
 the work a CI/CD detection gate performs. It excludes the oracle sweep, which is
 an evaluation cost and never runs in a gate.
 
@@ -122,7 +122,7 @@ DEFAULT_EXCLUDED_PATTERNS = ["DEEP_PIPELINE"]
 def _analyze(
     scenario: str, layer: str, excluded: List[str]
 ) -> Tuple[Any, List[Any], Dict[str, Any]]:
-    """Run the detection gate: load -> analyze -> RMAV -> catalog detectors.
+    """Run the detection gate: load -> analyze -> RM -> catalog detectors.
 
     Detectors are invoked one at a time rather than through
     ``MultiLayerAnalysisUseCase`` so each one's wall-clock cost and finding count

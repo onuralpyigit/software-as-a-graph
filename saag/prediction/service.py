@@ -1,7 +1,7 @@
 """
 Prediction Service
 
-Orchestrates the unified Prediction Step (Step 3): rule-based RMAV scoring
+Orchestrates the unified Prediction Step (Step 3): rule-based RM scoring
 (always), ML/GNN scoring (when a trained checkpoint is available), and
 anti-pattern detection + explanations on top of the result. This replaces
 the legacy "Quality Scoring" step that used to live inside Analyze (Step 2).
@@ -25,14 +25,14 @@ logger = logging.getLogger(__name__)
 
 class PredictionService:
     """
-    Service for running the unified Prediction Step: rule-based RMAV scoring,
+    Service for running the unified Prediction Step: rule-based RM scoring,
     ML/GNN scoring, anti-pattern detection, and explanation generation.
 
     When a GNN checkpoint is available and ``prefer_gnn=True`` (default),
     :meth:`predict_quality_with_gnn` returns GNN predictions.  The rule-based
-    RMAV path is always computed and serves as regularisation input during
+    RM path is always computed and serves as regularisation input during
     training and as a fallback when no checkpoint exists. Anti-patterns and
-    explanations are always derived from the deterministic RMAV scores,
+    explanations are always derived from the deterministic RM scores,
     since they are inherently rule-based (structural thresholds).
     """
 
@@ -56,7 +56,7 @@ class PredictionService:
         self.gnn_checkpoint_dir = gnn_checkpoint_dir
         self.prefer_gnn = prefer_gnn
 
-    # ── Rule-based RMAV scoring ───────────────────────────────────────────────
+    # ── Rule-based RM scoring ───────────────────────────────────────────────
 
     def predict_quality(
         self,
@@ -65,7 +65,7 @@ class PredictionService:
         sensitivity_perturbations: int = 200,
         sensitivity_noise: float = 0.05,
     ) -> QualityAnalysisResult:
-        """Run deterministic RMAV quality scoring on a structural analysis result."""
+        """Run deterministic RM quality scoring on a structural analysis result."""
         analyzer = QualityAnalyzer(
             normalization_method=self.normalization_method,
             winsorize=self.winsorize,
@@ -104,17 +104,17 @@ class PredictionService:
         active_patterns: Optional[List[str]] = None,
         run_sensitivity: bool = False,
     ) -> Union[QualityAnalysisResult, Any]:
-        """Return GNN predictions when a checkpoint exists, else fall back to RMAV.
+        """Return GNN predictions when a checkpoint exists, else fall back to RM.
 
-        RMAV scores are always computed — they serve as the consistency
+        RM scores are always computed — they serve as the consistency
         regularisation target for the GNN and as a fallback when no
         checkpoint is present. Anti-patterns and explanations are always
-        derived from the RMAV scores and attached to whichever result
-        (GNN or RMAV) is ultimately returned.
+        derived from the RM scores and attached to whichever result
+        (GNN or RM) is ultimately returned.
         """
-        rmav_result = self.predict_quality(structural_result, run_sensitivity=run_sensitivity)
+        rm_result = self.predict_quality(structural_result, run_sensitivity=run_sensitivity)
         problems, problem_summary, explanation = self._attach_problems_and_explanation(
-            rmav_result, layer=layer, active_patterns=active_patterns
+            rm_result, layer=layer, active_patterns=active_patterns
         )
 
         if not (
@@ -123,32 +123,32 @@ class PredictionService:
             and self._has_checkpoint(self.gnn_checkpoint_dir)
         ):
             logger.info(
-                "No GNN checkpoint at '%s'; returning RMAV scores.", self.gnn_checkpoint_dir
+                "No GNN checkpoint at '%s'; returning RM scores.", self.gnn_checkpoint_dir
             )
-            return rmav_result
+            return rm_result
 
         try:
             from .gnn_service import GNNService
             from .data_preparation import (
                 extract_structural_metrics_dict,
-                extract_rmav_scores_dict,
+                extract_rm_scores_dict,
             )
             gnn_svc = GNNService.from_checkpoint(self.gnn_checkpoint_dir, graph=graph)
             gnn_result = gnn_svc.predict(
                 graph=graph,
                 structural_metrics=extract_structural_metrics_dict(structural_result),
-                rmav_scores=extract_rmav_scores_dict(rmav_result),
+                rm_scores=extract_rm_scores_dict(rm_result),
                 eval_labels=simulation_results,
                 mode="gnn",
             )
         except Exception:
-            logger.warning("GNN inference failed; falling back to RMAV scores.", exc_info=True)
-            return rmav_result
+            logger.warning("GNN inference failed; falling back to RM scores.", exc_info=True)
+            return rm_result
 
         gnn_result.problems = problems
         gnn_result.problem_summary = problem_summary
         gnn_result.explanation = explanation
-        gnn_result.failed_patterns = rmav_result.failed_patterns
+        gnn_result.failed_patterns = rm_result.failed_patterns
         return gnn_result
 
     # ── Internals ─────────────────────────────────────────────────────────────
@@ -167,7 +167,7 @@ class PredictionService:
         layer: str = "system",
         active_patterns: Optional[List[str]] = None,
     ) -> Tuple[List[DetectedProblem], ProblemSummary, Any]:
-        """Run anti-pattern detection and explanation on RMAV scores, and attach
+        """Run anti-pattern detection and explanation on RM scores, and attach
         them to *quality_result*. Returns them so a GNN result can reuse them."""
         from saag.analysis.antipattern_detector import AntiPatternDetector
         from saag.analysis.smells import AntiPatternReport
@@ -195,6 +195,6 @@ class PredictionService:
         quality_result.problems = problems
         quality_result.problem_summary = problem_summary
         quality_result.explanation = explanation
-        quality_result.prediction_mode = "rmav"
+        quality_result.prediction_mode = "rm"
         quality_result.failed_patterns = failed_patterns
         return problems, problem_summary, explanation

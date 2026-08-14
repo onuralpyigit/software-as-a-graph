@@ -2,7 +2,7 @@
 Unit tests for the Q*(v) composite metric improvements.
 
 Covers:
-- R*(v) v5: DG_in replaces w_in; RPR weight 0.45; r_w_in deprecated to 0.0
+- FT*(v) v5: DG_in replaces w_in; RPR weight 0.45; ft_w_in deprecated to 0.0
 - CriticalityProfile: pattern lookup, to_dict(), defaults
 - I*(v) composite ground truth: weighted sum of dimension ground truths
 - System health metrics: SRI boundary conditions, RCI Gini formula
@@ -17,50 +17,49 @@ from saag.validation.models import ValidationTargets, LayerValidationResult
 
 
 # ===========================================================================
-# R*(v) v5: Formula and Weight Verification
+# FT*(v) v5: Formula and Weight Verification
 # ===========================================================================
 
-class TestRStarV5:
+class TestFTStarV5:
 
-    def test_default_r_reverse_pagerank_increased(self):
+    def test_default_ft_reverse_pagerank_increased(self):
         """RPR weight now 0.45 (up from 0.40 in v4)."""
         w = QualityWeights()
-        assert w.r_reverse_pagerank == pytest.approx(0.45, abs=0.01)
+        assert w.ft_reverse_pagerank == pytest.approx(0.45, abs=0.01)
 
-    def test_r_in_degree_active_at_030(self):
-        """DG_in (r_in_degree) reinstated at 0.30."""
+    def test_ft_in_degree_active_at_030(self):
+        """DG_in (ft_in_degree) reinstated at 0.30."""
         w = QualityWeights()
-        assert w.r_in_degree == pytest.approx(0.30, abs=0.01)
+        assert w.ft_in_degree == pytest.approx(0.30, abs=0.01)
 
-    def test_r_dim_weights_sum_to_one(self):
-        """Active R*(v) sub-weights must sum to 1.0."""
+    def test_ft_dim_weights_sum_to_one(self):
+        """Active FT*(v) sub-weights must sum to 1.0."""
         w = QualityWeights()
-        total = w.r_reverse_pagerank + w.r_in_degree + w.r_cdpot
+        total = w.ft_reverse_pagerank + w.ft_in_degree + w.ft_cdpot
         assert total == pytest.approx(1.0, abs=0.02), (
-            f"R*(v) active weights sum={total:.4f}, expected ≈1.0"
+            f"FT*(v) active weights sum={total:.4f}, expected ≈1.0"
         )
 
     def test_ahp_computed_rpr_is_highest(self):
         """AHP-derived RPR weight should exceed the other two terms."""
         proc = AHPProcessor()
         w = proc.compute_weights()
-        assert w.r_reverse_pagerank > w.r_in_degree, "RPR should outweigh DG_in"
-        assert w.r_reverse_pagerank > w.r_cdpot,    "RPR should outweigh CDPot"
-        assert w.r_w_in == 0.0, "r_w_in must remain 0.0 after AHP compute"
+        assert w.ft_reverse_pagerank > w.ft_in_degree, "RPR should outweigh DG_in"
+        assert w.ft_reverse_pagerank > w.ft_cdpot,    "RPR should outweigh CDPot"
+        assert w.ft_w_in == 0.0, "ft_w_in must remain 0.0 after AHP compute"
 
-    def test_ahp_overall_matrix_not_balanced(self):
-        """AHP overall matrix is no longer all-1.0; A should receive the highest weight."""
-        proc = AHPProcessor()
-        w = proc.compute_weights()
-        # A > R > M > V according to the theoretically motivated matrix
-        assert w.q_availability > w.q_reliability, "Availability should outweigh Reliability"
-        assert w.q_reliability  > w.q_maintainability, "Reliability should outweigh Maintainability"
+    def test_composite_weights_favour_reliability(self):
+        """R should receive the larger share of the two-term composite: R absorbs
+        the retired Availability weight (0.24+0.43)/0.84=0.80, M is 0.17/0.84=0.20 —
+        not AHP-derived at this level, see QualityWeights docstring."""
+        w = QualityWeights()
+        assert w.q_reliability > w.q_maintainability, "Reliability should outweigh Maintainability"
 
-    def test_ahp_overall_weights_sum_to_one(self):
-        """Q*(v) overall weights must sum to ~1.0."""
-        proc = AHPProcessor()
-        w = proc.compute_weights()
-        total = w.q_reliability + w.q_maintainability + w.q_availability + w.q_security
+    def test_composite_weights_sum_to_one(self):
+        """Q*(v) overall weights must sum to ~1.0. Not AHP-computed — the composite
+        is a fixed derived constant, see QualityWeights docstring."""
+        w = QualityWeights()
+        total = w.q_reliability + w.q_maintainability
         assert total == pytest.approx(1.0, abs=0.02)
 
 
@@ -69,14 +68,17 @@ class TestRStarV5:
 # ===========================================================================
 
 class TestCriticalityProfile:
+    """Patterns are keyed on (ft_crit, a_crit, m_crit) — Reliability's two
+    sub-characteristics plus Maintainability. r_crit/q_crit are reported but
+    do not participate in pattern lookup; see CriticalityProfile docstring."""
 
     def test_default_all_false(self):
         """Default CriticalityProfile has all flags False."""
         p = CriticalityProfile()
-        assert not p.r_crit
-        assert not p.m_crit
+        assert not p.ft_crit
         assert not p.a_crit
-        assert not p.s_crit
+        assert not p.m_crit
+        assert not p.r_crit
         assert not p.q_crit
 
     def test_default_pattern_is_composite_risk(self):
@@ -84,53 +86,48 @@ class TestCriticalityProfile:
         assert CriticalityProfile().pattern == "Composite Risk"
 
     def test_total_hub_pattern(self):
-        """All four dimension flags → Total Hub."""
-        p = CriticalityProfile(r_crit=True, m_crit=True, a_crit=True, s_crit=True)
+        """All three sub-flags → Total Hub."""
+        p = CriticalityProfile(ft_crit=True, a_crit=True, m_crit=True)
         assert p.pattern == "Total Hub"
 
-    def test_reliability_hub_pattern(self):
-        """Only R flag → Reliability Hub."""
-        p = CriticalityProfile(r_crit=True)
-        assert p.pattern == "Reliability Hub"
-
-    def test_bottleneck_pattern(self):
-        """Only M flag → Bottleneck."""
-        p = CriticalityProfile(m_crit=True)
-        assert p.pattern == "Bottleneck"
+    def test_fault_tolerance_hub_pattern(self):
+        """Only FT flag → Fault-Tolerance Hub."""
+        p = CriticalityProfile(ft_crit=True)
+        assert p.pattern == "Fault-Tolerance Hub"
 
     def test_spof_pattern(self):
         """Only A flag → SPOF."""
         p = CriticalityProfile(a_crit=True)
         assert p.pattern == "SPOF"
 
-    def test_attack_target_pattern(self):
-        """Only S flag → Attack Target."""
-        p = CriticalityProfile(s_crit=True)
-        assert p.pattern == "Attack Target"
+    def test_bottleneck_pattern(self):
+        """Only M flag → Bottleneck."""
+        p = CriticalityProfile(m_crit=True)
+        assert p.pattern == "Bottleneck"
 
     def test_fragile_hub_pattern(self):
-        """R+A flags → Fragile Hub."""
-        p = CriticalityProfile(r_crit=True, a_crit=True)
+        """FT+A flags → Fragile Hub."""
+        p = CriticalityProfile(ft_crit=True, a_crit=True)
         assert p.pattern == "Fragile Hub"
 
-    def test_exposed_bottleneck_pattern(self):
-        """M+S flags → Exposed Bottleneck."""
-        p = CriticalityProfile(m_crit=True, s_crit=True)
-        assert p.pattern == "Exposed Bottleneck"
+    def test_fragile_bottleneck_pattern(self):
+        """A+M flags → Fragile Bottleneck."""
+        p = CriticalityProfile(a_crit=True, m_crit=True)
+        assert p.pattern == "Fragile Bottleneck"
 
     def test_q_crit_independent(self):
         """q_crit is independent — composite outlier with no single dominant dimension."""
         p = CriticalityProfile(q_crit=True)
         assert p.q_crit
-        assert p.pattern == "Composite Risk"  # no RMAS flags set
+        assert p.pattern == "Composite Risk"  # no sub-characteristic flags set
 
     def test_to_dict_keys(self):
         """to_dict must include all five flags and pattern."""
-        d = CriticalityProfile(r_crit=True, q_crit=True).to_dict()
-        assert set(d.keys()) == {"r_crit", "m_crit", "a_crit", "s_crit", "q_crit", "pattern"}
-        assert d["r_crit"] is True
+        d = CriticalityProfile(ft_crit=True, q_crit=True).to_dict()
+        assert set(d.keys()) == {"ft_crit", "a_crit", "m_crit", "r_crit", "q_crit", "pattern"}
+        assert d["ft_crit"] is True
         assert d["m_crit"] is False
-        assert d["pattern"] == "Reliability Hub"
+        assert d["pattern"] == "Fault-Tolerance Hub"
 
 
 # ===========================================================================
@@ -138,38 +135,44 @@ class TestCriticalityProfile:
 # ===========================================================================
 
 class TestIStarComposite:
-    """White-box tests for the I*(v) = 0.25×IR + 0.25×IM + 0.25×IA + 0.25×IS formula."""
+    """White-box tests for the I*(v) = 0.5×IR + 0.5×IM formula.
+
+    Weights are kept equal (0.5, 0.5), not the scoring weights (0.80, 0.20):
+    the ground-truth composite must not be weighted by the same judgement it
+    validates, or ρ(Q*, I*) would be partly circular. IR is itself the
+    r_alpha-blend of IFT and IA — see saag/simulation/models.py.
+    """
 
     @staticmethod
-    def _compute_i_star(ir, im, ia, is_, weights=None):
-        w = weights or dict(r=0.25, m=0.25, a=0.25, s=0.25)
-        return w["r"] * ir + w["m"] * im + w["a"] * ia + w["s"] * is_
+    def _compute_i_star(ir, im, weights=None):
+        w = weights or dict(r=0.5, m=0.5)
+        return w["r"] * ir + w["m"] * im
 
     def test_equal_weights_mean(self):
-        """Equal weights: I*(v) is the arithmetic mean of the four sub-scores."""
-        val = self._compute_i_star(0.4, 0.6, 0.8, 0.2)
-        assert val == pytest.approx((0.4 + 0.6 + 0.8 + 0.2) / 4, abs=1e-9)
+        """Equal weights: I*(v) is the arithmetic mean of the two sub-scores."""
+        val = self._compute_i_star(0.4, 0.6)
+        assert val == pytest.approx((0.4 + 0.6) / 2, abs=1e-9)
 
     def test_all_zero_gives_zero(self):
-        assert self._compute_i_star(0, 0, 0, 0) == pytest.approx(0.0)
+        assert self._compute_i_star(0, 0) == pytest.approx(0.0)
 
     def test_all_one_gives_one(self):
-        assert self._compute_i_star(1, 1, 1, 1) == pytest.approx(1.0)
+        assert self._compute_i_star(1, 1) == pytest.approx(1.0)
 
     def test_single_dominant_dimension(self):
-        """When only one dimension is 1.0, I*(v) = 0.25 with equal weights."""
-        assert self._compute_i_star(1.0, 0, 0, 0) == pytest.approx(0.25, abs=1e-9)
+        """When only one dimension is 1.0, I*(v) = 0.5 with equal weights."""
+        assert self._compute_i_star(1.0, 0) == pytest.approx(0.5, abs=1e-9)
 
     def test_custom_weights_sum_to_one(self):
         """Custom weights that sum to 1.0 must produce a value in [0,1]."""
-        w = dict(r=0.45, m=0.30, a=0.15, s=0.10)
-        val = self._compute_i_star(0.3, 0.5, 0.7, 0.2, weights=w)
+        w = dict(r=0.7, m=0.3)
+        val = self._compute_i_star(0.3, 0.5, weights=w)
         assert 0.0 <= val <= 1.0
 
     def test_custom_weights_correctly_weight_dominant_dim(self):
         """Higher weight on IR should increase I*(v) when IR is high."""
-        equal = self._compute_i_star(1.0, 0, 0, 0, weights=dict(r=0.25, m=0.25, a=0.25, s=0.25))
-        skewed = self._compute_i_star(1.0, 0, 0, 0, weights=dict(r=0.50, m=0.20, a=0.20, s=0.10))
+        equal = self._compute_i_star(1.0, 0, weights=dict(r=0.5, m=0.5))
+        skewed = self._compute_i_star(1.0, 0, weights=dict(r=0.8, m=0.2))
         assert skewed > equal
 
 
@@ -180,10 +183,14 @@ class TestIStarComposite:
 class TestSystemHealth:
 
     @staticmethod
-    def _sri(h_r, h_m, h_a, h_s, w=None):
-        """SRI = Σ w_d × (1 − H_d)."""
-        w = w or dict(r=0.25, m=0.25, a=0.25, s=0.25)
-        return w["r"] * (1 - h_r) + w["m"] * (1 - h_m) + w["a"] * (1 - h_a) + w["s"] * (1 - h_s)
+    def _sri(h_r, h_m, w=None):
+        """SRI = Σ w_d × (1 − H_d), over Reliability and Maintainability only.
+
+        H_FT and H_A (Reliability's sub-characteristics) are reported
+        alongside but excluded from the sum — see saag/validation/service.py.
+        """
+        w = w or dict(r=0.5, m=0.5)
+        return w["r"] * (1 - h_r) + w["m"] * (1 - h_m)
 
     @staticmethod
     def _gini(scores):
@@ -196,16 +203,16 @@ class TestSystemHealth:
         return abs(gini_sum) / (n * sum(q_sorted)) if sum(q_sorted) > 0 else 0.0
 
     def test_sri_perfect_health_is_zero(self):
-        """H_d = 1.0 for all dims → SRI = 0."""
-        assert self._sri(1, 1, 1, 1) == pytest.approx(0.0)
+        """H_d = 1.0 for both dims → SRI = 0."""
+        assert self._sri(1, 1) == pytest.approx(0.0)
 
     def test_sri_maximum_risk_is_one(self):
-        """H_d = 0.0 for all dims → SRI = 1."""
-        assert self._sri(0, 0, 0, 0) == pytest.approx(1.0)
+        """H_d = 0.0 for both dims → SRI = 1."""
+        assert self._sri(0, 0) == pytest.approx(1.0)
 
     def test_sri_partial_risk(self):
         """Partial health: SRI = weighted risk contribution."""
-        sri = self._sri(h_r=0.5, h_m=1.0, h_a=0.5, h_s=1.0)
+        sri = self._sri(h_r=0.5, h_m=1.0)
         assert sri == pytest.approx(0.25, abs=1e-9)
 
     def test_sri_in_unit_interval(self):
@@ -213,7 +220,7 @@ class TestSystemHealth:
         import random
         rng = random.Random(99)
         for _ in range(50):
-            vals = [rng.random() for _ in range(4)]
+            vals = [rng.random() for _ in range(2)]
             sri = self._sri(*vals)
             assert 0.0 <= sri <= 1.0 + 1e-9
 

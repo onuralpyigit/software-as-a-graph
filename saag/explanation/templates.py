@@ -22,16 +22,18 @@ DEFAULT_DIMENSION_TEMPLATES = {
         "plain_meaning": "It is an articulation point in the architecture.",
         "risk_sentence": "If this component fails, sections of the system will be entirely disconnected.",
     },
-    "security": {
-        "driving_metric": "Reverse Eigenvector / Exposure",
-        "plain_meaning": "It is transitively exposed to many other high-risk components.",
-        "risk_sentence": "Security or performance issues here will rapidly compound.",
-    }
 }
 
+# Keyed on CriticalityProfile.pattern — see saag/analysis/analyzer.py's
+# _PATTERNS, which maps (ft_crit, a_crit, m_crit) to these names. The former
+# "Attack Target" and "Exposed Bottleneck" patterns were retired along with
+# the Vulnerability/Security dimension; "Reliability Hub" is renamed
+# "Fault-Tolerance Hub" (it flags high cascade-propagation reach specifically,
+# not Reliability as a whole) and "Fragile Bottleneck" (FT+A both elevated
+# but not M) is new.
 PATTERN_TEMPLATES = {
     "Total Hub": {
-        "one_line": "{id} is a critical hub — it concentrates reliability, "
+        "one_line": "{id} is a critical hub — it concentrates fault-tolerance, "
                     "availability, and change risk simultaneously.",
         "top_risk": "A single failure here activates three independent failure modes at once. "
                     "It is the highest-priority component in the system.",
@@ -43,8 +45,8 @@ PATTERN_TEMPLATES = {
                     "dependency graph. No redundant path exists.",
         "priority_action": "Deploy a failover replica or add an alternative routing path.",
     },
-    "Reliability Hub": {
-        "one_line": "{id} is a reliability hub — failure cascades broadly.",
+    "Fault-Tolerance Hub": {
+        "one_line": "{id} is a fault-tolerance hub — failure cascades broadly.",
         "top_risk": "{cascade_count} downstream components depend on it transitively. "
                     "Its failure silences their data flows.",
         "priority_action": "Add circuit breakers and health checks in all direct dependents.",
@@ -55,27 +57,22 @@ PATTERN_TEMPLATES = {
                     "This is the highest maintenance cost in the system.",
         "priority_action": "Extract a stable interface; reduce outgoing dependency count.",
     },
-    "Attack Target": {
-        "one_line": "{id} is a high-value attack target.",
-        "top_risk": "It receives high-priority traffic from {in_degree_raw} publishers and "
-                    "is reachable from most of the system. Compromise propagates broadly.",
-        "priority_action": "Apply access controls, input validation, and network isolation.",
-    },
     "Fragile Hub": {
-        "one_line": "{id} combines reliability risk with availability risk.",
+        "one_line": "{id} combines cascade-propagation risk with availability risk.",
         "top_risk": "It is simultaneously a cascade source and a structural SPOF. "
                     "Failure stops data flows and disconnects the graph.",
         "priority_action": "Redundancy is essential — both for availability and to reduce blast radius.",
     },
-    "Exposed Bottleneck": {
-        "one_line": "{id} is a change bottleneck that is also an attractive attack target.",
-        "top_risk": "High coupling makes it difficult to change safely; high attack surface "
-                    "makes it a priority for hardening.",
-        "priority_action": "Harden the interface first, then reduce outgoing coupling.",
+    "Fragile Bottleneck": {
+        "one_line": "{id} is a structural SPOF that is also a change bottleneck.",
+        "top_risk": "Removing it disconnects the graph, and {coupling_count} components must be "
+                    "updated whenever its interface changes — availability and maintainability "
+                    "risk compound here.",
+        "priority_action": "Deploy a failover path first, then extract a stable interface.",
     },
     "Composite Risk": {
         "one_line": "{id} has elevated risk across multiple dimensions without a single dominant cause.",
-        "top_risk": "No one metric dominates, but the combination across R, M, A, S puts it "
+        "top_risk": "No one metric dominates, but the combination across R and M puts it "
                     "above the system's population threshold.",
         "priority_action": "Review coupling and redundancy together; no single fix resolves this.",
     },
@@ -86,13 +83,11 @@ STAKEHOLDER_MAPPING = {
         "Reliability": "SRE",
         "Maintainability": "Architect",
         "Availability": "DevOps",
-        "Security": "Security",
     },
     # Maps specific patterns to stakeholder roles (overrides dimensions if needed)
     "patterns": {
         "Total Hub": "SRE",
         "SPOF": "DevOps",
         "Bottleneck": "Architect",
-        "Attack Target": "Security",
     }
 }

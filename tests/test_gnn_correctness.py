@@ -17,7 +17,8 @@ def temp_checkpoint(tmp_path):
         "num_layers": 3,
         "dropout": 0.2,
         "predict_edges": False,
-        "layer": "app"
+        "layer": "app",
+        "label_dims": 5,
     }
     with open(ckpt_dir / "service_config.json", "w") as f:
         json.dump(config, f)
@@ -50,17 +51,17 @@ def test_prediction_mode_reporting():
 
     data = HeteroData()
     data["Application"].x = torch.randn(2, 23)
-    data["Application"].y_rmav = torch.randn(2, 5)
+    data["Application"].y_rm = torch.randn(2, 5)
 
     result_gnn = service.predict_from_data(data, mode="gnn")
     assert result_gnn.prediction_mode == "gnn_only"
 
-    result_rmav = service.predict_from_data(data, mode="rmav")
-    assert result_rmav.prediction_mode == "rmav_only"
+    result_rm = service.predict_from_data(data, mode="rm")
+    assert result_rm.prediction_mode == "rm_only"
 
 
-def test_rmav_mode_falls_back_to_gnn_without_rmav_scores(caplog):
-    """mode='rmav' on a graph carrying no y_rmav must degrade to GNN, not crash."""
+def test_rm_mode_falls_back_to_gnn_without_rm_scores(caplog):
+    """mode='rm' on a graph carrying no y_rm must degrade to GNN, not crash."""
     service = GNNService()
     service._node_model = MagicMock()
     service._node_model.predict_edges = False
@@ -73,11 +74,11 @@ def test_rmav_mode_falls_back_to_gnn_without_rmav_scores(caplog):
 
     import logging
     with caplog.at_level(logging.WARNING):
-        result = service.predict_from_data(data, mode="rmav")
+        result = service.predict_from_data(data, mode="rm")
 
     assert result.prediction_mode == "gnn_only"
     assert result.node_scores["app1"].source == "GNN"
-    assert "no RMAV scores available" in caplog.text
+    assert "no RM scores available" in caplog.text
 
 
 def test_edge_head_receives_gradient_from_edge_loss():

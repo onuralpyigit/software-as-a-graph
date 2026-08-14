@@ -190,16 +190,16 @@ def _load_scenario(scenario: str) -> Tuple[Any, Dict, Dict, Dict]:
     g = _build_graph_from_json(topology)
 
     cache = _LOSO_CACHE / scenario
-    struct, sim, rmav = {}, {}, {}
+    struct, sim, rm = {}, {}, {}
     if cache.exists():
         for fname, d in [("structural_metrics.json", struct),
                          ("failure_impact.json", sim),
-                         ("quality_scores.json", rmav)]:
+                         ("quality_scores.json", rm)]:
             p = cache / fname
             if p.exists():
                 d.update(json.loads(p.read_text()))
 
-    return g, struct, sim, rmav
+    return g, struct, sim, rm
 
 
 # ── Main extraction ───────────────────────────────────────────────────────────
@@ -223,9 +223,9 @@ def run_extraction(
     np.random.seed(seed)
 
     print(f"  Loading scenario: {scenario}")
-    g, struct, sim, rmav = _load_scenario(scenario)
+    g, struct, sim, rm = _load_scenario(scenario)
 
-    conv = networkx_to_hetero_data(g, struct, sim, rmav)
+    conv = networkx_to_hetero_data(g, struct, sim, rm)
     data = conv.hetero_data
     create_node_splits(data, seed=seed)
 

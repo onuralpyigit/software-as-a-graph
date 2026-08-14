@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 from saag.visualization import LayerData, ComponentDetail
 from saag.visualization.charts import ChartGenerator
-from saag.visualization.palette import CRITICALITY_COLORS, RMAS_COLORS
+from saag.visualization.palette import CRITICALITY_COLORS, RM_COLORS
 from saag.visualization.dashboard import DashboardGenerator
 from saag.visualization.collector import LayerDataCollector
 from saag.visualization import VisualizationService
@@ -108,8 +108,8 @@ class TestComponentDetail:
             type="Application",
             reliability=0.82,
             maintainability=0.88,
+            fault_tolerance=0.76,
             availability=0.90,
-            security=0.75,
             overall=0.84,
             level="CRITICAL",
             impact=0.79,
@@ -159,23 +159,23 @@ class TestChartGenerator:
         )
         assert html is None
 
-    def test_rmav_breakdown_generates_html(self):
-        """§6.4.3: rmav_breakdown returns stacked bar chart."""
+    def test_rm_breakdown_generates_html(self):
+        """§6.4.3: rm_breakdown returns stacked bar chart."""
         components = [
             ComponentDetail("a", "App A", "Application",
                            0.8, 0.7, 0.9, 0.6, 0.75, "CRITICAL"),
             ComponentDetail("b", "App B", "Application",
                            0.5, 0.6, 0.4, 0.3, 0.45, "MEDIUM"),
         ]
-        html = self.charts.rmav_breakdown(components)
+        html = self.charts.rm_breakdown(components)
         assert html is not None
         assert "<canvas" in html
-        assert "Reliability" in html
+        assert "Fault Tolerance" in html
         assert "Maintainability" in html
 
-    def test_rmav_breakdown_empty(self):
-        """rmav_breakdown returns None for empty components."""
-        assert self.charts.rmav_breakdown([]) is None
+    def test_rm_breakdown_empty(self):
+        """rm_breakdown returns None for empty components."""
+        assert self.charts.rm_breakdown([]) is None
 
     def test_correlation_scatter_generates_html(self):
         """§6.4.4: correlation_scatter returns scatter plot."""
@@ -267,7 +267,7 @@ def mock_analysis_service():
     mock_comp.scores.reliability = 0.82
     mock_comp.scores.maintainability = 0.88
     mock_comp.scores.availability = 0.90
-    mock_comp.scores.security = 0.75
+    mock_comp.scores.fault_tolerance = 0.76
     mock_comp.levels.overall.name = "CRITICAL"
 
     # Build mock analysis result
@@ -350,7 +350,7 @@ def mock_prediction_service():
     mock_comp.scores.reliability = 0.82
     mock_comp.scores.maintainability = 0.88
     mock_comp.scores.availability = 0.90
-    mock_comp.scores.security = 0.75
+    mock_comp.scores.fault_tolerance = 0.76
     mock_comp.levels.overall.name = "CRITICAL"
     mock_comp.levels.overall.__str__.return_value = "CRITICAL"
     
@@ -391,7 +391,7 @@ class TestLayerDataCollector:
     def test_collect_component_details(
         self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
     ):
-        """Collector builds ComponentDetail list with RMAV scores."""
+        """Collector builds ComponentDetail list with RM scores."""
         repository = MagicMock()
         collector = LayerDataCollector(
             mock_analysis_service,
@@ -409,7 +409,7 @@ class TestLayerDataCollector:
         assert detail.reliability == pytest.approx(0.82)
         assert detail.maintainability == pytest.approx(0.88)
         assert detail.availability == pytest.approx(0.90)
-        assert detail.security == pytest.approx(0.75)
+        assert detail.fault_tolerance == pytest.approx(0.76)
         assert detail.overall == pytest.approx(0.84)
         assert detail.level == "CRITICAL"
 
@@ -683,12 +683,12 @@ class TestColorConstants:
             assert level in CRITICALITY_COLORS
             assert CRITICALITY_COLORS[level].startswith("#")
 
-    def test_all_rmas_dimensions_have_colors(self):
-        """Every RMAS dimension has a defined color."""
-        dims = ["reliability", "maintainability", "availability", "security"]
+    def test_all_rm_dimensions_have_colors(self):
+        """Every RM dimension has a defined color."""
+        dims = ["reliability", "maintainability", "fault_tolerance", "availability"]
         for dim in dims:
-            assert dim in RMAS_COLORS
-            assert RMAS_COLORS[dim].startswith("#")
+            assert dim in RM_COLORS
+            assert RM_COLORS[dim].startswith("#")
 
     def test_palette_is_the_single_source_of_criticality_colors(self):
         """Badge colours are generated from the same palette as chart colours."""
@@ -761,25 +761,25 @@ class TestBuildHtml:
 
     def test_widget_css_classes_are_defined(self):
         """
-        Regression guard: the RMAV segmented bar and the per-dimension ρ bars
+        Regression guard: the RM segmented bar and the per-dimension ρ bars
         emit these classes, and previously nothing defined them.
         """
         from cli.visualize_graph import _demo_layer_data
 
         html = self._service().build_html([_demo_layer_data()])
 
-        for css_class in (".rmas-bar", ".rmas-seg", ".dim-row",
+        for css_class in (".rm-bar", ".rm-seg", ".dim-row",
                           ".dim-bar-outer", ".dim-bar-inner", ".dim-val"):
             assert css_class in html, f"{css_class} used but never styled"
 
-    def test_rmav_segments_carry_a_single_style_attribute(self):
+    def test_rm_segments_carry_a_single_style_attribute(self):
         """A duplicate style= made the browser drop every segment width."""
         import re
         from cli.visualize_graph import _demo_layer_data
 
         html = self._service().build_html([_demo_layer_data()])
 
-        segments = re.findall(r'<div class="rmas-seg"[^>]*>', html)
+        segments = re.findall(r'<div class="rm-seg"[^>]*>', html)
         assert segments
         for seg in segments:
             assert seg.count("style=") == 1
@@ -800,10 +800,11 @@ class TestBuildHtml:
     def test_validation_gate_labels_match_validation_targets(self):
         """The gate labels the dashboard renders must match the thresholds
         the gates are actually evaluated against (saag.validation.models.
-        ValidationTargets), and all nine gates must render — not just G1-G4.
-        Previously G2/G3's labels were hardcoded to different numbers
-        ("F1-score > 0.6", "Top-K precision > 0.5") than the real targets
-        (0.75, 0.80), and G5-G9 never appeared at all."""
+        ValidationTargets), and G1-G6/G8 must all render. Previously G2/G3's
+        labels were hardcoded to different numbers ("F1-score > 0.6",
+        "Top-K precision > 0.5") than the real targets (0.75, 0.80), and
+        G5/G6/G8 never appeared at all. G7 (CDCC) and G9 (FTR) were retired
+        with the Vulnerability/Security dimension — see _GATE_SPECS."""
         from cli.visualize_graph import _demo_layer_data
         from saag.validation.models import ValidationTargets
 
@@ -811,8 +812,8 @@ class TestBuildHtml:
         data.gates = {
             "G1_spearman": True, "G2_f1": True, "G3_precision": True,
             "G4_top5": True, "G5_predictive_gain": False,
-            "G6_kappa_cta": True, "G7_cdcc": False,
-            "G8_bottleneck_precision": True, "G9_ftr": True,
+            "G6_kappa_cta": True,
+            "G8_bottleneck_precision": True,
         }
 
         html = self._service().build_html([data])
@@ -820,6 +821,5 @@ class TestBuildHtml:
 
         assert f"G2: F1-score ≥ {targets.f1_score:.2f}" in html
         assert f"G3: Top-K precision ≥ {targets.precision:.2f}" in html
-        assert f"G7: CDCC &lt; {targets.cdcc_max:.2f}" in html or \
-            f"G7: CDCC < {targets.cdcc_max:.2f}" in html
-        assert "G9: FTR" in html
+        assert "G7:" not in html
+        assert "G9:" not in html

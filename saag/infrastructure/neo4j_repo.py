@@ -540,7 +540,7 @@ class Neo4jRepository:
         # 1.5. Application Weight — library-mediated topics (second pass)
         # Apps with no direct pub/sub connections get weight 0.01 from step 1.
         # If they communicate exclusively through libraries, propagate the max
-        # used-library weight so their importance is not invisible to RMAV scoring.
+        # used-library weight so their importance is not invisible to RM scoring.
         self._run_query("""
             MATCH (a:Application)
             WHERE a.weight <= 0.01

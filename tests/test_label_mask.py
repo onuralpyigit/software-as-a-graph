@@ -93,13 +93,16 @@ def test_kfold_masks_use_the_label_mask():
 
 
 def test_dimension_mask_reflects_what_the_labeler_measured():
-    """FaultInjector measures 3 of 5 dimensions; the other 2 must be marked unmeasured."""
+    """FaultInjector measures 2 of 5 dimensions; the other 3 must be marked
+    unmeasured. reliability is itself the alpha-blend of fault-tolerance and
+    availability, so FaultInjector's single scalar impact no longer emits a
+    separate "availability" key — see extract_simulation_dict."""
     result = _convert({"A0": 0.9, "A1": 0.4})
     # order: composite, reliability, maintainability, availability, security
-    assert result.dimension_mask == [True, True, False, True, False]
+    assert result.dimension_mask == [True, True, False, False, False]
 
 
-def test_dimension_mask_is_all_true_for_a_full_rmav_labeler():
+def test_dimension_mask_is_all_true_for_a_full_rm_labeler():
     """A labeler that emits all five dimensions must not be down-weighted."""
     sim = {
         "A0": {"composite": 0.9, "reliability": 0.8, "maintainability": 0.7,

@@ -78,7 +78,7 @@ def test_prescribe_rule_compilation(repo_with_vulnerable_topology):
     client = Client(repo=repo_with_vulnerable_topology)
     analysis = client.analyze(layer="system")
     # Criticality levels (SPOF/CRITICAL) now come from the Predict step, not Analyze.
-    prediction = client.predict(analysis, mode="rmav")
+    prediction = client.predict(analysis, mode="rm")
 
     # Run prescribe compiler
     service = PrescribeService(repo_with_vulnerable_topology)

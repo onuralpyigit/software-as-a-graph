@@ -22,13 +22,19 @@ class ValidationTargets:
     top_5_overlap: float = 0.60         # G4: Top-5 overlap ≥ 0.60
 
     # Tier 2 — secondary gates (reported, not part of `passed`)
+    # TODO(Phase 7 regeneration): PG now maxes over 2 candidate dims (R, M)
+    # instead of 4 (R, M, A, S retired), which mechanically raises PG with no
+    # code change. This threshold is calibrated against the old 4-dim max and
+    # must be re-derived from re-measured data, not carried over as-is.
     predictive_gain: float = 0.03       # G5: PG > 0.03
     weighted_kappa_cta: float = 0.70    # G6: κ_CTA ≥ 0.70
-    cdcc_max: float = 0.30              # G7: CDCC < 0.30
+    # G7 (CDCC, security-vs-availability contamination) and G9 (FTR, security
+    # false-target-rate) were retired with the Vulnerability/Security
+    # dimension — see saag/validation/dimensions.py. The gap in the gate
+    # numbering (G7, G9) is intentional; do not renumber or reuse it.
 
     # Tier 3 — dimension-specific specialist gates
     bottleneck_precision_target: float = 0.70   # G8: BP ≥ 0.70
-    ftr_max: float = 0.20                       # G9: FTR ≤ 0.20
 
     # Per-group gates evaluated inside Validator._validate_group
     spearman_p_max: float = 0.05        # p_value_pass: p ≤ 0.05
@@ -38,10 +44,6 @@ class ValidationTargets:
     baseline_spearman: float = 0.85
     baseline_macro_f1: float = 0.88
     baseline_ndcg_10: float = 0.90
-
-    # Security specialist metric parameters (not gates — inputs to FTR/APAR)
-    security_v_threshold: float = 0.60
-    security_reach_threshold: float = 0.10
 
     # Composite Q*(v) vs I*(v) and dimension orthogonality
     composite_spearman: float = 0.85        # ρ(Q*, I*) ≥ 0.85
@@ -57,8 +59,11 @@ class ValidationTargets:
 
     # Non-scalar configuration. `to_dict` filters these out, so they never reach
     # the API payload — keep any new entry here non-numeric for that reason.
+    # Deliberately EQUAL (0.5/0.5), not the scoring weights (0.80/0.20): the
+    # ground-truth composite I*(v) must not be weighted by the same judgement
+    # it validates, or rho(Q*, I*) would be partly circular.
     dimension_weights: Dict[str, float] = field(
-        default_factory=lambda: {"r": 0.25, "m": 0.25, "a": 0.25, "s": 0.25}
+        default_factory=lambda: {"r": 0.5, "m": 0.5}
     )
     node_type_rho: Dict[str, float] = field(
         default_factory=lambda: {"Application": 0.75, "Broker": 0.70, "Node": 0.65, "Library": 0.60}
@@ -288,13 +293,12 @@ class LayerValidationResult:
     rmse: float = 0.0
     reliability_spearman: float = 0.0  # ρ(R(v), IR(v)) — reliability-specific correlation
     maintainability_spearman: float = 0.0  # ρ(M(v), IM(v)) — maintainability-specific correlation
-    availability_spearman: float = 0.0  # ρ(A(v), IA(v)) — availability-specific correlation
-    security_spearman: float = 0.0  # ρ(S(v), IS(v)) — security-specific correlation
+    availability_spearman: float = 0.0  # ρ(A(v), IA(v)) — sub-characteristic diagnostic, not a gate input
     # Composite Q*(v) vs I*(v)
     composite_spearman: float = 0.0     # ρ(Q*(v), I*(v)) — the primary composite validation gate
     predictive_gain: float = 0.0        # PG = ρ_composite − max(dim ρ) > 0.03
     system_health: Dict[str, float] = field(default_factory=dict)
-    # system_health keys: H_R, H_M, H_A, H_S, SRI, RCI
+    # system_health keys: H_R, H_M, H_FT, H_A, SRI, RCI (SRI sums only H_R, H_M)
     passed: bool = False
     #: True iff this layer never got a real validation run — analysis,
     #: prediction, or simulation raised before comparison could happen.
@@ -331,7 +335,6 @@ class LayerValidationResult:
                 "reliability_spearman": round(self.reliability_spearman, 4),
                 "maintainability_spearman": round(self.maintainability_spearman, 4),
                 "availability_spearman": round(self.availability_spearman, 4),
-                "security_spearman": round(self.security_spearman, 4),
                 "composite_spearman": round(self.composite_spearman, 4),
                 "predictive_gain": round(self.predictive_gain, 4),
                 "system_health": {k: round(v, 4) for k, v in self.system_health.items()},

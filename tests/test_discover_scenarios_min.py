@@ -18,7 +18,7 @@ from cli.loso_evaluate import ScenarioBundle, discover_scenarios
 
 def _fake_bundle(scenario_id: str) -> ScenarioBundle:
     return ScenarioBundle(
-        scenario_id=scenario_id, graph=None, structural={}, rmav={}, simulation={},
+        scenario_id=scenario_id, graph=None, structural={}, rm={}, simulation={},
         hetero_data=None, n_nodes=10, n_edges=10, n_labelled=5,
     )
 

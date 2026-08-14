@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional
 
 from .models import LayerData
 from .charts import ChartGenerator
-from .palette import RMAS_COLORS
+from .palette import RM_COLORS
 from .dashboard import DashboardGenerator
 from .collector import LayerDataCollector
 from saag.core.layers import AnalysisLayer
@@ -35,6 +35,9 @@ DASHBOARD_TITLE = "Software-as-a-Graph Analysis Dashboard"
 #: table rather than hardcoded so they cannot drift from the thresholds the
 #: gates are actually evaluated against (they previously did: "F1-score >
 #: 0.6" / "Top-K precision > 0.5" against real targets of 0.75 / 0.80).
+#: G7 (CDCC) and G9 (FTR) were retired with the Vulnerability/Security
+#: dimension — both specialist metrics were security-only. The gap in the
+#: numbering is intentional; do not renumber or reuse it.
 _GATE_SPECS = (
     ("G1_spearman", "Spearman ρ", "spearman", "≥"),
     ("G2_f1", "F1-score", "f1_score", "≥"),
@@ -42,9 +45,7 @@ _GATE_SPECS = (
     ("G4_top5", "Top-5 overlap", "top_5_overlap", "≥"),
     ("G5_predictive_gain", "Predictive gain", "predictive_gain", ">"),
     ("G6_kappa_cta", "Weighted κ (CTA)", "weighted_kappa_cta", "≥"),
-    ("G7_cdcc", "CDCC", "cdcc_max", "<"),
     ("G8_bottleneck_precision", "Bottleneck precision", "bottleneck_precision_target", "≥"),
-    ("G9_ftr", "FTR", "ftr_max", "≤"),
 )
 
 
@@ -171,7 +172,7 @@ class VisualizationService:
         access, no file I/O.
 
         Tabs, in order:
-          Overview      KPIs, criticality doughnut, RMAV chart, top-5, layer comparison
+          Overview      KPIs, criticality doughnut, RM chart, top-5, layer comparison
           Components    interactive table + architectural explanations
           Validation    scatter, per-dimension ρ, gates, multi-seed stability
           Cascade risk  QoS ablation panel (when cascade data was loaded)
@@ -296,7 +297,7 @@ class VisualizationService:
         )
         if c1: charts.append(c1)
         
-        c2 = self.charts.rmav_breakdown(primary.component_details, "RMAV dimension comparison — top 6", top_n=6)
+        c2 = self.charts.rm_breakdown(primary.component_details, "RM dimension comparison — top 6", top_n=6)
         if c2: charts.append(c2)
         
         if charts:
@@ -327,27 +328,28 @@ class VisualizationService:
         self, gen: DashboardGenerator, data: LayerData
     ) -> None:
         """
-        Section 3: Interactive component table (sort + filter) + RMAV chart.
+        Section 3: Interactive component table (sort + filter) + RM chart.
 
-        Table columns: ID, Name, Type, Q(v), Level, Impact, R, M, A, V, RMAV, SPOF
+        Table columns: ID, Name, Type, Q(v), Level, Impact, R, M, FT, A, RM, SPOF
+        FT and A are Reliability's sub-characteristics, reported alongside R.
         type_col=2, level_col=4 enables the filter dropdowns.
         """
         gen.start_section("Component Details", "details")
 
         headers = [
             "ID", "Name", "Type", "Q(v)", "Level",
-            "Impact", "R", "M", "A", "V", "RMAV", "SPOF",
+            "Impact", "R", "M", "FT", "A", "RM", "SPOF",
         ]
         rows = []
         for c in data.component_details[:100]:
-            # Each dimension contributes up to 25 % of the bar width, so a
-            # component scoring 1.0 across RMAV fills it completely.
+            # Each dimension contributes up to 33 % of the bar width, so a
+            # component scoring 1.0 across all three fills it completely.
             segments = "".join(
-                f'<div class="rmas-seg" style="width:{getattr(c, dim) * 25:.0f}%;'
-                f'background:{RMAS_COLORS[dim]}"></div>'
-                for dim in ("availability", "reliability", "maintainability", "security")
+                f'<div class="rm-seg" style="width:{getattr(c, dim) * 33.3:.0f}%;'
+                f'background:{RM_COLORS[dim]}"></div>'
+                for dim in ("fault_tolerance", "availability", "maintainability")
             )
-            rmas_bar = f'<div class="rmas-bar">{segments}</div>'
+            rm_bar = f'<div class="rm-bar">{segments}</div>'
             spof_html = '<span class="badge badge-spof">SPOF</span>' if c.spof else ""
             rows.append([
                 c.id,
@@ -358,9 +360,9 @@ class VisualizationService:
                 f"{c.impact:.3f}",
                 f"{c.reliability:.2f}",
                 f"{c.maintainability:.2f}",
+                f"{c.fault_tolerance:.2f}",
                 f"{c.availability:.2f}",
-                f"{c.security:.2f}",
-                rmas_bar,
+                rm_bar,
                 spof_html,
             ])
 
@@ -371,8 +373,8 @@ class VisualizationService:
             level_col=4,
         )
 
-        gen.add_subsection("RMAV quality dimension breakdown (AHP-weighted, top 10)")
-        chart = self.charts.rmav_breakdown(data.component_details)
+        gen.add_subsection("RM quality dimension breakdown (top 10)")
+        chart = self.charts.rm_breakdown(data.component_details)
         if chart:
             gen.add_charts([chart])
         gen.end_section()
@@ -429,7 +431,6 @@ class VisualizationService:
             ("reliability",     "reliability_scatter",     "reliability_spearman",     "reliability_ci"),
             ("maintainability", "maintainability_scatter",  "maintainability_spearman", "maintainability_ci"),
             ("availability",    "availability_scatter",     "availability_spearman",    "availability_ci"),
-            ("security",        "security_scatter",         "security_spearman",        "security_ci"),
         ]
         dim_charts = []
         for key, scatter_attr, rho_attr, ci_attr in dim_configs:
@@ -450,7 +451,7 @@ class VisualizationService:
             if chart:
                 dim_charts.append(chart)
         if dim_charts:
-            gen.add_subsection("Dimensional diagnostics (per-RMAV-axis scatter)")
+            gen.add_subsection("Dimensional diagnostics (per-RM-axis scatter)")
             gen.add_charts(dim_charts)
 
         gen.end_section()
@@ -482,7 +483,7 @@ class VisualizationService:
     def _add_validation_report(
         self, gen: DashboardGenerator, data: LayerData
     ) -> None:
-        """Section 7: Gate results G1-G9."""
+        """Section 7: Gate results (G1-G8, with G7 and G9 retired — see _GATE_SPECS)."""
         gen.start_section("Validation Report", "validation-report")
         targets = getattr(self.validation_service, "targets", None) or ValidationTargets()
         metrics: Dict[str, str] = {}

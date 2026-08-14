@@ -41,7 +41,7 @@ class Client:
         """Analyze the structural graph topology.
 
         Extra keyword arguments are accepted and ignored — Pipeline.analyze
-        forwards RMAV options here, but they apply to the Predict stage
+        forwards RM options here, but they apply to the Predict stage
         (see ``predict()``), not to structural analysis.
         """
         from saag.usecases.analyze_graph import AnalyzeGraphUseCase
@@ -69,9 +69,9 @@ class Client:
         """Run the unified Prediction stage (Step 3) on a prior AnalysisResult.
 
         Consumes the StructuralAnalysisResult produced by analyze() — no
-        repository access. Always computes rule-based RMAV scores; blends in
+        repository access. Always computes rule-based RM scores; blends in
         GNN-derived criticality ranks when a trained checkpoint is available
-        at ``gnn_checkpoint`` (falls back to RMAV otherwise). Also runs
+        at ``gnn_checkpoint`` (falls back to RM otherwise). Also runs
         anti-pattern detection and generates a human-readable explanation.
 
         Parameters
@@ -83,17 +83,17 @@ class Client:
         gnn_checkpoint:
             Path to a GNN checkpoint directory. Defaults to output/gnn_checkpoints.
         use_ahp, equal_weights, ahp_shrinkage:
-            RMAV dimension weighting. Mutually exclusive modes: AHP-derived
+            RM dimension weighting. Mutually exclusive modes: AHP-derived
             weights (shrunk toward uniform by ``ahp_shrinkage``), equal 0.25
             weights, or the default fixed weights.
         normalization_method, winsorize, winsorize_limit:
-            How Tier-1 metrics are scaled to [0, 1] before the RMAV weighted sum.
+            How Tier-1 metrics are scaled to [0, 1] before the RM weighted sum.
         run_sensitivity:
             Run the Kendall τ weight-stability analysis after scoring.
         active_patterns:
             Anti-pattern IDs to run. ``None`` runs the whole catalogue; an empty
             list skips detection entirely. The distinction matters for callers
-            that only want RMAV scores: DEEP_PIPELINE enumerates every simple
+            that only want RM scores: DEEP_PIPELINE enumerates every simple
             source-to-sink path and does not terminate in practical time on
             topologies of a few hundred components.
         """

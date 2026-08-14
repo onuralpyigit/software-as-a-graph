@@ -66,7 +66,7 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Reuse the harness's data-prep + helpers so recalibration uses the exact
-# same DEPENDS_ON graph, RMAV substitution policy, and topo scoring formula.
+# same DEPENDS_ON graph, RM substitution policy, and topo scoring formula.
 from reproduce.main_table import (
     _load_scenario_data,
     _compute_topo_baseline_scores,
@@ -225,7 +225,7 @@ def _try_recompute_homo(
 
     if cached_data is None:
         cached_data = _load_scenario_data(scenario)
-    nx_graph, structural_dict, simulation_dict, rmav_dict, _ = cached_data
+    nx_graph, structural_dict, simulation_dict, rm_dict, _ = cached_data
 
     ckpt_dir = CKPT_ROOT / f"{scenario}_{variant}_s{seed}"
     if not ckpt_dir.exists():
@@ -243,7 +243,7 @@ def _try_recompute_homo(
         train_sm    = _mask_qos_in_structural(structural_dict)
 
     conv = networkx_to_hetero_data(
-        train_graph, train_sm, simulation_dict, rmav_dict
+        train_graph, train_sm, simulation_dict, rm_dict
     )
     data = conv.hetero_data
     create_node_splits(data, train_ratio, val_ratio, seed=seed)
@@ -305,7 +305,7 @@ def _try_recompute_hetero(
     """Best-effort recompute for HGL and Q-HGL via GNNService."""
     if cached_data is None:
         cached_data = _load_scenario_data(scenario)
-    nx_graph, structural_dict, simulation_dict, rmav_dict, _ = cached_data
+    nx_graph, structural_dict, simulation_dict, rm_dict, _ = cached_data
 
     ckpt_dir = CKPT_ROOT / f"{scenario}_{variant}_s{seed}"
     if not ckpt_dir.exists():
@@ -333,7 +333,7 @@ def _try_recompute_hetero(
 
         kwargs: Dict[str, Any] = dict(
             graph=train_graph, structural_metrics=train_sm,
-            simulation_results=simulation_dict, rmav_scores=rmav_dict,
+            simulation_results=simulation_dict, rm_scores=rm_dict,
         )
         if _NATIVE_QOS_FLAG_AVAILABLE:
             kwargs["qos_enabled"] = use_qos

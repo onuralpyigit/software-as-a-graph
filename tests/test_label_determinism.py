@@ -2,7 +2,7 @@
 test_label_determinism.py
 ─────────────────────────
 Guards the reproducibility of `FailureSimulator.simulate_exhaustive`, which
-supplies the Validate-stage RMAV oracle.
+supplies the Validate-stage RM oracle.
 
 Before seeding, six cascade branches drew against each edge's own QoS weight
 using an unseeded RNG, so identical sweeps disagreed: on healthcare_system the

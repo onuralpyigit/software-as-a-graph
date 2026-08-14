@@ -23,42 +23,42 @@ from saag.validation.metric_calculator import calculate_ccr_at_k, calculate_cme
 
 class TestQualityWeightsV4:
 
-    def test_default_weights_have_r_in_degree_and_r_cdpot(self):
-        """QualityWeights v5 must expose r_in_degree and r_cdpot with sensible defaults."""
+    def test_default_weights_have_ft_in_degree_and_ft_cdpot(self):
+        """QualityWeights v5 must expose ft_in_degree and ft_cdpot with sensible defaults."""
         w = QualityWeights()
-        assert hasattr(w, 'r_in_degree'), "r_in_degree field missing from QualityWeights"
-        assert hasattr(w, 'r_cdpot'), "r_cdpot field missing from QualityWeights"
-        assert w.r_in_degree > 0.0, "r_in_degree should be positive (reinstated in v5)"
-        assert w.r_cdpot > 0.0, "r_cdpot should be positive"
+        assert hasattr(w, 'ft_in_degree'), "ft_in_degree field missing from QualityWeights"
+        assert hasattr(w, 'ft_cdpot'), "ft_cdpot field missing from QualityWeights"
+        assert w.ft_in_degree > 0.0, "ft_in_degree should be positive (reinstated in v5)"
+        assert w.ft_cdpot > 0.0, "ft_cdpot should be positive"
 
-    def test_deprecated_r_pagerank_and_r_w_in_are_zero(self):
-        """r_pagerank and r_w_in must be 0.0 in v5 (r_w_in reassigned to V* as QADS)."""
+    def test_deprecated_ft_pagerank_and_ft_w_in_are_zero(self):
+        """ft_pagerank and ft_w_in must be 0.0 in v5 (deprecated)."""
         w = QualityWeights()
-        assert w.r_pagerank == 0.0, "r_pagerank should be deprecated (0.0) in v5"
-        assert w.r_w_in == 0.0, "r_w_in should be deprecated (0.0) in v5 — exclusively QADS in V*"
+        assert w.ft_pagerank == 0.0, "ft_pagerank should be deprecated (0.0) in v5"
+        assert w.ft_w_in == 0.0, "ft_w_in should be deprecated (0.0) in v5"
 
     def test_ahp_computed_weights_are_positive_and_sum_near_active_terms(self):
-        """AHP-computed reliability weights should be positive and roughly sum to 1."""
+        """AHP-computed fault-tolerance weights should be positive and roughly sum to 1."""
         proc = AHPProcessor()
         w = proc.compute_weights()
         # v5: active terms are RPR, DG_in, CDPot
-        active = w.r_reverse_pagerank + w.r_in_degree + w.r_cdpot
+        active = w.ft_reverse_pagerank + w.ft_in_degree + w.ft_cdpot
         assert active == pytest.approx(1.0, abs=0.05), (
-            f"Active R*(v) weights should sum ~1.0, got {active:.4f}"
+            f"Active FT*(v) weights should sum ~1.0, got {active:.4f}"
         )
-        assert w.r_reverse_pagerank > 0.0
-        assert w.r_in_degree > 0.0
-        assert w.r_cdpot > 0.0
+        assert w.ft_reverse_pagerank > 0.0
+        assert w.ft_in_degree > 0.0
+        assert w.ft_cdpot > 0.0
 
-    def test_ahp_reliability_matrix_is_3x3(self):
-        """Reliability AHP matrix should be 3×3 (RPR, w_in, CDPot)."""
+    def test_ahp_fault_tolerance_matrix_is_3x3(self):
+        """Fault Tolerance AHP matrix should be 3×3 (RPR, w_in, CDPot)."""
         m = AHPMatrices()
-        assert len(m.criteria_reliability) == 3
-        assert all(len(row) == 3 for row in m.criteria_reliability)
+        assert len(m.criteria_fault_tolerance) == 3
+        assert all(len(row) == 3 for row in m.criteria_fault_tolerance)
 
 
 # ===========================================================================
-# CDPot formula (computed inline in quality_analyzer._compute_rmav)
+# CDPot formula (computed inline in quality_analyzer._compute_rm)
 # Tested via the formula itself rather than a public function.
 # ===========================================================================
 
@@ -137,7 +137,7 @@ class TestReliabilityProperty:
             if cid != "X"
         ]
 
-        # X should be significantly more reliable (in the RMAV sense of being 
+        # X should be significantly more reliable (in the RM sense of being 
         # a critical reliability hub) than its leaf neighbors.
         assert all(r_x > r_leaf for r_leaf in leaf_scores), (
             f"Absorber X reliability ({r_x:.4f}) should dominate leaves {leaf_scores}"
@@ -206,13 +206,13 @@ class TestReliabilityTier1Metrics:
             assert m.fan_out_criticality == 0.0
 
 # ===========================================================================
-# ImpactMetrics: IR(v) fields
+# ImpactMetrics: IFT(v) fields, and the IR(v) = alpha-blend of IFT and IA
 # ===========================================================================
 
 class TestImpactMetricsIRv:
 
     def test_default_ir_fields_are_zero(self):
-        """New IR(v) fields should default to 0.0 (backward compat)."""
+        """New IFT(v) fields should default to 0.0 (backward compat)."""
         im = ImpactMetrics()
         assert im.cascade_reach == 0.0
         assert im.weighted_cascade_impact == 0.0
@@ -222,17 +222,17 @@ class TestImpactMetricsIRv:
         """reliability_impact property should be 0.0 with all default sub-fields."""
         assert ImpactMetrics().reliability_impact == pytest.approx(0.0)
 
-    def test_reliability_impact_formula(self):
-        """IR(v) = 0.45*CR + 0.35*WCI + 0.20*ND."""
+    def test_fault_tolerance_impact_formula(self):
+        """IFT(v) = 0.45*CR + 0.35*WCI + 0.20*ND."""
         im = ImpactMetrics(
             cascade_reach=1.0,
             weighted_cascade_impact=1.0,
             normalized_cascade_depth=1.0,
         )
         expected = 0.45 * 1.0 + 0.35 * 1.0 + 0.20 * 1.0
-        assert im.reliability_impact == pytest.approx(expected, abs=1e-6)
+        assert im.fault_tolerance_impact == pytest.approx(expected, abs=1e-6)
 
-    def test_reliability_impact_partial(self):
+    def test_fault_tolerance_impact_partial(self):
         """Partial field set gives correct weighted sum."""
         im = ImpactMetrics(
             cascade_reach=0.5,
@@ -240,14 +240,29 @@ class TestImpactMetricsIRv:
             normalized_cascade_depth=0.8,
         )
         expected = 0.45 * 0.5 + 0.35 * 0.3 + 0.20 * 0.8
+        assert im.fault_tolerance_impact == pytest.approx(expected, abs=1e-6)
+
+    def test_reliability_impact_is_alpha_blend_of_ft_and_availability(self):
+        """IR(v) = r_alpha*IFT(v) + (1-r_alpha)*IA(v) — mirrors the scoring-side
+        hierarchy (R = r_alpha*FT + (1-r_alpha)*A)."""
+        from saag.simulation.models import reliability_alpha
+
+        im = ImpactMetrics(
+            cascade_reach=1.0, weighted_cascade_impact=1.0, normalized_cascade_depth=1.0,
+            weighted_reachability_loss=1.0, weighted_fragmentation=1.0,
+            path_breaking_throughput_loss=1.0,
+        )
+        alpha = reliability_alpha()
+        expected = alpha * im.fault_tolerance_impact + (1.0 - alpha) * im.availability_impact
         assert im.reliability_impact == pytest.approx(expected, abs=1e-6)
 
     def test_to_dict_includes_reliability_key(self):
-        """to_dict() should include a 'reliability' section with IR(v) fields."""
+        """to_dict() should include a 'reliability' section nesting IFT(v) fields
+        under 'fault_tolerance', alongside the blended reliability_impact."""
         im = ImpactMetrics(cascade_reach=0.4, weighted_cascade_impact=0.2)
         d = im.to_dict()
         assert "reliability" in d
-        assert "cascade_reach" in d["reliability"]
+        assert "cascade_reach" in d["reliability"]["fault_tolerance"]
         assert "reliability_impact" in d["reliability"]
 
     def test_composite_impact_unchanged(self):

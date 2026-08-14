@@ -94,7 +94,7 @@ class LayerDataCollector:
             if hasattr(analysis, "explanation") and analysis.explanation:
                 data.explanation = analysis.explanation.to_dict()
 
-            # Build component details with RMAV breakdown            # 3. Quality Metrics & Ranking
+            # Build component details with RM breakdown            # 3. Quality Metrics & Ranking
             sorted_comps = sorted(
                 prediction.components,
                 key=lambda x: _safe_float(x.scores.overall),
@@ -108,7 +108,7 @@ class LayerDataCollector:
             data.low_count = 0
             data.minimal_count = 0
             
-            # New: Full component details with RMAV breakdown
+            # New: Full component details with RM breakdown
             data.component_details = []
             data.scatter_data = []
             
@@ -141,8 +141,8 @@ class LayerDataCollector:
                     type=c.type,
                     reliability=_safe_float(c.scores.reliability),
                     maintainability=_safe_float(c.scores.maintainability),
+                    fault_tolerance=_safe_float(c.scores.fault_tolerance),
                     availability=_safe_float(c.scores.availability),
-                    security=_safe_float(c.scores.security),
                     overall=overall,
                     level=level,
                     mpci=_safe_float(getattr(c.scores, "mpci", 0.0)),
@@ -229,7 +229,6 @@ class LayerDataCollector:
                 data.reliability_spearman = getattr(val_result, "reliability_spearman", 0.0)
                 data.maintainability_spearman = getattr(val_result, "maintainability_spearman", 0.0)
                 data.availability_spearman = getattr(val_result, "availability_spearman", 0.0)
-                data.security_spearman = getattr(val_result, "security_spearman", 0.0)
                 data.composite_spearman = getattr(val_result, "composite_spearman", 0.0)
                 data.predictive_gain = getattr(val_result, "predictive_gain", 0.0)
                 
@@ -241,7 +240,6 @@ class LayerDataCollector:
                     data.reliability_scatter = val_result.dimensional_scatter.get("reliability", [])
                     data.maintainability_scatter = val_result.dimensional_scatter.get("maintainability", [])
                     data.availability_scatter = val_result.dimensional_scatter.get("availability", [])
-                    data.security_scatter = val_result.dimensional_scatter.get("security", [])
                     # The composite scatter is also in dimensional_scatter["composite"]
                     if "composite" in val_result.dimensional_scatter:
                         data.scatter_data = val_result.dimensional_scatter["composite"]
@@ -251,7 +249,6 @@ class LayerDataCollector:
                     data.reliability_ci = val_result.confidence_intervals.get("reliability")
                     data.maintainability_ci = val_result.confidence_intervals.get("maintainability")
                     data.availability_ci = val_result.confidence_intervals.get("availability")
-                    data.security_ci = val_result.confidence_intervals.get("security")
                     data.composite_ci = val_result.confidence_intervals.get("composite")
 
         except Exception as e:

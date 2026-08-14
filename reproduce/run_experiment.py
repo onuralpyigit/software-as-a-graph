@@ -40,7 +40,7 @@ SaG pipeline. For each scenario `<S>` you need:
     data/generated/<S>.json                 — generated topology JSON
     results/<S>/structural_metrics.json     — Step 2 output
     results/<S>/impact_scores.json          — Step 4 output (multi-seed)
-    results/<S>/rmav_scores.json            — Step 3a output (optional)
+    results/<S>/rm_scores.json            — Step 3a output (optional)
 
 If any are missing, the scenario is skipped with a warning. To produce
 them, run:
@@ -183,7 +183,7 @@ class ScenarioPaths:
     graph_json: Path
     structural_json: Path
     simulation_json: Path
-    rmav_json: Optional[Path] = None  # may be absent
+    rm_json: Optional[Path] = None  # may be absent
 
     def is_complete(self) -> bool:
         return (
@@ -480,7 +480,7 @@ def discover_scenario_paths(
         graph_json=graph_json,
         structural_json=res_dir / "structural_metrics.json",
         simulation_json=res_dir / "impact_scores.json",
-        rmav_json=res_dir / "rmav_scores.json",
+        rm_json=res_dir / "rm_scores.json",
     )
 
 
@@ -522,7 +522,7 @@ def run_single_arm(
     graph: nx.DiGraph,
     structural_metrics: Dict[str, Dict[str, Any]],
     simulation_results: Dict[str, Dict[str, float]],
-    rmav_scores: Optional[Dict[str, Dict[str, float]]],
+    rm_scores: Optional[Dict[str, Dict[str, float]]],
     layer: str,
     epochs: int,
     patience: int,
@@ -568,7 +568,7 @@ def run_single_arm(
         graph=train_graph,
         structural_metrics=train_sm,
         simulation_results=simulation_results,
-        rmav_scores=rmav_scores,
+        rm_scores=rm_scores,
         train_ratio=train_ratio,
         val_ratio=val_ratio,
         num_epochs=epochs,
@@ -663,9 +663,9 @@ def run_scenario_ablation(
     graph = graph_from_topology_json(paths.graph_json)
     structural_metrics = load_json(paths.structural_json)
     simulation_results = load_json(paths.simulation_json)
-    rmav_scores = (
-        load_json(paths.rmav_json)
-        if paths.rmav_json is not None and paths.rmav_json.exists()
+    rm_scores = (
+        load_json(paths.rm_json)
+        if paths.rm_json is not None and paths.rm_json.exists()
         else None
     )
 
@@ -691,7 +691,7 @@ def run_scenario_ablation(
                     graph=graph,
                     structural_metrics=structural_metrics,
                     simulation_results=simulation_results,
-                    rmav_scores=rmav_scores,
+                    rm_scores=rm_scores,
                     layer=layer,
                     epochs=epochs,
                     patience=patience,
@@ -991,7 +991,7 @@ def parse_args() -> argparse.Namespace:
         "--results-dir",
         type=Path,
         default=Path("results"),
-        help="Root containing results/<scenario>/{structural,impact,rmav}.json.",
+        help="Root containing results/<scenario>/{structural,impact,rm}.json.",
     )
     p.add_argument(
         "--output-dir",

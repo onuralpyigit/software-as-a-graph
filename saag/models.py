@@ -31,8 +31,8 @@ class ComponentFacade:
         return self._inner.id
 
     @property
-    def rmav_score(self) -> float:
-        """The overall RMAV criticality score."""
+    def rm_score(self) -> float:
+        """The overall RM criticality score."""
         return self._inner.overall
         
     @property
@@ -96,7 +96,7 @@ class ComponentFacade:
             "name": self.name,
             "type": self.type,
             "is_critical": self.is_critical,
-            "rmav_score": self.rmav_score,
+            "rm_score": self.rm_score,
             "criticality_level": self.criticality_level,
             "criticality_levels": self.criticality_levels,
             "scores": self.scores,
@@ -108,7 +108,7 @@ class ComponentFacade:
 class AnalysisResult:
     """Result of the deterministic Analyze stage (Step 2): structural metrics only.
 
-    RMAV dimension scores, Q(v), anti-pattern problems, and explanations are
+    RM dimension scores, Q(v), anti-pattern problems, and explanations are
     produced by the Predict stage instead — see ``Client.predict()`` /
     ``PredictionResult``. ``quality``/``all_components``/``critical_components``
     below return empty until predict() has been run and the result merged back
@@ -125,17 +125,17 @@ class AnalysisResult:
 
     @property
     def quality(self) -> Optional[_QualityAnalysisResult]:
-        """RMAV quality scores and criticality levels, if the Predict stage has populated them."""
+        """RM quality scores and criticality levels, if the Predict stage has populated them."""
         return self._inner.quality
 
     @property
     def critical_components(self) -> List["ComponentFacade"]:
-        """Components classified as CRITICAL by the RMAV/Q scoring (requires predict() to have run)."""
+        """Components classified as CRITICAL by the RM/Q scoring (requires predict() to have run)."""
         return [c for c in self.all_components if c.criticality_level.lower() == "critical"]
 
     @property
     def all_components(self) -> List["ComponentFacade"]:
-        """All assessed components with their RMAV scores and criticality levels (requires predict() to have run)."""
+        """All assessed components with their RM scores and criticality levels (requires predict() to have run)."""
         from saag.core.criticality import CriticalityRanking
         if self._inner.quality is None:
             return []
@@ -144,15 +144,15 @@ class AnalysisResult:
             scores = {
                 "reliability": cq.scores.reliability,
                 "maintainability": cq.scores.maintainability,
+                "fault_tolerance": cq.scores.fault_tolerance,
                 "availability": cq.scores.availability,
-                "security": cq.scores.security,
                 "overall": cq.scores.overall,
             }
             levels = {
                 "reliability": cq.levels.reliability.name if hasattr(cq.levels.reliability, "name") else str(cq.levels.reliability).upper(),
                 "maintainability": cq.levels.maintainability.name if hasattr(cq.levels.maintainability, "name") else str(cq.levels.maintainability).upper(),
+                "fault_tolerance": cq.levels.fault_tolerance.name if hasattr(cq.levels.fault_tolerance, "name") else str(cq.levels.fault_tolerance).upper(),
                 "availability": cq.levels.availability.name if hasattr(cq.levels.availability, "name") else str(cq.levels.availability).upper(),
-                "security": cq.levels.security.name if hasattr(cq.levels.security, "name") else str(cq.levels.security).upper(),
                 "overall": cq.levels.overall.name if hasattr(cq.levels.overall, "name") else str(cq.levels.overall).upper(),
             }
             name = getattr(cq.structural, "name", cq.id) if cq.structural else cq.id
@@ -166,7 +166,7 @@ class AnalysisResult:
                 levels=levels,
                 overall=cq.scores.overall,
                 level=levels["overall"],
-                provenance="rmav",
+                provenance="rm",
                 name=name,
                 blast_radius=blast_radius,
                 cascade_depth=cascade_depth,
@@ -196,9 +196,9 @@ from types import SimpleNamespace
 class PredictionResult:
     """Result of the inductive Predict stage: GNN-derived criticality ranks and attention weights.
 
-    This stage generalises beyond the closed-form RMAV composite by learning nonlinear
+    This stage generalises beyond the closed-form RM composite by learning nonlinear
     interactions and multi-hop motifs that AHP-weighted scoring cannot encode.
-    RMAV/Q scores (deterministic) are available on AnalysisResult, not here.
+    RM/Q scores (deterministic) are available on AnalysisResult, not here.
     """
     def __init__(self, inner: Any):
         if isinstance(inner, dict):
@@ -258,13 +258,13 @@ class PredictionResult:
         if hasattr(self._inner, "node_scores"):
             # GNN path (GNNAnalysisResult or SimpleNamespace) — discriminate on
             # node_scores rather than prediction_mode, since QualityAnalysisResult
-            # (RMAV path) now also carries a prediction_mode field.
+            # (RM path) now also carries a prediction_mode field.
             source_dict = getattr(self._inner, "node_scores", {})
             provenance = getattr(self._inner, "prediction_mode", "gnn_only")
             if provenance == "gnn_only":
                 provenance = "gnn"
-            elif provenance == "rmav_only":
-                provenance = "rmav"
+            elif provenance == "rm_only":
+                provenance = "rm"
                 
             struct_cache = getattr(self._inner, "_structural_cache", {})
             rankings = []
@@ -301,21 +301,21 @@ class PredictionResult:
             rankings.sort(key=lambda x: x.overall, reverse=True)
             return [ComponentFacade(r) for r in rankings]
         else:
-            # RMAV path (QualityAnalysisResult)
+            # RM path (QualityAnalysisResult)
             rankings = []
             for cq in getattr(self._inner, "components", []):
                 scores = {
                     "reliability": cq.scores.reliability,
                     "maintainability": cq.scores.maintainability,
+                    "fault_tolerance": cq.scores.fault_tolerance,
                     "availability": cq.scores.availability,
-                    "security": cq.scores.security,
                     "overall": cq.scores.overall,
                 }
                 levels = {
                     "reliability": cq.levels.reliability.name if hasattr(cq.levels.reliability, "name") else str(cq.levels.reliability).upper(),
                     "maintainability": cq.levels.maintainability.name if hasattr(cq.levels.maintainability, "name") else str(cq.levels.maintainability).upper(),
+                    "fault_tolerance": cq.levels.fault_tolerance.name if hasattr(cq.levels.fault_tolerance, "name") else str(cq.levels.fault_tolerance).upper(),
                     "availability": cq.levels.availability.name if hasattr(cq.levels.availability, "name") else str(cq.levels.availability).upper(),
-                    "security": cq.levels.security.name if hasattr(cq.levels.security, "name") else str(cq.levels.security).upper(),
                     "overall": cq.levels.overall.name if hasattr(cq.levels.overall, "name") else str(cq.levels.overall).upper(),
                 }
                 name = getattr(cq.structural, "name", cq.id) if cq.structural else cq.id
@@ -329,7 +329,7 @@ class PredictionResult:
                     levels=levels,
                     overall=cq.scores.overall,
                     level=levels["overall"],
-                    provenance="rmav",
+                    provenance="rm",
                     name=name,
                     blast_radius=blast_radius,
                     cascade_depth=cascade_depth,
@@ -358,7 +358,7 @@ class PredictionResult:
 
     @property
     def problems(self) -> List[Any]:
-        """Anti-patterns and architectural smells detected from the RMAV scores."""
+        """Anti-patterns and architectural smells detected from the RM scores."""
         return list(getattr(self._inner, "problems", []) or [])
 
     @property
@@ -368,8 +368,8 @@ class PredictionResult:
 
     @property
     def prediction_mode(self) -> str:
-        """Which scoring path produced this result: 'rmav', 'gnn_only' or 'rmav_only'."""
-        return getattr(self._inner, "prediction_mode", "rmav")
+        """Which scoring path produced this result: 'rm', 'gnn_only' or 'rm_only'."""
+        return getattr(self._inner, "prediction_mode", "rm")
 
     def save(self, filepath: str) -> None:
         """Export the prediction result to a JSON file."""
@@ -447,7 +447,7 @@ class PipelineExecutionResult:
 
     Stage mapping:
       analysis     — deterministic Analyze stage (structural metrics only)
-      prediction   — unified Predict stage (RMAV always + GNN when available + anti-patterns + explanation); optional
+      prediction   — unified Predict stage (RM always + GNN when available + anti-patterns + explanation); optional
       simulation   — Simulate stage (counterfactual cascade ground truth)
       validation   — Validate stage (Predict/Analyze vs Simulate ground truth)
       prescription — prescriptive Stage 6 optimization; optional

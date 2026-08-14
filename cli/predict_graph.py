@@ -4,7 +4,7 @@ cli/predict_graph.py — Unified Prediction & Anti-Pattern CLI
 =============================================================
 Runs the full Step 3 prediction pipeline in one command:
 
-  Step 3a  RMAV quality scoring  (always)
+  Step 3a  RM quality scoring  (always)
   Step 3b  GNN inference         (opt-in: --gnn-model PATH)
   Step 3c  Anti-pattern scan     (on by default; skip with --no-antipatterns)
 
@@ -15,13 +15,13 @@ Exit codes (CI/CD gate):
 
 Usage examples
 --------------
-  # Minimal — RMAV + antipatterns on system layer
+  # Minimal — RM + antipatterns on system layer
   python cli/predict_graph.py
 
   # Multi-layer
   python cli/predict_graph.py --layer app,system
 
-  # AHP-weighted RMAV + GNN prediction
+  # AHP-weighted RM + GNN prediction
   python cli/predict_graph.py --use-ahp --gnn-model output/gnn_checkpoints/best
 
   # Strict CI gate — only CRITICAL patterns block
@@ -62,15 +62,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="predict_graph.py",
         description=(
-            "Unified prediction CLI: RMAV scoring, optional GNN inference, "
+            "Unified prediction CLI: RM scoring, optional GNN inference, "
             "and architectural anti-pattern detection in one step."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Usage examples")[1] if "Usage examples" in __doc__ else "",
     )
 
-    # ── RMAV / weighting ──────────────────────────────────────────────────────
-    weight_grp = parser.add_argument_group("Weighting (RMAV)")
+    # ── RM / weighting ──────────────────────────────────────────────────────
+    weight_grp = parser.add_argument_group("Weighting (RM)")
     weight_grp.add_argument(
         "--use-ahp", action="store_true",
         help="Use AHP-derived dimension weights (recommended for thesis results)",
@@ -86,7 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     weight_grp.add_argument(
         "--norm", type=str, choices=["robust", "minmax", "zscore", "rank"], default="robust",
-        help="Normalization applied to Tier-1 metrics before the RMAV weighted sum "
+        help="Normalization applied to Tier-1 metrics before the RM weighted sum "
              "(default: robust, i.e. rank-based)",
     )
     weight_grp.add_argument(
@@ -218,20 +218,20 @@ def run_gnn_inference(nx_graph, analysis, prediction, gnn_model: str, display: C
     Returns a GNNAnalysisResult or None on failure.
     """
     try:
-        from saag.prediction import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict
+        from saag.prediction import GNNService, extract_structural_metrics_dict, extract_rm_scores_dict
     except ImportError as exc:
         display.print_error(f"GNN module not available (PyTorch Geometric required): {exc}")
         return None
 
     try:
         structural_dict = extract_structural_metrics_dict(analysis.raw)
-        rmav_dict = extract_rmav_scores_dict(prediction.raw)
+        rm_dict = extract_rm_scores_dict(prediction.raw)
 
         gnn_svc = GNNService.from_checkpoint(gnn_model, graph=nx_graph)
         return gnn_svc.predict(
             graph=nx_graph,
             structural_metrics=structural_dict,
-            rmav_scores=rmav_dict,
+            rm_scores=rm_dict,
         )
     except Exception as exc:
         display.print_error(f"GNN inference failed: {exc}")
@@ -240,21 +240,24 @@ def run_gnn_inference(nx_graph, analysis, prediction, gnn_model: str, display: C
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# RMAV dimension display helper  (Issue #4)
+# RM dimension display helper  (Issue #4)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_RMAV_LABELS = {
-    "reliability":      "Cascade / reliability risk",
-    "maintainability":  "Coupling / change fragility",
+_RM_LABELS = {
+    "fault_tolerance":  "Cascade / propagation risk",
     "availability":     "SPOF / availability loss",
-    "security":         "Outbound blast radius",
+    "maintainability":  "Coupling / change fragility",
 }
 
-def display_rmav_breakdown(components: list, top_n: int = 10) -> None:
+def display_rm_breakdown(components: list, top_n: int = 10) -> None:
     """
-    Print a ranked table of components with per-RMAV dimension scores and the
+    Print a ranked table of components with per-RM dimension scores and the
     dominant risk dimension — so maintainability concerns (high M) are
     distinguished from SPOF concerns (high A) at a glance.
+
+    The dominant-dimension max() runs over Fault Tolerance, Availability and
+    Maintainability — the three orthogonal signals — not Reliability itself,
+    which is their weighted combination and would double-count.
     """
     if not components:
         return
@@ -263,26 +266,25 @@ def display_rmav_breakdown(components: list, top_n: int = 10) -> None:
     ranked = sorted(components, key=lambda c: c.scores.overall, reverse=True)[:top_n]
 
     print()
-    print(f"  {'Rank':<4} {'Component':<32} {'Q':>5}  {'R':>5}  {'M':>5}  {'A':>5}  {'S':>5}  {'Dominant risk':<28}  {'SPOF'}")
+    print(f"  {'Rank':<4} {'Component':<32} {'Q':>5}  {'R':>5}  {'M':>5}  {'FT':>5}  {'A':>5}  {'Dominant risk':<28}  {'SPOF'}")
     print(f"  {'─'*4} {'─'*32} {'─'*5}  {'─'*5}  {'─'*5}  {'─'*5}  {'─'*5}  {'─'*28}  {'─'*4}")
 
     for rank, comp in enumerate(ranked, 1):
         s = comp.scores
         dim_scores = {
-            "reliability":     s.reliability,
-            "maintainability": s.maintainability,
+            "fault_tolerance": s.fault_tolerance,
             "availability":    s.availability,
-            "security":        s.security,
+            "maintainability": s.maintainability,
         }
         dominant_dim = max(dim_scores, key=dim_scores.get)
-        dominant_label = _RMAV_LABELS[dominant_dim]
+        dominant_label = _RM_LABELS[dominant_dim]
         is_spof = getattr(comp.structural, "is_articulation_point", False)
         spof_mark = "  ✗" if is_spof else ""
 
         print(
             f"  {rank:<4} {str(comp.id)[:31]:<32} "
             f"{s.overall:>5.3f}  {s.reliability:>5.3f}  {s.maintainability:>5.3f}  "
-            f"{s.availability:>5.3f}  {s.security:>5.3f}  "
+            f"{s.fault_tolerance:>5.3f}  {s.availability:>5.3f}  "
             f"{dominant_label:<28}  {spof_mark}"
         )
     print()
@@ -393,11 +395,11 @@ def main() -> None:
 
         analysis = client.analyze(layer=layer)
 
-        # ── RMAV prediction (Step 3: unified Predict step, RMAV path) ─────────
-        display.print_step(f"[{layer.upper()}] RMAV quality scoring…")
+        # ── RM prediction (Step 3: unified Predict step, RM path) ─────────
+        display.print_step(f"[{layer.upper()}] RM quality scoring…")
         prediction = client.predict(
             analysis,
-            mode="rmav",
+            mode="rm",
             equal_weights=args.equal_weights,
             use_ahp=args.use_ahp,
             ahp_shrinkage=args.ahp_shrinkage,
@@ -423,9 +425,9 @@ def main() -> None:
             display.print_step(f"[{layer.upper()}] Computing failure propagation metrics…")
             prop_metrics = compute_propagation_metrics(nx_graph)
 
-        # ── RMAV breakdown display  (Issue #4) ───────────────────────────────
-        display.print_step(f"[{layer.upper()}] Top components by RMAV score:")
-        display_rmav_breakdown(components, top_n=10)
+        # ── RM breakdown display  (Issue #4) ───────────────────────────────
+        display.print_step(f"[{layer.upper()}] Top components by RM score:")
+        display_rm_breakdown(components, top_n=10)
 
         # ── Propagation metrics display  (Issue #2) ──────────────────────────
         if prop_metrics:
@@ -480,7 +482,7 @@ def main() -> None:
         # ── Accumulate layer output ───────────────────────────────────────────
         layer_entry: dict = {
             "total_components": total_components,
-            "rmav": {
+            "rm": {
                 c.id: {
                     "overall":          c.scores.overall,
                     "reliability":      c.scores.reliability,

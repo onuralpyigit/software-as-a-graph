@@ -3,38 +3,38 @@ from saag.analysis.weight_calculator import AHPProcessor, AHPMatrices
 from saag.core.models import AHP_SHRINKAGE_LAMBDA
 
 def test_shrinkage():
-    # v5: r_pagerank and r_w_in are deprecated (0.0); the three active Reliability weights
-    # are r_reverse_pagerank (RPR), r_in_degree (DG_in), r_cdpot (CDPot).
+    # v5: ft_pagerank and ft_w_in are deprecated (0.0); the three active Reliability weights
+    # are ft_reverse_pagerank (RPR), ft_in_degree (DG_in), ft_cdpot (CDPot).
 
     # 1. Pure AHP (lambda=1.0)
     processor_pure = AHPProcessor(shrinkage_factor=1.0)
     weights_pure = processor_pure.compute_weights()
     # Deprecated fields must be 0.0
-    assert weights_pure.r_pagerank == 0.0, "r_pagerank must be 0.0 in v5"
-    assert weights_pure.r_w_in == 0.0, "r_w_in must be 0.0 in v5 (exclusively QADS in V*)"
+    assert weights_pure.ft_pagerank == 0.0, "ft_pagerank must be 0.0 in v5"
+    assert weights_pure.ft_w_in == 0.0, "ft_w_in must be 0.0 in v5 (deprecated)"
     # Primary weight (RPR) must be positive and dominant
-    print(f"Pure R weights: rpr={weights_pure.r_reverse_pagerank:.3f}, din={weights_pure.r_in_degree:.3f}, cdpot={weights_pure.r_cdpot:.3f}")
-    assert weights_pure.r_reverse_pagerank > 0.0
-    assert weights_pure.r_in_degree > 0.0
-    assert weights_pure.r_cdpot > 0.0
+    print(f"Pure R weights: rpr={weights_pure.ft_reverse_pagerank:.3f}, din={weights_pure.ft_in_degree:.3f}, cdpot={weights_pure.ft_cdpot:.3f}")
+    assert weights_pure.ft_reverse_pagerank > 0.0
+    assert weights_pure.ft_in_degree > 0.0
+    assert weights_pure.ft_cdpot > 0.0
     # Active weights must sum to ~ 1.0
-    active = weights_pure.r_reverse_pagerank + weights_pure.r_in_degree + weights_pure.r_cdpot
+    active = weights_pure.ft_reverse_pagerank + weights_pure.ft_in_degree + weights_pure.ft_cdpot
     assert abs(active - 1.0) < 0.05
 
     # 2. Uniform (lambda=0.0): all three active weights should be equal to ~0.333
     processor_uniform = AHPProcessor(shrinkage_factor=0.0)
     weights_uniform = processor_uniform.compute_weights()
-    print(f"Uniform R weights: rpr={weights_uniform.r_reverse_pagerank:.3f}, din={weights_uniform.r_in_degree:.3f}, cdpot={weights_uniform.r_cdpot:.3f}")
-    assert abs(weights_uniform.r_reverse_pagerank - 0.333) < 0.02
-    assert abs(weights_uniform.r_in_degree - 0.333) < 0.02
-    assert abs(weights_uniform.r_cdpot - 0.333) < 0.02
+    print(f"Uniform R weights: rpr={weights_uniform.ft_reverse_pagerank:.3f}, din={weights_uniform.ft_in_degree:.3f}, cdpot={weights_uniform.ft_cdpot:.3f}")
+    assert abs(weights_uniform.ft_reverse_pagerank - 0.333) < 0.02
+    assert abs(weights_uniform.ft_in_degree - 0.333) < 0.02
+    assert abs(weights_uniform.ft_cdpot - 0.333) < 0.02
 
     # 3. Default Blend (lambda=0.7): intermediate values between pure and uniform
     processor_blend = AHPProcessor(shrinkage_factor=AHP_SHRINKAGE_LAMBDA)
     weights_blend = processor_blend.compute_weights()
-    print(f"Blend (0.7) R weights: rpr={weights_blend.r_reverse_pagerank:.3f}, din={weights_blend.r_in_degree:.3f}, cdpot={weights_blend.r_cdpot:.3f}")
+    print(f"Blend (0.7) R weights: rpr={weights_blend.ft_reverse_pagerank:.3f}, din={weights_blend.ft_in_degree:.3f}, cdpot={weights_blend.ft_cdpot:.3f}")
     # RPR is highest in the v5 matrix: [1.0, 1.5, 2.0] row means RPR > DG_in > CDPot
-    assert weights_blend.r_reverse_pagerank >= weights_blend.r_in_degree, "RPR should dominate DG_in"
+    assert weights_blend.ft_reverse_pagerank >= weights_blend.ft_in_degree, "RPR should dominate DG_in"
 
 
     # 4. Availability Blend v2: a_qspof is now the primary SPOF weight; deprecated a_articulation=0

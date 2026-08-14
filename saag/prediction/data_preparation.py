@@ -11,9 +11,9 @@ Design principles
   (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, CONNECTS_TO, USES,
   DEPENDS_ON).  All type information is preserved as separate PyG stores.
 
-* **Feature parity with RMAV**: The 13 topological metrics that feed the RMAV
+* **Feature parity with RM**: The 13 topological metrics that feed the RM
   quality scorer are reused directly as node features so GNN predictions are
-  directly comparable to RMAV predictions under the same validation protocol.
+  directly comparable to RM predictions under the same validation protocol.
 
 * **Runtime-enriched features**: Broker, Topic, and Node types carry
   additional infrastructure/runtime features (max_connections, subscriber/
@@ -613,7 +613,7 @@ def networkx_to_hetero_data(
     graph: nx.DiGraph,
     structural_metrics: Optional[Dict[str, Dict[str, float]]] = None,
     simulation_results: Optional[Dict[str, Dict[str, float]]] = None,
-    rmav_scores: Optional[Dict[str, Dict[str, float]]] = None,
+    rm_scores: Optional[Dict[str, Dict[str, float]]] = None,
     qos_enabled: bool = True,
     rank_normalize_features: bool = False,
 ) -> GraphConversionResult:
@@ -631,7 +631,7 @@ def networkx_to_hetero_data(
     simulation_results:
         ``{node_name: {composite, reliability, maintainability,
                         availability, security}}`` training labels.
-    rmav_scores:
+    rm_scores:
         ``{node_name: {overall, reliability, maintainability,
                         availability, security}}`` for node predictions.
     rank_normalize_features:
@@ -759,18 +759,18 @@ def networkx_to_hetero_data(
             data[node_type].label_mask = torch.from_numpy(label_mask)
             result.num_labelled_nodes += labelled_count
 
-        # ── RMAV scores (for consistency regularization) ───────────
-        if rmav_scores:
-            rmav_matrix = np.zeros((n, 5), dtype=np.float32)
+        # ── RM scores (for consistency regularization) ───────────
+        if rm_scores:
+            rm_matrix = np.zeros((n, 5), dtype=np.float32)
             for local_idx, name in enumerate(nodes):
-                rmav = rmav_scores.get(name)
-                if rmav is not None:
-                    rmav_matrix[local_idx, 0] = float(rmav.get("overall", 0.0))
-                    rmav_matrix[local_idx, 1] = float(rmav.get("reliability", 0.0))
-                    rmav_matrix[local_idx, 2] = float(rmav.get("maintainability", 0.0))
-                    rmav_matrix[local_idx, 3] = float(rmav.get("availability", 0.0))
-                    rmav_matrix[local_idx, 4] = float(rmav.get("security", 0.0))
-            data[node_type].y_rmav = torch.from_numpy(rmav_matrix)
+                rm = rm_scores.get(name)
+                if rm is not None:
+                    rm_matrix[local_idx, 0] = float(rm.get("overall", 0.0))
+                    rm_matrix[local_idx, 1] = float(rm.get("reliability", 0.0))
+                    rm_matrix[local_idx, 2] = float(rm.get("maintainability", 0.0))
+                    rm_matrix[local_idx, 3] = float(rm.get("availability", 0.0))
+                    rm_matrix[local_idx, 4] = float(rm.get("security", 0.0))
+            data[node_type].y_rm = torch.from_numpy(rm_matrix)
 
     # ── 3. Build edge index and feature tensors per relation ──────────────────
     try:
@@ -1181,22 +1181,23 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
     if isinstance(simulation_results, dict) and "component_criticality" in simulation_results:
         for c in simulation_results["component_criticality"]:
             name = c.get("id")
-            # As above: maintainability/security are unmeasured here, not zero.
+            # As above: maintainability is unmeasured here, not zero.
             out[name] = {
                 "composite": float(c.get("combined_impact", 0.0)),
                 "reliability": float(c.get("failure_impact", 0.0)),
-                "availability": float(c.get("failure_impact", 0.0)),
             }
         return out
 
     if isinstance(simulation_results, dict) and "records" in simulation_results:
         # FaultInjector emits a single scalar I*(v). It measures reachability-style
-        # impact, so it maps onto composite/reliability/availability — but it says
-        # nothing about maintainability or security. Those keys are deliberately
+        # impact, so it maps onto composite/reliability (reliability is itself the
+        # r_alpha-blend of fault-tolerance and availability — this scalar doesn't
+        # distinguish them, so it is not emitted as a separate "availability" key)
+        # — but it says nothing about maintainability. That key is deliberately
         # absent rather than set to 0.0: an omitted key is an unmeasured dimension,
-        # a 0.0 is a measurement of "no impact". Conflating them made two of five
-        # prediction heads regress toward a constant. See the artifact's
-        # `labeled_dimensions` field for the authoritative list.
+        # a 0.0 is a measurement of "no impact". Conflating them made a prediction
+        # head regress toward a constant. See the artifact's `labeled_dimensions`
+        # field for the authoritative list.
         records = simulation_results["records"]
         if isinstance(records, dict):
             for nid, r in records.items():
@@ -1206,7 +1207,6 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
                 out[str(nid)] = {
                     "composite": score,
                     "reliability": score,
-                    "availability": score,
                 }
         elif isinstance(records, list):
             for r in records:
@@ -1219,7 +1219,6 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
                 out[str(nid)] = {
                     "composite": score,
                     "reliability": score,
-                    "availability": score,
                 }
         return out
 
@@ -1238,8 +1237,6 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
                 "composite": float(impact.composite_impact),
                 "reliability": float(impact.reliability_impact),
                 "maintainability": float(impact.maintainability_impact),
-                "availability": float(impact.availability_impact),
-                "security": float(impact.security_impact),
             }
         elif isinstance(r, dict):
             name = r.get("target_id")
@@ -1250,8 +1247,6 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
                 "composite": float(impact.get("composite_impact", 0.0)),
                 "reliability": float(impact.get("reliability_impact", 0.0)),
                 "maintainability": float(impact.get("maintainability_impact", 0.0)),
-                "availability": float(impact.get("availability_impact", 0.0)),
-                "security": float(impact.get("security_impact", 0.0)),
             }
     return out
 
@@ -1335,8 +1330,8 @@ def extract_structural_metrics_dict(structural_result) -> Dict[str, Dict[str, fl
     return out
 
 
-def extract_rmav_scores_dict(quality_result) -> Dict[str, Dict[str, float]]:
-    """Normalise QualityAnalyzer output (RMAV scores) to a flat dict."""
+def extract_rm_scores_dict(quality_result) -> Dict[str, Dict[str, float]]:
+    """Normalise QualityAnalyzer output (RM scores) to a flat dict."""
     out: Dict[str, Dict[str, float]] = {}
 
     if hasattr(quality_result, "components"):
@@ -1352,8 +1347,8 @@ def extract_rmav_scores_dict(quality_result) -> Dict[str, Dict[str, float]]:
                     "overall": float(getattr(scores, "overall", 0.0)),
                     "reliability": float(getattr(scores, "reliability", 0.0)),
                     "maintainability": float(getattr(scores, "maintainability", 0.0)),
+                    "fault_tolerance": float(getattr(scores, "fault_tolerance", 0.0)),
                     "availability": float(getattr(scores, "availability", 0.0)),
-                    "security": float(getattr(scores, "security", 0.0)),
                 }
     elif isinstance(quality_result, dict):
         components = quality_result.get("components", quality_result)
@@ -1370,8 +1365,8 @@ def extract_rmav_scores_dict(quality_result) -> Dict[str, Dict[str, float]]:
                         "overall": float(getattr(scores, "overall", 0.0) if not isinstance(scores, dict) else scores.get("overall", 0.0)),
                         "reliability": float(getattr(scores, "reliability", 0.0) if not isinstance(scores, dict) else scores.get("reliability", 0.0)),
                         "maintainability": float(getattr(scores, "maintainability", 0.0) if not isinstance(scores, dict) else scores.get("maintainability", 0.0)),
+                        "fault_tolerance": float(getattr(scores, "fault_tolerance", 0.0) if not isinstance(scores, dict) else scores.get("fault_tolerance", 0.0)),
                         "availability": float(getattr(scores, "availability", 0.0) if not isinstance(scores, dict) else scores.get("availability", 0.0)),
-                        "security": float(getattr(scores, "security", 0.0) if not isinstance(scores, dict) else scores.get("security", 0.0)),
                     }
         elif isinstance(components, dict):
             for name, scores in components.items():
@@ -1380,8 +1375,8 @@ def extract_rmav_scores_dict(quality_result) -> Dict[str, Dict[str, float]]:
                         "overall": float(scores.get("overall", 0.0)),
                         "reliability": float(scores.get("reliability", 0.0)),
                         "maintainability": float(scores.get("maintainability", 0.0)),
+                        "fault_tolerance": float(scores.get("fault_tolerance", 0.0)),
                         "availability": float(scores.get("availability", 0.0)),
-                        "security": float(scores.get("security", 0.0)),
                     }
 
     return out

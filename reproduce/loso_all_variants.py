@@ -35,7 +35,7 @@ if __name__ == "__main__" and __package__ is None:
 
 # Structural baselines first: they are training-free, so their LOSO score is
 # their only score, and a learned variant has to beat them to be worth training.
-ALL_VARIANTS = ["topo_baseline", "topo_qos", "topology_rmav", "gl", "gl_qos", "hgl", "hgl_qos"]
+ALL_VARIANTS = ["topo_baseline", "topo_qos", "topology_rm", "gl", "gl_qos", "hgl", "hgl_qos"]
 DEFAULT_SEEDS = "42,123,456,789,2024"
 OUTPUT_BASE   = Path("output/loso")
 RESULTS_DIR   = Path("results")
@@ -114,7 +114,7 @@ _VARIANT_LABELS = {
     "hgl":             "HGL",
     "gl_qos":          "GL-QoS",
     "gl":              "GL",
-    "topology_rmav":   "RMAV baseline",
+    "topology_rm":   "RM baseline",
 }
 
 

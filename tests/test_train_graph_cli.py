@@ -1,11 +1,11 @@
 """
-Tests for cli/train_graph.py's DB-sourced RMAV computation path.
+Tests for cli/train_graph.py's DB-sourced RM computation path.
 
 Regression coverage for two related defects: (1) --structural + --simulated
-supplied as files with no --rmav never connected to Neo4j to compute RMAV
+supplied as files with no --rm never connected to Neo4j to compute RM
 scores, because the outer guard only checked structural_dict/simulation_dict;
 (2) even when the inner branch did run, it read layer_result.quality, which
-AnalysisService.analyze_layer() never populates (only .structural), so RMAV
+AnalysisService.analyze_layer() never populates (only .structural), so RM
 scores were always {}.
 """
 import json
@@ -21,7 +21,7 @@ def _quality_result() -> QualityAnalysisResult:
     comp = ComponentQuality(
         id="App1", type="Application",
         scores=QualityScores(overall=0.7, reliability=0.6, maintainability=0.5,
-                              availability=0.4, security=0.3),
+                              fault_tolerance=0.45, availability=0.4),
         levels=QualityLevels(),
         structural=StructuralMetrics(id="App1", name="App1", type="Application"),
     )
@@ -32,7 +32,7 @@ def _quality_result() -> QualityAnalysisResult:
     )
 
 
-def test_rmav_scores_computed_when_structural_and_simulated_given_without_rmav(tmp_path):
+def test_rm_scores_computed_when_structural_and_simulated_given_without_rm(tmp_path):
     structural_path = tmp_path / "structural.json"
     structural_path.write_text(json.dumps({"App1": {"pagerank": 0.1}}))
     simulated_path = tmp_path / "simulated.json"
@@ -80,20 +80,20 @@ def test_rmav_scores_computed_when_structural_and_simulated_given_without_rmav(t
         train_graph.main()
 
     # C11: PredictionService.predict_quality must actually run — not read
-    # layer_result.quality (always None) as extract_rmav_scores_dict's input.
+    # layer_result.quality (always None) as extract_rm_scores_dict's input.
     mock_prediction_service.predict_quality.assert_called_once_with(layer_result.structural)
 
     # C13: the DB branch must trigger even though structural_dict and
-    # simulation_dict were both already file-supplied, because rmav_dict
+    # simulation_dict were both already file-supplied, because rm_dict
     # alone was still missing.
     mock_analysis_service.analyze_layer.assert_called_once_with("app")
 
-    # The RMAV scores computed above must actually reach GNNService.train(),
+    # The RM scores computed above must actually reach GNNService.train(),
     # non-empty and keyed by the real component id.
     train_kwargs = mock_gnn_instance.train.call_args.kwargs
-    assert train_kwargs["rmav_scores"] == {
+    assert train_kwargs["rm_scores"] == {
         "App1": {
             "overall": 0.7, "reliability": 0.6, "maintainability": 0.5,
-            "availability": 0.4, "security": 0.3,
+            "fault_tolerance": 0.45, "availability": 0.4,
         }
     }

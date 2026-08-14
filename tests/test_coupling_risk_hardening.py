@@ -14,8 +14,8 @@ def test_coupling_risk_capping():
     m.path_complexity = 2.0
     
     analyzer = QualityAnalyzer()
-    # We need to simulate the _compute_rmav scoring or test the logic
-    # Since _compute_rmav is complex, we can test the specific logic if extracted,
+    # We need to simulate the _compute_rm scoring or test the logic
+    # Since _compute_rm is complex, we can test the specific logic if extracted,
     # or just run a full scoring pass.
     
     # Let's check how to invoke scoring for a single node

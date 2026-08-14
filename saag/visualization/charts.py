@@ -5,7 +5,7 @@ Generates HTML/JS chart snippets using Chart.js for embedding in the dashboard.
 Each chart type maps to a specific visualization in the taxonomy (§6.4):
 
     criticality_distribution  → §6.4.2 Distribution Charts (Doughnut)
-    rmav_breakdown            → §6.4.3 Ranking Charts (Stacked Bar, AHP-weighted)
+    rm_breakdown            → §6.4.3 Ranking Charts (Stacked Bar, AHP-weighted)
     grouped_bar_chart         → §6.4.3 Ranking Charts (Grouped Bar)
     correlation_scatter       → §6.4.4 Correlation Charts (Scatter + diagonal)
     dim_rho_bars              → §6.4.4 Per-dimension ρ (HTML progress bars)
@@ -19,13 +19,13 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 from .palette import (
-    AHP_WEIGHTS,
+    EFFECTIVE_WEIGHTS,
     BRAND_PURPLE,
     CATEGORICAL_PALETTE,
     CRITICALITY_COLORS,
     DEFAULT_COLOR,
     NEUTRAL_GREY,
-    RMAS_COLORS,
+    RM_COLORS,
 )
 
 logger = logging.getLogger(__name__)
@@ -91,37 +91,39 @@ class ChartGenerator:
 
     # ─── §6.4.3: Ranking Charts ──────────────────────────────────────────
 
-    def rmav_breakdown(
+    def rm_breakdown(
         self,
         components: List[Any],
-        title: str = "RMAV Quality Breakdown (AHP-weighted)",
+        title: str = "RM Quality Breakdown",
         top_n: int = 10,
     ) -> Optional[str]:
         """
-        Stacked horizontal bar chart showing AHP-weighted RMAV dimension
+        Stacked horizontal bar chart showing weighted RM dimension
         contributions for top components.
 
-        Each segment = raw_dim_score × AHP_weight so bars sum to Q(v).
-        Weights: A=0.43, R=0.24, M=0.17, V=0.16.
+        Reliability is hierarchical (R = r_alpha*FT + (1-r_alpha)*A), so its
+        contribution to Q(v) is shown as two segments — Fault Tolerance and
+        Availability — rather than one; Maintainability is the third. Each
+        segment = raw_score × effective_weight (EFFECTIVE_WEIGHTS in
+        palette.py) so bars still sum to Q(v).
         """
         if not components:
             return None
         top = components[:top_n]
-        chart_id = self._next_id("rmav")
+        chart_id = self._next_id("rm")
         labels = [c.name if hasattr(c, "name") else c.id for c in top]
         datasets = []
         for dim_key, dim_label in [
-            ("availability",    "Availability (×0.43)"),
-            ("reliability",     "Reliability (×0.24)"),
-            ("maintainability", "Maintainability (×0.17)"),
-            ("security",        "Security (×0.16)"),
+            ("fault_tolerance", f"Fault Tolerance (×{EFFECTIVE_WEIGHTS['fault_tolerance']:.2f})"),
+            ("availability",    f"Availability (×{EFFECTIVE_WEIGHTS['availability']:.2f})"),
+            ("maintainability", f"Maintainability (×{EFFECTIVE_WEIGHTS['maintainability']:.2f})"),
         ]:
-            w = AHP_WEIGHTS[dim_key]
+            w = EFFECTIVE_WEIGHTS[dim_key]
             values = [round(getattr(c, dim_key, 0.0) * w, 4) for c in top]
             datasets.append({
                 "label": dim_label,
                 "data": values,
-                "backgroundColor": RMAS_COLORS[dim_key],
+                "backgroundColor": RM_COLORS[dim_key],
                 "borderWidth": 0,
             })
         config = {
@@ -463,14 +465,15 @@ class ChartGenerator:
         Pure HTML progress-bar panel for per-dimension Spearman ρ values.
         Returns an HTML string (not a canvas snippet) for direct embedding.
 
-        dim_rho: dict keyed by availability, reliability, maintainability
-                 and security — see LayerData.dim_rho.
+        dim_rho: dict keyed by reliability and maintainability (the two
+                 validated RM dimensions) plus availability (a Reliability
+                 sub-characteristic, reported as a diagnostic) — see
+                 LayerData.dim_rho and saag/validation/dimensions.py.
         """
         rows = [
-            ("Availability (A)",    "availability",    RMAS_COLORS["availability"]),
-            ("Reliability (R)",     "reliability",     RMAS_COLORS["reliability"]),
-            ("Maintainability (M)", "maintainability", RMAS_COLORS["maintainability"]),
-            ("Security (S)",        "security",        RMAS_COLORS["security"]),
+            ("Reliability (R)",     "reliability",     RM_COLORS["reliability"]),
+            ("Maintainability (M)", "maintainability", RM_COLORS["maintainability"]),
+            ("Availability (A)",    "availability",    RM_COLORS["availability"]),
         ]
 
         html_parts = ['<div class="dim-rho-panel">']

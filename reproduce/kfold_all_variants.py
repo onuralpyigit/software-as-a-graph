@@ -3,7 +3,7 @@
 reproduce/kfold_all_variants.py — Per-domain k-fold × all variants
 ====================================================================
 
-Runs cli/kfold_evaluate.py for each of the 5 model variants (topology_rmav, gl,
+Runs cli/kfold_evaluate.py for each of the 5 model variants (topology_rm, gl,
 gl_qos, hgl, hgl_qos; see ALL_VARIANTS below) and aggregates results into a
 unified JSON comparison table — the k-fold counterpart of
 reproduce/loso_all_variants.py.
@@ -41,7 +41,7 @@ if __name__ == "__main__" and __package__ is None:
 
 # Structural baselines first: training-free, so their score is the bar a
 # learned variant must clear to justify being trained at all.
-ALL_VARIANTS = ["topo_baseline", "topo_qos", "topology_rmav", "gl", "gl_qos", "hgl", "hgl_qos"]
+ALL_VARIANTS = ["topo_baseline", "topo_qos", "topology_rm", "gl", "gl_qos", "hgl", "hgl_qos"]
 DEFAULT_SEEDS = "42,123,456,789,2024"
 DEFAULT_K     = 5
 OUTPUT_BASE   = Path("output/kfold")
@@ -120,7 +120,7 @@ _VARIANT_LABELS = {
     "hgl":             "HGL",
     "gl_qos":          "GL-QoS",
     "gl":              "GL",
-    "topology_rmav":   "RMAV baseline",
+    "topology_rm":   "RM baseline",
 }
 
 

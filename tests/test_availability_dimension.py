@@ -262,15 +262,17 @@ class TestImpactMetricsIAv:
         assert "path_breaking_throughput_loss" in av
         assert "availability_impact"           in av
 
-    def test_reliability_impact_unchanged(self):
-        """Existing IR(v) reliability_impact should still be correct."""
+    def test_fault_tolerance_impact_unchanged(self):
+        """Existing IFT(v) fault_tolerance_impact formula (formerly reliability_impact,
+        renamed when reliability_impact became the alpha-blend of IFT and IA) should
+        still be correct."""
         im = ImpactMetrics(
             cascade_reach=0.5,
             weighted_cascade_impact=0.3,
             normalized_cascade_depth=0.8,
         )
         expected = 0.45 * 0.5 + 0.35 * 0.3 + 0.20 * 0.8
-        assert im.reliability_impact == pytest.approx(expected, abs=1e-6)
+        assert im.fault_tolerance_impact == pytest.approx(expected, abs=1e-6)
 
     def test_maintainability_impact_unchanged(self):
         """Existing IM(v) maintainability_impact should still be correct."""

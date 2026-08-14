@@ -95,9 +95,9 @@ DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
 #: guard in _load_cache_dicts so the check and its error message agree.
 _SPARSE_THRESHOLD = 0.20
 
-#: Opt-in to the RMAV label substitution in _load_cache_dicts. Off by default
-#: because the substitution is a label-leakage path; set by --allow-rmav-substitution.
-ALLOW_RMAV_SUBSTITUTION = False
+#: Opt-in to the RM label substitution in _load_cache_dicts. Off by default
+#: because the substitution is a label-leakage path; set by --allow-rm-substitution.
+ALLOW_RM_SUBSTITUTION = False
 
 RESULTS_DIR = Path("results")
 SCENARIOS_DIR = Path("data/scenarios")
@@ -130,20 +130,20 @@ def _safe_rho(rho: Any) -> float:
 
 
 def _load_cache_dicts(cache_dir: Path, graph_nodes: set,
-                      allow_rmav_substitution: Optional[bool] = None) -> Tuple[Dict, Dict, Dict, str]:
-    """Load and remap structural / simulation / RMAV dicts from *cache_dir*.
+                      allow_rm_substitution: Optional[bool] = None) -> Tuple[Dict, Dict, Dict, str]:
+    """Load and remap structural / simulation / RM dicts from *cache_dir*.
 
-    `allow_rmav_substitution` opts in to replacing sparse simulation labels with
-    RMAV quality scores. That substitution is a label-leakage path — see the
+    `allow_rm_substitution` opts in to replacing sparse simulation labels with
+    RM quality scores. That substitution is a label-leakage path — see the
     guard below — so it is off by default and raises instead. None defers to the
-    module-level ALLOW_RMAV_SUBSTITUTION, which --allow-rmav-substitution sets.
+    module-level ALLOW_RM_SUBSTITUTION, which --allow-rm-substitution sets.
     """
-    if allow_rmav_substitution is None:
-        allow_rmav_substitution = ALLOW_RMAV_SUBSTITUTION
+    if allow_rm_substitution is None:
+        allow_rm_substitution = ALLOW_RM_SUBSTITUTION
 
     structural_dict: Dict = {}
     simulation_dict: Dict = {}
-    rmav_dict: Dict = {}
+    rm_dict: Dict = {}
 
     sm_path = cache_dir / "structural_metrics.json"
     fi_path = cache_dir / "failure_impact.json"
@@ -154,40 +154,40 @@ def _load_cache_dicts(cache_dir: Path, graph_nodes: set,
     if fi_path.exists():
         simulation_dict = _parse_failure_impact(json.loads(fi_path.read_text()))
     if qi_path.exists():
-        rmav_dict = _parse_quality_scores(json.loads(qi_path.read_text()))
+        rm_dict = _parse_quality_scores(json.loads(qi_path.read_text()))
 
     structural_dict = _remap_node_ids(structural_dict, graph_nodes)
     simulation_dict = _remap_node_ids(simulation_dict, graph_nodes)
-    rmav_dict       = _remap_node_ids(rmav_dict,       graph_nodes)
+    rm_dict       = _remap_node_ids(rm_dict,       graph_nodes)
 
     gt_source = "Sim"
     # LABEL LEAKAGE GUARD.
-    # Substituting RMAV quality scores for sparse simulation labels makes the
+    # Substituting RM quality scores for sparse simulation labels makes the
     # labels a function of the same structural metrics that form the GNN's input
     # features (see saag/prediction/data_preparation.py BASE_METRIC_KEYS), so any
     # reported rho would measure the model rediscovering its own inputs rather
     # than predicting simulated impact. Sparse labels are a signal to fix the
     # labeler — not to swap in a proxy.
-    if _is_sparse(simulation_dict) and rmav_dict:
-        if not allow_rmav_substitution:
+    if _is_sparse(simulation_dict) and rm_dict:
+        if not allow_rm_substitution:
             raise ValueError(
                 f"Simulation labels in {cache_dir} are sparse "
                 f"(<{int(_SPARSE_THRESHOLD * 100)}% non-zero composite). Refusing to substitute "
-                "RMAV quality scores: RMAV is computed from the same structural metrics used as "
+                "RM quality scores: RM is computed from the same structural metrics used as "
                 "GNN input features, so substituting it makes the labels a function of the "
                 "features and invalidates every correlation metric. Regenerate the cache with a "
-                "labeler that covers these nodes, or pass allow_rmav_substitution=True to "
-                "acknowledge the leakage — results will be tagged 'RMAV-sub', never 'Sim'."
+                "labeler that covers these nodes, or pass allow_rm_substitution=True to "
+                "acknowledge the leakage — results will be tagged 'RM-sub', never 'Sim'."
             )
         logger.warning(
-            "LEAKAGE: substituting RMAV quality for sparse simulation labels in %s. "
+            "LEAKAGE: substituting RM quality for sparse simulation labels in %s. "
             "Correlation metrics from this run are not valid evidence of predictive power.",
             cache_dir,
         )
-        simulation_dict = _rmav_to_sim_format(rmav_dict)
-        gt_source = "RMAV-sub"
+        simulation_dict = _rm_to_sim_format(rm_dict)
+        gt_source = "RM-sub"
 
-    return structural_dict, simulation_dict, rmav_dict, gt_source
+    return structural_dict, simulation_dict, rm_dict, gt_source
 
 
 def _derive_depends_on_edges(topology: Dict) -> List[Dict]:
@@ -422,10 +422,10 @@ def _saag_structural_features(topology: Dict) -> Dict:
     return out
 
 
-def _compute_rmav_from_structural(
+def _compute_rm_from_structural(
     topology: Dict, structural_features: Dict, analyzer: Any = None
 ) -> Dict:
-    """Compute fresh RMAV quality scores from DEPENDS_ON structural features.
+    """Compute fresh RM quality scores from DEPENDS_ON structural features.
 
     Builds StructuralMetrics objects from the DEPENDS_ON subgraph metrics
     computed by _saag_structural_features() and runs QualityAnalyzer.  This
@@ -520,7 +520,7 @@ def _compute_nx_structural_features(nx_graph) -> Dict:
 
     Computed: pagerank, reverse_pagerank, betweenness_centrality,
     closeness_centrality, in_degree_centrality, out_degree_centrality,
-    clustering_coefficient. QoS/RMAV metrics left at 0 (computed separately).
+    clustering_coefficient. QoS/RM metrics left at 0 (computed separately).
     """
     import networkx as nx
     import math
@@ -578,7 +578,7 @@ def _compute_nx_structural_features(nx_graph) -> Dict:
 def _merge_structural_dicts(nx_features: Dict, cached: Dict) -> Dict:
     """Merge cached structural metrics with NX-derived features.
 
-    Cached values take priority (they include RMAV-specific metrics);
+    Cached values take priority (they include RM-specific metrics);
     NX-derived values fill in nodes absent from the cache and patch
     zero-value entries for the basic topological metrics.
     """
@@ -629,10 +629,10 @@ def _assert_cache_matches_dataset(scenario: str, cached: Dict, dataset_path: Pat
 
 
 def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[Any, Dict, Dict, Dict, bool]:
-    """Load graph + structural/simulation/RMAV data for a scenario.
+    """Load graph + structural/simulation/RM data for a scenario.
 
     Topology source priority: (1) LOSO cache topology.json, (2) data/scenarios/<name>.json.
-    The cache topology was used when computing RMAV quality and structural metrics,
+    The cache topology was used when computing RM quality and structural metrics,
     so using it ensures feature/label consistency.
 
     That preference is only safe while the cache still corresponds to the committed
@@ -665,10 +665,10 @@ def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[A
 
     if cache_dir.exists():
         graph_nodes = {str(n) for n in nx_graph.nodes()}
-        structural_dict, simulation_dict, rmav_dict, gt_source = _load_cache_dicts(cache_dir, graph_nodes)
+        structural_dict, simulation_dict, rm_dict, gt_source = _load_cache_dicts(cache_dir, graph_nodes)
     else:
         logger.warning("No LOSO cache for '%s'. Structural/simulation data will be empty.", scenario)
-        structural_dict, simulation_dict, rmav_dict, gt_source = {}, {}, {}, "Sim"
+        structural_dict, simulation_dict, rm_dict, gt_source = {}, {}, {}, "Sim"
 
     # Derive DEPENDS_ON features and build a DEPENDS_ON-only graph.
     #
@@ -724,7 +724,7 @@ def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[A
         nx_features = _compute_nx_structural_features(nx_graph)
         structural_dict = _merge_structural_dicts(nx_features, structural_dict)
 
-    return nx_graph, structural_dict, simulation_dict, rmav_dict, gt_source
+    return nx_graph, structural_dict, simulation_dict, rm_dict, gt_source
 
 
 def _remap_node_ids(d: Dict, graph_nodes: set) -> Dict:
@@ -775,19 +775,19 @@ def _is_sparse(d: Dict, threshold: float = _SPARSE_THRESHOLD) -> bool:
 
 
 def _clamp(v: float) -> float:
-    """Clamp a score to [0, 1] — RMAV reliability can occasionally exceed 1.0."""
+    """Clamp a score to [0, 1] — RM reliability can occasionally exceed 1.0."""
     return max(0.0, min(1.0, v))
 
 
-def _rmav_to_sim_format(rmav_dict: Dict) -> Dict:
-    """Convert RMAV quality scores to the simulation_dict format expected by networkx_to_hetero_data.
+def _rm_to_sim_format(rm_dict: Dict) -> Dict:
+    """Convert RM quality scores to the simulation_dict format expected by networkx_to_hetero_data.
 
     Maps: overall→composite, reliability→reliability, maintainability→maintainability,
     availability→availability, vulnerability→vulnerability.
-    All values are clamped to [0, 1] since RMAV reliability can exceed 1.0.
+    All values are clamped to [0, 1] since RM reliability can exceed 1.0.
     """
     result: Dict[str, Dict] = {}
-    for nid, v in rmav_dict.items():
+    for nid, v in rm_dict.items():
         if not isinstance(v, dict):
             continue
         result[str(nid)] = {
@@ -880,16 +880,16 @@ def _parse_quality_scores(raw: Dict) -> Dict:
     """Normalise quality_scores.json → {node_id: {overall, reliability, ...}}.
 
     Supports:
-      1. {layers: {<layer>: {rmav: {node_id: {...}}}}}   (nested format)
+      1. {layers: {<layer>: {rm: {node_id: {...}}}}}   (nested format)
       2. Flat {node_id: {...}}
     """
     if "layers" in raw:
         for layer_val in raw["layers"].values():
             if not isinstance(layer_val, dict):
                 continue
-            rmav = layer_val.get("rmav")
-            if isinstance(rmav, dict):
-                return {str(k): v for k, v in rmav.items() if isinstance(v, dict)}
+            rm = layer_val.get("rm")
+            if isinstance(rm, dict):
+                return {str(k): v for k, v in rm.items() if isinstance(v, dict)}
         return {}
     return {str(k): v for k, v in raw.items() if isinstance(v, dict)}
 
@@ -898,7 +898,7 @@ def _parse_quality_scores(raw: Dict) -> Dict:
 
 # Structural-metric keys whose values are derived from QoS edge weights.
 # Matches docs/prediction.md feature indices 10-12 plus the QSPOF amplifier
-# used in RMAV's A(v) dimension.  Zeroing these isolates the heterogeneity
+# used in RM's A(v) dimension.  Zeroing these isolates the heterogeneity
 # contribution from the QoS contribution.
 _QOS_STRUCTURAL_KEYS = ("w", "w_in", "w_out", "qspof", "qos_aggregate",
                          "qos_weight", "qos_weight_in", "qos_weight_out")
@@ -1338,7 +1338,7 @@ def _train_cell(
 
     # Decouple substrate per variant
     substrate = "native" if variant in ("hgl", "hgl_qos") else "projection"
-    nx_graph, structural_dict, simulation_dict, rmav_dict, gt_source = _load_scenario_data(scenario, substrate=substrate)
+    nx_graph, structural_dict, simulation_dict, rm_dict, gt_source = _load_scenario_data(scenario, substrate=substrate)
 
     if nx_graph.number_of_nodes() == 0:
         return {"error": "empty_graph"}
@@ -1385,9 +1385,9 @@ def _train_cell(
         )
 
     elif variant == "rasse_2025":
-        # Full IEEE RASSE 2025 approach (RMAV scores)
+        # Full IEEE RASSE 2025 approach (RM scores)
         return _score_cell(
-            pred_scores={str(k): float(v.get("overall", 0.0)) for k, v in rmav_dict.items()},
+            pred_scores={str(k): float(v.get("overall", 0.0)) for k, v in rm_dict.items()},
             use_qos=False,
             runtime_s=time.time() - start,
             extra={"trained": False},
@@ -1407,7 +1407,7 @@ def _train_cell(
             train_graph = _mask_qos_in_graph(nx_graph)
             train_sm    = _mask_qos_in_structural(structural_dict)
 
-        conv = networkx_to_hetero_data(train_graph, train_sm, simulation_dict, rmav_dict, qos_enabled=use_qos)
+        conv = networkx_to_hetero_data(train_graph, train_sm, simulation_dict, rm_dict, qos_enabled=use_qos)
         data = conv.hetero_data
         # Pinned split: identical train/test nodes for every variant in this cell.
         apply_external_splits(data, conv, splits)
@@ -1463,7 +1463,7 @@ def _train_cell(
             graph=train_graph,
             structural_metrics=train_sm,
             simulation_results=simulation_dict,
-            rmav_scores=rmav_dict,
+            rm_scores=rm_dict,
             train_ratio=train_ratio,
             val_ratio=val_ratio,
             num_epochs=num_epochs,
@@ -1772,20 +1772,20 @@ def parse_args():
     p.add_argument("--dry-run", action="store_true",
                    help="Print the planned matrix without training")
     p.add_argument("-v", "--verbose", action="store_true")
-    p.add_argument("--allow-rmav-substitution", action="store_true",
-                   help="Permit substituting RMAV quality scores for sparse simulation labels. "
-                        "This is a label-leakage path (RMAV derives from the same structural "
+    p.add_argument("--allow-rm-substitution", action="store_true",
+                   help="Permit substituting RM quality scores for sparse simulation labels. "
+                        "This is a label-leakage path (RM derives from the same structural "
                         "metrics used as GNN input features); affected cells are tagged "
-                        "'RMAV-sub' and their correlation metrics are not valid evidence.")
+                        "'RM-sub' and their correlation metrics are not valid evidence.")
     return p.parse_args()
 
 
 def main():
-    global ALLOW_RMAV_SUBSTITUTION
+    global ALLOW_RM_SUBSTITUTION
     args = parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARNING)
 
-    ALLOW_RMAV_SUBSTITUTION = args.allow_rmav_substitution
+    ALLOW_RM_SUBSTITUTION = args.allow_rm_substitution
 
     scenarios = args.scenarios or ALL_SCENARIOS
     variants = args.variants or ALL_VARIANTS

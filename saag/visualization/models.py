@@ -15,14 +15,14 @@ from typing import Dict, List, Any, Tuple, Optional
 
 @dataclass
 class ComponentDetail:
-    """Detailed component info with RMAV quality breakdown and impact."""
+    """Detailed component info with RM quality breakdown and impact."""
     id: str
     name: str
     type: str
     reliability: float = 0.0
     maintainability: float = 0.0
+    fault_tolerance: float = 0.0
     availability: float = 0.0
-    security: float = 0.0
     overall: float = 0.0
     level: str = "MINIMAL"
     impact: float = 0.0
@@ -41,8 +41,8 @@ class ComponentDetail:
             "id": self.id, "name": self.name, "type": self.type,
             "reliability": self.reliability,
             "maintainability": self.maintainability,
+            "fault_tolerance": self.fault_tolerance,
             "availability": self.availability,
-            "security": self.security,
             "overall": self.overall, "level": self.level,
             "impact": self.impact, "cascade_depth": self.cascade_depth,
             "anti_patterns": self.anti_patterns,
@@ -94,11 +94,11 @@ class LayerData:
     network_nodes: List[Dict[str, Any]] = field(default_factory=list)
     network_edges: List[Dict[str, Any]] = field(default_factory=list)
 
-    # Per-dimension Spearman ρ
+    # Per-dimension Spearman ρ (availability is a Reliability sub-characteristic,
+    # reported as a diagnostic — see saag/validation/dimensions.py)
     reliability_spearman: float = 0.0
     maintainability_spearman: float = 0.0
     availability_spearman: float = 0.0
-    security_spearman: float = 0.0
     composite_spearman: float = 0.0
     predictive_gain: float = 0.0
 
@@ -108,7 +108,7 @@ class LayerData:
     # Anti-pattern findings
     anti_patterns: List[Dict[str, Any]] = field(default_factory=list)
 
-    # Full component RMAV details
+    # Full component RM details
     component_details: List[ComponentDetail] = field(default_factory=list)
 
     # Scatter plot data: (id, Q(v), I(v), level)
@@ -116,13 +116,11 @@ class LayerData:
     reliability_scatter: List[Tuple[str, float, float, str]] = field(default_factory=list)
     maintainability_scatter: List[Tuple[str, float, float, str]] = field(default_factory=list)
     availability_scatter: List[Tuple[str, float, float, str]] = field(default_factory=list)
-    security_scatter: List[Tuple[str, float, float, str]] = field(default_factory=list)
 
     # Bootstrap confidence intervals per dimension
     reliability_ci: Optional[Tuple[float, float]] = None
     maintainability_ci: Optional[Tuple[float, float]] = None
     availability_ci: Optional[Tuple[float, float]] = None
-    security_ci: Optional[Tuple[float, float]] = None
     composite_ci: Optional[Tuple[float, float]] = None
 
     # Top-K overlap
@@ -189,8 +187,7 @@ class LayerData:
     def dim_rho(self) -> Dict[str, float]:
         """Convenience dict of per-dimension ρ for dim_rho_bars()."""
         return {
-            "availability":    self.availability_spearman,
             "reliability":     self.reliability_spearman,
             "maintainability": self.maintainability_spearman,
-            "security":        self.security_spearman,
+            "availability":    self.availability_spearman,
         }

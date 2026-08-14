@@ -54,7 +54,7 @@ def test_impact_scores_schema(tmp_path):
 #: node_types, which is a configuration choice, not an engine limitation.
 CANONICAL_LABELER = "FaultInjector"
 
-#: The engine that supplies the Validate stage's RMAV oracle. These two measure
+#: The engine that supplies the Validate stage's RM oracle. These two measure
 #: DIFFERENT quantities (see saag/simulation/models.py:336-350) and must never be
 #: mixed within a single stage.
 CANONICAL_VALIDATION_ORACLE = "FailureSimulator"
@@ -101,7 +101,6 @@ def test_artifact_declares_which_dimensions_it_measured(tmp_path):
     assert "maintainability" not in declared, (
         "FaultInjector emits a scalar impact; it does not measure maintainability"
     )
-    assert "security" not in declared
 
     # The parsed dict must carry exactly the declared dimensions — no fabricated
     # zeros standing in for dimensions the engine never computed.

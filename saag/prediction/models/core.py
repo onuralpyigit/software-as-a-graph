@@ -217,7 +217,7 @@ class NodeCriticalityGNN(nn.Module):
     - Per-type input projections → hidden_channels
     - N layers of HGTConv with EdgeFeatureEncoder injecting edge info before each layer
     - Optional bidirectional pass (forward + reverse) for upstream/downstream awareness
-    - Four RMAV output heads + one composite head (all sigmoid-activated)
+    - Four RM output heads + one composite head (all sigmoid-activated)
     """
 
     def __init__(
@@ -301,7 +301,7 @@ class NodeCriticalityGNN(nn.Module):
             self.rev_conv = None
 
         # Output heads (unchanged from prior architecture)
-        self.rmav_heads = nn.ModuleDict({
+        self.rm_heads = nn.ModuleDict({
             dim: ResidualMLP(hidden_channels, hidden_channels // 2, 1, dropout)
             for dim in ["reliability", "maintainability", "availability", "vulnerability"]
         })
@@ -353,10 +353,10 @@ class NodeCriticalityGNN(nn.Module):
     def decode(self, h_dict: Dict[str, Tensor]) -> Dict[str, Tensor]:
         out: Dict[str, Tensor] = {}
         for nt, h in h_dict.items():
-            r = torch.sigmoid(self.rmav_heads["reliability"](h))
-            m = torch.sigmoid(self.rmav_heads["maintainability"](h))
-            a = torch.sigmoid(self.rmav_heads["availability"](h))
-            v = torch.sigmoid(self.rmav_heads["vulnerability"](h))
+            r = torch.sigmoid(self.rm_heads["reliability"](h))
+            m = torch.sigmoid(self.rm_heads["maintainability"](h))
+            a = torch.sigmoid(self.rm_heads["availability"](h))
+            v = torch.sigmoid(self.rm_heads["vulnerability"](h))
             composite_in = torch.cat([h, r, m, a, v], dim=-1)
             composite = torch.sigmoid(self.composite_head(composite_in))
             out[nt] = torch.cat([composite, r, m, a, v], dim=-1)
@@ -419,22 +419,22 @@ class CriticalityLoss(nn.Module):
 
     Loss components:
     - MSE on composite score (labeled nodes)
-    - MSE on RMAV sub-scores (labeled nodes, multitask)
+    - MSE on RM sub-scores (labeled nodes, multitask)
     - ListMLE ranking loss on composite (labeled nodes)
     - Pairwise margin ranking loss on composite (labeled nodes)
-    - RMAV consistency regularization on unlabeled nodes
+    - RM consistency regularization on unlabeled nodes
     """
 
     def __init__(
         self,
         multitask_weight: float = 0.5,
-        rmav_consistency_weight: float = 0.1,
+        rm_consistency_weight: float = 0.1,
         ranking_weight: float = 0.3,
         pairwise_ranking_weight: float = 0.1,
     ):
         super().__init__()
         self.multitask_weight = multitask_weight
-        self.rmav_consistency_weight = rmav_consistency_weight
+        self.rm_consistency_weight = rm_consistency_weight
         self.ranking_weight = ranking_weight
         self.pairwise_ranking_weight = pairwise_ranking_weight
         self.mse = nn.MSELoss(reduction="mean")
@@ -444,7 +444,7 @@ class CriticalityLoss(nn.Module):
         pred: Tensor,
         target: Tensor,
         mask: Tensor,
-        rmav_target: Optional[Tensor] = None,
+        rm_target: Optional[Tensor] = None,
         dim_weights: Optional[Tensor] = None,
     ) -> Tuple[Tensor, Dict[str, float]]:
         labeled_pred = pred[mask]
@@ -468,14 +468,14 @@ class CriticalityLoss(nn.Module):
         )
 
         loss_consistency = torch.tensor(0.0, device=pred.device)
-        if rmav_target is not None:
+        if rm_target is not None:
             unlabeled_mask = ~mask
             unlabeled_pred = pred[unlabeled_mask]
-            unlabeled_rmav = rmav_target[unlabeled_mask]
+            unlabeled_rm = rm_target[unlabeled_mask]
             if unlabeled_pred.shape[0] > 0:
-                loss_consistency = self.mse(unlabeled_pred[:, 1:], unlabeled_rmav[:, 1:])
+                loss_consistency = self.mse(unlabeled_pred[:, 1:], unlabeled_rm[:, 1:])
 
-        total = supervised_loss + self.rmav_consistency_weight * loss_consistency
+        total = supervised_loss + self.rm_consistency_weight * loss_consistency
 
         components = {
             "composite": loss_composite.item(),
@@ -492,7 +492,7 @@ class CriticalityLoss(nn.Module):
         labeled_target: Tensor,
         dim_weights: Optional[Tensor],
     ) -> Tensor:
-        """MSE over the RMAV sub-scores, skipping dimensions the labeler never measured.
+        """MSE over the RM sub-scores, skipping dimensions the labeler never measured.
 
         `dim_weights` is a length-5 vector aligned with LABEL_COLS; a 0 entry
         excludes that dimension. Without it, a labeler that reports only a scalar

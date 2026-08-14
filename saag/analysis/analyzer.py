@@ -1,19 +1,22 @@
 """
  Quality Analyzer
 
- Computes composite quality scores for the four RMAV dimensions and an
- overall quality score, then classifies every component using the
- Box-Plot method (adaptive, data-driven thresholds).
+ Computes composite quality scores for the two RM (ISO/IEC 25010:2023) external
+ quality characteristics — Reliability and Maintainability — and an overall
+ quality score, then classifies every component using the Box-Plot method
+ (adaptive, data-driven thresholds). Availability is scored and reported as a
+ sub-characteristic of Reliability, not as a peer dimension; Vulnerability/
+ Security is not part of this model (see saag/core/quality_model.py).
 
  Formulas (per component v):
-     R*(v) = 0.45×RPR + 0.30×DG_in + 0.25×CDPot             (Reliability v5, Application/Broker/Node/Library)
-     R_topic*(v) = 0.50×FOC_freq(v) + 0.50×CDPot_freq(v)     (Reliability v6, Topic nodes)
+     FT*(v) = 0.45×RPR + 0.30×DG_in + 0.25×CDPot             (Fault Tolerance v5, Application/Broker/Node/Library)
+     FT_topic*(v) = 0.50×FOC_freq(v) + 0.50×CDPot_freq(v)     (Fault Tolerance v6, Topic nodes)
                    where FOC_freq(t) = log1p(f(t))·s(t) / max_t[log1p(f(t))·s(t)],
                    f(t) = message rate (Hz), s(t) = subscriber count
+     A*(v) = 0.35×AP_c_directed + 0.25×QSPOF + 0.25×BR + 0.10×CDI + 0.05×w(v) (Availability v3, sub-characteristic)
+     R*(v) = r_alpha×FT*(v) + (1-r_alpha)×A*(v)               (Reliability, hierarchical; r_alpha default 0.36)
      M*(v) = 0.35×BT  + 0.30×w_out + 0.15×CQP + 0.12×CR + 0.08×(1–CC) (Maintainability v6)
-     A*(v) = 0.35×AP_c_directed + 0.25×QSPOF + 0.25×BR + 0.10×CDI + 0.05×w(v) (Availability v3)
-     V*(v) = 0.40×REV  + 0.35×RCL  + 0.25×QADS              (Vulnerability v2)
-     Q*(v) = w_R×R*(v) + w_M×M*(v) + w_A×A*(v) + w_V×V*(v) (Overall)
+     Q*(v) = w_R×R*(v) + w_M×M*(v)                            (Overall; w_R, w_M default 0.80, 0.20)
 
  M*(v) v7 change (Hardening Phase):
      CQP formula updated to include LOC:
@@ -21,9 +24,9 @@
      Library Ca/Ce clarified as internal static analysis coupling.
      Single-node populations handle zero-span by returning 1.0 (most critical).
 
- R*(v) v5 change:
-     w_in (QoS-weighted in-degree) removed from R*(v).
-     w_in is now exclusively assigned to V*(v) as QADS (orthogonality resolved).
+ FT*(v) v5 change:
+     w_in (QoS-weighted in-degree) removed from FT*(v).
+     w_in was assigned to the retired V*(v) as QADS (orthogonality resolved).
      DG_in (raw in-degree, normalised) replaces it at weight 0.30.
      RPR weight increases from 0.40 → 0.45 to compensate.
      CDPot retains depth signal at 0.25.
@@ -61,7 +64,7 @@ from .models import StructuralAnalysisResult, QualityAnalysisResult
 from saag.core.layers import AnalysisLayer
 from saag.core.models import COUPLING_PATH_DELTA
 from .weight_calculator import AHPProcessor, QualityWeights
-from saag.core.quality_model import Provenance, derive_rmav_weights
+from saag.core.quality_model import Provenance, derive_rm_weights
 
 
 # ---------------------------------------------------------------------------
@@ -71,42 +74,47 @@ from saag.core.quality_model import Provenance, derive_rmav_weights
 @dataclass
 class CriticalityProfile:
     """
-    Per-component criticality flags for each RMAV dimension and the composite.
+    Per-component criticality flags for Reliability's two sub-characteristics
+    (Fault Tolerance, Availability), Maintainability, and the composite.
 
     Each flag is True if the component's score exceeds the upper fence
     (Q3 + k×IQR) of the corresponding dimension's box-plot distribution.
+    ``r_crit`` is Reliability's own (hierarchical) composite flag; ``ft_crit``
+    and ``a_crit`` are its sub-characteristic flags, kept because the pattern
+    vocabulary below (SPOF, Fragile Hub, ...) depends on distinguishing "hub
+    of propagation reach" from "structural SPOF" — both currently collapse
+    into Reliability alone.
 
-    The ``pattern`` property maps the four-dimensional flag tuple to a named
+    The ``pattern`` property maps the (FT, A, M) flag triple to a named
     architectural risk pattern useful for triage and remediation guidance.
     """
-    r_crit: bool = False
-    m_crit: bool = False
+    ft_crit: bool = False
     a_crit: bool = False
-    s_crit: bool = False
+    m_crit: bool = False
+    r_crit: bool = False
     q_crit: bool = False
 
     _PATTERNS = {
-        (True,  True,  True,  True):  "Total Hub",
-        (True,  False, False, False): "Reliability Hub",
-        (False, True,  False, False): "Bottleneck",
-        (False, False, True,  False): "SPOF",
-        (False, False, False, True):  "Attack Target",
-        (True,  False, True,  False): "Fragile Hub",
-        (False, True,  False, True):  "Exposed Bottleneck",
+        (True,  True,  True):  "Total Hub",
+        (True,  False, False): "Fault-Tolerance Hub",
+        (False, True,  False): "SPOF",
+        (False, False, True):  "Bottleneck",
+        (True,  True,  False): "Fragile Hub",
+        (False, True,  True):  "Fragile Bottleneck",
     }
 
     @property
     def pattern(self) -> str:
-        """Named pattern from (R_crit, M_crit, A_crit, S_crit) tuple."""
-        flag = (self.r_crit, self.m_crit, self.a_crit, self.s_crit)
+        """Named pattern from (FT_crit, A_crit, M_crit) tuple."""
+        flag = (self.ft_crit, self.a_crit, self.m_crit)
         return self._PATTERNS.get(flag, "Composite Risk")
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "r_crit": self.r_crit,
-            "m_crit": self.m_crit,
+            "ft_crit": self.ft_crit,
             "a_crit": self.a_crit,
-            "s_crit": self.s_crit,
+            "m_crit": self.m_crit,
+            "r_crit": self.r_crit,
             "q_crit": self.q_crit,
             "pattern": self.pattern,
         }
@@ -158,10 +166,13 @@ class QualityAnalyzer:
             # instance shared across multiple QualityAnalyzer construction
             # calls, and mutating it in place would corrupt every other
             # analyzer holding a reference to the same object.
+            # r_alpha is included: "equal weights" must mean equal at every
+            # level, not just at the composite — otherwise it would silently
+            # keep the 0.36/0.64 FT-vs-A stakeholder judgement baked into R.
             weights = dataclass_replace(
                 weights,
-                q_reliability=0.25, q_maintainability=0.25,
-                q_availability=0.25, q_security=0.25,
+                q_reliability=0.5, q_maintainability=0.5,
+                r_alpha=0.5,
             )
 
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
@@ -204,7 +215,7 @@ class QualityAnalyzer:
         effective_weights = self.weights
         domain_weighting: Optional[Dict[str, Any]] = None
         if self.domain_weights:
-            effective_weights, was_derived = derive_rmav_weights(
+            effective_weights, was_derived = derive_rm_weights(
                 self.domain_weights, effective_weights
             )
             domain_weighting = {
@@ -271,10 +282,10 @@ class QualityAnalyzer:
         if not metrics_list:
             return []
 
-        # Compute raw RMAV scores
+        # Compute raw RM scores
         scored: List[ComponentQuality] = []
         for m in metrics_list:
-            scores = self._compute_rmav(m, norm)
+            scores = self._compute_rm(m, norm)
             scored.append(ComponentQuality(
                 id=m.id,
                 type=m.type,
@@ -283,8 +294,10 @@ class QualityAnalyzer:
                 structural=m,
             ))
 
-        # Classify each dimension with box-plot (or percentile fallback)
-        dim_keys = ["reliability", "maintainability", "availability", "security", "overall"]
+        # Classify each dimension with box-plot (or percentile fallback).
+        # fault_tolerance and availability are Reliability's sub-characteristics —
+        # classified here too so CriticalityProfile can distinguish them.
+        dim_keys = ["reliability", "maintainability", "fault_tolerance", "availability", "overall"]
         level_maps: Dict[str, Dict[str, CriticalityLevel]] = {}
         upper_fences: Dict[str, float] = {}  # per-dimension upper-fence for CriticalityProfile
 
@@ -308,17 +321,17 @@ class QualityAnalyzer:
             c.levels = QualityLevels(
                 reliability=level_maps["reliability"].get(c.id, CriticalityLevel.MINIMAL),
                 maintainability=level_maps["maintainability"].get(c.id, CriticalityLevel.MINIMAL),
+                fault_tolerance=level_maps["fault_tolerance"].get(c.id, CriticalityLevel.MINIMAL),
                 availability=level_maps["availability"].get(c.id, CriticalityLevel.MINIMAL),
-                security=level_maps["security"].get(c.id, CriticalityLevel.MINIMAL),
                 overall=level_maps["overall"].get(c.id, CriticalityLevel.MINIMAL),
             )
             # CriticalityProfile: True iff score > upper_fence for that dimension
             c.profile = CriticalityProfile(
-                r_crit=c.scores.reliability     > upper_fences.get("reliability",     1.0),
-                m_crit=c.scores.maintainability > upper_fences.get("maintainability", 1.0),
-                a_crit=c.scores.availability    > upper_fences.get("availability",    1.0),
-                s_crit=c.scores.security        > upper_fences.get("security",        1.0),
-                q_crit=c.scores.overall         > upper_fences.get("overall",         1.0),
+                ft_crit=c.scores.fault_tolerance > upper_fences.get("fault_tolerance", 1.0),
+                a_crit=c.scores.availability     > upper_fences.get("availability",    1.0),
+                m_crit=c.scores.maintainability  > upper_fences.get("maintainability", 1.0),
+                r_crit=c.scores.reliability      > upper_fences.get("reliability",     1.0),
+                q_crit=c.scores.overall          > upper_fences.get("overall",         1.0),
             )
 
         # Sort by overall score descending
@@ -326,9 +339,10 @@ class QualityAnalyzer:
         return scored
 
 
-    def _compute_rmav(self, m: StructuralMetrics, norm: Dict[str, Any]) -> QualityScores:
+    def _compute_rm(self, m: StructuralMetrics, norm: Dict[str, Any]) -> QualityScores:
         """
-        Compute Reliability, Maintainability, Availability, Vulnerability scores.
+        Compute Reliability (hierarchical: Fault Tolerance + Availability) and
+        Maintainability scores, and the overall composite.
 
         Design principles:
             - Each raw metric maps to at most one dimension (orthogonality).
@@ -350,35 +364,30 @@ class QualityAnalyzer:
             return 0.0
 
         # Normalised values
-        pr   = _n(m.pagerank,         "pagerank")
         rpr  = _n(m.reverse_pagerank, "reverse_pagerank")
         bt   = _n(m.betweenness,      "betweenness")
-        cl   = _n(m.closeness,        "closeness")
-        rcl  = _n(m.reverse_closeness,"reverse_closeness")
-        ev   = _n(m.eigenvector,      "eigenvector")
-        rev  = _n(m.reverse_eigenvector,"reverse_eigenvector")
         id_n = _n(m.in_degree_raw,    "in_degree")
         od_n = _n(m.out_degree_raw,   "out_degree")
         cc   = m.clustering_coefficient
         qw   = _n(m.weight,           "weight")
-        
+
         # New precomputed Tier 1 signals
         ap_c = m.ap_c_directed
         cdi = m.cdi
         mpci = m.mpci
         foc = m.fan_out_criticality
 
-        # --- Reliability: R*(v) v6 = RPR + DG_in + CDPot_enh ---
+        # --- Fault Tolerance: FT*(v) v6 = RPR + DG_in + CDPot_enh ---
         if m.type == "Topic":
-            # R_topic(v) = 0.50 × FOC(v) + 0.50 × CDPot_topic(v)
+            # FT_topic(v) = 0.50 × FOC(v) + 0.50 × CDPot_topic(v)
             # CDPot_topic(v) = FOC(v) × (1 − min(publisher_count_norm(v), 1))
             # Note: StructuralAnalyzer/Neo4jRepo stores publisher count norm in dependency_weight_in
             publisher_norm = _n(m.dependency_weight_in, "w_in")
             cdpot_topic = foc * (1.0 - min(publisher_norm, 1.0))
-            R = 0.50 * foc + 0.50 * cdpot_topic
+            FT = 0.50 * foc + 0.50 * cdpot_topic
         else:
-            # Standard Reliability formula (Application, Broker, Node, Library)
-            # R(v) v6: RPR + DG_in + CDPot_enh (see §11.2 of structural-analysis.md)
+            # Standard Fault Tolerance formula (Application, Broker, Node, Library)
+            # FT(v) v6: RPR + DG_in + CDPot_enh (see §11.2 of structural-analysis.md)
             # DEPENDS_ON edges point dependent→dependency; failure propagates against edge
             # direction, so RPR on G^T is the correct cascade-reach estimator.
             _eps_r = 1e-9
@@ -386,10 +395,10 @@ class QualityAnalyzer:
             _od_raw = float(m.out_degree_raw)
             cdpot_base = ((rpr + id_n) / 2.0) * (1.0 - min(_od_raw / max(_id_raw, _eps_r), 1.0))
             cdpot_enh = min(cdpot_base * (1.0 + mpci), 1.0)
-            R = (
-                self.weights.r_reverse_pagerank * rpr
-                + getattr(self.weights, 'r_in_degree', 0.30) * id_n
-                + getattr(self.weights, 'r_cdpot', 0.25) * cdpot_enh
+            FT = (
+                w.ft_reverse_pagerank * rpr
+                + w.ft_in_degree * id_n
+                + w.ft_cdpot * cdpot_enh
             )
 
         # Maintainability: M(v) v6 — adds CQP as 5th signal
@@ -405,13 +414,13 @@ class QualityAnalyzer:
         m.coupling_risk_enh = coupling_risk  # Persisted for UNSTABLE_INTERFACE detection (antipattern_detector.py)
         M = (
             w.m_betweenness * bt
-            + getattr(w, 'm_w_out', 0.30) * w_out_n
-            + getattr(w, 'm_code_quality_penalty', 0.15) * cqp
-            + getattr(w, 'm_coupling_risk', 0.12) * coupling_risk
+            + w.m_w_out * w_out_n
+            + w.m_code_quality_penalty * cqp
+            + w.m_coupling_risk * coupling_risk
             + w.m_clustering * (1.0 - cc)
         )
 
-        # Availability: A(v) v3 — 5-term additive formula
+        # Availability: A(v) v3 — 5-term additive formula, a Reliability sub-characteristic
         # A(v) = 0.35·AP_c_directed + 0.25·QSPOF + 0.25·BR + 0.10·CDI + 0.05·w(v)
         qspof = ap_c * qw
         A = (
@@ -422,31 +431,26 @@ class QualityAnalyzer:
             + w.a_qos_weight  * qw
         )
 
-        # Security: strategic dependent reach + propagation speed + QoS attack surface
-        w_in_n = _n(m.dependency_weight_in, "w_in")
-        S = (
-            getattr(w, 's_reverse_eigenvector', 0.40) * rev
-            + getattr(w, 's_reverse_closeness', 0.35) * rcl
-            + getattr(w, 's_qads', 0.25) * w_in_n
-        )
+        # Reliability: hierarchical combination of Fault Tolerance and Availability
+        R = w.r_alpha * FT + (1.0 - w.r_alpha) * A
 
-        Q = w.q_reliability * R + w.q_maintainability * M + w.q_availability * A + w.q_security * S
+        Q = w.q_reliability * R + w.q_maintainability * M
 
         return QualityScores(
             reliability=R,
             maintainability=M,
+            fault_tolerance=FT,
             availability=A,
-            security=S,
             overall=Q,
         )
 
     # ------------------------------------------------------------------
-    # Edge scoring (RMAV-aligned with endpoint context)
+    # Edge scoring (RM-aligned with endpoint context)
     # ------------------------------------------------------------------
 
     def _score_and_classify_edges(self, edges_list: List[EdgeMetrics], comp_quality_map: Optional[Dict[str, ComponentQuality]] = None) -> List[EdgeQuality]:
         """
-        Score and classify edges using endpoint-aware RMAV formulas.
+        Score and classify edges using endpoint-aware RM formulas.
 
         When component quality scores are available, edge scores incorporate
         the criticality of connected endpoints. Otherwise falls back to
@@ -467,38 +471,31 @@ class QualityAnalyzer:
             src_q = comp_quality_map.get(em.source) if comp_quality_map else None
             tgt_q = comp_quality_map.get(em.target) if comp_quality_map else None
 
-            src_r = src_q.scores.reliability if src_q else 0.0
-            tgt_r = tgt_q.scores.reliability if tgt_q else 0.0
+            src_ft = src_q.scores.fault_tolerance if src_q else 0.0
+            tgt_ft = tgt_q.scores.fault_tolerance if tgt_q else 0.0
             src_a = src_q.scores.availability if src_q else 0.0
             tgt_a = tgt_q.scores.availability if tgt_q else 0.0
-            src_s = src_q.scores.security if src_q else 0.0
-            tgt_s = tgt_q.scores.security if tgt_q else 0.0
 
-            # Edge RMAS
-            e_reliability = (
+            # Edge RM, hierarchical to mirror the node-level model
+            e_fault_tolerance = (
                 w.e_betweenness * bt_norm
                 + w.e_bridge * edge_weight
-                + w.e_endpoint * max(src_r, tgt_r)
-            )
-            e_maintainability = (
-                w.e_betweenness * bt_norm
-                + w.e_bridge * bridge_factor
-                + w.e_security * edge_weight
+                + w.e_endpoint * max(src_ft, tgt_ft)
             )
             e_availability = (
                 w.e_bridge * bridge_factor
                 + w.e_endpoint * min(src_a, tgt_a)
             )
-            e_security = (
-                w.e_security * edge_weight
-                + w.e_endpoint * max(src_s, tgt_s)
+            e_reliability = w.r_alpha * e_fault_tolerance + (1.0 - w.r_alpha) * e_availability
+            e_maintainability = (
+                w.e_betweenness * bt_norm
+                + w.e_bridge * bridge_factor
+                + w.e_qos_weight * edge_weight
             )
 
             overall = (
                 w.q_reliability * e_reliability
                 + w.q_maintainability * e_maintainability
-                + w.q_availability * e_availability
-                + w.q_security * e_security
             )
 
             edges.append(EdgeQuality(
@@ -510,8 +507,8 @@ class QualityAnalyzer:
                 scores=QualityScores(
                     reliability=e_reliability,
                     maintainability=e_maintainability,
+                    fault_tolerance=e_fault_tolerance,
                     availability=e_availability,
-                    security=e_security,
                     overall=overall,
                 ),
                 structural=em,
@@ -583,7 +580,7 @@ class QualityAnalyzer:
         # Original ranking
         original_scores = {}
         for m in components:
-            scores = self._compute_rmav(m, norm).overall
+            scores = self._compute_rm(m, norm).overall
             original_scores[m.id] = scores
 
         original_ranking = sorted(original_scores, key=original_scores.get, reverse=True)
@@ -596,7 +593,7 @@ class QualityAnalyzer:
             perturbed_weights = self._perturb_weights(noise_std)
             perturbed_scores = {}
             for m in components:
-                perturbed_scores[m.id] = self._compute_rmav_with_weights(
+                perturbed_scores[m.id] = self._compute_rm_with_weights(
                     m, norm, perturbed_weights
                 ).overall
 
@@ -620,7 +617,13 @@ class QualityAnalyzer:
         }
 
     def _perturb_weights(self, noise_std: float) -> QualityWeights:
-        """Create a perturbed copy of current weights with Gaussian noise."""
+        """Create a perturbed copy of current weights with Gaussian noise.
+
+        r_alpha is perturbed alongside q_reliability/q_maintainability: it is
+        the largest new free parameter in the RM composite (it governs FT vs
+        A within Reliability), and omitting it would let this report claim
+        stability under weight noise without ever exercising it.
+        """
         w = self.weights
 
         def _perturb_group(*values: float) -> list:
@@ -628,58 +631,41 @@ class QualityAnalyzer:
             total = sum(perturbed)
             return [p / total for p in perturbed]
 
-        r_weights = _perturb_group(
-            w.r_reverse_pagerank,
-            getattr(w, 'r_in_degree', 0.30),
-            getattr(w, 'r_cdpot', 0.25),
+        ft_weights = _perturb_group(
+            w.ft_reverse_pagerank, w.ft_in_degree, w.ft_cdpot,
         )
         m_weights = _perturb_group(
-            w.m_betweenness,
-            getattr(w, 'm_w_out', 0.30),
-            getattr(w, 'm_code_quality_penalty', 0.15),
-            getattr(w, 'm_coupling_risk', 0.12),
-            w.m_clustering,
+            w.m_betweenness, w.m_w_out, w.m_code_quality_penalty,
+            w.m_coupling_risk, w.m_clustering,
         )
         a_weights = _perturb_group(
-            getattr(w, 'a_qspof', 0.45),
-            w.a_bridge_ratio,
-            getattr(w, 'a_ap_c_directed', 0.15),
-            getattr(w, 'a_cdi', 0.10),
+            w.a_ap_c_directed, w.a_qspof, w.a_bridge_ratio, w.a_cdi, w.a_qos_weight,
         )
-        s_weights = _perturb_group(
-            getattr(w, 's_reverse_eigenvector', 0.40),
-            getattr(w, 's_reverse_closeness', 0.35),
-            getattr(w, 's_qads', 0.25)
-        )
-        q_weights = _perturb_group(
-            w.q_reliability, w.q_maintainability, w.q_availability, w.q_security
-        )
+        q_weights = _perturb_group(w.q_reliability, w.q_maintainability)
+        r_alpha = min(0.99, max(0.01, w.r_alpha + random.gauss(0, noise_std)))
 
         return QualityWeights(
-            r_pagerank=0.0, r_reverse_pagerank=r_weights[0], r_in_degree=r_weights[1],
-            r_w_in=0.0, r_cdpot=r_weights[2],
+            ft_pagerank=0.0, ft_reverse_pagerank=ft_weights[0], ft_in_degree=ft_weights[1],
+            ft_w_in=0.0, ft_cdpot=ft_weights[2],
+            r_alpha=r_alpha,
             m_betweenness=m_weights[0], m_w_out=m_weights[1],
             m_code_quality_penalty=m_weights[2],
             m_coupling_risk=m_weights[3], m_clustering=m_weights[4],
             m_out_degree=0.0,
-            a_qspof=a_weights[0], a_bridge_ratio=a_weights[1],
-            a_ap_c_directed=a_weights[2], a_cdi=a_weights[3],
-            a_articulation=0.0, a_qos_weight=0.0, a_importance=0.0,
-            s_reverse_eigenvector=s_weights[0], s_reverse_closeness=s_weights[1], s_qads=s_weights[2],
-            s_eigenvector=0.0, s_closeness=0.0, s_out_degree=0.0,
+            a_ap_c_directed=a_weights[0], a_qspof=a_weights[1],
+            a_bridge_ratio=a_weights[2], a_cdi=a_weights[3], a_qos_weight=a_weights[4],
             q_reliability=q_weights[0], q_maintainability=q_weights[1],
-            q_availability=q_weights[2], q_security=q_weights[3],
         )
 
-    def _compute_rmav_with_weights(self, m: StructuralMetrics, norm: Dict[str, float], weights: QualityWeights) -> QualityScores:
+    def _compute_rm_with_weights(self, m: StructuralMetrics, norm: Dict[str, float], weights: QualityWeights) -> QualityScores:
         """
-        Version of _compute_rmav that accepts arbitrary weights (for sensitivity analysis).
+        Version of _compute_rm that accepts arbitrary weights (for sensitivity analysis).
         """
         # Save real weights, swap in perturbed ones, then swap back
         old_weights = self.weights
         self.weights = weights
         try:
-            return self._compute_rmav(m, norm)
+            return self._compute_rm(m, norm)
         finally:
             self.weights = old_weights
 
@@ -763,7 +749,7 @@ class QualityAnalyzer:
         distribution per metric, making the score robust to outliers.
 
         Returns a nested dict: {metric_name: {component_id: normalised_rank_score}}
-        The _n() helper in _compute_rmav detects this structure and looks up
+        The _n() helper in _compute_rm detects this structure and looks up
         the pre-computed rank score instead of dividing by max.
         """
         if not components:
@@ -856,12 +842,14 @@ class QualityAnalyzer:
         QoS profile of the topic set. Rules:
 
         - PERSISTENT / RELIABLE / CRITICAL priority → high-durability,
-          mission-critical system → raise q_reliability + q_availability.
+          mission-critical system → raise q_reliability.
         - VOLATILE / BEST_EFFORT / LOW priority → high-churn, low-durability
-          system → raise q_maintainability + q_vulnerability.
+          system → raise q_maintainability.
         - Mixed → keep balanced defaults.
 
-        All four weights are re-normalised to sum to 1.0.
+        Both weights are re-normalised to sum to 1.0. r_alpha (the FT-vs-A
+        split within Reliability) is a separate, stakeholder-declared lever
+        (see saag.core.quality_model.derive_rm_weights) and is untouched here.
         """
         import copy
         w = copy.copy(base_weights)
@@ -893,34 +881,26 @@ class QualityAnalyzer:
         # Adjust weights: rel_signal > 0.6 → reliability-critical system
         #                 rel_signal < 0.4 → volatile/best-effort system
         if rel_signal >= 0.6:
-            # Mission-critical: emphasise reliability and availability
+            # Mission-critical: emphasise reliability
             delta = min(0.15, (rel_signal - 0.5) * 0.30)
             q_r = w.q_reliability + delta
-            q_a = w.q_availability + delta * 0.5
-            q_m = w.q_maintainability - delta * 0.75
-            q_s = w.q_security - delta * 0.75
+            q_m = w.q_maintainability - delta
         elif rel_signal <= 0.4:
-            # Volatile/best-effort: emphasise maintainability and security
+            # Volatile/best-effort: emphasise maintainability
             delta = min(0.15, (0.5 - rel_signal) * 0.30)
-            q_r = w.q_reliability - delta * 0.75
-            q_a = w.q_availability - delta * 0.75
+            q_r = w.q_reliability - delta
             q_m = w.q_maintainability + delta
-            q_s = w.q_security + delta * 0.5
         else:
             # Balanced — keep defaults
             return w
 
         # Re-normalise to sum to 1.0 (clamp to small positive to avoid negatives)
         q_r = max(0.05, q_r)
-        q_a = max(0.05, q_a)
         q_m = max(0.05, q_m)
-        q_s = max(0.05, q_s)
-        total_q = q_r + q_a + q_m + q_s
+        total_q = q_r + q_m
 
-        w.q_reliability     = q_r / total_q
-        w.q_availability     = q_a / total_q
+        w.q_reliability      = q_r / total_q
         w.q_maintainability  = q_m / total_q
-        w.q_security        = q_s / total_q
 
         return w
 

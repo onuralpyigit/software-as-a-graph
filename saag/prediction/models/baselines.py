@@ -19,7 +19,7 @@ Both models:
 - Accept the same (x_dict, edge_index_dict, edge_attr_dict) interface as
   NodeCriticalityGNN for drop-in trainer compatibility.
 - Project all node types to a common hidden embedding before GATConv.
-- Output shape: {node_type: (N, 5)} matching the RMAV multi-task convention.
+- Output shape: {node_type: (N, 5)} matching the RM multi-task convention.
 
 Usage
 -----
@@ -130,8 +130,8 @@ class _HomoGATBase(nn.Module):
             # After concat: heads × (hidden//heads) = hidden
             self.norms.append(nn.LayerNorm(hidden_channels))
 
-        # RMAV output heads (same as NodeCriticalityGNN for fair comparison)
-        self.rmav_heads = nn.ModuleDict({
+        # RM output heads (same as NodeCriticalityGNN for fair comparison)
+        self.rm_heads = nn.ModuleDict({
             dim: _ResidualMLP(hidden_channels, hidden_channels // 2, 1, dropout)
             for dim in ["reliability", "maintainability", "availability", "vulnerability"]
         })
@@ -198,11 +198,11 @@ class _HomoGATBase(nn.Module):
         return x_flat, edge_index_flat, offsets
 
     def _decode(self, h: Tensor) -> Tensor:
-        """RMAV output heads → (N, 5) tensor."""
-        r = torch.sigmoid(self.rmav_heads["reliability"](h))
-        m = torch.sigmoid(self.rmav_heads["maintainability"](h))
-        a = torch.sigmoid(self.rmav_heads["availability"](h))
-        v = torch.sigmoid(self.rmav_heads["vulnerability"](h))
+        """RM output heads → (N, 5) tensor."""
+        r = torch.sigmoid(self.rm_heads["reliability"](h))
+        m = torch.sigmoid(self.rm_heads["maintainability"](h))
+        a = torch.sigmoid(self.rm_heads["availability"](h))
+        v = torch.sigmoid(self.rm_heads["vulnerability"](h))
         composite_in = torch.cat([h, r, m, a, v], dim=-1)
         composite = torch.sigmoid(self.composite_head(composite_in))
         return torch.cat([composite, r, m, a, v], dim=-1)  # (N, 5)

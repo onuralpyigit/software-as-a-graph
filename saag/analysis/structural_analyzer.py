@@ -812,7 +812,7 @@ class StructuralAnalyzer:
     def _collect_qos_profile(graph_data: Any) -> Dict[str, Any]:
         """
         Aggregate topic QoS distributions from graph_data for use by
-        QoS-aware RMAV weight adjustment in QualityAnalyzer.
+        QoS-aware RM weight adjustment in QualityAnalyzer.
 
         Returns a dict:
             {

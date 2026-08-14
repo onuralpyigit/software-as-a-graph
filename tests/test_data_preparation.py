@@ -1,5 +1,5 @@
 import pytest
-from saag.prediction.data_preparation import extract_simulation_dict, extract_rmav_scores_dict
+from saag.prediction.data_preparation import extract_simulation_dict, extract_rm_scores_dict
 
 def test_extract_simulation_dict_records_dict():
     raw = {
@@ -27,19 +27,19 @@ def test_extract_simulation_dict_records_dict():
     }
     res = extract_simulation_dict(raw)
     # FaultInjector emits a single scalar I*(v), which maps onto composite /
-    # reliability / availability. maintainability and security must be ABSENT,
-    # not 0.0: an omitted key means "unmeasured", a 0.0 means "measured as no
-    # impact". Emitting fabricated zeros trained two of five heads on a constant.
+    # reliability (reliability is itself the alpha-blend of fault-tolerance and
+    # availability, so this scalar isn't emitted as a separate "availability"
+    # key). maintainability must be ABSENT, not 0.0: an omitted key means
+    # "unmeasured", a 0.0 means "measured as no impact". Emitting a fabricated
+    # zero trained a head on a constant.
     assert res == {
         "App1": {
             "composite": 0.85,
             "reliability": 0.85,
-            "availability": 0.85,
         },
         "App2": {
             "composite": 0.35,
             "reliability": 0.35,
-            "availability": 0.35,
         }
     }
 
@@ -63,12 +63,10 @@ def test_extract_simulation_dict_records_list():
         "App1": {
             "composite": 0.75,
             "reliability": 0.75,
-            "availability": 0.75,
         },
         "App2": {
             "composite": 0.25,
             "reliability": 0.25,
-            "availability": 0.25,
         }
     }
 
@@ -80,8 +78,6 @@ def test_extract_simulation_dict_legacy_list():
                 "composite_impact": 0.95,
                 "reliability_impact": 0.85,
                 "maintainability_impact": 0.75,
-                "availability_impact": 0.65,
-                "security_impact": 0.55
             }
         }
     ]
@@ -91,15 +87,13 @@ def test_extract_simulation_dict_legacy_list():
             "composite": 0.95,
             "reliability": 0.85,
             "maintainability": 0.75,
-            "availability": 0.65,
-            "security": 0.55
         }
     }
 
-def test_extract_rmav_scores_dict_keys_by_id():
+def test_extract_rm_scores_dict_keys_by_id():
     # ComponentQuality has `id`, not `component_id` or `name` — a regression
     # guard for the bug where every key fell through to str(comp), leaving
-    # networkx_to_hetero_data's name-keyed lookup (and therefore y_rmav) all
+    # networkx_to_hetero_data's name-keyed lookup (and therefore y_rm) all
     # zero. Uses a minimal duck-typed stand-in rather than the full
     # ComponentQuality/QualityScores dataclasses to keep this a pure
     # data_preparation unit test.
@@ -113,17 +107,17 @@ def test_extract_rmav_scores_dict_keys_by_id():
         id="App1",
         scores=SimpleNamespace(
             overall=0.9, reliability=0.8, maintainability=0.7,
-            availability=0.6, security=0.5,
+            fault_tolerance=0.65, availability=0.6,
         ),
     )
-    res = extract_rmav_scores_dict(_QualityResult([comp]))
+    res = extract_rm_scores_dict(_QualityResult([comp]))
     assert res == {
         "App1": {
             "overall": 0.9,
             "reliability": 0.8,
             "maintainability": 0.7,
+            "fault_tolerance": 0.65,
             "availability": 0.6,
-            "security": 0.5,
         }
     }
 

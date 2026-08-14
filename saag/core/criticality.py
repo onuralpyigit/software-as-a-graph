@@ -14,7 +14,7 @@ one layer rather than absolute (D4). Definitions D1–D4 are in docs/criticality
 The construct spans three quality views and they are not interchangeable: it is
 computed from internal quality evidence (topology plus static code metrics),
 estimates the loss of external quality attributes (ISO/IEC 25010:2023 — fault
-tolerance, modifiability, availability, and confidentiality/integrity, one per RMAV
+tolerance, modifiability, availability, and confidentiality/integrity, one per RM
 dimension), and is defined on Quality-in-Use. Only the first of those transitions is
 measured anywhere in this project; see docs/criticality.md §7.1.
 
@@ -232,17 +232,19 @@ class CriticalityRanking:
     """
     Unified Data Transfer Object representing a component's criticality score.
 
-    ``scores`` holds the four RMAV dimensions plus the composite, each computed
-    over the QoS-weighted dependency graph; ``levels`` holds the box-plot tier
-    per dimension, which is relative to this system's own distribution.
+    ``scores`` holds Reliability and Maintainability plus Reliability's two
+    sub-characteristics (fault_tolerance, availability) and the composite,
+    each computed over the QoS-weighted dependency graph; ``levels`` holds
+    the box-plot tier per dimension, which is relative to this system's own
+    distribution.
     """
     id: str
     type: str
-    scores: Dict[str, float]  # reliability, maintainability, availability, security, overall
-    levels: Dict[str, str]    # reliability, maintainability, availability, security, overall
+    scores: Dict[str, float]  # reliability, maintainability, fault_tolerance, availability, overall
+    levels: Dict[str, str]    # reliability, maintainability, fault_tolerance, availability, overall
     overall: float
     level: str
-    provenance: str           # "rmav" or "gnn"
+    provenance: str           # "rm" or "gnn"
     name: str = ""
     blast_radius: int = 0
     cascade_depth: int = 0

@@ -5,11 +5,14 @@ The single source of truth for every colour the dashboard renders — chart
 series, Cytoscape nodes, D3 matrix cells, badges and hierarchy dots all read
 from here so they cannot drift apart.
 
-Criticality ramp is accessibility-tested; RMAV colours carry AHP dimension
+Criticality ramp is accessibility-tested; RM colours carry dimension
 semantics (R=purple structural authority, M=teal maintainability,
-A=coral operational risk, S=pink exposure).
+FT=indigo propagation reach, A=coral operational risk — FT and A are
+Reliability's sub-characteristics, not peer dimensions).
 """
 from typing import Dict
+
+from saag.analysis.weight_calculator import QualityWeights
 
 # ── Criticality levels ────────────────────────────────────────────────────────
 CRITICALITY_COLORS: Dict[str, str] = {
@@ -31,22 +34,33 @@ CRITICALITY_BADGE_COLORS: Dict[str, tuple] = {
 
 DEFAULT_COLOR = CRITICALITY_COLORS["MINIMAL"]
 
-# ── RMAV quality dimensions ───────────────────────────────────────────────────
-RMAS_COLORS: Dict[str, str] = {
+# ── RM quality dimensions ───────────────────────────────────────────────────
+RM_COLORS: Dict[str, str] = {
     "reliability":     "#534AB7",   # purple
     "maintainability": "#0F6E56",   # teal
-    "availability":    "#993C1D",   # coral
-    "security":        "#993556",   # pink
+    "fault_tolerance": "#3B4FA1",   # indigo (Reliability sub-characteristic)
+    "availability":    "#993C1D",   # coral (Reliability sub-characteristic)
 }
 
-# AHP dimension weights — bar segments are scaled by these so a stacked
-# RMAV bar sums to Q(v).
-AHP_WEIGHTS: Dict[str, float] = {
-    "availability":    0.43,
-    "reliability":     0.24,
-    "maintainability": 0.17,
-    "security":        0.16,
+# Composite dimension weights — bar segments are scaled by these so a stacked
+# RM bar sums to Q(v). Reads from QualityWeights rather than restating the
+# numbers, which is what let this dict and the real weights drift apart before.
+COMPOSITE_WEIGHTS: Dict[str, float] = {
+    "reliability":     QualityWeights().q_reliability,
+    "maintainability": QualityWeights().q_maintainability,
 }
+
+# Effective weight of each *reported* score (fault_tolerance, availability,
+# maintainability) toward Q(v), expanding R = r_alpha*FT + (1-r_alpha)*A so a
+# stacked bar over these three still sums to Q(v). Reliability itself is not
+# a bar segment here — it is the sum of the FT and A segments.
+_qw = QualityWeights()
+EFFECTIVE_WEIGHTS: Dict[str, float] = {
+    "fault_tolerance": _qw.q_reliability * _qw.r_alpha,
+    "availability":    _qw.q_reliability * (1.0 - _qw.r_alpha),
+    "maintainability": _qw.q_maintainability,
+}
+del _qw
 
 # ── Component types ───────────────────────────────────────────────────────────
 TYPE_COLORS: Dict[str, str] = {

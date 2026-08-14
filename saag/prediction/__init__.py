@@ -1,7 +1,7 @@
 """
 Prediction Package (Step 3)
 
-Rule-based RMAV scoring plus the optional GNN predictor.
+Rule-based RM scoring plus the optional GNN predictor.
 
 The GNN symbols (``GNNService`` and friends) are resolved lazily: importing them
 pulls in torch and torch_geometric, and most consumers of this package —
@@ -18,7 +18,7 @@ if TYPE_CHECKING:  # pragma: no cover — for type checkers and IDEs only
     from .gnn_service import GNNService, GNNAnalysisResult, GNNCriticalityScore
     from .data_preparation import (
         extract_structural_metrics_dict,
-        extract_rmav_scores_dict,
+        extract_rm_scores_dict,
         extract_simulation_dict,
         networkx_to_hetero_data,
     )
@@ -28,7 +28,7 @@ _LAZY_MODULES = {
     ".gnn_service": ("GNNService", "GNNAnalysisResult", "GNNCriticalityScore"),
     ".data_preparation": (
         "extract_structural_metrics_dict",
-        "extract_rmav_scores_dict",
+        "extract_rm_scores_dict",
         "extract_simulation_dict",
         "networkx_to_hetero_data",
     ),

@@ -22,7 +22,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Multi-layer structural graph analysis for distributed pub-sub systems.",
         epilog="Computes structural metrics M(v) and the graph summary S(G) only. "
-               "RMAV weighting, normalization, and sensitivity options belong to the "
+               "RM weighting, normalization, and sensitivity options belong to the "
                "Predict stage — see `saag-predict --help`.",
     )
 
