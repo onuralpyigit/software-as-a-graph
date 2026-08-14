@@ -244,13 +244,15 @@ _EDGE_BASE_DIM = 2 + len(EDGE_TYPES)  # = 9
 _QOS_EXTRA_DIM = 7
 EDGE_FEATURE_DIM = _EDGE_BASE_DIM + _QOS_EXTRA_DIM  # = 16
 
-# Label column indices in the (N, 5) label matrix
+# Label column indices in the (N, 3) label matrix. availability is not a
+# separate column — it is a Reliability sub-characteristic and already feeds
+# the "reliability" column's ground truth (see saag.simulation.models
+# ImpactMetrics.reliability_impact, the r_alpha blend of fault_tolerance_impact
+# and availability_impact). Vulnerability/Security is retired.
 LABEL_COLS = {
     "composite": 0,
     "reliability": 1,
     "maintainability": 2,
-    "availability": 3,
-    "security": 4,
 }
 
 # ── QoS edge feature helpers ───────────────────────────────────────────────────
@@ -600,12 +602,12 @@ class GraphConversionResult:
 
     present_node_types: List[str] = field(default_factory=list)
 
-    #: Which of the 5 label columns (see LABEL_COLS) the labeler actually
+    #: Which of the 3 label columns (see LABEL_COLS) the labeler actually
     #: measured. Columns marked False are structural zeros, not measurements —
     #: training or scoring on them regresses a head toward a constant. Inferred
     #: from which keys the simulation dict carries; see extract_simulation_dict.
     dimension_mask: List[bool] = field(
-        default_factory=lambda: [True, True, True, True, True]
+        default_factory=lambda: [True, True, True]
     )
 
 
@@ -629,11 +631,13 @@ def networkx_to_hetero_data(
     structural_metrics:
         ``{node_name: {metric_key: value}}`` from ``StructuralAnalyzer``.
     simulation_results:
-        ``{node_name: {composite, reliability, maintainability,
-                        availability, security}}`` training labels.
+        ``{node_name: {composite, reliability, maintainability}}``
+        training labels (see LABEL_COLS).
     rm_scores:
         ``{node_name: {overall, reliability, maintainability,
-                        availability, security}}`` for node predictions.
+                        fault_tolerance, availability}}`` for node
+        predictions — fault_tolerance/availability are Reliability's
+        sub-characteristics, reported but not separate label columns.
     rank_normalize_features:
         Apply within-graph rank normalization (see
         :func:`_rank_normalize_base_columns`) to the ``BASE_METRIC_KEYS``
@@ -658,8 +662,8 @@ def networkx_to_hetero_data(
 
     # Infer which label dimensions the labeler actually measured, from the keys
     # it emitted. A labeler that reports only a scalar impact (FaultInjector)
-    # leaves maintainability/security absent; those columns stay zero in the
-    # matrix but must not be treated as observations. See GraphConversionResult.
+    # leaves maintainability absent; that column stays zero in the matrix but
+    # must not be treated as an observation. See GraphConversionResult.
     if simulation_results:
         measured_keys = set()
         for sim in simulation_results.values():
@@ -738,7 +742,7 @@ def networkx_to_hetero_data(
 
         # ── Node labels (simulation ground truth) ─────────────────────────────
         if simulation_results:
-            label_matrix = np.zeros((n, 5), dtype=np.float32)
+            label_matrix = np.zeros((n, len(LABEL_COLS)), dtype=np.float32)
             # Presence in the simulation dict, NOT |y| > 0. A node the simulator
             # targeted and scored 0.0 is a real observation at the low end of the
             # ranking; a node never targeted is missing data. Collapsing both to
@@ -748,11 +752,8 @@ def networkx_to_hetero_data(
             for local_idx, name in enumerate(nodes):
                 sim = simulation_results.get(name)
                 if sim is not None:
-                    label_matrix[local_idx, 0] = float(sim.get("composite", 0.0))
-                    label_matrix[local_idx, 1] = float(sim.get("reliability", 0.0))
-                    label_matrix[local_idx, 2] = float(sim.get("maintainability", 0.0))
-                    label_matrix[local_idx, 3] = float(sim.get("availability", 0.0))
-                    label_matrix[local_idx, 4] = float(sim.get("security", 0.0))
+                    for key, col in LABEL_COLS.items():
+                        label_matrix[local_idx, col] = float(sim.get(key, 0.0))
                     label_mask[local_idx] = True
                     labelled_count += 1
             data[node_type].y = torch.from_numpy(label_matrix)
@@ -761,15 +762,18 @@ def networkx_to_hetero_data(
 
         # ── RM scores (for consistency regularization) ───────────
         if rm_scores:
-            rm_matrix = np.zeros((n, 5), dtype=np.float32)
+            # rm_scores dicts (extract_rm_scores_dict) key the composite "overall"
+            # rather than "composite" — same column order as LABEL_COLS, different
+            # key name for that one column.
+            rm_matrix = np.zeros((n, len(LABEL_COLS)), dtype=np.float32)
+            rm_score_cols = {"overall": LABEL_COLS["composite"], **{
+                k: v for k, v in LABEL_COLS.items() if k != "composite"
+            }}
             for local_idx, name in enumerate(nodes):
                 rm = rm_scores.get(name)
                 if rm is not None:
-                    rm_matrix[local_idx, 0] = float(rm.get("overall", 0.0))
-                    rm_matrix[local_idx, 1] = float(rm.get("reliability", 0.0))
-                    rm_matrix[local_idx, 2] = float(rm.get("maintainability", 0.0))
-                    rm_matrix[local_idx, 3] = float(rm.get("availability", 0.0))
-                    rm_matrix[local_idx, 4] = float(rm.get("security", 0.0))
+                    for key, col in rm_score_cols.items():
+                        rm_matrix[local_idx, col] = float(rm.get(key, 0.0))
             data[node_type].y_rm = torch.from_numpy(rm_matrix)
 
     # ── 3. Build edge index and feature tensors per relation ──────────────────
@@ -824,16 +828,14 @@ def networkx_to_hetero_data(
         if simulation_results:
             src_nodes = result.node_id_map[src_type]
             dst_nodes = result.node_id_map[dst_type]
-            edge_labels = np.zeros((len(srcs), 5), dtype=np.float32)
+            edge_labels = np.zeros((len(srcs), len(LABEL_COLS)), dtype=np.float32)
             for i, (s_idx, d_idx) in enumerate(zip(srcs, dsts)):
                 s_name = src_nodes[s_idx]
                 d_name = dst_nodes[d_idx]
                 is_bridge = (s_name, d_name) in bridges or (d_name, s_name) in bridges
                 bridge_multiplier = 1.0 if is_bridge else 0.1
                 s_sim = simulation_results.get(s_name, {})
-                for col, key in enumerate(
-                    ["composite", "reliability", "maintainability", "availability", "security"]
-                ):
+                for key, col in LABEL_COLS.items():
                     edge_labels[i, col] = float(s_sim.get(key, 0.0)) * bridge_multiplier
             data[rel].y_edge = torch.from_numpy(edge_labels)
 
@@ -1114,7 +1116,7 @@ def normalize_labels_robust(hetero_data, rank_normalize: bool = False) -> None:
     ]
     if not all_labels:
         return
-    concat = torch.cat(all_labels, dim=0)   # (N_total, 5)
+    concat = torch.cat(all_labels, dim=0)   # (N_total, len(LABEL_COLS))
 
     # Mask out original zeros to preserve zero structure
     non_zero_mask = concat[:, 0].abs() > 1e-6

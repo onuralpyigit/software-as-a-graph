@@ -443,14 +443,13 @@ def main() -> None:
                 top_nodes = gnn_result.top_critical_nodes(n=10)
                 print()
                 print(f"  GNN top-10 components:")
-                print(f"  {'Rank':<4} {'Component':<32} {'Q_GNN':>6}  {'R':>6}  {'M':>6}  {'A':>6}  {'S':>6}  {'Source'}")
-                print(f"  {'─'*4} {'─'*32} {'─'*6}  {'─'*6}  {'─'*6}  {'─'*6}  {'─'*6}  {'─'*10}")
+                print(f"  {'Rank':<4} {'Component':<32} {'Q_GNN':>6}  {'R':>6}  {'M':>6}  {'Source'}")
+                print(f"  {'─'*4} {'─'*32} {'─'*6}  {'─'*6}  {'─'*6}  {'─'*10}")
                 for rank, ns in enumerate(top_nodes, 1):
                     print(
                         f"  {rank:<4} {str(ns.component)[:31]:<32} "
                         f"{ns.composite_score:>6.3f}  {ns.reliability_score:>6.3f}  "
-                        f"{ns.maintainability_score:>6.3f}  {ns.availability_score:>6.3f}  "
-                        f"{ns.security_score:>6.3f}  {ns.source}"
+                        f"{ns.maintainability_score:>6.3f}  {ns.source}"
                     )
                 print()
 
@@ -487,8 +486,8 @@ def main() -> None:
                     "overall":          c.scores.overall,
                     "reliability":      c.scores.reliability,
                     "maintainability":  c.scores.maintainability,
+                    "fault_tolerance":  c.scores.fault_tolerance,
                     "availability":     c.scores.availability,
-                    "security":         c.scores.security,
                     "is_spof":          getattr(c.structural, "is_articulation_point", False),
                     **prop_metrics.get(c.id, {}),
                 }

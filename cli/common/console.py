@@ -623,13 +623,13 @@ class ConsoleDisplay:
                 print(f"  {self.colored('No prediction scores available.', Colors.GRAY)}")
                 return
             sorted_nodes = sorted(node_scores.values(), key=lambda s: s.get("composite_score", 0), reverse=True)
-            header = f"  {'#':<4} {'Component':<30} {'Score':>7} {'Level':<10} {'R':>6} {'M':>6} {'A':>6} {'V':>6}"
+            header = f"  {'#':<4} {'Component':<30} {'Score':>7} {'Level':<10} {'R':>6} {'M':>6}"
             print(self.colored(header, Colors.WHITE, bold=True)); print("  " + "-" * 78)
             for i, s in enumerate(sorted_nodes[:limit], 1):
                 level = s.get("criticality_level", "MINIMAL")
                 color = self.level_color(level)
                 score_str = f"{s.get('composite_score', 0):>7.4f}"
-                print(f"  {i:<4} {s.get('component', '')[:29]:<30} {self.colored(score_str, color)} {self.colored(level[:10], color):<10} {s.get('reliability_score', 0):>6.3f} {s.get('maintainability_score', 0):>6.3f} {s.get('availability_score', 0):>6.3f} {s.get('security_score', 0):>6.3f}")
+                print(f"  {i:<4} {s.get('component', '')[:29]:<30} {self.colored(score_str, color)} {self.colored(level[:10], color):<10} {s.get('reliability_score', 0):>6.3f} {s.get('maintainability_score', 0):>6.3f}")
             if len(sorted_nodes) > limit: print(f"\n  {self.colored(f'... and {len(sorted_nodes) - limit} more components', Colors.GRAY)}")
             return
 
@@ -649,8 +649,6 @@ class ConsoleDisplay:
         table.add_column("Level", justify="left")
         table.add_column("R", justify="right")
         table.add_column("M", justify="right")
-        table.add_column("A", justify="right")
-        table.add_column("V", justify="right")
 
         for i, s in enumerate(sorted_nodes[:limit], 1):
             lvl = s.get("criticality_level", "MINIMAL").upper()
@@ -662,8 +660,6 @@ class ConsoleDisplay:
                 Text(lvl.capitalize(), style=color),
                 f"{s.get('reliability_score', 0):.3f}",
                 f"{s.get('maintainability_score', 0):.3f}",
-                f"{s.get('availability_score', 0):.3f}",
-                f"{s.get('security_score', 0):.3f}"
             )
         self.console.print(table)
 
@@ -918,7 +914,7 @@ class ConsoleDisplay:
             
         self.print_subheader(f"Top {min(len(components), n)} Critical Components (GNN)")
         
-        header = f"  {'Rank':<5} {'Component':<25} {'Score':>7} {'Lvl':<9} {'R':>5} {'M':>5} {'A':>5} {'V':>5} {'Dom':<4} {'B/D':<6} {'S'}"
+        header = f"  {'Rank':<5} {'Component':<25} {'Score':>7} {'Lvl':<9} {'R':>5} {'M':>5} {'Dom':<4} {'B/D':<6} {'S'}"
         print(self.colored(header, Colors.WHITE, bold=True))
         print("  " + "-" * 88)
         
@@ -937,17 +933,13 @@ class ConsoleDisplay:
                 comp_s = s.scores.get("overall", 0.0)
                 r_s = s.scores.get("reliability", 0.0)
                 m_s = s.scores.get("maintainability", 0.0)
-                a_s = s.scores.get("availability", 0.0)
-                v_s = s.scores.get("security", 0.0)
             else:
                 comp_s = getattr(s, "composite_score", 0.0)
                 r_s = getattr(s, "reliability_score", 0.0)
                 m_s = getattr(s, "maintainability_score", 0.0)
-                a_s = getattr(s, "availability_score", 0.0)
-                v_s = getattr(s, "security_score", 0.0)
-            
+
             # Dominant dimension logic
-            dims = {"R": r_s, "M": m_s, "A": a_s, "S": v_s}
+            dims = {"R": r_s, "M": m_s}
             dominant = max(dims, key=dims.get)
             
             # Structural info (blast radius, depth, SPOF)
@@ -974,7 +966,6 @@ class ConsoleDisplay:
                 f"{self.colored(f'{comp_s:>7.4f}', color)} "
                 f"{self.colored(f'{level[:8]:<9}', color)} "
                 f"{r_s:>5.2f} {m_s:>5.2f} "
-                f"{a_s:>5.2f} {v_s:>5.2f} "
                 f"{self.colored(dominant, Colors.CYAN):<4} "
                 f"{bd_str:<6} "
                 f"{spof_flag}"

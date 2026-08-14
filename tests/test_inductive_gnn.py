@@ -23,12 +23,12 @@ def _build_complex_hetero_data():
     # Node 0: train, Node 1: val, Node 2: test, Node 3: unlabelled
     data["Application"].x = torch.randn(4, 23)
     data["Application"].y = torch.tensor([
-        [0.8, 0.7, 0.6, 0.8, 0.9],  # train node (labelled)
-        [0.4, 0.3, 0.2, 0.4, 0.5],  # val node (labelled)
-        [0.6, 0.5, 0.4, 0.6, 0.7],  # test node (labelled)
-        [0.0, 0.0, 0.0, 0.0, 0.0]   # unlabelled node
+        [0.8, 0.7, 0.6],  # train node (labelled)
+        [0.4, 0.3, 0.2],  # val node (labelled)
+        [0.6, 0.5, 0.4],  # test node (labelled)
+        [0.0, 0.0, 0.0]   # unlabelled node
     ], dtype=torch.float)
-    data["Application"].y_rm = torch.randn(4, 5)
+    data["Application"].y_rm = torch.randn(4, 3)
     data["Application"].train_mask = torch.tensor([True, False, False, False], dtype=torch.bool)
     data["Application"].val_mask = torch.tensor([False, True, False, False], dtype=torch.bool)
     data["Application"].test_mask = torch.tensor([False, False, True, False], dtype=torch.bool)
@@ -184,11 +184,11 @@ def test_normalize_labels_robust_applied_once_to_every_graph(tmp_path):
 
     ig1 = HeteroData()
     ig1["Application"].x = torch.randn(2, 23)
-    ig1["Application"].y = torch.zeros(2, 5)
+    ig1["Application"].y = torch.zeros(2, 3)
     ig1["Application"].num_nodes = 2
     ig2 = HeteroData()
     ig2["Application"].x = torch.randn(2, 23)
-    ig2["Application"].y = torch.zeros(2, 5)
+    ig2["Application"].y = torch.zeros(2, 3)
     ig2["Application"].num_nodes = 2
 
     seen_graphs = []
@@ -238,7 +238,7 @@ def test_gnn_trainer_validates_against_primary_graph_in_loso(tmp_path):
 
     ig1 = HeteroData()
     ig1["Application"].x = torch.randn(2, 23)
-    ig1["Application"].y = torch.zeros(2, 5)
+    ig1["Application"].y = torch.zeros(2, 3)
     ig1["Application"].num_nodes = 2
 
     metrics = EvalMetrics(spearman_rho=0.5, f1_score=0.5, rmse=1.0, mae=1.0,

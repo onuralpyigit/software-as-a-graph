@@ -8,6 +8,7 @@ import logging
 
 from api.models import Neo4jCredentials
 from api.dependencies import get_repository
+from api.presenters.components_presenter import serialize_critical_edge
 from saag.adapters import create_repository
 from saag.core.ports.graph_repository import IGraphRepository
 from saag import Client
@@ -141,21 +142,7 @@ async def get_critical_edges(
             )[:limit]
             
             # Format edges for response
-            formatted_edges = [
-                {
-                    "source": e.source,
-                    "target": e.target,
-                    "criticality_level": e.level.value if hasattr(e.level, 'value') else str(e.level),
-                    "scores": {
-                        "reliability": e.scores.reliability,
-                        "maintainability": e.scores.maintainability,
-                        "availability": e.scores.availability,
-                        "security": e.scores.security,
-                        "overall": e.scores.overall
-                    }
-                }
-                for e in edges
-            ]
+            formatted_edges = [serialize_critical_edge(e) for e in edges]
             
             return {
                 "success": True,

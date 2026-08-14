@@ -132,10 +132,12 @@ def test_simulation_failure_layer_resolution(mock_client):
                             "cascade": {"count": 0, "depth": 0},
                             "affected": {"topics": 0, "publishers": 0, "subscribers": 0},
                             "composite_impact": 0.0,
-                            "reliability": {"cascade_reach": 0.0, "weighted_cascade_impact": 0.0, "normalized_cascade_depth": 0.0, "reliability_impact": 0.0},
+                            "reliability": {
+                                "reliability_impact": 0.0,
+                                "fault_tolerance": {"cascade_reach": 0.0, "weighted_cascade_impact": 0.0, "normalized_cascade_depth": 0.0, "fault_tolerance_impact": 0.0},
+                            },
                             "maintainability": {"change_reach": 0.0, "weighted_change_impact": 0.0, "normalized_change_depth": 0.0, "maintainability_impact": 0.0},
                             "availability": {"weighted_reachability_loss": 0.0, "weighted_fragmentation": 0.0, "path_breaking_throughput_loss": 0.0, "availability_impact": 0.0, "ia_out": 0.0, "ia_in": 0.0},
-                            "security": {"attack_reach": 0.0, "weighted_attack_impact": 0.0, "high_value_contamination": 0.0, "security_impact": 0.0}
                         },
                         "cascaded_failures": [],
                         "cascade_sequence": [],

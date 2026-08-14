@@ -50,16 +50,19 @@ class ImportGraphRequest(GraphRequestWithCredentials):
 class CriticalityLevelsModel(BaseModel):
     reliability: str
     maintainability: str
-    availability: str
-    security: str
+    # fault_tolerance/availability are Reliability sub-characteristics, scored
+    # by the RM (analysis) provenance but not by the GNN provenance — absent
+    # rather than a fabricated value when the GNN path produced this result.
+    fault_tolerance: Optional[str] = None
+    availability: Optional[str] = None
     overall: str
 
 
 class ScoresModel(BaseModel):
     reliability: float
     maintainability: float
-    availability: float
-    security: float
+    fault_tolerance: Optional[float] = None
+    availability: Optional[float] = None
     overall: float
 
 
@@ -189,11 +192,20 @@ class CascadeDetail(BaseModel):
     by_type: Dict[str, int] = Field(default_factory=dict)
 
 
-class ReliabilityImpactModel(BaseModel):
+class FaultToleranceImpactModel(BaseModel):
     cascade_reach: float
     weighted_cascade_impact: float
     normalized_cascade_depth: float
+    fault_tolerance_impact: float
+
+
+class ReliabilityImpactModel(BaseModel):
+    # reliability_impact is the r_alpha-blend of fault_tolerance_impact and
+    # availability_impact (see saag.simulation.models.ImpactMetrics); the
+    # sub-characteristic breakdown is nested here so the hierarchy survives
+    # into the API response, not just the analysis-side scores.
     reliability_impact: float
+    fault_tolerance: FaultToleranceImpactModel
 
 
 class MaintainabilityImpactModel(BaseModel):
@@ -210,13 +222,6 @@ class AvailabilityImpactModel(BaseModel):
     availability_impact: float
     ia_out: float
     ia_in: float
-
-
-class SecurityImpactModel(BaseModel):
-    attack_reach: float
-    weighted_attack_impact: float
-    high_value_contamination: float
-    security_impact: float
 
 
 class AffectedDetail(BaseModel):
@@ -236,7 +241,6 @@ class FailureImpactModel(BaseModel):
     reliability: ReliabilityImpactModel
     maintainability: MaintainabilityImpactModel
     availability: AvailabilityImpactModel
-    security: SecurityImpactModel
 
 
 class CascadeSequenceEvent(BaseModel):

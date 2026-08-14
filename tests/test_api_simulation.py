@@ -59,21 +59,20 @@ def mock_failure_result():
             "cascade": {"count": 2, "depth": 1},
             "composite_impact": 0.8,
             "reliability": {
-                "cascade_reach": 0.2, "weighted_cascade_impact": 0.3, 
-                "normalized_cascade_depth": 0.1, "reliability_impact": 0.25
+                "reliability_impact": 0.25,
+                "fault_tolerance": {
+                    "cascade_reach": 0.2, "weighted_cascade_impact": 0.3,
+                    "normalized_cascade_depth": 0.1, "fault_tolerance_impact": 0.22
+                },
             },
             "maintainability": {
-                "change_reach": 0.1, "weighted_change_impact": 0.2, 
+                "change_reach": 0.1, "weighted_change_impact": 0.2,
                 "normalized_change_depth": 0.1, "maintainability_impact": 0.15
             },
             "availability": {
-                "weighted_reachability_loss": 0.4, "weighted_fragmentation": 0.3, 
+                "weighted_reachability_loss": 0.4, "weighted_fragmentation": 0.3,
                 "path_breaking_throughput_loss": 0.1, "availability_impact": 0.7,
                 "ia_out": 0.5, "ia_in": 0.4
-            },
-            "security": {
-                "attack_reach": 0.3, "weighted_attack_impact": 0.4, 
-                "high_value_contamination": 0.2, "security_impact": 0.35
             },
         },
         "cascaded_failures": ["c2"],

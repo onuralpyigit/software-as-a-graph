@@ -15,7 +15,9 @@ import torch.nn.functional as F
 from torch import Tensor
 
 # Import canonical dimension constants to avoid drift between data prep and model
-from ..data_preparation import NODE_TYPE_TO_DIM, EDGE_FEATURE_DIM, _EDGE_BASE_DIM, _QOS_EXTRA_DIM
+from ..data_preparation import (
+    NODE_TYPE_TO_DIM, EDGE_FEATURE_DIM, _EDGE_BASE_DIM, _QOS_EXTRA_DIM, LABEL_COLS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +35,10 @@ def _require_pyg():
 
 
 NODE_TYPES: List[str] = ["Application", "Broker", "Topic", "Node", "Library"]
-NUM_LABEL_DIMS = 5  # composite, reliability, maintainability, availability, vulnerability
+#: composite, reliability, maintainability. Derived from LABEL_COLS rather
+#: than restated, so a label-contract change can't leave this out of sync —
+#: exactly the defect class that once zeroed a whole prediction column.
+NUM_LABEL_DIMS = len(LABEL_COLS)
 
 
 class ResidualMLP(nn.Module):
@@ -217,7 +222,8 @@ class NodeCriticalityGNN(nn.Module):
     - Per-type input projections → hidden_channels
     - N layers of HGTConv with EdgeFeatureEncoder injecting edge info before each layer
     - Optional bidirectional pass (forward + reverse) for upstream/downstream awareness
-    - Four RM output heads + one composite head (all sigmoid-activated)
+    - Two RM output heads (reliability, maintainability) + one composite head
+      (all sigmoid-activated)
     """
 
     def __init__(
@@ -300,12 +306,15 @@ class NodeCriticalityGNN(nn.Module):
         else:
             self.rev_conv = None
 
-        # Output heads (unchanged from prior architecture)
+        # Output heads. Fault tolerance and availability are Reliability sub-
+        # characteristics scored on the analysis side (see saag/analysis/), not
+        # separate GNN prediction targets — the GNN predicts the two RM label
+        # columns (reliability, maintainability) plus the composite.
         self.rm_heads = nn.ModuleDict({
             dim: ResidualMLP(hidden_channels, hidden_channels // 2, 1, dropout)
-            for dim in ["reliability", "maintainability", "availability", "vulnerability"]
+            for dim in ["reliability", "maintainability"]
         })
-        self.composite_head = ResidualMLP(hidden_channels + 4, hidden_channels // 2, 1, dropout)
+        self.composite_head = ResidualMLP(hidden_channels + 2, hidden_channels // 2, 1, dropout)
 
     def _apply_reverse_pass(
         self, h: Dict[str, Tensor], edge_index_dict: Dict
@@ -355,11 +364,9 @@ class NodeCriticalityGNN(nn.Module):
         for nt, h in h_dict.items():
             r = torch.sigmoid(self.rm_heads["reliability"](h))
             m = torch.sigmoid(self.rm_heads["maintainability"](h))
-            a = torch.sigmoid(self.rm_heads["availability"](h))
-            v = torch.sigmoid(self.rm_heads["vulnerability"](h))
-            composite_in = torch.cat([h, r, m, a, v], dim=-1)
+            composite_in = torch.cat([h, r, m], dim=-1)
             composite = torch.sigmoid(self.composite_head(composite_in))
-            out[nt] = torch.cat([composite, r, m, a, v], dim=-1)
+            out[nt] = torch.cat([composite, r, m], dim=-1)
         return out
 
     def forward(self, x_dict, edge_index_dict, edge_attr_dict=None):
@@ -378,11 +385,9 @@ class EdgeCriticalityGNN(nn.Module):
         node_gnn: NodeCriticalityGNN,
         hidden_channels: int = 64,
         dropout: float = 0.2,
-        out_dims: int = NUM_LABEL_DIMS,
     ):
         super().__init__()
         self.node_gnn = node_gnn
-        self.out_dims = out_dims
         self.predict_edges = True
         self.typed_edge_enc = TypedEdgeEncoder(
             edge_feat_dim=EDGE_FEATURE_DIM,
@@ -494,11 +499,11 @@ class CriticalityLoss(nn.Module):
     ) -> Tensor:
         """MSE over the RM sub-scores, skipping dimensions the labeler never measured.
 
-        `dim_weights` is a length-5 vector aligned with LABEL_COLS; a 0 entry
-        excludes that dimension. Without it, a labeler that reports only a scalar
-        impact (FaultInjector measures composite/reliability/availability) would
-        have its maintainability and security heads regressed toward a constant
-        zero — training the model to predict an artefact of the label format.
+        `dim_weights` is a vector aligned with LABEL_COLS (length NUM_LABEL_DIMS);
+        a 0 entry excludes that dimension. Without it, a labeler that reports only
+        a scalar impact (FaultInjector measures composite/reliability) would have
+        its maintainability head regressed toward a constant zero — training the
+        model to predict an artefact of the label format.
         """
         if dim_weights is None:
             return self.mse(labeled_pred[:, 1:], labeled_target[:, 1:])

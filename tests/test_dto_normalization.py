@@ -91,8 +91,6 @@ def test_prediction_result_from_dict():
                 "composite_score": 0.85,
                 "reliability_score": 0.75,
                 "maintainability_score": 0.65,
-                "availability_score": 0.55,
-                "security_score": 0.45,
                 "criticality_level": "CRITICAL"
             }
         },

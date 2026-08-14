@@ -19,8 +19,8 @@ def serialize_edge(e, csc_names: Dict[str, str]) -> Dict[str, Any]:
         scores = {
             "reliability": e.scores.reliability,
             "maintainability": e.scores.maintainability,
+            "fault_tolerance": e.scores.fault_tolerance,
             "availability": e.scores.availability,
-            "security": e.scores.security,
             "overall": e.scores.overall,
         }
     return {

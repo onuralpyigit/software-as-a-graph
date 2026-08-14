@@ -18,7 +18,7 @@ def temp_checkpoint(tmp_path):
         "dropout": 0.2,
         "predict_edges": False,
         "layer": "app",
-        "label_dims": 5,
+        "label_dims": 3,
     }
     with open(ckpt_dir / "service_config.json", "w") as f:
         json.dump(config, f)
@@ -45,13 +45,13 @@ def test_prediction_mode_reporting():
     service = GNNService()
     service._node_model = MagicMock()
     service._node_model.predict_edges = False
-    service._node_model.return_value = {"Application": torch.randn(2, 5)}
+    service._node_model.return_value = {"Application": torch.randn(2, 3)}
     service._conversion_result = MagicMock()
     service._conversion_result.node_id_map = {"Application": ["app1", "app2"]}
 
     data = HeteroData()
     data["Application"].x = torch.randn(2, 23)
-    data["Application"].y_rm = torch.randn(2, 5)
+    data["Application"].y_rm = torch.randn(2, 3)
 
     result_gnn = service.predict_from_data(data, mode="gnn")
     assert result_gnn.prediction_mode == "gnn_only"
@@ -65,7 +65,7 @@ def test_rm_mode_falls_back_to_gnn_without_rm_scores(caplog):
     service = GNNService()
     service._node_model = MagicMock()
     service._node_model.predict_edges = False
-    service._node_model.return_value = {"Application": torch.randn(2, 5)}
+    service._node_model.return_value = {"Application": torch.randn(2, 3)}
     service._conversion_result = MagicMock()
     service._conversion_result.node_id_map = {"Application": ["app1", "app2"]}
 
@@ -97,12 +97,12 @@ def test_edge_head_receives_gradient_from_edge_loss():
 
     data = HeteroData()
     data["Application"].x = torch.randn(4, 23)
-    data["Application"].y = torch.rand(4, 5)
+    data["Application"].y = torch.rand(4, 3)
     data["Application"].train_mask = torch.ones(4, dtype=torch.bool)
     data["Application"].label_mask = torch.ones(4, dtype=torch.bool)
     data[rel].edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
     data[rel].edge_attr = torch.randn(3, 16)
-    data[rel].y_edge = torch.rand(3, 5)
+    data[rel].y_edge = torch.rand(3, 3)
 
     trainer = GNNTrainer(model=model, checkpoint_dir="/tmp/_edge_loss_test", num_epochs=1)
 
@@ -129,7 +129,7 @@ def test_edge_loss_is_zero_without_edge_labels():
 
     data = HeteroData()
     data[rel].edge_index = torch.tensor([[0], [1]])
-    edge_preds = {rel: torch.rand(1, 5)}
+    edge_preds = {rel: torch.rand(1, 3)}
 
     assert trainer._edge_loss(edge_preds, data).item() == 0.0
 

@@ -170,7 +170,7 @@ class TestBaselineForwardPass:
         assert isinstance(out, dict)
         for nt, tensor in out.items():
             assert tensor.ndim == 2, f"{nt}: expected 2D tensor, got {tensor.ndim}D"
-            assert tensor.shape[1] == 5, f"{nt}: expected 5 output dims, got {tensor.shape[1]}"
+            assert tensor.shape[1] == 3, f"{nt}: expected 3 output dims, got {tensor.shape[1]}"
 
     def test_outputs_are_non_trivial(self, x_dict, ei_dict, ea_dict):
         """Outputs must not all be identical across all nodes (not constant model)."""

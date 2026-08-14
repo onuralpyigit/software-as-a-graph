@@ -471,8 +471,7 @@ def run_one_fold(
                     continue
                 pred_scores = {str(k): float(v) for k, v in struct_pred.items()}
                 full_node_scores = {
-                    k: {"overall": v, "reliability": v, "maintainability": v,
-                        "availability": v, "security": v}
+                    k: {"overall": v, "reliability": v, "maintainability": v}
                     for k, v in pred_scores.items()
                 }
 
@@ -546,8 +545,6 @@ def run_one_fold(
                                 "overall":         float(preds[local_idx, 0]),
                                 "reliability":     float(preds[local_idx, 1]),
                                 "maintainability": float(preds[local_idx, 2]),
-                                "availability":    float(preds[local_idx, 3]),
-                                "security":        float(preds[local_idx, 4]),
                             }
 
             else:
@@ -641,8 +638,6 @@ def run_one_fold(
                         "overall":         float(ns.composite_score),
                         "reliability":     float(ns.reliability_score),
                         "maintainability": float(ns.maintainability_score),
-                        "availability":    float(ns.availability_score),
-                        "security":        float(ns.security_score),
                     }
                     for nid, ns in result.node_scores.items()
                 }
@@ -673,7 +668,7 @@ def run_one_fold(
     for m in seed_metrics:
         all_nodes.update(m["_full_scores"].keys())
     
-    score_keys = ["overall", "reliability", "maintainability", "availability", "security"]
+    score_keys = ["overall", "reliability", "maintainability"]
     node_agg: Dict[str, Dict[str, float]] = {}
     
     for nid in all_nodes:

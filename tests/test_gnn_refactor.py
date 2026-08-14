@@ -161,7 +161,7 @@ def test_edge_path_count_norm_in_features():
 # ── HGTConv forward shape ────────────────────────────────────────────────────���
 
 def test_hgt_conv_forward_shape():
-    """NodeCriticalityGNN with HGTConv produces (N, 5) output per node type."""
+    """NodeCriticalityGNN with HGTConv produces (N, 3) output per node type."""
     data = _minimal_hetero_data()
     model = _build_gnn(data)
     model.eval()
@@ -173,7 +173,7 @@ def test_hgt_conv_forward_shape():
         )
     for nt in ["Application", "Broker", "Topic"]:
         n = data[nt].num_nodes
-        assert out[nt].shape == (n, 5), f"{nt}: expected ({n}, 5), got {out[nt].shape}"
+        assert out[nt].shape == (n, 3), f"{nt}: expected ({n}, 3), got {out[nt].shape}"
     # All outputs in [0, 1] (sigmoid activated)
     for nt, t in out.items():
         assert t.min() >= 0.0 and t.max() <= 1.0
@@ -228,7 +228,7 @@ def test_typed_edge_encoder_per_relation():
     # Different relation types → different projections → different outputs
     assert not torch.allclose(out1, out2), \
         "TypedEdgeEncoder should produce different outputs for different relations"
-    assert out1.shape == (2, 5)
+    assert out1.shape == (2, 3)
 
 
 # ── Pairwise margin ranking loss ─────────────────────────────────────────────

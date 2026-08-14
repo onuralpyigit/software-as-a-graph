@@ -93,23 +93,22 @@ def test_kfold_masks_use_the_label_mask():
 
 
 def test_dimension_mask_reflects_what_the_labeler_measured():
-    """FaultInjector measures 2 of 5 dimensions; the other 3 must be marked
-    unmeasured. reliability is itself the alpha-blend of fault-tolerance and
-    availability, so FaultInjector's single scalar impact no longer emits a
-    separate "availability" key — see extract_simulation_dict."""
+    """FaultInjector measures 2 of 3 label columns; maintainability must be
+    marked unmeasured. reliability is itself the alpha-blend of fault-tolerance
+    and availability, so FaultInjector's single scalar impact no longer emits
+    a separate "availability" key — see extract_simulation_dict."""
     result = _convert({"A0": 0.9, "A1": 0.4})
-    # order: composite, reliability, maintainability, availability, security
-    assert result.dimension_mask == [True, True, False, False, False]
+    # order: composite, reliability, maintainability
+    assert result.dimension_mask == [True, True, False]
 
 
 def test_dimension_mask_is_all_true_for_a_full_rm_labeler():
-    """A labeler that emits all five dimensions must not be down-weighted."""
+    """A labeler that emits all three label columns must not be down-weighted."""
     sim = {
-        "A0": {"composite": 0.9, "reliability": 0.8, "maintainability": 0.7,
-               "availability": 0.6, "security": 0.5},
+        "A0": {"composite": 0.9, "reliability": 0.8, "maintainability": 0.7},
     }
     result = networkx_to_hetero_data(_graph(), structural_metrics={}, simulation_results=sim)
-    assert result.dimension_mask == [True] * 5
+    assert result.dimension_mask == [True] * 3
 
 
 def test_loss_ignores_unmeasured_dimensions():
@@ -117,14 +116,15 @@ def test_loss_ignores_unmeasured_dimensions():
     from saag.prediction.models import CriticalityLoss
 
     loss_fn = CriticalityLoss()
-    pred = torch.rand(6, 5)
-    target = torch.rand(6, 5)
-    target[:, 2] = 0.0   # maintainability — never measured
-    target[:, 4] = 0.0   # security — never measured
+    pred = torch.rand(6, 3)
+    target = torch.rand(6, 3)
+    target[:, 2] = 0.0   # maintainability — never measured (the only real case
+                         # left once availability/security stopped being
+                         # separate label columns; see LABEL_COLS)
     mask = torch.ones(6, dtype=torch.bool)
 
     _, unmasked = loss_fn(pred, target, mask)
-    _, masked = loss_fn(pred, target, mask, None, torch.tensor([1., 1., 0., 1., 0.]))
+    _, masked = loss_fn(pred, target, mask, None, torch.tensor([1., 1., 0.]))
 
     assert masked["multitask"] != pytest.approx(unmasked["multitask"]), (
         "dim_weights must change the multitask loss; otherwise unmeasured "

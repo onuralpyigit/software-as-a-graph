@@ -228,7 +228,7 @@ def compute_gnn_scores(G: nx.DiGraph, gnn_model: str, qos: bool = True) -> Dict[
             Q=score.composite_score,
             R=score.reliability_score,
             M=score.maintainability_score,
-            A=score.availability_score,
+            # FT/A are not GNN prediction targets — left at default (0.0).
             I=0.0,
             degree_centrality=p.degree_centrality_physical.get(nid, 0.0),
             is_articulation_point=(nid in p.articulation_points),

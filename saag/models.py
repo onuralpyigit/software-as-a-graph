@@ -211,8 +211,6 @@ class PredictionResult:
                         composite_score=v.get("composite_score", 0.0),
                         reliability_score=v.get("reliability_score", 0.0),
                         maintainability_score=v.get("maintainability_score", 0.0),
-                        availability_score=v.get("availability_score", 0.0),
-                        security_score=v.get("security_score", 0.0),
                         criticality_level=v.get("criticality_level", "MINIMAL"),
                     )
                     for k, v in inner.get("node_scores", {}).items()
@@ -226,8 +224,6 @@ class PredictionResult:
                         scores=SimpleNamespace(
                             reliability=e.get("reliability_score", 0.0),
                             maintainability=e.get("maintainability_score", 0.0),
-                            availability=e.get("availability_score", 0.0),
-                            security=e.get("security_score", 0.0),
                             overall=e.get("composite_score", 0.0),
                         )
                     )
@@ -269,18 +265,16 @@ class PredictionResult:
             struct_cache = getattr(self._inner, "_structural_cache", {})
             rankings = []
             for score in source_dict.values():
+                # fault_tolerance/availability are Reliability sub-characteristics
+                # scored on the analysis side, not GNN prediction targets.
                 scores = {
                     "reliability": score.reliability_score,
                     "maintainability": score.maintainability_score,
-                    "availability": score.availability_score,
-                    "security": score.security_score,
                     "overall": score.composite_score,
                 }
                 levels = {
                     "reliability": _score_to_level_str(score.reliability_score).upper(),
                     "maintainability": _score_to_level_str(score.maintainability_score).upper(),
-                    "availability": _score_to_level_str(score.availability_score).upper(),
-                    "security": _score_to_level_str(score.security_score).upper(),
                     "overall": score.criticality_level.upper(),
                 }
                 s_dict = struct_cache.get(score.component, {}) if struct_cache else {}

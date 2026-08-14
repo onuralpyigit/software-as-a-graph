@@ -63,8 +63,6 @@ class GNNScoreModel(BaseModel):
     composite_score: float
     reliability_score: float
     maintainability_score: float
-    availability_score: float
-    security_score: float
     criticality_level: str
     source: str
 

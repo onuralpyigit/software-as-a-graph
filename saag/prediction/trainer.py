@@ -25,7 +25,7 @@ from torch import Tensor
 from torch_geometric.data import HeteroData
 from torch_geometric.loader import DataLoader
 
-from .models import CriticalityLoss
+from .models import CriticalityLoss, NUM_LABEL_DIMS
 
 logger = logging.getLogger(__name__)
 
@@ -494,11 +494,11 @@ def evaluate_scores(
     y_true: np.ndarray,
     calibration: str = "rank_matched",
 ) -> EvalMetrics:
-    """Compute metrics from pre-collected arrays (N, 5) with robust scaling normalization.
+    """Compute metrics from pre-collected arrays (N, NUM_LABEL_DIMS) with robust scaling normalization.
 
     Parameters
     ----------
-    y_pred, y_true : np.ndarray, shape (N, 5)
+    y_pred, y_true : np.ndarray, shape (N, NUM_LABEL_DIMS)
         Column 0 is the composite score.
     calibration : {"rank_matched", "fixed"}
         - ``rank_matched`` (default): binarize predictions by selecting the
@@ -684,7 +684,7 @@ def _collect_samples(
             all_targets.append(y_masked[labelled])
 
     if not all_preds:
-        return np.empty((0, 5)), np.empty((0, 5))
+        return np.empty((0, NUM_LABEL_DIMS)), np.empty((0, NUM_LABEL_DIMS))
 
     return np.concatenate(all_preds, axis=0), np.concatenate(all_targets, axis=0)
 

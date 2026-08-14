@@ -102,8 +102,6 @@ class GNNCriticalityScore:
     composite_score: float
     reliability_score: float
     maintainability_score: float
-    availability_score: float
-    security_score: float
     source: str = "GNN"           # "GNN" or "RM"
 
     criticality_level: str = "MINIMAL"    # Calculated via adaptive thresholds
@@ -114,8 +112,6 @@ class GNNCriticalityScore:
             "composite_score": round(self.composite_score, 4),
             "reliability_score": round(self.reliability_score, 4),
             "maintainability_score": round(self.maintainability_score, 4),
-            "availability_score": round(self.availability_score, 4),
-            "security_score": round(self.security_score, 4),
             "criticality_level": self.criticality_level,
             "source": self.source,
         }
@@ -130,8 +126,6 @@ class GNNEdgeCriticalityScore:
     composite_score: float
     reliability_score: float
     maintainability_score: float
-    availability_score: float
-    security_score: float
 
     criticality_level: str = "MINIMAL"    # Calculated via adaptive thresholds (per-scenario box-plot)
 
@@ -143,8 +137,6 @@ class GNNEdgeCriticalityScore:
             "composite_score": round(self.composite_score, 4),
             "reliability_score": round(self.reliability_score, 4),
             "maintainability_score": round(self.maintainability_score, 4),
-            "availability_score": round(self.availability_score, 4),
-            "security_score": round(self.security_score, 4),
             "criticality_level": self.criticality_level,
         }
 
@@ -176,16 +168,17 @@ class GNNAnalysisResult:
         """Backward-compatibility shim for anti-pattern detection."""
         comps = []
         for node_id, score in self.node_scores.items():
+            # fault_tolerance/availability are Reliability sub-characteristics
+            # scored on the analysis side, not GNN prediction targets — left at
+            # their QualityScores default (0.0) here.
             qs = QualityScores(
                 reliability=score.reliability_score,
                 maintainability=score.maintainability_score,
-                availability=score.availability_score,
                 overall=score.composite_score
             )
             ql = QualityLevels(
                 reliability=_to_level(qs.reliability),
                 maintainability=_to_level(qs.maintainability),
-                availability=_to_level(qs.availability),
                 # Reuse the adaptive, per-scenario box-plot level already assigned
                 # to `score.criticality_level` rather than recomputing with fixed
                 # absolute cutoffs, so this shim can't disagree with node_scores.
@@ -204,7 +197,6 @@ class GNNAnalysisResult:
         eqs = []
         for es in self.edge_scores:
             qs = QualityScores(reliability=es.reliability_score, maintainability=es.maintainability_score,
-                               availability=es.availability_score,
                                overall=es.composite_score)
             # Reuse the adaptive, per-scenario box-plot level already assigned to
             # `es.criticality_level` rather than recomputing with fixed cutoffs.
@@ -719,9 +711,9 @@ class GNNService:
 
     # ── Score Population Helpers ──────────────────────────────────────────────
     #
-    # Every score tensor here is (n, 5), column-ordered
-    # [composite, reliability, maintainability, availability, security],
-    # matching NodeCriticalityGNN.decode() and the y/y_rm label layout.
+    # Every score tensor here is (n, NUM_LABEL_DIMS), column-ordered
+    # [composite, reliability, maintainability] (see saag.prediction.data_preparation
+    # LABEL_COLS), matching NodeCriticalityGNN.decode() and the y/y_rm label layout.
 
     @staticmethod
     def _populate_node_scores(
@@ -730,7 +722,7 @@ class GNNService:
         conv: GraphConversionResult,
         source: str = "GNN",
     ) -> None:
-        """Fill result.node_scores from a {node_type: (n, 5) tensor} mapping."""
+        """Fill result.node_scores from a {node_type: (n, NUM_LABEL_DIMS) tensor} mapping."""
         if conv is None:
             return
         for nt, scores in score_dict.items():
@@ -738,14 +730,12 @@ class GNNService:
                 continue
             rows = scores.cpu().numpy()
             for i, name in enumerate(conv.node_id_map[nt]):
-                composite, r, m, a, s = (float(v) for v in rows[i, :5])
+                composite, r, m = (float(v) for v in rows[i, :3])
                 result.node_scores[name] = GNNCriticalityScore(
                     component=name,
                     composite_score=composite,
                     reliability_score=r,
                     maintainability_score=m,
-                    availability_score=a,
-                    security_score=s,
                     source=source,
                 )
 
@@ -766,7 +756,7 @@ class GNNService:
         edge_pred_dict: Dict[Tuple, Tensor],
         conv: GraphConversionResult,
     ) -> None:
-        """Fill result.edge_scores from a {relation: (e, 5) tensor} mapping."""
+        """Fill result.edge_scores from a {relation: (e, NUM_LABEL_DIMS) tensor} mapping."""
         if conv is None:
             return
         for rel, e_preds in edge_pred_dict.items():
@@ -775,7 +765,7 @@ class GNNService:
             _, edge_type, _ = rel
             rows = e_preds.cpu().numpy()
             for i, (src_name, dst_name) in enumerate(conv.edge_name_map[rel]):
-                composite, r, m, a, s = (float(v) for v in rows[i, :5])
+                composite, r, m = (float(v) for v in rows[i, :3])
                 result.edge_scores.append(
                     GNNEdgeCriticalityScore(
                         source_node=src_name,
@@ -784,8 +774,6 @@ class GNNService:
                         composite_score=composite,
                         reliability_score=r,
                         maintainability_score=m,
-                        availability_score=a,
-                        security_score=s,
                     )
                 )
 

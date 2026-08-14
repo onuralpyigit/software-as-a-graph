@@ -19,7 +19,8 @@ Both models:
 - Accept the same (x_dict, edge_index_dict, edge_attr_dict) interface as
   NodeCriticalityGNN for drop-in trainer compatibility.
 - Project all node types to a common hidden embedding before GATConv.
-- Output shape: {node_type: (N, 5)} matching the RM multi-task convention.
+- Output shape: {node_type: (N, NUM_LABEL_DIMS)} matching the RM multi-task
+  convention (composite, reliability, maintainability).
 
 Usage
 -----
@@ -32,7 +33,7 @@ Usage
       num_layers=3,
   )
   out = model(x_dict, edge_index_dict, edge_attr_dict)
-  # out: {"Application": Tensor(N_app, 5), "Broker": Tensor(N_brk, 5), ...}
+  # out: {"Application": Tensor(N_app, 3), "Broker": Tensor(N_brk, 3), ...}
 """
 
 from __future__ import annotations
@@ -45,11 +46,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+from saag.prediction.models.core import NUM_LABEL_DIMS
 from saag.prediction.data_preparation import NODE_TYPE_TO_DIM
 
 logger = logging.getLogger(__name__)
-
-NUM_LABEL_DIMS = 5  # composite, reliability, maintainability, availability, vulnerability
 
 
 # ── Shared backbone ───────────────────────────────────────────────────────────
@@ -133,9 +133,9 @@ class _HomoGATBase(nn.Module):
         # RM output heads (same as NodeCriticalityGNN for fair comparison)
         self.rm_heads = nn.ModuleDict({
             dim: _ResidualMLP(hidden_channels, hidden_channels // 2, 1, dropout)
-            for dim in ["reliability", "maintainability", "availability", "vulnerability"]
+            for dim in ["reliability", "maintainability"]
         })
-        self.composite_head = _ResidualMLP(hidden_channels + 4, hidden_channels // 2, 1, dropout)
+        self.composite_head = _ResidualMLP(hidden_channels + 2, hidden_channels // 2, 1, dropout)
 
     @staticmethod
     def _require_pyg():
@@ -198,14 +198,12 @@ class _HomoGATBase(nn.Module):
         return x_flat, edge_index_flat, offsets
 
     def _decode(self, h: Tensor) -> Tensor:
-        """RM output heads → (N, 5) tensor."""
+        """RM output heads → (N, NUM_LABEL_DIMS) tensor."""
         r = torch.sigmoid(self.rm_heads["reliability"](h))
         m = torch.sigmoid(self.rm_heads["maintainability"](h))
-        a = torch.sigmoid(self.rm_heads["availability"](h))
-        v = torch.sigmoid(self.rm_heads["vulnerability"](h))
-        composite_in = torch.cat([h, r, m, a, v], dim=-1)
+        composite_in = torch.cat([h, r, m], dim=-1)
         composite = torch.sigmoid(self.composite_head(composite_in))
-        return torch.cat([composite, r, m, a, v], dim=-1)  # (N, 5)
+        return torch.cat([composite, r, m], dim=-1)  # (N, NUM_LABEL_DIMS)
 
     def _scatter_to_types(
         self,
