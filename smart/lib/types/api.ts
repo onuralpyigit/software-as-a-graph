@@ -93,8 +93,10 @@ export interface GraphNode {
   criticality_levels?: {
     reliability: string;
     maintainability: string;
-    availability: string;
-    security: string;
+    // Reliability sub-characteristics: present for the RM (analysis)
+    // provenance, absent for GNN-predicted scores.
+    fault_tolerance?: string;
+    availability?: string;
     overall: string;
   };
 }

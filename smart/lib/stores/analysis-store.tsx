@@ -10,15 +10,17 @@ interface ComponentAnalysis {
   criticality_levels?: {
     reliability: string
     maintainability: string
-    availability: string
-    security: string
+    // Reliability sub-characteristics: present for the RM (analysis)
+    // provenance, absent for GNN-predicted scores.
+    fault_tolerance?: string
+    availability?: string
     overall: string
   }
   scores: {
     reliability: number
     maintainability: number
-    availability: number
-    security: number
+    fault_tolerance?: number
+    availability?: number
     overall: number
   }
 }
@@ -33,8 +35,8 @@ interface EdgeAnalysis {
   scores: {
     reliability: number
     maintainability: number
-    availability: number
-    security: number
+    fault_tolerance?: number
+    availability?: number
     overall: number
   }
 }
@@ -74,7 +76,10 @@ interface AnalysisContextType extends AnalysisState {
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined)
 
 const STORAGE_KEY = 'analysis-cache'
-const CACHE_VERSION = 3
+// v4: RMAV → RM model migration — cached "security" score/level fields are
+// gone and fault_tolerance/availability became optional (Reliability
+// sub-characteristics, not present for GNN-predicted scores).
+const CACHE_VERSION = 4
 const MAX_CACHE_ITEMS = 4 // one per layer: system, application, infrastructure, middleware
 
 // Access localStorage lazily so this module works during SSR (window is undefined server-side).

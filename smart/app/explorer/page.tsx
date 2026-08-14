@@ -603,8 +603,9 @@ function propUnit(key: string): string {
  * higher = worse / more risky.  These keys get a colour-coded level badge.
  */
 function isRiskKey(key: string): boolean {
-  // RMAS quality / dimension scores
-  if (/^(reliability|maintainability|availability|security|quality_score|rmav_score|rmas_score|overall)$/.test(key)) return true
+  // RM quality / dimension scores (fault_tolerance and availability are
+  // Reliability's sub-characteristics)
+  if (/^(reliability|maintainability|fault_tolerance|availability|quality_score|rm_score|overall)$/.test(key)) return true
   // Structural centrality metrics (all normalised to [0–1])
   if (/^(reverse_pagerank|betweenness_centrality|betweenness|bridge_ratio|bridge_score|reverse_eigenvector|reverse_closeness|ap_score|directed_ap_score|qspof)$/.test(key)) return true
   // Code quality [0–1] penalty inputs
@@ -4697,8 +4698,8 @@ function NodeExplanationPanel({ componentId, componentName, componentAnalysis }:
 
       {scores && (
         <div className="space-y-1">
-          <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider">RMAV Quality</div>
-          {(['reliability', 'maintainability', 'availability', 'security'] as const).map(dim => {
+          <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider">RM Quality</div>
+          {(['reliability', 'maintainability', 'fault_tolerance', 'availability'] as const).map(dim => {
             const val = scores[dim] ?? 0
             const pct = Math.round((1 - val) * 100)
             const dimLvl = val >= 0.8 ? "critical" : val >= 0.6 ? "high" : val >= 0.4 ? "medium" : val >= 0.2 ? "low" : "minimal"
@@ -4756,7 +4757,7 @@ function BrowserPageContent() {
   const [layerLinksLoading, setLayerLinksLoading] = useState(false)
   const layerLinksLoadedRef = useRef(false)
 
-  // RMAV analysis-store hooks
+  // RM analysis-store hooks
   const { cache: explanationsCache } = useAnalysis()
   const systemAnalysis = explanationsCache['layer:system']
   const selectedId = (selectedNode?.payload as any)?.id ? String((selectedNode.payload as any).id) : null

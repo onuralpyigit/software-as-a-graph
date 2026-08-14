@@ -73,15 +73,17 @@ interface ComponentAnalysis {
   criticality_levels?: {
     reliability: string
     maintainability: string
-    availability: string
-    security: string
+    // Reliability sub-characteristics: present for the RM (analysis)
+    // provenance, absent for GNN-predicted scores.
+    fault_tolerance?: string
+    availability?: string
     overall: string
   }
   scores: {
     reliability: number
     maintainability: number
-    availability: number
-    security: number
+    fault_tolerance?: number
+    availability?: number
     overall: number
   }
 }
@@ -96,8 +98,8 @@ interface EdgeAnalysis {
   scores: {
     reliability: number
     maintainability: number
-    availability: number
-    security: number
+    fault_tolerance?: number
+    availability?: number
     overall: number
   }
 }
@@ -183,7 +185,7 @@ export default function AnalysisPage() {
   // Get current analysis data from cache
   const analysisData = getAnalysis(getCacheKey())
 
-  // Criticality graph: fetch topology + overlay RMAV scores for the graph view
+  // Criticality graph: fetch topology + overlay RM scores for the graph view
   const [critGraphLinks, setCritGraphLinks] = useState<Array<{ source: string; target: string; type?: string }>>([])
   const [critGraphLoading, setCritGraphLoading] = useState(false)
   const critGraphFetchedRef = React.useRef(false)
@@ -302,7 +304,7 @@ export default function AnalysisPage() {
   // Calculate aggregate scores
   const calculateAggregateScores = () => {
     if (!analysisData || !analysisData.components || analysisData.components.length === 0) {
-      return { reliability: 0, maintainability: 0, availability: 0, security: 0, overall: 0 }
+      return { reliability: 0, maintainability: 0, fault_tolerance: 0, availability: 0, overall: 0 }
     }
 
     const components = analysisData.components
@@ -312,7 +314,7 @@ export default function AnalysisPage() {
     const allEntities = [...components, ...edges]
 
     if (allEntities.length === 0) {
-      return { reliability: 0, maintainability: 0, availability: 0, security: 0, overall: 0 }
+      return { reliability: 0, maintainability: 0, fault_tolerance: 0, availability: 0, overall: 0 }
     }
 
     // Invert raw risk scores so that high display score = good quality
@@ -322,8 +324,8 @@ export default function AnalysisPage() {
     return {
       reliability: avg('reliability'),
       maintainability: avg('maintainability'),
+      fault_tolerance: avg('fault_tolerance'),
       availability: avg('availability'),
-      security: avg('security'),
       overall: avg('overall'),
     }
   }
@@ -523,8 +525,8 @@ export default function AnalysisPage() {
               criticality_levels: c.criticality_levels || {
                 reliability: c.criticality_level,
                 maintainability: c.criticality_level,
+                fault_tolerance: c.criticality_level,
                 availability: c.criticality_level,
-                security: c.criticality_level,
                 overall: c.criticality_level,
               },
               scores: c.scores,
@@ -590,7 +592,7 @@ export default function AnalysisPage() {
     return (
       <AppLayout
         title="Analysis"
-        description="RMAS quality scoring by architectural layer"
+        description="RM quality scoring by architectural layer"
       >
         <div className="space-y-6">
           {/* Layer selection card skeleton */}
@@ -629,7 +631,7 @@ export default function AnalysisPage() {
     return (
       <AppLayout
         title="Analysis"
-        description="RMAS quality scoring by architectural layer"
+        description="RM quality scoring by architectural layer"
       >
         <NoConnectionInfo description="Connect to your Neo4j database to run quality analysis" />
       </AppLayout>
@@ -639,7 +641,7 @@ export default function AnalysisPage() {
   return (
     <AppLayout
       title="Analysis"
-      description="RMAS quality scoring by architectural layer"
+      description="RM quality scoring by architectural layer"
     >
       <div className="space-y-6">
 
@@ -825,7 +827,7 @@ export default function AnalysisPage() {
             { id: "2j",  indent: true,  label: "Pub-sub topology metrics",                                        after: 21 },
             { id: "2k",  indent: true,  label: "Assembling component metrics & code quality normalisation",       after: 22 },
             { id: "2l",  indent: true,  label: "Edge metrics, RCM ordering & graph summary",                      after: 23 },
-            { id: "3",   indent: false, label: "Scoring RMAV quality dimensions",                                 after: 24 },
+            { id: "3",   indent: false, label: "Scoring RM quality dimensions",                                   after: 24 },
             { id: "4",   indent: false, label: "Detecting architectural anti-patterns",                           after: 27 },
           ]
           const completedCount = STEPS.filter(s => elapsedTime > s.after).length
@@ -977,13 +979,13 @@ export default function AnalysisPage() {
               const hasEdges  = analysisData.edges && analysisData.edges.length > 0
 
               const comps = analysisData.components || []
-              const avgDim = (key: 'reliability' | 'maintainability' | 'availability' | 'security') =>
+              const avgDim = (key: 'reliability' | 'maintainability' | 'fault_tolerance' | 'availability') =>
                 comps.length ? parseFloat((comps.reduce((s: number, c: any) => s + (c.scores?.[key] ?? 0), 0) / comps.length).toFixed(3)) : 0
               const radarDims = [
                 { name: 'Reliability',     value: avgDim('reliability') },
                 { name: 'Maintainability', value: avgDim('maintainability') },
+                { name: 'Fault Tolerance', value: avgDim('fault_tolerance') },
                 { name: 'Availability',    value: avgDim('availability') },
-                { name: 'Security',        value: avgDim('security') },
               ]
               const radarMax = parseFloat((Math.max(...radarDims.map(d => d.value)) * 1.25).toFixed(3))
               const radarOption = {
@@ -1199,8 +1201,8 @@ export default function AnalysisPage() {
                         <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Overall</th>
                         <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Reliability</th>
                         <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Maintainability</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Fault Tolerance</th>
                         <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Availability</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Security</th>
 
                       </tr>
 
@@ -1251,11 +1253,11 @@ export default function AnalysisPage() {
                           </td>
 
                           <td className="px-3 py-2 text-right font-mono text-xs">
-                            <span className={getScoreColor(component.scores.availability)}>{component.scores.availability.toFixed(3)}</span>
+                            <span className={getScoreColor(component.scores.fault_tolerance ?? 0)}>{(component.scores.fault_tolerance ?? 0).toFixed(3)}</span>
                           </td>
 
                           <td className="px-3 py-2 text-right font-mono text-xs">
-                            <span className={getScoreColor(component.scores.security)}>{component.scores.security.toFixed(3)}</span>
+                            <span className={getScoreColor(component.scores.availability ?? 0)}>{(component.scores.availability ?? 0).toFixed(3)}</span>
                           </td>
 
                         </tr>
@@ -1637,7 +1639,7 @@ export default function AnalysisPage() {
                             let html = `<div style="font-size:12px;line-height:1.7;max-width:260px">`
                             html += `<b>${d.name}</b>`
                             html += `<br/><span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:${lvlColor}22;color:${lvlColor};text-transform:uppercase">${d._lvl}</span>`
-                            html += `<br/><span style="opacity:0.6;font-size:10px">R: ${((1 - c.scores.reliability) * 100).toFixed(0)}% · M: ${((1 - c.scores.maintainability) * 100).toFixed(0)}% · A: ${((1 - c.scores.availability) * 100).toFixed(0)}% · V: ${((1 - c.scores.security) * 100).toFixed(0)}%</span>`
+                            html += `<br/><span style="opacity:0.6;font-size:10px">R: ${((1 - c.scores.reliability) * 100).toFixed(0)}% · M: ${((1 - c.scores.maintainability) * 100).toFixed(0)}% · FT: ${((1 - (c.scores.fault_tolerance ?? 0)) * 100).toFixed(0)}% · A: ${((1 - (c.scores.availability ?? 0)) * 100).toFixed(0)}%</span>`
                             html += `</div>`
                             return html
                           },

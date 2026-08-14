@@ -5,17 +5,16 @@
  */
 
 export const TERM_TOOLTIPS: Record<string, string> = {
-  // ── RMAS Dimensions ────────────────────────────────────────────────────────
-  "RMAS": "Reliability · Maintainability · Availability · Security — the four quality dimensions scored for every component.",
-  "R(v)": "Reliability score — measures fault-propagation reach using Reverse PageRank, in-degree, and cascade depth potential. Higher = more likely to cause cascading failures.",
+  // ── RM Dimensions ──────────────────────────────────────────────────────────
+  "RM": "Reliability · Maintainability — the two quality characteristics scored for every component (ISO/IEC 25010:2023). Reliability is hierarchical over Fault Tolerance and Availability.",
+  "R(v)": "Reliability score — hierarchical composite of fault tolerance and availability. R(v) = α·FT(v) + (1−α)·A(v), α = 0.36. Higher = more likely to cause cascading failures or partition the network.",
+  "FT(v)": "Fault Tolerance score — measures fault-propagation reach using Reverse PageRank, in-degree, and cascade depth potential. Higher = more likely to cause cascading failures. Reliability's fault-tolerance sub-characteristic.",
   "M(v)": "Maintainability score — measures structural bottleneck risk using betweenness centrality, efferent coupling, code quality, and clustering. Higher = harder to change safely.",
-  "A(v)": "Availability score — measures connectivity disruption when this component fails, using articulation-point analysis, bridge ratio, and QoS-weighted SPOF severity. Higher = more likely to partition the network.",
-  "S(v)": "Security score — measures adversarial attack reach using reverse eigenvector and closeness centrality on the transposed graph. Higher = higher-value attack target.",
-  "Q(v)": "Overall quality score — weighted combination of R(v), M(v), A(v), S(v). Represents the component's total predicted impact if it fails. Q = 0.24·R + 0.17·M + 0.43·A + 0.16·S.",
-  "Reliability": "Fault-propagation dimension — how far failures originating at this component spread through the system. Computed as R(v) = 0.45·RPR + 0.30·DG_in + 0.25·CDPot.",
+  "A(v)": "Availability score — measures connectivity disruption when this component fails, using articulation-point analysis, bridge ratio, and QoS-weighted SPOF severity. Higher = more likely to partition the network. Reliability's availability sub-characteristic.",
+  "Q(v)": "Overall quality score — weighted combination of R(v) and M(v). Represents the component's total predicted impact if it fails. Q = 0.80·R + 0.20·M.",
+  "Reliability": "How far failures originating at this component spread through the system, and how severely the network is partitioned when it fails. Hierarchical: R(v) = α·FT(v) + (1−α)·A(v), α = 0.36.",
   "Maintainability": "Change-impact dimension — how much a code or configuration change here ripples to other components. Computed as M(v) = 0.35·BT + 0.30·w_out + 0.15·CQP + 0.12·CouplingRisk + 0.08·(1−CC).",
-  "Availability": "Connectivity-disruption dimension — how severely the network is partitioned when this component is removed. Computed as A(v) = 0.35·AP_c + 0.25·QSPOF + 0.25·BR + 0.10·CDI + 0.05·w(v).",
-  "Security": "Attack-surface dimension — how accessible and influential this component is to adversarial compromise propagation. Computed as S(v) = 0.40·REV + 0.35·RCL + 0.25·QADS.",
+  "Availability": "Reliability sub-characteristic — connectivity-disruption when this component is removed. Computed as A(v) = 0.35·AP_c + 0.25·QSPOF + 0.25·BR + 0.10·CDI + 0.05·w(v).",
 
   // ── Criticality Levels ─────────────────────────────────────────────────────
   "CRITICAL": "Score exceeds Q3 + 0.75×IQR of all components — statistically extreme risk. Treat as a top-priority architectural concern.",
@@ -40,20 +39,14 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   "CCR@5": "Cascade Capture Rate at 5 — fraction of the top-5 cascade-critical components correctly identified by R(v).",
   "COCR@5": "Change Overlap Capture Rate at 5 — fraction of the top-5 change-impact components correctly identified by M(v).",
   "SPOF_F1": "Single Point of Failure classification F1 — measures how accurately A(v) identifies true network SPOF components.",
-  "RRI": "Robustness Rank Improvement — how much the RMAS ranking improves upon a random baseline in availability prediction.",
-  "AHCR@5": "Attack Hit Capture Rate at 5 — fraction of the top-5 adversarial targets correctly identified by S(v).",
-  "FTR": "False Trust Rate — fraction of components incorrectly classified as low security risk when they are high-value attack targets.",
-  "APAR": "Attack Path Agreement Rate — alignment between predicted security ranking and actual compromise propagation paths.",
+  "RRI": "Robustness Rank Improvement — how much the RM ranking improves upon a random baseline in availability prediction.",
 
   // ── Graph Metrics ──────────────────────────────────────────────────────────
   "Reverse PageRank": "PageRank computed on the transposed graph G^T — assigns higher scores to components with many downstream dependents, capturing fault propagation reach.",
   "RPR": "Reverse PageRank — PageRank on the transposed dependency graph; components with many dependents score higher.",
   "Betweenness Centrality": "Fraction of shortest paths between all node pairs that pass through this component — measures structural bottleneck position.",
   "Betweenness": "Fraction of shortest paths that pass through this component — a structural bottleneck measure.",
-  "Reverse Eigenvector": "Eigenvector centrality on the transposed graph G^T — assigns higher scores to components connected to other influential components from an attacker's perspective.",
-  "REV": "Reverse Eigenvector centrality — measures strategic attack reach by computing eigenvector centrality on G^T.",
-  "Closeness": "Inverse of average shortest path length — how quickly a failure or compromise can reach all other nodes.",
-  "RCL": "Reverse Closeness on G^T — measures adversarial propagation speed; closer components can compromise others faster.",
+  "Closeness": "Inverse of average shortest path length — how quickly a failure can reach all other nodes.",
   "Articulation Point": "A node whose removal increases the number of disconnected components (network fragments). SPOFs are typically articulation points.",
   "AP_c": "Directional articulation-point score — max(out-direction score, in-direction score); captures both publisher and subscriber removal scenarios.",
   "Bridge": "An edge whose removal disconnects two previously connected parts of the graph — a structural SPOF at the edge level.",
@@ -65,7 +58,6 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   "CDPot": "Cascade Depth Potential — estimated maximum cascade depth from this component, weighted by multi-path coupling intensity (MPCI).",
   "MPCI": "Multi-Path Coupling Intensity — number of independent paths amplifying a potential cascade; scales CDPot.",
   "QSPOF": "QoS-Scaled SPOF Severity — AP_c multiplied by operational priority weight w(v); prioritises high-weight articulation points.",
-  "QADS": "QoS-weighted Attack-Dependent Surface — inbound dependency weight w_in; measures how many high-priority upstream components expose this node.",
   "CQP": "Code Quality Penalty — composite of normalised cyclomatic complexity, Martin instability, and LCOM. Non-zero only when source-code metrics are present.",
   "LCOM": "Lack of Cohesion of Methods — measures how many unrelated responsibilities a class contains. Higher = worse cohesion.",
   "CouplingRisk": "Coupling Risk = 1 − |2·Instability − 1| — peaks at 0.5 instability; components that are both heavily depended-upon and depend on many others.",
@@ -75,9 +67,7 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   "SPOF": "Single Point of Failure — a component whose removal would disrupt service for a significant portion of the system.",
   "FAILURE_HUB": "Anti-pattern: a component with extremely high reliability risk — too many downstream dependents that would cascade-fail on its outage.",
   "GOD_COMPONENT": "Anti-pattern: a component that is both heavily connected and a structural bottleneck (high M(v) + high betweenness) — a maintenance nightmare.",
-  "TARGET": "Anti-pattern: a component with critically high security risk score — a high-value adversarial target.",
   "BRIDGE_EDGE": "Anti-pattern: an edge whose removal disconnects the graph — a structural weak link.",
-  "EXPOSURE": "Anti-pattern: a component with high security risk and high closeness centrality — easy to reach and compromise.",
   "CYCLE": "Anti-pattern: a strongly-connected component (SCC) of size ≥ 2 — circular dependencies that cause coupled failure and maintenance issues.",
   "HUB_AND_SPOKE": "Anti-pattern: a low-clustering, high-degree node — everything connects through this hub, creating a single bottleneck.",
   "CHAIN": "Anti-pattern: a long linear dependency chain (≥ 4 hops) — deep chains amplify cascade failures.",
@@ -106,9 +96,10 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   // ── Simulation ────────────────────────────────────────────────────────────
   "composite_impact": "I(v) — weighted combination of reachability loss, fragmentation, throughput loss, and flow disruption from removing component v. I = 0.35·reach + 0.25·frag + 0.25·thru + 0.15·flow.",
   "I(v)": "Simulation impact score — ground-truth measure of damage caused by removing component v. Used to validate Q(v) predictions.",
-  "IR(v)": "Reliability ground truth — measures fault-propagation dynamics (cascade reach, weighted impact, depth) from v's removal.",
+  "IR(v)": "Reliability ground truth — blended fault-propagation and availability impact: IR(v) = α·IFT(v) + (1−α)·IA(v), α = 0.36. Training label for the GNN Predict stage.",
+  "IFT(v)": "Fault tolerance ground truth — measures fault-propagation dynamics (cascade reach, weighted impact, depth) from v's removal. Feeds IR(v) as its α term.",
   "IM(v)": "Maintainability ground truth — measures change-propagation reach on the transposed dependency graph via BFS.",
-  "IA(v)": "Availability ground truth — QoS-weighted connectivity disruption (reachability loss + fragmentation + path-breaking throughput loss).",
+  "IA(v)": "Availability ground truth — QoS-weighted connectivity disruption (reachability loss + fragmentation + path-breaking throughput loss). Feeds IR(v) as its (1−α) term.",
 
   // ── Traffic Simulator ─────────────────────────────────────────────────────
   "Publisher Count": "Number of application nodes actively publishing messages to this topic. Inbound rate = publisher_count × frequency_hz.",
@@ -127,7 +118,6 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   "Fan-out Multiplier": "subscriber_count / publisher_count per topic. A high fan-out (e.g. 10×) means one publisher drives significant broker outbound load. The delivered count in the summary reflects cumulative fan-out across all selected topics.",
   "Peak Topic Bandwidth": "Highest single-topic bandwidth in the simulation set. Useful as a reference for the colour scale — the busiest topic is always red.",
   "Broker Load": "Sum of inbound + outbound traffic across all topics routed by this broker. A topic routed by multiple brokers is counted in full for each — this is intentional: each broker independently carries the full load for every topic it routes.",
-  "IS(v)": "Security ground truth — adversarial compromise propagation reach via BFS on G^T with trust threshold θ=0.30.",
   "reachability_loss": "Fraction of node-to-node shortest paths that are broken when this component is removed.",
   "fragmentation": "Percentage of components that become disconnected from the main component when this node is removed.",
   "throughput_loss": "Estimated percentage drop in message-routing throughput due to this component's failure.",
@@ -187,7 +177,7 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   "CONNECTS_TO": "A physical connectivity edge between infrastructure nodes.",
 
   // ── AHP ───────────────────────────────────────────────────────────────────
-  "AHP": "Analytic Hierarchy Process — a structured method for deriving relative weights (e.g., RMAS dimension weights) from pairwise importance comparisons.",
+  "AHP": "Analytic Hierarchy Process — a structured method for deriving relative weights (e.g., FT(v)'s component weights) from pairwise importance comparisons. Retired at the R(v)-vs-M(v) composite level, which uses declared algebraic weights instead.",
   "AHP Shrinkage": "Blends AHP-derived weights with a uniform prior using factor λ=0.7 — prevents extreme weight assignments and improves robustness.",
 
   // ── Statistics sub-pages ──────────────────────────────────────────────────

@@ -9,16 +9,20 @@ import { cn } from "@/lib/utils"
 export interface ItemScores {
   reliability: number
   maintainability: number
-  availability: number
-  security: number
+  /** Reliability sub-characteristic. Present for the RM (analysis) provenance,
+   *  absent for GNN-predicted scores — the GNN does not predict it separately. */
+  fault_tolerance?: number
+  /** Reliability sub-characteristic. Present for the RM (analysis) provenance,
+   *  absent for GNN-predicted scores — the GNN does not predict it separately. */
+  availability?: number
   overall: number
 }
 
 export interface ItemCriticalityLevels {
   reliability: string
   maintainability: string
-  availability: string
-  security: string
+  fault_tolerance?: string
+  availability?: string
   overall: string
 }
 
@@ -27,7 +31,7 @@ export interface ItemTooltipData {
   type: string
   /** Display name (falls back to id if absent) */
   name?: string
-  /** Raw RMAS quality scores [0–1], where lower = better (risk scale) */
+  /** Raw RM quality scores [0–1], where lower = better (risk scale) */
   scores?: ItemScores
   /** Per-dimension criticality labels */
   criticality_levels?: ItemCriticalityLevels
@@ -221,23 +225,27 @@ export function ItemTooltipContent({ data }: { data: ItemTooltipData }) {
         <div className="text-foreground/90 font-medium truncate max-w-[240px] leading-tight">{data.name}</div>
       )}
 
-      {/* RMAS score bars */}
+      {/* RM score bars. fault_tolerance/availability are Reliability's
+          sub-characteristics — shown alongside R/M when the provenance
+          computed them (RM path), omitted for GNN-only scores. */}
       {scores && (
         <>
           <div className="h-px bg-border/50 my-1.5" />
           <div className="flex items-end gap-2 justify-between">
             <ScoreBar score={scores.reliability}    dim="R" />
             <ScoreBar score={scores.maintainability} dim="M" />
-            <ScoreBar score={scores.availability}   dim="A" />
-            <ScoreBar score={scores.security}       dim="S" />
+            {scores.fault_tolerance !== undefined && <ScoreBar score={scores.fault_tolerance} dim="FT" />}
+            {scores.availability !== undefined && <ScoreBar score={scores.availability} dim="A" />}
           </div>
           {criticality_levels && (
             <div className="flex gap-1.5 justify-between">
-              {(["reliability","maintainability","availability","security"] as const).map(d => (
-                <div key={d} className="flex-1 flex justify-center">
-                  <CritBadge level={criticality_levels[d]} />
-                </div>
-              ))}
+              {(["reliability","maintainability","fault_tolerance","availability"] as const)
+                .filter(d => criticality_levels[d] !== undefined)
+                .map(d => (
+                  <div key={d} className="flex-1 flex justify-center">
+                    <CritBadge level={criticality_levels[d]} />
+                  </div>
+                ))}
             </div>
           )}
         </>

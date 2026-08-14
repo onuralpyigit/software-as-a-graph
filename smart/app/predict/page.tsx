@@ -45,8 +45,6 @@ interface GNNScore {
   composite_score: number
   reliability_score: number
   maintainability_score: number
-  availability_score: number
-  security_score: number
   criticality_level: string
   source: string
 }
@@ -114,11 +112,9 @@ function ScoreBar({ value, dim }: { value: number; dim: string }) {
   const colors: Record<string, string> = {
     R: "bg-blue-500",
     M: "bg-purple-500",
-    A: "bg-green-500",
-    S: "bg-red-500",
   }
   const termMap: Record<string, string> = {
-    R: "R(v)", M: "M(v)", A: "A(v)", S: "S(v)",
+    R: "R(v)", M: "M(v)",
   }
   return (
     <div className="flex items-center gap-2">
@@ -505,7 +501,7 @@ export default function PredictPage() {
 
               <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-400">
                 <Info className="h-4 w-4 shrink-0 mt-0.5" />
-                Structural analysis (Step 2) and RMAS scoring (Step 3) will run automatically to build node
+                Structural analysis (Step 2) and RM scoring (Step 3) will run automatically to build node
                 features for the inference pass.
               </div>
 
@@ -607,8 +603,6 @@ export default function PredictPage() {
                           <div className="space-y-0.5">
                             <ScoreBar value={s.reliability_score} dim="R" />
                             <ScoreBar value={s.maintainability_score} dim="M" />
-                            <ScoreBar value={s.availability_score} dim="A" />
-                            <ScoreBar value={s.security_score} dim="S" />
                           </div>
                         </div>
                       ))}

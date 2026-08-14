@@ -45,8 +45,6 @@ interface GNNScore {
   composite_score: number
   reliability_score: number
   maintainability_score: number
-  availability_score: number
-  security_score: number
   criticality_level: string
   source: string
 }
@@ -120,11 +118,9 @@ function ScoreBar({ value, dim }: { value: number; dim: string }) {
   const colors: Record<string, string> = {
     R: "bg-blue-500",
     M: "bg-purple-500",
-    A: "bg-green-500",
-    S: "bg-red-500",
   }
   const termMap: Record<string, string> = {
-    R: "R(v)", M: "M(v)", A: "A(v)", S: "S(v)",
+    R: "R(v)", M: "M(v)",
   }
   return (
     <div className="flex items-center gap-2">
@@ -475,8 +471,6 @@ export default function TrainPage() {
                         <div className="space-y-0.5">
                           <ScoreBar value={s.reliability_score} dim="R" />
                           <ScoreBar value={s.maintainability_score} dim="M" />
-                          <ScoreBar value={s.availability_score} dim="A" />
-                          <ScoreBar value={s.security_score} dim="S" />
                         </div>
                       </div>
                     ))}
