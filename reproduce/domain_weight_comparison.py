@@ -3,11 +3,11 @@
 reproduce/domain_weight_comparison.py — does domain-derived weighting rank better?
 ====================================================================================
 
-Measures whether deriving the RM composite weights from a scenario's declared
-deployment domain (saag.core.quality_model.derive_rm_weights — Layer 3 of the
-layered SQuaRE quality model, docs/criticality.md §3.5) improves ranking
-correlation against I*(v), compared to the static default, equal weights, and
-the AHP lambda=0.7 vector.
+Measures whether deriving the RM composite weight w_R (= q_reliability, with
+q_maintainability = 1 - w_R) from a scenario's declared deployment domain
+(saag.core.quality_model.derive_rm_weights — Layer 3 of the layered SQuaRE
+quality model, docs/criticality.md §3.5) improves ranking correlation against
+I*(v), compared to the static default and equal weights.
 
 **Stated prior, so the result is read honestly either way.** Equal weights
 already beat the calibrated AHP vector by 0.111 rho on the shrinkage sweep
@@ -21,6 +21,18 @@ currently specified, does not help ranking either, which still leaves its
 value as an *attribution* device (explaining criticality in stakeholder terms)
 intact per the existing scoping of the RM composite (docs/criticality.md §4.3).
 
+**Why a 1-D sweep, not four discrete arms.** With the RM composite down to a
+single free parameter (w_R, since w_M = 1 - w_R), the four arms this script
+used to compare — static (0.80), domain_derived (in [0.70, 0.76] across the
+six domains), ahp_070 (retired — AHP no longer touches the composite, see
+reproduce/ahp_sensitivity.py), equal (0.50) — collapse to three points on one
+axis, with three of them within 0.10 of each other. That is not enough spread
+to be testable against seed/scenario noise, so instead this script sweeps
+w_R across its full range and reports where each named point falls on the
+resulting curve. The curve is the complete characterisation of composite
+weighting in the 2-D model; the discrete comparison is a readout of it, not a
+separate experiment.
+
 Ten scenarios: the seven synthetic scenarios of reproduce/main_table.py
 ALL_SCENARIOS (LOSO-cached, scored via the same _compute_rm_from_structural /
 _load_scenario_data path as reproduce/ahp_sensitivity.py) plus the three
@@ -32,14 +44,15 @@ crashes on real-world Broker/Node entries that already carry a raw `type` field
 Usage
 -----
     PYTHONPATH=. python reproduce/domain_weight_comparison.py
+    PYTHONPATH=. python reproduce/domain_weight_comparison.py --step 0.1
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import sys
-from dataclasses import replace as dataclass_replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -47,12 +60,15 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
-from scipy.stats import spearmanr, wilcoxon
+from scipy.stats import kendalltau, spearmanr
 
 logger = logging.getLogger("domain_weight_comparison")
 
 RESULTS_DIR = Path("results")
 SCENARIOS_DIR = Path("data/scenarios")
+
+#: w_R sweep grid — w_M = 1 - w_R at every point.
+DEFAULT_STEP = 0.05
 
 #: The seven synthetic scenarios with a populated LOSO cache.
 SYNTHETIC_SCENARIOS = [
@@ -72,7 +88,10 @@ REALWORLD_SCENARIOS = [
     "realworld_cloud_microservices",
 ]
 
-WEIGHTINGS = ["static", "equal", "domain_derived", "ahp_070"]
+#: Named points marked on the w_R sweep curve. "domain_derived" is resolved
+#: per-scenario (its w_R depends on the scenario's domain), not fixed here.
+STATIC_W_R = 0.80
+EQUAL_W_R = 0.50
 
 
 # ---------------------------------------------------------------------------
@@ -172,24 +191,21 @@ def _load(scenario: str) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, floa
 # Scoring
 # ---------------------------------------------------------------------------
 
-def _weights_for(kind: str, domain: Optional[str]):
-    from saag.analysis.weight_calculator import QualityWeights, AHPProcessor
+def _weights_at(w_r: float):
+    """QualityWeights with composite (w_r, 1 - w_r); every other weight at
+    its default (intra-dimension weights and r_alpha are not swept here)."""
+    from saag.analysis.weight_calculator import QualityWeights
+
+    return QualityWeights(q_reliability=w_r, q_maintainability=1.0 - w_r)
+
+
+def _domain_w_r(domain: Optional[str]) -> Tuple[float, bool]:
+    """The w_R a scenario's domain derives to, and whether derivation applied
+    (False falls back to the static default, per derive_rm_weights)."""
     from saag.core.quality_model import derive_rm_weights
 
-    if kind == "static":
-        return QualityWeights(), None
-    if kind == "equal":
-        return dataclass_replace(
-            QualityWeights(),
-            q_reliability=0.25, q_maintainability=0.25,
-            q_availability=0.25, q_security=0.25,
-        ), None
-    if kind == "ahp_070":
-        return AHPProcessor(shrinkage_factor=0.7).compute_weights(), None
-    if kind == "domain_derived":
-        weights, derived = derive_rm_weights(domain)
-        return weights, derived
-    raise ValueError(kind)
+    weights, derived = derive_rm_weights(domain)
+    return weights.q_reliability, derived
 
 
 def _score(topology: Dict[str, Any], structural: Dict[str, Any], weights) -> Dict[str, float]:
@@ -218,7 +234,8 @@ def _rho(pred: Dict[str, float], truth: Dict[str, float]) -> Optional[float]:
 # Driver
 # ---------------------------------------------------------------------------
 
-def run(scenarios: List[str]) -> Dict[str, Any]:
+def run(scenarios: List[str], step: float) -> Dict[str, Any]:
+    w_r_grid = [round(i * step, 4) for i in range(int(round(1.0 / step)) + 1)]
     rows: List[Dict[str, Any]] = []
 
     for scenario in scenarios:
@@ -232,98 +249,132 @@ def run(scenarios: List[str]) -> Dict[str, Any]:
             continue
 
         domain = _domain_of(topology)
-        row: Dict[str, Any] = {"scenario": scenario, "domain": domain, "n_labels": len(truth)}
+        domain_w_r, derived = _domain_w_r(domain)
 
-        for kind in WEIGHTINGS:
-            weights, derived = _weights_for(kind, domain)
-            pred = _score(topology, structural, weights)
+        curve: Dict[str, Optional[float]] = {}
+        for w_r in w_r_grid:
+            pred = _score(topology, structural, _weights_at(w_r))
             rho = _rho(pred, truth)
-            row[kind] = None if rho is None else round(rho, 4)
-            if kind == "domain_derived":
-                row["domain_derived_from_priorities"] = derived
+            curve[f"{w_r:.2f}"] = None if rho is None else round(rho, 4)
 
-        rows.append(row)
-        print(f"  {scenario:34s} domain={domain!s:26s} "
-              f"static={row['static']}  equal={row['equal']}  "
-              f"domain={row['domain_derived']}  ahp070={row['ahp_070']}")
+        static_rho = _rho(_score(topology, structural, _weights_at(STATIC_W_R)), truth)
+        equal_rho = _rho(_score(topology, structural, _weights_at(EQUAL_W_R)), truth)
+        domain_rho = _rho(_score(topology, structural, _weights_at(domain_w_r)), truth)
 
-    return _summarise(rows)
+        # Kendall tau between domain-derived and static component rankings —
+        # the headline number. w_R moves by at most 0.04 from the static 0.80
+        # default across all six declared domains, so this is expected to sit
+        # near 1.0: the composite weight barely perturbs the ranking even
+        # though it visibly perturbs the score, and rho (rank-based) mostly
+        # can't see the difference either.
+        static_pred = _score(topology, structural, _weights_at(STATIC_W_R))
+        domain_pred = _score(topology, structural, _weights_at(domain_w_r))
+        common = sorted(set(static_pred) & set(domain_pred))
+        tau = None
+        if len(common) >= 3:
+            t, _ = kendalltau(
+                [static_pred[k] for k in common], [domain_pred[k] for k in common]
+            )
+            tau = None if np.isnan(t) else round(float(t), 4)
 
-
-def _summarise(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
-    means: Dict[str, float] = {}
-    for kind in WEIGHTINGS:
-        vals = [r[kind] for r in rows if r.get(kind) is not None]
-        if vals:
-            means[kind] = float(np.mean(vals))
-
-    interpretation: Dict[str, Any] = {"mean_rho": {k: round(v, 4) for k, v in means.items()}}
-
-    def _paired_test(a_key: str, b_key: str) -> Dict[str, Any]:
-        paired = [(r[a_key], r[b_key]) for r in rows
-                  if r.get(a_key) is not None and r.get(b_key) is not None]
-        if len(paired) < 3:
-            return {}
-        a_vals, b_vals = zip(*paired)
-        diffs = np.array(b_vals) - np.array(a_vals)
-        try:
-            _, p = wilcoxon(diffs)
-            p = round(float(p), 4)
-        except ValueError:
-            p = None  # all-zero diffs
-        wins = int((diffs > 0).sum())
-        losses = int((diffs < 0).sum())
-        ties = int((diffs == 0).sum())
-        return {
-            "mean_delta": round(float(np.mean(diffs)), 4),
-            "wilcoxon_p": p,
-            "wins": wins, "losses": losses, "ties": ties, "n": len(diffs),
+        row: Dict[str, Any] = {
+            "scenario": scenario,
+            "domain": domain,
+            "n_labels": len(truth),
+            "domain_w_r": round(domain_w_r, 4),
+            "domain_derived_from_priorities": derived,
+            "static_rho": None if static_rho is None else round(static_rho, 4),
+            "equal_rho": None if equal_rho is None else round(equal_rho, 4),
+            "domain_rho": None if domain_rho is None else round(domain_rho, 4),
+            "kendall_tau_domain_vs_static_ranking": tau,
+            "w_r_sweep": curve,
         }
+        rows.append(row)
+        print(f"  {scenario:34s} domain={domain!s:26s} w_r_domain={row['domain_w_r']:.4f}  "
+              f"static={row['static_rho']}  equal={row['equal_rho']}  "
+              f"domain={row['domain_rho']}  tau={tau}")
 
-    interpretation["domain_vs_static"] = _paired_test("static", "domain_derived")
-    interpretation["domain_vs_equal"] = _paired_test("equal", "domain_derived")
-    # Back-compat flat keys for anything reading the old shape.
-    if interpretation["domain_vs_static"]:
-        interpretation["domain_vs_static_wilcoxon_p"] = interpretation["domain_vs_static"]["wilcoxon_p"]
-        interpretation["domain_vs_static_mean_delta"] = interpretation["domain_vs_static"]["mean_delta"]
+    return _summarise(rows, w_r_grid)
 
-    if "domain_derived" in means and "equal" in means:
-        interpretation["domain_beats_equal"] = means["domain_derived"] > means["equal"]
-        interpretation["domain_vs_equal_delta"] = round(means["domain_derived"] - means["equal"], 4)
-    if "domain_derived" in means and "static" in means:
-        interpretation["domain_beats_static"] = means["domain_derived"] > means["static"]
-        interpretation["domain_vs_static_delta"] = round(means["domain_derived"] - means["static"], 4)
+
+def _summarise(rows: List[Dict[str, Any]], w_r_grid: List[float]) -> Dict[str, Any]:
+    def _mean(key: str) -> Optional[float]:
+        vals = [r[key] for r in rows if r.get(key) is not None]
+        return float(np.mean(vals)) if vals else None
+
+    mean_static = _mean("static_rho")
+    mean_equal = _mean("equal_rho")
+    mean_domain = _mean("domain_rho")
+    taus = [r["kendall_tau_domain_vs_static_ranking"] for r in rows
+            if r.get("kendall_tau_domain_vs_static_ranking") is not None]
+
+    # Mean sweep curve across scenarios, for plotting rho(Q(w_R), I*) vs w_R.
+    mean_curve: Dict[str, Optional[float]] = {}
+    for w_r in w_r_grid:
+        key = f"{w_r:.2f}"
+        vals = [r["w_r_sweep"][key] for r in rows if r["w_r_sweep"].get(key) is not None]
+        mean_curve[key] = round(float(np.mean(vals)), 4) if vals else None
+
+    interpretation: Dict[str, Any] = {
+        "mean_rho": {
+            "static": None if mean_static is None else round(mean_static, 4),
+            "equal": None if mean_equal is None else round(mean_equal, 4),
+            "domain_derived": None if mean_domain is None else round(mean_domain, 4),
+        },
+        "mean_kendall_tau_domain_vs_static_ranking": (
+            round(float(np.mean(taus)), 4) if taus else None
+        ),
+        "mean_w_r_sweep_curve": mean_curve,
+    }
+
+    if mean_domain is not None and mean_equal is not None:
+        interpretation["domain_beats_equal"] = mean_domain > mean_equal
+        interpretation["domain_vs_equal_delta"] = round(mean_domain - mean_equal, 4)
+    if mean_domain is not None and mean_static is not None:
+        interpretation["domain_beats_static"] = mean_domain > mean_static
+        interpretation["domain_vs_static_delta"] = round(mean_domain - mean_static, 4)
 
     interpretation["note"] = (
-        "Read wilcoxon_p before quoting either delta: with 10 heterogeneous "
-        "scenarios both paired tests are under-powered, and a non-significant "
-        "p means the sign of that delta should not be over-interpreted. The "
-        "two comparisons answer different questions: domain_vs_static asks "
-        "whether the derivation beats the current shipped default; "
-        "domain_vs_equal asks the sharper question of whether it beats the "
-        "hardest baseline to beat (equal weights already outperform the AHP "
-        "judgement by 0.111 rho on the shrinkage sweep). A win over static "
-        "that is a coin flip against equal weights means the derivation "
-        "recovers most, but not all, of what equal weighting already gets for "
-        "free — real, but not yet evidence that this specific domain-priority "
-        "encoding is the better construction."
+        "The headline number is mean_kendall_tau_domain_vs_static_ranking: across "
+        "all six declared domains, domain-derived w_R sits within 0.04 of the "
+        "static 0.80 default (range [0.70, 0.76]), so the two weightings are "
+        "expected to rank components almost identically (tau close to 1.0) even "
+        "before looking at rho against I*(v). mean_w_r_sweep_curve is the "
+        "complete characterisation this script produces: rho(Q(w_R), I*) for "
+        "w_R swept over its full range, with static/equal/domain_derived being "
+        "three readouts of that one curve rather than independent arms. A small "
+        "or negative domain_vs_static_delta is not evidence against Layer 3 "
+        "domain derivation — the free parameter it moves is small enough that "
+        "no weighting scheme confined to it can move rho much; the value of the "
+        "domain derivation remains attributional (explaining criticality in "
+        "stakeholder terms), not a ranking-improvement device, consistent with "
+        "the scoping in docs/criticality.md §4.3."
     )
 
-    return {"rows": rows, "interpretation": interpretation}
+    return {"rows": rows, "w_r_grid": w_r_grid, "interpretation": interpretation}
+
+
+def parse_args():
+    p = argparse.ArgumentParser(description="Domain-derived vs. static/equal RM composite weighting")
+    p.add_argument("--step", type=float, default=DEFAULT_STEP, help="w_R sweep step size")
+    p.add_argument("--scenarios", nargs="+", default=None)
+    return p.parse_args()
 
 
 def main():
     logging.basicConfig(level=logging.WARNING)
-    scenarios = SYNTHETIC_SCENARIOS + REALWORLD_SCENARIOS
-    print(f"Domain-weight comparison: {len(scenarios)} scenarios x {len(WEIGHTINGS)} weightings")
-    report = run(scenarios)
+    args = parse_args()
+    scenarios = args.scenarios or (SYNTHETIC_SCENARIOS + REALWORLD_SCENARIOS)
+    n_points = int(round(1.0 / args.step)) + 1
+    print(f"Domain-weight comparison: {len(scenarios)} scenarios x {n_points}-point w_R sweep")
+    report = run(scenarios, args.step)
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     out = RESULTS_DIR / "domain_weight_comparison.json"
     out.write_text(json.dumps(report, indent=2))
     print(f"\nWrote {out}\n")
     for k, v in report["interpretation"].items():
-        if k != "note":
+        if k not in ("note", "mean_w_r_sweep_curve"):
             print(f"  {k}: {v}")
 
 

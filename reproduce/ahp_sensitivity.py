@@ -81,21 +81,24 @@ def _weights_snapshot(lam: float) -> Dict[str, Any]:
     Recorded because the docs print pre-shrinkage AHP weights while the code
     ships post-shrinkage ones — shrinkage is applied to the intra-dimension
     vectors too, not only the composite.
+
+    ``composite`` (q_reliability, q_maintainability) is NOT AHP-derived — it is
+    a DECLARED constant (see ``QualityWeights`` docstring) and is therefore
+    identical at every lambda. It is still recorded here so that invariance is
+    visible in the artifact rather than merely asserted.
     """
     from saag.analysis.weight_calculator import AHPProcessor
 
     w = AHPProcessor(shrinkage_factor=lam).compute_weights()
     return {
         "composite": {
-            "availability": round(w.q_availability, 4),
             "reliability": round(w.q_reliability, 4),
             "maintainability": round(w.q_maintainability, 4),
-            "security": round(w.q_security, 4),
         },
-        "reliability_terms": {
-            "reverse_pagerank": round(w.r_reverse_pagerank, 4),
-            "in_degree": round(w.r_in_degree, 4),
-            "cdpot": round(w.r_cdpot, 4),
+        "fault_tolerance_terms": {
+            "reverse_pagerank": round(w.ft_reverse_pagerank, 4),
+            "in_degree": round(w.ft_in_degree, 4),
+            "cdpot": round(w.ft_cdpot, 4),
         },
     }
 
@@ -176,8 +179,8 @@ def run_sweep(scenarios: List[str], lambdas: List[float]) -> Dict[str, Any]:
             "best_lambda": best["lambda"],
             "best_mean_rho": round(best["mean_rho"], 4),
             "default_lambda_mean_rho": round(default["mean_rho"], 4),
-            "equal_weights_mean_rho": round(equal["mean_rho"], 4),
-            "ahp_lift_over_equal_weights": round(default["mean_rho"] - equal["mean_rho"], 4),
+            "uniform_intra_dim_mean_rho": round(equal["mean_rho"], 4),
+            "ahp_lift_over_uniform_intra_dim": round(default["mean_rho"] - equal["mean_rho"], 4),
             "rho_spread_across_lambda": round(spread, 4),
             "monotone_decreasing_in_lambda": monotone_decreasing,
             "monotone_increasing_in_lambda": monotone_increasing,
@@ -185,13 +188,20 @@ def run_sweep(scenarios: List[str], lambdas: List[float]) -> Dict[str, Any]:
                 max(r["mean_rho"] for r in defined if 0.65 <= r["lambda"] <= 0.75)
                 - min(r["mean_rho"] for r in defined if 0.65 <= r["lambda"] <= 0.75)
             ) < 0.01 if any(0.65 <= r["lambda"] <= 0.75 for r in defined) else None,
+            "composite_weights_lambda_invariant": True,
             "note": (
                 "Spearman rho is rank-based, so this measures only how the weighting "
                 "reorders components. Read `monotone_decreasing_in_lambda` before "
                 "quoting any plateau: if the curve is monotone there is no plateau to "
-                "appeal to, and a negative `ahp_lift_over_equal_weights` means the "
-                "stated AHP judgement ranks components *worse* than weighting the four "
-                "dimensions equally on this cohort."
+                "appeal to, and a negative `ahp_lift_over_uniform_intra_dim` means the "
+                "stated AHP judgement ranks components *worse* than uniform intra-dimension "
+                "weights on this cohort. Unlike the pre-RM-migration sweep, lambda=0 no "
+                "longer means 'equal weights over four composite dimensions' — the "
+                "composite (q_reliability=0.80, q_maintainability=0.20) is a DECLARED "
+                "constant, not AHP-derived, so it is identical at every lambda "
+                "(`composite_weights_lambda_invariant`). Lambda now only shrinks the "
+                "intra-dimension vectors (fault-tolerance, maintainability, availability, "
+                "impact) toward their own uniform priors."
             ),
         }
 

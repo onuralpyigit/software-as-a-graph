@@ -502,10 +502,8 @@ def _compute_rm_from_structural(
             "composite":       float(comp.scores.overall),
             "reliability":     float(comp.scores.reliability),
             "maintainability": float(comp.scores.maintainability),
+            "fault_tolerance": float(comp.scores.fault_tolerance),
             "availability":    float(comp.scores.availability),
-            # The dimension is Vulnerability; the serialized field is `security`
-            # (see docs/criticality.md §4.3 — same dimension, opposite naming).
-            "vulnerability":   float(comp.scores.security),
         }
     return result
 
@@ -782,8 +780,10 @@ def _clamp(v: float) -> float:
 def _rm_to_sim_format(rm_dict: Dict) -> Dict:
     """Convert RM quality scores to the simulation_dict format expected by networkx_to_hetero_data.
 
-    Maps: overall→composite, reliability→reliability, maintainability→maintainability,
-    availability→availability, vulnerability→vulnerability.
+    Maps: overall→composite, reliability→reliability, maintainability→maintainability.
+    Only the three LABEL_COLS keys are emitted — fault_tolerance/availability are
+    Reliability's sub-characteristics, not separately-trained GNN heads (see
+    saag.prediction.data_preparation.LABEL_COLS).
     All values are clamped to [0, 1] since RM reliability can exceed 1.0.
     """
     result: Dict[str, Dict] = {}
@@ -794,8 +794,6 @@ def _rm_to_sim_format(rm_dict: Dict) -> Dict:
             "composite":       _clamp(float(v.get("overall",         v.get("composite",        0.0)))),
             "reliability":     _clamp(float(v.get("reliability",     0.0))),
             "maintainability": _clamp(float(v.get("maintainability", 0.0))),
-            "availability":    _clamp(float(v.get("availability",    0.0))),
-            "vulnerability":   _clamp(float(v.get("vulnerability",   0.0))),
         }
     return result
 

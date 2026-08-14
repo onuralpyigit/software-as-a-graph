@@ -183,7 +183,7 @@ def run_autoware_ros2_pipeline(args):
                     f"{cq.scores.overall:.3f} ({cq.levels.overall.value})"
                 ])
         print_table(
-            "Autoware ROS 2 Component Criticality Scores and Levels (RMAV)",
+            "Autoware ROS 2 Component Criticality Scores and Levels (RM)",
             ["ID", "Name", "Reliability (R)", "Maintainability (M)", "Availability (A)", "Overall (Q)"],
             quality_rows
         )
@@ -289,16 +289,15 @@ def run_autoware_ros2_pipeline(args):
                 comp.id,
                 comp.name,
                 comp.type,
-                f"{comp.rmav_score:.4f}",
+                f"{comp.rm_score:.4f}",
                 f"{scores.get('reliability', 0.0):.4f}",
                 f"{scores.get('maintainability', 0.0):.4f}",
                 f"{scores.get('availability', 0.0):.4f}",
-                f"{scores.get('security', 0.0):.4f}",
                 comp.criticality_level
             ])
         print_table(
             "Autoware ROS 2 Component Criticality Ranks (Top 10)",
-            ["ID", "Name", "Type", "Composite (Q)", "Reliability (R)", "Maintainability (M)", "Availability (A)", "Security (S)", "Level"],
+            ["ID", "Name", "Type", "Composite (Q)", "Reliability (R)", "Maintainability (M)", "Availability (A)", "Level"],
             comp_rows
         )
 
@@ -353,9 +352,9 @@ def run_autoware_ros2_pipeline(args):
         health_rows = [
             ["H_R (Reliability Health)", "Measures reliability headroom against cascade failures", f"{sh.get('H_R', 0.0):.4f}"],
             ["H_M (Maintainability Health)", "Measures coupling modularity health", f"{sh.get('H_M', 0.0):.4f}"],
-            ["H_A (Availability Health)", "Measures availability / single-point redundancy health", f"{sh.get('H_A', 0.0):.4f}"],
-            ["H_S (Security/Vulnerability Health)", "Measures security compromise headroom", f"{sh.get('H_S', 0.0):.4f}"],
-            ["SRI (System Risk Index)", "Weighted composite system-wide risk index (lower is better)", f"{sh.get('SRI', 0.0):.4f}"],
+            ["H_FT (Fault Tolerance Health)", "Sub-characteristic diagnostic; feeds H_R, excluded from SRI", f"{sh.get('H_FT', 0.0):.4f}"],
+            ["H_A (Availability Health)", "Sub-characteristic diagnostic; feeds H_R, excluded from SRI", f"{sh.get('H_A', 0.0):.4f}"],
+            ["SRI (System Risk Index)", "Weighted composite system-wide risk index — sums only H_R, H_M (lower is better)", f"{sh.get('SRI', 0.0):.4f}"],
             ["RCI (Risk Concentration / Gini)", "Gini coefficient of predictions (higher means risk is concentrated)", f"{sh.get('RCI', 0.0):.4f}"]
         ]
         print_table(

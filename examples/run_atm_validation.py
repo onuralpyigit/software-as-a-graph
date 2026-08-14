@@ -92,7 +92,9 @@ def run_atm_validation(args):
         )
 
         # ---------------------------------------------------------------------
-        # Table 2: Unified Validation Gates (G1-G9)
+        # Table 2: Unified Validation Gates (G1-G6, G8 \u2014 G7/G9 retired with
+        # the Vulnerability/Security dimension; the gap in numbering is
+        # intentional, see saag/validation/service.py._evaluate_gates)
         # ---------------------------------------------------------------------
         gate_names = {
             "G1_spearman": ("Primary Rank Correlation", "\u2265 0.70 / 0.80", f"{raw_val.spearman:.4f}"),
@@ -101,18 +103,16 @@ def run_atm_validation(args):
             "G4_top5": ("Top-5 Critical Overlap", "\u2265 0.60", f"{raw_val.top_5_overlap:.4f}"),
             "G5_predictive_gain": ("Predictive Gain (PG)", "> 0.03", f"{raw_val.predictive_gain:.4f}"),
             "G6_kappa_cta": ("Weighted Kappa \u03ba_CTA", "\u2265 0.70", f"{raw_val.dimensional_validation.get('maintainability', {}).get('weighted_kappa_cta', 0.0):.4f}"),
-            "G7_cdcc": ("Cross-Dim Contamination Check", "< 0.30", f"{raw_val.dimensional_validation.get('security', {}).get('cdcc', 1.0):.4f}"),
             "G8_bottleneck_precision": ("Bottleneck Precision BP", "\u2265 0.70", f"{raw_val.dimensional_validation.get('maintainability', {}).get('bottleneck_precision', 0.0):.4f}"),
-            "G9_ftr": ("False Top Rate FTR", "\u2264 0.20", f"{raw_val.dimensional_validation.get('security', {}).get('ftr', 1.0):.4f}"),
         }
-        
+
         gate_rows = []
         for gid, (name, threshold, actual) in gate_names.items():
             status = "PASS" if raw_val.gates.get(gid, False) else "FAIL"
             gate_rows.append([gid, name, threshold, actual, status])
-            
+
         print_table(
-            "Unified Validation Gates Checklist (G1-G9)",
+            "Unified Validation Gates Checklist (G1-G6, G8)",
             ["Gate ID", "Gate Name", "Threshold", "Actual Value", "Status"],
             gate_rows
         )
@@ -120,11 +120,12 @@ def run_atm_validation(args):
         # ---------------------------------------------------------------------
         # Table 3: Multi-Dimensional Correlations
         # ---------------------------------------------------------------------
+        ft_spearman = raw_val.dimensional_validation.get('fault_tolerance', {}).get('spearman', 0.0)
         dim_rows = [
-            ["Reliability", "R(v)", "IR(v) (cascade reach)", f"{raw_val.reliability_spearman:.4f}"],
+            ["Reliability", "R(v)", "IR(v) = α·IFT(v) + (1-α)·IA(v)", f"{raw_val.reliability_spearman:.4f}"],
+            ["  Fault Tolerance", "FT(v)", "IFT(v) (cascade reach)", f"{ft_spearman:.4f}"],
+            ["  Availability", "A(v)", "IA(v) (partitioning)", f"{raw_val.availability_spearman:.4f}"],
             ["Maintainability", "M(v)", "IM(v) (fragility check)", f"{raw_val.maintainability_spearman:.4f}"],
-            ["Availability", "A(v)", "IA(v) (partitioning)", f"{raw_val.availability_spearman:.4f}"],
-            ["Vulnerability", "V(v)", "IV(v) (compromise reach)", f"{raw_val.security_spearman:.4f}"],
             ["Composite", "Q*(v)", "I*(v) (composite ground truth)", f"{raw_val.composite_spearman:.4f}"]
         ]
         print_table(
@@ -140,9 +141,9 @@ def run_atm_validation(args):
         health_rows = [
             ["H_R (Reliability Health)", "Measures reliability headroom against cascade failures", f"{sh.get('H_R', 0.0):.4f}"],
             ["H_M (Maintainability Health)", "Measures coupling modularity health", f"{sh.get('H_M', 0.0):.4f}"],
-            ["H_A (Availability Health)", "Measures availability / single-point redundancy health", f"{sh.get('H_A', 0.0):.4f}"],
-            ["H_S (Security/Vulnerability Health)", "Measures security compromise headroom", f"{sh.get('H_S', 0.0):.4f}"],
-            ["SRI (System Risk Index)", "Weighted composite system-wide risk index (lower is better)", f"{sh.get('SRI', 0.0):.4f}"],
+            ["H_FT (Fault Tolerance Health)", "Sub-characteristic diagnostic; feeds H_R, excluded from SRI", f"{sh.get('H_FT', 0.0):.4f}"],
+            ["H_A (Availability Health)", "Sub-characteristic diagnostic; feeds H_R, excluded from SRI", f"{sh.get('H_A', 0.0):.4f}"],
+            ["SRI (System Risk Index)", "Weighted composite system-wide risk index — sums only H_R, H_M (lower is better)", f"{sh.get('SRI', 0.0):.4f}"],
             ["RCI (Risk Concentration / Gini)", "Gini coefficient of predictions (higher means risk is concentrated)", f"{sh.get('RCI', 0.0):.4f}"]
         ]
         print_table(

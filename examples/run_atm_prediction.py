@@ -95,17 +95,18 @@ def run_atm_prediction(args):
                 comp.id,
                 comp.name,
                 comp.type,
-                f"{comp.rmav_score:.4f}",  # In PredictionResult, .rmav_score is the predicted composite/overall score
+                f"{comp.rm_score:.4f}",  # In PredictionResult, .rm_score is the predicted composite/overall score
                 f"{scores.get('reliability', 0.0):.4f}",
                 f"{scores.get('maintainability', 0.0):.4f}",
-                f"{scores.get('availability', 0.0):.4f}",
-                f"{scores.get('security', 0.0):.4f}",
                 comp.criticality_level
             ])
-            
+
         print_table(
+            # GNN provenance predicts (composite, reliability, maintainability) only —
+            # fault_tolerance/availability are Reliability's sub-characteristics,
+            # reported only on the deterministic Analyze/RM path, not here.
             f"ATM Component Criticality Ranks (Top 10 - Mode: {args.mode})",
-            ["ID", "Name", "Type", "Composite (Q)", "Reliability (R)", "Maintainability (M)", "Availability (A)", "Security (S)", "Level"],
+            ["ID", "Name", "Type", "Composite (Q)", "Reliability (R)", "Maintainability (M)", "Level"],
             comp_rows
         )
 
@@ -128,14 +129,12 @@ def run_atm_prediction(args):
                 f"{edge.scores.overall:.4f}",
                 f"{edge.scores.reliability:.4f}",
                 f"{edge.scores.maintainability:.4f}",
-                f"{edge.scores.availability:.4f}",
-                f"{edge.scores.security:.4f}",
                 edge.level.name if hasattr(edge.level, 'name') else str(edge.level)
             ])
-            
+
         print_table(
             "ATM Edge Criticality Ranks (Top 10)",
-            ["Source", "Target", "Relation Type", "Composite (Q)", "Reliability (R)", "Maintainability (M)", "Availability (A)", "Security (S)", "Level"],
+            ["Source", "Target", "Relation Type", "Composite (Q)", "Reliability (R)", "Maintainability (M)", "Level"],
             edge_rows
         )
 
@@ -147,7 +146,7 @@ def run_atm_prediction(args):
         # Verify that all scores are normalized in [0, 1]
         for comp in components:
             scores = comp.scores
-            assert 0.0 <= comp.rmav_score <= 1.0, f"Component score out of bounds: {comp.rmav_score}"
+            assert 0.0 <= comp.rm_score <= 1.0, f"Component score out of bounds: {comp.rm_score}"
             for dim, score in scores.items():
                 assert 0.0 <= score <= 1.0, f"Component dimension {dim} score out of bounds: {score}"
                 
@@ -155,8 +154,6 @@ def run_atm_prediction(args):
             assert 0.0 <= edge.scores.overall <= 1.0, f"Edge overall score out of bounds: {edge.scores.overall}"
             assert 0.0 <= edge.scores.reliability <= 1.0, f"Edge reliability score out of bounds: {edge.scores.reliability}"
             assert 0.0 <= edge.scores.maintainability <= 1.0, f"Edge maintainability score out of bounds: {edge.scores.maintainability}"
-            assert 0.0 <= edge.scores.availability <= 1.0, f"Edge availability score out of bounds: {edge.scores.availability}"
-            assert 0.0 <= edge.scores.security <= 1.0, f"Edge security score out of bounds: {edge.scores.security}"
 
         print("  [PASS] Component and edge counts, and all score boundary checks validated successfully.")
 

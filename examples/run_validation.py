@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Example script to run Step 5: Validation (RMAV predictions vs cascade simulations)
+Example script to run Step 5: Validation (RM predictions vs cascade simulations)
 on the worked example topology, adhering to docs/validation.md specifications.
 """
 
@@ -92,7 +92,9 @@ def run_validation(args):
         )
 
         # ---------------------------------------------------------------------
-        # Table 2: Unified Validation Gates (G1-G9)
+        # Table 2: Unified Validation Gates (G1-G6, G8 \u2014 G7/G9 retired with
+        # the Vulnerability/Security dimension; the gap in numbering is
+        # intentional, see saag/validation/service.py._evaluate_gates)
         # ---------------------------------------------------------------------
         gate_names = {
             "G1_spearman": ("Primary Rank Correlation", "\u2265 0.70 / 0.80", f"{raw_val.spearman:.4f}"),
@@ -101,18 +103,16 @@ def run_validation(args):
             "G4_top5": ("Top-5 Critical Overlap", "\u2265 0.60", f"{raw_val.top_5_overlap:.4f}"),
             "G5_predictive_gain": ("Predictive Gain (PG)", "> 0.03", f"{raw_val.predictive_gain:.4f}"),
             "G6_kappa_cta": ("Weighted Kappa \u03ba_CTA", "\u2265 0.70", f"{raw_val.dimensional_validation.get('maintainability', {}).get('weighted_kappa_cta', 0.0):.4f}"),
-            "G7_cdcc": ("Cross-Dim Contamination Check", "< 0.30", f"{raw_val.dimensional_validation.get('security', {}).get('cdcc', 1.0):.4f}"),
             "G8_bottleneck_precision": ("Bottleneck Precision BP", "\u2265 0.70", f"{raw_val.dimensional_validation.get('maintainability', {}).get('bottleneck_precision', 0.0):.4f}"),
-            "G9_ftr": ("False Top Rate FTR", "\u2264 0.20", f"{raw_val.dimensional_validation.get('security', {}).get('ftr', 1.0):.4f}"),
         }
-        
+
         gate_rows = []
         for gid, (name, threshold, actual) in gate_names.items():
             status = "PASS" if raw_val.gates.get(gid, False) else "FAIL"
             gate_rows.append([gid, name, threshold, actual, status])
-            
+
         print_table(
-            "Unified Validation Gates Checklist (G1-G9)",
+            "Unified Validation Gates Checklist (G1-G6, G8)",
             ["Gate ID", "Gate Name", "Threshold", "Actual Value", "Status"],
             gate_rows
         )
@@ -120,11 +120,12 @@ def run_validation(args):
         # ---------------------------------------------------------------------
         # Table 3: Multi-Dimensional Correlations
         # ---------------------------------------------------------------------
+        ft_spearman = raw_val.dimensional_validation.get('fault_tolerance', {}).get('spearman', 0.0)
         dim_rows = [
-            ["Reliability", "R(v)", "IR(v) (cascade reach)", f"{raw_val.reliability_spearman:.4f}"],
+            ["Reliability", "R(v)", "IR(v) = \u03b1\u00b7IFT(v) + (1-\u03b1)\u00b7IA(v)", f"{raw_val.reliability_spearman:.4f}"],
+            ["  Fault Tolerance", "FT(v)", "IFT(v) (cascade reach)", f"{ft_spearman:.4f}"],
+            ["  Availability", "A(v)", "IA(v) (partitioning)", f"{raw_val.availability_spearman:.4f}"],
             ["Maintainability", "M(v)", "IM(v) (fragility check)", f"{raw_val.maintainability_spearman:.4f}"],
-            ["Availability", "A(v)", "IA(v) (partitioning)", f"{raw_val.availability_spearman:.4f}"],
-            ["Vulnerability", "V(v)", "IV(v) (compromise reach)", f"{raw_val.security_spearman:.4f}"],
             ["Composite", "Q*(v)", "I*(v) (composite ground truth)", f"{raw_val.composite_spearman:.4f}"]
         ]
         print_table(
@@ -140,9 +141,9 @@ def run_validation(args):
         health_rows = [
             ["H_R (Reliability Health)", "Measures reliability headroom against cascade failures", f"{sh.get('H_R', 0.0):.4f}"],
             ["H_M (Maintainability Health)", "Measures coupling modularity health", f"{sh.get('H_M', 0.0):.4f}"],
-            ["H_A (Availability Health)", "Measures availability / single-point redundancy health", f"{sh.get('H_A', 0.0):.4f}"],
-            ["H_S (Security/Vulnerability Health)", "Measures security compromise headroom", f"{sh.get('H_S', 0.0):.4f}"],
-            ["SRI (System Risk Index)", "Weighted composite system-wide risk index (lower is better)", f"{sh.get('SRI', 0.0):.4f}"],
+            ["H_FT (Fault Tolerance Health)", "Sub-characteristic diagnostic; feeds H_R, excluded from SRI", f"{sh.get('H_FT', 0.0):.4f}"],
+            ["H_A (Availability Health)", "Sub-characteristic diagnostic; feeds H_R, excluded from SRI", f"{sh.get('H_A', 0.0):.4f}"],
+            ["SRI (System Risk Index)", "Weighted composite system-wide risk index \u2014 sums only H_R, H_M (lower is better)", f"{sh.get('SRI', 0.0):.4f}"],
             ["RCI (Risk Concentration / Gini)", "Gini coefficient of predictions (higher means risk is concentrated)", f"{sh.get('RCI', 0.0):.4f}"]
         ]
         print_table(
@@ -201,21 +202,23 @@ def run_validation(args):
         # ---------------------------------------------------------------------
         print("\nVerifying Validation Results:")
         
-        # Verify basic dimensions and scores
+        # Verify basic dimensions and scores. Pins refreshed for the RM model's
+        # composite weights (0.80/0.20) \u2014 the pre-migration 4-D composite pins
+        # no longer apply on this deliberately tiny (n=5), low-variance graph.
         assert raw_val.matched_components == 5, f"Expected 5 matched components, got {raw_val.matched_components}"
-        assert math.isclose(raw_val.spearman, 0.0, abs_tol=1e-3), f"Expected overall spearman 0.0, got {raw_val.spearman}"
+        assert math.isclose(raw_val.spearman, -0.7071, abs_tol=1e-3), f"Expected overall spearman -0.7071, got {raw_val.spearman}"
         print(f"  [PASS] Overall Spearman rank correlation \u03c1 = {raw_val.spearman:.4f}")
 
         # Verify Wilcoxon / degree centrality baseline comparator (PG)
-        assert math.isclose(raw_val.predictive_gain, -0.6669, abs_tol=1e-3), f"Expected PG -0.6669, got {raw_val.predictive_gain}"
+        assert math.isclose(raw_val.predictive_gain, -0.8721, abs_tol=1e-3), f"Expected PG -0.8721, got {raw_val.predictive_gain}"
         print(f"  [PASS] Predictive Gain (PG) = {raw_val.predictive_gain:.4f}")
 
-        # Verify Gates passed/failed (fails G1 & G2, passes G3 & G4)
+        # Verify Gates passed/failed (fails G1, G2 & G3, passes G4)
         assert raw_val.gates["G1_spearman"] == False, "Expected G1_spearman gate to fail"
         assert raw_val.gates["G2_f1"] == False, "Expected G2_f1 gate to fail"
-        assert raw_val.gates["G3_precision"] == True, "Expected G3_precision gate to pass"
+        assert raw_val.gates["G3_precision"] == False, "Expected G3_precision gate to fail"
         assert raw_val.gates["G4_top5"] == True, "Expected G4_top5 gate to pass"
-        print("  [PASS] Gate statuses verified: G1/G2 failed (expected due to small graph size and low variance), G3/G4 passed successfully.")
+        print("  [PASS] Gate statuses verified: G1/G2/G3 failed (expected due to small graph size and low variance), G4 passed successfully.")
 
         # Verify System health index bounds
         assert 0.0 < sh["SRI"] < 1.0, f"Expected SRI in (0, 1) bounds, got {sh['SRI']}"

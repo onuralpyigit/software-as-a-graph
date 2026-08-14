@@ -107,15 +107,15 @@ for scenario in "${TARGETS[@]}"; do
         echo "  [4/4] failure_impact.json exists"
     fi
 
-    # Step 5: RMAV quality scores
-    # --no-antipatterns: the cache consumes RMAV scores only, and detection is
+    # Step 5: RM quality scores
+    # --no-antipatterns: the cache consumes RM scores only, and detection is
     # measured separately by reproduce/detection_validation.py. Leaving it on
     # also makes this step hang — DEEP_PIPELINE enumerates every simple path and
     # does not terminate on the larger topologies (see DEFAULT_EXCLUDED_PATTERNS
     # in reproduce/detection_validation.py). It also forces a non-zero exit via
     # the deployment gate, which this script would report as a spurious error.
     if [ ! -f "$out/quality_scores.json" ]; then
-        echo "  [5/5] Computing RMAV quality scores ..."
+        echo "  [5/5] Computing RM quality scores ..."
         PYTHONPATH=. python cli/predict_graph.py \
             --layer app --no-antipatterns \
             --output "$out/quality_scores.json" 2>&1 | tail -2 || \
@@ -138,6 +138,6 @@ for scenario in "${TARGETS[@]}"; do
     [ -f "$out/failure_impact.json" ] && fi_ok="✓"
     [ -f "$out/quality_scores.json" ] && qs_ok="✓"
     [ -f "$out/structural_metrics.json" ] && sm_ok="✓"
-    echo "    $scenario  structural=$sm_ok  simulation=$fi_ok  rmav=$qs_ok"
+    echo "    $scenario  structural=$sm_ok  simulation=$fi_ok  rm=$qs_ok"
 done
 echo ""

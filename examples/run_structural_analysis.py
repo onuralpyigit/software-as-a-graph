@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Example script to run Step 2 Analyze (Structural Centrality, AP, CDI, and RMAV)
+Example script to run Step 2 Analyze (Structural Centrality, AP, CDI, and RM)
 on the worked example topology, matching docs/structural-analysis.md Section 13.
 """
 
@@ -77,9 +77,9 @@ def run_structural_analysis(args):
         print("Executing structural analysis on the 'system' layer...")
         result = client.analyze(layer="system")
 
-        # 5b. Run the Predict stage (Step 3) to obtain RMAV quality scores;
+        # 5b. Run the Predict stage (Step 3) to obtain RM quality scores;
         # analyze() alone only returns structural metrics.
-        print("Executing prediction (RMAV scoring) on the analysis result...")
+        print("Executing prediction (RM scoring) on the analysis result...")
         prediction = client.predict(result)
 
         # 6. Extract results for displaying and asserting
@@ -113,7 +113,7 @@ def run_structural_analysis(args):
             metrics_rows
         )
 
-        # 8. Print quality scores (R, M, A, V, Overall Q)
+        # 8. Print quality scores (R, M, A, Overall Q)
         quality_rows = []
         for cid in ["A0", "A1", "B0", "L0", "T0"]:
             cq = comp_quality.get(cid)
@@ -126,7 +126,7 @@ def run_structural_analysis(args):
                     f"{cq.scores.overall:.3f} ({cq.levels.overall.value})"
                 ])
         print_table(
-            "Component Criticality Scores and Levels (RMAV)",
+            "Component Criticality Scores and Levels (RM)",
             ["ID", "Reliability (R)", "Maintainability (M)", "Availability (A)", "Overall (Q)"],
             quality_rows
         )
@@ -203,12 +203,14 @@ def run_structural_analysis(args):
             assert math.isclose(t0_m.in_degree, 0.0)
             print("  [PASS] Topic '/temperature' FOC and in-degree match.")
 
-            # Check reliability R(v) scores (computed under default robust-normalization)
-            assert math.isclose(comp_quality["A0"].scores.reliability, 0.488, abs_tol=1e-2)
-            assert math.isclose(comp_quality["A1"].scores.reliability, 0.487, abs_tol=1e-2)
-            assert math.isclose(comp_quality["B0"].scores.reliability, 0.516, abs_tol=1e-2)
-            assert math.isclose(comp_quality["L0"].scores.reliability, 0.516, abs_tol=1e-2)
-            assert math.isclose(comp_quality["T0"].scores.reliability, 0.938, abs_tol=1e-2)
+            # Check reliability R(v) scores (computed under default robust-normalization).
+            # Pins refreshed for the RM model's hierarchical R(v) = alpha*FT(v) + (1-alpha)*A(v);
+            # the pre-migration flat-FT-only R(v) pins no longer apply.
+            assert math.isclose(comp_quality["A0"].scores.reliability, 0.188, abs_tol=1e-2)
+            assert math.isclose(comp_quality["A1"].scores.reliability, 0.188, abs_tol=1e-2)
+            assert math.isclose(comp_quality["B0"].scores.reliability, 0.198, abs_tol=1e-2)
+            assert math.isclose(comp_quality["L0"].scores.reliability, 0.218, abs_tol=1e-2)
+            assert math.isclose(comp_quality["T0"].scores.reliability, 0.350, abs_tol=1e-2)
             print("  [PASS] Reliability R(v) scores match.")
 
             # Check availability A(v) scores (computed under default robust-normalization)
