@@ -81,14 +81,16 @@ class TopoClass:
     id: str
     label: str
     scenarios: List[str]           # scenario name prefixes (e.g. "scenario_01")
-    primary_dimension: str         # RM dimension that should dominate
+    # RM dimension that should dominate. None for classes whose validation
+    # story isn't about dimension dominance — see "sparse" below, whose
+    # decisive gate is precision (no over-flagging), not which dimension wins.
+    primary_dimension: Optional[str]
     discriminating_signal: str     # structural property that drives correctness
     # Gate thresholds for this class (may be tighter/looser than global defaults)
     spearman_min: float = 0.80
     f1_min: float       = 0.85
     precision_min: float = 0.85
     spof_f1_min: float  = 0.90
-    ftr_max: float      = 0.20
     pg_min: float       = 0.03     # Predictive Gain
     # Per-class narrative
     expected_driver: str = ""
@@ -130,14 +132,20 @@ TOPOLOGY_CLASSES: Dict[str, TopoClass] = {
         id="anti_pattern",
         label="Anti-pattern / SPOF",
         scenarios=["scenario_05"],
-        primary_dimension="security",
-        discriminating_signal="extreme broker overload ratio (2 brokers / 70 apps) → V(v) top-tier",
+        # Was "security" under RMAV (V(v): DG_out + DepDensity). Retired along
+        # with the Vulnerability/Security dimension — reassigned to
+        # availability, which this class already gated tightly on
+        # (spof_f1_min=0.95, "brokers must be classified CRITICAL") since
+        # broker-as-SPOF is fundamentally an articulation-point/availability
+        # signal, not an attack-surface one.
+        primary_dimension="availability",
+        discriminating_signal="extreme broker overload ratio (2 brokers / 70 apps) → A(v) top-tier",
         spearman_min=0.87,   # tighter: deliberate signal is strong
         f1_min=0.90,
         precision_min=0.90,
         spof_f1_min=0.95,   # brokers must be classified CRITICAL
         pg_min=0.05,
-        expected_driver="V(v): DG_out + DepDensity → both overloaded brokers must appear in "
+        expected_driver="A(v): AP_c_directed + QSPOF → both overloaded brokers must appear in "
                         "CRITICAL tier.  Broker failure impact ≥ 0.5 × total_apps in simulation.",
         expected_weak_gate="ρ may be artificially high (very clear signal); the real test is "
                            "SPOF_F1 and whether Precision ≥ 0.90 (not falsely flagging unrelated apps).",
@@ -146,16 +154,20 @@ TOPOLOGY_CLASSES: Dict[str, TopoClass] = {
         id="sparse",
         label="Sparse / well-distributed",
         scenarios=["scenario_06"],
-        primary_dimension="security",
+        # No dimension-dominance story for this class — its decisive gate is
+        # precision (not over-flagging), not which dimension wins. Previously
+        # "security" with FTR (False Top Rate) as the decisive metric, but FTR
+        # was a security-only specialist (calculate_ftr) retired along with
+        # that dimension; precision_min was already the real gate here.
+        primary_dimension=None,
         discriminating_signal="low fan-in and fan-out per topic → classifier must not over-flag",
         spearman_min=0.78,   # slightly relaxed: weaker structural signal
         f1_min=0.82,
-        precision_min=0.88,  # precision is the primary gate for this class
+        precision_min=0.88,  # precision is the primary (and now only) gate for this class
         spof_f1_min=0.85,
-        ftr_max=0.15,        # tighter FTR: the key failure mode is false positives
         pg_min=0.03,
         expected_driver="Precision: box-plot IQR-based thresholds must not promote ordinary "
-                        "components to CRITICAL.  FTR (False Top Rate) ≤ 0.15 is decisive.",
+                        "components to CRITICAL. Precision ≥ 0.88 is decisive.",
         expected_weak_gate="Recall may be lower than other classes because there are fewer "
                            "true critical components to find in a sparse, well-balanced graph.",
     ),
@@ -191,13 +203,10 @@ class ScenarioValidation:
     reliability_spearman:     float = 0.0
     availability_spearman:    float = 0.0
     maintainability_spearman: float = 0.0
-    security_spearman:        float = 0.0
     # Specialist metrics
     spof_f1:  float = 0.0
     ccr_5:    float = 0.0
     cocr_5:   float = 0.0
-    ahcr_5:   float = 0.0
-    ftr:      float = 0.0
     # Gates
     gates: Dict[str, bool] = field(default_factory=dict)
     # Meta
@@ -217,17 +226,16 @@ class TopoClassResult:
     mean_f1:         float = 0.0
     mean_precision:  float = 0.0
     mean_spof_f1:    float = 0.0
-    mean_ftr:        float = 0.0
     mean_pg:         float = 0.0
     # Class-level pass/fail
     spearman_ok:   bool = False
     f1_ok:         bool = False
     precision_ok:  bool = False
     spof_f1_ok:    bool = False
-    ftr_ok:        bool = False
     class_passed:  bool = False
-    # Primary dimension dominance confirmed
-    primary_dim_dominance: bool = False
+    # Primary dimension dominance confirmed. None when the class has no
+    # dimension-dominance story (TopoClass.primary_dimension is None).
+    primary_dim_dominance: Optional[bool] = None
 
 
 @dataclass
@@ -345,14 +353,11 @@ def parse_validation_json(
         sv.reliability_spearman     = _safe_float(dim, "reliability",     "spearman")
         sv.availability_spearman    = _safe_float(dim, "availability",    "spearman")
         sv.maintainability_spearman = _safe_float(dim, "maintainability", "spearman")
-        sv.security_spearman        = _safe_float(dim, "security",        "spearman")
 
         # Specialist metrics
         sv.spof_f1  = _safe_float(dim, "availability",    "spof_f1")
         sv.ccr_5    = _safe_float(dim, "reliability",     "ccr_5")
         sv.cocr_5   = _safe_float(dim, "maintainability", "cocr_5")
-        sv.ahcr_5   = _safe_float(dim, "security",        "ahcr_5")
-        sv.ftr      = _safe_float(dim, "security",        "ftr")
 
         # Gates
         sv.gates  = layer_data.get("gates") or {}
@@ -467,27 +472,27 @@ def aggregate_topo_class(
     result.mean_f1        = _mean([sv.f1_score   for sv in valid])
     result.mean_precision = _mean([sv.precision  for sv in valid])
     result.mean_spof_f1   = _mean([sv.spof_f1    for sv in valid])
-    result.mean_ftr       = _mean([sv.ftr        for sv in valid])
     result.mean_pg        = _mean([sv.predictive_gain for sv in valid])
 
     result.spearman_ok  = result.mean_spearman  >= cls_def.spearman_min
     result.f1_ok        = result.mean_f1        >= cls_def.f1_min
     result.precision_ok = result.mean_precision >= cls_def.precision_min
     result.spof_f1_ok   = result.mean_spof_f1   >= cls_def.spof_f1_min
-    result.ftr_ok       = result.mean_ftr       <= cls_def.ftr_max
 
     # Primary dimension dominance: the declared primary dim should have the
-    # highest dimensional spearman among the four dimensions
-    dim_map = {
-        "reliability":     [sv.reliability_spearman     for sv in valid],
-        "availability":    [sv.availability_spearman     for sv in valid],
-        "maintainability": [sv.maintainability_spearman  for sv in valid],
-        "security":        [sv.security_spearman        for sv in valid],
-    }
-    dim_means = {k: _mean(v) for k, v in dim_map.items()}
-    if dim_means:
-        best_dim = max(dim_means, key=lambda k: dim_means[k])
-        result.primary_dim_dominance = (best_dim == cls_def.primary_dimension)
+    # highest dimensional spearman among the three dimensions. Not applicable
+    # (left None) for classes like "sparse" whose validation story isn't
+    # about dimension dominance — see TopoClass.primary_dimension.
+    if cls_def.primary_dimension is not None:
+        dim_map = {
+            "reliability":     [sv.reliability_spearman     for sv in valid],
+            "availability":    [sv.availability_spearman     for sv in valid],
+            "maintainability": [sv.maintainability_spearman  for sv in valid],
+        }
+        dim_means = {k: _mean(v) for k, v in dim_map.items()}
+        if dim_means:
+            best_dim = max(dim_means, key=lambda k: dim_means[k])
+            result.primary_dim_dominance = (best_dim == cls_def.primary_dimension)
 
     result.class_passed = (
         result.spearman_ok and result.f1_ok and result.precision_ok
@@ -512,14 +517,14 @@ def build_report(class_results: Dict[str, TopoClassResult]) -> TopologyReport:
                 f"F1={r.mean_f1:.3f} (≥{cls.f1_min}), "
                 f"Prec={r.mean_precision:.3f} (≥{cls.precision_min})"
             )
-        if not r.primary_dim_dominance:
+        if cls.primary_dimension is not None and not r.primary_dim_dominance:
             notes.append(
                 f"{r.label}: primary dimension '{cls.primary_dimension}' "
                 "did not dominate — check RM weight calibration."
             )
-        if r.topo_class_id == "sparse" and not r.ftr_ok:
+        if r.topo_class_id == "sparse" and not r.precision_ok:
             notes.append(
-                f"Sparse/distributed: FTR={r.mean_ftr:.3f} > {cls.ftr_max} — "
+                f"Sparse/distributed: Precision={r.mean_precision:.3f} < {cls.precision_min} — "
                 "box-plot classifier is over-flagging; check IQR thresholds."
             )
 
@@ -558,8 +563,8 @@ def print_summary(report: TopologyReport) -> None:
     # Per-class table
     col = 26
     print(f"  {'CLASS':<{col}}  {'ρ':>6}  {'F1':>6}  {'Prec':>6}  "
-          f"{'SPOF-F1':>7}  {'FTR':>5}  {'PG':>5}  {'Dim✓':>5}  {'STATUS':>6}")
-    print(f"  {'-'*col}  {'-'*6}  {'-'*6}  {'-'*6}  {'-'*7}  {'-'*5}  {'-'*5}  {'-'*5}  {'-'*6}")
+          f"{'SPOF-F1':>7}  {'PG':>5}  {'Dim✓':>5}  {'STATUS':>6}")
+    print(f"  {'-'*col}  {'-'*6}  {'-'*6}  {'-'*6}  {'-'*7}  {'-'*5}  {'-'*5}  {'-'*6}")
 
     for cls_id, r in report.class_results.items():
         cls = TOPOLOGY_CLASSES[cls_id]
@@ -567,9 +572,11 @@ def print_summary(report: TopologyReport) -> None:
         f1    = f"{r.mean_f1:.3f}"
         prec  = f"{r.mean_precision:.3f}"
         spof  = f"{r.mean_spof_f1:.3f}"
-        ftr_s = f"{r.mean_ftr:.3f}"
         pg_s  = f"{r.mean_pg:.3f}"
-        dom   = f"{GREEN}yes{RESET}" if r.primary_dim_dominance else f"{AMBER}no {RESET}"
+        if r.primary_dim_dominance is None:
+            dom = f"{DIM}n/a{RESET}"
+        else:
+            dom = f"{GREEN}yes{RESET}" if r.primary_dim_dominance else f"{AMBER}no {RESET}"
         st    = f"{GREEN}PASS{RESET}" if r.class_passed else f"{RED}FAIL{RESET}"
 
         # Colour metric cells that fail their threshold
@@ -577,10 +584,9 @@ def print_summary(report: TopologyReport) -> None:
         f1_c   = f1   if r.f1_ok        else f"{AMBER}{f1}{RESET}"
         prec_c = prec if r.precision_ok else f"{AMBER}{prec}{RESET}"
         spof_c = spof if r.spof_f1_ok   else f"{AMBER}{spof}{RESET}"
-        ftr_c  = ftr_s if r.ftr_ok      else f"{AMBER}{ftr_s}{RESET}"
 
         print(f"  {r.label:<{col}}  {rho_c:>6}  {f1_c:>6}  {prec_c:>6}  "
-              f"{spof_c:>7}  {ftr_c:>5}  {pg_s:>5}  {dom:>5}  {st:>6}")
+              f"{spof_c:>7}  {pg_s:>5}  {dom:>5}  {st:>6}")
 
     print()
     print(f"  Classes passed  : {report.classes_passed} / {report.classes_total}")
@@ -614,15 +620,15 @@ def print_summary(report: TopologyReport) -> None:
     # Class-level threshold reference
     print()
     _sub("Threshold reference by class")
-    print(f"  {'CLASS':<26}  {'ρ≥':>5}  {'F1≥':>5}  {'Prec≥':>5}  {'SPOF-F1≥':>9}  {'FTR≤':>5}  {'Primary dim'}")
-    print(f"  {'-'*26}  {'-'*5}  {'-'*5}  {'-'*5}  {'-'*9}  {'-'*5}  {'-'*16}")
+    print(f"  {'CLASS':<26}  {'ρ≥':>5}  {'F1≥':>5}  {'Prec≥':>5}  {'SPOF-F1≥':>9}  {'Primary dim'}")
+    print(f"  {'-'*26}  {'-'*5}  {'-'*5}  {'-'*5}  {'-'*9}  {'-'*16}")
     for cls_id, cls in TOPOLOGY_CLASSES.items():
         r = report.class_results.get(cls_id)
         if r is None:
             continue
         print(f"  {cls.label:<26}  {cls.spearman_min:>5.2f}  {cls.f1_min:>5.2f}  "
               f"{cls.precision_min:>5.2f}  {cls.spof_f1_min:>9.2f}  "
-              f"{cls.ftr_max:>5.2f}  {cls.primary_dimension}")
+              f"{cls.primary_dimension or 'n/a'}")
 
 
 # ===========================================================================
@@ -680,10 +686,10 @@ def run_dataset_validation(args: argparse.Namespace) -> int:
 
     for cls_id, cls_def in active_classes.items():
         _hdr(f"Class: {cls_def.label}")
-        _info(f"Primary dimension   : {cls_def.primary_dimension}")
+        _info(f"Primary dimension   : {cls_def.primary_dimension or 'n/a'}")
         _info(f"Discriminating signal: {cls_def.discriminating_signal}")
         _info(f"Thresholds          : ρ≥{cls_def.spearman_min}  F1≥{cls_def.f1_min}  "
-              f"Prec≥{cls_def.precision_min}  SPOF-F1≥{cls_def.spof_f1_min}  FTR≤{cls_def.ftr_max}")
+              f"Prec≥{cls_def.precision_min}  SPOF-F1≥{cls_def.spof_f1_min}")
 
         scenario_results: List[ScenarioValidation] = []
 
