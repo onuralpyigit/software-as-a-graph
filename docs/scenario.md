@@ -156,7 +156,7 @@ PYTHONPATH=. python cli/generate_graph.py validate               # topology-clas
 ### Rebuild the ground-truth caches
 
 The evaluation harnesses read `output/loso_cache/<scenario>/` — topology, structural metrics,
-simulated failure impact, and RMAV scores. **Regenerating datasets without rebuilding these leaves
+simulated failure impact, and RM scores. **Regenerating datasets without rebuilding these leaves
 the harnesses evaluating a graph that no longer exists**; the guard in `main_table.py` now raises
 rather than letting that through.
 
@@ -274,11 +274,15 @@ are where the unweighted structural baseline fails outright (ρ ≤ 0).
 |---|---:|---:|---:|---:|
 | Topo-BL | 0.105 | 0.179 | 0.038 | 0.219 |
 | Topo-QoS | 0.521 | 0.308 | 0.492 | 0.359 |
-| RMAV / Q(v) | — | — | −0.123 | — |
+| RM / Q(v) | — | — | TODO(needs re-measurement) | — |
 | GL | 0.436 | 0.440 | 0.409 | 0.423 |
 | GL-QoS | 0.430 | 0.435 | 0.397 | 0.446 |
 | HGL | **0.608** | **0.465** | 0.666 | **0.491** |
 | HGL-QoS | 0.595 | 0.461 | **0.693** | 0.479 |
+
+> The k-fold `RM / Q(v)` row's old value (−0.123, under the retired RMAV composite) predates this
+> corpus rebuild and used a different protocol than Table 3/4 above; it has not been re-measured
+> under the RM model this session — TODO(needs re-measurement).
 
 ### 5.3 Instrument defects found and fixed
 

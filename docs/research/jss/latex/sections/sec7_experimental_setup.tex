@@ -60,7 +60,7 @@ Predictor & Description & Role \\
 Predictor & Description & Role \\
 \midrule
 \endhead
-\textbf{RMAV / \(Q\)} & deterministic multi-dimensional composite (Section~\ref{sec:4}) & interpretable predictor \\
+\textbf{RM / \(Q\)} & deterministic hierarchical composite (Section~\ref{sec:4}) & interpretable predictor \\
 \textbf{HGL} & heterogeneous graph transformer, QoS-masked & learned predictor (typed) \\
 \textbf{HGL-QoS} & heterogeneous graph transformer, QoS-encoded & learned predictor (typed + QoS) \\
 \textbf{GL / GL-QoS} & homogeneous GAT on the type-collapsed projection & learning baseline (untyped) \\
@@ -70,7 +70,7 @@ Predictor & Description & Role \\
 
 The contrast \texttt{Topo-*} vs learned isolates the value of learning (RQ1); \texttt{GL} vs
 \texttt{HGL} isolates the value of typed heterogeneity; \texttt{HGL} vs \texttt{HGL-QoS} isolates
-explicit QoS encoding (RQ3); and \texttt{RMAV/Q} vs the learned predictors isolates when
+explicit QoS encoding (RQ3); and \texttt{RM/Q} vs the learned predictors isolates when
 interpretable attribution suffices. Structural baseline features are kept decoupled from GNN inputs
 so no comparison leaks information across the predictor boundary.
 
@@ -200,13 +200,13 @@ Hidden channels & 64 \\
 Attention heads & 4 \\
 Dropout & 0.2 \\
 Input projection & per-node-type linear → LayerNorm → ReLU \\
-Output heads & four RMAV residual MLPs + one composite head, sigmoid-activated \\
+Output heads & two RM residual MLPs (reliability, maintainability) + one composite head, sigmoid-activated \\
 Optimizer & AdamW, learning rate \(3\times10^{-4}\), weight decay \(1\times10^{-4}\) \\
 LR schedule & \texttt{CosineAnnealingWarmRestarts}, \(T_0 = \max(50, \text{epochs}/4)\), \(T_{\text{mult}} = 2\), \(\eta_{\min} = 0.01\cdot\text{lr}\) \\
 Gradient clipping & max-norm 1.0 \\
 Epochs / early stopping & 300, patience 30 on validation loss \\
 Node splits & 60\% train / 20\% validation / 20\% test, pinned by node identity (Section~\ref{sec:7.2}) \\
-Loss & composite MSE \(+\ 0.5\,\)multitask \(+\ 0.3\,\)ListMLE ranking \(+\ 0.1\,\)pairwise margin \(+\ 0.1\,\)RMAV consistency \\
+Loss & composite MSE \(+\ 0.5\,\)multitask \(+\ 0.3\,\)ListMLE ranking \(+\ 0.1\,\)pairwise margin \(+\ 0.1\,\)RM consistency \\
 \bottomrule
 \end{longtable}
 

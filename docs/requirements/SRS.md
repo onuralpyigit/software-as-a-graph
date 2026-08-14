@@ -18,7 +18,7 @@
    - 3.1 [Synthetic Graph Generation (Offline Input Preparation)](#31-synthetic-graph-generation-offline-input-preparation)
    - 3.2 [Graph Model Construction (Step 1)](#32-graph-model-construction-step-1)
    - 3.3 [Structural Analysis (Step 2)](#33-structural-analysis-step-2)
-   - 3.4 [Unified Prediction Step: Rule-Based (RMAV) + ML (GNN) (Step 3)](#34-unified-prediction-step-rule-based-rmav--ml-gnn-step-3)
+   - 3.4 [Unified Prediction Step: Rule-Based (RM) + ML (GNN) (Step 3)](#34-unified-prediction-step-rule-based-rm--ml-gnn-step-3)
    - 3.5 [Failure Simulation (Step 4)](#35-failure-simulation-step-4)
    - 3.6 [Statistical Validation (Step 5)](#36-statistical-validation-step-5)
    - 3.7 [Visualization (Step 6)](#37-visualization-step-6)
@@ -38,10 +38,10 @@
 ### 1.1 Purpose
 This document specifies the software requirements for the **Software-as-a-Graph (saag)** framework—a system that predicts which components in a distributed publish-subscribe environment are critical (i.e., whose failure would cause the greatest cascading impact) using only the system's architectural structure. 
 
-This specification is aligned with **ISO/IEC/IEEE 29148:2018** for requirements engineering and traces directly to **ISO/IEC/IEEE 12207:2026** software life cycle processes. The target audience includes software architects, reliability engineers, security engineers, DevOps professionals, and researchers.
+This specification is aligned with **ISO/IEC/IEEE 29148:2018** for requirements engineering and traces directly to **ISO/IEC/IEEE 12207:2026** software life cycle processes. The target audience includes software architects, reliability engineers, DevOps professionals, and researchers.
 
 ### 1.2 Scope
-Software-as-a-Graph transforms a distributed publish-subscribe system's topology description into a weighted heterogeneous directed graph, evaluates its structural characteristics, and applies both rule-based (RMAV) and machine-learning (Heterogeneous Graph Transformer - GNN) approaches to forecast component and link criticality before deployment, without requiring runtime telemetry.
+Software-as-a-Graph transforms a distributed publish-subscribe system's topology description into a weighted heterogeneous directed graph, evaluates its structural characteristics, and applies both rule-based (RM) and machine-learning (Heterogeneous Graph Transformer - GNN) approaches to forecast component and link criticality before deployment, without requiring runtime telemetry.
 
 The framework implements a 6-step core analytical pipeline, preceded by an offline input preparation stage:
 
@@ -50,7 +50,7 @@ The framework implements a 6-step core analytical pipeline, preceded by an offli
 | **Offline Prep: Generate** | Produce synthetic pub-sub topologies for evaluation | Topology JSON |
 | **1. Model** | Load topology JSON into Neo4j; derive logical dependencies | Heterogeneous Graph $G(V, E)$ |
 | **2. Analyze** | Compute 18+ topological metrics per component | Metric vectors $\mathbf{M}(v)$ |
-| **3. Predict** | Forecast criticality via rule-based (RMAV) and learning-based (GNN) models | Node $Q(v)$ & Edge $Q(e)$ scores |
+| **3. Predict** | Forecast criticality via rule-based (RM) and learning-based (GNN) models | Node $Q(v)$ & Edge $Q(e)$ scores |
 | **4. Simulate** | Inject cascade failure scenarios to generate labels | Ground-truth labels $\mathbf{I}(v)$ |
 | **5. Validate** | Compare predictions $Q$ against simulation results $\mathbf{I}$ | Spearman $\rho$, F1-score, NDCG |
 | **6. Visualize**| Generate dashboard reports and interactive viewers | HTML Reports / SMART Web App |
@@ -83,6 +83,7 @@ The system is delivered through three interfaces:
 - **v2.2 (Feb 2026):** Added FastAPI backend, SMART Next.js web application interfaces, and increased target accuracy bounds.
 - **v2.3 (Mar 2026):** Refactored backend architecture to follow presenter patterns and updated quality formulations to align with expert weight shifts.
 - **v3.0 (Jun 2026 - Current):** Full alignment with **ISO/IEC/IEEE 12207:2026** and **ISO/IEC/IEEE 29148:2018**. Expanded GNN details (Heterogeneous Graph Transformers, bidirectional propagation, custom edge projections, multi-task losses, robust normalization) and added Step 0 (Synthetic Graph Generation) functional requirements. Added ML Operational NFRs and the process mapping matrix.
+- **v3.1 (Aug 2026):** Migrated the quality model from 4-D "RMAV" (Reliability, Maintainability, Availability, Vulnerability) to 2-D "RM" per ISO/IEC 25010:2023. Vulnerability/Security is deleted entirely (no successor metric or gate); Availability is demoted from a peer dimension to a Reliability sub-characteristic alongside a new Fault Tolerance sub-characteristic: $R(v) = \alpha \cdot FT(v) + (1-\alpha) \cdot A(v)$, $\alpha = 0.36$. Composite becomes $Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$. Updated §1.2, §2.3, §2.4, §3.4, §3.4.2/3.5 GNN head counts, Appendix A formula reference, Appendix B glossary. Removed the Security Engineer persona (§2.3) and the `Target`/`Exposure` anti-patterns from REQ-QS-04's scope.
 
 ---
 
@@ -100,14 +101,13 @@ Software-as-a-Graph is a standalone, pre-deployment static analysis tool. It rea
 ### 2.3 User Characteristics
 - **Software Architect**: Designs topologies and assesses reliability risks.
 - **Reliability/DevOps Engineer**: Focuses on single points of failure (SPOF) and redundancy mapping.
-- **Security Engineer**: Identifies high-vulnerability attack vectors.
 - **Researcher/Data Scientist**: Evaluates and trains GNN models on synthetic datasets.
 
 ### 2.4 Product Functions
 1. **Synthetic Generation**: Automatically build pub-sub topology benchmarks.
 2. **Graph Import**: Ingest topology specifications and project layers in Neo4j.
 3. **Metric Extraction**: Calculate structural, QoS, and code-level characteristics.
-4. **Predictive Analysis**: Compute closed-form RMAV dimensions and run PyTorch GNN inference.
+4. **Predictive Analysis**: Compute closed-form RM dimensions and run PyTorch GNN inference.
 5. **Cascade Simulation**: Propagate failures across four operational contexts.
 6. **Performance Validation**: Check predictions against simulated benchmarks using Spearman $\rho$ gates.
 
@@ -161,16 +161,18 @@ The system must extract topological metrics from the projected subgraphs.
 | **REQ-SA-04** | The system shall normalize all computed topological and QoS metrics to the interval $[0, 1]$ prior to downstream utilization. |
 | **REQ-SA-05** | The system shall compute graph-level statistics (density, clustering coefficient, bridge ratio, and node/edge ratios) for diagnostic reporting. |
 
-### 3.4 Unified Prediction Step: Rule-Based (RMAV) + ML (GNN) (Step 3)
+### 3.4 Unified Prediction Step: Rule-Based (RM) + ML (GNN) (Step 3)
 The legacy "Quality Scoring" mechanism (formerly part of Step 2) has been removed and replaced by a single, unified Prediction Step. The system must forecast node and edge criticality using rule-based metrics (always computed) and trained GNN models (blended in when available), and derive anti-pattern reports and explanations from the result.
 
-#### 3.4.1 Rule-Based Quality Scoring (RMAV)
+#### 3.4.1 Rule-Based Quality Scoring (RM)
+Per ISO/IEC 25010:2023, the system scores two external quality characteristics: Reliability and Maintainability. Reliability is hierarchical, with Fault Tolerance and Availability as sub-characteristics. Vulnerability/Security was a third peer dimension in earlier versions of this system (the "RMAV" model); it has been deleted entirely — not folded into another dimension, and with no successor metric or gate.
+
 | ID | Requirement |
 |----|-------------|
-| **REQ-QS-01** | The system shall compute individual dimension scores for Reliability $R(v)$, Maintainability $M(v)$, Availability $A(v)$, and Vulnerability $V(v)$ using the closed-form expressions in Appendix A.2 to A.5. |
-| **REQ-QS-02** | The system shall compute the composite score $Q_{RMAV}(v)$ using weighted dimensions derived from the Analytic Hierarchy Process (AHP). |
-| **REQ-QS-03** | The system shall validate AHP matrix consistency, ensuring the Consistency Ratio ($CR$) is less than $0.10$ before applying derived weights. |
-| **REQ-QS-04** | The system shall isolate and report architectural anti-patterns: Single Points of Failure (SPOF), failure hubs, and high-vulnerability clusters. |
+| **REQ-QS-01** | The system shall compute individual sub-characteristic scores for Fault Tolerance $FT(v)$ and Availability $A(v)$, blend them into the hierarchical Reliability score $R(v) = \alpha \cdot FT(v) + (1-\alpha) \cdot A(v)$ ($\alpha = 0.36$), and compute Maintainability $M(v)$, using the closed-form expressions in Appendix A.2 to A.5. |
+| **REQ-QS-02** | The system shall compute the composite score $Q(v) = w_R \cdot R(v) + w_M \cdot M(v)$ using declared composite weights ($w_R = 0.80$, $w_M = 0.20$ by default), optionally QoS-adapted or domain-derived per component. |
+| **REQ-QS-03** | The system shall validate AHP matrix consistency, ensuring the Consistency Ratio ($CR$) is less than $0.10$, for the intra-sub-characteristic term weights (Fault Tolerance, Maintainability, Availability) before applying derived weights. |
+| **REQ-QS-04** | The system shall isolate and report architectural anti-patterns: Single Points of Failure (SPOF) and failure hubs. |
 
 #### 3.4.2 GNN-Based Prediction (Inductive Forecasting)
 | ID | Requirement |
@@ -181,22 +183,22 @@ The legacy "Quality Scoring" mechanism (formerly part of Step 2) has been remove
 | **REQ-GNN-04** | The system shall implement a 3-layer **HGTConv (Heterogeneous Graph Transformer)** backbone (`NodeCriticalityGNN`) with relation-specific Key/Query/Value projection matrices to learn type-specific attention weights. |
 | **REQ-GNN-05** | The system shall inject 16-dimensional edge attributes into node embeddings via `EdgeFeatureEncoder`, which projects each edge vector and scatter-means it into the destination node ahead of every `HGTConv` layer, since `HGTConv` does not accept raw `edge_attr` tensors. Per-edge features reach the edge head un-averaged through `TypedEdgeEncoder`; the node backbone sees them pre-aggregated (see [prediction.md §9 L2](../prediction.md#9-known-limitations)). |
 | **REQ-GNN-06** | The system shall support a bidirectional pass option (`use_bidirectional=True`) to capture upstream and downstream architectural signals during graph convolution. |
-| **REQ-GNN-07** | The system shall deploy multi-task prediction heads (MLPs with Sigmoid activations) to predict dimension scores ($\hat{R}$, $\hat{M}$, $\hat{A}$, $\hat{V}$) and a composite score $\hat{I}^*$ concurrently. |
-| **REQ-GNN-08** | The system shall feed the outputs of the four dimension heads directly into the composite head alongside the node representation to learn non-linear dimension interactions. |
+| **REQ-GNN-07** | The system shall deploy multi-task prediction heads (MLPs with Sigmoid activations) to predict dimension scores ($\hat{R}$, $\hat{M}$) and a composite score $\hat{I}^*$ concurrently. Fault Tolerance and Availability are Reliability sub-characteristics scored on the analysis side, not separate GNN prediction targets. |
+| **REQ-GNN-08** | The system shall feed the outputs of the two dimension heads directly into the composite head alongside the node representation to learn non-linear dimension interactions. |
 | **REQ-GNN-09** | The system shall calculate direct edge-level criticality rankings using a `TypedEdgeEncoder` which projects edge features and fuses them with source and destination node embeddings. |
 
 #### 3.4.3 Criticality Classification
 | ID | Requirement |
 |----|-------------|
 | **REQ-GNN-CLS-01** | The system shall classify components into five criticality levels (CRITICAL, HIGH, MEDIUM, LOW, MINIMAL) using box-plot statistical classification ($Q_3 + k \cdot IQR$) with adaptive thresholds rather than static cuts. |
-| **REQ-GNN-CLS-02** | The system shall log fallback alerts and default to RMAV scoring if the specified GNN model checkpoint is missing or incompatible with the target layer. |
+| **REQ-GNN-CLS-02** | The system shall log fallback alerts and default to RM scoring if the specified GNN model checkpoint is missing or incompatible with the target layer. |
 
 #### 3.4.4 GNN Training and Optimization
 | ID | Requirement |
 |----|-------------|
 | **REQ-GNN-TR-01** | The system shall utilize AdamW optimization, Cosine Annealing learning rate scheduling with restarts, and gradient norm clipping. |
 | **REQ-GNN-TR-02** | The system shall partition nodes using a transductive split (60% Train, 20% Val, 20% Test) per node type, and support fully inductive scenario splits. |
-| **REQ-GNN-TR-03** | The system shall optimize GNN parameters using a composite loss function comprising: MSE composite loss, MSE dimension loss, ListMLE ranking loss, pairwise margin loss, and RMAV consistency regularization on unlabeled nodes (see Appendix A.8). |
+| **REQ-GNN-TR-03** | The system shall optimize GNN parameters using a composite loss function comprising: MSE composite loss, MSE dimension loss, ListMLE ranking loss, pairwise margin loss, and RM consistency regularization on unlabeled nodes (see Appendix A.8). |
 | **REQ-GNN-TR-04** | The system shall perform robust label normalization in-place on target simulation labels using IQR-scaled sigmoidal bounds to mitigate outlier influence. |
 | **REQ-GNN-TR-05** | The system shall support multi-seed training loops (default seeds: 42, 123, 456, 789, 2024), logging validation Spearman $\rho$ per seed, and restoring the best weights before checkpoint serialization. |
 
@@ -207,7 +209,7 @@ The system must run cascade simulations to establish target criticality labels.
 |----|-------------|
 | **REQ-FS-01** | The system shall support exhaustive failure simulation by sequentially failing each component and evaluating downstream disruptions. |
 | **REQ-FS-02** | The system shall support Monte Carlo simulation for large systems to limit execution durations. |
-| **REQ-FS-03** | The system shall execute four distinct simulator modes: Reliability (cascade propagation), Maintainability (change impact reach), Availability (network connectivity loss), and Vulnerability (compromise propagation). |
+| **REQ-FS-03** | The system shall execute dimension-specific simulator sub-passes computing ground truth for: Fault Tolerance (cascade propagation dynamics), Availability (connectivity disruption), and Maintainability (change-propagation reach). Reliability's ground truth $I_R(v)$ is the $\alpha$-blend of the Fault Tolerance and Availability sub-passes, mirroring the scoring-side hierarchy. |
 | **REQ-FS-04** | The system shall propagate cascades using four semantic rules: PHYSICAL (RUNS_ON), LOGICAL (Broker routes), NETWORK (CONNECTS_TO), and LIBRARY (USES). |
 | **REQ-FS-05** | The system shall output a composite impact score $I(v)$ representing the overall cascading footprint of each component. |
 
@@ -347,6 +349,8 @@ The system shall expose command-line entry points registered via package configu
 
 The system evaluates all forecast models against simulated failure footprints. The targets and actual performance across validated scenarios are as follows:
 
+> **TODO(needs re-measurement):** The "Achieved" figures below were measured under the retired 4-D "RMAV" closed-form model and have not been re-run against the 2-D RM model. Re-running the acceptance protocol behind this table (App/Infra layer, same scenarios) is needed before these numbers can be cited as current. For comparable *already re-measured* figures under RM, see `reproduce/main_table.py`'s Table 3 (mean Spearman $\rho$ by variant, macro-averaged across 7 scenarios) and `reproduce/loso_all_variants.py`'s Table 4 (LOSO cross-domain), both in `results/`.
+
 | Metric | Target (App Layer) | Achieved (App Layer) | Achieved (Infra Layer) |
 |--------|--------------------|-----------------------|------------------------|
 | Spearman $\rho$ | $\ge 0.80$ | **0.876** ✓ | 0.54 |
@@ -391,25 +395,27 @@ Where:
 - $w_{\text{priority}} = 0.30$ if Urgent, $0.20$ if High, $0.10$ if Medium, $0.00$ if Low.
 - $w_{\text{size}} = \min(\log_2(1 + \text{size\_bytes}/1024)/50, 0.20)$.
 
-### A.2 Reliability Score
-$$R(v) = w_1 \times RPR(v) + w_2 \times DG_{in}(v) + w_3 \times CDPot_{enh}(v)$$
+### A.2 Fault Tolerance Score (Reliability Sub-Characteristic)
+$$FT(v) = w_1 \times RPR(v) + w_2 \times DG_{in}(v) + w_3 \times CDPot_{enh}(v)$$
 *(Weights: $w_1 = 0.45, w_2 = 0.30, w_3 = 0.25$)*
 
 ### A.3 Maintainability Score
 $$M(v) = w_1 \times BT(v) + w_2 \times w_{out}(v) + w_3 \times CQP(v) + w_4 \times CouplingRisk_{enh}(v) + w_5 \times (1 - CC(v))$$
 *(Weights: $w_1 = 0.35, w_2 = 0.30, w_3 = 0.15, w_4 = 0.12, w_5 = 0.08$)*
 
-### A.4 Availability Score
+### A.4 Availability Score (Reliability Sub-Characteristic)
 $$A(v) = w_1 \times AP_{c\_directed}(v) + w_2 \times QSPOF(v) + w_3 \times BR(v) + w_4 \times CDI(v) + w_5 \times w(v)$$
 *(Weights: $w_1 = 0.35, w_2 = 0.25, w_3 = 0.25, w_4 = 0.10, w_5 = 0.05$)*
 
-### A.5 Vulnerability Score
-$$V(v) = w_1 \times REV(v) + w_2 \times RCL(v) + w_3 \times QADS(v)$$
-*(Weights: $w_1 = 0.40, w_2 = 0.35, w_3 = 0.25$)*
+### A.5 Reliability Score (Hierarchical Composite)
+$$R(v) = \alpha \cdot FT(v) + (1 - \alpha) \cdot A(v)$$
+*(Default weight: $\alpha = 0.36$, a declared constant algebraically derived from the retired 4-D AHP composite's Reliability/Availability weights — $\alpha = 0.24/(0.24+0.43) = 0.3582 \to 0.36$ — not itself AHP-derived.)*
 
-### A.6 Composite Quality Score (RMAV Baseline)
-$$Q_{RMAV}(v) = \alpha \cdot R(v) + \beta \cdot M(v) + \gamma \cdot A(v) + \delta \cdot V(v)$$
-*(Default system-layer weights: $\alpha = \beta = \gamma = \delta = 0.25$)*
+> **[RMAV → RM migration]** This section previously defined the Vulnerability Score, $V(v) = w_1 \times REV(v) + w_2 \times RCL(v) + w_3 \times QADS(v)$. The Vulnerability/Security dimension has been **deleted entirely** — not folded into another dimension, no successor metric or gate. `REV`, `RCL`, and `QADS` (a.k.a. $w_{in}$) are retained as diagnostic-only structural metrics but no longer feed any RM formula.
+
+### A.6 Composite Quality Score (RM)
+$$Q(v) = w_R \cdot R(v) + w_M \cdot M(v)$$
+*(Default weights: $w_R = 0.80, w_M = 0.20$, declared constants algebraically derived from the retired 4-D AHP composite (R=0.24, M=0.17, A=0.43, V=0.16): $w_R = (0.24+0.43)/0.84 = 0.7976 \to 0.80$, $w_M = 0.17/0.84 = 0.2024 \to 0.20$. AHP is retired at the composite level entirely — a pairwise judgment over two composite terms is trivially consistent (CR=0) and adds nothing. $(w_R, w_M)$ may be further QoS-adapted or domain-derived per component around this default.)*
 
 ### A.7 GNN Edge Features (16 Dimensions)
 1. QoS weight $w(e)$ (index 0)
@@ -424,7 +430,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \times \mathcal{L}_{\text{d
 - $\mathcal{L}_{\text{dimension}}$: MSE of individual dimension predictions.
 - $\mathcal{L}_{\text{rank}}$: ListMLE rank-loss optimized across node lists.
 - $\mathcal{L}_{\text{pairwise}}$: Margin loss ($m=0.05$) enforcing relative node rank constraints.
-- $\mathcal{L}_{\text{consistency}}$: Regularization term checking predicting bounds against RMAV baselines on unlabeled nodes.
+- $\mathcal{L}_{\text{consistency}}$: Regularization term checking predicting bounds against RM baselines on unlabeled nodes.
 
 ---
 
@@ -439,5 +445,5 @@ $$\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \times \mathcal{L}_{\text{d
 - **HeteroData**: PyTorch Geometric's data object containing heterogeneous nodes and edges.
 - **HGT / HGTConv**: Heterogeneous Graph Transformer—GNN layers using type-specific attention. The project uses PyTorch Geometric's stock `HGTConv`, preceded at each layer by `EdgeFeatureEncoder` because `HGTConv` cannot consume raw edge attributes.
 - **ListMLE**: Listwise maximum likelihood loss for ranking data.
-- **RMAV**: Reliability, Maintainability, Availability, and Vulnerability.
+- **RM**: Reliability, Maintainability—the two ISO/IEC 25010:2023 characteristics scored by this system. Reliability is hierarchical: $R(v) = \alpha \cdot FT(v) + (1-\alpha) \cdot A(v)$, with Fault Tolerance and Availability as sub-characteristics. Earlier versions ("RMAV") also scored Vulnerability/Security as a fourth peer dimension; it has been deleted entirely, with no successor metric or gate.
 - **SPOF**: Single Point of Failure—an active articulation point component.

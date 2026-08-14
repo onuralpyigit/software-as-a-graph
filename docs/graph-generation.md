@@ -225,7 +225,7 @@ Edges are constructed in dependency order because later steps consume earlier on
 
 ### 6.3 Code-Metrics Generation
 
-Every `Application` and `Library` node carries a `code_metrics` block feeding the RMAV Maintainability $M(v)$ penalty, generated from type-specific archetype ranges (`_CODE_METRICS_PARAMS`, `_LIB_CODE_METRICS_PARAMS`):
+Every `Application` and `Library` node carries a `code_metrics` block feeding the RM Maintainability $M(v)$ penalty, generated from type-specific archetype ranges (`_CODE_METRICS_PARAMS`, `_LIB_CODE_METRICS_PARAMS`):
 - **Size** — `total_loc`, `total_classes`, `total_methods`, `total_fields`.
 - **Complexity** — `total_wmc`, `avg_wmc`, `max_wmc`.
 - **Cohesion** — `avg_lcom`, `max_lcom`.

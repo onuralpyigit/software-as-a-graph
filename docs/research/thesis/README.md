@@ -13,7 +13,7 @@ Write thesis chapters *from* it — don't edit it in place. If you need to compa
 (condensed) JSS draft, diff the two files directly.
 
 **`material/*.md`** are the individual sections lifted out of the full draft, verbatim, each with its
-own provenance header. They exist so a specific piece of content (say, the RMAV formulas) doesn't
+own provenance header. They exist so a specific piece of content (say, the RM formulas) doesn't
 require re-reading all 30k words of `jss_draft_full.md` to find.
 
 ## Map: JSS section → thesis material → what happened to it in the journal paper
@@ -21,7 +21,7 @@ require re-reading all 30k words of `jss_draft_full.md` to find.
 | JSS §(§) | Thesis file | Condensed in JSS to | Why it's here rather than in the paper |
 |---|---|---|---|
 | §3.2 Tables 3–4, §3.4, §3.5 Table 6 | [`material/model_details.md`](material/model_details.md) | Two sentences + a pointer to the replication package | Supporting detail (QoS-weight tables, the `cm_*` SCA metric list, the four-layer table) that the condensed §3 states the conclusion of but doesn't need to re-derive |
-| §4.1–§4.6 (RMAV dimensions, formulas, composite score, worked example) | [`material/rmav_attribution.md`](material/rmav_attribution.md) | §4 retitled "Interpretable Attribution as a Baseline", ~1,200 words, one merged table | §8.3 shows the stated dimension weighting does not improve ranking accuracy over equal weights — the paper keeps that result and the dimension *definitions*, but not the full formula derivation, the three-weighting-paths account, or the worked example |
+| §4.1–§4.6 (RM dimensions, formulas, composite score, worked example) | [`material/rm_attribution.md`](material/rm_attribution.md) | §4 retitled "Interpretable Attribution as a Baseline", ~1,200 words, one merged table | §8.3 shows the stated dimension weighting does not improve ranking accuracy over equal weights — the paper keeps that result and the dimension *definitions*, but not the full formula derivation, the three-weighting-paths account, or the worked example |
 | §4.7 (Relationship Criticality) | [`material/relationship_criticality.md`](material/relationship_criticality.md) | Removed entirely | Defined but not validated — §8.2 states outright that the edge-removal measurement does not validate it, since the two are computed over populations that barely intersect. A thesis chapter can present this as a design contribution without the journal paper's validation bar |
 | §5.4 (library blast, negative result), §5.5 (stratified correlation) | [`material/oracles_and_labels.md`](material/oracles_and_labels.md) | One paragraph each | Both were already restated nearly in full in §8.2 — the condensation removes duplication, not the finding. §5.1 (the three-oracle definitions) and §7.5 (their measured agreement) stay in the journal paper in full; this file includes them for self-containedness |
 | §6.1–§6.7 (remediation operators, acceptance criterion, CI/CD gate, yield analysis) | [`material/remediation_and_gating.md`](material/remediation_and_gating.md) | Two subsections, ~700 words; §6.7's yield table becomes two sentences folded into §8.4 | The mechanism (Generate→Verify, the four operators, the gate's exit codes) stays in the paper; the design-rationale prose around each (why per-edit rather than aggregate verification, the independence invariants spelled out separately from §5.3) is thesis-chapter depth |
@@ -33,8 +33,8 @@ None of this is binding — the actual thesis structure depends on what else sur
 but a natural first cut:
 
 - **Ch. "The SaG model"** ← `model_details.md` + the (unabridged) §3 of `jss_draft_full.md`.
-- **Ch. "Interpretable attribution"** ← `rmav_attribution.md` + `relationship_criticality.md`. This
-  is the natural home for the full RMAV derivation and the edge-criticality construction that the
+- **Ch. "Interpretable attribution"** ← `rm_attribution.md` + `relationship_criticality.md`. This
+  is the natural home for the full RM derivation and the edge-criticality construction that the
   journal paper can only state the conclusion of.
 - **Ch. "Failure-impact prediction"** ← the unabridged §5 of `jss_draft_full.md` (the HGT and the
   learning results are the journal paper's core and stay there too) + `oracles_and_labels.md` for

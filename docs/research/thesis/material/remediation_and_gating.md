@@ -55,9 +55,10 @@ specific failure mode:
 | **FanOutReduction** | high structural blast radius (topic subscriber fan-out; library consumer count) | interpose an intermediary or split the over-shared channel | simultaneous blast / fan-out explosion |
 | **SharedTopicReduction** | high multi-path coupling (large `path_count` / MPCI between a pair) | decouple redundant shared topics between the pair | multi-channel coupling fragility |
 
-The operators span the RMAV dimensions deliberately: RedundancyInsertion and PathDiversification
-address Availability, FanOutReduction addresses Reliability (blast radius), and
-SharedTopicReduction addresses Maintainability coupling.
+The operators span the RM dimensions deliberately: RedundancyInsertion and PathDiversification
+address Availability (Reliability's sub-characteristic), FanOutReduction addresses Fault Tolerance
+(blast radius, Reliability's other sub-characteristic), and SharedTopicReduction addresses
+Maintainability coupling.
 
 ## 6.3 Triggering on Blast Radius, not on $Q(v)$
 

@@ -6,19 +6,19 @@ This document bridges [Step 3: Predict](prediction.md) (anti-pattern detection) 
 
 ---
 
-## 1. Detection: the 21-pattern catalog
+## 1. Detection: the 19-pattern catalog
 
-`AntiPatternDetector` (`saag/analysis/antipattern_detector.py`) evaluates the 13-element structural metric vector $M(v)$ (see [structural-analysis.md](structural-analysis.md)) and the derived RMAV criticality scores against a catalog of **21** anti-patterns, each with a severity tier and a formal detection rule.
+`AntiPatternDetector` (`saag/analysis/antipattern_detector.py`) evaluates the 13-element structural metric vector $M(v)$ (see [structural-analysis.md](structural-analysis.md)) and the derived RM criticality scores against a catalog of **19** anti-patterns, each with a severity tier and a formal detection rule.
 
 A key design property: thresholds are **population-relative, not universal**. Most detectors compare a component's metric against an adaptive box-plot fence (`Q3 + 1.5 × IQR`) computed over the *current system's own* metric distribution, not a fixed constant. A 300-component enterprise system and a 15-component ROS 2 stack get different absolute cutoffs for the same pattern, because "anomalous" is defined relative to each system's own population.
 
 | Severity | Patterns |
 |---|---|
-| **CRITICAL** | `SPOF`, `SYSTEMIC_RISK`, `GOD_COMPONENT`, `FAILURE_HUB`, `TARGET`, `COMPOUND_RISK` |
-| **HIGH** | `CYCLE`, `BRIDGE_EDGE`, `BOTTLENECK_EDGE`, `BROKER_OVERLOAD`, `DEEP_PIPELINE`, `EXPOSURE` |
+| **CRITICAL** | `SPOF`, `SYSTEMIC_RISK`, `GOD_COMPONENT`, `FAILURE_HUB`, `COMPOUND_RISK` |
+| **HIGH** | `CYCLE`, `BRIDGE_EDGE`, `BOTTLENECK_EDGE`, `BROKER_OVERLOAD`, `DEEP_PIPELINE` |
 | **MEDIUM** | `CONCENTRATION_RISK`, `TOPIC_FANOUT`, `CHATTY_PAIR`, `QOS_MISMATCH`, `ORPHANED_TOPIC`, `UNSTABLE_INTERFACE`, `HUB_AND_SPOKE`, `CHAIN`, `ISOLATED` |
 
-Every entry carries a `PatternSpec.recommendation` string — narrative remediation guidance, reproduced in each pattern's `### 5.N` section of [antipatterns.md](antipatterns.md). That guidance exists for all 21 patterns. It is advice for a human, not code that runs — that distinction is the subject of the next section.
+Every entry carries a `PatternSpec.recommendation` string — narrative remediation guidance, reproduced in each pattern's `### 5.N` section of [antipatterns.md](antipatterns.md). That guidance exists for all 19 patterns. It is advice for a human, not code that runs — that distinction is the subject of the next section.
 
 ---
 
@@ -36,10 +36,10 @@ Every entry carries a `PatternSpec.recommendation` string — narrative remediat
 
 Two separate signals feed these triggers, and only one of them ties back to specific catalog IDs:
 
-- **Generic criticality tier** — any component classified `CRITICAL`/`HIGH` on the RMAV dimensional scale can trigger any operator, regardless of which (if any) specific anti-pattern was detected on it.
+- **Generic criticality tier** — any component classified `CRITICAL`/`HIGH` on the RM dimensional scale can trigger any operator, regardless of which (if any) specific anti-pattern was detected on it.
 - **Detected-problem name matching** (`rules.py`, `_smells`) — the only channel that links back to particular catalog entries, and it works by substring-matching `DetectedProblem.name` (the human-readable `PatternSpec.name`), not a dedicated pattern-ID field.
 
-Following that name-matching channel through to the catalog, only **5 of the 21** patterns are directly wired into an operator:
+Following that name-matching channel through to the catalog, only **5 of the 19** patterns are directly wired into an operator:
 
 | Catalog ID | Operator reached | How |
 |---|---|---|
@@ -49,7 +49,7 @@ Following that name-matching channel through to the catalog, only **5 of the 21*
 | `FAILURE_HUB` | 1 (topic split) | name contains `"Hub"` |
 | `HUB_AND_SPOKE` | 1 (topic split) | name contains `"Hub"` |
 
-Notably, **`QOS_MISMATCH` has no link to Operator 3** despite the obvious conceptual overlap — QoS hardening fires only from the generic criticality tier, never from the `QOS_MISMATCH` detection itself. The remaining 16 patterns (`BRIDGE_EDGE`, `BROKER_OVERLOAD`, `CONCENTRATION_RISK`, `DEEP_PIPELINE`, `TOPIC_FANOUT`, `QOS_MISMATCH`, `CHATTY_PAIR`, `ORPHANED_TOPIC`, `UNSTABLE_INTERFACE`, `TARGET`, `EXPOSURE`, `CYCLE`, `CHAIN`, `ISOLATED`, `SYSTEMIC_RISK`, `COMPOUND_RISK`) have **no automated operator at all** — their `PatternSpec.recommendation` text in [antipatterns.md](antipatterns.md) is advisory-only, for a human to act on (interface extraction, mediator components, stage merging, cycle-breaking via events, redundancy injection, and similar remediations that require semantic — not purely topological — judgment).
+Notably, **`QOS_MISMATCH` has no link to Operator 3** despite the obvious conceptual overlap — QoS hardening fires only from the generic criticality tier, never from the `QOS_MISMATCH` detection itself. The remaining 14 patterns (`BRIDGE_EDGE`, `BROKER_OVERLOAD`, `CONCENTRATION_RISK`, `DEEP_PIPELINE`, `TOPIC_FANOUT`, `QOS_MISMATCH`, `CHATTY_PAIR`, `ORPHANED_TOPIC`, `UNSTABLE_INTERFACE`, `CYCLE`, `CHAIN`, `ISOLATED`, `SYSTEMIC_RISK`, `COMPOUND_RISK`) have **no automated operator at all** — their `PatternSpec.recommendation` text in [antipatterns.md](antipatterns.md) is advisory-only, for a human to act on (interface extraction, mediator components, stage merging, cycle-breaking via events, redundancy injection, and similar remediations that require semantic — not purely topological — judgment).
 
 This is a principled boundary, not an oversight: the three operators only automate remediations expressible as pure topology/QoS mutations. Remediations that require understanding *what* a component does (breaking a cycle correctly, deciding which pipeline stages are safe to merge) stay advisory.
 
@@ -87,8 +87,8 @@ The output of a `prescribe()` call is a remediation blueprint: an itemized `appl
 | `FAILURE_HUB` | CRITICAL | **Automated** (Operator 1) |
 | `BOTTLENECK_EDGE` | HIGH | **Automated** (Operator 1) |
 | `HUB_AND_SPOKE` | MEDIUM | **Automated** (Operator 1) |
-| `SYSTEMIC_RISK`, `TARGET`, `COMPOUND_RISK` | CRITICAL | Advisory only |
-| `CYCLE`, `BRIDGE_EDGE`, `BROKER_OVERLOAD`, `DEEP_PIPELINE`, `EXPOSURE` | HIGH | Advisory only |
+| `SYSTEMIC_RISK`, `COMPOUND_RISK` | CRITICAL | Advisory only |
+| `CYCLE`, `BRIDGE_EDGE`, `BROKER_OVERLOAD`, `DEEP_PIPELINE` | HIGH | Advisory only |
 | `CONCENTRATION_RISK`, `TOPIC_FANOUT`, `CHATTY_PAIR`, `QOS_MISMATCH`, `ORPHANED_TOPIC`, `UNSTABLE_INTERFACE`, `CHAIN`, `ISOLATED` | MEDIUM | Advisory only |
 
 See [antipatterns.md](antipatterns.md) for each pattern's full specification and remediation narrative, and [prescription.md](prescription.md) for the operator implementation, schema, and API.

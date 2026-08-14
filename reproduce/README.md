@@ -96,7 +96,7 @@ make -f reproduce/Makefile kfold
 ```
 
 Runs `reproduce/kfold_all_variants.py` for all 5 variants (`hgl_qos`, `hgl`, `gl_qos`, `gl`,
-`topology_rmav`), each evaluated via repeated stratified k-fold (`k=5`, 5 seeds) *independently
+`topology_rm`), each evaluated via repeated stratified k-fold (`k=5`, 5 seeds) *independently
 within* each of the 7 cached scenarios — no cross-scenario training, unlike Step 3's LOSO. This is
 slower than Step 3 per variant (k-fold trains ~5× more model fits than LOSO for the same seed count:
 scenarios × k × seeds vs. scenarios × seeds), but requires no cross-scenario data-loader coupling,

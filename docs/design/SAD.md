@@ -138,7 +138,7 @@ The logical view decomposes the codebase into specialized packages with strict d
                                  ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ Application Service Packages                                    │
-│ - saag.analysis (structural metrics & RMAV quality)             │
+│ - saag.analysis (structural metrics & RM quality)             │
 │ - saag.prediction (inductive GNN prediction service)           │
 │ - saag.simulation (BFS discrete-event cascade simulation)       │
 │ - saag.validation (Spearman ρ, classification performance)      │
@@ -213,7 +213,7 @@ software-as-a-graph/                  # Workspace Root
 │   └── common/                       #   Shared CLI utilities (arguments parser, dispatchers)
 ├── saag/                             # Core Domain & Service Packages (SDK)
 │   ├── core/                         #   Core domain models, ports, and layer definitions
-│   ├── analysis/                     #   Structural metrics and RMAV formula engines
+│   ├── analysis/                     #   Structural metrics and RM formula engines
 │   ├── prediction/                   #   PyTorch HGT/GNN prediction service
 │   ├── simulation/                   #   Discrete-event cascade propagation engine
 │   ├── validation/                   #   Spearman ρ and classification evaluation
@@ -369,7 +369,7 @@ Each node $v$ receives a feature vector composed of an 18-dimensional base topol
 - **Rationale**: Isolating domain calculation logic from infrastructure packages allows us to maintain stable, testable code. By defining `IGraphRepository`, we can execute unit tests using `MemoryRepository` in milliseconds without launching Neo4j. If we transition to another database (e.g., Neptune) in the future, the core SDK remains unchanged.
 
 ### 5.2 Decision 2: Decoupling Static Prediction from Failure Simulation
-- **Rationale**: The core evaluation methodology requires validating structural predictions against cascade simulation results. If the prediction engine (RMAV/GNN) had access to simulation telemetry during execution, it would result in validation leakage. Decooupling them guarantees that predictions are computed purely statically (pre-deployment), matching operational constraints.
+- **Rationale**: The core evaluation methodology requires validating structural predictions against cascade simulation results. If the prediction engine (RM/GNN) had access to simulation telemetry during execution, it would result in validation leakage. Decooupling them guarantees that predictions are computed purely statically (pre-deployment), matching operational constraints.
 
 ### 5.3 Decision 3: Heterogeneous Graph Transformer (HGT) Backbone
 - **Rationale**: Publish-subscribe systems are inherently heterogeneous (applications publish to topics, brokers route topics, apps run on physical nodes). Standard homogeneous GNN models (like GCN or GAT) wash out these semantic differences. HGTConv learns separate query/key/value projection matrices per relation type, accurately capturing pub-sub routing patterns.

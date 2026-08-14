@@ -46,7 +46,7 @@ docs/          # Per-stage methodology documentation + formal specs
 
 The analytical pipeline is a Directed Acyclic Graph, not a linear chain. Step 2 (Analyze) computes structural metrics only and feeds them to both Step 3 (Predict) and Step 4 (Simulate), which run independently. Step 5 (Validate) then compares prediction outcomes against the simulation ground-truth labels.
 
-Step 3 (Predict) is a unified **Prediction Step**: the legacy "Quality Scoring" mechanism that used to live inside Analyze has been removed and replaced by a single step that always computes rule-based (RMAV) scores, blends in ML (GNN) inference when a trained checkpoint is available, and runs anti-pattern detection and explanation generation on the result.
+Step 3 (Predict) is a unified **Prediction Step**: the legacy "Quality Scoring" mechanism that used to live inside Analyze has been removed and replaced by a single step that always computes rule-based (RM) scores, blends in ML (GNN) inference when a trained checkpoint is available, and runs anti-pattern detection and explanation generation on the result.
 
 ```
                   ┌──────────────┐
@@ -68,7 +68,7 @@ Step 3 (Predict) is a unified **Prediction Step**: the legacy "Quality Scoring" 
    ┌───────────┐                     ┌───────────┐
    │Prediction │                     │Simulation │
    │  Result   │                     │  Result   │
-   │(RMAV+GNN+ │                     │  (Labels) │
+   │(RM+GNN+   │                     │  (Labels) │
    │AntiPattern│                     │           │
    │+Explain)  │                     │           │
    └─────┬─────┘                     └─────┬─────┘
@@ -97,7 +97,7 @@ Step 3 (Predict) is a unified **Prediction Step**: the legacy "Quality Scoring" 
 ```
 
 > [!NOTE]
-> **First-run sequencing:** Step 3 (Predict) depends on simulation-derived training labels for GNN training. On the first run, execute Steps 1 $\rightarrow$ 2 $\rightarrow$ 4 to generate those labels, then train the GNN model, and finally run Step 3 inference. The Predict stage (Step 3) is fully self-contained for its rule-based path and produces valid RMAV $Q^*(v)$ scores without requiring a GNN checkpoint (the Analyze stage, Step 2, is structural-only and does not compute RMAV/Q scores).
+> **First-run sequencing:** Step 3 (Predict) depends on simulation-derived training labels for GNN training. On the first run, execute Steps 1 $\rightarrow$ 2 $\rightarrow$ 4 to generate those labels, then train the GNN model, and finally run Step 3 inference. The Predict stage (Step 3) is fully self-contained for its rule-based path and produces valid RM $Q^*(v)$ scores without requiring a GNN checkpoint (the Analyze stage, Step 2, is structural-only and does not compute RM/Q scores).
 
 ---
 
@@ -149,15 +149,15 @@ Pure Python; no dependency on Neo4j, NetworkX, or presentation frameworks.
 - `utils/serialization.py` — Flatten/reconstruct helpers between nested JSON and flat graph properties.
 
 ### `analysis/` — Step 2 Analytical Engine
-Computes structural metrics only on the layer subgraph. No RMAV/Q scores or anti-patterns — those are produced by the Predict stage (Step 3).
+Computes structural metrics only on the layer subgraph. No RM/Q scores or anti-patterns — those are produced by the Predict stage (Step 3).
 - `StructuralAnalyzer` — NetworkX-based PageRank, Betweenness, Harmonic Closeness, Eigenvector, and Reverse PageRank, plus custom pub-sub metrics (MPCI, FOC, CDI, PC).
 - `AnalysisService` — Orchestrates layer projections and calculations against `IGraphRepository`.
-- `AntiPatternDetector` — Audits RMAV scores to flag architectural smells (SPOF, FAILURE_HUB, GOD_COMPONENT, etc.). It lives here but is invoked by `prediction/`, since it operates on Predict-stage output.
-- `QualityAnalyzer`, `BoxPlotClassifier`, `AHPProcessor` — the RMAV scoring, classification, and AHP-weighting implementations used by the Predict stage. Import them from here; `saag/prediction/` no longer re-exports them.
+- `AntiPatternDetector` — Audits RM scores to flag architectural smells (SPOF, FAILURE_HUB, GOD_COMPONENT, etc.). It lives here but is invoked by `prediction/`, since it operates on Predict-stage output.
+- `QualityAnalyzer`, `BoxPlotClassifier`, `AHPProcessor` — the RM scoring, classification, and AHP-weighting implementations used by the Predict stage. Import them from here; `saag/prediction/` no longer re-exports them.
 
 ### `prediction/` — Step 3 Predictive Engine (unified Prediction Step)
-A single step that always computes rule-based RMAV scores, blends in ML/GNN inference when available, and runs anti-pattern detection and explanation generation.
-- `PredictionService` — The single entry point for the unified Predict stage: RMAV scoring and problem detection (delegated to `analysis/`), then GNN inference when a checkpoint is available (else falling back to RMAV), then anti-pattern detection and explanation generation.
+A single step that always computes rule-based RM scores, blends in ML/GNN inference when available, and runs anti-pattern detection and explanation generation.
+- `PredictionService` — The single entry point for the unified Predict stage: RM scoring and problem detection (delegated to `analysis/`), then GNN inference when a checkpoint is available (else falling back to RM), then anti-pattern detection and explanation generation.
 - `GNNService` — Loads a checkpoint containing `NodeCriticalityGNN`: `N` stacked stock `torch_geometric.nn.HGTConv` layers, with an `EdgeFeatureEncoder` injecting edge features before each layer ([core.py:146-290](saag/prediction/models/core.py#L146-L290)). Runs inductive prediction.
 - `ExplanationEngine` (from `explanation/`) — Generates the natural-language narrative attached to each Predict-stage result.
 
@@ -250,7 +250,7 @@ Scripts mirror the pipeline stages. Eight have console-script entry points insta
 | `export_graph.py` | Step 1 — export Neo4j → JSON | *(none)* |
 | `analyze_graph.py` | Step 2 — structural metrics | `saag-analyze` |
 | `train_graph.py` | Step 3 (training) — GNN training | *(none)* |
-| `predict_graph.py` | Step 3 (inference) — RMAV + GNN + anti-patterns | `saag-predict` |
+| `predict_graph.py` | Step 3 (inference) — RM + GNN + anti-patterns | `saag-predict` |
 | `detect_antipatterns.py` | Standalone anti-pattern / CI gate | *(none)* |
 | `simulate_graph.py` | Step 4 — `fault-inject` \| `message-flow` \| `combined` | `saag-simulate` |
 | `validate_graph.py` | Step 5 — `single` \| `sweep` \| `report` \| `compare` \| `harness` | `saag-validate` |
@@ -300,10 +300,10 @@ Topological nodes are categorized into five entity types within the graph databa
 ### Analysis Layer Projections
 Analytic metrics are calculated on specific subgraphs matching the active layer:
 
-| Layer | Node Types Included | Derived Edges Evaluated | Primary RMAV Dimension |
+| Layer | Node Types Included | Derived Edges Evaluated | Primary RM Dimension |
 |:---|:---|:---|:---|
 | `app` | `Application`, `Library` | `app_to_app`, `app_to_lib` | Reliability ($R$) |
-| `infra` | `Node` | `node_to_node` | Availability ($A$) |
+| `infra` | `Node` | `node_to_node` | Availability ($A$, Reliability sub-characteristic) |
 | `mw` | `Broker` | `app_to_broker`, `node_to_broker`, `broker_to_broker` | Maintainability ($M$) |
 | `system` | All types | All derived dependency edges | Overall Quality ($Q^*$) |
 
@@ -318,9 +318,6 @@ Structural connections (e.g. pub/sub topics and broker routing) are transformed 
 | 4 | `node_to_broker` | Host $\rightarrow$ App $\rightarrow$ Router Broker | host node inherits broker dependencies of its hosted applications |
 | 5 | `app_to_lib` | App $\rightarrow$ USES $\rightarrow$ Library | application depends on library package logic (shared blast risk) |
 | 6 | `broker_to_broker` | Broker $\leftrightarrow$ Host $\leftrightarrow$ Broker | co-located brokers share hardware fate (bidirectional) |
-
-> [!NOTE]
-> The RMAV dimension named **Vulnerability** in documentation is named `security` in code (`q_security`, `s_qads`, `dimensional_validation["security"]`).
 
 ---
 

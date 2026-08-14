@@ -22,7 +22,7 @@ if [[ ! -f "${SCENARIO_JSON}" ]]; then
     exit 1
 fi
 
-VARIANTS=("hetero_qos" "homo_unweighted" "homo_scalar" "topology_rmav")
+VARIANTS=("hetero_qos" "homo_unweighted" "homo_scalar" "topology_rm")
 RESULTS=()
 
 echo "================================================================"
@@ -35,21 +35,21 @@ for VARIANT in "${VARIANTS[@]}"; do
     CKPT_DIR="output/gnn_checkpoints/${SCENARIO}_${VARIANT}"
     echo "── Variant: ${VARIANT} ────────────────────────────────────────"
 
-    if [[ "${VARIANT}" == "topology_rmav" ]]; then
-        # RMAV baseline: needs --rmav; if no pre-computed file, skip gracefully
-        RMAV_PATH="output/loso_cache/${SCENARIO}/quality_scores.json"
-        if [[ -f "${RMAV_PATH}" ]]; then
+    if [[ "${VARIANT}" == "topology_rm" ]]; then
+        # RM baseline: needs --rm; if no pre-computed file, skip gracefully
+        RM_PATH="output/loso_cache/${SCENARIO}/quality_scores.json"
+        if [[ -f "${RM_PATH}" ]]; then
             PYTHONPATH=. python cli/train_graph.py \
                 --structural "output/loso_cache/${SCENARIO}/structural_metrics.json" \
                 --simulated  "output/loso_cache/${SCENARIO}/failure_impact.json" \
-                --rmav       "${RMAV_PATH}" \
-                --variant topology_rmav \
-                --output     "output/results/${SCENARIO}_topology_rmav.json" \
+                --rm         "${RM_PATH}" \
+                --variant topology_rm \
+                --output     "output/results/${SCENARIO}_topology_rm.json" \
                 "$@" 2>&1 | tail -5
-            RESULTS+=("topology_rmav: see output/results/${SCENARIO}_topology_rmav.json")
+            RESULTS+=("topology_rm: see output/results/${SCENARIO}_topology_rm.json")
         else
-            echo "  Skipping topology_rmav (no RMAV cache at ${RMAV_PATH})"
-            RESULTS+=("topology_rmav: SKIPPED (no RMAV cache)")
+            echo "  Skipping topology_rm (no RM cache at ${RM_PATH})"
+            RESULTS+=("topology_rm: SKIPPED (no RM cache)")
         fi
     else
         # GNN variants: use scenario JSON directly if loso cache not available

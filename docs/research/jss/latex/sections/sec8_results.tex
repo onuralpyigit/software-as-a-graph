@@ -117,13 +117,18 @@ Variant & Mean \(\rho\) (LOSO) & Std \(\rho\) & \(F_1@K\) & Training required \\
 \endhead
 Topo-BL & 0.105 & 0.151 & 0.179 & no \\
 Topo-QoS & 0.521 & 0.305 & 0.308 & \textbf{no} \\
-RMAV / \(Q(v)\) & -0.093 & 0.140 & 0.209 & no \\
+RM / \(Q(v)\) & TODO(needs re-measurement)\textsuperscript{\dag} & TODO(needs re-measurement)\textsuperscript{\dag} & TODO(needs re-measurement)\textsuperscript{\dag} & no \\
 GL (homogeneous) & 0.436 & 0.120 & 0.440 & yes \\
 GL-QoS (homogeneous) & 0.430 & 0.125 & 0.435 & yes \\
 \textbf{HGL (typed)} & \textbf{0.608} & 0.177 & \textbf{0.465} & yes \\
 \(HGL\text{-}QoS\) (typed + QoS) & 0.595 & 0.190 & 0.461 & yes \\
 \bottomrule
 \end{longtable}
+
+\textsuperscript{\dag} TODO(needs re-measurement): the RM / \(Q(v)\) closed-form-baseline row's Mean
+\(\rho\), Std \(\rho\), and \(F_1@K\) (previously reported $-0.093$ / $0.140$ / $0.209$ under the
+retired four-dimension RMAV composite) have not been reproduced under the two-dimension RM composite
+this session; re-run via \texttt{reproduce/loso\_all\_variants.py}'s closed-form \(Q(v)\) baseline arm.
 
 \texttt{Topo-QoS} requires no training, no labels, and no transfer assumption, so its
 out-of-distribution score \emph{is} its score; HGL reaches \(\rho = 0.608\) against its \(0.521\), and
@@ -239,44 +244,54 @@ across evaluation protocols while remaining an order of magnitude smaller than t
 variance is a null. The plausible reading is that the lifted dependency topology already encodes most
 QoS-relevant routing, so the extra dimensions mainly enlarge the parameter space.
 
-\textbf{Dimension-weight sensitivity: no plateau, and equal weights win.} Sweeping the shrinkage
-parameter \(\lambda\) that blends the stated dimension weighting toward a uniform prior
-(\(\lambda=0\) equal weights, \(\lambda=1\) the raw judgement), with the QoS-profile adaptation of
-Section~\ref{sec:4.2} active throughout as in every run reported in this paper:
+\textbf{Intra-dimension weight sensitivity: no plateau, and the raw AHP judgement edges out uniform
+weights.} Sweeping the shrinkage parameter \(\lambda\) that blends the AHP-derived
+\emph{intra}-dimension term weights toward a uniform prior (\(\lambda=0\) uniform intra-dimension
+weights, \(\lambda=1\) the raw judgement), with the QoS-profile adaptation of Section~\ref{sec:4.2}
+active throughout as in every run reported in this paper. The composite weights \((w_R, w_M)\) are
+declared constants and \(\lambda\)-invariant by construction; this sweep bears only on the term-level
+calibration within each dimension.
 
 \begin{longtable}[]{@{}lrrrrrrrrr@{}}
-\caption{AHP shrinkage sensitivity. Mean \(\rho\) against \(I^*(v)\) as \(\lambda\) blends the stated weighting toward a uniform prior.\label{tab:11}}\tabularnewline
+\caption{AHP shrinkage sensitivity. Mean \(\rho\) against \(I^*(v)\) as \(\lambda\) blends the intra-dimension term weighting toward a uniform prior.\label{tab:11}}\tabularnewline
 \toprule
-\(\lambda\) & 0.00 & 0.50 & 0.60 & 0.65 & \textbf{0.70} & 0.75 & 0.80 & 0.90 & 1.00 \\
+\(\lambda\) & 0.00 & 0.50 & 0.60 & 0.65 & \textbf{0.70} & 0.75 & 0.80 & 0.90 & \textbf{1.00} \\
 \midrule
 \endfirsthead
 \toprule
-\(\lambda\) & 0.00 & 0.50 & 0.60 & 0.65 & \textbf{0.70} & 0.75 & 0.80 & 0.90 & 1.00 \\
+\(\lambda\) & 0.00 & 0.50 & 0.60 & 0.65 & \textbf{0.70} & 0.75 & 0.80 & 0.90 & \textbf{1.00} \\
 \midrule
 \endhead
-mean \(\rho\) & \textbf{0.292} & 0.206 & 0.191 & 0.187 & \textbf{0.181} & 0.174 & 0.167 & 0.152 & 0.140 \\
+mean \(\rho\) & -0.0512 & -0.0254 & -0.0222 & -0.0202 & \textbf{-0.0188} & -0.0151 & -0.0140 & -0.0098 & \textbf{-0.0067} \\
 \bottomrule
 \end{longtable}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/Figure_4}
-\caption{Mean \(\rho\) against \(\lambda\), showing the monotone decline and the absence of a plateau.}
+\caption{Mean \(\rho\) against \(\lambda\), showing the monotone increase and the absence of a plateau.}
 \label{fig:4}
 \end{figure}
 
-\(\rho\) is monotonically decreasing in \(\lambda\); equal dimension weights outperform the
-calibrated \(\lambda=0.70\) setting by \(0.111\). The value of the RMAV decomposition is attribution,
-not ranking accuracy (Section~\ref{sec:4.2}); the sweep removes any claim that the specific weights
-improve predictive accuracy, and a practitioner optimising for ranking alone should use equal
-weights.
+\(\rho\) is monotonically increasing in \(\lambda\); the raw AHP judgement (\(\lambda=1\)) outperforms
+uniform intra-dimension weights (\(\lambda=0\)) by \(\approx 0.032\,\rho\), and edges out the shipped
+\(\lambda=0.70\) default by \(\approx 0.012\,\rho\). The effect is small --- the full range spans
+\(\approx 0.045\,\rho\), and every value is near zero or slightly negative --- but its direction has
+reversed from an earlier version of this paper's sweep under the retired four-dimension composite,
+which reported a plateau and equal weights beating the calibrated setting by \(0.111\); that
+comparison no longer exists under the two-dimension model and is superseded by the measurement above.
+The value of the RM decomposition remains attribution, not ranking accuracy (Section~\ref{sec:4.2});
+the sweep does not license a claim that the intra-dimension weights strongly improve predictive
+accuracy, only a small, consistent edge for the calibrated judgement over uniform weights.
 
 \textbf{Normalisation sensitivity.} The default rank-based normalisation discards magnitude before
 the weighted sum, making \(Q(v)\) closer to a Borda count than a weighted aggregate. Measured against
-\(I^*\): rank (robust) \(\rho=0.181\), min--max \(0.318\), z-score \(0.318\) --- retaining magnitude
-is worth \(\approx +0.137\,\rho\). The outlier-robustness argument for rank normalisation is real but
-outweighed here; we retain the default so previously reported figures remain interpretable, and
-report the sweep alongside.
+\(I^*\): rank (robust, the shipped default) \(\rho=-0.019\), min--max \(-0.035\), z-score \(-0.035\)
+--- under the RM composite, retaining magnitude \emph{costs} \(\approx 0.016\,\rho\) rather than
+gaining it, and robust is now the \emph{least} negative of the three. This reverses an earlier finding
+under the retired composite, which reported min--max/z-score ahead of robust by \(+0.195\,\rho\). We
+retain the default both because it is now the strongest of the three under the current composite and
+because previously reported figures remain interpretable against it.
 
 \textbf{Propagation-threshold sensitivity.} Because the ground truth itself depends on
 \texttt{propagation\_threshold}, we report \(\rho\) across its range:
@@ -359,7 +374,7 @@ is \(\lceil 0.20 \times |V| \rceil\) within that population (15 of 32 for Autowa
 Cloud Microservices, 18 of 41 for Train-Ticket); and all three are classified \texttt{sparse} by the
 tool's topology-class rule. Reported \(\rho\) is the seed mean \(\pm\) standard deviation:
 \texttt{FaultInjector} tie-breaks intra-wave propagation stochastically, so --- unlike the
-deterministic RMAV/\(Q(v)\) scores --- the simulated labels genuinely vary across seeds within one
+deterministic RM/\(Q(v)\) scores --- the simulated labels genuinely vary across seeds within one
 sweep, though the \emph{ranking} is stable (Rank Consistency Rate \(=1.000\) for all three).
 
 \begin{table}[htbp]

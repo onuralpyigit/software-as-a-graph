@@ -105,7 +105,7 @@ w_V : V → [0, 1]    (QoS-derived vertex weight, propagated from incident edges
 | `dependency_type` | string | One of: `app_to_app`, `app_to_broker`, `node_to_node`, `node_to_broker`, `app_to_lib`, `broker_to_broker` |
 | `path_count` | int ≥ 1 | Number of shared topics (for `app_to_app`) or shared nodes (for `broker_to_broker`) establishing this dependency |
 
-> **On `path_count`:** When two components are connected through multiple shared topics, `path_count` captures coupling intensity. A `path_count = 3` dependency means three simultaneous failure vectors between the same pair — structurally more fragile than three independent single-topic links. Step 2 (Analyze, RMAV sub-phase) uses this to refine cascade depth potential (CDPot) computations.
+> **On `path_count`:** When two components are connected through multiple shared topics, `path_count` captures coupling intensity. A `path_count = 3` dependency means three simultaneous failure vectors between the same pair — structurally more fragile than three independent single-topic links. Step 2 (Analyze, RM sub-phase) uses this to refine cascade depth potential (CDPot) computations.
 
 ---
 
@@ -137,7 +137,7 @@ Nested JSON sub-objects (`code_metrics`, `system_hierarchy`) are flattened to sc
 | `cm_avg_fanin` | float | Average afferent coupling (Library: internal static analysis) — reaches scoring |
 | `cm_avg_fanout` | float | Average efferent coupling (Library: internal static analysis) — reaches scoring |
 
-Five of these seven attributes feed the **Code Quality Penalty (CQP)** composite used in Step 2 (Analyze, RMAV sub-phase) Maintainability M(v) term; `cm_avg_cbo` and `cm_avg_rfc` are flattened, persisted and displayed but consumed by no scoring code ([structural-analysis.md §11.2](structural-analysis.md#112-rmav-formulas)). When absent, M(v) falls back to the topology-only formula. They are the only artifact-internal evidence in the model: everything else the graph carries is either topology or a *declared* guarantee about runtime behaviour ([§4.3](#43-phase-3--intrinsic-weight-computation)).
+Five of these seven attributes feed the **Code Quality Penalty (CQP)** composite used in Step 2 (Analyze, RM sub-phase) Maintainability M(v) term; `cm_avg_cbo` and `cm_avg_rfc` are flattened, persisted and displayed but consumed by no scoring code ([structural-analysis.md §11.2](structural-analysis.md#112-rm-formulas)). When absent, M(v) falls back to the topology-only formula. They are the only artifact-internal evidence in the model: everything else the graph carries is either topology or a *declared* guarantee about runtime behaviour ([§4.3](#43-phase-3--intrinsic-weight-computation)).
 
 > **Why `subscriber_count` and `publisher_count` are listed under Phase 1 but computed in Phase 2:** These are properties of Topic vertices, but their values depend on SUBSCRIBES_TO and PUBLISHES_TO edges which don't exist until Phase 2. They are computed at the end of Phase 2 and written back onto each Topic vertex.
 
@@ -266,7 +266,7 @@ edge.path_count  = len(shared_topics)                  # coupling intensity
 
 `path_count` is not folded into the weight to preserve the `w ∈ [0,1]` contract.
 
-**Library blast semantics vs. pub-sub cascade:** Rule 5 captures a qualitatively different failure mode. A library failure causes a *simultaneous* blast — all consuming applications fail at once. This contrasts with pub-sub cascade propagation (Rule 1), which flows step-by-step through topics and brokers. Step 4 (Simulation) handles this distinction at the cascade propagation layer. Rule 5 simply records the structural dependency so that `DG_in(Library)` is non-zero and visible to R(v) in Step 2 (Analyze, RMAV sub-phase).
+**Library blast semantics vs. pub-sub cascade:** Rule 5 captures a qualitatively different failure mode. A library failure causes a *simultaneous* blast — all consuming applications fail at once. This contrasts with pub-sub cascade propagation (Rule 1), which flows step-by-step through topics and brokers. Step 4 (Simulation) handles this distinction at the cascade propagation layer. Rule 5 simply records the structural dependency so that `DG_in(Library)` is non-zero and visible to R(v) in Step 2 (Analyze, RM sub-phase).
 
 **Derivation trace example:**
 
@@ -314,7 +314,7 @@ w(app) = 0.80 × max{ w(t) : app PUBLISHES_TO t OR app SUBSCRIBES_TO t }
 
 The hybrid formula reflects that an application's criticality is primarily bounded by its most critical data stream (0.80 × max), but a dense subscription footprint of medium-weight topics adds cumulative risk (0.20 × mean). The max coefficient is **0.80** (higher than the 0.70 used for brokers) because an application is a direct *originator or consumer* — its failure severs only the topics it personally publishes or subscribes to, so the single most critical channel dominates. When `max = mean` (single-topic app), the formula collapses to `w = w(t)`.
 
-**Library-mediated second pass:** The formula above only counts topics directly connected to the application via `PUBLISHES_TO` or `SUBSCRIBES_TO`. Applications that communicate exclusively through shared libraries (no direct topic edges) would receive `w(app) = 0.01` from the first pass — making them invisible to RMAV scoring even if they indirectly handle high-weight data.
+**Library-mediated second pass:** The formula above only counts topics directly connected to the application via `PUBLISHES_TO` or `SUBSCRIBES_TO`. Applications that communicate exclusively through shared libraries (no direct topic edges) would receive `w(app) = 0.01` from the first pass — making them invisible to RM scoring even if they indirectly handle high-weight data.
 
 After Library weights are computed, a second pass corrects this for any application still at the default floor:
 

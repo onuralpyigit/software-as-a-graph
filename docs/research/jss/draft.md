@@ -18,7 +18,7 @@ which components are critical, and why, remains difficult. We present **Software
 weighted, directed multigraph over five component classes with logical dependencies derived through
 typed projection rules. On this representation we train a relation-specific **Heterogeneous Graph
 Transformer** to forecast cascading failure impact, paired with an interpretable
-Reliability–Maintainability–Availability–Vulnerability (RMAV) attribution baseline, both validated
+hierarchical Reliability–Maintainability (RM) attribution baseline, both validated
 against discrete-event cascade simulators operating on a structurally disjoint view of the same
 model under an input–label independence guarantee. Across seven synthetic topologies and three
 graphs transcribed from open-source architectures we report four results. **(1)** Typed learning
@@ -96,9 +96,10 @@ We present **Software-as-a-Graph (SaG)**, a pre-deployment **Static System Analy
 framework. SaG models a pub-sub system as a typed, weighted, directed multigraph over five node types
 (applications, libraries, topics, brokers, nodes) and derives logical `DEPENDS_ON` dependencies
 through typed projection rules (§3). SaG ingests code-level SCA metrics as vertex attributes and
-performs multi-dimensional quality attribution, decomposing criticality into orthogonal Reliability,
-Maintainability, Availability, and Vulnerability (RMAV) dimensions under a stated weighting audited
-for Analytic Hierarchy Process (AHP) consistency (§4) — a baseline whose value we show lies in
+performs multi-dimensional quality attribution, decomposing criticality into a hierarchical
+Reliability–Maintainability (RM) structure — Reliability itself blended from Fault Tolerance and
+Availability sub-characteristics — under a stated weighting audited for Analytic Hierarchy Process
+(AHP) consistency at the sub-characteristic level (§4) — a baseline whose value we show lies in
 explanation, not in ranking accuracy (§7.3).
 
 SaG then performs **failure-impact analysis**, predicting cascade impact $I(v)$ with two predictors:
@@ -135,7 +136,7 @@ answered on three real-world graphs (§7.4) and carries the paper's external val
 This paper makes the following contributions:
 
 1. **A typed graph model with hierarchical SCA metric integration.** We define the SaG multigraph and
-   the RMAV decomposition, which propagates code-level quality metrics into global system criticality
+   the RM decomposition, which propagates code-level quality metrics into global system criticality
    scores, and train a relation-specific Heterogeneous Graph Transformer over it (§3–§5).
 2. **A scope condition on where graph learning pays for pub-sub criticality.** Under a single
    evaluation contract applied to every predictor (§6.2), typed learning leads the strongest
@@ -147,10 +148,12 @@ This paper makes the following contributions:
    the apparatus; the ranking margin fails a paired significance test in-distribution and rests on an
    unretained artifact out of distribution (§7.1, §8.2). The contribution is the scope condition, not
    the win.
-3. **Multi-dimensional criticality attribution, positioned as explanation rather than accuracy.**
-   RMAV decomposes criticality into four dimensions with distinct remediation owners. A shrinkage
-   sweep shows the dimension weighting does *not* improve ranking accuracy over equal weights
-   (§7.3); we scope the contribution to attribution accordingly (§4, §7.3).
+3. **Hierarchical criticality attribution, positioned as explanation rather than accuracy.**
+   RM decomposes criticality into Reliability (itself a Fault-Tolerance/Availability blend) and
+   Maintainability, each with distinct remediation owners. A shrinkage sweep of the intra-dimension
+   weights shows a small, monotone effect favouring the raw AHP judgement over shrunk settings, not
+   the accuracy improvement a coarser weighting choice might promise (§7.3); we scope the contribution
+   to attribution accordingly (§4, §7.3).
 4. **Measured edge ground truth.** We obtain edge ground truth by simulating removal of each
    candidate relationship rather than projecting node labels through a heuristic multiplier, finding
    that most individual links are replaceable and exposing a class of structurally non-redundant
@@ -230,17 +233,18 @@ attribution is *computed* from internal quality evidence, *validated* against si
 quality, and *defined* on Quality-in-Use (§4, §8.2). Criticality is not itself a characteristic but a
 characteristic's sensitivity to element loss, and we instantiate it primarily on **Reliability**: the
 standard defines Reliability's own sub-characteristics as faultlessness (failure frequency), fault
-tolerance and recoverability (failure duration) composing availability, and our Reliability and
-Availability dimensions are exactly the fault-tolerance and availability sub-characteristics, with
-faultlessness excluded by the same consequence-not-risk framing as D3 and recoverability left an
-explicit data gap (§4.1). Maintainability and Security are secondary, thinner instantiations — two of
-Maintainability's five sub-characteristics and two of Security's six — and Safety, one of the
-standard's nine characteristics, is not instantiated at all: **safety is not covered**, since no
-hazard class or functional integrity field exists in an architecture description (§8.3). The
+tolerance and recoverability (failure duration) composing availability, and our Reliability dimension
+is built hierarchically from exactly two of those sub-characteristics — Fault Tolerance and
+Availability, blended $R(v) = \alpha \cdot FT(v) + (1-\alpha)\cdot A(v)$ — with faultlessness excluded
+by the same consequence-not-risk framing as D3 and recoverability left an explicit data gap (§4.1).
+Maintainability is a secondary, thinner instantiation — two of its five sub-characteristics — and
+Safety, one of the standard's nine characteristics, is not instantiated at all: **safety is not
+covered**, since no hazard class or functional integrity field exists in an architecture description
+(§8.3). Security is likewise not instantiated as a scored dimension in this work. The
 dependability vocabulary we adopt follows a complementary taxonomy [31], whose fault→error→failure
-chain is what separates our Reliability dimension (error propagation through dependents) from our
-Availability dimension (the resulting loss of service), two quantities an undifferentiated criticality
-score conflates. The
+chain is what separates our Fault Tolerance sub-characteristic (error propagation through dependents)
+from our Availability sub-characteristic (the resulting loss of service), two quantities an
+undifferentiated criticality score conflates even though both now feed a single Reliability score. The
 architecture-evaluation tradition we position against is scenario-based methods such as ATAM [32, 33, 34]. Combining several structural properties into one decision score is a multi-criteria problem, for
 which AHP offers a pairwise-comparison formalism with an explicit consistency check [15], which we use
 to *state and audit* weights rather than elicit them (§4). A related strand detects architectural
@@ -380,16 +384,18 @@ simultaneous-blast edges visually distinguished.)*
 
 Centrality answers *whether* a component is important with a single number; an architect choosing
 between a replica, a reroute, and a decoupling refactor needs to know *why*. This section presents
-the framework's interpretable diagnostic: a decomposition of each component's criticality into four
-quality dimensions computed from disjoint, metric-orthogonal structural inputs — Reliability,
-Maintainability, Availability, and Vulnerability (RMAV) — and combined into a composite score. The
-dimensions are not four independent quality attributes: Reliability and Availability are both
-sub-characteristics of ISO/IEC 25010:2023's single Reliability characteristic (§4.1), so disjoint
-*inputs* should not be read as attribute independence.
+the framework's interpretable diagnostic: a decomposition of each component's criticality into two
+top-level quality dimensions computed from disjoint, metric-orthogonal structural inputs —
+Reliability and Maintainability (RM) — and combined into a composite score. Reliability is itself
+hierarchical, blending two sub-characteristics — Fault Tolerance and Availability — rather than
+standing as a single flat metric: $R(v) = \alpha \cdot FT(v) + (1-\alpha)\cdot A(v)$, $\alpha = 0.36$.
+Fault Tolerance and Availability are both sub-characteristics of ISO/IEC 25010:2023's single
+Reliability characteristic (§4.1), so this hierarchy mirrors the standard rather than treating them
+as two independent attributes.
 
 The decomposition spans all three SQuaRE quality views, and the paper's claims are only legible if
 they are kept apart. **Criticality is computed from internal quality evidence, validated against
-simulated external quality, and defined on Quality-in-Use.** Concretely: every RMAV input is a static
+simulated external quality, and defined on Quality-in-Use.** Concretely: every RM input is a static
 property of an artifact that has not run (internal quality [16, 53]) — which is what makes the
 construct available pre-deployment at all; each dimension estimates the loss of a named externally
 observable attribute, which is what the simulation oracles of §5.1 measure and §7 reports; and the
@@ -400,56 +406,60 @@ view rather than the second is deliberate — losing the same broker is a nuisan
 and a life-safety event in another, and no delivery-rate measurement distinguishes them — and §8.2
 states exactly which of the three transitions this paper measures.
 
-## 4.1 Four Dimensions and Formal Definitions
+## 4.1 Two Dimensions and Formal Definitions
 
 Criticality is not itself a quality characteristic; it is a characteristic's sensitivity to the loss
 of an architectural element, so it must be stated relative to one. We instantiate it primarily on
 **Reliability**: ISO/IEC 25010:2023 composes Reliability from faultlessness (failure frequency), fault
 tolerance and recoverability (failure duration, jointly with faultlessness composing availability).
-Our Reliability dimension *is* fault tolerance, our Availability dimension *is* availability,
-faultlessness is excluded by the same consequence-not-risk argument as D3 below, and recoverability is
-an explicit data gap — no MTTR or replication-state field exists in the schema (§8.3). Maintainability
-and Security are secondary, thinner instantiations, covering two of Maintainability's five
-sub-characteristics and two of Security's six; nine characteristics of the standard are addressed at
-all, five are not addressed at all, and this framework covers four sub-characteristics across three of
-those nine.
+Our Reliability dimension blends exactly the fault tolerance and availability sub-characteristics,
+$R(v) = \alpha \cdot FT(v) + (1-\alpha) \cdot A(v)$ with $\alpha = 0.36$; faultlessness is excluded by
+the same consequence-not-risk argument as D3 below, and recoverability is an explicit data gap — no
+MTTR or replication-state field exists in the schema (§8.3). Maintainability is a secondary, thinner
+instantiation, covering two of its five sub-characteristics; two characteristics of the standard are
+addressed at all, seven are not addressed at all, and this framework covers four sub-characteristics
+(fault tolerance, availability, modularity, modifiability) across those two.
 
-**Table 3. The four RMAV dimensions**, the architectural question each answers, the external quality
-and dependability attribute each is denominated in, and the engineering role each routes to.
+**Table 3. The two RM dimensions**, the architectural question each answers (Reliability's own
+fault-tolerance/availability blend broken out as sub-rows), the external quality and dependability
+attribute each is denominated in, and the engineering role each routes to.
 
 | Dim. | Architectural Question | External quality attribute [16] | Dependability attribute [31] | Remediation owner |
 |:----:|-------------------------|----------------------------------|-------------------------------|--------------------|
-| **R** | How broadly and deeply does failure propagate? | Reliability → **fault tolerance** | Reliability (*error propagation*) | Reliability Engineer |
+| **R** (composite) | How broadly and deeply does failure propagate, blended with structural exposure? | Reliability | Reliability | Reliability Engineer |
+| — *FT sub-term* | How broadly and deeply does failure propagate? | Reliability → **fault tolerance** | Reliability (*error propagation*) | Reliability Engineer |
+| — *A sub-term* | Is this a structural single point of failure? | Reliability → **availability** | Availability (*service failure*) | DevOps / SRE |
 | **M** | How hard is this to change safely? | Maintainability → **modularity, modifiability** | Maintainability | Software Architect |
-| **A** | Is this a structural single point of failure? | Reliability → **availability** | Availability (*service failure*) | DevOps / SRE |
-| **V** | How attractive a target is this for attack? | Security → **confidentiality, integrity** | Confidentiality + integrity | Security Engineer |
 | — | *(not covered)* | **Safety** — a first-class ISO/IEC 25010:2023 characteristic since the 2023 revision | **Safety** | — |
+| — | *(not covered)* | **Security** | Confidentiality + integrity | — |
 
-Table 3's last row is a coverage statement, not an omission we expect a reader to overlook. RMAV
-addresses one characteristic (Reliability) close to fully, two more (Maintainability, Security)
-partially, and leaves five of the standard's nine characteristics, including **Safety**, entirely
+Table 3's last two rows are a coverage statement, not an omission we expect a reader to overlook. RM
+addresses one characteristic (Reliability) close to fully, one more (Maintainability) partially, and
+leaves seven of the standard's nine characteristics, including **Safety** and **Security**, entirely
 unaddressed — because an architecture description carries no hazard catalogue and no functional
-integrity class, so nothing in these scores distinguishes a component whose failure endangers life
-from one whose failure loses a debug log. Two consequences follow. Structurally, the domains where our
-scenario suite is most safety-relevant — the autonomous-vehicle and clinical topologies of §6.1 — are
-precisely those whose dominant Quality-in-Use characteristic (freedom from health and life risk) no
-dimension estimates. Methodologically, these scores locate structural exposure and cannot discharge a
-safety argument; assigned integrity levels such as SIL, ASIL and DAL remain the complementary
-instrument, and they are assigned by hazard analysis rather than computed from an artifact.
+integrity or threat-model field, so nothing in these scores distinguishes a component whose failure
+endangers life (or invites attack) from one whose failure loses a debug log. Two consequences follow.
+Structurally, the domains where our scenario suite is most safety-relevant — the autonomous-vehicle
+and clinical topologies of §6.1 — are precisely those whose dominant Quality-in-Use characteristic
+(freedom from health and life risk) no dimension estimates. Methodologically, these scores locate
+structural exposure and cannot discharge a safety or security argument; assigned integrity levels such
+as SIL, ASIL and DAL, and separately conducted threat modeling, remain the complementary instruments,
+and both are produced by hazard/threat analysis rather than computed from an artifact.
 
-For components, the dimensions are **orthogonal by construction at the metric level**: each raw
-structural metric feeds exactly one dimension, never more — a deliberate design constraint, not an
-empirical observation, since allowing a metric into two dimensions would silently inflate its weight
-relative to the stated weighting (§4.2). This is not attribute independence: R and A are both
+For components, the two dimensions are **orthogonal by construction at the metric level**: each raw
+structural metric feeds exactly one of $FT$, $A$, or $M$, never more — a deliberate design constraint,
+not an empirical observation, since allowing a metric into two terms would silently inflate its weight
+relative to the stated weighting (§4.2). This is not attribute independence: $FT$ and $A$ are both
 sub-characteristics of the single Reliability characteristic above, so a component scoring high on
-both is one characteristic degraded through two mechanisms, not two unrelated problems. Metric-level
-orthogonality is nonetheless what makes the breakdown legible: a pure single point of failure scores
-high on A but low on R, M, and V; a god-component scores high on M; a cascade hub scores high on R. The
-*shape* of the profile names the failure mode, and it is exactly because R and A share a characteristic
-that the composite (§4.2) weights rather than merges them.
+both is one characteristic degraded through two mechanisms, not two unrelated problems, which is
+exactly why they are blended into one Reliability score rather than reported and weighted as peers.
+Metric-level orthogonality is nonetheless what makes the breakdown legible: a pure single point of
+failure scores high on the $A$ sub-term but low on $FT$ and $M$; a god-component scores high on $M$; a
+cascade hub scores high on the $FT$ sub-term. The *shape* of the profile — which sub-term of $R$
+dominates, and how $R$ compares to $M$ — names the failure mode.
 
 Two of the framework's formal definitions do real work in what follows. **Criticality is a
-consequence, not a risk**: no RMAV dimension estimates how *probable* a component's failure is, only
+consequence, not a risk**: no RM dimension estimates how *probable* a component's failure is, only
 how much is lost *given* that it does — ranking $u$ above $v$ says that losing $u$ hurts more, not
 that $u$ is more likely to be lost, and restricting the construct to consequence is precisely what
 makes it computable pre-deployment, since consequence follows from architecture while likelihood
@@ -461,83 +471,100 @@ of SPOFs still has a MINIMAL one. D4 constrains how this paper may aggregate: an
 more than one scenario must be formed from within-scenario ranks or per-scenario statistics, never
 from raw scores pooled across systems (§5.4, §7.4 carry the corresponding scoping statements).
 
-The framework also gives inter-component dependencies the same four-dimensional attribution as
+The framework also gives inter-component dependencies the same two-dimensional attribution as
 components, so that a partial outage — one link down, both endpoints healthy — is scored rather than
 inferred from endpoint scores. In dependability terms a severed link is a fault whose error is
 confined to a single channel, so the resulting service failure is partial rather than total, and the
-edge dimensions are denominated in the same four external quality attributes as Table 3 scoped to
+edge dimensions are denominated in the same external quality attributes as Table 3 scoped to
 that channel. We do not develop this relationship-level construction further here: by the framework's
 own independence guarantee (§5.3), it cannot currently be validated against the edge-removal
 measurement of §7.2, which operates on a structurally disjoint population (§8.3).
 
 ## 4.2 The Composite Score, Classification, and Determinism
 
-All metric inputs are rank-normalized to $[0,1]$. **Reliability** is driven by Reverse PageRank on the
-transpose `DEPENDS_ON` graph $G^\top$ (the failure-propagation direction, since edges point dependent
-→ dependency), blended with in-degree and a cascade-depth potential amplified by multi-path coupling,
-with a fan-out form dispatched for Topic nodes, which have no `DEPENDS_ON` in-degree. **Maintainability**
-is driven by betweenness centrality, QoS-weighted out-degree, and a Code Quality Penalty built from the
-ingested SonarQube metrics of §3.1. **Availability** is driven by the directed articulation score
-(rather than the undirected version, which both over- and under-reports in pub-sub graphs), amplified
-by QoS weight so a SPOF carrying critical traffic scores as doubly severe. **Vulnerability** is driven
-by reverse eigenvector and harmonic closeness centrality on $G^\top$, modelling adversarial reach
-toward high-guarantee flows. The four combine into $Q(v) = w_A A(v) + w_R R(v) + w_M M(v) + w_V V(v)$
-under a stated weighting $(0.43, 0.24, 0.17, 0.16)$ — a design judgement written on Saaty's 1–9 scale
-and audited for Analytic Hierarchy Process consistency [15] ($\mathrm{CR} \le 0.10$) rather than
-elicited from raters — adapted per system toward its aggregate QoS profile, the computable form of
-D1's "within its operational context" clause.
+All metric inputs are rank-normalized to $[0,1]$. **Fault Tolerance** ($FT$), the first of
+Reliability's two sub-terms, is driven by Reverse PageRank on the transpose `DEPENDS_ON` graph
+$G^\top$ (the failure-propagation direction, since edges point dependent → dependency), blended with
+in-degree and a cascade-depth potential amplified by multi-path coupling, with a fan-out form
+dispatched for Topic nodes, which have no `DEPENDS_ON` in-degree. **Availability** ($A$), the second
+sub-term, is driven by the directed articulation score (rather than the undirected version, which
+both over- and under-reports in pub-sub graphs), amplified by QoS weight so a SPOF carrying critical
+traffic scores as doubly severe. These blend into **Reliability**, $R(v) = \alpha \cdot FT(v) +
+(1-\alpha) \cdot A(v)$ with $\alpha = 0.36$ — a design judgement written on Saaty's 1–9 scale over the
+retired four-dimensional AHP composite and audited for Analytic Hierarchy Process consistency [15]
+($\mathrm{CR} \le 0.10$) at the sub-characteristic level, not elicited fresh for the two-dimensional
+model. **Maintainability** is driven by betweenness centrality, QoS-weighted out-degree, and a Code
+Quality Penalty built from the ingested SonarQube metrics of §3.1 — numerically unchanged from its
+role in the retired four-dimensional composite. $R$ and $M$ combine into $Q(v) = w_R R(v) + w_M M(v)$
+under declared weights $(w_R, w_M) = (0.80, 0.20)$ — algebraically derived from the retired
+four-dimensional AHP composite $(A, R, M, V) = (0.43, 0.24, 0.17, 0.16)$ by folding $A$'s weight into
+$R$'s ($\alpha = 0.24/(0.24+0.43) \approx 0.36$) and renormalising the remaining two
+($w_R = (0.24+0.43)/0.84 \approx 0.80$, $w_M = 0.17/0.84 \approx 0.20$), not freshly elicited — adapted
+per system toward its aggregate QoS profile, the computable form of D1's "within its operational
+context" clause.
 
 **Code-level internal evidence enters this scoring asymmetrically, and the asymmetry is deliberate
 rather than incidental.** The SonarQube-derived Code Quality Penalty is the *only* code-derived term
-in the rule-based path, feeding exactly one dimension (M) at weight 0.15; R, A and V are purely
-topological, and edge scores are entirely code-free since the edge-M formula carries no endpoint-M
-term. Its effective share of the composite is $0.17 \times 0.15 \approx 2.6\%$. Whether static internal
-metrics such as these predict externally observable failure behaviour at all is itself an empirical
-question with an established literature [55, 56, 57, 58], which is why we gate the inference to one
-dimension rather than assume it generalises. The learned predictor (§5.2) makes a different choice:
-the same code features sit on every Application/Library node vector, and a shared encoder feeds all
-four RMAV heads, so code evidence reaches every dimension and propagates by message passing onto node
-types that carry no code metrics of their own — an architectural difference between the two predictors
-worth reading alongside their head-to-head comparison in §7.1.
+in the rule-based path, feeding exactly one dimension (M) at weight 0.15; $R$ (both its $FT$ and $A$
+sub-terms) is purely topological, and edge scores are entirely code-free since the edge-M formula
+carries no endpoint-M term. Its effective share of the composite is $0.20 \times 0.15 = 3.0\%$. Whether
+static internal metrics such as these predict externally observable failure behaviour at all is itself
+an empirical question with an established literature [55, 56, 57, 58], which is why we gate the
+inference to one dimension rather than assume it generalises. The learned predictor (§5.2) makes a
+different choice: the same code features sit on every Application/Library node vector, and a shared
+encoder feeds both RM heads, so code evidence reaches both dimensions and propagates by message
+passing onto node types that carry no code metrics of their own — an architectural difference between
+the two predictors worth reading alongside their head-to-head comparison in §7.1.
 
 We classify with an adaptive box-plot rule applied independently to each dimension and to the
 composite (CRITICAL: $Q > Q_3 + 1.5\,\mathrm{IQR}$, down to MINIMAL: $Q \le Q_1$, with a percentile
-fallback below $n=12$), so that a component can be CRITICAL on Availability yet MINIMAL on
-Vulnerability — telling the architect to add a replica rather than harden an interface. Attribution is
+fallback below $n=12$), so that a component can be CRITICAL on Reliability yet MINIMAL on
+Maintainability — telling the architect to add redundancy rather than refactor for modularity.
+Attribution is
 fully deterministic: every input to $Q(v)$ is a structural metric of $G_{\text{analysis}}$, none
 derives from the discrete-event simulation that produces the ground-truth labels used to evaluate the
 framework (§5.1) — the **independence guarantee** that makes a measured correlation between $Q(v)$
 and simulated impact evidence of genuine predictive content rather than leakage.
 
-**We report the sensitivity of this weighting, and it is not favourable.** Sweeping a shrinkage
-parameter that blends the stated weighting toward a uniform prior shows no plateau at any value and a
-monotone decline in ranking accuracy against simulated impact, with equal weights outperforming the
-calibrated setting by 0.111 $\rho$ (§7.3, Table 10) — the one robustness result in this paper that did
-not move under re-measurement. We draw the corresponding conclusion about the contribution rather than
-defending the weighting: **the value of the RMAV decomposition is attribution, not ranking accuracy.**
-A composite score ranks; a four-dimensional profile explains *why* a component ranks where it does and
-routes the finding to the engineering role equipped to act on it — a structural single point of
-failure and a cascade hub call for different remediations even at identical composite scores — and
-that explanatory function is unaffected by the weighting result. A practitioner optimising for ranking
-alone should use equal weights; one who needs to know *why* a component is critical needs the profile,
-whatever the weights.
+**We report the sensitivity of this weighting, and it mildly favours the calibrated judgement.**
+Sweeping a shrinkage parameter $\lambda$ that blends the AHP-derived *intra*-dimension term weights
+— the $FT$, $A$, and $M$ internal term weights, not the composite $(w_R, w_M)$, which is a declared
+constant and $\lambda$-invariant by construction — toward a uniform prior shows no plateau at any
+value: mean $\rho$ against simulated impact rises monotonically as $\lambda$ moves from 0 (uniform
+intra-dimension weights) to 1 (the raw AHP judgement), with the raw judgement outperforming uniform
+weighting by $\approx 0.032\,\rho$ and the shipped default ($\lambda = 0.70$) sitting partway along
+that curve (§7.3, Table 10). The effect is small — the full range spans $\approx 0.045\,\rho$, and
+every value is near zero or slightly negative — but it is consistent in direction, unlike an earlier
+measurement under the retired four-dimensional composite that found the opposite sign. We draw a
+corresponding conclusion about the contribution: **the value of the RM decomposition remains
+primarily attribution, not ranking accuracy** — the sensitivity result no longer argues against the
+calibrated weighting, but the effect size is too small to justify leaning on it for ranking alone.
+A two-dimensional profile explains *why* a component ranks where it does and routes the finding to
+the engineering role equipped to act on it — a Reliability issue and a Maintainability issue call for
+different remediations even at identical composite scores, and within Reliability itself the $FT$ and
+$A$ sub-terms (reported as diagnostics, §5.4) further distinguish a cascade hub from a structural
+single point of failure — and that explanatory function is unaffected by the weighting result. A
+practitioner optimising for ranking alone gains a small amount by leaning toward the raw AHP judgement
+rather than uniform intra-dimension weights, though the effect is too small to be decisive; one who
+needs to know *why* a component is critical needs the profile, whatever the weights.
 
 **A standards-traceable alternative to the AHP judgement exists, and we test it rather than assert
-it.** Every RMAV dimension estimates an ISO/IEC 25010:2023 external quality attribute (§4.1), and each
-attribute's contribution to Quality-in-Use harm is stated per deployment domain via a Domain Context
-Vector $\vec{\omega}_{\text{domain}}$ over Beneficialness, Freedom from risk, and Acceptability. Because
-the projection from that vector onto RMAV harm is row-stochastic, deriving a composite weighting from
-$\vec{\omega}_{\text{domain}}$ collapses algebraically to $\mathbf{M}^{\mathsf T}\vec{\omega}_{\text{domain}}$
-— an ordinary reweighting of $Q(v)$, not a further prediction stage, and one directly computable since
-every scenario in our corpus carries a domain label. We measure it rather than assume its direction:
-across the seven synthetic scenarios and the three real-world graphs of §7.4, the domain-derived
-weighting beats the static default with a nominally significant paired result
-($\Delta\rho = +0.054$, Wilcoxon $p = 0.012$, 8/10 scenarios), but is statistically indistinguishable
-from equal weights ($\Delta\rho = +0.009$, $p = 0.85$, 5/10 scenarios) — it recovers most, not all, of
-what equal weighting already gets for free, while remaining traceable to a named domain and standard
-rather than arbitrary. This does not revise the conclusion above: the value we claim for the
-decomposition is attribution, and the derivation is offered as a principled alternative to an
-unfavourable weighting judgement, not as a ranking-accuracy result.
+it.** Both the Reliability and Maintainability dimensions estimate an ISO/IEC 25010:2023 external
+quality attribute (§4.1), and each attribute's contribution to Quality-in-Use harm is stated per
+deployment domain via a Domain Context Vector $\vec{\omega}_{\text{domain}}$ over Beneficialness,
+Freedom from risk, and Acceptability. Because the projection from that vector onto RM harm is
+row-stochastic, deriving a composite weighting from $\vec{\omega}_{\text{domain}}$ collapses
+algebraically to $\mathbf{M}^{\mathsf T}\vec{\omega}_{\text{domain}}$ — an ordinary reweighting of
+$Q(v)$, not a further prediction stage, and one directly computable since every scenario in our
+corpus carries a domain label. We measure it rather than assume its direction: across the seven
+synthetic scenarios and the three real-world graphs of §7.4, the domain-derived weighting beats the
+static default (mean $\rho$ 0.149 vs. 0.122, $\Delta\rho = +0.027$), but underperforms equal weighting
+by a wider margin (mean $\rho$ 0.149 vs. 0.259, $\Delta\rho = -0.110$) — because every declared
+domain's $w_R$ falls within $[0.70, 0.80]$, close to the static default, the domain-derived and static
+rankings are themselves nearly identical (mean Kendall $\tau = 0.968$ across the ten scenarios). This
+does not revise the conclusion above: the value we claim for the decomposition is attribution, and the
+derivation is offered as a principled, standards-traceable alternative to an arbitrary weighting
+judgement, not as a ranking-accuracy result — on this evidence it is not one.
 
 ---
 
@@ -582,18 +609,18 @@ because which one backs a given number materially bounds what that number can su
   a bounded per-subscriber queue, and the fault is injected mid-run. $I_{\text{dyn}}$ trains nothing
   and gates nothing: it is reported in §6.4 as a construct-validity check on the other two.
 
-**Only two of the four RMAV dimensions have a behavioural oracle, and the reason is definitional
-rather than an implementation gap.** $I^*$ and $I_{\text{dyn}}$ observe service delivery and so bear
-on **fault tolerance** ($R$); $I_{\text{comp}}$'s reachability and fragmentation terms bear on
-**availability** ($A$). The maintainability and security ground truths are different in kind: $I_M$
-is a change-propagation traversal of $G^\top$ and $I_S$ a compromise-propagation pass — both
-*structural models* rather than behavioural observations. This is why $I^*(v)$ supplies labels for
-the reliability and availability columns while declaring maintainability and security absent rather
-than zero (§6.2). No better simulator would close that gap: **maintainability is not an externally
-observable attribute** — watching a system run never reveals what changing it would cost — and
-**security presumes an adversary rather than a fault**, so a fault injector is the wrong instrument
-for it by construction. For $M$ and $V$, agreement between predictor and oracle is therefore an
-internal-consistency check rather than behavioural validation, and we do not report it as the latter.
+**Both of Reliability's own sub-terms have a behavioural oracle; Maintainability does not, and the
+reason is definitional rather than an implementation gap.** $I^*$ and $I_{\text{dyn}}$ observe service
+delivery and so bear on the **fault tolerance** sub-term; $I_{\text{comp}}$'s reachability and
+fragmentation terms bear on the **availability** sub-term — so Reliability as a whole,
+$R(v) = \alpha \cdot FT(v) + (1-\alpha)\cdot A(v)$, is fully behaviourally grounded. The
+maintainability ground truth is different in kind: $I_M$ is a change-propagation traversal of
+$G^\top$ — a *structural model* rather than a behavioural observation. This is why $I^*(v)$ supplies
+labels for the reliability, fault-tolerance, and availability columns while declaring maintainability
+absent rather than zero (§6.2). No better simulator would close that gap: **maintainability is not an
+externally observable attribute** — watching a system run never reveals what changing it would cost.
+For $M$, agreement between predictor and oracle is therefore an internal-consistency check rather than
+behavioural validation, and we do not report it as the latter.
 
 $I^*$ and $I_{\text{comp}}$ agree only weakly — mean Spearman $\rho = 0.394$ across the seven
 scenarios (§6.4). We therefore treat evidence gathered against one as *not* transferring to a claim
@@ -707,14 +734,14 @@ synthetic suite only. All seven synthetic scenarios are used for the predictor e
 
 | Predictor | Description | Role |
 |-----------|-------------|------|
-| **RMAV / $Q$** | deterministic multi-dimensional composite (§4) | interpretable predictor |
+| **RM / $Q$** | deterministic hierarchical composite (§4) | interpretable predictor |
 | **HGL** | heterogeneous graph transformer, QoS-masked | learned predictor (typed) |
 | **HGL-QoS** | heterogeneous graph transformer, QoS-encoded | learned predictor (typed + QoS) |
 | **GL / GL-QoS** | homogeneous GAT on the type-collapsed projection | learning baseline (untyped) |
 | **Topo-BL / Topo-QoS** | structural centrality (betweenness, articulation points; QoS-weighted) | non-learning baseline |
 
 The contrast `Topo-*` vs learned isolates the value of learning (RQ1); `GL` vs `HGL` isolates the
-value of typed heterogeneity; `HGL` vs `HGL-QoS` isolates explicit QoS encoding (RQ3); and `RMAV/Q`
+value of typed heterogeneity; `HGL` vs `HGL-QoS` isolates explicit QoS encoding (RQ3); and `RM/Q`
 vs the learned predictors isolates when interpretable attribution suffices. Structural baseline
 features are kept decoupled from GNN inputs so no comparison leaks information across the predictor
 boundary.
@@ -807,13 +834,13 @@ except where the architecture differs by construction.
 | Attention heads | 4 |
 | Dropout | 0.2 |
 | Input projection | per-node-type linear → LayerNorm → ReLU |
-| Output heads | four RMAV residual MLPs + one composite head, sigmoid-activated |
+| Output heads | two RM residual MLPs (reliability, maintainability) + one composite head, sigmoid-activated |
 | Optimizer | AdamW, learning rate $3\times10^{-4}$, weight decay $1\times10^{-4}$ |
 | LR schedule | `CosineAnnealingWarmRestarts`, $T_0 = \max(50, \text{epochs}/4)$, $T_{\text{mult}} = 2$, $\eta_{\min} = 0.01\cdot\text{lr}$ |
 | Gradient clipping | max-norm 1.0 |
 | Epochs / early stopping | 300, patience 30 on validation loss |
 | Node splits | 60% train / 20% validation / 20% test, pinned by node identity (§6.2) |
-| Loss | composite MSE $+\ 0.5\,$multitask $+\ 0.3\,$ListMLE ranking $+\ 0.1\,$pairwise margin $+\ 0.1\,$RMAV consistency |
+| Loss | composite MSE $+\ 0.5\,$multitask $+\ 0.3\,$ListMLE ranking $+\ 0.1\,$pairwise margin $+\ 0.1\,$RM consistency |
 
 **Hardware and runtime.** Training and evaluation were run on a single workstation; the LOSO sweep is
 the dominant cost, at roughly 31 minutes for HGL and 36 for $HGL\text{-}QoS$ across all folds and
@@ -902,11 +929,16 @@ across-fold standard deviation, and $F_1@K$ on the held-out scenario.
 |---|---:|---:|---:|:---:|
 | Topo-BL | 0.105 | 0.151 | 0.179 | no |
 | Topo-QoS | 0.521 | 0.305 | 0.308 | **no** |
-| RMAV / $Q(v)$ | −0.093 | 0.140 | 0.209 | no |
+| RM / $Q(v)$ | TODO(needs re-measurement)$^\dagger$ | TODO(needs re-measurement)$^\dagger$ | TODO(needs re-measurement)$^\dagger$ | no |
 | GL (homogeneous) | 0.436 | 0.120 | 0.440 | yes |
 | GL-QoS (homogeneous) | 0.430 | 0.125 | 0.435 | yes |
 | **HGL (typed)** | **0.608** | 0.177 | **0.465** | yes |
 | $HGL\text{-}QoS$ (typed + QoS) | 0.595 | 0.190 | 0.461 | yes |
+
+$^\dagger$ TODO(needs re-measurement): the RM / $Q(v)$ closed-form-baseline row's Mean $\rho$, Std
+$\rho$, and $F_1@K$ (previously reported −0.093 / 0.140 / 0.209 under the retired four-dimension RMAV
+composite) have not been reproduced under the two-dimension RM composite this session; re-run via
+`reproduce/loso_all_variants.py`'s closed-form $Q(v)$ baseline arm.
 
 `Topo-QoS` requires no training, no labels, and no transfer assumption, so its out-of-distribution
 score *is* its score; HGL reaches $\rho = 0.608$ against its $0.521$, and leads on $F_1@K$ too (0.465
@@ -1009,32 +1041,43 @@ while remaining an order of magnitude smaller than the fold-to-fold variance is 
 reading is that the lifted dependency topology already encodes most QoS-relevant routing, so the
 extra dimensions mainly enlarge the parameter space.
 
-**Dimension-weight sensitivity: no plateau, and equal weights win.** Sweeping the shrinkage parameter
-$\lambda$ that blends the stated dimension weighting toward a uniform prior ($\lambda=0$ equal
-weights, $\lambda=1$ the raw judgement), with the QoS-profile adaptation of §4.2 active throughout as
-in every run reported in this paper:
+**Intra-dimension weight sensitivity: no plateau, and the raw AHP judgement edges out uniform
+weights.** Sweeping the shrinkage parameter $\lambda$ that blends the AHP-derived *intra*-dimension
+term weights — the $FT$, $A$, and $M$ internal term weights — toward a uniform prior ($\lambda=0$
+uniform intra-dimension weights, $\lambda=1$ the raw judgement), with the QoS-profile adaptation of
+§4.2 active throughout as in every run reported in this paper. The composite weights $(w_R, w_M)$ are
+declared constants and $\lambda$-invariant by construction; this sweep bears only on the term-level
+calibration within each dimension.
 
-**Table 10. AHP shrinkage sensitivity.** Mean $\rho$ against $I^*(v)$ as $\lambda$ blends the stated
-weighting toward a uniform prior.
+**Table 10. AHP shrinkage sensitivity.** Mean $\rho$ against $I^*(v)$ as $\lambda$ blends the
+intra-dimension term weighting toward a uniform prior.
 
-| $\lambda$ | 0.00 | 0.50 | 0.60 | 0.65 | **0.70** | 0.75 | 0.80 | 0.90 | 1.00 |
+| $\lambda$ | 0.00 | 0.50 | 0.60 | 0.65 | **0.70** | 0.75 | 0.80 | 0.90 | **1.00** |
 |---|---|---|---|---|---|---|---|---|---|
-| mean $\rho$ | **0.292** | 0.206 | 0.191 | 0.187 | **0.181** | 0.174 | 0.167 | 0.152 | 0.140 |
+| mean $\rho$ | −0.0512 | −0.0254 | −0.0222 | −0.0202 | **−0.0188** | −0.0151 | −0.0140 | −0.0098 | **−0.0067** |
 
-*(Figure 4: mean $\rho$ against $\lambda$, showing the monotone decline and the absence of a
+*(Figure 4: mean $\rho$ against $\lambda$, showing the monotone increase and the absence of a
 plateau.)*
 
-$\rho$ is monotonically decreasing in $\lambda$; equal dimension weights outperform the calibrated
-$\lambda=0.70$ setting by $0.111$. The value of the RMAV decomposition is attribution, not ranking
-accuracy (§4.2); the sweep removes any claim that the specific weights improve predictive accuracy,
-and a practitioner optimising for ranking alone should use equal weights.
+$\rho$ is monotonically increasing in $\lambda$; the raw AHP judgement ($\lambda=1$) outperforms
+uniform intra-dimension weights ($\lambda=0$) by $\approx 0.032\,\rho$, and edges out the shipped
+$\lambda=0.70$ default by $\approx 0.012\,\rho$. The effect is small — the full range spans
+$\approx 0.045\,\rho$, and every value is near zero or slightly negative — but its direction has
+reversed from an earlier version of this paper's sweep under the retired four-dimension composite,
+which reported a plateau and equal weights beating the calibrated setting by $0.111$; that comparison
+no longer exists under the two-dimension model and is superseded by the measurement above. The value
+of the RM decomposition remains attribution, not ranking accuracy (§4.2); the sweep does not license a
+claim that the intra-dimension weights strongly improve predictive accuracy, only a small, consistent
+edge for the calibrated judgement over uniform weights.
 
 **Normalisation sensitivity.** The default rank-based normalisation discards magnitude before the
 weighted sum, making $Q(v)$ closer to a Borda count than a weighted aggregate. Measured against
-$I^*$: rank (robust) $\rho=0.181$, min–max $0.318$, z-score $0.318$ — retaining magnitude is worth
-$\approx +0.137\,\rho$. The outlier-robustness argument for rank normalisation is real but outweighed
-here; we retain the default so previously reported figures remain interpretable, and report the sweep
-alongside.
+$I^*$: rank (robust, the shipped default) $\rho=-0.019$, min–max $-0.035$, z-score $-0.035$ — under
+the RM composite, retaining magnitude *costs* $\approx 0.016\,\rho$ rather than gaining it, and robust
+is now the *least* negative of the three. This reverses an earlier finding under the retired
+composite, which reported min–max/z-score ahead of robust by $+0.195\,\rho$. We retain the default
+both because it is now the strongest of the three under the current composite and because previously
+reported figures remain interpretable against it.
 
 **Propagation-threshold sensitivity.** Because the ground truth itself depends on
 `propagation_threshold`, we report $\rho$ across its range:
@@ -1062,7 +1105,7 @@ limitation as the synthetic suite, §6.4); $K$ is $\lceil 0.20 \times |V| \rceil
 population (15 of 32 for Autoware, 12 of 22 for Cloud Microservices, 18 of 41 for Train-Ticket); and
 all three are classified `sparse` by the tool's topology-class rule. Reported $\rho$ is the seed mean
 $\pm$ standard deviation: `FaultInjector` tie-breaks intra-wave propagation stochastically, so —
-unlike the deterministic RMAV/$Q(v)$ scores — the simulated labels genuinely vary across seeds within
+unlike the deterministic RM/$Q(v)$ scores — the simulated labels genuinely vary across seeds within
 one sweep, though the *ranking* is stable (Rank Consistency Rate $=1.000$ for all three).
 
 **Table 12. Real-world open-source architecture validation**, five seeds, against the component-level
@@ -1145,11 +1188,12 @@ artifact was not retained (§7.1). If a team needs the critical set, typed learn
 training cost on the evidence here; if they need a cheap ordering, QoS-weighted centrality remains a
 serviceable default, and we cannot presently demonstrate that learning beats it.
 
-**Decomposition is worth having for reasons that are not accuracy (RQ2, RQ3).** The dimension
-weighting does not improve ranking, and the stratified check we ran to detect Simpson's-paradox
+**Decomposition is worth having for reasons that are not accuracy (RQ2, RQ3).** The intra-dimension
+weighting improves ranking only slightly, and the stratified check we ran to detect Simpson's-paradox
 masking did not find it in the $Q$–$I$ relation. What survives is the property that actually
-motivates the decomposition: a four-dimensional profile says *why* a component is critical and routes
-the finding to an owner, which a scalar cannot, regardless of how the four are combined. The
+motivates the decomposition: a two-dimensional profile — Reliability itself further broken into
+fault-tolerance and availability sub-terms — says *why* a component is critical and routes the finding
+to an owner, which a scalar cannot, regardless of how the terms are combined. The
 methodological discipline was not wasted either: pooled-versus-stratified reporting caught a real
 distortion elsewhere in this study, where collapsing Application and Library nodes into one
 correlation moved a headline figure by 0.38 (§5.4).
@@ -1169,7 +1213,7 @@ and reports as a real, falsifiable result; ② simulated external quality → th
 *deployed* system, which we do not measure, since the simulator is a model of the executing system
 rather than the system itself; and ③ external quality → Quality-in-Use loss, which is not measured
 anywhere in this paper — no user study, expert elicitation, or production incident record is used.
-The defensible claim is therefore: *RMAV and the learned predictors track simulated external quality
+The defensible claim is therefore: *RM and the learned predictors track simulated external quality
 loss, and simulated external quality loss is our stated operationalisation of Quality-in-Use loss.*
 The stronger claim — that these scores track Quality-in-Use as stakeholders would report it — is not
 supported by anything here.
@@ -1205,7 +1249,7 @@ no `return_attention_weights` argument (repaired; Figure 3 now uses real per-edg
 `FaultInjector`'s cascade iterating an unordered Python set salted per-process by `PYTHONHASHSEED`,
 making labels reproducible only within one interpreter run (repaired; verified identical $I^*(v)$
 across five `PYTHONHASHSEED` values); a training-target lookup keying by an attribute the underlying
-dataclass does not have, silently zeroing the RMAV-consistency loss term for any checkpoint trained
+dataclass does not have, silently zeroing the RM-consistency loss term for any checkpoint trained
 outside the harnesses that produced this paper's tables (repaired); and a post-loop impact computation
 reading a stale intermediate variable, a no-op under the `cascade_depth_limit=0` setting every
 reported figure in this paper uses (repaired). Only the third defect changes reported figures — it
@@ -1277,11 +1321,11 @@ cutoffs (§4.2).
 Several limitations point to concrete next steps, ordered here by how much they would change the
 paper's claims.
 
-**Safety is outside the attribute set.** RMAV instantiates one ISO/IEC 25010:2023 characteristic
-(Reliability) close to fully and two more (Maintainability, Security) partially, leaving Safety — a
-first-class characteristic of the same standard since its 2023 revision — entirely uncovered (§4.1),
-because an architecture description carries no hazard catalogue, no functional integrity class, and no
-safety-criticality field. The consequence is
+**Safety and Security are outside the attribute set.** RM instantiates one ISO/IEC 25010:2023
+characteristic (Reliability) close to fully and one more (Maintainability) partially, leaving Safety
+— a first-class characteristic of the same standard since its 2023 revision — and Security entirely
+uncovered (§4.1), because an architecture description carries no hazard catalogue, no functional
+integrity class, no threat model, and no safety-criticality field. The consequence is
 sharpest in exactly the domains where it matters most: for the autonomous-vehicle and clinical
 topologies, the dominant Quality-in-Use characteristic is freedom from health and life risk, and no
 dimension estimates it. Closing this needs a schema extension carrying an assigned integrity level
@@ -1302,10 +1346,14 @@ transfer, the label noise floor (§6.4), or a limitation of the architecture is 
 distinguishing those explanations, plausibly by training on a larger and more diverse scenario
 corpus, would determine whether typed learning has more to offer than it currently demonstrates.
 
-**The dimension weighting does not improve accuracy.** We have repositioned RMAV as an attribution
-mechanism accordingly (§4.2, §7.3), but a weighting *derived* rather than asserted — fitted to
-simulated impact, or elicited from a practitioner panel with reported inter-rater agreement — would
-let the decomposition make an accuracy claim as well as an explanatory one.
+**The composite weighting is declared, not fitted, and the intra-dimension weighting's ranking edge is
+small.** The composite split $(w_R, w_M) = (0.80, 0.20)$ is an algebraic derivation from the retired
+four-dimension AHP composite, not independently fitted or re-elicited (§4.2); the intra-dimension AHP
+judgement outperforms uniform intra-dimension weights by only $\approx 0.032\,\rho$ (§7.3). We have
+positioned RM as an attribution mechanism accordingly (§4.2, §7.3), but a composite weighting
+*derived* rather than declared — fitted to simulated impact, or elicited from a practitioner panel
+with reported inter-rater agreement — would let the decomposition make a stronger accuracy claim as
+well as an explanatory one.
 
 **Relationship-level attribution is defined but not validated, and closing that gap is out of scope
 for this submission** (§4.1): it is scored on `DEPENDS_ON` edges while the removal oracle of §7.2
@@ -1322,8 +1370,8 @@ instrumented deployments, which would convert this paper's comparative claims in
 
 We presented Software-as-a-Graph, a pre-deployment Static System Analysis framework that models
 distributed pub-sub middleware as a typed, weighted, directed multigraph and analyzes it along two
-coupled axes: an interpretable RMAV attribution baseline that decomposes each component's criticality
-into orthogonal dimensions, and failure-impact analysis, which predicts cascade impact with both that
+coupled axes: an interpretable RM attribution baseline that decomposes each component's criticality
+into a hierarchical Reliability/Maintainability structure, and failure-impact analysis, which predicts cascade impact with both that
 composite and a learned heterogeneous graph transformer, validated against discrete-event simulation
 under a strict input–label independence guarantee.
 

@@ -89,7 +89,7 @@ Section 2 describes the overall test strategy and schedule. Section 3 defines th
 | RCL | Reverse Closeness Centrality — closeness computed on G^T |
 | REV | Reverse Eigenvector Centrality — eigenvector centrality computed on G^T |
 | ρ | Spearman rank correlation coefficient |
-| RMAV | Reliability, Maintainability, Availability, Vulnerability |
+| RM | Reliability, Maintainability — the two ISO/IEC 25010:2023 characteristics scored by this system. Reliability is hierarchical (Fault Tolerance and Availability sub-characteristics, `R(v) = α·FT(v) + (1−α)·A(v)`, α=0.36). Vulnerability/Security was a third peer dimension in earlier versions ("RMAV"); it has been deleted entirely, with no successor metric or gate. |
 | SUT | System Under Test |
 | TP / FP / TN / FN | True/False Positive/Negative (classification outcomes) |
 
@@ -388,18 +388,20 @@ def test_graph_summary_present(self, linear_graph):
 
 ### 4.3 Analysis Module — Prediction and Classification
 
-Tests that the RMAV formula inputs are correctly resolved, derived terms are computed, and the composite Q(v) and classification are correct.
+Tests that the RM formula inputs are correctly resolved, derived terms are computed, and the composite Q(v) and classification are correct.
 
-**RMAV formula inputs reference (SDD v2.2 §6.19–§6.23):**
-- R(v) = 0.45 × RPR + 0.30 × DG_in + 0.25 × CDPot_enh
-- M(v) = 0.35 × BT + 0.30 × w_out + 0.15 × CQP + 0.12 × CouplingRisk + 0.08 × (1 − CC)
-- A(v) = 0.35 × AP_c_directed + 0.25 × QSPOF + 0.25 × BR + 0.10 × CDI + 0.05 × w(v)
-- V(v) = 0.40 × REV + 0.35 × RCL + 0.25 × QADS
+**RM formula inputs reference (SDD v3.1 §6.19–§6.23):**
+- FT(v) = 0.45 × RPR + 0.30 × DG_in + 0.25 × CDPot_enh          (Fault Tolerance, Reliability sub-characteristic)
+- A(v)  = 0.35 × AP_c_directed + 0.25 × QSPOF + 0.25 × BR + 0.10 × CDI + 0.05 × w(v)   (Availability, Reliability sub-characteristic)
+- R(v)  = α × FT(v) + (1 − α) × A(v)             α = 0.36        (Reliability, hierarchical)
+- M(v)  = 0.35 × BT + 0.30 × w_out + 0.15 × CQP + 0.12 × CouplingRisk + 0.08 × (1 − CC)
+
+> Vulnerability/Security (formerly V(v) = 0.40·REV + 0.35·RCL + 0.25·QADS) is **retired** — deleted entirely, not folded into another dimension, no successor metric or gate.
 
 | Test ID | Description | Expected Result |
 |---------|-------------|-----------------|
-| UT-ANAL-20 | RMAV scores computed from structural metrics | R, M, A, V, Q all ∈ [0, 1] |
-| UT-ANAL-21 | High-RPR node has high R(v) | Node with highest reverse\_pagerank scores highest R(v) (not PR) |
+| UT-ANAL-20 | RM scores computed from structural metrics | FT, A, R, M, Q all ∈ [0, 1] |
+| UT-ANAL-21 | High-RPR node has high FT(v) | Node with highest reverse\_pagerank scores highest FT(v) (not PR) |
 | UT-ANAL-22 | Articulation point has high A(v) | Node with AP\_c\_directed > 0 scores highest A(v) via QSPOF |
 | UT-ANAL-23 | High-betweenness node has high M(v) | Bottleneck node scores highest M(v) |
 | UT-ANAL-24 | AHP weights produce different Q ordering | Custom matrix → different top-ranked component vs. defaults |
@@ -436,15 +438,17 @@ def test_ahp_inconsistency_raises(self):
         AHPProcessor().compute_weights(inconsistent_matrix)
     assert "CR" in str(exc_info.value)
 
-def test_r_uses_rpr_not_pr(self, linear_graph_with_scores):
-    """R(v) formula uses RPR, DG_in, CDPot — not PR (SDD §6.19)."""
+def test_ft_uses_rpr_not_pr(self, linear_graph_with_scores):
+    """FT(v) formula uses RPR, DG_in, CDPot — not PR (SDD §6.19)."""
     quality_result = QualityAnalyzer().analyze(linear_graph_with_scores)
     # In A→B→C, C has highest PR but A has highest RPR.
-    # R(C_component) should be lower than R(A_component).
+    # FT(C_component) should be lower than FT(A_component); this also
+    # propagates to R(v) = alpha*FT(v) + (1-alpha)*A(v) since FT dominates
+    # in this symmetric-availability fixture.
     a = quality_result.component("A")
     c = quality_result.component("C")
-    assert a.scores.reliability > c.scores.reliability, \
-        "A is the source; its failure propagates to B and C; R(A) > R(C)"
+    assert a.scores.fault_tolerance > c.scores.fault_tolerance, \
+        "A is the source; its failure propagates to B and C; FT(A) > FT(C)"
 
 def test_cdpot_absorber_vs_fanout(self):
     absorber = MockMetrics(rpr=0.8, dg_in=0.9, dg_out=0.1)
@@ -465,19 +469,23 @@ def test_coupling_risk_cap_enforcement(self):
     assert compute_coupling_risk(dg_in_raw=5, dg_out_raw=5, path_complexity=10.0) == 1.0
 
 def test_rev_roles_reversed_vs_ev(self, star_graph):
-    """REV is eigenvector on G^T; source hubs in G become sink hubs in G^T."""
+    """REV is eigenvector on G^T; source hubs in G become sink hubs in G^T.
+
+    REV is retained as a diagnostic-only StructuralMetrics field (it fed the
+    retired Vulnerability dimension; no RM formula consumes it now) — this
+    test verifies the metric's computation, not any downstream score.
+    """
     metrics = StructuralAnalyzer().analyze(star_graph)
     hub = metrics.components["H"]
     assert hub.eigenvector > 0   # H is a hub in G (high EV)
-    # REV is computed inside QualityAnalyzer; verify V(v) is highest for leaves
-    # which are the hubs of G^T
-    quality = QualityAnalyzer().analyze(metrics)
-    leaf_v = max(
-        (c for c in quality.components if c.id != "H"),
-        key=lambda c: c.scores.vulnerability
+    # REV computed directly on G^T within StructuralAnalyzer (§6.18);
+    # leaves in G are the hubs of G^T, so they should have higher REV.
+    leaf_rev = max(
+        (c for c in metrics.components.values() if c.id != "H"),
+        key=lambda c: c.reverse_eigenvector
     )
-    assert leaf_v.scores.vulnerability > quality.component("H").scores.vulnerability, \
-        "Leaves in G are hubs in G^T; they should have higher V(v)"
+    assert leaf_rev.reverse_eigenvector > hub.reverse_eigenvector, \
+        "Leaves in G are hubs in G^T; they should have higher REV(v)"
 ```
 
 ### 4.4 Simulation Module
@@ -653,7 +661,7 @@ Tests that StructuralAnalyzer → QualityAnalyzer → ProblemDetector produces c
 
 | Test ID | Description | Expected Result |
 |---------|-------------|-----------------|
-| IT-ANAL-01 | StructuralAnalyzer → PredictionEngine | RMAV scores computed from structural metrics; R uses RPR not PR |
+| IT-ANAL-01 | StructuralAnalyzer → PredictionEngine | RM scores computed from structural metrics; FT uses RPR not PR |
 | IT-ANAL-02 | PredictionEngine → ProblemDetector | Architectural problems identified from prediction result |
 | IT-ANAL-03 | Full analysis pipeline | LayerAnalysisResult with components, edges, problems |
 | IT-ANAL-04 | Multi-layer analysis (all 4 layers: app, infra, mw, system) | Distinct results per layer; app layer has only Application components |
@@ -670,12 +678,13 @@ def test_full_analysis_pipeline(multi_layer_graph):
 
     qual_result = quality.analyze(struct_result)
     assert all(0.0 <= c.scores.overall <= 1.0 for c in qual_result.components)
-    # All four RMAV dimensions must be present
+    # Both RM dimensions, plus Reliability's two sub-characteristics, must be present.
+    # Vulnerability/Security is retired — no `.scores.vulnerability` field exists.
     for c in qual_result.components:
         assert 0.0 <= c.scores.reliability     <= 1.0
         assert 0.0 <= c.scores.maintainability <= 1.0
+        assert 0.0 <= c.scores.fault_tolerance <= 1.0
         assert 0.0 <= c.scores.availability    <= 1.0
-        assert 0.0 <= c.scores.vulnerability   <= 1.0
 
     problems = detector.detect(qual_result)
     assert isinstance(problems, list)
@@ -738,7 +747,7 @@ Tests that the FastAPI backend correctly invokes domain services and returns pro
 | IT-API-02 | `GET /api/v1/graph/search-nodes` with no data | HTTP 200; empty node list |
 | IT-API-03 | `POST /api/v1/graph/import` with valid JSON | HTTP 200; entity counts match topology |
 | IT-API-04 | `POST /api/v1/graph/import` with invalid JSON | HTTP 422; error body contains offending field |
-| IT-API-05 | `POST /api/v1/analysis/layer/{layer}` after import | HTTP 200; all components have RMAV scores |
+| IT-API-05 | `POST /api/v1/analysis/layer/{layer}` after import | HTTP 200; all components have RM scores |
 | IT-API-06 | `POST /api/v1/simulation/failure` | HTTP 200; one FailureResult per component |
 | IT-API-07 | `POST /api/v1/validation/run-pipeline` | HTTP 200; Spearman ρ ∈ [−1, 1] |
 | IT-API-08 | `GET /api/v1/validation/layers` | HTTP 200; result contains layer entries |
@@ -773,9 +782,10 @@ async def test_analysis_endpoint_returns_scores(api_client):
     assert len(components) > 0
     assert all("scores" in c for c in components)
     assert all(0.0 <= c["scores"]["overall"] <= 1.0 for c in components)
-    # All four RMAV dimensions must be present
+    # Both RM dimensions, plus Reliability's two sub-characteristics, must be
+    # present. Vulnerability/Security is retired — no successor key exists.
     for c in components:
-        for dim in ("reliability", "maintainability", "availability", "vulnerability"):
+        for dim in ("reliability", "maintainability", "fault_tolerance", "availability"):
             assert dim in c["scores"], f"Missing {dim} in component {c.get('id')}"
 ```
 
@@ -785,8 +795,8 @@ These tests verify that prediction services integrate GNN checkpoints and fallba
 
 | Test ID | Description | Expected Result |
 |---------|-------------|-----------------|
-| IT-GNN-01 | Predict with GNN model checkpoint | Predictions include both GNN and RMAV scores; no fallback |
-| IT-GNN-02 | Predict with missing GNN model | System logs warning and falls back to RMAV automatically; exit code 0 |
+| IT-GNN-01 | Predict with GNN model checkpoint | Predictions include both GNN and RM scores; no fallback |
+| IT-GNN-02 | Predict with missing GNN model | System logs warning and falls back to RM automatically; exit code 0 |
 | IT-GNN-03 | Predict with mismatching checkpoint layer | System aborts with `CheckpointLayerMismatchError` |
 | IT-GNN-04 | \[Deprecated\] Ensemble Blend Fallback | Warning log and GNN-only predictions when ensemble mode is requested |
 
@@ -830,7 +840,7 @@ Each CLI tool is tested independently with its most common options.
 | ST-CLI-01 | `cli/import_graph.py --input <json>` | Exit 0; entities present in Neo4j |
 | ST-CLI-02 | `cli/import_graph.py --input <json>` (JSON format) | Correct DEPENDS\_ON edges derived |
 | ST-CLI-03 | `cli/import_graph.py --input <graphml>` | Equivalent topology as JSON import |
-| ST-CLI-04 | `cli/analyze_graph.py --layer app` | Non-empty JSON output; RMAV scores present |
+| ST-CLI-04 | `cli/analyze_graph.py --layer app` | Non-empty JSON output; RM scores present |
 | ST-CLI-05 | `cli/simulate_graph.py failure --exhaustive` | One I(v) per component; sorted by impact |
 | ST-CLI-06 | `cli/validate_graph.py --layer app` | JSON with Spearman ρ, F1, pass/fail flag |
 | ST-CLI-07 | `cli/visualize_graph.py --layer system` | Valid HTML file; vis.js network included |
@@ -1022,7 +1032,7 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 
 | ID | Criterion | Method | Pass If |
 |----|-----------|--------|---------|
-| AC-11 | RMAV scores present | Auto | All 4 dimensions + overall score in output |
+| AC-11 | RM scores present | Auto | Both dimensions (Reliability, Maintainability) + both Reliability sub-characteristics (Fault Tolerance, Availability) + overall score in output |
 | AC-12 | AHP weights produce different ordering | Auto | Custom matrix → different top-ranked component vs. defaults |
 | AC-13 | AHP inconsistency aborts analysis | Auto | CR > 0.10 raises error with diagnostic; analysis does not complete |
 | AC-14 | 5-level classification assigned | Auto | CRITICAL, HIGH, MEDIUM, LOW, MINIMAL all present in medium+ scale |
@@ -1065,7 +1075,7 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 | AC-31 | Docker stack starts cleanly | Auto | The smart service healthy within 60 s |
 | AC-32 | Dashboard tab loads | Manual | KPI cards and criticality chart visible |
 | AC-33 | Graph Explorer: layer filter works | Manual | Switching layers updates node set |
-| AC-34 | Graph Explorer: node click shows detail | Manual | Side panel opens with RMAV scores |
+| AC-34 | Graph Explorer: node click shows detail | Manual | Side panel opens with RM scores |
 | AC-35 | Analysis tab triggers analysis | Manual | Scores refresh after clicking Analyze |
 | AC-36 | Simulation tab shows cascade | Manual | Failed components highlighted on graph |
 | AC-37 | Settings tab persists Neo4j config | Manual | Config survives page reload |
@@ -1096,7 +1106,7 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 | ACC-01 | JSON topology import | AC-01, AC-03, AC-04 | ☐ |
 | ACC-02 | GraphML topology import | AC-02 | ☐ |
 | ACC-03 | Compute all 16 metrics | AC-06, AC-07 | ☐ |
-| ACC-04 | RMAV quality scoring | AC-11, AC-12, AC-13, AC-14 | ☐ |
+| ACC-04 | RM quality scoring | AC-11, AC-12, AC-13, AC-14 | ☐ |
 | ACC-05 | Failure simulation | AC-15, AC-16, AC-17, AC-18 | ☐ |
 | ACC-06 | Validation accuracy (v2.2 targets) | AC-20 – AC-25 | ☐ |
 | ACC-07 | Static HTML dashboard | AC-26 – AC-30 | ☐ |
@@ -1146,11 +1156,11 @@ Each SRS v3.0 requirement maps to one or more test cases. Requirements without e
 | REQ-SA-10 | QoS weight aggregates (w, w\_in, w\_out) | UT-ANAL-01 |
 | REQ-SA-11 | Normalize to [0, 1] | UT-ANAL-14, UT-ANAL-15 |
 | REQ-SA-12 | Graph-level summary statistics | UT-ANAL-16, AC-07 |
-| REQ-QS-01 | Compute Reliability R(v) | UT-ANAL-20, UT-ANAL-21, UT-ANAL-33, UT-ANAL-34, UT-ANAL-35 |
+| REQ-QS-01 | Compute Fault Tolerance FT(v) (Reliability sub-characteristic) | UT-ANAL-20, UT-ANAL-21, UT-ANAL-33, UT-ANAL-34, UT-ANAL-35 |
 | REQ-QS-02 | Compute Maintainability M(v) | UT-ANAL-20, UT-ANAL-23, UT-ANAL-36, UT-ANAL-37, UT-ANAL-38 |
-| REQ-QS-03 | Compute Availability A(v) | UT-ANAL-20, UT-ANAL-22, UT-ANAL-39, UT-ANAL-40, UT-ANAL-41 |
-| REQ-QS-04 | Compute Vulnerability V(v) | UT-ANAL-20, UT-ANAL-42, UT-ANAL-43 |
-| REQ-QS-05 | Compute composite Q(v) | UT-ANAL-20, IT-ANAL-01 |
+| REQ-QS-03 | Compute Availability A(v) (Reliability sub-characteristic) | UT-ANAL-20, UT-ANAL-22, UT-ANAL-39, UT-ANAL-40, UT-ANAL-41 |
+| REQ-QS-04 | RETIRED — Vulnerability/Security dimension deleted, see [structural-analysis.md §11](../structural-analysis.md#11) | — |
+| REQ-QS-05 | Compute composite Q(v) = w_R·R(v) + w_M·M(v) | UT-ANAL-20, IT-ANAL-01 |
 | REQ-QS-06 | Classify into 5 criticality levels | UT-ANAL-27, AC-14 |
 | REQ-QS-07 | Support AHP weights | UT-ANAL-24 |
 | REQ-QS-08 | AHP consistency check → abort | UT-ANAL-25, UT-ANAL-26, AC-13 |

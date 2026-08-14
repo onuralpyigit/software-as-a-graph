@@ -26,7 +26,7 @@ $$\underbrace{\text{structural / learned score}}_{Q(v),\ \text{HGL}}
 Link ① is what §8 reports: a real, falsifiable result. Link ② is not measured anywhere in this
 paper — no user study, expert elicitation, or production incident record is used, and the simulator
 is itself a *model* of stakeholder harm rather than an observation of it. The defensible claim is
-therefore: *RMAV and the learned predictors track simulated failure impact, and simulated failure
+therefore: *RM and the learned predictors track simulated failure impact, and simulated failure
 impact is our stated operationalisation of Quality-in-Use loss.* The stronger claim — that these
 scores track Quality-in-Use as stakeholders would report it — is not supported by anything here, and
 we do not make it. Closing link ② requires evidence of a different kind: expert ranking studies on
@@ -90,17 +90,19 @@ Table 13, are unaffected: both use `cascade_depth_limit=0`, the setting at which
 below is provably a no-op, and neither exercises the code path this defect lived in independently of
 that setting.
 
-Fourth, `extract_rmav_scores_dict` — the function that turns `PredictionService`'s RMAV output into
-the GNN's auxiliary training target — keyed its lookup by an attribute (`component_id`) that the
-underlying dataclass does not have (it has `id`), so every key fell through to the object's own
-`repr()` string and the lookup silently returned nothing usable; the $0.1$-weighted RMAV-consistency
-term of Table 17 was training against an all-zero target wherever this function was on the path. It
-has been repaired to key by `id` first, matching its sibling function's already-correct convention.
-Table 3/5/6/7's reported runs are unaffected: both evaluation harnesses (`cli/loso_evaluate.py`,
-`cli/kfold_evaluate.py`) read RMAV scores through a different loader that never called the broken
-function. Any GNN checkpoint trained via the standalone `cli/train_graph.py` entry point without an
-explicit `--rmav` file did go through the broken path and trained with no RMAV supervision; that
-entry point is not what produced the tables in this paper.
+Fourth, `extract_rmav_scores_dict` (since renamed `extract_rm_scores_dict` in the RMAV→RM model
+migration; described here under its name at the time of the defect) — the function that turns
+`PredictionService`'s RMAV output into the GNN's auxiliary training target — keyed its lookup by an
+attribute (`component_id`) that the underlying dataclass does not have (it has `id`), so every key
+fell through to the object's own `repr()` string and the lookup silently returned nothing usable; the
+$0.1$-weighted RMAV-consistency term of Table 17 was training against an all-zero target wherever
+this function was on the path. It has been repaired to key by `id` first, matching its sibling
+function's already-correct convention. Table 3/5/6/7's reported runs are unaffected: both evaluation
+harnesses (`cli/loso_evaluate.py`, `cli/kfold_evaluate.py`) read RMAV scores through a different
+loader that never called the broken function. Any GNN checkpoint trained via the standalone
+`cli/train_graph.py` entry point without an explicit `--rmav` file (since renamed `--rm`) did go
+through the broken path and trained with no RMAV supervision; that entry point is not what produced
+the tables in this paper.
 
 Fifth, the parallel worker in the prescription stage's per-edit verifier (§6.4) constructed its own
 evaluator with default settings — layer `system`, no GNN checkpoint — regardless of what layer and

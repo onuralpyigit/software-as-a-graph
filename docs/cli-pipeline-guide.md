@@ -144,7 +144,7 @@ PYTHONPATH=. python cli/export_graph.py --output output/exported_graph.json --fo
 ## Step 2: Analyze
 
 **Script:** `cli/analyze_graph.py`  
-**Purpose:** Compute structural metrics, RMAV/Q quality scores, and detect anti-patterns.
+**Purpose:** Compute structural metrics, RM/Q quality scores, and detect anti-patterns.
 
 ```bash
 PYTHONPATH=. python cli/analyze_graph.py --layer system
@@ -170,7 +170,7 @@ Multi-layer output filenames append the layer (e.g. `analysis_app.json`, `analys
 ## Step 3: Predict
 
 **Script:** `cli/predict_graph.py`  
-**Purpose:** Unified prediction — RMAV scoring, optional GNN inference, and anti-pattern detection.
+**Purpose:** Unified prediction — RM scoring, optional GNN inference, and anti-pattern detection.
 
 ```bash
 PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model
@@ -232,7 +232,7 @@ PYTHONPATH=. python cli/train_graph.py --layer system --epochs 500 --hidden 128 
 | `--layer` | `app` | `app`, `infra`, `mw`, `system` | System layer |
 | `--structural` | `None` | Path | Skip Step 2, load pre-computed metrics JSON |
 | `--simulated` | `None` | Path | Skip Step 4, load simulation results JSON |
-| `--rmav` | `None` | Path | Skip Step 3, load RMAV scores JSON |
+| `--rm` | `None` | Path | Skip Step 3, load RM scores JSON |
 | `--hidden` | `64` | int | Hidden dimension |
 | `--heads` | `4` | int | Attention heads |
 | `--layers` | `3` | int | GNN layers |
@@ -245,8 +245,8 @@ PYTHONPATH=. python cli/train_graph.py --layer system --epochs 500 --hidden 128 
 | `--no-edge-model` | `False` | flag | Skip edge model |
 | `--seeds` | `None` | ints | Seed list for stability validation |
 | `--multi-scenario` | `False` | flag | Inductive training on all domain scenarios |
-| `--mode` | `gnn` | `rmav`, `gnn` | Evaluation path for final summary |
-| `--variant` | `hetero_qos` | `hetero_qos`, `homo_unweighted`, `homo_scalar`, `topology_rmav` | Model architecture variant |
+| `--mode` | `gnn` | `rm`, `gnn` | Evaluation path for final summary |
+| `--variant` | `hetero_qos` | `hetero_qos`, `homo_unweighted`, `homo_scalar`, `topology_rm` | Model architecture variant |
 | `--checkpoint` | `output/gnn_checkpoints` | Path | Checkpoint directory |
 | `--output` | `None` | Path | Save result JSON |
 

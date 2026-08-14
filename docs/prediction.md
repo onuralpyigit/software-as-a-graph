@@ -1,10 +1,10 @@
-# Step 3: Predict — Rule-Based (RMAV) + Learned (GNN) Criticality
+# Step 3: Predict — Rule-Based (RM) + Learned (GNN) Criticality
 
-**Predict component and edge criticality by combining deterministic RMAV scoring with a Heterogeneous Graph Transformer trained on simulation-derived ground truth, plus anti-pattern detection and explanations.**
+**Predict component and edge criticality by combining deterministic RM scoring with a Heterogeneous Graph Transformer trained on simulation-derived ground truth, plus anti-pattern detection and explanations.**
 
 ← [Step 2: Analyze](structural-analysis.md) | → [Step 4: Simulate](failure-simulation.md)
 
-> **Unified Prediction Step.** Step 3 replaces the legacy "Quality Scoring" mechanism that used to live inside Step 2 (Analyze), which is now structural-metrics-only. It always computes deterministic $Q_{\text{RMAV}}(v)$ scores; when a trained GNN checkpoint is available it additionally runs a learned pass that discovers multi-hop topological patterns and predicts edge-level criticality directly. Anti-pattern detection and human-readable explanations are derived from the RMAV scores as part of this same step.
+> **Unified Prediction Step.** Step 3 replaces the legacy "Quality Scoring" mechanism that used to live inside Step 2 (Analyze), which is now structural-metrics-only. It always computes deterministic $Q_{\text{RM}}(v)$ scores; when a trained GNN checkpoint is available it additionally runs a learned pass that discovers multi-hop topological patterns and predicts edge-level criticality directly. Anti-pattern detection and human-readable explanations are derived from the RM scores as part of this same step.
 
 ---
 
@@ -27,16 +27,16 @@
 
 Step 3 takes the metric vector **M(v)** and graph structure produced by Step 2 and produces:
 
-- Deterministic rule-based node scores $Q_{\text{RMAV}}(v) \in [0,1]$ — always
+- Deterministic rule-based node scores $Q_{\text{RM}}(v) \in [0,1]$ — always
 - Learned node criticality $Q_{\text{GNN}}(v) \in [0,1]$ — when a checkpoint exists
 - Learned edge criticality $Q_{\text{GNN}}(u,v) \in [0,1]$ — when a checkpoint exists and `predict_edges` is set
 
 ```
 M(v) + graph structure                Prediction Engine                Output
 ──────────────────────                ─────────────────                ──────────────────
-Tier 1 & Tier 2 metrics:       →      RMAV formulas (always)     →     Q_RMAV(v) ∈ [0,1]
+Tier 1 & Tier 2 metrics:       →      RM formulas (always)       →     Q_RM(v) ∈ [0,1]
   PR, RPR, BT, CL, EV,                HGT GNN (with checkpoint)        Q_GNN(v)  ∈ [0,1]
-  DG_in, DG_out, CC,                  5 prediction heads               Q_GNN(u,v) ∈ [0,1]
+  DG_in, DG_out, CC,                  3 prediction heads               Q_GNN(u,v) ∈ [0,1]
   AP_c_dir, BR, w, w_in,
   w_out, MPCI, PC, FOC, ...
 ```
@@ -65,11 +65,11 @@ HGT handles type-specific projections internally, so a global one-hot node-type 
 
 **Topological metrics — indices 0–17 (all node types):**
 
-| Idx | Metric | RMAV role | | Idx | Metric | RMAV role |
+| Idx | Metric | RM role | | Idx | Metric | RM role |
 |:---:|--------|-----------|-|:---:|--------|-----------|
 | 0 | PageRank (PR) | Diagnostic (Tier 2) | | 9 | Bridge Ratio (BR) | A(v) |
 | 1 | Reverse PageRank (RPR) | R(v) | | 10 | QoS aggregate weight (w) | QSPOF, A(v) |
-| 2 | Betweenness (BT) | M(v) | | 11 | QoS weighted in-degree (w_in) | V(v) |
+| 2 | Betweenness (BT) | M(v) | | 11 | QoS weighted in-degree (w_in) | Diagnostic — fed the retired V(v); unused by any RM formula |
 | 3 | Closeness (CL) | Diagnostic (Tier 2) | | 12 | QoS weighted out-degree (w_out) | M(v) |
 | 4 | Eigenvector (EV) | Diagnostic (Tier 2) | | 13 | MPCI | R(v) via CDPot_enh |
 | 5 | In-degree norm (DG_in) | R(v) | | 14 | path_complexity | M(v) via CouplingRisk_enh |
@@ -104,10 +104,10 @@ Dimensions 9–15 are non-zero only for `PUBLISHES_TO` / `SUBSCRIBES_TO` edges, 
 
 | Tensor | Shape | Contents |
 |--------|-------|----------|
-| `data[type].y` | (n, 5) | Simulation ground truth `[I*(v), IR(v), IM(v), IA(v), IV(v)]` |
-| `data[type].y_rmav` | (n, 5) | RMAV scores `[Q(v), R(v), M(v), A(v), V(v)]` — the consistency-regularisation target, **not** a training label |
+| `data[type].y` | (n, 3) | Simulation ground truth `[I*(v), IR(v), IM(v)]` |
+| `data[type].y_rm` | (n, 3) | RM scores `[Q(v), R(v), M(v)]` — the consistency-regularisation target, **not** a training label |
 | `data[type].label_mask` | (n,) | Which nodes the simulator actually scored — distinct from "scored 0.0" |
-| `data[rel].y_edge` | (e, 5) | Per-edge criticality labels ([§5](#5-edge-criticality)) |
+| `data[rel].y_edge` | (e, 3) | Per-edge criticality labels ([§5](#5-edge-criticality)) |
 
 ---
 
@@ -120,14 +120,14 @@ Dimensions 9–15 are non-zero only for `PUBLISHES_TO` / `SUBSCRIBES_TO` edges, 
    │   Data Preparation               │  Type-specific node features:
    │   networkx_to_hetero_data()      │    App/Lib=23, Broker=19, Topic=22, Node=20
    │   HeteroData + splits            │  16-dim edge features
-   └──────────┬───────────────────────┘  5-dim node labels y = I*(v)
-              │                          5-dim RMAV targets y_rmav
+   └──────────┬───────────────────────┘  3-dim node labels y = I*(v)
+              │                          3-dim RM targets y_rm
               ▼
    NodeCriticalityGNN ─── 3× (EdgeFeatureEncoder → HGTConv → residual+norm)
               │           optional reverse pass
-              ├──────────► 5 prediction heads ──────► node scores (N, 5)
+              ├──────────► 3 prediction heads ──────► node scores (N, 3)
               │
-   EdgeCriticalityGNN ─── TypedEdgeEncoder ─────────► edge scores (E, 5)
+   EdgeCriticalityGNN ─── TypedEdgeEncoder ─────────► edge scores (E, 3)
 ```
 
 `EdgeCriticalityGNN` wraps a `NodeCriticalityGNN` and reuses its embeddings; both live in [models/core.py](../saag/prediction/models/core.py).
@@ -162,14 +162,12 @@ Hidden dimension D = 64, 4 attention heads, dropout p = 0.2. The reverse pass gi
 ```
 R̂(v) = MLP_R( h_v )                            — Reliability
 M̂(v) = MLP_M( h_v )                            — Maintainability
-Â(v) = MLP_A( h_v )                            — Availability
-V̂(v) = MLP_V( h_v )                            — Vulnerability
-Î*(v) = MLP_C( h_v ‖ R̂ ‖ M̂ ‖ Â ‖ V̂ )          — Composite
+Î*(v) = MLP_C( h_v ‖ R̂ ‖ M̂ )                    — Composite
 ```
 
-Each is a `ResidualMLP`; all outputs pass through a sigmoid, giving scores in [0, 1]. The composite head consumes the four dimension predictions as extra input so it can model non-linear interactions between them.
+Each is a `ResidualMLP`; all outputs pass through a sigmoid, giving scores in [0, 1]. The composite head consumes the two dimension predictions as extra input so it can model non-linear interactions between them.
 
-> **Naming.** The fourth dimension is called **vulnerability** in the model heads and the RMAV formulas, but the serialized field is `security_score` throughout `GNNCriticalityScore`, the JSON output, and the API. They are the same quantity.
+> **Fault tolerance and availability are not GNN heads.** They are Reliability sub-characteristics scored on the analysis side (`saag/analysis/`), not separate prediction targets — the GNN predicts only the two RM label columns (reliability, maintainability) plus the composite. See [models/core.py](../saag/prediction/models/core.py#L309).
 
 ---
 
@@ -190,7 +188,7 @@ L_dimension   = Σ_d MSE( d̂(v), I_d*(v) )               — labelled nodes; di
                                                           via `dimension_mask`, not regressed to 0
 L_rank        = −(1/N) Σ_v log P(rank of v)             — ListMLE, labelled nodes
 L_pairwise    = Σ_{i,j: t_i−t_j > m} max(0, m − (s_i−s_j)) / n_pairs   — margin m = 0.05
-L_consistency = MSE( pred_unlabelled, y_rmav )          — RMAV regularisation, unlabelled nodes
+L_consistency = MSE( pred_unlabelled, y_rm )            — RM regularisation, unlabelled nodes
 L_edge        = mean_r MSE( ŷ_edge[:,0], y_edge[:,0] )  — only when the model predicts edges
 ```
 
@@ -244,7 +242,7 @@ Step 3 does not consume that output today; see [§9](#9-known-limitations).
 
 ## 6. Comparing the Prediction Modes
 
-| Property | Analyze — RMAV (rule-based) | Predict — GNN (learned) |
+| Property | Analyze — RM (rule-based) | Predict — GNN (learned) |
 |----------|:---------------------------:|:-----------------------:|
 | Requires training data | No | Yes |
 | Node criticality | ✓ | ✓ |
@@ -256,7 +254,7 @@ Step 3 does not consume that output today; see [§9](#9-known-limitations).
 | Generalises to unseen systems | Immediately | Requires fine-tuning |
 | Spearman ρ (published validation) | 0.876 overall; 0.943 large-scale | 0.587 (HGL-QoS, per-domain k-fold) |
 | F1@K / F1-score (published validation) | 0.893 | 0.505 (HGL-QoS, per-domain k-fold) |
-| Primary use | First analysis; interpretable; CI gate; fallback when no checkpoint | Default predictor after training; RMAV = fallback |
+| Primary use | First analysis; interpretable; CI gate; fallback when no checkpoint | Default predictor after training; RM = fallback |
 
 > **Validation-source note.** The GNN figures are HGL-QoS per-domain repeated k-fold results (`k=5`, 5 seeds, [cli/kfold_evaluate.py](../cli/kfold_evaluate.py)) against simulation labels, evaluated independently within each of seven scenarios and averaged (`ρ = 0.587 ± 0.146`, `F1@K = 0.505`; positive in all seven individually, range `ρ = 0.341–0.781`). This is an *in-domain* metric — trained and evaluated on the same scenario, repeated under resampling to show the result is stable rather than an artifact of one split — not a claim about zero-shot transfer. The cross-scenario Leave-One-Scenario-Out protocol, which does test transfer, remains available ([cli/loso_evaluate.py](../cli/loso_evaluate.py)) and reached `ρ = 0.290` (`F1@K = 0.405`, HGL-QoS). LOSO is retained as a secondary domain-gap analysis rather than the headline metric, since testing transfer between architecturally distinct scenarios (autonomous-vehicle vs. financial-trading vs. hub-and-spoke topologies) conflates model quality with how much structure those unrelated domains happen to share.
 >
@@ -273,13 +271,13 @@ Step 3 does not consume that output today; see [§9](#9-known-limitations).
   "layers": {
     "system": {
       "total_components": 35,
-      "rmav": {
+      "rm": {
         "NavLib": {
           "overall":         0.54,
           "reliability":     0.63,
           "maintainability": 0.41,
+          "fault_tolerance": 0.59,
           "availability":    0.58,
-          "security":        0.52,
           "is_spof":         true,
           "blast_radius":    12,
           "cascade_depth":   4
@@ -305,8 +303,6 @@ Step 3 does not consume that output today; see [§9](#9-known-limitations).
             "composite_score":       0.5432,
             "reliability_score":     0.6321,
             "maintainability_score": 0.4121,
-            "availability_score":    0.5821,
-            "security_score":        0.5211,
             "criticality_level":     "HIGH",
             "source":                "GNN"
           }
@@ -319,8 +315,6 @@ Step 3 does not consume that output today; see [§9](#9-known-limitations).
             "composite_score":       0.4512,
             "reliability_score":     0.3211,
             "maintainability_score": 0.2512,
-            "availability_score":    0.5121,
-            "security_score":        0.4211,
             "criticality_level":     "MEDIUM"
           }
         ],
@@ -338,7 +332,7 @@ Step 3 does not consume that output today; see [§9](#9-known-limitations).
 }
 ```
 
-`prediction_mode` is `"gnn_only"` or `"rmav_only"`. `gnn_metrics` is populated only when evaluation labels were supplied; `criticality_level` comes from a per-scenario box-plot classification of that run's own score distribution, applied to nodes and edges separately.
+`prediction_mode` is `"gnn_only"` or `"rm_only"`. `gnn_metrics` is populated only when evaluation labels were supplied; `criticality_level` comes from a per-scenario box-plot classification of that run's own score distribution, applied to nodes and edges separately.
 
 ---
 

@@ -22,14 +22,14 @@
 
 ## 1. What This Step Does
 
-Visualization is the final step. It takes the outputs of Steps 2–5 — structural metric vectors $M(v)$, RMAV prediction scores $Q(v)$, simulation impact scores $I(v)$, and validation metrics — and synthesizes them into one interactive dashboard. The goal is to move from numbers to decisions: every view answers a specific stakeholder question, tabulated in [From Dashboard to Decisions](#6-from-dashboard-to-decisions).
+Visualization is the final step. It takes the outputs of Steps 2–5 — structural metric vectors $M(v)$, RM prediction scores $Q(v)$, simulation impact scores $I(v)$, and validation metrics — and synthesizes them into one interactive dashboard. The goal is to move from numbers to decisions: every view answers a specific stakeholder question, tabulated in [From Dashboard to Decisions](#6-from-dashboard-to-decisions).
 
 ```
 Steps 2–5 Outputs                    Visualization              Output
 ─────────────────────────────        ─────────────              ──────
 M(v)  — Tier 1 structural metrics    Pipeline         →   HTML dashboard
-Q(v)  — R, M, A, V, composite            │                (archivable research artifact)
-I(v), IR, IM, IA, IV — ground truths     │            →   SMART live web app
+Q(v)  — R, M (FT, A sub-chars), composite │                (archivable research artifact)
+I(v), IR, IM, IA — ground truths          │            →   SMART live web app
 ρ, F1, PG, specialist metrics    ────────┘                (operational practitioner tool)
 Anti-pattern report
 ```
@@ -81,7 +81,7 @@ Six KPI cards aggregated across every collected layer:
 | Anti-Patterns | Count of detected instances | Amber if > 0, else green |
 | Validation ρ | Spearman ρ for the primary layer | Green if > 0.7, else amber |
 
-Below the cards: a **criticality doughnut** (CRITICAL/HIGH/MEDIUM/LOW/MINIMAL), an **AHP-weighted RMAV stacked bar** for the top 6 components, and a **Top 5 by Q(v)** bar list with level and SPOF badges.
+Below the cards: a **criticality doughnut** (CRITICAL/HIGH/MEDIUM/LOW/MINIMAL) and an **RM dimension breakdown stacked bar** ("RM dimension comparison — top 6") for the top 6 components, with Fault Tolerance / Availability / Maintainability segments sized by each dimension's effective contribution to $Q(v)$ — Reliability itself is not a segment; it is the sum of the Fault Tolerance and Availability segments.
 
 When more than one layer was collected, a **layer comparison** grouped bar chart compares density, nodes/100, average impact and validation ρ across them — useful for judging whether a reliability concern lives in application topology or in infrastructure.
 
@@ -97,13 +97,13 @@ A sortable, filterable table, one row per component, capped at the **first 100 c
 | Q(v) | Composite criticality score |
 | Level | Coloured criticality badge |
 | Impact | Simulation-derived $I(v)$ |
-| R, M, A, V | Per-dimension quality scores |
-| RMAV | Segmented bar; each dimension contributes up to 25 % of the width |
+| R, M, FT, A | Reliability, Maintainability, Fault Tolerance, Availability scores (FT and A are Reliability sub-characteristics, reported alongside it) |
+| RM | Segmented bar; 3 unweighted segments (Fault Tolerance / Availability / Maintainability), each capped at 33 % of the width |
 | SPOF | Badge when the component is an articulation point |
 
 **Controls:** type dropdown, criticality-level dropdown, free-text search across the whole row, and click-to-sort on any column header (numeric where the column parses as a number, lexicographic otherwise).
 
-Below the table, the AHP-weighted RMAV stacked bar chart shows per-dimension contribution to $Q(v)$ for the top 10 components.
+Below the table, the "RM quality dimension breakdown" chart shows Fault Tolerance / Availability / Maintainability segments — each weighted by its effective contribution to $Q(v)$, not AHP-derived at this composite level — for the top 10 components.
 
 MPCI and FOC are **not** table columns — they appear in the network graph tooltip.
 
@@ -115,18 +115,17 @@ Renders unless `--no-validation` is given. KPI cards for Spearman ρ, F1 (top-k)
 
 **Composite scatter — $Q^*(v)$ vs $I^*(v)$.** The central visual proof of the methodology's claim. Each point is a component: horizontal axis predicted $Q(v)$, vertical axis simulated $I(v)$. Points near the dashed diagonal indicate good prediction; upper-left points are false negatives (impactful components the model underrated), lower-right are false positives. Points are coloured by criticality level, and the Spearman ρ appears in the chart title.
 
-**Per-dimension ρ bars.** A horizontal progress-bar panel for A, R, M and S using the RMAV semantic colours. Negative ρ is valid but cannot be a CSS width, so it renders as 0 % width with a red value label. When multi-seed data is loaded, the stability line chart sits beside it.
+**Per-dimension ρ bars.** A horizontal progress-bar panel for R, M and A (Reliability, Maintainability, and the Availability sub-characteristic, reported as a diagnostic) using the RM semantic colours. Negative ρ is valid but cannot be a CSS width, so it renders as 0 % width with a red value label. When multi-seed data is loaded, the stability line chart sits beside it.
 
-**Per-dimension scatter plots** (when `include_per_dim_scatter` and the dimensional ground truths are present) — four plots against the Step 4 per-dimension ground truths:
+**Per-dimension scatter plots** (when `include_per_dim_scatter` and the dimensional ground truths are present) — three plots against the Step 4 per-dimension ground truths:
 
 | Plot | Horizontal | Vertical | Answers |
 |------|-----------|----------|---------|
 | Reliability | R(v) | IR(v) | Do cascade-propagation predictions match cascade dynamics? |
 | Maintainability | M(v) | IM(v) | Do coupling predictions match change propagation? |
 | Availability | A(v) | IA(v) | Do SPOF predictions match connectivity disruption? |
-| Security | V(v) | IV(v) | Do exposure predictions match compromise reach? |
 
-These are the most diagnostic view for understanding which RMAV dimension drives the overall correlation and which carries systematic bias.
+These are the most diagnostic view for understanding which RM characteristic drives the overall correlation and which carries systematic bias.
 
 **Validation gates.** A metrics box scoring four gates:
 
@@ -204,14 +203,16 @@ All colours come from one place — [saag/visualization/palette.py](../saag/visu
 | LOW | Green | `#3B6D11` |
 | MINIMAL | Grey | `#5F5E5A` |
 
-### RMAV dimensions (stacked bars, per-dimension ρ bars)
+### RM dimensions (stacked bars, per-dimension ρ bars)
 
-| Dimension | Colour | Hex | AHP weight |
+| Characteristic | Colour | Hex | Effective weight in stacked bar |
 |-----------|--------|-----|-----------|
-| Availability | Coral | `#993C1D` | 0.43 |
-| Reliability | Purple | `#534AB7` | 0.24 |
-| Maintainability | Teal | `#0F6E56` | 0.17 |
-| Security | Pink | `#993556` | 0.16 |
+| Reliability | Purple | `#534AB7` | — (sum of the Fault Tolerance and Availability segments below; not itself a bar segment) |
+| Fault Tolerance (Reliability sub-characteristic) | Indigo | `#3B4FA1` | 0.29 |
+| Availability (Reliability sub-characteristic) | Coral | `#993C1D` | 0.51 |
+| Maintainability | Teal | `#0F6E56` | 0.20 |
+
+Weights read from `saag/visualization/palette.py`'s `EFFECTIVE_WEIGHTS` (declared constants, not AHP-derived at this composite level — see [criticality.md](criticality.md)).
 
 ### Node size
 
@@ -288,7 +289,7 @@ Full catalog, detection signals and remediations: [antipatterns.md](antipatterns
 | Which library failure has the largest simultaneous blast radius? | Component table (Type = Library, sort R) | Network graph neighbourhood |
 | Is our reliability concern in app topology or infrastructure? | Overview layer comparison | Per-dimension scatter R vs IR |
 | Do our topology predictions actually match failure impact? | Composite scatter Q(v) vs I(v) | Validation gates G1–G4 |
-| Which RMAV dimension best predicts this system's failures? | Per-dimension ρ bars | Per-dimension scatter plots |
+| Which RM dimension best predicts this system's failures? | Per-dimension ρ bars | Per-dimension scatter plots |
 | Are there hidden cyclic dependencies? | Topology → CYCLIC_DEPENDENCY cards | Dependency matrix (off-diagonal symmetric blocks) |
 | Does QoS topology amplify blast radius beyond structure? | Cascade risk dual-bar chart | Δρ and Wilcoxon stat cards |
 | Are my predictions stable across graph seeds? | Multi-seed stability chart | Mean/min/max ρ KPI cards |

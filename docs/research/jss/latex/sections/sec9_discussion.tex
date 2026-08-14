@@ -24,11 +24,12 @@ artifact was not retained (Section~\ref{sec:8.1}). If a team needs the critical 
 worth its training cost on the evidence here; if they need a cheap ordering, QoS-weighted centrality
 remains a serviceable default, and we cannot presently demonstrate that learning beats it.
 
-\textbf{Decomposition is worth having for reasons that are not accuracy (RQ2, RQ3).} The dimension
-weighting does not improve ranking, and the stratified check we ran to detect Simpson's-paradox
-masking did not find it in the \(Q\)--\(I\) relation. What survives is the property that actually
-motivates the decomposition: a four-dimensional profile says \emph{why} a component is critical and
-routes the finding to an owner, which a scalar cannot, regardless of how the four are combined. The
+\textbf{Decomposition is worth having for reasons that are not accuracy (RQ2, RQ3).} The
+intra-dimension weighting improves ranking only slightly, and the stratified check we ran to detect
+Simpson's-paradox masking did not find it in the \(Q\)--\(I\) relation. What survives is the property
+that actually motivates the decomposition: a two-dimensional profile --- Reliability itself further
+broken into fault-tolerance and availability sub-terms --- says \emph{why} a component is critical and
+routes the finding to an owner, which a scalar cannot, regardless of how the terms are combined. The
 methodological discipline was not wasted either: pooled-versus-stratified reporting caught a real
 distortion elsewhere in this study, where collapsing Application and Library nodes into one
 correlation moved a headline figure by 0.38 (Section~\ref{sec:5.4}).
@@ -66,7 +67,7 @@ structural/learned score → simulated failure impact, which Section~\ref{sec:8}
 as a real, falsifiable result; and \textcircled{\scriptsize 2} simulated impact → real Quality-in-Use loss, which is not
 measured anywhere in this paper --- no user study, expert elicitation, or production incident record
 is used, and the simulator is itself a \emph{model} of stakeholder harm rather than an observation of
-it. The defensible claim is therefore: \emph{RMAV and the learned predictors track simulated failure
+it. The defensible claim is therefore: \emph{RM and the learned predictors track simulated failure
 impact, and simulated failure impact is our stated operationalisation of Quality-in-Use loss.} The
 stronger claim --- that these scores track Quality-in-Use as stakeholders would report it --- is not
 supported by anything here. Two qualifications keep this from being either overstated or unduly
@@ -92,7 +93,7 @@ because the pinned PyTorch Geometric release exposes no \texttt{return\_attentio
 iterating an unordered Python set salted per-process by \texttt{PYTHONHASHSEED}, making labels
 reproducible only within one interpreter run (repaired; verified identical \(I^*(v)\) across five
 \texttt{PYTHONHASHSEED} values); a training-target lookup keying by an attribute the underlying
-dataclass does not have, silently zeroing the RMAV-consistency loss term for any checkpoint trained
+dataclass does not have, silently zeroing the RM-consistency loss term for any checkpoint trained
 outside the harnesses that produced this paper's tables (repaired); a parallel remediation worker
 ignoring the configured layer and checkpoint (repaired; the reported Table~\ref{tab:4} run is
 unaffected, since it used exactly the unpatched default); and a post-loop impact computation reading
@@ -186,11 +187,14 @@ limitation of the architecture is not resolved here; distinguishing those explan
 training on a larger and more diverse scenario corpus, would determine whether typed learning has
 more to offer than it currently demonstrates.
 
-\textbf{The dimension weighting does not improve accuracy.} We have repositioned RMAV as an
-attribution mechanism accordingly (Section~\ref{sec:4.2}, Section~\ref{sec:8.3}), but a weighting
-\emph{derived} rather than asserted --- fitted to simulated impact, or elicited from a practitioner
-panel with reported inter-rater agreement --- would let the decomposition make an accuracy claim as
-well as an explanatory one.
+\textbf{The composite weighting is declared, not fitted, and the intra-dimension weighting's ranking
+edge is small.} The composite split \((w_R, w_M) = (0.80, 0.20)\) is an algebraic derivation from the
+retired four-dimension AHP composite, not independently fitted or re-elicited (Section~\ref{sec:4.2});
+the intra-dimension AHP judgement outperforms uniform intra-dimension weights by only
+\(\approx 0.032\,\rho\) (Section~\ref{sec:8.3}). We have positioned RM as an attribution mechanism
+accordingly, but a composite weighting \emph{derived} rather than declared --- fitted to simulated
+impact, or elicited from a practitioner panel with reported inter-rater agreement --- would let the
+decomposition make a stronger accuracy claim as well as an explanatory one.
 
 \textbf{Remediation is verified but not yet demonstrably effective.} The per-edit acceptance filter
 removes the possibility of an unverified regressing edit being applied, but the risk reductions it
@@ -227,8 +231,8 @@ instrumented deployments, which would convert this paper's comparative claims in
 
 We presented Software-as-a-Graph, a pre-deployment Static System Analysis framework that models
 distributed pub-sub middleware as a typed, weighted, directed multigraph and analyzes it along two
-coupled axes: an interpretable RMAV attribution baseline that decomposes each component's criticality
-into orthogonal dimensions, and failure-impact analysis, which predicts cascade impact with both that
+coupled axes: an interpretable RM attribution baseline that decomposes each component's criticality
+into a hierarchical Reliability/Maintainability structure, and failure-impact analysis, which predicts cascade impact with both that
 composite and a learned heterogeneous graph transformer, validated against discrete-event simulation
 under a strict input--label independence guarantee. A prescriptive remediation stage generates
 topology-level hardening edits from structure alone and verifies each individually against the

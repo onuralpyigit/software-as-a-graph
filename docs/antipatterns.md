@@ -30,13 +30,11 @@ Istanbul Technical University, Department of Computer Engineering
    - 5.14 [FAILURE_HUB — Critical Failure Propagation Hub](#514-failure_hub--critical-failure-propagation-hub)
    - 5.15 [CONCENTRATION_RISK — Concentration Risk](#515-concentration_risk--concentration-risk)
    - 5.16 [HUB_AND_SPOKE — Hub-and-Spoke Anti-Pattern](#516-hub_and_spoke--hub-and-spoke-anti-pattern)
-   - 5.17 [TARGET — High Value Target](#517-target--high-value-target)
-   - 5.18 [EXPOSURE — High Exposure Surface](#518-exposure--high-exposure-surface)
-   - 5.19 [CHAIN — Chain Topology](#519-chain--chain-topology)
-   - 5.20 [ISOLATED — Isolated Component](#520-isolated--isolated-component)
-   - 5.21 [COMPOUND_RISK — Compound Architectural Risk](#521-compound_risk--compound-architectural-risk)
+   - 5.17 [CHAIN — Chain Topology](#517-chain--chain-topology)
+   - 5.18 [ISOLATED — Isolated Component](#518-isolated--isolated-component)
+   - 5.19 [COMPOUND_RISK — Compound Architectural Risk](#519-compound_risk--compound-architectural-risk)
 6. [Empirical Validation](#6-empirical-validation)
-7. [Relationship to the RMAV Prediction Framework](#7-relationship-to-the-rmav-prediction-framework)
+7. [Relationship to the RM Prediction Framework](#7-relationship-to-the-rm-prediction-framework)
 8. [Comparison with Existing Work](#8-comparison-with-existing-work)
 9. [Implications for Architecture Practice](#9-implications-for-architecture-practice)
 10. [Conclusion](#10-conclusion)
@@ -50,7 +48,7 @@ Distributed publish-subscribe systems underpin some of the most demanding softwa
 
 These decisions have a name in classical software engineering: **architectural anti-patterns**. In object-oriented design, the body of work on anti-patterns is mature: God Class, Feature Envy, Shotgun Surgery, and dozens of others have well-defined specifications, detection heuristics, and refactoring strategies. In distributed publish-subscribe systems, no equivalent catalog exists. Practitioners identify problems reactively — through postmortem reports, performance regressions, or cascade failures — rather than proactively at design time.
 
-This document proposes and formally specifies a **catalog of twenty-one architectural anti-patterns and bad smells** specific to distributed publish-subscribe systems, alongside a detection methodology grounded in **graph topology analysis**. The central claim is that each anti-pattern has a measurable topological signature — a pattern of graph-theoretic metric values that can be computed from the system's static architecture before deployment — and that this signature reliably predicts the presence of the corresponding runtime risk.
+This document proposes and formally specifies a **catalog of nineteen architectural anti-patterns and bad smells** specific to distributed publish-subscribe systems, alongside a detection methodology grounded in **graph topology analysis**. The central claim is that each anti-pattern has a measurable topological signature — a pattern of graph-theoretic metric values that can be computed from the system's static architecture before deployment — and that this signature reliably predicts the presence of the corresponding runtime risk.
 
 The anti-pattern catalog presented here emerges from the broader *Software-as-a-Graph* methodology, which models publish-subscribe systems as weighted directed multi-layer graphs and applies graph analysis to predict which components will have the greatest impact when they fail. Anti-pattern detection is positioned as a **complementary and explanatory contribution**: where criticality scoring answers *how much* risk exists, the anti-pattern catalog answers *what kind* of risk and *how to fix it*.
 
@@ -134,7 +132,7 @@ AHP sub-weight justification: durability (0.40) outweighs reliability and priori
 | | `MEDIUM` | 0.33 |
 | | `LOW` | 0.0 |
 
-This QoS-aware weighting is critical for anti-pattern detection. Two topologically identical systems with different QoS policies can have very different structural risk profiles: a BEST_EFFORT publisher feeding a RELIABLE subscriber creates a qualitatively different problem than two BEST_EFFORT endpoints. A minimum weight floor of 0.01 is applied so that even zero-QoS components remain visible to RMAV scoring.
+This QoS-aware weighting is critical for anti-pattern detection. Two topologically identical systems with different QoS policies can have very different structural risk profiles: a BEST_EFFORT publisher feeding a RELIABLE subscriber creates a qualitatively different problem than two BEST_EFFORT endpoints. A minimum weight floor of 0.01 is applied so that even zero-QoS components remain visible to RM scoring.
 
 ### 3.3 The DEPENDS_ON Projection
 
@@ -175,7 +173,7 @@ Anti-pattern detection runs as part of the Analyze stage. The structural sub-pha
 ```
 Step 1: Import                         G(V, E, w) from system topology
 Step 2: Analyze — structural           M(v) — 13 topological metrics per component
-Step 2: Analyze — RMAV scoring    Q(v) — deterministic AHP-weighted criticality scores
+Step 2: Analyze — RM scoring      Q(v) — deterministic criticality scores
         └── Anti-Pattern Detection     Pattern(v) — smell classification  ← this document
 Step 3: Predict (optional)             Q_gnn(v) — GNN node criticality scores
 Step 4: Simulate                       I(v) — ground-truth impact scores
@@ -185,7 +183,7 @@ Step 6: Visualize                      Interactive dashboard with pattern annota
 
 ### 4.2 The Thirteen Structural Metrics
 
-Step 2 computes a 13-element metric vector `M(v)` for each component. These metrics are the raw detection signals for all twenty-one anti-patterns:
+Step 2 computes a 13-element metric vector `M(v)` for each component. These metrics are the raw detection signals for all nineteen anti-patterns:
 
 | Symbol | Name | Description |
 |--------|------|-------------|
@@ -224,29 +222,28 @@ where `Q3` is the 75th percentile and `IQR = Q3 − Q1`. A component is flagged 
 
 **Theoretical grounding**: The 1.5×IQR rule identifies statistical outliers in the system's own metric distribution. An anti-pattern is, by definition, a component that is structurally anomalous relative to its peers.
 
-### 4.4 The RMAV Prediction Framework
+### 4.4 The RM Prediction Framework
 
-The RMAV framework maps structural metrics to four quality dimensions. These dimensions provide the explanatory bridge between raw topological metrics and named anti-patterns, and they determine which anti-patterns a component is susceptible to:
+The RM framework maps structural metrics to two ISO/IEC 25010:2023 quality characteristics — Reliability and Maintainability. Reliability is itself hierarchical, composed of a Fault Tolerance and an Availability sub-characteristic. These characteristics provide the explanatory bridge between raw topological metrics and named anti-patterns, and they determine which anti-patterns a component is susceptible to:
 
 ```
-R(v) = 0.45 × RPR(v) + 0.30 × DG_in(v) + 0.25 × CDPot(v)
-M(v) = 0.35 × BT(v) + 0.30 × w_out(v) + 0.15 × CQP(v) + 0.12 × CouplingRisk_enh(v) + 0.08 × (1 − CC(v))
-A(v) = 0.45 × QSPOF(v) + 0.30 × BR(v) + 0.15 × AP_c_dir(v) + 0.10 × CDI(v)
-V(v) = 0.40 × REV(v) + 0.35 × RCL(v) + 0.25 × QADS(v)
+FT(v) = 0.45 × RPR(v) + 0.30 × DG_in(v) + 0.25 × CDPot_enh(v)                                   (Fault Tolerance)
+A(v)  = 0.35 × AP_c_directed(v) + 0.25 × QSPOF(v) + 0.25 × BR(v) + 0.10 × CDI(v) + 0.05 × w(v)   (Availability)
 
-Q(v) = 0.25 × R(v) + 0.25 × M(v) + 0.25 × A(v) + 0.25 × V(v)
+R(v)  = α × FT(v) + (1 − α) × A(v)     α = 0.36     (Reliability, hierarchical)
+M(v)  = 0.35 × BT(v) + 0.30 × w_out(v) + 0.15 × CQP(v) + 0.12 × CouplingRisk_enh(v) + 0.08 × (1 − CC(v))
+
+Q(v)  = w_R × R(v) + w_M × M(v)        w_R = 0.80, w_M = 0.20    (composite; declared, not AHP-derived)
 ```
 
-Weights are derived from the Analytic Hierarchy Process (AHP) using domain expert pairwise comparison matrices, with a shrinkage factor `λ = 0.7` blending learned weights with a uniform prior for robustness on small graphs. The overall quality weight `Q(v)` defaults to a balanced 0.25 for each dimension unless customized for specific system priorities.
+The intra-dimension term weights above (the FT/A/M formulas) are still derived from the Analytic Hierarchy Process (AHP) using domain expert pairwise comparison matrices, with a shrinkage factor `λ = 0.7` blending learned weights with a uniform prior for robustness on small graphs. AHP is retired at the composite level: `α` and `(w_R, w_M)` are declared constants, algebraically derived from the retired 4-D AHP composite, not fit from a pairwise comparison matrix. `Q(v)`'s composite weights are QoS-adapted per component around the 0.80/0.20 default.
 
-Each RMAV dimension addresses a distinct operational concern:
+Each RM characteristic addresses a distinct operational concern:
 
-| Dimension | Operational Question | Primary Stakeholder |
+| Characteristic | Operational Question | Primary Stakeholder |
 |-----------|---------------------|---------------------|
-| **R** — Reliability | What is the blast radius if this component fails? | Reliability Engineer |
+| **R** — Reliability (Fault Tolerance, Availability sub-characteristics) | What is the blast radius if this component fails, and does its failure disconnect the system? | Reliability Engineer / DevOps / SRE |
 | **M** — Maintainability | How difficult is this component to change safely? | Software Architect |
-| **A** — Availability | Does this component's failure disconnect the system? | DevOps / SRE |
-| **V** — Vulnerability | Is this component an attractive attack or fault target? | Security Engineer |
 
 ---
 
@@ -268,7 +265,7 @@ The catalog is organized into three severity tiers based on the operational seve
 |----------|-------|
 | **ID** | `SPOF` |
 | **Severity** | CRITICAL |
-| **RMAV Dimension** | Availability |
+| **RM Dimension** | Reliability (Availability) |
 | **Layer Applicability** | app, infra, mw, system |
 
 #### Specification
@@ -318,7 +315,7 @@ Empirical validation across the research corpus confirms that SPOF components co
 |----------|-------|
 | **ID** | `SYSTEMIC_RISK` |
 | **Severity** | CRITICAL |
-| **RMAV Dimension** | Reliability |
+| **RM Dimension** | Reliability |
 | **Layer Applicability** | app, system |
 
 #### Specification
@@ -356,7 +353,7 @@ A large fraction of the system operates near its criticality ceiling simultaneou
 |----------|-------|
 | **ID** | `CYCLE` |
 | **Severity** | HIGH |
-| **RMAV Dimension** | Architecture |
+| **RM Dimension** | Architecture |
 | **Layer Applicability** | any layer where invoked (no restriction in the detector implementation) |
 
 #### Specification
@@ -400,7 +397,7 @@ Cyclic dependencies in publish-subscribe systems create four categories of risk:
 |----------|-------|
 | **ID** | `GOD_COMPONENT` |
 | **Severity** | CRITICAL |
-| **RMAV Dimension** | Maintainability |
+| **RM Dimension** | Maintainability |
 | **Layer Applicability** | any layer where invoked (no restriction in the detector implementation) |
 
 #### Specification
@@ -435,7 +432,7 @@ God Components concentrate three types of risk simultaneously: they are the most
 |----------|-------|
 | **ID** | `BOTTLENECK_EDGE` |
 | **Severity** | HIGH |
-| **RMAV Dimension** | Availability |
+| **RM Dimension** | Reliability (Availability) |
 | **Layer Applicability** | app, mw, system |
 
 #### Specification
@@ -472,7 +469,7 @@ A Bottleneck Edge creates both a **throughput ceiling** (all traffic between two
 |----------|-------|
 | **ID** | `BROKER_OVERLOAD` |
 | **Severity** | HIGH |
-| **RMAV Dimension** | Availability |
+| **RM Dimension** | Reliability (Availability) |
 | **Layer Applicability** | mw, system |
 
 #### Specification
@@ -511,7 +508,7 @@ The overloaded broker becomes a single-threaded bottleneck for all message routi
 |----------|-------|
 | **ID** | `DEEP_PIPELINE` |
 | **Severity** | HIGH |
-| **RMAV Dimension** | Reliability |
+| **RM Dimension** | Reliability |
 | **Layer Applicability** | app |
 
 #### Specification
@@ -555,7 +552,7 @@ Pipeline depth amplifies three failure modes:
 |----------|-------|
 | **ID** | `TOPIC_FANOUT` |
 | **Severity** | MEDIUM |
-| **RMAV Dimension** | Reliability |
+| **RM Dimension** | Reliability |
 | **Layer Applicability** | system |
 
 #### Specification
@@ -590,7 +587,7 @@ Fan-out explosion creates three correlated risks. First, **broker resource ampli
 |----------|-------|
 | **ID** | `CHATTY_PAIR` |
 | **Severity** | MEDIUM |
-| **RMAV Dimension** | Maintainability |
+| **RM Dimension** | Maintainability |
 | **Layer Applicability** | app |
 
 #### Specification
@@ -628,7 +625,7 @@ Chatty Pairs create **logical coupling that masquerades as decoupling**. The pub
 |----------|-------|
 | **ID** | `QOS_MISMATCH` |
 | **Severity** | MEDIUM |
-| **RMAV Dimension** | Reliability |
+| **RM Dimension** | Reliability |
 | **Layer Applicability** | system |
 
 #### Specification
@@ -641,7 +638,7 @@ QOS_MISMATCH(u, v) ↔ w_publisher(u) < w_subscriber(v) − τ_qos
 
 where `τ_qos = 0.3` is the minimum gap that constitutes a meaningful mismatch. The QoS weights `w` are computed from the four-dimensional QoS formula described in Section 3.2. A gap greater than 0.3 means the publisher offers substantially weaker guarantees than the subscriber expects.
 
-In topological terms, this detection uses the vulnerability scores as proxies for QoS weight levels: `V(u)` and `V(v)` capture the QoS-weighted exposure of each component, and a large difference between them on a dependency edge indicates that the dependency relationship crosses a QoS boundary.
+In topological terms, this detection compares the raw structural QoS weight `w(v)` of the publisher and subscriber directly (`saag/analysis/antipattern_detector.py::_detect_qos_mismatch` reads `u.structural.weight` and `v.structural.weight`); a large difference between them on a dependency edge indicates that the dependency relationship crosses a QoS boundary.
 
 #### Topological Signature
 
@@ -666,7 +663,7 @@ QoS mismatches produce system-specific failure modes depending on the middleware
 |----------|-------|
 | **ID** | `ORPHANED_TOPIC` |
 | **Severity** | MEDIUM |
-| **RMAV Dimension** | Maintainability |
+| **RM Dimension** | Maintainability |
 | **Layer Applicability** | system |
 
 #### Specification
@@ -709,7 +706,7 @@ The two orphan subtypes represent different classes of architectural debt:
 |----------|-------|
 | **ID** | `UNSTABLE_INTERFACE` |
 | **Severity** | MEDIUM |
-| **RMAV Dimension** | Maintainability |
+| **RM Dimension** | Maintainability |
 | **Layer Applicability** | app, system |
 
 #### Specification
@@ -756,7 +753,7 @@ In evolutionary architecture terms, this component is the system's highest-frict
 |----------|-------|
 | **ID** | `BRIDGE_EDGE` |
 | **Severity** | HIGH |
-| **RMAV Dimension** | Availability |
+| **RM Dimension** | Reliability (Availability) |
 | **Layer Applicability** | any layer where invoked |
 
 #### Specification
@@ -788,7 +785,7 @@ Loss of this single link partitions the system into isolated clusters: downstrea
 |----------|-------|
 | **ID** | `FAILURE_HUB` |
 | **Severity** | CRITICAL |
-| **RMAV Dimension** | Reliability |
+| **RM Dimension** | Reliability |
 | **Layer Applicability** | any layer where invoked |
 
 #### Specification
@@ -823,7 +820,7 @@ A failure here triggers a mass outage across many downstream dependents. Unlike 
 |----------|-------|
 | **ID** | `CONCENTRATION_RISK` |
 | **Severity** | MEDIUM |
-| **RMAV Dimension** | Reliability |
+| **RM Dimension** | Reliability |
 | **Layer Applicability** | any layer where invoked (requires at least 5 components) |
 
 #### Specification
@@ -855,7 +852,7 @@ The system is fragile because its correct operation depends too heavily on a sma
 |----------|-------|
 | **ID** | `HUB_AND_SPOKE` |
 | **Severity** | MEDIUM |
-| **RMAV Dimension** | Maintainability |
+| **RM Dimension** | Maintainability |
 | **Layer Applicability** | any layer where invoked |
 
 #### Specification
@@ -881,78 +878,13 @@ Creates bottlenecks and single-failure-point behavior in local clusters: neighbo
 
 ---
 
-### 5.17 TARGET — High Value Target
-
-| Property | Value |
-|----------|-------|
-| **ID** | `TARGET` |
-| **Severity** | CRITICAL |
-| **RMAV Dimension** | Vulnerability |
-| **Layer Applicability** | any layer where invoked |
-
-#### Specification
-
-A component whose security criticality classification is at or above the CRITICAL tier:
-
-```
-TARGET(v) ↔ Level(security(v)) ≥ CRITICAL
-```
-
-#### Topological Signature
-
-A High Value Target appears as a component with a structural position (high centrality, broad reachability, or high blast radius) that makes it an attractive point of compromise for an attacker.
-
-#### Risk
-
-A breach here provides an attacker with high reachability into the system: the same structural properties that make a component operationally critical also make it a high-value objective for lateral movement or denial-of-service.
-
-#### Remediation
-
-1. **Apply Zero Trust policies** around this component specifically — do not rely on network-perimeter trust alone.
-2. **Add audit logging** for all access to and from this component.
-3. **Network-isolate** the component where feasible, minimizing its direct exposure to less-trusted zones.
-
----
-
-### 5.18 EXPOSURE — High Exposure Surface
-
-| Property | Value |
-|----------|-------|
-| **ID** | `EXPOSURE` |
-| **Severity** | HIGH |
-| **RMAV Dimension** | Vulnerability |
-| **Layer Applicability** | any layer where invoked |
-
-#### Specification
-
-A component whose security criticality is at the HIGH tier and whose closeness centrality exceeds a threshold — i.e. it is both moderately sensitive *and* easily reachable from most of the rest of the system:
-
-```
-EXPOSURE(v) ↔ Level(security(v)) = HIGH  ∧  CL(v) > 0.6
-```
-
-#### Topological Signature
-
-The component is only a few hops away from most other components in the graph, making it a convenient staging point for an attacker who has compromised it to reach many other targets.
-
-#### Risk
-
-Easier target for initial penetration or lateral movement: high reachability means that compromising this one component gives an attacker a short path to a large portion of the rest of the system.
-
-#### Remediation
-
-1. **Restrict incoming connections** to only what is operationally necessary.
-2. **Validate all inputs via API gateways** rather than trusting internal traffic implicitly.
-
----
-
-### 5.19 CHAIN — Chain Topology
+### 5.17 CHAIN — Chain Topology
 
 | Property | Value |
 |----------|-------|
 | **ID** | `CHAIN` |
 | **Severity** | MEDIUM |
-| **RMAV Dimension** | Architecture (cross-cutting) |
+| **RM Dimension** | Architecture (cross-cutting) |
 | **Layer Applicability** | any layer where invoked |
 
 #### Specification
@@ -979,13 +911,13 @@ Reliability is limited by the product of every node in the sequence: any single 
 
 ---
 
-### 5.20 ISOLATED — Isolated Component
+### 5.18 ISOLATED — Isolated Component
 
 | Property | Value |
 |----------|-------|
 | **ID** | `ISOLATED` |
 | **Severity** | MEDIUM |
-| **RMAV Dimension** | Architecture (cross-cutting) |
+| **RM Dimension** | Architecture (cross-cutting) |
 | **Layer Applicability** | any layer where invoked |
 
 #### Specification
@@ -1011,13 +943,13 @@ May be orphaned, misconfigured, or pending integration: an isolated component is
 
 ---
 
-### 5.21 COMPOUND_RISK — Compound Architectural Risk
+### 5.19 COMPOUND_RISK — Compound Architectural Risk
 
 | Property | Value |
 |----------|-------|
 | **ID** | `COMPOUND_RISK` |
 | **Severity** | CRITICAL |
-| **RMAV Dimension** | Architecture (cross-cutting) |
+| **RM Dimension** | Architecture (cross-cutting) |
 | **Layer Applicability** | any layer where invoked (post-pass over already-detected problems) |
 
 #### Specification
@@ -1090,20 +1022,20 @@ Scenario 06 is the most important precision test: a well-designed microservices 
 
 ---
 
-## 7. Relationship to the RMAV Prediction Framework
+## 7. Relationship to the RM Prediction Framework
 
-The twenty-one anti-patterns are not independent of the RMAV prediction framework — they are its **diagnostic decomposition**. Where the RMAV framework produces a composite criticality score `Q(v)` that summarizes total risk, anti-pattern detection identifies the specific architectural root cause of that risk and prescribes targeted remediation.
+The nineteen anti-patterns are not independent of the RM prediction framework — they are its **diagnostic decomposition**. Where the RM framework produces a composite criticality score `Q(v)` that summarizes total risk, anti-pattern detection identifies the specific architectural root cause of that risk and prescribes targeted remediation.
 
-The mapping between anti-patterns and RMAV dimensions is deliberately asymmetric: most patterns degrade a primary RMAV dimension, but some affect multiple dimensions simultaneously. A God Component, for example, has high `M(v)` (coupling complexity) but also high `R(v)` (reliability, because many depend on it), making it both a maintainability problem and a reliability problem. A handful of patterns (CYCLE, CHAIN, ISOLATED, COMPOUND_RISK) are cross-cutting structural findings rather than a degradation of a single RMAV axis, and are labeled "Architecture (cross-cutting)" below.
+The mapping between anti-patterns and RM characteristics is deliberately asymmetric: most patterns degrade a primary RM characteristic, but some affect multiple characteristics simultaneously. A God Component, for example, has high `M(v)` (coupling complexity) but also high `R(v)` (reliability, because many depend on it), making it both a maintainability problem and a reliability problem. A handful of patterns (CYCLE, CHAIN, ISOLATED, COMPOUND_RISK) are cross-cutting structural findings rather than a degradation of a single RM characteristic, and are labeled "Architecture (cross-cutting)" below.
 
-The following table summarizes the primary RMAV dimension affected by each pattern and the topological metrics that drive detection:
+The following table summarizes the primary RM characteristic affected by each pattern and the topological metrics that drive detection. Patterns tagged `Reliability (Availability)` are driven by the Availability sub-characteristic `A(v)`, which now feeds `R(v)` via the α-blend rather than standing as its own peer dimension:
 
-| Pattern | Primary RMAV | Primary Metric Signals |
+| Pattern | Primary RM Characteristic | Primary Metric Signals |
 |---------|-------------|----------------------|
-| SPOF | Availability (A) | AP_c, BR, QSPOF |
-| BRIDGE_EDGE | Availability (A) | is_bridge |
-| BOTTLENECK_EDGE | Availability (A) | Edge betweenness |
-| BROKER_OVERLOAD | Availability (A) | A(v) broker comparison |
+| SPOF | Reliability (Availability) | AP_c, BR, QSPOF |
+| BRIDGE_EDGE | Reliability (Availability) | is_bridge |
+| BOTTLENECK_EDGE | Reliability (Availability) | Edge betweenness |
+| BROKER_OVERLOAD | Reliability (Availability) | A(v) broker comparison |
 | FAILURE_HUB | Reliability (R) | R(v) fence, out-degree |
 | CONCENTRATION_RISK | Reliability (R) | Top-3 PageRank share |
 | SYSTEMIC_RISK | Reliability (R) | CRITICAL-tier population ratio |
@@ -1115,14 +1047,12 @@ The following table summarizes the primary RMAV dimension affected by each patte
 | CHATTY_PAIR | Maintainability (M) | Edge score product |
 | ORPHANED_TOPIC | Maintainability (M) | Topic publisher/subscriber count |
 | UNSTABLE_INTERFACE | Maintainability (M) | CouplingRisk_enh |
-| TARGET | Vulnerability (V) | Security criticality tier |
-| EXPOSURE | Vulnerability (V) | Security tier, closeness |
 | CYCLE | Architecture (cross-cutting) | SCC detection |
 | CHAIN | Architecture (cross-cutting) | Degree-bounded weakly connected subgraph |
 | ISOLATED | Architecture (cross-cutting) | is_isolated |
 | COMPOUND_RISK | Architecture (cross-cutting) | Co-occurring SPOF + God/Hub findings |
 
-A practical implication of this mapping is that the **RMAV dimension breakdown for a flagged component can guide pattern selection for investigation**. A component with high `A(v)` but moderate `M(v)` and `R(v)` should be investigated first for SPOF, BOTTLENECK_EDGE, or BROKER_OVERLOAD. A component with high `M(v)` and high `Q(v)` is a candidate for GOD_COMPONENT or CYCLE.
+A practical implication of this mapping is that the **RM characteristic breakdown for a flagged component can guide pattern selection for investigation**. A component with high `A(v)` but moderate `M(v)` and low `FT(v)` should be investigated first for SPOF, BOTTLENECK_EDGE, or BROKER_OVERLOAD. A component with high `M(v)` and high `Q(v)` is a candidate for GOD_COMPONENT or CYCLE.
 
 ---
 
@@ -1152,11 +1082,11 @@ This distinguishes the catalog from expert-opinion-based smell collections and m
 
 The most important practical implication of the topology-based detection approach is that **anti-patterns can be detected before deployment** — from the system's configuration, launch files, or infrastructure-as-code — without any runtime instrumentation. This shifts the discovery moment from "after the production incident" to "before the first deployment," dramatically reducing the cost of addressing architectural problems.
 
-The CLI tool `detect_antipatterns.py` implements this directly: it reads the graph from Neo4j, runs all twenty-one detectors, and exits with code 2 if any CRITICAL or HIGH severity patterns are found, exit code 1 if only warnings or smells (MEDIUM severity) are found, and exit code 0 if the system is completely clean. Integrated into a CI/CD pipeline, this makes CRITICAL or HIGH anti-pattern detection a build-breaking check, analogous to a failing unit test.
+The CLI tool `detect_antipatterns.py` implements this directly: it reads the graph from Neo4j, runs all nineteen detectors, and exits with code 2 if any CRITICAL or HIGH severity patterns are found, exit code 1 if only warnings or smells (MEDIUM severity) are found, and exit code 0 if the system is completely clean. Integrated into a CI/CD pipeline, this makes CRITICAL or HIGH anti-pattern detection a build-breaking check, analogous to a failing unit test.
 
 ### 9.2 The Catalog as an Architecture Review Checklist
 
-For teams that perform explicit architecture review (as distinct from automated pipeline checks), the catalog provides a structured inspection checklist. Rather than reviewing system topology informally ("does this look healthy?"), reviewers can systematically ask twenty-one specific, testable questions about the system's graph structure.
+For teams that perform explicit architecture review (as distinct from automated pipeline checks), the catalog provides a structured inspection checklist. Rather than reviewing system topology informally ("does this look healthy?"), reviewers can systematically ask nineteen specific, testable questions about the system's graph structure.
 
 This brings the discipline of **design review by checklist** — well-established in aviation, surgery, and infrastructure engineering — to distributed system architecture.
 
@@ -1178,7 +1108,7 @@ The detection methodology's accuracy depends on the completeness of the input gr
 
 ## 10. Conclusion
 
-This document has presented a catalog of twenty-one architectural anti-patterns and bad smells specific to distributed publish-subscribe systems, each with a formal specification grounded in graph topology, an explanation of the architectural risk it represents, and a concrete remediation strategy. The catalog is organized across three severity tiers (CRITICAL, HIGH, MEDIUM) and four RMAV quality dimensions (Reliability, Maintainability, Availability, Vulnerability), providing a structured framework for relating topological signatures to operational consequences.
+This document has presented a catalog of nineteen architectural anti-patterns and bad smells specific to distributed publish-subscribe systems, each with a formal specification grounded in graph topology, an explanation of the architectural risk it represents, and a concrete remediation strategy. The catalog is organized across three severity tiers (CRITICAL, HIGH, MEDIUM) and two RM quality characteristics (Reliability, with Fault Tolerance and Availability as sub-characteristics, and Maintainability), providing a structured framework for relating topological signatures to operational consequences.
 
 The central contribution beyond the catalog entries themselves is the **empirical grounding** of each pattern in failure simulation results. Where existing anti-pattern catalogs are typically grounded in expert judgment, this catalog's detection conditions are validated against simulated impact scores with Spearman ρ = 0.876 overall and ρ = 0.943 at large scale. This enables the catalog to serve not only as a qualitative review checklist but as the foundation for quantitative, automated deployment gates.
 

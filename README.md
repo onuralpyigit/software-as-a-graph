@@ -22,7 +22,7 @@
 5. [Validation Gates](#validation-gates)
 6. [Empirical Results](#empirical-results)
 7. [Applying SaG to Your Own System](#applying-sag-to-your-own-system)
-8. [RMAV Quality Model in Brief](#rmav-quality-model-in-brief)
+8. [RM Quality Model in Brief](#rm-quality-model-in-brief)
 9. [Anti-Pattern Detection in Brief](#anti-pattern-detection-in-brief)
 10. [Python SDK](#python-sdk)
 11. [Further Reading](#further-reading)
@@ -49,12 +49,12 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
 |:--|:---|:---|:---|:---|
 | — | *Generate (prep)* | Synthesizes a pub-sub topology for experiments, benchmarks, and CI regression | Topology JSON | [graph-generation.md](docs/graph-generation.md) |
 | 1 | **Model** | Imports topology JSON into Neo4j as a weighted directed graph $G = (V, E, \tau_V, \tau_E, w)$; derives logical `DEPENDS_ON` edges via six rules; computes QoS-derived weights | $G_{\text{structural}}$, $G_{\text{analysis}}(l)$ | [graph-model.md](docs/graph-model.md) |
-| 2 | **Analyze** | Deterministic, closed-form. Computes the 14 Tier-1 structural metrics $M(v)$ — and nothing else | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
-| 3 | **Predict** | Maps $M(v)$ to RMAV dimension scores and $Q^*(v)$ via AHP-weighted formulas (always); blends in a heterogeneous GNN when a trained checkpoint exists; detects anti-patterns; generates a natural-language explanation | RMAV/$Q^*(v)$ scores, 5-level classification, GNN ranks, anti-pattern report | [prediction.md](docs/prediction.md) |
-| 4 | **Simulate** | Injects faults and propagates cascades over the raw structural graph to obtain ground-truth impact — training labels for stage 3 and the oracle for stage 5 | $I^*(v)$ composite and per-dimension $I_R, I_M, I_A, I_V$ | [failure-simulation.md](docs/failure-simulation.md) |
-| 5 | **Validate** | Correlates predictions against simulated ground truth: Spearman $\rho$, Kendall $\tau$, F1, predictive gain, bootstrap CIs, Wilcoxon — scored against nine gates | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
+| 2 | **Analyze** | Deterministic, closed-form. Computes the 11 Tier-1 structural metrics $M(v)$ — and nothing else | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
+| 3 | **Predict** | Maps $M(v)$ to RM dimension scores and $Q^*(v)$ via declared-weight formulas (always); blends in a heterogeneous GNN when a trained checkpoint exists; detects anti-patterns; generates a natural-language explanation | RM/$Q^*(v)$ scores, 5-level classification, GNN ranks, anti-pattern report | [prediction.md](docs/prediction.md) |
+| 4 | **Simulate** | Injects faults and propagates cascades over the raw structural graph to obtain ground-truth impact — training labels for stage 3 and the oracle for stage 5 | $I^*(v)$ composite and per-dimension $I_R, I_M$ (itself $\alpha\cdot I_{FT}+(1-\alpha)\cdot I_A$) | [failure-simulation.md](docs/failure-simulation.md) |
+| 5 | **Validate** | Correlates predictions against simulated ground truth: Spearman $\rho$, Kendall $\tau$, F1, predictive gain, bootstrap CIs, Wilcoxon — scored against seven gates | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
 | 6 | **Prescribe** | Generates architectural edits (topic splits, host reallocations, QoS upgrades) and accepts each only if a closed-loop counterfactual simulation confirms the improvement | `PrescribeResult` with baseline vs. mutated SRI | [prescription.md](docs/prescription.md) |
-| 7 | **Visualize** | Renders network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | Self-contained `dashboard.html` | [visualization.md](docs/visualization.md) |
+| 7 | **Visualize** | Renders network graphs, dependency matrices, cascade heatmaps, and RM radar charts | Self-contained `dashboard.html` | [visualization.md](docs/visualization.md) |
 
 ```
  topology JSON ──▶ 1 Model ──▶ 2 Analyze ──┬──▶ 3 Predict ──┐
@@ -112,7 +112,7 @@ python cli/predict_graph.py --layer system
 python cli/visualize_graph.py --layer system --output output/dashboard.html --open
 ```
 
-On a first run there is no GNN checkpoint, so `run.py` disables the Predict stage's ML path and falls back to deterministic RMAV scoring. To enable the GNN, run Simulate to produce labels, train, then pass the checkpoint **directory**:
+On a first run there is no GNN checkpoint, so `run.py` disables the Predict stage's ML path and falls back to deterministic RM scoring. To enable the GNN, run Simulate to produce labels, train, then pass the checkpoint **directory**:
 
 ```bash
 python cli/train_graph.py --layer system
@@ -169,7 +169,7 @@ Shell orchestrators for longer sweeps live in [`scripts/`](scripts/): `verify_pi
 
 ## Validation Gates
 
-Stage 5 scores each run against nine gates. Thresholds are defined in [`ValidationTargets`](saag/validation/models.py#L10) and evaluated in [`ValidationService`](saag/validation/service.py#L713); full definitions are in [validation.md](docs/validation.md).
+Stage 5 scores each run against seven gates (G1–G6, G8; G7 and G9 were retired along with the Vulnerability/Security dimension both were built to gate — the numbering gap is intentional). Thresholds are defined in [`ValidationTargets`](saag/validation/models.py#L10) and evaluated in [`ValidationService`](saag/validation/service.py#L713); full definitions are in [validation.md](docs/validation.md).
 
 | Tier | Gate | Threshold |
 |:---|:---|:---|
@@ -179,9 +179,7 @@ Stage 5 scores each run against nine gates. Thresholds are defined in [`Validati
 | 1 | G4 — Top-5 overlap | $\ge 0.60$ |
 | 2 | G5 — Predictive gain over degree baseline | $> 0.03$ |
 | 2 | G6 — Weighted $\kappa_{\text{CTA}}$ (maintainability) | $\ge 0.70$ |
-| 2 | G7 — Cross-dimension correlation (CDCC) | $< 0.30$ |
 | 3 | G8 — Bottleneck precision | $\ge 0.70$ |
-| 3 | G9 — False-target rate (FTR) | $\le 0.20$ |
 
 These are the **per-dimension** gates. The stricter **composite** targets for $Q^*(v)$ against $I^*(v)$ are separate: $\rho \ge 0.85$, F1 $\ge 0.90$, Top-5 $\ge 0.80$.
 
@@ -191,14 +189,16 @@ These are the **per-dimension** gates. The stricter **composite** targets for $Q
 
 Validated across the seven-scenario evaluation suite in [`data/scenarios/`](data/scenarios/) — autonomous vehicles, IoT smart city, high-frequency trading, healthcare, hub-and-spoke, microservices, and enterprise-scale pub-sub — plus an ATM/air-traffic case study. See [docs/scenario.md](docs/scenario.md) for the corpus, its provenance manifest, and which scenario backs which result.
 
-| Metric | Target | Achieved |
+Figures below are re-run under the RM model (`make -f reproduce/Makefile table3`, 210 runs — 7 scenarios × 6 variants × 5 seeds); see [`results/table3_main_results.md`](results/table3_main_results.md) for the full table and [`results/table4_loso_results.md`](results/table4_loso_results.md) for the LOSO cross-scenario generalisation results.
+
+| Metric | Target | Achieved (best single run) |
 |:---|:---:|:---:|
-| Composite Spearman $\rho(Q^*, I^*)$ | $\ge 0.85$ | **> 0.87** |
-| Composite $\rho$ at large scale (150–300+ nodes) | — | **0.943** |
-| Composite F1 | $\ge 0.90$ | **> 0.90** |
-| Predictive gain vs. degree baseline | $> 0.03$ | **> 0.03** |
-| Best layer | — | Application layer outperforms infrastructure |
-| Scale effect | — | Accuracy improves with system size |
+| Composite Spearman $\rho(Q^*, I^*)$ | $\ge 0.85$ | **0.928** (av_system, Topo-QoS) |
+| Composite $\rho$ at large scale (300 apps, enterprise_system) | — | **0.920** (HGL) |
+| Composite F1 | $\ge 0.90$ | **1.00** (multiple HGL runs) |
+| Predictive gain vs. degree baseline | $> 0.03$ | measured per run, see LOSO/table3 reports |
+| Best variant | — | HGL-QoS (mean ρ = 0.652 LOSO, 0.631 table3) — heterogeneous + QoS-aware beats topology-only baselines throughout |
+| Scale effect | — | Accuracy improves with system size (Enterprise, 300 apps, outperforms smaller scenarios on mean ρ) |
 
 ---
 
@@ -218,41 +218,38 @@ The graph model maps to any pub-sub middleware:
 
 ---
 
-## RMAV Quality Model in Brief
+## RM Quality Model in Brief
 
 Criticality here is a **Quality-in-Use** construct in the ISO/IEC 25019:2023 (SQuaRE) sense: the degree to which the failure, latency or degradation of a component — directly or transitively — reduces the system's capacity to enable its stakeholders to achieve their goals. It is a *consequence*, carrying no estimate of how likely that failure is. The formal definitions (D1–D4), and how this differs from FMECA criticality, assigned integrity levels such as SIL/ASIL, and topological critical-node detection, are in [criticality.md](docs/criticality.md).
 
 The construct spans all three SQuaRE quality views, and they are kept apart deliberately: criticality is **computed** from internal quality evidence (topology plus static code metrics), **validated** against simulated external quality (service delivered under fault), and **defined** on Quality-in-Use ([three views](docs/criticality.md#30-three-quality-views-internal-external-and-quality-in-use)).
 
-It decomposes into four dimensions computed on the derived dependency graph, where edges point from *dependent* to *dependency*. Each dimension is denominated in an *external quality* attribute (ISO/IEC 25010:2023), which identifies the failure **mechanism**; the Quality-in-Use characteristic that attribute's loss threatens is the **harm** ([full binding](docs/criticality.md#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)).
+It decomposes into two ISO/IEC 25010:2023 characteristics computed on the derived dependency graph, where edges point from *dependent* to *dependency*. Reliability is **hierarchical**: its Fault Tolerance and Availability sub-characteristics are scored individually and combined via a declared blend. Each characteristic/sub-characteristic identifies the failure **mechanism**; the Quality-in-Use characteristic that attribute's loss threatens is the **harm** ([full binding](docs/criticality.md#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)).
 
-The same four dimensions score components and relationships alike: the dimension fixes the harm, the scope fixes the mechanism.
+The same dimensions score components and relationships alike: the dimension fixes the harm, the scope fixes the mechanism.
 
 | Dimension | For a component | For a relationship | External quality attribute | Quality-in-Use harm | Stakeholder |
 |:---|:---|:---|:---|:---|:---|
-| **R — Reliability** | Its failure spreads to transitive dependents | It carries the spread between endpoints | Reliability → fault tolerance | Efficiency, then Satisfaction | Reliability engineer |
+| **R — Reliability** (hierarchical) | Combines the two rows below via α=0.36 | Combines the two rows below | Reliability | Efficiency, Effectiveness, Satisfaction | Reliability engineer / DevOps / SRE |
+| ↳ **FT — Fault Tolerance** | Its failure spreads to transitive dependents | It carries the spread between endpoints | Reliability → fault tolerance | Efficiency, then Satisfaction | Reliability engineer |
+| ↳ **A — Availability** | Its loss partitions the dependency graph | It is the only route, both endpoints healthy | Reliability → availability | Effectiveness, Freedom from risk | DevOps / SRE |
 | **M — Maintainability** | It resists safe change | It forces both sides to change together | Maintainability → modularity, modifiability | Efficiency (engineering) | Software architect |
-| **A — Availability** | Its loss partitions the dependency graph | It is the only route, both endpoints healthy | Reliability → availability | Effectiveness, Freedom from risk | DevOps / SRE |
-| **V — Vulnerability** | It is a valuable target | It is a usable route to a target | Security → confidentiality, integrity | Freedom from risk, Satisfaction | Security engineer |
 
-These map onto four of the standard dependability attributes; **safety is not covered** — no hazard class or functional integrity field exists in the schema, so these scores locate structural exposure and cannot discharge a safety argument.
+Vulnerability/Security was scored as a third dimension in an earlier revision of this framework and has been **retired outright** — not folded into another dimension — because its ground-truth evidence was the weakest of the (then) four dimensions and no fault-model instrument could validate it by construction ([full rationale](docs/criticality.md#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)). These now map onto two of the standard dependability attributes; **safety is not covered** — no hazard class or functional integrity field exists in the schema, so these scores locate structural exposure and cannot discharge a safety argument.
 
-Each cell is one of the eight sub-definitions D1.R–D1.V (components) and D2.R–D2.V (relationships) in [criticality.md](docs/criticality.md#43-the-rmav-model), where each is stated as D1 or D2 restricted to a single mechanism.
+Each cell traces to one of the sub-definitions D1.R, D1.FT, D1.A, D1.M (components) and their D2 counterparts (relationships) in [criticality.md](docs/criticality.md#43-the-rm-model), where each is stated as D1 or D2 restricted to a single mechanism.
 
-The AHP-weighted composite is $Q(v) = 0.43 A(v) + 0.24 R(v) + 0.17 M(v) + 0.16 V(v)$ — availability dominates because a structural SPOF partitions the graph with certainty, whereas cascade and coupling risks are probabilistic. An equal-weight baseline (0.25 each) is available via `--equal-weights` for comparison.
+The composite is $R(v) = 0.36\, FT(v) + 0.64\, A(v)$, then $Q(v) = 0.80\, R(v) + 0.20\, M(v)$. These are DECLARED constants — not AHP output — algebraically re-derived from the retired 4-D composite (A=0.43, R=0.24, M=0.17, V=0.16) by dropping Vulnerability and renormalising ([full derivation](docs/structural-analysis.md#composite-score-qv)). An equal-weight baseline ($w_R=w_M=0.5$, $\alpha=0.5$) is available via `--equal-weights` for comparison.
 
 Scores map to five tiers using adaptive box-plot thresholds derived from the system's own score distribution: **CRITICAL** above the upper fence $Q_3 + 1.5 \cdot IQR$, then **HIGH** above $Q_3$, **MEDIUM** above the median, **LOW** above $Q_1$, **MINIMAL** at or below $Q_1$. Below 12 components the classifier falls back to fixed percentiles (top 10% → CRITICAL).
 
-The per-dimension formulas, all 14 Tier-1 metric definitions, and the AHP derivation are in [structural-analysis.md](docs/structural-analysis.md) and [criticality.md](docs/criticality.md).
-
-> [!NOTE]
-> In code the fourth dimension is named `security`, not `vulnerability` — expect `q_security`, `s_qads`, and `dimensional_validation["security"]` in results and checkpoints.
+The per-dimension formulas, all Tier-1 metric definitions, and the composite's re-parameterisation derivation are in [structural-analysis.md](docs/structural-analysis.md) and [criticality.md](docs/criticality.md).
 
 ---
 
 ## Anti-Pattern Detection in Brief
 
-Stage 3 audits its own RMAV output against a catalog of **21** structural anti-patterns — 6 CRITICAL (SPOF, SYSTEMIC_RISK, GOD_COMPONENT, FAILURE_HUB, TARGET, COMPOUND_RISK), 6 HIGH (CYCLE, BRIDGE_EDGE, BOTTLENECK_EDGE, BROKER_OVERLOAD, DEEP_PIPELINE, EXPOSURE), and 9 MEDIUM. Trigger conditions and remediations for each are specified in [antipatterns.md](docs/antipatterns.md) and [remediation.md](docs/remediation.md); the catalog itself lives in [`antipattern_detector.py`](saag/analysis/antipattern_detector.py#L35).
+Stage 3 audits its own RM output against a catalog of **19** structural anti-patterns — 5 CRITICAL (SPOF, SYSTEMIC_RISK, GOD_COMPONENT, FAILURE_HUB, COMPOUND_RISK), 5 HIGH (CYCLE, BRIDGE_EDGE, BOTTLENECK_EDGE, BROKER_OVERLOAD, DEEP_PIPELINE), and 9 MEDIUM. (TARGET and EXPOSURE, keyed on the now-retired Security dimension, were retired along with it — the catalog was 21 before that.) Trigger conditions and remediations for each are specified in [antipatterns.md](docs/antipatterns.md) and [remediation.md](docs/remediation.md); the catalog itself lives in [`antipattern_detector.py`](saag/analysis/antipattern_detector.py#L35).
 
 ```bash
 python cli/detect_antipatterns.py --layer system --output output/antipatterns.json
@@ -274,7 +271,7 @@ result = (
     saag.Pipeline.from_json("data/system.json", clear=True)
         .analyze(layer="app")                      # structural metrics only
         .simulate(layer="app", mode="exhaustive")  # ground-truth labels
-        .predict()                                 # RMAV (+ GNN if a checkpoint exists)
+        .predict()                                 # RM (+ GNN if a checkpoint exists)
         .validate()                                # statistical validation
         .prescribe()                               # counterfactual-verified remediations
         .visualize(output="output/report.html")
@@ -293,7 +290,7 @@ if result.prescription:
 | [Pipeline](saag/pipeline.py#L12) | `saag.Pipeline` | Fluent builder that sequences and runs the stages |
 | [Client](saag/client.py#L9) | `saag.Client` | Step-by-step service façade for finer control |
 | [AnalysisResult](saag/models.py#L102) | `saag.AnalysisResult` | Stage 2 — structural metrics |
-| [PredictionResult](saag/models.py#L190) | `saag.PredictionResult` | Stage 3 — RMAV/GNN scores, anti-patterns, explanation |
+| [PredictionResult](saag/models.py#L190) | `saag.PredictionResult` | Stage 3 — RM/GNN scores, anti-patterns, explanation |
 | [ValidationResult](saag/models.py#L396) | `saag.ValidationResult` | Stage 5 — per-layer correlations and gate outcomes |
 | [PrescribeResult](saag/prescription/models.py#L212) | `saag.prescription.PrescribeResult` | Stage 6 — accepted policy, per-edit verdicts and SRI delta |
 
@@ -311,7 +308,7 @@ More runnable examples — including a round-trip persistence check and per-stag
 
 **Research** — [reproduce/](reproduce/) for the reproduction package, [docs/research/](docs/research/) for paper sources.
 
-The primary research contribution is the demonstration that topological graph metrics reliably predict real-world failure impact without runtime instrumentation. Supporting contributions: the six dependency derivation rules; the RMAV decomposition; the MPCI (Multi-Path Coupling Index) metric; the directed $AP_c$ single-point-of-failure score; adaptive box-plot classification; and the structural independence guarantee separating the predictor from the simulation oracle.
+The primary research contribution is the demonstration that topological graph metrics reliably predict real-world failure impact without runtime instrumentation. Supporting contributions: the six dependency derivation rules; the RM decomposition; the MPCI (Multi-Path Coupling Index) metric; the directed $AP_c$ single-point-of-failure score; adaptive box-plot classification; and the structural independence guarantee separating the predictor from the simulation oracle.
 
 ---
 

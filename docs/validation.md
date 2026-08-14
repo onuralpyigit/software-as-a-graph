@@ -50,7 +50,7 @@ component in the system:
 
 | Signal | Source | What it represents |
 |--------|--------|-------------------|
-| **Q(v)** | RMAV formula over structural metrics (Predict stage, Step 3) | *Predicted* criticality — computed deterministically from graph structure alone, before any runtime data |
+| **Q(v)** | RM formula over structural metrics (Predict stage, Step 3) | *Predicted* criticality — computed deterministically from graph structure alone, before any runtime data |
 | **Q_gnn(v)** | GNN prediction (Predict stage, Step 3, optional) | *Refined prediction* — inductive GNN node scores, compared against I(v) in addition to or instead of Q(v) |
 | **I(v)** | Stochastic cascade simulation (Simulate stage, Step 4) | *Proxy ground truth* — normalised damage score obtained by injecting each node as the failure origin |
 
@@ -59,8 +59,8 @@ failure impact** — the central claim of the Software-as-a-Graph thesis.
 
 ```
  Graph (Step 1) ──▶ Step 2: Analyze ──▶ Step 3: Predict          Step 4: Simulate
-                    M(v) metrics         Q(v) = w·R + w·M          I(v) = mean impact
-                                              + w·A + w·V           over n_repeats seeds
+                    M(v) metrics         Q(v) = w_R·R + w_M·M      I(v) = mean impact
+                                          R = α·FT + (1−α)·A        over n_repeats seeds
                                                     │                      │
                                                     └──────────┬───────────┘
                                                                │
@@ -98,10 +98,10 @@ oracles and different thresholds, and **results must name which one produced the
 |---|---|---|
 | Invoked by | `saag --validate`, `saag.Client.validate()`, `POST /api/v1/validation/run-pipeline` | `saag-validate` (`cli/validate_graph.py`) |
 | Implementation | [saag/validation/](../saag/validation/) | [cli/validation/](../cli/validation/) |
-| Ground truth | `FailureSimulator` → $I_{\text{comp}}(v)$ + four dimensions | `FaultInjector` → $I^*(v)$ |
-| Gates | 9 gates, fixed thresholds ([§6.1](#61-library-gates-g1g9)) | 5 gates, topology-class adaptive ([§6.2](#62-cli-topology-class-gates)) |
+| Ground truth | `FailureSimulator` → $I_{\text{comp}}(v)$ + two dimensions | `FaultInjector` → $I^*(v)$ |
+| Gates | 7 gates (G1–G6, G8; G7/G9 retired), fixed thresholds ([§6.1](#61-library-gates-g1g9)) | 5 gates, topology-class adaptive ([§6.2](#62-cli-topology-class-gates)) |
 | Output | `PipelineResult` → `LayerValidationResult` per layer | `ValidationResult` / `SweepReport` JSON |
-| Scope | Per-layer (`app`, `infra`, `mw`, `system`), all four RMAV dimensions | Whole graph, composite only, multi-seed |
+| Scope | Per-layer (`app`, `infra`, `mw`, `system`), both RM dimensions + FT/A sub-characteristic diagnostics | Whole graph, composite only, multi-seed |
 
 **Which to use.** The library path is the one the pipeline and API run, and the only one that
 produces per-dimension validation. The CLI path is the research harness: multi-seed sweeps,
@@ -113,13 +113,13 @@ topology-class gates, QoS ablation, and LaTeX export.
 ValidationService.validate_layers(layers)
     ├── analysis.analyze_layers(layers)          # DEPENDS_ON derived once for the whole run
     └── per layer: validate_single_layer(layer)
-            ├── prediction.predict_quality(...)                 → Q(v), R/M/A/S
-            ├── simulation.run_failure_simulation_exhaustive()  → I_comp(v) + IR/IM/IA/IS
+            ├── prediction.predict_quality(...)                 → Q(v), R/M (+ FT/A sub-characteristic diagnostics)
+            ├── simulation.run_failure_simulation_exhaustive()  → I_comp(v) + IR (= α·IFT+(1−α)·IA)/IM
             └── validate_single_layer_from_results(...)
                     ├── Validator.validate(...)         → overall ρ, F1, top-K, RMSE
                     ├── per dimension (DIMENSION_SPECS) → ρ + specialist metrics
                     ├── composite I*(v)                 → ρ(Q*, I*), predictive gain
-                    ├── gates G1–G9
+                    ├── gates G1–G6, G8
                     └── stratified reporting
 ```
 
@@ -127,7 +127,7 @@ ValidationService.validate_layers(layers)
 
 ```
 load_graph(system.json)
-    ├── compute_rmav(G, qos=...)  or  compute_gnn_scores(G, checkpoint)   → Q(v)
+    ├── compute_rm(G, qos=...)  or  compute_gnn_scores(G, checkpoint)   → Q(v)
     └── derive_ground_truth(G, n_repeats=5)                              → I*(v)
             └── run_statistical_tests()  → ρ, τ, CI, F1@K, SPOF-F1, ICR, BCE, PG, Wilcoxon
                     ├── stratified_metrics(by node type)
@@ -141,12 +141,13 @@ load_graph(system.json)
 > are produced by simulations over $G_{\text{structural}}$ (raw pub-sub edges) with no access to
 > Q(v). Measuring ρ(Q\*, I\*), ρ(R, IR) and ρ(A, IA) is therefore a genuine empirical test.
 >
-> **IM(v) and IS(v) are internal consistency checks, not independent tests.** They derive from the
-> same `DEPENDS_ON` graph as M(v) and S(v): `ChangePropagationSimulator` traverses $G^T$ with an
-> `instability`-based stop condition shared with M(v)'s CouplingRisk, and
-> `CompromisePropagationSimulator` traverses the same $G^T$ with a trust threshold on edge weights
-> used by S(v)'s QADS. Alignment on a shared substrate is still useful signal, but it cannot claim
-> the same methodological independence.
+> **IM(v) is an internal consistency check, not an independent test.** It derives from the
+> same `DEPENDS_ON` graph as M(v): `ChangePropagationSimulator` traverses $G^T$ with an
+> `instability`-based stop condition shared with M(v)'s CouplingRisk. Alignment on a shared
+> substrate is still useful signal, but it cannot claim the same methodological independence.
+> (An earlier revision of this framework had a second such check, IS(v) against S(v)'s QADS via
+> `CompromisePropagationSimulator` — that simulator was deleted along with the Vulnerability/Security
+> dimension, not retained as an unused consistency check.)
 
 ---
 
@@ -160,27 +161,32 @@ interchangeable and each result must name the one it used.
 | Symbol | Engine | Definition | Backs |
 |---|---|---|---|
 | **I\*(v)** | `FaultInjector` | Mean subscriber feed-loss fraction | GNN training labels; the main table, LOSO and k-fold tables; the CLI gates |
-| **I_comp(v)** | `FailureSimulator` | `0.35·reachability + 0.25·fragmentation + 0.25·throughput + 0.15·flow_disruption` | The library gates ([§6.1](#61-library-gates-g1g9)) and the IR/IM/IA/IS decomposition |
-| **I_RMAV(v)** | `FailureSimulator` | `0.25·(IR + IM + IA + IS)` — equal-weighted dimension sum | Predictive Gain only ([§5.6](#56-composite-validation-and-predictive-gain)) |
+| **I_comp(v)** | `FailureSimulator` | `0.35·reachability + 0.25·fragmentation + 0.25·throughput + 0.15·flow_disruption` | The library gates ([§6.1](#61-library-gates-g1g9)) and the IR/IM decomposition |
+| **I_RM(v)** | `FailureSimulator` | `0.5·(IR + IM)` — equal-weighted dimension sum, where `IR(v) = α·IFT(v) + (1−α)·IA(v)`, α=0.36 | Predictive Gain only ([§5.6](#56-composite-validation-and-predictive-gain)) |
 
-**Dimension coverage.** $I^*(v)$ is a single scalar. It maps onto the `composite`, `reliability` and
-`availability` label columns; `maintainability` and `security` are **unmeasured** by that engine and
-are declared absent via the artifact's `labeled_dimensions`, not filled with zeros. Only
-$I_{\text{comp}}(v)$'s engine supplies all four RMAV dimensions. See
-[failure-simulation.md §6.1](failure-simulation.md#61-impact_scoresjson).
+**Dimension coverage.** $I^*(v)$ is a single scalar. It maps onto the `composite` and `reliability`
+label columns (`LABEL_COLS = {composite, reliability, maintainability}`, 3-wide); `maintainability` is
+the sole **unmeasured** dimension for that engine, declared absent via the artifact's
+`labeled_dimensions`, not filled with zeros. (Availability is not a separate label column at all — it
+is folded into `reliability` via the $\alpha$-blend before labelling, so $I^*(v)$'s reliability column
+already reflects both Fault Tolerance and Availability ground truth without needing its own column.)
+Only $I_{\text{comp}}(v)$'s engine supplies both RM dimensions, decomposed further into
+`IFT`/`IA`/`IM`. See [failure-simulation.md §6.1](failure-simulation.md#61-impact_scoresjson).
 
-**Why the coverage splits exactly there, and why a better simulator would not change it.** The two
-dimensions $I^*(v)$ does cover are the two denominated in *externally observable* quality attributes
-— fault tolerance ($R$) and availability ($A$) — which is what a fault injector watching service
+**Why maintainability is the one gap, and why a better simulator would not change it.** The dimension
+$I^*(v)$ does cover is denominated in an *externally observable* quality attribute — Reliability,
+hierarchical over fault tolerance and availability — which is what a fault injector watching service
 delivery can see ([criticality.md §3.5](criticality.md#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)).
-The two it does not are not observable that way at all: **maintainability is assessed on the artifact,
-not in execution** — no amount of running a system reveals what changing it would cost — and
-**security presumes an adversary rather than a fault**, so fault injection is the wrong instrument for
-it by construction. This is why the $I_M$ and $I_S$ ground truths in $I_{\text{comp}}$'s engine are a
-change-propagation BFS over $G^\top$ and a compromise-propagation pass respectively: both are
-*structural models*, not behavioural observations. Per-dimension agreement on `maintainability` and
-`security` should therefore be read as an internal-consistency check between two structural
-computations, not as behavioural validation ([criticality.md §7.1](criticality.md#71-the-validation-chain-has-three-links)).
+Maintainability is not observable that way at all: **it is assessed on the artifact, not in
+execution** — no amount of running a system reveals what changing it would cost. This is why the
+$I_M$ ground truth in $I_{\text{comp}}$'s engine is a change-propagation BFS over $G^\top$ rather than
+a behavioural observation — it is a *structural model*, not a behavioural one. Per-dimension
+agreement on `maintainability` should therefore be read as an internal-consistency check between two
+structural computations, not as behavioural validation
+([criticality.md §7.1](criticality.md#71-the-validation-chain-has-three-links)). (An earlier revision
+of this framework had a second, symmetric gap here — security presumes an adversary rather than a
+fault, so fault injection was the wrong instrument for it too — but Vulnerability/Security has since
+been retired outright rather than kept as a second unmeasured dimension.)
 
 Mixing the two oracles within one stage is a correctness error, guarded by
 [`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py).
@@ -354,23 +360,27 @@ estimate. This is the value compared against Q(v) in every subsequent test.
 
 ## 4. Prediction: Q(v)
 
-Q(v) is produced by the Predict stage (Step 3), not by Validate. It is an AHP-weighted combination
-of four dimension scores:
+Q(v) is produced by the Predict stage (Step 3), not by Validate. It is a DECLARED (not AHP-weighted)
+combination of two characteristic scores, where Reliability is itself a hierarchical blend of two
+sub-characteristics:
 
 ```
-Q(v) = 0.24 × R(v)  +  0.17 × M(v)  +  0.43 × A(v)  +  0.16 × S(v)
+R(v) = 0.36 × FT(v)  +  0.64 × A(v)
+Q(v) = 0.80 × R(v)   +  0.20 × M(v)
 ```
 
-| Dimension | Weight | Rationale |
+| Term | Weight | Rationale |
 |-----------|:------:|-----------|
-| Availability (A) | **0.43** | SPOF severity dominates pre-deployment risk |
-| Reliability (R) | **0.24** | Cascade propagation reach |
-| Maintainability (M) | **0.17** | Coupling complexity; long-term fragility |
-| Security (S) | **0.16** | Attack exposure surface |
+| Reliability (R) | **0.80** | Re-parameterisation of the retired 4-D composite's (A+R) share; see [structural-analysis.md §11.2](structural-analysis.md#composite-score-qv) |
+| Maintainability (M) | **0.17 → 0.20** | Coupling complexity; long-term fragility (share rose slightly on renormalisation after Vulnerability/Security was dropped) |
+| ↳ Fault Tolerance (FT), within R | **0.36** | Cascade propagation reach |
+| ↳ Availability (A), within R | **0.64** | SPOF severity — still the largest single share of any sub-term, now expressed within Reliability rather than as a peer dimension |
 
-The complete formula reference for each dimension — including the Topic-specific Reliability
-variant and every sub-term — is in [structural-analysis.md](structural-analysis.md). It is not
-duplicated here.
+`w_R=0.80`, `w_M=0.20`, and `α=0.36` are DECLARED constants, not an AHP composite output — see
+[structural-analysis.md §11.2](structural-analysis.md#composite-score-qv) for the re-parameterisation
+derivation from the retired 4-D vector. The complete formula reference for each dimension — including
+the Topic-specific Fault Tolerance variant and every sub-term — is in
+[structural-analysis.md](structural-analysis.md). It is not duplicated here.
 
 **Topology-only vs. QoS-enriched modes:**
 
@@ -437,7 +447,7 @@ driven by a few extreme outliers — inspect the top 2–3 CRITICAL components.
 
 The interpretation of an absolute ρ depends on the **ground-truth regime**:
 
-**Regime A — RMAV pipeline against simulation labels.** Achievable ρ is bounded by simulator noise
+**Regime A — RM pipeline against simulation labels.** Achievable ρ is bounded by simulator noise
 and topology decoupling. The criterion is G1: pass if ρ ≥ 0.70.
 
 | ρ Range | Interpretation |
@@ -461,7 +471,7 @@ baseline**, Δρ = ρ(model) − ρ(Topo-BL).
 > **Why two regimes?** Absolute thresholds were calibrated when validation targets shared structural
 > basis with predictors (ρ ≈ 0.94 against reachability proxies). Against honest Sim labels the same
 > absolute values are unattainable regardless of model quality. Applying Regime A thresholds to
-> Regime B condemns results for the wrong reason; applying Regime B bands to RMAV pipeline results
+> Regime B condemns results for the wrong reason; applying Regime B bands to RM pipeline results
 > masks absolute weakness.
 
 **The label noise ceiling.** Both regimes appeal to "simulator noise". That bound is measured, not
@@ -566,25 +576,35 @@ threshold is misaligned with the simulation threshold.
 ### 5.5 Per-dimension validation
 
 Rather than comparing every dimension against one global cascade score, each predictor is
-correlated against its own simulation-derived ground truth. All four follow an identical procedure
-— align keys, require n ≥ 3, compute ρ, then compute dimension-specific specialist metrics — so
-they are declared as data in [`saag/validation/dimensions.py`](../saag/validation/dimensions.py).
+correlated against its own simulation-derived ground truth. The two composite predictors (R, M)
+follow an identical procedure — align keys, require n ≥ 3, compute ρ, then compute dimension-specific
+specialist metrics — so they are declared as data in
+[`saag/validation/dimensions.py`](../saag/validation/dimensions.py)'s `DIMENSION_SPECS`. Fault
+Tolerance and Availability are Reliability's sub-characteristics, reported as diagnostics via a
+separate `SUBCHARACTERISTIC_SPECS` — excluded from the composite gates (they already feed R via the
+α-blend; including them too would double-count) but still individually correlated and worth reading.
 
 | Dimension | Predictor | Ground truth | Specialist metrics |
 |---|---|---|---|
-| **Reliability** | R(v) | IR(v) — cascade propagation potential | **CCR@5** capture rate; **CME** mean rank distance, normalised by system size |
+| **Reliability** | R(v) | IR(v) = α·IFT(v)+(1−α)·IA(v) — blended cascade+partition impact | **CCR@5** capture rate; **CME** mean rank distance, normalised by system size |
+| ↳ **Fault Tolerance** *(diagnostic)* | FT(v) | IFT(v) — cascade propagation potential | Same family, reported not gated |
+| ↳ **Availability** *(diagnostic)* | A(v) | IA(v) — partitioning effect | **SPOF-F1** (+ precision/recall); **HSRR** hidden-SPOF recovery; **DASA** directional agreement; **RRI** redundancy robustness |
 | **Maintainability** *(consistency check)* | M(v) | IM(v) — coupling fragility | **COCR@5** capture rate; **κ_CTA** weighted-κ over 3 coupling tiers; **BP** bottleneck precision |
-| **Availability** | A(v) | IA(v) — partitioning effect | **SPOF-F1** (+ precision/recall); **HSRR** hidden-SPOF recovery; **DASA** directional agreement; **RRI** redundancy robustness |
-| **Security** *(consistency check)* | S(v) | IS(v) — compromise reach | **AHCR@5** capture rate; **FTR** false top rate; **APAR** attack-path adherence; **CDCC** ρ(S, A) contamination check |
 
-CCR@5, COCR@5 and AHCR@5 are **the same statistic under three names** — the top-K overlap between
-predictor and ground truth over the components both score. They are computed by one function,
+CCR@5 and COCR@5 are **the same statistic under two names** — the top-K overlap between predictor and
+ground truth over the components both score. They are computed by one function,
 `calculate_capture_rate_at_k`, and differ only in which dimension they are applied to and what
-target they are held to.
+target they are held to. (An earlier revision of this framework had a third name, AHCR@5, for the
+Security dimension — retired along with it.)
 
-**CDCC** is the odd one out: it correlates two *predictors* (S against A) rather than a predictor
-against ground truth. A high value means the two dimensions are not measuring distinct things, so
-G7 requires it to stay **below** its threshold.
+> [!NOTE]
+> **ρ(FT, A) is reported as a diagnostic, not an orthogonality gate.** An earlier revision of this
+> framework computed **CDCC**, correlating two *predictors* (Security against Availability) as a
+> cross-dimension contamination check gated by G7 — both S(v) and G7 are retired. ρ(FT, A)'s reading
+> is the *opposite* of CDCC's: since `R = α·FT + (1−α)·A`, a **low** ρ(FT, A) is the interesting case
+> — it means the two sub-characteristics genuinely disagree, so blending them is doing real work
+> rather than being redundant. It is excluded from `max_interdim_correlation` for that reason, not
+> gated at all.
 
 > [!WARNING]
 > **HSRR, DASA and RRI are not currently measured.** They read the structural metrics
@@ -595,24 +615,32 @@ G7 requires it to stay **below** its threshold.
 
 ### 5.6 Composite validation and predictive gain
 
-The composite ground truth is the equal-weighted sum of the four dimensional ground truths:
+The composite ground truth is the equal-weighted sum of the two dimensional ground truths — **equal,
+not (0.80, 0.20)**, deliberately: using the scoring weights to build the ground-truth composite would
+make ρ(Q*, I*) partly circular.
 
-$$I_{\text{RMAV}}(v) = 0.25 \cdot IR(v) + 0.25 \cdot IM(v) + 0.25 \cdot IA(v) + 0.25 \cdot IS(v)$$
+$$I_{\text{RM}}(v) = 0.5 \cdot IR(v) + 0.5 \cdot IM(v)$$
 
-Note this is $I_{\text{RMAV}}$ in the notation of [§3.1](#31-notation--three-quantities-three-symbols),
-*not* $I^*(v)$ — the four dimensions are scaled onto a common range before summation, which is why
-they are scaled once, together, in `_extract_ground_truths`.
+Note this is $I_{\text{RM}}$ in the notation of [§3.1](#31-notation--three-quantities-three-symbols),
+*not* $I^*(v)$ — the two dimensions are scaled onto a common range before summation, which is why
+they are scaled once, together, in `_extract_ground_truths`. (An earlier revision of this framework
+summed four dimensions at 0.25 each; Fault Tolerance and Availability are not separate terms here —
+`IR(v)` already carries the α-blend of both, per [§3.1](#31-notation--three-quantities-three-symbols).)
 
 **Predictive Gain** measures whether combining dimensions beats the best single one:
 
-$$PG = \rho(Q(v), I_{\text{RMAV}}(v)) - \max\big(\rho(R, IR),\ \rho(M, IM),\ \rho(A, IA),\ \rho(S, IS)\big)$$
+$$PG = \rho(Q(v), I_{\text{RM}}(v)) - \max\big(\rho(R, IR),\ \rho(M, IM)\big)$$
 
 PG > 0.03 (gate G5) is the evidence that multi-dimensional integration adds genuine predictive
-value rather than reproducing its strongest component.
+value rather than reproducing its strongest component. PG now maxes over 2 candidates rather than 4,
+which raises PG mechanically relative to the pre-migration model — the 0.03 threshold was calibrated
+against a 4-candidate max and has not been re-derived for the new 2-candidate one; read PG's absolute
+value with that in mind rather than assuming it is directly comparable across the migration.
 
-**Orthogonality.** All six predictor pairs (R×M, R×A, R×S, M×A, M×S, A×S) are correlated with each
-other. Any |ρ| above `max_interdim_correlation` (0.40) logs an orthogonality violation: two
-dimensions that rank components identically are not measuring distinct quality attributes.
+**Orthogonality.** The single composite predictor pair (R×M) is correlated. Any |ρ| above
+`max_interdim_correlation` (0.40) logs an orthogonality violation: two dimensions that rank
+components identically are not measuring distinct quality attributes. (ρ(FT, A) is also reported,
+per [§5.5](#55-per-dimension-validation), but excluded from this gate for the reason stated there.)
 
 ### 5.7 Wilcoxon signed-rank test
 
@@ -632,8 +660,8 @@ weight w(v):
 
 | Metric | Formula | Meaning |
 |---|---|---|
-| **H_d** (per dimension) | $1 - \dfrac{\sum_v \text{score}_d(v) \cdot w(v)}{\sum_v w(v)}$ | Health in dimension d ∈ {R, M, A, S}; 1.0 is perfect |
-| **SRI** | $\sum_d 0.25 \cdot (1 - H_d)$ | System Risk Index — overall structural vulnerability |
+| **H_d** (per dimension) | $1 - \dfrac{\sum_v \text{score}_d(v) \cdot w(v)}{\sum_v w(v)}$ | Health in dimension d ∈ {R, M, FT, A}; 1.0 is perfect. H_FT and H_A are reported alongside for diagnostic visibility but excluded from SRI (below) — they already feed H_R via the α-blend, so summing them too would double-count |
+| **SRI** | $w_R \cdot (1 - H_R) + w_M \cdot (1 - H_M)$, $w_R{=}0.5, w_M{=}0.5$ | System Risk Index — overall structural vulnerability. Sums only H_R and H_M — the two composite dimensions |
 | **RCI** | $\dfrac{\sum_i (2i - n - 1) \cdot Q_{(i)}}{n \sum_i Q_{(i)}}$ | Risk Concentration Index — Gini coefficient of Q(v); high means risk sits in few components |
 
 ---
@@ -643,10 +671,15 @@ weight w(v):
 The two entry points ([§2](#2-two-entry-points-two-gate-systems)) apply different gates. Neither
 subsumes the other; a report must say which it used.
 
-### 6.1 Library gates G1–G9
+### 6.1 Library gates G1–G6, G8
 
 Fixed thresholds from [`ValidationTargets`](../saag/validation/models.py), evaluated per layer.
 **Only Tier 1 determines `passed`**; Tiers 2 and 3 are reported.
+
+**G7 and G9 are retired**, along with the Vulnerability/Security dimension both were built to gate
+(G7 = CDCC, cross-dimensional contamination between Security and Availability; G9 = FTR, Security
+false top rate — see [§5.5](#55-per-dimension-validation)). The gap in the numbering is intentional;
+do not renumber the survivors or reuse G7/G9 for a future gate.
 
 | Gate | Metric | Threshold | Description |
 |---|---|:---:|---|
@@ -656,12 +689,10 @@ Fixed thresholds from [`ValidationTargets`](../saag/validation/models.py), evalu
 | G3 | Precision@K | ≥ 0.80 | Top-K critical set precision |
 | G4 | Top-5 overlap | ≥ 0.60 | Overlap of top 5 predicted vs. actual |
 | **Tier 2 — secondary** | | | |
-| G5 | Predictive Gain | > 0.03 | Lift of composite ρ over the best single dimension |
+| G5 | Predictive Gain | > 0.03 | Lift of composite ρ over the best single dimension (not yet re-derived for the 2-candidate max — see [§5.6](#56-composite-validation-and-predictive-gain)) |
 | G6 | κ_CTA | ≥ 0.70 | Weighted-κ coupling tier agreement |
-| G7 | CDCC | < 0.30 | Cross-dimensional contamination |
 | **Tier 3 — specialist** | | | |
 | G8 | Bottleneck Precision | ≥ 0.70 | Maintainability bottleneck detection |
-| G9 | FTR | ≤ 0.20 | Security false top rate |
 
 > [!NOTE]
 > **G2 and G3 cannot disagree.** As [§5.4](#54-classification-metrics-at-k) shows, F1@K and
@@ -828,11 +859,11 @@ Each `LayerValidationResult` serialises to:
 | `layer`, `layer_name` | str | Layer identity |
 | `passed` | bool | G1 ∧ G2 ∧ G3 ∧ G4 |
 | `summary.spearman` / `f1_score` / `top_5_overlap` / `rmse` | float | Overall metrics |
-| `summary.{reliability,maintainability,availability,security}_spearman` | float | Per-dimension ρ |
-| `summary.composite_spearman`, `summary.predictive_gain` | float | ρ(Q\*, I_RMAV) and PG |
-| `summary.system_health` | dict | `H_R`, `H_M`, `H_A`, `H_S`, `SRI`, `RCI` |
+| `summary.{reliability,maintainability,fault_tolerance,availability}_spearman` | float | Per-dimension ρ (fault_tolerance/availability are Reliability sub-characteristic diagnostics) |
+| `summary.composite_spearman`, `summary.predictive_gain` | float | ρ(Q\*, I_RM) and PG |
+| `summary.system_health` | dict | `H_R`, `H_M`, `H_FT`, `H_A`, `SRI`, `RCI` |
 | `validation_result` | object | Full `ValidationResult`: `overall` and `by_type` groups, each with `correlation` / `error` / `classification` / `ranking` metric blocks |
-| `gates` | dict | `G1_spearman` … `G9_ftr`, plus `G5_rmse` and `p_value_pass` |
+| `gates` | dict | `G1_spearman` … `G8_bottleneck_precision` (no `G7`/`G9` — retired), plus `G5_rmse` and `p_value_pass` |
 | `node_type_stratified` | dict | Per type: `n`, `spearman`, `target_rho`, `passed` |
 | `frequency_decile_stratified` | dict | Per decile: `n`, `frequency_range`, `spearman`, `p_value` |
 | `dimensional_validation` | dict | Per dimension: `spearman`, `spearman_p`, specialist metrics, `n`, `ground_truth` label; plus a `composite` entry with `interdim_rhos` and `system_health` |
@@ -897,7 +928,7 @@ rank, node_id, node_type, Q, R, M, A, S, I, cascade_depth, nodes_affected, is_ar
 | G2 and G3 measure the same quantity ([§6.1](#61-library-gates-g1g9)) | Tier 1 carries three gates' worth of independent evidence, not four |
 | HSRR, DASA and RRI have no data source ([§5.5](#55-per-dimension-validation)) | Three of the four availability specialist metrics are unmeasured |
 | $I^*(v)$ and $I_{\text{comp}}(v)$ agree at mean ρ = 0.405 ([§3.2](#32-measured-agreement-between-the-oracles)) | Results are not transferable between the two entry points |
-| IM(v) and IS(v) share a substrate with M(v) and S(v) ([§2](#2-two-entry-points-two-gate-systems)) | Those two correlations are consistency checks, not independent tests |
+| IM(v) shares a substrate with M(v) ([§2](#2-two-entry-points-two-gate-systems)) | That correlation is a consistency check, not an independent test |
 | Library-node I(v) is partially coupled to R(v) via Phase A ([§3.4](#34-simulation-mechanics)) | ρ restricted to Libraries is not a clean empirical test |
 | 30–47 % of components carry no label | Topic and Node strata report `undefined`, not a score |
 | Top-K set membership churns ~40 % between label seeds on some scenarios ([§5.2](#52-rank-correlation-and-the-label-noise-ceiling)) | Every top-K-cut metric inherits that variance |
@@ -913,7 +944,7 @@ consume it:
   each candidate architectural edit is scored in a closed-loop counterfactual simulation.
 - **[Step 7: Visualize](visualization.md)** renders the results: the Q(v)-vs-I(v) scatter with
   quadrant highlighting (TP/TN/FP/FN), a delta heatmap over the topology coloured by |Q(v) − I(v)|
-  to surface "architectural surprises", per-node RMAV radar charts, and a ranked component table
+  to surface "architectural surprises", per-node RM radar charts, and a ranked component table
   with gate badges. It consumes `dimensional_scatter` and `confidence_intervals` directly.
 
 For research artifacts, `compare --latex` writes a booktabs table ready for IEEE/ACM double-column

@@ -105,13 +105,15 @@ improvement.
 
 ## 2. Preservation & Remediation Rules
 
-Remediations target components the Predict stage scored `CRITICAL`/`HIGH` on any RMAV dimension
-(reliability, maintainability, availability, security, or the aggregate). Node reallocation
+Remediations target components the Predict stage scored `CRITICAL`/`HIGH` on any RM dimension
+(reliability, maintainability, fault_tolerance, availability, or the aggregate — `rules.py`'s
+`_RM_DIMENSIONS` gates on the two composite characteristics and their fault_tolerance/availability
+sub-characteristics directly, not only on the composite). Node reallocation
 ([§2.2](#22-physical-locality-anti-affinity-rules)) additionally considers components flagged as
 SPOF or god-component smells among `prediction_result.problems`.
 
 **Automation coverage.** [antipatterns.md](antipatterns.md) documents remediation guidance for
-all 21 catalog anti-patterns, but that guidance is advisory unless it maps to one of the three
+all 19 catalog anti-patterns, but that guidance is advisory unless it maps to one of the three
 operators below. Only 5 catalog IDs feed an operator, and they do so through a substring match
 on the detected problem's *display name* rather than a dedicated pattern-ID field:
 
@@ -123,8 +125,8 @@ on the detected problem's *display name* rather than a dedicated pattern-ID fiel
 | `FAILURE_HUB` | Critical Failure Propagation Hub | `Hub` | §2.1 Topic splitting |
 | `HUB_AND_SPOKE` | Hub-and-Spoke Anti-Pattern | `Hub` | §2.1 Topic splitting |
 
-Every operator can also fire independently off the generic RMAV `CRITICAL`/`HIGH` tier,
-regardless of which (if any) specific anti-pattern was detected. The remaining 16 catalog IDs
+Every operator can also fire independently off the generic RM `CRITICAL`/`HIGH` tier,
+regardless of which (if any) specific anti-pattern was detected. The remaining 14 catalog IDs
 have no automated operator at all. See [remediation.md](remediation.md) for the full
 advisory-versus-automated breakdown.
 
@@ -477,8 +479,8 @@ Documented so they aren't mistaken for working code.
 | # | Limitation | Impact |
 |:--|------------|--------|
 | L1 | **Topic splits are excluded from `mean_cascade_impact_reduction`.** A split replaces the original topic id with per-publisher sub-topics. | There is no stable before/after counterpart to difference, so split targets are omitted from `remediated_component_impact_deltas` rather than approximated. On a policy of splits only, `mean_cascade_impact_reduction` is `null`. |
-| L2 | **Anti-patterns link to operators by display-name substring**, not by pattern ID ([§2](#2-preservation--remediation-rules)). | Renaming a `PatternSpec` silently unlinks its operator. Only 5 of 21 catalog IDs are linked at all. |
-| L3 | **§2.3 has no link to `QOS_MISMATCH`** despite the conceptual overlap. QoS hardening fires only from the generic RMAV criticality tier. | A detected `QOS_MISMATCH` does not by itself produce an upgrade. |
+| L2 | **Anti-patterns link to operators by display-name substring**, not by pattern ID ([§2](#2-preservation--remediation-rules)). | Renaming a `PatternSpec` silently unlinks its operator. Only 5 of 19 catalog IDs are linked at all. |
+| L3 | **§2.3 has no link to `QOS_MISMATCH`** despite the conceptual overlap. QoS hardening fires only from the generic RM criticality tier. | A detected `QOS_MISMATCH` does not by itself produce an upgrade. |
 | L4 | **The whole-policy gate is reported, not enforced** ([§3](#3-closed-loop-verification-mechanics) step 7). A policy with `accepted = false` is still returned in full, and the mutation is not rolled back in the result object. | Callers must check `accepted` themselves. Nothing is written to the source repository either way — the mutation only ever exists in a sandbox. |
 | L5 | **`kappa` has no effect on an edit whose seed spread is exactly zero.** The simulator is deterministic for many edits, giving $\sigma = 0$ at every threshold. | The bar $\kappa \cdot \sigma$ collapses to 0 and the rule degenerates to "mean reduction > 0" no matter how large `kappa` is. Raising `kappa` only filters edits whose measured deltas actually vary across seeds. |
 | L6 | **Verification cost is linear in candidate count** ([§3.2](#32-cost-model)). | Large scenarios with tens of candidates run hundreds of exhaustive sweeps. |

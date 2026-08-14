@@ -171,6 +171,29 @@ class TestQiuCollapseEquivalence:
             assert via_projection == pytest.approx(via_reweighting)
 
 
+class TestCompositeReparameterisation:
+    """The hierarchical RM composite is a pure re-parameterisation of the
+    retired 4-D AHP composite (A=0.43, R=0.24, M=0.17, V=0.16) with V dropped
+    and the rest renormalised — not an independently invented weighting.
+
+    At exact (unrounded) values: w_R = 0.24+0.43 / 0.84, r_alpha = 0.24 / 0.67,
+    w_M = 0.17 / 0.84, so w_R*r_alpha and w_R*(1-r_alpha) recover the old
+    R/A shares of the retired composite, and w_M recovers the old M share.
+    The shipped constants are rounded to 2 s.f. (r_alpha=0.36, w_R=0.80,
+    w_M=0.20), so this only holds to a small, bounded drift — pinned here so
+    that drift cannot silently grow into a larger, undocumented divergence.
+    """
+
+    def test_shipped_constants_recover_retired_composite_shares(self):
+        w = QualityWeights()
+        old_r, old_a, old_m = 0.24, 0.43, 0.17
+        old_total = old_r + old_a + old_m  # V (0.16) dropped, not renormalised in
+
+        assert w.q_reliability * w.r_alpha == pytest.approx(old_r / old_total, abs=0.003)
+        assert w.q_reliability * (1 - w.r_alpha) == pytest.approx(old_a / old_total, abs=0.003)
+        assert w.q_maintainability == pytest.approx(old_m / old_total, abs=0.003)
+
+
 class TestLayerSpec:
 
     def test_only_external_layer_has_an_oracle(self):

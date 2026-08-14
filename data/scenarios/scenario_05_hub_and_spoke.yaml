@@ -6,7 +6,7 @@
 # Purpose  : Confirm that the methodology reliably detects architectural
 #            anti-patterns — specifically the "god broker" / hub-and-spoke
 #            topology where two brokers become critical SPOFs for the entire
-#            system.  Useful for validating RMAV Vulnerability scoring.
+#            system.  Useful for validating Availability (SPOF) scoring.
 #
 # Topology fingerprint:
 #   • Only 2 brokers serving 70 apps across 12 nodes (extreme overloading)

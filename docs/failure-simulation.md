@@ -35,7 +35,7 @@
    - 6.1 [impact\_scores.json](#61-impact_scoresjson)
    - 6.2 [message\_flow\_results.json](#62-message_flow_resultsjson)
 7. [Worked Examples — ATM Dataset](#7-worked-examples--atm-dataset)
-8. [Integration with the RMAV Validation Pipeline](#8-integration-with-the-rmav-validation-pipeline)
+8. [Integration with the RM Validation Pipeline](#8-integration-with-the-rm-validation-pipeline)
 9. [What the Simulator Measures, in Quality-Model Terms](#9-what-the-simulator-measures-in-quality-model-terms)
    - 9.1 [Coverage by characteristic](#91-coverage-by-characteristic)
    - 9.2 [The two constraints](#92-the-two-constraints)
@@ -97,7 +97,7 @@ result model, and the split is stated in the package docstring
 | [`message_flow_simulator.py`](../saag/simulation/message_flow_simulator.py) | `MessageFlowSimulator` — SimPy timing/QoS simulator |
 | [`simulation_results.py`](../saag/simulation/simulation_results.py) | Result dataclasses for both of the above, plus their JSON `save()` |
 | **Validate-stage oracle** | |
-| [`failure_simulator.py`](../saag/simulation/failure_simulator.py) | `FailureSimulator` — canonical RMAV oracle (`ImpactMetrics`) |
+| [`failure_simulator.py`](../saag/simulation/failure_simulator.py) | `FailureSimulator` — canonical RM oracle (`ImpactMetrics`) |
 | [`event_simulator.py`](../saag/simulation/event_simulator.py) | `EventSimulator` — discrete-event run supplying the baseline flows |
 | [`change_propagation.py`](../saag/simulation/change_propagation.py) | `ChangePropagationSimulator` — IM(v) sub-metrics |
 | [`compromise_propagation.py`](../saag/simulation/compromise_propagation.py) | `CompromisePropagationSimulator` — IV(v) sub-metrics, attack paths |
@@ -118,11 +118,12 @@ quantities are **not** interchangeable — see the warning in
 | Stage | Engine | Output | Consumed by |
 |-------|--------|--------|-------------|
 | **Predict** (supervised labels) | `FaultInjector` | `impact_scores.json` → `I*(v)`, a scalar | GNN training, k-fold / LOSO evaluation |
-| **Validate** (quality oracle) | `FailureSimulator` | `ImpactMetrics` → composite + IR/IM/IA/IS | `saag/validation/` gates |
+| **Validate** (quality oracle) | `FailureSimulator` | `ImpactMetrics` → composite + IR/IM (IR hierarchical: fault_tolerance_impact/availability_impact sub-terms) | `saag/validation/` gates |
 
 `FaultInjector` is the labeler because it is deterministic, multi-seed, and records
 per-node variance — the properties a training label needs. `FailureSimulator` supplies
-the four-dimensional RMAV decomposition that the validation gates are written against.
+the two-dimensional RM decomposition (plus the fault_tolerance/availability
+sub-characteristic diagnostics) that the validation gates are written against.
 
 **The two must never be mixed inside one stage.** This is enforced by
 [`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py), which also
@@ -637,7 +638,7 @@ PYTHONPATH=. python cli/simulate_graph.py combined \
 > | Flag | `fault-inject` default | `combined` default | Consequence |
 > |---|---|---|---|
 > | `--node-types` | `Application,Broker,Library` | `Application,Broker` | Libraries get no ground truth, reproducing the exclusion [§3.5](#35-library-blast-radius-asymmetry) describes as fixed |
-> | `--seeds` | `42,123,456,789,2024` | `42` | One seed makes every `label_stability` correlation `null`, voiding the publication gate in [§8](#8-integration-with-the-rmav-validation-pipeline) |
+> | `--seeds` | `42,123,456,789,2024` | `42` | One seed makes every `label_stability` correlation `null`, voiding the publication gate in [§8](#8-integration-with-the-rm-validation-pipeline) |
 >
 > Pass both flags explicitly on any `combined` run whose output you intend to publish.
 
@@ -647,7 +648,7 @@ PYTHONPATH=. python cli/simulate_graph.py combined \
 
 ### 6.1 `impact_scores.json`
 
-Written by `fault-inject`. This is the canonical I(v) ground-truth file consumed by the RMAV validation pipeline.
+Written by `fault-inject`. This is the canonical I(v) ground-truth file consumed by the RM validation pipeline.
 
 ```
 output/simulation/
@@ -669,7 +670,7 @@ output/simulation/
 
   "labeler": "FaultInjector",
   "labeled_node_types": ["Application", "Broker", "Library"],
-  "labeled_dimensions": ["composite", "reliability", "availability"],
+  "labeled_dimensions": ["composite", "reliability"],
   "unlabeled_node_ids": ["N0", "N1", "N2", "N3", "N4", "..."],
   "label_stability": { "...": "see §3.6" },
 
@@ -684,7 +685,7 @@ output/simulation/
 |-------|---------------|
 | `labeler` | Names the engine that wrote the file. Two engines emit differently-scaled "impact" (§2.1); a consumer that cannot tell them apart cannot know what its numbers mean. |
 | `labeled_node_types` | The types actually injected. |
-| `labeled_dimensions` | The label dimensions this engine genuinely **measured**. `FaultInjector` emits one scalar, which maps onto `composite` / `reliability` / `availability` — it says nothing about maintainability or security, so those are **absent**, not zero. |
+| `labeled_dimensions` | The label dimensions this engine genuinely **measured**. `FaultInjector` emits one scalar, which maps onto `composite` / `reliability` (`reliability` is itself the α-blend of fault_tolerance and availability, so this labeler does not additionally declare `availability` as a separate measured dimension) — it says nothing about maintainability, so that is **absent**, not zero. |
 | `unlabeled_node_ids` | Nodes present in the graph but never injected. Makes the coverage gap explicit instead of letting it vanish in a downstream set intersection. |
 | `label_stability` | The labels' own reproducibility — the ceiling on any ρ reported against them. See §3.6. |
 
@@ -695,7 +696,7 @@ output/simulation/
 > - **Dimensions.** `extract_simulation_dict` emits only the dimensions the labeler declared
 >   in `labeled_dimensions`; `networkx_to_hetero_data` derives a `dimension_mask` from them
 >   so unmeasured columns are excluded from the multitask loss. Emitting `0.0` for
->   `maintainability` / `security` instead would train two prediction heads against a
+>   `maintainability` instead would train a prediction head against a
 >   constant ([§13 R3](#13-resolved-issues)).
 > - **Nodes.** A node the simulator targeted and scored `0.0` is a real observation at the
 >   low end of the ranking; a node never targeted is missing data. `label_mask` carries
@@ -951,7 +952,7 @@ Expected observations in `message_flow_results.json`:
 
 ---
 
-## 8. Integration with the RMAV Validation Pipeline
+## 8. Integration with the RM Validation Pipeline
 
 The fault injector's `impact_scores.json` is designed to slot directly into the existing SaG validation pipeline:
 
@@ -991,7 +992,7 @@ Every impact quantity defined above — `I*(v)`, `composite_impact`, `IR/IM/IA/I
 
 **The simulator measures external quality, not Quality-in-Use.** Delivery rate, latency percentiles and contract conformance are observations of the *behaviour of the executing system* — external product-quality measures in the sense of ISO/IEC 25023 — made here on a model of that system rather than on a deployment ([criticality.md §3.0](criticality.md#30-three-quality-views-internal-external-and-quality-in-use)). That is a substantive distinction, not a labelling one: the same 40% delivery loss is an inconvenience in one deployment and a hazard in another, and no quantity below separates those two cases. Quality-in-Use measurement in the standard's sense (ISO/IEC 25022) requires a specified stakeholder pursuing a specified goal in a specified context, none of which exists anywhere in this project.
 
-**What is reachable is nonetheless more than it looks.** The discrete-event engine already records delivery, latency, and contract-violation data per fault; those observations are simply aggregated along the RMAV axis (to mirror the predictor) rather than re-summarised per characteristic. §9.1 audits, characteristic by characteristic, which of them the existing fields can speak to — with the standing caveat that every "measurable" verdict below means *measurable as external quality*, one view short of the construct.
+**What is reachable is nonetheless more than it looks.** The discrete-event engine already records delivery, latency, and contract-violation data per fault; those observations are simply aggregated along the RM axis (to mirror the predictor) rather than re-summarised per characteristic. §9.1 audits, characteristic by characteristic, which of them the existing fields can speak to — with the standing caveat that every "measurable" verdict below means *measurable as external quality*, one view short of the construct.
 
 ### 9.1 Coverage by characteristic
 
@@ -1197,7 +1198,7 @@ if result.fault_event:
 
 **L6 — Topic and Node cannot be labelled.** Following from L5, `FaultInjector` derives `DEPENDS_ON` only from `PUBLISHES_TO`, `SUBSCRIBES_TO` and `USES`. It has no rule that expresses the failure of a Topic (a topic is orphaned *by* a publisher or broker failing, never injected directly) or of a physical Node (no `RUNS_ON → DEPENDS_ON` derivation exists). Injecting either yields $I(v) = 0$ for **every** instance. These types are therefore excluded from `--node-types` and recorded in `unlabeled_node_ids`, leaving 33–160 nodes per scenario without ground truth (≈ 30–47% of components). The GNN still *predicts* scores for them; those predictions are simply never validated. Closing this requires adding the missing derivation rules to the cascade, not merely widening `--node-types`.
 
-**L7 — Only three of five label dimensions are measured.** `FaultInjector` emits a single scalar, so `maintainability` and `security` have no ground truth from this engine. They are declared absent via `labeled_dimensions` and excluded from the loss via `dimension_mask` (§6.1). The four-dimensional RMAV decomposition exists only in `FailureSimulator`, which serves the Validate stage (§2.1). Unifying them would require one engine to produce all five dimensions.
+**L7 — Only two of three label dimensions are measured.** `FaultInjector` emits a single scalar, so `maintainability` has no ground truth from this engine (`composite` and `reliability` are covered). It is declared absent via `labeled_dimensions` and excluded from the loss via `dimension_mask` (§6.1). The two-dimensional RM decomposition (plus the fault_tolerance/availability sub-characteristic diagnostics) exists only in `FailureSimulator`, which serves the Validate stage (§2.1). Unifying them would require one engine to also produce a maintainability ground truth.
 
 **L8 — Edge labels are measured, with three caveats.** `EdgeCriticality` is populated by
 `FailureSimulator.simulate_edge_removal`, swept by `simulate_edge_removal_sweep`, which severs one
@@ -1303,7 +1304,7 @@ artifacts produced before each fix can be interpreted correctly.
 |---|---|---|
 | **R1** | Topic QoS was read with flat keys only (`qos_reliability` / `qos_priority`), but the canonical property is `qos_transport_priority` and the research loader leaves QoS nested. No key matched, so I\*(v) was numerically independent of QoS — flipping every `atm_system` topic from `PERSISTENT/RELIABLE/CRITICAL` to `VOLATILE/BEST_EFFORT/LOW` moved all 39 labels by `0.000000`. | Resolved through `QoSPolicy.from_node_attrs`, which accepts both shapes. **Any artifact generated before this is a `--qos-factor none` label** whatever its provenance block says. |
 | **R2** | §3.5 stated that a Library injection yields I(v) = 0 because DEPENDS_ON propagation is disabled at `prob = 0.0`. That holds only for `app_to_app`; `app_to_lib` is special-cased to `prob = 1.0`. | Libraries were absent for two unrelated reasons, both fixed: not in the default `--node-types`, and the CLI loader had no `libraries` block, so Library nodes were created implicitly by their `USES` edges with `type=None` and matched no filter. |
-| **R3** | `extract_simulation_dict` emitted `"maintainability": 0.0` and `"security": 0.0` for every record; the fabricated zeros were indistinguishable from measurements, so two prediction heads trained against a constant. | The parser emits only declared dimensions; `dimension_mask` and `label_mask` carry absence explicitly ([§6.1](#61-impact_scoresjson)). |
+| **R3** | `extract_simulation_dict` emitted `"maintainability": 0.0` and `"security": 0.0` for every record; the fabricated zeros were indistinguishable from measurements, so two prediction heads trained against a constant. (`security` no longer exists as a label dimension at all; `maintainability` remains unmeasured by this engine.) | The parser emits only declared dimensions; `dimension_mask` and `label_mask` carry absence explicitly ([§6.1](#61-impact_scoresjson)). |
 | **R4** | `SimulationService.classify_edges()` always returned `[]`; edge labels were a projection of node labels through a hand-picked bridge multiplier. | Replaced by real edge-removal measurement ([§12 L8](#12-known-limitations)), pinned by [`tests/test_edge_removal.py`](../tests/test_edge_removal.py). |
 | **R5** | `EventType` was missing the `FAIL_COMPONENT` / `RECOVER_COMPONENT` members that `EventSimulator` dispatches on, so any `EventScenario(failure_rate > 0)` raised `AttributeError`. It went unnoticed because the test file carried its own private copy of the simulator that *did* define them. | Members added; the test file now exercises the real `saag.simulation` classes. |
 | **R6** | A brokered topic whose brokers had all failed fell through to the brokerless (DDS) direct-delivery path, so a broker outage silently repaired itself and produced zero drops. | `SimulationGraph.has_configured_brokers` distinguishes *no brokers configured* from *all brokers failed*; only the former delivers directly. |

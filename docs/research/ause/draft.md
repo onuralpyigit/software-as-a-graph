@@ -46,7 +46,7 @@ through postmortems and cascade incidents, rather than proactively at design tim
 structural diagnostic frameworks exist, they typically operate *open-loop*: they rank components by
 criticality without naming the architectural pathology at fault or producing verified guidance on how
 to repair it. We address both gaps with **SaG-Prescribe**, a graph-based framework that (1) specifies
-twenty-one named, severity-tiered publish–subscribe anti-patterns and bad smells — including Single
+nineteen named, severity-tiered publish–subscribe anti-patterns and bad smells — including Single
 Point of Failure, God Component, Broker Saturation, Chatty Pair, and QoS Policy Mismatch — as formal
 topological signatures over a structural metric vector with adaptive box-plot thresholds; and (2)
 compiles the resulting diagnosis into a transformation policy of three graph-mutation operators
@@ -131,7 +131,7 @@ as the **detection-and-remediation gap** this paper closes.
 ### 1.3 Proposed Solution: SaG-Prescribe
 
 To close this gap, we present **SaG-Prescribe**, a graph-based framework unifying three stages: detect,
-prescribe, and gate. First, SaG-Prescribe **detects** twenty-one named, severity-tiered
+prescribe, and gate. First, SaG-Prescribe **detects** nineteen named, severity-tiered
 publish–subscribe anti-patterns and bad smells, each given a formal topological detection rule over a
 structural metric vector with adaptive box-plot thresholds. Second, it **prescribes**: components and
 patterns flagged `CRITICAL` or `HIGH` — a classification itself informed by a **Code Quality Penalty
@@ -158,15 +158,19 @@ prerequisite for deployment rather than a refinement.
 
 ### 1.4 Contributions
 
-1. **A catalog of twenty-one publish–subscribe anti-patterns and bad smells**, each with a formal,
+1. **A catalog of nineteen publish–subscribe anti-patterns and bad smells**, each with a formal,
    topology-based detection rule over a structural metric vector with adaptive box-plot thresholds,
-   organized into three severity tiers and four quality dimensions (§4).
+   organized into three severity tiers and two quality dimensions (§4). (TARGET and EXPOSURE, the two
+   security-dimension-keyed patterns from an earlier revision, are retired along with the
+   Vulnerability/Security quality dimension they were keyed to; no successor pattern replaces them.)
 2. **A prescriptive refactoring pipeline with per-edit counterfactual verification**, translating the
    catalog's findings into graph mutations via three named operators, each explicitly mapped to the
    patterns it targets, where every candidate is measured alone against a discrete-event cascade
    simulator and admitted only if it beats that simulator's own noise at every propagation threshold
    (§5–§6). We disclose the automation footprint precisely rather than by implication: five of the
-   twenty-one patterns are directly wired to an operator; the other sixteen remain advisory.
+   nineteen patterns are directly wired to an operator (previously reported as five of twenty-one;
+   verified against the current `saag/prescription/rules.py` substring triggers that neither TARGET
+   nor EXPOSURE, both since retired, was ever among the five); the other fourteen remain advisory.
 3. **A CI/CD quality gate**, with a three-tier exit-code protocol and designed delta-aware, waiver-
    registered semantics, reported with its implementation status stated explicitly for each half (§7).
 4. **An empirical evaluation that reports two negative results as its principal findings** (§8–§9):
@@ -186,7 +190,7 @@ This submission builds on two prior efforts by the same authors, and we state th
 they bear on originality and overlap assessment.
 
 A companion manuscript [1] introduces the Software-as-a-Graph model itself — the typed multigraph, the
-`DEPENDS_ON` projection rules, the RMAV attribution, the failure simulators, and a learned
+`DEPENDS_ON` projection rules, the RM attribution, the failure simulators, and a learned
 heterogeneous-GNN criticality predictor. This paper *consumes* that model (§3 summarizes only what the
 detection and prescription stages need) and contributes what [1] does not contain: the anti-pattern
 catalog and its detection methodology (§4), the operator-to-pattern mapping and its disclosed coverage
@@ -270,7 +274,7 @@ code-level recommenders typically validate suggestions against static quality me
 acceptance data, SaG-Prescribe re-simulates every candidate topology against a cascade failure model
 and surfaces only recommendations with verified risk improvements. In technical-debt terms, the
 framework names architectural debt items (anti-patterns with quantified risk via the Code Quality
-Penalty and RMAV attribution, §3, and formal specification, §4), proposes repayments (mutation
+Penalty and RM attribution, §3, and formal specification, §4), proposes repayments (mutation
 operators, §6.3), and verifies the repayment's effect before recommending it — a verify-before-recommend
 discipline that, to our knowledge, has not been applied to pub-sub topology refactoring.
 
@@ -290,11 +294,11 @@ Risk Index before acceptance.
 
 ### 2.5 Diagnostic Foundation (SaG)
 
-We rely on the heterogeneous graph representation, multi-dimensional quality attribution (RMAV), and
+We rely on the heterogeneous graph representation, hierarchical quality attribution (RM), and
 discrete-event failure simulator of Software-as-a-Graph [1] as our diagnostic baseline. SaG-Prescribe
 builds directly on SaG's hexagonal ports, extending the domain service to name specific structural
 pathologies (§4) and to close the loop between diagnostic ranking and prescriptive mutation (§6). The
-full mathematical treatment of the diagnostic stages — graph schema, projection rules, RMAV
+full mathematical treatment of the diagnostic stages — graph schema, projection rules, RM
 attribution, and the learned failure-impact predictor — is given in [1] and is not repeated here; §3
 summarizes only what the detection and prescriptive engines consume.
 
@@ -360,7 +364,7 @@ explicit `DEPENDS_ON` relations (directed **dependent → dependency**) via type
 
 This projection produces $G_{\text{analysis}}$, organized across four architectural layers — **app**
 (applications only), **infra** (nodes only), **mw** (applications and brokers), and **system** (all
-types) — each providing a different lens for both the anti-pattern detectors of §4 and the RMAV
+types) — each providing a different lens for both the anti-pattern detectors of §4 and the RM
 attribution below.
 
 ### 3.3 The Code Quality Penalty (CQP)
@@ -375,65 +379,78 @@ directly into a per-component **Code Quality Penalty**, defined for Application 
 $$\mathrm{CQP}(v) = 0.10\,\text{loc\_norm} + 0.35\,\text{complexity\_norm} + 0.30\,\text{instability\_code} + 0.25\,\text{lcom\_norm}$$
 
 CQP is the paper's single explicit channel from code-level quality signals into the architecture-level
-risk model: it feeds directly into the Maintainability dimension of the RMAV attribution below, so a
+risk model: it feeds directly into the Maintainability dimension of the RM attribution below, so a
 module's static-analysis debt is not siloed from its topological criticality.
 
-### 3.4 Multi-Dimensional Quality Attribution (RMAV) and Formal Definitions
+### 3.4 Hierarchical Quality Attribution (RM) and Formal Definitions
 
-Component criticality is decomposed into four orthogonal dimensions, ensuring that each structural and
-code metric feeds exactly one perspective to preserve explanation legibility. Grounded in **ISO/IEC 25019:2023 (Quality-in-Use)**, each dimension speaks to a formal stakeholder class:
+Component criticality is decomposed into two top-level dimensions, ensuring that each structural and
+code metric feeds exactly one perspective to preserve explanation legibility. Reliability is itself
+hierarchical, blending two sub-characteristics — Fault Tolerance and Availability — rather than
+standing as a single flat metric. Grounded in **ISO/IEC 25019:2023 (Quality-in-Use)**, each dimension
+speaks to a formal stakeholder class:
 
 | Dim. | Quality Focus | High score means | Primary / Indirect Stakeholder (ISO 25019) | Secondary Stakeholder (Engineering Role) |
 |:----:|--------------|------------------|--------------------------------------------|------------------------------------------|
-| **R** | Reliability | Failure cascades widely; hard to contain | **Indirect:** Patients, passengers, end-users dependent on continuous service | Reliability Engineer |
+| **R** (composite) | Reliability, hierarchical ($\alpha\cdot FT + (1-\alpha)\cdot A$) | Reliability degraded via cascade reach and/or structural exposure | **Indirect/Primary:** end-users and direct operators dependent on continuous, uninterrupted service | Reliability Engineer |
+| — *FT sub-term* | Fault tolerance | Failure cascades widely; hard to contain | **Indirect:** Patients, passengers, end-users dependent on continuous service | Reliability Engineer |
+| — *A sub-term* | Availability | Single point of failure; graph partition | **Primary:** Direct operators (traders, clinicians, drivers) facing task cessation | DevOps / SRE |
 | **M** | Maintainability | Tightly coupled structural bottleneck | **Secondary:** Maintainers facing high regression likelihood upon refactoring | Software Architect |
-| **A** | Availability | Single point of failure; graph partition | **Primary:** Direct operators (traders, clinicians, drivers) facing task cessation | DevOps / SRE |
-| **V** | Vulnerability | Adversarial exposure; high-value target | **Primary / Indirect:** Data subjects facing PII/secret compromise | Security Engineer |
+
+Security/Vulnerability is not instantiated as a scored dimension in this model; an earlier revision of
+this catalog scored it as a fourth quality dimension and two anti-patterns (TARGET, EXPOSURE) keyed to
+it, both retired along with the dimension (§4.3).
 
 Four formal definitions establish the theoretical construct:
 
-> **Definition D1 — Component Criticality.** Let $G_l = (V_l, E_l, w)$ be a layer-projected graph at projection $l$. Component criticality $\mathrm{crit}_l : V_l \to [0,1]^4 \times [0,1]$ maps component $v \in V_l$ to metric vector $\mathbf{s}(v) = [R(v), M(v), A(v), V(v)]^T$ and composite score $Q(v)$, estimating Quality-in-Use loss across Beneficialness, Freedom from Risk, and Acceptability.
+> **Definition D1 — Component Criticality.** Let $G_l = (V_l, E_l, w)$ be a layer-projected graph at projection $l$. Component criticality $\mathrm{crit}_l : V_l \to [0,1]^2 \times [0,1]$ maps component $v \in V_l$ to metric vector $\mathbf{s}(v) = [R(v), M(v)]^T$ and composite score $Q(v)$, estimating Quality-in-Use loss across Beneficialness, Freedom from Risk, and Acceptability.
 
-> **Definition D2 — Relationship Criticality.** Let $e = (u,v) \in E_l$ be an inter-component dependency edge. Relationship criticality $\mathrm{crit}_l : E_l \to [0,1]^4 \times [0,1]$ estimates Quality-in-Use loss resulting from link disruption under operational endpoints ($u, v \in V_l$ active).
+> **Definition D2 — Relationship Criticality.** Let $e = (u,v) \in E_l$ be an inter-component dependency edge. Relationship criticality $\mathrm{crit}_l : E_l \to [0,1]^2 \times [0,1]$ estimates Quality-in-Use loss resulting from link disruption under operational endpoints ($u, v \in V_l$ active).
 
 > **Definition D3 — Criticality is a consequence, not a risk.** Criticality measures the *consequence factor alone* given element failure. Likelihood must be supplied externally from operational history or MTTF data.
 
 > **Definition D4 — Criticality is relative, not absolute.** Criticality scores and five-tier classifications are relative to the score distribution of system $S$ and layer projection $l$.
 
-The four RMAV formulas consume rank-normalized Tier-1 inputs:
+The RM formulas consume rank-normalized Tier-1 inputs:
 
-* **Reliability ($R$):** fault-propagation risk via Reverse PageRank (RPR) and fan-out concentration.
+* **Fault Tolerance ($FT$):** fault-propagation risk via Reverse PageRank (RPR) and fan-out concentration.
+* **Availability ($A$):** single-point-of-failure risk via directed cut-vertex tests and QoS-amplified
+  SPOF scores.
+* **Reliability ($R$):** blends the two sub-terms, $R(v) = \alpha \cdot FT(v) + (1-\alpha)\cdot A(v)$,
+  $\alpha = 0.36$.
 * **Maintainability ($M$):** coupling complexity driven by betweenness centrality ($BT$), efferent QoS
-  out-degree ($w\_out$), and the CQP metric:
+  out-degree ($w\_out$), and the CQP metric — numerically unchanged from its role in the retired
+  four-dimension composite:
 
 $$M(v) = 0.35\,\mathrm{BT}(v) + 0.30\,\mathrm{w\_out}(v) + 0.15\,\mathrm{CQP}(v) + 0.12\,\mathrm{CouplingRisk\_enh}(v) + 0.08\,(1-\mathrm{CC}(v))$$
 
-* **Availability ($A$):** single-point-of-failure risk via directed cut-vertex tests and QoS-amplified
-  SPOF scores.
-* **Vulnerability ($V$):** exposure to adversarial reach, mapping attack propagation vectors.
-
-**Quality-in-Use Transformation Matrix.** To connect product-quality mechanisms ($R, M, A, V$) to ISO/IEC 25019 Quality-in-Use harms, the vector $\mathbf{s}_{\mathrm{RMAV}}(v) = [R(v), M(v), A(v), V(v)]^T$ projects into stakeholder harm scores $[H_{\mathrm{Ben}}, H_{\mathrm{Risk}}, H_{\mathrm{Acc}}]^T$ via transformation matrix $\mathbf{M}_{\mathrm{RMAV} \to \mathrm{QiU}}$:
+**Quality-in-Use Transformation Matrix.** To connect product-quality mechanisms ($R, M$) to ISO/IEC 25019 Quality-in-Use harms, the vector $\mathbf{s}_{\mathrm{RM}}(v) = [R(v), M(v)]^T$ projects into stakeholder harm scores $[H_{\mathrm{Ben}}, H_{\mathrm{Risk}}, H_{\mathrm{Acc}}]^T$ via a row-stochastic transformation matrix $\mathbf{M}_{\mathrm{RM} \to \mathrm{QiU}}$:
 
 $$
-\mathbf{h}_{\mathrm{QiU}}(v) = \mathbf{M}_{\mathrm{RMAV} \to \mathrm{QiU}} \cdot \mathbf{s}_{\mathrm{RMAV}}(v) =
+\mathbf{h}_{\mathrm{QiU}}(v) = \mathbf{M}_{\mathrm{RM} \to \mathrm{QiU}} \cdot \mathbf{s}_{\mathrm{RM}}(v) =
 \begin{bmatrix}
-0.35 & 0.25 & 0.40 & 0.00 \\
-0.10 & 0.00 & 0.50 & 0.40 \\
-0.30 & 0.00 & 0.20 & 0.50
+0.75 & 0.25 \\
+0.80 & 0.20 \\
+0.60 & 0.40
 \end{bmatrix}
-\begin{bmatrix} R(v) \\ M(v) \\ A(v) \\ V(v) \end{bmatrix}.
+\begin{bmatrix} R(v) \\ M(v) \end{bmatrix}.
 $$
 
 In a specific deployment domain, Quality-in-Use loss is parametrized by a **Domain Context Vector** $\vec{\omega}_{\mathrm{domain}} = [\omega_{\mathrm{Ben}}, \omega_{\mathrm{Risk}}, \omega_{\mathrm{Acc}}]$.
 
-These four profiles blend into a composite criticality score $Q(v)$ using pairwise-comparison weights
-on Saaty's 1–9 scale [12], checked for internal consistency and then mixed with a uniform prior
-($\lambda = 0.70$) to prevent extreme parameter concentration. The raw weights are $(0.43, 0.24, 0.17,
-0.16)$ and the *applied* weights after shrinkage are $(0.395, 0.247, 0.193, 0.165)$ for availability,
-reliability, maintainability and vulnerability respectively. Composite scores are mapped to five criticality tiers
+These two profiles blend into a composite criticality score $Q(v) = w_R \cdot R(v) + w_M \cdot M(v)$
+under **declared** weights $(w_R, w_M) = (0.80, 0.20)$ — not freshly elicited, but an algebraic
+derivation from the retired four-dimension AHP composite $(A, R, M, V) = (0.43, 0.24, 0.17, 0.16)$,
+written on Saaty's 1–9 scale [12] and checked for internal consistency at the sub-characteristic
+level: folding Availability's weight into Reliability ($\alpha = 0.24/(0.24+0.43) \approx 0.36$, the
+hierarchical blend above) and renormalising the remaining two ($w_R = (0.24+0.43)/0.84 \approx 0.80$,
+$w_M = 0.17/0.84 \approx 0.20$). There is no longer a separate shrunk-weights table at the composite
+level: the shrinkage parameter $\lambda$ (previously mixed with a uniform prior at $\lambda = 0.70$)
+now applies only to the *intra*-dimension term weights above ($FT$, $A$, and $M$'s internal terms),
+not to $(w_R, w_M)$, which are fixed declared constants. Composite scores are mapped to five criticality tiers
 (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `MINIMAL`) using adaptive box-plot thresholding on the system's
 own score distribution (`CRITICAL`: $Q > Q_3 + 1.5\,\mathrm{IQR}$; `HIGH`: $Q_3 < Q \le$ upper fence).
-This section's typed graph, RMAV dimensions, and adaptive box-plot machinery are the shared foundation
+This section's typed graph, RM dimensions, and adaptive box-plot machinery are the shared foundation
 consumed by both the anti-pattern catalog (§4) and the prescriptive engine (§6).
 
 ---
@@ -462,28 +479,35 @@ pipeline execution, before any deployment.
 
 ### 4.2 Detection Methodology
 
-Detection operates over a per-component structural metric vector $M(v)$. Fifteen of its fields are
-*Tier-1* metrics — those that feed an RMAV dimension directly — organized by the dimension they
+Detection operates over a per-component structural metric vector $M(v)$. Twelve of its fields are
+*Tier-1* metrics — those that feed an RM dimension directly — organized by the dimension they
 serve: Reverse PageRank $\mathrm{RPR}$, in-degree $\mathrm{DG}_{\text{in}}$, multi-path coupling index
-$\mathrm{MPCI}$ and topic fan-out criticality $\mathrm{FOC}$ (Reliability); betweenness
-$\mathrm{BT}$, QoS-weighted out-degree $w_{\text{out}}$, clustering coefficient $\mathrm{CC}$ and path
-complexity $\mathrm{PC}$ (Maintainability); directed articulation score
+$\mathrm{MPCI}$ and topic fan-out criticality $\mathrm{FOC}$ (Reliability's Fault Tolerance sub-term);
+betweenness $\mathrm{BT}$, QoS-weighted out-degree $w_{\text{out}}$, clustering coefficient
+$\mathrm{CC}$ and path complexity $\mathrm{PC}$ (Maintainability); directed articulation score
 $\mathrm{AP}_{c,\text{directed}}$, bridge ratio $\mathrm{BR}$, connectivity degradation index
-$\mathrm{CDI}$ and component weight $w$ (Availability); and reverse eigenvector $\mathrm{REV}$,
-reverse closeness $\mathrm{RCL}$ and QoS-weighted in-degree $w_{\text{in}}$ (Vulnerability). The Code
-Quality Penalty of §3.3 is a sixteenth Tier-1 input, entering through Maintainability. Forward-facing
+$\mathrm{CDI}$ and component weight $w$ (Reliability's Availability sub-term). The Code
+Quality Penalty of §3.3 is a thirteenth Tier-1 input, entering through Maintainability. Forward-facing
 centralities (PageRank, closeness, eigenvector) are computed but held at Tier 2 — informative for
-visualization, deliberately not fed to the RMAV formulas, since their reverse counterparts on $G^T$
-are the failure-propagation-relevant direction.
+visualization, deliberately not fed to the RM formulas, since their reverse counterparts on $G^T$
+are the failure-propagation-relevant direction. Reverse eigenvector $\mathrm{REV}$, reverse closeness
+$\mathrm{RCL}$, and QoS-weighted in-degree $w_{\text{in}}$ were Tier-1 inputs to the retired
+Vulnerability dimension; they are still computed and stored but, verified against the current
+`saag/core/quality_model.py`, feed no scoring formula in the RM model — an orphaned-metric situation
+analogous to the `cm_avg_cbo`/`cm_avg_rfc` gap documented elsewhere in this codebase, not something
+this paper's evaluation currently corrects for.
 
 Topological metrics use **rank-based normalization** by default, on the argument that they are highly
 skewed (a single hub-broker may have betweenness $50\times$ the median, which min-max scaling would
 compress everything else beneath); linear code and hardware properties use min-max, since their
 absolute magnitudes are meaningful. We flag one measured consequence of that default rather than
 leaving it as design rationale, because it bears directly on §9.1: rank normalization discards
-magnitude before the RMAV weighted sum, which makes $Q(v)$ closer to a Borda count over the Tier-1
-metrics than to a weighted aggregate of them, and a sweep of the alternatives shows the default costs
-roughly $0.195$ Spearman $\rho$ against magnitude-preserving normalization. Because rank-normalized
+magnitude before the RM weighted sum, which makes $Q(v)$ closer to a Borda count over the Tier-1
+metrics than to a weighted aggregate of them. Under the retired four-dimension composite this was
+measured to cost roughly $0.195$ Spearman $\rho$ against magnitude-preserving normalization; under
+the current RM composite this reverses — rank (the shipped default) is now the *least* negative of
+the three normalisations, with retaining magnitude costing $\approx 0.016\,\rho$ rather than gaining
+it (`reproduce/threshold_sensitivity.py --skip-thresholds`, measured this session). Because rank-normalized
 inputs are near-uniform on $[0,1]$ by construction, the box-plot classifier below also produces a
 fairly stable critical fraction almost regardless of topology — which is part of the explanation for
 the over-flagging reported in §9.1.
@@ -502,18 +526,24 @@ enriched with topological path complexity (`CouplingRisk_enh`, §3.4).
 
 ### 4.3 Catalog Overview
 
-The twenty-one patterns are organized into three severity tiers — `CRITICAL` (structural risk
+The nineteen patterns are organized into three severity tiers — `CRITICAL` (structural risk
 requiring immediate architectural intervention; no production deployment should proceed without
 addressing these), `HIGH` (significant risk materially degrading reliability, availability, or
 maintainability; should be addressed in the current development cycle), and `MEDIUM` (accumulated
-technical debt or localized risk; tracked for medium-term remediation) — and mapped onto the four
-RMAV dimensions of §3.4. Table 4.1 summarizes the full catalog; formal detection rules and detailed
+technical debt or localized risk; tracked for medium-term remediation) — and mapped onto the catalog's
+own Reliability / Maintainability / Availability / Architecture(cross-cutting) categories. This is the
+anti-pattern *catalog's* internal categorization (`saag/analysis/antipattern_detector.py`'s
+`category` field), which still labels Availability separately from Reliability even though the RM
+scoring model of §3.4 now scores Availability as Reliability's own sub-term, not a peer dimension; the
+two taxonomies are related but not identical. TARGET and EXPOSURE, the two patterns previously keyed
+to a Vulnerability category, are retired along with that dimension — the catalog's Vulnerability
+category no longer exists. Table 4.1 summarizes the full catalog; formal detection rules and detailed
 remediation strategies for every pattern are given in the companion technical reference
 (`docs/antipatterns.md`) and are cited rather than reproduced here in full.
 
 **Table 4.1 — Anti-pattern catalog summary.**
 
-| Pattern | Severity | Primary RMAV Dimension | Detection Signal |
+| Pattern | Severity | Catalog Category | Detection Signal |
 | --- | --- | --- | --- |
 | SPOF | CRITICAL | Availability | Articulation point, QoS-weighted SPOF score |
 | SYSTEMIC_RISK | CRITICAL | Reliability | Share of CRITICAL-tier components $> 20\%$ |
@@ -531,15 +561,13 @@ remediation strategies for every pattern are given in the companion technical re
 | FAILURE_HUB | CRITICAL | Reliability | Reliability outlier $\wedge$ above-median out-degree |
 | CONCENTRATION_RISK | MEDIUM | Reliability | Top-3 PageRank share $> 0.5$ |
 | HUB_AND_SPOKE | MEDIUM | Maintainability | Low clustering coefficient $\wedge$ degree $> 3$ |
-| TARGET | CRITICAL | Vulnerability | Security-criticality tier $\ge$ CRITICAL |
-| EXPOSURE | HIGH | Vulnerability | HIGH security tier $\wedge$ high closeness |
 | CHAIN | MEDIUM | Architecture (cross-cutting) | Degree-bounded linear weakly-connected subgraph |
 | ISOLATED | MEDIUM | Architecture (cross-cutting) | Zero total degree |
 | COMPOUND_RISK | CRITICAL | Architecture (cross-cutting) | Co-occurring SPOF + God/Hub/Failure-Hub finding |
 
 ### 4.4 Representative Pattern Walkthroughs
 
-We highlight five patterns spanning severity tiers, RMAV dimensions, and detection technique
+We highlight five patterns spanning severity tiers, catalog categories, and detection technique
 diversity.
 
 **SPOF (Single Point of Failure).** A component $v$ whose removal disconnects the graph — formally an
@@ -689,7 +717,7 @@ SaG-Prescribe extends the diagnostic pipeline of [1] with a detect–generate–
 
 * **Stages 1–5: Diagnostic foundation and anti-pattern detection.** Ingest JSON/YAML topology
   descriptions, compute multi-layered topological metrics, attribute component criticality (§3.4), run
-  the twenty-one anti-pattern detectors of §4 over the resulting metric vectors and RMAV scores, model
+  the nineteen anti-pattern detectors of §4 over the resulting metric vectors and RM scores, model
   failure cascades with a discrete-event simulator, and validate predictive alignment against
   simulation ground truth (§4.5).
 * **Stage 6: Prescriptive recommendation generation (this paper).** The engine consumes components and
@@ -732,22 +760,24 @@ running hardened contracts are skipped.
 #### Automation coverage is narrower than the catalog
 
 The detect-to-prescribe hand-off is worth stating precisely, because a reader could otherwise assume
-that a twenty-one-pattern catalog implies twenty-one automated repairs. It does not. Two independent
+that a nineteen-pattern catalog implies nineteen automated repairs. It does not. Two independent
 signals feed the operator triggers, and only one of them names a catalog entry:
 
-* **Generic criticality tier.** Any component classified `CRITICAL`/`HIGH` on the RMAV dimensional
+* **Generic criticality tier.** Any component classified `CRITICAL`/`HIGH` on the RM dimensional
   scale can trigger any operator, irrespective of which specific anti-pattern — if any — was detected
   on it.
 * **Detected-problem name matching.** The only channel that ties a mutation back to a particular
   catalog entry, implemented as substring matching over `DetectedProblem.name`, the human-readable
   `PatternSpec.name`.
 
-Following the second channel through to the catalog, exactly **five of the twenty-one patterns** reach
+Following the second channel through to the catalog, exactly **five of the nineteen patterns** reach
 an operator: `SPOF` → anti-affinity reallocation; `GOD_COMPONENT`, `BOTTLENECK_EDGE`, `FAILURE_HUB`
 and `HUB_AND_SPOKE` → topic splitting. Notably, `QOS_MISMATCH` has **no** link to QoS hardening
-despite the conceptual overlap; Operator 3 fires only from the generic criticality tier. The remaining
-sixteen patterns have no automated operator: their `PatternSpec.recommendation` text is advisory, for
-a human to act on.
+despite the conceptual overlap; Operator 3 fires only from the generic criticality tier. TARGET and
+EXPOSURE, the two now-retired Vulnerability-keyed patterns, were never among the five: neither name
+matched either substring rule, so their retirement does not change this count beyond the shrunk
+denominator. The remaining fourteen patterns have no automated operator: their
+`PatternSpec.recommendation` text is advisory, for a human to act on.
 
 Part of this boundary is principled — breaking a dependency cycle correctly, or deciding which
 pipeline stages are safe to merge, requires knowing *what* a component does, not merely how it is
@@ -787,7 +817,7 @@ $|\Theta| \cdot |S|$ times more expensive per candidate than the unfiltered desi
 
 The core threat to structural predictors is circular leakage, where features inadvertently read data
 from downstream labels. The framework avoids this via a strict **independence guarantee**: all code
-metrics, RMAV calculations, and anti-pattern detection operate on $G_{\text{analysis}}$ (the derived
+metrics, RM calculations, and anti-pattern detection operate on $G_{\text{analysis}}$ (the derived
 projection layers), whereas ground-truth labels and SRI evaluations are derived separately from raw
 $G_{\text{structural}}$ simulation waves. No simulation result feeds back into candidate generation
 within a run. We note the honest scope of this guarantee in §10.4: it is *view* independence, not
@@ -807,7 +837,7 @@ To govern structural quality during rapid code evolution, the detection stage is
 blocking check in continuous integration and delivery (CI/CD) pipelines, surfacing the catalog's
 detectors directly as a CI check. Whenever an engineer alters system structure or configures new
 messaging topology, the gate parses the "Architecture-as-Code" descriptors, builds the graph view,
-computes the RMAV attribution, and runs the detectors. §9.5 reports the measured wall-clock cost of
+computes the RM attribution, and runs the detectors. §9.5 reports the measured wall-clock cost of
 exactly this work.
 
 **Implementation status.** The functioning path is the detection stage invoked through
@@ -949,9 +979,13 @@ per-edit acceptance rate and the distribution of rejection reasons; and per-oper
 *candidates generated* and *edits admitted*, since the two now differ substantially.
 
 **System Risk Index (SRI, RQ2–RQ4).** The primary prescriptive outcome measure is a composite risk
-index over the four RMAV health dimensions:
+index over the two RM health dimensions. (Under an earlier four-dimension revision of this framework
+this summed $H_R, H_M, H_A, H_V$ at 0.25 each; the Vulnerability/Security term $H_V$ is retired
+outright, with no successor, and $H_{FT}$/$H_A$ — Reliability's sub-characteristics — are reported as
+diagnostics but excluded from this sum, for the same double-counting reason they are excluded from
+the composite $Q(v)$ itself: see `docs/validation.md` §5.8.)
 
-$$\mathrm{SRI} = 0.25\,(1 - H_R) + 0.25\,(1 - H_M) + 0.25\,(1 - H_A) + 0.25\,(1 - H_V)$$
+$$\mathrm{SRI} = 0.5\,(1 - H_R) + 0.5\,(1 - H_M)$$
 
 where each $H_d = 1 - \left(\sum_c \mathrm{score}_d(c)\, w_c\right) / \sum_c w_c$ is the
 component-weight-normalized system-level health along dimension $d$. Lower SRI indicates lower
@@ -973,6 +1007,16 @@ per-scenario figures at the app layer; all numbers in this subsection come from
 **Table 9.1 — Detection validation, app layer, against $I_{\text{comp}}(v)$.** $\rho$, $F_1$ and
 Top-5 score the composite $Q(v)$ ranking; catalog P/R score the named `CRITICAL`/`HIGH` findings.
 
+> `TODO(needs re-measurement)`: every $\rho(Q,I)$/$F_1$/Top-5 value below was computed against the
+> retired four-dimension `RMAV` composite $Q(v)$ via `reproduce/detection_validation.py`, not
+> re-run this session (not part of the Phase 7 `reproduce/` artifacts this migration regenerated).
+> $Q(v)$'s formula and weights changed materially (composite now $0.80R+0.20M$ with $R$ itself a
+> hierarchical $\alpha$-blend, vs. the old $0.24R+0.17M+0.43A+0.16V$), so these numbers do not carry
+> over and must not be cited until `results/detection_validation.json` /
+> `results/detection_validation_app.json` are regenerated under the RM model. The catalog P/R columns
+> (anti-pattern detector output, independent of $Q(v)$'s weights) are less likely to have moved but
+> are unverified here too — re-run before citing either.
+
 | Scenario | $n$ | $\rho(Q, I)$ | $F_1$ | Top-5 | Catalog P | Catalog R | Implicated % | Gate (s) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | S01 Autonomous Vehicle | 80 | 0.449 | 0.650 | 0.6 | 0.253 | 1.000 | 98.8 | 1.18 |
@@ -989,11 +1033,13 @@ Top-5 score the composite $Q(v)$ ranking; catalog P/R score the named `CRITICAL`
 across the suite, with per-scenario values from $0.097$ to $0.449$ — positive everywhere, but far from
 the $\rho \ge 0.70$ target the framework's own validation gates set. The comparison that matters most
 is against the baselines the composite is meant to improve on: betweenness centrality alone reaches
-$\rho = 0.295$ and **degree centrality alone reaches $\rho = 0.417$**, both above the four-dimensional
-composite. On this evidence the RMAV composite does not buy ranking accuracy over the simplest
-structural metric available. This does not make the decomposition worthless — its four dimensions
-route a finding to the engineering role equipped to act on it, which a scalar degree count cannot —
-but that is an explanatory claim, not an accuracy claim, and §10.1 scopes it accordingly.
+$\rho = 0.295$ and **degree centrality alone reaches $\rho = 0.417$**, both above the composite
+(figures predate the RM migration — `TODO(needs re-measurement)`, see the table note above). On that
+evidence the RMAV composite did not buy ranking accuracy over the simplest structural metric
+available; whether the same holds for the RM composite is unverified here. This does not make the
+decomposition worthless either way — its dimensions route a finding to the engineering role equipped
+to act on it, which a scalar degree count cannot — but that is an explanatory claim, not an accuracy
+claim, and §10.1 scopes it accordingly.
 
 **Precision: the catalog does not stay quiet.** The named findings behave as a highly sensitive,
 weakly specific screen: mean recall $0.920$ against mean precision $0.260$. The precision figure sits
@@ -1133,7 +1179,7 @@ has nothing to offer that survives measurement, and it says so by admitting noth
 ### 9.5 Computational Overhead and CI/CD Feasibility (RQ5)
 
 **Detection gate.** Table 9.1 reports measured wall-clock time for the complete gate path — load,
-analyze, RMAV attribution, and all active detectors — from `results/detection_validation_app.json`.
+analyze, RM attribution, and all active detectors — from `results/detection_validation_app.json`.
 It ranges from 0.03 s on the 12-component fixture to 24.6 s on the 300-application enterprise topology
 (0.16 s to 33.0 s at the system layer, which analyses all five node types). This is comfortably inside
 a blocking-check budget at every scale evaluated.
@@ -1141,7 +1187,7 @@ a blocking-check budget at every scale evaluated.
 The cost breakdown is more useful than the totals, and it is not where one would expect. Summed across
 all eight scenarios, the twenty active detectors together account for roughly **0.2 seconds**; the
 costliest single detector (`CYCLE`) accounts for 0.06 s. Essentially the entire gate budget is spent
-in the analysis stage that computes the structural metrics and RMAV scores, not in pattern detection.
+in the analysis stage that computes the structural metrics and RM scores, not in pattern detection.
 Optimizing the detectors would therefore buy nothing; the analysis stage is the only lever.
 
 **One detector is excluded, and the reason is a defect rather than a design choice.** `DEEP_PIPELINE`
@@ -1195,7 +1241,7 @@ near-constant critical fraction points at the mechanism, and §11.2 makes recali
 detection-side item.
 
 Similarly, the composite $Q(v)$ does not out-rank degree centrality on this suite (§9.1). We therefore
-scope the RMAV decomposition's contribution to *attribution* — telling a reader which quality dimension
+scope the RM decomposition's contribution to *attribution* — telling a reader which quality dimension
 a component is critical along, and hence which engineering role should own it — rather than to ranking
 accuracy. That is a real contribution and a narrower one than previously claimed.
 

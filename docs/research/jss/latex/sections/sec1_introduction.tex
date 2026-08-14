@@ -74,8 +74,9 @@ framework. SaG models a pub-sub system as a typed, weighted, directed multigraph
 (applications, libraries, topics, brokers, nodes) and derives logical \texttt{DEPENDS\_ON}
 dependencies through typed projection rules (Section~\ref{sec:3}). SaG ingests code-level SCA metrics
 as vertex attributes and performs multi-dimensional quality attribution, decomposing criticality into
-orthogonal Reliability, Maintainability, Availability, and Vulnerability (RMAV) dimensions under a
-stated weighting audited for Analytic Hierarchy Process (AHP) consistency (Section~\ref{sec:4}) --- a
+a hierarchical Reliability--Maintainability (RM) structure --- Reliability itself blended from Fault
+Tolerance and Availability sub-characteristics --- under a stated weighting audited for Analytic
+Hierarchy Process (AHP) consistency at the sub-characteristic level (Section~\ref{sec:4}) --- a
 baseline whose value we show lies in explanation, not in ranking accuracy (Section~\ref{sec:8.3}).
 
 SaG then performs \textbf{failure-impact analysis}, predicting cascade impact \(I(v)\) with two
@@ -135,7 +136,7 @@ This paper makes the following contributions:
 \def\labelenumi{\arabic{enumi}.}
 \item
   \textbf{A typed graph model with hierarchical SCA metric integration.} We define the SaG multigraph
-  and the RMAV decomposition, which propagates code-level quality metrics into global system
+  and the RM decomposition, which propagates code-level quality metrics into global system
   criticality scores, and train a relation-specific Heterogeneous Graph Transformer over it
   (Section~\ref{sec:3}--Section~\ref{sec:5}).
 \item
@@ -151,11 +152,12 @@ This paper makes the following contributions:
   (Section~\ref{sec:8.1}, Section~\ref{sec:9.2}). The contribution is the scope condition, not the
   win.
 \item
-  \textbf{Multi-dimensional criticality attribution, positioned as explanation rather than accuracy.}
-  RMAV decomposes criticality into four dimensions with distinct remediation owners. A shrinkage
-  sweep shows the dimension weighting does \emph{not} improve ranking accuracy over equal weights
-  (Section~\ref{sec:8.3}); we scope the contribution to attribution accordingly
-  (Section~\ref{sec:4}, Section~\ref{sec:8.3}).
+  \textbf{Hierarchical criticality attribution, positioned as explanation rather than accuracy.}
+  RM decomposes criticality into Reliability (itself a Fault-Tolerance/Availability blend) and
+  Maintainability, each with distinct remediation owners. A shrinkage sweep of the intra-dimension
+  weights shows a small, monotone effect favouring the raw AHP judgement over shrunk settings, not
+  the accuracy improvement a coarser weighting choice might promise (Section~\ref{sec:8.3}); we scope
+  the contribution to attribution accordingly (Section~\ref{sec:4}, Section~\ref{sec:8.3}).
 \item
   \textbf{Measured edge ground truth.} We obtain edge ground truth by simulating removal of each
   candidate relationship rather than projecting node labels through a heuristic multiplier, finding

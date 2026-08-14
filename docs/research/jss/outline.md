@@ -19,7 +19,7 @@ the one to keep in sync if either file changes)*
 
 * Typed multigraph model predicts pub-sub cascading failure before deployment.
 * Heterogeneous GNN leads a training-free QoS-weighted centrality on critical-set F1.
-* Equal dimension weights outrank calibrated ones; RMAV is a baseline, not a ranker.
+* AHP weighting slightly outranks uniform weights; RM is a baseline, not a ranker.
 * Edge criticality is measured by simulated removal, not inferred from node labels.
 * SaG runs as a blocking CI/CD gate in well under a minute, even at 500+ components.
 
@@ -99,8 +99,8 @@ is exhaustive; §2 is where the literature review actually substantiates it.
 related-work structure of §2.
 
 #### §1.3 Our Approach
-**Argues.** Introduces SaG's shape end-to-end: the typed multigraph (§3), RMAV attribution (§4)
-audited for AHP consistency, the two failure-impact predictors — composite $Q(v)$ and HGT-based HGL,
+**Argues.** Introduces SaG's shape end-to-end: the typed multigraph (§3), hierarchical RM attribution
+(§4) audited for AHP consistency at the sub-characteristic level, the two failure-impact predictors — composite $Q(v)$ and HGT-based HGL,
 evaluated as HGL vs $HGL\text{-}QoS$ to isolate QoS contribution — validated against a discrete-event
 simulator under the **input–label independence guarantee** (§5), prescriptive remediation (§6.1), and
 the CI/CD gate (§6.2, currently absolute not delta-aware). States all five research questions in full.
@@ -115,10 +115,11 @@ immediately before listing RQ1–RQ5 — a numbering slip a copyeditor or review
 below). RQ1–RQ3 run on synthetic scenarios, RQ4 is the gate, RQ5 is the only real-world evidence.
 
 #### §1.4 Contributions
-**Argues.** Six contributions: (1) typed model + RMAV + HGT (§3–§5); (2) a **scope condition** on
-where learning pays — leads on both ranking and critical-set ID out of distribution, but the ranking
-margin is the contested half (§8.1); (3) RMAV repositioned as **attribution, not accuracy** — shrinkage
-sweep shows equal weights beat calibrated ones (§4, §8.3); (4) edge ground truth by **measured**
+**Argues.** Six contributions: (1) typed model + hierarchical RM + HGT (§3–§5); (2) a **scope
+condition** on where learning pays — leads on both ranking and critical-set ID out of distribution,
+but the ranking margin is the contested half (§8.1); (3) RM repositioned as **attribution, not
+accuracy** — intra-dimension shrinkage sweep shows a small, monotone edge for the calibrated judgement
+over uniform weights, not the reverse (§4, §8.3); (4) edge ground truth by **measured**
 removal, not inferred multiplier (§8.2); (5) remediation + CI/CD gate, absolute not delta-aware
 (§6, §8.4); (6) real-world validation on three architectures across two paradigms (§7.1, §8.5).
 **Evidence.** Each contribution states its own headline number inline (e.g. contribution 2 quotes
@@ -226,34 +227,37 @@ stating the guarantee unconditionally.
 
 ### 4. Interpretable Attribution as a Baseline
 
-#### §4.1 Four Dimensions and Formal Definitions
+#### §4.1 Two Dimensions and Formal Definitions
 **Argues.** Criticality is not itself a quality characteristic but a characteristic's sensitivity to
 element loss, and is instantiated **primarily on Reliability**: ISO/IEC 25010:2023 composes
 Reliability from faultlessness (frequency), fault tolerance and recoverability (duration, jointly with
-faultlessness composing availability) — R *is* fault tolerance, A *is* availability, faultlessness is
+faultlessness composing availability) — Reliability itself blends fault tolerance and availability
+hierarchically, $R(v) = \alpha \cdot FT(v) + (1-\alpha)\cdot A(v)$, $\alpha = 0.36$; faultlessness is
 excluded by the same consequence-not-risk logic as D3, and recoverability is an explicit data gap (no
-MTTR field). Maintainability and Security are secondary, thinner instantiations (2/5 and 2/6
-sub-characteristics). RMAV — Reliability, Maintainability, Availability, Vulnerability — each answers a
-distinct architectural question, is denominated in a named **external quality attribute** (ISO/IEC
-25010:2023) and a **dependability attribute**, and routes to a distinct remediation owner. The section
-opens with the three-view framing that governs the whole paper: criticality is **computed** from
-internal quality evidence, **validated** against simulated external quality, and **defined** on
-Quality-in-Use — the distinction §8.2's three-link chain rests on. Dimensions are **orthogonal by
-construction at the metric level** (disjoint raw-metric inputs, a design constraint not an empirical
-finding) but **not attribute-independent**: R and A are both Reliability sub-characteristics, so a
-high score on both is one characteristic degraded two ways, not two unrelated problems — which is why
-the composite weights rather than merges them. Two definitions do real work downstream: **criticality
-is a consequence, not a risk** (no dimension estimates failure probability, only loss given failure —
-what makes the construct computable pre-deployment); and **criticality is relative, not absolute
-(D4)** — scores/tiers are relative to the analysed system's own distribution and layer, so **scores are
-not comparable across systems or layers**. Relationship-level (edge) attribution is defined with the
-same four dimensions but explicitly *not* developed further here, since it cannot currently be
-validated against the edge-removal measurement of §8.2 (disjoint populations).
-**Evidence.** **Table 3** (four dimensions × architectural question × external quality attribute ×
-dependability attribute × remediation owner), plus an explicit fifth row correctly stating that
-**Safety** — a first-class ISO/IEC 25010:2023 characteristic since the 2023 revision, not something
-outside the standard — is not one of the characteristics this framework instantiates, because an
-architecture description carries no hazard class (see also §8.3).
+MTTR field). Maintainability is a secondary, thinner instantiation (2/5 sub-characteristics). RM —
+Reliability (hierarchical) and Maintainability — each answers a distinct architectural question, is
+denominated in a named **external quality attribute** (ISO/IEC 25010:2023) and a **dependability
+attribute**, and routes to a distinct remediation owner. The section opens with the three-view framing
+that governs the whole paper: criticality is **computed** from internal quality evidence, **validated**
+against simulated external quality, and **defined** on Quality-in-Use — the distinction §8.2's
+three-link chain rests on. The FT/A sub-terms are **orthogonal by construction at the metric level**
+(disjoint raw-metric inputs, a design constraint not an empirical finding) but **not
+attribute-independent**: both are Reliability sub-characteristics, so a high score on both is one
+characteristic degraded two ways, not two unrelated problems — which is why they are blended rather
+than reported as independent peers. Two definitions do real work downstream: **criticality is a
+consequence, not a risk** (no dimension estimates failure probability, only loss given failure — what
+makes the construct computable pre-deployment); and **criticality is relative, not absolute (D4)** —
+scores/tiers are relative to the analysed system's own distribution and layer, so **scores are not
+comparable across systems or layers**. Relationship-level (edge) attribution is defined with the same
+two dimensions but explicitly *not* developed further here, since it cannot currently be validated
+against the edge-removal measurement of §8.2 (disjoint populations). Security is not instantiated as a
+scored dimension.
+**Evidence.** **Table 3** (two dimensions, Reliability's FT/A sub-terms broken out × architectural
+question × external quality attribute × dependability attribute × remediation owner), plus explicit
+rows correctly stating that **Safety** — a first-class ISO/IEC 25010:2023 characteristic since the
+2023 revision, not something outside the standard — and **Security** are not among the characteristics
+this framework instantiates, because an architecture description carries no hazard class or threat
+model (see also §8.3).
 **Load-bearing caveats.** **D4 is the most cited definition in the paper outside the independence
 guarantee.** It is what forbids §5.4's stratified check and §8.5's three real-world $\rho$ values from
 being pooled into one cross-system number — both sections state the resulting scoping explicitly.
@@ -266,27 +270,30 @@ constraint, not an empirical observation"), so the honest framing is already in 
 work).
 
 #### §4.2 The Composite Score, Classification, and Determinism
-**Argues.** Defines the four dimension formulas (Reliability: Reverse PageRank on $G^\top$ + in-degree
-+ cascade-depth; Maintainability: betweenness + QoS-weighted out-degree + Code Quality Penalty;
-Availability: directed articulation score amplified by QoS weight; Vulnerability: reverse eigenvector +
-harmonic closeness on $G^\top$). Composite $Q(v) = w_A A + w_R R + w_M M + w_V V$ under stated weights
-$(0.43, 0.24, 0.17, 0.16)$, audited for AHP consistency ($\mathrm{CR} \le 0.10$). Adaptive box-plot
-classification (CRITICAL at $Q_3 + 1.5\,\mathrm{IQR}$). Attribution is **fully deterministic** — no
-input derives from the simulation that produces ground truth, which is what makes a measured
-correlation evidence rather than leakage. States the shrinkage-sensitivity result directly: **equal
-weights outperform the calibrated setting by 0.111 $\rho$**, with the conclusion drawn immediately:
-*the value of RMAV is attribution, not ranking accuracy*.
-**Evidence.** The 0.111 $\rho$ figure is stated here in prose; the full sweep (**Table 11**, Figure 4)
-is in §8.3. This is a deliberate structural choice — the paper states its most unfavourable robustness
-result in the method section itself rather than saving it for results, which reads as intentional
+**Argues.** Defines the sub-term formulas ($FT$: Reverse PageRank on $G^\top$ + in-degree +
+cascade-depth; $A$: directed articulation score amplified by QoS weight; blended into Reliability
+$R(v) = \alpha \cdot FT(v) + (1-\alpha)\cdot A(v)$, $\alpha = 0.36$; Maintainability: betweenness +
+QoS-weighted out-degree + Code Quality Penalty, formula unchanged from the retired model). Composite
+$Q(v) = w_R R(v) + w_M M(v)$ under declared weights $(w_R, w_M) = (0.80, 0.20)$ — algebraically derived
+from the retired four-dimension AHP composite $(0.43, 0.24, 0.17, 0.16)$, audited for AHP consistency
+($\mathrm{CR} \le 0.10$) at the sub-characteristic level rather than freshly elicited. Adaptive
+box-plot classification (CRITICAL at $Q_3 + 1.5\,\mathrm{IQR}$). Attribution is **fully deterministic**
+— no input derives from the simulation that produces ground truth, which is what makes a measured
+correlation evidence rather than leakage. States the shrinkage-sensitivity result directly: **the raw
+AHP judgement edges out uniform intra-dimension weights by $\approx 0.032\,\rho$, a small but
+consistent effect**, with the conclusion drawn immediately: *the value of RM remains attribution, not
+ranking accuracy*.
+**Evidence.** The $\approx 0.032\,\rho$ figure is stated here in prose; the full sweep (**Table 11**,
+Figure 4) is in §8.3. This is a deliberate structural choice — the paper states its robustness result
+in the method section itself rather than saving it for results, which reads as intentional
 transparency rather than something to flag as a defect.
-**Load-bearing caveats.** "The value of the RMAV decomposition is attribution, not ranking accuracy" is
-the sentence that reframes contribution 3 (§1.4) and should be treated as a fixed point — any edit to
-§8.3's numbers should re-check this sentence still follows from them.
-**Reviewer risk.** A reviewer skeptical of AHP-derived weights that then get shown *not* to help ranking
-may ask why the weighting is retained at all rather than defaulting to equal weights in the released
-tool — the text's answer (attribution ≠ ranking, so the profile's *shape* still matters regardless of
-weights) is present but somewhat implicit; worth having ready as a rebuttal point.
+**Load-bearing caveats.** "The value of the RM decomposition remains attribution, not ranking
+accuracy" is the sentence that reframes contribution 3 (§1.4) and should be treated as a fixed point —
+any edit to §8.3's numbers should re-check this sentence still follows from them.
+**Reviewer risk.** A reviewer could ask why the AHP-derived weights are retained given the small
+effect size — the text's answer (attribution ≠ ranking, so the profile's *shape* still matters
+regardless of weights, and the small effect now favours rather than undercuts the calibrated setting)
+is present but somewhat implicit; worth having ready as a rebuttal point.
 **Depends on / feeds.** The determinism claim depends on §3.3's independence guarantee. The shrinkage
 result is fully unpacked in §8.3 (Table 11, Figure 4) and echoed in §9.1's second finding and §9.3's
 "dimension weighting does not improve accuracy" limitation.
@@ -432,7 +439,7 @@ for the synthetic half of this claim (`tests/test_scenario_corpus.py`).
 
 #### §7.2 Predictors, Baselines, and Evaluation Metrics
 **Argues.** **Table 5** lists six predictors/baselines and the factor each contrast isolates
-(Topo-* vs learned → value of learning; GL vs HGL → value of typing; HGL vs HGL-QoS → RQ3; RMAV/Q vs
+(Topo-* vs learned → value of learning; GL vs HGL → value of typing; HGL vs HGL-QoS → RQ3; RM/Q vs
 learned → when interpretable attribution suffices). Three metric families: ranking ($\rho$ primary,
 plus NDCG@10, Top-5/10 overlap), identification (precision/recall/F1, SPOF-F1), statistical rigor
 (bootstrap 95% CIs, paired Wilcoxon). $\rho$ always reported by node type in addition to pooled.
@@ -498,7 +505,7 @@ not hosted CI runner hardware — explicitly flagged as an order-of-magnitude fe
 calibrated per-provider figure.
 **Reviewer risk.** Single-workstation, non-tuned-per-scenario hyperparameters is a reasonable and
 disclosed choice, but a reviewer may ask about sensitivity to the fixed hyperparameter values
-themselves (as opposed to the RMAV weight sensitivity, which *is* swept in §8.3) — not addressed for
+themselves (as opposed to the RM weight sensitivity, which *is* swept in §8.3) — not addressed for
 the learned predictor's own hyperparameters.
 **Depends on / feeds.** Feeds §8.4's runtime caveat directly.
 
@@ -561,11 +568,16 @@ draw the wrong conclusion; worth stating the distinction explicitly in any summa
 **Argues.** **QoS encoding (RQ3): null in all three regimes**, with the *sign* of the effect flipping
 by protocol (in-dist $+0.001$, OOD $-0.013$, k-fold $+0.027$) — an effect an order of magnitude smaller
 than fold-to-fold variance is a null; plausibly because the lifted `DEPENDS_ON` topology already
-encodes most QoS-relevant routing. **Dimension-weight sensitivity** (**Table 11**, Figure 4): $\rho$
-monotonically decreasing in shrinkage $\lambda$ from equal weights (0.292 at $\lambda=0$) to the
-calibrated setting (0.181 at $\lambda=0.70$) — no plateau, equal weights beat calibrated by $0.111$.
-**Normalisation**: rank-based (default) $\rho=0.181$ vs min–max/z-score $0.318$ — retaining magnitude
-worth $+0.137$; default retained anyway so prior figures stay interpretable. **Propagation-threshold**
+encodes most QoS-relevant routing. **Intra-dimension weight sensitivity** (**Table 11**, Figure 4): the
+composite weights $(w_R, w_M)$ are declared and $\lambda$-invariant; only the $FT$/$A$/$M$ intra-dimension
+term weights shrink. $\rho$ rises monotonically in $\lambda$ from uniform intra-dimension weights
+($-0.051$ at $\lambda=0$) to the raw AHP judgement ($-0.007$ at $\lambda=1$), with the shipped default
+($-0.019$ at $\lambda=0.70$) partway along — no plateau, raw judgement beats uniform weights by
+$\approx 0.032$, a small but consistent effect that reverses an earlier version's opposite-signed
+finding. **Normalisation**: rank-based (default) $\rho=-0.019$ vs min–max/z-score $-0.035$ — under RM,
+retaining magnitude now *costs* $\approx 0.016\,\rho$ rather than gaining it, reversing the earlier
+$+0.137$ finding; default retained anyway, now both the strongest of the three and the choice that
+keeps prior figures interpretable. **Propagation-threshold**
 (**Table 12**): $\rho$ spans 0.230 across the sweep (0.001 at $t=0$ to 0.231 at $t=1$); conclusions *do*
 depend on this parameter, which is why remediation (§6.1) requires improvement across the *entire*
 sweep rather than trusting a single threshold.
@@ -574,12 +586,12 @@ comparison inline.
 **Load-bearing caveats.** This section is where §4.2's early-stated shrinkage claim gets its full
 numeric backing — cross-check that both stay numerically consistent if either is edited. The threshold
 sensitivity is explicitly *not* papered over: "we therefore do not claim threshold-independence."
-**Reviewer risk.** A reviewer could ask why the rank-normalisation default is retained despite being
-demonstrably worse ($-0.137\,\rho$) — the paper's stated reason (comparability with prior reported
-figures) is a legitimate but debatable methodological choice worth defending explicitly if challenged.
-**Depends on / feeds.** Table 11 feeds §9.1's second finding and §9.3's "weighting does not improve
-accuracy" limitation (deriving rather than asserting weights is future work). Table 12 feeds the
-remediation multi-threshold requirement in §6.1.
+**Reviewer risk.** A reviewer could ask why the rank-normalisation default was ever demonstrably worse
+under an earlier version of this sweep — now, under RM, it is the strongest of the three normalisation
+choices, which should be stated plainly rather than defended as a debatable trade-off.
+**Depends on / feeds.** Table 11 feeds §9.1's second finding and §9.3's "composite weighting is
+declared, not fitted" limitation (deriving rather than asserting weights is future work). Table 12
+feeds the remediation multi-threshold requirement in §6.1.
 
 #### §8.4 RQ4 — Feasibility and Performance of SaG as a CI/CD Quality Gate
 **Argues.** Runtime: $\le 90$ components cost 0.02–0.04 s; 98–326 components cost 0.27–1.24 s, **not
@@ -729,7 +741,7 @@ having a justification ready for the stated order.
 4), §6.2 (item 5), §4.1 (item 6), §8.5/§9.2 (item 1).
 
 #### §9.4 Conclusion
-**Argues.** Closing synthesis: SaG as typed multigraph + RMAV attribution + HGT-based failure-impact
+**Argues.** Closing synthesis: SaG as typed multigraph + hierarchical RM attribution + HGT-based failure-impact
 prediction, validated under the independence guarantee; remediation with the 162/332 acceptance
 result; CI/CD gate (absolute, not delta-aware) running in seconds; the scope-condition framing for RQ1
 restated one final time ($\rho=0.608$ vs $0.521$, $F_1@K=0.465$ vs $0.308$, both after baseline repair);
@@ -772,7 +784,7 @@ during the pending LaTeX re-conversion (see [Appendix](#appendix-condensation-hi
 |:--:|---|---|
 | Table 1 | §3.1 | Node and structural edge types |
 | Table 2 | §3.2 | Six `DEPENDS_ON` projection rules |
-| Table 3 | §4.1 | Four RMAV dimensions, question, remediation owner |
+| Table 3 | §4.1 | Two RM dimensions (Reliability's FT/A sub-terms broken out), question, remediation owner |
 | Table 4 | §6.1 | Four remediation operators, trigger, edit, failure mode |
 | Table 5 | §7.2 | Predictors/baselines and the factor each isolates |
 | Table 6 | §7.4 | Three oracles, quantity measured, results each backs |
@@ -810,18 +822,22 @@ now background, not the reason to open this file.)*
 
 **This is the condensed submission draft.** `draft.md` was cut from ~30,100 words (23 tables, 6
 figures) to ~16,800 words (13 tables, 4 figures) to fit JSS's ≤36-single-column-page guidance,
-refocused on the paper's graph-learning-and-dependability claim (Reliability, Maintainability,
-Availability, Vulnerability attribution is now a baseline the results are read against, not a
-co-equal contribution). Nothing was deleted outright: the pre-condensation text and every cut
-subsection are preserved verbatim in **[`../thesis/`](../thesis/)** — see that folder's `README.md`
-for the section-by-section map of what moved where and why. The six extracted material files, all
-confirmed present, are:
+refocused on the paper's graph-learning-and-dependability claim (hierarchical Reliability/
+Maintainability (RM) attribution is now a baseline the results are read against, not a co-equal
+contribution). Nothing was deleted outright: the pre-condensation text and every cut subsection are
+preserved verbatim in **[`../thesis/`](../thesis/)** — see that folder's `README.md` for the
+section-by-section map of what moved where and why. `../thesis/jss_draft_full.md` is a frozen,
+byte-identical snapshot of `draft.md` from immediately before the condensation pass and, per its own
+`README.md`, is not edited in place — it (and the extracted material files below) still use the
+retired four-dimension "RMAV" terminology this migration replaced in `draft.md` itself, since they
+predate the RM migration and are preserved as historical record, not updated to track it. The six
+extracted material files, all confirmed present, are:
 
 - [`../thesis/material/model_details.md`](../thesis/material/model_details.md) — full `cm_*` metric
   list and QoS weight formulas cut from §3.1/§3.2.
-- [`../thesis/material/rmav_attribution.md`](../thesis/material/rmav_attribution.md) — full RMAV
-  formula derivation, three-weighting-paths account, Quality-in-Use transformation matrix, worked
-  example, cut from §4.
+- [`../thesis/material/rm_attribution.md`](../thesis/material/rm_attribution.md) — full RMAV (as
+  originally derived, pre-migration) formula derivation, three-weighting-paths account, Quality-in-Use
+  transformation matrix, worked example, cut from §4.
 - [`../thesis/material/relationship_criticality.md`](../thesis/material/relationship_criticality.md)
   — relationship (edge-level) criticality, cut entirely from §4 since it is not validated by the
   edge-removal measurement.

@@ -90,7 +90,7 @@ $$w(lib) = \min(1.0, base\_w \times (1 + 0.15 \times \log_2(1 + DG_{in})))$$
 
 ## Step 2: Structural Analysis & Quality Scoring
 
-- **`run_structural_analysis.py`**: Executes the Step 2 Analyze phase. It computes directed centrality, continuous articulation point scores, Connectivity Degradation Index (CDI), and the final multi-dimensional criticality scores (Reliability, Maintainability, Availability, Vulnerability, and Overall Q).
+- **`run_structural_analysis.py`**: Executes the Step 2 Analyze phase. It computes directed centrality, continuous articulation point scores, Connectivity Degradation Index (CDI), and the final criticality scores (Reliability — hierarchical, blending Fault Tolerance and Availability as sub-characteristics — Maintainability, and Overall Q).
 
 ### Running the Analysis Example
 
@@ -101,7 +101,7 @@ python examples/run_structural_analysis.py
 
 This prints two tables:
 1. **System Layer Normalized Structural Metrics**: Normalized RPR, DG_in, MPCI, AP_c_dir, BR, BT, w_in, FOC.
-2. **Component Criticality Scores and Levels (RMAV)**: Multi-dimensional criticality scores and their adaptive classification levels (e.g. `critical`, `high`, `medium`, `low`, `minimal`).
+2. **Component Criticality Scores and Levels (RM)**: Multi-dimensional criticality scores and their adaptive classification levels (e.g. `critical`, `high`, `medium`, `low`, `minimal`).
 
 ### Topological Observations & Discrepancies
 
@@ -158,16 +158,16 @@ This runs:
 
 ### Running the Validation Example
 
-To execute the validation pipeline and verify the G1-G9 gates, correlation metrics, and system health indices:
+To execute the validation pipeline and verify the G1-G6, G8 gates, correlation metrics, and system health indices:
 ```bash
 python examples/run_validation.py
 ```
 
 This prints six detailed ASCII tables:
 1. **Layer Statistical Validation Summary**: Overview of statistical correlation, F1 score, and error metrics for the layer.
-2. **Unified Validation Gates Checklist (G1-G9)**: Evaluates the system against all target validation gates (Spearman rank correlation, F1 score, precision, top-5 overlap, predictive gain, weighted Kappa, etc.).
-3. **Multi-Dimensional Validation**: Evaluates the Spearman rank correlation of each individual quality dimension (Reliability, Maintainability, Availability, Vulnerability) against its corresponding simulation-derived ground truth.
-4. **System Health and Risk Indices**: Displays system-wide health scores ($H_R, H_M, H_A, H_S$), the System Risk Index ($SRI$), and the Risk Concentration Index ($RCI$/Gini).
+2. **Unified Validation Gates Checklist (G1-G6, G8)**: Evaluates the system against all target validation gates (Spearman rank correlation, F1 score, precision, top-5 overlap, predictive gain, weighted Kappa, etc.).
+3. **Multi-Dimensional Validation**: Evaluates the Spearman rank correlation of each composite quality dimension (Reliability, Maintainability) plus the Fault Tolerance and Availability sub-characteristic diagnostics, against its corresponding simulation-derived ground truth.
+4. **System Health and Risk Indices**: Displays system-wide health scores ($H_R, H_M$, feeding the System Risk Index, plus diagnostic $H_{FT}, H_A$), the System Risk Index ($SRI$), and the Risk Concentration Index ($RCI$/Gini).
 5. **Node-Type Stratified Reporting**: Computes correlation scores stratified by component type.
 6. **Topic Frequency-Decile Stratified Reporting**: Decile-stratified correlation and significance ($p$-values) based on topic publishing frequencies.
 
@@ -230,8 +230,8 @@ The script outputs the static dashboard to `output/worked_example_dashboard.html
 
 1. **Executive Overview**: 6 KPI cards (Total Components, Total Dependencies, Critical Assets, SPOFs, Anti-Patterns, Validation $\rho$), criticality distribution doughnut, and top-5 components criticality bar chart.
 2. **Layer Comparison**: Grouped side-by-side bar chart comparing density, node scale, average impact, and validation Spearman correlation across layers.
-3. **Component Details**: Sortable, filterable table displaying Q(v) scores, criticality levels, simulation impacts, RMAV dimension bars, and SPOF flags.
-4. **Validation Diagnostics**: Q* predicted vs I* simulated composite scatter plot with regression/confidence lines, per-dimension Spearman progress bars, and individual scatter plots for all four RMAV dimensions.
+3. **Component Details**: Sortable, filterable table displaying Q(v) scores, criticality levels, simulation impacts, RM dimension bars, and SPOF flags.
+4. **Validation Diagnostics**: Q* predicted vs I* simulated composite scatter plot with regression/confidence lines, per-dimension Spearman progress bars, and individual scatter plots for the Reliability/Maintainability composite dimensions and the Fault Tolerance/Availability sub-characteristic diagnostics.
 5. **Interactive Network Graph**: Layer-stratified topology map rendered in Cytoscape.js using compound layer boundaries, node shapes/colors by component type and criticality, and alert box details on tap.
 6. **Dependency Matrix**: Directed adjacency matrix sorted by Q(v), with cell opacity encoding QoS edge weight.
 7. **Validation Report**: Unified validation checklist evaluating G1-G4 gates.
@@ -250,13 +250,13 @@ These examples run structural analysis, failure simulation, validation, and visu
 This topology models the safety-critical ICAO SWIM concepts, utilizing realistic components such as radar trackers, conflict detectors, trajectory predictors, and flight plans.
 
 ### 1. ATM Structural Analysis & Quality Scoring
-To run structural centrality, articulation points, and RMAV quality scoring on the ATM system:
+To run structural centrality, articulation points, and RM quality scoring on the ATM system:
 ```bash
 python examples/run_atm_structural_analysis.py
 ```
 This prints:
 - **ATM Layer Normalized Structural Metrics**: RPR, degrees, and centrality scores for critical ATM modules.
-- **ATM Component Criticality Scores and Levels (RMAV)**: Safety-critical elements like `conflict-detector` and `radar-tracker` score noticeably above baseline, landing in the MEDIUM overall Q(v) tier (composite scores ~0.28-0.42) on the current RMAV scoring model.
+- **ATM Component Criticality Scores and Levels (RM)**: Safety-critical elements like `conflict-detector` and `radar-tracker` score noticeably above baseline. Under the RM composite, the four `conflict-detector` instances land LOW-to-MEDIUM (Q(v) ≈ 0.24–0.35): `A17`=0.3453 (medium), `A9`=0.3397 (medium), `A20`=0.3270 (medium), `A24`=0.2365 (**low** — a genuine tier drop from the retired 4-D model, since Availability's weight in the composite decreased once it folded into Reliability as a sub-characteristic at α=0.36).
 - **ATM Graph Summary**: Detailed topological summary ($S(G)$) of the 74-component graph.
 
 ### 2. ATM Failure Simulation
@@ -274,7 +274,7 @@ To run the validation checks comparing predicted quality metrics against simulat
 ```bash
 python examples/run_atm_validation.py
 ```
-This prints statistical metrics showing strong model alignment for safety-critical components (such as an application-stratified Spearman $\rho \approx 0.853$), checks unified validation gates (G1-G9), and computes health indices.
+This prints statistical metrics showing strong model alignment for safety-critical components (such as an application-stratified Spearman $\rho \approx 0.853$), checks unified validation gates (G1-G6, G8), and computes health indices.
 
 ### 4. ATM Visualization Dashboard
 To compile all ATM analysis steps and output an interactive HTML dashboard:

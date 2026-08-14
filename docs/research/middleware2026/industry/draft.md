@@ -453,7 +453,7 @@ over-flagging mechanism identified in the secondary corpus (§5.2.3) — but her
 volume stays cheap to compute (§5.2.1), but the catalog gets steadily less discriminating.**
 
 **This is a mechanical consequence of how the catalog verdict is built, not evidence it fails to find
-critical components.** Elsewhere in this evaluation, the RMAV composite score $Q(v)$ is deliberately
+critical components.** Elsewhere in this evaluation, the RM composite score $Q(v)$ is deliberately
 threshold-matched to the oracle's critical-set size on both sides, so its precision and recall
 converge by construction. The catalog verdict has no such matching: it is a binary "flagged by at
 least one of the catalog's rules" decision, and its flagged fraction is whatever the union of

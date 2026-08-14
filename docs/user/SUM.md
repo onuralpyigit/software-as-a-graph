@@ -238,7 +238,7 @@ Imports a system topology JSON file into the Neo4j database, building nodes and 
 ---
 
 ### 5.3 Step 2: Structural Analysis
-Analyzes the imported graph in Neo4j to compute centrality metrics, anti-patterns, and baseline RMAV and Q(v) quality scores.
+Analyzes the imported graph in Neo4j to compute centrality metrics, anti-patterns, and baseline RM and Q(v) quality scores.
 - **Script:** [cli/analyze_graph.py] or `saag-analyze`
 - **Arguments:**
   - `--layer`: Targets specific system layers (`app`, `infra`, `mw`, `system`).
@@ -296,16 +296,18 @@ Injects synthetic failures and evaluates cascade propagation, change propagation
 ---
 
 ### 5.6 Step 5: Statistical Validation
-Compares analytical predictions (Step 3) against simulation ground-truth (Step 4) to verify validation gates (Spearman, F1-Score, NDCG@K, RMSE).
+Computes Q(v) internally, derives simulation ground truth, and verifies validation gates (Spearman, F1-Score, NDCG@K, RMSE) in one command. Takes the same `system.json` used in Step 1, not the separate per-step output files from Steps 2–4.
 - **Script:** [cli/validate_graph.py] or `saag-validate`
-- **Arguments:**
-  - `--structural`: Path to analysis metrics JSON.
-  - `--simulated`: Path to simulation results JSON.
-  - `--rmav`: Path to GNN prediction results JSON.
-  - `--layer`: Layer to validate.
+- **Subcommands:** `single` (one seed), `sweep` (multi-seed stability), `report` (sweep + topology-class gates + node-type strata), `compare` (topology-only vs. QoS-enriched ablation), `harness` (validate pre-computed Q(v)/I(v) JSON artifacts against each other, for pipelines that already have `predict_graph.py` output on disk).
+- **Arguments (common to `single`/`sweep`/`report`/`compare`):**
+  - `--input`: Path to system topology JSON file.
+  - `--qos`: Enable QoS-enriched scoring.
+  - `--gnn-model`: Path to a GNN checkpoint directory (optional).
+  - `--top-k`: K for classification metrics (default: 20% of nodes).
+  - `--output`: Path to write the JSON report.
 - **Example:**
   ```bash
-  python cli/validate_graph.py --structural output/structural_metrics.json --simulated output/simulation_results.json --rmav output/predictions.json --layer system
+  python cli/validate_graph.py report --input data/synthetic_medium.json --qos --output output/validation_report.json
   ```
 
 ---
@@ -364,7 +366,7 @@ The server will start on port `8000`. You can access the Swagger UI documentatio
 - **Query Parameters:**
   - `layer` (string): `system` (default), `app`, `infra`, `mw`
   - `use_ahp` (boolean): `true` / `false`
-- **Response:** JSON list of computed centrality metrics, anti-patterns, and RMAV scores per component.
+- **Response:** JSON list of computed centrality metrics, anti-patterns, and RM scores per component.
 
 #### GNN Criticality Prediction `/api/v1/prediction/predict`
 - **Method:** `POST`
@@ -421,8 +423,8 @@ Open your browser and navigate to:
 - Dragging, zooming, and clicking on a component opens a details panel containing code quality metrics (CQP, LCOM), degree centrality, and natural-language failure narratives.
 
 #### 3. Analytical Dashboard
-- **Anti-Pattern Audit**: Lists architectural smells (God Components, Failure Hubs, Exposure Paths, Cycles) ranked by severity.
-- **RMAV Breakdown**: Charts detailing individual reliability, maintainability, availability, and vulnerability metrics for each node.
+- **Anti-Pattern Audit**: Lists architectural smells (God Components, Failure Hubs, Cycles) ranked by severity.
+- **RM Breakdown**: Charts detailing individual reliability (with its Fault Tolerance and Availability sub-characteristics) and maintainability metrics for each node.
 
 #### 4. Validation Panel
 - Visualizes Spearman rank correlation scatter plots comparing predicted criticality against simulated ground truth.
