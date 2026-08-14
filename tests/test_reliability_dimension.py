@@ -31,11 +31,10 @@ class TestQualityWeightsV4:
         assert w.ft_in_degree > 0.0, "ft_in_degree should be positive (reinstated in v5)"
         assert w.ft_cdpot > 0.0, "ft_cdpot should be positive"
 
-    def test_deprecated_ft_pagerank_and_ft_w_in_are_zero(self):
-        """ft_pagerank and ft_w_in must be 0.0 in v5 (deprecated)."""
+    def test_deprecated_ft_pagerank_is_zero(self):
+        """ft_pagerank must be 0.0 in v5 (deprecated)."""
         w = QualityWeights()
         assert w.ft_pagerank == 0.0, "ft_pagerank should be deprecated (0.0) in v5"
-        assert w.ft_w_in == 0.0, "ft_w_in should be deprecated (0.0) in v5"
 
     def test_ahp_computed_weights_are_positive_and_sum_near_active_terms(self):
         """AHP-computed fault-tolerance weights should be positive and roughly sum to 1."""

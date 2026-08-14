@@ -125,11 +125,6 @@ DIMENSION_DRIVERS = {
         ("bridge_ratio", "Bridge ratio", "fraction of its connections that are irreplaceable"),
         ("cdi", "Connectivity Degradation Index", "increase in average path length without it"),
     ],
-    "Security": [
-        ("dependency_weight_in", "QoS-weighted in-degree (QADS)", "attack surface — high-priority traffic flowing into it"),
-        ("reverse_closeness", "Reverse Closeness", "how quickly compromise propagates to its dependents"),
-        ("reverse_eigenvector", "Reverse Eigenvector", "connection quality to high-value downstream targets"),
-    ],
 }
 
 def identify_driver(component: ComponentQuality, dimension: str) -> tuple[str, float, str]:

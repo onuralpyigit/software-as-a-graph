@@ -27,9 +27,8 @@
    - [9.8 Directed AP Score (AP_c_directed)](#98-directed-ap-score-ap_c_directed)
    - [9.9 Bridge Ratio (BR)](#99-bridge-ratio-br)
    - [9.10 Connectivity Degradation Index (CDI)](#910-connectivity-degradation-index-cdi)
-   - [9.11 Reverse Eigenvector Centrality (REV)](#911-reverse-eigenvector-centrality-rev)
-   - [9.12 Reverse Closeness Centrality (RCL)](#912-reverse-closeness-centrality-rcl)
-   - [9.13 QoS-Weighted In-Degree (w_in / QADS)](#913-qos-weighted-in-degree-w_in--qads)
+   - (9.11, 9.12 retired — REV, RCL removed entirely; see the note preceding §9.13)
+   - [9.13 QoS-Weighted In-Degree (w_in)](#913-qos-weighted-in-degree-w_in)
    - [9.14 Path Complexity (PC)](#914-path-complexity-pc)
    - [9.15 Diagnostic Metrics](#915-diagnostic-metrics)
 10. [Metric Catalogue Reference](#10-metric-catalogue-reference)
@@ -61,13 +60,15 @@ Analysis takes the layer-projected dependency graph **G_analysis(l)** produced b
 
 ```
 G_analysis(l)          StructuralAnalyzer           Output
-(DEPENDS_ON graph)  →  11 RM-input metrics     →   M(v) per component
+(DEPENDS_ON graph)  →  13 RM-input metrics     →   M(v) per component
                         7 diagnostic metrics         S(G) graph summary
-                        3 raw/derived counts
+                        8 raw/derived counts
                         — all stored in M(v) —
 ```
 
-REV, Reverse Closeness, and QoS-Weighted In-Degree/QADS moved from RM-input to diagnostic when Vulnerability/Security was retired — they are still computed, just no longer scored (see [§9.11–9.13](#911-reverse-eigenvector-centrality-rev), [§11.4](#114-metric-orthogonality)).
+This 13/7/8 split covers the core topology + resilience + pub-sub metrics in [§10](#10-metric-catalogue-reference)'s first table; code-quality, infrastructure, and weight fields are catalogued separately in that section. `saag/core/metric_registry.py` is the machine-checked source of truth for which of every `StructuralMetrics` field is scored, detection-only, a GNN feature, or descriptive-only — `tests/test_metric_registry.py` fails if it drifts from the dataclass.
+
+Reverse Eigenvector (REV) and Reverse Closeness (RCL) were RM-input metrics before Vulnerability/Security was retired; both are now removed entirely (see the note preceding [§9.13](#913-qos-weighted-in-degree-w_in)). QoS-Weighted In-Degree (`w_in`) was retired from that same V(v) role but not deleted — it was repurposed as a Topic-only FT(v) input and remains RM-input, not diagnostic (see [§11.4](#114-metric-orthogonality)).
 
 **Scope of this step:** M(v) contains structural observations only. Criticality scores are computed in the **RM sub-phase** of this same step ([§11](#11-analyze-stage--rule-based-rm-scoring)), which consumes M(v) and applies AHP-derived weights to produce criticality predictions Q(v). The steps are kept separate to preserve the prediction–simulation independence guarantee: structural features must not be contaminated by simulation outcomes.
 
@@ -240,10 +241,8 @@ Phase 2  _compute_centrality(G, G_rev, G_dist, n)      → _Centrality
          │  PageRank(G_rev, d=0.85, weight)          → reverse_pagerank (RPR)
          │  betweenness_centrality(G_dist, weight)   → betweenness (BT)
          │  harmonic_centrality(G) / (n-1)           → closeness (CL)
-         │  harmonic_centrality(G_rev) / (n-1)       → reverse_closeness (RCL)
          │  _safe_eigenvector(G)                     → eigenvector (EV)
          │    fallback chain: eigenvector → Katz(α=0.01) → zeros
-         │  _safe_eigenvector(G_rev)                 → reverse_eigenvector (REV)
          │  edge_betweenness_centrality(G_dist)      → per-edge betweenness
 
 Phase 3  _compute_coupling(G, n)                       → _Coupling
@@ -313,10 +312,10 @@ Every field in M(v) belongs to exactly one of three tiers. This taxonomy is the 
 | Tier | Purpose |
 |------|---------|
 | **Tier 1 — RM inputs** | Directly feed FT(v), M(v), or A(v) in the RM sub-phase ([§11](#11-analyze-stage--rule-based-rm-scoring)) — R(v) is a declared blend of FT and A, not a direct metric consumer |
-| **Tier 2 — Diagnostic** | Computed for visualization, output reports, and GNN features; do not feed RM formulas. REV, RCL, and `w_in`/QADS moved here when Vulnerability/Security was retired — they were Tier 1 → V(v) inputs and are still computed, just no longer scored |
+| **Tier 2 — Diagnostic** | Computed for visualization, output reports, and GNN features; do not feed RM formulas |
 | **Tier 3 — Raw / inline-derived** | Integer counts and inline-derived scalars used only *within* RM formulas; not stored as normalized metrics |
 
-**Why PR, CL, EV are Tier 2:** The *forward* variants (PageRank, Closeness, Eigenvector) measure how much a component itself is influenced by others — they are informative for dependency visualization but do not directly capture failure propagation outward. Their reverse counterpart RPR, computed on G^T, captures how failures at v spread to v's dependents — the reliability-relevant direction, and is the only reverse-centrality metric an RM formula still reads (REV and RCL are also reverse-direction but retired, see above). Computing all of PR/CL/EV gives the full picture for dashboards while FT(v) uses only RPR.
+**Why PR, CL, EV are Tier 2:** The *forward* variants (PageRank, Closeness, Eigenvector) measure how much a component itself is influenced by others — they are informative for dependency visualization but do not directly capture failure propagation outward. Their reverse counterpart RPR, computed on G^T, captures how failures at v spread to v's dependents — the reliability-relevant direction, and is the only reverse-centrality metric an RM formula still reads. (REV and RCL, the reverse-direction counterparts of CL and EV, were retired along with V(v) and are no longer computed at all — see the note preceding [§9.13](#913-qos-weighted-in-degree-w_in).) Computing all of PR/CL/EV gives the full picture for dashboards while FT(v) uses only RPR.
 
 **Why pubsub_degree, pubsub_betweenness, broker_exposure are Tier 2:** These are computed on the raw bipartite app-topic graph (using PUBLISHES_TO / SUBSCRIBES_TO edges, not DEPENDS_ON edges). They enrich the SMART visualization dashboard and serve as GNN features, but the RM formulas operate on the DEPENDS_ON graph where the same information is captured via DG_in, BT, and RPR respectively.
 
@@ -584,50 +583,17 @@ path length, making them the most informative BFS sources for CDI estimation.
 - Albert, R., Jeong, H., & Barabási, A. L. (2000). *Error and attack tolerance of complex networks*. Nature, 406(6794), 378-382.
 - Callaway, D. S., Newman, M. E., Strogatz, S. H., & Watts, D. J. (2000). *Network robustness and fragility: Percolation on random graphs*. Physical Review Letters, 85(25), 5468.
 
-### 9.11 Reverse Eigenvector Centrality (REV)
+*(§9.11 Reverse Eigenvector Centrality and §9.12 Reverse Closeness Centrality — REV and RCL — were Tier 1 → V(v) inputs before Vulnerability/Security was retired. They were reclassified to Tier 2 and kept for reference for a time; both are now fully removed from `StructuralMetrics`, the normalization tables, and the SMART dashboard — nothing computes or reads them. This numbering gap is intentional, the same convention `validation.md` uses for its retired G7/G9 gates.)*
 
-*Retired — was Tier 1 → V(v). Still computed and persisted (`StructuralMetrics.reverse_eigenvector`); no RM formula reads it since Vulnerability/Security was dropped entirely. Kept for reference and for any downstream consumer (dashboards, GNN features) that still wants it.*
+### 9.13 QoS-Weighted In-Degree (w_in)
 
-```
-REV(v) = eigenvector_centrality(G^T)[v]
-
-Power iteration on G^T, max 500 iterations.
-Fallback chain: eigenvector_centrality → katz_centrality(α=0.01) → zeros.
-```
-
-**High REV(v) means:** In G^T (failure-propagation direction), v is connected to other high-REV components — meaning v's downstream dependents are themselves important hubs. A compromise at v would cascade into a cluster of high-value targets.
-
-> **Convergence note:** Eigenvector centrality may fail on directed acyclic graphs (DAGs) or nearly-acyclic graphs because the dominant eigenvalue does not exist. The Katz fallback with attenuation factor α = 0.01 handles these cases gracefully. If both fail, zeros are returned and a WARNING is logged.
-
-**Literature Citation:** Eigenvector centrality was introduced by Bonacich (1987). REV computes this on the transposed graph $G^T$.
-- Bonacich, P. (1987). *Power and centrality: A family of measures*. American Journal of Sociology, 92(5), 1170-1182.
-
-### 9.12 Reverse Closeness Centrality (RCL)
-
-*Retired — was Tier 1 → V(v). Still computed and persisted (`StructuralMetrics.reverse_closeness`); no RM formula reads it. See §9.11.*
-
-```
-RCL(v) = harmonic_centrality(G^T)[v] / (|V| − 1)
-
-Harmonic closeness is used for robustness to disconnected graphs.
-```
-
-**High RCL(v) means:** In G^T, v can reach many other components quickly — meaning, in the original graph, many components can propagate to v in few hops. Adversarial paths from dependents to v are short, amplifying exposure.
-
-**Literature Citation:** Closeness centrality was defined by Bavelas (1950). To handle disconnected networks, this implementation uses the reciprocal distance definition (Harmonic Closeness) formulated by Marchiori and Latora (2000).
-- Bavelas, A. (1950). *Communication patterns in task-oriented groups*. The Journal of the Acoustical Society of America, 22(6), 725-730.
-- Marchiori, M., & Latora, V. (2000). *Harmony in the small world*. arXiv:cond-mat/0008350.
-- Latora, V., & Marchiori, M. (2001). *Efficient behavior of small-world networks*. Physical Review Letters, 87(19), 198701.
-
-### 9.13 QoS-Weighted In-Degree (w_in / QADS)
-
-*Retired — was Tier 1 → V(v) as QADS (QoS-weighted Attack-Dependent Surface). Still computed and persisted (`StructuralMetrics.dependency_weight_in`); no RM formula reads it as QADS. See §9.11.*
+*Tier 1 → FT(v), Topic nodes only. `StructuralMetrics.dependency_weight_in` was the QADS (QoS-weighted Attack-Dependent Surface) Tier 1 → V(v) input before Vulnerability/Security was retired; the field was not retired with it — it was repurposed as `publisher_norm` in the Topic branch of FT(v) (§11.2). Non-Topic types read 0.0.*
 
 ```
 w_in(v) = Σ_{(u,v) ∈ InEdges(v)} weight(u,v)    (raw sum, then rank-normalized)
 ```
 
-**High w_in(v) means:** Many high-SLA components directly depend on v. v is a high-value target because compromising it disrupts the most critical immediate consumers. The QoS weighting ensures that a dependency from an URGENT/PERSISTENT subscriber counts more than one from a LOW/BEST_EFFORT subscriber.
+For a Topic, `w_in` is the QoS-weighted count of its publishers. Used in `CDPot_topic(v) = FOC(v) × (1 − min(w_in_norm(v), 1))`: a topic with many publishers has redundant sources, so losing one publisher degrades it less than a sole-publisher topic — `w_in` is what makes that redundancy discount possible.
 
 ### 9.14 Path Complexity (PC)
 
@@ -647,8 +613,8 @@ PC(v) = mean( log2(1 + path_count(e)) ) over e ∈ OutEdges(v)
 | Metric | Definition | Purpose |
 |--------|-----------|---------| 
 | PageRank (PR) | Standard PageRank on G | Forward importance; shows which components accumulate the most transitive dependency weight |
-| Closeness (CL) | Harmonic closeness on G | Forward propagation speed; complementary view to RCL for dashboards |
-| Eigenvector (EV) | Eigenvector centrality on G | Forward influence through neighbors; complementary to REV |
+| Closeness (CL) | Harmonic closeness on G | Forward propagation speed, for dashboards |
+| Eigenvector (EV) | Eigenvector centrality on G | Forward influence through neighbors |
 | pubsub_degree | Degree in bipartite app-topic graph | Topic diversity of an application — how many distinct message channels it participates in |
 | pubsub_betweenness | Betweenness in bipartite app-topic graph | Applications that bridge separate topic clusters |
 | broker_exposure | Avg distinct brokers routing app's topics | Infrastructure blast surface — how many brokers an application's failure would stress |
@@ -674,9 +640,7 @@ Complete M(v) field listing — the single authoritative index. Every field has 
 | `bridge_ratio` | [BR](#99-bridge-ratio-br) | 1 | A | ↑ | |
 | `cdi` | [CDI](#910-connectivity-degradation-index-cdi) | 1 | A | ↑ | |
 | `weight` | w | 1 | A | ↑ | Component QoS weight from Step 1; factor in QSPOF |
-| `reverse_eigenvector` | [REV](#911-reverse-eigenvector-centrality-rev) | — | — | ↑ | Retired — was Tier 1 → V(v); computed, unread |
-| `reverse_closeness` | [RCL](#912-reverse-closeness-centrality-rcl) | — | — | ↑ | Retired — was Tier 1 → V(v); computed, unread |
-| `dependency_weight_in` | [w_in](#913-qos-weighted-in-degree-w_in--qads) | — | — | ↑ | Retired — was Tier 1 → V(v) as QADS; computed, unread |
+| `dependency_weight_in` | [w_in](#913-qos-weighted-in-degree-w_in) | 1 | FT | ↑ | Topic nodes only — publisher_norm in Topic FT(v); 0.0 for all other types |
 | `pagerank` | PR | 2 | — | — | Forward transitive importance |
 | `closeness` | CL | 2 | — | — | Forward propagation speed |
 | `eigenvector` | EV | 2 | — | — | Forward influence |
@@ -953,6 +917,7 @@ Each raw metric from M(v) feeds **exactly one** of the three scored leaves — F
 | In-Degree (norm) | DG_in | ✓ | | | Immediate blast radius |
 | MPCI | MPCI | ✓ via CDPot | | | Amplifier only; enters via derived term |
 | Fan-Out Criticality | FOC | ✓ Topics | | | Substitutes for DG_in on Topic nodes |
+| QoS In-Degree | w_in | ✓ Topics | | | publisher_norm in Topic FT(v) only; 0.0 for non-Topic types |
 | Path Complexity | path_complexity | | ✓ via CouplingRisk | | Structural coupling depth |
 | Betweenness | BT | | ✓ | | Structural bottleneck |
 | QoS Out-Degree | w_out | | ✓ | | Priority-weighted efferent coupling |
@@ -966,7 +931,7 @@ Each raw metric from M(v) feeds **exactly one** of the three scored leaves — F
 | Closeness | CL | — | — | — | Diagnostic only (Tier 2) |
 | Eigenvector | EV | — | — | — | Diagnostic only (Tier 2) |
 
-**Retired — computed but read by no RM formula** (same class of gotcha as `cm_avg_cbo`/`cm_avg_rfc`, see [CLAUDE.md Known Gotchas](../CLAUDE.md#known-gotchas)): Reverse Eigenvector Centrality (REV), Reverse Closeness Centrality (RCL), and QoS-Weighted In-Degree/QADS (`w_in`) were `V(v)`'s three terms. `StructuralAnalyzer` still computes and persists all three (`reverse_eigenvector`, `reverse_closeness`, `dependency_weight_in` on `StructuralMetrics`) — nothing in `_compute_rm` reads them any more. See [§9.11–9.13](#911-reverse-eigenvector-centrality-rev) for their formal definitions, kept for reference.
+**Fully removed:** Reverse Eigenvector Centrality (REV) and Reverse Closeness Centrality (RCL) were two of `V(v)`'s three terms; neither is computed, stored, or exported any more — see the note preceding [§9.13](#913-qos-weighted-in-degree-w_in). The third term, QoS-Weighted In-Degree (`w_in`, `dependency_weight_in` on `StructuralMetrics`), was **not** retired the same way — it was repurposed as the Topic-only FT(v) input in the table above. Do not confuse it with the still-current `cm_avg_cbo`/`cm_avg_rfc` gotcha in [CLAUDE.md Known Gotchas](../CLAUDE.md#known-gotchas), which is a genuinely different case: those two fields really are computed, persisted, and read by nothing.
 
 ---
 
@@ -1205,8 +1170,8 @@ Key observations:
 |-----------|------------|-------|
 | PageRank / RPR | O(I × \|E\|) | I = iterations (≤100) |
 | Betweenness | O(\|V\| × \|E\|) | Brandes' algorithm; inverted weights |
-| Closeness / RCL | O(\|V\| × (\|V\| + \|E\|)) | Harmonic closeness via BFS |
-| Eigenvector / REV | O(I × \|E\|) | Power iteration (≤500 iters); Katz fallback |
+| Closeness | O(\|V\| × (\|V\| + \|E\|)) | Harmonic closeness via BFS |
+| Eigenvector | O(I × \|E\|) | Power iteration (≤500 iters); Katz fallback |
 | AP_c_directed | O(\|V\| × (\|V\| + \|E\|)) | Reachability removal per vertex |
 | CDI | O(\|V\| × (\|V\| + \|E\|)) | APSP removal per vertex; sampled for \|V\| > 300 |
 | Bridge detection | O(\|V\| + \|E\|) | DFS-based |

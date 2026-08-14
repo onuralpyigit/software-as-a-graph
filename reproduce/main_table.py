@@ -458,9 +458,7 @@ def _compute_rm_from_structural(
             reverse_pagerank=float(feats.get("reverse_pagerank", 0.0)),
             betweenness=float(feats.get("betweenness_centrality", 0.0)),
             closeness=float(feats.get("closeness_centrality", 0.0)),
-            reverse_closeness=float(feats.get("closeness_centrality", 0.0)),
             eigenvector=float(feats.get("pagerank", 0.0)),       # proxy when EV not computed
-            reverse_eigenvector=float(feats.get("reverse_pagerank", 0.0)),
             in_degree=float(feats.get("in_degree_centrality", 0.0)),
             out_degree=float(feats.get("out_degree_centrality", 0.0)),
             clustering_coefficient=float(feats.get("clustering_coefficient", 0.0)),

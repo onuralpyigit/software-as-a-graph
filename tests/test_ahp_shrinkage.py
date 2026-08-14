@@ -3,15 +3,14 @@ from saag.analysis.weight_calculator import AHPProcessor, AHPMatrices
 from saag.core.models import AHP_SHRINKAGE_LAMBDA
 
 def test_shrinkage():
-    # v5: ft_pagerank and ft_w_in are deprecated (0.0); the three active Reliability weights
+    # v5: ft_pagerank is deprecated (0.0); the three active Reliability weights
     # are ft_reverse_pagerank (RPR), ft_in_degree (DG_in), ft_cdpot (CDPot).
 
     # 1. Pure AHP (lambda=1.0)
     processor_pure = AHPProcessor(shrinkage_factor=1.0)
     weights_pure = processor_pure.compute_weights()
-    # Deprecated fields must be 0.0
+    # Deprecated field must be 0.0
     assert weights_pure.ft_pagerank == 0.0, "ft_pagerank must be 0.0 in v5"
-    assert weights_pure.ft_w_in == 0.0, "ft_w_in must be 0.0 in v5 (deprecated)"
     # Primary weight (RPR) must be positive and dominant
     print(f"Pure R weights: rpr={weights_pure.ft_reverse_pagerank:.3f}, din={weights_pure.ft_in_degree:.3f}, cdpot={weights_pure.ft_cdpot:.3f}")
     assert weights_pure.ft_reverse_pagerank > 0.0

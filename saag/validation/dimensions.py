@@ -15,8 +15,8 @@ from typing import Any, Callable, Dict, List, Tuple
 
 from .metric_calculator import (
     calculate_bottleneck_precision,
-    calculate_ccr_at_k, calculate_cme, calculate_cocr_at_k, calculate_dasa,
-    calculate_hsrr, calculate_rri, calculate_spof_f1,
+    calculate_ccr_at_k, calculate_cme, calculate_cocr_at_k,
+    calculate_spof_f1,
     calculate_weighted_kappa_cta,
 )
 from .models import ValidationTargets
@@ -63,8 +63,10 @@ class DimensionResult:
 
 
 #: Structural metrics the availability specialists want that `StructuralMetrics`
-#: does not currently produce. They read as 0.0, which makes HSRR/DASA/RRI
-#: degenerate — see the note in `_availability_specialists`.
+#: does not currently produce — see the note in `_availability_specialists`.
+#: `_structural` below is unused while that holds; both are kept so the fix
+#: (populate these four fields, then call `_structural` + calculate_hsrr/
+#: calculate_dasa/calculate_rri from metric_calculator again) is a small diff.
 UNPOPULATED_STRUCTURAL_METRICS = ("ap_c_out", "ap_c_in", "qspof", "bridge_score")
 
 
@@ -114,35 +116,33 @@ def _maintainability_specialists(d: DimensionInputs) -> Dict[str, float]:
     }
 
 
-def _availability_specialists(d: DimensionInputs) -> Dict[str, float]:
+def _availability_specialists(d: DimensionInputs) -> Dict[str, Any]:
     """SPOF-F1 (with its precision/recall), HSRR, DASA and RRI.
 
     Only SPOF-F1 is fully backed by the current analyzer: it uses
     `is_articulation_point`, which `StructuralMetrics` does populate. HSRR, DASA
-    and RRI read the metrics in `UNPOPULATED_STRUCTURAL_METRICS`, which the
-    analyzer does not emit yet, so they evaluate against all-zero predictors and
-    should be read as "not yet measured" rather than as a failing score.
+    and RRI read the metrics named in `UNPOPULATED_STRUCTURAL_METRICS`
+    (`qspof`, `ap_c_out`, `ap_c_in`, `bridge_score`) — none of these are fields
+    `StructuralAnalyzer` ever writes to `StructuralMetrics`, so every predictor
+    value the specialists would see is permanently 0.0 by omission, not by
+    measurement. That does not evaluate to "no hidden SPOFs" or "no asymmetry";
+    it evaluates to no measurement at all. Report None rather than a computed
+    float, so "not yet measured" cannot be mistaken for "measured and
+    near-zero". Flip this back to computing real values once the analyzer
+    emits those four fields.
     """
     articulation = {
         cid: (1.0 if d.components[cid].structural.is_articulation_point else 0.0)
         for cid in d.ids if cid in d.components
     }
-    ia_out = d.ground_truths.get("ia_out", {})
-    ia_in = d.ground_truths.get("ia_in", {})
-
     spof = calculate_spof_f1(articulation, d.actual)
     return {
         "spof_f1": spof["f1"],
         "spof_precision": spof["precision"],
         "spof_recall": spof["recall"],
-        "hsrr": calculate_hsrr(_structural(d, "qspof"), d.actual, articulation),
-        "dasa": calculate_dasa(
-            _structural(d, "ap_c_out"),
-            _structural(d, "ap_c_in"),
-            {cid: ia_out[cid] for cid in d.ids if cid in ia_out},
-            {cid: ia_in[cid] for cid in d.ids if cid in ia_in},
-        ),
-        "rri": calculate_rri(d.actual, _structural(d, "bridge_score")),
+        "hsrr": None,
+        "dasa": None,
+        "rri": None,
     }
 
 

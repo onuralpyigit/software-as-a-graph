@@ -1,16 +1,13 @@
-# Architectural Anti-Patterns and Bad Smells in Distributed Publish-Subscribe Systems: Specification and Graph-Based Detection
-<!--
-**Graph-Based Modeling and Analysis of Distributed Publish-Subscribe Systems**
-Istanbul Technical University, Department of Computer Engineering
+# Architectural Anti-Pattern Catalog
 
-*Ibrahim Onuralp Yigit · Advisor: Prof. Feza Buzluca*
--->
+**The 19-pattern catalog: formal detection rule, severity, and remediation for each.** For the motivation, literature grounding, empirical validation, comparison with prior anti-pattern research, and practice implications, see [research/methodology/antipattern-study.md](research/methodology/antipattern-study.md) — this reference doc was split out of that fuller document to keep the catalog itself quick to scan.
+
 ---
 
 ## Table of Contents
 
-1. [Introduction](#1-introduction)
-2. [Background and Motivation](#2-background-and-motivation)
+*(Numbered 3–5, matching [antipattern-study.md](research/methodology/antipattern-study.md)'s §1–2 for the material this catalog was split from — heading numbers below are unchanged so existing links into this file keep working.)*
+
 3. [The Multi-Layer Graph Model](#3-the-multi-layer-graph-model)
 4. [Detection Methodology](#4-detection-methodology)
 5. [Anti-Pattern Catalog](#5-anti-pattern-catalog)
@@ -33,50 +30,8 @@ Istanbul Technical University, Department of Computer Engineering
    - 5.17 [CHAIN — Chain Topology](#517-chain--chain-topology)
    - 5.18 [ISOLATED — Isolated Component](#518-isolated--isolated-component)
    - 5.19 [COMPOUND_RISK — Compound Architectural Risk](#519-compound_risk--compound-architectural-risk)
-6. [Empirical Validation](#6-empirical-validation)
-7. [Relationship to the RM Prediction Framework](#7-relationship-to-the-rm-prediction-framework)
-8. [Comparison with Existing Work](#8-comparison-with-existing-work)
-9. [Implications for Architecture Practice](#9-implications-for-architecture-practice)
-10. [Conclusion](#10-conclusion)
-11. [References](#11-references)
 
----
-
-## 1. Introduction
-
-Distributed publish-subscribe systems underpin some of the most demanding software in the world: ROS 2-based autonomous vehicles routing hundreds of real-time sensor streams, financial trading platforms sustaining sub-millisecond message latency, IoT deployments connecting tens of thousands of heterogeneous edge devices, and hospital information systems governing life-critical clinical workflows. In every one of these domains, certain architectural decisions — often invisible until a production incident — introduce structural fragility that makes systems brittle, hard to scale, and expensive to maintain.
-
-These decisions have a name in classical software engineering: **architectural anti-patterns**. In object-oriented design, the body of work on anti-patterns is mature: God Class, Feature Envy, Shotgun Surgery, and dozens of others have well-defined specifications, detection heuristics, and refactoring strategies. In distributed publish-subscribe systems, no equivalent catalog exists. Practitioners identify problems reactively — through postmortem reports, performance regressions, or cascade failures — rather than proactively at design time.
-
-This document proposes and formally specifies a **catalog of nineteen architectural anti-patterns and bad smells** specific to distributed publish-subscribe systems, alongside a detection methodology grounded in **graph topology analysis**. The central claim is that each anti-pattern has a measurable topological signature — a pattern of graph-theoretic metric values that can be computed from the system's static architecture before deployment — and that this signature reliably predicts the presence of the corresponding runtime risk.
-
-The anti-pattern catalog presented here emerges from the broader *Software-as-a-Graph* methodology, which models publish-subscribe systems as weighted directed multi-layer graphs and applies graph analysis to predict which components will have the greatest impact when they fail. Anti-pattern detection is positioned as a **complementary and explanatory contribution**: where criticality scoring answers *how much* risk exists, the anti-pattern catalog answers *what kind* of risk and *how to fix it*.
-
----
-
-## 2. Background and Motivation
-
-### 2.1 The Problem with Reactive Discovery
-
-Traditional approaches to quality assurance in distributed systems are largely reactive. Runtime monitoring instruments production deployments; chaos engineering deliberately introduces failures to observe propagation behavior; postmortem analysis reconstructs failure sequences from logs. All three techniques share a fundamental limitation: the problem must have manifested — often at significant cost — before it can be addressed.
-
-Pre-deployment static analysis exists for individual components (linters, type checkers, dependency analyzers), but the architectural level is poorly served. Tools that reason about the *system topology* — how components relate to each other through publish-subscribe relationships — are rare and typically domain-specific.
-
-### 2.2 Anti-Patterns vs. Bad Smells
-
-Following the taxonomy established in object-oriented design research, this catalog distinguishes between two categories:
-
-An **anti-pattern** is a recognizable structural configuration that is known to cause problems. It represents a decision — a deliberate or accidental architectural choice — that creates systemic risk. Anti-patterns typically require significant refactoring to resolve.
-
-A **bad smell** is a surface symptom that suggests an underlying problem may exist. Bad smells are not definitively harmful in all contexts, but they are reliable signals worth investigating. They may require only localized changes to address.
-
-In practice, the distinction is one of confidence: anti-patterns have well-understood failure modes; bad smells are heuristics that require human judgment to confirm.
-
-### 2.3 The Role of Graph Topology
-
-The key insight enabling a topology-based catalog is that architectural decisions in publish-subscribe systems leave **measurable structural fingerprints** in the dependency graph. A single broker serving all applications makes that broker an articulation point. A component that publishes to and subscribes from everything has extreme betweenness centrality. A topic with hundreds of subscribers has anomalous out-degree in the topic projection.
-
-These topological signatures can be computed from the system's static architecture — from the YAML configuration, the launch file, the infrastructure-as-code — without running the system at all. This enables **proactive detection** at design time or during CI/CD pipeline execution, before any deployment occurs.
+*(§6–11 — empirical validation, RM-framework relationship, comparison with existing work, practice implications, conclusion, references — moved to [antipattern-study.md](research/methodology/antipattern-study.md).)*
 
 ---
 
@@ -153,14 +108,14 @@ This projection produces `G_analysis(layer)` — a layer-specific directed graph
 
 ### 3.4 Architectural Layers
 
-Analysis is organized across four architectural projections, each providing a different lens on the system:
+Analysis is organized across four architectural projections, each providing a different lens on the system. The authoritative vertex/edge-type table is [graph-model.md §5](graph-model.md#5-layer-projections) — notably, `app` includes **both** Application and Library vertices (`app_to_app` and `app_to_lib` edges), and `mw` includes Node in addition to Application and Broker. Restated here only at the "primary question" level:
 
-| Layer | Vertices | Edges | Primary Question |
-|-------|----------|-------|-----------------|
-| **app** | Applications only | app_to_app DEPENDS_ON | Which applications create data-flow bottlenecks? |
-| **infra** | Nodes only | node_to_node DEPENDS_ON | Which infrastructure hosts create availability risk? |
-| **mw** | Apps + Brokers | app_to_broker DEPENDS_ON | Which broker routing relationships are critical? |
-| **system** | All types | All DEPENDS_ON | What is the complete risk profile? |
+| Layer | Primary Question |
+|-------|-------------------|
+| **app** | Which applications and libraries create data-flow bottlenecks? |
+| **infra** | Which infrastructure hosts create availability risk? |
+| **mw** | Which broker routing relationships are critical? |
+| **system** | What is the complete risk profile? |
 
 ---
 
@@ -172,7 +127,7 @@ Anti-pattern detection runs as part of the Analyze stage. The structural sub-pha
 
 ```
 Step 1: Import                         G(V, E, w) from system topology
-Step 2: Analyze — structural           M(v) — 13 topological metrics per component
+Step 2: Analyze — structural           M(v) — full structural metric vector per component
 Step 2: Analyze — RM scoring      Q(v) — deterministic criticality scores
         └── Anti-Pattern Detection     Pattern(v) — smell classification  ← this document
 Step 3: Predict (optional)             Q_gnn(v) — GNN node criticality scores
@@ -181,25 +136,9 @@ Step 5: Validate                       ρ(Q, I), F1 — empirical verification
 Step 6: Visualize                      Interactive dashboard with pattern annotations
 ```
 
-### 4.2 The Thirteen Structural Metrics
+### 4.2 The Structural Metrics Detection Draws On
 
-Step 2 computes a 13-element metric vector `M(v)` for each component. These metrics are the raw detection signals for all nineteen anti-patterns:
-
-| Symbol | Name | Description |
-|--------|------|-------------|
-| PR(v) | PageRank | Transitive importance via random walk |
-| RPR(v) | Reverse PageRank | Reverse transitive importance — cascade reach |
-| BT(v) | Betweenness Centrality | Fraction of shortest paths passing through v |
-| CL(v) | Closeness Centrality | Average distance from v to all reachable vertices |
-| EV(v) | Eigenvector Centrality | Connection to other important hubs |
-| DG_in(v) | In-Degree | Normalized count of incoming DEPENDS_ON edges |
-| DG_out(v) | Out-Degree | Normalized count of outgoing DEPENDS_ON edges |
-| CC(v) | Clustering Coefficient | Density of connections among v's neighbors |
-| AP_c(v) | Articulation Point Score | Fraction of graph fragmented upon v's removal |
-| BR(v) | Bridge Ratio | Fraction of v's incident edges that are bridges |
-| w(v) | QoS Weight | Component's own QoS-derived importance weight |
-| w_in(v) | Weighted In-Degree | Sum of QoS weights on incoming edges |
-| w_out(v) | Weighted Out-Degree | Sum of QoS weights on outgoing edges |
+Step 2 computes the full `M(v)` structural metric vector for each component — 50 fields, of which 19 feed the RM composite Q(v) and a further handful are read directly by the detectors below (e.g. `pagerank` for CONCENTRATION_RISK, `is_articulation_point`/`is_directed_ap` for SPOF, `topic_subscriber_count`/`topic_publisher_count` for TOPIC_FANOUT/ORPHANED_TOPIC). Rather than reproduce that catalogue here — a prior version of this table both undercounted the vector and listed fields no detector actually reads — see [structural-analysis.md §10](structural-analysis.md#10-metric-catalogue-reference) for the authoritative per-field listing and [`saag/core/metric_registry.py`](../saag/core/metric_registry.py) for the machine-checked role of every field (scoring / detection / GNN feature / descriptive-only).
 
 All metrics are normalized to `[0, 1]` before quality scoring and anti-pattern detection, using one of two methods depending on the metric type:
 
@@ -224,19 +163,7 @@ where `Q3` is the 75th percentile and `IQR = Q3 − Q1`. A component is flagged 
 
 ### 4.4 The RM Prediction Framework
 
-The RM framework maps structural metrics to two ISO/IEC 25010:2023 quality characteristics — Reliability and Maintainability. Reliability is itself hierarchical, composed of a Fault Tolerance and an Availability sub-characteristic. These characteristics provide the explanatory bridge between raw topological metrics and named anti-patterns, and they determine which anti-patterns a component is susceptible to:
-
-```
-FT(v) = 0.45 × RPR(v) + 0.30 × DG_in(v) + 0.25 × CDPot_enh(v)                                   (Fault Tolerance)
-A(v)  = 0.35 × AP_c_directed(v) + 0.25 × QSPOF(v) + 0.25 × BR(v) + 0.10 × CDI(v) + 0.05 × w(v)   (Availability)
-
-R(v)  = α × FT(v) + (1 − α) × A(v)     α = 0.36     (Reliability, hierarchical)
-M(v)  = 0.35 × BT(v) + 0.30 × w_out(v) + 0.15 × CQP(v) + 0.12 × CouplingRisk_enh(v) + 0.08 × (1 − CC(v))
-
-Q(v)  = w_R × R(v) + w_M × M(v)        w_R = 0.80, w_M = 0.20    (composite; declared, not AHP-derived)
-```
-
-The intra-dimension term weights above (the FT/A/M formulas) are still derived from the Analytic Hierarchy Process (AHP) using domain expert pairwise comparison matrices, with a shrinkage factor `λ = 0.7` blending learned weights with a uniform prior for robustness on small graphs. AHP is retired at the composite level: `α` and `(w_R, w_M)` are declared constants, algebraically derived from the retired 4-D AHP composite, not fit from a pairwise comparison matrix. `Q(v)`'s composite weights are QoS-adapted per component around the 0.80/0.20 default.
+The RM framework maps structural metrics to two ISO/IEC 25010:2023 quality characteristics — Reliability and Maintainability. Reliability is itself hierarchical, composed of a Fault Tolerance and an Availability sub-characteristic. These characteristics provide the explanatory bridge between raw topological metrics and named anti-patterns, and they determine which anti-patterns a component is susceptible to. The formulas themselves — FT(v), A(v), R(v), M(v), Q(v), and the AHP/shrinkage/QoS-adaptation machinery behind their weights — are defined once, in [structural-analysis.md §11.2](structural-analysis.md#112-rm-formulas); they are not repeated here.
 
 Each RM characteristic addresses a distinct operational concern:
 
@@ -975,176 +902,6 @@ This is the most severe compound diagnosis: the component is both critical to co
 
 ---
 
-## 6. Empirical Validation
+## References
 
-### 6.1 Validation Approach
-
-Anti-pattern detection findings are validated empirically through the failure simulation pipeline. For each component flagged by a pattern detector, the corresponding simulated impact score `I(v)` — computed by exhaustive component removal and cascade propagation — provides independent evidence that the topological signature corresponds to real structural risk.
-
-The primary validation metrics are:
-
-| Metric | Target | Achieved (Overall) |
-|--------|--------|-------------------|
-| Spearman ρ (Q vs I) | ≥ 0.70 | **0.876** |
-| F1-Score (critical classification) | ≥ 0.90 | **0.923** |
-| Precision | ≥ 0.85 | **0.912** |
-| Recall | ≥ 0.80 | **0.857** |
-| Top-5 Overlap | ≥ 0.70 | **0.80** |
-
-The achieved Spearman ρ of 0.876 confirms that the topological quality scores derived from the same structural metrics used for anti-pattern detection reliably rank components by actual failure impact. At large scale (systems with 150-300+ components), ρ rises to 0.943, indicating that prediction accuracy improves as system scale increases — precisely the regime where manual architectural review becomes least practical.
-
-### 6.2 Pattern-Specific Validation Evidence
-
-**SPOF validation**: The articulation point score AP_c(v) was validated against the connectivity-loss simulation metric IA(v). Components flagged as SPOFs consistently achieve among the highest IA(v) values, with SPOF Precision-Recall F1 (SPOF_F1) exceeding 0.95 in application-layer analysis.
-
-**Hub-and-Spoke / BROKER_OVERLOAD validation**: Scenario 05 (`scenario_05_hub_and_spoke.yaml`) deliberately encodes the broker saturation anti-pattern with only 2 brokers serving 70 applications. Both brokers score in the CRITICAL tier, with broker failure impact scores exceeding 50% of total system applications — confirming that the availability metric A(v) correctly identifies broker-level overload as a high-impact structural risk.
-
-**Baseline comparison**: The composite Q(v) score, which drives anti-pattern classification, consistently outperforms single-metric baselines (betweenness centrality alone: ρ = 0.75, degree centrality alone: ρ = 0.95 in synthetic graphs). The synthetic graph advantage of degree centrality is a known artifact of topology generators where high-degree hubs are structurally forced into SPOF positions; Q(v) better captures the broader risk profile in real-world heterogeneous topologies.
-
-### 6.3 Validation Scenarios
-
-Eight system scenarios were used to validate the detection methodology across different topology classes and application domains:
-
-| Scenario | Domain | Scale | Key Anti-Pattern Stress |
-|----------|--------|-------|------------------------|
-| 01 Autonomous Vehicle | ROS 2 / AV | Medium | Sensor fan-out, RELIABLE+TRANSIENT_LOCAL QoS |
-| 02 IoT Smart City | IoT | Large | Node overload, VOLATILE/BEST_EFFORT flood |
-| 03 Financial Trading | HFT | Medium | Dense pub-sub, PERSISTENT+CRITICAL priority |
-| 04 Healthcare | Clinical | Medium | PHI-scoped fan-out, PERSISTENT clinical data |
-| 05 Hub-and-Spoke | Anti-pattern | Medium | BROKER_OVERLOAD with only 2 brokers |
-| 06 Microservices | Cloud-native | Medium | Sparse topology (precision stress test) |
-| 07 Enterprise | ESB | XLarge | 300+ components (scalability benchmark) |
-| 08 Tiny Regression | Smoke test | Tiny | CI regression, fully deterministic |
-
-Scenario 06 is the most important precision test: a well-designed microservices topology should produce few or no anti-pattern findings, validating that the detectors do not over-flag well-structured systems. Scenario 07 provides the primary scalability validation, confirming that detection algorithms scale gracefully to enterprise-scale deployments.
-
-> **Note on scenario counts across documents:** This anti-pattern validation suite counts **eight** scenarios (01–08) because Scenario 08 ("Tiny Regression") is a deterministic CI smoke-test fixture, useful here as a trivial detection-pipeline sanity check. The GNN/prescriptive-refactoring research papers (e.g. `docs/research/middleware2026/middleware2026.md`, `docs/prediction.md`, `docs/research/ause/`, `docs/research/jss/`) instead report **seven** scenarios (01–07), since they evaluate predictive/prescriptive performance across domain topologies and intentionally exclude the smoke-test fixture, which carries no domain-representative signal. Scenarios 09–11 are later additions (stress/ATM/broker-redundancy) not yet part of either validation suite.
-
----
-
-## 7. Relationship to the RM Prediction Framework
-
-The nineteen anti-patterns are not independent of the RM prediction framework — they are its **diagnostic decomposition**. Where the RM framework produces a composite criticality score `Q(v)` that summarizes total risk, anti-pattern detection identifies the specific architectural root cause of that risk and prescribes targeted remediation.
-
-The mapping between anti-patterns and RM characteristics is deliberately asymmetric: most patterns degrade a primary RM characteristic, but some affect multiple characteristics simultaneously. A God Component, for example, has high `M(v)` (coupling complexity) but also high `R(v)` (reliability, because many depend on it), making it both a maintainability problem and a reliability problem. A handful of patterns (CYCLE, CHAIN, ISOLATED, COMPOUND_RISK) are cross-cutting structural findings rather than a degradation of a single RM characteristic, and are labeled "Architecture (cross-cutting)" below.
-
-The following table summarizes the primary RM characteristic affected by each pattern and the topological metrics that drive detection. Patterns tagged `Reliability (Availability)` are driven by the Availability sub-characteristic `A(v)`, which now feeds `R(v)` via the α-blend rather than standing as its own peer dimension:
-
-| Pattern | Primary RM Characteristic | Primary Metric Signals |
-|---------|-------------|----------------------|
-| SPOF | Reliability (Availability) | AP_c, BR, QSPOF |
-| BRIDGE_EDGE | Reliability (Availability) | is_bridge |
-| BOTTLENECK_EDGE | Reliability (Availability) | Edge betweenness |
-| BROKER_OVERLOAD | Reliability (Availability) | A(v) broker comparison |
-| FAILURE_HUB | Reliability (R) | R(v) fence, out-degree |
-| CONCENTRATION_RISK | Reliability (R) | Top-3 PageRank share |
-| SYSTEMIC_RISK | Reliability (R) | CRITICAL-tier population ratio |
-| DEEP_PIPELINE | Reliability (R) | Path length, RPR |
-| TOPIC_FANOUT | Reliability (R) | Topic subscriber count |
-| QOS_MISMATCH | Reliability (R) | QoS weight gap |
-| GOD_COMPONENT | Maintainability (M) | BC(v), M(v) tier |
-| HUB_AND_SPOKE | Maintainability (M) | Clustering coefficient, degree |
-| CHATTY_PAIR | Maintainability (M) | Edge score product |
-| ORPHANED_TOPIC | Maintainability (M) | Topic publisher/subscriber count |
-| UNSTABLE_INTERFACE | Maintainability (M) | CouplingRisk_enh |
-| CYCLE | Architecture (cross-cutting) | SCC detection |
-| CHAIN | Architecture (cross-cutting) | Degree-bounded weakly connected subgraph |
-| ISOLATED | Architecture (cross-cutting) | is_isolated |
-| COMPOUND_RISK | Architecture (cross-cutting) | Co-occurring SPOF + God/Hub findings |
-
-A practical implication of this mapping is that the **RM characteristic breakdown for a flagged component can guide pattern selection for investigation**. A component with high `A(v)` but moderate `M(v)` and low `FT(v)` should be investigated first for SPOF, BOTTLENECK_EDGE, or BROKER_OVERLOAD. A component with high `M(v)` and high `Q(v)` is a candidate for GOD_COMPONENT or CYCLE.
-
----
-
-## 8. Comparison with Existing Work
-
-### 8.1 Object-Oriented Anti-Pattern Research
-
-The most mature body of anti-pattern work addresses object-oriented design: Fowler's refactoring catalog (Fowler, 1999), Brown et al.'s architectural anti-patterns (Brown et al., 1998), and Suryanarayana et al.'s design smells catalog (2014). These works establish the template this catalog follows: a named pattern, a formal detection rule, and a refactoring strategy.
-
-The key difference is that OO anti-patterns are detected in code (via abstract syntax tree analysis, method metric computation, or class dependency graphs), while pub-sub anti-patterns are detected in the *system topology* — the runtime communication structure rather than the static code structure. A publish-subscribe system can be architecturally pathological (SPOF, BROKER_OVERLOAD) while every individual component is internally well-structured by OO standards.
-
-### 8.2 Microservices Anti-Pattern Research
-
-Richardson's microservices patterns (2018) and Taibi et al.'s microservices smells research (2020) address some similar concerns in REST-based microservice architectures — excessive chattiness, shared databases, distributed monoliths. The pub-sub catalog presented here is the analog of this work for the publish-subscribe communication paradigm, which presents different failure modes (broker saturation, topic fan-out, QoS mismatches) that do not arise in request-response architectures.
-
-### 8.3 Graph-Theoretic Approaches to Architecture Analysis
-
-The use of graph-theoretic metrics for software architecture quality analysis has precedent in coupling/cohesion research (Baldwin & Clark, 2000), software evolution analysis (Lehman, 1996), and network reliability engineering (Colbourn, 1987). What distinguishes the present work is the **empirical grounding**: each anti-pattern specification includes validation through failure simulation, establishing that the topological detection signal predicts real-world failure impact rather than being purely structural.
-
-This distinguishes the catalog from expert-opinion-based smell collections and makes it uniquely suited for use as a CI/CD gate: a system is permitted to pass deployment only if no CRITICAL-tier anti-patterns are present, with empirical evidence that CRITICAL patterns are associated with high simulated impact scores.
-
----
-
-## 9. Implications for Architecture Practice
-
-### 9.1 Pre-Deployment as the Primary Detection Moment
-
-The most important practical implication of the topology-based detection approach is that **anti-patterns can be detected before deployment** — from the system's configuration, launch files, or infrastructure-as-code — without any runtime instrumentation. This shifts the discovery moment from "after the production incident" to "before the first deployment," dramatically reducing the cost of addressing architectural problems.
-
-The CLI tool `detect_antipatterns.py` implements this directly: it reads the graph from Neo4j, runs all nineteen detectors, and exits with code 2 if any CRITICAL or HIGH severity patterns are found, exit code 1 if only warnings or smells (MEDIUM severity) are found, and exit code 0 if the system is completely clean. Integrated into a CI/CD pipeline, this makes CRITICAL or HIGH anti-pattern detection a build-breaking check, analogous to a failing unit test.
-
-### 9.2 The Catalog as an Architecture Review Checklist
-
-For teams that perform explicit architecture review (as distinct from automated pipeline checks), the catalog provides a structured inspection checklist. Rather than reviewing system topology informally ("does this look healthy?"), reviewers can systematically ask nineteen specific, testable questions about the system's graph structure.
-
-This brings the discipline of **design review by checklist** — well-established in aviation, surgery, and infrastructure engineering — to distributed system architecture.
-
-### 9.3 Remediation Prioritization
-
-The three-tier severity classification provides a natural prioritization framework:
-
-- **CRITICAL** patterns should block deployment. No production system should be deployed with a structural SPOF, a systemic risk cluster, or a cyclic dependency loop.
-- **HIGH** patterns should be addressed in the current sprint. God components, broker saturation, and deep pipelines represent significant risks that accumulate technical debt rapidly.
-- **MEDIUM** patterns should be tracked as architectural debt items with explicit remediation plans. They are unlikely to cause immediate failures but will compound reliability and maintainability problems over time.
-
-### 9.4 Limitations and Scope
-
-The catalog is grounded in the publish-subscribe communication paradigm. Systems that combine pub-sub with request-response patterns (hybrid microservices, mixed REST/event architectures) will require additional patterns addressing the request-response side. The QoS mismatch pattern is currently specified for DDS/ROS 2 and MQTT; its generalization to other middleware platforms requires adaptation of the QoS weight formula.
-
-The detection methodology's accuracy depends on the completeness of the input graph model. Undocumented out-of-band dependencies (shared databases, external APIs, sidecar communication channels) that are not reflected in the system topology will not be detected. The methodology is most reliable when applied to systems whose topology is specified with high fidelity from infrastructure-as-code or launch file declarations.
-
----
-
-## 10. Conclusion
-
-This document has presented a catalog of nineteen architectural anti-patterns and bad smells specific to distributed publish-subscribe systems, each with a formal specification grounded in graph topology, an explanation of the architectural risk it represents, and a concrete remediation strategy. The catalog is organized across three severity tiers (CRITICAL, HIGH, MEDIUM) and two RM quality characteristics (Reliability, with Fault Tolerance and Availability as sub-characteristics, and Maintainability), providing a structured framework for relating topological signatures to operational consequences.
-
-The central contribution beyond the catalog entries themselves is the **empirical grounding** of each pattern in failure simulation results. Where existing anti-pattern catalogs are typically grounded in expert judgment, this catalog's detection conditions are validated against simulated impact scores with Spearman ρ = 0.876 overall and ρ = 0.943 at large scale. This enables the catalog to serve not only as a qualitative review checklist but as the foundation for quantitative, automated deployment gates.
-
-The catalog represents a first version of what should become an evolving, community-contributed body of knowledge. As new domains and middleware technologies introduce new failure modes, new patterns can be added following the same specification structure: a formal detection rule expressed in topological terms, an empirical validation against failure simulation, and a prioritized remediation strategy. The goal is to bring to distributed system architecture the same accumulated wisdom that decades of object-oriented design research brought to component-level software quality.
-
----
-
-## 11. References
-
-Brown, W. H., Malveau, R. C., McCormick, H. W., & Mowbray, T. J. (1998). *AntiPatterns: Refactoring Software, Architectures, and Projects in Crisis*. Wiley.
-
-Baldwin, C. Y., & Clark, K. B. (2000). *Design Rules, Volume 1: The Power of Modularity*. MIT Press.
-
-Colbourn, C. J. (1987). *The Combinatorics of Network Reliability*. Oxford University Press.
-
-Fowler, M. (1999). *Refactoring: Improving the Design of Existing Code*. Addison-Wesley.
-
-Lehman, M. M. (1996). Laws of software evolution revisited. *Proceedings of EWSPT '96*. Springer.
-
-Martin, R. C. (2003). *Agile Software Development, Principles, Patterns, and Practices*. Prentice Hall.
-
-Nygard, M. T. (2018). *Release It! Design and Deploy Production-Ready Software* (2nd ed.). Pragmatic Bookshelf.
-
-Richardson, C. (2018). *Microservices Patterns: With Examples in Java*. Manning.
-
-Saaty, T. L. (1980). *The Analytic Hierarchy Process*. McGraw-Hill.
-
-Suryanarayana, G., Samarthyam, G., & Sharma, T. (2014). *Refactoring for Software Design Smells: Managing Technical Debt*. Morgan Kaufmann.
-
-Taibi, D., Lenarduzzi, V., & Pahl, C. (2020). Microservices anti-patterns: A taxonomy. In *Microservices: Science and Engineering*. Springer.
-
-Yigit, I. O., & Buzluca, F. (2025). A graph-based dependency analysis method for identifying critical components in distributed publish-subscribe systems. *IEEE International Conference on Recent Advances in Systems Science and Engineering (RASSE 2025)*. DOI: 10.1109/RASSE64831.2025.11315354
-
----
-
-*Document maintained as part of the PhD research artifact:*
-*"Graph-Based Modeling and Analysis of Distributed Publish-Subscribe Systems"*
-*Istanbul Technical University — Department of Computer Engineering*
-*doi: 10.1109/RASSE64831.2025.11315354*
+Empirical validation of this catalog (Spearman ρ, F1, precision/recall against simulated impact), comparison with prior anti-pattern and design-smell research, and the full literature list are in [antipattern-study.md](research/methodology/antipattern-study.md).

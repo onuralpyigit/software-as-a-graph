@@ -174,9 +174,7 @@ class _Centrality:
     reverse_pagerank: Dict[str, float]
     betweenness: Dict[str, float]
     closeness: Dict[str, float]
-    reverse_closeness: Dict[str, float]
     eigenvector: Dict[str, float]
-    reverse_eigenvector: Dict[str, float]
     edge_betweenness: Dict[Tuple[str, str], float]
 
 
@@ -323,19 +321,15 @@ class StructuralAnalyzer:
         closeness is unweighted and normalised by (n-1).
         """
         closeness = nx.harmonic_centrality(G)
-        reverse_closeness = nx.harmonic_centrality(G_rev)
         if n_nodes > 1:
             closeness = {v: c / (n_nodes - 1) for v, c in closeness.items()}
-            reverse_closeness = {v: c / (n_nodes - 1) for v, c in reverse_closeness.items()}
 
         return _Centrality(
             pagerank=nx.pagerank(G, alpha=self.damping_factor, weight="weight"),
             reverse_pagerank=nx.pagerank(G_rev, alpha=self.damping_factor, weight="weight"),
             betweenness=nx.betweenness_centrality(G_dist, weight="weight", normalized=True),
             closeness=closeness,
-            reverse_closeness=reverse_closeness,
             eigenvector=self._safe_eigenvector(G),
-            reverse_eigenvector=self._safe_eigenvector(G_rev),
             edge_betweenness=nx.edge_betweenness_centrality(
                 G_dist, weight="weight", normalized=True
             ),
@@ -510,9 +504,7 @@ class StructuralAnalyzer:
                 reverse_pagerank=centrality.reverse_pagerank.get(nid, 0.0),
                 betweenness=centrality.betweenness.get(nid, 0.0),
                 closeness=centrality.closeness.get(nid, 0.0),
-                reverse_closeness=centrality.reverse_closeness.get(nid, 0.0),
                 eigenvector=centrality.eigenvector.get(nid, 0.0),
-                reverse_eigenvector=centrality.reverse_eigenvector.get(nid, 0.0),
                 # Degree (normalized)
                 degree=total_raw / (2 * (n_nodes - 1)) if n_nodes > 1 else 0.0,
                 in_degree=raw_in / (n_nodes - 1) if n_nodes > 1 else 0.0,

@@ -493,7 +493,7 @@ class ValidationService:
         self.logger.info(
             "%s dim [%s]: ρ=%.3f (n=%d), %s",
             spec.key.capitalize(), layer, corr.spearman, len(ids),
-            ", ".join(f"{k}={v:.3f}" for k, v in specialists.items()),
+            ", ".join(f"{k}={v:.3f}" if v is not None else f"{k}=n/a" for k, v in specialists.items()),
         )
 
         return DimensionResult(
@@ -501,7 +501,7 @@ class ValidationService:
             entry={
                 "spearman": round(corr.spearman, 4),
                 "spearman_p": round(corr.spearman_p, 6),
-                **{k: round(float(v), 4) for k, v in specialists.items()},
+                **{k: (round(float(v), 4) if v is not None else None) for k, v in specialists.items()},
                 "n": len(ids),
                 "ground_truth": spec.ground_truth_label,
             },

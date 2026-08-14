@@ -57,7 +57,6 @@ class QualityWeights:
     ft_pagerank: float = 0.0          # Deprecated (v4): superseded; kept for compat
     ft_reverse_pagerank: float = 0.45 # AHP leader: propagation reach (RPR); weight increased from 0.40
     ft_in_degree: float = 0.30        # Reinstatement (v5): count-based immediate-dependents signal
-    ft_w_in: float = 0.0             # Deprecated (v5): was reassigned to V*(v) as QADS; kept for compat
     ft_cdpot: float = 0.25            # Cascade Depth Potential (derived, depth signal)
 
     # Reliability = hierarchical combination of Fault Tolerance and Availability.
@@ -319,7 +318,6 @@ class AHPProcessor:
             ft_pagerank=0.0,               # Deprecated
             ft_reverse_pagerank=w_ft[0],   # RPR — primary (0.45)
             ft_in_degree=w_ft[1],          # DG_in — count-based immediate dependents (0.30)
-            ft_w_in=0.0,                   # Deprecated
             ft_cdpot=w_ft[2],              # Cascade Depth Potential (0.25)
 
             # Maintainability v6: (BT, w_out, CQP, CouplingRisk, (1-CC))

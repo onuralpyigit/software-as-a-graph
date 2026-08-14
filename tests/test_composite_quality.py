@@ -2,7 +2,7 @@
 Unit tests for the Q*(v) composite metric improvements.
 
 Covers:
-- FT*(v) v5: DG_in replaces w_in; RPR weight 0.45; ft_w_in deprecated to 0.0
+- FT*(v) v5: DG_in replaces w_in; RPR weight 0.45
 - CriticalityProfile: pattern lookup, to_dict(), defaults
 - I*(v) composite ground truth: weighted sum of dimension ground truths
 - System health metrics: SRI boundary conditions, RCI Gini formula
@@ -46,7 +46,6 @@ class TestFTStarV5:
         w = proc.compute_weights()
         assert w.ft_reverse_pagerank > w.ft_in_degree, "RPR should outweigh DG_in"
         assert w.ft_reverse_pagerank > w.ft_cdpot,    "RPR should outweigh CDPot"
-        assert w.ft_w_in == 0.0, "ft_w_in must remain 0.0 after AHP compute"
 
     def test_composite_weights_favour_reliability(self):
         """R should receive the larger share of the two-term composite: R absorbs

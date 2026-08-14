@@ -247,9 +247,7 @@ const PROP_DESCS: Record<string, string> = {
   reverse_pagerank:        "Reverse PageRank on G^T — fault-propagation reach; high value = failure spreads widely",
   betweenness:             "Betweenness centrality — fraction of shortest paths passing through this node; proxy for structural bottleneck",
   closeness:               "Closeness centrality — inverse average distance to all other nodes; high = fast change propagation",
-  reverse_closeness:       "Reverse Closeness on G^T — adversarial propagation speed; how quickly a compromise reaches others",
   eigenvector:             "Eigenvector centrality — influence weighted by the importance of neighbours",
-  reverse_eigenvector:     "Reverse Eigenvector on G^T — strategic attack reach; high value = many high-value nodes depend on this",
   // ── Degree ────────────────────────────────────────────────────────────────
   degree:                  "Normalised total degree (in + out) centrality",
   in_degree:               "Normalised in-degree — fraction of components that directly depend on this node",
@@ -528,9 +526,7 @@ function propUnit(key: string): string {
   if (key === "reverse_pagerank")                     return "[0–1]"
   if (key === "betweenness")                          return "[0–1]"
   if (key === "closeness")                            return "[0–1]"
-  if (key === "reverse_closeness")                    return "[0–1]"
   if (key === "eigenvector")                          return "[0–1]"
-  if (key === "reverse_eigenvector")                  return "[0–1]"
   if (key === "degree")                               return "[0–1]"
   if (key === "in_degree")                            return "[0–1]"
   if (key === "out_degree")                           return "[0–1]"
@@ -607,7 +603,7 @@ function isRiskKey(key: string): boolean {
   // Reliability's sub-characteristics)
   if (/^(reliability|maintainability|fault_tolerance|availability|quality_score|rm_score|overall)$/.test(key)) return true
   // Structural centrality metrics (all normalised to [0–1])
-  if (/^(reverse_pagerank|betweenness_centrality|betweenness|bridge_ratio|bridge_score|reverse_eigenvector|reverse_closeness|ap_score|directed_ap_score|qspof)$/.test(key)) return true
+  if (/^(reverse_pagerank|betweenness_centrality|betweenness|bridge_ratio|bridge_score|ap_score|directed_ap_score|qspof)$/.test(key)) return true
   // Code quality [0–1] penalty inputs
   if (/^(lcom_norm|instability_code|complexity_norm|coupling_risk|weight)$/.test(key)) return true
   // Any coupling_ derived field

@@ -300,13 +300,22 @@ More runnable examples — including a round-trip persistence check and per-stag
 
 ## Further Reading
 
-**Framework internals** — [ARCHITECTURE.md](ARCHITECTURE.md) for package boundaries and data flow, [CLAUDE.md](CLAUDE.md) for conventions and invariants.
+Routed by what you're trying to do — each doc also links forward/back along the pipeline itself (Model → Analyze → Predict → Simulate → Validate → Prescribe → Visualize).
 
-**Methodology, per stage** — [graph-model.md](docs/graph-model.md) · [graph-generation.md](docs/graph-generation.md) · [structural-analysis.md](docs/structural-analysis.md) · [criticality.md](docs/criticality.md) · [prediction.md](docs/prediction.md) · [antipatterns.md](docs/antipatterns.md) · [failure-simulation.md](docs/failure-simulation.md) · [validation.md](docs/validation.md) · [prescription.md](docs/prescription.md) · [remediation.md](docs/remediation.md) · [statistics.md](docs/statistics.md) · [visualization.md](docs/visualization.md) · [scenario.md](docs/scenario.md) · [cli-pipeline-guide.md](docs/cli-pipeline-guide.md)
+| I want to... | Start here |
+|---|---|
+| **Run this on my own system** | [cli-pipeline-guide.md](docs/cli-pipeline-guide.md) (every flag, every stage) → [graph-model.md](docs/graph-model.md) (input format) |
+| **Understand what a score means** | [structural-analysis.md](docs/structural-analysis.md) §10–11 (the metric catalogue and RM formulas) → [criticality.md](docs/criticality.md) (what "criticality" is defined to mean, and its validity limits) |
+| **Find and fix architectural problems** | [antipatterns.md](docs/antipatterns.md) (the 19-pattern catalog) → [remediation.md](docs/remediation.md) (which patterns are auto-fixable) → [prescription.md](docs/prescription.md) (the closed-loop verifier) |
+| **Check the evidence behind a claim** | [failure-simulation.md](docs/failure-simulation.md) (the two ground-truth engines) → [validation.md](docs/validation.md) (the statistical battery and gates) → [scenario.md](docs/scenario.md) (which scenario backs which published number) |
+| **Reproduce the published results** | [reproduce/README.md](reproduce/README.md) and [reproduce/EXPERIMENTS.md](reproduce/EXPERIMENTS.md) (the protocol) → [scenario.md](docs/scenario.md) (the corpus) |
+| **Extend or contribute to the framework** | [ARCHITECTURE.md](ARCHITECTURE.md) (package boundaries, data flow) → [CLAUDE.md](CLAUDE.md) (conventions, test-enforced invariants) |
+| **Generate synthetic topologies** | [graph-generation.md](docs/graph-generation.md) |
+| **Read GNN prediction or dashboard internals** | [prediction.md](docs/prediction.md) · [visualization.md](docs/visualization.md) · [statistics.md](docs/statistics.md) |
 
 **Formal specifications** — [SRS](docs/requirements/SRS.md) · [SAD](docs/design/SAD.md) · [SDD](docs/design/SDD.md) · [STD](docs/tests/STD.md) · [SAR](docs/tests/SAR.md) · [User Manual](docs/user/SUM.md)
 
-**Research** — [reproduce/](reproduce/) for the reproduction package, [docs/research/](docs/research/) for paper sources.
+**Research** — [reproduce/](reproduce/) for the reproduction package; [docs/research/](docs/research/) for paper sources; [docs/research/methodology/](docs/research/methodology/) for the literature positioning, empirical-validation detail, and construct-validity material split out of the practitioner docs above to keep those short.
 
 The primary research contribution is the demonstration that topological graph metrics reliably predict real-world failure impact without runtime instrumentation. Supporting contributions: the six dependency derivation rules; the RM decomposition; the MPCI (Multi-Path Coupling Index) metric; the directed $AP_c$ single-point-of-failure score; adaptive box-plot classification; and the structural independence guarantee separating the predictor from the simulation oracle.
 

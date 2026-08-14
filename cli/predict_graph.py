@@ -77,7 +77,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     weight_grp.add_argument(
         "--equal-weights", action="store_true",
-        help="Override to equal 0.25 per dimension — baseline ablation condition",
+        help="Override to q_reliability=q_maintainability=0.5 and r_alpha=0.5 "
+             "(equal at every level of the RM composite) — baseline ablation condition",
     )
     weight_grp.add_argument(
         "--ahp-shrinkage", type=float, default=0.7, metavar="λ",

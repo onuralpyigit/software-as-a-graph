@@ -7,11 +7,8 @@
 ## Table of Contents
 
 1. [Overview](#1-overview)
-2. [What "Criticality" Means Here](#2-what-criticality-means-here)
-   - 2.1 [Three Established Traditions](#21-three-established-traditions)
-   - 2.2 [What This Construct Borrows and Rejects](#22-what-this-construct-borrows-and-rejects)
+2. [What "Criticality" Means Here](#2-what-criticality-means-here) — literature positioning moved to [research/methodology/criticality-construct.md](research/methodology/criticality-construct.md)
    - 2.3 [Consequence, Not Risk (D3)](#23-consequence-not-risk)
-   - 2.4 [Comparison with Classical Graph and Software Metrics](#24-comparison-with-classical-graph-and-software-metrics)
 3. [Quality Grounding (SQuaRE)](#3-quality-grounding-square)
    - 3.0 [Three Quality Views: Internal, External, and Quality-in-Use](#30-three-quality-views-internal-external-and-quality-in-use)
    - 3.1 [What Quality-in-Use Is](#31-what-quality-in-use-is)
@@ -83,25 +80,9 @@ Both concepts are scored over the **weighted** graph, never over bare topology: 
 
 ## 2. What "Criticality" Means Here
 
-"Criticality" is not a term this project coined, and it is not an ISO/IEC 25019 term either. It is load-bearing in three established traditions whose definitions are mutually incompatible, so a methodology that uses the word owes the reader an account of which one it means. This section gives that account before [§3](#3-quality-grounding-square) builds the Quality-in-Use grounding on top of it.
+"Criticality" is not a term this project coined, and it is not an ISO/IEC 25019 term either. It is load-bearing in three established traditions — FMECA/criticality analysis, assigned integrity levels (SIL/ASIL/DAL), and network-science critical-node detection — whose definitions are mutually incompatible, so a methodology that uses the word owes the reader an account of which one it means. That literature positioning, plus a comparison against classical graph and software metrics, is in [research/methodology/criticality-construct.md](research/methodology/criticality-construct.md); this section states only the conclusion and the one definition (D3) other documents cite directly.
 
-### 2.1 Three Established Traditions
-
-**Failure-mode criticality (dependability engineering).** In FMECA, criticality is a quantity attached to a failure *mode*, combining the severity of its effect with how often it occurs. MIL-STD-1629A computes a mode criticality number from the failure-effect probability, the mode ratio, the part failure rate, and the operating time; IEC 60812 carries the same structure into current practice. The defining property is that **likelihood is inside the number**.
-
-**Assigned integrity levels (safety and certification).** IEC 61508 (SIL), ISO 26262 (ASIL), DO-178C (DAL) and MIL-STD-882 severity categories attach a criticality level to a *function* on the basis of hazard and risk analysis. The level then governs process obligations — how much verification rigour the function must receive. The defining property is that the level is **assigned by expert judgement against a hazard catalogue**, not computed from an artifact.
-
-**Critical elements in network science.** The critical node (and critical link) detection problem asks which vertices or edges, when removed, most degrade a graph's connectivity — a purely topological optimization, applied to cascading-failure analysis in power grids, transport and communication networks. The defining property is that criticality is **a property of graph structure alone**.
-
-### 2.2 What This Construct Borrows and Rejects
-
-| Tradition | Its "criticality" is | Relation to the construct defined here |
-|:---|:---|:---|
-| **FMECA / criticality analysis** (MIL-STD-1629A; IEC 60812) | Severity of a failure mode, weighted by failure rate and mode ratio | Shares the severity axis; **rejects** the likelihood axis ([D3](#23-consequence-not-risk)). What this project computes is closer to the factor FMECA would *multiply* by a failure rate than to a criticality number itself |
-| **Assigned integrity levels** (IEC 61508 SIL; ISO 26262 ASIL; DO-178C DAL; MIL-STD-882) | A level assigned to a function by hazard analysis, driving process obligations | Complementary rather than competing: those levels encode what the function *is for*, which no architecture graph contains. An ASIL-D function can sit on a structurally MINIMAL component, and that is not a contradiction — the two answer different questions |
-| **Critical node / link detection** (CNDP; cascading-failure analysis) | The vertex or edge set whose removal maximally degrades connectivity | The closest relative, and the mechanical basis of the Availability dimension. **Extends** it in two ways: dependencies are *typed* (six derivation rules with distinct failure semantics, [graph-model.md §4.4](graph-model.md#44-phase-4--dependency-derivation)) and *QoS-weighted* ([§4.4](#44-what-the-component-carries-the-weight-channel)), so two topologically identical cut-vertices carrying different guarantees do not score alike |
-
-Stated positively, criticality in this project is: a **pre-deployment**, **architecture-derived**, **consequence-only** estimate of stakeholder harm — **computed** rather than assigned, and **relative** to one system rather than absolute. Each of those five qualifiers is a deliberate exclusion of one of the traditions above, and each is restated formally in D1–D4.
+Stated positively, criticality in this project is: a **pre-deployment**, **architecture-derived**, **consequence-only** estimate of stakeholder harm — **computed** rather than assigned, and **relative** to one system rather than absolute. Each of those five qualifiers is a deliberate exclusion of one of the three traditions above, and each is restated formally in D1–D4.
 
 ### 2.3 Consequence, Not Risk
 
@@ -114,17 +95,6 @@ This is the single property that most often gets misread, so its consequences ar
 - **It is why the construct is computable pre-deployment.** Consequence follows from architecture, which exists before the system runs; likelihood follows from behaviour, which does not. Restricting the construct to consequence is what makes it available at design time — the tradeoff the whole framework is built on.
 
 The `weight` channel does not violate this. A QoS policy declares how strongly delivery is *guaranteed*, not how often it fails ([§4.4](#44-what-the-component-carries-the-weight-channel)) — it scales the consequence, and contributes no likelihood term.
-
-### 2.4 Comparison with Classical Graph and Software Metrics
-
-To position this methodology rigorously in academic research, the table below compares the RM Quality-in-Use proxy with traditional software metrics and unweighted network centralities:
-
-| Metric Family | Canonical Examples | Primary Focus | Limitation in Complex Pub-Sub Architectures | How RM Overcomes the Limitation |
-|:---|:---|:---|:---|:---|
-| **Object-Oriented Software Metrics** | C&K (WMC, CBO, LCOM), Martin Instability ($I$), Cyclomatic Complexity ($v(G)$) | Code-level complexity, intra-module cohesion, and static coupling. | Blind to publish-subscribe decoupling, topic mediation, physical deployment layers, and delivery guarantees. | Integrates static code penalties ($CQP$) as one factor inside Maintainability ($M$), while measuring multi-layer pub-sub dependencies ($G_{\text{analysis}}$). |
-| **Information-Flow Metrics** | Henry & Kafura ($IF = (\text{fan-in} \times \text{fan-out})^2$) | Direct information flow between procedure calls. | Assumes synchronous point-to-point calls; fails to model asynchronous fan-out and multi-topic intermediary nodes. | Differentiates afferent/efferent flows via typed directional edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`) and reverse PageRank propagation ($FT$). |
-| **Unweighted Graph Centrality** | Degree, Betweenness, Eigenvector, Closeness Centrality | Topological prominence in unweighted graphs. | Treats all connections equally regardless of QoS contracts or delivery guarantees; cannot isolate SPOFs from bottlenecks. | Weight-modulates centralities via QoS weights ($w(v), w(e)$) and partitions mechanisms into $FT, A, M$ profiles (combined into $R, M$). |
-| **Network Critical Node Problem (CNDP)** | Cut-vertices, Vertex Connectivity, Fragment size | Global graph fragmentation under vertex removal. | Purely topological; ignores domain semantics, typed dependencies, and partial link outages. | Combines directed articulation point analysis ($AP_{\text{directed}}$) with QoS amplification ($QSPOF$) and relationship partial-outage scoring ($D2$). |
 
 ---
 
@@ -257,7 +227,7 @@ Two sub-characteristics modelled *as sub-characteristics*, combined into a singl
 
 **The dependability column is not decoration.** It is the vocabulary in which the fault→error→failure chain is stated, and that chain is what separates $FT$ from $A$ *within* Reliability: a component's *fault* is the injected failure, the *error* is what propagates along `DEPENDS_ON` to its dependents (which is what $FT$ measures), and the *failure* is the resulting loss of service to a stakeholder (which is what $A$ measures when the loss is total). Two sub-characteristics that would otherwise both read as "something broke" are, in dependability terms, two different stages of one causal chain — which is exactly why they are combined into one Reliability score rather than reported as independent attributes (see "Metric-level orthogonality" below).
 
-> **The last row is a real coverage gap, correctly stated.** RM addresses two of the standard's nine characteristics — Reliability (via its Fault tolerance and Availability sub-characteristics) and Maintainability (partially) — and **Safety is not one of them**, because the schema carries no functional integrity class, no hazard catalogue, and no safety-criticality field ([§7.4](#74-real-world-drivers-vs-structural-proxies)). Vulnerability/Security, addressed by an earlier revision of this framework, is also not one of them any more — it was retired outright, not merged into Reliability or Maintainability, because its ground-truth evidence was the weakest of the (then) four dimensions and no fault-model instrument could validate it by construction (see the italicised note below). Six further characteristics are out of scope entirely and undiscussed elsewhere in this document: Functional suitability, Compatibility, Interaction capability, Flexibility, Security, and — worth flagging separately — **Performance efficiency**, where the discrete-event engine already records time behaviour and capacity ([failure-simulation.md §9](failure-simulation.md#9-what-the-simulator-measures-in-quality-model-terms)) but no RM dimension consumes them. This is why the ROS 2 / autonomous-vehicle row of [§3.3](#33-context-of-use-and-domain-context-vector) — whose dominant characteristic is *freedom from health and life risk* — is the one domain whose primary harm no dimension estimates directly. A safety-critical deployment can use these scores to find structural exposure; it cannot use them to discharge a safety argument, and nothing in the tiering should be read as though it could. Assigned integrity levels (SIL/ASIL/DAL) remain the complementary instrument for that ([§2.2](#22-what-this-construct-borrows-and-rejects)).
+> **The last row is a real coverage gap, correctly stated.** RM addresses two of the standard's nine characteristics — Reliability (via its Fault tolerance and Availability sub-characteristics) and Maintainability (partially) — and **Safety is not one of them**, because the schema carries no functional integrity class, no hazard catalogue, and no safety-criticality field ([§7.4](#74-real-world-drivers-vs-structural-proxies)). Vulnerability/Security, addressed by an earlier revision of this framework, is also not one of them any more — it was retired outright, not merged into Reliability or Maintainability, because its ground-truth evidence was the weakest of the (then) four dimensions and no fault-model instrument could validate it by construction (see the italicised note below). Six further characteristics are out of scope entirely and undiscussed elsewhere in this document: Functional suitability, Compatibility, Interaction capability, Flexibility, Security, and — worth flagging separately — **Performance efficiency**, where the discrete-event engine already records time behaviour and capacity ([failure-simulation.md §9](failure-simulation.md#9-what-the-simulator-measures-in-quality-model-terms)) but no RM dimension consumes them. This is why the ROS 2 / autonomous-vehicle row of [§3.3](#33-context-of-use-and-domain-context-vector) — whose dominant characteristic is *freedom from health and life risk* — is the one domain whose primary harm no dimension estimates directly. A safety-critical deployment can use these scores to find structural exposure; it cannot use them to discharge a safety argument, and nothing in the tiering should be read as though it could. Assigned integrity levels (SIL/ASIL/DAL) remain the complementary instrument for that (see [research/methodology/criticality-construct.md](research/methodology/criticality-construct.md)).
 
 **The italicised cell explains an otherwise puzzling asymmetry in the evidence.** $M$ is the one remaining dimension the simulation oracles cannot measure behaviourally ([validation.md §3.1](validation.md#31-notation--three-quantities-three-symbols)), and the reason is visible in this column rather than in the implementation: maintainability is not an externally observable attribute — no amount of watching a system run tells you what it costs to change. (Vulnerability/Security had the same problem for a symmetric reason — security is not a fault-tolerance property, so a fault injector was the wrong instrument for it by construction — which is part of why it was retired rather than kept as an unmeasured third dimension.) [§7.1](#71-the-validation-chain-has-three-links) develops what follows for the validation claim.
 
@@ -337,7 +307,7 @@ D1 therefore spans all three quality views at once, and the clause that does tha
 Five clauses in the main sentence do real work and are easy to skim past:
 
 - **"failure, latency, or functional degradation"** — three distinct fault modes, not one. The structural estimator does not distinguish them; the simulation oracle does ([§7.2](#72-construct-validity)).
-- **"directly or transitively"** — the transitive half is the whole reason Reliability exists as a separate dimension, and it is what extends this construct beyond the purely topological critical-node tradition ([§2.2](#22-what-this-construct-borrows-and-rejects)): the harm is loss of stakeholder outcomes reachable through the component, not loss of graph connectivity.
+- **"directly or transitively"** — the transitive half is the whole reason Reliability exists as a separate dimension, and it is what extends this construct beyond the purely topological critical-node tradition (see [research/methodology/criticality-construct.md](research/methodology/criticality-construct.md)): the harm is loss of stakeholder outcomes reachable through the component, not loss of graph connectivity.
 - **"reduces"** — the statement is counterfactual. It says what follows *if* the fault occurs, and never how likely that is ([D3](#23-consequence-not-risk)).
 - **"its stakeholders"** — primary, indirect, and secondary stakeholders as defined in [§3.2](#32-stakeholders-primary-secondary-and-indirect). Maintainability is the dimension where the secondary stakeholder (engineering team) is directly affected, keeping change cost inside the definition.
 - **"within its operational context"** — the same structure carries different weight in different deployment domains ([§3.3](#33-context-of-use-and-domain-context-vector)), which is why composite coefficients adapt to the system's QoS profile ([§4.4](#44-what-the-component-carries-the-weight-channel)). *Context coverage* as a property of the criticality signal is treated in [§7.3](#73-characteristic-coverage).
@@ -1011,14 +981,14 @@ When reporting evaluation studies in software engineering journals (following Wo
 - Avizienis, A., Laprie, J.-C., Randell, B., & Landwehr, C. (2004). *Basic concepts and taxonomy of dependable and secure computing*. IEEE Transactions on Dependable and Secure Computing, 1(1), 11–33. (the attribute set — availability, reliability, safety, integrity, maintainability, confidentiality — and the fault→error→failure chain that distinguishes $FT$ from $A$ within Reliability)
 - Laprie, J.-C. (ed.) (1992). *Dependability: Basic Concepts and Terminology*. Springer. (the antecedent statement of the same taxonomy)
 
-**Prior meanings of "criticality" ([§2](#2-what-criticality-means-here)):**
+**Prior meanings of "criticality" ([§2](#2-what-criticality-means-here); full literature positioning in [research/methodology/criticality-construct.md](research/methodology/criticality-construct.md)):**
 
 - MIL-STD-1629A (1980), *Procedures for performing a failure mode, effects and criticality analysis*. (failure-mode criticality number; likelihood-weighted, cf. [D3](#23-consequence-not-risk))
 - IEC 60812:2018, *Failure modes and effects analysis (FMEA and FMECA)*. (current standard form of criticality analysis)
 - ISO 31000:2018, *Risk management — Guidelines*. (risk as the combination of likelihood and consequence, the decomposition [D3](#23-consequence-not-risk) selects from)
-- IEC 61508 (SIL), ISO 26262 (ASIL), RTCA DO-178C (DAL), MIL-STD-882E. (integrity/criticality levels assigned by hazard analysis rather than computed, [§2.2](#22-what-this-construct-borrows-and-rejects))
+- IEC 61508 (SIL), ISO 26262 (ASIL), RTCA DO-178C (DAL), MIL-STD-882E. (integrity/criticality levels assigned by hazard analysis rather than computed)
 - Arulselvan, A., Commander, C. W., Elefteriadou, L., & Pardalos, P. M. (2009). *Detecting critical nodes in sparse graphs*. Computers & Operations Research, 36(7), 2193–2200. (critical node detection problem)
-- Lalou, M., Tahraoui, M. A., & Kheddouci, H. (2018). *The critical node detection problem in networks: A survey*. Computer Science Review, 28, 92–117. (survey of the topological tradition [§2.1](#21-three-established-traditions) positions this construct against)
+- Lalou, M., Tahraoui, M. A., & Kheddouci, H. (2018). *The critical node detection problem in networks: A survey*. Computer Science Review, 28, 92–117. (survey of the topological tradition this construct is positioned against)
 
 **Structural metrics:**
 

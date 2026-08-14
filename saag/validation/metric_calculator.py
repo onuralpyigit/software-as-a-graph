@@ -400,13 +400,12 @@ def calculate_capture_rate_at_k(
 
     capture@K = |Top-K(pred) ∩ Top-K(actual)| / K, over the ids both dicts score.
 
-    Three dimensions each name this metric differently but compute it identically:
+    Two dimensions each name this metric differently but compute it identically:
 
     | Alias   | Dimension       | Predictor / ground truth | Target |
     |---------|-----------------|--------------------------|--------|
     | CCR@K   | Reliability     | R(v) vs IR(v)            | ≥ 0.80 |
     | COCR@K  | Maintainability | M(v) vs IM(v)            | ≥ 0.75 |
-    | AHCR@K  | Security        | S(v) vs IS(v)            | ≥ 0.70 |
     """
     return _top_k_overlap(predicted, actual, k)[0]
 
@@ -414,7 +413,6 @@ def calculate_capture_rate_at_k(
 # Domain-specific aliases — same statistic, different dimension and target.
 calculate_ccr_at_k = calculate_capture_rate_at_k    # Cascade Capture Rate (Reliability)
 calculate_cocr_at_k = calculate_capture_rate_at_k   # Change Obligation Capture Rate (Maintainability)
-calculate_ahcr_at_k = calculate_capture_rate_at_k   # Attack Hub Capture Rate (Security)
 
 
 def calculate_cme(
@@ -684,53 +682,4 @@ def calculate_rri(
 
     true_negatives = sum(1 for cid in redundant if actual_ia[cid] < ia_threshold)
     return true_negatives / len(redundant)
-
-# =============================================================================
-# Vulnerability-Specific Metrics (V(v) v2 / IV(v))
-# =============================================================================
-# AHCR@K is `calculate_ahcr_at_k`, aliased to calculate_capture_rate_at_k above.
-
-def calculate_ftr(
-    predicted: Dict[str, float],
-    actual_reach: Dict[str, float],
-    v_threshold: float = 0.60,
-    reach_threshold: float = 0.10,
-) -> float:
-    """False Target Rate (FTR).
-
-    FTR = |{v: V(v) > v_threshold AND IV(v)_reach < reach_threshold}| / |{v: V(v) > v_threshold}|
-
-    Target: FTR <= 0.25 (Lower is better).
-    """
-    common = sorted(set(predicted) & set(actual_reach))
-    if not common:
-        return 0.0
-
-    predicted_high = [cid for cid in common if predicted[cid] > v_threshold]
-    if not predicted_high:
-        return 0.0
-
-    false_targets = sum(1 for cid in predicted_high if actual_reach[cid] < reach_threshold)
-    return false_targets / len(predicted_high)
-
-
-def calculate_apar(
-    predicted: Dict[str, float],
-    critical_paths: List[List[str]],
-    v_threshold: float = 0.60,
-) -> float:
-    """Attack Path Agreement Rate (APAR).
-
-    APAR = |{v: V(v) > v_threshold AND v in critical_paths}| / |{v: V(v) > v_threshold}|
-
-    Target: APAR >= 0.60.
-    """
-    predicted_high = [cid for cid, score in predicted.items() if score > v_threshold]
-    if not predicted_high:
-        return 0.0
-
-    path_nodes = {node for path in critical_paths for node in path}
-    
-    agreed = sum(1 for cid in predicted_high if cid in path_nodes)
-    return agreed / len(predicted_high)
 

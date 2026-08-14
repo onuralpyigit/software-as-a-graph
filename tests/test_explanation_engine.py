@@ -36,7 +36,6 @@ def sample_quality():
         reverse_pagerank=0.87,
         betweenness=0.6,
         ap_c_directed=1.0,
-        reverse_eigenvector=0.95,
         bridge_ratio=0.75
     )
     profile = CriticalityProfile(ft_crit=True, a_crit=True, m_crit=True, r_crit=True, q_crit=True)
@@ -73,7 +72,6 @@ def sample_quality_high():
         reverse_pagerank=0.3,
         betweenness=0.1,
         ap_c_directed=0.2,
-        reverse_eigenvector=0.4,
         bridge_ratio=0.1
     )
     profile = CriticalityProfile(ft_crit=False, a_crit=True, m_crit=False, r_crit=False, q_crit=False)

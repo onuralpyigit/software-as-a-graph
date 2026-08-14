@@ -144,7 +144,7 @@ PYTHONPATH=. python cli/export_graph.py --output output/exported_graph.json --fo
 ## Step 2: Analyze
 
 **Script:** `cli/analyze_graph.py`  
-**Purpose:** Compute structural metrics, RM/Q quality scores, and detect anti-patterns.
+**Purpose:** Compute structural metrics M(v) and the graph summary S(G) only — no RM/Q scoring, no anti-pattern detection. Those belong to Step 3 (Predict); `analyze_graph.py` takes no RM-weighting flags because scoring is not this stage's job. See [structural-analysis.md §1](structural-analysis.md#1-what-this-step-does).
 
 ```bash
 PYTHONPATH=. python cli/analyze_graph.py --layer system
@@ -155,15 +155,11 @@ PYTHONPATH=. python cli/analyze_graph.py --layer system
 | Flag | Default | Choices / Type | Description |
 |------|---------|----------------|-------------|
 | `--layer` | `system` | `app`, `infra`, `mw`, `system`, `all`, comma-separated | Analysis layer(s). `all` runs `app`, `infra`, `mw`, `system` sequentially. |
-| `--use-ahp` | `False` | flag | Use AHP-derived weights |
-| `--equal-weights` | `False` | flag | Equal 0.25 weights per dimension (baseline) |
-| `--ahp-shrinkage` | `0.7` | float | Shrinkage factor λ ∈ [0,1] |
-| `--norm` | `robust` | `robust`, `minmax`, `zscore`, `rank` | Normalization method |
-| `--winsorize` | `False` | flag | Cap extreme outliers |
-| `--sensitivity` | `False` | flag | Run weight sensitivity analysis |
 | `--output` / `-o` | `None` | Path | Save analysis results JSON |
 
 Multi-layer output filenames append the layer (e.g. `analysis_app.json`, `analysis_system.json`).
+
+The RM-weighting flags (`--use-ahp`, `--equal-weights`, `--ahp-shrinkage`, `--norm`, `--winsorize`, `--sensitivity`) belong to Step 3 below.
 
 ---
 
@@ -183,8 +179,11 @@ PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_c
 | Flag | Description |
 |------|-------------|
 | `--use-ahp` | AHP-derived dimension weights |
-| `--equal-weights` | Equal 0.25 per dimension |
+| `--equal-weights` | q_reliability=q_maintainability=0.5, r_alpha=0.5 — equal at every level of the RM composite (baseline ablation) |
 | `--ahp-shrinkage` | λ blending factor (default `0.7`) |
+| `--norm` | Normalization applied to Tier-1 metrics before the RM weighted sum: `robust` (rank-based, default), `minmax`, `zscore`, or `rank` |
+| `--winsorize` | Cap raw metric values above the 95th percentile before normalization |
+| `--sensitivity` | Run Kendall τ weight sensitivity analysis after scoring |
 
 **GNN inference:**
 

@@ -29,7 +29,7 @@ For the full CLI flag reference (`validate_graph.py`), see [cli-pipeline-guide.m
    - 5.7 [Wilcoxon signed-rank test](#57-wilcoxon-signed-rank-test)
    - 5.8 [System health metrics](#58-system-health-metrics)
 6. [Gate Systems](#6-gate-systems)
-   - 6.1 [Library gates G1–G9](#61-library-gates-g1g9)
+   - 6.1 [Library gates G1–G6, G8](#61-library-gates-g1g6-g8)
    - 6.2 [CLI topology-class gates](#62-cli-topology-class-gates)
 7. [Stratified Reporting](#7-stratified-reporting)
 8. [Methodological Guards](#8-methodological-guards)
@@ -99,7 +99,7 @@ oracles and different thresholds, and **results must name which one produced the
 | Invoked by | `saag --validate`, `saag.Client.validate()`, `POST /api/v1/validation/run-pipeline` | `saag-validate` (`cli/validate_graph.py`) |
 | Implementation | [saag/validation/](../saag/validation/) | [cli/validation/](../cli/validation/) |
 | Ground truth | `FailureSimulator` → $I_{\text{comp}}(v)$ + two dimensions | `FaultInjector` → $I^*(v)$ |
-| Gates | 7 gates (G1–G6, G8; G7/G9 retired), fixed thresholds ([§6.1](#61-library-gates-g1g9)) | 5 gates, topology-class adaptive ([§6.2](#62-cli-topology-class-gates)) |
+| Gates | 7 gates (G1–G6, G8; G7/G9 retired), fixed thresholds ([§6.1](#61-library-gates-g1g6-g8)) | 5 gates, topology-class adaptive ([§6.2](#62-cli-topology-class-gates)) |
 | Output | `PipelineResult` → `LayerValidationResult` per layer | `ValidationResult` / `SweepReport` JSON |
 | Scope | Per-layer (`app`, `infra`, `mw`, `system`), both RM dimensions + FT/A sub-characteristic diagnostics | Whole graph, composite only, multi-seed |
 
@@ -161,7 +161,7 @@ interchangeable and each result must name the one it used.
 | Symbol | Engine | Definition | Backs |
 |---|---|---|---|
 | **I\*(v)** | `FaultInjector` | Mean subscriber feed-loss fraction | GNN training labels; the main table, LOSO and k-fold tables; the CLI gates |
-| **I_comp(v)** | `FailureSimulator` | `0.35·reachability + 0.25·fragmentation + 0.25·throughput + 0.15·flow_disruption` | The library gates ([§6.1](#61-library-gates-g1g9)) and the IR/IM decomposition |
+| **I_comp(v)** | `FailureSimulator` | `0.35·reachability + 0.25·fragmentation + 0.25·throughput + 0.15·flow_disruption` | The library gates ([§6.1](#61-library-gates-g1g6-g8)) and the IR/IM decomposition |
 | **I_RM(v)** | `FailureSimulator` | `0.5·(IR + IM)` — equal-weighted dimension sum, where `IR(v) = α·IFT(v) + (1−α)·IA(v)`, α=0.36 | Predictive Gain only ([§5.6](#56-composite-validation-and-predictive-gain)) |
 
 **Dimension coverage.** $I^*(v)$ is a single scalar. It maps onto the `composite` and `reliability`
@@ -526,7 +526,7 @@ pred_top_k = top K nodes by Q(v)   (predicted critical set)
 > `|gt_top_k| = |pred_top_k| = K`, it follows that `FP = FN`, so all three are identically
 > `|gt_top_k ∩ pred_top_k| / K`, and FTR is its complement. Reporting them as separate evidence
 > overstates how much has been measured, and a gate on F1@K plus a gate on Precision@K
-> ([§6.1](#61-library-gates-g1g9), G2 and G3) test the same quantity twice.
+> ([§6.1](#61-library-gates-g1g6-g8), G2 and G3) test the same quantity twice.
 >
 > The code names this honestly: `cli.validation.statistics.top_k_agreement` computes it once and
 > the three legacy field names are populated from it. `cli/loso_evaluate.py` emits `overlap_at_k`.
@@ -925,7 +925,7 @@ rank, node_id, node_type, Q, R, M, A, S, I, cascade_depth, nodes_affected, is_ar
 
 | Limitation | Consequence |
 |---|---|
-| G2 and G3 measure the same quantity ([§6.1](#61-library-gates-g1g9)) | Tier 1 carries three gates' worth of independent evidence, not four |
+| G2 and G3 measure the same quantity ([§6.1](#61-library-gates-g1g6-g8)) | Tier 1 carries three gates' worth of independent evidence, not four |
 | HSRR, DASA and RRI have no data source ([§5.5](#55-per-dimension-validation)) | Three of the four availability specialist metrics are unmeasured |
 | $I^*(v)$ and $I_{\text{comp}}(v)$ agree at mean ρ = 0.405 ([§3.2](#32-measured-agreement-between-the-oracles)) | Results are not transferable between the two entry points |
 | IM(v) shares a substrate with M(v) ([§2](#2-two-entry-points-two-gate-systems)) | That correlation is a consistency check, not an independent test |

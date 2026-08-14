@@ -646,7 +646,7 @@ class QualityAnalyzer:
 
         return QualityWeights(
             ft_pagerank=0.0, ft_reverse_pagerank=ft_weights[0], ft_in_degree=ft_weights[1],
-            ft_w_in=0.0, ft_cdpot=ft_weights[2],
+            ft_cdpot=ft_weights[2],
             r_alpha=r_alpha,
             m_betweenness=m_weights[0], m_w_out=m_weights[1],
             m_code_quality_penalty=m_weights[2],
@@ -730,9 +730,7 @@ class QualityAnalyzer:
             "reverse_pagerank": max((c.reverse_pagerank for c in components), default=0),
             "betweenness": max((c.betweenness for c in components), default=0),
             "closeness": max((c.closeness for c in components), default=0),
-            "reverse_closeness": max((c.reverse_closeness for c in components), default=0),
             "eigenvector": max((c.eigenvector for c in components), default=0),
-            "reverse_eigenvector": max((c.reverse_eigenvector for c in components), default=0),
             "in_degree": max((c.in_degree_raw for c in components), default=0),
             "out_degree": max((c.out_degree_raw for c in components), default=0),
             "total_degree": max((c.total_degree_raw for c in components), default=0),
@@ -780,9 +778,7 @@ class QualityAnalyzer:
             "reverse_pagerank":[(c.id, c.reverse_pagerank)  for c in components],
             "betweenness":     [(c.id, c.betweenness)       for c in components],
             "closeness":       [(c.id, c.closeness)         for c in components],
-            "reverse_closeness":[(c.id, c.reverse_closeness)for c in components],
             "eigenvector":     [(c.id, c.eigenvector)       for c in components],
-            "reverse_eigenvector":[(c.id, c.reverse_eigenvector)for c in components],
             "in_degree":       [(c.id, c.in_degree_raw)     for c in components],
             "out_degree":      [(c.id, c.out_degree_raw)    for c in components],
             "total_degree":    [(c.id, c.total_degree_raw)  for c in components],
@@ -816,8 +812,8 @@ class QualityAnalyzer:
         winsorized = [copy.copy(c) for c in components]
         
         metrics_to_winsorize = [
-            "pagerank", "reverse_pagerank", "betweenness", "closeness", "reverse_closeness",
-            "eigenvector", "reverse_eigenvector", "in_degree_raw", "out_degree_raw", "weight"
+            "pagerank", "reverse_pagerank", "betweenness", "closeness",
+            "eigenvector", "in_degree_raw", "out_degree_raw", "weight"
         ]
 
         for attr in metrics_to_winsorize:

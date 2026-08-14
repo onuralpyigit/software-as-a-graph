@@ -27,10 +27,10 @@
    - 4.3 [QoS Enforcement](#43-qos-enforcement)
    - 4.4 [Fault Injection at Runtime](#44-fault-injection-at-runtime)
 5. [CLI Reference — simulate\_graph.py](#5-cli-reference--simulate_graphpy)
-   - 5.1 [fault-inject](#51-fault-inject)
-   - 5.2 [message-flow](#52-message-flow)
-   - 5.3 [combined](#53-combined)
-   - 5.4 [Shared Flags](#54-shared-flags)
+   - 5.1 [Shared Flags](#51-shared-flags)
+   - 5.2 [fault-inject](#52-fault-inject)
+   - 5.3 [message-flow](#53-message-flow)
+   - 5.4 [combined](#54-combined)
 6. [Output Files](#6-output-files)
    - 6.1 [impact\_scores.json](#61-impact_scoresjson)
    - 6.2 [message\_flow\_results.json](#62-message_flow_resultsjson)
@@ -100,7 +100,6 @@ result model, and the split is stated in the package docstring
 | [`failure_simulator.py`](../saag/simulation/failure_simulator.py) | `FailureSimulator` — canonical RM oracle (`ImpactMetrics`) |
 | [`event_simulator.py`](../saag/simulation/event_simulator.py) | `EventSimulator` — discrete-event run supplying the baseline flows |
 | [`change_propagation.py`](../saag/simulation/change_propagation.py) | `ChangePropagationSimulator` — IM(v) sub-metrics |
-| [`compromise_propagation.py`](../saag/simulation/compromise_propagation.py) | `CompromisePropagationSimulator` — IV(v) sub-metrics, attack paths |
 | [`graph.py`](../saag/simulation/graph.py) | `SimulationGraph` — state-aware view over raw structural edges |
 | [`models.py`](../saag/simulation/models.py) | `ImpactMetrics`, scenarios, enums for this stack |
 | [`service.py`](../saag/simulation/service.py) | `SimulationService` — orchestration and reporting |
@@ -321,7 +320,7 @@ structural footprint rather than contradicting it.
 **$T_0$ Step-Function Collapse in FailureSimulator**: `FailureSimulator` models library failure as a **$T_0$ step-function collapse**: all consuming Applications that use the Library fail immediately at depth 0. The subsequent propagation of these Application failures forward through the pub-sub topic graph is more restricted than in `FaultInjector`, so the two engines rank libraries differently. That divergence is expected — they measure different quantities (§2.1).
 
 > [!NOTE]
-> The standard Reliability $R(v)$ formula (documented in [structural-analysis.md](structural-analysis.md#reliability-rv--fault-propagation-risk)) already includes the normalized in-degree term $DG\_in(v)$, which captures the number of direct consumers (blast radius) for both Applications and Libraries. This is the correct place to tune the Library's structural influence if the asymmetry is considered too large.
+> The Fault Tolerance $FT(v)$ formula (documented in [structural-analysis.md](structural-analysis.md#fault-tolerance-ftv--fault-propagation-risk) — $FT(v)$ is a term of $R(v)$, not $R(v)$ itself) already includes the normalized in-degree term $DG\_in(v)$, which captures the number of direct consumers (blast radius) for both Applications and Libraries. This is the correct place to tune the Library's structural influence if the asymmetry is considered too large.
 
 ---
 
@@ -539,7 +538,7 @@ Post-simulation, the cascade annotation identifies:
 Pipeline context and how this step fits with the others is in
 [cli-pipeline-guide.md §Step 4](cli-pipeline-guide.md). This section is the flag reference.
 
-### 5.4 Shared Flags
+### 5.1 Shared Flags
 
 All three subcommands accept these:
 
@@ -551,7 +550,7 @@ All three subcommands accept these:
 | `--export-json` | off | Write the JSON result files and their `.txt` summaries to `--output`. |
 | `--verbose` / `-v` | off | Enable DEBUG logging (per-node I(v), per-topic stats). |
 
-### 5.1 `fault-inject`
+### 5.2 `fault-inject`
 
 Runs BFS cascade fault injection and produces `impact_scores.json`.
 
@@ -589,7 +588,7 @@ PYTHONPATH=. python cli/simulate_graph.py fault-inject \
     --export-json
 ```
 
-### 5.2 `message-flow`
+### 5.3 `message-flow`
 
 Runs the SimPy discrete-event message flow simulation.
 
@@ -617,7 +616,7 @@ PYTHONPATH=. python cli/simulate_graph.py message-flow \
     --export-json
 ```
 
-### 5.3 `combined`
+### 5.4 `combined`
 
 Runs `fault-inject` and `message-flow` in sequence. `--fault-node` serves both modes: it
 selects the message-flow fault target and can be combined with `--nodes` to restrict
