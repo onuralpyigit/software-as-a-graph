@@ -26,7 +26,7 @@ digraph Figure1 {
     color = "#999999";
     labelloc = "t";
 
-    rmav [label="RM attribution\nQ(v)  (§4)", fillcolor="#E2F0D9", color="#55A868"];
+    rm [label="RM attribution\nQ(v)  (§4)", fillcolor="#E2F0D9", color="#55A868"];
     hgl  [label="Heterogeneous GNN\nHGL predictor (§5.2)", fillcolor="#E2F0D9", color="#55A868"];
   }
 
@@ -35,9 +35,9 @@ digraph Figure1 {
   gate    [label="CI/CD quality gate\nPASS / FAIL (exit 0/2)", fillcolor="#F2DCDB", color="#C44E52", shape=hexagon];
 
   input -> graph_s -> depon;
-  depon -> rmav;
+  depon -> rm;
   depon -> hgl;
-  rmav -> oracle [label="validated\nagainst", style=dashed];
+  rm -> oracle [label="validated\nagainst", style=dashed];
   hgl  -> oracle [label="validated\nagainst", style=dashed];
   oracle -> remed -> gate;
 }

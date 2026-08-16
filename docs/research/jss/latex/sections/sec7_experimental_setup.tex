@@ -83,7 +83,8 @@ availability impact. \textbf{Statistical rigor}: bootstrap 95\% confidence inter
 \cite{wilcoxon1945individual} (\(p < 0.05\)) for predictor comparisons. Following
 Section~\ref{sec:5.4}'s stratified check, \(\rho\) is always reported \emph{by node type} in addition
 to any pooled figure. The implementation also carries a topology-class-adjusted validation gate
-(default targets \(\rho \ge 0.70\), \(F1 \ge 0.80\), tightened or relaxed per class;
+(default targets \(\rho \ge 0.70\), \(F1 \ge 0.80\), tightened or relaxed per class --- the
+\texttt{sparse} class the real-world graphs fall into tightens \(\rho\) to \(0.75\);
 Section~\ref{sec:8.5} reports gate failures against these).
 
 \textbf{One evaluation contract, one sample.} Every variant in every table is scored by the same

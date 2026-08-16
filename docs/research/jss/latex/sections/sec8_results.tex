@@ -168,10 +168,14 @@ unretained artifact out of distribution, and the strongest non-learning comparat
 of 7 scenarios. The set-identification advantage is the more defensible half. Three caveats bound
 even that: the LOSO across-fold standard deviation remains substantial (0.177 for HGL), top-\(K\)
 metrics inherit the label churn of Section~\ref{sec:7.4} (the ground truth's own top-\(K\) set agrees
-with itself at Jaccard 0.44--1.00), and \(Q(v)\) does not transfer at all as a \emph{ranker}
-(\(\rho=-0.093\) LOSO) --- a negative result about its ranking use, not about its attribution use
-(Section~\ref{sec:8.3}). The practical recommendation we defend is correspondingly narrow: use typed
-learning when the deliverable is a shortlist, and treat the ranking comparison as open.
+with itself at Jaccard 0.44--1.00), and the closed-form \(Q(v)\) baseline's out-of-distribution
+ranking behaviour is \emph{not established under the two-dimension RM composite} --- its LOSO row is
+unmeasured this session (Table~\ref{tab:10}\textsuperscript{\dag}), so it supports no claim in either
+direction, and in particular the negative transfer reported for it under the retired four-dimension
+composite must not be carried forward. Whatever that row turns out to be, it would bear on \(Q(v)\)'s
+ranking use, not on its attribution use (Section~\ref{sec:8.3}). The practical recommendation we
+defend is correspondingly narrow: use typed learning when the deliverable is a shortlist, and treat
+the ranking comparison as open.
 
 \hypertarget{rq2-what-taking-node-and-edge-type-seriously-shows-and-does-not-show}{%
 \subsection{RQ2 --- What Taking Node and Edge Type Seriously Shows (and Does Not Show)}\label{rq2-what-taking-node-and-edge-type-seriously-shows-and-does-not-show}}
@@ -404,6 +408,15 @@ SPOF-F1 \(\ge 0.6\): Autoware 0.500, Cloud Microservices 0.333, Train-Ticket 0.5
 three, short by only 0.029. Cloud Microservices additionally fails predictive gain \(\ge 0.02\)
 (0.014). We report the failing gate rather than the passing correlations alone, because presenting
 one without the other would overstate what these three cases establish.
+
+\textbf{One qualification is specific to Autoware and worth stating plainly.} In an autonomous-driving
+deployment the dominant stakeholder harm is freedom from health and human-life risk, and \emph{Safety}
+--- a first-class ISO/IEC 25010:2023 characteristic \cite{iso25010_2023} --- is not among the
+characteristics RM instantiates: the model carries no hazard catalogue, functional integrity class, or
+safety-criticality field, so no dimension estimates that harm directly. The scores below locate
+structural exposure in a safety-critical architecture; they cannot discharge a safety argument, and
+nothing in the tiering should be read as though they could. Assigned integrity levels (ASIL, and its
+IEC 61508 and DO-178C analogues) remain the complementary instrument for that.
 
 \textbf{Set-containment of the genuinely critical components is real; the reported \(F_1@K=1.000\) on
 two of three graphs is partly a tie-breaking artifact, and we report both.} On Cloud Microservices

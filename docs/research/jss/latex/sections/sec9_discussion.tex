@@ -62,20 +62,27 @@ the one least disturbed by the audit, and the one we would defend most confident
 \label{sec:9.2}
 
 \textbf{Construct validity.} D1 and D2 (Section~\ref{sec:4.1}) define criticality as Quality-in-Use
-loss, and this study never observes Quality-in-Use directly. The validation chain has two links: \textcircled{\scriptsize 1}
-structural/learned score → simulated failure impact, which Section~\ref{sec:8} measures and reports
-as a real, falsifiable result; and \textcircled{\scriptsize 2} simulated impact → real Quality-in-Use loss, which is not
-measured anywhere in this paper --- no user study, expert elicitation, or production incident record
-is used, and the simulator is itself a \emph{model} of stakeholder harm rather than an observation of
-it. The defensible claim is therefore: \emph{RM and the learned predictors track simulated failure
-impact, and simulated failure impact is our stated operationalisation of Quality-in-Use loss.} The
-stronger claim --- that these scores track Quality-in-Use as stakeholders would report it --- is not
-supported by anything here. Two qualifications keep this from being either overstated or unduly
-bleak: Effectiveness and Efficiency are in principle measurable from quantities the simulators
-already produce (delivery rate before/after a fault, latency shift), so link \textcircled{\scriptsize 2} is partly closable by
-re-summarising existing output rather than by new instrumentation; but Acceptability and Satisfaction
-are behavioural and not measurable by these means at all, which bounds what this construct can ever
-claim on them. None of that has been \emph{run}; it establishes measurability, not a measurement.
+loss, and this study never observes Quality-in-Use directly. Following the three quality views of
+Section~\ref{sec:4}, the validation chain has three links, not two: \textcircled{\scriptsize 1}
+internal quality evidence → simulated external quality, which Section~\ref{sec:8} measures and
+reports as a real, falsifiable result; \textcircled{\scriptsize 2} simulated external quality → the
+external quality of a \emph{deployed} system, which we do not measure, since the simulator is a model
+of the executing system rather than the system itself; and \textcircled{\scriptsize 3} external
+quality → Quality-in-Use loss, which is not measured anywhere in this paper --- no user study, expert
+elicitation, or production incident record is used. The defensible claim is therefore: \emph{RM and
+the learned predictors track simulated external quality loss, and simulated external quality loss is
+our stated operationalisation of Quality-in-Use loss.} The stronger claim --- that these scores track
+Quality-in-Use as stakeholders would report it --- is not supported by anything here.
+
+Naming the middle view correctly bounds the construct in both directions, and a two-link framing gets
+both wrong. It \emph{understates} what is measured: delivery rate and latency under fault are
+external product-quality observations \cite{iso25023_2016}, already built and reported, not
+prospective. It also \emph{overstates} the construct, by presenting those same quantities as
+Quality-in-Use measurements when Quality-in-Use in the sense of ISO/IEC 25019:2023
+\cite{iso25019_2023} --- beneficialness, freedom from risk, acceptability \cite{iso25022_2016} ---
+requires a specified stakeholder pursuing a specified goal in a specified context, none of which
+exists here. What remains unmeasured is links \textcircled{\scriptsize 2} and
+\textcircled{\scriptsize 3}.
 
 Because the ground truth is simulated rather than observed, the strongest claims we can make remain
 comparative. Four further bounds apply. \emph{The two oracles agree weakly}: \(I^*(v)\) and

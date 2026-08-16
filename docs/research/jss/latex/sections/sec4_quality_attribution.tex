@@ -19,6 +19,14 @@ architectural element failed.
 
 \label{sec:4.1}
 
+Two definitions fix what is being scored. \textbf{D1 --- component criticality}: the degree to which
+the failure, latency, or degradation of a component, directly or transitively, reduces the system's
+capacity to let its stakeholders achieve their goals with beneficialness, freedom from risk, and
+acceptability, within its operational context. \textbf{D2 --- relationship criticality}: the same
+degree of loss for the disruption of one specific dependency, with \emph{both endpoint components
+remaining operational} --- the clause that isolates the partial-outage case from the total-outage one.
+Both are realised per analytical layer as a map onto the RM vector and its composite.
+
 \begin{longtable}[]{@{}
   >{\centering\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.06}}
   >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.28}}
@@ -50,8 +58,8 @@ and \(M\); a god-component scores high on \(M\); a cascade hub scores high on th
 \emph{shape} of the profile --- which sub-term of \(R\) dominates, and how \(R\) compares to \(M\) ---
 names the failure mode.
 
-Two of the framework's formal definitions do real work in what follows. \textbf{Criticality is a
-consequence, not a risk}: no RM dimension estimates how \emph{probable} a component's failure is,
+Two further formal definitions do real work in what follows. \textbf{Criticality is a
+consequence, not a risk (D3)}: no RM dimension estimates how \emph{probable} a component's failure is,
 only how much is lost \emph{given} that it does --- ranking \(u\) above \(v\) says that losing \(u\)
 hurts more, not that \(u\) is more likely to be lost, and restricting the construct to consequence is
 precisely what makes it computable pre-deployment, since consequence follows from architecture while
@@ -104,7 +112,11 @@ four-dimension AHP composite \((A, R, M, V) = (0.43, 0.24, 0.17, 0.16)\) by fold
 written on Saaty's 1--9 scale and audited for Analytic Hierarchy Process consistency
 \cite{saaty1980ahp} (\(\mathrm{CR} \le 0.10\)) at the sub-characteristic level rather than freshly
 elicited --- adapted per system toward its aggregate QoS profile, the computable form of D1's ``within
-its operational context'' clause.
+its operational context'' clause. The audit is confined to the sub-characteristic level for a
+structural reason, not by oversight: a consistency ratio is defined as zero for \(n \le 2\), so a
+two-criterion comparison between Reliability and Maintainability would be consistent by construction
+and could not be audited at all. We therefore hold no composite comparison matrix, and the composite
+split is reported as declared rather than as an audited elicitation.
 
 We classify with an adaptive box-plot rule applied independently to each dimension and to the
 composite (CRITICAL: \(Q > Q_3 + 1.5\,\mathrm{IQR}\), down to MINIMAL: \(Q \le Q_1\), with a
