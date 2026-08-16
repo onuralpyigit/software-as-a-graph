@@ -306,6 +306,7 @@ Routed by what you're trying to do — each doc also links forward/back along th
 |---|---|
 | **Run this on my own system** | [cli-pipeline-guide.md](docs/cli-pipeline-guide.md) (every flag, every stage) → [graph-model.md](docs/graph-model.md) (input format) |
 | **Understand what a score means** | [structural-analysis.md](docs/structural-analysis.md) §10–11 (the metric catalogue and RM formulas) → [criticality.md](docs/criticality.md) (what "criticality" is defined to mean, and its validity limits) |
+| **Look up a quality attribute, coefficient, or constant** | [quality-model.md](docs/quality-model.md) (the RM models layer by layer: every attribute, the measure that operationalizes it, its coefficient and provenance, for components and edges alike) |
 | **Find and fix architectural problems** | [antipatterns.md](docs/antipatterns.md) (the 19-pattern catalog) → [remediation.md](docs/remediation.md) (which patterns are auto-fixable) → [prescription.md](docs/prescription.md) (the closed-loop verifier) |
 | **Check the evidence behind a claim** | [failure-simulation.md](docs/failure-simulation.md) (the two ground-truth engines) → [validation.md](docs/validation.md) (the statistical battery and gates) → [scenario.md](docs/scenario.md) (which scenario backs which published number) |
 | **Reproduce the published results** | [reproduce/README.md](reproduce/README.md) and [reproduce/EXPERIMENTS.md](reproduce/EXPERIMENTS.md) (the protocol) → [scenario.md](docs/scenario.md) (the corpus) |

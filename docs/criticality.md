@@ -254,7 +254,7 @@ $$
 
 #### The layered quality model, and a property of the matrix worth stating precisely
 
-The construct is now expressible as four layers, each with a declared epistemic status, implemented in [`saag/core/quality_model.py`](../saag/core/quality_model.py):
+The construct is now expressible as four layers, each with a declared epistemic status, implemented in [`saag/core/quality_model.py`](../saag/core/quality_model.py). [quality-model.md](quality-model.md) walks all four in computation order and enumerates what lives at each — every attribute, the measure that operationalizes it, its coefficient and provenance, for components and edges alike; this section states only what the layering is *for*.
 
 | Layer | Standard | Provenance | Oracle |
 |:---|:---|:---|:---|

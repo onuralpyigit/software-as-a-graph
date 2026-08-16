@@ -673,7 +673,7 @@ Tier-2 diagnostics are described in [§9.15](#915-diagnostic-metrics).
 
 ## 11. Analyze Stage — Rule-Based RM Scoring
 
-> See [criticality.md](criticality.md) for the definitions these scores operationalize: component criticality (D1), relationship criticality (D2), why criticality is a consequence rather than a risk (D3), and why the dimension names come from SQuaRE's product-quality model while the harm is measured on Quality-in-Use ([§3.5](criticality.md#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)).
+> See [criticality.md](criticality.md) for the definitions these scores operationalize: component criticality (D1), relationship criticality (D2), why criticality is a consequence rather than a risk (D3), and why the dimension names come from SQuaRE's product-quality model while the harm is measured on Quality-in-Use ([§3.5](criticality.md#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)). See [quality-model.md](quality-model.md) for the same formulas placed in the four-layer SQuaRE stack, with each coefficient's provenance and test coverage stated — this section is the implementation reference, that one is the quality-model reference.
 
 ### 11.1 The Two Quality Dimensions
 
