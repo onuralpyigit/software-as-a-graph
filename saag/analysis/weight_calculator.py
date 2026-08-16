@@ -149,7 +149,11 @@ class AHPMatrices:
     criteria_availability: List[List[float]] = None
 
     # Topic QoS Importance: Reliability (Rel), Durability (Dur), Priority (Pri)
-    # Justifies the 0.30/0.40/0.30 split used in Phase 4 modeling.
+    # Justifies the 0.30/0.40/0.30 split used in Phase 3 modeling (Intrinsic
+    # Weight Computation, docs/graph-model.md §4.3), i.e. QoSPolicy.W_RELIABILITY/
+    # W_DURABILITY/W_PRIORITY in saag.core.models. Enforced by
+    # tests/test_ahp_shrinkage.py::test_topic_qos_matrix_reproduces_shipped_weights
+    # via AHPProcessor.compute_topic_qos_weights().
     criteria_topic_qos: List[List[float]] = None
 
     # Impact (I(v)): Reachability (RL), Fragmentation (FR), Throughput (TL), Flow Disruption (FD)
@@ -345,3 +349,22 @@ class AHPProcessor:
             # Overall (q_reliability, q_maintainability) and r_alpha: not AHP-derived,
             # left at dataclass defaults (0.80, 0.20, 0.36) — see docstring.
         )
+
+    def compute_topic_qos_weights(self) -> Dict[str, float]:
+        """Raw (unshrunk) AHP-derived weights for Topic QoS sub-criteria.
+
+        Not shrunk: ``saag.core.models.QoSPolicy.W_RELIABILITY``/
+        ``W_DURABILITY``/``W_PRIORITY`` are the single runtime source of truth
+        for w(topic) (graph-construction Phase 3); this method exists to prove
+        those shipped constants are what a consistent Saaty matrix produces,
+        not to feed them back into the graph-construction path. See
+        ``tests/test_ahp_shrinkage.py::test_topic_qos_matrix_reproduces_shipped_weights``.
+        """
+        w = self._calculate_priority_vector(self.matrices.criteria_topic_qos)
+        cr = self._calculate_consistency_ratio(self.matrices.criteria_topic_qos, w)
+        return {
+            "reliability": w[0],
+            "durability": w[1],
+            "priority": w[2],
+            "consistency_ratio": cr,
+        }

@@ -76,6 +76,10 @@ BROKER_HYBRID_MEAN_COEFF: float = 0.30
 
 #: Library fan-out multiplier coefficient (γ) for simultaneous blast semantics.
 #: Applied as: 1 + γ * log2(1 + DG_in).
+#: Rationale for magnitude: at realistic fan-out (single digits to low tens of
+#: consuming apps, DG_in ≈ 5-30), log2(1+DG_in) ≈ 2.6-5.0, so γ=0.15 yields a
+#: ~40-75% amplification — noticeable but not dominant, keeping w(lib) well
+#: under the min(1.0, ...) ceiling for all but extreme fan-out.
 LIB_FANOUT_GAMMA: float = 0.15
 
 #: Regularization coefficient (δ) for path count coupling complexity.

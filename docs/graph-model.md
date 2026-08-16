@@ -190,7 +190,7 @@ MIN_WEIGHT = 0.01
 
 **AHP justification for β:** QoS semantics are the primary signal for dependency criticality; payload size is a secondary amplifier. The 0.85 weight preserves the primacy of the QoS contract while allowing message volume to modulate the final score.
 
-**AHP justification for QoS sub-weights:** Durability (0.40) outweighs Reliability and Priority (0.30 each) because durability defines message state survival — fundamental for resilience — while reliability and priority govern transient delivery quality.
+**AHP justification for QoS sub-weights:** Durability (0.40) outweighs Reliability and Priority (0.30 each) because durability defines message state survival — fundamental for resilience — while reliability and priority govern transient delivery quality. This is a tested claim, not just narrative: `saag/analysis/weight_calculator.py`'s `AHPMatrices.criteria_topic_qos` Saaty matrix reproduces `(0.30, 0.40, 0.30)` via `AHPProcessor.compute_topic_qos_weights()`, with consistency ratio CR < 0.10, checked against `QoSPolicy.W_RELIABILITY`/`W_DURABILITY`/`W_PRIORITY` by `tests/test_ahp_shrinkage.py::test_topic_qos_matrix_reproduces_shipped_weights`.
 
 #### What the weights encode, in quality-model terms
 

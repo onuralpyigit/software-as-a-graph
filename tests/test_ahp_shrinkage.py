@@ -1,6 +1,8 @@
 
+import pytest
+
 from saag.analysis.weight_calculator import AHPProcessor, AHPMatrices
-from saag.core.models import AHP_SHRINKAGE_LAMBDA
+from saag.core.models import AHP_SHRINKAGE_LAMBDA, QoSPolicy
 
 def test_shrinkage():
     # v5: ft_pagerank is deprecated (0.0); the three active Reliability weights
@@ -50,5 +52,20 @@ def test_shrinkage():
 
     print("\nAll AHP shrinkage tests passed!")
 
+
+def test_topic_qos_matrix_reproduces_shipped_weights():
+    # Proves QoSPolicy's shipped W_RELIABILITY/W_DURABILITY/W_PRIORITY constants
+    # (used at runtime to compute w(topic), graph-construction Phase 3) are what
+    # a consistent Saaty pairwise-comparison matrix produces — closing the gap
+    # where AHPMatrices.criteria_topic_qos existed but was never read by
+    # AHPProcessor.compute_weights().
+    result = AHPProcessor().compute_topic_qos_weights()
+    assert result["consistency_ratio"] < 0.10, "Saaty matrix must be internally consistent"
+    assert result["reliability"] == pytest.approx(QoSPolicy.W_RELIABILITY, abs=0.01)
+    assert result["durability"] == pytest.approx(QoSPolicy.W_DURABILITY, abs=0.01)
+    assert result["priority"] == pytest.approx(QoSPolicy.W_PRIORITY, abs=0.01)
+
+
 if __name__ == "__main__":
     test_shrinkage()
+    test_topic_qos_matrix_reproduces_shipped_weights()
