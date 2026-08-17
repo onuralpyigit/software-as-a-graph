@@ -11,6 +11,7 @@ from typing import Dict, Any, List, Optional
 from saag.core.ports.graph_repository import IGraphRepository
 from saag.core.models import (
     GraphData, ComponentData, EdgeData, QoSPolicy, compute_topic_weight,
+    compute_effective_edge_weight, compute_harmonic_coupling, compute_power_mean_weight,
     APP_HYBRID_MAX_COEFF, APP_HYBRID_MEAN_COEFF,
     BROKER_HYBRID_MAX_COEFF, BROKER_HYBRID_MEAN_COEFF,
     LIB_FANOUT_GAMMA, MIN_TOPIC_WEIGHT,
@@ -82,9 +83,12 @@ class MemoryRepository:
         # 1. Topic weights
         for topic in self.data["topics"]:
             qos = QoSPolicy.from_node_attrs(topic)
+            freq = topic.get("frequency")
             # Negative sizes are clamped rather than rejected, matching the
             # `size <= 0 -> 0.0` branch of the Cypher size-norm expression.
-            topic["weight"] = compute_topic_weight(qos, max(0, topic.get("size", 256)))
+            topic["weight"] = compute_topic_weight(
+                qos, max(0, topic.get("size", 256)), frequency=freq
+            )
 
         # 2. Edge weights and QoS profiles (both inherit from the Topic).
         # The profile matters as much as the scalar: downstream consumers that
@@ -125,17 +129,10 @@ class MemoryRepository:
                 if tgt in topic_weights
             ]
 
-        def hybrid(weights: List[float], max_coeff: float, mean_coeff: float) -> float:
-            """max_coeff * worst-case topic + mean_coeff * average footprint."""
-            if not weights:
-                return MIN_TOPIC_WEIGHT
-            return max_coeff * max(weights) + mean_coeff * (sum(weights) / len(weights))
-
-        # 1. Applications — hybrid over directly connected topics
+        # 1. Applications — Generalized Power Mean (p=3) over directly connected topics
         for app in self.data["applications"]:
-            app["weight"] = hybrid(
-                connected_topic_weights(app["id"], ("publishes_to", "subscribes_to")),
-                APP_HYBRID_MAX_COEFF, APP_HYBRID_MEAN_COEFF,
+            app["weight"] = compute_power_mean_weight(
+                connected_topic_weights(app["id"], ("publishes_to", "subscribes_to"))
             )
 
         # 2. Libraries — max(own topics, consuming apps) amplified by fan-out
@@ -170,11 +167,10 @@ class MemoryRepository:
             if used:
                 app["weight"] = max(used)
 
-        # 4. Brokers — hybrid over routed topics
+        # 4. Brokers — Generalized Power Mean (p=3) over routed topics
         for broker in self.data["brokers"]:
-            broker["weight"] = hybrid(
-                connected_topic_weights(broker["id"], ("routes",)),
-                BROKER_HYBRID_MAX_COEFF, BROKER_HYBRID_MEAN_COEFF,
+            broker["weight"] = compute_power_mean_weight(
+                connected_topic_weights(broker["id"], ("routes",))
             )
 
         # 5. Nodes — worst-case hosted component
@@ -261,13 +257,15 @@ class MemoryRepository:
         """
         Collapse the per-pair topic sets of one rule into a single edge each.
 
-        Weight is the worst-case QoS over every mediating topic; ``path_count`` is
-        the number of topics on the richest path kind, capturing coupling intensity
-        without breaking the ``weight ∈ [0, 1]`` contract.
+        Weight is the probabilistic union (effective coupling) over every mediating
+        topic: w_E = 1 - ∏ (1 - w(t)); ``path_count`` is the number of distinct mediating
+        topics on the richest path kind.
         """
         return {
             (src, tgt, dep_type): {
-                "weight": max(topic_weights[t] for topics in kinds.values() for t in topics),
+                "weight": compute_effective_edge_weight(
+                    [topic_weights[t] for topics in kinds.values() for t in topics]
+                ),
                 "path_count": max(len(topics) for topics in kinds.values()),
             }
             for (src, tgt), kinds in paths.items()
@@ -339,11 +337,17 @@ class MemoryRepository:
                 node_broker.setdefault((src_node, tgt), []).append(edge["weight"])
 
         lifted = {
-            (n1, n2, "node_to_node"): {"weight": max(weights), "path_count": len(weights)}
+            (n1, n2, "node_to_node"): {
+                "weight": compute_effective_edge_weight(weights),
+                "path_count": len(weights),
+            }
             for (n1, n2), weights in node_node.items()
         }
         lifted.update({
-            (node, broker, "node_to_broker"): {"weight": max(weights), "path_count": len(weights)}
+            (node, broker, "node_to_broker"): {
+                "weight": compute_effective_edge_weight(weights),
+                "path_count": len(weights),
+            }
             for (node, broker), weights in node_broker.items()
         })
         return lifted
@@ -402,8 +406,10 @@ class MemoryRepository:
 
         for edge in self.data["relationships"].get("depends_on", []):
             if edge["dependency_type"] == "app_to_lib":
-                # Inherits the weight of the consuming Application/Library
-                edge["weight"] = comp_weights.get(edge["from"], MIN_TOPIC_WEIGHT)
+                # Harmonic mean between the consuming Application/Library and the used Library
+                w_app = comp_weights.get(edge["from"], MIN_TOPIC_WEIGHT)
+                w_lib = comp_weights.get(edge["to"], MIN_TOPIC_WEIGHT)
+                edge["weight"] = compute_harmonic_coupling(w_app, w_lib)
             elif edge["dependency_type"] == "broker_to_broker":
                 # Inherits the worst-case weight of the nodes both brokers share
                 shared = nodes_of.get(edge["from"], set()) & nodes_of.get(edge["to"], set())

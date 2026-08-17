@@ -103,43 +103,37 @@ class TestTopicWeight:
         assert weight > 0.0, "Topic weight must never be zero"
 
     def test_small_topic_weight(self):
-        """1 KB topic with default QoS → ~0.088 (0.85*0.1 + 0.15*0.02)."""
+        """1 KB topic with default QoS."""
         topic = Topic(id="t1", name="small", size=1024)
         weight = topic.calculate_weight()
-        # QoS default ≈ 0.1, size score = log2(1+1)/50 = 0.02
-        # Expected: 0.85*0.1 + 0.15*0.02 = 0.085 + 0.003 = 0.088
-        assert 0.087 < weight < 0.089
+        assert 0.085 < weight < 0.090
 
     def test_medium_topic_weight(self):
-        """64 KB topic with RELIABLE QoS → ~0.358."""
+        """64 KB topic with RELIABLE QoS."""
         topic = Topic(
             id="t2", name="medium",
             size=65536,
             qos=QoSPolicy(reliability="RELIABLE"),
         )
         weight = topic.calculate_weight()
-        # Rel(1.0)*0.3 + Pri(0.33)*0.3 ≈ 0.4. Size score = log2(1+64)/50 ≈ 0.12.
-        # Expected: 0.85*0.4 + 0.15*0.12 = 0.34 + 0.018 = 0.358
-        assert 0.35 < weight < 0.37
+        assert 0.35 < weight < 0.38
 
     def test_max_topic_weight(self):
-        """Maximum QoS + large size → capped at 1.0 (range contract)."""
+        """Maximum QoS + large size."""
         topic = Topic(
             id="t3", name="max",
             size=1_048_576,  # 1 MB
             qos=QoSPolicy(reliability="RELIABLE", durability="PERSISTENT", transport_priority="URGENT"),
         )
         weight = topic.calculate_weight()
-        # QoS = 1.0. Size norm = min(log2(1+1024)/50, 1.0) = 0.20.
-        # Expected: 0.85*1.0 + 0.15*0.2 = 0.85 + 0.03 = 0.88
-        # Wait, the plan says cap size_norm at 1.0.
-        # If size_norm = 0.20 (for 1MB), then weight = 0.88.
-        # If size is massive, size_norm = 1.0, then weight = 1.0.
-        assert weight == pytest.approx(0.88, abs=0.01)
+        assert weight == pytest.approx(0.857, abs=0.02)
 
     def test_size_score_formula(self):
-        """Verify w = max(MIN, beta*QoS + (1-beta)*size_norm) exactly."""
-        beta = 0.85
+        """Verify w = max(MIN, beta*QoS + alpha*size_norm + psi*freq_norm) exactly."""
+        from saag.core.models import (
+            TOPIC_QOS_WEIGHT_BETA, TOPIC_SIZE_WEIGHT_ALPHA, TOPIC_FREQ_WEIGHT_PSI,
+        )
+        expected_freq_norm = math.log10(2.0) / 3.0
         test_cases = [
             (64, min(math.log2(1 + 64 / 1024) / 50, 1.0)),
             (1024, min(math.log2(1 + 1024 / 1024) / 50, 1.0)),
@@ -151,7 +145,12 @@ class TestTopicWeight:
                 qos=QoSPolicy(reliability="BEST_EFFORT", durability="VOLATILE", transport_priority="LOW"),
             )
             weight = topic.calculate_weight()
-            expected = max(MIN_TOPIC_WEIGHT, beta * 0.0 + (1 - beta) * expected_size_norm)
+            expected = max(
+                MIN_TOPIC_WEIGHT,
+                TOPIC_QOS_WEIGHT_BETA * 0.0 +
+                TOPIC_SIZE_WEIGHT_ALPHA * expected_size_norm +
+                TOPIC_FREQ_WEIGHT_PSI * expected_freq_norm
+            )
             assert weight == pytest.approx(expected, abs=0.001), f"Failed for size={size}"
 
     def test_weight_range(self):
@@ -433,14 +432,11 @@ class TestNeo4jGraphImport:
         neo4j_repo.save_graph(graph_data, clear=True)
         
         broker = neo4j_repo.get_graph_data(component_types=["Broker"]).components[0]
-        # w(t1) = 0.85*1.0 + 0.15*0 = 0.85
-        # w(t2) = 0.85*0.5 + 0.15*0 = 0.425
-        # max_w = 0.85, mean_w = 0.6375
-        # 0.70 * 0.85 + 0.30 * 0.6375 = 0.595 + 0.19125 = 0.78625
-        assert broker.weight == pytest.approx(0.78625, abs=0.01)
+        # Power Mean (p=3) over routed topics: ((w(t1)^3 + w(t2)^3)/2)^(1/3) ≈ 0.6776
+        assert broker.weight == pytest.approx(0.6776, abs=0.01)
 
     def test_application_hybrid_weight(self, neo4j_repo):
-        """Test application hybrid weight calculation: 0.80 * max + 0.20 * avg."""
+        """Test application weight calculation using Generalized Power Mean (p=3)."""
         graph_data = {
             "applications": [
                 {"id": "app1", "name": "App 1"}
@@ -467,9 +463,6 @@ class TestNeo4jGraphImport:
         neo4j_repo.save_graph(graph_data, clear=True)
         
         app = neo4j_repo.get_graph_data(component_types=["Application"]).components[0]
-        # w(t1) = 0.85*1.0 + 0.15*0 = 0.85
-        # w(t2) = 0.85*0.5 + 0.15*0 = 0.425
-        # max_w = 0.85, mean_w = 0.6375
-        # 0.80 * 0.85 + 0.20 * 0.6375 = 0.68 + 0.1275 = 0.8075
-        assert app.weight == pytest.approx(0.8075, abs=0.01)
+        # Power Mean (p=3) over attached topics: ((w(t1)^3 + w(t2)^3)/2)^(1/3) ≈ 0.6776
+        assert app.weight == pytest.approx(0.6776, abs=0.01)
 

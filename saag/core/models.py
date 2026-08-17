@@ -58,21 +58,25 @@ TOPIC_CRITICALITY_ORD: Dict[str, float] = {
 #: Highest value in TOPIC_CRITICALITY_ORD, used to normalise it to [0, 1].
 MAX_TOPIC_CRITICALITY_ORD: float = 4.0
 
-#: Convex combination factor (β) for topic weight: 0.85 QoS + 0.15 Size.
-#: Rationale: QoS semantics are the primary signal; payload size is a secondary amplifier.
-#: Note: Distinguish from AHP_SHRINKAGE_LAMBDA (λ) used for weight blending.
-TOPIC_QOS_WEIGHT_BETA: float = 0.85
+#: Convex combination factors for topic weight: β QoS + α Size + ψ Frequency.
+#: Rationale: QoS semantics are the primary signal; payload size and message rate modulate runtime stress.
+TOPIC_QOS_WEIGHT_BETA: float = 0.75
+TOPIC_SIZE_WEIGHT_ALPHA: float = 0.15
+TOPIC_FREQ_WEIGHT_PSI: float = 0.10
 
 #: AHP Shrinkage Factor (λ) for weight distribution smoothing.
 #: Applied as: w_final = λ * w_ahp + (1 - λ) * w_uniform.
 #: Rationale: Blends expert AHP judgment with a uniform prior to reduce over-fitting/bias.
 AHP_SHRINKAGE_LAMBDA: float = 0.70
 
-#: Hybrid weight coefficients for aggregate components
+#: Hybrid weight coefficients for aggregate components (Legacy backward compatibility)
 APP_HYBRID_MAX_COEFF: float = 0.80
 APP_HYBRID_MEAN_COEFF: float = 0.20
 BROKER_HYBRID_MAX_COEFF: float = 0.70
 BROKER_HYBRID_MEAN_COEFF: float = 0.30
+
+#: Power mean exponent (p) for smooth worst-case component aggregation
+COMPONENT_POWER_MEAN_P: float = 3.0
 
 #: Library fan-out multiplier coefficient (γ) for simultaneous blast semantics.
 #: Applied as: 1 + γ * log2(1 + DG_in).
@@ -85,6 +89,55 @@ LIB_FANOUT_GAMMA: float = 0.15
 #: Regularization coefficient (δ) for path count coupling complexity.
 #: Applied as: CR_enriched = CR_base * (1 + δ * path_complexity).
 COUPLING_PATH_DELTA: float = 0.10
+
+
+def compute_effective_edge_weight(weights: List[float]) -> float:
+    """Compute multi-topic effective coupling weight via probabilistic union.
+
+    w_E(u -> v) = 1 - ∏_{t ∈ T} (1 - w(t))
+
+    Ensures that multiple parallel failure vectors increase coupling monotonically
+    with path_count while preserving the w_E ∈ [0, 1) contract.
+    """
+    if not weights:
+        return MIN_TOPIC_WEIGHT
+    prod = 1.0
+    for w in weights:
+        clamped_w = max(0.0, min(1.0, float(w)))
+        prod *= (1.0 - clamped_w)
+    effective = 1.0 - prod
+    return max(MIN_TOPIC_WEIGHT, min(1.0, effective))
+
+
+def compute_harmonic_coupling(w1: float, w2: float) -> float:
+    """Compute harmonic coupling between consumer and dependency:
+
+    w_E = 2 * (w1 * w2) / (w1 + w2)
+
+    Calibrates caller operational criticality against shared dependency criticality
+    for simultaneous blast edges (Rule 5: app_to_lib).
+    """
+    if w1 <= 0.0 or w2 <= 0.0:
+        return MIN_TOPIC_WEIGHT
+    harmonic = 2.0 * (w1 * w2) / (w1 + w2)
+    return max(MIN_TOPIC_WEIGHT, min(1.0, harmonic))
+
+
+def compute_power_mean_weight(weights: List[float], p: float = COMPONENT_POWER_MEAN_P) -> float:
+    """Compute Generalized Power Mean (p=3) for component vertex aggregation.
+
+    w_p(v) = ( (1 / |T|) * ∑_{t ∈ T} w(t)^p )^(1/p)
+
+    Provides smooth, scale-free approximation to worst-case topic exposure while
+    penalizing components with multiple critical topic attachments.
+    """
+    if not weights:
+        return MIN_TOPIC_WEIGHT
+    n = len(weights)
+    sum_pow = sum(math.pow(max(0.0, float(w)), p) for w in weights)
+    mean_pow = sum_pow / n
+    return max(MIN_TOPIC_WEIGHT, min(1.0, math.pow(mean_pow, 1.0 / p)))
+
 
 @dataclass
 class ComponentData:
@@ -426,31 +479,48 @@ class Topic(GraphEntity):
     
     def calculate_weight(self) -> float:
         """
-        Topic importance = β * QoS_Score + (1-β) * Size_Norm.
+        Topic importance = β * QoS_Score + α * Size_Norm + ψ * Freq_Norm.
         
-        Refined Size Norm: 
-        - Logarithmic scaling to avoid dominance by massive messages.
-        - Normalize to [0, 1] range.
-        - Divisor of 50 ensures size only pushes a topic into a higher
-          criticality bracket if it is significantly larger than typical
-          DDS control packets (e.g. > 100KB).
-        
-        This convex combination ensures w(topic) ∈ [0, 1].
+        Refined Size & Frequency Norm: 
+        - Logarithmic scaling for payload size and publish rate.
+        - Convex combination ensures w(topic) ∈ [0, 1].
         """
-        return compute_topic_weight(self.qos, self.size)
+        return compute_topic_weight(self.qos, self.size, frequency=self.frequency)
 
 
-def compute_topic_weight(qos: "QoSPolicy", size: int) -> float:
-    """w(t) = β·QoS_score + (1−β)·size_norm, floored at MIN_TOPIC_WEIGHT.
+def compute_topic_weight(
+    qos: "QoSPolicy",
+    size: int,
+    frequency: Optional[float] = None,
+) -> float:
+    """w(t) = β·QoS_score + α·size_norm + ψ·freq_norm, floored at MIN_TOPIC_WEIGHT.
 
     Free function so callers holding raw graph attributes rather than a
     :class:`Topic` can reach the same formula the repositories use.
     """
     qos_score = qos.calculate_weight()
-    size_kb = size / 1024
-    size_norm = min(math.log2(1 + size_kb) / 50, 1.0)
-    weight = TOPIC_QOS_WEIGHT_BETA * qos_score + (1 - TOPIC_QOS_WEIGHT_BETA) * size_norm
-    return max(MIN_TOPIC_WEIGHT, weight)
+    size_kb = max(0.0, float(size)) / 1024.0
+    size_norm = min(math.log2(1.0 + size_kb) / 50.0, 1.0)
+
+    if frequency is not None and frequency > 0:
+        freq_norm = min(math.log10(1.0 + float(frequency)) / 3.0, 1.0)
+    else:
+        # Fall back to reliability × priority bin lookup
+        score_map = QoSPolicy.RELIABILITY_SCORES
+        r = score_map.get(qos.reliability, 0.0)
+        p = QoSPolicy.PRIORITY_SCORES.get(qos.transport_priority, 0.0)
+        combined = r * p
+        bin_idx = int(combined * len(TOPIC_FREQUENCY_HZ))
+        bin_idx = max(0, min(bin_idx, len(TOPIC_FREQUENCY_HZ) - 1))
+        freq_val = float(TOPIC_FREQUENCY_HZ[bin_idx])
+        freq_norm = min(math.log10(1.0 + freq_val) / 3.0, 1.0)
+
+    weight = (
+        TOPIC_QOS_WEIGHT_BETA * qos_score +
+        TOPIC_SIZE_WEIGHT_ALPHA * size_norm +
+        TOPIC_FREQ_WEIGHT_PSI * freq_norm
+    )
+    return max(MIN_TOPIC_WEIGHT, min(1.0, weight))
 
 
 def topic_weight_from_node_attrs(attrs: Dict[str, Any]) -> float:
@@ -461,7 +531,8 @@ def topic_weight_from_node_attrs(attrs: Dict[str, Any]) -> float:
     simulation graph.
     """
     size = attrs.get("size", attrs.get("message_size", 1024)) or 1024
-    return compute_topic_weight(QoSPolicy.from_node_attrs(attrs), int(size))
+    freq = attrs.get("frequency")
+    return compute_topic_weight(QoSPolicy.from_node_attrs(attrs), int(size), frequency=freq)
 
 @dataclass
 class Library(GraphEntity):

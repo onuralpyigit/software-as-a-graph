@@ -160,38 +160,29 @@ def test_repository_fidelity_parity_all_rules():
     # Let's inspect the weights in memory repo
     comp_by_id_mem = {c.id: c for c in mem_data.components}
     
-    # Topic Standard: BEST_EFFORT(0.0) + VOLATILE(0.0) + MEDIUM(0.33) -> QoS = 0.3 * 0 + 0.4 * 0 + 0.3 * 0.33 = 0.099
-    # Size_Norm = log2(1 + 256/1024) / 50 = log2(1.25) / 50 = 0.3219 / 50 = 0.006438
-    # Weighted Sum = 0.85 * 0.099 + 0.15 * 0.006438 = 0.08415 + 0.0009657 = 0.0851157
-    # Topic Critical: RELIABLE(1.0) + PERSISTENT(1.0) + URGENT(1.0) -> QoS = 1.0
-    # Size_Norm = log2(1 + 1024/1024) / 50 = log2(2) / 50 = 0.02
-    # Weighted Sum = 0.85 * 1.0 + 0.15 * 0.02 = 0.853
-    assert comp_by_id_mem["topic_standard"].weight == pytest.approx(0.0851157, abs=0.001)
-    assert comp_by_id_mem["topic_critical"].weight == pytest.approx(0.853, abs=0.001)
+    # Topic Standard: QoS = 0.099, Size = 256, Freq = 1Hz -> w ≈ 0.08525
+    # Topic Critical: QoS = 1.0, Size = 1024, Freq = 200Hz -> w ≈ 0.82977
+    assert comp_by_id_mem["topic_standard"].weight == pytest.approx(0.08525, abs=0.001)
+    assert comp_by_id_mem["topic_critical"].weight == pytest.approx(0.82977, abs=0.001)
 
-    # App Pub: connected to topic_critical. Weight: 0.8 * 0.853 + 0.2 * 0.853 = 0.853
-    # App Sub: connected to topic_critical. Weight: 0.853
-    assert comp_by_id_mem["app_pub"].weight == pytest.approx(0.853, abs=0.001)
-    assert comp_by_id_mem["app_sub"].weight == pytest.approx(0.853, abs=0.001)
+    # App Pub: connected to topic_critical. Weight = 0.82977
+    # App Sub: connected to topic_critical. Weight = 0.82977
+    assert comp_by_id_mem["app_pub"].weight == pytest.approx(0.82977, abs=0.001)
+    assert comp_by_id_mem["app_sub"].weight == pytest.approx(0.82977, abs=0.001)
 
-    # Lib 1: connected to topic_standard (0.0851157). Also used by app_isolated_uses_lib.
-    # App isolated weight before step 1.5 is 0.01.
-    # So base_w = max(topic_standard_w, app_isolated_w) = max(0.0851157, 0.01) = 0.0851157.
-    # dg_in = 1. multiplier = 1 + 0.15 * log2(1 + 1) = 1.15.
-    # weight = 0.0851157 * 1.15 = 0.09788
-    assert comp_by_id_mem["lib_1"].weight == pytest.approx(0.09788, abs=0.001)
+    # Lib 1: connected to topic_standard (0.08525). Base_w = 0.08525, multiplier = 1.15 -> 0.09804
+    assert comp_by_id_mem["lib_1"].weight == pytest.approx(0.09804, abs=0.001)
 
-    # App Isolated Uses Lib: no direct topics, weight before step 1.5 is 0.01.
-    # In Step 1.5 pass, since it uses lib_1, its weight is updated to max(lib_1.weight) = 0.09788.
-    assert comp_by_id_mem["app_isolated_uses_lib"].weight == pytest.approx(0.09788, abs=0.001)
+    # App Isolated Uses Lib: updated to max(lib_1.weight) = 0.09804
+    assert comp_by_id_mem["app_isolated_uses_lib"].weight == pytest.approx(0.09804, abs=0.001)
 
-    # Broker 1: routes topic_standard. Weight: 0.7 * 0.0851157 + 0.3 * 0.0851157 = 0.0851157.
-    assert comp_by_id_mem["broker_1"].weight == pytest.approx(0.0851157, abs=0.001)
+    # Broker 1: routes topic_standard. Weight = 0.08525
+    assert comp_by_id_mem["broker_1"].weight == pytest.approx(0.08525, abs=0.001)
 
-    # Node A: hosts app_pub (0.853) and broker_1 (0.0851157). Node A weight = max = 0.853.
-    # Node B: hosts app_sub (0.853). Node B weight = 0.853.
-    assert comp_by_id_mem["node_a"].weight == pytest.approx(0.853, abs=0.001)
-    assert comp_by_id_mem["node_b"].weight == pytest.approx(0.853, abs=0.001)
+    # Node A: hosts app_pub (0.82977) and broker_1 (0.08525) -> max = 0.82977
+    # Node B: hosts app_sub (0.82977) -> max = 0.82977
+    assert comp_by_id_mem["node_a"].weight == pytest.approx(0.82977, abs=0.001)
+    assert comp_by_id_mem["node_b"].weight == pytest.approx(0.82977, abs=0.001)
 
     # Let's inspect DEPENDS_ON relationships
     mem_dep_data = mem_repo.get_graph_data()
@@ -200,11 +191,6 @@ def test_repository_fidelity_parity_all_rules():
         edges_by_type.setdefault(e.dependency_type, []).append(e)
 
     # Rule 1 app_to_app:
-    # app_sub SUBSCRIBES_TO topic_critical, app_pub PUBLISHES_TO topic_critical.
-    # So app_sub -> app_pub app_to_app dependency.
-    # Also lib_1 publishes and subscribes to topic_standard, so transitively:
-    # app_isolated_uses_lib -> lib_1 and lib_1 -> app_isolated_uses_lib.
-    # Total app_to_app dependencies: 3
     assert "app_to_app" in edges_by_type
     app_to_app = edges_by_type["app_to_app"]
     assert len(app_to_app) == 3
@@ -212,39 +198,35 @@ def test_repository_fidelity_parity_all_rules():
     app_to_app_map = {(e.source_id, e.target_id): e for e in app_to_app}
     assert ("app_sub", "app_pub") in app_to_app_map
     e1 = app_to_app_map[("app_sub", "app_pub")]
-    assert e1.weight == pytest.approx(0.853, abs=0.001)
+    assert e1.weight == pytest.approx(0.82977, abs=0.001)
     assert e1.path_count == 1
 
     assert ("app_isolated_uses_lib", "lib_1") in app_to_app_map
     e2 = app_to_app_map[("app_isolated_uses_lib", "lib_1")]
-    assert e2.weight == pytest.approx(0.0851157, abs=0.001)
+    assert e2.weight == pytest.approx(0.08525, abs=0.001)
     assert e2.path_count == 1
 
     assert ("lib_1", "app_isolated_uses_lib") in app_to_app_map
     e3 = app_to_app_map[("lib_1", "app_isolated_uses_lib")]
-    assert e3.weight == pytest.approx(0.0851157, abs=0.001)
+    assert e3.weight == pytest.approx(0.08525, abs=0.001)
     assert e3.path_count == 1
 
     # Rule 3 node_to_node:
-    # app_sub (node_b) depends on app_pub (node_a) via app_to_app.
-    # Since node_b != node_a, node_b -> node_a node_to_node dependency.
-    # Weight inherits app_to_app weight = 0.853. path_count = 1.
     assert "node_to_node" in edges_by_type
     node_to_node = edges_by_type["node_to_node"]
     assert len(node_to_node) == 1
     assert node_to_node[0].source_id == "node_b"
     assert node_to_node[0].target_id == "node_a"
-    assert node_to_node[0].weight == pytest.approx(0.853, abs=0.001)
+    assert node_to_node[0].weight == pytest.approx(0.82977, abs=0.001)
 
     # Rule 5 app_to_lib:
-    # app_isolated_uses_lib uses lib_1.
-    # Weight inherits app_isolated_uses_lib weight = 0.09788.
+    # Harmonic mean between app_isolated_uses_lib (0.09804) and lib_1 (0.09804) = 0.09804
     assert "app_to_lib" in edges_by_type
     app_to_lib = edges_by_type["app_to_lib"]
     assert len(app_to_lib) == 1
     assert app_to_lib[0].source_id == "app_isolated_uses_lib"
     assert app_to_lib[0].target_id == "lib_1"
-    assert app_to_lib[0].weight == pytest.approx(0.09788, abs=0.001)
+    assert app_to_lib[0].weight == pytest.approx(0.09804, abs=0.001)
 
     # Now let's run comparison with Neo4jRepository if Neo4j is available
     from saag.infrastructure.neo4j_repo import Neo4jRepository

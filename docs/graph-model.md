@@ -1,427 +1,276 @@
-# Step 1: Model (Import)
+# Step 1: Model (Graph Construction & Weight Assignment)
 
-**Turn your system architecture into a graph that captures who depends on whom and how strongly.**
+**Transform raw system topology into a formal, weighted, directed multi-layer graph capturing structural architecture and runtime dependencies.**
 
 [README](../README.md) | → [Step 2: Analyze](structural-analysis.md)
 
-For the full CLI flag reference (`import_graph.py`, `export_graph.py`), see [cli-pipeline-guide.md — Step 1](cli-pipeline-guide.md#step-1-model--import--export). This document specifies *what* the model is and *how* it is built.
+For the full CLI reference (`import_graph.py`, `export_graph.py`), see [cli-pipeline-guide.md — Step 1](cli-pipeline-guide.md#step-1-model--import--export).
 
 ---
 
 ## Table of Contents
 
-1. [What This Step Does](#1-what-this-step-does)
-2. [Why a Graph?](#2-why-a-graph)
+1. [Overview & Execution Workflow](#1-overview--execution-workflow)
+2. [Why Model as a Directed Dependency Graph?](#2-why-model-as-a-directed-dependency-graph)
 3. [Formal Graph Definition](#3-formal-graph-definition)
-4. [Construction Phases](#4-construction-phases)
-   - [Phase 1 — Entity Modeling](#41-phase-1--entity-modeling)
-   - [Phase 2 — Structural Graph](#42-phase-2--structural-graph)
-   - [Phase 3 — Intrinsic Weight Computation](#43-phase-3--intrinsic-weight-computation)
-   - [Phase 4 — Dependency Derivation](#44-phase-4--dependency-derivation)
-   - [Phase 5 — Aggregate Weight Propagation](#45-phase-5--aggregate-weight-propagation)
+4. [Five Construction Phases](#4-five-construction-phases)
+   - [Phase 1: Entity Modeling](#41-phase-1--entity-modeling)
+   - [Phase 2: Structural Topology & Fan-Out](#42-phase-2--structural-topology--fan-out)
+   - [Phase 3: Intrinsic Topic Weighting](#43-phase-3--intrinsic-topic-weighting)
+   - [Phase 4: Dependency Derivation](#44-phase-4--dependency-derivation)
+   - [Phase 5: Aggregate Weight Propagation](#45-phase-5--aggregate-weight-propagation)
 5. [Layer Projections](#5-layer-projections)
-6. [Two Graph Views](#6-two-graph-views)
-7. [Input Format](#7-input-format)
-8. [Worked Example](#8-worked-example)
-9. [Domain Mapping](#9-domain-mapping)
-10. [Complexity](#10-complexity)
-11. [Importing and Exporting](#11-importing-and-exporting)
-12. [Export–Import Roundtrip](#12-exportimport-roundtrip)
-13. [What Comes Next](#13-what-comes-next)
+6. [Dual Graph Views (Simulation vs. Analysis)](#6-dual-graph-views-simulation-vs-analysis)
+7. [Topology JSON Specification](#7-topology-json-specification)
+8. [End-to-End Worked Example](#8-end-to-end-worked-example)
+9. [Middleware Mapping](#9-middleware-mapping)
+10. [Computational Complexity](#10-computational-complexity)
+11. [Import, Export & Database Parity](#11-import-export--database-parity)
 
 ---
 
-## 1. What This Step Does
+## 1. Overview & Execution Workflow
 
-Modeling takes a distributed publish-subscribe system — its applications, topics, brokers, infrastructure nodes, and shared libraries — and converts it into a formal weighted directed graph. This graph becomes the foundation for all subsequent steps.
+In distributed publish-subscribe architectures, components do not communicate through direct point-to-point calls. Instead, communication is mediated asynchronously through topics, brokers, and shared libraries. 
 
-Five phases build the graph, split across two stages:
+The modeling step transforms this topology into a **formal directed multi-layer graph** across two stages and five distinct phases:
 
-| Stage | Entry point | Phases | Produces |
-|-------|-------------|--------|----------|
-| **Import** | `save_graph()` | 1 — Entity modeling | 5 vertex types |
-| | | 2 — Structural edges | 6 edge types + Topic fan-out counts |
-| | | 3 — Intrinsic weights | Topic weights, inherited onto edges |
-| | | 5a — Aggregate vertex weights | App, Library, Broker, Node weights |
-| **Pre-analysis** | `derive_dependencies()` | 4 — Dependency derivation | `DEPENDS_ON` edges (6 rules) |
-| | | 5b — Aggregate edge weights | Final `app_to_lib` / `broker_to_broker` weights |
+```mermaid
+flowchart TD
+    subgraph Stage1["Stage 1: Import (save_graph)"]
+        P1["Phase 1: Entity Modeling<br/>(App, Broker, Topic, Node, Library)"] --> P2["Phase 2: Structural Graph<br/>(PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, USES, CONNECTS_TO)"]
+        P2 --> P3["Phase 3: Intrinsic Topic Weights<br/>w(topic) = QoS + Size + Frequency"]
+        P3 --> P5a["Phase 5a: Aggregate Vertex Weights<br/>Power Mean for Apps/Brokers, Fan-out for Libs, Max for Nodes"]
+    end
 
-The split exists so a topology can be imported, inspected, and cleared without paying for dependency derivation; the pre-analysis stage runs automatically at the start of Step 2 (Analyze).
+    subgraph Stage2["Stage 2: Pre-Analysis (derive_dependencies)"]
+        P5a --> P4["Phase 4: Dependency Derivation<br/>Derive DEPENDS_ON edges via Rules 1–6"]
+        P4 --> P5b["Phase 5b: Edge Weight Finalization<br/>Harmonic mean for app_to_lib, node weight for broker_to_broker"]
+    end
 
-Phase 5 is split because vertex weights are needed *before* derivation (Rules 5 and 6 inherit them) while the edges they land on only exist *after* it.
+    Stage2 --> GStruct["G_structural<br/>(Physical view for Simulation)"]
+    Stage2 --> GAnal["G_analysis(ℓ)<br/>(Logical dependency view for Prediction)"]
+```
 
-The output is two complementary graph views — **G_structural** for simulation and **G_analysis(l)** for analysis and prediction — described in [Two Graph Views](#6-two-graph-views).
+### Stage Summary
+
+| Stage | Trigger | Phases | What It Produces |
+|:---|:---|:---|:---|
+| **Import** | `save_graph()` / `import_graph.py` | **1, 2, 3, 5a** | All 5 entity types, 6 structural relationship types, topic fan-out counts, and vertex weights. |
+| **Pre-Analysis** | `derive_dependencies()` / `analyze_graph.py` | **4, 5b** | Directed `DEPENDS_ON` edges across 6 derivation rules, multi-topic probabilistic coupling, and finalized edge weights. |
+
+> [!NOTE]
+> Splitting import from pre-analysis allows topologies to be imported, verified, and exported rapidly without computing expensive path derivations until analytical scoring is actually requested.
 
 ---
 
-## 2. Why a Graph?
+## 2. Why Model as a Directed Dependency Graph?
 
-In a pub-sub system, applications don't call each other directly — they communicate through topics and brokers. A raw architecture diagram doesn't reveal the true dependency chains. By deriving logical DEPENDS_ON relationships, we make hidden dependencies explicit:
+A physical architecture diagram shows *how data flows*. However, reliability, failure propagation, and risk analysis require knowing **who depends on whom**:
 
-- If App A publishes to Topic T and App B subscribes to Topic T, then **B depends on A**. If A crashes, B is starved of data.
-- If two applications share a broker, they have an **infrastructure dependency**. If the broker fails, both are affected.
-- If two applications run on the same host node and their host's broker fails, they have a **cross-layer dependency** captured by the node-to-broker rule.
-- If two brokers share a physical node, they have a **colocation dependency** — a node failure takes both down simultaneously (Rule 6).
-- If multiple applications share a library, they have a **code dependency**. A library crash or incompatible update causes a **simultaneous blast** — all consumers fail at once, not sequentially. This pattern is qualitatively different from pub-sub cascade propagation and is made visible by Rule 5.
-
-These derived dependencies are what make the graph useful for predicting failure impact before any system is deployed.
+- **Data Flow vs. Dependency Flow**: If App $A$ publishes to Topic $T$ and App $B$ subscribes to $T$, data flows $A \to T \to B$. But if $A$ fails, $B$ is starved of data. Thus, the logical failure dependency is **$B \to A$** (Subscriber depends on Publisher).
+- **Multi-Topic Failure Coupling**: If two services communicate across 5 critical topics rather than 1, a failure in the publisher impacts multiple message channels simultaneously.
+- **Shared Library Blast Radius**: A bug in a shared library does not propagate sequentially; it takes down all consumer applications simultaneously.
+- **Infrastructure Colocation**: Two brokers or apps running on the same host node share a common physical failure domain.
 
 ---
 
 ## 3. Formal Graph Definition
 
-```
-G = (V, E, τ_V, τ_E, w) where:
+We define the system as a directed, attributed multi-layer graph:
 
-V = V_app ∪ V_broker ∪ V_topic ∪ V_node ∪ V_lib
-    (Applications, Brokers, Topics, Infrastructure Nodes, Libraries)
+$$\mathcal{G} = (V, E, \tau_V, \tau_E, w_V, w_E, \mathcal{L})$$
 
-E_structural ⊆ V × V    (6 structural edge types — imported from topology JSON)
-E_dependency ⊆ V × V    (DEPENDS_ON edges — derived by 6 derivation rules)
+where:
 
-τ_V : V → {App, Broker, Topic, Node, Library}                    (vertex type function)
-τ_E : E → {structural edge types} ∪ {DEPENDS_ON}                 (edge type function)
-
-w_E : E → [0, 1]    (QoS-derived edge weight)
-w_V : V → [0, 1]    (QoS-derived vertex weight, propagated from incident edges; written w(v) in metric formulae)
-```
-
-**Selected vertex attributes relevant to reliability prediction:**
-
-| Vertex Type | Attribute | Description |
-|-------------|-----------|-------------|
-| Topic | `subscriber_count` | Number of distinct subscribing applications/libraries (fan-out) |
-| Topic | `publisher_count` | Number of distinct publishing applications/libraries (fan-in) |
-| Application | `weight` | Hybrid: 0.80 × max(w_topic) + 0.20 × mean(w_topic) |
-| Broker | `weight` | Hybrid: 0.70 × max(w_topic) + 0.30 × mean(w_topic) |
-| Node | `weight` | max(w) over all hosted applications and brokers |
-| Library | `weight` | Fan-out amplified: min(1.0, base_w × (1 + γ × log₂(1 + DG_in))) |
-
-**Selected edge attributes on DEPENDS_ON edges:**
-
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| `weight` | float ∈ [0,1] | Max QoS weight over all topics mediating this dependency |
-| `dependency_type` | string | One of: `app_to_app`, `app_to_broker`, `node_to_node`, `node_to_broker`, `app_to_lib`, `broker_to_broker` |
-| `path_count` | int ≥ 1 | Number of shared topics (for `app_to_app`) or shared nodes (for `broker_to_broker`) establishing this dependency |
-
-> **On `path_count`:** When two components are connected through multiple shared topics, `path_count` captures coupling intensity. A `path_count = 3` dependency means three simultaneous failure vectors between the same pair — structurally more fragile than three independent single-topic links. Step 2 (Analyze, RM sub-phase) uses this to refine cascade depth potential (CDPot) computations.
+- **Vertices ($V$)**: $V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{node}} \cup V_{\text{lib}}$
+- **Edges ($E$)**: $E = E_{\text{structural}} \cup E_{\text{dependency}}$
+- **Vertex Types ($\tau_V$)**: $\tau_V : V \to \{\text{Application}, \text{Broker}, \text{Topic}, \text{Node}, \text{Library}\}$
+- **Edge Types ($\tau_E$)**: $\tau_E : E \to \{\text{PUBLISHES\_TO}, \text{SUBSCRIBES\_TO}, \text{ROUTES}, \text{RUNS\_ON}, \text{CONNECTS\_TO}, \text{USES}, \text{DEPENDS\_ON}\}$
+- **Vertex Weight ($w_V$)**: $w_V(v) \in [w_{\min}, 1.0]$ representing the intrinsic and aggregate criticality of entity $v$.
+- **Edge Weight ($w_E$)**: $w_E(e) \in [w_{\min}, 1.0]$ representing the coupling intensity and failure transmission strength along edge $e$.
+- **Layers ($\mathcal{L}$)**: $\mathcal{L} = \{\text{app}, \text{infra}, \text{mw}, \text{system}\}$.
 
 ---
 
-## 4. Construction Phases
+## 4. Five Construction Phases
 
-### 4.1 Phase 1 — Entity Modeling
+### 4.1 Phase 1: Entity Modeling
 
-Each entity in the topology JSON becomes a vertex in G. Five vertex types are created in this order: infrastructure nodes, brokers, topics, applications, libraries.
+Every entity in the input JSON is imported into its corresponding vertex category:
 
-| Vertex Type | JSON Array | Core Properties |
-|-------------|------------|-----------------|
-| **Node** | `nodes[]` | `id`, `name` |
-| **Broker** | `brokers[]` | `id`, `name` |
-| **Topic** | `topics[]` | `id`, `name`, `size`, `qos_reliability`, `qos_durability`, `qos_transport_priority`; `subscriber_count` and `publisher_count` added in Phase 2 |
-| **Application** | `applications[]` | `id`, `name`, `role`, `app_type`, `version`, `criticality`; code-metric flat properties (`cm_*`); system-hierarchy flat properties |
-| **Library** | `libraries[]` | `id`, `name`, `version`; code-metric and system-hierarchy properties |
+| Entity | Primary Properties | Description |
+|:---|:---|:---|
+| **Node** | `id`, `name` | Physical or virtual compute host. |
+| **Broker** | `id`, `name` | Middleware message routing engine. |
+| **Topic** | `id`, `name`, `size`, `qos_*`, `frequency` | Asynchronous message distribution channel. |
+| **Application** | `id`, `name`, `role`, `app_type`, `version`, `criticality`, `cm_*` | Executable software service or process. |
+| **Library** | `id`, `name`, `version`, `cm_*` | Shared software module or package. |
 
-Nested JSON sub-objects (`code_metrics`, `system_hierarchy`) are flattened to scalar properties on import and rebuilt on export — both directions read one field table in [`saag/core/utils/serialization.py`](../saag/core/utils/serialization.py).
-
-**Optional code-quality attributes** on Application and Library vertices (all default to `0`/`0.0` when absent). In SQuaRE terms these are **internal quality** measures — product-quality attributes read from the artifact at rest, without executing it ([criticality.md §3.0](criticality.md#30-three-quality-views-internal-external-and-quality-in-use)):
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `cm_total_loc` | int | Total lines of code — reaches scoring |
-| `cm_avg_wmc` | float | Average Weighted Methods per Class — reaches scoring |
-| `cm_avg_lcom` | float | Average Lack of Cohesion of Methods (raw SonarQube scale) — reaches scoring |
-| `cm_avg_cbo` | float | Average Coupling Between Objects — **ingested only; no scoring code reads it** |
-| `cm_avg_rfc` | float | Average Response for a Class — **ingested only; no scoring code reads it** |
-| `cm_avg_fanin` | float | Average afferent coupling (Library: internal static analysis) — reaches scoring |
-| `cm_avg_fanout` | float | Average efferent coupling (Library: internal static analysis) — reaches scoring |
-
-Five of these seven attributes feed the **Code Quality Penalty (CQP)** composite used in Step 2 (Analyze, RM sub-phase) Maintainability M(v) term; `cm_avg_cbo` and `cm_avg_rfc` are flattened, persisted and displayed but consumed by no scoring code ([structural-analysis.md §11.2](structural-analysis.md#112-rm-formulas)). When absent, M(v) falls back to the topology-only formula. They are the only artifact-internal evidence in the model: everything else the graph carries is either topology or a *declared* guarantee about runtime behaviour ([§4.3](#43-phase-3--intrinsic-weight-computation)).
-
-> **Why `subscriber_count` and `publisher_count` are listed under Phase 1 but computed in Phase 2:** These are properties of Topic vertices, but their values depend on SUBSCRIBES_TO and PUBLISHES_TO edges which don't exist until Phase 2. They are computed at the end of Phase 2 and written back onto each Topic vertex.
-
-**Uniqueness constraints** are created for all five vertex labels (`Application`, `Broker`, `Topic`, `Node`, `Library`) on the `id` property. Constraints are created as `IF NOT EXISTS` and should be present whether or not `--clear` is used.
+#### Internal Code-Quality Attributes (`cm_*`)
+For Applications and Libraries, static code metrics are ingested and flattened. Five of these metrics directly feed the **Code Quality Penalty (CQP)** in Step 2:
+- `cm_total_loc` (Lines of Code), `cm_avg_wmc` (Weighted Methods per Class), `cm_avg_lcom` (Lack of Cohesion of Methods), `cm_avg_fanin` / `cm_avg_fanout` (Afferent/Efferent coupling).
 
 ---
 
-### 4.2 Phase 2 — Structural Graph
+### 4.2 Phase 2: Structural Topology & Fan-Out
 
-Six structural edge types are imported directly from the topology JSON. Each edge represents an explicit, observable relationship in the system.
+Six physical edge types are imported directly from the input topology:
 
-| Edge Type | Direction | Meaning |
-|-----------|-----------|---------|
-| `PUBLISHES_TO` | Application / Library → Topic | Component sends messages to this topic |
-| `SUBSCRIBES_TO` | Application / Library → Topic | Component receives messages from this topic |
-| `ROUTES` | Broker → Topic | Broker is responsible for routing this topic |
-| `RUNS_ON` | Application / Broker → Node | Component is hosted on this infrastructure node |
-| `CONNECTS_TO` | Node → Node | Direct network connectivity between hosts |
-| `USES` | Application / Library → Library | Component depends on this shared code module |
+| Edge Type | Direction | Semantics |
+|:---|:---|:---|
+| `PUBLISHES_TO` | Application/Library $\to$ Topic | Component writes messages to this topic. |
+| `SUBSCRIBES_TO` | Application/Library $\to$ Topic | Component reads messages from this topic. |
+| `ROUTES` | Broker $\to$ Topic | Broker routes and manages traffic for this topic. |
+| `RUNS_ON` | Application/Broker $\to$ Node | Component is hosted on this compute node. |
+| `CONNECTS_TO` | Node $\to$ Node | Physical network link between hosts. |
+| `USES` | Application/Library $\to$ Library | Software dependency on a shared library module. |
 
-Together these six types form **G_structural**, which Step 4 (Simulation) uses for cascade propagation. They are never modified after import.
-
-Every edge is validated before creation: both endpoints must already exist as vertices, or the whole import transaction is rolled back with an error naming the offending ids.
-
-**Fan-out augmentation (Phase 2 post-step):** After all structural edges are imported, each Topic vertex is updated with:
-
-```
-subscriber_count(t) = |{ a ∈ V_app ∪ V_lib : (a, t) ∈ SUBSCRIBES_TO }|
-publisher_count(t)  = |{ a ∈ V_app ∪ V_lib : (a, t) ∈ PUBLISHES_TO  }|
-```
-
-`subscriber_count` is the primary fan-out signal for single-point-of-failure analysis — a Topic with high fan-out is a natural distribution bottleneck.
+#### Topic Fan-Out Augmentation
+Immediately after structural edge insertion, each topic is augmented with its degree counts:
+- `subscriber_count(t)` $= |\{ a : (a, t) \in \text{SUBSCRIBES\_TO} \}|$
+- `publisher_count(t)` $= |\{ a : (a, t) \in \text{PUBLISHES\_TO} \}|$
 
 ---
 
-### 4.3 Phase 3 — Intrinsic Weight Computation
+### 4.3 Phase 3: Intrinsic Topic Weighting
 
-Topic weights are computed from QoS properties and message size. These weights are the foundational signal for all downstream weight propagation.
+Topic weight $w(t)$ quantifies the intrinsic criticality of the data flow. It combines declared **QoS semantics**, **payload size**, and **message frequency**:
 
-#### Topic Weight Formula
+$$w(t) = \max\left(w_{\min}, \; \min\left(1.0, \; \beta \cdot \text{QoS}(t) + \alpha \cdot \text{SizeNorm}(t) + \psi \cdot \text{FreqNorm}(t)\right)\right)$$
 
-```
-w(topic) = max(MIN_WEIGHT, β × QoS_score + (1−β) × size_norm)
+where:
+- $\beta = 0.75$ (QoS weight), $\alpha = 0.15$ (Payload size weight), $\psi = 0.10$ (Publishing frequency weight), $w_{\min} = 0.01$.
 
-QoS_score  = 0.30 × reliability_score + 0.40 × durability_score + 0.30 × priority_score
-size_norm  = min(log₂(1 + size_kb) / 50, 1.0)     where size_kb = size_bytes / 1024
-β          = 0.85
-MIN_WEIGHT = 0.01
-```
+#### 1. QoS Score Formulation
+$$\text{QoS}(t) = 0.30 \cdot \text{Score}_{\text{reliability}} + 0.40 \cdot \text{Score}_{\text{durability}} + 0.30 \cdot \text{Score}_{\text{priority}}$$
 
-**AHP justification for β:** QoS semantics are the primary signal for dependency criticality; payload size is a secondary amplifier. The 0.85 weight preserves the primacy of the QoS contract while allowing message volume to modulate the final score.
+| QoS Attribute | Value | Score | Rationale |
+|:---|:---|:---:|:---|
+| **Reliability** | `RELIABLE`<br/>`BEST_EFFORT` | `1.0`<br/>`0.0` | Guaranteed delivery prevents packet loss failure. |
+| **Durability** | `PERSISTENT`<br/>`TRANSIENT`<br/>`TRANSIENT_LOCAL`<br/>`VOLATILE` | `1.0`<br/>`0.6`<br/>`0.5`<br/>`0.0` | State survival across restarts ensures recoverability. |
+| **Transport Priority** | `HIGHEST` / `CRITICAL` / `URGENT`<br/>`HIGH`<br/>`MEDIUM`<br/>`LOW` | `1.0`<br/>`0.66`<br/>`0.33`<br/>`0.0` | Scheduling priority under queue contention. |
 
-**AHP justification for QoS sub-weights:** Durability (0.40) outweighs Reliability and Priority (0.30 each) because durability defines message state survival — fundamental for resilience — while reliability and priority govern transient delivery quality. This is a tested claim, not just narrative: `saag/analysis/weight_calculator.py`'s `AHPMatrices.criteria_topic_qos` Saaty matrix reproduces `(0.30, 0.40, 0.30)` via `AHPProcessor.compute_topic_qos_weights()`, with consistency ratio CR < 0.10, checked against `QoSPolicy.W_RELIABILITY`/`W_DURABILITY`/`W_PRIORITY` by `tests/test_ahp_shrinkage.py::test_topic_qos_matrix_reproduces_shipped_weights`.
+#### 2. Size and Frequency Normalization
+$$\text{SizeNorm}(t) = \min\left(1.0, \; \frac{\log_2(1 + \text{size\_kb})}{50.0}\right) \quad (\text{where } \text{size\_kb} = \text{bytes} / 1024)$$
 
-#### What the weights encode, in quality-model terms
+$$\text{FreqNorm}(t) = \min\left(1.0, \; \frac{\log_{10}(1 + f_t)}{3.0}\right) \quad (\text{where } f_t \text{ is message rate in Hz})$$
 
-A QoS policy is not a property of the code. `qos_reliability`, `qos_durability` and `qos_transport_priority` are statements about **how the system must behave while it executes** — whether a message is guaranteed to arrive, whether it survives a restart, how it is scheduled against competing traffic. In SQuaRE terms they are **declared external quality requirements**, not internal quality measures ([criticality.md §3.0](criticality.md#30-three-quality-views-internal-external-and-quality-in-use)).
-
-Three consequences travel downstream with that reading:
-
-- **`w(t)` is a declared-external-quality proxy.** It stands in for the external reliability attribute of a flow (fault tolerance, and through durability a limited form of recoverability) at a point in the lifecycle where the flow has never run. It is a *declaration*, so it records what the architecture promises rather than what the system delivers — no throughput, latency, failure rate, or data sensitivity is behind it ([criticality.md §7.4](criticality.md#74-real-world-drivers-vs-structural-proxies)).
-- **This is why a mis-declared policy produces a confidently wrong score.** The weight channel faithfully reproduces the declaration, including its errors, and nothing internal signals the discrepancy.
-- **The two evidence kinds stay separate downstream.** Availability scoring treats redundancy as a topological fact and refuses to let `w(e)` modulate it, precisely because replaceability is a structural property of the system while `w(e)` is a declared requirement of one flow ([criticality.md §5.4](criticality.md#54-what-the-relationship-carries-the-weight-channel)).
-
-Taken together, the graph carries **internal quality evidence** (topology plus the `cm_*` metrics of [§4.1](#41-phase-1--entity-modeling)) and **declared external quality requirements** (QoS policy). It never observes external quality, and it holds nothing at all on the Quality-in-Use view.
-
-| Component | Symbolic Value | Score |
-|-----------|----------------|-------|
-| **reliability_score** | `RELIABLE` | 1.0 |
-| | `BEST_EFFORT` | 0.0 |
-| **durability_score** | `PERSISTENT` | 1.0 |
-| | `TRANSIENT` | 0.6 |
-| | `TRANSIENT_LOCAL` | 0.5 |
-| | `VOLATILE` | 0.0 |
-| **priority_score** | `HIGHEST` / `CRITICAL` / `URGENT` | 1.0 |
-| | `HIGH` | 0.66 |
-| | `MEDIUM` | 0.33 |
-| | `LOW` | 0.0 |
-
-These three tables live once, in `QoSPolicy` ([`saag/core/models.py`](../saag/core/models.py)). The Cypher `CASE` expressions are generated from them and the in-memory repository calls the same Python formula, so no scorer can drift from the table; `tests/test_qos_resolution.py` asserts all scorers agree across the full domain.
-
-**Edge weight inheritance:** After topic weights are computed, structural edge weights are updated by one-pass inheritance:
-
-```
-∀ e = (a, t) ∈ PUBLISHES_TO ∪ SUBSCRIBES_TO ∪ ROUTES :  e.weight = t.weight
-```
-
-**Edge QoS inheritance:** The same edges also inherit the topic's QoS *profile*, not only the scalar weight:
-
-```
-∀ e = (a, t) ∈ PUBLISHES_TO ∪ SUBSCRIBES_TO ∪ ROUTES :
-    e.qos_reliability, e.qos_durability, e.qos_transport_priority = t.<same>
-```
-
-This matters because consumers that read per-edge QoS — notably the GNN edge-feature encoder — see only edges, and no topology source states edge-level QoS. Without this pass every pub/sub edge would carry an identical constant QoS vector, leaving the `HGL` vs `HGL-QoS` ablation with no signal to compare. `reproduce/qos_pipeline_inspect.py` reports the resulting spread; a Gini of 0 there means the pass is not running.
+> [!TIP]
+> **Edge Inheritance**: Once $w(t)$ is computed, all incident structural edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`) automatically inherit $w(t)$ and the topic's QoS vector.
 
 ---
 
-### 4.4 Phase 4 — Dependency Derivation
+### 4.4 Phase 4: Dependency Derivation
 
-Structural edges reveal physical relationships but not logical dependencies. This phase derives **DEPENDS_ON** edges — directed edges meaning "if the target fails, the source is affected." It runs in the pre-analysis stage (`derive_dependencies()`), not during import.
+In Phase 4, the logical `DEPENDS_ON` edges are synthesized across 6 formal rules.
 
-**Edge direction:** DEPENDS_ON always points from the *dependent* to the *dependency* (e.g., subscriber → publisher, application → broker) — that is, against the direction message data flows.
-
-> See [criticality.md](criticality.md) for the conceptual definition of component and relationship criticality — the `DEPENDS_ON` edges derived here are what relationship criticality is computed over.
-
-Six derivation rules are applied, producing six `dependency_type` values:
-
-| Rule | `dependency_type` | Source Pattern | Weight |
-|------|-------------------|----------------|--------|
-| 1 | `app_to_app` | App/Lib `SUBSCRIBES_TO` → Topic ← `PUBLISHES_TO` App/Lib; also transitive via `USES*1..3` library chains | `max(t.weight)` over shared topics |
-| 2 | `app_to_broker` | App/Lib `PUBLISHES_TO` or `SUBSCRIBES_TO` → Topic ← `ROUTES` Broker; also transitive via `USES*1..3` chains | `max(t.weight)` over routed topics |
-| 3 | `node_to_node` | Lifted from `app_to_app` and `app_to_broker` DEPENDS_ON edges: Node_B → Node_A when their hosted apps share one of those dependency types | lifted `max(d.weight)` over matching edges |
-| 4 | `node_to_broker` | Lifted from Rule 2: Node → Broker when a hosted app has an `app_to_broker` edge | lifted `max(dep.weight)` |
-| 5 | `app_to_lib` | App/Lib `USES` → Library | `app.weight` (assigned in Phase 5b) |
-| 6 | `broker_to_broker` | Bidirectional colocation edge between two Brokers sharing a physical Node | `node.weight` (assigned in Phase 5b) |
-
-Rules 1–4 aggregate with max-preserving `ON CREATE` / `ON MATCH` semantics, so a later rule matching the same pair can only raise a weight, never lower it. Rules 5 and 6 cannot know their weight at derivation time — the vertex weights they inherit were computed during import, but the edge does not exist until now — so they are created with the `0.01` floor as a placeholder and finalized immediately afterwards in [Phase 5b](#45-phase-5--aggregate-weight-propagation).
-
-**Multi-path coupling:** When two applications communicate through multiple shared topics, a single DEPENDS_ON edge is created with:
+> **Direction Convention**: All `DEPENDS_ON` edges point from the **dependent** (the entity that suffers if a failure occurs) to the **dependency** (the entity whose failure causes the impact).
 
 ```
-edge.weight      = max(w(t) for t in shared_topics)   # worst-case QoS
-edge.path_count  = len(shared_topics)                  # coupling intensity
+Data Flow:      Publisher ──────> Topic ──────> Subscriber
+Dependency:     Subscriber ───────────────────> Publisher  (app_to_app)
 ```
 
-`path_count` is not folded into the weight to preserve the `w ∈ [0,1]` contract.
+| Rule | Dependency Type | Graph Pattern | Edge Weight ($w_E$) |
+|:---:|:---|:---|:---|
+| **1** | `app_to_app` | Subscriber $\to$ Topic $\leftarrow$ Publisher *(includes transitive library usage)* | Probabilistic union: $1 - \prod_{t \in T} (1 - w(t))$ |
+| **2** | `app_to_broker` | App $\to$ Topic $\leftarrow$ Broker *(publisher or subscriber)* | Probabilistic union: $1 - \prod_{t \in T} (1 - w(t))$ |
+| **3** | `node_to_node` | Node $B \to$ Node $A$ *(when hosted apps have an `app_to_app` dependency)* | Lifted union: $1 - \prod_{d} (1 - w(d))$ |
+| **4** | `node_to_broker` | Node $\to$ Broker *(when a hosted app depends on a broker)* | Lifted union: $1 - \prod_{d} (1 - w(d))$ |
+| **5** | `app_to_lib` | Application $\to$ Library *(via `USES` relationship)* | Harmonic mean: $\frac{2 \cdot w(\text{app}) \cdot w(\text{lib})}{w(\text{app}) + w(\text{lib})}$ |
+| **6** | `broker_to_broker` | Broker $A \leftrightarrow$ Broker $B$ *(colocated on the same Node)* | Shared Node weight: $w(\text{node})$ |
 
-**Library blast semantics vs. pub-sub cascade:** Rule 5 captures a qualitatively different failure mode. A library failure causes a *simultaneous* blast — all consuming applications fail at once. This contrasts with pub-sub cascade propagation (Rule 1), which flows step-by-step through topics and brokers. Step 4 (Simulation) handles this distinction at the cascade propagation layer. Rule 5 simply records the structural dependency so that `DG_in(Library)` is non-zero and visible to R(v) in Step 2 (Analyze, RM sub-phase).
-
-**Derivation trace example:**
-
-```
-Given:
-  SensorApp    --[PUBLISHES_TO]--> /temperature
-  MonitorApp   --[SUBSCRIBES_TO]--> /temperature
-  MainBroker   --[ROUTES]---------> /temperature
-  BackupBroker --[ROUTES]---------> /temperature   (redundant router)
-  SensorApp    --[RUNS_ON]--------> ComputeNode1
-  MonitorApp   --[RUNS_ON]--------> ComputeNode2
-  MainBroker   --[RUNS_ON]--------> ComputeNode1
-  BackupBroker --[RUNS_ON]--------> ComputeNode1
-  SensorApp    --[USES]-----------> NavLib
-  MonitorApp   --[USES]-----------> NavLib
-
-Derived DEPENDS_ON edges:
-  MonitorApp  --[app_to_app,    w=w(/temp)]-->  SensorApp    (Rule 1)
-  MonitorApp  --[app_to_broker, w=w(/temp)]-->  MainBroker   (Rule 2)
-  SensorApp   --[app_to_broker, w=w(/temp)]-->  MainBroker   (Rule 2)
-  ComputeNode2 --[node_to_node, w=lifted]-->    ComputeNode1 (Rule 3)
-  ComputeNode2 --[node_to_broker,w=lifted]-->   MainBroker   (Rule 4)
-  SensorApp   --[app_to_lib,   w=app.weight]--> NavLib       (Rule 5)
-  MonitorApp  --[app_to_lib,   w=app.weight]--> NavLib       (Rule 5)
-  MainBroker  --[broker_to_broker,w=node.w]-->  BackupBroker (Rule 6, bidirectional)
-
-After derivation:
-  DG_in(NavLib)     = 2   → visible to R(v) formula
-  DG_in(SensorApp)  = 1
-  DG_in(MainBroker) = 2
-```
+#### Multi-Topic Probabilistic Union
+When two applications communicate over multiple topics $T_{uv} = \{t_1, t_2, \dots, t_k\}$, they collapse into a single directed edge with:
+- **`path_count`** $= |T_{uv}|$ (integer coupling density).
+- **`weight`** $= 1 - \prod_{t \in T_{uv}} (1 - w(t))$ (monotonic failure exposure).
 
 ---
 
-### 4.5 Phase 5 — Aggregate Weight Propagation
+### 4.5 Phase 5: Aggregate Weight Propagation
 
-Once topic weights are established (Phase 3), vertex weights for Applications, Libraries, Brokers, and Nodes are computed by propagating topic weights upward through the component hierarchy (**Phase 5a**, import stage). Once `DEPENDS_ON` edges exist (Phase 4), the `app_to_lib` and `broker_to_broker` edge weights are finalized (**Phase 5b**, pre-analysis stage).
+#### Phase 5a (Import Stage): Vertex Aggregations
 
-#### Application Weight
+1. **Application Weight**: Generalized Power Mean ($p=3$) over all directly attached topics $T_{\text{app}}$:
+   $$w(\text{app}) = \left(\frac{1}{|T_{\text{app}}|} \sum_{t \in T_{\text{app}}} w(t)^3\right)^{1/3}$$
+   *(If an app has no direct topics but uses libraries, it inherits $\max_{l} w(l)$ in a second pass).*
 
-```
-w(app) = 0.80 × max{ w(t) : app PUBLISHES_TO t OR app SUBSCRIBES_TO t }
-       + 0.20 × mean{ w(t) : app PUBLISHES_TO t OR app SUBSCRIBES_TO t }
-```
+2. **Broker Weight**: Generalized Power Mean ($p=3$) over all routed topics $T_{\text{routed}}$:
+   $$w(\text{broker}) = \left(\frac{1}{|T_{\text{routed}}|} \sum_{t \in T_{\text{routed}}} w(t)^3\right)^{1/3}$$
 
-The hybrid formula reflects that an application's criticality is primarily bounded by its most critical data stream (0.80 × max), but a dense subscription footprint of medium-weight topics adds cumulative risk (0.20 × mean). The max coefficient is **0.80** (higher than the 0.70 used for brokers) because an application is a direct *originator or consumer* — its failure severs only the topics it personally publishes or subscribes to, so the single most critical channel dominates. When `max = mean` (single-topic app), the formula collapses to `w = w(t)`.
+3. **Library Weight**: Base topic/consumer weight scaled by afferent fan-out blast radius:
+   $$w(\text{lib}) = \min\left(1.0, \; \text{base\_w} \cdot \left(1 + \gamma \cdot \log_2(1 + \text{DG}_{\text{in}})\right)\right) \quad (\gamma = 0.15)$$
 
-**Library-mediated second pass:** The formula above only counts topics directly connected to the application via `PUBLISHES_TO` or `SUBSCRIBES_TO`. Applications that communicate exclusively through shared libraries (no direct topic edges) would receive `w(app) = 0.01` from the first pass — making them invisible to RM scoring even if they indirectly handle high-weight data.
+4. **Node Weight**: Worst-case criticality of all hosted components:
+   $$w(\text{node}) = \max_{v \in \text{hosted}} w(v)$$
 
-After Library weights are computed, a second pass corrects this for any application still at the default floor:
-
-```
-For all apps where w(app) ≤ 0.01:
-  w(app) = max{ w(l) : app USES l }
-```
-
-This propagates library importance back to the consuming application. Only applications with no direct topics AND at least one USES edge are affected; all other applications retain their first-pass weights unchanged.
-
-#### Library Weight
-
-```
-w(lib) = min(1.0, base_w × (1 + γ × log₂(1 + DG_in)))
-         where base_w = max( max{ w(t) : lib PUBLISHES_TO t OR lib SUBSCRIBES_TO t },
-                             max{ w(app) : app USES lib } )
-               γ      = 0.15
-```
-
-The fan-out multiplier reflects simultaneous blast semantics. A library consumed by 15 applications has a blast radius of 15 — this must be visible even before any of those applications have high individual weights. The log₂ term prevents extreme fan-out from producing weights > 1.0. When `DG_in = 0` (unused library), `w(lib) = base_w × 1.0 = base_w`.
-
-#### Broker Weight
-
-```
-w(broker) = 0.70 × max{ w(t) : broker ROUTES t }
-           + 0.30 × mean{ w(t) : broker ROUTES t }
-```
-
-A broker routing 20 medium-weight topics carries more cumulative risk than one routing a single high-weight topic. The hybrid captures both worst-case exposure and accumulated routing load. The mean coefficient is **0.30** (higher than the 0.20 used for applications) because a broker is a *router*, not an originator — its failure affects every topic it routes simultaneously, so cumulative routing throughput risk deserves more weight than the equivalent footprint on a single application that directly handles only its own subscribed topics.
-
-#### Node Weight
-
-```
-w(node) = max{ w(v) : v RUNS_ON node }
-```
-
-A node's hardware failure takes down all hosted components simultaneously; the worst-case hosted component determines the node's criticality tier.
-
-#### Phase 5b — Edge Weight Finalization
-
-```cypher
-// Rule 5: app_to_lib edges inherit the application's QoS weight
-MATCH (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib:Library)
-SET d.weight = coalesce(app.weight, 0.01)
-
-// Rule 6: broker_to_broker edges inherit the shared node's weight
-MATCH (b1:Broker)-[d:DEPENDS_ON {dependency_type: 'broker_to_broker'}]->(b2:Broker)
-MATCH (b1)-[:RUNS_ON]->(n:Node)<-[:RUNS_ON]-(b2)
-WITH d, max(n.weight) as node_w
-SET d.weight = coalesce(node_w, 0.01)
-```
-
-An `app_to_lib` edge left at the `0.01` placeholder after this pass means the consuming application never received a real weight; the in-memory repository raises rather than letting the placeholder reach analysis.
+#### Phase 5b (Pre-Analysis Stage): Edge Finalization
+- `app_to_lib` edges take the symmetric harmonic mean of application and library weights:
+  $$w_E(\text{app} \to \text{lib}) = \frac{2 \cdot w(\text{app}) \cdot w(\text{lib})}{w(\text{app}) + w(\text{lib})}$$
+- `broker_to_broker` edges inherit the shared host node's weight.
 
 ---
 
 ## 5. Layer Projections
 
-The graph supports four layer projections, each filtering vertices and DEPENDS_ON edges to a specific architectural concern. They are defined once, in [`saag/core/layers.py`](../saag/core/layers.py).
+The graph provides 4 canonical layer projections defined in [`saag/core/layers.py`](../saag/core/layers.py):
 
-| Layer | CLI name | Vertex Types (component_types) | Analyzed Types (analyze_types) | `dependency_type` values |
-|-------|----------|------------------------------|------------------------------|--------------------------|
-| Application | `app` | Application, Library | Application, Library | `app_to_app`, `app_to_lib` |
-| Infrastructure | `infra` | Node | Node | `node_to_node` |
-| Middleware | `mw` | Application, Broker, Node | Broker | `app_to_broker`, `node_to_broker`, `broker_to_broker` |
-| System | `system` | All five types | All five types | All six types |
-
-> **`app_to_lib` and Library nodes:** These are available in the `app` layer. The `app` layer includes Library vertices and `app_to_lib` edges so shared-library blast-radius is visible without requiring `--layer system`. This preserves the intrinsic complexity signal for libraries even when analyzing at the service layer.
-
-**Legacy layer aliases** (backward compatible, resolved internally):
-
-| Alias | Canonical name |
-|-------|----------------|
-| `application` | `app` |
-| `infrastructure` | `infra` |
-| `app_broker`, `middleware`, `broker` | `mw` |
-| `complete`, `all` | `system` |
+| Layer | CLI Flag | Target Vertices | Included `dependency_type` Edges | Primary Use Case |
+|:---|:---|:---|:---|:---|
+| **Application** | `--layer app` | Application, Library | `app_to_app`, `app_to_lib` | Microservice & software component risk. |
+| **Infrastructure**| `--layer infra`| Node | `node_to_node` | Host connectivity & hardware cascade risk. |
+| **Middleware** | `--layer mw` | Application, Broker, Node | `app_to_broker`, `node_to_broker`, `broker_to_broker` | Broker bottleneck & routing failure analysis. |
+| **System** | `--layer system` | All 5 entity types | All 6 dependency types | Full cross-layer holistic system analysis. |
 
 ---
 
-## 6. Two Graph Views
+## 6. Dual Graph Views (Simulation vs. Analysis)
 
-| Graph | Contains | Used By |
-|-------|----------|---------|
-| **G_structural** | All vertices + 6 structural edge types (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`, `CONNECTS_TO`, `USES`) | Step 4 (Simulation): cascade propagation follows physical paths |
-| **G_analysis(l)** | Layer-filtered vertices + `DEPENDS_ON` edges only | Steps 2–3 (Analysis + Prediction): centrality metrics operate on abstract dependency graph |
+To guarantee scientific rigor, the framework strictly decouples discrete-event simulation from analytical prediction:
 
-The separation is deliberate and methodologically essential: **prediction and simulation must remain independent**. Centrality metrics in Step 2 must not be contaminated by simulation outcomes, and Step 4 simulation must not use prediction scores as inputs. Using separate graph views enforces this contract structurally.
+```
+                      ┌──────────────────────────────────────────────┐
+                      │             System Topology JSON             │
+                      └──────────────────────┬───────────────────────┘
+                                             │
+                                   save_graph() (Import)
+                                             │
+                      ┌──────────────────────┴───────────────────────┐
+                      ▼                                              ▼
+           ┌─────────────────────┐                       ┌─────────────────────┐
+           │    G_structural     │                       │    G_analysis(ℓ)    │
+           │ (Physical Topology) │                       │ (Logical Dependency)│
+           └──────────┬──────────┘                       └──────────┬──────────┘
+                      │                                             │
+                      ▼                                             ▼
+           ┌─────────────────────┐                       ┌─────────────────────┐
+           │ Step 4: Simulation  │                       │ Steps 2-3: Analysis │
+           │ (Ground-Truth Sim)  │                       │   (GNN & Metrics)   │
+           └─────────────────────┘                       └─────────────────────┘
+```
+
+- **$G_{\text{structural}}$**: Contains physical edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`, `USES`, `CONNECTS_TO`). Consumed **only** by Step 4 simulation.
+- **$G_{\text{analysis}}(\ell)$**: Contains derived `DEPENDS_ON` edges across layer $\ell$. Consumed **only** by Step 2 structural metrics and Step 3 GNN prediction.
+
+> [!IMPORTANT]
+> **Independence Guarantee**: Prediction metrics never leak into simulation logic, and simulation cascade outputs never pollute graph construction.
 
 ---
 
-## 7. Input Format
+## 7. Topology JSON Specification
 
-The topology JSON uses a **dict-of-lists** structure for relationships. Each key under `"relationships"` is the snake_case name of a structural edge type, and the value is a list of `{ "from": id, "to": id }` objects.
+Input topologies use a clear, declarative schema with nested entity lists and relationship pairs:
 
 ```json
 {
   "metadata": {
-    "scale": { "apps": 5, "topics": 3, "brokers": 1, "nodes": 2, "libs": 2 },
-    "seed": 42,
-    "generation_mode": "statistical",
-    "domain": null,
-    "scenario": null
+    "scale": { "apps": 2, "topics": 1, "brokers": 1, "nodes": 2, "libs": 1 },
+    "domain": "robotics"
   },
   "nodes": [
-    { "id": "N0", "name": "ComputeNode1" },
-    { "id": "N1", "name": "ComputeNode2" }
+    { "id": "N0", "name": "ComputeNode_1" },
+    { "id": "N1", "name": "ComputeNode_2" }
   ],
   "brokers": [
     { "id": "B0", "name": "MainBroker" }
@@ -429,7 +278,7 @@ The topology JSON uses a **dict-of-lists** structure for relationships. Each key
   "topics": [
     {
       "id": "T0",
-      "name": "/temperature",
+      "name": "/telemetry/imu",
       "size": 64,
       "qos": {
         "reliability": "RELIABLE",
@@ -441,64 +290,42 @@ The topology JSON uses a **dict-of-lists** structure for relationships. Each key
   "applications": [
     {
       "id": "A0",
-      "name": "SensorApp",
-      "role": "pub",
-      "app_type": "sensor",
-      "version": "1.0.0",
+      "name": "ImuSensorApp",
+      "role": ["pub"],
+      "app_type": "driver",
       "criticality": true,
-      "system_hierarchy": {
-        "csc_name": "Sensor Platform",
-        "csci_name": "Perception Software",
-        "css_name": "Environmental Sensing",
-        "csms_name": "Temperature Monitor"
-      },
       "code_metrics": {
-        "size":       { "total_loc": 1200, "total_classes": 12, "total_methods": 95, "total_fields": 30 },
-        "complexity": { "total_wmc": 120,  "avg_wmc": 10.0, "max_wmc": 22 },
-        "cohesion":   { "avg_lcom": 18.4,  "max_lcom": 42.0 },
-        "coupling":   { "avg_cbo": 5.2, "max_cbo": 9, "avg_rfc": 22.1, "max_rfc": 38,
-                        "avg_fanin": 3.1, "max_fanin": 7, "avg_fanout": 4.8, "max_fanout": 11 }
+        "size": { "total_loc": 1200 },
+        "complexity": { "avg_wmc": 12.5 },
+        "cohesion": { "avg_lcom": 18.0 }
       }
     },
     {
       "id": "A1",
-      "name": "MonitorApp",
-      "role": "sub",
-      "app_type": "monitor",
-      "version": "2.1.0",
-      "criticality": false
+      "name": "NavigationApp",
+      "role": ["sub"],
+      "app_type": "controller",
+      "criticality": true
     }
   ],
   "libraries": [
     {
       "id": "L0",
-      "name": "NavLib",
-      "version": "3.2.1",
-      "system_hierarchy": {
-        "csc_name": "Navigation Platform",
-        "csci_name": "Navigation Software",
-        "css_name": "Path Planning",
-        "csms_name": "Core Navigation"
-      },
-      "code_metrics": {
-        "size":       { "total_loc": 4500, "total_classes": 42, "total_methods": 360, "total_fields": 128 },
-        "complexity": { "avg_wmc": 14.2, "max_wmc": 38 },
-        "cohesion":   { "avg_lcom": 29.3, "max_lcom": 87.1 },
-        "coupling":   { "avg_cbo": 8.1, "avg_rfc": 31.4, "avg_fanin": 7.2, "avg_fanout": 5.6 }
-      }
+      "name": "MathLib",
+      "version": "1.4.0"
     }
   ],
   "relationships": {
-    "runs_on":      [
+    "runs_on": [
       { "from": "A0", "to": "N0" },
       { "from": "A1", "to": "N1" },
       { "from": "B0", "to": "N0" }
     ],
-    "routes":       [{ "from": "B0", "to": "T0" }],
+    "routes": [{ "from": "B0", "to": "T0" }],
     "publishes_to": [{ "from": "A0", "to": "T0" }],
-    "subscribes_to":[{ "from": "A1", "to": "T0" }],
-    "connects_to":  [{ "from": "N0", "to": "N1" }],
-    "uses":         [
+    "subscribes_to": [{ "from": "A1", "to": "T0" }],
+    "connects_to": [{ "from": "N0", "to": "N1" }],
+    "uses": [
       { "from": "A0", "to": "L0" },
       { "from": "A1", "to": "L0" }
     ]
@@ -506,239 +333,89 @@ The topology JSON uses a **dict-of-lists** structure for relationships. Each key
 }
 ```
 
-**Schema notes:**
+---
 
-- `"qos"` and `"qos_policy"` are both accepted as the QoS sub-object key; `"qos"` is canonical.
-- QoS string values must be **uppercase** (`"RELIABLE"`, `"TRANSIENT_LOCAL"`, `"HIGH"`, etc.). They are stored and exported in uppercase. The Cypher weight CASE statements perform case-sensitive matching, so lowercase values (`"reliable"`) would fall through to the `ELSE 0.0` branch and silently produce `w = 0.01` for every affected topic.
-- All fields except `"id"` are optional. Missing fields receive defaults (`role = ["Operative"]`, `app_type = "service"`, `qos_reliability = "BEST_EFFORT"`, `qos_durability = "VOLATILE"`, `qos_transport_priority = "MEDIUM"`, `size = 256`). A `role` given as a bare string is normalized to a single-element list.
-- The `"metadata"` block is optional but strongly recommended for provenance tracking. Generated files include it automatically.
-- Relationship edges may also use `"source"` and `"target"` keys as aliases for `"from"` and `"to"`.
+## 8. End-to-End Worked Example
+
+Let us trace a concrete system with two applications (`A0: SensorApp`, `A1: MonitorApp`), one broker (`B0`), one shared library (`L0: NavLib`), and one topic (`T0: /temperature`).
+
+### 1. Topic Weight Calculation (Phase 3)
+- **QoS**: `RELIABLE` (1.0), `TRANSIENT_LOCAL` (0.5), `HIGH` (0.66)
+  $$\text{QoS\_score} = 0.30(1.0) + 0.40(0.5) + 0.30(0.66) = 0.698$$
+- **Size**: 64 bytes $\implies \text{SizeNorm} = \frac{\log_2(1 + 0.0625)}{50.0} \approx 0.00175$
+- **Frequency**: Derived from $r \cdot p = 1.0 \times 0.66 = 0.66 \implies f = 100\text{ Hz} \implies \text{FreqNorm} \approx 0.6681$
+- **Total Topic Weight**:
+  $$w(T0) = 0.75(0.698) + 0.15(0.00175) + 0.10(0.6681) \approx \mathbf{0.591}$$
+
+### 2. Vertex Weight Aggregation (Phase 5a)
+- $w(\text{SensorApp}) = w(\text{MonitorApp}) = w(\text{MainBroker}) = \mathbf{0.591}$ (single topic power mean).
+- For `NavLib` ($\text{DG}_{\text{in}} = 2$ consuming apps):
+  $$w(\text{NavLib}) = 0.591 \times \left(1 + 0.15 \times \log_2(1 + 2)\right) \approx 0.591 \times 1.238 = \mathbf{0.732}$$
+
+### 3. Dependency Derivation & Edge Finalization (Phases 4 & 5b)
+- **`app_to_app`**: $\text{MonitorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{SensorApp}$ ($w = 0.591$, $\text{path\_count} = 1$)
+- **`app_to_broker`**: $\text{MonitorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{MainBroker}$ ($w = 0.591$)
+- **`app_to_broker`**: $\text{SensorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{MainBroker}$ ($w = 0.591$)
+- **`app_to_lib`**: $\text{SensorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{NavLib}$ with harmonic mean:
+  $$w_E = \frac{2 \times 0.591 \times 0.732}{0.591 + 0.732} = \mathbf{0.654}$$
+- **`app_to_lib`**: $\text{MonitorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{NavLib}$ ($w_E = \mathbf{0.654}$)
 
 ---
 
-## 8. Worked Example
+## 9. Middleware Mapping
 
-**Given topology:** SensorApp publishes to `/temperature`; MonitorApp subscribes. Both use NavLib. MainBroker routes `/temperature`. `/temperature` has QoS `RELIABLE / TRANSIENT_LOCAL / HIGH`.
+The model maps directly to common publish-subscribe and message-oriented middleware:
 
-Run it end to end with [`examples/run_worked_example.py`](../examples/run_worked_example.py).
-
-**Phase 1 — Entities created:**
-
-```
-Vertices: SensorApp (Application), MonitorApp (Application),
-          MainBroker (Broker), /temperature (Topic), NavLib (Library)
-```
-
-**Phase 2 — Structural edges imported:**
-
-```
-SensorApp  --[PUBLISHES_TO]-->  /temperature
-MonitorApp --[SUBSCRIBES_TO]--> /temperature
-MainBroker --[ROUTES]---------> /temperature
-
-/temperature.subscriber_count = 1
-/temperature.publisher_count   = 1
-```
-
-**Phase 3 — Intrinsic weights:**
-
-```
-QoS_score(/temperature) = 0.30×1.0 + 0.40×0.5 + 0.30×0.66 = 0.298 + 0.200 + 0.198 = 0.696
-size_norm(64 bytes)      = log₂(1 + 0.0625) / 50 ≈ 0.0017   (negligible)
-w(/temperature)          = max(0.01, 0.85×0.696 + 0.15×0.0017) ≈ 0.592
-
-PUBLISHES_TO.weight  = 0.592
-SUBSCRIBES_TO.weight = 0.592
-ROUTES.weight        = 0.592
-```
-
-**Phase 5a — Aggregate vertex weights:**
-
-```
-w(SensorApp)  = 0.80×0.592 + 0.20×0.592 = 0.592  (single topic)
-w(MonitorApp) = 0.592
-w(MainBroker) = 0.70×0.592 + 0.30×0.592 = 0.592
-
-w(NavLib)  base_w = max(0.592, 0.592) = 0.592
-           DG_in  = 2
-           w      = min(1.0, 0.592 × (1 + 0.15 × log₂(3))) ≈ 0.592 × 1.238 ≈ 0.733
-```
-
-**Phase 4 — Dependency derivation:**
-
-```
-MonitorApp  --[DEPENDS_ON, app_to_app,    w=0.592, path_count=1]--> SensorApp
-MonitorApp  --[DEPENDS_ON, app_to_broker, w=0.592, path_count=1]--> MainBroker
-SensorApp   --[DEPENDS_ON, app_to_broker, w=0.592, path_count=1]--> MainBroker
-SensorApp   --[DEPENDS_ON, app_to_lib,   w=placeholder]-----------> NavLib
-MonitorApp  --[DEPENDS_ON, app_to_lib,   w=placeholder]-----------> NavLib
-```
-
-**Phase 5b — Edge weights finalized:**
-
-```
-SensorApp  → NavLib: w = w(SensorApp)  = 0.592
-MonitorApp → NavLib: w = w(MonitorApp) = 0.592
-```
+| Model Element | ROS 2 / DDS | Apache Kafka | MQTT |
+|:---|:---|:---|:---|
+| **Application** | `rclcpp` / `rclpy` Node | Producer / Consumer Service | MQTT Client Application |
+| **Topic** | DDS Topic | Kafka Topic / Partition | MQTT Topic Filter |
+| **Broker** | DDS Domain Participant | Kafka Broker cluster | Mosquitto / EMQX Broker |
+| **Node** | Host Machine / Pod | Kubernetes Worker Node | Edge Gateway / Server |
+| **Library** | Shared C++/Python package | Maven / PyPI Dependency | Shared Client SDK |
 
 ---
 
-## 9. Domain Mapping
+## 10. Computational Complexity
 
-The model maps naturally to different pub-sub middleware technologies:
+| Phase | Operation | Algorithmic Complexity | Note |
+|:---|:---|:---:|:---|
+| **Phase 1** | Entity Creation | $\mathcal{O}(|V|)$ | Single-pass vertex insertion. |
+| **Phase 2** | Structural Edges & Fan-Out | $\mathcal{O}(|E_S|)$ | Indexed endpoint matching. |
+| **Phase 3** | Intrinsic Topic Weights | $\mathcal{O}(|V_{\text{topic}}|)$ | Direct algebraic evaluation. |
+| **Phase 4** | Dependency Derivation | $\mathcal{O}(|V_{\text{app}}| \cdot \text{FanOut})$ | Bounded by publisher/subscriber fan-out per topic. |
+| **Phase 5** | Weight Aggregations | $\mathcal{O}(|V| + |E_S|)$ | Local neighbor aggregation per component. |
 
-| Graph Concept | ROS 2 / DDS | Apache Kafka | MQTT |
-|---------------|-------------|--------------|------|
-| Application | ROS Node | Producer / Consumer | MQTT Client |
-| Topic | ROS Topic | Kafka Topic | MQTT Topic |
-| Broker | DDS Participant | Kafka Broker | MQTT Broker |
-| Node | Host / Container | Broker Host | Broker Server |
-| Library | ROS package dep | Maven artifact | Paho client lib |
-| `PUBLISHES_TO` | `publish()` call | `produce()` call | `publish()` call |
-| `SUBSCRIBES_TO` | `subscription()` call | `consume()` call | `subscribe()` call |
-| `USES` | `package.xml` dep | `pom.xml` dep | `requirements.txt` |
+> All graph modeling runs **once at design-time**, introducing zero runtime monitoring overhead.
 
 ---
 
-## 10. Complexity
+## 11. Import, Export & Database Parity
 
-| Phase | Operation | Complexity | Notes |
-|-------|-----------|------------|-------|
-| Phase 1 | Vertex creation | O(&#124;V&#124;) | One vertex per entity |
-| Phase 2 | Structural edge import | O(&#124;E_S&#124;) | One pass over relationships |
-| Phase 2 post-step | Fan-out augmentation | O(&#124;E_S&#124;) | One pass over `SUBSCRIBES_TO` and `PUBLISHES_TO` |
-| Phase 3 | Topic weight computation | O(&#124;V_topic&#124;) | One Cypher pass |
-| Phase 3 | Edge weight inheritance | O(&#124;E_S&#124;) | One pass over pub/sub/routes edges |
-| Phase 4 | `app_to_app` derivation | O(&#124;Apps&#124;² × &#124;Topics&#124;) | All subscriber–publisher pairs per topic; bounded by fan-out in practice |
-| Phase 4 | `app_to_lib` derivation | O(&#124;USES edges&#124;) | Sparse in practice |
-| Phase 4 | Rules 2–6 | O(&#124;E_S&#124;) | One pass per rule |
-| Phase 5 | Aggregate weight propagation | O(&#124;V&#124; + &#124;E_S&#124;) | One Cypher pass per vertex type |
+The graph construction engine is implemented in two fully interchangeable repositories with **100% mathematical and topological parity**:
+1. **`MemoryRepository`** ([`saag/infrastructure/memory_repo.py`](../saag/infrastructure/memory_repo.py)): In-memory NetworkX-based implementation for unit tests, rapid execution, and standalone CLI scripts.
+2. **`Neo4jRepository`** ([`saag/infrastructure/neo4j_repo.py`](../saag/infrastructure/neo4j_repo.py)): Enterprise graph database implementation using optimized Cypher batch transactions for large topologies and persistence.
 
-The dominant cost is Phase 4 `app_to_app` derivation. In practice, topic fan-out is bounded (typically 1–12 subscribers), so the effective cost is much lower than the worst case. Every phase runs **once at design time**, before failure simulation or runtime metrics are collected, resulting in zero runtime monitoring overhead.
-
----
-
-## 11. Importing and Exporting
-
-Flags for both scripts are documented in [cli-pipeline-guide.md — Step 1](cli-pipeline-guide.md#step-1-model--import--export). This section covers what the calls do and what they return.
+### Quick CLI Usage
 
 ```bash
-# Import a topology, wiping the database first (recommended for fresh runs)
-PYTHONPATH=. python cli/import_graph.py --input data/system.json --clear
+# 1. Import topology (with database clear)
+python cli/import_graph.py --input data/system.json --clear
 
-# Validate the input without touching the database
-PYTHONPATH=. python cli/import_graph.py --input data/system.json --dry-run
+# 2. Validate input schema without modifying the database
+python cli/import_graph.py --input data/system.json --dry-run
 
-# Export a re-importable snapshot (nested persistence format)
-PYTHONPATH=. python cli/export_graph.py --output output/snapshot.json
+# 3. Export a complete re-importable snapshot
+python cli/export_graph.py --output output/snapshot.json
 
-# Export the flat analysis view of one layer, structural edges included
-PYTHONPATH=. python cli/export_graph.py --output output/app_layer.json \
-  --format analysis --layer app --include-structural
-```
-
-### Call Chains
-
-**Import stage:**
-```
-cli/import_graph.py
-  └─ saag.Client.import_topology(filepath, clear)
-       └─ saag.usecases.model_graph.ModelGraphUseCase.execute()
-            └─ Neo4jRepository.save_graph()
-                 ├─ Phase 1: _import_entities()
-                 ├─ Phase 2: _import_relationships() (with fan-out augmentation)
-                 ├─ Phase 3: _calculate_intrinsic_weights()
-                 └─ Phase 5a: _calculate_aggregate_weights()
-```
-
-**Pre-analysis stage (triggered before Step 2 Analyze):**
-```
-cli/analyze_graph.py (or AnalysisService)
-  └─ saag.Client.analyze(layer)
-       └─ saag.usecases.analyze_graph.AnalyzeGraphUseCase.execute()
-            └─ saag.analysis.service.AnalysisService.analyze_layers()
-                 └─ Neo4jRepository.derive_dependencies()
-                      ├─ Phase 4:  _derive_dependencies()
-                      └─ Phase 5b: _finalize_dependency_weights()
-```
-
-**Export:** `--format persistence` calls `Client.export_topology()` → `Neo4jRepository.export_json()`, which reconstructs the input-shaped payload from `get_graph_data(include_raw=True)` plus the `:Metadata` node. `--format analysis` calls `Client.get_graph_data()` directly and dumps `GraphData.to_dict()`; the `--layer` filter applies to this format only.
-
-### Import Statistics
-
-`import_graph.py --output <file>` writes the returned statistics dict:
-
-| Key | Description |
-|-----|-------------|
-| `nodes_imported` | Total vertex count in Neo4j after import (excludes the internal `:Metadata` node) |
-| `edges_imported` | Total relationship count after import |
-| `duration_ms` | Total import duration in milliseconds |
-| `application_count`, `broker_count`, … | Per-label vertex counts |
-| `app_to_app_count`, `app_to_broker_count`, … | Per-type DEPENDS_ON edge counts (zero until the pre-analysis stage runs) |
-| `success`, `message` | Status |
-
-With `--dry-run` no database writes occur, and the dict instead contains `nodes_imported` and `edges_imported` parsed from the input file, `structural_edges` (the same count), `estimated_depends_on` (a lower bound: `publishes_to` + `subscribes_to` + `uses` entries, which drive Rules 1, 2 and 5), a `note`, and `dry_run: true`.
-
-### Notes and Caveats
-
-**`--clear` is strongly recommended** when importing a new topology. Without it, uniqueness constraints prevent duplicate vertices, but stale DEPENDS_ON edges from a previous import can remain and silently inflate centrality scores.
-
-**No transactional rollback across phases.** If a phase fails mid-way (e.g., a Neo4j memory error on a large topology), the database is left partially constructed: entities may be present but weights and DEPENDS_ON edges absent. Re-run with `--clear` to recover.
-
-**Referential integrity is enforced in Phase 2.** A relationship naming an entity that does not exist raises `ValueError` and rolls back the transaction; the message names up to five offending ids. If you see this error, check your JSON for typos or missing entries in the `nodes`, `applications`, etc. arrays.
-
-**REST API equivalents:**
-
-| Endpoint | Backed by | Output shape | Re-importable? |
-|----------|-----------|-------------|----------------|
-| `POST /api/v1/graph/import` | `ModelGraphUseCase` | — | — |
-| `POST /api/v1/graph/export-neo4j-data` | `repo.export_json()` | Input-file shape | **Yes** |
-| `POST /api/v1/graph/export` | `repo.get_graph_data()` | `components`/`edges` analysis shape | No |
-| `POST /api/v1/graph/export-limited` | `repo.get_limited_graph_data()` | Truncated analysis shape | No |
-
-The CLI and REST import paths share the same use case and produce identical Neo4j state. Use `/export-neo4j-data` (not `/export`) when a re-importable snapshot is required.
-
----
-
-## 12. Export–Import Roundtrip
-
-Running `export_graph.py` (persistence format) followed by `import_graph.py` on the output is a faithful roundtrip for all user-supplied data.
-
-### Preserved
-
-| Data | Notes |
-|------|-------|
-| All entity IDs and names | `id`, `name` for all five vertex types |
-| Topic QoS and size | `qos_reliability`, `qos_durability`, `qos_transport_priority`, `size` — exported and re-imported in uppercase |
-| Application `role`, `app_type`, `version`, `criticality` | Exported conditionally (only if non-null/non-empty) |
-| All six structural relationship types | `runs_on`, `routes`, `publishes_to`, `subscribes_to`, `connects_to`, `uses` |
-| `code_metrics` block (Applications and Libraries) | Flat `cm_*` properties are rebuilt into the nested structure on export and re-flattened on import. CQP scores are fully reproducible after a roundtrip. |
-| `system_hierarchy` block | Flat `csms_name`, `css_name`, `csc_name`, `csci_name` properties are reconstructed and re-imported correctly |
-| `metadata` block | Stored in the `:Metadata` singleton node; reconstructed and included in the export |
-
-### Re-computed on Re-import
-
-| Data | What Happens Instead |
-|------|----------------------|
-| Computed `weight` properties | All construction phases re-run from QoS data on re-import; computed weights are always fresh and need not be stored |
-| `DEPENDS_ON` edges | Re-derived from structural edges. The persistence export includes them under a `"depends_on"` key for information only — the importer ignores that key, and the export summary reports them separately as "Derived (DEPENDS_ON)" so they do not inflate the structural edge count |
-
-The **analysis format** (`--format analysis`) outputs `{ "components": [...], "edges": [...] }` for the SMART frontend and downstream scripts. It is **not** re-importable.
-
-### Verifying a Roundtrip
-
-[`examples/roundtrip_validation.py`](../examples/roundtrip_validation.py) performs the import → export → re-import cycle and compares vertex/edge counts, per-label counts, and topic weights. Equivalent manual sequence:
-
-```bash
-PYTHONPATH=. python cli/import_graph.py --input data/system.json --clear
-PYTHONPATH=. python cli/export_graph.py --output output/snapshot.json
-PYTHONPATH=. python cli/import_graph.py --input output/snapshot.json --clear
+# 4. Export layer-specific analysis view
+python cli/export_graph.py --output output/app_layer.json --format analysis --layer app
 ```
 
 ---
 
-## 13. What Comes Next
+## 12. What Comes Next
 
-Step 1 produces two graph views: G_structural (for simulation) and G_analysis(l) (for analysis). Step 2 operates on G_analysis(l) to compute a structural metric vector M(v) for every component.
+With the multi-layer graph $\mathcal{G}$ constructed and weighted, proceed to:
 
-→ [Step 2: Structural Analysis](structural-analysis.md)
+→ [**Step 2: Structural & Quality Analysis (`structural-analysis.md`)**](structural-analysis.md)

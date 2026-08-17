@@ -24,6 +24,8 @@ from saag.core.layers import get_layer_definition, resolve_layer
 from saag.core.models import (
     ComponentData, EdgeData, GraphData, QoSPolicy,
     MIN_TOPIC_WEIGHT, TOPIC_QOS_WEIGHT_BETA,
+    TOPIC_SIZE_WEIGHT_ALPHA, TOPIC_FREQ_WEIGHT_PSI,
+    COMPONENT_POWER_MEAN_P,
     APP_HYBRID_MAX_COEFF, APP_HYBRID_MEAN_COEFF,
     BROKER_HYBRID_MAX_COEFF, BROKER_HYBRID_MEAN_COEFF,
     LIB_FANOUT_GAMMA
@@ -211,10 +213,11 @@ class Neo4jRepository:
         are computed at import time, while the edges they flow onto only exist
         after derive_dependencies() has run.
         """
-        # app_to_lib Edge Weights (inherits from App)
+        # app_to_lib Edge Weights (harmonic coupling between App and Library)
         self._run_query("""
             MATCH (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib:Library)
-            SET d.weight = coalesce(app.weight, 0.01)
+            WITH d, coalesce(app.weight, 0.01) as w_app, coalesce(lib.weight, 0.01) as w_lib
+            SET d.weight = CASE WHEN (w_app + w_lib) > 0 THEN 2.0 * (w_app * w_lib) / (w_app + w_lib) ELSE 0.01 END
         """, tx=tx)
 
         # broker_to_broker Edge Weights (inherits from Node)
@@ -441,34 +444,51 @@ class Neo4jRepository:
         """
         Generate the Cypher expression for the Topic weight (docs/graph-model.md §4.3):
 
-            w(t) = max(ε, β * QoS_score + (1-β) * size_norm)
+            w(t) = max(ε, β * QoS_score + α * size_norm + ψ * freq_norm)
         """
         beta = TOPIC_QOS_WEIGHT_BETA
-        one_minus_beta = round(1.0 - beta, 4)
+        alpha = TOPIC_SIZE_WEIGHT_ALPHA
+        psi = TOPIC_FREQ_WEIGHT_PSI
         size_kb = f"{topic_var}.size / 1024.0"
         log2_size = f"(log(1 + {size_kb}) / (log(2) * 50.0))"
+        log10_freq = f"(log(1 + {topic_var}.frequency) / (log(10) * 3.0))"
+
+        r_score = self._score_case_cypher(f'{topic_var}.qos_reliability', QoSPolicy.RELIABILITY_SCORES)
+        d_score = self._score_case_cypher(f'{topic_var}.qos_durability', QoSPolicy.DURABILITY_SCORES)
+        p_score = self._score_case_cypher(f'{topic_var}.qos_transport_priority', QoSPolicy.PRIORITY_SCORES)
 
         qos_score = (
-            f"({QoSPolicy.W_RELIABILITY} * "
-            f"{self._score_case_cypher(f'{topic_var}.qos_reliability', QoSPolicy.RELIABILITY_SCORES)} + "
-            f"{QoSPolicy.W_DURABILITY} * "
-            f"{self._score_case_cypher(f'{topic_var}.qos_durability', QoSPolicy.DURABILITY_SCORES)} + "
-            f"{QoSPolicy.W_PRIORITY} * "
-            f"{self._score_case_cypher(f'{topic_var}.qos_transport_priority', QoSPolicy.PRIORITY_SCORES)})"
+            f"({QoSPolicy.W_RELIABILITY} * {r_score} + "
+            f"{QoSPolicy.W_DURABILITY} * {d_score} + "
+            f"{QoSPolicy.W_PRIORITY} * {p_score})"
         )
 
-        # Size norm, capped at 1.0 and undefined for non-positive payloads
         size_norm = (
             f"CASE WHEN {topic_var}.size <= 0 THEN 0.0 "
             f"WHEN {log2_size} > 1.0 THEN 1.0 "
             f"ELSE {log2_size} END"
         )
 
-        weighted_sum = f"({beta} * {qos_score} + {one_minus_beta} * {size_norm})"
+        freq_norm = (
+            f"CASE WHEN {topic_var}.frequency IS NOT NULL "
+            f"THEN CASE WHEN {log10_freq} > 1.0 THEN 1.0 WHEN {log10_freq} < 0.0 THEN 0.0 ELSE {log10_freq} END "
+            f"WHEN {topic_var}.topic_frequency IS NOT NULL "
+            f"THEN CASE WHEN (log(1 + {topic_var}.topic_frequency)/(log(10)*3.0)) > 1.0 THEN 1.0 ELSE (log(1 + {topic_var}.topic_frequency)/(log(10)*3.0)) END "
+            f"ELSE (CASE "
+            f"  WHEN ({r_score} * {p_score}) >= 0.81 THEN (log(1 + 200.0) / (log(10) * 3.0)) "
+            f"  WHEN ({r_score} * {p_score}) >= 0.56 THEN (log(1 + 100.0) / (log(10) * 3.0)) "
+            f"  WHEN ({r_score} * {p_score}) >= 0.44 THEN (log(1 + 50.0) / (log(10) * 3.0)) "
+            f"  WHEN ({r_score} * {p_score}) >= 0.31 THEN (log(1 + 25.0) / (log(10) * 3.0)) "
+            f"  WHEN ({r_score} * {p_score}) >= 0.13 THEN (log(1 + 10.0) / (log(10) * 3.0)) "
+            f"  ELSE (log(1 + 1.0) / (log(10) * 3.0)) END) END"
+        )
+
+        weighted_sum = f"({beta} * {qos_score} + {alpha} * {size_norm} + {psi} * {freq_norm})"
 
         # Apply the minimum weight floor: max(ε, weighted_sum)
         return (
             f"CASE WHEN {weighted_sum} < {MIN_TOPIC_WEIGHT} THEN {MIN_TOPIC_WEIGHT} "
+            f"WHEN {weighted_sum} > 1.0 THEN 1.0 "
             f"ELSE {weighted_sum} END"
         )
 
@@ -476,7 +496,7 @@ class Neo4jRepository:
         """
         Phase 3: Compute intrinsic Topic weights and propagate them to edges.
 
-            w(topic) = max(ε, β * QoS_score + (1-β) * size_norm),  β = 0.85
+            w(topic) = max(ε, β * QoS_score + α * size_norm + ψ * freq_norm)
         """
         qos_calc = self._get_qos_weight_cypher("t")
 
@@ -508,12 +528,16 @@ class Neo4jRepository:
         Brokers and Nodes, so that a component's importance reflects the most
         critical data it carries. See docs/graph-model.md §4.5.
         """
-        # 1. Application Weight (hybrid: 0.80 * max + 0.20 * mean)
+        # 1. Application Weight (Generalized Power Mean p=3)
         self._run_query(f"""
             MATCH (a:Application)
             OPTIONAL MATCH (a)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
-            WITH a, max(t.weight) as max_w, avg(t.weight) as mean_w
-            SET a.weight = coalesce({APP_HYBRID_MAX_COEFF} * max_w + {APP_HYBRID_MEAN_COEFF} * mean_w, 0.01)
+            WITH a, collect(t.weight) as weights
+            WITH a, size(weights) as cnt,
+                 CASE WHEN size(weights) = 0 THEN 0.01
+                      ELSE (reduce(s = 0.0, w IN weights | s + (coalesce(w, 0.01)^3.0)) / size(weights))^(1.0/3.0)
+                 END as p_weight
+            SET a.weight = CASE WHEN p_weight > 1.0 THEN 1.0 WHEN p_weight < 0.01 THEN 0.01 ELSE p_weight END
         """, tx=tx)
 
         # 2. Library Weight (propagated + fan-out multiplier)
@@ -549,12 +573,16 @@ class Neo4jRepository:
             SET a.weight = max_lib_w
         """, tx=tx)
 
-        # 3. Broker Weight (hybrid: 0.70 * max + 0.30 * mean)
+        # 3. Broker Weight (Generalized Power Mean p=3)
         self._run_query(f"""
             MATCH (b:Broker)
             OPTIONAL MATCH (b)-[:ROUTES]->(t:Topic)
-            WITH b, max(t.weight) as max_w, avg(t.weight) as mean_w
-            SET b.weight = coalesce({BROKER_HYBRID_MAX_COEFF} * max_w + {BROKER_HYBRID_MEAN_COEFF} * mean_w, 0.01)
+            WITH b, collect(t.weight) as weights
+            WITH b, size(weights) as cnt,
+                 CASE WHEN size(weights) = 0 THEN 0.01
+                      ELSE (reduce(s = 0.0, w IN weights | s + (coalesce(w, 0.01)^3.0)) / size(weights))^(1.0/3.0)
+                 END as p_weight
+            SET b.weight = CASE WHEN p_weight > 1.0 THEN 1.0 WHEN p_weight < 0.01 THEN 0.01 ELSE p_weight END
         """, tx=tx)
 
         # 4. Node Weight (max hosted component weight)
@@ -572,17 +600,19 @@ class Neo4jRepository:
         Aggregate the topics matched by ``match`` into one DEPENDS_ON edge.
 
         ``match`` must bind ``source``, ``target`` and a Topic ``t``. The edge
-        carries the worst-case topic weight and the number of mediating topics.
-        ON CREATE / ON MATCH are max-preserving, so a later rule matching the
-        same pair can only raise the weight, never lower it.
+        carries the probabilistic effective coupling weight and the number of mediating topics.
         """
         self._run_query(f"""
             {match.strip()}
-            WITH {source}, {target}, count(DISTINCT t) as path_count, max(t.weight) as max_weight
+            WITH {source}, {target}, count(DISTINCT t) as path_count, collect(DISTINCT coalesce(t.weight, 0.01)) as weights
+            WITH {source}, {target}, path_count,
+                 CASE WHEN size(weights) = 0 THEN 0.01
+                      ELSE 1.0 - reduce(p = 1.0, w IN weights | p * (1.0 - w))
+                 END as effective_weight
             MERGE ({source})-[d:DEPENDS_ON {{dependency_type: '{dep_type}'}}]->({target})
-            ON CREATE SET d.weight = coalesce(max_weight, 0.01), d.path_count = path_count
-            ON MATCH SET d.weight = CASE WHEN coalesce(max_weight, 0.01) > coalesce(d.weight, 0.0)
-                                         THEN coalesce(max_weight, 0.01) ELSE d.weight END,
+            ON CREATE SET d.weight = CASE WHEN effective_weight < 0.01 THEN 0.01 WHEN effective_weight > 1.0 THEN 1.0 ELSE effective_weight END, d.path_count = path_count
+            ON MATCH SET d.weight = CASE WHEN effective_weight > coalesce(d.weight, 0.0)
+                                         THEN (CASE WHEN effective_weight > 1.0 THEN 1.0 ELSE effective_weight END) ELSE d.weight END,
                          d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0)
                                              THEN path_count ELSE d.path_count END
         """, tx=tx)
