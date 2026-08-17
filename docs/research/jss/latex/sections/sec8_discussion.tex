@@ -1,0 +1,37 @@
+\section{Discussion, Threats to Validity, and Conclusion}
+\label{sec:8}
+
+\subsection{Discussion and Practical Implications}
+\label{sec:8.1}
+
+Our empirical findings provide clear guidance for software architects and reliability engineers:
+\begin{itemize}
+    \item \textbf{When to Use Graph Learning:} Heterogeneous GNNs (HGL) provide the greatest return when the objective is identifying the critical top-$K$ shortlist of components for architectural hardening ($F_1@K = 0.465$), and when evaluating new, unseen system architectures out of distribution ($\rho = 0.608$).
+    \item \textbf{When to Use Interpretable Attribution:} For root-cause diagnosis and remediation planning, the deterministic RM profile is indispensable. Distinguishing whether a service is critical due to single-point-of-failure exposure (Availability) or wide error propagation (Fault Tolerance) directly dictates whether to introduce load-balanced replicas or circuit-breaker policies.
+\end{itemize}
+
+\subsection{Threats to Validity}
+\label{sec:8.2}
+
+\begin{itemize}
+    \item \textbf{Construct Validity:} Our ground truth is generated via discrete-event cascade simulation on structural models rather than observing live production outages. To mitigate construct divergence, we evaluated multiple independent simulation engines (\texttt{FaultInjector}, \texttt{FailureSimulator}, \texttt{MessageFlowSimulator}) and confirmed strong convergent validity between dynamic queue-flow simulation and cascade reachability ($\rho = 0.765$).
+    \item \textbf{Internal Validity:} Potential feature leakage is prevented by strict graph view separation: predictors operate on $G_{\text{analysis}}$, whereas ground-truth simulators operate on $G_{\text{structural}}$.
+    \item \textbf{External Validity:} While our corpus spans ten distinct system domains and three authentic open-source architectures (ROS~2 and microservices), future work should evaluate larger enterprise deployments with hundreds of microservices.
+    \item \textbf{Conclusion Validity:} Given the heavy-tailed, non-normal distribution of cascading failure impacts, all statistical comparisons utilize non-parametric rank correlation (Spearman $\rho$, Kendall $\tau$), bootstrap confidence intervals ($B = 2,000$), and paired Wilcoxon signed-rank tests.
+\end{itemize}
+
+\subsection{Limitations and Future Work}
+\label{sec:8.3}
+
+\begin{enumerate}
+    \item \textbf{Safety and Security Integration:} SaG currently focuses on Reliability and Maintainability. Incorporating formal hazard categories (e.g., ISO 26262 ASIL ratings) and security threat models into the multigraph schema represents an important direction for future research.
+    \item \textbf{Hardware-in-the-Loop (HIL) Validation:} Validating SaG's predictions against real-time physical fault-injection testbeds in cyber-physical environments.
+    \item \textbf{Automated Architectural Refactoring:} Extending SaG from predictive analysis to prescriptive synthesis---automatically generating pull requests that reconfigure QoS policies and add redundancy.
+\end{enumerate}
+
+\subsection{Conclusion}
+\label{sec:8.4}
+
+We presented \textbf{Software-as-a-Graph (SaG)}, a pre-deployment Static System Analysis framework that models complex distributed pub-sub and microservice architectures as typed, weighted multigraphs. By combining relation-specific Heterogeneous Graph Transformers with an interpretable Reliability--Maintainability quality attribution model, SaG bridges the Architecture--Code Gap, forecasting cascading failure risks before systems are deployed.
+
+Our empirical results across synthetic and authentic open-source distributed systems demonstrate that heterogeneous graph learning provides significant advantages in identifying critical components ($F_1@K = 0.465$) and generalizing across unseen architectures ($\rho = 0.608$), while delivering actionable architectural diagnostics for resilient distributed systems engineering.

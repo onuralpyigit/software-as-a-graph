@@ -1,33 +1,8 @@
 % manuscript.tex -- Journal of Systems and Software submission.
 % Special Issue "AI Techniques for Performance, Reliability, and
 % Sustainability of Modern Software Systems" (VSI:AI4MSS).
-%
-% Build: see Makefile (pdflatex -> bibtex -> pdflatex x2), or
-%   TEXINPUTS=./vendor: BSTINPUTS=./vendor: pdflatex manuscript.tex
-%   TEXINPUTS=./vendor: BSTINPUTS=./vendor: bibtex manuscript
-%   TEXINPUTS=./vendor: BSTINPUTS=./vendor: pdflatex manuscript.tex   (x2)
-%
-% Double-anonymised review: this file and everything it \input{}s carries
-% NO author identity. The real byline lives only in title_page.tex, which
-% is a separate submission-system deliverable (see that file's header
-% comment) and is never \input here.
 
 \documentclass[preprint,3p]{elsarticle}
-% CLASS OPTIONS -- the 'review' option is intentionally NOT used.
-% elsarticle processes options in *declaration* order (preprint, review, 3p),
-% so [preprint,review,3p] nets out to jtype=3 with \@blstr{1.5}: a 1.5-spaced
-% one-column layout. That spacing alone is what made the pre-condensation
-% build 75 pages. [preprint,3p] leaves \@blstr{1} -- single-spaced, one
-% column, 10pt -- which is the layout JSS's "<36 pages single-column"
-% guidance is naturally read against. Add 'review' back if the editor asks
-% for a double-spaced reviewing copy; expect roughly 1.5x the page count.
-%
-% NOTE: the 'times' class option is intentionally omitted. It pulls in
-% mathptmx, which requires URW Times Type 1 font metrics that the
-% texlive-fonts-recommended package (not installed in the vendored,
-% no-sudo toolchain this was built against) provides. lmodern below gives
-% scalable Type 1 outlines so microtype's font-expansion feature works;
-% swap 'times' back in if the target machine has texlive-fonts-recommended.
 
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
@@ -43,8 +18,6 @@
 \usepackage{hyperref}
 \usepackage{microtype}
 
-% pandoc's table output calls \tightlist; it is not defined by any package
-% pandoc expects the surrounding document to provide it.
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 
@@ -54,8 +27,8 @@
 
 \begin{frontmatter}
 
-\title{Graph Neural Networks for Reliability and Dependability Analysis in
-  Complex Distributed Systems based on Publish--Subscribe Architecture}
+\title{Graph Learning for Reliability and Dependability Analysis in
+  Complex Distributed Systems}
 
 % Author/affiliation block intentionally omitted for double-anonymised
 % review -- see title_page.tex.
@@ -65,14 +38,13 @@
 \end{abstract}
 
 \begin{keyword}
-publish--subscribe middleware \sep
-architectural dependability \sep
-cascading failure \sep
-heterogeneous graph neural networks \sep
-static system analysis \sep
-pre-deployment verification \sep
-quality attributes \sep
-CI/CD quality gate
+Graph representation learning \sep
+Heterogeneous graph neural networks \sep
+Publish--subscribe middleware \sep
+Distributed systems dependability \sep
+Cascading failures \sep
+Static system analysis \sep
+Architectural quality models
 \end{keyword}
 
 \end{frontmatter}
@@ -84,10 +56,9 @@ CI/CD quality gate
 \input{sections/sec3_sag_model.tex}
 \input{sections/sec4_quality_attribution.tex}
 \input{sections/sec5_failure_impact_analysis.tex}
-\input{sections/sec6_remediation_gating.tex}
-\input{sections/sec7_experimental_setup.tex}
-\input{sections/sec8_results.tex}
-\input{sections/sec9_discussion.tex}
+\input{sections/sec6_experimental_setup.tex}
+\input{sections/sec7_results.tex}
+\input{sections/sec8_discussion.tex}
 
 \input{sections/declarations.tex}
 

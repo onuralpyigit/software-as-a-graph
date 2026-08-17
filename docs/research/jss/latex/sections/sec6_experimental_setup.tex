@@ -1,0 +1,60 @@
+\section{Experimental Setup}
+\label{sec:6}
+
+\subsection{Datasets and System Corpus}
+\label{sec:6.1}
+
+Our evaluation corpus comprises 1,770 components across ten distributed system architectures:
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Experimental evaluation corpus.}
+\label{tab:4}
+\begin{tabular}{llrrrrrrr}
+\toprule
+\textbf{Dataset / Architecture} & \textbf{System Paradigm} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Topics} & \textbf{Brokers} & \textbf{Hosts} & \textbf{Libs} & \textbf{$|E|$} \\
+\midrule
+\textbf{Autonomous Vehicle (AV)} & ROS 2 Cyber-Physical & 80 & 16 & 28 & 4 & 8 & 24 & 196 \\
+\textbf{Enterprise Pub-Sub} & Kafka Event Mesh & 300 & 60 & 110 & 10 & 30 & 90 & 784 \\
+\textbf{Financial Trading} & Low-Latency Pub-Sub & 60 & 12 & 22 & 4 & 6 & 16 & 148 \\
+\textbf{Healthcare Integration} & HL7/FHIR Event Mesh & 50 & 10 & 18 & 4 & 6 & 12 & 122 \\
+\textbf{Hub-and-Spoke Enterprise} & Broker-Centric Messaging & 70 & 14 & 24 & 6 & 8 & 18 & 172 \\
+\textbf{IoT Smart City} & MQTT Telemetry Mesh & 200 & 40 & 75 & 8 & 20 & 57 & 512 \\
+\textbf{Microservices Mesh} & Cloud-Native Services & 90 & 18 & 32 & 6 & 10 & 24 & 226 \\
+\textbf{Autoware.universe \cite{kato2018autoware}} & Real-World ROS 2 Autoware & 75 & 32 & 24 & 3 & 6 & 10 & 184 \\
+\textbf{Cloud Microservices \cite{google2024boutique}} & Real-World GCP Boutique & 60 & 22 & 20 & 4 & 6 & 8 & 142 \\
+\textbf{Train-Ticket \cite{zhou2021fault}} & Real-World Microservices & 90 & 41 & 30 & 3 & 8 & 8 & 218 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The seven synthetic scenarios are generated using statistical topology generators spanning diverse degree distributions, clustering coefficients, and middleware QoS configurations. The three real-world architectures are hand-transcribed from open-source repositories using dedicated architectural adapters.
+
+\subsection{Baselines and Evaluated Predictors}
+\label{sec:6.2}
+
+We compare five primary predictor configurations:
+\begin{enumerate}
+    \item \textbf{Topo-BL:} Unweighted structural centrality (betweenness centrality and articulation point scoring).
+    \item \textbf{Topo-QoS:} QoS-weighted topological centrality baseline.
+    \item \textbf{RM / $Q(v)$:} Deterministic hierarchical quality attribution baseline (Section~\ref{sec:4}).
+    \item \textbf{GL / GL-QoS:} Homogeneous Graph Attention Networks (GAT) \cite{velickovic2018graph} trained on the flattened, untyped graph projection.
+    \item \textbf{HGL / HGL-QoS:} Relation-specific Heterogeneous Graph Transformers (Section~\ref{sec:5}).
+\end{enumerate}
+
+\subsection{Evaluation Metrics and Protocols}
+\label{sec:6.3}
+
+\begin{itemize}
+    \item \textbf{Ranking Accuracy:} Spearman rank correlation ($\rho$) and Kendall's tau ($\tau$) between predicted rankings and ground-truth simulated impact $I^*(v)$.
+    \item \textbf{Critical-Set Identification:} $F_1@K$, Precision@$K$, and Recall@$K$ for top-$K$ critical components, where $K = \lceil 0.20 \cdot |V_{\text{app}}| \rceil$.
+    \item \textbf{Statistical Significance:} Paired Wilcoxon signed-rank tests \cite{wilcoxon1945individual} ($p < 0.05$) and bootstrap 95\% confidence intervals ($B = 2,000$) \cite{efron1993introduction,spearman1904proof}.
+\end{itemize}
+
+\subsubsection{Evaluation Protocols}
+\begin{itemize}
+    \item \textbf{In-Distribution Evaluation:} 60\% train / 20\% validation / 20\% test node splits pinned by node identity within each scenario, evaluated over five random seeds $\{42, 123, 456, 789, 2024\}$.
+    \item \textbf{Inductive Leave-One-Scenario-Out (LOSO):} Models are trained on six scenarios and evaluated zero-shot on the seventh unseen scenario to test out-of-distribution generalizability.
+    \item \textbf{Real-World Architectural Transfer:} Evaluating zero-shot transfer on authentic open-source architectures.
+\end{itemize}

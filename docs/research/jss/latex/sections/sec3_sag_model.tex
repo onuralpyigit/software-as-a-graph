@@ -1,170 +1,106 @@
-\hypertarget{the-software-as-a-graph-model}{%
-\section{The Software-as-a-Graph Model}\label{the-software-as-a-graph-model}}
-
+\section{The Software-as-a-Graph (SaG) Architectural Model}
 \label{sec:3}
 
-This section defines the graph model on which all subsequent analysis operates: the formal object and
-its node and edge types (Section~\ref{sec:3.1}), the derivation of logical dependencies and their
-QoS-derived weights (Section~\ref{sec:3.2}), and the two graph views, multi-layer projections, and a
-running example that thread through the rest of the paper (Section~\ref{sec:3.3}).
+This section formalizes the Software-as-a-Graph multigraph representation (Section~\ref{sec:3.1}), the QoS-aware weighting and logical dependency derivation rules (Section~\ref{sec:3.2}), and the dual graph views utilized throughout the framework (Section~\ref{sec:3.3}).
 
-\hypertarget{nodes-edges-and-the-formal-object}{%
-\subsection{Nodes, Edges, and the Formal Object}\label{nodes-edges-and-the-formal-object}}
-
+\subsection{Formal Multigraph Definition}
 \label{sec:3.1}
 
-A distributed publish--subscribe system is modeled as a typed, weighted, directed multigraph
-
+We model a complex distributed system as a typed, weighted, directed multigraph:
 \begin{equation}
-G = (V, E, \tau_V, \tau_E, w_E, w_V),
+\mathcal{G} = (V, E, \tau_V, \tau_E, w_V, w_E)
 \end{equation}
+where:
+\begin{itemize}
+    \item $V$ is the set of system entities, partitioned into five disjoint types:
+    \begin{equation}
+    V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{node}} \cup V_{\text{lib}}
+    \end{equation}
+    \item $E$ is the set of directed edges connecting entities.
+    \item $\tau_V: V \to \mathcal{T}_V$ and $\tau_E: E \to \mathcal{T}_E$ are typing functions assigning node and edge categories.
+    \item $w_V: V \to [0, 1]$ and $w_E: E \to [0, 1]$ are weighting functions representing entity criticality and coupling strength.
+\end{itemize}
 
-where the vertex set partitions into five component types,
-\(V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{node}} \cup V_{\text{lib}}\),
-the type functions \(\tau_V\) and \(\tau_E\) label vertices and edges, and the weight functions
-\(w_E : E \to [0,1]\) and \(w_V : V \to [0,1]\) encode QoS-derived coupling strength
-(Section~\ref{sec:3.2}). The edge set is the disjoint union of \emph{structural} edges imported
-directly from the architecture description and \emph{dependency} edges (\texttt{DEPENDS\_ON}) derived
-from them (Section~\ref{sec:3.2}).
-
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.16}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.42}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.42}}@{}}
-\caption{Node and structural edge types of the SaG model. Each node type carries distinct failure semantics; edges are imported directly from the architecture description.\label{tab:1}}\tabularnewline
+\begin{table}[htbp]
+\centering
+\small
+\caption{Entity and structural edge types in the SaG model.}
+\label{tab:1}
+\begin{tabular}{lll}
 \toprule
-Node Type & Role & Representative instances \\
+\textbf{Entity Type ($\mathcal{T}_V$)} & \textbf{Architectural Role} & \textbf{Concrete System Examples} \\
 \midrule
-\endfirsthead
-\toprule
-Node Type & Role & Representative instances \\
+\textbf{Application} ($V_{\text{app}}$) & Autonomous process producing/consuming messages & ROS 2 node, Kafka microservice, MQTT client \\
+\textbf{Broker} ($V_{\text{broker}}$) & Message routing and queuing intermediary & RabbitMQ exchange, Mosquitto, EMQX broker \\
+\textbf{Topic} ($V_{\text{topic}}$) & Named logical communication channel & \texttt{/sensor/lidar}, \texttt{orders.payment.completed} \\
+\textbf{Node} ($V_{\text{node}}$) & Physical host or virtualized environment & Bare-metal server, Kubernetes worker, Cloud VM \\
+\textbf{Library} ($V_{\text{lib}}$) & Shared software package or driver dependency & \texttt{librdkafka}, OpenCV, Protobuf runtime \\
 \midrule
-\endhead
-\textbf{Application} & A process that publishes and/or subscribes to topics & ROS 2 node, Kafka producer/consumer, MQTT client \\
-\textbf{Broker} & A message-routing intermediary & RabbitMQ, Mosquitto, DDS middleware \\
-\textbf{Topic} & A named message channel & \texttt{/sensor/lidar}, \texttt{order.events} \\
-\textbf{Node} & A physical or virtual host & server, cloud VM, embedded controller \\
-\textbf{Library} & A shared code dependency & sensor driver, codec, message library \\
+\textbf{Structural Edge ($\mathcal{T}_E$)} & \textbf{Direction} & \textbf{Semantic Meaning} \\
 \midrule
-\textbf{Structural Edge} & \textbf{Direction} & \textbf{Meaning} \\
-\midrule
-\texttt{PUBLISHES\_TO} & App/Library → Topic & component produces messages on the topic \\
-\texttt{SUBSCRIBES\_TO} & App/Library → Topic & component consumes messages from the topic \\
-\texttt{ROUTES} & Broker → Topic & broker routes the topic \\
-\texttt{RUNS\_ON} & App/Broker → Node & component is hosted on the node \\
-\texttt{CONNECTS\_TO} & Node → Node & direct network link between hosts \\
-\texttt{USES} & App → Library & application depends on the shared library \\
+\texttt{PUBLISHES\_TO} & App/Library $\to$ Topic & Component publishes messages to topic \\
+\texttt{SUBSCRIBES\_TO} & App/Library $\to$ Topic & Component consumes messages from topic \\
+\texttt{ROUTES} & Broker $\to$ Topic & Broker manages and routes topic traffic \\
+\texttt{RUNS\_ON} & App/Broker $\to$ Node & Process is hosted on physical/virtual host \\
+\texttt{CONNECTS\_TO} & Node $\to$ Node & Physical network link between hosts \\
+\texttt{USES} & App $\to$ Library & Application links to shared library dependency \\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
-Retaining these types --- rather than collapsing them into a single ``communicates-with'' relation
---- is what later lets the framework distinguish failure mechanisms that an untyped graph cannot
-(Section~\ref{sec:3.2}, Section~\ref{sec:5}). Application and Library nodes additionally carry
-ingested SonarQube-derived code metrics (\texttt{cm\_*} properties: lines of code, cyclomatic
-complexity, LCOM, coupling), which feed the Maintainability dimension's Code Quality Penalty term
-(Section~\ref{sec:4.2}) and are how the framework bridges the Architecture--Code Gap at the node
-level.
+Application and Library entities additionally ingest static code metrics computed via SCA tools (\texttt{cm\_*} attributes: lines of code, cyclomatic complexity, coupling between objects, LCOM), directly bridging code-level fragility with topological analysis.
 
-\hypertarget{qos-aware-weights-and-derived-dependencies}{%
-\subsection{QoS-Aware Weights and Derived Dependencies}\label{qos-aware-weights-and-derived-dependencies}}
-
+\subsection{QoS-Aware Weights and Logical Dependency Derivation}
 \label{sec:3.2}
 
-Not all dependencies are equally consequential: a \texttt{RELIABLE}/\texttt{PERSISTENT} channel
-carrying critical data couples its endpoints far more tightly than a
-\texttt{BEST\_EFFORT}/\texttt{VOLATILE} one. Edge weights \(w(e) \in [0,1]\) are computed from each
-mediating topic's declared reliability, durability, and transport-priority QoS values (weighted
-0.30/0.40/0.30 --- durability outweighs the other two because it governs message-state survival, the
-precondition for resilience; these three are stated on their own Saaty matrix and consistency-checked
-in the replication package, separately from the quality-dimension weights of
-Section~\ref{sec:4.2}) blended
-0.85/0.15 with a payload-size term, with a floor of \(w(e) = 0.01\) so even zero-QoS components stay
-visible to attribution. Vertex weights propagate this upward with type-specific aggregation that
-amplifies a library's risk by its consumer fan-out, anticipating the blast-radius mechanism below;
-full formulas are in the replication package.
+In distributed middleware, communication links exhibit varying degrees of coupling based on their Quality-of-Service (QoS) contracts. For example, a \texttt{RELIABLE} topic with \texttt{TRANSIENT\_LOCAL} durability binds communicating services far more tightly than a \texttt{BEST\_EFFORT} telemetry stream.
 
-Structural edges record physical relationships but not \emph{logical} dependency: a subscriber and a
-publisher on the same topic have no direct structural edge, yet the subscriber wholly depends on the
-publisher for data. We derive a single semantic relation, \texttt{DEPENDS\_ON}, always directed from
-\emph{dependent} to \emph{dependency} (``if the target fails, the source is affected''), through six
-rules:
+For each structural communication edge $e$, we compute an edge coupling weight $w_E(e) \in [0, 1]$ derived from the QoS profile of the mediating topic:
+\begin{equation}
+w_E(e) = 0.85 \cdot \left( w_{\text{rel}} \cdot q_{\text{rel}} + w_{\text{dur}} \cdot q_{\text{dur}} + w_{\text{prio}} \cdot q_{\text{prio}} \right) + 0.15 \cdot q_{\text{payload}}
+\end{equation}
+where $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ represent normalized reliability, durability, and transport priority scores, with AHP weights $(0.30, 0.40, 0.30)$ ($CR < 0.05$). Durability is assigned the highest weight because it dictates message persistence across network partitions. A minimum floor $w_E(e) \ge 0.01$ ensures that best-effort edges remain visible to graph traversals.
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.09}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.28}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.51}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.12}}@{}}
-\caption{The six \texttt{DEPENDS\_ON} projection rules deriving logical dependencies from structural edges.\label{tab:2}}\tabularnewline
+\subsubsection{Logical Dependency Projection (\texttt{DEPENDS\_ON})}
+
+Structural edges capture explicit deployment connections but omit implicit runtime dependencies. For example, a subscriber depends upon a publisher, yet no direct edge connects them in pub-sub architectures. We derive a single unified semantic relation, \texttt{DEPENDS\_ON}, directed from \emph{dependent} to \emph{dependency} (``if target fails, source is impacted''):
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{The six \texttt{DEPENDS\_ON} logical dependency projection rules.}
+\label{tab:2}
+\begin{tabular}{clll}
 \toprule
-Rule & \texttt{dependency\_type} & Pattern (dependent → dependency) & Weight \\
+\textbf{Rule} & \textbf{Dependency Category} & \textbf{Structural Pattern ($\text{Dependent} \to \text{Dependency}$)} & \textbf{Derived Weight ($w$)} \\
 \midrule
-\endfirsthead
-\toprule
-Rule & \texttt{dependency\_type} & Pattern (dependent → dependency) & Weight \\
-\midrule
-\endhead
-1 & \texttt{app\_to\_app} & subscriber → publisher via a shared topic (incl.~transitive \texttt{USES*1..3} chains) & \(\max_t w(t)\) over shared topics \\
-2 & \texttt{app\_to\_broker} & publisher/subscriber → broker routing its topics & \(\max_t w(t)\) over routed topics \\
-3 & \texttt{node\_to\_node} & host → host, lifted from Rules 1--2 for colocated apps & lifted \(\max w\) \\
-4 & \texttt{node\_to\_broker} & host → broker, lifted from Rule 2 & lifted \(\max w\) \\
-5 & \texttt{app\_to\_lib} & application → library it \texttt{USES} --- \textbf{shared-library blast} & \(w_V(\text{app})\) \\
-6 & \texttt{broker\_to\_broker} & bidirectional, two brokers sharing a host --- \textbf{colocation} & \(w_V(\text{node})\) \\
+\textbf{1} & \texttt{app\_to\_app} & Subscriber $\to$ Publisher (via shared Topic, incl.\ transitive \texttt{USES}) & $\max_{t} w_E(t)$ \\
+\textbf{2} & \texttt{app\_to\_broker} & Publisher/Subscriber $\to$ Broker routing its topics & $\max_{t} w_E(t)$ \\
+\textbf{3} & \texttt{node\_to\_node} & Host $\to$ Host (lifted from inter-host app dependencies) & Lifted $\max w$ \\
+\textbf{4} & \texttt{node\_to\_broker} & Host $\to$ Broker (lifted from hosted app dependencies) & Lifted $\max w$ \\
+\textbf{5} & \texttt{app\_to\_lib} & Application $\to$ Shared Library it \texttt{USES} & $w_V(\text{app})$ \\
+\textbf{6} & \texttt{broker\_to\_broker} & Broker $\leftrightarrow$ Broker (bidirectional, colocated on same host) & $w_V(\text{node})$ \\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
-When two applications communicate over several shared topics, a single \texttt{DEPENDS\_ON} edge
-records the worst-case weight together with a separate coupling count \texttt{path\_count}, kept out
-of the weight to preserve the \(w \in [0,1]\) contract --- three simultaneous failure vectors between
-the same pair is structurally more fragile than three independent single-topic links.
+\subsubsection{Sequential Cascades vs. Simultaneous Blasts}
 
-\textbf{Two qualitatively different failure modes.} This is the crux of the model. Rule 1 encodes
-\emph{sequential cascade}: a publisher's failure starves its subscribers, whose failure may in turn
-affect their dependents, propagating step by step through topics and brokers. Rule 5 encodes a
-\emph{simultaneous blast}: when a shared library fails, every application that uses it fails at once,
-in a single event, not along a propagation path. An untyped graph cannot tell these apart --- both
-look like ordinary edges --- yet they demand different predictions and different remedies. Preserving
-the \texttt{app\_to\_lib} type (Rule 5) is what lets the framework represent this simultaneous-blast
-mechanism at all, just as preserving \texttt{broker\_to\_broker} (Rule 6) makes broker-colocation risk
-representable.
+A key insight of the SaG model is distinguishing between two fundamentally different failure modes:
+\begin{itemize}
+    \item \textbf{Sequential Cascade (Rule 1):} When an application publisher fails, downstream subscribers experience data starvation. The failure propagates step-by-step through topics and message queues.
+    \item \textbf{Simultaneous Blast (Rule 5):} When a shared software library or execution node crashes, all consuming applications and colocated brokers fail \emph{instantaneously} in a single event.
+\end{itemize}
 
-\hypertarget{graph-views-and-a-running-example}{%
-\subsection{Graph Views and a Running Example}\label{graph-views-and-a-running-example}}
+Retaining entity types and relation-specific dependency rules allows SaG to model both mechanisms, whereas untyped graphs collapse them into identical edges.
 
+\subsection{Dual Graph Views and Architectural Layers}
 \label{sec:3.3}
 
-The construction produces two complementary views of the same system, and their separation is
-load-bearing for the framework's validity: \textbf{\(G_{\text{structural}}\)}, the imported
-structural graph, used by the discrete-event simulators to generate the ground-truth impact labels
-(Section~\ref{sec:5.1}); and \textbf{\(G_{\text{analysis}}(\ell)\)}, the layer-projected
-\texttt{DEPENDS\_ON} graph, on which all structural metrics, quality attribution, and prediction are
-computed (Section~\ref{sec:4}). Because attribution is computed on \(G_{\text{analysis}}\) while
-ground truth is generated by simulating \(G_{\text{structural}}\), the predictor's inputs are kept
-disjoint from the label-producing path --- the \textbf{independence guarantee} that makes the
-pre-deployment claims of Section~\ref{sec:4}--Section~\ref{sec:5} non-circular, and that we state and
-rely on throughout. \(G_{\text{analysis}}\) is further filtered into four analytical layers ---
-application, infrastructure, middleware, and system --- each isolating a component scope and the
-dependency subset connecting it (applications together with libraries; physical nodes; brokers; and
-all five component classes at once), and rolled up along a MIL-STD-498
-\cite{dod1994milstd498} CSU→CSC→CSCI→CSS hierarchy so criticality can be reported at whatever
-granularity an organization's configuration management already uses.
+The SaG framework maintains two distinct representations of the system:
+\begin{enumerate}
+    \item \textbf{Structural Graph ($G_{\text{structural}}$):} The raw graph containing physical and structural edges (\texttt{PUBLISHES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{USES}). This view is consumed exclusively by discrete-event simulators to execute unbiased failure injections (Section~\ref{sec:5.1}).
+    \item \textbf{Analysis Graph ($G_{\text{analysis}}$):} The projected graph containing derived \texttt{DEPENDS\_ON} edges annotated with QoS weights and ingested SCA code metrics. All GNN feature representations, graph embeddings, and analytical metrics are computed on $G_{\text{analysis}}$.
+\end{enumerate}
 
-Consider three applications \(a_1, a_2, a_3\), where \(a_1\) publishes to a topic \(t\) that \(a_2\)
-and \(a_3\) subscribe to, all three depending on a shared library \(\ell\); a single broker \(b\)
-routes \(t\), and one host \(n\) runs all four processes. Derivation adds \(a_2, a_3 \to a_1\)
-(\texttt{app\_to\_app}, Rule 1), \(a_i \to b\) (\texttt{app\_to\_broker}, Rule 2), \(n \to b\)
-(\texttt{node\_to\_broker}, Rule 4), and \(a_i \to \ell\) (\texttt{app\_to\_lib}, Rule 5). The two
-structures encode different risks: losing \(a_1\) degrades \(a_2\) and \(a_3\) through a cascade the
-simulator propagates over time, whereas losing \(\ell\) fails all three simultaneously. A
-topology-only centrality score ranks \(\ell\) by ordinary connectivity and cannot represent that its
-single failure collapses the whole component group at once --- whether that representational
-difference translates into a scoring gap large enough to matter is an empirical question we test in
-Section~\ref{sec:5.4} (on our synthetic suite, it does not).
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\linewidth]{figures/Figure_2}
-\caption{The running example's structural graph and its derived \texttt{DEPENDS\_ON} projection, with sequential-cascade and simultaneous-blast edges visually distinguished.}
-\label{fig:2}
-\end{figure}
-
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+$G_{\text{analysis}}$ is further organized into four analytical layers (Application, Middleware, Infrastructure, and Global System), allowing architects to evaluate criticality at subsystem levels (e.g., following MIL-STD-498 hierarchical structures).

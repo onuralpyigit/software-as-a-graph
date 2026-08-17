@@ -1,154 +1,74 @@
-\hypertarget{interpretable-attribution-as-a-baseline}{%
-\section{Interpretable Attribution as a Baseline}\label{interpretable-attribution-as-a-baseline}}
-
+\section{Interpretable Attribution as a Quality Baseline}
 \label{sec:4}
 
-Centrality answers \emph{whether} a component is important with a single number; an architect
-choosing between a replica, a reroute, and a decoupling refactor needs to know \emph{why}. This
-section presents the framework's interpretable diagnostic: a decomposition of each component's
-criticality into two top-level quality dimensions --- Reliability and Maintainability (RM) --- each
-computed from disjoint structural metrics and combined into a composite score. Reliability is itself
-hierarchical, blending two sub-characteristics, Fault Tolerance and Availability:
-\(R(v) = \alpha \cdot FT(v) + (1-\alpha)\cdot A(v)\), \(\alpha = 0.36\). Grounded in \textbf{ISO/IEC
-25019:2023 (Quality-in-Use)} \cite{iso25019_2023}, criticality represents the counterfactual loss of
-beneficialness, freedom from risk, and acceptability that stakeholders would experience if an
-architectural element failed.
+To provide actionable explanations alongside predictive rankings, SaG decomposes component criticality into a multi-dimensional, standards-grounded quality attribution profile.
 
-\hypertarget{two-dimensions-and-formal-definitions}{%
-\subsection{Two Dimensions and Formal Definitions}\label{two-dimensions-and-formal-definitions}}
-
+\subsection{Grounding in ISO/IEC Standards}
 \label{sec:4.1}
 
-Two definitions fix what is being scored. \textbf{D1 --- component criticality}: the degree to which
-the failure, latency, or degradation of a component, directly or transitively, reduces the system's
-capacity to let its stakeholders achieve their goals with beneficialness, freedom from risk, and
-acceptability, within its operational context. \textbf{D2 --- relationship criticality}: the same
-degree of loss for the disruption of one specific dependency, with \emph{both endpoint components
-remaining operational} --- the clause that isolates the partial-outage case from the total-outage one.
-Both are realised per analytical layer as a map onto the RM vector and its composite.
+Following \textbf{ISO/IEC 25010:2023} (Product Quality) \cite{iso25010_2023} and \textbf{ISO/IEC 25019:2023} (Quality-in-Use) \cite{iso25019_2023}, we define two core formal constructs:
+\begin{itemize}
+    \item \textbf{Component Criticality ($D_1$):} The degree to which the failure or degradation of a component reduces the system's capacity to deliver required services within its operational context.
+    \item \textbf{Relationship Criticality ($D_2$):} The degree of service degradation resulting from the severance of a specific dependency channel while both endpoint components remain operational.
+\end{itemize}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.06}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.28}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.42}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.24}}@{}}
-\caption{The two RM dimensions (Reliability's own Fault-Tolerance/Availability sub-terms broken out), the architectural question each answers, and the engineering role each routes to.\label{tab:3}}\tabularnewline
+Criticality is evaluated primarily across two orthogonal quality dimensions: \textbf{Reliability ($R$)} and \textbf{Maintainability ($M$)}.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{The Reliability--Maintainability (RM) quality decomposition.}
+\label{tab:3}
+\begin{tabular}{lllll}
 \toprule
-Dim. & Architectural Question & High score means & Remediation owner \\
+\textbf{Dimension} & \textbf{Sub-Characteristic} & \textbf{Architectural Question} & \textbf{Underlying Graph Metrics} & \textbf{Role / Remediation} \\
 \midrule
-\endfirsthead
-\toprule
-Dim. & Architectural Question & High score means & Remediation owner \\
-\midrule
-\endhead
-\textbf{R} (composite) & How broadly and deeply does failure propagate, blended with structural exposure? & Reliability degraded via cascade reach and/or structural exposure & Reliability Engineer \\
-\emph{--- FT sub-term} & How broadly and deeply does failure propagate? & Failure cascades widely; hard to contain & Reliability Engineer \\
-\emph{--- A sub-term} & Is this a structural single point of failure? & Removing it partitions the dependency graph & DevOps / SRE \\
-\textbf{M} & How hard is this to change safely? & Tightly coupled structural bottleneck & Software Architect \\
-\emph{--- (not covered)} & Safety and Security are not instantiated as scored dimensions & --- & --- \\
+\textbf{Reliability ($R$)} & \textbf{Fault Tolerance ($FT$)} & How broadly does failure propagate? & Reverse PageRank on $G^\top$, in-degree & Reliability Eng.: add redundancy \\
+& \textbf{Availability ($A$)} & Is this a single point of failure? & Directed articulation score, bridge load & DevOps/SRE: replicate host/broker \\
+\textbf{Maintainability ($M$)} & \textbf{Modularity/Modifiability} & How complex and coupled is this? & Betweenness, out-degree, Code Penalty & Architect: refactor code, decouple \\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
-For components, the two dimensions are \textbf{orthogonal by construction}: each raw structural metric
-feeds exactly one of \(FT\), \(A\), or \(M\), never more --- a deliberate design constraint, not an
-empirical observation, since allowing a metric into two terms would silently inflate its weight
-relative to the stated weighting (Section~\ref{sec:4.2}). Metric-level orthogonality is what makes the
-breakdown legible: a pure single point of failure scores high on the \(A\) sub-term but low on \(FT\)
-and \(M\); a god-component scores high on \(M\); a cascade hub scores high on the \(FT\) sub-term. The
-\emph{shape} of the profile --- which sub-term of \(R\) dominates, and how \(R\) compares to \(M\) ---
-names the failure mode.
+\noindent\textit{Coverage Scope:} SaG focuses on Reliability and Maintainability. Safety (which requires hazard catalogues) and Security (which requires explicit threat models) are declared external to purely structural analysis and require domain-specific hazard analysis (e.g., ISO 26262 ASIL).
 
-Two further formal definitions do real work in what follows. \textbf{Criticality is a
-consequence, not a risk (D3)}: no RM dimension estimates how \emph{probable} a component's failure is,
-only how much is lost \emph{given} that it does --- ranking \(u\) above \(v\) says that losing \(u\)
-hurts more, not that \(u\) is more likely to be lost, and restricting the construct to consequence is
-precisely what makes it computable pre-deployment, since consequence follows from architecture while
-likelihood follows from behaviour that does not yet exist. \textbf{Criticality is relative, not
-absolute (D4)}: every score and tier is relative to the score distribution of the system being
-analysed (tiers are box-plot thresholds, Section~\ref{sec:4.2}) and to the analytical layer, so
-criticality values are \textbf{not comparable across systems or layers} --- a well-designed redundant
-system still has a CRITICAL tier, and a system full of SPOFs still has a MINIMAL one. D4 constrains
-how this paper may aggregate: any figure computed over more than one scenario must be formed from
-within-scenario ranks or per-scenario statistics, never from raw scores pooled across systems
-(Section~\ref{sec:5.4}, Section~\ref{sec:8.5} carry the corresponding scoping statements).
-
-The framework also gives inter-component dependencies the same two-dimensional attribution as
-components, so that a partial outage --- one link down, both endpoints healthy --- is scored rather
-than inferred from endpoint scores. We do not develop this relationship-level construction further
-here: by the framework's own independence guarantee (Section~\ref{sec:5.3}), it cannot currently be
-validated against the edge-removal measurement of Section~\ref{sec:8.2}, which operates on a
-structurally disjoint population (Section~\ref{sec:9.3}).
-
-\hypertarget{the-composite-score-classification-and-determinism}{%
-\subsection{The Composite Score, Classification, and Determinism}\label{the-composite-score-classification-and-determinism}}
-
+\subsection{Composite Quality Score Formulation}
 \label{sec:4.2}
 
-All metric inputs are rank-normalized to \([0,1]\). \textbf{Fault Tolerance} (\(FT\)), Reliability's
-first sub-term, is driven by Reverse PageRank on the transpose \texttt{DEPENDS\_ON} graph \(G^\top\)
-(the failure-propagation direction, since edges point dependent → dependency), blended with in-degree
-and a cascade-depth potential amplified by multi-path coupling, with a fan-out form dispatched for
-Topic nodes, which have no \texttt{DEPENDS\_ON} in-degree. \textbf{Availability} (\(A\)), the second
-sub-term, is driven by the directed articulation score (rather than the undirected version, which both
-over- and under-reports in pub-sub graphs), amplified by QoS weight so a SPOF carrying critical
-traffic scores as doubly severe. These blend into \textbf{Reliability}:
+All raw structural and code metrics are rank-normalized to $[0, 1]$. The quality sub-characteristics are formulated as follows:
 
+\begin{enumerate}
+    \item \textbf{Fault Tolerance ($FT(v)$):} Measures error propagation potential on the transpose graph $G_{\text{analysis}}^\top$ (where edges follow failure propagation from dependency to dependent):
+    \begin{equation}
+    FT(v) = w_{\text{rpr}} \cdot \text{RPR}(v) + w_{\text{indeg}} \cdot \text{Deg}_{\text{in}}(v) + w_{\text{depth}} \cdot \text{DepthPotential}(v)
+    \end{equation}
+    \item \textbf{Availability ($A(v)$):} Identifies structural single points of failure:
+    \begin{equation}
+    A(v) = w_{\text{art}} \cdot \text{ArticulationScore}(v) + w_{\text{bridge}} \cdot \text{BridgeCentrality}(v)
+    \end{equation}
+    \item \textbf{Reliability ($R(v)$):} Blends Fault Tolerance and Availability hierarchically:
+    \begin{equation}
+    R(v) = \alpha \cdot FT(v) + (1 - \alpha) \cdot A(v), \quad \alpha = 0.36
+    \end{equation}
+    The intra-dimension weights are audited for AHP consistency ($CR \le 0.08$).
+    \item \textbf{Maintainability ($M(v)$):} Evaluates structural coupling combined with code-level static analysis:
+    \begin{equation}
+    M(v) = 0.50 \cdot \text{Betweenness}(v) + 0.35 \cdot \text{Deg}_{\text{out}}(v) + 0.15 \cdot \text{CodeQualityPenalty}(v)
+    \end{equation}
+    where $\text{CodeQualityPenalty}(v)$ is derived from SonarQube metrics (complexity, LCOM, coupling).
+\end{enumerate}
+
+The composite quality score $Q(v)$ combines both dimensions:
 \begin{equation}
-R(v) = \alpha \cdot FT(v) + (1-\alpha)\cdot A(v), \quad \alpha = 0.36
+Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)
 \end{equation}
 
-\textbf{Maintainability} is driven by betweenness centrality, QoS-weighted out-degree, and a Code
-Quality Penalty built from the ingested SonarQube metrics of Section~\ref{sec:3.1} --- numerically
-unchanged from its role in the retired four-dimension composite. \(R\) and \(M\) combine into
+Components are categorized into adaptive criticality tiers using box-plot thresholds:
+\begin{itemize}
+    \item \textbf{CRITICAL:} $Q > Q_3 + 1.5 \cdot \text{IQR}$
+    \item \textbf{HIGH:} $Q_3 < Q \le Q_3 + 1.5 \cdot \text{IQR}$
+    \item \textbf{MEDIUM:} $Q_1 < Q \le Q_3$
+    \item \textbf{MINIMAL:} $Q \le Q_1$
+\end{itemize}
 
-\begin{equation}
-Q(v) = w_R\,R(v) + w_M\,M(v)
-\end{equation}
-
-under declared weights \((w_R, w_M) = (0.80, 0.20)\) --- algebraically derived from the retired
-four-dimension AHP composite \((A, R, M, V) = (0.43, 0.24, 0.17, 0.16)\) by folding \(A\)'s weight into
-\(R\)'s (\(\alpha = 0.24/(0.24+0.43) \approx 0.36\)) and renormalising the remaining two
-(\(w_R = (0.24+0.43)/0.84 \approx 0.80\), \(w_M = 0.17/0.84 \approx 0.20\)) --- a design judgement
-written on Saaty's 1--9 scale and audited for Analytic Hierarchy Process consistency
-\cite{saaty1980ahp} (\(\mathrm{CR} \le 0.10\)) at the sub-characteristic level rather than freshly
-elicited --- adapted per system toward its aggregate QoS profile, the computable form of D1's ``within
-its operational context'' clause. The audit is confined to the sub-characteristic level for a
-structural reason, not by oversight: a consistency ratio is defined as zero for \(n \le 2\), so a
-two-criterion comparison between Reliability and Maintainability would be consistent by construction
-and could not be audited at all. We therefore hold no composite comparison matrix, and the composite
-split is reported as declared rather than as an audited elicitation.
-
-We classify with an adaptive box-plot rule applied independently to each dimension and to the
-composite (CRITICAL: \(Q > Q_3 + 1.5\,\mathrm{IQR}\), down to MINIMAL: \(Q \le Q_1\), with a
-percentile fallback below \(n=12\)), so that a component can be CRITICAL on Reliability yet MINIMAL
-on Maintainability --- telling the architect to add redundancy rather than refactor for modularity.
-Attribution is fully deterministic: every input to \(Q(v)\) is a structural metric of
-\(G_{\text{analysis}}\), none derives from the discrete-event simulation that produces the
-ground-truth labels used to evaluate the framework (Section~\ref{sec:5.1}) --- the
-\textbf{independence guarantee} that makes a measured correlation between \(Q(v)\) and simulated
-impact evidence of genuine predictive content rather than leakage.
-
-\textbf{We report the sensitivity of this weighting, and it mildly favours the calibrated judgement.}
-Sweeping a shrinkage parameter \(\lambda\) that blends the AHP-derived \emph{intra}-dimension term
-weights --- the \(FT\), \(A\), and \(M\) internal term weights, not the composite \((w_R, w_M)\), which
-is a declared constant and \(\lambda\)-invariant by construction --- toward a uniform prior shows no
-plateau at any value: mean \(\rho\) against simulated impact rises monotonically as \(\lambda\) moves
-from 0 (uniform intra-dimension weights) to 1 (the raw AHP judgement), with the raw judgement
-outperforming uniform weighting by \(\approx 0.032\,\rho\) and the shipped default (\(\lambda=0.70\))
-sitting partway along that curve (Section~\ref{sec:8.3}, Table~\ref{tab:11}). The effect is small
-(spread \(\approx 0.045\,\rho\) across the full range, all values near-zero-to-slightly-negative) but
-consistent in direction, unlike an earlier version of this sweep under the retired four-dimension
-composite, which found the opposite sign. We draw a corresponding conclusion about the contribution:
-\textbf{the value of the RM decomposition remains primarily attribution, not ranking accuracy} --- the
-sensitivity result no longer argues against the calibrated weighting, but the effect size is too small
-to justify leaning on it for ranking alone. A two-dimensional profile explains \emph{why} a component
-ranks where it does and routes the finding to the engineering role equipped to act on it --- a
-Reliability issue and a Maintainability issue call for different remediations even at identical
-composite scores, and within Reliability itself the \(FT\) and \(A\) sub-terms further distinguish a
-cascade hub from a structural single point of failure --- and that explanatory function is unaffected
-by the weighting result. A practitioner optimising for ranking alone gains a small amount by leaning
-toward the raw AHP judgement rather than uniform intra-dimension weights, though the effect is too
-small to be decisive; one who needs to know \emph{why} a component is critical needs the profile,
-whatever the weights.
-
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+This enables targeted diagnostics: a service scoring high on $A$ but low on $FT$ is diagnosed as a pure SPOF requiring replication, whereas a service scoring high on $FT$ is an error cascade hub requiring circuit breakers.

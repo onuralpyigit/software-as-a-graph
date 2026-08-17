@@ -1,145 +1,60 @@
-\hypertarget{failure-impact-analysis-via-heterogeneous-gnn-and-interpretable-forecasting}{%
-\section{Failure-Impact Analysis via Heterogeneous GNN and Interpretable Forecasting}\label{failure-impact-analysis-via-heterogeneous-gnn-and-interpretable-forecasting}}
-
+\section{Graph Learning for Failure-Impact Prediction}
 \label{sec:5}
 
-Quality attribution (Section~\ref{sec:4}) tells an architect why a component is structurally
-critical. This section asks the complementary question: \emph{how much of the system actually fails}
-when a given component fails, and how well each predictor anticipates it. We define the three
-simulation oracles that supply ground truth (Section~\ref{sec:5.1}), the two predictors we evaluate
-against them (Section~\ref{sec:5.2}), the independence between predictor inputs and the label path
-that makes the evaluation sound (Section~\ref{sec:5.3}), and two checks that take node type seriously
-(Section~\ref{sec:5.4}).
+While the interpretable RM baseline provides explainable quality profiles, complex non-linear failure interactions benefit from representation learning. This section describes our Heterogeneous Graph Transformer (HGL) formulation, ground-truth simulation oracles, and the input--label independence guarantee.
 
-\hypertarget{ground-truth-three-simulation-oracles}{%
-\subsection{Ground Truth: Three Simulation Oracles}\label{ground-truth-three-simulation-oracles}}
-
+\subsection{Ground-Truth Simulation Oracles}
 \label{sec:5.1}
 
-In the absence of runtime telemetry, ground truth is produced by discrete-event failure simulation
-over the \emph{raw} structural graph \(G_{\text{structural}}\) --- directly on
-\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON},
-\texttt{CONNECTS\_TO}, and \texttt{USES} edges, without the derived \texttt{DEPENDS\_ON} projection.
-For each component \(v\), a failure is injected, the resulting disruption is propagated over a fixed
-horizon, and the residual service degradation is measured.
-
-\textbf{The framework contains three such oracles, and they are not interchangeable.} We name them
-here because which one backs a given number materially bounds what that number can support.
-
+To evaluate predictive accuracy without runtime telemetry, SaG executes discrete-event failure simulations over the raw structural graph $G_{\text{structural}}$. We employ three distinct simulation oracles:
 \begin{itemize}
-\tightlist
-\item
-  \textbf{\(I^*(v)\)} --- produced by \texttt{FaultInjector}: the mean subscriber feed-loss fraction
-  under a breadth-first cascade. This is the label the learned predictors are trained and evaluated
-  against, and it backs the predictor tables of Section~\ref{sec:8.1}.
-\item
-  \textbf{\(I_{\text{comp}}(v)\)} --- produced by \texttt{FailureSimulator}: a four-component weighted
-  composite,
-  \(I_{\text{comp}}(v) = 0.35\,\text{reachability\_loss} + 0.25\,\text{fragmentation} + 0.25\,\text{throughput\_loss} + 0.15\,\text{flow\_disruption}\),
-  graded in \([0,1]\) with weights stated and consistency-checked on their own Saaty matrix, on the
-  same footing as --- but separately from --- the quality-dimension weights of Section~\ref{sec:4.2}.
-  \(I_{\text{comp}}\) backs the validation gates, the checks of Section~\ref{sec:5.4}, and
-  remediation acceptance (Section~\ref{sec:6.1}).
-\item
-  \textbf{\(I_{\text{dyn}}(v)\)} --- produced by \texttt{MessageFlowSimulator}: the drop in delivered
-  message rate that \emph{surviving} consumers experience, obtained not by traversing edges but by
-  discrete-event simulation of actual traffic --- each publisher emits at its declared rate, every
-  topic fans out into a bounded per-subscriber queue, and the fault is injected mid-run.
-  \(I_{\text{dyn}}\) trains nothing and gates nothing: it is reported in Section~\ref{sec:7.4} as a
-  construct-validity check on the other two.
+    \item \textbf{Cascade Reachability Oracle ($I^*(v)$):} Implemented via \texttt{FaultInjector}, this oracle injects an unexpected crash at node $v$, propagates failures across dependent topics and brokers using breadth-first dynamic traversal, and records the fraction of surviving subscriber feed losses. $I^*(v)$ serves as the primary continuous target label for training and evaluating learned GNN predictors.
+    \item \textbf{Multi-Metric Composite Oracle ($I_{\text{comp}}(v)$):} A weighted composite measuring reachability loss ($0.35$), graph fragmentation ($0.25$), throughput degradation ($0.25$), and message flow disruption ($0.15$). $I_{\text{comp}}$ is used for architectural validation gates.
+    \item \textbf{Dynamic Message Flow Oracle ($I_{\text{dyn}}(v)$):} Implemented via \texttt{MessageFlowSimulator}, this oracle models discrete-event queue dynamics, message emission rates, buffer saturation, and dropped delivery rates among surviving consumers under fault injection.
 \end{itemize}
 
-\(I^*\) and \(I_{\text{comp}}\) agree only weakly --- mean Spearman \(\rho = 0.394\) across the seven
-scenarios (Section~\ref{sec:7.4}). We therefore treat evidence gathered against one as \emph{not}
-transferring to a claim measured against the other, and apply that constraint to our own analyses;
-Section~\ref{sec:7.4} quantifies the agreement and label-coverage bounds, and Section~\ref{sec:8.2}
-flags where the distinction bites. The two cascade oracles share a \texttt{propagation\_threshold}
-(default 0.2) below which partial feed loss is treated as recoverable degradation rather than a
-cascade trigger, and --- because intra-wave propagation order is tie-broken stochastically --- are run
-over five seeds, with impact reported as the across-seed mean and standard deviation, the latter also
-the noise scale the remediation filter of Section~\ref{sec:6.1} is calibrated against.
-
-\hypertarget{two-predictors-over-the-same-model}{%
-\subsection{Two Predictors over the Same Model}\label{two-predictors-over-the-same-model}}
-
+\subsection{Heterogeneous Graph Transformer (HGL) Architecture}
 \label{sec:5.2}
 
-We evaluate two predictors of simulated cascade impact, deliberately spanning the
-interpretability--capacity spectrum. The \textbf{interpretable predictor} is the composite \(Q(v)\)
-of Section~\ref{sec:4}, computed deterministically on \(G_{\text{analysis}}\) with no learned
-parameters. The \textbf{learned predictor} is a \textbf{Heterogeneous Graph Transformer (HGT)}
-\cite{hu2020hgt} that assigns relation-specific attention and message-passing parameters across the
-five node types (App, Broker, Topic, Node, Library) and the structural/\texttt{DEPENDS\_ON} edge
-types, so that message transformations differ by the semantic relation they traverse rather than being
-shared across a flattened graph: each relation gets its own projection matrices inside the attention
-computation, and the learned attention weight on an edge is directly interpretable as how much that
-specific typed relation contributed to a neighbour's representation.
+Because distributed systems comprise diverse entity types with distinct interaction semantics, we adopt a \textbf{Heterogeneous Graph Transformer (HGL)} architecture \cite{hu2020hgt}.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\linewidth]{figures/Figure_3}
-\caption{Learned relation-specific attention over a case-study subgraph, with per-edge \(\alpha\) from the HGT layer's own softmax.}
-\label{fig:3}
-\end{figure}
+For each source node $u \in V$ and target node $v \in V$ connected by edge $e = (u, v)$ with relation $\tau(e) = (\tau(u), \tau_E(e), \tau(v))$:
+\begin{enumerate}
+    \item \textbf{Type-Specific Projection:} Initial feature vectors $x_v$ are projected into a common $d$-dimensional hidden space using type-specific linear transformations:
+    \begin{equation}
+    h_v^{(0)} = \text{LayerNorm}(\text{ReLU}(W_{\tau(v)} x_v))
+    \end{equation}
+    \item \textbf{Heterogeneous Mutual Attention:} Relation-specific Query, Key, and Value projections compute edge attention:
+    \begin{equation}
+    \text{Attn}(u, e, v) = \underset{\forall u \in \mathcal{N}(v)}{\text{Softmax}}\left( \frac{K(u) W_{\text{att},\tau(e)} Q(v)^\top}{\sqrt{d}} \right)
+    \end{equation}
+    \begin{equation}
+    \text{Msg}(u, e, v) = V(u) W_{\text{msg},\tau(e)}
+    \end{equation}
+    \item \textbf{Aggregation and Residual Update:}
+    \begin{equation}
+    h_v^{(l)} = \text{LayerNorm}\left( h_v^{(l-1)} + \sum_{u \in \mathcal{N}(v)} \text{Attn}(u, e, v) \cdot \text{Msg}(u, e, v) \right)
+    \end{equation}
+\end{enumerate}
 
-The \textbf{\(HGL\text{-}QoS\)} variant additionally injects the continuous QoS attributes into the
-edge-attention aggregation, scaling message magnitude by interface contract strength; the base
-\textbf{HGL} variant masks these fields to isolate the contribution of typing alone from that of QoS
-encoding (RQ3, Section~\ref{sec:8.3}). Both variants consume features from \(G_{\text{analysis}}\)
-(not the simulator) and are trained inductively against the \(I^*(v)\) labels of
-Section~\ref{sec:5.1}. For RQ1 we report the two predictors separately rather than blended, so that
-\emph{where} typed learning improves on the interpretable score is settled on like-for-like rankings.
+We evaluate two variants:
+\begin{itemize}
+    \item \textbf{HGL (Typed):} Relation-specific attention operating on typed topology and structural features with QoS edge attributes masked.
+    \item \textbf{HGL-QoS (Typed + QoS):} Injects continuous QoS contract encodings directly into the edge message computation.
+\end{itemize}
 
-\hypertarget{the-independence-guarantee}{%
-\subsection{The Independence Guarantee}\label{the-independence-guarantee}}
+The network is optimized using a composite multi-task loss combining Mean Squared Error (MSE), ListMLE ranking loss, and RM consistency regularization:
+\begin{equation}
+\mathcal{L} = \mathcal{L}_{\text{MSE}}(I_{\text{pred}}, I^*) + 0.5 \cdot \mathcal{L}_{\text{multitask}} + 0.3 \cdot \mathcal{L}_{\text{ListMLE}} + 0.1 \cdot \mathcal{L}_{\text{RM}}
+\end{equation}
 
+\subsection{Input--Label Independence Guarantee}
 \label{sec:5.3}
 
-The evaluation is only meaningful if the predictor cannot see its own labels. Two structural
-properties enforce this: predictors operate on \(G_{\text{analysis}}\) while both simulators operate
-on \(G_{\text{structural}}\), so label-producing and feature-producing computations are distinct
-passes over distinct graph views; and no simulation output is ever fed back as an input feature to
-\(Q(v)\) or the learned predictor. For the learned predictor specifically, this is also checked at
-inference time: the GNN service raises before a forward pass if a feature tensor carries a target
-label attribute, a defensive check against a leakage bug introduced later in this codebase's lifetime
-rather than a proof none exists today. The remediation stage (Section~\ref{sec:6}) obeys the same
-discipline: its candidate-generation phase never reads simulated impact.
+To prevent circular reasoning and data leakage, SaG enforces strict structural separation:
+\begin{itemize}
+    \item \textbf{Feature Space:} Computed exclusively on the derived analysis graph $G_{\text{analysis}}$ (using static structural topology, SCA metrics, and declared QoS contracts).
+    \item \textbf{Label Space:} Generated by executing discrete-event cascade simulations on the raw physical graph $G_{\text{structural}}$.
+\end{itemize}
 
-\hypertarget{two-checks-that-take-node-type-seriously}{%
-\subsection{Two Checks That Take Node Type Seriously}\label{two-checks-that-take-node-type-seriously}}
-
-\label{sec:5.4}
-
-Two analyses probe whether the typed model's distinctions matter empirically, both measured against
-\(I_{\text{comp}}(v)\) and both reported as negative or consistency results rather than as headline
-findings.
-
-\textbf{The shared-library blast mechanism.} Rule 5 (Section~\ref{sec:3.2}) gives libraries a
-structurally distinctive \emph{simultaneous} failure mode, motivating the hypothesis that a library's
-composite score \(Q(v)\) would understate its true cascade impact. Tested directly across all seven
-scenarios (165 Library nodes), we did \textbf{not} find the hypothesized mismatch: the highest
-composite score reached by any library is \(Q = 0.422\), and across every library in the corpus
-\(I_{\text{comp}}(v)\) never exceeds \(Q(v)\) --- the composite score is, if anything, mildly
-conservative for this node type. We report this as a negative result rather than omit it: the
-mechanism itself remains a real structural distinction worth preserving in the model, and we retain
-the FanOutReduction operator's blast-radius trigger (Section~\ref{sec:6.1}) as a structurally
-motivated safeguard rather than as a mechanism validated by this particular result
-(Section~\ref{sec:8.2} restates this alongside the measured edge-criticality finding it is adjacent
-to but does not corroborate).
-
-\textbf{Stratified correlation.} A single pooled correlation between \(Q(v)\) and simulated impact
-could in principle mask a Simpson's-paradox-style effect if node types occupy sufficiently different
-regions of the \((Q, I)\) plane. Pooling across all seven scenarios (1,545 nodes) gives
-\(\rho = 0.374\); computed separately by node type, correlations range from 0.322 (Topic) to 0.429
-(Broker), all significant at \(p < 0.01\). We do \textbf{not} find a Simpson's-paradox effect: the
-pooled figure sits inside the per-type range rather than diverging from it, which is a useful
-consistency result --- the predictive relationship holds at similar strength across every component
-type --- even though the check happened not to overturn the pooled conclusion here. The effect it
-looked for \emph{does} occur elsewhere in this study: pooling Application and Library nodes into a
-single correlation moved HGL on \texttt{av\_system} from \(\rho = 0.836\) within Applications to
-\(0.46\) pooled (Section~\ref{sec:8.2}), a case where a pooled figure was actively misleading and one
-that went unnoticed until the evaluation contract of Section~\ref{sec:7.2} was imposed. Per D4
-(Section~\ref{sec:4.1}), this pooled figure is a diagnostic over the union of seven within-system
-rankings, not a cross-system criticality result, and no claim elsewhere in the paper rests on it.
-
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+No simulation outputs are ever exposed as input features to the GNN or attribution baseline.
