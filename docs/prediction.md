@@ -107,7 +107,10 @@ Dimensions 9–15 are non-zero only for `PUBLISHES_TO` / `SUBSCRIBES_TO` edges, 
 | `data[type].y` | (n, 3) | Simulation ground truth `[I*(v), IR(v), IM(v)]` |
 | `data[type].y_rm` | (n, 3) | RM scores `[Q(v), R(v), M(v)]` — the consistency-regularisation target, **not** a training label |
 | `data[type].label_mask` | (n,) | Which nodes the simulator actually scored — distinct from "scored 0.0" |
+| `data[type].dimension_mask` | (3,) | Which of the three `y` *columns* the labeler actually measured — distinct from `label_mask`, which is per-node not per-dimension. See below. |
 | `data[rel].y_edge` | (e, 3) | Per-edge criticality labels ([§5](#5-edge-criticality)) |
+
+> **The `IM(v)` column is only real under a labeler that measures it — not under the canonical one.** `FaultInjector`, the labeler behind every Table 3/4/k-fold result (see `tests/test_groundtruth_contract.py`'s `CANONICAL_LABELER`), emits only `composite` and `reliability`; `maintainability` is a structural zero, not a measurement (`data_preparation.py`'s `extract_simulation_dict`). `dimension_mask` records this (`[True, True, False]` on that path) and `GNNTrainer` masks the unmeasured column out of the multitask loss rather than regressing the maintainability head toward it — see [models/core.py](../saag/prediction/models/core.py#L500)'s `_multitask_loss` docstring. Only `FailureSimulator`-sourced labels populate all three columns for real.
 
 ---
 

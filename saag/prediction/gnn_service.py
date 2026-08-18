@@ -58,6 +58,7 @@ from saag.core.criticality import CriticalityLevel
 from saag.core.metrics import ComponentQuality, EdgeQuality, QualityScores, QualityLevels, StructuralMetrics
 
 from .data_preparation import (
+    LABEL_COLS,
     GraphConversionResult,
     apply_external_splits,
     create_node_splits,
@@ -106,8 +107,18 @@ class GNNCriticalityScore:
 
     criticality_level: str = "MINIMAL"    # Calculated via adaptive thresholds
 
+    # DECLARED (see saag.core.quality_model.Provenance), not learned: a linear
+    # q_R*reliability_score + q_M*maintainability_score readout using a
+    # deployment domain's stated priorities (derive_rm_weights), so a caller can
+    # re-weight Q per domain from one checkpoint without retraining. Distinct
+    # from composite_score, which is always the learned composite_head output.
+    # None unless a domain was requested and the checkpoint's maintainability
+    # head actually received real supervision (see GNNService._resolve_domain_omega).
+    domain: Optional[str] = None
+    domain_composite_score: Optional[float] = None
+
     def to_dict(self) -> dict:
-        return {
+        d = {
             "component": self.component,
             "composite_score": round(self.composite_score, 4),
             "reliability_score": round(self.reliability_score, 4),
@@ -115,6 +126,11 @@ class GNNCriticalityScore:
             "criticality_level": self.criticality_level,
             "source": self.source,
         }
+        if self.domain_composite_score is not None:
+            d["domain"] = self.domain
+            d["domain_composite_score"] = round(self.domain_composite_score, 4)
+            d["domain_composite_provenance"] = "declared"
+        return d
 
 
 @dataclass
@@ -289,6 +305,11 @@ class GNNService:
         self._best_seed = 42
         self.layer = "unknown"
         self._conversion_result: Optional[GraphConversionResult] = None
+        # Which LABEL_COLS dimensions the labeler actually measured when this
+        # checkpoint was trained (see networkx_to_hetero_data's dimension_mask).
+        # None means "unknown" — e.g. a checkpoint loaded before this field
+        # existed — and is treated as "not verified", not as "fully measured".
+        self._trained_dimension_mask: Optional[List[bool]] = None
 
         logger.info(
             "GNNService initialised | device=%s | hidden=%d | heads=%d | layers=%d",
@@ -331,6 +352,33 @@ class GNNService:
         ``self._node_model`` — so training it trains both.
         """
         return self._edge_model if self.predict_edges else self._node_model
+
+    def _resolve_domain_omega(self, domain: Optional[str]) -> Optional[Tuple[float, float]]:
+        """Resolve (q_reliability, q_maintainability) for a domain-reweighted composite.
+
+        Returns None — logging why — unless the checkpoint's maintainability head
+        actually received real training supervision. A DECLARED reweighting
+        (see saag.core.quality_model.Provenance) over an unmeasured dimension
+        would not be a score, it would be noise dressed as one: under the
+        canonical FaultInjector labeler, maintainability is unmeasured and the
+        head is only shaped by the RM-consistency regulariser, not ground truth.
+        """
+        if domain is None:
+            return None
+        mask = self._trained_dimension_mask
+        if mask is None or not mask[LABEL_COLS["maintainability"]]:
+            logger.warning(
+                "domain='%s' requested but this checkpoint's maintainability head "
+                "never received real supervision (dimension_mask=%s); refusing to "
+                "emit a domain-reweighted composite rather than report a number "
+                "that looks measured.", domain, mask,
+            )
+            return None
+        from saag.core.quality_model import derive_rm_weights
+        weights, derived = derive_rm_weights(domain)
+        if not derived:
+            logger.info("domain='%s' not recognised; falling back to static RM weights.", domain)
+        return (weights.q_reliability, weights.q_maintainability)
 
     @staticmethod
     def _apply_splits(data, conv, node_splits, train_ratio, val_ratio, seed) -> None:
@@ -422,6 +470,7 @@ class GNNService:
             rank_normalize_features=rank_normalize_features,
         )
         self._conversion_result = conv
+        self._trained_dimension_mask = conv.dimension_mask
         self._pinned_splits = node_splits
         data = conv.hetero_data
         
@@ -492,6 +541,7 @@ class GNNService:
                 ranking_weight=ranking_weight,
                 pairwise_ranking_weight=pairwise_ranking_weight,
                 edge_loss_weight=edge_loss_weight,
+                dimension_mask=conv.dimension_mask,
             )
             _, best_val_metrics = trainer.train(
                 training_input, primary_data=data if inductive_graphs else None
@@ -529,6 +579,7 @@ class GNNService:
         eval_labels=None,
         mode: str = "gnn",
         qos_enabled: bool = True,
+        domain: Optional[str] = None,
     ) -> GNNAnalysisResult:
         """Run inference on a graph without training.
 
@@ -547,6 +598,10 @@ class GNNService:
             Optional: if provided, validation metrics are computed.
         mode:
             Ablation mode: 'gnn' or 'rm'.
+        domain:
+            Optional deployment domain (e.g. ``"av"``, ``"healthcare"``) to
+            derive a DECLARED, domain-reweighted composite alongside the
+            learned one — see ``GNNCriticalityScore.domain_composite_score``.
         """
         if self._node_model is None:
             raise RuntimeError(
@@ -564,11 +619,12 @@ class GNNService:
         self._conversion_result = conv
         # ── Run prediction ────────────────────────────────────────────────────
         return self.predict_from_data(
-            conv.hetero_data, 
-            eval_labels, 
-            mode=mode, 
+            conv.hetero_data,
+            eval_labels,
+            mode=mode,
             structural_metrics=structural_metrics,
-            layer=getattr(graph, "layer", "system") if hasattr(graph, "layer") else "system"
+            layer=getattr(graph, "layer", "system") if hasattr(graph, "layer") else "system",
+            domain=domain,
         )
 
     def predict_from_data(
@@ -578,6 +634,7 @@ class GNNService:
         mode: str = "gnn",
         structural_metrics: Optional[Dict[str, Any]] = None,
         layer: str = "system",
+        domain: Optional[str] = None,
     ) -> GNNAnalysisResult:
         """Run inference directly on a HeteroData object.
 
@@ -586,6 +643,7 @@ class GNNService:
         data: HeteroData
         eval_labels: Optional dict
         mode: 'gnn' or 'rm'
+        domain: see ``predict``.
         """
         if self._node_model is None:
             raise RuntimeError("Models not initialised.")
@@ -613,16 +671,18 @@ class GNNService:
         # are ever passed to or consumed by the GNN models. Explicit raises, not
         # assert: this guards the paper's core independence claim, and assert
         # statements are silently compiled out under `python -O`.
+        from .models.core import NUM_LABEL_DIMS
         for nt, x in x_dict.items():
             if hasattr(x, "y"):
                 raise RuntimeError(
                     f"Violation of Independence Guarantee: Feature tensor for '{nt}' "
                     "contains target label attribute 'y'."
                 )
-            if x.shape[1] == 5 and nt not in ("Broker", "Node"):
+            if x.shape[1] == NUM_LABEL_DIMS and nt not in ("Broker", "Node"):
                 raise RuntimeError(
-                    f"Violation of Independence Guarantee: Input features for '{nt}' has 5 dimensions "
-                    "which matches the label dimension, indicating potential leak of target labels."
+                    f"Violation of Independence Guarantee: Input features for '{nt}' has "
+                    f"{NUM_LABEL_DIMS} dimensions, matching the label width, indicating "
+                    "potential leak of target labels."
                 )
         for k in x_dict:
             if k in ("y", "y_edge"):
@@ -651,7 +711,8 @@ class GNNService:
             self._populate_scores_from_rm(result, data_dev, conv)
         else:
             result.prediction_mode = "gnn_only"
-            self._populate_node_scores(result, pred_dict, conv)
+            omega = self._resolve_domain_omega(domain)
+            self._populate_node_scores(result, pred_dict, conv, domain=domain, omega=omega)
 
         # ── Edge scores (always GNN) ──────────────────────────────────────────
         self._populate_edge_scores(result, edge_pred_dict, conv)
@@ -721,8 +782,15 @@ class GNNService:
         score_dict: Dict[str, Tensor],
         conv: GraphConversionResult,
         source: str = "GNN",
+        domain: Optional[str] = None,
+        omega: Optional[Tuple[float, float]] = None,
     ) -> None:
-        """Fill result.node_scores from a {node_type: (n, NUM_LABEL_DIMS) tensor} mapping."""
+        """Fill result.node_scores from a {node_type: (n, NUM_LABEL_DIMS) tensor} mapping.
+
+        ``omega``, when given, is the (q_reliability, q_maintainability) pair
+        resolved by ``_resolve_domain_omega``; it adds a DECLARED domain-reweighted
+        composite alongside the learned one, never replacing it.
+        """
         if conv is None:
             return
         for nt, scores in score_dict.items():
@@ -731,12 +799,15 @@ class GNNService:
             rows = scores.cpu().numpy()
             for i, name in enumerate(conv.node_id_map[nt]):
                 composite, r, m = (float(v) for v in rows[i, :3])
+                domain_composite = omega[0] * r + omega[1] * m if omega is not None else None
                 result.node_scores[name] = GNNCriticalityScore(
                     component=name,
                     composite_score=composite,
                     reliability_score=r,
                     maintainability_score=m,
                     source=source,
+                    domain=domain if omega is not None else None,
+                    domain_composite_score=domain_composite,
                 )
 
     def _populate_scores_from_rm(
@@ -820,6 +891,7 @@ class GNNService:
                     "label_dims": NUM_LABEL_DIMS,
                     "default_mode": "gnn",
                     "metadata": metadata_json,
+                    "dimension_mask": self._trained_dimension_mask,
                 },
                 f, indent=2,
             )
@@ -937,6 +1009,7 @@ class GNNService:
         )
         service._best_seed = cfg.get("best_seed", 42)
         service.layer = ckpt_layer
+        service._trained_dimension_mask = cfg.get("dimension_mask")
 
         if metadata is None:
             if "metadata" in cfg and cfg["metadata"] is not None:

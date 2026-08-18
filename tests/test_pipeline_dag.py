@@ -144,23 +144,26 @@ def test_gnn_independence_invariant_assertion():
     would silently vanish under `python -O`, so this is an explicit raise.
     """
     from saag.prediction.gnn_service import GNNService
+    from saag.prediction.models.core import NUM_LABEL_DIMS
     from torch_geometric.data import HeteroData
     import torch
-    
+
     # Initialize GNNService
     service = GNNService(hidden_channels=16, predict_edges=False)
-    
+
     # Mock node model metadata
     class MockModel:
         node_types = ["Application"]
         edge_types = []
         def eval(self): pass
-        
+
     service._node_model = MockModel()
-    
+
     data = HeteroData()
-    # Application node features: 5 dimensions (should trigger leak detection since App expects 23 dims)
-    data["Application"].x = torch.zeros((10, 5))
+    # Application node features sized exactly to NUM_LABEL_DIMS: the guard flags a
+    # feature width matching the label width as a potential leak (App normally
+    # expects 23 dims, well above NUM_LABEL_DIMS).
+    data["Application"].x = torch.zeros((10, NUM_LABEL_DIMS))
     data["Application"].num_nodes = 10
     
     service._conversion_result = type('MockConv', (), {'node_id_map': {"Application": [f"App{i}" for i in range(10)]}})()

@@ -673,6 +673,11 @@ def networkx_to_hetero_data(
             dim in measured_keys for dim in sorted(LABEL_COLS, key=LABEL_COLS.get)
         ]
 
+    # Also carry the mask on the HeteroData itself so GNNTrainer can default to it
+    # without every caller having to thread GraphConversionResult.dimension_mask
+    # through by hand (see trainer.py's dimension_mask fallback).
+    data.dimension_mask = result.dimension_mask
+
     # ── 1. Partition nodes by type ────────────────────────────────────────────
     type_to_nodes: Dict[str, List[str]] = {t: [] for t in NODE_TYPES}
 

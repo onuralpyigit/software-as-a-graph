@@ -184,9 +184,12 @@ class GNNTrainer:
         # Weight on the edge-criticality term. Without it the TypedEdgeEncoder
         # receives no gradient at all and its predictions stay at random init.
         self.edge_loss_weight = edge_loss_weight
-        # Length-5 vector over LABEL_COLS marking which dimensions the labeler
-        # actually measured; unmeasured ones are dropped from the multitask term
-        # rather than regressed toward a fabricated zero. None = all measured.
+        # Length-NUM_LABEL_DIMS vector over LABEL_COLS marking which dimensions the
+        # labeler actually measured; unmeasured ones are dropped from the multitask
+        # term rather than regressed toward a fabricated zero. None = all measured,
+        # or not yet known — train() falls back to the HeteroData's own
+        # dimension_mask (see networkx_to_hetero_data) when this constructor arg
+        # is omitted.
         self.dim_weights = (
             torch.tensor([1.0 if m else 0.0 for m in dimension_mask])
             if dimension_mask is not None else None
@@ -366,6 +369,21 @@ class GNNTrainer:
             "Starting training | epochs=%d | lr=%.2e | device=%s",
             self.num_epochs, self.lr, self.device,
         )
+
+        # If no explicit dimension_mask was passed at construction, fall back to
+        # the mask networkx_to_hetero_data stamped on the graph itself, so a
+        # labeler that only measures some LABEL_COLS (e.g. FaultInjector, which
+        # leaves maintainability unmeasured) doesn't silently regress the
+        # corresponding head toward a fabricated zero. Explicit constructor arg
+        # always wins; this only fires when dim_weights is still unset.
+        if self.dim_weights is None:
+            mask_source = primary_data if primary_data is not None else (
+                data if isinstance(data, HeteroData) else None
+            )
+            mask = getattr(mask_source, "dimension_mask", None)
+            if mask is not None:
+                self.dim_weights = torch.tensor([1.0 if m else 0.0 for m in mask])
+
         optimizer = torch.optim.AdamW(
             self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay
         )

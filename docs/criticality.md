@@ -421,11 +421,19 @@ The GNN predictor uses a dedicated `TypedEdgeEncoder`:
 
 $$Q_{\text{GNN}}(u, v) = \text{TypedEdgeEncoder}(\mathbf{h}_u, \mathbf{h}_v, \mathbf{e}_{uv})$$
 
-Validated against the **Edge Removal Simulation Oracle**:
+**Trained on a heuristic label, not the removal oracle.** The training target is
+$y_{\text{edge}}(u, v) = I^*(u) \times \text{bridge\_multiplier}$ — the source
+node's simulated impact, discounted 10× unless the edge is a structural bridge
+(see [docs/prediction.md §5](prediction.md#5-edge-criticality)). The genuine
+**Edge Removal Simulation Oracle**,
 
 $$I_{\text{edge}}(u, v) = \text{Impact}(G \setminus \{(u,v)\}) - \text{Impact}(G)$$
 
-*(Evaluated with both endpoints active and differenced against a pristine null graph).*
+*(evaluated with both endpoints active and differenced against a pristine null
+graph)*, is computed by `FailureSimulator.simulate_edge_removal` but is **not
+read by the training/eval path** — it is an available, more principled
+ground truth that has not yet been wired in, not the oracle edge scores are
+currently validated against.
 
 ### 5.7 Ranking Critical Edges in Practice
 
@@ -525,7 +533,7 @@ flowchart LR
 | ISO/IEC 25010 Characteristic | Coverage Status | Architectural Boundary & Missing Fields |
 |:---|:---:|:---|
 | **Reliability (Fault Tolerance, Availability)** | **Strong** | Operationalized via $RPR, AP_c^{\text{dir}}, BR$ and validated against $I^*, I_{\text{dyn}}$. |
-| **Maintainability (Modularity, Modifiability)** | **Moderate** | Modeled via $BT, w_{out}, CQP$; validated via change-propagation BFS ($I_M$). |
+| **Maintainability (Modularity, Modifiability)** | **Moderate** | Modeled via $BT, w_{out}, CQP$; validated at the Validate stage via change-propagation BFS ($I_M$), which traverses the same `DEPENDS_ON` substrate $M(v)$ is scored from, so $\rho(M, I_M)$ is an internal consistency check rather than independent evidence (see [docs/validation.md](validation.md)). $I_M$ is a Validate-only oracle: the canonical GNN Predict-stage labeler (`FaultInjector`) never measures maintainability, so its head has no ground-truth supervision (see [docs/prediction.md §Labels](prediction.md#labels)). |
 | **Reliability (Recoverability)** | **Absent** | Requires MTTR and replica state absent in static schemas. |
 | **Performance Efficiency** | **Absent** | Simulator logs latency, but metrics do not score runtime bandwidth. |
 | **Safety** | **Absent** | System identifies structural exposure, not functional safety integrity (SIL/ASIL). |
