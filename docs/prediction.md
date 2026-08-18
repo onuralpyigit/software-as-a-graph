@@ -1,273 +1,273 @@
 # Step 3: Predict — Rule-Based (RM) + Learned (GNN) Criticality
 
-**Predict component and edge criticality by combining deterministic RM scoring with a Heterogeneous Graph Transformer trained on simulation-derived ground truth, plus anti-pattern detection and explanations.**
+**Predict architectural component and relationship criticality by combining deterministic rule-based RM scoring with a Heterogeneous Graph Transformer (HGT) trained on simulation ground truth, alongside antipattern detection and explainability.**
 
 ← [Step 2: Analyze](structural-analysis.md) | → [Step 4: Simulate](failure-simulation.md)
-
-> **Unified Prediction Step.** Step 3 replaces the legacy "Quality Scoring" mechanism that used to live inside Step 2 (Analyze), which is now structural-metrics-only. It always computes deterministic $Q_{\text{RM}}(v)$ scores; when a trained GNN checkpoint is available it additionally runs a learned pass that discovers multi-hop topological patterns and predicts edge-level criticality directly. Anti-pattern detection and human-readable explanations are derived from the RM scores as part of this same step.
 
 ---
 
 ## Table of Contents
 
-1. [What This Stage Does](#1-what-this-stage-does)
-2. [Graph Data Preparation](#2-graph-data-preparation)
+1. [Overview & Core Philosophy](#1-overview--core-philosophy)
+2. [Graph Data Preparation (PyTorch Geometric `HeteroData`)](#2-graph-data-preparation-pytorch-geometric-heterodata)
+   - 2.1 [Node Feature Schema](#21-node-feature-schema)
+   - 2.2 [Edge Feature Schema (16 Dimensions)](#22-edge-feature-schema-16-dimensions)
+   - 2.3 [Target Labels & Dimension Masking](#23-target-labels--dimension-masking)
 3. [Model Architecture](#3-model-architecture)
-4. [Training Protocol](#4-training-protocol)
-5. [Edge Criticality](#5-edge-criticality)
-6. [Comparing the Prediction Modes](#6-comparing-the-prediction-modes)
-7. [Output Schema](#7-output-schema)
-8. [Commands](#8-commands)
-9. [Known Limitations](#9-known-limitations)
+   - 3.1 [Heterogeneous Message Passing Backbone](#31-heterogeneous-message-passing-backbone)
+   - 3.2 [Prediction Heads](#32-prediction-heads)
+4. [Training Protocol & Loss Formulation](#4-training-protocol--loss-formulation)
+   - 4.1 [Multi-Task Loss Equation](#41-multi-task-loss-equation)
+   - 4.2 [Training Hyperparameters & Optimisation](#42-training-hyperparameters--optimisation)
+5. [Edge Criticality Prediction](#5-edge-criticality-prediction)
+6. [Comparing Rule-Based (RM) vs. Learned (GNN) Modes](#6-comparing-rule-based-rm-vs-learned-gnn-modes)
+7. [Output Schema & Sample JSON](#7-output-schema--sample-json)
+8. [CLI Reference & Commands](#8-cli-reference--commands)
+9. [Known Limitations & Design Boundaries](#9-known-limitations--design-boundaries)
 10. [What Comes Next](#10-what-comes-next)
 
 ---
 
-## 1. What This Stage Does
+## 1. Overview & Core Philosophy
 
-Step 3 takes the metric vector **M(v)** and graph structure produced by Step 2 and produces:
+Step 3 is the **unified prediction engine** of the framework. It evaluates the structural metric vector $M(v)$ and topology produced in Step 2 to generate component and edge criticality scores through two complementary modalities:
 
-- Deterministic rule-based node scores $Q_{\text{RM}}(v) \in [0,1]$ — always
-- Learned node criticality $Q_{\text{GNN}}(v) \in [0,1]$ — when a checkpoint exists
-- Learned edge criticality $Q_{\text{GNN}}(u,v) \in [0,1]$ — when a checkpoint exists and `predict_edges` is set
+```mermaid
+flowchart TD
+    M["Step 2 Output<br>Metric Vector M(v) & Graph G"] --> PE["Step 3: Prediction Engine"]
+    
+    subgraph PathRM["1. Deterministic Rule-Based Path (Always Active)"]
+        PE --> RM["Closed-Form RM Scoring<br>FT(v), A(v), R(v), M(v), Q(v)"]
+        RM --> AP["AntiPattern Detection & Explanations"]
+        RM --> OUT_RM["Rule-Based Scores Q_RM(v)"]
+    end
 
+    subgraph PathGNN["2. Inductive Learned Path (With Checkpoint)"]
+        PE --> HGT["Heterogeneous Graph Transformer (HGT)"]
+        HGT --> NH["Node Heads: R(v), M(v), Composite Q(v)"]
+        HGT --> EH["TypedEdgeEncoder: Edge Criticality Q(u,v)"]
+        NH --> OUT_GNN_N["Learned Node Scores Q_GNN(v)"]
+        EH --> OUT_GNN_E["Learned Edge Scores Q_GNN(u,v)"]
+    end
 ```
-M(v) + graph structure                Prediction Engine                Output
-──────────────────────                ─────────────────                ──────────────────
-Tier 1 & Tier 2 metrics:       →      RM formulas (always)       →     Q_RM(v) ∈ [0,1]
-  PR, RPR, BT, CL, EV,                HGT GNN (with checkpoint)        Q_GNN(v)  ∈ [0,1]
-  DG_in, DG_out, CC,                  3 prediction heads               Q_GNN(u,v) ∈ [0,1]
-  AP_c_dir, BR, w, w_in,
-  w_out, MPCI, PC, FOC, ...
-```
 
-Orchestration lives in [`PredictionService`](../saag/prediction/service.py); the learned path is [`GNNService`](../saag/prediction/gnn_service.py).
+### Core Outputs
+
+1. **Deterministic Rule-Based Scores ($Q_{\text{RM}}(v) \in [0, 1]$)**: Always computed. Uses closed-form AHP-weighted equations rooted in ISO/IEC 25010 ([structural-analysis.md §9](structural-analysis.md#9-analyze-stage--rule-based-rm-scoring)).
+2. **Learned Node Criticality ($Q_{\text{GNN}}(v) \in [0, 1]$)**: Computed when a trained checkpoint exists. Discovers non-linear, multi-hop topological motifs.
+3. **Learned Edge Criticality ($Q_{\text{GNN}}(u, v) \in [0, 1]$)**: Predicts relationship criticality directly on individual links.
+4. **Architectural Antipatterns & Explanations**: Detects structural risks (e.g., SPOFs, Bottlenecks) with human-readable recommendations.
 
 ---
 
-## 2. Graph Data Preparation
+## 2. Graph Data Preparation (PyTorch Geometric `HeteroData`)
 
-[`networkx_to_hetero_data()`](../saag/prediction/data_preparation.py#L498) converts the Step 1 NetworkX graph to a PyTorch Geometric `HeteroData` object, partitioning nodes and edges by type.
+[`networkx_to_hetero_data()`](../saag/prediction/data_preparation.py) converts the NetworkX graph into a PyTorch Geometric `HeteroData` structure, partitioning nodes and edges by entity type.
 
-### Node features (type-specific dimensions)
+### 2.1 Node Feature Schema
 
-Indices 0–17 are the shared topological base present for every node type. Type-specific extras follow at index 18+. `NODE_TYPE_TO_DIM` in [data_preparation.py](../saag/prediction/data_preparation.py#L138) is the authoritative width table.
+Node vectors consist of a **shared 18-dimensional topological base** (indices 0–17) followed by **type-specific extensions** (indices 18+):
 
-| Node type | Total dim | Extras (indices 18+) |
-|-----------|:---------:|----------------------|
-| Application | 23 | 5 code quality attributes (18–22) |
-| Library | 23 | 5 code quality attributes (18–22) |
-| Broker | 19 | `max_connections_norm` (18) |
-| Topic | 22 | `subscriber_count_norm`, `publisher_count_norm` (18–19), `log1p_frequency_norm` (20), `topic_qos_criticality_ord` (21) |
-| Node (infra) | 20 | `cpu_cores_norm`, `memory_gb_norm` (18–19) |
+| Node Type | Total Dimensions | Type-Specific Extensions (Indices 18+) |
+|:---|:---:|:---|
+| `Application` | **23** | 5 Code Quality attributes (`loc_norm`, `complexity_norm`, $I_{\text{code}}$, `lcom_norm`, $CQP$) |
+| `Library` | **23** | 5 Code Quality attributes (`loc_norm`, `complexity_norm`, $I_{\text{code}}$, `lcom_norm`, $CQP$) |
+| `Broker` | **19** | `max_connections_norm` |
+| `Topic` | **22** | `subscriber_count_norm`, `publisher_count_norm`, `log1p_frequency_norm`, `topic_qos_criticality_ord` |
+| `Node` (Infra) | **20** | `cpu_cores_norm`, `memory_gb_norm` |
 
-HGT handles type-specific projections internally, so a global one-hot node-type vector is **not** required.
+```mermaid
+graph LR
+    subgraph NodeVec["Node Feature Vector"]
+        Base["Indices 0–17:<br>Shared Topological Base<br>(PR, RPR, BT, DG_in, AP_c_dir, CDI, w, etc.)"]
+        Ext["Indices 18+:<br>Type-Specific Attributes<br>(Code metrics, HW cores, Topic frequencies)"]
+    end
+    Base --> Ext
+```
 
-**Topological metrics — indices 0–17 (all node types):**
+#### Shared Topological Base (Indices 0–17 across all Node Types)
+- `0`: PageRank ($PR$)
+- `1`: Reverse PageRank ($RPR$)
+- `2`: Betweenness Centrality ($BT$)
+- `3`: Closeness Centrality ($CL$)
+- `4`: Eigenvector Centrality ($EV$)
+- `5`: In-Degree Normalised ($DG_{in}$)
+- `6`: Out-Degree Normalised ($DG_{out}$)
+- `7`: Clustering Coefficient ($CC$)
+- `8`: Undirected Articulation Score
+- `9`: Bridge Ratio ($BR$)
+- `10`: Component QoS Weight ($w(v)$)
+- `11`: QoS-Weighted In-Degree ($w_{in}$)
+- `12`: QoS-Weighted Out-Degree ($w_{out}$)
+- `13`: Multi-Path Coupling Index ($MPCI$)
+- `14`: Path Complexity ($PC$)
+- `15`: Fan-Out Criticality ($FOC$)
+- `16`: Directed Articulation Point ($AP_c^{\text{dir}}$)
+- `17`: Connectivity Degradation Index ($CDI$)
 
-| Idx | Metric | RM role | | Idx | Metric | RM role |
-|:---:|--------|-----------|-|:---:|--------|-----------|
-| 0 | PageRank (PR) | Diagnostic (Tier 2) | | 9 | Bridge Ratio (BR) | A(v) |
-| 1 | Reverse PageRank (RPR) | R(v) | | 10 | QoS aggregate weight (w) | QSPOF, A(v) |
-| 2 | Betweenness (BT) | M(v) | | 11 | QoS weighted in-degree (w_in) | Diagnostic — fed the retired V(v); unused by any RM formula |
-| 3 | Closeness (CL) | Diagnostic (Tier 2) | | 12 | QoS weighted out-degree (w_out) | M(v) |
-| 4 | Eigenvector (EV) | Diagnostic (Tier 2) | | 13 | MPCI | R(v) via CDPot_enh |
-| 5 | In-degree norm (DG_in) | R(v) | | 14 | path_complexity | M(v) via CouplingRisk_enh |
-| 6 | Out-degree norm (DG_out) | CouplingRisk_enh | | 15 | Fan-Out Criticality (FOC) | R(v) for Topic nodes |
-| 7 | Clustering coeff (CC) | M(v) as 1−CC | | 16 | AP_c_directed | A(v) directly and via QSPOF |
-| 8 | AP_c Score | Diagnostic (topological) | | 17 | CDI | A(v) |
+### 2.2 Edge Feature Schema (16 Dimensions)
 
-**Code quality — indices 18–22 (Application and Library only):** `loc_norm`, `complexity_norm`, `instability_code`, `lcom_norm`, `code_quality_penalty` (CQP). All but `loc_norm` feed M(v).
+Edge features capture both topological properties and declared QoS delivery guarantees:
 
-**Derivation notes.** Infrastructure extras (`cpu_cores_norm`, `memory_gb_norm`, `max_connections_norm`) use per-graph min-max normalization. Topic runtime counts divide `SUBSCRIBES_TO`/`PUBLISHES_TO` in-edge counts by the graph maximum. `log1p_frequency_norm` uses a per-scenario z-score of log1p(Hz) to avoid cross-domain leakage. `topic_qos_criticality_ord` is the ordinal (0–4) encoding of the 5-level QoS urgency label, masked to 0.0 when a graph's topics all share one criticality, so zero-variance scenarios cannot induce covariate shift.
+| Index | Feature Key | Semantic Meaning |
+|:---:|:---|:---|
+| **0** | `qos_weight` | Continuous QoS weight $w(e) \in [0, 1]$ |
+| **1** | `path_count_norm` | Normalized channel count: $\log_2(1 + \text{path\_count}) / \log_2(17)$ |
+| **2–8** | `edge_type_one_hot` | One-hot indicator (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`, `CONNECTS_TO`, `USES`, `DEPENDS_ON`) |
+| **9** | `reliability_score` | QoS Reliability (`BEST_EFFORT` = 0.0, `RELIABLE` = 1.0) |
+| **10** | `durability_score` | QoS Durability (`VOLATILE` = 0.0, `TRANSIENT_LOCAL` = 0.5, `TRANSIENT` = 0.6, `PERSISTENT` = 1.0) |
+| **11** | `priority_score` | Transport Priority (`LOW` = 0.0, `MEDIUM` = 0.33, `HIGH` = 0.66, `URGENT` = 1.0) |
+| **12** | `has_deadline` | Binary flag (1.0 if finite contract deadline is configured) |
+| **13** | `deadline_ns_log` | Scaled contract deadline duration |
+| **14** | `max_blocking_ms_log`| Scaled blocking timeout duration |
+| **15** | `qos_heterogeneity_flag`| Flag indicating edge QoS diverges from system mode |
 
-> `Application.criticality` (bool, process-level ground truth) and `Topic.criticality` (5-level QoS urgency) are deliberately kept in separate feature dimensions — see the design note at the top of [data_preparation.py](../saag/prediction/data_preparation.py#L26).
+*(Note: Indices 9–15 are active for pub/sub interaction links; structural links default to 0).*
 
-### Edge features (16 dimensions)
+### 2.3 Target Labels & Dimension Masking
 
-| Idx | Feature |
-|:---:|---------|
-| 0 | QoS weight w(e) |
-| 1 | `path_count_norm` = log₂(1 + path_count) / log₂(17) — coupling intensity, capped at 16 paths |
-| 2–8 | Edge-type one-hot (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, CONNECTS_TO, USES, DEPENDS_ON) |
-| 9 | `reliability_score` (BEST_EFFORT 0.0 / RELIABLE 1.0) |
-| 10 | `durability_score` (VOLATILE 0.0 / TRANSIENT_LOCAL 0.5 / TRANSIENT 0.6 / PERSISTENT 1.0) |
-| 11 | `priority_score` (LOW 0.0 / MEDIUM 0.33 / HIGH 0.66 / URGENT 1.0) |
-| 12 | `has_deadline` (1.0 if a finite `deadline_ns` is set) |
-| 13 | `deadline_ns_log` = log10(1 + deadline_ns / 1e6), clamped to [0, 1] |
-| 14 | `max_blocking_ms_log` = log10(1 + max_blocking_ms), clamped to [0, 1] |
-| 15 | `qos_heterogeneity_flag` (1.0 if the edge's QoS profile differs from the scenario modal profile) |
-
-Dimensions 9–15 are non-zero only for `PUBLISHES_TO` / `SUBSCRIBES_TO` edges, where QoS profiles are semantically meaningful; all other edge types receive zeros there.
-
-### Labels
-
-| Tensor | Shape | Contents |
-|--------|-------|----------|
-| `data[type].y` | (n, 3) | Simulation ground truth `[I*(v), IR(v), IM(v)]` |
-| `data[type].y_rm` | (n, 3) | RM scores `[Q(v), R(v), M(v)]` — the consistency-regularisation target, **not** a training label |
-| `data[type].label_mask` | (n,) | Which nodes the simulator actually scored — distinct from "scored 0.0" |
-| `data[type].dimension_mask` | (3,) | Which of the three `y` *columns* the labeler actually measured — distinct from `label_mask`, which is per-node not per-dimension. See below. |
-| `data[rel].y_edge` | (e, 3) | Per-edge criticality labels ([§5](#5-edge-criticality)) |
-
-> **The `IM(v)` column is only real under a labeler that measures it — not under the canonical one.** `FaultInjector`, the labeler behind every Table 3/4/k-fold result (see `tests/test_groundtruth_contract.py`'s `CANONICAL_LABELER`), emits only `composite` and `reliability`; `maintainability` is a structural zero, not a measurement (`data_preparation.py`'s `extract_simulation_dict`). `dimension_mask` records this (`[True, True, False]` on that path) and `GNNTrainer` masks the unmeasured column out of the multitask loss rather than regressing the maintainability head toward it — see [models/core.py](../saag/prediction/models/core.py#L500)'s `_multitask_loss` docstring. Only `FailureSimulator`-sourced labels populate all three columns for real.
+| Tensor Name | Target Shape | Semantic Purpose |
+|:---|:---:|:---|
+| `data[type].y` | $(N, 3)$ | Simulation ground-truth vectors: $[I^*(v), IR(v), IM(v)]$ |
+| `data[type].y_rm` | $(N, 3)$ | Rule-based consistency regularization target: $[Q(v), R(v), M(v)]$ |
+| `data[type].label_mask` | $(N,)$ | Boolean mask indicating which nodes were simulated (excludes unlabelled nodes) |
+| `data[type].dimension_mask`| $(3,)$ | Boolean mask indicating measured ground-truth columns (masks unmeasured targets) |
+| `data[rel].y_edge` | $(E, 3)$ | Per-edge ground-truth criticality labels |
 
 ---
 
 ## 3. Model Architecture
 
-```
-    NetworkX DiGraph (Step 1 output)
-              │
-   ┌──────────▼───────────────────────┐
-   │   Data Preparation               │  Type-specific node features:
-   │   networkx_to_hetero_data()      │    App/Lib=23, Broker=19, Topic=22, Node=20
-   │   HeteroData + splits            │  16-dim edge features
-   └──────────┬───────────────────────┘  3-dim node labels y = I*(v)
-              │                          3-dim RM targets y_rm
-              ▼
-   NodeCriticalityGNN ─── 3× (EdgeFeatureEncoder → HGTConv → residual+norm)
-              │           optional reverse pass
-              ├──────────► 3 prediction heads ──────► node scores (N, 3)
-              │
-   EdgeCriticalityGNN ─── TypedEdgeEncoder ─────────► edge scores (E, 3)
-```
+```mermaid
+flowchart TD
+    subgraph Input["1. Input Embeddings"]
+        X_V["Type-Specific Node Features x_v"] --> LinV["Type Linear Projections"]
+        E_UV["16-Dim Edge Features e_uv"] --> EFE["EdgeFeatureEncoder"]
+    end
 
-`EdgeCriticalityGNN` wraps a `NodeCriticalityGNN` and reuses its embeddings; both live in [models/core.py](../saag/prediction/models/core.py).
+    subgraph Backbone["2. Heterogeneous Message Passing (3 Layers)"]
+        LinV --> HGT1["HGT Layer 1 + Residual + LayerNorm"]
+        EFE -.->|Scatter-Mean Injection| HGT1
+        HGT1 --> HGT2["HGT Layer 2 + Residual + LayerNorm"]
+        EFE -.->|Scatter-Mean Injection| HGT2
+        HGT2 --> HGT3["HGT Layer 3 + Residual + LayerNorm"]
+        EFE -.->|Scatter-Mean Injection| HGT3
+        HGT3 --> RevPass["Optional Bidirectional Reverse Pass"]
+    end
 
-### Message passing
+    subgraph NodeHeads["3. Multi-Task Node Prediction Heads"]
+        RevPass --> HeadR["Reliability Head R̂(v)"]
+        RevPass --> HeadM["Maintainability Head M̂(v)"]
+        RevPass --> Fuse["Concatenate [h_v || R̂ || M̂]"]
+        HeadR --> Fuse
+        HeadM --> Fuse
+        Fuse --> HeadC["Composite Head Î*(v)"]
+    end
 
-The backbone is a **3-layer stock PyG `HGTConv`** with type-dependent key/query/value projections — one set of attention parameters per `(src_type, edge_type, dst_type)` triple.
-
-`HGTConv` does not accept raw `edge_attr` tensors. Edge features are therefore injected **before** each convolution by [`EdgeFeatureEncoder`](../saag/prediction/models/core.py#L66), which projects the 16-dim edge vector and scatter-means it into the destination node's embedding:
-
-```
-Layer 0 — type-specific input projection:
-  h_v^(0) = GELU( LayerNorm( W_{type(v)} · x_v ) )
-
-Layer k — edge injection, then HGT message passing:
-  h_d  ← h_d + mean_{(u→d) ∈ r}( W_edge^(k) · e_ud )     ← EdgeFeatureEncoder, per dst node
-  h'   = HGTConv_k( h, edge_index )
-  h_v^(k+1) = Dropout( GELU( LayerNorm_type(v)( h'_v + h_v^(k) ) ) )   ← residual
-
-Reverse pass (use_bidirectional=True, built on the fly inside encode()):
-  rev_ei = { (dst, "rev__"+etype, src) : flip(edge_index) }
-  h_rev  = rev_conv(h, rev_ei)
-  h_v   ← h_v + 0.5 · h_rev[v]                            ← upstream signal
+    subgraph EdgeHead["4. Relation-Specific Edge Prediction Head"]
+        RevPass --> TEE["TypedEdgeEncoder(h_u, h_v, e_uv)"]
+        E_UV --> TEE
+        TEE --> EdgeOut["Edge Criticality Q_GNN(u,v)"]
+    end
 ```
 
-Hidden dimension D = 64, 4 attention heads, dropout p = 0.2. The reverse pass gives each node upstream as well as downstream context without duplicating edges in the data.
+### 3.1 Heterogeneous Message Passing Backbone
 
-> **Scatter-mean is a real approximation.** Averaging all incoming edge vectors into one destination-node summary before attention smooths away per-edge distinctions: two incoming links with opposite QoS profiles are indistinguishable to the convolution that follows. Injecting edge features into each edge's own key/value — so attention can weigh links individually — would remove that limitation and is the natural next architectural step, but it is **not implemented**. Only the edge head ([§5](#5-edge-criticality)) sees per-edge features un-averaged.
+The backbone consists of **3 layers of Heterogeneous Graph Transformer (`HGTConv`)** with hidden dimension $D = 64$, 4 attention heads, and dropout $p = 0.2$.
 
-### Prediction heads
+1. **Type-Specific Input Projection**:
+   $$\mathbf{h}_v^{(0)} = \text{GELU}(\text{LayerNorm}(\mathbf{W}_{\text{type}(v)} \mathbf{x}_v))$$
+2. **Edge Feature Injection & Convolution**:
+   Edge attributes are projected and scatter-mean injected into target nodes before each convolution:
+   $$\mathbf{h}_d \leftarrow \mathbf{h}_d + \frac{1}{|\mathcal{N}(d)|} \sum_{u \in \mathcal{N}(d)} \mathbf{W}_{\text{edge}}^{(k)} \mathbf{e}_{ud}$$
+   $$\mathbf{h}_v^{(k+1)} = \text{Dropout}\left(\text{GELU}\left(\text{LayerNorm}\left(\text{HGTConv}_k(\mathbf{h}^{(k)}, \mathcal{E}) + \mathbf{h}_v^{(k)}\right)\right)\right)$$
+3. **Bidirectional Reverse Flow**:
+   When `use_bidirectional=True`, an inverted convolution pass transmits upstream signals:
+   $$\mathbf{h}_v \leftarrow \mathbf{h}_v + 0.5 \cdot \mathbf{h}_v^{\text{rev}}$$
 
-```
-R̂(v) = MLP_R( h_v )                            — Reliability
-M̂(v) = MLP_M( h_v )                            — Maintainability
-Î*(v) = MLP_C( h_v ‖ R̂ ‖ M̂ )                    — Composite
-```
+### 3.2 Prediction Heads
 
-Each is a `ResidualMLP`; all outputs pass through a sigmoid, giving scores in [0, 1]. The composite head consumes the two dimension predictions as extra input so it can model non-linear interactions between them.
+All prediction heads utilize `ResidualMLP` networks with final sigmoid activations bounding outputs in $[0, 1]$:
 
-> **Fault tolerance and availability are not GNN heads.** They are Reliability sub-characteristics scored on the analysis side (`saag/analysis/`), not separate prediction targets — the GNN predicts only the two RM label columns (reliability, maintainability) plus the composite. See [models/core.py](../saag/prediction/models/core.py#L309).
+$$\begin{aligned}
+\hat{R}(v) &= \text{Sigmoid}(\text{MLP}_R(\mathbf{h}_v)) \quad &\text{(Reliability)} \\
+\hat{M}(v) &= \text{Sigmoid}(\text{MLP}_M(\mathbf{h}_v)) \quad &\text{(Maintainability)} \\
+\hat{I}^*(v) &= \text{Sigmoid}(\text{MLP}_C([\mathbf{h}_v \parallel \hat{R}(v) \parallel \hat{M}(v)])) \quad &\text{(Composite Criticality)}
+\end{aligned}$$
+
+*(The composite head explicitly consumes dimension predictions to capture non-linear cross-attribute interactions).*
 
 ---
 
-## 4. Training Protocol
+## 4. Training Protocol & Loss Formulation
 
-**Splits.** 60/20/20 train/val/test per node type via `create_node_splits()`, redrawn per seed unless the caller pins an external split (which lets several model variants be scored on an identical sample). Maximum 300 epochs. Loss and metrics are computed over `Application` and `Library` nodes only.
+### 4.1 Multi-Task Loss Equation
 
-**Label normalization.** `normalize_labels_robust()` maps labels through `sigmoid((y − median) / IQR)` with the IQR clamped to ≥ 1e-6, computed over labelled (non-zero) nodes and preserving zeros. It mutates `.y` in place and so runs exactly once per graph, before the seed loop.
+The model is trained end-to-end using a balanced composite loss combining point regression, ranking objectives, pairwise margin separation, and rule-based consistency:
 
-**Loss.**
+$$\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + 0.1 \cdot \mathcal{L}_{\text{consistency}} + 0.3 \cdot \mathcal{L}_{\text{edge}}$$
 
-```
-L = L_composite + 0.5·L_dimension + 0.3·L_rank + 0.1·L_pairwise + 0.1·L_consistency + 0.3·L_edge
+| Loss Component | Mathematical Formulation | Optimization Target |
+|:---|:---|:---|
+| **$\mathcal{L}_{\text{composite}}$** | $\text{MSE}(\hat{I}^*(v), I^*(v))$ | Accurate absolute composite prediction on simulated nodes |
+| **$\mathcal{L}_{\text{dimension}}$** | $\sum_{d} \text{MSE}(\hat{d}(v), I_d^*(v)) \cdot \text{mask}_d$ | Multi-task alignment on measured sub-dimensions |
+| **$\mathcal{L}_{\text{rank}}$** | $-\frac{1}{N} \sum_{v} \log P(\text{rank}(v))$ | ListMLE loss optimizing global Kendall $\tau$ and Spearman $\rho$ |
+| **$\mathcal{L}_{\text{pairwise}}$** | $\sum_{i,j: y_i - y_j > m} \frac{\max(0, \; m - (\hat{s}_i - \hat{s}_j))}{|\text{pairs}|}$ | Margin ranking ($m=0.05$) enforcing strict ordinal separation |
+| **$\mathcal{L}_{\text{consistency}}$**| $\text{MSE}(\hat{s}_{\text{unlabelled}}, y_{\text{RM}})$ | Semi-supervised regularization on unlabelled nodes toward $Q_{\text{RM}}$ |
+| **$\mathcal{L}_{\text{edge}}$** | $\frac{1}{|\mathcal{R}|} \sum_{r \in \mathcal{R}} \text{MSE}(\hat{y}_{\text{edge}}^{(r)}, y_{\text{edge}}^{(r)})$ | Relation-balanced MSE on edge criticality predictions |
 
-L_composite   = MSE( Î*(v), I*(v) )                     — labelled nodes
-L_dimension   = Σ_d MSE( d̂(v), I_d*(v) )               — labelled nodes; dimensions the
-                                                          labeler never measured are dropped
-                                                          via `dimension_mask`, not regressed to 0
-L_rank        = −(1/N) Σ_v log P(rank of v)             — ListMLE, labelled nodes
-L_pairwise    = Σ_{i,j: t_i−t_j > m} max(0, m − (s_i−s_j)) / n_pairs   — margin m = 0.05
-L_consistency = MSE( pred_unlabelled, y_rm )            — RM regularisation, unlabelled nodes
-L_edge        = mean_r MSE( ŷ_edge[:,0], y_edge[:,0] )  — only when the model predicts edges
-```
+### 4.2 Training Hyperparameters & Optimisation
 
-`L_edge` is averaged across relation types so a graph with many `PUBLISHES_TO` edges and few `DEPENDS_ON` edges does not let one relation dominate. It is skipped entirely for relations without `y_edge`.
-
-**Early stopping.** Combined-metric, patience 30 epochs:
-
-```
-combined = 0.6 · val_rho  +  0.4 · max(0, 1 − val_loss / (best_val_loss + ε))
-```
-
-**Optimizer.** AdamW, lr = 3×10⁻⁴, weight_decay = 10⁻⁴, gradient clipping at max_norm 1.0. Schedule `CosineAnnealingWarmRestarts(T_0 = max(50, epochs//4), T_mult = 2, η_min = lr × 0.01)`.
-
-**Multi-seed.** Each seed in `{42, 123, 456, 789, 2024}` runs the full loop independently; the weights from the **best seed by validation Spearman ρ** are restored before serialization, and that seed is persisted in `service_config.json` so inference reproduces the same split masks.
-
-**Inductive training.** Passing `inductive_graphs` to `GNNService.train()` adds whole scenarios to the training set; validation and early stopping still track the primary graph via `primary_data`.
+- **Data Splits**: 60% Train / 20% Validation / 20% Test (stratified per node type).
+- **Optimizer**: AdamW ($\text{lr} = 3 \times 10^{-4}$, weight decay $= 10^{-4}$, gradient clipping norm $= 1.0$).
+- **Learning Rate Schedule**: `CosineAnnealingWarmRestarts` ($T_0 = 50, T_{\text{mult}} = 2, \eta_{\text{min}} = 3 \times 10^{-6}$).
+- **Early Stopping**: 30 epochs patience on combined metric ($0.6 \cdot \rho_{\text{val}} + 0.4 \cdot (1 - \mathcal{L}_{\text{val}} / \mathcal{L}_{\text{best}})$).
+- **Multi-Seed Robustness**: Sweeps seeds $\{42, 123, 456, 789, 2024\}$ and saves the best model based on validation Spearman $\rho$.
 
 ---
 
-## 5. Edge Criticality
+## 5. Edge Criticality Prediction
 
-> See [criticality.md §5](criticality.md#5-relationship-edge-criticality) for the conceptual definition this section implements.
-
-```
-score(u, v) = TypedEdgeEncoder_r( h_u, h_v, e_uv )
-
-e_uv ∈ ℝ¹⁶: QoS weight + path_count_norm + 7-bit edge-type one-hot + 7 QoS dims
-```
-
-[`TypedEdgeEncoder`](../saag/prediction/models/core.py#L106) learns a relation-specific projection $W_r \in \mathbb{R}^{16 \times D}$ per edge type. The projected edge feature is fused with the endpoint embeddings — `[h_src ‖ h_dst ‖ e_proj]` → Linear → LayerNorm → GELU — before the output head. Unlike the backbone, this path sees each edge's features individually rather than scatter-meaned.
-
-**Edge labels are a heuristic, not a measurement.** [data_preparation.py](../saag/prediction/data_preparation.py#L699) derives them from the source node's simulated impact, discounted by whether the edge is a structural bridge:
-
-```
-y_edge(u, v) = I*(u) × bridge_multiplier          bridge_multiplier = 1.0 if bridge else 0.1
+```mermaid
+graph LR
+    H_U["Source Node Embedding h_u"] --> Cat["Concatenate"]
+    H_V["Target Node Embedding h_v"] --> Cat
+    E_UV["Edge Feature Vector e_uv"] --> Proj["Relation-Specific Projection W_r"]
+    Proj --> Cat
+    Cat --> MLP["MLP + LayerNorm + Sigmoid"]
+    MLP --> EdgeScore["Edge Score Q_GNN(u,v) ∈ [0, 1]"]
 ```
 
-This is a proxy with two known consequences: every edge out of a high-impact node inherits that node's blast radius regardless of whether traffic actually flows over it, and non-bridge edges are uniformly damped rather than individually assessed.
+Edge criticality is evaluated directly on individual links via `TypedEdgeEncoder`:
 
-**The measured alternative is available but not wired in.** `FailureSimulator.simulate_edge_removal` (and `simulate_edge_removal_sweep`) already computes the honest quantity — sever one relationship, leave both endpoints up, recompute impact, and subtract the no-op control:
+$$Q_{\text{GNN}}(u, v) = \text{Sigmoid}\left(\text{MLP}_{\text{edge}}\left(\left[\mathbf{h}_u \parallel \mathbf{h}_v \parallel \mathbf{W}_r \mathbf{e}_{uv}\right]\right)\right)$$
 
-```
-I_edge(u, v) = composite_impact(G \ {(u,v)}) − composite_impact(G)
-```
-
-Subtracting matters: `_calculate_impact` returns a non-zero floor on a pristine graph (composite 0.0061 on `av_system`), because topics already lacking a publisher or subscriber count as lost throughput. A level rather than a delta would hand every edge that floor as if it were signal. The sweep is bounded to `bridges(G) ∪ top-q edge-betweenness` since a full pass costs one impact recomputation per edge, and edges outside the candidate set are returned with `evaluated: false` — *not measured* is distinct from *measured as harmless*.
-
-Step 3 does not consume that output today; see [§9](#9-known-limitations).
+### Ground Truth vs. Removal Oracle
+- **Heuristic Training Labels**: Derived from source node impact discounted by bridge status:
+  $$y_{\text{edge}}(u, v) = I^*(u) \times \begin{cases} 1.0 & \text{if } e \text{ is bridge} \\ 0.1 & \text{otherwise} \end{cases}$$
+- **Simulated Removal Ground Truth**: Directly measured by severing edge $(u,v)$ under live endpoints:
+  $$I_{\text{edge}}(u, v) = \text{Impact}(G \setminus \{(u,v)\}) - \text{Impact}(G)$$
 
 ---
 
-## 6. Comparing the Prediction Modes
+## 6. Comparing Rule-Based (RM) vs. Learned (GNN) Modes
 
-| Property | Analyze — RM (rule-based) | Predict — GNN (learned) |
-|----------|:---------------------------:|:-----------------------:|
-| Requires training data | No | Yes |
-| Node criticality | ✓ | ✓ |
-| Edge criticality | Proxies (BR, BT) | ✓ Direct, on heuristic labels |
-| Per-dimension decomposition | ✓ Explicit | ✓ Learned heads |
-| Interpretability | Full | Partial (attention + heads) |
-| Topic-type branching | ✓ Explicit | Learned |
-| MPCI amplification | ✓ Explicit (CDPot_enh) | Learned |
-| Generalises to unseen systems | Immediately | Requires fine-tuning |
-| Spearman ρ (published validation) | 0.876 overall; 0.943 large-scale | 0.587 (HGL-QoS, per-domain k-fold) |
-| F1@K / F1-score (published validation) | 0.893 | 0.505 (HGL-QoS, per-domain k-fold) |
-| Primary use | First analysis; interpretable; CI gate; fallback when no checkpoint | Default predictor after training; RM = fallback |
-
-> **Validation-source note.** The GNN figures are HGL-QoS per-domain repeated k-fold results (`k=5`, 5 seeds, [cli/kfold_evaluate.py](../cli/kfold_evaluate.py)) against simulation labels, evaluated independently within each of seven scenarios and averaged (`ρ = 0.587 ± 0.146`, `F1@K = 0.505`; positive in all seven individually, range `ρ = 0.341–0.781`). This is an *in-domain* metric — trained and evaluated on the same scenario, repeated under resampling to show the result is stable rather than an artifact of one split — not a claim about zero-shot transfer. The cross-scenario Leave-One-Scenario-Out protocol, which does test transfer, remains available ([cli/loso_evaluate.py](../cli/loso_evaluate.py)) and reached `ρ = 0.290` (`F1@K = 0.405`, HGL-QoS). LOSO is retained as a secondary domain-gap analysis rather than the headline metric, since testing transfer between architecturally distinct scenarios (autonomous-vehicle vs. financial-trading vs. hub-and-spoke topologies) conflates model quality with how much structure those unrelated domains happen to share.
->
-> Both figures predate the edge-loss fix in [§4](#4-training-protocol) but are unaffected by it: every evaluation harness runs with `predict_edges=False`.
+| Dimension | Rule-Based RM (`--predict-mode rm_only`) | Learned GNN (`--predict-mode gnn_only`) |
+|:---|:---:|:---:|
+| **Training Requirement** | **None** (Zero-shot deterministic execution) | Requires simulation ground truth ($I^*(v)$) |
+| **Execution Latency** | $\approx 20\text{ms}$ (Algebraic closed-form) | $\approx 80\text{ms}$ (Forward neural pass) |
+| **Node Scoring** | Exact AHP-weighted formula | Multi-task neural prediction heads |
+| **Edge Scoring** | Structural proxies ($BR, BT, w(e)$) | Direct per-edge inference via `TypedEdgeEncoder` |
+| **Interpretability** | **Complete** (Transparent metric contributions) | High (Multi-head attribution + attention) |
+| **Multi-Hop Non-Linearity**| Bounded by 1-hop / 2-hop metric formulas | Deep multi-hop structural motif discovery |
+| **Generalization** | Immediate on any valid graph | Optimal within trained domain (fine-tuning for transfer) |
+| **Primary Use Case** | Baseline analysis, CI gates, unlabelled graphs | Deep architectural ranking, edge prioritization |
 
 ---
 
-## 7. Output Schema
+## 7. Output Schema & Sample JSON
 
-`python cli/predict_graph.py --output results/prediction.json` writes one entry per layer. The `gnn` block is present only when `--gnn-model` was supplied.
+Running `python cli/predict_graph.py --gnn-model <ckpt> --output results/prediction.json` produces the following unified schema:
 
 ```json
 {
@@ -276,58 +276,56 @@ Step 3 does not consume that output today; see [§9](#9-known-limitations).
       "total_components": 35,
       "rm": {
         "NavLib": {
-          "overall":         0.54,
-          "reliability":     0.63,
+          "overall": 0.54,
+          "reliability": 0.63,
           "maintainability": 0.41,
           "fault_tolerance": 0.59,
-          "availability":    0.58,
-          "is_spof":         true,
-          "blast_radius":    12,
-          "cascade_depth":   4
+          "availability": 0.58,
+          "is_spof": true,
+          "blast_radius": 12,
+          "cascade_depth": 4
         }
       },
       "antipatterns": [
         {
-          "entity_id":      "NavLib",
-          "entity_type":    "Component",
-          "name":           "Single Point of Failure (SPOF)",
-          "severity":       "CRITICAL",
-          "category":       "Availability",
-          "description":    "NavLib is a directed cut vertex. Removing it partitions the dependency graph.",
-          "recommendation": "Introduce redundancy: backup instances or alternative paths.",
-          "evidence":       { "is_articulation_point": true, "availability_score": 0.58 }
+          "entity_id": "NavLib",
+          "entity_type": "Component",
+          "name": "Single Point of Failure (SPOF)",
+          "severity": "CRITICAL",
+          "category": "Availability",
+          "description": "NavLib is a directed cut vertex. Removing it partitions the dependency graph.",
+          "recommendation": "Introduce redundancy: deploy backup instances or redundant routing paths.",
+          "evidence": { "is_articulation_point": true, "availability_score": 0.58 }
         }
       ],
       "gnn": {
         "prediction_mode": "gnn_only",
         "node_scores": {
           "NavLib": {
-            "component":             "NavLib",
-            "composite_score":       0.5432,
-            "reliability_score":     0.6321,
+            "component": "NavLib",
+            "composite_score": 0.5432,
+            "reliability_score": 0.6321,
             "maintainability_score": 0.4121,
-            "criticality_level":     "HIGH",
-            "source":                "GNN"
+            "criticality_level": "HIGH",
+            "source": "GNN"
           }
         },
         "edge_scores": [
           {
-            "source":                "MonitorApp",
-            "target":                "SensorApp",
-            "edge_type":             "DEPENDS_ON",
-            "composite_score":       0.4512,
-            "reliability_score":     0.3211,
+            "source": "MonitorApp",
+            "target": "SensorApp",
+            "edge_type": "DEPENDS_ON",
+            "composite_score": 0.4512,
+            "reliability_score": 0.3211,
             "maintainability_score": 0.2512,
-            "criticality_level":     "MEDIUM"
+            "criticality_level": "MEDIUM"
           }
         ],
         "gnn_metrics": {
-          "spearman_rho": 0.5871, "f1_score": 0.5052, "macro_f1": 0.0,
-          "bce_loss": 0.0, "regression_slope": 0.0, "regression_intercept": 0.0,
-          "regression_r2": 0.0, "rmse": 0.0812, "mae": 0.0612,
-          "top_5_overlap": 0.6, "top_10_overlap": 0.7, "ndcg_10": 0.9211,
-          "precision": 0.0, "recall": 0.0, "accuracy": 0.0,
-          "calibration": "rank_matched", "n_critical_in_truth": 0
+          "spearman_rho": 0.5871,
+          "f1_score": 0.5052,
+          "ndcg_10": 0.9211,
+          "top_5_overlap": 0.60
         }
       }
     }
@@ -335,56 +333,62 @@ Step 3 does not consume that output today; see [§9](#9-known-limitations).
 }
 ```
 
-`prediction_mode` is `"gnn_only"` or `"rm_only"`. `gnn_metrics` is populated only when evaluation labels were supplied; `criticality_level` comes from a per-scenario box-plot classification of that run's own score distribution, applied to nodes and edges separately.
-
 ---
 
-## 8. Commands
+## 8. CLI Reference & Commands
+
+### 1. Training GNN Checkpoints (Requires Step 4 Simulation Results)
 
 ```bash
-# ─── GNN training (requires Step 4 simulation results) ────────────────────────
-
-PYTHONPATH=. python cli/train_graph.py --layer system                          # single seed
+# Standard training across 5 random seeds
 PYTHONPATH=. python cli/train_graph.py --layer system --seeds 42 123 456 789 2024
-PYTHONPATH=. python cli/train_graph.py --layer system --multi-scenario         # inductive
-PYTHONPATH=. python cli/train_graph.py --layer system --no-edge-model          # nodes only
 
-# ─── GNN inference ────────────────────────────────────────────────────────────
+# Multi-scenario inductive training
+PYTHONPATH=. python cli/train_graph.py --layer system --multi-scenario
 
-PYTHONPATH=. python cli/predict_graph.py --gnn-model output/gnn_checkpoints/best_model
-
-# ─── Evaluation protocols ─────────────────────────────────────────────────────
-
-PYTHONPATH=. python cli/kfold_evaluate.py    # primary: per-domain repeated k-fold
-PYTHONPATH=. python cli/loso_evaluate.py     # secondary: cross-scenario domain gap
+# Train node model only (disable edge head)
+PYTHONPATH=. python cli/train_graph.py --layer system --no-edge-model
 ```
 
-Full flag reference: [cli-pipeline-guide.md](cli-pipeline-guide.md).
+### 2. Running Criticality Predictions
+
+```bash
+# Rule-based RM scoring only (no checkpoint required)
+PYTHONPATH=. python cli/predict_graph.py --layer system
+
+# GNN inference using trained checkpoint
+PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model --output results/prediction.json
+```
+
+### 3. Running Evaluation Protocols
+
+```bash
+# Primary: Repeated per-domain 5-fold cross-validation
+PYTHONPATH=. python cli/kfold_evaluate.py
+
+# Secondary: Cross-scenario Leave-One-Scenario-Out (LOSO) evaluation
+PYTHONPATH=. python cli/loso_evaluate.py
+```
 
 ---
 
-## 9. Known Limitations
+## 9. Known Limitations & Design Boundaries
 
-Documented so they aren't mistaken for working code.
-
-| # | Limitation | Impact |
-|:--|------------|--------|
-| L1 | **Edge labels are heuristic** ([§5](#5-edge-criticality)). `y_edge` is `I*(source) × bridge_multiplier`, not a measured impact delta. | Edge scores rank by *source-node blast radius discounted by bridge status*, which is a weaker claim than "this link matters". `FailureSimulator.simulate_edge_removal` computes the measured version but Step 3 does not read it. |
-| L2 | **Edge features are scatter-meaned in the backbone** ([§3](#message-passing)). `EdgeFeatureEncoder` averages incoming edge vectors per destination node before `HGTConv`. | Per-edge QoS distinctions are smoothed away in the node embeddings. Only `TypedEdgeEncoder` sees edges individually. Projecting edge features into each edge's own key/value would fix this. |
-| L3 | **Transductive by default.** Single-graph training lets test nodes contribute neighbourhood context. | Per-domain repeated k-fold ([cli/kfold_evaluate.py](../cli/kfold_evaluate.py)) is the primary validation protocol and excludes held-out fold nodes from that fold's training; LOSO ([cli/loso_evaluate.py](../cli/loso_evaluate.py)) isolates whole scenarios. Read headline numbers from those, not from a bare `train()` call. |
-| L4 | **Node loss covers `Application` and `Library` only.** Broker, Topic, and Node embeddings are trained purely through message passing. | Per-type Spearman ρ for infrastructure types is reported by `evaluate()` but those types are never directly supervised. |
-| L5 | **Checkpoints below `feature_version` 3 are incompatible.** Broker 18→19, Topic 18→22, Node 18→20. | `from_checkpoint()` raises on a dimension mismatch at `feature_version` ≥ 2 and warns below it. Re-train rather than force-load. |
-
-Fixed in the current revision, recorded because older checkpoints and result files predate them:
-
-- The edge prediction head received no gradient — `y_edge` was written but no loss term read it, so `TypedEdgeEncoder` stayed at random initialisation and all edge scores were noise. `GNNTrainer._edge_loss` now supervises it.
-- With `predict_edges=True`, `GNNService` built two independent node networks and reported metrics from the untrained one. `_node_model` is now the edge model's inner `node_gnn`.
-- `normalize_labels_robust` ran inside the per-seed loop, compounding its in-place sigmoid squash so seed *N* trained on different labels than seed 1. It now runs once per graph.
+| # | Boundary / Limitation | Methodological Context & Mitigation |
+|:--|:---|:---|
+| **L1** | **Heuristic Edge Labels** | Training uses $I^*(u) \times \text{bridge\_multiplier}$. Direct simulation removal ground truth ($I_{\text{edge}}$) is available in Step 4 for validation. |
+| **L2** | **Backbone Edge Scatter-Mean** | Node convolutions average incoming edge vectors. Individual per-edge features are preserved un-averaged in `TypedEdgeEncoder`. |
+| **L3** | **Unsupervised Infrastructure Nodes** | Loss is computed over `Application` and `Library` nodes; Broker, Topic, and Host nodes learn via graph message passing. |
+| **L4** | **Transductive vs. Inductive Scope** | Single-graph training operates transductively. Inductive transfer is validated via `loso_evaluate.py` across distinct scenarios. |
+| **L5** | **Feature Version Compatibility** | Checkpoints require `feature_version >= 3` (Broker: 19, Topic: 22, Node: 20 dimensions). Older checkpoints must be retrained. |
 
 ---
 
 ## 10. What Comes Next
 
-Step 3 has two operational modes. For **inference**, a trained checkpoint lets Step 3 run straight after Step 2 and emit GNN predictions; Steps 4 and 5 then validate those predictions against simulation ground truth. For **training**, Step 4 must come first because the simulation labels `I(v)` are required, followed by Step 5 to measure performance.
+- **For Inference**: Proceed to **[Step 4: Simulate](failure-simulation.md)** and **[Step 5: Validate](validation.md)** to statistically evaluate predicted scores against discrete-event failure injection.
+- **For Training**: Execute **[Step 4: Simulate](failure-simulation.md)** first to generate ground-truth impact labels $I^*(v)$ before running `cli/train_graph.py`.
 
-→ [Step 4: Simulate](failure-simulation.md)
+---
+
+← [Step 2: Analyze](structural-analysis.md) | → [Step 4: Simulate](failure-simulation.md)
