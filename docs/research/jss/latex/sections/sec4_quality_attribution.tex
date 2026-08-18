@@ -1,18 +1,18 @@
 \section{Interpretable Attribution as a Quality Baseline}
 \label{sec:4}
 
-To provide actionable explanations alongside predictive rankings, SaG decomposes component criticality into a multi-dimensional, standards-grounded quality attribution profile.
+To provide actionable architectural explanations alongside data-driven predictive rankings, SaG decomposes component and relationship criticality into a multi-dimensional, standards-grounded quality attribution profile.
 
 \subsection{Grounding in ISO/IEC Standards}
 \label{sec:4.1}
 
-Following \textbf{ISO/IEC 25010:2023} (Product Quality) \cite{iso25010_2023} and \textbf{ISO/IEC 25019:2023} (Quality-in-Use) \cite{iso25019_2023}, we define two core formal constructs:
+Following \textbf{ISO/IEC 25010:2023} (Product Quality Model) \cite{iso25010_2023} and \textbf{ISO/IEC 25019:2023} (Quality-in-Use) \cite{iso25019_2023}, we formulate two core formal criticality constructs:
 \begin{itemize}
-    \item \textbf{Component Criticality ($D_1$):} The degree to which the failure or degradation of a component reduces the system's capacity to deliver required services within its operational context.
-    \item \textbf{Relationship Criticality ($D_2$):} The degree of service degradation resulting from the severance of a specific dependency channel while both endpoint components remain operational.
+    \item \textbf{Component Criticality ($D_1$):} The degree to which the sudden failure, unexpected termination, or severe degradation of an individual component reduces the system's capacity to deliver required services within its operational context of use.
+    \item \textbf{Relationship Criticality ($D_2$):} The degree of systemic service degradation resulting from the severance, partitioning, or failure of a specific dependency or communication channel while both endpoint components remain operational.
 \end{itemize}
 
-Criticality is evaluated primarily across two orthogonal quality dimensions: \textbf{Reliability ($R$)} and \textbf{Maintainability ($M$)}.
+Criticality is evaluated primarily across two orthogonal quality characteristics: \textbf{Reliability ($R$)} and \textbf{Maintainability ($M$)}.
 
 \begin{table}[htbp]
 \centering
@@ -30,40 +30,58 @@ Criticality is evaluated primarily across two orthogonal quality dimensions: \te
 \end{tabular}
 \end{table}
 
-\noindent\textit{Coverage Scope:} SaG focuses on Reliability and Maintainability. Safety (which requires hazard catalogues) and Security (which requires explicit threat models) are declared external to purely structural analysis and require domain-specific hazard analysis (e.g., ISO 26262 ASIL).
+\noindent\textit{Coverage Scope:} SaG focuses on Reliability and Maintainability. Safety (which requires domain-specific hazard logs, e.g., ISO 26262 ASIL ratings) and Security (which requires explicit threat models, e.g., STRIDE) are declared external to purely structural analysis and are left for domain-specific extensions.
 
-\subsection{Composite Quality Score Formulation}
+\subsection{Typed Node Feature Representation}
 \label{sec:4.2}
 
-All raw structural and code metrics are rank-normalized to $[0, 1]$. The quality sub-characteristics are formulated as follows:
+SaG extracts rich feature vectors tailored to the 5 distinct entity types in the software multigraph:
+\begin{itemize}
+    \item \textbf{Application ($|V_{\text{app}}|$, 23 dims):} Indices 0--17 represent shared topological metrics (in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, bridge load). Indices 18--22 capture source code metrics extracted via Static Code Analysis (SCA): Lines of Code (LOC), Cyclomatic Complexity, Martin's Instability metric ($I_{\text{code}} = \frac{C_e}{C_a + C_e}$), Lack of Cohesion in Methods (LCOM), and composite Code Quality Penalty (CQP).
+    \item \textbf{Library ($|V_{\text{lib}}|$, 23 dims):} Same shared topological (0--17) and code quality (18--22) metrics.
+    \item \textbf{Broker ($|V_{\text{broker}}|$, 19 dims):} Indices 0--17 shared topological metrics; index 18 represents normalized queue buffer capacity.
+    \item \textbf{Topic ($|V_{\text{topic}}|$, 22 dims):} Indices 0--17 shared topological metrics; indices 18--21 capture publisher count, subscriber count, log message frequency $\log(1 + \text{freq})$, and ordinal QoS criticality.
+    \item \textbf{Infrastructure Node ($|V_{\text{node}}|$, 20 dims):} Indices 0--17 shared topological metrics; indices 18--19 capture normalized CPU core allocation and physical memory (RAM).
+\end{itemize}
+
+\subsection{Composite Quality Score Formulation}
+\label{sec:4.3}
+
+All raw topological and code metrics are rank-normalized to $[0, 1]$. The quality sub-characteristics are formulated hierarchically using the Analytic Hierarchy Process (AHP) \cite{saaty1980ahp}:
 
 \begin{enumerate}
-    \item \textbf{Fault Tolerance ($FT(v)$):} Measures error propagation potential on the transpose graph $G_{\text{analysis}}^\top$ (where edges follow failure propagation from dependency to dependent):
+    \item \textbf{Fault Tolerance ($FT(v)$):} Measures error cascade potential on the transpose graph $G_{\text{analysis}}^\top$ (where edges follow failure propagation from dependency to dependent):
     \begin{equation}
     FT(v) = w_{\text{rpr}} \cdot \text{RPR}(v) + w_{\text{indeg}} \cdot \text{Deg}_{\text{in}}(v) + w_{\text{depth}} \cdot \text{DepthPotential}(v)
     \end{equation}
-    \item \textbf{Availability ($A(v)$):} Identifies structural single points of failure:
+    where $w_{\text{rpr}} = 0.50$, $w_{\text{indeg}} = 0.30$, and $w_{\text{depth}} = 0.20$.
+    \item \textbf{Availability ($A(v)$):} Identifies structural single points of failure (SPOFs):
     \begin{equation}
     A(v) = w_{\text{art}} \cdot \text{ArticulationScore}(v) + w_{\text{bridge}} \cdot \text{BridgeCentrality}(v)
     \end{equation}
+    where $w_{\text{art}} = 0.65$ and $w_{\text{bridge}} = 0.35$.
     \item \textbf{Reliability ($R(v)$):} Blends Fault Tolerance and Availability hierarchically:
     \begin{equation}
     R(v) = \alpha \cdot FT(v) + (1 - \alpha) \cdot A(v), \quad \alpha = 0.36
     \end{equation}
-    The intra-dimension weights are audited for AHP consistency ($CR \le 0.08$).
+    Intra-dimension pairwise comparison matrices are audited to guarantee AHP consistency ($CR \le 0.08$).
     \item \textbf{Maintainability ($M(v)$):} Evaluates structural coupling combined with code-level static analysis:
     \begin{equation}
     M(v) = 0.50 \cdot \text{Betweenness}(v) + 0.35 \cdot \text{Deg}_{\text{out}}(v) + 0.15 \cdot \text{CodeQualityPenalty}(v)
     \end{equation}
-    where $\text{CodeQualityPenalty}(v)$ is derived from SonarQube metrics (complexity, LCOM, coupling).
 \end{enumerate}
 
-The composite quality score $Q(v)$ combines both dimensions:
+The baseline composite quality score $Q(v)$ combines both dimensions:
 \begin{equation}
 Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)
 \end{equation}
 
-Components are categorized into adaptive criticality tiers using box-plot thresholds:
+When evaluating under a specific ISO/IEC 25019 Context of Use vector $\vec{\omega} = [q_R, q_M]^\top$, the score is reweighted dynamically:
+\begin{equation}
+Q_{\text{domain}}(v) = q_R \cdot R(v) + q_M \cdot M_{\text{static}}(v)
+\end{equation}
+
+Components are categorized into adaptive criticality tiers using box-plot quartile thresholds:
 \begin{itemize}
     \item \textbf{CRITICAL:} $Q > Q_3 + 1.5 \cdot \text{IQR}$
     \item \textbf{HIGH:} $Q_3 < Q \le Q_3 + 1.5 \cdot \text{IQR}$
@@ -71,4 +89,4 @@ Components are categorized into adaptive criticality tiers using box-plot thresh
     \item \textbf{MINIMAL:} $Q \le Q_1$
 \end{itemize}
 
-This enables targeted diagnostics: a service scoring high on $A$ but low on $FT$ is diagnosed as a pure SPOF requiring replication, whereas a service scoring high on $FT$ is an error cascade hub requiring circuit breakers.
+This enables actionable diagnostics: a service scoring high on $A$ but low on $FT$ is diagnosed as a pure SPOF requiring horizontal replication, whereas a service scoring high on $FT$ is an error cascade hub requiring circuit breakers and bulkhead isolation.

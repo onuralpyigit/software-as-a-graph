@@ -243,15 +243,15 @@ $G_{\text{analysis}}$ is further organized into four analytical layers (Applicat
 
 # 4. Interpretable Attribution as a Quality Baseline
 
-To provide actionable explanations alongside predictive rankings, SaG decomposes component criticality into a multi-dimensional, standards-grounded quality attribution profile.
+To provide actionable architectural explanations alongside data-driven predictive rankings, SaG decomposes component and relationship criticality into a multi-dimensional, standards-grounded quality attribution profile.
 
 ## 4.1 Grounding in ISO/IEC Standards
 
-Following **ISO/IEC 25010:2023** (Product Quality) [16] and **ISO/IEC 25019:2023** (Quality-in-Use) [17], we define two core formal constructs:
-- **Component Criticality ($D_1$):** The degree to which the failure or degradation of a component reduces the system's capacity to deliver required services within its operational context.
-- **Relationship Criticality ($D_2$):** The degree of service degradation resulting from the severance of a specific dependency channel while both endpoint components remain operational.
+Following **ISO/IEC 25010:2023** (Product Quality Model) [16] and **ISO/IEC 25019:2023** (Quality-in-Use) [17], we formulate two core formal criticality constructs:
+- **Component Criticality ($D_1$):** The degree to which the sudden failure, unexpected termination, or severe degradation of an individual component reduces the system's capacity to deliver required services within its operational context of use.
+- **Relationship Criticality ($D_2$):** The degree of systemic service degradation resulting from the severance, partitioning, or failure of a specific dependency or communication channel while both endpoint components remain operational.
 
-Criticality is evaluated primarily across two orthogonal quality dimensions: **Reliability ($R$)** and **Maintainability ($M$)**.
+Criticality is evaluated primarily across two orthogonal quality characteristics: **Reliability ($R$)** and **Maintainability ($M$)**.
 
 **Table 3. The Reliability–Maintainability (RM) quality decomposition.**
 
@@ -261,65 +261,89 @@ Criticality is evaluated primarily across two orthogonal quality dimensions: **R
 | | **Availability ($A$)** | Is this a structural single point of failure? | Directed articulation point score, bridge centrality, QoS load | SRE / DevOps: replicate host / cluster broker |
 | **Maintainability ($M$)** | **Modularity / Modifiability** | How complex and tightly coupled is this component? | Betweenness centrality, out-degree, Code Quality Penalty (SCA) | Software Architect: refactor code, decouple APIs |
 
-*Coverage Scope:* SaG focuses on Reliability and Maintainability. Safety (which requires hazard catalogues) and Security (which requires explicit threat models) are declared external to purely structural analysis and require domain-specific hazard analysis (e.g., ISO 26262 ASIL).
+*Coverage Scope:* SaG focuses on Reliability and Maintainability. Safety (which requires domain-specific hazard logs, e.g., ISO 26262 ASIL ratings) and Security (which requires explicit threat models, e.g., STRIDE) are declared external to purely structural analysis and require domain-specific hazard analysis (e.g., ISO 26262 ASIL).
 
-## 4.2 Composite Quality Score Formulation
+## 4.2 Typed Node Feature Representation
 
-All raw structural and code metrics are rank-normalized to $[0, 1]$. The quality sub-characteristics are formulated as follows:
+SaG extracts rich feature vectors tailored to the 5 distinct entity types in the software multigraph:
+- **Application ($|V_{\text{app}}|$, 23 dims):** Indices 0--17 represent shared topological metrics (in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, bridge load). Indices 18--22 capture source code metrics extracted via Static Code Analysis (SCA): Lines of Code (LOC), Cyclomatic Complexity, Martin's Instability metric ($I_{\text{code}} = \frac{C_e}{C_a + C_e}$), Lack of Cohesion in Methods (LCOM), and composite Code Quality Penalty (CQP).
+- **Library ($|V_{\text{lib}}|$, 23 dims):** Same shared topological (0--17) and code quality (18--22) metrics.
+- **Broker ($|V_{\text{broker}}|$, 19 dims):** Indices 0--17 shared topological metrics; index 18 represents normalized queue buffer capacity.
+- **Topic ($|V_{\text{topic}}|$, 22 dims):** Indices 0--17 shared topological metrics; indices 18--21 capture publisher count, subscriber count, log message frequency $\log(1 + \text{freq})$, and ordinal QoS criticality.
+- **Infrastructure Node ($|V_{\text{node}}|$, 20 dims):** Indices 0--17 shared topological metrics; indices 18--19 capture normalized CPU core allocation and physical memory (RAM).
 
-1. **Fault Tolerance ($FT(v)$):** Measures error propagation potential on the transpose graph $G_{\text{analysis}}^\top$ (where edges follow failure propagation from dependency to dependent):
+## 4.3 Composite Quality Score Formulation
+
+All raw topological and code metrics are rank-normalized to $[0, 1]$. The quality sub-characteristics are formulated hierarchically using the Analytic Hierarchy Process (AHP) [15]:
+
+1. **Fault Tolerance ($FT(v)$):** Measures error cascade potential on the transpose graph $G_{\text{analysis}}^\top$ (where edges follow failure propagation from dependency to dependent):
    $$FT(v) = w_{\text{rpr}} \cdot \text{RPR}(v) + w_{\text{indeg}} \cdot \text{Deg}_{\text{in}}(v) + w_{\text{depth}} \cdot \text{DepthPotential}(v)$$
-2. **Availability ($A(v)$):** Identifies structural single points of failure:
+   where $w_{\text{rpr}} = 0.50$, $w_{\text{indeg}} = 0.30$, and $w_{\text{depth}} = 0.20$.
+2. **Availability ($A(v)$):** Identifies structural single points of failure (SPOFs):
    $$A(v) = w_{\text{art}} \cdot \text{ArticulationScore}(v) + w_{\text{bridge}} \cdot \text{BridgeCentrality}(v)$$
+   where $w_{\text{art}} = 0.65$ and $w_{\text{bridge}} = 0.35$.
 3. **Reliability ($R(v)$):** Blends Fault Tolerance and Availability hierarchically:
    $$R(v) = \alpha \cdot FT(v) + (1 - \alpha) \cdot A(v), \quad \alpha = 0.36$$
-   The intra-dimension weights are audited for AHP consistency ($CR \le 0.08$).
+   Intra-dimension pairwise comparison matrices are audited to guarantee AHP consistency ($CR \le 0.08$).
 4. **Maintainability ($M(v)$):** Evaluates structural coupling combined with code-level static analysis:
    $$M(v) = 0.50 \cdot \text{Betweenness}(v) + 0.35 \cdot \text{Deg}_{\text{out}}(v) + 0.15 \cdot \text{CodeQualityPenalty}(v)$$
-   where $\text{CodeQualityPenalty}(v)$ is derived from SonarQube metrics (complexity, LCOM, coupling).
 
-The composite quality score $Q(v)$ combines both dimensions:
+The baseline composite quality score $Q(v)$ combines both dimensions:
 $$Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$$
 
-Components are categorized into adaptive criticality tiers using box-plot thresholds (CRITICAL: $Q > Q_3 + 1.5 \cdot \text{IQR}$, HIGH: $Q_3 < Q \le Q_3 + 1.5 \cdot \text{IQR}$, MEDIUM: $Q_1 < Q \le Q_3$, MINIMAL: $Q \le Q_1$). This enables targeted diagnostics: a service scoring high on $A$ but low on $FT$ is diagnosed as a pure SPOF requiring replication, whereas a service scoring high on $FT$ is an error cascade hub requiring circuit breakers.
+When evaluating under a specific ISO/IEC 25019 Context of Use vector $\vec{\omega} = [q_R, q_M]^\top$, the score is reweighted dynamically:
+$$Q_{\text{domain}}(v) = q_R \cdot R(v) + q_M \cdot M_{\text{static}}(v)$$
+
+Components are categorized into adaptive criticality tiers using box-plot quartile thresholds:
+- **CRITICAL:** $Q > Q_3 + 1.5 \cdot \text{IQR}$
+- **HIGH:** $Q_3 < Q \le Q_3 + 1.5 \cdot \text{IQR}$
+- **MEDIUM:** $Q_1 < Q \le Q_3$
+- **MINIMAL:** $Q \le Q_1$
+
+This enables targeted diagnostics: a service scoring high on $A$ but low on $FT$ is diagnosed as a pure SPOF requiring horizontal replication, whereas a service scoring high on $FT$ is an error cascade hub requiring circuit breakers and bulkhead isolation.
 
 ---
 
 # 5. Graph Learning for Failure-Impact Prediction
 
-While the interpretable RM baseline provides explainable quality profiles, complex non-linear failure interactions benefit from representation learning. This section describes our Heterogeneous Graph Transformer (HGL) formulation, ground-truth simulation oracles, and the input–label independence guarantee.
+While the interpretable RM baseline provides explainable quality profiles, complex non-linear failure interactions and non-local cascade propagations benefit significantly from graph representation learning. This section details our Heterogeneous Graph Transformer (HGT) architecture, 16-dimensional edge representation, multi-task prediction heads, dimension-masked loss formulation, ground-truth simulation oracles, and the strict input--label independence guarantee.
 
 ## 5.1 Ground-Truth Simulation Oracles
 
-To evaluate predictive accuracy without runtime telemetry, SaG executes discrete-event failure simulations over the raw structural graph $G_{\text{structural}}$. We employ three distinct simulation oracles:
+To evaluate predictive accuracy prior to deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$. We establish a formal three-oracle taxonomy:
 
-- **Cascade Reachability Oracle ($I^*(v)$):** Implemented via `FaultInjector`, this oracle injects an unexpected crash at node $v$, propagates failures across dependent topics and brokers using breadth-first dynamic traversal, and records the fraction of surviving subscriber feed losses. $I^*(v)$ serves as the primary continuous target label for training and evaluating learned GNN predictors.
-- **Multi-Metric Composite Oracle ($I_{\text{comp}}(v)$):** A weighted composite measuring reachability loss ($0.35$), graph fragmentation ($0.25$), throughput degradation ($0.25$), and message flow disruption ($0.15$). $I_{\text{comp}}$ is used for architectural validation gates.
-- **Dynamic Message Flow Oracle ($I_{\text{dyn}}(v)$):** Implemented via `MessageFlowSimulator`, this oracle models discrete-event queue dynamics, message emission rates, buffer saturation, and dropped delivery rates among surviving consumers under fault injection.
+- **Cascade Reachability Oracle ($I^*(v)$):** Implemented via `FaultInjector`, this oracle injects an unexpected node crash at component $v \in V$, propagates cascading failures across dependent topics, brokers, and network links using breadth-first dynamic traversal, and computes the fraction of surviving subscriber feeds severed by the outage. $I^*(v) \in [0, 1]$ serves as the primary continuous target label for training and evaluating GNN predictors.
+- **Multi-Metric Composite Oracle ($I_{\text{comp}}(v)$):** Implemented via `FailureSimulator`, this oracle evaluates a multi-faceted failure impact vector:
+  $$I_{\text{comp}}(v) = 0.35 \cdot \Delta\text{Reachability} + 0.25 \cdot \Delta\text{Fragmentation} + 0.25 \cdot \Delta\text{Throughput} + 0.15 \cdot \Delta\text{FlowDisruption}$$
+  $I_{\text{comp}}(v)$ serves as the canonical oracle for architectural quality gate verification.
+- **Dynamic Queue-Flow Oracle ($I_{\text{dyn}}(v)$):** Implemented via `MessageFlowSimulator` using the SimPy discrete-event simulation framework, this oracle models message emission rates, stochastic network latencies, broker buffer saturation, and dropped delivery counts under fault injection.
+- **Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):** Evaluates the systemic impact of severing an individual dependency or communication channel while keeping both endpoint components alive:
+  $$I_{\text{edge}}(u,v) = I_{\text{comp}}(G \setminus \{(u,v)\}) - I_{\text{comp}}(G)$$
 
-## 5.2 Heterogeneous Graph Transformer (HGL) Architecture
+## 5.2 Heterogeneous Graph Transformer Architecture
 
-Because distributed systems comprise diverse entity types with distinct interaction semantics, we adopt a **Heterogeneous Graph Transformer (HGL)** architecture [12].
+Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (`CALLS`, `PUBLISHES_TO`, `SUBSCRIBES_TO`, `HOSTED_ON`, etc.), we implement a 3-layer **Heterogeneous Graph Transformer (HGT)** architecture [12] with hidden dimension $D = 64$ and 4 attention heads.
 
 ```
 +-----------------------------------------------------------------------------------+
-|               Heterogeneous Graph Transformer (HGL) Architecture                  |
+|               Heterogeneous Graph Transformer (HGT) Architecture                  |
 +-----------------------------------------------------------------------------------+
-|  Node Features: SCA Metrics, In/Out Degrees, QoS Profiles, Articulation Scores    |
+|  Node Features (19-23 dims) + 16-dim QoS Edge Encodings injected into destinations|
 +------------------------------------------+----------------------------------------+
                                            |
                                            v
 +-----------------------------------------------------------------------------------+
 | 1. Type-Specific Input Projection:                                               |
-|    h_v^(0) = LayerNorm( ReLU( W_tau(v) * x_v ) )                                 |
+|    h_v^(0) = LayerNorm( GELU( W_tau(v) * x_v ) )                                 |
 +------------------------------------------+----------------------------------------+
                                            |
                                            v
 +-----------------------------------------------------------------------------------+
-| 2. Relation-Specific Heterogeneous Attention (L Layers):                          |
-|    Attention(u, e, v) = Softmax_u ( ( K(u) * W_att,tau(e) * Q(v)^T ) / sqrt(d) )  |
-|    Message(u, e, v)   = V(u) * W_msg,tau(e)                                       |
-|    h_v^(l) = Aggregate( Attention(u, e, v) * Message(u, e, v) )                   |
+| 2. Relational Mutual Attention & Edge Feature Ingestion (L Layers):               |
+|    e_uv' = W_edge * e_uv,   h_tilde_v = h_v + e_uv'                               |
+|    Attention(u, e, v) = Softmax_u ( ( K(u) * W_att,phi(e) * Q(h_tilde_v)^T ) / d )|
+|    Message(u, e, v)   = V(u) * W_msg,phi(e)                                       |
+|    h_v^(l) = LayerNorm( h_v^(l-1) + Dropout( Sum_u Attention(u,e,v)*Message(u,e,v) ) )|
 +------------------------------------------+----------------------------------------+
                                            |
                                            v
@@ -327,32 +351,51 @@ Because distributed systems comprise diverse entity types with distinct interact
 | 3. Multi-Task Residual Output Heads:                                              |
 |    - Reliability Head (R):       y_R(v) = Sigmoid( MLP_R( h_v^(L) ) )             |
 |    - Maintainability Head (M):   y_M(v) = Sigmoid( MLP_M( h_v^(L) ) )             |
-|    - Global Cascade Impact Head: I_pred(v) = Sigmoid( MLP_I( h_v^(L) ) )          |
+|    - Global Cascade Impact Head: I_pred(v) = Sigmoid( MLP_C( h_v || y_R || y_M ) )|
+|    - Edge Criticality Head:      Q(u,v) = Sigmoid( TypedEdgeEncoder(h_u, h_v, e) )|
 +-----------------------------------------------------------------------------------+
 ```
-*Figure 2. Layered architecture of the Heterogeneous Graph Transformer (HGL) predictor.*
+*Figure 2. Layered architecture of the Heterogeneous Graph Transformer (HGT) predictor.*
 
-For each source node $u \in V$ and target node $v \in V$ connected by edge $e = (u, v)$ with relation $\tau(e) = (\tau(u), \tau_E(e), \tau(v))$:
-1. **Type-Specific Projection:** Initial feature vectors $x_v$ are projected into a common $d$-dimensional hidden space using type-specific linear transformations:
-   $$h_v^{(0)} = \text{LayerNorm}(\text{ReLU}(W_{\tau(v)} x_v))$$
-2. **Heterogeneous Mutual Attention:** Relation-specific Query, Key, and Value projections compute edge attention:
-   $$\text{Attn}(u, e, v) = \underset{\forall u \in \mathcal{N}(v)}{\text{Softmax}}\left( \frac{K(u) W_{\text{att},\tau(e)} Q(v)^\top}{\sqrt{d}} \right)$$
-   $$\text{Msg}(u, e, v) = V(u) W_{\text{msg},\tau(e)}$$
-3. **Aggregation and Residual Update:**
-   $$h_v^{(l)} = \text{LayerNorm}\left( h_v^{(l-1)} + \sum_{u \in \mathcal{N}(v)} \text{Attn}(u, e, v) \cdot \text{Msg}(u, e, v) \right)$$
+### 5.2.1 Edge Feature Encoding (16-Dimensional)
 
-We evaluate two variants:
-- **HGL (Typed):** Relation-specific attention operating on typed topology and structural features with QoS edge attributes masked.
-- **HGL-QoS (Typed + QoS):** Injects continuous QoS contract encodings directly into the edge message computation.
+To capture continuous QoS constraints and channel semantics, SaG encodes each directed edge $e = (u, v)$ as a 16-dimensional continuous-categorical vector $e_{uv} \in \mathbb{R}^{16}$:
+- **Index 0:** Scalar QoS weight $w(e) \in (0, 1]$, computed via the harmonic mean of reliability, durability, priority, deadline, and blocking multipliers.
+- **Index 1:** Normalized path count through edge $e$ in $G_{\text{analysis}}$.
+- **Indices 2--8:** 7-bit one-hot encoding for edge relationship types (`CALLS`, `PUBLISHES_TO`, `SUBSCRIBES_TO`, `HOSTED_ON`, `RUNS_ON`, `DEPENDS_ON_LIB`, `CONNECTS_TO`).
+- **Indices 9--15:** 7 explicit QoS profile dimensions: (9) Reliability policy; (10) Durability policy; (11) Normalized message priority; (12) Deadline constraint active flag; (13) Log deadline nanoseconds $\log_{10}(1 + \text{deadline\_ns})$; (14) Log max blocking time $\log_{10}(1 + \text{max\_blocking\_ms})$; and (15) QoS impedance mismatch flag.
 
-The network is optimized using a composite multi-task loss combining Mean Squared Error (MSE), ListMLE ranking loss, and RM consistency regularization:
-$$\mathcal{L} = \mathcal{L}_{\text{MSE}}(I_{\text{pred}}, I^*) + 0.5 \cdot \mathcal{L}_{\text{multitask}} + 0.3 \cdot \mathcal{L}_{\text{ListMLE}} + 0.1 \cdot \mathcal{L}_{\text{RM}}$$
+The `EdgeFeatureEncoder` projects $e_{uv}$ into the hidden space ($e_{uv}' = W_{\text{edge}} e_{uv}$) and adds it directly to the destination node representation prior to relational attention: $\tilde{h}_v = h_v + e_{uv}'$.
 
-## 5.3 Input–Label Independence Guarantee
+## 5.3 Multi-Task Prediction Heads and Dimension Masking
 
-To prevent circular reasoning and data leakage, SaG enforces strict structural separation:
-- **Feature Space:** Computed exclusively on the derived analysis graph $G_{\text{analysis}}$ (using static structural topology, SCA metrics, and declared QoS contracts).
-- **Label Space:** Generated by executing discrete-event cascade simulations on the raw physical graph $G_{\text{structural}}$.
+From the final node embeddings $h_v^{(L)}$, SaG branches into specialized multi-task prediction heads:
+- **Reliability Head:** $\hat{R}(v) = \sigma(\text{MLP}_R(h_v)) \in [0, 1]$
+- **Maintainability Head:** $\hat{M}(v) = \sigma(\text{MLP}_M(h_v)) \in [0, 1]$
+- **Composite Failure Impact Head:** $\hat{I}^*(v) = \sigma(\text{MLP}_C(h_v \parallel \hat{R}(v) \parallel \hat{M}(v))) \in [0, 1]$
+- **Relationship Criticality Head:** $\hat{Q}(u,v) = \sigma(\text{TypedEdgeEncoder}_{\phi(e)}(h_u, h_v, e_{uv})) \in [0, 1]$
+
+### Dimension-Masked Loss Formulation
+
+The joint optimization objective balances regression accuracy, multi-task dimension learning, ranking fidelity, pairwise ordering, and edge prediction:
+$$\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + 0.1 \cdot \mathcal{L}_{\text{consistency}} + 0.3 \cdot \mathcal{L}_{\text{edge}}$$
+where $\mathcal{L}_{\text{composite}} = \text{MSE}(\hat{I}^*(v), I^*(v))$, $\mathcal{L}_{\text{rank}}$ is ListMLE ranking loss [49], $\mathcal{L}_{\text{pairwise}}$ is margin-ranking loss, and $\mathcal{L}_{\text{consistency}} = \text{MSE}(\hat{I}^*(v), 0.8\hat{R}(v) + 0.2\hat{M}(v))$.
+
+**Dimension Masking:** Because dynamic cascade simulation ($I^*(v)$ via `FaultInjector`) observes runtime failure reachability rather than static code maintainability, maintainability ground truth is unobserved during dynamic simulation. We introduce a boolean dimension mask $m = [m_R, m_M] = [1, 0]$:
+$$\mathcal{L}_{\text{dimension}} = \frac{1}{\sum_{d} m_d} \sum_{d \in \{R, M\}} m_d \cdot \text{MSE}(\hat{d}(v), d^*(v))$$
+This prevents the unmeasured maintainability head from being penalized or driven toward zero by backpropagation.
+
+### Domain-Reweighted Criticality ($Q_{\text{domain}}$)
+
+To ground predictions in ISO/IEC 25019 Context of Use ($\vec{\omega} = [q_R, q_M]^\top$), the composite score is evaluated as:
+$$Q_{\text{domain}}(v) = q_R \cdot \hat{R}(v) + q_M \cdot M_{\text{static}}(v)$$
+where $M_{\text{static}}(v)$ is drawn directly from the structural analyzer's maintainability baseline ($y_{\text{rm}}$ maintainability column), combining learned dynamic reliability with static source-code maintainability.
+
+## 5.4 Input–Label Independence Guarantee
+
+To guarantee experimental rigor and eliminate data leakage, SaG enforces strict architectural decoupling:
+- **Feature Space:** Derived exclusively from $G_{\text{analysis}}$ (using static structural topology, SCA metrics, and declared QoS contracts).
+- **Label Space:** Evaluated exclusively on raw $G_{\text{structural}}$ through independent simulation oracles (`FaultInjector`, `FailureSimulator`, `MessageFlowSimulator`).
 
 No simulation outputs are ever exposed as input features to the GNN or attribution baseline.
 
@@ -466,7 +509,7 @@ We further probed edge criticality by simulating the removal of candidate relati
 ## 7.3 RQ3: Ablations and Sensitivity Analysis
 
 ### QoS Feature Encoding
-Explicitly encoding continuous QoS attributes in the GNN ($HGL\text{-}QoS$) yielded negligible differences compared to the base typed model (in-distribution: 0.731 vs. 0.730; LOSO: 0.595 vs. 0.608). The derived `DEPENDS_ON` topology already embeds the primary routing and coupling effects, rendering explicit QoS edge features largely redundant.
+Explicitly encoding continuous QoS attributes in the GNN ($HGL\text{-}QoS$) yielded negligible differences compared to the base typed model (in-distribution: 0.731 vs. 0.730; LOSO: 0.595 vs. 0.608). The derived `DEPENDS_ON` topology already embeds the primary routing and coupling effects, rendering explicit QoS edge features largely redundant when structural typing is available.
 
 ### Intra-Dimension AHP Weight Shrinkage
 We evaluated the sensitivity of the RM attribution baseline by sweeping a shrinkage parameter $\lambda \in [0, 1]$ blending internal term weights from uniform prior ($\lambda = 0$) to calibrated AHP judgement ($\lambda = 1$):
@@ -477,7 +520,29 @@ We evaluated the sensitivity of the RM attribution baseline by sweeping a shrink
 |:---|---:|---:|---:|---:|---:|
 | **Mean Rank Correlation ($\rho$)** | −0.0512 | −0.0254 | −0.0188 | −0.0140 | **−0.0067** |
 
-The calibrated AHP judgement ($\lambda = 1.00$) outperforms uniform weighting monotonically by $+0.045\,\rho$, validating the consistency of the expert hierarchy while reaffirming that the primary role of RM lies in explainable attribution rather than standalone ranking accuracy.
+As illustrated in Figure 4, the calibrated AHP judgement ($\lambda = 1.00$) outperforms uniform weighting monotonically by $+0.045\,\rho$, validating the internal consistency of the expert hierarchy while reaffirming that the primary role of RM lies in explainable attribution rather than standalone ranking accuracy.
+
+### Convergent Validity Across Simulation Oracles
+To test construct validity, we compared node criticality rankings across our three simulation engines: the topological cascade reachability oracle $I^*(v)$ (`FaultInjector`), the multi-metric composite oracle $I_{\text{comp}}(v)$ (`FailureSimulator`), and the discrete-event queue-flow simulator $I_{\text{dyn}}(v)$ (`MessageFlowSimulator`).
+
+Across all seven synthetic scenarios, the behavioural SimPy simulator ($I_{\text{dyn}}$) and the topological cascade reachability oracle ($I^*$) exhibited strong rank convergence:
+- **$I_{\text{dyn}}$ vs. $I^*(v)$:** Mean Spearman $\rho = \mathbf{0.7654}$ (ranging from $0.5485$ on Hub-and-Spoke to $0.9378$ on Healthcare), with mean Kendall $\tau = 0.630$ and top-$K$ Jaccard overlap of $0.316$.
+- **$I_{\text{comp}}$ vs. $I_{\text{dyn}}$:** Mean Spearman $\rho = 0.4650$ (ranging from $0.1208$ to $0.6574$).
+- **$I_{\text{comp}}$ vs. $I^*(v)$:** Mean Spearman $\rho = 0.3943$ (ranging from $0.0920$ to $0.5777$).
+
+This strong agreement between independent behavioural queue simulations and structural cascade reachability confirms that our continuous target label $I^*(v)$ captures genuine dynamic service disruption.
+
+### Domain-Specific Weighting Sensitivity
+We investigated the impact of Context of Use reweighting $\vec{\omega} = [q_R, q_M]^\top$ across 10 evaluation scenarios. Domain-specific reweighting $Q_{\text{domain}}(v)$ improved rank correlation by an average of $\Delta\rho = \mathbf{+0.0265}$ over static uniform weighting, maintaining an average Kendall rank fidelity of $\tau = 0.9677$. This demonstrates that operational Context of Use can be tuned without distorting underlying structural stability.
+
+### Threshold and Normalization Sensitivity
+Sweeping 7 scenarios $\times$ 7 tier thresholds ($z \in [1.0, 2.5]$, IQR multipliers) $\times$ 3 normalization techniques (min-max, standard, rank-quantile) revealed that tier categorization is primarily sensitive to threshold selection ($\Delta\rho = 0.1896$ across extreme thresholds), whereas ranking performance is exceptionally stable across normalization regimes ($\Delta\rho = 0.0158$).
+
+### Anti-Pattern Detection and CI/CD Quality Gates
+Validating our rule-based architectural anti-pattern catalog against the multi-metric composite oracle $I_{\text{comp}}(v)$ yielded a mean detection $F_1 = 0.3781$ across 8 system scenarios. Analysis execution times ranged from $0.04\,\text{s}$ (small scenarios, 50 nodes) to $54.85\,\text{s}$ (enterprise event meshes, 300 nodes), confirming that SaG runs comfortably within standard pre-commit and pull-request CI/CD quality gate budgets.
+
+### HGT Attention Weight Analysis
+Extracting relational attention matrices from the trained HGT model on the ATM Case Study (Figure 3) revealed that the model places the highest attention weights ($\alpha_{uv} > 0.45$) on downstream `PUBLISHES_TO` and `CALLS` dependencies connecting shared persistence brokers and authorization libraries, directly reflecting empirical cascade pathways.
 
 ## 7.4 RQ4: Real-World Distributed Software Architecture Validation
 

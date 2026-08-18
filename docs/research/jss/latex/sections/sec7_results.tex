@@ -95,7 +95,7 @@ We further probed edge criticality by simulating the removal of candidate relati
 \label{sec:7.3}
 
 \subsubsection{QoS Feature Encoding}
-Explicitly encoding continuous QoS attributes in the GNN ($HGL\text{-}QoS$) yielded negligible differences compared to the base typed model (in-distribution: 0.731 vs.\ 0.730; LOSO: 0.595 vs.\ 0.608). The derived \texttt{DEPENDS\_ON} topology already embeds the primary routing and coupling effects, rendering explicit QoS edge features largely redundant.
+Explicitly encoding continuous QoS attributes in the GNN ($HGL\text{-}QoS$) yielded negligible differences compared to the base typed model (in-distribution: 0.731 vs.\ 0.730; LOSO: 0.595 vs.\ 0.608). The derived \texttt{DEPENDS\_ON} topology already embeds the primary routing and coupling effects, rendering explicit QoS edge features largely redundant when structural typing is available.
 
 \subsubsection{Intra-Dimension AHP Weight Shrinkage}
 
@@ -115,7 +115,35 @@ We evaluated the sensitivity of the RM attribution baseline by sweeping a shrink
 \end{tabular}
 \end{table}
 
-The calibrated AHP judgement ($\lambda = 1.00$) outperforms uniform weighting monotonically by $+0.045\,\rho$, validating the consistency of the expert hierarchy while reaffirming that the primary role of RM lies in explainable attribution rather than standalone ranking accuracy.
+As illustrated in Figure~4, the calibrated AHP judgement ($\lambda = 1.00$) outperforms uniform weighting monotonically by $+0.045\,\rho$, validating the internal consistency of the expert hierarchy while reaffirming that the primary role of RM lies in explainable attribution rather than standalone ranking accuracy.
+
+\subsubsection{Convergent Validity Across Simulation Oracles}
+
+To test construct validity, we compared node criticality rankings across our three simulation engines: the topological cascade reachability oracle $I^*(v)$ (\texttt{FaultInjector}), the multi-metric composite oracle $I_{\text{comp}}(v)$ (\texttt{FailureSimulator}), and the discrete-event queue-flow simulator $I_{\text{dyn}}(v)$ (\texttt{MessageFlowSimulator}). 
+
+Across all seven synthetic scenarios, the behavioural SimPy simulator ($I_{\text{dyn}}$) and the topological cascade reachability oracle ($I^*$) exhibited strong rank convergence:
+\begin{itemize}
+    \item \textbf{$I_{\text{dyn}}$ vs.\ $I^*(v)$:} Mean Spearman $\rho = \mathbf{0.7654}$ (ranging from $0.5485$ on Hub-and-Spoke to $0.9378$ on Healthcare), with mean Kendall $\tau = 0.630$ and top-$K$ Jaccard overlap of $0.316$.
+    \item \textbf{$I_{\text{comp}}$ vs.\ $I_{\text{dyn}}$:} Mean Spearman $\rho = 0.4650$ (ranging from $0.1208$ to $0.6574$).
+    \item \textbf{$I_{\text{comp}}$ vs.\ $I^*(v)$:} Mean Spearman $\rho = 0.3943$ (ranging from $0.0920$ to $0.5777$).
+\end{itemize}
+This strong agreement between independent behavioural queue simulations and structural cascade reachability confirms that our continuous target label $I^*(v)$ captures genuine dynamic service disruption.
+
+\subsubsection{Domain-Specific Weighting Sensitivity}
+
+We investigated the impact of Context of Use reweighting $\vec{\omega} = [q_R, q_M]^\top$ across 10 evaluation scenarios. Domain-specific reweighting $Q_{\text{domain}}(v)$ improved rank correlation by an average of $\Delta\rho = \mathbf{+0.0265}$ over static uniform weighting, maintaining an average Kendall rank fidelity of $\tau = 0.9677$. This demonstrates that operational Context of Use can be tuned without distorting underlying structural stability.
+
+\subsubsection{Threshold and Normalization Sensitivity}
+
+Sweeping 7 scenarios $\times$ 7 tier thresholds ($z \in [1.0, 2.5]$, IQR multipliers) $\times$ 3 normalization techniques (min-max, standard, rank-quantile) revealed that tier categorization is primarily sensitive to threshold selection ($\Delta\rho = 0.1896$ across extreme thresholds), whereas ranking performance is exceptionally stable across normalization regimes ($\Delta\rho = 0.0158$).
+
+\subsubsection{Anti-Pattern Detection and CI/CD Quality Gates}
+
+Validating our rule-based architectural anti-pattern catalog against the multi-metric composite oracle $I_{\text{comp}}(v)$ yielded a mean detection $F_1 = 0.3781$ across 8 system scenarios. Analysis execution times ranged from $0.04\,\text{s}$ (small scenarios, 50 nodes) to $54.85\,\text{s}$ (enterprise event meshes, 300 nodes), confirming that SaG runs comfortably within standard pre-commit and pull-request CI/CD quality gate budgets.
+
+\subsubsection{HGT Attention Weight Analysis}
+
+Extracting relational attention matrices from the trained HGT model on the ATM Case Study (Figure~3) revealed that the model places the highest attention weights ($\alpha_{uv} > 0.45$) on downstream \texttt{PUBLISHES\_TO} and \texttt{CALLS} dependencies connecting shared persistence brokers and authorization libraries, directly reflecting empirical cascade pathways.
 
 \subsection{RQ4: Real-World Distributed Software Architecture Validation}
 \label{sec:7.4}
