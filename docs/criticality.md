@@ -75,9 +75,9 @@ flowchart LR
         QiU["Stakeholder Harm<br>Beneficialness, Risk, Acceptability"]
     end
 
-    Evidence -->|COMPUTED PRE-DEPLOYMENT| Validation
-    Validation -->|VALIDATED AGAINST| Definition
-    Definition -.->|DEFINED UPON| Evidence
+    Evidence -->|"COMPUTED PRE-DEPLOYMENT"| Validation
+    Validation -->|"VALIDATED AGAINST"| Definition
+    Definition -.->|"DEFINED UPON"| Evidence
 ```
 
 > **The Central Axiom:**
@@ -172,9 +172,9 @@ flowchart LR
     I["Indirect Stakeholders<br>(Patients, Passengers, Counterparties)"]
     S["Secondary Stakeholders<br>(SREs, DevOps, Software Architects)"]
 
-    P ---|Direct Users| QiU["Quality-in-Use Experience"]
-    I ---|Beneficiaries| QiU
-    S ---|System Custodians| Remediation["Architecture Remediation"]
+    P ---|"Direct Users"| QiU["Quality-in-Use Experience"]
+    I ---|"Beneficiaries"| QiU
+    S ---|"System Custodians"| Remediation["Architecture Remediation"]
 ```
 
 1. **Primary Stakeholders (Direct Users)**: End users interacting directly with the software (e.g., autonomous vehicle drivers, clinical operators, traders).
@@ -308,10 +308,10 @@ flowchart TD
         Q_Eq["Q(v) = 0.80·R(v) + 0.20·M(v)"]
     end
 
-    FT_Calc -->|alpha = 0.36| R_Calc
-    A_Calc -->|1 - alpha = 0.64| R_Calc
-    R_Calc -->|w_R = 0.80| Q_Calc
-    M_Calc -->|w_M = 0.20| Q_Calc
+    FT_Calc -->|"alpha = 0.36"| R_Calc
+    A_Calc -->|"1 - alpha = 0.64"| R_Calc
+    R_Calc -->|"w_R = 0.80"| Q_Calc
+    M_Calc -->|"w_M = 0.20"| Q_Calc
 ```
 
 ### 4.4 The Weight Channel: Integrating Declared QoS
@@ -320,11 +320,11 @@ Structure indicates how many paths cross a node; **QoS weights ($w$) indicate ho
 
 ```mermaid
 flowchart LR
-    QoS["Declared Topic QoS<br>(Reliability, Durability, Priority)"] -->|Phase 3| W_T["Topic Weight w(t)"]
-    W_T -->|Phase 5a / 5b| W_V["Component Weight w(v) & Edge Weight w(e)"]
-    W_V -->|RPR Edge Importance| FT["FT(v)"]
-    W_V -->|QSPOF = AP_c × w(v)| A["A(v)"]
-    W_V -->|w_out = Σ w(e)| M["M(v)"]
+    QoS["Declared Topic QoS<br>(Reliability, Durability, Priority)"] -->|"Phase 3"| W_T["Topic Weight w(t)"]
+    W_T -->|"Phase 5a / 5b"| W_V["Component Weight w(v) & Edge Weight w(e)"]
+    W_V -->|"RPR Edge Importance"| FT["FT(v)"]
+    W_V -->|"QSPOF = AP_c * w(v)"| A["A(v)"]
+    W_V -->|"w_out = sum(w(e))"| M["M(v)"]
 ```
 
 - $FT$ integrates $w(e)$ via Reverse PageRank on $G^{\mathsf T}$ (transitive paths along guaranteed contracts).
@@ -514,9 +514,9 @@ A(u,v) = 0.30 \cdot \mathbf{1}_{\mathrm{bridge}}(e) + 0.20 \cdot \min\left(A(u),
 
 ```mermaid
 flowchart LR
-    L01["Internal Evidence<br>G_analysis, cm_*"] -->|Link 1: MEASURED & REPORTED<br>(Spearman rho, NDCG)| L2["Simulated External Quality<br>I*(v), I_dyn(v), I_M(v)"]
-    L2 -->|Link 2: UNMEASURED<br>(Model vs. Deployed Reality)| RealExt["Real External Quality<br>(Live Network Execution)"]
-    RealExt -->|Link 3: UNMEASURED<br>(Telemetry vs. User Perception)| QiU["Quality-in-Use Loss<br>(D1/D2 Construct)"]
+    L01["Internal Evidence<br>G_analysis, cm_*"] -->|"Link 1: MEASURED & REPORTED<br>(Spearman rho, NDCG)"| L2["Simulated External Quality<br>I*(v), I_dyn(v), I_M(v)"]
+    L2 -->|"Link 2: UNMEASURED<br>(Model vs. Deployed Reality)"| RealExt["Real External Quality<br>(Live Network Execution)"]
+    RealExt -->|"Link 3: UNMEASURED<br>(Telemetry vs. User Perception)"| QiU["Quality-in-Use Loss<br>(D1/D2 Construct)"]
 ```
 
 - **Link 1 (Internal $\to$ Simulated External)**: **Rigorously Measured**. Verified by statistical batteries against simulation oracles (mean $\rho(I_{\text{dyn}}, I^*) = 0.765$).
