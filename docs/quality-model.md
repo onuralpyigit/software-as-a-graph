@@ -383,7 +383,7 @@ $$M(v) = 0.35 \cdot BT(v) + 0.30 \cdot w_{out}(v) + 0.15 \cdot CQP(v) + 0.12 \cd
 - $(1 - CC)$ ($0.08$): Low clustering indicates sole-integration points between uncoordinated modules.
 
 > [!NOTE]
-> **Maintainability is Internally Evaluated**: Unlike Reliability, Maintainability cannot be observed through runtime execution. It is evaluated via change-propagation traversals ($IM$) rather than fault injection.
+> **Maintainability's oracle is a structural traversal, not a fault injection.** Unlike Reliability, Maintainability cannot be observed through runtime execution — no amount of running the system reveals what changing it would cost. It is still a Layer 2 (External) quantity with a declared oracle, $IM(v)$, evaluated via change-propagation traversal over $G^\top$ rather than fault injection; see [docs/validation.md §3.1](validation.md#31-notation--three-quantities-three-symbols) for why $IM(v)$'s shared substrate with $M(v)$ makes it a consistency check rather than an independent behavioural test.
 
 ### 5.3 The Composite Criticality Score $Q(v)$
 
