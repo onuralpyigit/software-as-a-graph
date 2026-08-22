@@ -344,8 +344,11 @@ class TestLibraryBackwardCompatibility:
     def test_library_without_code_quality_analyzes_without_error(self):
         """LCQ-007: Libraries with all-zero code-quality fields analyse without error.
 
-        Under solitary-population handling, zero-variance LOC/CC/LCOM normalise to 1.0,
-        so CQP = W_LOC + W_CC + W_LCOM = 0.70 (instability_code stays 0).
+        Two Libraries with no code_metrics form a multi-node zero-variance
+        population, not a solitary node: LOC/CC/LCOM normalise to 0.0, so
+        CQP == 0.0 (instability_code stays 0 too). This is exactly the shape of
+        every Library in the real-world scenarios before the CQP zero-variance
+        guard fix, which used to score them all as CQP = 0.70.
         """
         gd = GraphData(
             components=[
@@ -362,7 +365,7 @@ class TestLibraryBackwardCompatibility:
         res = analyzer.analyze(gd, layer=AnalysisLayer.SYSTEM)
 
         for m in res.components.values():
-            assert m.code_quality_penalty == pytest.approx(0.70)
+            assert m.code_quality_penalty == pytest.approx(0.0)
 
 
 # =============================================================================

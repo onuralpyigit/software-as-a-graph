@@ -23,9 +23,9 @@ Criticality is evaluated primarily across two orthogonal quality characteristics
 \toprule
 \textbf{Dimension} & \textbf{Sub-Characteristic} & \textbf{Architectural Question} & \textbf{Underlying Graph Metrics} & \textbf{Role / Remediation} \\
 \midrule
-\textbf{Reliability ($R$)} & \textbf{Fault Tolerance ($FT$)} & How broadly does failure propagate? & Reverse PageRank on $G^\top$, in-degree & Reliability Eng.: add redundancy \\
-& \textbf{Availability ($A$)} & Is this a single point of failure? & Directed articulation score, bridge load & DevOps/SRE: replicate host/broker \\
-\textbf{Maintainability ($M$)} & \textbf{Modularity/Modifiability} & How complex and coupled is this? & Betweenness, out-degree, Code Penalty & Architect: refactor code, decouple \\
+\textbf{Reliability ($R$)} & \textbf{Fault Tolerance ($FT$)} & How broadly does failure propagate? & Reverse PageRank on $G^\top$, in-degree, cascade depth & Reliability Eng.: add redundancy \\
+& \textbf{Availability ($A$)} & Is this a single point of failure? & Directed articulation score (raw + QoS-weighted), bridge ratio, connectivity degradation & DevOps/SRE: replicate host/broker \\
+\textbf{Maintainability ($M$)} & \textbf{Modularity/Modifiability} & How complex and coupled is this? & Betweenness, QoS-weighted out-degree, Code Penalty, coupling-risk imbalance, inverse clustering & Architect: refactor code, decouple \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -38,7 +38,7 @@ Criticality is evaluated primarily across two orthogonal quality characteristics
 SaG extracts rich feature vectors tailored to the 5 distinct entity types in the software multigraph:
 \begin{itemize}
     \item \textbf{Application ($|V_{\text{app}}|$, 23 dims):} Indices 0--17 represent shared topological metrics (in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, bridge load). Indices 18--22 capture source code metrics extracted via Static Code Analysis (SCA): Lines of Code (LOC), Cyclomatic Complexity, Martin's Instability metric ($I_{\text{code}} = \frac{C_e}{C_a + C_e}$), Lack of Cohesion in Methods (LCOM), and composite Code Quality Penalty (CQP).
-    \item \textbf{Library ($|V_{\text{lib}}|$, 23 dims):} Same shared topological (0--17) and code quality (18--22) metrics.
+    \item \textbf{Library ($|V_{\text{lib}}|$, 25 dims):} Same shared topological (0--17) and code quality (18--22) metrics as Application, plus two library-specific extras (indices 23--24): the size of the transitive reverse-\texttt{USES} closure (normalized) and the count of distinct subscribers reachable from that closure's published topics (normalized) --- the two structural drivers of a library's blast radius under both simulators' cascade rules that the code-quality metrics alone do not capture.
     \item \textbf{Broker ($|V_{\text{broker}}|$, 19 dims):} Indices 0--17 shared topological metrics; index 18 represents normalized queue buffer capacity.
     \item \textbf{Topic ($|V_{\text{topic}}|$, 22 dims):} Indices 0--17 shared topological metrics; indices 18--21 capture publisher count, subscriber count, log message frequency $\log(1 + \text{freq})$, and ordinal QoS criticality.
     \item \textbf{Infrastructure Node ($|V_{\text{node}}|$, 20 dims):} Indices 0--17 shared topological metrics; indices 18--19 capture normalized CPU core allocation and physical memory (RAM).
@@ -52,22 +52,21 @@ All raw topological and code metrics are rank-normalized to $[0, 1]$. The qualit
 \begin{enumerate}
     \item \textbf{Fault Tolerance ($FT(v)$):} Measures error cascade potential on the transpose graph $G_{\text{analysis}}^\top$ (where edges follow failure propagation from dependency to dependent):
     \begin{equation}
-    FT(v) = w_{\text{rpr}} \cdot \text{RPR}(v) + w_{\text{indeg}} \cdot \text{Deg}_{\text{in}}(v) + w_{\text{depth}} \cdot \text{DepthPotential}(v)
+    FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)
     \end{equation}
-    where $w_{\text{rpr}} = 0.50$, $w_{\text{indeg}} = 0.30$, and $w_{\text{depth}} = 0.20$.
-    \item \textbf{Availability ($A(v)$):} Identifies structural single points of failure (SPOFs):
+    where RPR is Reverse PageRank and $\text{CDPot}_{\text{enh}}$ is an enhanced Cascade Depth Potential term.
+    \item \textbf{Availability ($A(v)$):} Identifies structural single points of failure (SPOFs) across five terms --- directed articulation severity, its QoS-weighted variant, edge-level irrecoverability, connectivity degradation, and the component's own QoS weight:
     \begin{equation}
-    A(v) = w_{\text{art}} \cdot \text{ArticulationScore}(v) + w_{\text{bridge}} \cdot \text{BridgeCentrality}(v)
+    A(v) = 0.35 \cdot \text{AP}_c^{\text{dir}}(v) + 0.25 \cdot \text{QSPOF}(v) + 0.25 \cdot \text{BR}(v) + 0.10 \cdot \text{CDI}(v) + 0.05 \cdot w(v)
     \end{equation}
-    where $w_{\text{art}} = 0.65$ and $w_{\text{bridge}} = 0.35$.
     \item \textbf{Reliability ($R(v)$):} Blends Fault Tolerance and Availability hierarchically:
     \begin{equation}
     R(v) = \alpha \cdot FT(v) + (1 - \alpha) \cdot A(v), \quad \alpha = 0.36
     \end{equation}
-    Intra-dimension pairwise comparison matrices are audited to guarantee AHP consistency ($CR \le 0.08$).
-    \item \textbf{Maintainability ($M(v)$):} Evaluates structural coupling combined with code-level static analysis:
+    Intra-dimension pairwise comparison matrices are audited against Saaty's consistency ratio and measure $CR = 0.001$ (Fault Tolerance), $CR = 0.001$ (Availability), and $CR = 0.000$ (Maintainability) --- all well within the $CR \le 0.10$ acceptability threshold. The shipped intra-dimension weights are a $\lambda = 0.70$ shrinkage blend between the raw AHP-derived vector and a uniform prior (Section~\ref{sec:7.3} reports the sensitivity of ranking accuracy to $\lambda$).
+    \item \textbf{Maintainability ($M(v)$):} Evaluates structural coupling combined with code-level static analysis across five terms --- betweenness, QoS-weighted efferent coupling, the Code Quality Penalty, an afferent/efferent coupling-risk imbalance term, and inverse clustering:
     \begin{equation}
-    M(v) = 0.50 \cdot \text{Betweenness}(v) + 0.35 \cdot \text{Deg}_{\text{out}}(v) + 0.15 \cdot \text{CodeQualityPenalty}(v)
+    M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))
     \end{equation}
 \end{enumerate}
 

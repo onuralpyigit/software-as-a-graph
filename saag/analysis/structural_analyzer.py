@@ -629,13 +629,26 @@ class StructuralAnalyzer:
         W_LOC, W_CC, W_INS, W_LCOM = _CQP_WEIGHTS
 
         def _mm(values: list, lo: float, hi: float) -> list:
-            """Min-max normalization with solitary population handling."""
+            """Min-max normalization, distinguishing the two zero-span cases.
+
+            A zero span means min-max has no scale to work with, but it arises
+            two ways that must not be treated alike:
+
+            * **One genuine node** carrying a real measurement. There is no
+              population to rank it against, so it keeps the max-norm 1.0 that
+              preserves its complexity signal (Hardening Issue 5).
+            * **A population with no variance** — in practice, many nodes that
+              carry no ``code_metrics`` at all, so every raw value is 0.0. A
+              constant carries no ranking information; scoring all of them as
+              maximally penalised is indistinguishable from "uniformly the
+              worst", which is what used to give every Library in the
+              real-world scenarios ``CQP = 0.70`` on absent data.
+            """
             span = hi - lo
             if span == 0:
-                # Issue 5: If there's only one node in the population,
-                # we return 1.0 (most critical) to preserve complexity signal
-                # rather than zeroing it out.
-                return [1.0] * len(values)
+                if len(values) == 1 and hi > 0.0:
+                    return [1.0] * len(values)
+                return [0.0] * len(values)
             return [(v - lo) / span for v in values]
 
         # Process each qualifying node type as an independent population

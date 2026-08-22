@@ -49,6 +49,7 @@ _SCENARIO_LABELS = {
 _VARIANT_LABELS = {
     "topo_baseline":     r"\textsc{Topo-BL}",
     "topo_qos":          r"\textsc{Topo-QoS}",
+    "topology_rm":       r"\textsc{RM} / $Q(v)$",
     "gl":                r"\textsc{GL}",
     "gl_qos":            r"\textsc{GL-QoS}",
     "hgl":               r"\textsc{HGL}",
@@ -57,6 +58,7 @@ _VARIANT_LABELS = {
 _VARIANT_LABELS_PLAIN = {
     "topo_baseline":     "Topo-BL",
     "topo_qos":          "Topo-QoS",
+    "topology_rm":       "RM / Q(v)",
     "gl":                "GL",
     "gl_qos":            "GL-QoS",
     "hgl":               "HGL",
@@ -64,6 +66,17 @@ _VARIANT_LABELS_PLAIN = {
 }
 _VARIANT_ORDER = [
     "topo_baseline", "topo_qos",
+    "gl", "gl_qos",
+    "hgl", "hgl_qos",
+]
+# Table 3 has no `topology_rm` cells (it is only computed by the LOSO/k-fold
+# harnesses), so it stays out of _VARIANT_ORDER — adding it there would render
+# an empty column. LOSO's comparison_table does carry it (see
+# reproduce/loso_all_variants.py's ALL_VARIANTS), and previously it was
+# silently dropped by every LOSO renderer because they all iterated
+# _VARIANT_ORDER instead.
+_LOSO_VARIANT_ORDER = [
+    "topo_baseline", "topo_qos", "topology_rm",
     "gl", "gl_qos",
     "hgl", "hgl_qos",
 ]
@@ -531,6 +544,15 @@ def render_table4_tex(loso_data: Dict, output: Path):
         print("  No LOSO comparison table found.")
         return
 
+    # Bold the variant that actually wins on mean_rho, not whichever variant
+    # happens to be the proposed method — the table caption promises "best per
+    # row", and a hardcoded winner silently lies when a baseline outperforms it.
+    best_var = max(
+        (v for v in _LOSO_VARIANT_ORDER if v in table and table[v].get("mean_rho") is not None),
+        key=lambda v: table[v]["mean_rho"],
+        default=None,
+    )
+
     lines = [
         r"\begin{table}[t]",
         r"\centering",
@@ -543,7 +565,7 @@ def render_table4_tex(loso_data: Dict, output: Path):
         r"\midrule",
     ]
 
-    for var in _VARIANT_ORDER:
+    for var in _LOSO_VARIANT_ORDER:
         if var not in table:
             continue
         r = table[var]
@@ -558,7 +580,7 @@ def render_table4_tex(loso_data: Dict, output: Path):
         f1_s    = f"{f1:.4f}" if f1 is not None else "—"
         delta_s = (f"+{delta:.4f}" if delta > 0 else f"{delta:.4f}") if delta is not None else "—"
 
-        if var == "hgl_qos":
+        if var == best_var:
             mean_s = rf"\textbf{{{mean_s}}}"
         lines.append(rf"{label} & {mean_s} & {std_s} & {f1_s} & {delta_s} \\")
 
@@ -574,11 +596,16 @@ def render_table4_tex(loso_data: Dict, output: Path):
 
 def render_table4_md(loso_data: Dict, output: Path):
     table = loso_data.get("comparison_table", {})
+    best_var = max(
+        (v for v in _LOSO_VARIANT_ORDER if v in table and table[v].get("mean_rho") is not None),
+        key=lambda v: table[v]["mean_rho"],
+        default=None,
+    )
     rows = [
         "| Variant | Mean ρ | Std ρ | F1@K | Δρ vs BL |",
         "|---|---|---|---|---|",
     ]
-    for var in _VARIANT_ORDER:
+    for var in _LOSO_VARIANT_ORDER:
         if var not in table:
             continue
         r = table[var]
@@ -593,7 +620,7 @@ def render_table4_md(loso_data: Dict, output: Path):
         f1_s    = f"{f1:.4f}" if f1 is not None else "—"
         delta_s = (f"+{delta:.4f}" if delta and delta > 0 else f"{delta:.4f}") if delta is not None else "—"
 
-        if var == "hgl_qos":
+        if var == best_var:
             mean_s = f"**{mean_s}**"
         rows.append(f"| {label} | {mean_s} | {std_s} | {f1_s} | {delta_s} |")
 
@@ -764,7 +791,7 @@ def main():
         print("\n  Table 4: LOSO Results")
         print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'Δρ vs BL'}")
         print("  " + "─" * 55)
-        for var in _VARIANT_ORDER:
+        for var in _LOSO_VARIANT_ORDER:
             if var not in table:
                 continue
             r = table[var]

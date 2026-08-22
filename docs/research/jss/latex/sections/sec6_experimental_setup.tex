@@ -15,19 +15,23 @@ Our evaluation corpus comprises 1,770 components across ten distributed system a
 \toprule
 \textbf{Dataset / Architecture} & \textbf{System Paradigm} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Topics} & \textbf{Brokers} & \textbf{Hosts} & \textbf{Libs} & \textbf{$|E|$} \\
 \midrule
-\textbf{Autonomous Vehicle (AV)} & ROS 2 Cyber-Physical & 80 & 16 & 28 & 4 & 8 & 24 & 196 \\
-\textbf{Enterprise Pub-Sub} & Kafka Event Mesh & 300 & 60 & 110 & 10 & 30 & 90 & 784 \\
-\textbf{Financial Trading} & Low-Latency Pub-Sub & 60 & 12 & 22 & 4 & 6 & 16 & 148 \\
-\textbf{Healthcare Integration} & HL7/FHIR Event Mesh & 50 & 10 & 18 & 4 & 6 & 12 & 122 \\
-\textbf{Hub-and-Spoke Enterprise} & Broker-Centric Messaging & 70 & 14 & 24 & 6 & 8 & 18 & 172 \\
-\textbf{IoT Smart City} & MQTT Telemetry Mesh & 200 & 40 & 75 & 8 & 20 & 57 & 512 \\
-\textbf{Microservices Mesh} & Cloud-Native Services & 90 & 18 & 32 & 6 & 10 & 24 & 226 \\
-\textbf{Autoware.universe \cite{kato2018autoware}} & Real-World ROS 2 Autoware & 75 & 32 & 24 & 3 & 6 & 10 & 184 \\
-\textbf{Cloud Microservices \cite{google2024onlineboutique}} & Real-World GCP Boutique & 60 & 22 & 20 & 4 & 6 & 8 & 142 \\
-\textbf{Train-Ticket \cite{zhou2021fault}} & Real-World Microservices & 90 & 41 & 30 & 3 & 8 & 8 & 218 \\
+\textbf{Autonomous Vehicle (AV)} & ROS 2 Cyber-Physical & 152 & 80 & 40 & 4 & 8 & 20 & 797 \\
+\textbf{Enterprise Pub-Sub} & Kafka Event Mesh & 520 & 300 & 120 & 10 & 40 & 50 & 3{,}245 \\
+\textbf{Financial Trading} & Low-Latency Pub-Sub & 124 & 60 & 35 & 5 & 6 & 18 & 580 \\
+\textbf{Healthcare Integration} & HL7/FHIR Event Mesh & 98 & 50 & 25 & 3 & 8 & 12 & 400 \\
+\textbf{Hub-and-Spoke Enterprise} & Broker-Centric Messaging & 139 & 70 & 30 & 2 & 12 & 25 & 797 \\
+\textbf{IoT Smart City} & MQTT Telemetry Mesh & 326 & 200 & 80 & 6 & 30 & 10 & 1{,}322 \\
+\textbf{Microservices Mesh} & Cloud-Native Services & 186 & 90 & 45 & 6 & 15 & 30 & 680 \\
+\textbf{Autoware.universe \cite{kato2018autoware}} & Real-World ROS 2 Autoware & 75 & 32 & 24 & 3 & 6 & 10 & 179 \\
+\textbf{Cloud Microservices \cite{google2024onlineboutique}} & Real-World GCP Boutique & 60 & 22 & 20 & 4 & 6 & 8 & 128 \\
+\textbf{Train-Ticket \cite{zhou2021fault}} & Real-World Microservices & 90 & 41 & 30 & 3 & 8 & 8 & 162 \\
+\midrule
+\textbf{Total} & & \textbf{1{,}770} & & & & & & \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+$|V|$ is the sum of all five entity-type counts per scenario and sums to exactly the corpus total stated above. $|E|$ counts every raw structural relationship instance recorded in the scenario file (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}) --- the substrate the simulation oracles traverse --- not the denser derived \texttt{DEPENDS\_ON} projection used for GNN training.
 
 The seven synthetic scenarios are generated using statistical topology generators spanning diverse degree distributions, clustering coefficients, and middleware QoS configurations. The three real-world architectures are hand-transcribed from open-source repositories using dedicated architectural adapters.
 
@@ -55,6 +59,6 @@ We compare five primary predictor configurations:
 \subsubsection{Evaluation Protocols}
 \begin{itemize}
     \item \textbf{In-Distribution Evaluation:} 60\% train / 20\% validation / 20\% test node splits pinned by node identity within each scenario, evaluated over five random seeds $\{42, 123, 456, 789, 2024\}$.
-    \item \textbf{Inductive Leave-One-Scenario-Out (LOSO):} Models are trained on six scenarios and evaluated zero-shot on the seventh unseen scenario to test out-of-distribution generalizability.
+    \item \textbf{Inductive Leave-One-Scenario-Out (LOSO):} Across all eight cached scenarios (the seven synthetic scenarios plus the ATM case study, Section~\ref{sec:7.4}), models are trained on the remaining seven and evaluated zero-shot on the held-out scenario, for eight folds total, to test out-of-distribution generalizability.
     \item \textbf{Real-World Architectural Transfer:} Evaluating zero-shot transfer on authentic open-source architectures.
 \end{itemize}

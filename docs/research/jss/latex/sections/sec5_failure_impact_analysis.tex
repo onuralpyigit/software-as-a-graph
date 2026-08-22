@@ -25,7 +25,7 @@ To evaluate predictive accuracy prior to deployment without relying on productio
 \subsection{Heterogeneous Graph Transformer Architecture}
 \label{sec:5.2}
 
-Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (\texttt{CALLS}, \texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{HOSTED\_ON}, etc.), we implement a 3-layer \textbf{Heterogeneous Graph Transformer (HGT)} architecture \cite{hu2020hgt} with hidden dimension $D = 64$ and 4 attention heads.
+Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, etc.), we implement a 3-layer \textbf{Heterogeneous Graph Transformer (HGT)} architecture \cite{hu2020hgt} with hidden dimension $D = 64$ and 4 attention heads.
 
 \subsubsection{Edge Feature Encoding (16-Dimensional)}
 \label{sec:5.2.1}
@@ -34,8 +34,8 @@ To capture continuous QoS constraints and channel semantics, SaG encodes each di
 \begin{itemize}
     \item \textbf{Index 0:} Scalar QoS weight $w(e) \in (0, 1]$, computed via the harmonic mean of reliability, durability, priority, deadline, and blocking multipliers.
     \item \textbf{Index 1:} Normalized path count through edge $e$ in $G_{\text{analysis}}$.
-    \item \textbf{Indices 2--8:} 7-bit one-hot encoding for edge relationship types (\texttt{CALLS}, \texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{HOSTED\_ON}, \texttt{RUNS\_ON}, \texttt{DEPENDS\_ON\_LIB}, \texttt{CONNECTS\_TO}).
-    \item \textbf{Indices 9--15:} 7 explicit QoS profile dimensions: (9) Reliability policy (0 = best-effort, 1 = reliable); (10) Durability policy (0 = volatile, 1 = transient local, 2 = transient, 3 = persistent); (11) Normalized message priority; (12) Deadline constraint active flag (0/1); (13) Log deadline nanoseconds $\log_{10}(1 + \text{deadline\_ns})$; (14) Log max blocking time $\log_{10}(1 + \text{max\_blocking\_ms})$; and (15) QoS impedance mismatch flag (1 if upstream/downstream QoS contracts clash, 0 otherwise).
+    \item \textbf{Indices 2--8:} 7-bit one-hot encoding for edge relationship types (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, \texttt{DEPENDS\_ON}).
+    \item \textbf{Indices 9--15:} 7 explicit QoS profile dimensions, non-zero only for \texttt{PUBLISHES\_TO}/\texttt{SUBSCRIBES\_TO} edges (all other edge types receive zeros): (9) Reliability policy score (0.0 = best-effort, 1.0 = reliable); (10) Durability policy score (0.0 = volatile, 0.5 = transient local, 0.6 = transient, 1.0 = persistent); (11) Normalized message priority (0.0/0.33/0.66/1.0 for low/medium/high/urgent); (12) Deadline constraint active flag (0/1); (13) Log deadline $\log_{10}(1 + \text{deadline\_ns} / 10^6)$; (14) Log max blocking time $\log_{10}(1 + \text{max\_blocking\_ms})$; and (15) a QoS heterogeneity flag (1 if the edge's reliability/durability/priority triple deviates from the scenario's modal QoS profile, 0 otherwise).
 \end{itemize}
 
 The \texttt{EdgeFeatureEncoder} projects $e_{uv}$ into the hidden space: $e_{uv}' = W_{\text{edge}} e_{uv}$. Prior to relational attention, the edge projection is added directly to the destination node representation: $\tilde{h}_v = h_v + e_{uv}'$.
@@ -93,7 +93,7 @@ To ground predictions in ISO/IEC 25019 Context of Use ($\vec{\omega} = [q_R, q_M
 \begin{equation}
 Q_{\text{domain}}(v) = q_R \cdot \hat{R}(v) + q_M \cdot M_{\text{static}}(v)
 \end{equation}
-where $M_{\text{static}}(v)$ is drawn directly from the structural analyzer's maintainability baseline ($y_{\text{rm}}$ maintainability column), combining learned dynamic reliability with static source-code maintainability.
+where $M_{\text{static}}(v)$ is drawn directly from the structural analyzer's maintainability baseline ($y_{\text{rm}}$ maintainability column), combining learned dynamic reliability with static source-code maintainability. The implementation deliberately refuses to emit $Q_{\text{domain}}(v)$ unless the checkpoint's maintainability head actually received real supervision --- under the sole labeler used in every experiment reported here (\texttt{FaultInjector}, $m = [1, 0]$), maintainability is unmeasured, so $Q_{\text{domain}}(v)$ is never populated in these results. Domain reweighting sensitivity is instead evaluated directly against the static RM baseline, reported as a dedicated ablation (Section~\ref{sec:7.3}).
 
 \subsection{Input--Label Independence Guarantee}
 \label{sec:5.4}

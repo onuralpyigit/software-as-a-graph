@@ -206,15 +206,16 @@ class TestStructuralMetricsCodeQuality:
         assert cqp_b >= cqp_a
 
     def test_cqp_zero_when_all_code_quality_inputs_zero(self):
-        """CQ-004b: With zero-variance population, the analyzer's solitary-population
-        handling assigns max-norm (1.0) to LOC/CC/LCOM, so CQP = W_LOC + W_CC + W_LCOM = 0.70
-        (instability_code stays 0 since not re-normalised)."""
+        """CQ-004b: A multi-node population with no code-quality data (all raw values
+        0.0) is a zero-variance population, not a solitary node — it carries no ranking
+        signal, so LOC/CC/LCOM normalise to 0.0 and CQP == 0.0. Contrast with the
+        genuine single-node case in test_code_quality_hardening.py, which keeps 1.0."""
         gd = _simple_two_app_graph()  # no code-quality fields
         analyzer = StructuralAnalyzer()
         res = analyzer.analyze(gd)
         
         for m in res.components.values():
-            assert m.code_quality_penalty == pytest.approx(0.70)
+            assert m.code_quality_penalty == pytest.approx(0.0)
 
 
 # =============================================================================
@@ -321,9 +322,10 @@ class TestBackwardCompatibility:
         comp_dict = {cq.id: cq for cq in result.components}
         assert "X" in comp_dict
         assert "Y" in comp_dict
-        # CQP defaults to 0.70 under solitary-population handling (zero-variance LOC/CC/LCOM → norm=1.0)
+        # No code-quality data across a multi-node population is zero-variance,
+        # not solitary — CQP normalises to 0.0, not the old blanket 0.70.
         for m in res.components.values():
-            assert m.code_quality_penalty == pytest.approx(0.70)
+            assert m.code_quality_penalty == pytest.approx(0.0)
 
 
 # =============================================================================
