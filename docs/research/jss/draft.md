@@ -1,4 +1,4 @@
-# Graph Learning for Reliability and Dependability Analysis in Complex Distributed Systems
+# Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Reliability and Dependability Analysis of Distributed Systems
 
 **Authors.** *[Omitted for double-anonymised review.]*
 
