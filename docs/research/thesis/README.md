@@ -26,6 +26,7 @@ require re-reading all 30k words of `jss_draft_full.md` to find.
 | §5.4 (library blast, negative result), §5.5 (stratified correlation) | [`material/oracles_and_labels.md`](material/oracles_and_labels.md) | One paragraph each | Both were already restated nearly in full in §8.2 — the condensation removes duplication, not the finding. §5.1 (the three-oracle definitions) and §7.5 (their measured agreement) stay in the journal paper in full; this file includes them for self-containedness |
 | §6.1–§6.7 (remediation operators, acceptance criterion, CI/CD gate, yield analysis) | [`material/remediation_and_gating.md`](material/remediation_and_gating.md) | Two subsections, ~700 words; §6.7's yield table becomes two sentences folded into §8.4 | The mechanism (Generate→Verify, the four operators, the gate's exit codes) stays in the paper; the design-rationale prose around each (why per-edit rather than aggregate verification, the independence invariants spelled out separately from §5.3) is thesis-chapter depth |
 | §9.2 (six instrument defects) | [`material/threats_and_instrument_defects.md`](material/threats_and_instrument_defects.md) | One paragraph naming only the two defects that touched reported figures | The full six-defect account is a methodology finding in its own right — silent instrumentation bugs that produced normal-looking wrong numbers — worth a thesis discussion on validation discipline, but more than a journal Discussion section can carry alongside everything else in §9.2 |
+| *(none — new material)* | [`material/why_not_simulate.md`](material/why_not_simulate.md) | Not in the journal paper | **Written for the thesis, not lifted from the condensation.** Answers the "if simulation defines criticality, why train a predictor?" question that `../jss/outline.md` records as an unresolved reviewer risk. It is the upstream text that `docs/criticality.md` §7.2 and the JSS introduction condense from |
 
 ## Suggested chapter mapping
 
@@ -38,7 +39,10 @@ but a natural first cut:
   journal paper can only state the conclusion of.
 - **Ch. "Failure-impact prediction"** ← the unabridged §5 of `jss_draft_full.md` (the HGT and the
   learning results are the journal paper's core and stay there too) + `oracles_and_labels.md` for
-  the full oracle-disagreement analysis.
+  the full oracle-disagreement analysis + `why_not_simulate.md`, which motivates the stage as a
+  whole and depends on that disagreement analysis, so the two belong in the same chapter.
+  `why_not_simulate.md` §4 also forward-references the attribution chapter and the remediation
+  chapter; if the thesis opens with a framework-overview chapter, it reads equally well there.
 - **Ch. "Remediation and continuous verification"** ← `remediation_and_gating.md`.
 - **Ch. "Methodology and validation discipline"** (or an appendix) ← `threats_and_instrument_defects.md`.
   This is good material for a thesis's methodology chapter specifically because it documents *how*

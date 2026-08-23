@@ -41,6 +41,7 @@
 7. [Validity of the Construct](#7-validity-of-the-construct)
    - 7.1 [The Three-Link Validation Chain](#71-the-three-link-validation-chain)
    - 7.2 [Construct Validity](#72-construct-validity)
+     - 7.2.1 [Why a Predictor Rather Than the Oracle](#721-why-a-predictor-rather-than-the-oracle)
    - 7.3 [Characteristic Coverage & Unmodelled Gaps](#73-characteristic-coverage--unmodelled-gaps)
    - 7.4 [Real-World Drivers vs. Structural Proxies](#74-real-world-drivers-vs-structural-proxies)
    - 7.5 [External Validity](#75-external-validity)
@@ -527,6 +528,33 @@ flowchart LR
 
 - **Falsifiability**: If components flagged as CRITICAL cause no measurable service loss under simulated fault injection, the construct is falsified.
 - **Independence Guarantee**: Predictors read $G_{\text{analysis}}$ while oracles execute on $G_{\text{structural}}$, preventing circular feature contamination.
+
+### 7.2.1 Why a Predictor Rather Than the Oracle
+
+Because $I^*(v)$ *defines* criticality here, the critical set is in principle already computable by
+sweeping the simulator. Stated plainly: **simulation alone is sufficient to identify critical
+components, given a complete and correctly parameterised model and enough compute.** No predictor in
+this framework can exceed its own oracle on the oracle's own terms, so every reported $\rho$ is
+*surrogate fidelity*, not accuracy against production failure. The Analyse and Predict stages exist
+for four reasons, none of which is "simulation is inaccurate":
+
+| # | Property of the oracle | Consequence | Evidence |
+|:--|:---|:---|:---|
+| 1 | **Cost falls on counterfactual search**, not on scoring a fixed graph | Remediation is structured as cheap proposal + expensive simulated verification, rather than search-by-simulation. Note the honest bound: a GNN forward pass is 254 ms at \|V\|=2000 but its features cost 56.72 s of Analyse, so there is *no* end-to-end speedup for a single query | [`results/inference_latency.json`](../results/inference_latency.json); [prescription.md](prescription.md) |
+| 2 | **It is a parameter choice, not a fact** | `propagation_threshold` is a free parameter *of the ground truth*; per-node label σ reaches 0.416 on a [0,1] target, and the exhaustive sweep runs `n_trials=1`. A model fitted across systems/seeds/thresholds estimates a better-posed quantity than one sweep | [`results/label_stability.json`](../results/label_stability.json); [`reproduce/threshold_sensitivity.py`](../reproduce/threshold_sensitivity.py) |
+| 3 | **The oracles disagree** | ρ(I_dyn, I\*) = 0.765, ρ(I_comp, I_dyn) = 0.465, ρ(I_comp, I\*) = 0.397 (minima 0.550 / 0.121 / 0.097). Mean top-K Jaccard is 0.26–0.31 for *every* pair — the oracles corroborate ordering far better than they corroborate the critical set itself | [`results/convergent_validity.json`](../results/convergent_validity.json) |
+| 4 | **It is silent on ~a third of the system** | The cascade cannot express direct `Topic`/`Node` failure; those types are excluded deliberately rather than scored zero, leaving 30–47% of components per scenario unlabelled | [`saag/simulation/fault_injector.py`](../saag/simulation/fault_injector.py); §7.3 above; [validation.md](validation.md) L3 |
+
+Separately, **attribution is not a weaker form of ranking** — it answers a different question.
+Simulation returns an impact *magnitude*; it does not return a *reason*, and the reason is what
+selects the repair. [`saag/prescription/rules.py`](../saag/prescription/rules.py) dispatches on
+dimension-level structure, not on aggregate score: articulation point without broker redundancy →
+`NodeReallocation`; subscriber concentration → `TopicSplit`; QoS/exposure mismatch → `QosUpgrade`.
+The §4.6 role taxonomy (SPOF, Bottleneck, Total Hub, Fragile Hub) exists to make that dispatch
+possible. This is why $Q(v)$'s weak *standalone ranking* under distribution shift (LOSO ρ = −0.0142)
+is survivable rather than fatal: it is not being asked to rank.
+
+Full treatment: [`docs/research/thesis/material/why_not_simulate.md`](research/thesis/material/why_not_simulate.md).
 
 ### 7.3 Characteristic Coverage & Unmodelled Gaps
 

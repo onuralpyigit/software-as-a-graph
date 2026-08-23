@@ -107,6 +107,33 @@ To guarantee methodological rigor, the framework enforces an **input–label ind
 ```
 *Figure 1. End-to-end architecture of the Software-as-a-Graph (SaG) framework.*
 
+## 1.3.1 Why a Predictor Rather Than the Oracle
+
+Because $I^*(v)$ *defines* criticality in this framework, the critical set is in principle already
+computable by sweeping the simulator over every component. We state the implication plainly rather
+than deferring it to Section 8: **simulation alone is sufficient to identify critical components,
+given a complete and correctly parameterised model and enough compute to sweep it.** No predictor
+evaluated here can exceed its own oracle on the oracle's own terms, and none is claimed to; every
+correlation we report is *surrogate fidelity*, not accuracy against observed production failure.
+
+The attribution and learning stages are motivated instead by three properties of the oracle itself.
+First, it is **incomplete by construction**: the cascade model cannot express the direct failure of
+a Topic or a physical Node, so 30--47\% of components per scenario carry no ground truth at all and
+are excluded from labelling deliberately rather than scored zero. Second, it is **one draw from a
+family of disagreeing, parameter-sensitive simulators** (Section 5.1); the propagation threshold is
+a free parameter of the *ground truth* rather than of any model, and per-node label standard
+deviation across seeds reaches 0.416 on a $[0,1]$-bounded target. A model fitted across systems,
+seeds, and scenarios is therefore a variance-reduced, threshold-marginalised estimate rather than a
+cheaper copy of one sweep. Third, its cost falls in the wrong place: a sweep of the graph *as it
+stands* is affordable, but evaluating the space of candidate architectural repairs is not, which is
+why remediation is structured as cheap proposal followed by expensive simulated verification rather
+than as search-by-simulation.
+
+Attribution is defended separately in Section 4 on a different ground: simulation returns an impact
+*magnitude*, not a *reason*, and it is the dimension-level reason --- articulation point, subscriber
+concentration, QoS mismatch --- that determines which architectural repair applies. This is why the
+RM baseline's weak standalone ranking under distribution shift (Section 7.1) is not fatal to it.
+
 ## 1.4 Research Questions
 
 Our investigation evaluates the predictive power, interpretability, and generalizability of SaG across four research questions:
@@ -318,6 +345,17 @@ To evaluate predictive accuracy prior to deployment without relying on productio
 - **Dynamic Queue-Flow Oracle ($I_{\text{dyn}}(v)$):** Implemented via `MessageFlowSimulator` using the SimPy discrete-event simulation framework, this oracle models message emission rates, stochastic network latencies, broker buffer saturation, and dropped delivery counts under fault injection.
 - **Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):** Evaluates the systemic impact of severing an individual dependency or communication channel while keeping both endpoint components alive:
   $$I_{\text{edge}}(u,v) = I_{\text{comp}}(G \setminus \{(u,v)\}) - I_{\text{comp}}(G)$$
+
+**These oracles are not interchangeable, and their disagreement bounds what any single one can
+support.** Measured across seven scenarios and five seeds, mean Spearman agreement is $\rho = 0.765$
+for $(I_{\text{dyn}}, I^*)$, $\rho = 0.465$ for $(I_{\text{comp}}, I_{\text{dyn}})$, and
+$\rho = 0.397$ for $(I_{\text{comp}}, I^*)$, with per-scenario minima of 0.550, 0.121, and 0.097
+respectively. Agreement on the *critical set* is weaker still than agreement on ordering: mean
+top-$K$ Jaccard overlap is 0.26--0.31 for every pair, including the strongest one. A result
+established against one oracle is therefore not evidence for a claim measured against another, and
+the instruction to "simply simulate" is under-specified --- it does not say which simulator, at
+which propagation threshold, under which seed, and the answer materially changes the critical set.
+We report this disagreement as a bound on our own construct validity rather than as corroboration.
 
 ## 5.2 Heterogeneous Graph Transformer Architecture
 
@@ -536,7 +574,7 @@ Across all seven synthetic scenarios, the behavioural SimPy simulator ($I_{\text
 - **$I_{\text{comp}}$ vs. $I_{\text{dyn}}$:** Mean Spearman $\rho = 0.4646$ (ranging from $0.1208$ to $0.6575$).
 - **$I_{\text{comp}}$ vs. $I^*(v)$:** Mean Spearman $\rho = 0.3970$ (ranging from $0.0974$ to $0.5778$).
 
-This strong agreement between independent behavioural queue simulations and structural cascade reachability confirms that our continuous target label $I^*(v)$ captures genuine dynamic service disruption.
+This is the strongest of the three pairwise agreements reported in Section 5.1, and it supports the narrower claim that $I^*(v)$'s *ordering* tracks dynamic service disruption. It does not establish critical-set agreement: top-$K$ Jaccard overlap for this pair is 0.312, and the $(I_{\text{comp}}, I^*)$ pair agrees only at $\rho = 0.397$. We therefore read convergent validity here as partial corroboration of the label's ranking, not as evidence that the three oracles are interchangeable.
 
 ### Domain-Specific Weighting Sensitivity
 We investigated the impact of Context of Use reweighting $\vec{\omega} = [q_R, q_M]^\top$ across 10 evaluation scenarios by sweeping the composite reliability weight $w_R$ over its full range and reading off three points on that one curve: the shipped static default ($w_R = 0.80$), an unweighted equal split ($w_R = 0.50$), and the domain-derived value per scenario. Domain-derived weighting improves mean rank correlation by $\Delta\rho = +0.0264$ over the static default, but *underperforms* equal weighting by $\Delta\rho = -0.1097$ — domain derivation is not, on this evidence, a ranking-accuracy improvement over the simplest possible baseline. The reason is structural rather than a modelling failure: across all six declared domains, the domain-derived $w_R$ sits within $0.04$ of the static $0.80$ default (range $[0.70, 0.76]$), so mean Kendall rank fidelity between domain-derived and static rankings is $\tau = 0.9677$ — the two weightings rank components almost identically, and the free parameter Context of Use actually moves is too small for any weighting confined to it to move $\rho$ substantially. We therefore reframe this ablation's conclusion: operational Context of Use reweighting is an *attributional* mechanism — explaining why a component matters in stakeholder terms — not a ranking-improvement device, consistent with the scoping in the quality model (§4.1).
@@ -581,7 +619,7 @@ Our empirical findings provide clear guidance for software architects and reliab
 
 ## 8.2 Threats to Validity
 
-- **Construct Validity:** Our ground truth is generated via discrete-event cascade simulation on structural models rather than observing live production outages. To mitigate construct divergence, we evaluated multiple independent simulation engines (`FaultInjector`, `FailureSimulator`, `MessageFlowSimulator`) and confirmed strong convergent validity between dynamic queue-flow simulation and cascade reachability ($\rho = 0.765$).
+- **Construct Validity:** Our ground truth is generated via discrete-event cascade simulation on structural models rather than observing live production outages. To characterise construct divergence we evaluated three independent simulation engines (`FaultInjector`, `FailureSimulator`, `MessageFlowSimulator`). Their agreement is partial and we report it as a bound rather than a mitigation: mean $\rho = 0.765$ between dynamic queue-flow simulation and cascade reachability, but only $\rho = 0.397$ between the composite and cascade oracles, with top-$K$ Jaccard overlap of 0.26--0.31 for every pair (Section 5.1). A further 30--47\% of components per scenario carry no simulated ground truth at all. Accordingly, results established against one oracle should not be read as claims about another, and none of them are claims about observed production outages.
 - **Internal Validity:** Potential feature leakage is prevented by strict graph view separation: predictors operate on $G_{\text{analysis}}$, whereas ground-truth simulators operate on $G_{\text{structural}}$. We additionally identified and fixed a normalization defect in the code-quality scoring pipeline: a min-max helper previously assigned the maximal Code Quality Penalty to any zero-variance population, which is correct for one genuine node but was indistinguishable from "many nodes carrying no code-quality data at all" — the exact shape of every Library in our three real-world scenarios, which carry no source-level `code_metrics`. The fix (scoring an undifferentiated multi-node population as zero rather than maximal penalty) changes Library Maintainability tier classifications in the real-world corpus but, as expected for a fix confined to a population with no variance to rank, leaves Application-population rank correlation against $I^*(v)$ effectively unchanged (Table 9: $\Delta\rho \in \{-0.003, 0.000, 0.000\}$ across the three real-world scenarios).
 - **External Validity:** While our corpus spans ten distinct system domains and three authentic open-source architectures (ROS 2 and microservices), future work should evaluate larger enterprise deployments with hundreds of microservices.
 - **Conclusion Validity:** Given the heavy-tailed, non-normal distribution of cascading failure impacts, all statistical comparisons utilize non-parametric rank correlation (Spearman $\rho$, Kendall $\tau$), bootstrap confidence intervals ($B = 2,000$), and paired Wilcoxon signed-rank tests. We note one aggregation hazard directly: the RM composite's rank correlation pooled across node types ($\rho = 0.028$) falls outside the range spanned by its own per-type correlations ($\rho \in [0.14, 0.50]$, §7.3) — a Simpson's-paradox effect that would mislead if the pooled figure were quoted on its own. We report and interpret only stratified figures for this reason.

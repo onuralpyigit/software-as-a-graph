@@ -22,6 +22,18 @@ To evaluate predictive accuracy prior to deployment without relying on productio
     \end{equation}
 \end{itemize}
 
+\textbf{These oracles are not interchangeable, and their disagreement bounds what any single one can
+support.} Measured across seven scenarios and five seeds, mean Spearman agreement is $\rho = 0.765$
+for $(I_{\text{dyn}}, I^*)$, $\rho = 0.465$ for $(I_{\text{comp}}, I_{\text{dyn}})$, and
+$\rho = 0.397$ for $(I_{\text{comp}}, I^*)$, with per-scenario minima of $0.550$, $0.121$, and
+$0.097$ respectively. Agreement on the \emph{critical set} is weaker still than agreement on
+ordering: mean top-$K$ Jaccard overlap is $0.26$--$0.31$ for every pair, including the strongest.
+A result established against one oracle is therefore not evidence for a claim measured against
+another, and the instruction to ``simply simulate'' is under-specified --- it does not say which
+simulator, at which propagation threshold, under which seed, and the answer materially changes the
+critical set. We report this disagreement as a bound on our own construct validity rather than as
+corroboration.
+
 \subsection{Heterogeneous Graph Transformer Architecture}
 \label{sec:5.2}
 
