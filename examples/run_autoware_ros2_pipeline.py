@@ -382,7 +382,9 @@ def run_autoware_ros2_pipeline(args):
         # STEP 6: Prescriptive Architecture Optimization
         # ---------------------------------------------------------------------
         print("\n--- [STEP 6] Prescriptive Architecture Optimization ---")
-        presc_res = client.prescribe(analysis_result=analysis_result, layer="system", kappa=1.0)
+        presc_res = client.prescribe(
+            analysis_result=analysis_result, prediction_result=prediction_result,
+            layer="system", kappa=1.0)
         presc_path = output_dir / "autoware_ros2_prescribe.json"
         with open(presc_path, "w") as f:
             json.dump(presc_res.to_dict(), f, indent=2, default=str)

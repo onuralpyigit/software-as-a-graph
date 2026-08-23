@@ -16,6 +16,8 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from saag import Client
+from saag.analysis.antipattern_detector import CATALOG
+from reproduce.detection_validation import DEFAULT_EXCLUDED_PATTERNS
 from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay
 
@@ -158,6 +160,18 @@ def main():
         console.print_step(f"Running baseline analysis on layer: {args.layer}...")
         analysis = client.analyze(layer=args.layer)
 
+        # Predict (RM + anti-patterns) so the rules compiler sees the same
+        # CRITICAL/HIGH risk set Stage 6 is documented to consume -- without
+        # a prediction_result, compile_policy() sees an empty critical/spof/
+        # god set and only topic splitting can ever fire. DEEP_PIPELINE is
+        # excluded: it does not terminate in practical time at these scales.
+        console.print_step("Scoring criticality and detecting anti-patterns...")
+        prediction = client.predict(
+            analysis,
+            gnn_checkpoint=args.gnn_checkpoint,
+            active_patterns=[pid for pid in CATALOG if pid not in DEFAULT_EXCLUDED_PATTERNS],
+        )
+
         console.print_step("Generating refactoring recommendations and validating in closed-loop...")
         filter_kwargs = {"kappa": args.kappa}
         if args.seeds is not None:
@@ -167,6 +181,7 @@ def main():
 
         res = client.prescribe(
             analysis_result=analysis,
+            prediction_result=prediction,
             layer=args.layer,
             gnn_checkpoint=args.gnn_checkpoint,
             **filter_kwargs,

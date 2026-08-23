@@ -106,9 +106,11 @@ improvement.
 ## 2. Preservation & Remediation Rules
 
 Remediations target components the Predict stage scored `CRITICAL`/`HIGH` on any RM dimension
-(reliability, maintainability, fault_tolerance, availability, or the aggregate — `rules.py`'s
-`_RM_DIMENSIONS` gates on the two composite characteristics and their fault_tolerance/availability
-sub-characteristics directly, not only on the composite). Node reallocation
+(reliability, maintainability, or the aggregate — `rules.py`'s `_RM_DIMENSIONS` gates on the two
+composite characteristics and their overall score, not their fault_tolerance/availability
+sub-characteristics: both already feed `reliability` through the r_alpha blend, so scoring them
+as peers would count Reliability's signal three times, the same reasoning
+`QualityLevels.max_level()` and SRI apply). Node reallocation
 ([§2.2](#22-physical-locality-anti-affinity-rules)) additionally considers components flagged as
 SPOF or god-component smells among `prediction_result.problems`.
 
@@ -321,8 +323,14 @@ for verdict in prescription.edit_verdicts:
         print(f" declined {verdict.kind}/{verdict.target}: {verdict.reason}")
 ```
 
-> Passing `prediction_result` matters. Without it the rules see no GNN criticality scores and
-> no anti-pattern smells, and fire only off whatever criticality the analysis result carries.
+> Passing `prediction_result` matters, and not just for GNN scores. Analyze (Step 2) is
+> structural-only — `analysis_result.quality` is always `None` — so without `prediction_result`
+> the rules see *no* RM criticality scores, *no* GNN scores, and no anti-pattern smells at all.
+> `critical`, `spof` and `god` are then empty sets, and only Rule 1's risk-free congested-topic
+> branch can fire; Rules 2 (node reallocation) and 3 (QoS upgrade) require a non-empty risk set
+> and can never trigger. A splits-only policy is this omission's signature, not evidence those
+> operators have nothing to contribute — `PrescribeService.prescribe` logs a warning when it
+> detects exactly this pattern.
 
 ### 4.3 Filter Parameters
 

@@ -15,7 +15,14 @@ from .models import NodeReallocation, PrescriptionPolicy, QosUpgrade, TopicSplit
 _CRITICAL_LEVELS = ("CRITICAL", "HIGH")
 
 #: RM dimensions plus the aggregate, each of which can flag a component.
-_RM_DIMENSIONS = ("reliability", "maintainability", "fault_tolerance", "availability", "overall")
+#:
+#: fault_tolerance and availability are excluded even though QualityLevels
+#: carries them: both are Reliability sub-characteristics that already feed
+#: `reliability` through the r_alpha blend (saag/analysis/analyzer.py), so
+#: scoring them as peers here would count Reliability's signal three times.
+#: QualityLevels.max_level() and SRI (saag/validation/service.py) both
+#: deliberately exclude them for the same reason; this mirrors that.
+_RM_DIMENSIONS = ("reliability", "maintainability", "overall")
 
 
 def compile_policy(

@@ -13,7 +13,7 @@ from saag.client import Client
 from saag import Pipeline
 
 @pytest.fixture
-def repo_with_vulnerable_topology():
+def repo_with_congested_topology():
     """
     Seed repository with a topology designed to trigger all three prescriptive rules:
     - Topic T1 has 2 publishers (AppA, AppC) and 2 subscribers (AppB, AppD), triggering Topic Splitting.
@@ -74,14 +74,14 @@ def repo_with_vulnerable_topology():
     repo.save_graph(graph_data)
     return repo
 
-def test_prescribe_rule_compilation(repo_with_vulnerable_topology):
-    client = Client(repo=repo_with_vulnerable_topology)
+def test_prescribe_rule_compilation(repo_with_congested_topology):
+    client = Client(repo=repo_with_congested_topology)
     analysis = client.analyze(layer="system")
     # Criticality levels (SPOF/CRITICAL) now come from the Predict step, not Analyze.
     prediction = client.predict(analysis, mode="rm")
 
     # Run prescribe compiler
-    service = PrescribeService(repo_with_vulnerable_topology)
+    service = PrescribeService(repo_with_congested_topology)
     policy = service.compile_policy(analysis_result=analysis.raw, prediction_result=prediction)
 
     # Verify logical subgraph refactoring (Topic splitting T1)
@@ -102,8 +102,39 @@ def test_prescribe_rule_compilation(repo_with_vulnerable_topology):
     assert policy.qos_upgrades[0].target_reliability == "RELIABLE"
     assert policy.qos_upgrades[0].target_durability == "TRANSIENT"
 
-def test_closed_loop_prescriptive_verification(repo_with_vulnerable_topology):
-    client = Client(repo=repo_with_vulnerable_topology)
+def test_missing_prediction_result_degrades_to_splits_only(repo_with_congested_topology, caplog):
+    """Regression test for the defect this suite did not catch: every caller
+    that omits `prediction_result` (as reproduce/run_prescribe_all.py and
+    cli/prescribe_graph.py both did) silently loses Rules 2 and 3, because
+    Analyze is structural-only and analysis_result.quality is always None.
+
+    On this fixture NodeMain hosts a SPOF-triggering co-location and T1 is a
+    hardening candidate, so the full policy (with prediction_result) must
+    contain a reallocation and a QoS upgrade -- and the degraded policy
+    (without it) must contain neither, plus the loud warning that names why.
+    """
+    client = Client(repo=repo_with_congested_topology)
+    analysis = client.analyze(layer="system")
+    service = PrescribeService(repo_with_congested_topology)
+
+    degraded = service.compile_policy(analysis_result=analysis.raw, prediction_result=None)
+    assert len(degraded.topic_splits) > 0
+    assert degraded.node_reallocations == []
+    assert degraded.qos_upgrades == []
+
+    prediction = client.predict(analysis, mode="rm")
+    full = service.compile_policy(analysis_result=analysis.raw, prediction_result=prediction)
+    assert len(full.node_reallocations) > 0
+    assert len(full.qos_upgrades) > 0
+
+    import logging
+    with caplog.at_level(logging.WARNING, logger="saag.prescription.service"):
+        service.prescribe(analysis_result=analysis.raw, prediction_result=None, layer="system")
+    assert any("prediction_result" in record.message for record in caplog.records)
+
+
+def test_closed_loop_prescriptive_verification(repo_with_congested_topology):
+    client = Client(repo=repo_with_congested_topology)
     analysis = client.analyze(layer="system")
 
     # Run prescribe usecase
@@ -140,9 +171,9 @@ def test_closed_loop_prescriptive_verification(repo_with_vulnerable_topology):
     assert isinstance(res.accepted, bool)
     assert res.accepted == (res.sri_improvement > 0)
 
-def test_pipeline_integration(repo_with_vulnerable_topology):
+def test_pipeline_integration(repo_with_congested_topology):
     # Run the full pipeline including the prescribe step
-    pipeline = Pipeline(repo=repo_with_vulnerable_topology)
+    pipeline = Pipeline(repo=repo_with_congested_topology)
     res = pipeline.analyze().simulate().validate().prescribe().run()
 
     assert res.prescription is not None
@@ -150,22 +181,51 @@ def test_pipeline_integration(repo_with_vulnerable_topology):
     assert res.prescription.accepted == (res.prescription.sri_improvement > 0)
 
 
-def test_prescribe_empty_policy_reports_the_unchanged_baseline(repo_with_vulnerable_topology):
-    """An impossible bar rejects everything without pretending the graph moved."""
-    client = Client(repo=repo_with_vulnerable_topology)
+def test_prescribe_extreme_kappa_matches_the_documented_acceptance_rule(repo_with_congested_topology):
+    """At an astronomically high kappa, most edits get rejected -- but not
+    necessarily all of them.
+
+    docs/prescription.md L5: the bar `mean_delta > kappa * sigma_seed`
+    collapses to `mean_delta > 0` whenever `sigma_seed == 0` (the simulator is
+    deterministic for that edit), no matter how large kappa is raised. A prior
+    version of this test asserted `n_accepted == 0` unconditionally, which only
+    held because this fixture's edits happened to all have non-zero seed
+    spread -- coincidence, not the acceptance rule. This derives the expected
+    verdict from each edit's own per-threshold statistics instead, so it keeps
+    testing the rule itself even if that coincidence stops holding.
+    """
+    client = Client(repo=repo_with_congested_topology)
     analysis = client.analyze(layer="system")
 
-    res = client.prescribe(analysis_result=analysis, layer="system", kappa=1e9)
+    kappa = 1e9
+    res = client.prescribe(analysis_result=analysis, layer="system", kappa=kappa)
 
-    assert res.n_accepted == 0
-    assert res.policy.is_empty()
-    assert res.applied_changes == []
-    assert res.mutated_sri == res.original_sri
-    assert res.sri_improvement == 0.0
-    assert res.accepted is False
-    # The early return must still report what was declined and why.
-    assert res.edit_verdicts
-    assert all(v.reason for v in res.edit_verdicts)
+    assert res.edit_verdicts, "fixture must compile at least one candidate edit"
+    for verdict in res.edit_verdicts:
+        expected_accept = all(
+            stat.mean_delta > kappa * stat.sigma_seed
+            for stat in verdict.per_threshold.values()
+        )
+        assert verdict.accepted == expected_accept, (
+            f"{verdict.kind}/{verdict.target}: accepted={verdict.accepted} but "
+            f"per-threshold stats say {expected_accept}"
+        )
+        if not verdict.accepted:
+            assert verdict.reason, f"{verdict.kind}/{verdict.target} rejected without a reason"
+
+    if res.n_accepted == 0:
+        # Nothing cleared the bar: the early-return path reports the
+        # unchanged baseline rather than running a no-op mutation.
+        assert res.policy.is_empty()
+        assert res.applied_changes == []
+        assert res.mutated_sri == res.original_sri
+        assert res.sri_improvement == 0.0
+        assert res.accepted is False
+    else:
+        # A zero-variance edit cleared the bar despite kappa=1e9: the
+        # accepted subset must still be exactly what applied_changes reports.
+        assert len(res.policy.edits()) == res.n_accepted
+        assert len(res.applied_changes) == res.n_accepted
 
 
 def test_prescribe_result_to_dict_includes_accepted():

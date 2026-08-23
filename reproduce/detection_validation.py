@@ -5,7 +5,7 @@ reproduce/detection_validation.py — does the anti-pattern catalog find real ri
 
 Produces ``results/detection_validation.json``.
 
-The AuSE manuscript's RQ1 asks two things of the 21-pattern catalog
+The AuSE manuscript's RQ1 asks two things of the 19-pattern catalog
 (``saag/analysis/antipattern_detector.py``):
 
 1. **Efficacy** — do its findings correspond to components that actually matter
@@ -55,7 +55,7 @@ so results are invariant to the monotone ``robust_sigmoid_scale_dict`` rescaling
 
 Wall-clock timing
 -----------------
-``detect_seconds`` times load -> analyze -> RM -> all 21 detectors, i.e. exactly
+``detect_seconds`` times load -> analyze -> RM -> all 19 detectors, i.e. exactly
 the work a CI/CD detection gate performs. It excludes the oracle sweep, which is
 an evaluation cost and never runs in a gate.
 
@@ -109,7 +109,7 @@ FLAGGING_SEVERITIES = ("CRITICAL", "HIGH")
 #: emits one finding per path, keyed on the path string rather than a component.
 #: On the 29-component ``tiny_system`` fixture that is 247,761 findings; on the
 #: 50-application healthcare topology it does not terminate within ten minutes.
-#: It is excluded so the remaining twenty detectors can be measured at all. The
+#: It is excluded so the remaining eighteen detectors can be measured at all. The
 #: exclusion is a measured defect, not a methodological choice, and belongs in the
 #: manuscript as such.
 DEFAULT_EXCLUDED_PATTERNS = ["DEEP_PIPELINE"]
@@ -551,7 +551,7 @@ def parse_args():
     p.add_argument("--exclude-patterns", nargs="*", default=DEFAULT_EXCLUDED_PATTERNS,
                    help="Catalog IDs to hold out. Default excludes DEEP_PIPELINE, whose "
                         "all-simple-paths enumeration does not terminate on the larger "
-                        "scenarios. Pass an empty list to attempt the full 21.")
+                        "scenarios. Pass an empty list to attempt the full 19.")
     p.add_argument("--output", type=Path, default=RESULTS_DIR / "detection_validation.json")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()

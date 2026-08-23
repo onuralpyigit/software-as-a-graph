@@ -80,6 +80,27 @@ class PrescribeService:
             f"{len(candidate_policy.node_reallocations)} reallocations, "
             f"{len(candidate_policy.qos_upgrades)} upgrades."
         )
+        if (
+            prediction_result is None
+            and candidate_policy.topic_splits
+            and not candidate_policy.node_reallocations
+            and not candidate_policy.qos_upgrades
+        ):
+            # Rules 2 (node reallocation) and 3 (QoS upgrade) only fire on
+            # components the Predict stage flagged CRITICAL/HIGH or an
+            # anti-pattern detector flagged as SPOF/god-component -- both of
+            # which live on prediction_result, not analysis_result (Analyze
+            # is structural-only). A splits-only policy with no
+            # prediction_result is this defect's exact signature, not
+            # evidence those operators have nothing to offer.
+            logger.warning(
+                "prescribe() was called without prediction_result: Rules 2 and 3 "
+                "(node reallocation, QoS upgrade) can never fire without the "
+                "Predict stage's CRITICAL/HIGH and anti-pattern findings, so this "
+                "policy is topic splits only by construction, not because "
+                "reallocation/QoS candidates don't exist. Pass prediction_result "
+                "from client.predict(analysis_result) to compile the full policy."
+            )
 
         # 2. Baseline system health and resilience.
         logger.info("Evaluating baseline system health and resilience...")
