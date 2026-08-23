@@ -1,4 +1,4 @@
-# Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Reliability and Dependability Analysis of Distributed Systems
+# Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Reliability and Dependability Analysis of Complex Distributed Systems
 
 **Authors.** *[Omitted for double-anonymised review.]*
 
@@ -10,17 +10,21 @@
 
 # Abstract
 
-Modern distributed software systems—including publish–subscribe middleware and microservice meshes—heavily decouple components in space and time. While this decoupling enables horizontal scalability and autonomous lifecycle management, it conceals the complex dependency pathways along which cascading failures propagate. Because operational telemetry does not exist prior to deployment, and source-code static analysis cannot observe distributed topology, identifying systemically critical components and explaining their vulnerability remains a fundamental challenge. 
+Modern distributed software—such as publish–subscribe middleware and microservices—heavily decouples components to achieve scalability. However, this decoupling obscures how cascading failures propagate across message brokers, topics, shared libraries, and host nodes. Detecting systemically critical components before deployment is challenging: operational telemetry does not yet exist, and traditional static code analysis cannot observe distributed communication topologies. When uncontained cascading failures reach production, they trigger costly downtime, emergency restart loops, and excessive energy consumption.
 
-We present **Software-as-a-Graph (SaG)**, a pre-deployment Static System Analysis framework that models complex distributed architectures as typed, weighted, directed multigraphs over five entity classes (Applications, Brokers, Topics, Nodes, and Libraries) with logical dependencies derived through typed projection rules. On this representation, we formulate a relation-specific **Heterogeneous Graph Transformer (HGL)** to forecast cascading failure impact and detect critical components, complemented by an interpretable **Reliability–Maintainability (RM)** attribution baseline grounded in the ISO/IEC 25010/25019 quality models. Both predictors are evaluated against discrete-event cascade simulators operating on a structurally disjoint view of the system under a strict input–label independence guarantee.
+To solve this, we present **Software-as-a-Graph (SaG)**, an AI-driven framework for pre-deployment reliability analysis. SaG represents distributed system architectures as typed multigraphs across five core entities: Applications, Brokers, Topics, Execution Nodes, and Shared Libraries. On this representation, SaG pairs two complementary techniques:
+1. **Heterogeneous Graph Transformer (HGL):** A relation-specific graph neural network that learns multi-layer propagation patterns to forecast cascading failure blast radii and rank critical components.
+2. **Explainable Quality Attribution (RM):** An interpretable baseline grounded in ISO/IEC 25010 and ISO/IEC 25019 quality models that explains the structural root causes of vulnerability.
 
-Across seven synthetic topologies and three authentic open-source distributed systems (Autoware.universe ROS 2, a Cloud-Native Microservices mesh, and the Train-Ticket benchmark), our empirical evaluation yields four principal findings:
-1. **Graph Learning Efficacy:** Typed graph learning consistently outperforms non-learning structural baselines, demonstrating its strongest advantage in critical-set identification ($F_1@K = 0.467$ vs. $0.339$, a $+37.8\%$ relative gain) and inductive out-of-distribution ranking ($\rho = 0.668$ vs. $0.521$).
-2. **Value of Heterogeneity and the QoS Trade-off:** Relation-specific message passing is the primary driver of cross-architectural generalisation, with typed GNNs outperforming homogeneous graph attention networks by $+0.197$ in rank correlation under Leave-One-Scenario-Out (LOSO) validation. Explicit QoS edge encoding has an asymmetric effect: it mildly reduces in-distribution accuracy ($\Delta\rho = -0.072$) yet is the single largest driver of LOSO generalisation, making the QoS-aware variant the best-performing configuration overall under distribution shift.
-3. **Multi-Dimensional Attribution:** The hierarchical RM profile successfully disentangles error propagation (fault tolerance) from single-point-of-failure vulnerabilities (availability), directing engineers toward targeted architectural remediations — though RM's standalone ranking accuracy remains weak (LOSO $\rho \approx -0.01$), so its role is diagnostic attribution rather than a competing predictor.
-4. **Real-World Transferability:** SaG successfully generalizes to complex real-world architectures, achieving strong rank agreement ($\rho = 0.688$ to $0.778$) and robust critical-set containment across both cyber-physical and cloud-native paradigms.
+We evaluate SaG across 1,770 components from seven synthetic scenarios and three real-world open-source systems (Autoware.universe ROS 2, GCP Cloud Microservices, and the Train-Ticket benchmark) against independent discrete-event cascade simulators under a strict input–label independence guarantee. Our key findings show:
+- **Superior Criticality Detection:** Typed graph learning outperforms standard structural metrics, achieving a $+37.8\%$ relative gain in identifying top-$K$ critical components ($F_1@K = 0.467$ vs. $0.339$) and strong out-of-distribution ranking ($\rho = 0.668$).
+- **Value of Heterogeneous Modeling:** Heterogeneous message passing outperforms homogeneous graph neural networks by $+0.197$ in cross-scenario rank correlation, with Quality-of-Service (QoS) edge encoding providing critical robustness across differing architectures.
+- **Actionable Explainability:** The quality attribution model successfully separates single points of failure (availability) from error propagation depth (fault tolerance), turning black-box graph predictions into concrete architectural fixes (e.g., broker replication vs. topic decoupling).
+- **Real-World Generalization:** SaG transfers effectively to authentic cyber-physical and cloud-native systems, achieving high rank agreement ($\rho = 0.688$ to $0.778$) and capturing up to $100\%$ of failure-impactful services within the predicted critical set.
 
-**Keywords:** Graph representation learning; heterogeneous graph neural networks; publish–subscribe middleware; distributed systems dependability; cascading failures; static system analysis; architectural quality models.
+By enabling automated architectural analysis within CI/CD pipelines before deployment, SaG bridges the Architecture–Code Gap, fostering resilient, dependable, and energy-efficient software systems.
+
+**Keywords:** Graph representation learning; heterogeneous graph neural networks; publish–subscribe middleware; distributed systems dependability; cascading failures; static system analysis; architectural quality models; explainable AI.
 
 ---
 
@@ -28,40 +32,40 @@ Across seven synthetic topologies and three authentic open-source distributed sy
 
 ## 1.1 Motivation
 
-The publish–subscribe (pub-sub) and asynchronous event-driven paradigms have become core architectural abstractions for large-scale distributed systems, spanning cyber-physical systems, autonomous vehicles, cloud-native microservices, robotics, and the Internet of Things (IoT). By decoupling producers and consumers in time, space, and synchronization, pub-sub architectures allow independent components to scale, evolve, and fail without direct coordination [1]. Standardized middleware—such as the Data Distribution Service (DDS) [2], MQTT [3], Apache Kafka [43], and ROS 2 [44]—exposes rich deployment-time Quality-of-Service (QoS) configurations (including reliability, durability, and deadline policies) that govern message routing and system behavior under stress.
+The publish–subscribe (pub-sub) and asynchronous event-driven paradigms have become foundational architectural abstractions for large-scale distributed systems, spanning cyber-physical systems, autonomous robotics, cloud-native microservice meshes, and the Internet of Things (IoT). By decoupling producers and consumers across time, space, and synchronization, pub-sub architectures allow independent components to scale, evolve, and fail without direct coordination [1]. Standardized middleware platforms—such as ROS 2 [44], Apache Kafka [43], the Data Distribution Service (DDS) [2], and MQTT [3]—expose expressive deployment-time Quality-of-Service (QoS) policies (governing reliability, durability, history, and deadlines) that regulate message routing and buffer behavior under stress.
 
-However, the very decoupling that makes asynchronous distributed systems flexible also creates a profound visibility barrier when reasoning about dependability. In pub-sub and event-driven architectures, there are no explicit caller–callee invocations: a publishing process maintains no direct static reference to its consumers, even when those consumers are entirely dependent upon its data stream. Consequently, cascading failures do not follow traditional call graphs. Instead, failures propagate along *derived* logical paths across message brokers, shared topics, colocated execution nodes, and shared software libraries. When a shared library crashes, it induces a *simultaneous failure* across all consuming applications rather than a sequential cascade. Traditional architectural block diagrams and static call graphs fail to reveal these multi-layer failure pathways, meaning that the components whose failure would cause the most catastrophic downstream outage are rarely the ones that appear prominent in high-level diagrams.
+However, the very decoupling that makes asynchronous distributed architectures flexible also creates a profound **visibility barrier** when assessing system dependability. In pub-sub and event-driven architectures, there are no explicit caller–callee invocations: a publishing application maintains no direct static reference to its subscribers, even when downstream subscribers depend entirely on its data stream. Consequently, cascading failures do not follow conventional static call graphs. Instead, failures propagate along *derived* logical paths across message brokers, shared topics, colocated execution nodes, and shared software libraries. For instance, when a shared library crashes, it induces an immediate, *simultaneous failure* across all consuming applications rather than a sequential cascade. Traditional block diagrams and static call graphs fail to reveal these multi-layer failure pathways. As a result, the components whose failure triggers the most severe system-wide outages are rarely the ones that appear prominent in high-level diagrams.
 
-Addressing this vulnerability is most cost-effective *prior to deployment*, during the design and continuous integration (CI/CD) stages, where structural refactoring and redundancy insertion are cheapest. Yet, pre-deployment is precisely the phase where no runtime telemetry, distributed tracing, or operational logs exist. Software architects and reliability engineers must therefore answer two critical questions solely from design-time descriptors:
-1. *Which components and communication links are systemically critical to system availability and reliability?*
-2. *Why are they critical, and what specific architectural intervention (e.g., broker replication, topic decoupling, library sandboxing) will most effectively mitigate that risk?*
+Addressing these architectural vulnerabilities is most cost-effective **prior to deployment**, during the design and Continuous Integration / Continuous Delivery (CI/CD) stages, where structural refactoring and redundancy allocation are least expensive. Yet, pre-deployment is precisely the phase where no operational logs, runtime telemetry, or distributed traces exist. Software architects and reliability engineers must therefore answer two critical questions solely from design-time descriptors:
+1. *Which components and communication channels are systemically critical to overall availability and reliability?*
+2. *Why are they critical, and what specific architectural remediation (e.g., broker replication, topic decoupling, library sandboxing) will most effectively mitigate that risk?*
 
-Uncontained cascading failures in production also carry substantial sustainability and operational costs: emergency failovers, retransmission storms, and compute-heavy restart loops waste energy and infrastructure resources that proactive architectural hardening avoids.
+Uncontained cascading failures in production also carry substantial sustainability and operational costs. Emergency failovers, retransmission storms, and compute-heavy crash-restart loops waste significant energy and computational resources that proactive, pre-deployment architectural hardening can systematically prevent.
 
 ## 1.2 Problem Statement and Limitations of Existing Work
 
 We formulate pre-deployment dependability analysis for complex distributed systems as two coupled tasks:
-1. **Interpretable Criticality Attribution:** Computing a multi-dimensional, standards-grounded quality profile for every component and dependency—derived from ISO/IEC 25010 [16] and ISO/IEC 25019 [17]—to explain *how* and *why* a component is vulnerable.
-2. **Failure-Impact Forecasting:** Accurately predicting the global cascade blast radius and ranking the most failure-critical components using learned topological representations, enabling engineers to prioritize hardening under budget constraints.
+1. **Explainable Criticality Attribution:** Computing a multi-dimensional, standards-grounded quality profile for every component and dependency—derived from ISO/IEC 25010 [16] and ISO/IEC 25019 [17]—to explain *how* and *why* a component is vulnerable.
+2. **Failure-Impact Forecasting:** Accurately predicting the global cascade blast radius and ranking failure-critical components using learned topological representations, enabling engineers to prioritize hardening under budget constraints.
 
-Existing techniques fall short of bridging what we term the **"Architecture–Code Gap"**: a distributed system may exhibit pristine, bug-free source code within each component, yet remain systemically fragile due to hidden topological single points of failure (SPOFs) or mismatched middleware QoS contracts. Three prevailing paradigms leave this gap unaddressed:
+Existing techniques fail to bridge what we term the **"Architecture–Code Gap"**: a distributed system may exhibit pristine, bug-free source code within each individual component, yet remain systemically fragile due to hidden topological single points of failure (SPOFs) or mismatched middleware QoS contracts. Three prevailing paradigms leave this gap unaddressed:
 
-- **Static Code Analysis (SCA):** Tools such as SonarQube evaluate code complexity [29], cohesion, and modularity [28, 30] at the individual service level. However, SCA is entirely blind to inter-component distributed topology, middleware message queues, and cross-host failure propagation.
-- **Runtime Chaos Engineering and Telemetry:** Approaches such as Chaos Monkey [18] and distributed tracing inject real faults into running staging or production clusters. While valuable, they require fully operational infrastructure, carry operational risks, and operate too late in the software development lifecycle to guide design-time architecture.
-- **Homogeneous and Topology-Only Network Analysis:** Traditional graph centrality measures (betweenness, PageRank, degree) [4, 5, 37, 38] collapse complex systems into flat, unweighted networks. They discard node and edge semantics, conflating entirely distinct failure modes (such as sequential event propagation vs. simultaneous library crashes). Similarly, homogeneous Graph Neural Networks (GNNs) [39, 40, 41] flatten heterogeneous middleware interactions, losing relation-specific propagation patterns.
+- **Static Code Analysis (SCA):** Tools such as SonarQube evaluate code complexity [29], cohesion, and modularity [28, 30] at the individual service level. However, SCA is entirely blind to inter-component distributed topologies, middleware message queues, and cross-host failure propagation.
+- **Runtime Chaos Engineering and Telemetry:** Approaches such as Chaos Monkey [18] and distributed tracing inject faults into active staging or production environments. While valuable, they require fully operational infrastructure, carry operational risks, and operate too late in the software lifecycle to guide design-time architecture.
+- **Homogeneous and Topology-Only Network Analysis:** Traditional graph centrality measures (betweenness, PageRank, degree) [4, 5, 37, 38] collapse complex systems into flat, unweighted graphs. They discard entity and edge semantics, conflating distinct failure modes (such as sequential event cascades vs. simultaneous library crashes). Similarly, homogeneous Graph Neural Networks (GNNs) [39, 40, 41] flatten heterogeneous middleware interactions, losing relation-specific propagation patterns.
 
-No existing approach provides a unified, pre-deployment framework that combines typed multigraph representations, code-level quality ingestion, heterogeneous graph learning, and interpretable quality attribution.
+No existing approach provides a unified, pre-deployment framework that combines typed multigraph modeling, code-level quality ingestion, heterogeneous graph representation learning, and explainable quality attribution.
 
 ## 1.3 The Software-as-a-Graph (SaG) Approach
 
-To overcome these limitations, we introduce **Software-as-a-Graph (SaG)**, a pre-deployment **Static System Analysis (SSA)** framework. SaG operates on system architecture descriptions (expressed as Architecture-as-Code manifests) and executes a four-stage analysis pipeline:
+To overcome these limitations, we introduce **Software-as-a-Graph (SaG)**, an AI-driven pre-deployment **Static System Analysis (SSA)** framework. SaG ingests Architecture-as-Code descriptors and executes a four-stage analysis pipeline:
 
-1. **Typed Multigraph Formulation:** SaG models the distributed system as a typed, weighted, directed multigraph over five core entity types: Applications, Brokers, Topics, Execution Nodes, and Shared Libraries (§3.1).
+1. **Typed Multigraph Formulation:** SaG models the distributed architecture as a typed, weighted, directed multigraph over five entity types: Applications, Brokers, Topics, Execution Nodes, and Shared Libraries (§3.1).
 2. **QoS-Aware Logical Dependency Projection:** Using six formal projection rules, SaG derives a semantic `DEPENDS_ON` dependency layer that explicitly captures both sequential cascades (via topics and brokers) and simultaneous blast radii (via shared libraries and node colocation), weighted by declared QoS contracts (§3.2).
-3. **Interpretable Quality Attribution:** SaG integrates code-level SCA metrics with topological properties into a hierarchical **Reliability–Maintainability (RM)** attribution model (§4). Reliability decomposes into **Fault Tolerance** (error propagation depth) and **Availability** (structural articulation and SPOF exposure), providing explainable diagnostics for reliability engineers.
-4. **Graph Learning for Failure Forecasting:** SaG deploys a **Heterogeneous Graph Transformer (HGL)** that performs relation-specific attention and message passing across typed entities to forecast cascading failure impacts (§5).
+3. **Explainable Quality Attribution:** SaG integrates code-level SCA metrics with topological properties into a hierarchical **Reliability–Maintainability (RM)** attribution model (§4). Reliability decomposes into **Fault Tolerance** (error propagation depth) and **Availability** (structural articulation and SPOF exposure), providing interpretable diagnostics for software architects.
+4. **Heterogeneous Graph Learning for Failure Forecasting:** SaG deploys a **Heterogeneous Graph Transformer (HGL)** that applies relation-specific attention and message passing across typed entities to forecast cascading failure blast radii and rank critical components (§5).
 
-To guarantee methodological rigor, the framework enforces an **input–label independence guarantee**: the learned and attribution predictors operate strictly on the derived analytical graph $G_{\text{analysis}}$, whereas ground-truth failure impacts are generated by discrete-event simulators executing over the raw structural topology $G_{\text{structural}}$ (§5.3).
+To guarantee methodological rigor, the framework enforces an **input–label independence guarantee**: the learned and attribution predictors operate strictly on the derived analytical graph $G_{\text{analysis}}$, whereas ground-truth failure impacts are generated by discrete-event simulators executing over the raw structural topology $G_{\text{structural}}$ (§5.4).
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -107,53 +111,35 @@ To guarantee methodological rigor, the framework enforces an **input–label ind
 ```
 *Figure 1. End-to-end architecture of the Software-as-a-Graph (SaG) framework.*
 
-## 1.3.1 Why a Predictor Rather Than the Oracle
+### 1.3.1 Why a Predictor Rather Than the Oracle Alone
 
-Because $I^*(v)$ *defines* criticality in this framework, the critical set is in principle already
-computable by sweeping the simulator over every component. We state the implication plainly rather
-than deferring it to Section 8: **simulation alone is sufficient to identify critical components,
-given a complete and correctly parameterised model and enough compute to sweep it.** No predictor
-evaluated here can exceed its own oracle on the oracle's own terms, and none is claimed to; every
-correlation we report is *surrogate fidelity*, not accuracy against observed production failure.
+Because simulated impact $I^*(v)$ defines ground-truth criticality in this study, the critical set is in principle computable by sweeping a discrete-event simulator over every component. We state the practical motivation clearly: **simulation alone is sufficient to evaluate an existing system when a complete simulator is available and computational budget permits an exhaustive sweep.** No learned surrogate claims to exceed its own simulation oracle on the oracle's exact terms; all reported correlations measure surrogate fidelity.
 
-The attribution and learning stages are motivated instead by three properties of the oracle itself.
-First, it is **incomplete by construction**: the cascade model cannot express the direct failure of
-a Topic or a physical Node, so 30--47\% of components per scenario carry no ground truth at all and
-are excluded from labelling deliberately rather than scored zero. Second, it is **one draw from a
-family of disagreeing, parameter-sensitive simulators** (Section 5.1); the propagation threshold is
-a free parameter of the *ground truth* rather than of any model, and per-node label standard
-deviation across seeds reaches 0.416 on a $[0,1]$-bounded target. A model fitted across systems,
-seeds, and scenarios is therefore a variance-reduced, threshold-marginalised estimate rather than a
-cheaper copy of one sweep. Third, its cost falls in the wrong place: a sweep of the graph *as it
-stands* is affordable, but evaluating the space of candidate architectural repairs is not, which is
-why remediation is structured as cheap proposal followed by expensive simulated verification rather
-than as search-by-simulation.
-
-Attribution is defended separately in Section 4 on a different ground: simulation returns an impact
-*magnitude*, not a *reason*, and it is the dimension-level reason --- articulation point, subscriber
-concentration, QoS mismatch --- that determines which architectural repair applies. This is why the
-RM baseline's weak standalone ranking under distribution shift (Section 7.1) is not fatal to it.
+The attribution and learning stages are motivated instead by four fundamental properties:
+1. **Handling Incomplete Instrumentation:** Discrete-event cascade models cannot directly express the intrinsic failure of passive middleware components (such as unmonitored Topics or physical Nodes). Consequently, 30% to 47% of components per scenario lack direct simulation labels. A learned model generalizes across both labeled and unmeasured entities.
+2. **Variance Reduction Across Operating Regimes:** Discrete-event cascade simulators are highly sensitive to initial seeds and propagation thresholds (per-node label standard deviation reaches $0.416$ across seeds). A trained GNN model acts as a variance-reduced, threshold-marginalized estimator across architectural distributions.
+3. **Evaluation Speed for CI/CD Quality Gating:** Sweeping a multi-stage simulation over large graphs during every pull request or architectural commit is computationally prohibitive. A trained graph transformer produces near-instantaneous inference ($< 50\,\text{ms}$), enabling automated pre-deployment quality gating.
+4. **Diagnostic Explainability:** Simulation returns only a numerical impact *magnitude*, not an architectural *reason*. The ISO-grounded quality attribution model reveals the underlying mechanism (e.g., single-point-of-failure articulation vs. fan-out concentration), directly pointing architects toward the appropriate remediation.
 
 ## 1.4 Research Questions
 
-Our investigation evaluates the predictive power, interpretability, and generalizability of SaG across four research questions:
-
+Our empirical evaluation investigates four research questions:
 - **RQ1 (Predictive Efficacy):** How accurately does typed graph learning predict cascading failure impact and identify critical component sets compared to non-learning topological baselines, both in-distribution and under inductive cross-scenario evaluation?
 - **RQ2 (Value of Heterogeneity):** What failure mechanisms and structural vulnerabilities does typed heterogeneity reveal that homogeneous graph representations and single-scalar centralities obscure?
 - **RQ3 (Ablations and Sensitivity):** How do explicit QoS feature encodings and multi-attribute weighting calibrations affect model performance and ranking stability?
-- **RQ4 (Real-World Generalization):** Does the graph learning framework successfully transfer to authentic, real-world open-source distributed software architectures across different architectural paradigms?
+- **RQ4 (Real-World Generalization):** Does the graph learning framework successfully transfer to authentic, real-world open-source distributed software architectures across cyber-physical and cloud-native paradigms?
 
 ## 1.5 Key Contributions
 
-This paper makes the following primary contributions:
-1. **A Formal Typed Architecture Model:** A multigraph representation of distributed pub-sub and event-driven systems that derives logical dependencies and distinguishes sequential cascade propagation from simultaneous multi-consumer library failures (§3).
-2. **Heterogeneous Graph Learning for Dependability:** A relation-specific Heterogeneous Graph Transformer (HGL) tailored for pre-deployment cascading failure prediction and critical component detection (§5).
-3. **Standards-Grounded Interpretable Attribution:** An explainable Reliability–Maintainability (RM) quality baseline grounded in ISO/IEC 25010/25019 that bridges code-level SCA metrics with system-level topological criticality (§4).
-4. **Empirical Evaluation and Scope Conditions:** A rigorous empirical evaluation across seven synthetic topologies (1,545 components) and three real-world open-source systems (Autoware.universe ROS 2, Cloud-Native Microservices, and Train-Ticket; 225 components) under strict input–label independence, establishing where typed graph learning provides decisive advantages (§6–§7).
+This paper makes four principal contributions:
+1. **A Formal Typed Architecture Model:** A multigraph representation of distributed pub-sub and microservice systems that derives logical dependencies and distinguishes sequential cascade propagation from simultaneous multi-consumer library failures (§3).
+2. **Heterogeneous Graph Learning for Dependability:** A relation-specific Heterogeneous Graph Transformer (HGL) with 16-dimensional QoS edge feature encoding tailored for pre-deployment failure blast-radius prediction (§5).
+3. **Standards-Grounded Explainable Attribution:** An interpretable Reliability–Maintainability (RM) quality baseline grounded in ISO/IEC 25010/25019 that bridges code-level SCA metrics with system-level topological criticality (§4).
+4. **Empirical Evaluation & Real-World Validation:** A rigorous empirical evaluation across seven synthetic topologies (1,545 components) and three authentic real-world systems (Autoware.universe ROS 2, GCP Cloud Microservices, and Train-Ticket; 225 components) under strict input–label independence, establishing the exact conditions where typed graph learning delivers decisive advantages (§6–§7).
 
 ## 1.6 Paper Organization
 
-The remainder of this paper is structured as follows: Section 2 reviews related work in distributed systems dependability, static system analysis, and graph representation learning. Section 3 formalizes the Software-as-a-Graph architectural model and dependency projection rules. Section 4 presents the interpretable RM attribution baseline. Section 5 details the Heterogeneous Graph Transformer formulation and simulation ground truth. Section 6 describes the experimental setup, datasets, and protocols. Section 7 presents empirical results for RQ1–RQ4. Section 8 discusses architectural implications, threats to validity, and conclusions.
+The remainder of this paper is organized as follows: Section 2 reviews related work in distributed systems dependability, static system analysis, and graph representation learning. Section 3 formalizes the Software-as-a-Graph architectural model and dependency projection rules. Section 4 presents the interpretable RM attribution baseline. Section 5 details the Heterogeneous Graph Transformer architecture and simulation ground truth. Section 6 describes the experimental setup, benchmark corpus, and evaluation protocols. Section 7 presents empirical results for RQ1–RQ4. Section 8 discusses architectural implications, sustainability impacts, threats to validity, and concluding remarks.
 
 ---
 

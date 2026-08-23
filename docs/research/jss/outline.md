@@ -1,4 +1,4 @@
-# Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Reliability and Dependability Analysis of Distributed Systems
+# Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Reliability and Dependability Analysis of Complex Distributed Systems
 
 > **`draft.md` is the authoritative manuscript text.** This outline is a section-by-section reading
 > map of it — what each subsection argues, what backs the claim, what caveats travel with it, where a
