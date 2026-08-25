@@ -1,36 +1,64 @@
 \section{Related Work}
 \label{sec:2}
 
-This research intersects four major domains: distributed systems dependability, static system analysis, graph representation learning for network vulnerability, and software quality models.
+This research intersects four foundational domains: distributed systems dependability, static system analysis, graph neural networks for network vulnerability, and software quality models.
 
 \subsection{Dependability in Distributed and Pub-Sub Systems}
 \label{sec:2.1}
 
-The publish--subscribe paradigm provides foundational communication decoupling for distributed systems \cite{eugster2003faces}. Formal middleware specifications---such as DDS \cite{omg2015dds}, MQTT \cite{oasis2019mqtt}, ROS~2 \cite{macenski2022robot}, and distributed commit logs like Kafka \cite{kreps2011kafka}---enable fine-grained QoS policies governing durability, liveliness, and transport reliability. Prior research on pub-sub dependability has predominantly focused on runtime mechanisms: fault-tolerant event routing, broker clustering, dynamic consensus, and adaptive message retransmission.
+The publish--subscribe (pub-sub) paradigm provides core communication decoupling for scalable distributed software \cite{eugster2003faces}. Modern middleware standards---such as ROS~2 \cite{macenski2022robot}, Apache Kafka \cite{kreps2011kafka}, DDS \cite{omg2015dds}, and MQTT \cite{oasis2019mqtt}---enable fine-grained Quality-of-Service (QoS) policies governing message durability, transport reliability, and queue deadlines. Prior dependability research in this area has focused primarily on \textbf{runtime mechanisms}, such as dynamic consensus protocols, broker clustering, adaptive retransmission, and automated failover.
 
-In parallel, runtime verification and chaos engineering \cite{basiri2016chaos} systematically inject faults into staging or production clusters to observe steady-state recovery. While essential for validating operational resilience, runtime techniques operate late in the software lifecycle, require complete infrastructure deployments, and cannot evaluate architectural alternatives during initial design. Our work addresses the complementary, pre-deployment phase: predicting cascading vulnerability from architectural models \emph{before} systems are deployed.
+In parallel, \textbf{chaos engineering and runtime verification} \cite{basiri2016chaos} inject simulated faults into running staging or production clusters to observe recovery behavior. While runtime fault injection is valuable for testing operational infrastructure, it comes with fundamental limitations:
+\begin{itemize}
+    \item It requires fully deployed, operational testbeds.
+    \item It carries operational risk if run near production.
+    \item It operates too late in the software lifecycle to evaluate alternative architectural designs before systems are built.
+\end{itemize}
+Our work addresses the complementary, \textbf{pre-deployment phase}: predicting systemic cascading vulnerabilities directly from Architecture-as-Code descriptors \emph{before} systems are deployed.
 
-\subsection{Static Code Analysis vs. Static System Analysis}
+\subsection{Static Code Analysis (SCA) vs. Static System Analysis (SSA)}
 \label{sec:2.2}
 
-Traditional Static Code Analysis (SCA) analyzes source code abstract syntax trees (ASTs) to measure cyclomatic complexity \cite{mccabe1976complexity}, module coupling (e.g., LCOM, CBO) \cite{chidamber1994metrics,fenton2014metrics}, and code duplication. While SCA effectively identifies internal code smells and defect-prone modules \cite{basili1996validation,nagappan2005static,zimmermann2007predicting,menzies2007data}, it is entirely oblivious to inter-process communication, container placement, and middleware topologies.
+Traditional \textbf{Static Code Analysis (SCA)} tools (such as SonarQube) inspect source code Abstract Syntax Trees (ASTs) within individual services. They evaluate cyclomatic complexity \cite{mccabe1976complexity}, class cohesion, module coupling (e.g., LCOM, CBO) \cite{chidamber1994metrics,fenton2014metrics}, and duplicated code to flag internal code smells and defect-prone components \cite{basili1996validation,nagappan2005static,zimmermann2007predicting,menzies2007data}. However, SCA is completely blind to runtime topology: it cannot observe inter-service messaging channels, message broker queues, or cross-host container placement.
 
-To bridge this ``Architecture--Code Gap,'' \textbf{Static System Analysis (SSA)} elevates static analysis to the system architecture level. By modeling distributed components, message channels, and infrastructure hosts as a global dependency graph, SSA frameworks propagate code-level quality attributes across topological links. This enables continuous pre-deployment verification in modern CI/CD pipelines \cite{humble2010continuous,chen2015continuous}, catching structural anti-patterns \cite{garcia2009catalogue,garcia2009identifying,taibi2018microservice,dragoni2017microservices} and architectural degradation \cite{cunningham1992wycash,li2015technicaldebt} at commit time.
+To close this ``Architecture--Code Gap,'' \textbf{Static System Analysis (SSA)} elevates static analysis from single-service source code to the global system architecture. By modeling distributed applications, message topics, brokers, and execution nodes as a connected graph, SSA propagates code-level metrics across architectural dependencies. This allows software teams to catch structural anti-patterns \cite{garcia2009catalogue,garcia2009identifying,taibi2018microservice,dragoni2017microservices} and architectural technical debt \cite{cunningham1992wycash,li2015technicaldebt} early during continuous integration (CI/CD) \cite{humble2010continuous,chen2015continuous}.
 
 \subsection{Network Science and Graph Representation Learning}
 \label{sec:2.3}
 
-Network science offers established metrics for identifying critical network elements, including degree, closeness, betweenness centrality \cite{freeman1977centrality,brandes2001faster}, articulation points, and PageRank \cite{brin1998pagerank,newman2010networks}. Studies on random failure tolerance \cite{albert2000error}, cascading overload \cite{motter2002cascade}, and interdependent networks \cite{buldyrev2010cascade} have provided deep mathematical foundations for systemic vulnerability. However, standard network metrics suffer from two fundamental limitations when applied to software architectures:
+Network science provides established centrality metrics to identify critical nodes, such as degree, closeness, betweenness centrality \cite{freeman1977centrality,brandes2001faster}, articulation points, and PageRank \cite{brin1998pagerank,newman2010networks}. Foundational studies on network robustness \cite{albert2000error}, cascading overloads \cite{motter2002cascade}, and interdependent networks \cite{buldyrev2010cascade} model how failures propagate across connected systems. However, standard network metrics suffer from two major limitations when applied to software architectures:
 \begin{enumerate}
-    \item \emph{Dimensional Collapse:} A single centrality score cannot distinguish a structural Single Point of Failure (SPOF) from an error-propagating cascade hub or a high-maintenance bottleneck.
-    \item \emph{Semantic Collapse:} Discarding node and edge types treats an asynchronous pub-sub topic the same as a physical host or a shared library, masking distinct failure propagation mechanics.
+    \item \textbf{Dimensional Collapse:} A single centrality number cannot distinguish \emph{why} a component is critical---for instance, whether it is a single point of failure (SPOF), an error-propagating hub, or an over-shared library.
+    \item \textbf{Semantic Collapse:} Standard metrics treat all nodes and edges identically. They conflate fundamentally different architectural entities, such as an asynchronous message topic, a shared C++ library, and a physical execution host.
 \end{enumerate}
 
-To overcome the limitations of hand-engineered graph metrics, recent research has applied machine learning on graphs for network dismantling and criticality estimation (e.g., FINDER \cite{fan2020keyplayers}, DrBC \cite{fan2019learning}, and PowerGraph \cite{varbella2024powergraph}). However, most existing models rely on homogeneous message passing (GCN \cite{kipf2017semi}, GraphSAGE \cite{hamilton2017inductive}, GAT \cite{velickovic2018graph}). Because distributed middleware is inherently multi-typed and heterogeneous, homogeneous aggregation mixes fundamentally incompatible semantic relationships. Heterogeneous Graph Neural Networks (RGCN \cite{schlichtkrull2018rgcn}, HAN \cite{wang2019han}, HGT \cite{hu2020hgt}, MAGNN \cite{fu2020magnn}) address this by parameterizing relation-specific transformations. We build upon the Heterogeneous Graph Transformer (HGT) architecture \cite{hu2020hgt} to maintain typed relational semantics during cascade impact forecasting.
+To move beyond hand-engineered graph metrics, recent research has applied machine learning to network vulnerability (e.g., FINDER \cite{fan2020keyplayers}, DrBC \cite{fan2019learning}, and PowerGraph \cite{varbella2024powergraph}). However, most existing models use \textbf{homogeneous message passing} (GCN \cite{kipf2017semi}, GraphSAGE \cite{hamilton2017inductive}, GAT \cite{velickovic2018graph}), which averages signals across all connections indiscriminately. Because distributed software architectures are inherently \textbf{heterogeneous} (comprising distinct entity types and relationship rules), homogeneous models blur critical architectural boundaries.
+
+Heterogeneous Graph Neural Networks (RGCN \cite{schlichtkrull2018rgcn}, HAN \cite{wang2019han}, HGT \cite{hu2020hgt}, MAGNN \cite{fu2020magnn}) solve this by using relation-specific transformations. We build upon the \textbf{Heterogeneous Graph Transformer (HGT)} architecture \cite{hu2020hgt} to maintain typed relational semantics when forecasting cascading failure blast radii.
 
 \subsection{Software Quality Models and Multi-Criteria Evaluation}
 \label{sec:2.4}
 
-Software product quality is standardized by the ISO/IEC 25010:2023 product quality model \cite{iso25010_2023} (comprising nine characteristics including Reliability, Maintainability, and Security) and the ISO/IEC 25019:2023 Quality-in-Use standard \cite{iso25019_2023} (evaluating stakeholder harm over Beneficialness, Freedom from Risk, and Acceptability). Quality evaluation distinguishes between \emph{internal quality} (measured statically on software artifacts at rest) and \emph{external quality} (measured dynamically on executing systems) \cite{iso25023_2016,iso25021_2012}.
+Software product quality is standardized by the \textbf{ISO/IEC 25010:2023} product quality model \cite{iso25010_2023} (which defines characteristics including Reliability, Maintainability, and Performance Efficiency) and the \textbf{ISO/IEC 25019:2023} Quality-in-Use model \cite{iso25019_2023}. Software measurement distinguishes between \emph{internal quality} (measured on static artifacts at rest) and \emph{external quality} (measured on executing software) \cite{iso25023_2016,iso25021_2012}.
 
-Synthesizing multi-attribute structural metrics into actionable quality indices constitutes a classic Multi-Criteria Decision Making (MCDM) problem. The Analytic Hierarchy Process (AHP) \cite{saaty1980ahp} provides a mathematically rigorous pairwise-comparison framework equipped with an explicit Consistency Ratio ($CR \le 0.10$) to validate expert weighting schemes. In this work, we use AHP to construct an audited, interpretable Reliability--Maintainability attribution baseline that serves as a transparent benchmark for our learned GNN models.
+Combining multi-attribute structural metrics into an overall quality score is a classic Multi-Criteria Decision Making (MCDM) problem. The \textbf{Analytic Hierarchy Process (AHP)} \cite{saaty1980ahp} provides a structured pairwise-comparison method with an explicit Consistency Ratio ($CR \le 0.10$) to ensure weighting schemes remain mathematically sound. In this paper, we use AHP to construct an audited, explainable Reliability--Maintainability (RM) quality baseline, providing transparent architectural diagnostics alongside our learned graph models.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Comparison of dependability analysis paradigms for distributed systems.}
+\label{tab:paradigm_comparison}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Paradigm} & \textbf{Lifecycle Stage} & \textbf{Topology-Aware} & \textbf{Multi-Typed} & \textbf{Explainable} & \textbf{Zero-Runtime Needed} \\
+\midrule
+\textbf{Static Code Analysis (SCA)} \cite{mccabe1976complexity,chidamber1994metrics} & Pre-Deployment & No (Single Service) & No & Yes (Code Smells) & Yes \\
+\textbf{Chaos Engineering} \cite{basiri2016chaos} & Post-Deployment & Yes (Live Cluster) & Partial & Partial (Logs) & No (Requires Cluster) \\
+\textbf{Network Centralities} \cite{freeman1977centrality,brin1998pagerank} & Pre-Deployment & Yes (Flat Graph) & No & No (Single Scalar) & Yes \\
+\textbf{Homogeneous GNNs} \cite{kipf2017semi,velickovic2018graph} & Pre-Deployment & Yes (Flat Graph) & No & No (Black-Box) & Yes \\
+\textbf{Software-as-a-Graph (SaG)} & \textbf{Pre-Deployment} & \textbf{Yes (Multigraph)} & \textbf{Yes (5 Types)} & \textbf{Yes (ISO/IEC RM)} & \textbf{Yes (Manifest-Based)} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
