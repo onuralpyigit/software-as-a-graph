@@ -121,11 +121,11 @@ To ensure methodological rigor, SaG enforces an **input–label independence gua
 
 ## 1.4 Research Questions
 
-Our empirical evaluation investigates four research questions:
-- **RQ1 (Predictive Efficacy):** How accurately does typed graph learning predict cascading failure impact and identify critical component sets compared to non-learning topological baselines, both in-distribution and under inductive cross-scenario evaluation?
-- **RQ2 (Value of Heterogeneity):** What failure mechanisms and structural vulnerabilities does typed heterogeneity reveal that homogeneous graph representations and single-scalar centralities obscure?
-- **RQ3 (Ablations and Sensitivity):** How do explicit QoS feature encodings and multi-attribute weighting calibrations affect model performance and ranking stability?
-- **RQ4 (Real-World Generalization):** Does the graph learning framework successfully transfer to authentic, real-world open-source distributed software architectures across cyber-physical and cloud-native paradigms?
+Our empirical evaluation investigates four key research questions:
+- **RQ1 (Predictive Efficacy):** *How accurately does graph learning predict cascading failure impact and identify critical components compared to traditional, non-learning network metrics?*
+- **RQ2 (Value of Architectural Typing):** *Does modeling distinct entity and dependency types (applications, topics, brokers, hosts, and libraries) provide better failure predictions than homogeneous graph models?*
+- **RQ3 (Impact of QoS and Model Sensitivity):** *How do middleware Quality-of-Service (QoS) policies, quality weighting calibrations, and simulation thresholds impact prediction accuracy and explainability?*
+- **RQ4 (Real-World Generalization):** *How effectively does the framework generalize to real-world, open-source distributed systems across autonomous driving (ROS 2) and cloud-native microservice architectures?*
 
 ## 1.5 Key Contributions
 
