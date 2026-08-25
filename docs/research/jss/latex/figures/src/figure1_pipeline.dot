@@ -1,43 +1,143 @@
-// Figure 1: end-to-end SaG pipeline (draft.md §1.4, caption at line ~157).
-// architecture description -> typed multigraph -> DEPENDS_ON projection ->
-// the two predictor paths and the simulation oracle path, with the
-// independence boundary between them marked -> remediation and the CI/CD gate.
+// Figure 1: End-to-End Software-as-a-Graph (SaG) Architecture
+// Aligned with draft.md §1.3 (lines 72-114) and sec1_introduction.tex.
 //
 // Render: dot -Tpdf figure1_pipeline.dot -o ../Figure_1.pdf
 //         dot -Tpng -Gdpi=300 figure1_pipeline.dot -o ../Figure_1.png
 
 digraph Figure1 {
-  rankdir=LR;
+  rankdir=TB;
   bgcolor="white";
   fontname="Helvetica";
-  node [fontname="Helvetica", fontsize=11, style="filled,rounded", shape=box, penwidth=1.2];
-  edge [fontname="Helvetica", fontsize=9, color="#555555", penwidth=1.3];
+  compound=true;
+  newrank=true;
   nodesep=0.45;
-  ranksep=0.55;
+  ranksep=0.42;
 
-  input   [label="Architecture\ndescription", fillcolor="#EAEAEA", color="#888888"];
-  graph_s [label="Typed multigraph\nG_structural\n(§3.1)", fillcolor="#DCE6F1", color="#4C72B0"];
-  depon   [label="DEPENDS_ON\nprojection\nG_analysis (§3.3)", fillcolor="#DCE6F1", color="#4C72B0"];
+  node [
+    fontname="Helvetica",
+    fontsize=10.5,
+    style="filled,rounded",
+    shape=box,
+    penwidth=1.2,
+    margin="0.22,0.12"
+  ];
+  edge [
+    fontname="Helvetica",
+    fontsize=9.5,
+    color="#334155",
+    penwidth=1.3,
+    arrowsize=0.8
+  ];
 
+  // Stage 1: Architecture Manifest
+  manifest [
+    label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+      <tr><td><b>Architecture Descriptor / System Manifest</b></td></tr>
+      <tr><td><font point-size="9" color="#475569">Applications, Topics, Brokers, Execution Hosts, Shared Libraries &amp; QoS Contracts</font></td></tr>
+    </table>>,
+    fillcolor="#F8FAFC",
+    color="#475569"
+  ];
+
+  // Stage 2: Raw Structural Graph
+  graph_s [
+    label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+      <tr><td><b>Raw Structural Graph (<i>G</i><sub>structural</sub>)</b> (§3.1)</td></tr>
+      <tr><td><font point-size="9" color="#1E3A8A">Native typed topology: Applications, Brokers, Topics, Nodes, Libraries</font></td></tr>
+    </table>>,
+    fillcolor="#DBEAFE",
+    color="#1E40AF"
+  ];
+
+  // Stage 3: Analysis Multigraph
+  graph_a [
+    label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+      <tr><td><b>Analysis Multigraph (<i>G</i><sub>analysis</sub>)</b> (§3.2, §3.3)</td></tr>
+      <tr><td><font point-size="9" color="#312E81">Derived <font face="Courier-Bold">DEPENDS_ON</font> edges &amp; QoS-weighted logical flows</font></td></tr>
+    </table>>,
+    fillcolor="#E0E7FF",
+    color="#3730A3"
+  ];
+
+  // Stage 4: Predictor Models Cluster
   subgraph cluster_predict {
-    label = "Predict (independence guarantee, §5.3)";
-    fontsize = 11;
+    label = "Predictor Models (Input–Label Independence Guarantee, §5.4)";
+    fontname = "Helvetica-Bold";
+    fontsize = 10.5;
+    fontcolor = "#0F172A";
     style = "dashed,rounded";
-    color = "#999999";
-    labelloc = "t";
+    color = "#475569";
+    penwidth = 1.4;
+    margin = 14;
 
-    rm [label="RM attribution\nQ(v)  (§4)", fillcolor="#E2F0D9", color="#55A868"];
-    hgl  [label="Heterogeneous GNN\nHGL predictor (§5.2)", fillcolor="#E2F0D9", color="#55A868"];
+    rm [
+      label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+        <tr><td><b>Explainable RM Baseline</b> (§4)</td></tr>
+        <tr><td align="left"><font point-size="9" color="#14532D">• <b>Fault Tolerance:</b> Cascade Propagation Depth</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#14532D">• <b>Availability:</b> SPOF, Articulation &amp; Bridge Ratio</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#14532D">• <b>Maintainability:</b> Coupling + Static Code SCA</font></td></tr>
+      </table>>,
+      fillcolor="#DCFCE7",
+      color="#15803D"
+    ];
+
+    hgl [
+      label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+        <tr><td><b>Heterogeneous Graph Transformer (HGL)</b> (§5.2)</td></tr>
+        <tr><td align="left"><font point-size="9" color="#064E3B">• <b>Relation-Specific:</b> Type-aware Multi-Head Attention</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#064E3B">• <b>QoS Encoding:</b> 16-D Edge Feature Projection (§5.2.1)</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#064E3B">• <b>Inductive Forecasting:</b> Blast Radius &amp; Criticality</font></td></tr>
+      </table>>,
+      fillcolor="#D1FAE5",
+      color="#047857"
+    ];
   }
 
-  oracle  [label="Simulation oracle\nI*(v)  (§5.1)", fillcolor="#FBE5D6", color="#DD8452"];
-  remed   [label="Prescriptive\nremediation (§6)", fillcolor="#F2DCDB", color="#C44E52"];
-  gate    [label="CI/CD quality gate\nPASS / FAIL (exit 0/2)", fillcolor="#F2DCDB", color="#C44E52", shape=hexagon];
+  // Stage 5: Predicted Outputs
+  preds [
+    label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+      <tr><td><b>Predicted Criticality Rankings &amp; Architectural Diagnoses</b></td></tr>
+      <tr><td><font point-size="9" color="#4C1D95">Composite RM Quality Score <i>Q</i>(<i>v</i>) (§4.3) &amp; HGL Criticality <i>Ĉ</i>(<i>v</i>) (§5.3)</font></td></tr>
+    </table>>,
+    fillcolor="#EDE9FE",
+    color="#6D28D9"
+  ];
 
-  input -> graph_s -> depon;
-  depon -> rm;
-  depon -> hgl;
-  rm -> oracle [label="validated\nagainst", style=dashed];
-  hgl  -> oracle [label="validated\nagainst", style=dashed];
-  oracle -> remed -> gate;
+  // Stage 6: Ground-Truth Simulation Oracle
+  oracle [
+    label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+      <tr><td><b>Ground-Truth Discrete-Event Simulation Oracle (<i>I*</i>(<i>v</i>))</b> (§5.1)</td></tr>
+      <tr><td><font point-size="9" color="#7C2D12">Executed independently on raw <i>G</i><sub>structural</sub> (Reachability Loss • Queue Latency Growth • Feed Disruption)</font></td></tr>
+    </table>>,
+    fillcolor="#FFEDD5",
+    color="#C2410C"
+  ];
+
+  // Pipeline flow edges with weights for vertical alignment
+  manifest -> graph_s [label=" Manifest Ingestion", weight=10];
+  graph_s -> graph_a [label=" Typed Projection Rules & QoS Weighting (§3.2)", weight=10];
+  graph_a -> rm;
+  graph_a -> hgl;
+  rm -> preds;
+  hgl -> preds;
+
+  // Validation relationship
+  preds -> oracle [
+    label=" Validated Against Simulation Ground Truth (Surrogate Fidelity, §6.3, §7.1)",
+    style="dashed",
+    color="#C2410C",
+    fontcolor="#9A3412",
+    penwidth=1.4,
+    weight=10
+  ];
+
+  // Independence guarantee relationship
+  graph_s -> oracle [
+    label=" Independent Simulation\n on G_structural (§5.4)",
+    style="dotted",
+    color="#9A3412",
+    fontcolor="#9A3412",
+    penwidth=1.2,
+    constraint=false
+  ];
 }
