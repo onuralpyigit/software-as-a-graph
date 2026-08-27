@@ -174,14 +174,24 @@ class ClassificationResult:
     items: List[ClassifiedItem]
     stats: BoxPlotStats
     distribution: Dict[str, int] = field(default_factory=dict)
-    
+    #: Per-group box-plot statistics when the caller classified within a
+    #: population (``group_key``). Empty for a pooled run. ``stats`` remains the
+    #: pooled box-plot in both cases, because a stratified run has no single set
+    #: of quartiles that would describe it.
+    group_stats: Dict[str, BoxPlotStats] = field(default_factory=dict)
+
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        payload = {
             "metric_name": self.metric_name,
             "statistics": self.stats.to_dict(),
             "distribution": self.distribution,
             "items": [item.to_dict() for item in self.items],
         }
+        if self.group_stats:
+            payload["group_statistics"] = {
+                g: st.to_dict() for g, st in sorted(self.group_stats.items())
+            }
+        return payload
     
     def get_by_level(self, level: CriticalityLevel) -> List[ClassifiedItem]:
         """Get all items at a specific criticality level."""

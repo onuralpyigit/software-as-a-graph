@@ -56,3 +56,78 @@ def test_classify_endpoint_returns_200_not_500():
         assert isinstance(metric_result["distribution"], dict)
         assert {c["id"] for c in metric_result["components"]} == {"App1", "App2", "App3"}
     assert {r["id"] for r in body["merged_ranking"]} == {"App1", "App2", "App3"}
+
+
+class TestStratifiedClassification:
+    """`group_key` scores each node type against its own population.
+
+    A single box-plot fence over a mixed population ranks every component against
+    scales it does not share. Measured on the corpus, stratifying moves 62.8% of
+    components to a different tier and changes CRITICAL/HIGH membership for 19.0%
+    (results/tier_pooling_check.json), so this is a correctness property of the
+    shipped tiers, not a reporting preference.
+    """
+
+    @staticmethod
+    def _two_scale_population():
+        """Apps on [0.0, 0.2], Brokers on [0.6, 0.9] — disjoint by construction."""
+        apps = [
+            {"id": f"a{i}", "score": 0.0 + 0.2 * i / 39.0, "type": "Application"}
+            for i in range(40)
+        ]
+        brokers = [
+            {"id": f"b{i}", "score": 0.6 + 0.3 * i / 19.0, "type": "Broker"}
+            for i in range(20)
+        ]
+        return apps + brokers
+
+    def test_pooling_hides_the_top_of_the_smaller_scale_population(self):
+        from saag.analysis.classifier import BoxPlotClassifier
+
+        data = self._two_scale_population()
+        clf = BoxPlotClassifier()
+
+        pooled = {i.id: i.level for i in clf.classify(data).items}
+        grouped = {i.id: i.level for i in clf.classify(data, group_key="type").items}
+
+        app_ids = [d["id"] for d in data if d["type"] == "Application"]
+        pooled_app_levels = {pooled[i].value for i in app_ids}
+        grouped_app_levels = {grouped[i].value for i in app_ids}
+
+        # Pooled, the Brokers occupy the whole upper half and no Application can
+        # reach HIGH regardless of how it ranks among Applications.
+        assert "high" not in pooled_app_levels
+        assert "high" in grouped_app_levels
+
+    def test_grouping_preserves_every_item_and_reports_per_group_stats(self):
+        from saag.analysis.classifier import BoxPlotClassifier
+
+        data = self._two_scale_population()
+        result = BoxPlotClassifier().classify(data, group_key="type")
+
+        assert len(result.items) == len(data)
+        assert sum(result.distribution.values()) == len(data)
+        assert set(result.group_stats) == {"Application", "Broker"}
+        # Each group's fence is derived from its own quartiles.
+        assert result.group_stats["Application"].q3 < result.group_stats["Broker"].q1
+
+    def test_ungrouped_and_undersized_items_fall_back_to_the_pooled_fence(self):
+        from saag.analysis.classifier import BoxPlotClassifier
+
+        data = self._two_scale_population()
+        data.append({"id": "orphan", "score": 0.5})            # no type at all
+        data.append({"id": "solo", "score": 0.5, "type": "Node"})  # group of one
+        result = BoxPlotClassifier().classify(data, group_key="type")
+
+        ids = {i.id for i in result.items}
+        assert {"orphan", "solo"} <= ids
+        # Too small for its own quartiles, so 'Node' gets no group statistics.
+        assert "Node" not in result.group_stats
+
+    def test_default_path_is_unchanged(self):
+        from saag.analysis.classifier import BoxPlotClassifier
+
+        data = self._two_scale_population()
+        result = BoxPlotClassifier().classify(data)
+        assert result.group_stats == {}
+        assert "group_statistics" not in result.to_dict()

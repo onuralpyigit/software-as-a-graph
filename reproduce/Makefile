@@ -36,9 +36,9 @@ RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
 .PHONY: setup scenarios cache block0 table3 table4 kfold convergent-validity \
-        topic-weight-sensitivity \
-        figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 \
-        jss-figures all smoke-test clean clean-all
+        topic-weight-sensitivity inference-latency \
+        figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
+        jss-figures jss-tables all smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 0. Environment
@@ -215,8 +215,32 @@ jss-fig4:
 	$(PYTHON) reproduce/render_shrinkage_figure.py
 	@echo "✓ Figure 4 (AHP shrinkage sensitivity) ready."
 
-jss-figures: jss-fig1 jss-fig2 jss-fig3 jss-fig4
-	@echo "✓ All 4 JSS figures ready in docs/research/jss/latex/figures/."
+jss-fig5:
+	$(PYTHON) reproduce/render_results_figure.py
+	@echo "✓ Figure 5 (results at a glance) ready."
+
+jss-figures: jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5
+	@echo "✓ All 5 JSS figures ready in docs/research/jss/latex/figures/."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Manuscript tables generated from committed configs/artifacts rather than by
+# hand. Cheap; safe to re-run before any build.
+# ─────────────────────────────────────────────────────────────────────────────
+
+jss-tables:
+	$(PYTHON) reproduce/scenario_param_table.py
+	@echo "✓ Generator-parameter table ready (results/ + sections/tab_genparams.tex)."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Per-stage inference cost vs. system size (Section: Scalability).
+# Opt-in: the largest sizes spend minutes in structural analysis, which is the
+# very result being measured.
+# ─────────────────────────────────────────────────────────────────────────────
+
+inference-latency:
+	$(PYTHON) reproduce/inference_latency.py \
+	    --output $(RESULTS_DIR)/inference_latency.json
+	@echo "✓ Per-stage latency ready: $(RESULTS_DIR)/inference_latency.json"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Full pipeline

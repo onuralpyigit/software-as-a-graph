@@ -33,7 +33,20 @@ Our evaluation corpus comprises 1,770 components across ten distributed system a
 
 $|V|$ is the sum of all five entity-type counts per scenario and sums to exactly the corpus total stated above. $|E|$ counts every raw structural relationship instance recorded in the scenario file (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}) --- the substrate the simulation oracles traverse --- not the denser derived \texttt{DEPENDS\_ON} projection used for GNN training.
 
-The seven synthetic scenarios are generated using statistical topology generators spanning diverse degree distributions, clustering coefficients, and middleware QoS configurations. The three real-world architectures are hand-transcribed from open-source repositories using dedicated architectural adapters.
+The three real-world architectures are hand-transcribed from open-source repositories using dedicated architectural adapters. The seven synthetic scenarios are produced by a parameterised topology generator: each is fully specified by a committed configuration giving a random seed, per-entity-type counts, seven-number summaries (mean, median, standard deviation, min, max, $Q_1$, $Q_3$) for application publish and subscribe fan-out, for applications per host, for library fan-in and for topic payload size, and categorical distributions over the three QoS dimensions. Degree distribution and clustering are \emph{emergent} from those inputs rather than specified directly. Table~\ref{tab:genparams} gives the parameters that determine each topology's shape; the complete configurations are in the replication package.
+
+\input{sections/tab_genparams.tex}
+
+\subsubsection{Reproducibility of the Corpus}
+\label{sec:6.1.repro}
+
+The corpus is regenerable rather than merely archived. Each dataset is produced from its configuration by
+
+\begin{quote}
+\texttt{python cli/generate\_graph.py batch --input-dir data/scenarios --output-dir <dir>}
+\end{quote}
+
+\noindent and a manifest records, per dataset, the seed, the entity counts, the generating commit, and a SHA-256 digest of the emitted topology. A regression test asserts that every committed dataset regenerates \emph{byte-identically} from its configuration and that the manifest matches what is on disk, so a divergence between the published numbers and the published data fails the test suite rather than passing unnoticed. A third party can therefore reproduce the exact graphs these results were computed on, not merely graphs drawn from the same distribution.
 
 \subsection{Baselines and Evaluated Predictors}
 \label{sec:6.2}

@@ -1,8 +1,23 @@
 // Figure 1: End-to-End Software-as-a-Graph (SaG) Architecture
-// Aligned with draft.md §1.3 (lines 72-114) and sec1_introduction.tex.
 //
 // Render: dot -Tpdf figure1_pipeline.dot -o ../Figure_1.pdf
 //         dot -Tpng -Gdpi=300 figure1_pipeline.dot -o ../Figure_1.png
+//
+// TWO LANES, DELIBERATELY NOT MERGED. §1.2 formulates pre-deployment analysis as
+// two distinct tasks, and the figure has to show that: the diagnostic path emits
+// a quality profile and the remediation it implies, the predictive path emits a
+// ranked critical set, and only the latter is validated against the simulation
+// oracle — the oracle scores rankings, and a quality profile is not one. The one
+// link between the lanes is a triage relation, not a data dependency: the paths
+// share no parameters and neither is fitted to the other's output (§5.4).
+//
+// KEEP THE NATURAL WIDTH NEAR THE TEXT BLOCK (~468pt at \textwidth).
+// The manuscript includes this at width=\linewidth, so a canvas twice the text
+// width is scaled to ~0.5 and every font inside is halved with it: at 906pt wide
+// the 10.5pt labels printed at 5.4pt, below what the journal accepts. Enlarging
+// the float cannot fix that — it is already full width. The lever is this canvas:
+// keep labels short, and re-measure the MediaBox after editing
+// (`pdfinfo ../Figure_1.pdf`) rather than judging by eye.
 
 digraph Figure1 {
   rankdir=TB;
@@ -10,134 +25,159 @@ digraph Figure1 {
   fontname="Helvetica";
   compound=true;
   newrank=true;
-  nodesep=0.45;
-  ranksep=0.42;
+  nodesep=0.28;
+  ranksep=0.32;
 
   node [
     fontname="Helvetica",
-    fontsize=10.5,
+    fontsize=11,
     style="filled,rounded",
     shape=box,
     penwidth=1.2,
-    margin="0.22,0.12"
+    margin="0.18,0.10"
   ];
   edge [
     fontname="Helvetica",
-    fontsize=9.5,
+    fontsize=9,
     color="#334155",
     penwidth=1.3,
     arrowsize=0.8
   ];
 
-  // Stage 1: Architecture Manifest
+  // ── Trunk: manifest → structural graph → analysis multigraph ──────────────
   manifest [
     label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-      <tr><td><b>Architecture Descriptor / System Manifest</b></td></tr>
-      <tr><td><font point-size="9" color="#475569">Applications, Topics, Brokers, Execution Hosts, Shared Libraries &amp; QoS Contracts</font></td></tr>
+      <tr><td><b>Architecture Descriptor / Manifest</b></td></tr>
+      <tr><td><font point-size="9.5" color="#475569">Applications, Topics, Brokers, Hosts,<br/>Shared Libraries &amp; QoS Contracts</font></td></tr>
     </table>>,
-    fillcolor="#F8FAFC",
-    color="#475569"
+    fillcolor="#F8FAFC", color="#475569"
   ];
 
-  // Stage 2: Raw Structural Graph
   graph_s [
     label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
       <tr><td><b>Raw Structural Graph (<i>G</i><sub>structural</sub>)</b> (§3.1)</td></tr>
-      <tr><td><font point-size="9" color="#1E3A8A">Native typed topology: Applications, Brokers, Topics, Nodes, Libraries</font></td></tr>
+      <tr><td><font point-size="9.5" color="#1E3A8A">Native typed topology</font></td></tr>
     </table>>,
-    fillcolor="#DBEAFE",
-    color="#1E40AF"
+    fillcolor="#DBEAFE", color="#1E40AF"
   ];
 
-  // Stage 3: Analysis Multigraph
   graph_a [
     label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
       <tr><td><b>Analysis Multigraph (<i>G</i><sub>analysis</sub>)</b> (§3.2, §3.3)</td></tr>
-      <tr><td><font point-size="9" color="#312E81">Derived <font face="Courier-Bold">DEPENDS_ON</font> edges &amp; QoS-weighted logical flows</font></td></tr>
+      <tr><td><font point-size="9.5" color="#312E81">Derived <font face="Courier-Bold">DEPENDS_ON</font> edges<br/>&amp; QoS-weighted logical flows</font></td></tr>
     </table>>,
-    fillcolor="#E0E7FF",
-    color="#3730A3"
+    fillcolor="#E0E7FF", color="#3730A3"
   ];
 
-  // Stage 4: Predictor Models Cluster
-  subgraph cluster_predict {
-    label = "Predictor Models (Input–Label Independence Guarantee, §5.4)";
+  // ── Pathway A: diagnostic ─────────────────────────────────────────────────
+  subgraph cluster_a {
+    label = "PATHWAY A — Diagnostic (§4)";
     fontname = "Helvetica-Bold";
     fontsize = 10.5;
-    fontcolor = "#0F172A";
+    fontcolor = "#14532D";
     style = "dashed,rounded";
-    color = "#475569";
+    color = "#15803D";
     penwidth = 1.4;
-    margin = 14;
+    margin = 10;
 
     rm [
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-        <tr><td><b>Explainable RM Baseline</b> (§4)</td></tr>
-        <tr><td align="left"><font point-size="9" color="#14532D">• <b>Fault Tolerance:</b> Cascade Propagation Depth</font></td></tr>
-        <tr><td align="left"><font point-size="9" color="#14532D">• <b>Availability:</b> SPOF, Articulation &amp; Bridge Ratio</font></td></tr>
-        <tr><td align="left"><font point-size="9" color="#14532D">• <b>Maintainability:</b> Coupling + Static Code SCA</font></td></tr>
+        <tr><td><b>Explainable Quality Attribution</b></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Fault Tolerance: cascade depth</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Availability: SPOF / articulation</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Maintainability: coupling + SCA</font></td></tr>
       </table>>,
-      fillcolor="#DCFCE7",
-      color="#15803D"
+      fillcolor="#DCFCE7", color="#15803D"
     ];
+
+    diag [
+      label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+        <tr><td><b>Root-Cause Diagnostic Profile</b></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• SPOF exposure (high <i>A</i>)</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Cascade hub (high <i>FT</i>)</font></td></tr>
+      </table>>,
+      fillcolor="#ECFDF5", color="#15803D"
+    ];
+
+    remediate [
+      label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+        <tr><td><b>Remediation Guidance</b> (§4, §8.1)</td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Replication (DevOps/SRE)</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Circuit breakers (architect)</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Refactoring (developers)</font></td></tr>
+      </table>>,
+      fillcolor="#F0FDF4", color="#166534"
+    ];
+
+    rm -> diag;
+    diag -> remediate;
+  }
+
+  // ── Pathway B: predictive ─────────────────────────────────────────────────
+  subgraph cluster_b {
+    label = "PATHWAY B — Predictive (§5)";
+    fontname = "Helvetica-Bold";
+    fontsize = 10.5;
+    fontcolor = "#4C1D95";
+    style = "dashed,rounded";
+    color = "#6D28D9";
+    penwidth = 1.4;
+    margin = 10;
 
     hgl [
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-        <tr><td><b>Heterogeneous Graph Transformer (HGL)</b> (§5.2)</td></tr>
-        <tr><td align="left"><font point-size="9" color="#064E3B">• <b>Relation-Specific:</b> Type-aware Multi-Head Attention</font></td></tr>
-        <tr><td align="left"><font point-size="9" color="#064E3B">• <b>QoS Encoding:</b> 16-D Edge Feature Projection (§5.2.1)</font></td></tr>
-        <tr><td align="left"><font point-size="9" color="#064E3B">• <b>Inductive Forecasting:</b> Blast Radius &amp; Criticality</font></td></tr>
+        <tr><td><b>Heterogeneous Graph Transformer</b></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Relation-specific attention</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• 16-D QoS edge embedding</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Multi-task risk &amp; ranking heads</font></td></tr>
       </table>>,
-      fillcolor="#D1FAE5",
-      color="#047857"
+      fillcolor="#EDE9FE", color="#6D28D9"
     ];
+
+    topk [
+      label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+        <tr><td><b>Top-<i>K</i> Critical Component Set</b></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Blast radius <i>Ĉ</i>(<i>v</i>) (§5.3)</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Out-of-distribution ranking</font></td></tr>
+      </table>>,
+      fillcolor="#F5F3FF", color="#6D28D9"
+    ];
+
+    hgl -> topk;
   }
 
-  // Stage 5: Predicted Outputs
-  preds [
-    label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-      <tr><td><b>Predicted Criticality Rankings &amp; Architectural Diagnoses</b></td></tr>
-      <tr><td><font point-size="9" color="#4C1D95">Composite RM Quality Score <i>Q</i>(<i>v</i>) (§4.3) &amp; HGL Criticality <i>Ĉ</i>(<i>v</i>) (§5.3)</font></td></tr>
-    </table>>,
-    fillcolor="#EDE9FE",
-    color="#6D28D9"
-  ];
-
-  // Stage 6: Ground-Truth Simulation Oracle
+  // ── Ground truth, reached only by the predictive lane ─────────────────────
   oracle [
     label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-      <tr><td><b>Ground-Truth Discrete-Event Simulation Oracle (<i>I*</i>(<i>v</i>))</b> (§5.1)</td></tr>
-      <tr><td><font point-size="9" color="#7C2D12">Executed independently on raw <i>G</i><sub>structural</sub> (Reachability Loss • Queue Latency Growth • Feed Disruption)</font></td></tr>
+      <tr><td><b>Ground-Truth Simulation Oracle (<i>I*</i>(<i>v</i>))</b> (§5.1)</td></tr>
+      <tr><td><font point-size="9.5" color="#7C2D12">FaultInjector on raw <i>G</i><sub>structural</sub></font></td></tr>
     </table>>,
-    fillcolor="#FFEDD5",
-    color="#C2410C"
+    fillcolor="#FFEDD5", color="#C2410C"
   ];
 
-  // Pipeline flow edges with weights for vertical alignment
-  manifest -> graph_s [label=" Manifest Ingestion", weight=10];
-  graph_s -> graph_a [label=" Typed Projection Rules & QoS Weighting (§3.2)", weight=10];
-  graph_a -> rm;
-  graph_a -> hgl;
-  rm -> preds;
-  hgl -> preds;
+  // ── Flow ──────────────────────────────────────────────────────────────────
+  manifest -> graph_s [label=" Ingestion", weight=10];
+  graph_s -> graph_a [label=" Typed projection\l &amp; QoS weights (§3.2)\l", weight=10];
+  graph_a -> rm   [lhead=cluster_a];
+  graph_a -> hgl  [lhead=cluster_b];
 
-  // Validation relationship
-  preds -> oracle [
-    label=" Validated Against Simulation Ground Truth (Surrogate Fidelity, §6.3, §7.1)",
-    style="dashed",
-    color="#C2410C",
-    fontcolor="#9A3412",
-    penwidth=1.4,
-    weight=10
+  topk -> oracle [
+    label=" Validated against\l ground truth (§6.3)\l",
+    style="dashed", color="#C2410C", fontcolor="#9A3412", penwidth=1.4, weight=10
   ];
 
-  // Independence guarantee relationship
+  // Independence guarantee: the oracle never sees G_analysis (§5.4).
   graph_s -> oracle [
-    label=" Independent Simulation\n on G_structural (§5.4)",
-    style="dotted",
-    color="#9A3412",
-    fontcolor="#9A3412",
-    penwidth=1.2,
+    label=" Independent run\l on G_struct (§5.4)\l",
+    style="dotted", color="#9A3412", fontcolor="#9A3412", penwidth=1.2,
+    constraint=false
+  ];
+
+  // Triage, not a data dependency: the lanes share no parameters and neither is
+  // fitted to the other's output. The architect explains what B flagged.
+  topk -> diag [
+    label=" Triage ",
+    style="dashed", color="#6D28D9", fontcolor="#5B21B6", penwidth=1.1,
     constraint=false
   ];
 }

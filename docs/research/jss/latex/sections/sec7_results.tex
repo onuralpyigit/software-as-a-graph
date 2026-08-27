@@ -54,7 +54,7 @@ Under inductive Leave-One-Scenario-Out (LOSO) cross-validation, the model must p
 \begin{table}[htbp]
 \centering
 \small
-\caption{Inductive Leave-One-Scenario-Out (LOSO) evaluation, Application population, eight folds.}
+\caption{Inductive Leave-One-Scenario-Out (LOSO) evaluation, Application population, eight folds. The RM baseline is included as a reference point rather than as a competing predictor: it is the diagnostic path of Section~\ref{sec:1.2} and is not proposed as a ranking model (Section~\ref{sec:4.1}). Its row quantifies how much the predictive path adds over static attribution, which is the only sense in which the comparison is meaningful.}
 \label{tab:7}
 \begin{tabular}{lcccc}
 \toprule
@@ -82,6 +82,13 @@ Under inductive Leave-One-Scenario-Out (LOSO) cross-validation, the model must p
 \end{enumerate}
 
 \noindent\textbf{A note on population.} An earlier version of this table pooled every node type carrying a simulated label. That pooling inverted several conclusions --- it reported the RM baseline at $\rho = -0.014$ rather than $+0.190$, and GL at $0.381$ rather than $0.086$, because GL's pooled score was carried almost entirely by Broker nodes whose impact distribution differs in both scale and base rate from Applications'. This is the Simpson's-paradox hazard documented in Section~\ref{sec:8.2}, and it is why every figure in this paper is now reported on a single, stated population.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figures/Figure_5}
+\caption{Results at a glance, all on the Application population. \textbf{(A)} Out-of-distribution rank correlation per variant, whiskers showing $\sigma$ across the eight LOSO folds; note that the training-free Topo-QoS baseline places second. \textbf{(B)} Critical-set detection at $K = 20\%$. \textbf{(C)} Agreement between the three simulation oracles, whiskers showing the observed range across scenarios; the annotation gives top-$K$ set agreement against both chance and the labeler's own seed-to-seed floor.}
+\label{fig:5}
+\end{figure}
 
 \subsection{RQ2: Value of Typed Heterogeneity}
 \label{sec:7.2}
@@ -168,7 +175,14 @@ We evaluated the sensitivity of the RM attribution baseline by sweeping a shrink
 \end{tabular}
 \end{table}
 
-\noindent\textbf{The AHP judgement does not improve ranking, and we report that directly.} As Figure~4 shows, $\rho$ declines monotonically as the weights move from the uniform prior toward the elicited judgement. The uniform prior is the best setting in the sweep ($\rho = 0.347$ against $0.234$ at raw AHP), it wins in all seven scenarios individually (paired Wilcoxon, $p = 0.0156$), and the shipped $\lambda = 0.70$ default costs $\Delta\rho = -0.079$ relative to it ($p = 0.0156$). There is no plateau around the default. The honest reading is that the elicited intra-dimension hierarchy is a \emph{transparency} device --- it makes the composite auditable and its terms nameable to an architect --- and not a ranking-accuracy device; on this corpus, weighting the terms equally ranks components better. We retain $\lambda = 0.70$ because RM's role is interpretable attribution rather than standalone ranking (Section~\ref{sec:4.1}), but we do not claim the sweep validates the expert hierarchy, because it does not.
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.72\linewidth]{figures/Figure_4}
+\caption{Sensitivity of the RM composite's rank correlation against $I^*(v)$ to the AHP shrinkage parameter $\lambda$, Application population, mean over seven scenarios. $\rho$ declines monotonically toward the elicited judgement: the uniform prior at $\lambda = 0$ is the best setting in the sweep.}
+\label{fig:4}
+\end{figure}
+
+\noindent\textbf{The AHP judgement does not improve ranking, and we report that directly.} As Figure~\ref{fig:4} shows, $\rho$ declines monotonically as the weights move from the uniform prior toward the elicited judgement. The uniform prior is the best setting in the sweep ($\rho = 0.347$ against $0.234$ at raw AHP), it wins in all seven scenarios individually (paired Wilcoxon, $p = 0.0156$), and the shipped $\lambda = 0.70$ default costs $\Delta\rho = -0.079$ relative to it ($p = 0.0156$). There is no plateau around the default. The honest reading is that the elicited intra-dimension hierarchy is a \emph{transparency} device --- it makes the composite auditable and its terms nameable to an architect --- and not a ranking-accuracy device; on this corpus, weighting the terms equally ranks components better. We retain $\lambda = 0.70$ because RM's role is interpretable attribution rather than standalone ranking (Section~\ref{sec:4.1}), but we do not claim the sweep validates the expert hierarchy, because it does not.
 
 \noindent\textbf{A measurement correction.} An earlier version of this analysis scored $Q(v)$ from features restricted to the Application--Library \texttt{DEPENDS\_ON} projection --- the feature substrate built for GNN training --- rather than from the full typed graph. On that projection no Application is an articulation point and no incident edge is a bridge in six of the eight scenarios, so four of Availability's five terms vanish and $A(v)$, which carries $w_R(1 - \alpha) \approx 0.51$ of the composite, is constant across the Application population. Sweeping $\lambda$ against that variant measured a degenerate score and returned uniformly negative $\rho$ (from $-0.146$ at $\lambda = 0$ to $-0.112$ at $\lambda = 1$). The figures above are computed through the full analysis pipeline, which is the RM baseline defined in Section~\ref{sec:4.3}; both series are retained in the replication artifact. The same correction applies to the threshold and domain-weighting ablations below, which shared that scorer.
 
@@ -212,9 +226,57 @@ Validating our rule-based architectural anti-pattern catalog against the multi-m
 
 We additionally stratify the RM composite's rank correlation by node type: $\rho = 0.503$ (Application), $0.395$ (Broker), $0.142$ (Node), while the \emph{pooled} correlation across all types is $\rho = 0.028$ --- outside the per-type range entirely. This is a Simpson's-paradox effect (aggregating across populations with different scales/base rates reverses the within-group trend), and it means the pooled figure is not a summary of the per-type figures: only the stratified, per-type numbers should be quoted when discussing RM's structural predictive power.
 
+\subsubsection{Using RM Correctly: Score Within a Node Type}
+\label{sec:7.3.usingrm}
+
+The stratification above is not only a reporting convention for this paper; it is a usage rule for the framework, and getting it wrong changes which components an architect is told to fix. We therefore state it operationally.
+
+\noindent\textbf{The rule.} Score, tier and rank components \emph{within} a node type. Never derive a single ranking, or a single criticality threshold, from a population that mixes Applications, Brokers, Topics, Infrastructure Nodes and Libraries. Their criticality scores differ in scale and in base rate, so a shared threshold measures type membership as much as it measures risk.
+
+\noindent\textbf{The mechanism is already in the framework.} The layer projections of Section~\ref{sec:3.3} are the stratification device: $\pi_{\text{infra}}$ reports Nodes only, $\pi_{\text{mw}}$ reports Brokers only, and $\pi_{\text{app}}$ reports Applications and Libraries. Only $\pi_{\text{system}}$ spans all five types. Practitioners should read $\pi_{\text{system}}$ as a structural and visualisation view of the whole architecture, and take ranking or gating decisions from the single-type layers.
+
+\noindent\textbf{What pooling costs, measured.} We classified every component in the eight-scenario corpus twice --- once against one box-plot over the whole system layer, once within its own node type --- and compared the resulting CRITICAL/HIGH/MEDIUM/LOW/MINIMAL tiers. Across 1{,}619 components, \textbf{62.8\% land in a different tier}, and \textbf{19.0\% cross the CRITICAL/HIGH boundary} that determines whether a component is surfaced for action at all. The effect is stable across scenarios (tier changes $51$--$69\%$, boundary crossings $14$--$22\%$), so it is a property of mixing the populations rather than of any one topology. The direction is systematic: pooling suppresses the top of whichever type carries the lower score scale, because the higher-scaled type occupies the upper quartile outright.
+
+\noindent\textbf{What we changed.} The classifier now derives quartiles and fences within each node type, and the per-dimension criticality flags use the same fence that produced the component's tier, so flag and tier cannot disagree. Types with too few members for stable quartiles fall back to the pooled fence rather than being scored on a handful of samples. The residual case is $\pi_{\text{app}}$, which still pools Applications with Libraries; their LOSO correlations overlap ($0.190$ against $0.105$), so we retain the pairing and note it as a scope condition rather than a defect.
+
 \subsubsection{HGT Attention Weight Analysis}
 
-Extracting relational attention matrices from the trained HGT model on the ATM Case Study (Figure~3) revealed that the model places its highest single attention weight ($\alpha_{uv} = 1.00$) on a \texttt{USES} edge (an Application's dependency on a shared Library), with the next tier ($\alpha_{uv} \approx 0.50$) split between a \texttt{ROUTES} edge (Broker $\to$ Topic) and further \texttt{USES}/\texttt{SUBSCRIBES\_TO} edges. This pattern --- dominant attention on library-dependency and broker-routing channels rather than direct publish/subscribe message flow --- reflects the shared-library blast-radius and broker-centrality failure pathways identified elsewhere in this study (Section~\ref{sec:7.2}'s edge-removal analysis, Section~\ref{sec:3}'s simultaneous-failure semantics for shared libraries) rather than sequential pub-sub cascade propagation.
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figures/Figure_3}
+\caption{Relational attention extracted from the trained HGT on the ATM case study. The highest-weighted channels are \texttt{USES} (Application $\to$ shared Library) and \texttt{ROUTES} (Broker $\to$ Topic) rather than direct publish/subscribe edges, matching the shared-library blast-radius and broker-centrality pathways found by the edge-removal analysis.}
+\label{fig:3}
+\end{figure}
+
+Extracting relational attention matrices from the trained HGT model on the ATM Case Study (Figure~\ref{fig:3}) revealed that the model places its highest single attention weight ($\alpha_{uv} = 1.00$) on a \texttt{USES} edge (an Application's dependency on a shared Library), with the next tier ($\alpha_{uv} \approx 0.50$) split between a \texttt{ROUTES} edge (Broker $\to$ Topic) and further \texttt{USES}/\texttt{SUBSCRIBES\_TO} edges. This pattern --- dominant attention on library-dependency and broker-routing channels rather than direct publish/subscribe message flow --- reflects the shared-library blast-radius and broker-centrality failure pathways identified elsewhere in this study (Section~\ref{sec:7.2}'s edge-removal analysis, Section~\ref{sec:3}'s simultaneous-failure semantics for shared libraries) rather than sequential pub-sub cascade propagation.
+
+\subsection{Scalability and Computational Cost}
+\label{sec:7.5}
+
+A learned model invites the question of whether it remains usable as systems grow. On this pipeline the answer is that the neural network is not the constraint --- the deterministic structural analysis that feeds it is, by more than two orders of magnitude.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Per-stage cost of the deployed (inference) path on generated systems of increasing size, CPU, median of three runs with a warm-up pass excluded. Training is not included: it is a one-off cost paid once over the corpus, not per analysed system.}
+\label{tab:scale}
+\begin{tabular}{rrrrrr}
+\toprule
+\textbf{$|V|$} & \textbf{$|E|$} & \textbf{Analyse (s)} & \textbf{Graph$\to$tensor (s)} & \textbf{HGT forward (ms)} & \textbf{Analyse : forward} \\
+\midrule
+249   & 1{,}127  & 0.27  & 0.011 & 22.5 & 12$\times$ \\
+499   & 2{,}402  & 0.95  & 0.022 & 15.7 & 61$\times$ \\
+999   & 6{,}422  & 4.74  & 0.055 & 36.7 & 129$\times$ \\
+1{,}998 & 19{,}301 & 23.83 & 0.153 & 43.7 & \textbf{545$\times$} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{The GNN is the cheapest stage.} Inference on a 2{,}000-component system takes $44\,\text{ms}$ --- a handful of sparse matrix products whose cost grows close to linearly in $|E|$ --- while the structural analysis preceding it takes $24\,\text{s}$. The ratio widens with scale rather than narrowing, from $12\times$ at 249 components to $545\times$ at 1{,}998. Any effort spent making this framework scale should therefore go to the classical graph metrics, not to the model: betweenness is $O(|V||E|)$ and the directed articulation score and closeness are $O(|V|(|V|+|E|))$, giving an overall $O(|V|^2 + |V||E|)$. One mitigation already ships, with the connectivity-degradation term switching to deterministic top-50 core sampling above $|V| = 300$.
+
+\noindent\textbf{Cost tracks edges, not components.} The corpus scenarios make this concrete: the 520-component Enterprise mesh takes $27.2\,\text{s}$ to analyse while a \emph{denser-in-name-only} 999-component generated system takes $4.7\,\text{s}$, because the former carries 3{,}245 structural edges against a far sparser fan-out per component. Practitioners sizing a CI/CD budget should estimate from $|E|$, or from $|V| \cdot |E|$, rather than from component count. Within the paper's corpus the whole gate --- analysis plus all 18 evaluated detectors --- runs in $0.02\,\text{s}$ (29 components) to $27.4\,\text{s}$ (520 components), comfortably inside a pull-request budget.
+
+\noindent\textbf{What we have not measured, and do not claim.} Nothing above 2{,}000 components has been timed, and nothing here should be extrapolated past it; all figures are single-threaded CPU, with no GPU measurement; and one detector, \texttt{DEEP\_PIPELINE}, is excluded throughout because exhaustive source-to-sink path enumeration does not terminate within ten minutes even at 50 applications (Section~\ref{sec:7.3}). That detector is the one component of the framework known \emph{not} to scale, and its exclusion is a limitation rather than a tuning choice. Training cost, for completeness: the full seven-variant, eight-fold, five-seed leave-one-scenario-out sweep reported in Table~\ref{tab:7} took approximately 45 minutes per learned variant on CPU.
 
 \subsection{RQ4: Real-World Distributed Software Architecture Validation}
 \label{sec:7.4}

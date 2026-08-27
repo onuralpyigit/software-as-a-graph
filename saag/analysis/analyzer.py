@@ -303,8 +303,21 @@ class QualityAnalyzer:
 
         use_percentile_fallback = len(scored) < MIN_BOXPLOT_SAMPLE
 
+        # Tiers are assigned *within* node type, not across the whole layer. A
+        # single fence spanning Applications, Brokers, Topics, Nodes and Libraries
+        # ranks each component against populations whose score scale it does not
+        # share; on this corpus that moves 62.8% of components to a different tier
+        # and changes CRITICAL/HIGH membership for 19.0% of them
+        # (results/tier_pooling_check.json). Groups below the classifier's minimum
+        # fall back to the pooled fence rather than being scored on a handful of
+        # samples, so every component still receives a level.
+        group_fences: Dict[str, Dict[str, float]] = {}
+
         for dim in dim_keys:
-            data = [{"id": c.id, "score": getattr(c.scores, dim)} for c in scored]
+            data = [
+                {"id": c.id, "score": getattr(c.scores, dim), "type": c.type}
+                for c in scored
+            ]
             if use_percentile_fallback:
                 level_maps[dim] = self._percentile_classify(data)
                 scores_sorted = sorted(d["score"] for d in data)
@@ -312,9 +325,17 @@ class QualityAnalyzer:
                 # Top ~10 % treated as the "upper fence" in the percentile path
                 upper_fences[dim] = scores_sorted[max(0, int(n_d * 0.90))] if n_d > 0 else 1.0
             else:
-                result = self.classifier.classify(data, metric_name=dim)
+                result = self.classifier.classify(data, metric_name=dim, group_key="type")
                 level_maps[dim] = {item.id: item.level for item in result.items}
+                # Pooled fence stays the fallback for types the classifier merged.
                 upper_fences[dim] = result.stats.upper_fence if result.stats else 1.0
+                group_fences[dim] = {
+                    g: st.upper_fence for g, st in result.group_stats.items()
+                }
+
+        def _fence(dim: str, ctype: str) -> float:
+            """The fence this component was actually classified against."""
+            return group_fences.get(dim, {}).get(ctype, upper_fences.get(dim, 1.0))
 
         # Apply classified levels and CriticalityProfile
         for c in scored:
@@ -325,13 +346,15 @@ class QualityAnalyzer:
                 availability=level_maps["availability"].get(c.id, CriticalityLevel.MINIMAL),
                 overall=level_maps["overall"].get(c.id, CriticalityLevel.MINIMAL),
             )
-            # CriticalityProfile: True iff score > upper_fence for that dimension
+            # CriticalityProfile: True iff score > the upper fence of the
+            # population this component was classified against — the same fence
+            # that produced its level, so flag and level cannot disagree.
             c.profile = CriticalityProfile(
-                ft_crit=c.scores.fault_tolerance > upper_fences.get("fault_tolerance", 1.0),
-                a_crit=c.scores.availability     > upper_fences.get("availability",    1.0),
-                m_crit=c.scores.maintainability  > upper_fences.get("maintainability", 1.0),
-                r_crit=c.scores.reliability      > upper_fences.get("reliability",     1.0),
-                q_crit=c.scores.overall          > upper_fences.get("overall",         1.0),
+                ft_crit=c.scores.fault_tolerance > _fence("fault_tolerance", c.type),
+                a_crit=c.scores.availability     > _fence("availability",    c.type),
+                m_crit=c.scores.maintainability  > _fence("maintainability", c.type),
+                r_crit=c.scores.reliability      > _fence("reliability",     c.type),
+                q_crit=c.scores.overall          > _fence("overall",         c.type),
             )
 
         # Sort by overall score descending

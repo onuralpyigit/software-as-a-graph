@@ -730,12 +730,28 @@ class GNNService:
         # ── Adaptive Classification ───────────────────────────────────────────
         classifier = BoxPlotClassifier()
         
-        # Classify Final Result Node Scores
+        # Classify Final Result Node Scores *within node type*. One fence across
+        # Applications, Brokers, Topics, Nodes and Libraries ranks each component
+        # against populations whose score scale it does not share; measured on the
+        # corpus, stratifying moves 62.8% of components to a different tier and
+        # changes CRITICAL/HIGH membership for 19.0%
+        # (results/tier_pooling_check.json). Types are recovered from the
+        # converter's id map rather than stored on the score object, so nothing
+        # downstream of GNNCriticalityScore has to change.
+        node_type_of: Dict[str, str] = {}
+        if conv is not None and getattr(conv, "node_id_map", None):
+            for nt, names in conv.node_id_map.items():
+                for name in names:
+                    node_type_of[name] = nt
+
         node_data = [
-            {"id": k, "score": v.composite_score} 
+            {"id": k, "score": v.composite_score, "type": node_type_of.get(k)}
             for k, v in result.node_scores.items()
         ]
-        classification = classifier.classify(node_data, metric_name="Criticality")
+        classification = classifier.classify(
+            node_data, metric_name="Criticality",
+            group_key="type" if node_type_of else None,
+        )
         result.stats["classification"] = classification
 
         # Assign classification levels back to each score object
