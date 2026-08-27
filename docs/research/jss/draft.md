@@ -17,8 +17,8 @@ To solve this, we present **Software-as-a-Graph (SaG)**, an AI-driven framework 
 2. **Explainable Quality Attribution (RM):** An interpretable baseline grounded in ISO/IEC 25010 and ISO/IEC 25019 quality models that explains the structural root causes of vulnerability.
 
 We evaluate SaG across 1,770 components from seven synthetic scenarios and three real-world open-source systems (Autoware.universe ROS 2, GCP Cloud Microservices, and the Train-Ticket benchmark) against independent discrete-event cascade simulators under a strict input–label independence guarantee. Our key findings show:
-- **Superior Criticality Detection:** Typed graph learning outperforms standard structural metrics, achieving a $+37.8\%$ relative gain in identifying top-$K$ critical components ($F_1@K = 0.467$ vs. $0.339$) and strong out-of-distribution ranking ($\rho = 0.668$).
-- **Value of Heterogeneous Modeling:** Heterogeneous message passing outperforms homogeneous graph neural networks by $+0.197$ in cross-scenario rank correlation, with Quality-of-Service (QoS) edge encoding providing critical robustness across differing architectures.
+- **Value of Heterogeneous Modeling:** Relation-specific typing is what makes graph learning transfer: on unseen architectures the typed model reaches $\rho = 0.608$ where its homogeneous counterpart collapses to $0.086$, a $+0.365$ gap won in all eight cross-scenario folds ($p = 0.008$). Quality-of-Service edge encoding contributes a further $+0.157$ out of distribution (7/8 folds, $p = 0.016$) at a small, statistically insignificant in-distribution cost.
+- **An Explicit Boundary:** Against a training-free QoS-weighted structural baseline, the typed model's ranking advantage is $+0.037$ and *not* statistically significant ($p = 0.74$). We report this directly: graph learning here earns its cost through the typed attention, multi-task quality outputs, and relationship-level criticality it supplies alongside the ranking, not through ranking accuracy alone.
 - **Actionable Explainability:** The quality attribution model successfully separates single points of failure (availability) from error propagation depth (fault tolerance), turning black-box graph predictions into concrete architectural fixes (e.g., broker replication vs. topic decoupling).
 - **Real-World Generalization:** SaG transfers effectively to authentic cyber-physical and cloud-native systems, achieving high rank agreement ($\rho = 0.688$ to $0.778$) and capturing up to $100\%$ of failure-impactful services within the predicted critical set.
 
@@ -46,9 +46,11 @@ Addressing this challenge is also critical for **system performance and sustaina
 
 ## 1.2 Problem Statement: The Architecture–Code Gap
 
-We formulate pre-deployment dependability analysis as two complementary tasks:
-1. **Explainable Criticality Attribution:** Computing an interpretable, standards-grounded quality profile for every component—based on ISO/IEC 25010 [16] and ISO/IEC 25019 [17]—to explain *how* and *why* a component is vulnerable.
-2. **Failure-Impact Forecasting:** Accurately predicting the global cascade blast radius and ranking the most failure-critical components using learned topological representations.
+We formulate pre-deployment dependability analysis as two distinct, complementary tasks spanning qualitative diagnosis and quantitative forecasting:
+1. **Explainable Criticality Attribution (Diagnostic Path):** Computing an interpretable, standards-grounded structural quality profile for every component—grounded in ISO/IEC 25010 [16] and ISO/IEC 25019 [17]—to diagnose the *qualitative nature* of a component's vulnerability, for example distinguishing a single point of failure from a high-coupling maintenance bottleneck. This task answers *why* a component is fragile and which remediation applies; it is not a predictive ranking model, and we do not evaluate it as one.
+2. **Failure-Impact Forecasting (Predictive Path):** Forecasting the dynamic, global cascading failure blast radius and ranking the systemically critical component set, by training a data-driven, non-linear machine learning model over learned topological representations.
+
+The separation is architectural, not merely presentational: the two paths consume the same graph but share no parameters, and neither is fitted to the other's output. Keeping them distinct is what allows a component to be reported as, say, structurally central but operationally low-impact — a diagnosis neither path produces alone.
 
 Existing software engineering approaches fail to bridge what we define as the **"Architecture–Code Gap"**: *a distributed system can have pristine, 100% bug-free source code within each service, yet remain fragile to catastrophic global outages due to hidden architectural single points of failure (SPOFs) or mismatched middleware QoS contracts.* Three prevailing paradigms leave this gap unaddressed:
 
@@ -64,8 +66,8 @@ To bridge this gap, we introduce **Software-as-a-Graph (SaG)**, an AI-driven pre
 
 1. **Typed Multigraph Formulation:** SaG models the distributed architecture as a typed, directed multigraph over five core entity types: Applications, Brokers, Topics, Execution Nodes, and Shared Libraries (§3.1).
 2. **QoS-Aware Logical Dependency Projection:** Using six formal projection rules, SaG derives a semantic `DEPENDS_ON` dependency layer that captures both sequential cascades (via topics and brokers) and simultaneous blast radii (via shared libraries and node colocation), weighted by declared QoS contracts (§3.2).
-3. **Explainable Quality Attribution:** SaG combines code-level SCA metrics with topological graph properties into a hierarchical **Reliability–Maintainability (RM)** quality attribution model (§4). Reliability decomposes into **Fault Tolerance** (error propagation depth) and **Availability** (single-point-of-failure exposure), giving engineers actionable diagnostics.
-4. **Heterogeneous Graph Learning for Failure Forecasting:** SaG deploys a **Heterogeneous Graph Transformer (HGL)** that uses relation-specific attention and message passing across typed entities to forecast cascading failure blast radii and rank critical components (§5).
+3. **Explainable Quality Attribution (Diagnostic Pathway):** SaG combines code-level SCA metrics with topological graph properties into a deterministic, hierarchical **Reliability–Maintainability (RM)** quality attribution model (§4). Reliability decomposes into **Fault Tolerance** (error propagation depth) and **Availability** (single-point-of-failure exposure). This pathway is a static diagnostic instrument, structurally decoupled from dynamic failure forecasting: it is a linear aggregate of structural and code measurements and models no propagation dynamics by construction, so it explains *why* a component is vulnerable rather than predicting how far a cascade travels. Its standalone rank correlation against simulated impact is correspondingly modest ($\rho \approx 0.19$–$0.27$, §7.3) — a consequence of that scope, not a defect to be tuned away.
+4. **Heterogeneous Graph Learning for Failure Forecasting (Predictive Pathway):** To capture the non-linear, multi-hop propagation patterns a deterministic aggregate cannot express, SaG deploys a **Heterogeneous Graph Transformer (HGL)** that uses relation-specific attention and message passing across typed entities to empirically forecast cascading failure blast radii and rank critical components (§5).
 
 To ensure methodological rigor, SaG enforces an **input–label independence guarantee**: the learned models and attribution baseline operate strictly on the derived analytical graph $G_{\text{analysis}}$, whereas ground-truth failure impacts are generated by independent discrete-event simulators executing over the raw structural topology $G_{\text{structural}}$ (§5.4).
 
@@ -77,47 +79,51 @@ To ensure methodological rigor, SaG enforces an **input–label independence gua
 +------------------------------------------+----------------------------------------+
                                            |
                                            v
-                       +---------------------------------------+
-                       | Raw Structural Graph (G_structural)   |
-                       +-------------------+-------------------+
-                                           |
-                   [Typed Projection Rules | & QoS Weighting]
-                                           v
-                       +---------------------------------------+
-                       |  Analysis Multigraph (G_analysis)     |
-                       |       (Derived DEPENDS_ON Edges)      |
-                       +-------------------+-------------------+
-                                           |
-                 +-------------------------+-------------------------+
-                 |                                                   |
-                 v                                                   v
-+---------------------------------+                 +---------------------------------+
-|   Explainable RM Baseline       |                 |  Heterogeneous Graph Transformer|
-|  - Fault Tolerance (Propagation)|                 |             (HGL)               |
-|  - Availability (SPOF / Bridge) |                 |  - Relation-Specific Attention  |
-|  - Maintainability + Code SCA   |                 |  - Inductive Impact Forecasting |
-+----------------+----------------+                 +----------------+----------------+
-                 |                                                   |
-                 +-------------------------+-------------------------+
-                                           |
-                                           v
-+-----------------------------------------------------------------------------------+
-|             Predicted Criticality Rankings & Architectural Diagnoses               |
-+------------------------------------------+----------------------------------------+
-                                           |
-           [Validated Against Independent Simulation on G_structural]
-                                           v
-+-----------------------------------------------------------------------------------+
-| Ground-Truth Cascade Simulation: Reachability Loss, Queue Latency, Feed Disruption|
-+-----------------------------------------------------------------------------------+
+                  +----------------------------------------------+ ------+
+                  |     Raw Structural Graph (G_structural)      |       | (Independent
+                  +----------------------+-----------------------+       |  simulation,
+                                         |                               |   §5.4)
+                     [Typed projection & QoS weighting, §3.2]            |
+                                         v                               |
+                  +----------------------------------------------+       |
+                  |       Analysis Multigraph (G_analysis)       |       |
+                  |          (Derived DEPENDS_ON edges)          |       |
+                  +----------------------+-----------------------+       |
+                                         |                               |
+            +----------------------------+----------------------------+  |
+            |                                                         |  |
+            v  PATHWAY A - DIAGNOSTIC (§4)     PATHWAY B - PREDICTIVE (§5)|
++-------------------------------------+   +-------------------------------------+
+|   Explainable Quality Attribution   |   |  Heterogeneous Graph Transformer    |
+|  - Fault Tolerance (cascade depth)  |   |  - Relation-specific attention      |
+|  - Availability (SPOF/articulation) |   |  - 16-D QoS edge embedding          |
+|  - Maintainability (coupling + SCA) |   |  - Multi-task risk & ranking heads  |
++------------------+------------------+   +------------------+------------------+
+                   |                                         |                 |
+                   v                                         v                 |
++-------------------------------------+   +-------------------------------------+
+|  Root-Cause Diagnostic Profile      |<--|  Top-K Critical Component Set       |
+|  - SPOF exposure (high A)           |   |  - Blast radius C-hat(v) (§5.3)     |
+|  - Cascade hub (high FT)            |   |  - Out-of-distribution ranking      |
++------------------+------------------+   +------------------+------------------+
+                   |            (Triage)                     |                 |
+                   v                        [Validated against ground truth]   |
++-------------------------------------+   +-------------------------------------+
+|  Remediation Guidance (§4, §8.1)    |   | Ground-Truth Simulation Oracle I*(v)|<-+
+|  - Replication (DevOps/SRE)         |   |  (FaultInjector on G_structural)    |
+|  - Circuit breakers (architect)     |   +-------------------------------------+
+|  - Refactoring (developers)         |
++-------------------------------------+
 ```
-*Figure 1. End-to-end architecture of the Software-as-a-Graph (SaG) framework.*
+*Figure 1. End-to-end architecture of the Software-as-a-Graph (SaG) framework. A shared front end (manifest ingestion → typed multigraph → QoS-weighted `DEPENDS_ON` projection) feeds two deliberately separate pathways. **Pathway A (diagnostic)** produces a standards-grounded quality profile and the remediation it implies; it explains why a component is fragile and is not a ranking model. **Pathway B (predictive)** produces a ranked critical set, and is the only pathway validated against the simulation oracle — the oracle scores rankings, which a quality profile is not. The single link between them is triage rather than data flow: the architect applies A's explanation to whatever B flagged. The pathways share no parameters, and the oracle runs on $G_{\text{structural}}$ alone, never on the graph the predictors see (§5.4).*
+
+> **Figure numbering.** This document keeps its own figure sequence, which differs from the LaTeX submission sources in `latex/`. Figure 1 (pipeline), Figure 3 (HGT attention) and Figure 4 (AHP shrinkage) correspond to `Figure_1`, `Figure_3` and `Figure_4` there. Figure 2 below (the HGT layer diagram) is specific to this document; the LaTeX `Figure_2` is a running-example graph, and its `Figure_5` (results at a glance) has no counterpart here — its content is Tables 8 and 12.
 
 **Rationale for Graph Learning vs. Direct Simulation:** Because discrete-event simulation $I^*(v)$ defines ground-truth criticality in this study, one might ask: *why train a graph neural network rather than running simulation sweeps directly?* If a complete simulator is available and computational budget is unlimited, simulation alone can evaluate an existing system. However, four practical reasons make our hybrid graph learning and attribution framework essential:
 1. **Handling Unmeasured Components:** Discrete-event simulators only inject faults into active application processes, leaving passive infrastructure (such as message topics or host nodes) without direct simulation labels (30% to 47% of components per system). The learned GNN generalizes across both labeled and unmeasured entities.
 2. **Variance Reduction & Stability:** Cascade simulations are noisy and highly sensitive to random seeds and propagation thresholds (label standard deviation across seeds reaches $0.416$). The graph neural network learns a smooth, threshold-marginalized representation that stabilizes predictions across diverse operating regimes.
 3. **Sub-Second Speed for CI/CD Quality Gates:** Running exhaustive multi-seed cascade simulations during every code commit or pull request is computationally slow (taking minutes or hours on large meshes). In contrast, trained graph transformers provide inference in under $50\,\text{ms}$, enabling instant CI/CD quality gating.
-4. **Diagnostic Explainability:** Simulators provide only a single numerical impact score (how many services failed), but cannot explain *why*. Our ISO-grounded quality attribution model reveals the structural root causes (e.g., bottleneck articulation vs. high subscriber fan-out), directly guiding architects on how to refactor the system.
+4. **Diagnostic Explainability:** Simulators and trained GNNs both return impact — a score, a rank, and in the GNN's case an attention distribution showing *where* the model looked (§7.3). Neither returns cause attributed in standardised quality terms. A simulator can name precisely which subscriber lost which feed, and is fully inspectable in that sense, but it cannot say whether the component is fragile because it is a single point of failure or because it is a high-coupling maintenance bottleneck — and those two diagnoses call for different remediations (host or broker replication versus topic decoupling and refactoring). Our ISO-grounded RM model supplies exactly that missing layer: once the predictive path has identified a critical component, the diagnostic path says which quality characteristic is at risk and therefore which architectural fix applies.
 
 ## 1.4 Research Questions
 
@@ -232,11 +238,17 @@ Application and Library entities additionally ingest static code metrics compute
 
 In distributed middleware, communication links exhibit varying degrees of coupling based on their Quality-of-Service (QoS) contracts. For example, a `RELIABLE` topic with `TRANSIENT_LOCAL` durability binds communicating services far more tightly than a `BEST_EFFORT` telemetry stream.
 
-For each structural communication edge $e$, we compute an edge coupling weight $w_E(e) \in [0, 1]$ derived from the QoS profile of the mediating topic:
+Each topic $t$ carries an intrinsic criticality weight $w(t) \in [0, 1]$ combining its declared QoS semantics with two runtime-stress modulators, payload size and publication frequency:
 
-$$w_E(e) = 0.85 \cdot \left( w_{\text{rel}} \cdot q_{\text{rel}} + w_{\text{dur}} \cdot q_{\text{dur}} + w_{\text{prio}} \cdot q_{\text{prio}} \right) + 0.15 \cdot q_{\text{payload}}$$
+$$w(t) = \beta \cdot \text{QoS}(t) + \alpha \cdot \text{SizeNorm}(t) + \psi \cdot \text{FreqNorm}(t), \quad (\beta, \alpha, \psi) = (0.75,\, 0.15,\, 0.10)$$
 
-where $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ represent normalized reliability, durability, and transport priority scores, with AHP weights $(0.30, 0.40, 0.30)$ ($CR < 0.05$). Durability is assigned the highest weight because it dictates message persistence across network partitions. A minimum floor $w_E(e) \ge 0.01$ ensures that best-effort edges remain visible to graph traversals.
+where the QoS term is itself an AHP-weighted aggregate of the declared contract:
+
+$$\text{QoS}(t) = w_{\text{rel}} \cdot q_{\text{rel}} + w_{\text{dur}} \cdot q_{\text{dur}} + w_{\text{prio}} \cdot q_{\text{prio}}, \quad (w_{\text{rel}}, w_{\text{dur}}, w_{\text{prio}}) = (0.30,\, 0.40,\, 0.30)$$
+
+with $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ the normalized reliability, durability and transport-priority scores. Durability carries the highest sub-weight because it dictates message persistence across network partitions; the sub-weight vector is the geometric-mean priority vector of a Saaty pairwise-comparison matrix and is consistent ($CR < 0.05$). The modulators are logarithmically compressed, $\text{SizeNorm}(t) = \log_2(1 + \text{KiB})/50$ and $\text{FreqNorm}(t) = \log_{10}(1 + \text{Hz})/3$, and $w(t)$ is clamped to $[0.01, 1]$ so that best-effort edges remain visible to graph traversals. Every structural communication edge incident on $t$ (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`) inherits $w_E(e) = w(t)$ together with the topic's QoS vector.
+
+The outer split $(\beta, \alpha, \psi)$ is a declared convex combination rather than an elicited one, and we report its sensitivity directly (§7.3) rather than defending the particular triple. Because $\text{SizeNorm}$ log-compresses realistic payloads into a band roughly $50\times$ narrower than the QoS term's spread, the ordering $w(t)$ induces — the only property any downstream computation consumes — is near-invariant across the entire simplex, including a uniform prior, and downstream rank correlation against the ground-truth oracle moves by at most $0.02$ over that whole range.
 
 ### Logical Dependency Projection (`DEPENDS_ON`)
 Structural edges capture explicit deployment connections but omit implicit runtime dependencies. For example, a subscriber depends upon a publisher, yet no direct edge connects them in pub-sub architectures. We derive a single unified semantic relation, `DEPENDS_ON`, directed from *dependent* to *dependency* ("if target fails, source is impacted"):
@@ -245,12 +257,14 @@ Structural edges capture explicit deployment connections but omit implicit runti
 
 | Rule | Dependency Category | Structural Pattern ($\text{Dependent} \to \text{Dependency}$) | Derived Weight ($w$) |
 |:---:|:---|:---|:---|
-| **1** | `app_to_app` | Subscriber $\to$ Publisher (via shared Topic, incl. transitive `USES`) | $\max_{t} w_E(t)$ |
-| **2** | `app_to_broker` | Publisher/Subscriber $\to$ Broker routing its topics | $\max_{t} w_E(t)$ |
+| **1** | `app_to_app` | Subscriber $\to$ Publisher (via shared Topic, incl. transitive `USES`) | $1 - \prod_{t \in T}(1 - w(t))$ |
+| **2** | `app_to_broker` | Publisher/Subscriber $\to$ Broker routing its topics | $1 - \prod_{t \in T}(1 - w(t))$ |
 | **3** | `node_to_node` | Host $\to$ Host (lifted from inter-host app dependencies) | Lifted $\max w$ |
 | **4** | `node_to_broker` | Host $\to$ Broker (lifted from hosted app dependencies) | Lifted $\max w$ |
-| **5** | `app_to_lib` | Application $\to$ Shared Library it `USES` | $w_V(\text{app})$ |
-| **6** | `broker_to_broker` | Broker $\leftrightarrow$ Broker (bidirectional, colocated on same host) | $w_V(\text{node})$ |
+| **5** | `app_to_lib` | Application $\to$ Shared Library it `USES` | $H(w_V(\text{app}), w_V(\text{lib}))$ |
+| **6** | `broker_to_broker` | Broker $\leftrightarrow$ Broker (shared-host fate, symmetric) | $w_V(\text{node})$ |
+
+Rules 1 and 2 aggregate the several topics $T$ mediating one component pair by *probabilistic union* rather than by a maximum, so that additional parallel failure vectors raise coupling monotonically while preserving $w \in (0, 1]$. Rule 5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ of the consuming Application's and the shared Library's own vertex weights, which calibrates caller criticality against dependency criticality instead of letting either endpoint dominate. Rules 3 and 4 lift the maximum weight of the component-level dependencies crossing the host boundary.
 
 ### Sequential Cascades vs. Simultaneous Blasts
 A key insight of the SaG model is distinguishing between two fundamentally different failure modes:
@@ -258,6 +272,8 @@ A key insight of the SaG model is distinguishing between two fundamentally diffe
 - **Simultaneous Blast (Rule 5):** When a shared software library or execution node crashes, all consuming applications and colocated brokers fail *instantaneously* in a single event. 
 
 Retaining entity types and relation-specific dependency rules allows SaG to model both mechanisms, whereas untyped graphs collapse them into identical edges.
+
+**On the symmetry of Rule 6.** Rule 6 is the one projection rule that is symmetric, and deliberately so: it does not assert that one broker functionally depends on another, but that two brokers co-located on the same host *share that host's failure domain*. This is the same simultaneous-blast semantics as Rule 5, which is why the derived weight is the shared *Node's* weight rather than either broker's, and why the relation holds in both directions. The mechanism is real in deployed middleware — co-located brokers contend for CPU, page cache, file descriptors and NIC bandwidth, and a host loss takes both at once, which is precisely why operational guidance for Kafka, RabbitMQ and EMQX is to spread brokers across fault domains. What Rule 6 does *not* model is intra-cluster broker coupling proper (partition replication, controller or quorum election, federation and shovel links), which is directional and does not require co-location; extending the schema to express it is left to future work. We also note that the rule is close to inert on our corpus: it fires in four of the eight cached scenarios and contributes twelve directed edges in total across 1,770 components, and because the simulation oracles read only $G_{\text{structural}}$ (§5.4), it cannot influence any ground-truth label.
 
 ## 3.3 Dual Graph Views and Architectural Layers
 
@@ -337,7 +353,7 @@ While the interpretable RM baseline provides explainable quality profiles, compl
 
 ## 5.1 Ground-Truth Simulation Oracles
 
-To evaluate predictive accuracy prior to deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$. We establish a formal three-oracle taxonomy:
+To evaluate predictive accuracy prior to deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$. We establish a formal taxonomy of three component-level oracles and one relationship-level oracle:
 
 - **Cascade Reachability Oracle ($I^*(v)$):** Implemented via `FaultInjector`, this oracle injects an unexpected node crash at component $v \in V$, propagates cascading failures across dependent topics, brokers, and network links using breadth-first dynamic traversal, and computes the fraction of surviving subscriber feeds severed by the outage. $I^*(v) \in [0, 1]$ serves as the primary continuous target label for training and evaluating GNN predictors.
 - **Multi-Metric Composite Oracle ($I_{\text{comp}}(v)$):** Implemented via `FailureSimulator`, this oracle evaluates a multi-faceted failure impact vector:
@@ -347,16 +363,13 @@ To evaluate predictive accuracy prior to deployment without relying on productio
 - **Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):** Evaluates the systemic impact of severing an individual dependency or communication channel while keeping both endpoint components alive:
   $$I_{\text{edge}}(u,v) = I_{\text{comp}}(G \setminus \{(u,v)\}) - I_{\text{comp}}(G)$$
 
-**These oracles are not interchangeable, and their disagreement bounds what any single one can
-support.** Measured across seven scenarios and five seeds, mean Spearman agreement is $\rho = 0.765$
-for $(I_{\text{dyn}}, I^*)$, $\rho = 0.465$ for $(I_{\text{comp}}, I_{\text{dyn}})$, and
-$\rho = 0.397$ for $(I_{\text{comp}}, I^*)$, with per-scenario minima of 0.550, 0.121, and 0.097
-respectively. Agreement on the *critical set* is weaker still than agreement on ordering: mean
-top-$K$ Jaccard overlap is 0.26--0.31 for every pair, including the strongest one. A result
-established against one oracle is therefore not evidence for a claim measured against another, and
-the instruction to "simply simulate" is under-specified --- it does not say which simulator, at
-which propagation threshold, under which seed, and the answer materially changes the critical set.
-We report this disagreement as a bound on our own construct validity rather than as corroboration.
+**Primary oracle declaration.** Because the three component-level oracles measure different constructs and agree only partially (below), we designate exactly one of them as primary and hold every ranking claim in this paper to it. **$I^*(v)$ (`FaultInjector`) is the primary oracle** for all predictive-ranking results (Tables 6–8, RQ1–RQ3): it is the only oracle that both supplies training labels and scores held-out predictions, so evaluating a learned ranker against anything else would compare a model to a target it was never fitted to. The remaining oracles have narrower, explicitly named roles: $I_{\text{comp}}(v)$ (`FailureSimulator`) is the Validate-stage oracle for architectural quality gates and anti-pattern detection only, $I_{\text{dyn}}(v)$ (`MessageFlowSimulator`) is used only as an independent, behaviourally-constructed convergent-validity probe, and $I_{\text{edge}}(u,v)$ scores relationships rather than components. Each table and figure names the oracle it was measured against; no number is transferred between them.
+
+**These oracles are not interchangeable, and their disagreement bounds what any single one can support.** Measured across seven scenarios and five seeds on the Application population, mean Spearman agreement is $\rho = 0.883$ for $(I_{\text{dyn}}, I^*)$, $\rho = 0.468$ for $(I_{\text{comp}}, I^*)$, and $\rho = 0.465$ for $(I_{\text{comp}}, I_{\text{dyn}})$, with per-scenario minima of $0.756$, $0.171$ and $0.121$ respectively. The behavioural queue-flow oracle and the topological cascade oracle therefore agree strongly on *ordering*, which is genuine convergent evidence: they are constructed differently, one observing message delivery under load and the other reachability over edges, so their agreement is not reducible to a shared construction artifact. The composite oracle is the outlier, agreeing only moderately with either.
+
+Agreement on the *critical set* is markedly weaker than agreement on ordering, and this is the binding limitation. Mean top-$K$ Jaccard overlap at $K = 0.2n$ is $0.42$ for the strongest pair and $0.31$ for the other two, against $0.111$ expected under independent rankings — around three to four times chance, but far from set identity. Two controls establish what this does and does not mean. First, it is not an artifact of tie-breaking: recomputing the overlap so that every component tied with the $K$-th is admitted changes it by at most $0.005$. Second, it is not simply label noise, but neither is it purely construct divergence — the labeler's own seed-to-seed self-agreement spans top-$K$ Jaccard $0.44$–$1.00$ (test–retest $\rho = 0.81$–$1.00$), so a single oracle compared against *itself* reaches only $0.44$ in its worst scenario. Top-$K$ set identity is an intrinsically unstable statistic at this $K$, and the cross-oracle values sit just below the bottom of the range one oracle achieves against itself.
+
+The consequence for how our results should be read is unchanged: a result established against one oracle is not evidence for a claim measured against another, and the instruction to "simply simulate" is under-specified — it does not say which simulator, at which propagation threshold, under which seed, and the answer materially changes the critical set. We report this disagreement as a bound on our own construct validity rather than as corroboration, and we note that we could not reduce it by weighting: applying the same $w(t)$ to both topological oracles does not make them converge (§7.3).
 
 ## 5.2 Heterogeneous Graph Transformer Architecture
 
@@ -447,7 +460,7 @@ Our evaluation corpus comprises 1,770 components across ten distributed system a
 
 **Table 4. Experimental evaluation corpus.**
 
-| Dataset / Architecture | System Paradigm | Total Nodes ($|V|$) | Apps ($|V_{\text{app}}|$) | Topics | Brokers | Hosts | Libraries | Relationships ($|E|$) |
+| Dataset / Architecture | System Paradigm | Total Nodes ($\|V\|$) | Apps ($\|V_{\text{app}}\|$) | Topics | Brokers | Hosts | Libraries | Relationships ($\|E\|$) |
 |:---|:---|---:|---:|---:|---:|---:|---:|---:|
 | **Autonomous Vehicle (AV)** | ROS 2 Cyber-Physical | 152 | 80 | 40 | 4 | 8 | 20 | 797 |
 | **Enterprise Pub-Sub** | Kafka Event Mesh | 520 | 300 | 120 | 10 | 40 | 50 | 3,245 |
@@ -463,7 +476,29 @@ Our evaluation corpus comprises 1,770 components across ten distributed system a
 
 $|V|$ is the sum of all five entity-type counts per scenario, confirmed against `data/scenarios/MANIFEST.json` and the three real-world adapter outputs; it sums to exactly the corpus total stated above. $|E|$ counts every raw structural relationship instance recorded in the scenario file (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`, `CONNECTS_TO`, `USES`), i.e. the substrate the simulation oracles traverse — not the derived `DEPENDS_ON` projection used for GNN training, which is denser (e.g. 3,753 edges for AV at the `system` layer).
 
-The seven synthetic scenarios are generated using statistical topology generators spanning diverse degree distributions, clustering coefficients, and middleware QoS configurations. The three real-world architectures are hand-transcribed from open-source repositories using dedicated architectural adapters.
+The three real-world architectures are hand-transcribed from open-source repositories using dedicated architectural adapters. The seven synthetic scenarios are produced by a parameterised topology generator: each is fully specified by a committed configuration giving a random seed, per-entity-type counts, seven-number summaries (mean, median, standard deviation, min, max, $Q_1$, $Q_3$) for application publish and subscribe fan-out, for applications per host, for library fan-in and for topic payload size, and categorical distributions over the three QoS dimensions. Degree distribution and clustering are *emergent* from those inputs rather than specified directly. Table 5 gives the parameters that determine each topology's shape; the complete configurations are in the replication package.
+
+**Table 5. Generative parameters of the seven synthetic evaluation scenarios**, read directly from the committed configurations (`data/scenarios/scenario_*.yaml`). Fan-out figures are per-application means over the configured distribution; the modal QoS column gives the most common reliability/durability/priority value and the range of topic shares carrying them.
+
+| Scenario | Config | Seed | Apps/Topics/Brokers/Hosts/Libs | Mean pub | Mean sub | Mean apps/host | Modal QoS | sha256 |
+|---|---|---:|---|---:|---:|---:|---|---|
+| Autonomous Vehicle (AV) | `scenario_01_autonomous_vehicle.yaml` | 1001 | 80/40/4/8/20 | 2.5 | 5.0 | 10.0 | RELIABLE/TRANSIENT_LOCAL/HIGH (45--80%) | `f6566746ed86` |
+| Enterprise Pub-Sub | `scenario_07_enterprise_xlarge.yaml` | 7007 | 300/120/10/40/50 | 3.0 | 4.5 | 7.5 | RELIABLE/TRANSIENT_LOCAL/MEDIUM (29--79%) | `dbee39896904` |
+| Financial Trading | `scenario_03_financial_trading.yaml` | 3003 | 60/35/5/6/18 | 4.0 | 6.0 | 10.0 | RELIABLE/PERSISTENT/HIGH (40--89%) | `103f897ba3fb` |
+| Healthcare Integration | `scenario_04_healthcare.yaml` | 4004 | 50/25/3/8/12 | 2.5 | 3.0 | 6.2 | RELIABLE/PERSISTENT/HIGH (40--88%) | `187320d76f0b` |
+| Hub-and-Spoke | `scenario_05_hub_and_spoke.yaml` | 5005 | 70/30/2/12/25 | 2.0 | 7.0 | 5.8 | RELIABLE/TRANSIENT_LOCAL/MEDIUM (33--67%) | `5467d8c3c2d5` |
+| IoT Smart City | `scenario_02_iot_smart_city.yaml` | 2002 | 200/80/6/30/10 | 2.0 | 1.5 | 6.5 | BEST_EFFORT/VOLATILE/LOW (56--75%) | `19e97dd3e1e3` |
+| Microservices Mesh | `scenario_06_microservices.yaml` | 6006 | 90/45/6/15/30 | 1.5 | 2.0 | 6.0 | RELIABLE/TRANSIENT_LOCAL/MEDIUM (40--60%) | `497072b38a6d` |
+
+### Reproducibility of the Corpus
+
+The corpus is regenerable rather than merely archived. Each dataset is produced from its configuration by
+
+```bash
+python cli/generate_graph.py batch --input-dir data/scenarios --output-dir <dir>
+```
+
+and `data/scenarios/MANIFEST.json` records, per dataset, the seed, the entity counts, the generating commit, and a SHA-256 digest of the emitted topology. A regression test (`tests/test_scenario_corpus.py`) asserts that every committed dataset regenerates *byte-identically* from its configuration and that the manifest matches what is on disk, so a divergence between the published numbers and the published data fails the test suite rather than passing unnoticed. A third party can therefore reproduce the exact graphs these results were computed on, not merely graphs drawn from the same distribution.
 
 ## 6.2 Baselines and Evaluated Predictors
 
@@ -476,9 +511,13 @@ We compare five primary predictor configurations:
 
 ## 6.3 Evaluation Metrics and Protocols
 
-- **Ranking Accuracy:** Spearman rank correlation ($\rho$) and Kendall's tau ($\tau$) between predicted rankings and ground-truth simulated impact $I^*(v)$.
-- **Critical-Set Identification:** $F_1@K$, Precision@$K$, and Recall@$K$ for top-$K$ critical components, where $K = \lceil 0.20 \cdot |V_{\text{app}}| \rceil$.
+- **Ranking Accuracy:** Spearman rank correlation ($\rho$) and Kendall's tau ($\tau$) between predicted rankings and ground-truth simulated impact $I^*(v)$, the primary oracle declared in §5.1.
+- **Critical-Set Identification:** $F_1@K$, Precision@$K$, and Recall@$K$ for top-$K$ critical components, where $K$ is $20\%$ of the evaluated node population, rounded to nearest. Because the predicted and true sets both contain exactly $K$ elements, precision, recall and $F_1$ coincide at $K$; the figure is a top-$K$ overlap and we read it as such.
 - **Statistical Significance:** Paired Wilcoxon signed-rank tests [48] ($p < 0.05$) and bootstrap 95% confidence intervals ($B = 2,000$) [49, 50].
+
+### Evaluation Population
+
+Every predictor in a given table is scored on an identical node set, resolved from the graph and the labels alone — never from any variant's predictions — so that no comparison is confounded by which nodes a particular method happened to score. Unless stated otherwise that set is the **Application** population: it is the population the framework's central claim is about (topology predicts application-layer cascade criticality), and it is the only one every variant can score. This matters more than it may appear. Pooling node types into a single correlation mixes populations with different impact scales and base rates, and on this corpus that pooling is not benign — it moves the RM composite's rank correlation *outside* the range spanned by its own per-type correlations (§7.3). We therefore report stratified, single-population figures throughout, and flag explicitly wherever a pooled figure appears.
 
 ### Evaluation Protocols
 - **In-Distribution Evaluation:** 60% train / 20% validation / 20% test node splits pinned by node identity within each scenario, evaluated over five random seeds $\{42, 123, 456, 789, 2024\}$.
@@ -491,9 +530,9 @@ We compare five primary predictor configurations:
 
 ## 7.1 RQ1: Graph Learning vs. Structural Baselines
 
-Table 5 presents the in-distribution held-out Spearman rank correlation ($\rho$) against simulated cascade impact $I^*(v)$ across all seven synthetic scenarios.
+Table 6 presents the in-distribution held-out Spearman rank correlation ($\rho$) against simulated cascade impact $I^*(v)$ across all seven synthetic scenarios.
 
-**Table 5. In-distribution held-out Spearman rank correlation ($\rho$) against $I^*(v)$** (seed means over 5 seeds with bootstrap 95% CIs; $n$ is held-out Application count).
+**Table 6. In-distribution held-out Spearman rank correlation ($\rho$) against $I^*(v)$** (seed means over 5 seeds with bootstrap 95% CIs; $n$ is held-out Application count).
 
 | Scenario | $n$ | Topo-BL | Topo-QoS | GL (Homogeneous) | GL-QoS | HGL (Typed) | HGL-QoS |
 |:---|---:|---:|---:|---:|---:|---:|---:|
@@ -506,7 +545,7 @@ Table 5 presents the in-distribution held-out Spearman rank correlation ($\rho$)
 | **Microservices** | 18 | 0.401 [0.15, 0.65] | **0.707** [0.54, 0.86] | 0.564 [0.39, 0.72] | 0.571 [0.46, 0.70] | 0.483 [0.19, 0.71] | 0.476 [0.18, 0.71] |
 | **Mean** | — | **0.209** [0.11, 0.31] | **0.586** [0.48, 0.68] | **0.612** [0.49, 0.71] | **0.433** [0.25, 0.59] | **0.725** [0.65, 0.79] | **0.653** [0.52, 0.75] |
 
-**Table 6. Paired Wilcoxon signed-rank tests across scenarios** ($n = 7$, two-sided).
+**Table 7. Paired Wilcoxon signed-rank tests across scenarios** ($n = 7$, two-sided).
 
 | Comparison | $\Delta\rho$ | Scenarios Won | Wilcoxon $W$ | $p$-value | Significance |
 |:---|---:|:---:|---:|---:|:---|
@@ -520,33 +559,34 @@ Table 5 presents the in-distribution held-out Spearman rank correlation ($\rho$)
 ### Out-of-Distribution (LOSO) Generalization
 Under inductive Leave-One-Scenario-Out (LOSO) cross-validation, the model must predict cascading criticality on an unseen system topology:
 
-**Table 7. Inductive Leave-One-Scenario-Out (LOSO) evaluation.**
+**Table 8. Inductive Leave-One-Scenario-Out (LOSO) evaluation**, Application population, eight folds. The RM baseline is included as a reference point rather than as a competing predictor: it is the diagnostic path of §1.2 and is not proposed as a ranking model (§4.1). Its row quantifies how much the predictive path adds over static attribution, which is the only sense in which the comparison is meaningful.
 
 | Model Variant | Mean LOSO $\rho$ | Std $\rho$ | Critical-Set $F_1@K$ | Requires Training |
 |:---|---:|---:|---:|:---:|
-| **Topo-BL** | 0.109 | 0.150 | 0.222 | No |
-| **Topo-QoS** | 0.522 | 0.285 | 0.339 | No |
-| **RM / $Q(v)$ Baseline** | −0.014 | 0.147 | 0.237 | No |
-| **GL (Homogeneous)** | 0.381 | 0.164 | 0.436 | Yes |
-| **GL-QoS (Homogeneous)** | 0.501 | 0.167 | 0.442 | Yes |
-| **HGL (Typed Heterogeneous)** | 0.578 | **0.116** | **0.467** | Yes |
-| **HGL-QoS (Typed + QoS)** | **0.668** | 0.096 | 0.457 | Yes |
+| **Topo-BL** | 0.301 | 0.126 | 0.363 | No |
+| **Topo-QoS** | 0.571 | 0.181 | 0.380 | No |
+| **RM / $Q(v)$ Baseline** | 0.190 | 0.131 | 0.328 | No |
+| **GL (Homogeneous)** | 0.086 | 0.123 | 0.237 | Yes |
+| **GL-QoS (Homogeneous)** | 0.363 | **0.089** | 0.339 | Yes |
+| **HGL (Typed Heterogeneous)** | 0.451 | 0.149 | 0.341 | Yes |
+| **HGL-QoS (Typed + QoS)** | **0.608** | 0.144 | **0.414** | Yes |
 
-Eight LOSO folds are reported (the seven synthetic scenarios plus the ATM
-case study of §7.4), each holding out one scenario and training on the
-remaining seven.
+Eight LOSO folds are reported (the seven synthetic scenarios plus the ATM case study of §7.4), each holding out one scenario and training on the remaining seven. Every variant is scored on the identical Application node set per fold (§6.3); paired Wilcoxon tests below are over the eight folds.
 
 ### Key Findings for RQ1:
-1. **Critical-Set Detection Advantage:** HGL achieves a 37.8% relative improvement in critical-set identification ($F_1@K = 0.467$ vs. $0.339$ for Topo-QoS).
-2. **Out-of-Distribution Superiority:** Under LOSO validation, the QoS-aware typed model (HGL-QoS) is the best-performing configuration overall ($\rho = 0.668$ vs. $0.521$ for Topo-QoS), substantially outperforming both non-learning baselines and homogeneous GNNs ($\rho = 0.381$--$0.501$). The RM baseline is essentially non-predictive under distribution shift ($\rho \approx -0.01$), confirming that RM's value lies in interpretable attribution rather than standalone ranking.
-3. **In-Distribution Scope Condition:** In-distribution, both HGL ($\rho = 0.725$) and GL ($\rho = 0.612$) outperform structural baselines on point estimates, but their margin over Topo-QoS is constrained by topology variance. Notably, in-distribution the QoS-aware variant (HGL-QoS, $\rho = 0.653$) trails the base typed model rather than matching it — see §7.3's QoS Feature Encoding discussion for the full in-distribution/LOSO trade-off.
+1. **The learned models beat the learned baselines decisively; the untrained QoS baseline is the real competitor.** HGL-QoS is the best configuration overall ($\rho = 0.608$, $F_1@K = 0.414$), and its margin over both homogeneous GNNs is large and significant ($+0.245$ over GL-QoS, 8/8 folds, $p = 0.0078$). Against *Topo-QoS*, however — a training-free QoS-weighted centrality baseline — the margin is $+0.037$, won in only 5 of 8 folds, and is **not statistically significant** ($p = 0.74$). We state this plainly: on out-of-distribution Application ranking, we cannot claim that heterogeneous graph learning outperforms a well-constructed structural baseline, only that it matches it while additionally supplying the typed attention and multi-task outputs the baseline cannot.
+2. **Critical-set detection is where the learned model separates.** HGL-QoS improves $F_1@K$ over Topo-QoS by $+0.034$ ($0.414$ vs. $0.380$, an $8.9\%$ relative gain) and over GL by $+0.177$. The advantage is real but far smaller than a pooled-population reading of the same experiment suggests.
+3. **QoS encoding is what carries the typed model out of distribution.** HGL-QoS leads HGL by $\Delta\rho = +0.157$, winning 7 of 8 folds ($p = 0.0156$) — a larger and more consistent effect than the in-distribution comparison in Table 6 suggests in the opposite direction. See §7.3.
+4. **The RM baseline is weakly predictive, not anti-predictive.** $\rho = 0.190$ under distribution shift: better than the untyped GL model and worse than every QoS-aware variant. RM's value lies in interpretable attribution rather than standalone ranking, but it is not noise.
+
+**A note on population.** An earlier version of this table pooled every node type carrying a simulated label. That pooling inverted several conclusions — it reported the RM baseline at $\rho = -0.014$ rather than $+0.190$, and GL at $0.381$ rather than $0.086$, because GL's pooled score was carried almost entirely by Broker nodes whose impact distribution differs in both scale and base rate from Applications'. This is the Simpson's-paradox hazard documented in §8.2, and it is why every figure in this paper is now reported on a single, stated population.
 
 ## 7.2 RQ2: Value of Typed Heterogeneity
 
 To evaluate the contribution of node and edge typing, we compare relation-specific HGL against homogeneous GL across different validation regimes:
 
-- **In-Distribution:** Heterogeneous HGL leads homogeneous GL by $\Delta\rho = +0.113$ (0.725 vs. 0.612; not statistically significant, $p = 0.469$, 4/7 scenarios won). On familiar topologies, homogeneous GNNs can partially approximate type distinctions through structural degree signatures, but the typed model still holds a consistent point-estimate edge.
-- **Out-of-Distribution (LOSO):** Heterogeneous HGL outperforms homogeneous GL by **$+0.197$** ($\rho = 0.578$ vs. $0.381$) and exhibits substantially lower variance across folds ($\sigma = 0.116$ vs. $0.164$). When encountering unseen topologies, relation-specific message passing is essential for generalizing failure mechanics — and the gap widens further to $+0.167$ when comparing the QoS-aware variants (HGL-QoS $0.668$ vs. GL-QoS $0.501$), the best-performing configuration in either family.
+- **In-Distribution:** Heterogeneous HGL leads homogeneous GL by $\Delta\rho = +0.113$ (0.725 vs. 0.612; not statistically significant, $p = 0.469$, 4/7 scenarios won). On familiar topologies, homogeneous GNNs can partially approximate type distinctions through structural degree signatures, so the typed model holds only a point-estimate edge. The contrast with the out-of-distribution result below is the finding: typing buys little when the topology is already known and a great deal when it is not.
+- **Out-of-Distribution (LOSO):** This is where typing decides the outcome. Heterogeneous HGL outperforms homogeneous GL by **$+0.365$** ($\rho = 0.451$ vs. $0.086$), winning *all eight* folds (paired Wilcoxon, $p = 0.0078$), and the gap between the QoS-aware variants is $+0.245$ (HGL-QoS $0.608$ vs. GL-QoS $0.363$), also 8/8 and $p = 0.0078$. The untyped model very nearly fails to transfer at all on Application ranking: at $\rho = 0.086$ it is below even the unweighted structural baseline ($0.301$). When encountering unseen topologies, relation-specific message passing is not an incremental refinement but the difference between a model that generalizes and one that does not.
 
 ### Empirical Edge-Removal Analysis
 We further probed edge criticality by simulating the removal of candidate relationship channels while keeping both endpoint components alive. On the `av_system` topology across 50 candidate bridge edges, 46 edges exhibited zero downstream cascade impact, while the 4 edges with non-zero impact were direct library communication channels (`PUBLISHES_TO` / `SUBSCRIBES_TO`). This demonstrates that individual communication links are largely redundant, whereas component-level failures and shared library dependencies induce disproportionate systemic disruption.
@@ -554,39 +594,90 @@ We further probed edge criticality by simulating the removal of candidate relati
 ## 7.3 RQ3: Ablations and Sensitivity Analysis
 
 ### QoS Feature Encoding
-Explicitly encoding continuous QoS attributes in the GNN (HGL-QoS) does not yield a uniform effect — it trades in-distribution accuracy for out-of-distribution generalization. In-distribution, HGL-QoS *trails* the base typed model ($\rho = 0.653$ vs. $0.725$; $\Delta\rho = -0.072$, marginal at $p = 0.078$, HGL-QoS wins only 1/7 scenarios), consistent with QoS features adding redundant signal (and mild overfitting risk) on topologies the model has already seen, since the derived `DEPENDS_ON` graph already embeds much of the same routing and coupling information. Under LOSO, the relationship reverses sharply: HGL-QoS is the single best-performing configuration in the entire study ($\rho = 0.668$ vs. $0.578$ for HGL; $\Delta\rho = +0.090$). When the topology itself is unseen, the explicit QoS signal generalizes in a way the structural encoding alone does not. We read this as evidence that QoS encoding is not "redundant" so much as *situational*: valuable insurance against distribution shift, at a small in-distribution cost.
+Explicitly encoding continuous QoS attributes in the GNN (HGL-QoS) does not yield a uniform effect — it trades a little in-distribution accuracy for a large out-of-distribution gain. The two directions are summarised below; note that they are measured under different protocols on different fold counts, though both are scored on the Application population.
+
+**Table 9. HGL-QoS against HGL under both protocols.** Both are Application-scored; the regimes differ in fold count (7 in-distribution scenarios vs. 8 LOSO folds, the latter including the ATM case study).
+
+| Protocol | HGL | HGL-QoS | $\Delta\rho$ | Folds won | Wilcoxon $p$ |
+|:---|---:|---:|---:|:---:|---:|
+| In-distribution (Table 6) | 0.725 | 0.653 | −0.072 | 1/7 | 0.078 (n.s.) |
+| Inductive LOSO (Table 8) | 0.451 | **0.608** | **+0.157** | **7/8** | **0.016** |
+
+The apparent contradiction between the two tables is a genuine regime effect, not an inconsistency. In-distribution, HGL-QoS *trails* the base typed model, but the deficit is not statistically significant and is small relative to its own scatter (across-scenario $\sigma = 0.35$ for HGL-QoS against a $0.072$ gap); it is concentrated in two structurally atypical topologies, Hub-and-Spoke ($-0.238$) and AV ($-0.140$), with the remaining five within $\pm 0.084$. This is consistent with QoS features adding redundant signal, and mild overfitting risk, on topologies the model has already seen — the derived `DEPENDS_ON` graph already embeds much of the same routing and coupling information through its edge weights.
+
+Under LOSO the relationship reverses decisively and *is* significant: HGL-QoS gains $+0.157$ and wins 7 of 8 folds. When the topology itself is unseen, structural degree signatures no longer transfer, whereas a declared QoS contract means the same thing in an unfamiliar architecture as in a familiar one — `RELIABLE` and `PERSISTENT` carry their semantics across deployments in a way that a betweenness percentile does not. We therefore read QoS encoding as *situational* rather than redundant: insurance against distribution shift, bought at a small and statistically insignificant in-distribution cost. For a practitioner the rule is simple — use HGL when the target system resembles the training corpus, HGL-QoS when it does not, and HGL-QoS by default when that is unknown.
+
+### Topic-Weight Coefficients ($\beta$, $\alpha$, $\psi$)
+
+The outer split of the topic-weight equation in §3.2 is a declared convex combination, not an elicited one, so we measure what rests on it rather than argue for the particular triple. We swept $(\beta, \alpha, \psi)$ over a grid spanning the whole simplex — including the QoS-only corner $(1, 0, 0)$ and a uniform prior $(\tfrac13, \tfrac13, \tfrac13)$ — and propagated each point through the derived `DEPENDS_ON` edge weights into two closed-form scorers.
+
+**Table 10. Sensitivity of the topic-weight ordering and of downstream rank correlation against $I^*(v)$ to the declared coefficients** $(\beta, \alpha, \psi)$. Application population, mean over seven scenarios; 375 topics.
+
+| $(\beta, \alpha, \psi)$ | $\rho$ of $w(t)$ vs. shipped | Topo-QoS $\rho$ | RM $\rho$ |
+|:---|---:|---:|---:|
+| $(0.75, 0.15, 0.10)$ *shipped* | 1.000 | 0.599 | 0.268 |
+| $(0.90, 0.05, 0.05)$ | 0.9999 | 0.597 | 0.269 |
+| $(0.85, 0.15, 0.00)$ | 0.936 | 0.607 | 0.270 |
+| $(1.00, 0.00, 0.00)$ | 0.925 | 0.617 | 0.258 |
+| $(0.60, 0.20, 0.20)$ | 0.995 | 0.602 | 0.268 |
+| $(0.50, 0.25, 0.25)$ | 0.986 | 0.602 | 0.266 |
+| $(\tfrac13, \tfrac13, \tfrac13)$ *uniform* | 0.925 | 0.603 | 0.266 |
+| **Spread across grid** | — | **0.020** | **0.012** |
+
+The coefficients are not load-bearing. Across the entire simplex the induced ordering of $w(t)$ never falls below $\rho = 0.925$ against the shipped ordering, and downstream rank correlation moves by at most $0.020$ (Topo-QoS) and $0.012$ (RM) — an order of magnitude below the differences between the predictor families the tables above compare. The mechanism is visible in the terms themselves: over the 375 corpus topics the QoS term contributes a weighted standard deviation of $0.188$, the frequency term $0.021$, and the payload term $0.0039$, because $\text{SizeNorm}$ log-compresses realistic payloads into a band roughly $50\times$ narrower than the QoS term's spread. The payload term is therefore close to inert on this corpus whatever $\alpha$ is set to, which we report as a limitation of the construct rather than as a tuned parameter. We emphasise the direction of this claim: it establishes that the declared triple does not drive any reported result, *not* that $(0.75, 0.15, 0.10)$ is optimal — the QoS-only corner is in fact marginally better for Topo-QoS ($0.617$ against $0.599$) and marginally worse for RM. The inner QoS split $(0.30, 0.40, 0.30)$ is a separate matter: it is AHP-derived, its Saaty matrix is consistency-audited, and both are pinned by regression tests.
 
 ### Intra-Dimension AHP Weight Shrinkage
-We evaluated the sensitivity of the RM attribution baseline by sweeping a shrinkage parameter $\lambda \in [0, 1]$ blending internal term weights from uniform prior ($\lambda = 0$) to calibrated AHP judgement ($\lambda = 1$):
+We evaluated the sensitivity of the RM attribution baseline by sweeping a shrinkage parameter $\lambda \in [0, 1]$ blending internal term weights from uniform prior ($\lambda = 0$) to calibrated AHP judgement ($\lambda = 1$). Note that $\lambda$ shrinks only the *intra-dimension* vectors: the composite weights $(q_R, q_M) = (0.80, 0.20)$ are declared constants and are identical at every $\lambda$.
 
-**Table 8. Sensitivity of RM rank correlation to AHP shrinkage parameter $\lambda$.**
+**Table 11. Sensitivity of RM rank correlation against $I^*(v)$ to the AHP shrinkage parameter $\lambda$**, Application population, mean over seven scenarios.
 
 | $\lambda$ Setting | 0.00 (Uniform) | 0.50 | 0.70 (Shipped Default) | 0.80 | 1.00 (Raw AHP Judgement) |
 |:---|---:|---:|---:|---:|---:|
-| **Mean Rank Correlation ($\rho$)** | −0.0514 | −0.0256 | −0.0190 | −0.0142 | **−0.0069** |
+| **Mean Rank Correlation ($\rho$)** | **0.347** | 0.291 | 0.268 | 0.256 | 0.234 |
 
-As illustrated in Figure 4, the calibrated AHP judgement ($\lambda = 1.00$) is monotonically less anti-correlated with ground truth than uniform weighting, improving by $+0.045\,\rho$ across the sweep and validating the internal consistency of the expert hierarchy. We note explicitly that every $\lambda$ setting remains negative on this population: the RM baseline is weakly *anti*-correlated with $I^*(v)$ across the whole shrinkage range, consistent with its near-zero-to-negative LOSO performance (Table 7). AHP calibration makes the RM baseline less wrong, not accurate; its primary role remains explainable attribution rather than standalone ranking.
+**The AHP judgement does not improve ranking, and we report that directly.** As Figure 4 shows, $\rho$ declines monotonically as the weights move from the uniform prior toward the elicited judgement. The uniform prior is the best setting in the sweep ($\rho = 0.347$ against $0.234$ at raw AHP), it wins in all seven scenarios individually (paired Wilcoxon, $p = 0.0156$), and the shipped $\lambda = 0.70$ default costs $\Delta\rho = -0.079$ relative to it ($p = 0.0156$). There is no plateau around the default. The honest reading is that the elicited intra-dimension hierarchy is a *transparency* device — it makes the composite auditable and its terms nameable to an architect — and not a ranking-accuracy device; on this corpus, weighting the terms equally ranks components better. We retain $\lambda = 0.70$ because RM's role is interpretable attribution rather than standalone ranking (§4.1), but we do not claim the sweep validates the expert hierarchy, because it does not.
+
+**A measurement correction.** An earlier version of this analysis scored $Q(v)$ from features restricted to the Application–Library `DEPENDS_ON` projection — the feature substrate built for GNN training — rather than from the full typed graph. On that projection no Application is an articulation point and no incident edge is a bridge in six of the eight scenarios, so four of Availability's five terms vanish and $A(v)$, which carries $w_R(1 - \alpha) \approx 0.51$ of the composite, is constant across the Application population. Sweeping $\lambda$ against that variant measured a degenerate score and returned uniformly negative $\rho$ (from $-0.146$ at $\lambda = 0$ to $-0.112$ at $\lambda = 1$). The figures above are computed through the full analysis pipeline, which is the RM baseline defined in §4.3; both series are retained in the replication artifact. The same correction applies to the threshold and domain-weighting ablations below, which shared that scorer.
 
 ### Convergent Validity Across Simulation Oracles
-To test construct validity, we compared node criticality rankings across our three simulation engines: the topological cascade reachability oracle $I^*(v)$ (`FaultInjector`), the multi-metric composite oracle $I_{\text{comp}}(v)$ (`FailureSimulator`), and the discrete-event queue-flow simulator $I_{\text{dyn}}(v)$ (`MessageFlowSimulator`).
+To test construct validity, we compared node criticality rankings across our three simulation engines — the topological cascade reachability oracle $I^*(v)$ (`FaultInjector`), the multi-metric composite oracle $I_{\text{comp}}(v)$ (`FailureSimulator`), and the discrete-event queue-flow simulator $I_{\text{dyn}}(v)$ (`MessageFlowSimulator`) — over seven synthetic scenarios and five seeds, on the Application population.
 
-Across all seven synthetic scenarios, the behavioural SimPy simulator ($I_{\text{dyn}}$) and the topological cascade reachability oracle ($I^*$) exhibited strong rank convergence:
-- **$I_{\text{dyn}}$ vs. $I^*(v)$:** Mean Spearman $\rho = \mathbf{0.7647}$ (ranging from $0.5497$ to $0.9378$), with mean Kendall $\tau = 0.633$ and top-$K$ Jaccard overlap of $0.312$.
-- **$I_{\text{comp}}$ vs. $I_{\text{dyn}}$:** Mean Spearman $\rho = 0.4646$ (ranging from $0.1208$ to $0.6575$).
-- **$I_{\text{comp}}$ vs. $I^*(v)$:** Mean Spearman $\rho = 0.3970$ (ranging from $0.0974$ to $0.5778$).
+**Table 12. Inter-oracle agreement.** Chance-level top-$K$ Jaccard at $K = 0.2n$ is $0.111$; the tie-robust column admits every component tied with the $K$-th.
 
-This is the strongest of the three pairwise agreements reported in Section 5.1, and it supports the narrower claim that $I^*(v)$'s *ordering* tracks dynamic service disruption. It does not establish critical-set agreement: top-$K$ Jaccard overlap for this pair is 0.312, and the $(I_{\text{comp}}, I^*)$ pair agrees only at $\rho = 0.397$. We therefore read convergent validity here as partial corroboration of the label's ranking, not as evidence that the three oracles are interchangeable.
+| Oracle pair | Mean $\rho$ (range) | Mean $\tau$ | Jaccard@$K$ | Tie-robust |
+|:---|:---|---:|---:|---:|
+| $I_{\text{dyn}}$ vs. $I^*$ | **0.883** (0.756–0.972) | 0.745 | 0.424 | 0.419 |
+| $I_{\text{comp}}$ vs. $I^*$ | 0.468 (0.171–0.677) | 0.349 | 0.307 | 0.312 |
+| $I_{\text{comp}}$ vs. $I_{\text{dyn}}$ | 0.465 (0.121–0.658) | 0.348 | 0.313 | 0.313 |
+
+**Ordering converges; the critical set does not.** The behavioural queue simulator and the topological cascade oracle agree strongly on ordering ($\rho = 0.883$, never below $0.756$ on any scenario). Because the two are constructed on different principles — one observing delivered message rates under load, the other reachability over edges — this agreement is not reducible to a shared construction artifact, and it is the strongest convergent evidence available to us that $I^*(v)$ tracks dynamic service disruption rather than only graph topology. The composite oracle is the outlier, agreeing only moderately with either ($\rho \approx 0.47$).
+
+Set-level agreement is a different and weaker story, and we report it as the binding limitation rather than burying it. Top-$K$ Jaccard is $0.42$ for the strongest pair and $0.31$ for the others, against $0.111$ expected under independent rankings. We ran two controls before interpreting this. It is *not* a tie-breaking artifact: admitting every component tied with the $K$-th moves the figure by at most $0.005$. And it is not simply label noise, though noise is a substantial part of it — the labeler's own seed-to-seed self-agreement spans top-$K$ Jaccard $0.44$–$1.00$, so one oracle compared against *itself* reaches only $0.44$ in its worst scenario. Top-$K$ set identity at $K = 0.2n$ is therefore an intrinsically unstable statistic, and the cross-oracle values sit just below the floor a single oracle achieves against its own reruns. The defensible claim is about ranking, not about membership of a fixed-size critical set.
+
+**A falsified hypothesis, reported.** We tested whether weighting both topological oracles by the same $w(t)$ makes them converge — the mechanism by which QoS weighting would be a construct-validity improvement rather than merely a modelling choice. It does not: $\rho(I_{\text{comp}}, I^*)$ is $0.468$ with QoS weighting and $0.477$ without it ($\Delta\rho = -0.009$; Jaccard $0.307$ against $0.306$). Shared weighting has no measurable effect on inter-oracle agreement in either direction, and we record the negative result rather than leaving the artifact uncited.
 
 ### Domain-Specific Weighting Sensitivity
-We investigated the impact of Context of Use reweighting $\vec{\omega} = [q_R, q_M]^\top$ across 10 evaluation scenarios by sweeping the composite reliability weight $w_R$ over its full range and reading off three points on that one curve: the shipped static default ($w_R = 0.80$), an unweighted equal split ($w_R = 0.50$), and the domain-derived value per scenario. Domain-derived weighting improves mean rank correlation by $\Delta\rho = +0.0264$ over the static default, but *underperforms* equal weighting by $\Delta\rho = -0.1097$ — domain derivation is not, on this evidence, a ranking-accuracy improvement over the simplest possible baseline. The reason is structural rather than a modelling failure: across all six declared domains, the domain-derived $w_R$ sits within $0.04$ of the static $0.80$ default (range $[0.70, 0.76]$), so mean Kendall rank fidelity between domain-derived and static rankings is $\tau = 0.9677$ — the two weightings rank components almost identically, and the free parameter Context of Use actually moves is too small for any weighting confined to it to move $\rho$ substantially. We therefore reframe this ablation's conclusion: operational Context of Use reweighting is an *attributional* mechanism — explaining why a component matters in stakeholder terms — not a ranking-improvement device, consistent with the scoping in the quality model (§4.1).
+We investigated the impact of Context of Use reweighting $\vec{\omega} = [q_R, q_M]^\top$ across 10 evaluation scenarios by sweeping the composite reliability weight $w_R$ over its full range and reading off three points on that one curve: the shipped static default ($w_R = 0.80$), an unweighted equal split ($w_R = 0.50$), and the domain-derived value per scenario. The three are statistically indistinguishable: mean $\rho = 0.345$ (static), $0.342$ (equal), $0.345$ (domain-derived), so domain derivation beats equal weighting by $\Delta\rho = +0.002$ and trails the static default by $\Delta\rho = -0.001$. Neither difference is meaningful, and the sweep explains why: over the *entire* $w_R \in [0, 1]$ range mean $\rho$ moves only from $0.341$ to $0.354$, a total spread of $0.014$. The composite weight is simply not a lever on ranking. Two structural facts compound this: across all ten declared domains the derived $w_R$ lies in $[0.70, 0.80]$, i.e. at most $0.10$ from the static default, and mean Kendall rank fidelity between domain-derived and static rankings is $\tau = 0.976$ — the two weightings order components almost identically. We therefore read this ablation as confirming the scoping in §4.1: operational Context of Use reweighting is an *attributional* mechanism — explaining why a component matters in stakeholder terms — and not a ranking-improvement device. It should not be reported as either an accuracy gain or an accuracy loss.
 
 ### Threshold and Normalization Sensitivity
-We swept 7 scenarios $\times$ a cascade propagation-threshold parameter $\in \{0.0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0\}$ controlling the ground-truth oracle's eligibility cutoff for cascade propagation, and separately swept 3 label-normalization techniques (min-max, standard, rank-quantile) holding the threshold fixed. Ranking performance is more sensitive to the propagation threshold ($\Delta\rho = 0.1896$ across the extreme settings; mean $\rho$ ranges from $-0.173$ at threshold $0$ to $+0.017$ at threshold $\geq 0.35$, plateauing thereafter) than to normalization choice ($\Delta\rho = 0.0158$ across the three schemes). A small spread under either sweep means the reported ordering is stable under that free parameter of the ground truth and scorer — it is not, by itself, evidence that the ordering is *correct*.
+We swept 7 scenarios $\times$ a cascade propagation-threshold parameter $\in \{0.0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0\}$ controlling the ground-truth oracle's eligibility cutoff for cascade propagation, and separately swept 3 label-normalization techniques (robust, min-max, standard) holding the threshold fixed. Ranking performance is more sensitive to the propagation threshold ($\Delta\rho = 0.099$ across the extreme settings; mean $\rho$ rises from $0.183$ at threshold $0$ to $0.281$ at threshold $0.5$ and plateaus thereafter, the shipped $0.35$ sitting inside that plateau at $0.276$) than to normalization choice ($\Delta\rho = 0.027$; robust $0.268$ against $0.241$ for both min-max and standard). The threshold is thus the more consequential free parameter of the two, and the shipped setting is on the flat part of its curve rather than at a tuned peak. A small spread under either sweep means the reported ordering is stable under that parameter — it is not, by itself, evidence that the ordering is *correct*.
 
 ### Anti-Pattern Detection and CI/CD Quality Gates
 Validating our rule-based architectural anti-pattern catalog against the multi-metric composite oracle $I_{\text{comp}}(v)$ yielded a mean detection $F_1 = 0.3781$ across 8 system scenarios — but $F_1$ alone understates what the catalog does: mean precision is $0.239$ against mean recall $0.900$, meaning the catalog flags $94.2\%$ of all components on average and trades precision for near-exhaustive coverage of true positives. This is a deliberate high-recall CI/CD posture (a missed critical component is more costly than a false positive requiring manual triage) rather than an accuracy shortfall, but should be read as such rather than via $F_1$ in isolation. One detector, `DEEP_PIPELINE`, is excluded from this evaluation: it enumerates every simple source-to-sink path and does not terminate within ten minutes on the 50-application Healthcare topology — the blowup is itself a reportable scalability limit of exhaustive path enumeration, not a measurement gap. Analysis execution times for the remaining 18 detectors ranged from $0.04\,\text{s}$ (small scenarios, 50 nodes) to $54.85\,\text{s}$ (enterprise event meshes, 300 nodes), confirming that SaG runs comfortably within standard pre-commit and pull-request CI/CD quality gate budgets.
 
 We additionally stratify the RM composite's rank correlation by node type: $\rho = 0.503$ (Application), $0.395$ (Broker), $0.142$ (Node), while the *pooled* correlation across all types is $\rho = 0.028$ — outside the per-type range entirely. This is a Simpson's-paradox effect (aggregating across populations with different scales/base rates reverses the within-group trend), and it means the pooled figure is not a summary of the per-type figures: only the stratified, per-type numbers should be quoted when discussing RM's structural predictive power.
+
+### Using RM Correctly: Score Within a Node Type
+
+The stratification above is not only a reporting convention for this paper; it is a usage rule for the framework, and getting it wrong changes which components an architect is told to fix. We therefore state it operationally.
+
+**The rule.** Score, tier and rank components *within* a node type. Never derive a single ranking, or a single criticality threshold, from a population that mixes Applications, Brokers, Topics, Infrastructure Nodes and Libraries. Their criticality scores differ in scale and in base rate, so a shared threshold measures type membership as much as it measures risk.
+
+**The mechanism is already in the framework.** The layer projections of §3.3 are the stratification device: $\pi_{\text{infra}}$ reports Nodes only, $\pi_{\text{mw}}$ reports Brokers only, and $\pi_{\text{app}}$ reports Applications and Libraries. Only $\pi_{\text{system}}$ spans all five types. Practitioners should read $\pi_{\text{system}}$ as a structural and visualisation view of the whole architecture, and take ranking or gating decisions from the single-type layers.
+
+**What pooling costs, measured.** We classified every component in the eight-scenario corpus twice — once against one box-plot over the whole system layer, once within its own node type — and compared the resulting CRITICAL/HIGH/MEDIUM/LOW/MINIMAL tiers. Across 1,619 components, **62.8% land in a different tier**, and **19.0% cross the CRITICAL/HIGH boundary** that determines whether a component is surfaced for action at all. The effect is stable across scenarios (tier changes $51$–$69\%$, boundary crossings $14$–$22\%$), so it is a property of mixing the populations rather than of any one topology. The direction is systematic: pooling suppresses the top of whichever type carries the lower score scale, because the higher-scaled type occupies the upper quartile outright.
+
+**What we changed.** The classifier now derives quartiles and fences within each node type, and the per-dimension criticality flags use the same fence that produced the component's tier, so flag and tier cannot disagree. Types with too few members for stable quartiles fall back to the pooled fence rather than being scored on a handful of samples. The residual case is $\pi_{\text{app}}$, which still pools Applications with Libraries; their LOSO correlations overlap ($0.190$ against $0.105$), so we retain the pairing and note it as a scope condition rather than a defect.
 
 ### HGT Attention Weight Analysis
 Extracting relational attention matrices from the trained HGT model on the ATM Case Study (Figure 3) revealed that the model places its highest single attention weight ($\alpha_{uv} = 1.00$) on a `USES` edge (an Application's dependency on a shared Library), with the next tier ($\alpha_{uv} \approx 0.50$) split between a `ROUTES` edge (Broker $\to$ Topic) and further `USES`/`SUBSCRIBES_TO` edges. This pattern — dominant attention on library-dependency and broker-routing channels rather than direct publish/subscribe message flow — reflects the shared-library blast-radius and broker-centrality failure pathways identified elsewhere in this study (§7.2's edge-removal analysis, §3's simultaneous-failure semantics for shared libraries) rather than sequential pub-sub cascade propagation.
@@ -595,9 +686,9 @@ Extracting relational attention matrices from the trained HGT model on the ATM C
 
 To assess external validity on authentic production architectures, we evaluated SaG on three open-source distributed systems.
 
-**Table 9. Empirical validation on authentic real-world distributed software architectures.**
+**Table 13. Empirical validation on authentic real-world distributed software architectures.**
 
-| Real-World Architecture | Total Nodes | Apps ($|V_{\text{app}}|$) | Spearman $\rho$ (Mean $\pm$ Std) | Kendall $\tau$ | Critical-Set $F_1@K$ | Tie-Robust $F_1@K$ | Non-Zero Impact Apps | Predictive Gain (vs. Degree) |
+| Real-World Architecture | Total Nodes | Apps ($\|V_{\text{app}}\|$) | Spearman $\rho$ (Mean $\pm$ Std) | Kendall $\tau$ | Critical-Set $F_1@K$ | Tie-Robust $F_1@K$ | Non-Zero Impact Apps | Predictive Gain (vs. Degree) |
 |:---|---:|---:|---:|---:|---:|---:|---:|---:|
 | **Autoware.universe (ROS 2)** | 75 | 32 | **0.688 $\pm$ 0.009** | 0.517 | **0.800** | 0.800 | 19 / 32 | +0.360 |
 | **Cloud Microservices Mesh** | 60 | 22 | **0.778 $\pm$ 0.001** | 0.639 | **1.000** | 0.760 | 8 / 22 | +0.014 |
@@ -608,6 +699,25 @@ To assess external validity on authentic production architectures, we evaluated 
 2. **Critical-Set Containment:** Every single application with non-zero cascading impact in Cloud Microservices and Train-Ticket is successfully captured within the predicted top-$K$ critical set (tie-robust $F_1@K = 0.760$ and $0.810$).
 3. **Substantial Predictive Gain:** SaG outperforms raw degree centrality by $+0.360$ on Autoware and $+0.264$ on Train-Ticket, demonstrating that typed dependency derivation captures critical architectural semantics beyond superficial connectivity.
 
+## 7.5 Scalability and Computational Cost
+
+A learned model invites the question of whether it remains usable as systems grow. On this pipeline the answer is that the neural network is not the constraint — the deterministic structural analysis that feeds it is, by more than two orders of magnitude.
+
+**Table 14. Per-stage cost of the deployed (inference) path** on generated systems of increasing size, CPU, median of three runs with a warm-up pass excluded. Training is not included: it is a one-off cost paid once over the corpus, not per analysed system.
+
+| $\|V\|$ | $\|E\|$ | Analyse (s) | Graph→tensor (s) | HGT forward (ms) | Analyse : forward |
+|---:|---:|---:|---:|---:|---:|
+| 249 | 1,127 | 0.27 | 0.011 | 22.5 | 12$\times$ |
+| 499 | 2,402 | 0.95 | 0.022 | 15.7 | 61$\times$ |
+| 999 | 6,422 | 4.74 | 0.055 | 36.7 | 129$\times$ |
+| 1,998 | 19,301 | 23.83 | 0.153 | 43.7 | **545$\times$** |
+
+**The GNN is the cheapest stage.** Inference on a 2,000-component system takes $44\,\text{ms}$ — a handful of sparse matrix products whose cost grows close to linearly in $|E|$ — while the structural analysis preceding it takes $24\,\text{s}$. The ratio widens with scale rather than narrowing, from $12\times$ at 249 components to $545\times$ at 1,998. Any effort spent making this framework scale should therefore go to the classical graph metrics, not to the model: betweenness is $O(|V||E|)$ and the directed articulation score and closeness are $O(|V|(|V|+|E|))$, giving an overall $O(|V|^2 + |V||E|)$. One mitigation already ships, with the connectivity-degradation term switching to deterministic top-50 core sampling above $|V| = 300$.
+
+**Cost tracks edges, not components.** The corpus scenarios make this concrete: the 520-component Enterprise mesh takes $27.2\,\text{s}$ to analyse while a *denser-in-name-only* 999-component generated system takes $4.7\,\text{s}$, because the former carries 3,245 structural edges against a far sparser fan-out per component. Practitioners sizing a CI/CD budget should estimate from $|E|$, or from $|V| \cdot |E|$, rather than from component count. Within the paper's corpus the whole gate — analysis plus all 18 evaluated detectors — runs in $0.02\,\text{s}$ (29 components) to $27.4\,\text{s}$ (520 components), comfortably inside a pull-request budget.
+
+**What we have not measured, and do not claim.** Nothing above 2,000 components has been timed, and nothing here should be extrapolated past it; all figures are single-threaded CPU, with no GPU measurement; and one detector, `DEEP_PIPELINE`, is excluded throughout because exhaustive source-to-sink path enumeration does not terminate within ten minutes even at 50 applications (§7.3). That detector is the one component of the framework known *not* to scale, and its exclusion is a limitation rather than a tuning choice. Training cost, for completeness: the full seven-variant, eight-fold, five-seed leave-one-scenario-out sweep reported in Table 8 took approximately 45 minutes per learned variant on CPU.
+
 ---
 
 # 8. Discussion, Threats to Validity, and Conclusion
@@ -615,15 +725,19 @@ To assess external validity on authentic production architectures, we evaluated 
 ## 8.1 Discussion and Practical Implications
 
 Our empirical findings provide clear guidance for software architects and reliability engineers:
-- **When to Use Graph Learning:** Heterogeneous GNNs provide the greatest return when the objective is identifying the critical top-$K$ shortlist of components for architectural hardening ($F_1@K = 0.467$, HGL), and when evaluating new, unseen system architectures out of distribution ($\rho = 0.668$, HGL-QoS). The choice between the base typed model and its QoS-aware variant is itself a design decision: HGL for in-distribution accuracy, HGL-QoS when the deployment target is expected to differ structurally from the training corpus (§7.3).
+- **When to Use Graph Learning — and When Not To:** Heterogeneous GNNs provide the greatest return when evaluating new, unseen system architectures out of distribution ($\rho = 0.608$, HGL-QoS) and when identifying the critical top-$K$ shortlist for architectural hardening ($F_1@K = 0.414$). But the honest comparison is against a training-free QoS-weighted centrality baseline, and there the margin is $+0.037$ and not statistically significant ($p = 0.74$, Table 8). A team that needs a critical-component ranking and nothing else should use Topo-QoS: it costs no training, no corpus, and no checkpoint. The learned model earns its cost when the typed attention, the multi-task reliability/maintainability outputs, or the relationship-level criticality head are wanted alongside the ranking — and when the deployment target differs structurally from the training corpus, where the untyped alternative collapses ($\rho = 0.086$) and the typed QoS-aware model does not. Between the two typed variants: HGL for in-distribution accuracy, HGL-QoS otherwise (§7.3).
 - **When to Use Interpretable Attribution:** For root-cause diagnosis and remediation planning, the deterministic RM profile is indispensable. Distinguishing whether a service is critical due to single-point-of-failure exposure (Availability) or wide error propagation (Fault Tolerance) directly dictates whether to introduce load-balanced replicas or circuit-breaker policies.
 
 ## 8.2 Threats to Validity
 
-- **Construct Validity:** Our ground truth is generated via discrete-event cascade simulation on structural models rather than observing live production outages. To characterise construct divergence we evaluated three independent simulation engines (`FaultInjector`, `FailureSimulator`, `MessageFlowSimulator`). Their agreement is partial and we report it as a bound rather than a mitigation: mean $\rho = 0.765$ between dynamic queue-flow simulation and cascade reachability, but only $\rho = 0.397$ between the composite and cascade oracles, with top-$K$ Jaccard overlap of 0.26--0.31 for every pair (Section 5.1). A further 30--47\% of components per scenario carry no simulated ground truth at all. Accordingly, results established against one oracle should not be read as claims about another, and none of them are claims about observed production outages.
-- **Internal Validity:** Potential feature leakage is prevented by strict graph view separation: predictors operate on $G_{\text{analysis}}$, whereas ground-truth simulators operate on $G_{\text{structural}}$. We additionally identified and fixed a normalization defect in the code-quality scoring pipeline: a min-max helper previously assigned the maximal Code Quality Penalty to any zero-variance population, which is correct for one genuine node but was indistinguishable from "many nodes carrying no code-quality data at all" — the exact shape of every Library in our three real-world scenarios, which carry no source-level `code_metrics`. The fix (scoring an undifferentiated multi-node population as zero rather than maximal penalty) changes Library Maintainability tier classifications in the real-world corpus but, as expected for a fix confined to a population with no variance to rank, leaves Application-population rank correlation against $I^*(v)$ effectively unchanged (Table 9: $\Delta\rho \in \{-0.003, 0.000, 0.000\}$ across the three real-world scenarios).
+- **Construct Validity:** Our ground truth is generated via discrete-event cascade simulation on structural models rather than observing live production outages. To characterise construct divergence we evaluated three independent simulation engines (`FaultInjector`, `FailureSimulator`, `MessageFlowSimulator`). On *ordering* the evidence is genuinely convergent: the behavioural queue-flow simulator and the topological cascade oracle agree at $\rho = 0.883$, never below $0.756$ on any scenario, despite being built on different principles. On *critical-set membership* it is not: top-$K$ Jaccard is $0.31$–$0.42$ across pairs against $0.111$ expected by chance, and this is neither a tie-breaking artifact ($\le 0.005$ change under a tie-robust cut) nor purely construct divergence — the labeler compared against its own reruns reaches only $0.44$ in its worst scenario, so the statistic is unstable at this $K$ for any oracle. We also could not close the gap by weighting: applying the same $w(t)$ to both topological oracles changes their agreement by $\Delta\rho = -0.009$, a null result we report rather than omit. A further 30--47\% of components per scenario carry no simulated ground truth at all. Accordingly, results established against one oracle should not be read as claims about another, and none of them are claims about observed production outages.
+- **Internal Validity:** Potential feature leakage is prevented by strict graph view separation: predictors operate on $G_{\text{analysis}}$, whereas ground-truth simulators operate on $G_{\text{structural}}$. We additionally identified and fixed a normalization defect in the code-quality scoring pipeline: a min-max helper previously assigned the maximal Code Quality Penalty to any zero-variance population, which is correct for one genuine node but was indistinguishable from "many nodes carrying no code-quality data at all" — the exact shape of every Library in our three real-world scenarios, which carry no source-level `code_metrics`. The fix (scoring an undifferentiated multi-node population as zero rather than maximal penalty) changes Library Maintainability tier classifications in the real-world corpus but, as expected for a fix confined to a population with no variance to rank, leaves Application-population rank correlation against $I^*(v)$ effectively unchanged (Table 13: $\Delta\rho \in \{-0.003, 0.000, 0.000\}$ across the three real-world scenarios).
 - **External Validity:** While our corpus spans ten distinct system domains and three authentic open-source architectures (ROS 2 and microservices), future work should evaluate larger enterprise deployments with hundreds of microservices.
-- **Conclusion Validity:** Given the heavy-tailed, non-normal distribution of cascading failure impacts, all statistical comparisons utilize non-parametric rank correlation (Spearman $\rho$, Kendall $\tau$), bootstrap confidence intervals ($B = 2,000$), and paired Wilcoxon signed-rank tests. We note one aggregation hazard directly: the RM composite's rank correlation pooled across node types ($\rho = 0.028$) falls outside the range spanned by its own per-type correlations ($\rho \in [0.14, 0.50]$, §7.3) — a Simpson's-paradox effect that would mislead if the pooled figure were quoted on its own. We report and interpret only stratified figures for this reason.
+- **Conclusion Validity:** Given the heavy-tailed, non-normal distribution of cascading failure impacts, all statistical comparisons utilize non-parametric rank correlation (Spearman $\rho$, Kendall $\tau$), bootstrap confidence intervals ($B = 2,000$), and paired Wilcoxon signed-rank tests. Two hazards deserve explicit statement because both changed conclusions in this study rather than merely threatening to.
+
+  First, *aggregation across node types*. The RM composite's rank correlation pooled across types ($\rho = 0.028$) falls outside the range spanned by its own per-type correlations ($\rho \in [0.14, 0.50]$) — a Simpson's-paradox effect. Reported pooled, the same LOSO experiment placed the RM baseline at $\rho = -0.014$ and the untyped GL model at $0.381$; reported on the Application population it places them at $+0.190$ and $0.086$ respectively, reversing their order. Every figure in this paper is therefore scored on a single stated population (§6.3), and we quote no pooled cross-type correlation.
+
+  Second, *substrate*. An earlier version of the RM ablations in §7.3 scored $Q(v)$ from features restricted to the Application–Library `DEPENDS_ON` projection — the substrate built for GNN feature/label alignment — on which no Application is an articulation point and no incident edge is a bridge in six of eight scenarios. Four of Availability's five terms vanish there, leaving $A(v)$ (roughly $0.51$ of the composite) constant, and all three affected sweeps consequently reported negative $\rho$ for a baseline that is in fact weakly positive. The ablations are now computed through the full analysis pipeline. We record this because the failure mode is not visible in the output: a degenerate score produces plausible-looking correlations, and only checking the variance of each term exposed it.
 
 ## 8.3 Limitations and Future Work
 
@@ -635,7 +749,7 @@ Our empirical findings provide clear guidance for software architects and reliab
 
 We presented **Software-as-a-Graph (SaG)**, a pre-deployment Static System Analysis framework that models complex distributed pub-sub and microservice architectures as typed, weighted multigraphs. By combining relation-specific Heterogeneous Graph Transformers with an interpretable Reliability–Maintainability quality attribution model, SaG bridges the Architecture–Code Gap, forecasting cascading failure risks before systems are deployed. 
 
-Our empirical results across synthetic and authentic open-source distributed systems demonstrate that heterogeneous graph learning provides significant advantages in identifying critical components ($F_1@K = 0.467$) and generalizing across unseen architectures ($\rho = 0.668$), while delivering actionable architectural diagnostics for resilient distributed systems engineering.
+Our empirical results across synthetic and authentic open-source distributed systems show that relation-specific typing is what makes graph learning transfer to unseen architectures: the typed model reaches $\rho = 0.608$ where its untyped counterpart collapses to $0.086$, an advantage significant across all eight folds. We are equally explicit about the boundary of that result — against a training-free QoS-weighted structural baseline the typed model's ranking advantage is $+0.037$ and not statistically significant, so the case for graph learning here rests on what it supplies beyond a ranking (typed attention, multi-task quality outputs, relationship-level criticality) rather than on ranking accuracy alone.
 
 ---
 
@@ -771,6 +885,6 @@ Our empirical results across synthetic and authentic open-source distributed sys
 
 **Funding.** *[Omitted for double-anonymised review.]*
 
-**Data availability.** The replication package—including the seven synthetic scenario datasets, topology generators, simulation harnesses, and real-world architecture adapters—will be made openly available upon publication.
+**Data availability.** The replication package—including the seven synthetic scenario datasets and the configurations that generate them, the topology generator, the three simulation harnesses, the real-world architecture adapters, and every analysis script behind the reported tables and figures—will be made openly available upon publication. The synthetic corpus is regenerable rather than merely archived: each dataset carries its seed and a SHA-256 digest in a committed manifest, and a regression test asserts byte-identical regeneration from the configurations (§6.1). Every table and figure in this paper is produced from a committed artifact by a script in that package; none of the reported values is transcribed by hand.
 
 **Declaration of generative AI use.** *[To be completed by the authors in accordance with the journal's policy.]*

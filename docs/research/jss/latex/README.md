@@ -1,12 +1,21 @@
 # JSS submission — LaTeX sources
 
-Elsevier `elsarticle` LaTeX conversion of [`../draft.md`](../draft.md), the authoritative manuscript
-text for the *Journal of Systems and Software* submission (Special Issue VSI:AI4MSS). This folder —
-not the Markdown — is what gets zipped for Editorial Manager.
+Elsevier `elsarticle` sources for the *Journal of Systems and Software* submission (Special Issue
+VSI:AI4MSS). **This folder is authoritative**: it is what gets zipped for Editorial Manager, it is
+where manuscript revisions land, and its results tables and figures are generated from committed
+artifacts by scripts under `reproduce/` rather than written by hand.
 
-These sources correspond to the **condensed** `draft.md` (~16,800 words, 13 tables, 4 figures),
-refocused around the paper's graph-learning claim to fit JSS's ≤36-single-column-page guidance. The
-pre-condensation text (~30,100 words, 23 tables, 6 figures) is preserved verbatim at
+[`../draft.md`](../draft.md) is a maintained Markdown rendering of the same manuscript, kept in sync
+after each revision round. It is useful for review and diffing, but where the two disagree, these
+sources win. (The relationship used to run the other way — `draft.md` was the source and this folder
+its conversion — which is why the two drifted: two rounds of reviewer revisions were applied here
+first. If you edit `draft.md` alone, that drift returns.)
+
+`draft.md` is not a mechanical mirror. It keeps two things these sources do not: **Table 0** (a
+comparison of dependability-analysis paradigms) and an inline ASCII diagram of the HGT layer stack,
+both dropped here during condensation to fit JSS's ≤36-single-column-page guidance. Its figure
+numbering therefore differs from the numbering below; `draft.md` carries a note recording the
+mapping. The pre-condensation text (~30,100 words, 23 tables, 6 figures) is preserved verbatim at
 [`../../thesis/jss_draft_full.md`](../../thesis/jss_draft_full.md), and the material cut from it is
 organised by topic under [`../../thesis/material/`](../../thesis/material/).
 
@@ -19,7 +28,7 @@ latex/
 ├── refs.bib             — 53 references + [Anon-A], transcribed from draft.md's numbered list
 ├── title_page.tex        — SEPARATE, non-anonymous title page (placeholders — see below)
 ├── highlights.tex        — SEPARATE file, 5 bullets ≤85 chars (Elsevier requires "highlights" in the name)
-├── figures/              — Figure_1.pdf .. Figure_4.pdf (+ .png @300dpi); figures/src/ has the two
+├── figures/              — Figure_1.pdf .. Figure_5.pdf (+ .png @300dpi); figures/src/ has the two
 │                           graphviz .dot sources
 ├── vendor/               — elsarticle.cls + the handful of .sty/.bst files this machine's TeX Live
 │                           didn't ship (see "Toolchain" below) — self-contained, no sudo needed
@@ -30,7 +39,7 @@ latex/
 
 ```bash
 make            # pdflatex -> bibtex -> pdflatex x2 -> manuscript.pdf
-make figures    # regenerate all 4 figures (delegates to reproduce/Makefile jss-figures)
+make figures    # regenerate all 5 figures (delegates to reproduce/Makefile jss-figures)
 make flat       # manuscript_flat.tex — single file, if a submission portal rejects \input
 make zip        # submission_package.zip — everything Editorial Manager needs
 make clean      # remove build artifacts, keep the PDF
@@ -65,24 +74,32 @@ further round of cuts — §8.5 and §9.2 are the next candidates.
 
 ## Figures
 
-Four figures, and — unlike the pre-condensation version — **printed number, filename, and
-`draft.md`'s own caption label all agree**:
+Five figures, each `\includegraphics`'d from a live section and cross-referenced with `\ref`:
 
 | Fig. | File | Content | Source section | Generator |
 |:---:|---|---|---|---|
-| 1 | `Figure_1.pdf` | end-to-end SaG pipeline | §1.3 | `figures/src/figure1_pipeline.dot` |
+| 1 | `Figure_1.pdf` | end-to-end SaG pipeline (two pathways) | §1.3 | `figures/src/figure1_pipeline.dot` |
 | 2 | `Figure_2.pdf` | running example: structural graph + `DEPENDS_ON` | §3.3 | `figures/src/figure2_running_example.dot` |
-| 3 | `Figure_3.pdf` | HGT attention-weight case study | §5.2 | `reproduce/extract_attention.py` + `render_attention_subgraph.py` |
-| 4 | `Figure_4.pdf` | AHP shrinkage sensitivity | §8.3 | `reproduce/render_shrinkage_figure.py` |
+| 3 | `Figure_3.pdf` | HGT attention-weight case study | §7.3 | `reproduce/extract_attention.py` + `render_attention_subgraph.py` |
+| 4 | `Figure_4.pdf` | AHP shrinkage sensitivity | §7.3 | `reproduce/render_shrinkage_figure.py` |
+| 5 | `Figure_5.pdf` | results at a glance (LOSO ρ, F1@K, oracle agreement) | §7.1 | `reproduce/render_results_figure.py` |
 
-The old printed/label mismatch (`1,2,6,3,4,5`) is gone: it existed only because draft.md's "Figure 6"
-(attention) physically preceded its "Figure 3" (pooled-vs-per-type), and both figures that caused it
-have been dropped. `reproduce/render_shrinkage_figure.py` now writes `Figure_4` (it was `Figure_5`).
+**Two production notes.** Figures 2–4 were once orphaned: the files existed and the text referred to
+them by number, but no section actually included them — the `\includegraphics` lived in
+`sections/sec8_results.tex`, which `manuscript.tex` stopped inputting when `sec7_results.tex`
+superseded it. They are back, and the hard-coded "Figure~3"/"Figure~4" strings are now `\ref`s so the
+numbering cannot silently drift again.
+
+The Graphviz figures must also keep their **natural canvas width near the text block (~468pt)**. They
+are included at `width=\linewidth`, so a canvas twice that width is scaled to ~0.5 and every font
+inside is halved with it; Figure 1 once printed its 10.5pt labels at 5.4pt for exactly this reason.
+Enlarging the float cannot fix it. After editing a `.dot`, re-measure with
+`pdfinfo figures/Figure_N.pdf` rather than judging by eye.
 
 **Two generators are retired** but deliberately kept, since their analyses still live in
 `docs/research/thesis/material/` and either figure is one command from returning:
 `render_pooled_vs_pertype_figure.py` (pooled vs. per-node-type ρ — §5.5 is now a single paragraph)
-and `render_threshold_figure.py` (propagation-threshold sweep — Table 12 carries the same numbers).
+and `render_threshold_figure.py` (propagation-threshold sweep — §7.3 carries the same numbers).
 Neither is part of `make figures` any more; both carry a RETIRED banner. Note that
 `render_pooled_vs_pertype_figure.py` still defaults to writing `Figure_4`, which would now clobber the
 shrinkage figure — redirect its output before running it.
