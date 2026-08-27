@@ -53,17 +53,103 @@ if __name__ == "__main__" and __package__ is None:
 import numpy as np
 from scipy.stats import spearmanr
 
+from saag.evaluation.metrics import resolve_eval_keys
+
 logger = logging.getLogger("ahp_sensitivity")
 
 DEFAULT_LAMBDAS = [0.0, 0.5, 0.6, 0.65, 0.7, 0.75, 0.8, 0.9, 1.0]
 RESULTS_DIR = Path("results")
 
 
-def _score_components(topology: Dict[str, Any], structural: Dict[str, Any], lam: float) -> Dict[str, float]:
+_STRUCTURAL_CACHE: Dict[Any, Any] = {}
+
+
+def full_pipeline_structural(topology: Dict[str, Any], layer: str = "system"):
+    """StructuralAnalysisResult for *topology*, over the whole typed graph.
+
+    Memoised per (topology identity, layer, topic-weight constants). The RM
+    sweeps vary only the *scoring* weights, which cannot change the structural
+    analysis, so recomputing it per grid point is pure waste — the threshold
+    sweep in particular recomputed an identical result once per threshold. The
+    topic-weight triple is part of the key because ``reproduce/topic_weight_
+    sensitivity.py`` *does* move it, and it propagates into every derived edge
+    weight and therefore into the structural analysis itself; keying on the
+    topology alone would silently serve that sweep one graph for every grid point.
+    """
+    from saag.core import models as _models
+
+    key = (
+        id(topology), layer,
+        _models.TOPIC_QOS_WEIGHT_BETA,
+        _models.TOPIC_SIZE_WEIGHT_ALPHA,
+        _models.TOPIC_FREQ_WEIGHT_PSI,
+    )
+    if key not in _STRUCTURAL_CACHE:
+        from saag.analysis.service import AnalysisService
+        from saag.infrastructure.memory_repo import MemoryRepository
+
+        repo = MemoryRepository()
+        repo.save_graph(topology, clear=True)
+        _STRUCTURAL_CACHE[key] = AnalysisService(repo).analyze_layer(layer).structural
+    return _STRUCTURAL_CACHE[key]
+
+
+def score_with_analyzer(
+    topology: Dict[str, Any], analyzer: Any, layer: str = "system"
+) -> Dict[str, float]:
+    """Composite Q(v) for every component, scored by *analyzer* over the full graph.
+
+    The shared entry point for every RM parameter sweep in ``reproduce/``. Using
+    it rather than ``reproduce.main_table._compute_rm_from_structural`` matters:
+    that helper scores features restricted to the Application+Library
+    ``DEPENDS_ON`` projection, on which no Application is an articulation point
+    and no incident edge is a bridge, so four of Availability's five terms vanish
+    and A(v) — carrying w_R*(1-r_alpha) ~ 0.51 of the composite — is constant
+    across Applications in six of the eight cached scenarios. A sweep run against
+    that variant characterises a degenerate score rather than Q(v).
+    """
+    result = analyzer.analyze(full_pipeline_structural(topology, layer))
+    return {
+        str(getattr(c, "id", getattr(c, "component_id", ""))): float(c.scores.overall)
+        for c in result.components
+    }
+
+
+def _score_components(topology: Dict[str, Any], lam: float, layer: str = "system") -> Dict[str, float]:
     """Composite Q(v) for every component under shrinkage factor *lam*.
 
-    Delegates to the same scorer the main table uses, so the sweep cannot drift
-    from the pipeline it is claiming to characterise.
+    Runs the **full analysis pipeline** — MemoryRepository import, DEPENDS_ON
+    derivation, StructuralAnalyzer over the whole typed graph, then RM scoring at
+    *lam*. This is the RM baseline the manuscript defines in its Composite Quality
+    Score section, and the same path that produced the cached
+    ``quality_scores.json`` the LOSO harness consumes, so the sweep characterises
+    the object it claims to.
+
+    It deliberately does **not** use ``_compute_rm_from_structural``: that helper
+    recomputes RM from features restricted to the Application+Library
+    ``DEPENDS_ON`` projection, which exists to give the GNN a feature/label-aligned
+    substrate. On that projection no Application is an articulation point and no
+    incident edge is a bridge, so four of Availability's five terms vanish and
+    A(v) collapses to 0.05*w(v) — a constant across Applications in six of the
+    eight cached scenarios. Availability carries w_R*(1-r_alpha) ~ 0.51 of the
+    composite, so sweeping lambda over that variant measures a degenerate score
+    rather than Q(v). See :func:`_score_components_projection`.
+    """
+    from saag.analysis.analyzer import QualityAnalyzer
+
+    return score_with_analyzer(
+        topology, QualityAnalyzer(use_ahp=True, ahp_shrinkage=lam), layer)
+
+
+def _score_components_projection(
+    topology: Dict[str, Any], structural: Dict[str, Any], lam: float
+) -> Dict[str, float]:
+    """Q(v) recomputed on the Application+Library DEPENDS_ON projection.
+
+    Reported as a secondary series only. See :func:`_score_components` for why
+    this variant's Availability channel is degenerate; it is retained so the
+    difference between the two substrates stays visible in the artifact instead
+    of being silently dropped.
     """
     from reproduce.main_table import _compute_rm_from_structural
     from saag.analysis.analyzer import QualityAnalyzer
@@ -120,43 +206,89 @@ def run_sweep(scenarios: List[str], lambdas: List[float]) -> Dict[str, Any]:
     for scenario in scenarios:
         try:
             topology = _load_topology(scenario)
-            _g, structural, simulation, _r, _gt = _load_scenario_data(scenario, substrate="projection")
-            loaded[scenario] = (topology, structural, simulation)
+            g, structural, simulation, _r, _gt = _load_scenario_data(scenario, substrate="projection")
+            loaded[scenario] = (topology, structural, simulation, g)
         except Exception as exc:      # noqa: BLE001 - one bad scenario must not kill the sweep
             logger.warning("%s failed to load: %s", scenario, exc)
+
+    def _rho(pred: Dict[str, float], truth: Dict[str, float], keys: List[str]):
+        """Spearman rho on an explicit key set, or None if it is degenerate."""
+        if len(keys) < 3:
+            return None
+        y_pred = np.array([pred[k] for k in keys])
+        y_true = np.array([truth[k] for k in keys])
+        if np.ptp(y_pred) == 0 or np.ptp(y_true) == 0:
+            return None
+        rho, _ = spearmanr(y_pred, y_true)
+        return None if np.isnan(rho) else float(rho)
 
     rows: List[Dict[str, Any]] = []
     for lam in lambdas:
         per_scenario: Dict[str, float] = {}
-        for scenario, (topology, structural, simulation) in loaded.items():
+        per_scenario_pooled: Dict[str, float] = {}
+        per_scenario_projection: Dict[str, float] = {}
+        for scenario, (topology, structural, simulation, graph) in loaded.items():
             try:
-                pred = _score_components(topology, structural, lam)
+                pred = _score_components(topology, lam)
             except Exception as exc:      # noqa: BLE001
                 logger.warning("%s @ lambda=%.2f failed: %s", scenario, lam, exc)
                 continue
+            try:
+                pred_proj = _score_components_projection(topology, structural, lam)
+            except Exception as exc:      # noqa: BLE001
+                logger.warning("%s @ lambda=%.2f projection variant failed: %s",
+                               scenario, lam, exc)
+                pred_proj = {}
 
             truth = {k: float(v.get("composite", 0.0)) for k, v in simulation.items()}
-            common = sorted(set(pred) & set(truth))
-            if len(common) < 3:
-                continue
-            y_pred = np.array([pred[k] for k in common])
-            y_true = np.array([truth[k] for k in common])
-            if np.ptp(y_pred) == 0 or np.ptp(y_true) == 0:
-                continue
-            rho, _ = spearmanr(y_pred, y_true)
-            if not np.isnan(rho):
-                per_scenario[scenario] = float(rho)
+            # Primary figure is scored on the Application population, matching
+            # reproduce/main_table.py and cli/loso_evaluate.py. Pooling every node
+            # type mixes populations with different scales and base rates, which
+            # pushes this sweep's rho outside the range spanned by its own per-type
+            # values (a Simpson's-paradox effect). The pooled figure is retained as
+            # a secondary column so that effect stays visible rather than being
+            # silently corrected away.
+            app_keys = resolve_eval_keys(pred, truth, graph, population="application")
+            pooled_keys = sorted(set(pred) & set(truth))
+
+            rho_app = _rho(pred, truth, app_keys)
+            if rho_app is not None:
+                per_scenario[scenario] = rho_app
+            rho_pooled = _rho(pred, truth, pooled_keys)
+            if rho_pooled is not None:
+                per_scenario_pooled[scenario] = rho_pooled
+
+            if pred_proj:
+                proj_keys = resolve_eval_keys(pred_proj, truth, graph, population="application")
+                rho_proj = _rho(pred_proj, truth, proj_keys)
+                if rho_proj is not None:
+                    per_scenario_projection[scenario] = rho_proj
 
         rows.append({
             "lambda": lam,
+            "eval_population": "application",
             "mean_rho": float(np.mean(list(per_scenario.values()))) if per_scenario else None,
             "std_rho": float(np.std(list(per_scenario.values()))) if per_scenario else None,
             "per_scenario_rho": {k: round(v, 4) for k, v in sorted(per_scenario.items())},
             "n_scenarios": len(per_scenario),
+            "pooled_mean_rho": (
+                float(np.mean(list(per_scenario_pooled.values())))
+                if per_scenario_pooled else None),
+            "pooled_per_scenario_rho": {
+                k: round(v, 4) for k, v in sorted(per_scenario_pooled.items())},
+            "projection_substrate_mean_rho": (
+                float(np.mean(list(per_scenario_projection.values())))
+                if per_scenario_projection else None),
+            "projection_substrate_per_scenario_rho": {
+                k: round(v, 4) for k, v in sorted(per_scenario_projection.items())},
             "weights": _weights_snapshot(lam),
         })
         mean = rows[-1]["mean_rho"]
-        print(f"  lambda={lam:.2f}  mean_rho={mean if mean is None else round(mean, 4)}  "
+        pooled = rows[-1]["pooled_mean_rho"]
+        proj = rows[-1]["projection_substrate_mean_rho"]
+        print(f"  lambda={lam:.2f}  mean_rho(app)={mean if mean is None else round(mean, 4)}  "
+              f"pooled={pooled if pooled is None else round(pooled, 4)}  "
+              f"projection={proj if proj is None else round(proj, 4)}  "
               f"({rows[-1]['n_scenarios']} scenarios)")
 
     defined = [r for r in rows if r["mean_rho"] is not None]
@@ -201,7 +333,17 @@ def run_sweep(scenarios: List[str], lambdas: List[float]) -> Dict[str, Any]:
                 "constant, not AHP-derived, so it is identical at every lambda "
                 "(`composite_weights_lambda_invariant`). Lambda now only shrinks the "
                 "intra-dimension vectors (fault-tolerance, maintainability, availability, "
-                "impact) toward their own uniform priors."
+                "impact) toward their own uniform priors. `mean_rho` is scored on the "
+                "Application population via the full analysis pipeline — the RM baseline "
+                "the manuscript defines. `pooled_mean_rho` pools every node type and is "
+                "subject to the same Simpson's-paradox hazard the detection artifact "
+                "records. `projection_substrate_mean_rho` recomputes RM from features "
+                "restricted to the Application+Library DEPENDS_ON projection, where no "
+                "Application is an articulation point and no incident edge is a bridge, "
+                "so four of Availability's five terms vanish and A(v) — ~0.51 of the "
+                "composite — is constant across Applications in six of eight scenarios. "
+                "That series characterises a degenerate score, not Q(v), and must not be "
+                "quoted as the RM baseline's sensitivity."
             ),
         }
 

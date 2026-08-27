@@ -192,7 +192,7 @@ class FailureSimulator:
         """Operational severity of losing *topic_id*: w(t) × its message rate.
 
         w(t) is the QoS-derived topic weight the repositories compute on import
-        (0.85·QoS_score + 0.15·size_norm); the rate comes from telemetry when
+        (0.75·QoS_score + 0.15·size_norm + 0.10·freq_norm); the rate comes from telemetry when
         calibrated and defaults to 1.0. Returns 1.0 uniformly when QoS weighting
         is disabled, which makes every severity-weighted sum collapse back to the
         count-based form.

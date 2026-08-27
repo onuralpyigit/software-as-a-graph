@@ -275,6 +275,12 @@ def parse_args():
                    help="Skip variants with existing results.json")
     p.add_argument("--table-only", action="store_true",
                    help="Load existing results and print table only (no training)")
+    p.add_argument(
+        "--eval-population", default="application",
+        choices=["application", "app_lib", "labeled"],
+        help="Node population every variant is scored on; forwarded to "
+             "cli/kfold_evaluate.py. Defaults to 'application'.",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -318,7 +324,8 @@ def main():
             data = _run_variant(
                 variant=var, seeds=args.seeds, k=args.k,
                 cache_dir=args.cache_dir, epochs=args.epochs,
-                extra_args=[], verbose=args.verbose,
+                extra_args=["--eval-population", args.eval_population],
+                verbose=args.verbose,
             )
             results_by_variant[var] = data
 

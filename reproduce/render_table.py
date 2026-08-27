@@ -553,11 +553,20 @@ def render_table4_tex(loso_data: Dict, output: Path):
         default=None,
     )
 
+    # Name the population in the caption: the same variant scored on a pooled
+    # node set is a different measurement, and a caption that omits which one
+    # was used makes two incomparable tables look comparable.
+    population = next(
+        (table[v].get("eval_population") for v in _LOSO_VARIANT_ORDER
+         if v in table and table[v].get("eval_population")), None)
+    pop_note = (rf" Scored on the \texttt{{{population}}} node population."
+                if population else "")
+
     lines = [
         r"\begin{table}[t]",
         r"\centering",
         r"\caption{LOSO inductive evaluation (Leave-One-Scenario-Out), mean Spearman $\rho \pm \sigma$",
-        r"         across folds and seeds. \textbf{Bold} = best per row.}",
+        rf"         across folds and seeds.{pop_note} \textbf{{Bold}} = best per row.}}",
         r"\label{tab:loso_results}",
         r"\begin{tabular}{lcccc}",
         r"\toprule",

@@ -38,6 +38,28 @@ _LINE_COLOR = "#4C72B0"
 _MARK_COLOR = "#C44E52"
 
 
+def _describe_curve(rows: list[dict]) -> str:
+    """One-line characterisation of the curve, read off the data.
+
+    The title used to assert "monotone decline, no plateau" as a fixed string.
+    The shipped artifact has since reported the opposite direction, so a hardcoded
+    claim can contradict the very points it sits above; derive it instead.
+    """
+    ordered = [r["mean_rho"] for r in sorted(rows, key=lambda r: r["lambda"])]
+    if len(ordered) < 2:
+        return ""
+    rising = all(b >= a - 1e-9 for a, b in zip(ordered, ordered[1:]))
+    falling = all(b <= a + 1e-9 for a, b in zip(ordered, ordered[1:]))
+    spread = max(ordered) - min(ordered)
+    if rising:
+        shape = r"monotone rise in $\rho$ with $\lambda$"
+    elif falling:
+        shape = r"monotone decline in $\rho$ with $\lambda$"
+    else:
+        shape = r"non-monotone in $\lambda$"
+    return rf"({shape}; total spread {spread:.3f})"
+
+
 def _make_figure(rows: list[dict], output_path: Path, dpi: int = 300):
     try:
         import matplotlib
@@ -64,10 +86,14 @@ def _make_figure(rows: list[dict], output_path: Path, dpi: int = 300):
                zorder=4, label=rf"stated default ($\lambda={_DEFAULT_LAMBDA:.2f}$)")
 
     ax.set_xlabel(r"$\lambda$ (0 = equal weights, 1 = raw AHP judgement)", fontsize=11)
-    ax.set_ylabel(r"Spearman $\rho$ against $I^*(v)$ (mean over 7 scenarios)", fontsize=11)
+    population = next((r.get("eval_population") for r in rows if r.get("eval_population")), None)
+    pop_note = f", {population} population" if population else ""
+    ax.set_ylabel(
+        rf"Spearman $\rho$ against $I^*(v)$ (mean over 7 scenarios{pop_note})",
+        fontsize=11,
+    )
     ax.set_title(
-        "AHP Shrinkage Sensitivity\n"
-        r"(monotone decline in $\rho$; no plateau anywhere in $[0,1]$)",
+        "AHP Shrinkage Sensitivity\n" + _describe_curve(rows),
         fontsize=12, fontweight="bold",
     )
     ax.set_xlim(-0.03, 1.03)

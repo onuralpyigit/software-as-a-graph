@@ -55,11 +55,20 @@ Application and Library entities additionally ingest static code metrics compute
 
 In distributed middleware, communication links exhibit varying degrees of coupling based on their Quality-of-Service (QoS) contracts. For example, a \texttt{RELIABLE} topic with \texttt{TRANSIENT\_LOCAL} durability binds communicating services far more tightly than a \texttt{BEST\_EFFORT} telemetry stream.
 
-For each structural communication edge $e$, we compute an edge coupling weight $w_E(e) \in [0, 1]$ derived from the QoS profile of the mediating topic:
+Each topic $t$ carries an intrinsic criticality weight $w(t) \in [0, 1]$ combining its declared QoS semantics with two runtime-stress modulators, payload size and publication frequency:
 \begin{equation}
-w_E(e) = 0.85 \cdot \left( w_{\text{rel}} \cdot q_{\text{rel}} + w_{\text{dur}} \cdot q_{\text{dur}} + w_{\text{prio}} \cdot q_{\text{prio}} \right) + 0.15 \cdot q_{\text{payload}}
+\label{eq:3}
+w(t) = \beta \cdot \text{QoS}(t) + \alpha \cdot \text{SizeNorm}(t) + \psi \cdot \text{FreqNorm}(t),
+\quad (\beta, \alpha, \psi) = (0.75,\, 0.15,\, 0.10)
 \end{equation}
-where $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ represent normalized reliability, durability, and transport priority scores, with AHP weights $(0.30, 0.40, 0.30)$ ($CR < 0.05$). Durability is assigned the highest weight because it dictates message persistence across network partitions. A minimum floor $w_E(e) \ge 0.01$ ensures that best-effort edges remain visible to graph traversals.
+where the QoS term is itself an AHP-weighted aggregate of the declared contract,
+\begin{equation}
+\text{QoS}(t) = w_{\text{rel}} \cdot q_{\text{rel}} + w_{\text{dur}} \cdot q_{\text{dur}} + w_{\text{prio}} \cdot q_{\text{prio}},
+\quad (w_{\text{rel}}, w_{\text{dur}}, w_{\text{prio}}) = (0.30,\, 0.40,\, 0.30),
+\end{equation}
+with $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ the normalized reliability, durability and transport-priority scores. Durability carries the highest sub-weight because it dictates message persistence across network partitions; the sub-weight vector is the geometric-mean priority vector of a Saaty pairwise-comparison matrix and is consistent ($CR < 0.05$). The modulators are logarithmically compressed, $\text{SizeNorm}(t) = \log_2(1 + \text{KiB})/50$ and $\text{FreqNorm}(t) = \log_{10}(1 + \text{Hz})/3$, and $w(t)$ is clamped to $[0.01, 1]$ so that best-effort edges remain visible to graph traversals. Every structural communication edge incident on $t$ (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}) inherits $w_E(e) = w(t)$ together with the topic's QoS vector.
+
+The outer split $(\beta, \alpha, \psi)$ is a declared convex combination rather than an elicited one, and we report its sensitivity directly (Section~\ref{sec:7.3.topicw}) rather than defending the particular triple. Because $\text{SizeNorm}$ log-compresses realistic payloads into a band roughly $50\times$ narrower than the QoS term's spread, the ordering $w(t)$ induces --- the only property any downstream computation consumes --- is near-invariant across the entire simplex, including a uniform prior, and downstream rank correlation against the ground-truth oracle moves by at most $0.02$ over that whole range.
 
 \subsubsection{Logical Dependency Projection (\texttt{DEPENDS\_ON})}
 
@@ -74,15 +83,17 @@ Structural edges capture explicit deployment connections but omit implicit runti
 \toprule
 \textbf{Rule} & \textbf{Dependency Category} & \textbf{Structural Pattern ($\text{Dependent} \to \text{Dependency}$)} & \textbf{Derived Weight ($w$)} \\
 \midrule
-\textbf{1} & \texttt{app\_to\_app} & Subscriber $\to$ Publisher (via shared Topic, incl.\ transitive \texttt{USES}) & $\max_{t} w_E(t)$ \\
-\textbf{2} & \texttt{app\_to\_broker} & Publisher/Subscriber $\to$ Broker routing its topics & $\max_{t} w_E(t)$ \\
+\textbf{1} & \texttt{app\_to\_app} & Subscriber $\to$ Publisher (via shared Topic, incl.\ transitive \texttt{USES}) & $1 - \prod_{t \in T}(1 - w(t))$ \\
+\textbf{2} & \texttt{app\_to\_broker} & Publisher/Subscriber $\to$ Broker routing its topics & $1 - \prod_{t \in T}(1 - w(t))$ \\
 \textbf{3} & \texttt{node\_to\_node} & Host $\to$ Host (lifted from inter-host app dependencies) & Lifted $\max w$ \\
 \textbf{4} & \texttt{node\_to\_broker} & Host $\to$ Broker (lifted from hosted app dependencies) & Lifted $\max w$ \\
-\textbf{5} & \texttt{app\_to\_lib} & Application $\to$ Shared Library it \texttt{USES} & $w_V(\text{app})$ \\
-\textbf{6} & \texttt{broker\_to\_broker} & Broker $\leftrightarrow$ Broker (bidirectional, colocated on same host) & $w_V(\text{node})$ \\
+\textbf{5} & \texttt{app\_to\_lib} & Application $\to$ Shared Library it \texttt{USES} & $H\!\left(w_V(\text{app}), w_V(\text{lib})\right)$ \\
+\textbf{6} & \texttt{broker\_to\_broker} & Broker $\leftrightarrow$ Broker (shared-host fate, symmetric) & $w_V(\text{node})$ \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\noindent Rules 1 and 2 aggregate the several topics $T$ mediating one component pair by \emph{probabilistic union} rather than by a maximum, so that additional parallel failure vectors raise coupling monotonically while preserving $w \in (0, 1]$. Rule 5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ of the consuming Application's and the shared Library's own vertex weights, which calibrates caller criticality against dependency criticality instead of letting either endpoint dominate. Rules 3 and 4 lift the maximum weight of the component-level dependencies crossing the host boundary.
 
 \subsubsection{Sequential Cascades vs. Simultaneous Blasts}
 
@@ -93,6 +104,8 @@ A key insight of the SaG model is distinguishing between two fundamentally diffe
 \end{itemize}
 
 Retaining entity types and relation-specific dependency rules allows SaG to model both mechanisms, whereas untyped graphs collapse them into identical edges.
+
+\noindent\textbf{On the symmetry of Rule 6.} Rule 6 is the one projection rule that is symmetric, and deliberately so: it does not assert that one broker functionally depends on another, but that two brokers co-located on the same host \emph{share that host's failure domain}. This is the same simultaneous-blast semantics as Rule 5, which is why the derived weight is the shared \emph{Node's} weight rather than either broker's, and why the relation holds in both directions. The mechanism is real in deployed middleware --- co-located brokers contend for CPU, page cache, file descriptors and NIC bandwidth, and a host loss takes both at once, which is precisely why operational guidance for Kafka, RabbitMQ and EMQX is to spread brokers across fault domains. What Rule 6 does \emph{not} model is intra-cluster broker coupling proper (partition replication, controller or quorum election, federation and shovel links), which is directional and does not require co-location; extending the schema to express it is left to future work. We also note that the rule is close to inert on our corpus: it fires in four of the eight cached scenarios and contributes twelve directed edges in total across 1{,}770 components, and because the simulation oracles read only $G_{\text{structural}}$ (Section~\ref{sec:5.4}), it cannot influence any ground-truth label.
 
 \subsection{Dual Graph Views and Architectural Layers}
 \label{sec:3.3}

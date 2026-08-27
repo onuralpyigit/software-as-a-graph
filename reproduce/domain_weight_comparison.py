@@ -209,17 +209,54 @@ def _domain_w_r(domain: Optional[str]) -> Tuple[float, bool]:
 
 
 def _score(topology: Dict[str, Any], structural: Dict[str, Any], weights) -> Dict[str, float]:
-    from reproduce.main_table import _compute_rm_from_structural
+    """Q(v) under *weights*, scored over the full typed graph.
+
+    ``structural`` is accepted for call-site compatibility and deliberately not
+    used: it holds features restricted to the Application+Library ``DEPENDS_ON``
+    projection, on which Availability collapses to a constant across Applications
+    (see ``reproduce.ahp_sensitivity.score_with_analyzer``). Sweeping w_R against
+    a composite whose Reliability half is largely constant would measure the
+    degeneracy rather than the reweighting.
+    """
+    from reproduce.ahp_sensitivity import score_with_analyzer
     from saag.analysis.analyzer import QualityAnalyzer
 
-    scored = _compute_rm_from_structural(
-        topology, structural, analyzer=QualityAnalyzer(weights=weights)
-    )
-    return {nid: float(v.get("composite", 0.0)) for nid, v in scored.items()}
+    return score_with_analyzer(topology, QualityAnalyzer(weights=weights))
 
 
-def _rho(pred: Dict[str, float], truth: Dict[str, float]) -> Optional[float]:
-    common = sorted(set(pred) & set(truth))
+_GRAPH_CACHE: Dict[int, Any] = {}
+
+
+def _graph(topology: Dict[str, Any]):
+    """NetworkX view of *topology*, built once per sweep.
+
+    The w_R grid re-scores the same graph at every point, so rebuilding it per
+    grid point was 21x the necessary work per scenario.
+    """
+    key = id(topology)
+    if key not in _GRAPH_CACHE:
+        from cli.loso_evaluate import _build_graph_from_json
+
+        _GRAPH_CACHE[key] = _build_graph_from_json(topology)
+    return _GRAPH_CACHE[key]
+
+
+def _rho(
+    pred: Dict[str, float], truth: Dict[str, float],
+    topology: Optional[Dict[str, Any]] = None,
+) -> Optional[float]:
+    """Spearman rho on the Application population when the topology is known.
+
+    Pooling node types repeats the aggregation hazard the headline tables guard
+    against, and every table this sweep is read next to is Application-scored.
+    """
+    if topology is not None:
+        from saag.evaluation.metrics import resolve_eval_keys
+
+        common = resolve_eval_keys(
+            pred, truth, _graph(topology), population="application")
+    else:
+        common = sorted(set(pred) & set(truth))
     if len(common) < 3:
         return None
     y_pred = np.array([pred[k] for k in common])
@@ -254,12 +291,12 @@ def run(scenarios: List[str], step: float) -> Dict[str, Any]:
         curve: Dict[str, Optional[float]] = {}
         for w_r in w_r_grid:
             pred = _score(topology, structural, _weights_at(w_r))
-            rho = _rho(pred, truth)
+            rho = _rho(pred, truth, topology)
             curve[f"{w_r:.2f}"] = None if rho is None else round(rho, 4)
 
-        static_rho = _rho(_score(topology, structural, _weights_at(STATIC_W_R)), truth)
-        equal_rho = _rho(_score(topology, structural, _weights_at(EQUAL_W_R)), truth)
-        domain_rho = _rho(_score(topology, structural, _weights_at(domain_w_r)), truth)
+        static_rho = _rho(_score(topology, structural, _weights_at(STATIC_W_R)), truth, topology)
+        equal_rho = _rho(_score(topology, structural, _weights_at(EQUAL_W_R)), truth, topology)
+        domain_rho = _rho(_score(topology, structural, _weights_at(domain_w_r)), truth, topology)
 
         # Kendall tau between domain-derived and static component rankings —
         # the headline number. w_R moves by at most 0.04 from the static 0.80

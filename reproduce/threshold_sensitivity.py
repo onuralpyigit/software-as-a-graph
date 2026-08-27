@@ -36,6 +36,7 @@ import argparse
 import json
 import logging
 import sys
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -52,8 +53,24 @@ DEFAULT_NORMS = ["robust", "minmax", "zscore"]
 RESULTS_DIR = Path("results")
 
 
-def _rho(pred: Dict[str, float], truth: Dict[str, float]) -> float | None:
-    common = sorted(set(pred) & set(truth))
+def _rho(
+    pred: Dict[str, float], truth: Dict[str, float], scenario: str | None = None
+) -> float | None:
+    """Spearman rho on the Application population when the scenario is known.
+
+    Pooling node types mixes populations with different impact scales and base
+    rates; on this corpus that pushes the RM composite's pooled rho outside the
+    range spanned by its own per-type values. Every headline table is scored on
+    Applications, so this sweep is too.
+    """
+    if scenario is not None:
+        from cli.loso_evaluate import _build_graph_from_json
+        from saag.evaluation.metrics import resolve_eval_keys
+
+        graph = _build_graph_from_json(_topology(scenario))
+        common = resolve_eval_keys(pred, truth, graph, population="application")
+    else:
+        common = sorted(set(pred) & set(truth))
     if len(common) < 3:
         return None
     y_pred = np.array([pred[k] for k in common])
@@ -80,18 +97,29 @@ def _labels_at_threshold(scenario: str, threshold: float, seeds: List[int]) -> D
 
 
 def _rm_scores(scenario: str, norm: str) -> Dict[str, float]:
-    """Deterministic Q(v) under a given normalisation method."""
-    from reproduce.ahp_sensitivity import _load_topology
-    from reproduce.main_table import _compute_rm_from_structural, _load_scenario_data
+    """Deterministic Q(v) under a given normalisation method.
+
+    Scored over the full typed graph rather than the Application+Library
+    DEPENDS_ON projection; see ``reproduce.ahp_sensitivity.score_with_analyzer``
+    for why the projection variant's Availability channel is degenerate. The
+    structural analysis behind it is memoised, so sweeping a parameter that
+    cannot move it costs one analysis per scenario rather than one per grid point.
+    """
+    from reproduce.ahp_sensitivity import _load_topology, score_with_analyzer
     from saag.analysis.analyzer import QualityAnalyzer
 
-    topology = _load_topology(scenario)
-    _g, structural, _sim, _r, _gt = _load_scenario_data(scenario, substrate="projection")
-    scored = _compute_rm_from_structural(
-        topology, structural,
-        analyzer=QualityAnalyzer(use_ahp=True, normalization_method=norm),
+    return score_with_analyzer(
+        _topology(scenario),
+        QualityAnalyzer(use_ahp=True, normalization_method=norm),
     )
-    return {nid: float(v.get("composite", 0.0)) for nid, v in scored.items()}
+
+
+@lru_cache(maxsize=None)
+def _topology(scenario: str) -> Dict[str, Any]:
+    """Cached topology, so the memoised structural analysis keys stay stable."""
+    from reproduce.ahp_sensitivity import _load_topology
+
+    return _load_topology(scenario)
 
 
 def sweep_thresholds(scenarios: List[str], thresholds: List[float], seeds: List[int]) -> List[Dict]:
@@ -106,7 +134,7 @@ def sweep_thresholds(scenarios: List[str], thresholds: List[float], seeds: List[
             except Exception as exc:      # noqa: BLE001
                 logger.warning("%s @ threshold=%.2f failed: %s", scenario, threshold, exc)
                 continue
-            rho = _rho(pred, truth)
+            rho = _rho(pred, truth, scenario)
             if rho is not None:
                 per_scenario[scenario] = rho
             if truth:
@@ -145,7 +173,7 @@ def sweep_norms(scenarios: List[str], norms: List[str]) -> List[Dict]:
             except Exception as exc:      # noqa: BLE001
                 logger.warning("%s @ norm=%s failed: %s", scenario, norm, exc)
                 continue
-            rho = _rho(pred, truth)
+            rho = _rho(pred, truth, scenario)
             if rho is not None:
                 per_scenario[scenario] = rho
 

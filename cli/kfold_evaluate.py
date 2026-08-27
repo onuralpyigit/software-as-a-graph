@@ -170,6 +170,7 @@ def run_one_scenario(
     rank_normalize_features: bool = False,
     rank_normalize_labels: bool = False,
     qos_injection: str = "pooled",
+    eval_population: str = "application",
 ) -> ScenarioResult:
     """Repeated stratified k-fold within a single scenario's own graph."""
     scenario_dir = workdir / bundle.scenario_id
@@ -354,7 +355,9 @@ def run_one_scenario(
                 )
                 continue
 
-            m = compute_inductive_metrics(pred_scores, true_impact, bundle.graph)
+            m = compute_inductive_metrics(
+                pred_scores, true_impact, bundle.graph, population=eval_population,
+            )
             m["seed"] = seed
             m["prediction_mode"] = mode
             m["variant"] = variant
@@ -469,6 +472,7 @@ def run_kfold(
     rank_normalize_features: bool = False,
     rank_normalize_labels: bool = False,
     qos_injection: str = "pooled",
+    eval_population: str = "application",
 ) -> KFoldReport:
     output_dir.mkdir(parents=True, exist_ok=True)
     workdir = output_dir / "workspace"
@@ -502,6 +506,7 @@ def run_kfold(
                 rank_normalize_features=rank_normalize_features,
                 rank_normalize_labels=rank_normalize_labels,
                 qos_injection=qos_injection,
+                eval_population=eval_population,
             )
             scenario_results.append(result)
         except Exception as exc:
@@ -696,6 +701,13 @@ def parse_args() -> argparse.Namespace:
                     help="'pooled' (default): QoS edge dims mean-pooled with the edge-type "
                          "one-hot through one shared projection. 'typed': QoS gets its own "
                          "per-relation-type projection (RQ3 injection-site re-test).")
+    p.add_argument(
+        "--eval-population", default="application",
+        choices=["application", "app_lib", "labeled"],
+        help="Node population every variant is scored on. Defaults to "
+             "'application', matching reproduce/main_table.py and "
+             "cli/loso_evaluate.py.",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -745,6 +757,7 @@ def main() -> int:
         rank_normalize_features=args.rank_normalize_features,
         rank_normalize_labels=args.rank_normalize_labels,
         qos_injection=args.qos_injection,
+        eval_population=args.eval_population,
     )
     elapsed = time.time() - t0
     logger.info("K-fold evaluation complete in %.1f s.", elapsed)

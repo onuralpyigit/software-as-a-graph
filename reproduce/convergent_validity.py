@@ -63,6 +63,8 @@ if __name__ == "__main__" and __package__ is None:
 import numpy as np
 from scipy.stats import kendalltau, spearmanr
 
+from saag.evaluation.metrics import resolve_eval_keys
+
 logger = logging.getLogger("convergent_validity")
 
 RESULTS_DIR = Path("results")
@@ -148,6 +150,42 @@ def _message_flow_labels(
     return labels
 
 
+def _restrict(
+    oracles: Dict[str, Dict[str, float]], scenario: str, population: str
+) -> Dict[str, Dict[str, float]]:
+    """Cut every oracle down to *population* before any pair is compared.
+
+    Comparing oracles across pooled node types repeats the aggregation hazard the
+    headline tables already guard against: a Broker's impact and an Application's
+    impact are not on a common scale, so a pooled rank agreement can be carried
+    (or destroyed) by the type mix rather than by the oracles. ``"labeled"``
+    reproduces the pooled behaviour this script had before the flag existed.
+    """
+    if population == "labeled":
+        return oracles
+    from cli.loso_evaluate import _build_graph_from_json
+    from reproduce.ahp_sensitivity import _load_topology
+
+    graph = _build_graph_from_json(_load_topology(scenario))
+    out: Dict[str, Dict[str, float]] = {}
+    for name, scores in oracles.items():
+        keys = resolve_eval_keys(scores, scores, graph, population=population)
+        out[name] = {k: scores[k] for k in keys}
+    return out
+
+
+def _tie_robust_top(values: np.ndarray, k: int) -> set:
+    """Indices of the top *k* values, plus every index tied with the k-th.
+
+    ``np.argsort`` resolves ties by position, which is arbitrary; when several
+    components share the k-th score, an index-ordered cut credits one oracle and
+    penalises the other for what is actually the same measurement.
+    """
+    order = np.argsort(-values)
+    cutoff = values[order[k - 1]]
+    return set(np.flatnonzero(values >= cutoff).tolist())
+
+
 def _pairwise(a_scores: Dict[str, float], b_scores: Dict[str, float]) -> Dict[str, Any]:
     """Rank agreement between one pair of oracles on the nodes they share."""
     common = sorted(set(a_scores) & set(b_scores))
@@ -172,11 +210,32 @@ def _pairwise(a_scores: Dict[str, float], b_scores: Dict[str, float]) -> Dict[st
     top_b = set(np.argsort(-b)[:k].tolist())
     jaccard = len(top_a & top_b) / len(top_a | top_b)
 
+    # ``np.argsort`` breaks ties by array index, so a plateau at the K-th value
+    # is cut at an arbitrary point and the strict figure understates agreement by
+    # however much of that plateau each oracle happened to keep. The tie-robust
+    # set admits every element tied with the K-th, which is the honest reading of
+    # "the top-K critical set" when the scores are not all distinct.
+    rob_a = _tie_robust_top(a, k)
+    rob_b = _tie_robust_top(b, k)
+    jaccard_robust = len(rob_a & rob_b) / len(rob_a | rob_b)
+
+    # What Jaccard would two *independent* rankings produce at this K? Without
+    # this, a reader has no scale on which to judge 0.3 — the statistic's floor
+    # is not 0 and its practical ceiling is not 1.
+    n = len(common)
+    exp_inter = (k * k) / n
+    exp_union = 2 * k - exp_inter
+    random_jaccard = exp_inter / exp_union if exp_union > 0 else float("nan")
+
     block.update({
         "spearman_rho": round(float(rho), 4),
         "spearman_p": round(float(p), 6),
         "kendall_tau": round(float(tau), 4),
         "topk_jaccard": round(float(jaccard), 4),
+        "topk_jaccard_tie_robust": round(float(jaccard_robust), 4),
+        "topk_jaccard_random_baseline": round(float(random_jaccard), 4),
+        "n_ties_at_cut_a": len(rob_a) - k,
+        "n_ties_at_cut_b": len(rob_b) - k,
         "k": k,
         "scale_max_a": round(float(a.max()), 4),
         "scale_max_b": round(float(b.max()), 4),
@@ -191,6 +250,7 @@ def compare(
     duration: float = 60.0,
     max_candidates: Optional[int] = None,
     skip_message_flow: bool = False,
+    population: str = "application",
 ) -> Dict[str, Any]:
     """Pairwise agreement across the available oracles.
 
@@ -207,9 +267,14 @@ def compare(
         oracles["i_dyn"] = _message_flow_labels(
             scenario, duration=duration, max_candidates=max_candidates)
 
+    n_before = {name: len(scores) for name, scores in oracles.items()}
+    oracles = _restrict(oracles, scenario, population)
+
     row: Dict[str, Any] = {
         "scenario": scenario,
+        "eval_population": population,
         "n_per_oracle": {name: len(scores) for name, scores in oracles.items()},
+        "n_per_oracle_unrestricted": n_before,
         "pairs": {},
     }
     for name_a, name_b in combinations(sorted(oracles), 2):
@@ -244,6 +309,14 @@ def parse_args():
         help="Compare only the two topological oracles, as this script did "
              "before I_dyn was added.",
     )
+    p.add_argument(
+        "--eval-population", default="application",
+        choices=["application", "app_lib", "labeled"],
+        help="Node population the oracles are compared on. 'application' "
+             "(default) matches the population every headline table is scored "
+             "on; 'labeled' pools all node types, which is what this script did "
+             "before the flag existed.",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -267,6 +340,7 @@ def main():
                 scenario, args.seeds, qos=not args.no_qos,
                 duration=args.duration, max_candidates=args.max_candidates,
                 skip_message_flow=args.skip_message_flow,
+                population=args.eval_population,
             )
         except Exception as exc:      # noqa: BLE001
             logger.warning("%s failed: %s", scenario, exc)
@@ -279,6 +353,7 @@ def main():
             print(f"    {pair:22} rho={rho if rho is not None else '—':>8}  "
                   f"tau={block.get('kendall_tau', '—'):>8}  "
                   f"topK-Jaccard={block.get('topk_jaccard', '—'):>7}  "
+                  f"tie-robust={block.get('topk_jaccard_tie_robust', '—'):>7}  "
                   f"n={block.get('n_common', 0)}")
 
     # Summarise each pair across scenarios; a pair is only as strong as the
@@ -286,20 +361,54 @@ def main():
     summary: Dict[str, Any] = {}
     for pair in sorted({p for r in rows for p in r.get("pairs", {})}):
         blocks = [r["pairs"][pair] for r in rows if pair in r.get("pairs", {})]
-        rhos = [b["spearman_rho"] for b in blocks if isinstance(b.get("spearman_rho"), float)]
-        jac = [b["topk_jaccard"] for b in blocks if isinstance(b.get("topk_jaccard"), float)]
+        def _vals(key):
+            return [b[key] for b in blocks if isinstance(b.get(key), float)]
+
+        rhos = _vals("spearman_rho")
+        jac = _vals("topk_jaccard")
+        jac_rob = _vals("topk_jaccard_tie_robust")
+        jac_rand = _vals("topk_jaccard_random_baseline")
         summary[pair] = {
             "mean_spearman_rho": round(float(np.mean(rhos)), 4) if rhos else None,
             "min_spearman_rho": round(float(np.min(rhos)), 4) if rhos else None,
             "mean_topk_jaccard": round(float(np.mean(jac)), 4) if jac else None,
+            "mean_topk_jaccard_tie_robust": (
+                round(float(np.mean(jac_rob)), 4) if jac_rob else None),
+            "mean_topk_jaccard_random_baseline": (
+                round(float(np.mean(jac_rand)), 4) if jac_rand else None),
             "n_scenarios_measured": len(rhos),
         }
+
+    # The ceiling any cross-oracle figure should be read against: how well does
+    # a single oracle agree with *itself* across seeds? Without it, a reader
+    # cannot tell construct divergence from measurement noise — and on this
+    # corpus the self-agreement is far higher than the cross-oracle agreement,
+    # so the gap is not noise.
+    ceiling: Dict[str, Any] = {}
+    stability_path = RESULTS_DIR / "label_stability.json"
+    if stability_path.exists():
+        try:
+            stability = json.loads(stability_path.read_text()).get("summary", {})
+            ceiling = {
+                "source": str(stability_path),
+                "test_retest_spearman_range": stability.get("test_retest_spearman_range"),
+                "topk_jaccard_range": stability.get("topk_jaccard_range"),
+                "note": (
+                    "I*(v)'s own seed-to-seed agreement, from "
+                    "reproduce/label_stability_check.py. Cross-oracle agreement "
+                    "below this range is construct divergence, not label noise."
+                ),
+            }
+        except Exception as exc:      # noqa: BLE001
+            logger.warning("could not read %s: %s", stability_path, exc)
 
     report = {
         "seeds": args.seeds,
         "duration": args.duration,
+        "eval_population": args.eval_population,
         "per_scenario": rows,
         "summary": summary,
+        "self_agreement_ceiling": ceiling,
         "note": (
             "These are different quantities on different scales; only their rank "
             "agreement is meaningful. Read this before attributing a result measured "
@@ -318,6 +427,8 @@ def main():
         print(f"  {pair}: mean_rho={stats['mean_spearman_rho']} "
               f"min_rho={stats['min_spearman_rho']} "
               f"mean_jaccard={stats['mean_topk_jaccard']} "
+              f"tie_robust={stats['mean_topk_jaccard_tie_robust']} "
+              f"random={stats['mean_topk_jaccard_random_baseline']} "
               f"n={stats['n_scenarios_measured']}")
 
 

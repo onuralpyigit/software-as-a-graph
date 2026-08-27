@@ -36,6 +36,7 @@ RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
 .PHONY: setup scenarios cache block0 table3 table4 kfold convergent-validity \
+        topic-weight-sensitivity \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 \
         jss-figures all smoke-test clean clean-all
 
@@ -136,6 +137,18 @@ convergent-validity:
 	    --output $(RESULTS_DIR)/convergent_validity.json \
 	    --verbose
 	@echo "✓ Oracle agreement ready: $(RESULTS_DIR)/convergent_validity.json"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Topic-weight (β, α, ψ) sensitivity — the DECLARED outer split of w(t).
+# Opt-in (not part of `all`): re-derives the graph and re-runs the closed-form
+# scorers once per grid point per scenario. Add --skip-downstream for the
+# w(t)-ordering level alone, which is near-instant.
+# ─────────────────────────────────────────────────────────────────────────────
+
+topic-weight-sensitivity:
+	$(PYTHON) reproduce/topic_weight_sensitivity.py \
+	    --output $(RESULTS_DIR)/topic_weight_sensitivity.json
+	@echo "✓ Topic-weight sensitivity ready: $(RESULTS_DIR)/topic_weight_sensitivity.json"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Block F: Figure 4 — stratified per-node-type ρ

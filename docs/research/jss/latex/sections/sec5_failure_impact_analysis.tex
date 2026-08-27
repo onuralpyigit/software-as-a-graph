@@ -6,7 +6,7 @@ While the interpretable RM baseline provides explainable quality profiles, compl
 \subsection{Ground-Truth Simulation Oracles}
 \label{sec:5.1}
 
-To evaluate predictive accuracy prior to deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$. We establish a formal three-oracle taxonomy:
+To evaluate predictive accuracy prior to deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$. We establish a formal taxonomy of three component-level oracles and one relationship-level oracle:
 
 \begin{itemize}
     \item \textbf{Cascade Reachability Oracle ($I^*(v)$):} Implemented via \texttt{FaultInjector}, this oracle injects an unexpected node crash at component $v \in V$, propagates cascading failures across dependent topics, brokers, and network links using breadth-first dynamic traversal, and computes the fraction of surviving subscriber feeds severed by the outage. $I^*(v) \in [0, 1]$ serves as the primary continuous target label for training and evaluating GNN predictors.
@@ -22,17 +22,48 @@ To evaluate predictive accuracy prior to deployment without relying on productio
     \end{equation}
 \end{itemize}
 
+\noindent\textbf{Primary oracle declaration.} Because the three component-level oracles measure
+different constructs and agree only partially (below), we designate exactly one of them as
+primary and hold every ranking claim in this paper to it. \textbf{$I^*(v)$ (\texttt{FaultInjector})
+is the primary oracle} for all predictive-ranking results (Tables~\ref{tab:5}--\ref{tab:7},
+RQ1--RQ3): it is the only oracle that both supplies training labels and scores held-out
+predictions, so evaluating a learned ranker against anything else would compare a model to a
+target it was never fitted to. The remaining oracles have narrower, explicitly named roles:
+$I_{\text{comp}}(v)$ (\texttt{FailureSimulator}) is the Validate-stage oracle for architectural
+quality gates and anti-pattern detection only, $I_{\text{dyn}}(v)$ (\texttt{MessageFlowSimulator})
+is used only as an independent, behaviourally-constructed convergent-validity probe, and
+$I_{\text{edge}}(u,v)$ scores relationships rather than components. Each table and figure names
+the oracle it was measured against; no number is transferred between them.
+
 \textbf{These oracles are not interchangeable, and their disagreement bounds what any single one can
-support.} Measured across seven scenarios and five seeds, mean Spearman agreement is $\rho = 0.765$
-for $(I_{\text{dyn}}, I^*)$, $\rho = 0.465$ for $(I_{\text{comp}}, I_{\text{dyn}})$, and
-$\rho = 0.397$ for $(I_{\text{comp}}, I^*)$, with per-scenario minima of $0.550$, $0.121$, and
-$0.097$ respectively. Agreement on the \emph{critical set} is weaker still than agreement on
-ordering: mean top-$K$ Jaccard overlap is $0.26$--$0.31$ for every pair, including the strongest.
-A result established against one oracle is therefore not evidence for a claim measured against
-another, and the instruction to ``simply simulate'' is under-specified --- it does not say which
-simulator, at which propagation threshold, under which seed, and the answer materially changes the
-critical set. We report this disagreement as a bound on our own construct validity rather than as
-corroboration.
+support.} Measured across seven scenarios and five seeds on the Application population, mean
+Spearman agreement is $\rho = 0.883$ for $(I_{\text{dyn}}, I^*)$, $\rho = 0.468$ for
+$(I_{\text{comp}}, I^*)$, and $\rho = 0.465$ for $(I_{\text{comp}}, I_{\text{dyn}})$, with
+per-scenario minima of $0.756$, $0.171$, and $0.121$ respectively. The behavioural queue-flow
+oracle and the topological cascade oracle therefore agree strongly on \emph{ordering}, which is
+genuine convergent evidence: they are constructed differently, one observing message delivery under
+load and the other reachability over edges, so their agreement is not reducible to a shared
+construction artifact. The composite oracle is the outlier, agreeing only moderately with either.
+
+Agreement on the \emph{critical set} is markedly weaker than agreement on ordering, and this is the
+binding limitation. Mean top-$K$ Jaccard overlap at $K = 0.2n$ is $0.42$ for the strongest pair and
+$0.31$ for the other two, against $0.111$ expected under independent rankings --- around three to
+four times chance, but far from set identity. Two controls establish what this does and does not
+mean. First, it is not an artifact of tie-breaking: recomputing the overlap so that every component
+tied with the $K$-th is admitted changes it by at most $0.005$. Second, it is not simply
+label noise, but neither is it purely construct divergence --- the labeler's own seed-to-seed
+self-agreement spans top-$K$ Jaccard $0.44$--$1.00$ (test--retest $\rho = 0.81$--$1.00$), so a
+single oracle compared against itself reaches only $0.44$ in its worst scenario. Top-$K$ set
+identity is an intrinsically unstable statistic at this $K$, and the cross-oracle values sit just
+below the bottom of the range one oracle achieves against itself.
+
+The consequence for how our results should be read is unchanged: a result established against one
+oracle is not evidence for a claim measured against another, and the instruction to ``simply
+simulate'' is under-specified --- it does not say which simulator, at which propagation threshold,
+under which seed, and the answer materially changes the critical set. We report this disagreement as
+a bound on our own construct validity rather than as corroboration, and we note that we could not
+reduce it by weighting: applying the same $w(t)$ to both topological oracles does not make them
+converge (Section~\ref{sec:7.3}).
 
 \subsection{Heterogeneous Graph Transformer Architecture}
 \label{sec:5.2}

@@ -158,6 +158,8 @@ class LOSOReport:
     #: {scenario_id: label_stability} carried from each cache artifact, so the
     #: report can state the ceiling alongside the achieved rho.
     label_stability: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    #: Node population every fold was scored on (see ``--eval-population``).
+    eval_population: str = "application"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -184,11 +186,19 @@ def _build_graph_from_json(topology: Dict[str, Any]) -> nx.DiGraph:
     ]
     for key, type_label in type_buckets:
         for entity in topology.get(key, []):
+            # ``type`` is excluded from the splat, not just ``id``/``name``: the
+            # three real-world topologies carry a per-entity ``type`` field, and
+            # letting it through collided with the keyword above
+            # (``TypeError: got multiple values for keyword argument 'type'``),
+            # so this builder raised on every one of them. The canonical bucket
+            # label wins because the node-type contract downstream
+            # (``resolve_eval_keys``, ``networkx_to_hetero_data``) is keyed on it;
+            # where both are present they agree anyway.
             g.add_node(
                 entity["id"],
                 type=type_label,
                 name=entity.get("name", entity["id"]),
-                **{k: v for k, v in entity.items() if k not in ("id", "name")},
+                **{k: v for k, v in entity.items() if k not in ("id", "name", "type")},
             )
 
     rels = topology.get("relationships", {}) or {}
@@ -366,8 +376,13 @@ def discover_scenarios(
 #: ``cli/kfold_evaluate.py`` cannot drift apart. Re-exported here unchanged so
 #: existing callers and the emitted CSV columns keep working.
 #:
-#: LOSO retains ``population="labeled"`` (every node the cache carries a label
-#: for), which is the historical behaviour of this file.
+#: The node population is selected per run via ``--eval-population`` and defaults
+#: to ``"application"``, matching ``reproduce/main_table.py`` so the LOSO table and
+#: the in-distribution table are scored on the same node type. ``"labeled"`` (every
+#: node the cache carries a label for) is the historical behaviour of this file and
+#: remains available, but it pools node types with different scales and base rates,
+#: which inverts the sign of weakly-predictive variants (see the Simpson's-paradox
+#: note in the manuscript's Conclusion Validity discussion).
 compute_inductive_metrics = _shared_inductive_metrics
 
 
@@ -390,6 +405,7 @@ def run_one_fold(
     mode: str,
     global_metadata: Optional[Tuple] = None,
     variant: str = "hgl_qos",
+    eval_population: str = "application",
     auto_layers: bool = True,
     weight_decay: float = 1e-4,
     warmup_T0: Optional[int] = None,
@@ -649,7 +665,9 @@ def run_one_fold(
 
         true_impact = {nid: float(d.get("composite", 0.0)) for nid, d in holdout.simulation.items()}
 
-        m = compute_inductive_metrics(pred_scores, true_impact, holdout.graph)
+        m = compute_inductive_metrics(
+            pred_scores, true_impact, holdout.graph, population=eval_population,
+        )
         m["seed"] = seed
         m["prediction_mode"] = mode
         m["variant"] = variant
@@ -755,6 +773,7 @@ def run_loso(
     rm_consistency_weight: float = 0.1,
     ranking_weight: float = 0.3,
     pairwise_ranking_weight: float = 0.1,
+    eval_population: str = "application",
 ) -> LOSOReport:
     """Run leave-one-scenario-out across all loaded bundles."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -786,6 +805,7 @@ def run_loso(
                 workdir=workdir, mode=mode,
                 global_metadata=global_metadata,
                 variant=variant,
+                eval_population=eval_population,
                 auto_layers=auto_layers,
                 weight_decay=weight_decay,
                 warmup_T0=warmup_T0,
@@ -824,6 +844,7 @@ def run_loso(
         label_stability={
             b.scenario_id: b.label_stability for b in bundles if b.label_stability
         },
+        eval_population=eval_population,
     )
 
 
@@ -840,6 +861,10 @@ def write_results_json(report: LOSOReport, path: Path) -> None:
             "overall_std_spearman_rho": report.overall_std_rho,
             "overall_mean_f1_at_k": report.overall_mean_f1,
             "overall_mean_ndcg_10": report.overall_mean_ndcg,
+            # The node population every fold was scored on. A rho computed on a
+            # different population is a different measurement, not a noisier one,
+            # so it is recorded next to the number rather than left implicit.
+            "eval_population": report.eval_population,
         },
         "per_type_summary": report.per_type_summary,
         "folds": [
@@ -1108,6 +1133,16 @@ def parse_args() -> argparse.Namespace:
                     help="CriticalityLoss weight for the pairwise margin-ranking term")
     p.add_argument("--rm-consistency-weight", type=float, default=0.1,
                     help="CriticalityLoss weight for RM consistency regularization on unlabeled nodes")
+    p.add_argument(
+        "--eval-population", default="application",
+        choices=["application", "app_lib", "labeled"],
+        help="Node population every variant is scored on. 'application' (default) "
+             "matches reproduce/main_table.py, so the LOSO table and the "
+             "in-distribution table compare like with like. 'labeled' pools every "
+             "node type the cache carries a label for — the historical behaviour, "
+             "retained for reproducing older runs, but it mixes populations with "
+             "different scales and base rates (Simpson's paradox).",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -1154,6 +1189,7 @@ def main() -> int:
         rm_consistency_weight=args.rm_consistency_weight,
         ranking_weight=args.ranking_weight,
         pairwise_ranking_weight=args.pairwise_ranking_weight,
+        eval_population=args.eval_population,
     )
     elapsed = time.time() - t0
     logger.info("LOSO complete in %.1f s.", elapsed)

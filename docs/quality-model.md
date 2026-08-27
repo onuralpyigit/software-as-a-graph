@@ -591,7 +591,9 @@ A complete index of all numeric constants driving the RM quality model:
 | Edge Weights ($e_{BT}, e_{\text{bridge}}, e_{\text{endpoint}}, e_{\text{qos}}$) | $0.35, 0.30, 0.20, 0.15$ | **DECLARED** | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | *Default config* |
 | Topic QoS Split (Rel, Dur, Pri) | $0.30, 0.40, 0.30$ | **DERIVED** (AHP) | [`core/models.py`](../saag/core/models.py) | **Exact** (`test_topic_qos_matrix`) |
 | $\lambda$ (`AHP_SHRINKAGE_LAMBDA`) | $0.70$ | **DECLARED** | [`core/models.py`](../saag/core/models.py) | **Exact** |
-| $\beta$ (`TOPIC_QOS_WEIGHT_BETA`) | $0.85$ | **DECLARED** | [`core/models.py`](../saag/core/models.py) | **Exact** |
+| $\beta$ (`TOPIC_QOS_WEIGHT_BETA`) | $0.75$ | **DECLARED** | [`core/models.py`](../saag/core/models.py) | **Exact** |
+| $\alpha$ (`TOPIC_SIZE_WEIGHT_ALPHA`) | $0.15$ | **DECLARED** | [`core/models.py`](../saag/core/models.py) | **Exact** |
+| $\psi$ (`TOPIC_FREQ_WEIGHT_PSI`) | $0.10$ | **DECLARED** | [`core/models.py`](../saag/core/models.py) | **Exact** |
 | $\delta$ (`COUPLING_PATH_DELTA`) | $0.10$ | **DECLARED** | [`core/models.py`](../saag/core/models.py) | **Exact** |
 | $\mathbf{M}_{\text{RM} \to \text{QiU}}$ Rows | $(0.75,0.25),(0.80,0.20),(0.60,0.40)$ | **DECLARED** | [`quality_model.py`](../saag/core/quality_model.py) | **Exact** (`TestProjectionIsRowStochastic`) |
 

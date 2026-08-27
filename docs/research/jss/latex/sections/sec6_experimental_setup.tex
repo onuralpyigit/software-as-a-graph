@@ -51,10 +51,14 @@ We compare five primary predictor configurations:
 \label{sec:6.3}
 
 \begin{itemize}
-    \item \textbf{Ranking Accuracy:} Spearman rank correlation ($\rho$) and Kendall's tau ($\tau$) between predicted rankings and ground-truth simulated impact $I^*(v)$.
-    \item \textbf{Critical-Set Identification:} $F_1@K$, Precision@$K$, and Recall@$K$ for top-$K$ critical components, where $K = \lceil 0.20 \cdot |V_{\text{app}}| \rceil$.
+    \item \textbf{Ranking Accuracy:} Spearman rank correlation ($\rho$) and Kendall's tau ($\tau$) between predicted rankings and ground-truth simulated impact $I^*(v)$, the primary oracle declared in Section~\ref{sec:5.1}.
+    \item \textbf{Critical-Set Identification:} $F_1@K$, Precision@$K$, and Recall@$K$ for top-$K$ critical components, where $K$ is $20\%$ of the evaluated node population, rounded to nearest. Because the predicted and true sets both contain exactly $K$ elements, precision, recall and $F_1$ coincide at $K$; the figure is a top-$K$ overlap and we read it as such.
     \item \textbf{Statistical Significance:} Paired Wilcoxon signed-rank tests \cite{wilcoxon1945individual} ($p < 0.05$) and bootstrap 95\% confidence intervals ($B = 2,000$) \cite{efron1993introduction,spearman1904proof}.
 \end{itemize}
+
+\subsubsection{Evaluation Population}
+
+Every predictor in a given table is scored on an identical node set, resolved from the graph and the labels alone --- never from any variant's predictions --- so that no comparison is confounded by which nodes a particular method happened to score. Unless stated otherwise that set is the \textbf{Application} population: it is the population the framework's central claim is about (topology predicts application-layer cascade criticality), and it is the only one every variant can score. This matters more than it may appear. Pooling node types into a single correlation mixes populations with different impact scales and base rates, and on this corpus that pooling is not benign --- it moves the RM composite's rank correlation \emph{outside} the range spanned by its own per-type correlations (Section~\ref{sec:7.3}). We therefore report stratified, single-population figures throughout, and flag explicitly wherever a pooled figure appears.
 
 \subsubsection{Evaluation Protocols}
 \begin{itemize}

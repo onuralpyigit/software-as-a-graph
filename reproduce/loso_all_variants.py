@@ -119,9 +119,16 @@ _VARIANT_LABELS = {
 
 
 def _build_comparison_table(
-    results_by_variant: Dict[str, Dict]
+    results_by_variant: Dict[str, Dict],
+    eval_population: Optional[str] = None,
 ) -> Dict:
-    """Merge per-variant LOSO results into a unified comparison table."""
+    """Merge per-variant LOSO results into a unified comparison table.
+
+    ``eval_population`` is the value this run passed to every subprocess; it is
+    used only as a fallback for payloads written before ``cli/loso_evaluate.py``
+    started recording the field, so a resumed run does not report the population
+    as unknown for some variants and known for others.
+    """
     table = {}
     for variant, data in results_by_variant.items():
         if data is None:
@@ -140,6 +147,12 @@ def _build_comparison_table(
             "mean_rho": round(float(np.mean(rho_vals)), 4) if rho_vals else None,
             "std_rho":  round(float(np.std(rho_vals)), 4) if rho_vals else None,
             "mean_f1":  round(float(np.mean(f1_vals)), 4) if f1_vals else None,
+            # Carried so a rendered table can name the population it was scored
+            # on: the same variant on a pooled population is a different number,
+            # not a noisier version of this one.
+            "eval_population": (
+                data.get("summary", {}).get("eval_population") or eval_population),
+            "per_type_summary": data.get("per_type_summary", {}),
             "per_fold": [
                 {
                     "holdout":  f.get("holdout_id"),
@@ -199,6 +212,13 @@ def parse_args():
                    help="Skip variants with existing results.json")
     p.add_argument("--table-only", action="store_true",
                    help="Load existing results and print table only (no training)")
+    p.add_argument(
+        "--eval-population", default="application",
+        choices=["application", "app_lib", "labeled"],
+        help="Node population every variant is scored on; forwarded to "
+             "cli/loso_evaluate.py. Defaults to 'application' so this table and "
+             "reproduce/main_table.py compare like with like.",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -241,12 +261,13 @@ def main():
             data = _run_variant(
                 variant=var, seeds=args.seeds,
                 cache_dir=args.cache_dir, epochs=args.epochs,
-                extra_args=[], verbose=args.verbose,
+                extra_args=["--eval-population", args.eval_population],
+                verbose=args.verbose,
             )
             results_by_variant[var] = data
 
     # Build + save comparison table
-    table = _build_comparison_table(results_by_variant)
+    table = _build_comparison_table(results_by_variant, args.eval_population)
     output = {
         "comparison_table": table,
         "per_variant_results": {k: v for k, v in results_by_variant.items()},

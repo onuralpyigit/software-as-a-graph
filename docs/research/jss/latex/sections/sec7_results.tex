@@ -54,39 +54,42 @@ Under inductive Leave-One-Scenario-Out (LOSO) cross-validation, the model must p
 \begin{table}[htbp]
 \centering
 \small
-\caption{Inductive Leave-One-Scenario-Out (LOSO) evaluation.}
+\caption{Inductive Leave-One-Scenario-Out (LOSO) evaluation, Application population, eight folds.}
 \label{tab:7}
 \begin{tabular}{lcccc}
 \toprule
 \textbf{Model Variant} & \textbf{Mean LOSO $\rho$} & \textbf{Std $\rho$} & \textbf{Critical-Set $F_1@K$} & \textbf{Requires Training} \\
 \midrule
-\textbf{Topo-BL} & 0.109 & 0.150 & 0.222 & No \\
-\textbf{Topo-QoS} & 0.522 & 0.285 & 0.339 & No \\
-\textbf{RM / $Q(v)$ Baseline} & $-0.014$ & 0.147 & 0.237 & No \\
-\textbf{GL (Homogeneous)} & 0.381 & 0.164 & 0.436 & Yes \\
-\textbf{GL-QoS (Homogeneous)} & 0.501 & 0.167 & 0.442 & Yes \\
-\textbf{HGL (Typed Heterogeneous)} & 0.578 & \textbf{0.116} & \textbf{0.467} & Yes \\
-\textbf{HGL-QoS (Typed + QoS)} & \textbf{0.668} & 0.096 & 0.457 & Yes \\
+\textbf{Topo-BL} & 0.301 & 0.126 & 0.363 & No \\
+\textbf{Topo-QoS} & 0.571 & 0.181 & 0.380 & No \\
+\textbf{RM / $Q(v)$ Baseline} & 0.190 & 0.131 & 0.328 & No \\
+\textbf{GL (Homogeneous)} & 0.086 & 0.123 & 0.237 & Yes \\
+\textbf{GL-QoS (Homogeneous)} & 0.363 & \textbf{0.089} & 0.339 & Yes \\
+\textbf{HGL (Typed Heterogeneous)} & 0.451 & 0.149 & 0.341 & Yes \\
+\textbf{HGL-QoS (Typed + QoS)} & \textbf{0.608} & 0.144 & \textbf{0.414} & Yes \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\noindent Eight LOSO folds are reported (the seven synthetic scenarios plus the ATM case study of Section~\ref{sec:7.4}), each holding out one scenario and training on the remaining seven.
+\noindent Eight LOSO folds are reported (the seven synthetic scenarios plus the ATM case study of Section~\ref{sec:7.4}), each holding out one scenario and training on the remaining seven. Every variant is scored on the identical Application node set per fold (Section~\ref{sec:6.3}); paired Wilcoxon tests below are over the eight folds.
 
 \noindent\textbf{Key Insights for RQ1:}
 \begin{enumerate}
-    \item \textbf{Critical-Set Detection Advantage:} HGL achieves a 37.8\% relative improvement in critical-set identification ($F_1@K = 0.467$ vs.\ $0.339$ for Topo-QoS).
-    \item \textbf{Out-of-Distribution Superiority:} Under LOSO validation, the QoS-aware typed model (HGL-QoS) is the best-performing configuration overall ($\rho = 0.668$ vs.\ $0.521$ for Topo-QoS), substantially outperforming non-learning baselines and homogeneous GNNs ($\rho = 0.381$--$0.501$). The RM baseline is essentially non-predictive under distribution shift ($\rho \approx -0.01$), confirming that RM's value lies in interpretable attribution rather than standalone ranking.
-    \item \textbf{In-Distribution Scope Condition:} In-distribution, both HGL ($\rho = 0.725$) and GL ($\rho = 0.612$) outperform structural baselines on point estimates, but their margin over Topo-QoS is constrained by topology variance. Notably, in-distribution the QoS-aware variant (HGL-QoS, $\rho = 0.653$) trails the base typed model rather than matching it --- see Section~\ref{sec:7.3}'s QoS Feature Encoding discussion for the full trade-off.
+    \item \textbf{The learned models beat the learned baselines decisively; the untrained QoS baseline is the real competitor.} HGL-QoS is the best configuration overall ($\rho = 0.608$, $F_1@K = 0.414$), and its margin over both homogeneous GNNs is large and significant ($+0.245$ over GL-QoS, 8/8 folds, $p = 0.0078$). Against \emph{Topo-QoS}, however --- a training-free QoS-weighted centrality baseline --- the margin is $+0.037$, won in only 5 of 8 folds, and is \textbf{not statistically significant} ($p = 0.74$). We state this plainly: on out-of-distribution Application ranking, we cannot claim that heterogeneous graph learning outperforms a well-constructed structural baseline, only that it matches it while additionally supplying the typed attention and multi-task outputs the baseline cannot.
+    \item \textbf{Critical-set detection is where the learned model separates.} HGL-QoS improves $F_1@K$ over Topo-QoS by $+0.034$ ($0.414$ vs.\ $0.380$, a $8.9\%$ relative gain) and over GL by $+0.177$. The advantage is real but far smaller than a pooled-population reading of the same experiment suggests.
+    \item \textbf{QoS encoding is what carries the typed model out of distribution.} HGL-QoS leads HGL by $\Delta\rho = +0.157$, winning 7 of 8 folds ($p = 0.0156$) --- a larger and more consistent effect than the in-distribution comparison in Table~\ref{tab:6} suggests in the opposite direction. See Section~\ref{sec:7.3}.
+    \item \textbf{The RM baseline is weakly predictive, not anti-predictive.} $\rho = 0.190$ under distribution shift: better than the untyped GL model and worse than every QoS-aware variant. RM's value lies in interpretable attribution rather than standalone ranking, but it is not noise.
 \end{enumerate}
+
+\noindent\textbf{A note on population.} An earlier version of this table pooled every node type carrying a simulated label. That pooling inverted several conclusions --- it reported the RM baseline at $\rho = -0.014$ rather than $+0.190$, and GL at $0.381$ rather than $0.086$, because GL's pooled score was carried almost entirely by Broker nodes whose impact distribution differs in both scale and base rate from Applications'. This is the Simpson's-paradox hazard documented in Section~\ref{sec:8.2}, and it is why every figure in this paper is now reported on a single, stated population.
 
 \subsection{RQ2: Value of Typed Heterogeneity}
 \label{sec:7.2}
 
 To evaluate the contribution of node and edge typing, we compare relation-specific HGL against homogeneous GL across different validation regimes:
 \begin{itemize}
-    \item \textbf{In-Distribution:} Heterogeneous HGL leads homogeneous GL by $\Delta\rho = +0.113$ (0.725 vs.\ 0.612; not statistically significant, $p = 0.469$, 4/7 scenarios won). On familiar topologies, homogeneous GNNs can partially approximate type distinctions through structural degree signatures, but the typed model still holds a consistent point-estimate edge.
-    \item \textbf{Out-of-Distribution (LOSO):} Heterogeneous HGL outperforms homogeneous GL by \textbf{$+0.197$} ($\rho = 0.578$ vs.\ $0.381$) and exhibits substantially lower variance across folds ($\sigma = 0.116$ vs.\ $0.164$). When encountering unseen topologies, relation-specific message passing is essential for generalizing failure mechanics --- and the gap widens further to $+0.167$ comparing the QoS-aware variants (HGL-QoS $0.668$ vs.\ GL-QoS $0.501$), the best-performing configuration in either family.
+    \item \textbf{In-Distribution:} Heterogeneous HGL leads homogeneous GL by $\Delta\rho = +0.113$ (0.725 vs.\ 0.612; not statistically significant, $p = 0.469$, 4/7 scenarios won). On familiar topologies, homogeneous GNNs can partially approximate type distinctions through structural degree signatures, so the typed model holds only a point-estimate edge. The contrast with the out-of-distribution result below is the finding: typing buys little when the topology is already known and a great deal when it is not.
+    \item \textbf{Out-of-Distribution (LOSO):} This is where typing decides the outcome. Heterogeneous HGL outperforms homogeneous GL by \textbf{$+0.365$} ($\rho = 0.451$ vs.\ $0.086$), winning \emph{all eight} folds (paired Wilcoxon, $p = 0.0078$), and the gap between the QoS-aware variants is $+0.245$ (HGL-QoS $0.608$ vs.\ GL-QoS $0.363$), also 8/8 and $p = 0.0078$. The untyped model very nearly fails to transfer at all on Application ranking: at $\rho = 0.086$ it is below even the unweighted structural baseline ($0.301$). When encountering unseen topologies, relation-specific message passing is not an incremental refinement but the difference between a model that generalizes and one that does not.
 \end{itemize}
 
 \subsubsection{Empirical Edge-Removal Analysis}
@@ -97,47 +100,111 @@ We further probed edge criticality by simulating the removal of candidate relati
 \label{sec:7.3}
 
 \subsubsection{QoS Feature Encoding}
-Explicitly encoding continuous QoS attributes in the GNN (HGL-QoS) does not yield a uniform effect --- it trades in-distribution accuracy for out-of-distribution generalization. In-distribution, HGL-QoS \emph{trails} the base typed model ($\rho = 0.653$ vs.\ $0.725$; $\Delta\rho = -0.072$, marginal at $p = 0.078$, HGL-QoS wins only 1/7 scenarios), consistent with QoS features adding redundant signal (and mild overfitting risk) on topologies the model has already seen, since the derived \texttt{DEPENDS\_ON} graph already embeds much of the same routing and coupling information. Under LOSO, the relationship reverses sharply: HGL-QoS is the single best-performing configuration in the entire study ($\rho = 0.668$ vs.\ $0.578$ for HGL; $\Delta\rho = +0.090$). When the topology itself is unseen, the explicit QoS signal generalizes in a way the structural encoding alone does not. We read this as evidence that QoS encoding is not ``redundant'' so much as \emph{situational}: valuable insurance against distribution shift, at a small in-distribution cost.
-
-\subsubsection{Intra-Dimension AHP Weight Shrinkage}
-
-We evaluated the sensitivity of the RM attribution baseline by sweeping a shrinkage parameter $\lambda \in [0, 1]$ blending internal term weights from uniform prior ($\lambda = 0$) to calibrated AHP judgement ($\lambda = 1$):
+Explicitly encoding continuous QoS attributes in the GNN (HGL-QoS) does not yield a uniform effect --- it trades a little in-distribution accuracy for a large out-of-distribution gain. The two directions are summarised below; note that they are measured under different protocols on different fold counts, though both are scored on the Application population.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Sensitivity of RM rank correlation to AHP shrinkage parameter $\lambda$.}
+\caption{HGL-QoS against HGL under both protocols. Both are Application-scored; the regimes differ in fold count (7 in-distribution scenarios vs.\ 8 LOSO folds, the latter including the ATM case study).}
+\label{tab:8d}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Protocol} & \textbf{HGL} & \textbf{HGL-QoS} & \textbf{$\Delta\rho$} & \textbf{Folds won} & \textbf{Wilcoxon $p$} \\
+\midrule
+In-distribution (Table~\ref{tab:5}) & $0.725$ & $0.653$ & $-0.072$ & 1/7 & $0.078$ (n.s.) \\
+Inductive LOSO (Table~\ref{tab:7}) & $0.451$ & $\mathbf{0.608}$ & $\mathbf{+0.157}$ & \textbf{7/8} & $\mathbf{0.016}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The apparent contradiction between the two tables is a genuine regime effect, not an inconsistency. In-distribution, HGL-QoS \emph{trails} the base typed model, but the deficit is not statistically significant and is small relative to its own scatter (across-scenario $\sigma = 0.35$ for HGL-QoS against a $0.072$ gap); it is concentrated in two structurally atypical topologies, Hub-and-Spoke ($-0.238$) and AV ($-0.140$), with the remaining five within $\pm 0.084$. This is consistent with QoS features adding redundant signal, and mild overfitting risk, on topologies the model has already seen --- the derived \texttt{DEPENDS\_ON} graph already embeds much of the same routing and coupling information through its edge weights.
+
+Under LOSO the relationship reverses decisively and \emph{is} significant: HGL-QoS gains $+0.157$ and wins 7 of 8 folds. When the topology itself is unseen, structural degree signatures no longer transfer, whereas a declared QoS contract means the same thing in an unfamiliar architecture as in a familiar one --- \texttt{RELIABLE} and \texttt{PERSISTENT} carry their semantics across deployments in a way that a betweenness percentile does not. We therefore read QoS encoding as \emph{situational} rather than redundant: insurance against distribution shift, bought at a small and statistically insignificant in-distribution cost. For a practitioner the rule is simple --- use HGL when the target system resembles the training corpus, HGL-QoS when it does not, and HGL-QoS by default when that is unknown.
+
+\subsubsection{Topic-Weight Coefficients (\texorpdfstring{$\beta$, $\alpha$, $\psi$}{beta, alpha, psi})}
+\label{sec:7.3.topicw}
+
+The outer split of Equation~\ref{eq:3} is a declared convex combination, not an elicited one, so we measure what rests on it rather than argue for the particular triple. We swept $(\beta, \alpha, \psi)$ over a grid spanning the whole simplex --- including the QoS-only corner $(1, 0, 0)$ and a uniform prior $(\tfrac13, \tfrac13, \tfrac13)$ --- and propagated each point through the derived \texttt{DEPENDS\_ON} edge weights into two closed-form scorers.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Sensitivity of the topic-weight ordering and of downstream rank correlation against $I^*(v)$ to the declared coefficients $(\beta, \alpha, \psi)$. Application population, mean over seven scenarios; 375 topics.}
+\label{tab:8b}
+\begin{tabular}{lccc}
+\toprule
+\textbf{$(\beta, \alpha, \psi)$} & \textbf{$\rho$ of $w(t)$ vs.\ shipped} & \textbf{Topo-QoS $\rho$} & \textbf{RM $\rho$} \\
+\midrule
+$(0.75, 0.15, 0.10)$ \emph{shipped} & $1.000$ & $0.599$ & $0.268$ \\
+$(0.90, 0.05, 0.05)$ & $0.9999$ & $0.597$ & $0.269$ \\
+$(0.85, 0.15, 0.00)$ & $0.936$ & $0.607$ & $0.270$ \\
+$(1.00, 0.00, 0.00)$ & $0.925$ & $0.617$ & $0.258$ \\
+$(0.60, 0.20, 0.20)$ & $0.995$ & $0.602$ & $0.268$ \\
+$(0.50, 0.25, 0.25)$ & $0.986$ & $0.602$ & $0.266$ \\
+$(\tfrac13, \tfrac13, \tfrac13)$ \emph{uniform} & $0.925$ & $0.603$ & $0.266$ \\
+\midrule
+\textbf{Spread across grid} & --- & $\mathbf{0.020}$ & $\mathbf{0.012}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The coefficients are not load-bearing. Across the entire simplex the induced ordering of $w(t)$ never falls below $\rho = 0.925$ against the shipped ordering, and downstream rank correlation moves by at most $0.020$ (Topo-QoS) and $0.012$ (RM) --- an order of magnitude below the differences between the predictor families the tables above compare. The mechanism is visible in the terms themselves: over the 375 corpus topics the QoS term contributes a weighted standard deviation of $0.188$, the frequency term $0.021$, and the payload term $0.0039$, because $\text{SizeNorm}$ log-compresses realistic payloads into a band roughly $50\times$ narrower than the QoS term's spread. The payload term is therefore close to inert on this corpus whatever $\alpha$ is set to, which we report as a limitation of the construct rather than as a tuned parameter. We emphasise the direction of this claim: it establishes that the declared triple does not drive any reported result, \emph{not} that $(0.75, 0.15, 0.10)$ is optimal --- the QoS-only corner is in fact marginally better for Topo-QoS ($0.617$ against $0.599$) and marginally worse for RM. The inner QoS split $(0.30, 0.40, 0.30)$ is a separate matter: it is AHP-derived, its Saaty matrix is consistency-audited, and both are pinned by regression tests.
+
+\subsubsection{Intra-Dimension AHP Weight Shrinkage}
+
+We evaluated the sensitivity of the RM attribution baseline by sweeping a shrinkage parameter $\lambda \in [0, 1]$ blending internal term weights from uniform prior ($\lambda = 0$) to calibrated AHP judgement ($\lambda = 1$). Note that $\lambda$ shrinks only the \emph{intra-dimension} vectors: the composite weights $(q_R, q_M) = (0.80, 0.20)$ are declared constants and are identical at every $\lambda$.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Sensitivity of RM rank correlation against $I^*(v)$ to the AHP shrinkage parameter $\lambda$, Application population, mean over seven scenarios.}
 \label{tab:8}
 \begin{tabular}{lccccc}
 \toprule
 \textbf{$\lambda$ Setting} & \textbf{0.00 (Uniform)} & \textbf{0.50} & \textbf{0.70 (Default)} & \textbf{0.80} & \textbf{1.00 (Raw AHP)} \\
 \midrule
-\textbf{Mean Rank Correlation ($\rho$)} & $-0.0514$ & $-0.0256$ & $-0.0190$ & $-0.0142$ & \textbf{$-0.0069$} \\
+\textbf{Mean Rank Correlation ($\rho$)} & \textbf{0.347} & $0.291$ & $0.268$ & $0.256$ & $0.234$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-As illustrated in Figure~4, the calibrated AHP judgement ($\lambda = 1.00$) is monotonically less anti-correlated with ground truth than uniform weighting, improving by $+0.045\,\rho$ across the sweep and validating the internal consistency of the expert hierarchy. We note explicitly that every $\lambda$ setting remains negative on this population: the RM baseline is weakly \emph{anti}-correlated with $I^*(v)$ across the whole shrinkage range, consistent with its near-zero-to-negative LOSO performance (Table~\ref{tab:7}). AHP calibration makes the RM baseline less wrong, not accurate; its primary role remains explainable attribution rather than standalone ranking.
+\noindent\textbf{The AHP judgement does not improve ranking, and we report that directly.} As Figure~4 shows, $\rho$ declines monotonically as the weights move from the uniform prior toward the elicited judgement. The uniform prior is the best setting in the sweep ($\rho = 0.347$ against $0.234$ at raw AHP), it wins in all seven scenarios individually (paired Wilcoxon, $p = 0.0156$), and the shipped $\lambda = 0.70$ default costs $\Delta\rho = -0.079$ relative to it ($p = 0.0156$). There is no plateau around the default. The honest reading is that the elicited intra-dimension hierarchy is a \emph{transparency} device --- it makes the composite auditable and its terms nameable to an architect --- and not a ranking-accuracy device; on this corpus, weighting the terms equally ranks components better. We retain $\lambda = 0.70$ because RM's role is interpretable attribution rather than standalone ranking (Section~\ref{sec:4.1}), but we do not claim the sweep validates the expert hierarchy, because it does not.
+
+\noindent\textbf{A measurement correction.} An earlier version of this analysis scored $Q(v)$ from features restricted to the Application--Library \texttt{DEPENDS\_ON} projection --- the feature substrate built for GNN training --- rather than from the full typed graph. On that projection no Application is an articulation point and no incident edge is a bridge in six of the eight scenarios, so four of Availability's five terms vanish and $A(v)$, which carries $w_R(1 - \alpha) \approx 0.51$ of the composite, is constant across the Application population. Sweeping $\lambda$ against that variant measured a degenerate score and returned uniformly negative $\rho$ (from $-0.146$ at $\lambda = 0$ to $-0.112$ at $\lambda = 1$). The figures above are computed through the full analysis pipeline, which is the RM baseline defined in Section~\ref{sec:4.3}; both series are retained in the replication artifact. The same correction applies to the threshold and domain-weighting ablations below, which shared that scorer.
 
 \subsubsection{Convergent Validity Across Simulation Oracles}
 
-To test construct validity, we compared node criticality rankings across our three simulation engines: the topological cascade reachability oracle $I^*(v)$ (\texttt{FaultInjector}), the multi-metric composite oracle $I_{\text{comp}}(v)$ (\texttt{FailureSimulator}), and the discrete-event queue-flow simulator $I_{\text{dyn}}(v)$ (\texttt{MessageFlowSimulator}). 
+To test construct validity, we compared node criticality rankings across our three simulation engines --- the topological cascade reachability oracle $I^*(v)$ (\texttt{FaultInjector}), the multi-metric composite oracle $I_{\text{comp}}(v)$ (\texttt{FailureSimulator}), and the discrete-event queue-flow simulator $I_{\text{dyn}}(v)$ (\texttt{MessageFlowSimulator}) --- over seven synthetic scenarios and five seeds, on the Application population.
 
-Across all seven synthetic scenarios, the behavioural SimPy simulator ($I_{\text{dyn}}$) and the topological cascade reachability oracle ($I^*$) exhibited strong rank convergence:
-\begin{itemize}
-    \item \textbf{$I_{\text{dyn}}$ vs.\ $I^*(v)$:} Mean Spearman $\rho = \mathbf{0.7647}$ (ranging from $0.5497$ to $0.9378$), with mean Kendall $\tau = 0.633$ and top-$K$ Jaccard overlap of $0.312$.
-    \item \textbf{$I_{\text{comp}}$ vs.\ $I_{\text{dyn}}$:} Mean Spearman $\rho = 0.4646$ (ranging from $0.1208$ to $0.6575$).
-    \item \textbf{$I_{\text{comp}}$ vs.\ $I^*(v)$:} Mean Spearman $\rho = 0.3970$ (ranging from $0.0974$ to $0.5778$).
-\end{itemize}
-This strong agreement between independent behavioural queue simulations and structural cascade reachability confirms that our continuous target label $I^*(v)$ captures genuine dynamic service disruption.
+\begin{table}[htbp]
+\centering
+\small
+\caption{Inter-oracle agreement. Chance-level top-$K$ Jaccard at $K = 0.2n$ is $0.111$; the tie-robust column admits every component tied with the $K$-th.}
+\label{tab:8c}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Oracle pair} & \textbf{Mean $\rho$ (range)} & \textbf{Mean $\tau$} & \textbf{Jaccard@$K$} & \textbf{Tie-robust} \\
+\midrule
+$I_{\text{dyn}}$ vs.\ $I^*$ & $\mathbf{0.883}$ ($0.756$--$0.972$) & $0.745$ & $0.424$ & $0.419$ \\
+$I_{\text{comp}}$ vs.\ $I^*$ & $0.468$ ($0.171$--$0.677$) & $0.349$ & $0.307$ & $0.312$ \\
+$I_{\text{comp}}$ vs.\ $I_{\text{dyn}}$ & $0.465$ ($0.121$--$0.658$) & $0.348$ & $0.313$ & $0.313$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Ordering converges; the critical set does not.} The behavioural queue simulator and the topological cascade oracle agree strongly on ordering ($\rho = 0.883$, never below $0.756$ on any scenario). Because the two are constructed on different principles --- one observing delivered message rates under load, the other reachability over edges --- this agreement is not reducible to a shared construction artifact, and it is the strongest convergent evidence available to us that $I^*(v)$ tracks dynamic service disruption rather than only graph topology. The composite oracle is the outlier, agreeing only moderately with either ($\rho \approx 0.47$).
+
+Set-level agreement is a different and weaker story, and we report it as the binding limitation rather than burying it. Top-$K$ Jaccard is $0.42$ for the strongest pair and $0.31$ for the others, against $0.111$ expected under independent rankings. We ran two controls before interpreting this. It is \emph{not} a tie-breaking artifact: admitting every component tied with the $K$-th moves the figure by at most $0.005$. And it is not simply label noise, though noise is a substantial part of it --- the labeler's own seed-to-seed self-agreement spans top-$K$ Jaccard $0.44$--$1.00$, so one oracle compared against \emph{itself} reaches only $0.44$ in its worst scenario. Top-$K$ set identity at $K = 0.2n$ is therefore an intrinsically unstable statistic, and the cross-oracle values sit just below the floor a single oracle achieves against its own reruns. The defensible claim is about ranking, not about membership of a fixed-size critical set.
+
+\noindent\textbf{A falsified hypothesis, reported.} We tested whether weighting both topological oracles by the same $w(t)$ makes them converge --- the mechanism by which QoS weighting would be a construct-validity improvement rather than merely a modelling choice. It does not: $\rho(I_{\text{comp}}, I^*)$ is $0.468$ with QoS weighting and $0.477$ without it ($\Delta\rho = -0.009$; Jaccard $0.307$ against $0.306$). Shared weighting has no measurable effect on inter-oracle agreement in either direction, and we record the negative result rather than leaving the artifact uncited.
 
 \subsubsection{Domain-Specific Weighting Sensitivity}
 
-We investigated the impact of Context of Use reweighting $\vec{\omega} = [q_R, q_M]^\top$ across 10 evaluation scenarios by sweeping the composite reliability weight $w_R$ over its full range and reading off three points on that one curve: the shipped static default ($w_R = 0.80$), an unweighted equal split ($w_R = 0.50$), and the domain-derived value per scenario. Domain-derived weighting improves mean rank correlation by $\Delta\rho = +0.0264$ over the static default, but \emph{underperforms} equal weighting by $\Delta\rho = -0.1097$ --- domain derivation is not, on this evidence, a ranking-accuracy improvement over the simplest possible baseline. The reason is structural rather than a modelling failure: across all six declared domains, the domain-derived $w_R$ sits within $0.04$ of the static $0.80$ default (range $[0.70, 0.76]$), so mean Kendall rank fidelity between domain-derived and static rankings is $\tau = 0.9677$ --- the two weightings rank components almost identically, and the free parameter Context of Use actually moves is too small for any weighting confined to it to move $\rho$ substantially. We therefore reframe this ablation's conclusion: operational Context of Use reweighting is an \emph{attributional} mechanism --- explaining why a component matters in stakeholder terms --- not a ranking-improvement device, consistent with the scoping in Section~\ref{sec:4.1}.
+We investigated the impact of Context of Use reweighting $\vec{\omega} = [q_R, q_M]^\top$ across 10 evaluation scenarios by sweeping the composite reliability weight $w_R$ over its full range and reading off three points on that one curve: the shipped static default ($w_R = 0.80$), an unweighted equal split ($w_R = 0.50$), and the domain-derived value per scenario. The three are statistically indistinguishable: mean $\rho = 0.345$ (static), $0.342$ (equal), $0.345$ (domain-derived), so domain derivation beats equal weighting by $\Delta\rho = +0.002$ and trails the static default by $\Delta\rho = -0.001$. Neither difference is meaningful, and the sweep explains why: over the \emph{entire} $w_R \in [0, 1]$ range mean $\rho$ moves only from $0.341$ to $0.354$, a total spread of $0.014$. The composite weight is simply not a lever on ranking. Two structural facts compound this: across all ten declared domains the derived $w_R$ lies in $[0.70, 0.80]$, i.e.\ at most $0.10$ from the static default, and mean Kendall rank fidelity between domain-derived and static rankings is $\tau = 0.976$ --- the two weightings order components almost identically. We therefore read this ablation as confirming the scoping in Section~\ref{sec:4.1}: operational Context of Use reweighting is an \emph{attributional} mechanism --- explaining why a component matters in stakeholder terms --- and not a ranking-improvement device. It should not be reported as either an accuracy gain or an accuracy loss.
 
 \subsubsection{Threshold and Normalization Sensitivity}
 
-We swept 7 scenarios $\times$ a cascade propagation-threshold parameter $\in \{0.0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0\}$ controlling the ground-truth oracle's eligibility cutoff for cascade propagation, and separately swept 3 label-normalization techniques (min-max, standard, rank-quantile) holding the threshold fixed. Ranking performance is more sensitive to the propagation threshold ($\Delta\rho = 0.1896$ across the extreme settings; mean $\rho$ ranges from $-0.173$ at threshold $0$ to $+0.017$ at threshold $\geq 0.35$, plateauing thereafter) than to normalization choice ($\Delta\rho = 0.0158$ across the three schemes). A small spread under either sweep means the reported ordering is stable under that free parameter of the ground truth and scorer --- it is not, by itself, evidence that the ordering is \emph{correct}.
+We swept 7 scenarios $\times$ a cascade propagation-threshold parameter $\in \{0.0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0\}$ controlling the ground-truth oracle's eligibility cutoff for cascade propagation, and separately swept 3 label-normalization techniques (robust, min-max, standard) holding the threshold fixed. Ranking performance is more sensitive to the propagation threshold ($\Delta\rho = 0.099$ across the extreme settings; mean $\rho$ rises from $0.183$ at threshold $0$ to $0.281$ at threshold $0.5$ and plateaus thereafter, the shipped $0.35$ sitting inside that plateau at $0.276$) than to normalization choice ($\Delta\rho = 0.027$; robust $0.268$ against $0.241$ for both min-max and standard). The threshold is thus the more consequential free parameter of the two, and the shipped setting is on the flat part of its curve rather than at a tuned peak. A small spread under either sweep means the reported ordering is stable under that parameter --- it is not, by itself, evidence that the ordering is \emph{correct}.
 
 \subsubsection{Anti-Pattern Detection and CI/CD Quality Gates}
 
