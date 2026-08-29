@@ -221,8 +221,19 @@ class TestValidationService:
         if impacts is None:
             impacts = [0.9, 0.7, 0.5, 0.3, 0.1]
             
-        comps = [self._make_comp(cid, s) for cid, s in zip(ids, scores)]
-        sim_results = [self._make_sim(cid, im) for cid, im in zip(ids, impacts)]
+        # Vary reliability/maintainability/availability alongside the composite
+        # score/impact rather than leaving them at _make_comp/_make_sim's constant
+        # 0.5 default: a constant ground truth is now correctly treated as "never
+        # validated" by _validate_dimension's zero-variance guard, so dimension-level
+        # assertions below need real signal on both sides to exercise anything.
+        comps = [
+            self._make_comp(cid, s, reliability=s, maintainability=s, availability=s)
+            for cid, s in zip(ids, scores)
+        ]
+        sim_results = [
+            self._make_sim(cid, im, reliability=im, maintainability=im, availability=im)
+            for cid, im in zip(ids, impacts)
+        ]
             
         mock_quality = MagicMock(spec=QualityAnalysisResult)
         mock_quality.components = comps
@@ -265,6 +276,41 @@ class TestValidationService:
         assert "predictive_gain" in comp
         assert "best_single_dim" in comp
         
+    def test_degenerate_dimension_ground_truth_is_not_validated(
+        self, validation_service, mock_prediction_service, mock_simulation_service
+    ):
+        """A dimension whose ground truth is constant (oracle degenerate or never
+        populated for this scenario) must be reported as unvalidated rather than
+        as a spurious 0.0 correlation — and must not be credited as a Predictive
+        Gain baseline. This is the maintainability failure mode from JSS review:
+        every real validation artifact on disk shows maintainability_spearman=0.0
+        alongside genuine reliability/availability correlations."""
+        ids = ['A', 'B', 'C', 'D', 'E']
+        scores = [0.9, 0.7, 0.5, 0.3, 0.1]
+        impacts = [0.9, 0.7, 0.5, 0.3, 0.1]
+        # Composite varies; every per-dimension ground truth is left at
+        # _make_sim's constant 0.5 default, i.e. never actually measured.
+        comps = [self._make_comp(cid, s) for cid, s in zip(ids, scores)]
+        sim_results = [self._make_sim(cid, im) for cid, im in zip(ids, impacts)]
+
+        mock_quality = MagicMock(spec=QualityAnalysisResult)
+        mock_quality.components = comps
+        mock_prediction_service.predict_quality.return_value = mock_quality
+        mock_simulation_service.run_failure_simulation_exhaustive.return_value = sim_results
+
+        result = validation_service.validate_layers(layers=["app"])
+        layer_res = result.layers["app"]
+
+        assert "reliability" not in layer_res.dimensional_validation
+        assert "maintainability" not in layer_res.dimensional_validation
+        assert layer_res.reliability_spearman == 0.0
+        assert layer_res.maintainability_spearman == 0.0
+
+        comp = layer_res.dimensional_validation["composite"]
+        assert comp["best_single_dim"] == "None"
+        assert comp["predictive_gain"] == 0.0
+        assert layer_res.gates["G5_predictive_gain"] is False
+
     def test_node_type_stratified_in_output(self, validation_service, mock_prediction_service, mock_simulation_service):
         """Test node-type stratified reporting."""
         self._setup_mock_layer(mock_prediction_service, mock_simulation_service)

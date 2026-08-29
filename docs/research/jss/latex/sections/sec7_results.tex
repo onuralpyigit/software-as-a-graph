@@ -229,7 +229,7 @@ $\gamma$ (fan-out) & $0.001$ & $0.002$ \\
 
 \subsubsection{Convergent Validity Across Simulation Oracles}
 
-To test construct validity, we compared node criticality rankings across our three simulation engines --- the topological cascade reachability oracle $I^*(v)$ (\texttt{FaultInjector}), the multi-metric composite oracle $I_{\text{comp}}(v)$ (\texttt{FailureSimulator}), and the discrete-event queue-flow simulator $I_{\text{dyn}}(v)$ (\texttt{MessageFlowSimulator}) --- over seven synthetic scenarios and five seeds, on the Application population.
+To test construct validity, we compared node criticality rankings across three of the four component-level oracles from Section~\ref{sec:5.1} --- the topological cascade reachability oracle $I^*(v)$ (\texttt{FaultInjector}), the multi-metric composite oracle $I_{\text{comp}}(v)$ (\texttt{FailureSimulator}), and the discrete-event queue-flow simulator $I_{\text{dyn}}(v)$ (\texttt{MessageFlowSimulator}) --- over seven synthetic scenarios and five seeds, on the Application population. The fourth, the Maintainability-only $I_M(v)$, is excluded here because it targets a different dimension rather than a competing reliability ranking; its own construct-validity limitation is discussed separately (Section~\ref{sec:8.2}).
 
 \begin{table}[htbp]
 \centering

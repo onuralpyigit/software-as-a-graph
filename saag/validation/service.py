@@ -239,8 +239,8 @@ class ValidationService:
             result = self._validate_dimension(
                 spec, predictions, ground_truths, comp_map, sim_results, sim_layer.value
             )
-            dim_rhos[spec.key] = result.spearman if result else 0.0
             if result:
+                dim_rhos[spec.key] = result.spearman
                 dimensional_validation[spec.key] = result.entry
                 dimensional_scatter[spec.key] = result.scatter
                 confidence_intervals[spec.key] = result.ci
@@ -314,8 +314,11 @@ class ValidationService:
             top_5_overlap=validation_res.overall.ranking.top_5_overlap,
             top_10_overlap=validation_res.overall.ranking.top_10_overlap,
             rmse=validation_res.overall.error.rmse,
-            reliability_spearman=dim_rhos["reliability"],
-            maintainability_spearman=dim_rhos["maintainability"],
+            # .get(..., 0.0): a dimension absent from dim_rhos means it was never
+            # validated (degenerate/unpopulated ground truth), not that it scored a
+            # genuine 0.0 correlation — see _validate_dimension's zero-variance guard.
+            reliability_spearman=dim_rhos.get("reliability", 0.0),
+            maintainability_spearman=dim_rhos.get("maintainability", 0.0),
             availability_spearman=subchar_rhos.get("availability", 0.0),
             composite_spearman=composite_spearman,
             predictive_gain=predictive_gain,
@@ -450,8 +453,10 @@ class ValidationService:
     ) -> Optional[DimensionResult]:
         """Correlate one dimension's predictor against its ground truth.
 
-        Returns None when fewer than three components are scored by both sides,
-        which is the only case where the dimension is legitimately skipped.
+        Returns None when fewer than three components are scored by both sides, or
+        when the ground truth carries no variance at all (Spearman is undefined on a
+        constant, and reporting it as 0.0 would misrepresent "never validated" as "no
+        correlation found" — see CLAUDE.md's degenerate-substrate gotcha).
         """
         predicted = predictions[spec.score_attr]
         actual = ground_truths[spec.impact_attr]
@@ -459,6 +464,13 @@ class ValidationService:
         if len(ids) < _MIN_SAMPLE:
             self.logger.debug(
                 "%s dimension skipped: only %d matched components", spec.key, len(ids)
+            )
+            return None
+        if len({round(float(actual[k]), 12) for k in ids}) < 2:
+            self.logger.warning(
+                "%s dimension skipped: ground truth is constant across %d components "
+                "(oracle degenerate or unpopulated, not genuinely uncorrelated)",
+                spec.key, len(ids),
             )
             return None
 
@@ -549,9 +561,19 @@ class ValidationService:
         corr = calculate_correlation(
             [float(pred_scores[k]) for k in ids], [float(composite_i_star[k]) for k in ids]
         )
-        best_dim = max(dim_rhos, key=lambda k: dim_rhos[k])
-        best_dim_rho = float(dim_rhos[best_dim])
-        predictive_gain = float(corr.spearman) - best_dim_rho
+        if dim_rhos:
+            best_dim = max(dim_rhos, key=lambda k: dim_rhos[k])
+            best_dim_rho = float(dim_rhos[best_dim])
+            predictive_gain = float(corr.spearman) - best_dim_rho
+        else:
+            # No dimension validated (every candidate's ground truth was degenerate
+            # or unpopulated) — there is no baseline to beat, so Predictive Gain is
+            # undefined. Report 0.0 rather than corr.spearman - 0, which would
+            # silently credit the composite with a "gain" measured against nothing
+            # and let G5_predictive_gain pass on an empty comparison.
+            best_dim = "None"
+            best_dim_rho = 0.0
+            predictive_gain = 0.0
 
         self.logger.info(
             "Composite [%s]: ρ(Q*,I*)=%.3f, PG=%.3f (vs %s), n=%d",

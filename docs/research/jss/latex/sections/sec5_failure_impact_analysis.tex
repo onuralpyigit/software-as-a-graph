@@ -6,7 +6,7 @@ While the interpretable RM baseline provides explainable quality profiles, compl
 \subsection{Ground-Truth Simulation Oracles}
 \label{sec:5.1}
 
-To evaluate predictive accuracy prior to deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$. We establish a formal taxonomy of three component-level oracles and one relationship-level oracle:
+To evaluate predictive accuracy prior to deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$, complemented by one deterministic structural traversal for the dimension the simulations cannot observe. We establish a formal taxonomy of four component-level oracles and one relationship-level oracle:
 
 \begin{itemize}
     \item \textbf{Cascade Reachability Oracle ($I^*(v)$):} Implemented via \texttt{FaultInjector}, this oracle injects an unexpected node crash at component $v \in V$, propagates cascading failures across dependent topics, brokers, and network links using breadth-first dynamic traversal, and computes the fraction of surviving subscriber feeds severed by the outage. Publisher loss is weighted by publication rate, and the resulting per-topic feed loss is scaled by a QoS ladder ($\times 1.2$ for \texttt{RELIABLE}, $\times 1.15$ for high or urgent transport priority, $\times 1.05$ for medium) before being clamped to $[0,1]$. The ladder does not read durability, which carries the largest of the three QoS sub-weights ($0.62$; Section~\ref{sec:3.2}); we quantify how little this scaling moves the labels in Section~\ref{sec:7.3}. $I^*(v) \in [0, 1]$ serves as the primary continuous target label for training and evaluating GNN predictors.
@@ -16,6 +16,11 @@ To evaluate predictive accuracy prior to deployment without relying on productio
     \end{equation}
     This is the most QoS-aware of the three: every term is weighted by an operational severity $s(t) = w(t) \cdot \text{rate}(t)$, so all three QoS dimensions enter through $w(t)$. Sixty per cent of the composite ($0.35$ reachability plus $0.25$ fragmentation) nonetheless measures graph connectivity rather than message loss. $I_{\text{comp}}(v)$ serves as the canonical oracle for architectural quality gate verification.
     \item \textbf{Dynamic Queue-Flow Oracle ($I_{\text{dyn}}(v)$):} Implemented via \texttt{MessageFlowSimulator} using the SimPy discrete-event simulation framework \cite{team2020simpy}, this oracle models message emission rates, stochastic network latencies, broker buffer saturation, and dropped delivery counts under fault injection. QoS policies shape per-message behaviour \emph{inside} the run --- reliability selects head-drop over tail-drop on queue overflow, and deadline and lifespan expiry discard samples --- but the impact score extracted from it is the drop in delivered message rate suffered by surviving consumers, an unweighted per-copy count. $I_{\text{dyn}}(v)$ is therefore delivery-based and QoS-\emph{agnostic} at the label level: a message on a safety-critical topic and one on a telemetry heartbeat contribute equally, and transport priority is not read at all.
+    \item \textbf{Change-Propagation Oracle ($I_M(v)$):} Implemented via \texttt{ChangePropagationSimulator}, and the only oracle in this taxonomy that is not a discrete-event simulation: it is a deterministic breadth-first traversal of the \emph{reversed} derived dependency graph (an edge $u \to v$ in $G_{\text{analysis}}$ becomes $v \to u$ here, modelling ``$v$ changing may force $u$ to adapt''), stopped at loosely-coupled or interface-stable neighbours, and computed on every exhaustive Validate-stage sweep:
+    \begin{equation}
+    I_M(v) = 0.45 \cdot \text{ChangeReach}(v) + 0.35 \cdot \text{WeightedChangeImpact}(v) + 0.20 \cdot \text{NormalizedChangeDepth}(v)
+    \end{equation}
+    $I_M(v)$ is the declared ground truth for the Maintainability dimension, but because it traverses the same derived dependency topology that $M(v)$ (Section~\ref{sec:4.3}) is itself scored from, $\rho(M, I_M)$ is an internal consistency check on that topology rather than independent behavioural evidence, unlike $I^*(v)$ or $I_{\text{dyn}}(v)$ against $R(v)$. It is never used as a GNN training label (Section~\ref{sec:5.4}).
     \item \textbf{Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):} Evaluates the systemic impact of severing an individual dependency or communication channel while keeping both endpoint components alive:
     \begin{equation}
     I_{\text{edge}}(u,v) = I_{\text{comp}}(G \setminus \{(u,v)\}) - I_{\text{comp}}(G)
@@ -28,8 +33,9 @@ label into its severity term (a $50/50$ blend with $w(t)$), and ships with this 
 it would let an author-declared criticality label leak into the oracle used to score predictors
 built from that same label space, which our leakage guard forbids.
 
-\noindent\textbf{Primary oracle declaration.} Because the three component-level oracles measure
-different constructs and agree only partially (below), we designate exactly one of them as
+\noindent\textbf{Primary oracle declaration.} Because the three reliability-facing
+component-level oracles ($I^*$, $I_{\text{comp}}$, $I_{\text{dyn}}$) measure different
+constructs and agree only partially (below), we designate exactly one of them as
 primary and hold every ranking claim in this paper to it. \textbf{$I^*(v)$ (\texttt{FaultInjector})
 is the primary oracle} for all predictive-ranking results (Tables~\ref{tab:5}--\ref{tab:7},
 RQ1--RQ3): it is the only oracle that both supplies training labels and scores held-out
@@ -37,8 +43,10 @@ predictions, so evaluating a learned ranker against anything else would compare 
 target it was never fitted to. The remaining oracles have narrower, explicitly named roles:
 $I_{\text{comp}}(v)$ (\texttt{FailureSimulator}) is the Validate-stage oracle for architectural
 quality gates and anti-pattern detection only, $I_{\text{dyn}}(v)$ (\texttt{MessageFlowSimulator})
-is used only as an independent, behaviourally-constructed convergent-validity probe, and
-$I_{\text{edge}}(u,v)$ scores relationships rather than components. Each table and figure names
+is used only as an independent, behaviourally-constructed convergent-validity probe,
+$I_M(v)$ (\texttt{ChangePropagationSimulator}) is the declared but internally-consistent oracle
+for Maintainability alone and is not empirically validated in this paper (Section~\ref{sec:8.2}),
+and $I_{\text{edge}}(u,v)$ scores relationships rather than components. Each table and figure names
 the oracle it was measured against; no number is transferred between them.
 
 \textbf{These oracles are not interchangeable, and their disagreement bounds what any single one can
@@ -134,7 +142,7 @@ The joint optimization objective balances regression accuracy, multi-task dimens
 \end{equation}
 where $\mathcal{L}_{\text{composite}} = \text{MSE}(\hat{I}^*(v), I^*(v))$, $\mathcal{L}_{\text{rank}}$ is ListMLE ranking loss \cite{xia2008listwise}, $\mathcal{L}_{\text{pairwise}}$ is margin-ranking loss, and $\mathcal{L}_{\text{consistency}} = \text{MSE}\big([\hat{R}(v), \hat{M}(v)]_{v \in \text{unlabeled}}, [R_{\text{RM}}(v), M_{\text{RM}}(v)]_{v \in \text{unlabeled}}\big)$ regresses the predicted R/M heads toward the diagnostic pathway's own $R(v)$/$M(v)$ (Section~\ref{sec:4}), restricted to nodes the oracle never labeled. Headline results use $\lambda_{\text{RM}} = 0$: the two pathways are trained independently, matching the separation claimed in Section~\ref{sec:1.2}. Section~\ref{sec:7} additionally reports $\lambda_{\text{RM}} = 0.1$ as an ablation, since a nonzero $\lambda_{\text{RM}}$ is a real coupling between the pathways and not merely a regularizer on already-independent quantities.
 
-\noindent\textbf{Dimension Masking:} Because dynamic cascade simulation ($I^*(v)$ via \texttt{FaultInjector}) observes runtime failure reachability rather than static code maintainability, maintainability ground truth is unobserved during dynamic simulation. We introduce a boolean dimension mask $m = [m_R, m_M] = [1, 0]$:
+\noindent\textbf{Dimension Masking:} Because dynamic cascade simulation ($I^*(v)$ via \texttt{FaultInjector}, the sole labeler used to train and evaluate every GNN result in this paper) observes runtime failure reachability rather than static code maintainability, maintainability ground truth is unobserved \emph{under this labeler}. A separate oracle, $I_M(v)$ (Section~\ref{sec:5.1}), does compute a maintainability ground truth, but only at the Validate stage and only as an internal consistency check against the same dependency topology $M(v)$ is scored from --- it is never substituted in as a training label, since doing so would not add the independent supervision the mask is meant to withhold. We introduce a boolean dimension mask $m = [m_R, m_M] = [1, 0]$:
 \begin{equation}
 \mathcal{L}_{\text{dimension}} = \frac{1}{\sum_{d} m_d} \sum_{d \in \{R, M\}} m_d \cdot \text{MSE}(\hat{d}(v), d^*(v))
 \end{equation}
@@ -154,6 +162,6 @@ where $M_{\text{static}}(v)$ is drawn directly from the structural analyzer's ma
 To guarantee experimental rigor and eliminate data leakage, SaG enforces strict architectural decoupling:
 \begin{itemize}
     \item \textbf{Feature Space:} Derived exclusively from $G_{\text{analysis}}$ (using static structural topology, SCA metrics, and declared QoS contracts).
-    \item \textbf{Label Space:} Evaluated exclusively on raw $G_{\text{structural}}$ through independent simulation oracles (\texttt{FaultInjector}, \texttt{FailureSimulator}, \texttt{MessageFlowSimulator}).
+    \item \textbf{Label Space:} Evaluated exclusively on raw $G_{\text{structural}}$ through independent simulation oracles (\texttt{FaultInjector}, \texttt{FailureSimulator}, \texttt{MessageFlowSimulator}), plus \texttt{ChangePropagationSimulator} over the derived dependency view for the Maintainability dimension alone (Section~\ref{sec:5.1}).
 \end{itemize}
 No simulation outputs are ever exposed as input features to the GNN or attribution baseline.
