@@ -355,9 +355,12 @@ Estimates the extent to which faults propagate to dependent components before be
 - **For Topics:**
   $$\begin{aligned}
   FT_{\text{topic}}(v) &= 0.50 \cdot FOC(v) + 0.50 \cdot CDPot_{\text{topic}}(v) \\
-  CDPot_{\text{topic}}(v) &= FOC(v) \cdot \left(1 - \min(\text{publisher\_norm}(v), \; 1)\right)
+  CDPot_{\text{topic}}(v) &= FOC(v) \cdot \left(1 - \min(w_{in}(v), \; 1)\right)
   \end{aligned}$$
-  *(Topics with multiple publishers receive a redundancy discount via `publisher_norm`).*
+  *($w_{in}$ is summed in-edge QoS weight across every incoming edge type — PUBLISHES\_TO and*
+  *broker ROUTES — rank-normalised against the whole component population, not publisher count;*
+  *see [§9.13](structural-analysis.md#913-qos-weighted-in-degree-w_in). It correlates with*
+  *publisher redundancy but is not a direct count of publishers.)*
 
 #### 2. Availability — $A(v)$
 Estimates catastrophic service loss from structural graph partitioning:

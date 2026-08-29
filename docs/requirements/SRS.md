@@ -198,7 +198,7 @@ Per ISO/IEC 25010:2023, the system scores two external quality characteristics: 
 |----|-------------|
 | **REQ-GNN-TR-01** | The system shall utilize AdamW optimization, Cosine Annealing learning rate scheduling with restarts, and gradient norm clipping. |
 | **REQ-GNN-TR-02** | The system shall partition nodes using a transductive split (60% Train, 20% Val, 20% Test) per node type, and support fully inductive scenario splits. |
-| **REQ-GNN-TR-03** | The system shall optimize GNN parameters using a composite loss function comprising: MSE composite loss, MSE dimension loss, ListMLE ranking loss, pairwise margin loss, and RM consistency regularization on unlabeled nodes (see Appendix A.8). |
+| **REQ-GNN-TR-03** | The system shall optimize GNN parameters using a composite loss function comprising: MSE composite loss, MSE dimension loss, ListMLE ranking loss, pairwise margin loss, and an optional RM consistency regularization on unlabeled nodes (see Appendix A.8; disabled by default, `rm_consistency_weight=0.0`, so the diagnostic and predictive pathways train independently — pass a nonzero weight to opt into the coupled ablation arm). |
 | **REQ-GNN-TR-04** | The system shall perform robust label normalization in-place on target simulation labels using IQR-scaled sigmoidal bounds to mitigate outlier influence. |
 | **REQ-GNN-TR-05** | The system shall support multi-seed training loops (default seeds: 42, 123, 456, 789, 2024), logging validation Spearman $\rho$ per seed, and restoring the best weights before checkpoint serialization. |
 

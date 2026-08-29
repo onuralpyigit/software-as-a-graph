@@ -427,13 +427,18 @@ class CriticalityLoss(nn.Module):
     - MSE on RM sub-scores (labeled nodes, multitask)
     - ListMLE ranking loss on composite (labeled nodes)
     - Pairwise margin ranking loss on composite (labeled nodes)
-    - RM consistency regularization on unlabeled nodes
+    - RM consistency regularization on unlabeled nodes (rm_consistency_weight,
+      default 0.0 — off). This term regresses the predicted R/M heads toward
+      the RM diagnostic pathway's own R(v)/M(v) on nodes the oracle never
+      labeled, which is a real coupling between the two pathways when active:
+      set it > 0 explicitly to opt into that ablation arm, e.g. 0.1 reproduces
+      the pre-decoupling default.
     """
 
     def __init__(
         self,
         multitask_weight: float = 0.5,
-        rm_consistency_weight: float = 0.1,
+        rm_consistency_weight: float = 0.0,
         ranking_weight: float = 0.3,
         pairwise_ranking_weight: float = 0.1,
     ):

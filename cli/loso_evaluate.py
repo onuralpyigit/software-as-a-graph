@@ -410,7 +410,7 @@ def run_one_fold(
     weight_decay: float = 1e-4,
     warmup_T0: Optional[int] = None,
     multitask_weight: float = 0.5,
-    rm_consistency_weight: float = 0.1,
+    rm_consistency_weight: float = 0.0,
     ranking_weight: float = 0.3,
     pairwise_ranking_weight: float = 0.1,
 ) -> FoldResult:
@@ -770,7 +770,7 @@ def run_loso(
     weight_decay: float = 1e-4,
     warmup_T0: Optional[int] = None,
     multitask_weight: float = 0.5,
-    rm_consistency_weight: float = 0.1,
+    rm_consistency_weight: float = 0.0,
     ranking_weight: float = 0.3,
     pairwise_ranking_weight: float = 0.1,
     eval_population: str = "application",
@@ -1131,8 +1131,10 @@ def parse_args() -> argparse.Namespace:
                     help="CriticalityLoss weight for the ListMLE ranking term")
     p.add_argument("--pairwise-ranking-weight", type=float, default=0.1,
                     help="CriticalityLoss weight for the pairwise margin-ranking term")
-    p.add_argument("--rm-consistency-weight", type=float, default=0.1,
-                    help="CriticalityLoss weight for RM consistency regularization on unlabeled nodes")
+    p.add_argument("--rm-consistency-weight", type=float, default=0.0,
+                    help="CriticalityLoss weight for RM consistency regularization on unlabeled nodes. "
+                    "Default 0.0: the GNN and RM diagnostic pathways are trained independently. "
+                    "Pass 0.1 (the pre-decoupling default) to reproduce the ablation arm.")
     p.add_argument(
         "--eval-population", default="application",
         choices=["application", "app_lib", "labeled"],

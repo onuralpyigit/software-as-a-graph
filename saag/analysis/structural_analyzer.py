@@ -942,15 +942,21 @@ class StructuralAnalyzer:
         Compute continuous AP scores (AP_c) and CDI per node without graph copies.
 
         Key idea: run nx.articulation_points (Tarjan, O(V+E)) first to identify
-        which nodes can actually fragment the graph.  Non-APs are assigned 0.0
-        immediately — no BFS needed.  For actual APs, a BFS component walk that
-        skips the removed node finds component sizes without copying the graph.
+        which nodes can actually fragment the graph.  ap_c_dir is 0.0 for every
+        non-AP immediately — no BFS needed, and mathematically exact (a non-cut
+        vertex cannot change component membership). CDI is different: it is a
+        graded path-length-inflation measure, well-defined for any node in the
+        main component, not just cut vertices — it is what lets a redundant but
+        load-bearing node (e.g. a sole publisher in a 2-connected pub-sub mesh)
+        register nonzero risk even though it fragments nothing. CDI is therefore
+        computed for the whole main component, at AP-scale BFS cost per node.
 
         CDI uses BFS from a fixed 32-node sample rather than
         nx.average_shortest_path_length on each residual graph (which was O(V²)
         per node in the old code).
 
         Complexity: O(V+E) for Tarjan + O(|AP| * avg_BFS) for ap_c
+                    + O(|main CC| * avg_BFS) for CDI
                     vs old O(V * (V+E)) due to per-node graph copies.
         """
         from collections import deque as _deque
@@ -1005,10 +1011,14 @@ class StructuralAnalyzer:
             return largest
 
         # ------------------------------------------------------------------ #
-        # CDI baseline: BFS from top-32 degree nodes in the largest CC.      #
+        # CDI baseline: BFS from top-16 degree nodes in the largest CC.      #
         # Fixed sample size keeps cost constant regardless of graph size.     #
+        # Halved from 32 (pre-v4) now that CDI is computed for every node in #
+        # the main component rather than only articulation points — the     #
+        # per-node cost is paid roughly |main CC| times instead of |AP|      #
+        # times, so the sample size is the main remaining lever on runtime.  #
         # ------------------------------------------------------------------ #
-        _CDI_SAMPLE = 32
+        _CDI_SAMPLE = 16
         ccs = list(nx.connected_components(G_undir))
         largest_cc_nodes = max(ccs, key=len) if ccs else set()
         G_main = G_undir.subgraph(largest_cc_nodes)
@@ -1023,6 +1033,30 @@ class StructuralAnalyzer:
                 count += len(lengths)
             return total / count if count else 0.0
 
+        def _avg_bfs_length_excluding(
+            G_u: nx.Graph, sources: List[str], excluded: str,
+        ) -> float:
+            """Same as _avg_bfs_length(G_u, sources) with `excluded` removed,
+            but BFS's directly on G_u's adjacency instead of building a
+            SubGraph view per call — the view's filtered-dict indirection is
+            the dominant cost when this runs once per node in the main
+            component rather than once per articulation point."""
+            total, count = 0, 0
+            for s in sources:
+                if s == excluded or s not in G_u:
+                    continue
+                visited = {excluded, s}
+                queue: deque = _deque([(s, 0)])
+                while queue:
+                    curr, dist = queue.popleft()
+                    total += dist
+                    count += 1
+                    for nb in G_u.neighbors(curr):
+                        if nb not in visited:
+                            visited.add(nb)
+                            queue.append((nb, dist + 1))
+            return total / count if count else 0.0
+
         sample_nodes: List[str] = []
         baseline_avg = 0.0
         if len(largest_cc_nodes) > 1:
@@ -1034,46 +1068,56 @@ class StructuralAnalyzer:
             baseline_avg = _avg_bfs_length(G_main, sample_nodes)
 
         # ------------------------------------------------------------------ #
-        # Main loop — BFS cost only paid for actual APs                      #
-        # Non-APs get 0.0 for both ap_c_dir and cdi: a non-AP cannot        #
-        # fragment the graph so both measures are structurally 0.            #
+        # Main loop.  ap_c_dir stays AP-gated: a non-cut vertex cannot        #
+        # fragment the graph, so component-size fragmentation is genuinely    #
+        # 0 for it — that is a mathematical fact of the measure, not a        #
+        # short-circuit. CDI is NOT AP-gated: articulation-point membership   #
+        # is a binary cut-vertex test, so gating CDI on it collapses every    #
+        # redundant-but-load-bearing node (e.g. a sole publisher in a         #
+        # 2-connected pub-sub mesh) to exactly 0, even though removing it     #
+        # measurably lengthens paths for the sampled sources. Computing CDI   #
+        # for every node in the main component turns it into that continuous #
+        # redundancy-deficit signal; nodes outside the main component have    #
+        # no sample baseline to compare against and keep cdi=0.0.            #
         # ------------------------------------------------------------------ #
         ap_scores: Dict[str, Dict[str, float]] = {}
 
         for nid in G_dir.nodes:
             if nid not in all_aps:
-                ap_scores[nid] = {"ap_c_dir": 0.0, "cdi": 0.0}
-                continue
-
-            # ap_c_out (forward undirected view)
-            if nid in art_points_fwd:
-                largest_out = _largest_cc_excluding(G_undir, nid)
-                ap_c_out = 1.0 - largest_out / (n - 1)
+                ap_c_dir = 0.0
             else:
-                ap_c_out = 0.0
+                # ap_c_out (forward undirected view)
+                if nid in art_points_fwd:
+                    largest_out = _largest_cc_excluding(G_undir, nid)
+                    ap_c_out = 1.0 - largest_out / (n - 1)
+                else:
+                    ap_c_out = 0.0
 
-            # ap_c_in (transposed undirected view)
-            if nid in art_points_rev:
-                largest_in = _largest_cc_excluding(G_T_undir, nid)
-                ap_c_in = 1.0 - largest_in / (n - 1)
-            else:
-                ap_c_in = 0.0
+                # ap_c_in (transposed undirected view)
+                if nid in art_points_rev:
+                    largest_in = _largest_cc_excluding(G_T_undir, nid)
+                    ap_c_in = 1.0 - largest_in / (n - 1)
+                else:
+                    ap_c_in = 0.0
 
-            ap_c_dir = max(ap_c_out, ap_c_in)
+                ap_c_dir = max(ap_c_out, ap_c_in)
 
-            # CDI — only APs can fragment the graph
+            # CDI — computed for every node in the main component, not just APs.
             cdi_val = 0.0
-            if baseline_avg > 0.0 and nid in art_points_fwd:
-                post_nodes = [v for v in G_undir.nodes if v != nid]
-                post_ccs = list(nx.connected_components(G_undir.subgraph(post_nodes)))
-                if len(post_ccs) > len(ccs):
+            if baseline_avg > 0.0 and nid in largest_cc_nodes:
+                if nid in art_points_fwd:
+                    post_nodes = [v for v in G_undir.nodes if v != nid]
+                    post_ccs = list(nx.connected_components(G_undir.subgraph(post_nodes)))
+                    fragments = len(post_ccs) > len(ccs)
+                else:
+                    fragments = False  # non-AP: cannot fragment, by definition
+
+                if fragments:
                     cdi_val = 1.0  # fragmentation — worst case
                 else:
-                    post_main = max(post_ccs, key=len) if post_ccs else set()
-                    G_post = G_undir.subgraph(post_main)
-                    post_sources = [s for s in sample_nodes if s != nid and s in G_post]
-                    if post_sources and G_post.number_of_nodes() > 1:
-                        after_avg = _avg_bfs_length(G_post, post_sources)
+                    post_sources = [s for s in sample_nodes if s != nid]
+                    if post_sources and G_main.number_of_nodes() > 1:
+                        after_avg = _avg_bfs_length_excluding(G_main, post_sources, nid)
                         cdi_val = min(max(0.0, (after_avg - baseline_avg) / baseline_avg), 1.0)
 
             ap_scores[nid] = {"ap_c_dir": ap_c_dir, "cdi": cdi_val}

@@ -120,9 +120,9 @@ From the final node embeddings $h_v^{(L)}$, SaG branches into specialized multi-
 
 The joint optimization objective balances regression accuracy, multi-task dimension learning, ranking fidelity, pairwise ordering, and edge prediction:
 \begin{equation}
-\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + 0.1 \cdot \mathcal{L}_{\text{consistency}} + 0.3 \cdot \mathcal{L}_{\text{edge}}
+\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + 0.3 \cdot \mathcal{L}_{\text{edge}} + \lambda_{\text{RM}} \cdot \mathcal{L}_{\text{consistency}}
 \end{equation}
-where $\mathcal{L}_{\text{composite}} = \text{MSE}(\hat{I}^*(v), I^*(v))$, $\mathcal{L}_{\text{rank}}$ is ListMLE ranking loss \cite{xia2008listwise}, $\mathcal{L}_{\text{pairwise}}$ is margin-ranking loss, and $\mathcal{L}_{\text{consistency}} = \text{MSE}(\hat{I}^*(v), 0.8\hat{R}(v) + 0.2\hat{M}(v))$.
+where $\mathcal{L}_{\text{composite}} = \text{MSE}(\hat{I}^*(v), I^*(v))$, $\mathcal{L}_{\text{rank}}$ is ListMLE ranking loss \cite{xia2008listwise}, $\mathcal{L}_{\text{pairwise}}$ is margin-ranking loss, and $\mathcal{L}_{\text{consistency}} = \text{MSE}\big([\hat{R}(v), \hat{M}(v)]_{v \in \text{unlabeled}}, [R_{\text{RM}}(v), M_{\text{RM}}(v)]_{v \in \text{unlabeled}}\big)$ regresses the predicted R/M heads toward the diagnostic pathway's own $R(v)$/$M(v)$ (Section~\ref{sec:4}), restricted to nodes the oracle never labeled. Headline results use $\lambda_{\text{RM}} = 0$: the two pathways are trained independently, matching the separation claimed in Section~\ref{sec:1.2}. Section~\ref{sec:7} additionally reports $\lambda_{\text{RM}} = 0.1$ as an ablation, since a nonzero $\lambda_{\text{RM}}$ is a real coupling between the pathways and not merely a regularizer on already-independent quantities.
 
 \noindent\textbf{Dimension Masking:} Because dynamic cascade simulation ($I^*(v)$ via \texttt{FaultInjector}) observes runtime failure reachability rather than static code maintainability, maintainability ground truth is unobserved during dynamic simulation. We introduce a boolean dimension mask $m = [m_R, m_M] = [1, 0]$:
 \begin{equation}

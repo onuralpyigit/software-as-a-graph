@@ -59,6 +59,15 @@ class QualityWeights:
     ft_in_degree: float = 0.30        # Reinstatement (v5): count-based immediate-dependents signal
     ft_cdpot: float = 0.25            # Cascade Depth Potential (derived, depth signal)
 
+    # Topic Fault Tolerance weights (separate formula: FT_topic(v) = FOC + CDPot_topic,
+    # see analyzer.py Topic branch of _compute_rm). Kept as its own pair of fields
+    # rather than reusing ft_reverse_pagerank/ft_in_degree/ft_cdpot above, since Topic
+    # nodes have no reverse-PageRank/in-degree signal to weight — but declaring them
+    # here (rather than as literals in analyzer.py) means _perturb_weights and any
+    # future domain/AHP derivation can reach the Topic branch too.
+    ft_topic_foc: float = 0.50        # Fan-Out Criticality (message-rate x subscriber reach)
+    ft_topic_cdpot: float = 0.50      # CDPot_topic: FOC gated by publisher redundancy
+
     # Reliability = hierarchical combination of Fault Tolerance and Availability.
     # r_alpha weights FT within R; (1 - r_alpha) weights A. See class docstring.
     r_alpha: float = 0.36
@@ -73,13 +82,20 @@ class QualityWeights:
     # Deprecated in v5 — subsumed by m_w_out (QoS-aware). Kept for backward-compat serialisation.
     m_out_degree: float = 0.0
     
-    # Availability weights (SPOF risk) — A(v) v3, a sub-characteristic of Reliability
-    # Formula: 0.35*AP_c_directed + 0.25*QSPOF + 0.25*BR + 0.10*CDI + 0.05*w(v)
-    a_ap_c_directed: float = 0.35  # AHP primary: structural directed SPOF severity (baseline)
-    a_qspof: float = 0.25          # QoS-weighted SPOF: AP_c_directed * w(v)
-    a_bridge_ratio: float = 0.25   # Edge-level irrecoverability (reduced weight)
-    a_cdi: float = 0.10            # Connectivity Degradation Index
-    a_qos_weight: float = 0.05     # Operational weight contribution w(v) (Issue 5: decoupling)
+    # Availability weights (SPOF risk) — A(v) v4, a sub-characteristic of Reliability
+    # Formula: 0.2563*AP_c_directed + 0.1998*QSPOF + 0.1998*BR + 0.2563*CDI + 0.0878*w(v)
+    # v4 rebalance: CDI was previously AP-gated (0.0 for every non-articulation-point
+    # node — the Application population had zero articulation points in 6/8 corpus
+    # scenarios, so A(v) collapsed to ~0.05*w(v)). CDI is now computed for every node
+    # in the main component (see StructuralAnalyzer._compute_continuous_ap_scores), so
+    # it carries real, continuous SPOF-adjacent signal and is promoted to parity with
+    # AP_c_directed. QSPOF/BR shrink proportionally; w(v) shrinks least since it was
+    # already the deliberately-small operational term.
+    a_ap_c_directed: float = 0.2563  # AHP co-primary: hard cut-vertex severity (binary-gated)
+    a_qspof: float = 0.1998          # QoS-weighted SPOF: AP_c_directed * w(v)
+    a_bridge_ratio: float = 0.1998   # Edge-level irrecoverability
+    a_cdi: float = 0.2563            # AHP co-primary: continuous redundancy-deficit (ungated)
+    a_qos_weight: float = 0.0878     # Operational weight contribution w(v) (Issue 5: decoupling)
 
     # Overall quality weights (sum should be 1.0)
     # Derived from the retired 4-D AHP composite by dropping Vulnerability/Security
@@ -186,14 +202,19 @@ class AHPMatrices:
         if self.criteria_availability is None:
             self.criteria_availability = [
                 # AP_c_d QSPOF BR     CDI    w
-                [1.0,  1.4,   1.4,   3.5,   7.0],  # AP_c_d: Structural baseline (primary)
-                [0.71, 1.0,   1.0,   2.5,   5.0],  # QSPOF: QoS-weighted SPOF
-                [0.71, 1.0,   1.0,   2.5,   5.0],  # BR: Multi-edge brittleness
-                [0.29, 0.4,   0.4,   1.0,   2.0],  # CDI: Path elongation
-                [0.14, 0.2,   0.2,   0.5,   1.0],  # w: Pure operational priority
+                [1.0,  1.4,   1.4,   1.0,   7.0],  # AP_c_d: hard cut-vertex severity (co-primary)
+                [0.71, 1.0,   1.0,   0.71,  5.0],  # QSPOF: QoS-weighted SPOF
+                [0.71, 1.0,   1.0,   0.71,  5.0],  # BR: Multi-edge brittleness
+                [1.0,  1.4,   1.4,   1.0,   7.0],  # CDI: continuous redundancy deficit (co-primary)
+                [0.14, 0.2,   0.2,   0.14,  1.0],  # w: Pure operational priority
             ]
-            # Geometric mean → approx [0.35, 0.25, 0.25, 0.10, 0.05] before shrinkage
-            # With shrinkage λ=0.7, weighted toward uniform (0.2)
+            # v4: CDI judged equal importance to AP_c_d (was 1/3.5 = "weakly less
+            # important"), since CDI now fires for every node in the main component
+            # rather than only articulation points (see StructuralAnalyzer docstring).
+            # Geometric mean → approx [0.2804, 0.1998, 0.1998, 0.2804, 0.0397] before
+            # shrinkage (CR ≈ 0, matrix is symmetric by row-pair construction). With
+            # shrinkage λ=0.7, weighted toward uniform (0.2):
+            # [0.2563, 0.1998, 0.1998, 0.2563, 0.0878]
 
         if self.criteria_topic_qos is None:
             self.criteria_topic_qos = [
@@ -332,12 +353,12 @@ class AHPProcessor:
             m_clustering=w_main[4],
             m_out_degree=0.0,               # Deprecated in v5+
 
-            # Availability v3: (AP_c_directed, QSPOF, BR, CDI, w)
-            a_ap_c_directed=w_avail[0],    # Structural baseline (0.35)
-            a_qspof=w_avail[1],             # QoS-weighted SPOF (0.25)
-            a_bridge_ratio=w_avail[2],      # Multi-edge brittleness (0.25)
-            a_cdi=w_avail[3],               # Path elongation (0.10)
-            a_qos_weight=w_avail[4],        # Pure operational priority (0.05)
+            # Availability v4: (AP_c_directed, QSPOF, BR, CDI, w)
+            a_ap_c_directed=w_avail[0],    # Hard cut-vertex severity, co-primary (0.2563)
+            a_qspof=w_avail[1],             # QoS-weighted SPOF (0.1998)
+            a_bridge_ratio=w_avail[2],      # Multi-edge brittleness (0.1998)
+            a_cdi=w_avail[3],               # Continuous redundancy deficit, co-primary (0.2563)
+            a_qos_weight=w_avail[4],        # Pure operational priority (0.0878)
 
             # Impact — all four criteria; i_flow_disruption used to be dropped
             # here, so the fourth AHP weight was computed and then discarded.

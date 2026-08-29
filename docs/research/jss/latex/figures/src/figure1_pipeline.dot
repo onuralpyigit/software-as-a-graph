@@ -83,8 +83,9 @@ digraph Figure1 {
     rm [
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
         <tr><td><b>Explainable Quality Attribution</b></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#14532D">• Fault Tolerance: cascade depth</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#14532D">• Availability: SPOF / articulation</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Reliability = &#945;&#183;FT + (1&#8722;&#945;)&#183;A</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">&#160;&#160;&#8226; Fault Tolerance: cascade depth</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">&#160;&#160;&#8226; Availability: SPOF / articulation</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#14532D">• Maintainability: coupling + SCA</font></td></tr>
       </table>>,
       fillcolor="#DCFCE7", color="#15803D"

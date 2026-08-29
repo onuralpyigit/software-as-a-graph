@@ -404,7 +404,7 @@ class GNNService:
         weight_decay: float = 1e-4,
         warmup_T0: Optional[int] = None,
         multitask_weight: float = 0.5,
-        rm_consistency_weight: float = 0.1,
+        rm_consistency_weight: float = 0.0,
         ranking_weight: float = 0.3,
         pairwise_ranking_weight: float = 0.1,
         edge_loss_weight: float = 0.3,

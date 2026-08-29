@@ -15,15 +15,15 @@ Table~\ref{tab:5} presents the in-distribution held-out Spearman rank correlatio
 \toprule
 \textbf{Scenario} & \textbf{$n$} & \textbf{Topo-BL} & \textbf{Topo-QoS} & \textbf{GL} & \textbf{GL-QoS} & \textbf{HGL} & \textbf{HGL-QoS} \\
 \midrule
-\textbf{AV System} & 16 & 0.283 & 0.701 & \textbf{0.790} & 0.689 & 0.789 & 0.649 \\
-\textbf{Enterprise} & 60 & 0.420 & 0.789 & 0.875 & 0.459 & 0.880 & \textbf{0.891} \\
-\textbf{Financial Trading} & 12 & 0.289 & 0.700 & 0.672 & 0.536 & \textbf{0.854} & 0.770 \\
-\textbf{Healthcare} & 10 & $-0.101$ & \textbf{0.772} & 0.590 & 0.463 & 0.652 & 0.645 \\
-\textbf{Hub-and-Spoke} & 14 & 0.234 & 0.359 & \textbf{0.554} & 0.052 & 0.534 & 0.296 \\
-\textbf{IoT Smart City} & 40 & $-0.063$ & 0.073 & 0.238 & 0.259 & \textbf{0.881} & 0.842 \\
-\textbf{Microservices} & 18 & 0.401 & \textbf{0.707} & 0.564 & 0.571 & 0.483 & 0.476 \\
+\textbf{AV System} & 16 & 0.283 & 0.701 & 0.764 & 0.678 & \textbf{0.789} & 0.649 \\
+\textbf{Enterprise} & 60 & 0.420 & 0.789 & 0.871 & 0.483 & 0.880 & \textbf{0.891} \\
+\textbf{Financial Trading} & 12 & 0.289 & 0.700 & 0.645 & 0.539 & \textbf{0.854} & 0.770 \\
+\textbf{Healthcare} & 10 & $-0.101$ & \textbf{0.772} & 0.623 & 0.463 & 0.652 & 0.645 \\
+\textbf{Hub-and-Spoke} & 14 & 0.234 & 0.359 & \textbf{0.547} & 0.054 & 0.534 & 0.297 \\
+\textbf{IoT Smart City} & 40 & $-0.063$ & 0.073 & 0.289 & 0.291 & \textbf{0.881} & 0.842 \\
+\textbf{Microservices} & 18 & 0.401 & \textbf{0.707} & 0.525 & 0.564 & 0.483 & 0.476 \\
 \midrule
-\textbf{Mean} & --- & \textbf{0.209} & \textbf{0.586} & \textbf{0.612} & \textbf{0.433} & \textbf{0.725} & \textbf{0.653} \\
+\textbf{Mean} & --- & \textbf{0.209} & \textbf{0.586} & \textbf{0.609} & \textbf{0.439} & \textbf{0.725} & \textbf{0.653} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -38,10 +38,10 @@ Table~\ref{tab:5} presents the in-distribution held-out Spearman rank correlatio
 \textbf{Comparison} & \textbf{$\Delta\rho$} & \textbf{Won} & \textbf{Wilcoxon $W$} & \textbf{$p$-value} & \textbf{Significance} \\
 \midrule
 \textbf{HGL vs. Topo-BL} & \textbf{+0.516} & 7/7 & 0.0 & \textbf{0.0156} & \textbf{Statistically Significant} ($p < 0.05$) \\
-\textbf{HGL vs. GL-QoS} & \textbf{+0.292} & 6/7 & 1.0 & \textbf{0.0312} & \textbf{Statistically Significant} ($p < 0.05$) \\
+\textbf{HGL vs. GL-QoS} & \textbf{+0.286} & 6/7 & 1.0 & \textbf{0.0312} & \textbf{Statistically Significant} ($p < 0.05$) \\
 \textbf{HGL vs. Topo-QoS} & \textbf{+0.139} & 5/7 & 9.0 & 0.469 & Not significant \\
-\textbf{GL vs. Topo-QoS} & \textbf{+0.026} & 4/7 & 11.0 & 0.688 & Not significant \\
-\textbf{HGL vs. GL} & \textbf{+0.113} & 4/7 & 9.0 & 0.469 & Not significant \\
+\textbf{GL vs. Topo-QoS} & \textbf{+0.023} & 4/7 & 10.0 & 0.578 & Not significant \\
+\textbf{HGL vs. GL} & \textbf{+0.116} & 5/7 & 7.0 & 0.297 & Not significant \\
 \textbf{HGL-QoS vs. HGL} & \textbf{$-$0.072} & 1/7 & 3.0 & 0.078 & Not significant (marginal; HGL-QoS trails in-distribution) \\
 \bottomrule
 \end{tabular}
@@ -62,11 +62,11 @@ Under inductive Leave-One-Scenario-Out (LOSO) cross-validation, the model must p
 \midrule
 \textbf{Topo-BL} & 0.301 & 0.126 & 0.363 & No \\
 \textbf{Topo-QoS} & 0.571 & 0.181 & 0.380 & No \\
-\textbf{RM / $Q(v)$ Baseline} & 0.190 & 0.131 & 0.328 & No \\
-\textbf{GL (Homogeneous)} & 0.086 & 0.123 & 0.237 & Yes \\
-\textbf{GL-QoS (Homogeneous)} & 0.363 & \textbf{0.089} & 0.339 & Yes \\
-\textbf{HGL (Typed Heterogeneous)} & 0.451 & 0.149 & 0.341 & Yes \\
-\textbf{HGL-QoS (Typed + QoS)} & \textbf{0.608} & 0.144 & \textbf{0.414} & Yes \\
+\textbf{RM / $Q(v)$ Baseline} & 0.195 & 0.130 & 0.327 & No \\
+\textbf{GL (Homogeneous)} & 0.086 & 0.122 & 0.237 & Yes \\
+\textbf{GL-QoS (Homogeneous)} & 0.363 & \textbf{0.089} & 0.341 & Yes \\
+\textbf{HGL (Typed Heterogeneous)} & 0.439 & 0.145 & 0.327 & Yes \\
+\textbf{HGL-QoS (Typed + QoS)} & \textbf{0.608} & 0.143 & \textbf{0.414} & Yes \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -75,13 +75,13 @@ Under inductive Leave-One-Scenario-Out (LOSO) cross-validation, the model must p
 
 \noindent\textbf{Key Insights for RQ1:}
 \begin{enumerate}
-    \item \textbf{The learned models beat the learned baselines decisively; the untrained QoS baseline is the real competitor.} HGL-QoS is the best configuration overall ($\rho = 0.608$, $F_1@K = 0.414$), and its margin over both homogeneous GNNs is large and significant ($+0.245$ over GL-QoS, 8/8 folds, $p = 0.0078$). Against \emph{Topo-QoS}, however --- a training-free QoS-weighted centrality baseline --- the margin is $+0.037$, won in only 5 of 8 folds, and is \textbf{not statistically significant} ($p = 0.74$). We state this plainly: on out-of-distribution Application ranking, we cannot claim that heterogeneous graph learning outperforms a well-constructed structural baseline, only that it matches it while additionally supplying the typed attention and multi-task outputs the baseline cannot.
+    \item \textbf{The learned models beat the learned baselines decisively; the untrained QoS baseline is the real competitor.} HGL-QoS is the best configuration overall ($\rho = 0.608$, $F_1@K = 0.414$), and its margin over both homogeneous GNNs is large and significant ($+0.246$ over GL-QoS, 8/8 folds, $p = 0.0078$). Against \emph{Topo-QoS}, however --- a training-free QoS-weighted centrality baseline --- the margin is $+0.037$, won in only 5 of 8 folds, and is \textbf{not statistically significant} ($p = 0.64$). We state this plainly: on out-of-distribution Application ranking, we cannot claim that heterogeneous graph learning outperforms a well-constructed structural baseline, only that it matches it while additionally supplying the typed attention and multi-task outputs the baseline cannot.
     \item \textbf{Critical-set detection is where the learned model separates.} HGL-QoS improves $F_1@K$ over Topo-QoS by $+0.034$ ($0.414$ vs.\ $0.380$, a $8.9\%$ relative gain) and over GL by $+0.177$. The advantage is real but far smaller than a pooled-population reading of the same experiment suggests.
-    \item \textbf{QoS encoding is what carries the typed model out of distribution.} HGL-QoS leads HGL by $\Delta\rho = +0.157$, winning 7 of 8 folds ($p = 0.0156$) --- a larger and more consistent effect than the in-distribution comparison in Table~\ref{tab:6} suggests in the opposite direction. See Section~\ref{sec:7.3}.
-    \item \textbf{The RM baseline is weakly predictive, not anti-predictive.} $\rho = 0.190$ under distribution shift: better than the untyped GL model and worse than every QoS-aware variant. RM's value lies in interpretable attribution rather than standalone ranking, but it is not noise.
+    \item \textbf{QoS encoding is what carries the typed model out of distribution.} HGL-QoS leads HGL by $\Delta\rho = +0.169$, winning 7 of 8 folds ($p = 0.0156$) --- a larger and more consistent effect than the in-distribution comparison in Table~\ref{tab:6} suggests in the opposite direction. See Section~\ref{sec:7.3}.
+    \item \textbf{The RM baseline is weakly predictive, not anti-predictive.} $\rho = 0.195$ under distribution shift: better than the untyped GL model and worse than every QoS-aware variant. RM's value lies in interpretable attribution rather than standalone ranking, but it is not noise.
 \end{enumerate}
 
-\noindent\textbf{A note on population.} An earlier version of this table pooled every node type carrying a simulated label. That pooling inverted several conclusions --- it reported the RM baseline at $\rho = -0.014$ rather than $+0.190$, and GL at $0.381$ rather than $0.086$, because GL's pooled score was carried almost entirely by Broker nodes whose impact distribution differs in both scale and base rate from Applications'. This is the Simpson's-paradox hazard documented in Section~\ref{sec:8.2}, and it is why every figure in this paper is now reported on a single, stated population.
+\noindent\textbf{A note on population.} An earlier version of this table pooled every node type carrying a simulated label. That pooling inverted several conclusions --- it reported the RM baseline at $\rho = -0.014$ rather than $+0.195$, and GL at $0.381$ rather than $0.086$, because GL's pooled score was carried almost entirely by Broker nodes whose impact distribution differs in both scale and base rate from Applications'. This is the Simpson's-paradox hazard documented in Section~\ref{sec:8.2}, and it is why every figure in this paper is now reported on a single, stated population.
 
 \begin{figure}[htbp]
 \centering
@@ -95,8 +95,8 @@ Under inductive Leave-One-Scenario-Out (LOSO) cross-validation, the model must p
 
 To evaluate the contribution of node and edge typing, we compare relation-specific HGL against homogeneous GL across different validation regimes:
 \begin{itemize}
-    \item \textbf{In-Distribution:} Heterogeneous HGL leads homogeneous GL by $\Delta\rho = +0.113$ (0.725 vs.\ 0.612; not statistically significant, $p = 0.469$, 4/7 scenarios won). On familiar topologies, homogeneous GNNs can partially approximate type distinctions through structural degree signatures, so the typed model holds only a point-estimate edge. The contrast with the out-of-distribution result below is the finding: typing buys little when the topology is already known and a great deal when it is not.
-    \item \textbf{Out-of-Distribution (LOSO):} This is where typing decides the outcome. Heterogeneous HGL outperforms homogeneous GL by \textbf{$+0.365$} ($\rho = 0.451$ vs.\ $0.086$), winning \emph{all eight} folds (paired Wilcoxon, $p = 0.0078$), and the gap between the QoS-aware variants is $+0.245$ (HGL-QoS $0.608$ vs.\ GL-QoS $0.363$), also 8/8 and $p = 0.0078$. The untyped model very nearly fails to transfer at all on Application ranking: at $\rho = 0.086$ it is below even the unweighted structural baseline ($0.301$). When encountering unseen topologies, relation-specific message passing is not an incremental refinement but the difference between a model that generalizes and one that does not.
+    \item \textbf{In-Distribution:} Heterogeneous HGL leads homogeneous GL by $\Delta\rho = +0.116$ (0.725 vs.\ 0.609; not statistically significant, $p = 0.297$, 5/7 scenarios won). On familiar topologies, homogeneous GNNs can partially approximate type distinctions through structural degree signatures, so the typed model holds only a point-estimate edge. The contrast with the out-of-distribution result below is the finding: typing buys little when the topology is already known and a great deal when it is not.
+    \item \textbf{Out-of-Distribution (LOSO):} This is where typing decides the outcome. Heterogeneous HGL outperforms homogeneous GL by \textbf{$+0.353$} ($\rho = 0.439$ vs.\ $0.086$), winning \emph{all eight} folds (paired Wilcoxon, $p = 0.0078$), and the gap between the QoS-aware variants is $+0.246$ (HGL-QoS $0.608$ vs.\ GL-QoS $0.363$), also 8/8 and $p = 0.0078$. The untyped model very nearly fails to transfer at all on Application ranking: at $\rho = 0.086$ it is below even the unweighted structural baseline ($0.301$). When encountering unseen topologies, relation-specific message passing is not an incremental refinement but the difference between a model that generalizes and one that does not.
 \end{itemize}
 
 \subsubsection{Empirical Edge-Removal Analysis}
@@ -119,14 +119,14 @@ Explicitly encoding continuous QoS attributes in the GNN (HGL-QoS) does not yiel
 \textbf{Protocol} & \textbf{HGL} & \textbf{HGL-QoS} & \textbf{$\Delta\rho$} & \textbf{Folds won} & \textbf{Wilcoxon $p$} \\
 \midrule
 In-distribution (Table~\ref{tab:5}) & $0.725$ & $0.653$ & $-0.072$ & 1/7 & $0.078$ (n.s.) \\
-Inductive LOSO (Table~\ref{tab:7}) & $0.451$ & $\mathbf{0.608}$ & $\mathbf{+0.157}$ & \textbf{7/8} & $\mathbf{0.016}$ \\
+Inductive LOSO (Table~\ref{tab:7}) & $0.439$ & $\mathbf{0.608}$ & $\mathbf{+0.169}$ & \textbf{7/8} & $\mathbf{0.016}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \noindent The apparent contradiction between the two tables is a genuine regime effect, not an inconsistency. In-distribution, HGL-QoS \emph{trails} the base typed model, but the deficit is not statistically significant and is small relative to its own scatter (across-scenario $\sigma = 0.35$ for HGL-QoS against a $0.072$ gap); it is concentrated in two structurally atypical topologies, Hub-and-Spoke ($-0.238$) and AV ($-0.140$), with the remaining five within $\pm 0.084$. This is consistent with QoS features adding redundant signal, and mild overfitting risk, on topologies the model has already seen --- the derived \texttt{DEPENDS\_ON} graph already embeds much of the same routing and coupling information through its edge weights.
 
-Under LOSO the relationship reverses decisively and \emph{is} significant: HGL-QoS gains $+0.157$ and wins 7 of 8 folds. When the topology itself is unseen, structural degree signatures no longer transfer, whereas a declared QoS contract means the same thing in an unfamiliar architecture as in a familiar one --- \texttt{RELIABLE} and \texttt{PERSISTENT} carry their semantics across deployments in a way that a betweenness percentile does not. We therefore read QoS encoding as \emph{situational} rather than redundant: insurance against distribution shift, bought at a small and statistically insignificant in-distribution cost. For a practitioner the rule is simple --- use HGL when the target system resembles the training corpus, HGL-QoS when it does not, and HGL-QoS by default when that is unknown.
+Under LOSO the relationship reverses decisively and \emph{is} significant: HGL-QoS gains $+0.169$ and wins 7 of 8 folds. When the topology itself is unseen, structural degree signatures no longer transfer, whereas a declared QoS contract means the same thing in an unfamiliar architecture as in a familiar one --- \texttt{RELIABLE} and \texttt{PERSISTENT} carry their semantics across deployments in a way that a betweenness percentile does not. We therefore read QoS encoding as \emph{situational} rather than redundant: insurance against distribution shift, bought at a small and statistically insignificant in-distribution cost. For a practitioner the rule is simple --- use HGL when the target system resembles the training corpus, HGL-QoS when it does not, and HGL-QoS by default when that is unknown.
 
 \subsubsection{Topic-Weight Coefficients (\texorpdfstring{$\beta$, $\alpha$, $\psi$}{beta, alpha, psi})}
 \label{sec:7.3.topicw}
@@ -220,6 +220,15 @@ We investigated the impact of Context of Use reweighting $\vec{\omega} = [q_R, q
 
 We swept 7 scenarios $\times$ a cascade propagation-threshold parameter $\in \{0.0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0\}$ controlling the ground-truth oracle's eligibility cutoff for cascade propagation, and separately swept 3 label-normalization techniques (robust, min-max, standard) holding the threshold fixed. Ranking performance is more sensitive to the propagation threshold ($\Delta\rho = 0.099$ across the extreme settings; mean $\rho$ rises from $0.183$ at threshold $0$ to $0.281$ at threshold $0.5$ and plateaus thereafter, the shipped $0.35$ sitting inside that plateau at $0.276$) than to normalization choice ($\Delta\rho = 0.027$; robust $0.268$ against $0.241$ for both min-max and standard). The threshold is thus the more consequential free parameter of the two, and the shipped setting is on the flat part of its curve rather than at a tuned peak. A small spread under either sweep means the reported ordering is stable under that parameter --- it is not, by itself, evidence that the ordering is \emph{correct}.
 
+\subsubsection{Availability Was Measuring Almost Nothing, and Why}
+\label{sec:7.3.availability}
+
+The Availability sub-characteristic $A(v)$ (Section~\ref{sec:4}) was, in the version of the pipeline these results were first computed on, driven almost entirely by a single component of a five-term formula that fires vanishingly rarely on this corpus. $AP_c$(directed), Bridge Ratio, and $CDI$ are all articulation-point-gated: a node that is not a Tarjan cut vertex receives exactly $0.0$ on all three, by construction. On six of the eight LOSO scenarios --- including the 350-component Enterprise topology --- \emph{zero} Application-layer components are articulation points, so all three terms vanish identically for the entire population and $A(v)$ collapses to its remaining $0.05 \cdot w(v)$ QoS-weight term: $A_{\max}$ sits at exactly $0.0500$ (Enterprise, Av, Microservices, Hub-and-Spoke) or within rounding of it (ATM $0.0492$, Financial $0.0455$), with standard deviation $\sigma_A \in [0.0145, 0.0398]$ against $\sigma_{FT} \in [0.147, 0.171]$ for the co-dimension it is supposed to complement. The rule-based SPOF anti-pattern detector, which reads the same underlying articulation-point membership, corroborates this directly: mean $F_1 = 0.0042$ across the eight scenarios, with zero predicted SPOFs in seven of eight.
+
+This is not evidence that single points of failure are absent from these architectures --- only that the hard cut-vertex test cannot see them in a topology this redundant. The corpus's own impact-defined labels contradict the null: on the IoT scenario, the SPOF detector achieves precision $1.0$ at recall $0.017$ against the simulated-impact ground truth, meaning the one component it does flag is a genuine failure-critical node, and it is simply blind to the rest. A component that is redundantly but load-bearingly connected --- e.g.\ the sole active publisher into a topic with several structurally-possible-but-unused alternate routes --- fragments nothing when removed, so it is invisible to a binary cut-vertex test, even though removing it measurably degrades reachability for the rest of the system.
+
+We therefore replaced $CDI$'s cut-vertex gate with a continuous redundancy-deficit measure: for every node in the graph's main connected component (not only articulation points), $CDI(v)$ is the fractional increase in average shortest-path length from a fixed sample of high-degree sources when $v$ is removed, capped at $1.0$ on genuine fragmentation. A true cut vertex remains at or near the ceiling --- the prior semantics are the limiting case of the new ones, not replaced by them --- while a redundant-but-load-bearing node now registers a graded, nonzero score instead of an exact $0$. We rebalanced $A(v)$'s AHP-derived weights accordingly, promoting $CDI$ from a minor term ($a_{CDI} = 0.10$, geometric-mean rank 4 of 5) to parity with the hard cut-vertex term ($a_{CDI} = a_{AP_c} = 0.2563$, Saaty judgment: equal importance), on the grounds that both now measure genuine removal-impact severity at different levels of graduation, and shrank the QoS-weighted interaction term ($a_{QSPOF}$: $0.25 \to 0.1998$) to bound its known overlap with the standalone $AP_c$ term. Recomputing $A(v)$ under the new formula moves $\sigma_A$ to $[0.0254, 0.0530]$ across the same eight scenarios --- roughly $1.6$--$2.0\times$ its prior range --- and $A_{\max}$ off the exact $0.05 \cdot w(v)$ ceiling in every scenario (e.g.\ Enterprise: $0.0500 \to 0.0878$). $A(v)$ is no longer a rescaled QoS weight with zero structural content, though it remains, correctly, a narrower-spread signal than $FT(v)$: genuine fragility is meant to be the exception in a well-architected system, not the common case.
+
 \subsubsection{Anti-Pattern Detection and CI/CD Quality Gates}
 
 Validating our rule-based architectural anti-pattern catalog against the multi-metric composite oracle $I_{\text{comp}}(v)$ yielded a mean detection $F_1 = 0.3781$ across 8 system scenarios --- but $F_1$ alone understates what the catalog does: mean precision is $0.239$ against mean recall $0.900$, meaning the catalog flags $94.2\%$ of all components on average and trades precision for near-exhaustive coverage of true positives. This is a deliberate high-recall CI/CD posture (a missed critical component is more costly than a false positive requiring manual triage) rather than an accuracy shortfall, but should be read as such rather than via $F_1$ in isolation. One detector, \texttt{DEEP\_PIPELINE}, is excluded from this evaluation: it enumerates every simple source-to-sink path and does not terminate within ten minutes on the 50-application Healthcare topology --- the blowup is itself a reportable scalability limit of exhaustive path enumeration, not a measurement gap. Analysis execution times for the remaining 18 detectors ranged from $0.04\,\text{s}$ (small scenarios, 50 nodes) to $54.85\,\text{s}$ (enterprise event meshes, 300 nodes), confirming that SaG runs comfortably within standard pre-commit and pull-request CI/CD quality gate budgets.
@@ -237,7 +246,7 @@ The stratification above is not only a reporting convention for this paper; it i
 
 \noindent\textbf{What pooling costs, measured.} We classified every component in the eight-scenario corpus twice --- once against one box-plot over the whole system layer, once within its own node type --- and compared the resulting CRITICAL/HIGH/MEDIUM/LOW/MINIMAL tiers. Across 1{,}619 components, \textbf{62.8\% land in a different tier}, and \textbf{19.0\% cross the CRITICAL/HIGH boundary} that determines whether a component is surfaced for action at all. The effect is stable across scenarios (tier changes $51$--$69\%$, boundary crossings $14$--$22\%$), so it is a property of mixing the populations rather than of any one topology. The direction is systematic: pooling suppresses the top of whichever type carries the lower score scale, because the higher-scaled type occupies the upper quartile outright.
 
-\noindent\textbf{What we changed.} The classifier now derives quartiles and fences within each node type, and the per-dimension criticality flags use the same fence that produced the component's tier, so flag and tier cannot disagree. Types with too few members for stable quartiles fall back to the pooled fence rather than being scored on a handful of samples. The residual case is $\pi_{\text{app}}$, which still pools Applications with Libraries; their LOSO correlations overlap ($0.190$ against $0.105$), so we retain the pairing and note it as a scope condition rather than a defect.
+\noindent\textbf{What we changed.} The classifier now derives quartiles and fences within each node type, and the per-dimension criticality flags use the same fence that produced the component's tier, so flag and tier cannot disagree. Types with too few members for stable quartiles fall back to the pooled fence rather than being scored on a handful of samples. The residual case is $\pi_{\text{app}}$, which still pools Applications with Libraries; their LOSO correlations overlap ($0.195$ against $0.105$), so we retain the pairing and note it as a scope condition rather than a defect.
 
 \subsubsection{HGT Attention Weight Analysis}
 

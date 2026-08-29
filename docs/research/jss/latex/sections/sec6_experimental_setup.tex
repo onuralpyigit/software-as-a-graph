@@ -51,14 +51,14 @@ The corpus is regenerable rather than merely archived. Each dataset is produced 
 \subsection{Baselines and Evaluated Predictors}
 \label{sec:6.2}
 
-We compare five primary predictor configurations:
+We compare four primary predictor configurations:
 \begin{enumerate}
     \item \textbf{Topo-BL:} Unweighted structural centrality (betweenness centrality and articulation point scoring).
     \item \textbf{Topo-QoS:} QoS-weighted topological centrality baseline.
-    \item \textbf{RM / $Q(v)$:} Deterministic hierarchical quality attribution baseline (Section~\ref{sec:4}).
     \item \textbf{GL / GL-QoS:} Homogeneous Graph Attention Networks (GAT) \cite{velickovic2018graph} trained on the flattened, untyped graph projection.
     \item \textbf{HGL / HGL-QoS:} Relation-specific Heterogeneous Graph Transformers (Section~\ref{sec:5}).
 \end{enumerate}
+\noindent Every table additionally reports \textbf{RM / $Q(v)$} (the deterministic hierarchical quality attribution model of Section~\ref{sec:4}) as a non-competing diagnostic reference point, not as a fifth predictor: RM is not fitted to rank components, and its row exists to show how much the predictive path adds over static attribution (Section~\ref{sec:1.2}), not to compete on ranking accuracy.
 
 \subsection{Evaluation Metrics and Protocols}
 \label{sec:6.3}

@@ -32,7 +32,12 @@ class AnalysisService:
         """
         # Pre-analysis stage: derive DEPENDS_ON edges and finalise their weights.
         self.repository.derive_dependencies()
-        graph_data = self.repository.get_graph_data()
+        # include_raw=True: StructuralAnalyzer._compute_pubsub_metrics needs the
+        # raw PUBLISHES_TO/SUBSCRIBES_TO/ROUTES edges (not just DEPENDS_ON) to score
+        # pubsub_degree/broker_exposure/publisher_spof. extract_layer_subgraph filters
+        # G to dependency_type in defn.dependency_types, so raw edges never leak into
+        # the analysis topology itself.
+        graph_data = self.repository.get_graph_data(include_raw=True)
 
         analyzer = StructuralAnalyzer()
         results: Dict[str, LayerAnalysisResult] = {}

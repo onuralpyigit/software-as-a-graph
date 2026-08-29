@@ -689,8 +689,10 @@ def parse_args() -> argparse.Namespace:
                     help="CriticalityLoss weight for the ListMLE ranking term")
     p.add_argument("--pairwise-ranking-weight", type=float, default=0.1,
                     help="CriticalityLoss weight for the pairwise margin-ranking term")
-    p.add_argument("--rm-consistency-weight", type=float, default=0.1,
-                    help="CriticalityLoss weight for RM consistency regularization on unlabeled nodes")
+    p.add_argument("--rm-consistency-weight", type=float, default=0.0,
+                    help="CriticalityLoss weight for RM consistency regularization on unlabeled nodes. "
+                    "Default 0.0: the GNN and RM diagnostic pathways are trained independently. "
+                    "Pass 0.1 (the pre-decoupling default) to reproduce the ablation arm.")
     p.add_argument("--rank-normalize-features", action="store_true",
                     help="Within-graph rank-normalize node features (BASE_METRIC_KEYS columns). "
                          "Off by default; ablation arm against the raw-feature path.")

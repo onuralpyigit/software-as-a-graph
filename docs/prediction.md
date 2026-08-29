@@ -129,7 +129,7 @@ Edge features capture both topological properties and declared QoS delivery guar
 | Tensor Name | Target Shape | Semantic Purpose |
 |:---|:---:|:---|
 | `data[type].y` | $(N, 3)$ | Simulation ground-truth vectors: $[I^*(v), IR(v), IM(v)]$ |
-| `data[type].y_rm` | $(N, 3)$ | Rule-based consistency regularization target: $[Q(v), R(v), M(v)]$ |
+| `data[type].y_rm` | $(N, 3)$ | Rule-based consistency regularization target: $[Q(v), R(v), M(v)]$. Populated whenever `rm_scores` are supplied; only consumed as a training signal when `rm_consistency_weight > 0` (default 0.0 — the diagnostic and predictive pathways are trained independently unless this ablation is opted into explicitly). |
 | `data[type].label_mask` | $(N,)$ | Boolean mask indicating which nodes were simulated (excludes unlabelled nodes) |
 | `data[type].dimension_mask`| $(3,)$ | Boolean mask indicating measured ground-truth columns (masks unmeasured targets) |
 | `data[rel].y_edge` | $(E, 3)$ | Per-edge ground-truth criticality labels |

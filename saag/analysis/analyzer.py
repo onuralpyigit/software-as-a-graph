@@ -13,7 +13,11 @@
      FT_topic*(v) = 0.50×FOC_freq(v) + 0.50×CDPot_freq(v)     (Fault Tolerance v6, Topic nodes)
                    where FOC_freq(t) = log1p(f(t))·s(t) / max_t[log1p(f(t))·s(t)],
                    f(t) = message rate (Hz), s(t) = subscriber count
-     A*(v) = 0.35×AP_c_directed + 0.25×QSPOF + 0.25×BR + 0.10×CDI + 0.05×w(v) (Availability v3, sub-characteristic)
+     A*(v) = 0.2563×AP_c_directed + 0.1998×QSPOF + 0.1998×BR + 0.2563×CDI + 0.0878×w(v) (Availability v4, sub-characteristic)
+                   CDI is computed for every node in the main graph component, not only
+                   articulation points — a hard AP-gate leaves CDI 0.0 for every node whose
+                   removal does not literally disconnect the graph, which degenerates to a
+                   near-constant A(v) in redundant multi-publisher pub-sub topologies.
      R*(v) = r_alpha×FT*(v) + (1-r_alpha)×A*(v)               (Reliability, hierarchical; r_alpha default 0.36)
      M*(v) = 0.35×BT  + 0.30×w_out + 0.15×CQP + 0.12×CR + 0.08×(1–CC) (Maintainability v6)
      Q*(v) = w_R×R*(v) + w_M×M*(v)                            (Overall; w_R, w_M default 0.80, 0.20)
@@ -368,9 +372,17 @@ class QualityAnalyzer:
         Maintainability scores, and the overall composite.
 
         Design principles:
-            - Each raw metric maps to at most one dimension (orthogonality).
+            - Each raw metric maps to at most one dimension (orthogonality) — with
+              one deliberate, bounded exception: QSPOF = AP_c_directed x w(v) is an
+              interaction term that reuses ap_c_directed, so ap_c_directed's true
+              effective weight in A(v) ranges from w.a_ap_c_directed (qw=0) to
+              w.a_ap_c_directed + w.a_qspof (qw=1). This is intentional (QSPOF exists
+              so structural SPOF risk is not masked at low QoS weight, pinned by
+              tests/test_availability_decoupling.py) and is kept small by the v4
+              rebalance (a_qspof=0.1998, down from 0.25) rather than removed.
             - AP is continuous (ap_c = ap_c_directed).
-            - A(v) v2: QSPOF + directed SPOF + CDI.
+            - A(v) v4: QSPOF + directed SPOF + BR + CDI (CDI ungated, see
+              StructuralAnalyzer._compute_continuous_ap_scores).
         """
         w = self.weights
 
@@ -402,12 +414,17 @@ class QualityAnalyzer:
 
         # --- Fault Tolerance: FT*(v) v6 = RPR + DG_in + CDPot_enh ---
         if m.type == "Topic":
-            # FT_topic(v) = 0.50 × FOC(v) + 0.50 × CDPot_topic(v)
-            # CDPot_topic(v) = FOC(v) × (1 − min(publisher_count_norm(v), 1))
-            # Note: StructuralAnalyzer/Neo4jRepo stores publisher count norm in dependency_weight_in
-            publisher_norm = _n(m.dependency_weight_in, "w_in")
-            cdpot_topic = foc * (1.0 - min(publisher_norm, 1.0))
-            FT = 0.50 * foc + 0.50 * cdpot_topic
+            # FT_topic(v) = ft_topic_foc x FOC(v) + ft_topic_cdpot x CDPot_topic(v)
+            # CDPot_topic(v) = FOC(v) × (1 − min(w_in_norm(v), 1))
+            # w_in_norm is NOT publisher count: dependency_weight_in is the summed
+            # in-edge QoS weight across every incoming edge type (PUBLISHES_TO and
+            # broker ROUTES), rank-normalised against the whole component population,
+            # not against topics alone (see structural_analyzer.py's dep_weight_in
+            # accumulation). It correlates with publisher redundancy but is not it —
+            # documented as w_in in docs/structural-analysis.md §9.13.
+            w_in_norm = _n(m.dependency_weight_in, "w_in")
+            cdpot_topic = foc * (1.0 - min(w_in_norm, 1.0))
+            FT = w.ft_topic_foc * foc + w.ft_topic_cdpot * cdpot_topic
         else:
             # Standard Fault Tolerance formula (Application, Broker, Node, Library)
             # FT(v) v6: RPR + DG_in + CDPot_enh (see §11.2 of structural-analysis.md)
@@ -443,8 +460,8 @@ class QualityAnalyzer:
             + w.m_clustering * (1.0 - cc)
         )
 
-        # Availability: A(v) v3 — 5-term additive formula, a Reliability sub-characteristic
-        # A(v) = 0.35·AP_c_directed + 0.25·QSPOF + 0.25·BR + 0.10·CDI + 0.05·w(v)
+        # Availability: A(v) v4 — 5-term additive formula, a Reliability sub-characteristic
+        # A(v) = 0.2563·AP_c_directed + 0.1998·QSPOF + 0.1998·BR + 0.2563·CDI + 0.0878·w(v)
         qspof = ap_c * qw
         A = (
             w.a_ap_c_directed * ap_c
@@ -657,6 +674,10 @@ class QualityAnalyzer:
         ft_weights = _perturb_group(
             w.ft_reverse_pagerank, w.ft_in_degree, w.ft_cdpot,
         )
+        # Topic FT is a separate 2-term formula (FOC + CDPot_topic, no RPR/in-degree
+        # signal available for Topic nodes) — perturbed as its own group rather than
+        # folded into ft_weights above, since the two formulas share no terms.
+        ft_topic_weights = _perturb_group(w.ft_topic_foc, w.ft_topic_cdpot)
         m_weights = _perturb_group(
             w.m_betweenness, w.m_w_out, w.m_code_quality_penalty,
             w.m_coupling_risk, w.m_clustering,
@@ -670,6 +691,7 @@ class QualityAnalyzer:
         return QualityWeights(
             ft_pagerank=0.0, ft_reverse_pagerank=ft_weights[0], ft_in_degree=ft_weights[1],
             ft_cdpot=ft_weights[2],
+            ft_topic_foc=ft_topic_weights[0], ft_topic_cdpot=ft_topic_weights[1],
             r_alpha=r_alpha,
             m_betweenness=m_weights[0], m_w_out=m_weights[1],
             m_code_quality_penalty=m_weights[2],

@@ -119,7 +119,7 @@ METRIC_ROLES: Dict[str, FrozenSet[MetricRole]] = {
 
     # === Weights ===
     "weight": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE, MetricRole.DETECTION}),  # analyzer.py: A term (w=0.05) + QSPOF; antipattern_detector.py:605 (QOS_MISMATCH)
-    "dependency_weight_in": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE}),  # analyzer.py: Topic FT branch only, as publisher_norm — see structural-analysis.md §11.2
+    "dependency_weight_in": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE}),  # analyzer.py: Topic FT branch only, as w_in — summed in-edge QoS weight (all edge types), not publisher count — see structural-analysis.md §9.13
     "dependency_weight_out": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE}),  # analyzer.py: M term, w=0.30
 }
 
