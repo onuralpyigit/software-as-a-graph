@@ -286,7 +286,7 @@ class FaultInjector:
 
         ``ladder`` is the published form: fixed multipliers keyed off reliability
         and transport priority.  It ignores durability, which carries the largest
-        AHP sub-weight (0.40) of the three QoS dimensions.
+        AHP sub-weight (0.62) of the three QoS dimensions.
 
         ``wt`` scales by how far the topic's w(t) sits from the system mean, so all
         three QoS dimensions and payload size participate through the single weight

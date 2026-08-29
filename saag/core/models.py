@@ -360,7 +360,7 @@ class QoSPolicy:
         """
         Calculates the weighted QoS score based on AHP-derived coefficients.
 
-        QoS = 0.30*Rel + 0.40*Dur + 0.30*Pri
+        QoS = 0.24*Rel + 0.62*Dur + 0.14*Pri
 
         Lookups are case-normalised (see ``_canon``) so a policy built by
         direct construction with a lowercase value — bypassing ``from_dict``/

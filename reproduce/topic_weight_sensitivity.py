@@ -13,7 +13,7 @@ The topic weight
 
 ships at ``(beta, alpha, psi) = (0.75, 0.15, 0.10)``
 (``saag/core/models.py``). Unlike the inner QoS split
-``(0.30, 0.40, 0.30)`` — which is AHP-derived, consistency-audited, and pinned by
+``(0.24, 0.62, 0.14)`` — which is AHP-derived, consistency-audited, and pinned by
 ``tests/test_ahp_shrinkage.py`` — the outer split is **DECLARED**: nobody elicited
 it and nothing validated it. A reviewer is entitled to ask what rests on it.
 

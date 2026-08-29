@@ -9,18 +9,24 @@ While the interpretable RM baseline provides explainable quality profiles, compl
 To evaluate predictive accuracy prior to deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$. We establish a formal taxonomy of three component-level oracles and one relationship-level oracle:
 
 \begin{itemize}
-    \item \textbf{Cascade Reachability Oracle ($I^*(v)$):} Implemented via \texttt{FaultInjector}, this oracle injects an unexpected node crash at component $v \in V$, propagates cascading failures across dependent topics, brokers, and network links using breadth-first dynamic traversal, and computes the fraction of surviving subscriber feeds severed by the outage. $I^*(v) \in [0, 1]$ serves as the primary continuous target label for training and evaluating GNN predictors.
+    \item \textbf{Cascade Reachability Oracle ($I^*(v)$):} Implemented via \texttt{FaultInjector}, this oracle injects an unexpected node crash at component $v \in V$, propagates cascading failures across dependent topics, brokers, and network links using breadth-first dynamic traversal, and computes the fraction of surviving subscriber feeds severed by the outage. Publisher loss is weighted by publication rate, and the resulting per-topic feed loss is scaled by a QoS ladder ($\times 1.2$ for \texttt{RELIABLE}, $\times 1.15$ for high or urgent transport priority, $\times 1.05$ for medium) before being clamped to $[0,1]$. The ladder does not read durability, which carries the largest of the three QoS sub-weights ($0.62$; Section~\ref{sec:3.2}); we quantify how little this scaling moves the labels in Section~\ref{sec:7.3}. $I^*(v) \in [0, 1]$ serves as the primary continuous target label for training and evaluating GNN predictors.
     \item \textbf{Multi-Metric Composite Oracle ($I_{\text{comp}}(v)$):} Implemented via \texttt{FailureSimulator}, this oracle evaluates a multi-faceted failure impact vector:
     \begin{equation}
     I_{\text{comp}}(v) = 0.35 \cdot \Delta\text{Reachability} + 0.25 \cdot \Delta\text{Fragmentation} + 0.25 \cdot \Delta\text{Throughput} + 0.15 \cdot \Delta\text{FlowDisruption}
     \end{equation}
-    $I_{\text{comp}}(v)$ serves as the canonical oracle for architectural quality gate verification.
-    \item \textbf{Dynamic Queue-Flow Oracle ($I_{\text{dyn}}(v)$):} Implemented via \texttt{MessageFlowSimulator} using the SimPy discrete-event simulation framework \cite{team2020simpy}, this oracle models message emission rates, stochastic network latencies, broker buffer saturation, and dropped delivery counts under fault injection.
+    This is the most QoS-aware of the three: every term is weighted by an operational severity $s(t) = w(t) \cdot \text{rate}(t)$, so all three QoS dimensions enter through $w(t)$. Sixty per cent of the composite ($0.35$ reachability plus $0.25$ fragmentation) nonetheless measures graph connectivity rather than message loss. $I_{\text{comp}}(v)$ serves as the canonical oracle for architectural quality gate verification.
+    \item \textbf{Dynamic Queue-Flow Oracle ($I_{\text{dyn}}(v)$):} Implemented via \texttt{MessageFlowSimulator} using the SimPy discrete-event simulation framework \cite{team2020simpy}, this oracle models message emission rates, stochastic network latencies, broker buffer saturation, and dropped delivery counts under fault injection. QoS policies shape per-message behaviour \emph{inside} the run --- reliability selects head-drop over tail-drop on queue overflow, and deadline and lifespan expiry discard samples --- but the impact score extracted from it is the drop in delivered message rate suffered by surviving consumers, an unweighted per-copy count. $I_{\text{dyn}}(v)$ is therefore delivery-based and QoS-\emph{agnostic} at the label level: a message on a safety-critical topic and one on a telemetry heartbeat contribute equally, and transport priority is not read at all.
     \item \textbf{Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):} Evaluates the systemic impact of severing an individual dependency or communication channel while keeping both endpoint components alive:
     \begin{equation}
     I_{\text{edge}}(u,v) = I_{\text{comp}}(G \setminus \{(u,v)\}) - I_{\text{comp}}(G)
     \end{equation}
 \end{itemize}
+
+\noindent\textbf{Declared message criticality is available but withheld by design.}
+\texttt{FailureSimulator} can additionally blend an author-declared \texttt{Topic.criticality}
+label into its severity term (a $50/50$ blend with $w(t)$), and ships with this disabled: enabling
+it would let an author-declared criticality label leak into the oracle used to score predictors
+built from that same label space, which our leakage guard forbids.
 
 \noindent\textbf{Primary oracle declaration.} Because the three component-level oracles measure
 different constructs and agree only partially (below), we designate exactly one of them as
@@ -63,7 +69,11 @@ simulate'' is under-specified --- it does not say which simulator, at which prop
 under which seed, and the answer materially changes the critical set. We report this disagreement as
 a bound on our own construct validity rather than as corroboration, and we note that we could not
 reduce it by weighting: applying the same $w(t)$ to both topological oracles does not make them
-converge (Section~\ref{sec:7.3}).
+converge (Section~\ref{sec:7.3}). That null result should be read as bounding the effect of the
+particular treatment we could apply, not of QoS-aware labelling in general: disabling QoS zeroes
+$I_{\text{comp}}$'s severity term entirely, but on $I^*$ it only removes a ladder multiplier that a
+$[0,1]$ clamp already suppresses whenever a component is at or near total feed loss, so the two arms
+are not comparably strong (Section~\ref{sec:7.3}).
 
 \subsection{Heterogeneous Graph Transformer Architecture}
 \label{sec:5.2}

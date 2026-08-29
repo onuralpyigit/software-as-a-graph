@@ -246,6 +246,16 @@ Set-level agreement is a different and weaker story, and we report it as the bin
 
 \noindent\textbf{A falsified hypothesis, reported.} We tested whether weighting both topological oracles by the same $w(t)$ makes them converge --- the mechanism by which QoS weighting would be a construct-validity improvement rather than merely a modelling choice. It does not: $\rho(I_{\text{comp}}, I^*)$ is $0.468$ with QoS weighting and $0.477$ without it ($\Delta\rho = -0.009$; Jaccard $0.307$ against $0.306$). Shared weighting has no measurable effect on inter-oracle agreement in either direction, and we record the negative result rather than leaving the artifact uncited.
 
+\noindent\textbf{The two arms of that test are not comparably strong.} Disabling QoS weighting
+removes $I_{\text{comp}}$'s severity term entirely (every topic reverts to a flat weight of $1$),
+but on $I^*$ it only removes a ladder multiplier that a $[0,1]$ clamp already suppresses whenever a
+component's feed loss is at or near saturation --- precisely the high-impact regime a ranking
+metric is most sensitive to. Toggling that ladder shifts $I^*$'s own labels by a mean absolute
+$0.064$ across our ten scenarios (range $0.012$--$0.145$; a shared $w(t)$-proportional treatment
+shifts them by only $0.013$), so the null result above bounds the effect of \emph{this} treatment
+rather than of QoS-aware labelling in general. The one untested arm where a QoS weight is not
+structurally clipped is $I_{\text{dyn}}$'s delivery-rate label, which we leave to future work.
+
 \subsubsection{Domain-Specific Weighting Sensitivity}
 
 We investigated the impact of Context of Use reweighting $\vec{\omega} = [q_R, q_M]^\top$ across 10 evaluation scenarios by sweeping the composite reliability weight $w_R$ over its full range and reading off three points on that one curve: the shipped static default ($w_R = 0.80$), an unweighted equal split ($w_R = 0.50$), and the domain-derived value per scenario. The three are statistically indistinguishable: mean $\rho = 0.353$ (static), $0.349$ (equal), $0.347$ (domain-derived), so domain derivation trails equal weighting by $\Delta\rho = -0.001$ and the static default by $\Delta\rho = -0.006$. Neither difference is meaningful, and the sweep explains why: over the \emph{entire} $w_R \in [0, 1]$ range mean $\rho$ moves only from $0.341$ to $0.365$, a total spread of $0.024$. The composite weight is simply not a lever on ranking. Two structural facts compound this: across the declared domains the derived $w_R$ lies in $[0.70, 0.76]$, i.e.\ at most $0.10$ from the static default, and mean Kendall rank fidelity between domain-derived and static rankings is $\tau = 0.974$ --- the two weightings order components almost identically. We therefore read this ablation as confirming the scoping in Section~\ref{sec:4.1}: operational Context of Use reweighting is an \emph{attributional} mechanism --- explaining why a component matters in stakeholder terms --- and not a ranking-improvement device. It should not be reported as either an accuracy gain or an accuracy loss.
