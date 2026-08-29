@@ -1,19 +1,19 @@
 \begin{table}[htbp]
 \centering
 \small
-\caption{Generative parameters of the seven synthetic evaluation scenarios, read directly from the committed configurations. Counts are Applications/Topics/Brokers/Hosts/Libraries. Fan-out figures are per-application means over the configured distribution; the modal QoS column gives the most common reliability/durability/priority value and the range of topic shares carrying them.}
+\caption{Generative parameters of the seven synthetic evaluation scenarios. Counts, seed and fan-out figures are read directly from the committed configurations. The modal QoS column gives the most common reliability/durability/priority value and the range of topic shares carrying them, computed from the committed topology rather than the config's declared QoS targets, which domain-driven assignment does not always realize (Section~\ref{sec:6.1}).}
 \label{tab:genparams}
 \begin{tabular}{llrrrrl}
 \toprule
 \textbf{Scenario} & \textbf{Config} & \textbf{Seed} & \textbf{Counts} & \textbf{Pub} & \textbf{Sub} & \textbf{Modal QoS (R/D/P)} \\
 \midrule
-\textbf{Autonomous Vehicle (AV)} & \texttt{scenario\_01\_autonomous\_vehicle} & 1001 & 80/40/4/8/20 & 2.5 & 5.0 & RELIABLE/TRANSIENT\_LOCAL/HIGH (45--80\%) \\
-\textbf{Enterprise Pub-Sub} & \texttt{scenario\_07\_enterprise\_xlarge} & 7007 & 300/120/10/40/50 & 3.0 & 4.5 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (29--79\%) \\
-\textbf{Financial Trading} & \texttt{scenario\_03\_financial\_trading} & 3003 & 60/35/5/6/18 & 4.0 & 6.0 & RELIABLE/PERSISTENT/HIGH (40--89\%) \\
-\textbf{Healthcare Integration} & \texttt{scenario\_04\_healthcare} & 4004 & 50/25/3/8/12 & 2.5 & 3.0 & RELIABLE/PERSISTENT/HIGH (40--88\%) \\
-\textbf{Hub-and-Spoke} & \texttt{scenario\_05\_hub\_and\_spoke} & 5005 & 70/30/2/12/25 & 2.0 & 7.0 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (33--67\%) \\
-\textbf{IoT Smart City} & \texttt{scenario\_02\_iot\_smart\_city} & 2002 & 200/80/6/30/10 & 2.0 & 1.5 & BEST\_EFFORT/VOLATILE/LOW (56--75\%) \\
-\textbf{Microservices Mesh} & \texttt{scenario\_06\_microservices} & 6006 & 90/45/6/15/30 & 1.5 & 2.0 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (40--60\%) \\
+\textbf{Autonomous Vehicle (AV)} & \texttt{scenario\_01\_autonomous\_vehicle} & 1001 & 80/40/4/8/20 & 2.5 & 5.0 & RELIABLE/TRANSIENT\_LOCAL/HIGH (85--100\%) \\
+\textbf{Enterprise Pub-Sub} & \texttt{scenario\_07\_enterprise\_xlarge} & 7007 & 300/120/10/40/50 & 3.0 & 4.5 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (100--100\%) \\
+\textbf{Financial Trading} & \texttt{scenario\_03\_financial\_trading} & 3003 & 60/35/5/6/18 & 4.0 & 6.0 & RELIABLE/PERSISTENT/CRITICAL (51--83\%) \\
+\textbf{Healthcare Integration} & \texttt{scenario\_04\_healthcare} & 4004 & 50/25/3/8/12 & 2.5 & 3.0 & RELIABLE/PERSISTENT/MEDIUM (60--76\%) \\
+\textbf{Hub-and-Spoke} & \texttt{scenario\_05\_hub\_and\_spoke} & 5005 & 70/30/2/12/25 & 2.0 & 7.0 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (100--100\%) \\
+\textbf{IoT Smart City} & \texttt{scenario\_02\_iot\_smart\_city} & 2002 & 200/80/6/30/10 & 2.0 & 1.5 & BEST\_EFFORT/VOLATILE/LOW (56--79\%) \\
+\textbf{Microservices Mesh} & \texttt{scenario\_06\_microservices} & 6006 & 90/45/6/15/30 & 1.5 & 2.0 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (100--100\%) \\
 \bottomrule
 \end{tabular}
 \end{table}

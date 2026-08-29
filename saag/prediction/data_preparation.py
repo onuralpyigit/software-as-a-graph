@@ -36,7 +36,7 @@ same concept.  They must NOT share a feature dimension:
 
   ``Topic.criticality`` (str: minimal/low/medium/high/critical)
       QoS-channel urgency, derived from the QoS weight score
-      (0.3·Rel + 0.4·Dur + 0.3·Pri) with ≈17% label-noise injection
+      (0.24·Rel + 0.62·Dur + 0.14·Pri) with ≈17% label-noise injection
       so the GNN must use graph context to resolve ambiguous cases.
       Encoded as an ordinal integer 0–4 (``topic_qos_criticality_ord``).
       Appears **only** in the Topic NodeStorage (dim 21) — it is absent

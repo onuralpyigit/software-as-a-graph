@@ -27,11 +27,19 @@ To evaluate predictive accuracy prior to deployment without relying on productio
     \end{equation}
 \end{itemize}
 
-\noindent\textbf{Declared message criticality is available but withheld by design.}
-\texttt{FailureSimulator} can additionally blend an author-declared \texttt{Topic.criticality}
-label into its severity term (a $50/50$ blend with $w(t)$), and ships with this disabled: enabling
-it would let an author-declared criticality label leak into the oracle used to score predictors
-built from that same label space, which our leakage guard forbids.
+\noindent\textbf{Declared message criticality is withheld from the label, not from the features.}
+\texttt{FailureSimulator} can additionally blend a declared \texttt{Topic.criticality}
+label into its severity term (a $50/50$ blend with $w(t)$, via \texttt{use\_topic\_criticality}),
+and ships with this disabled. The reason is not merely that the label is author-supplied: \texttt{Topic.criticality}
+is \emph{simultaneously} a GNN input feature (\texttt{topic\_qos\_criticality\_ord}, live whenever the
+native substrate is QoS-embedded --- the \texttt{HGL-QoS} arm and every LOSO fold), so an oracle that
+consumed it would score a predictor against a transform of its own input. In the synthetic corpus it is
+in any case not an independent operational judgement: it is $\mathrm{bucketize}(w_{\text{QoS}}(t))$ with
+$17\%$ of labels flipped to a different level, a noised re-encoding of the same QoS score already inside
+$w(t)$ --- the noise exists precisely so the label is not a deterministic function of the QoS features a
+model can see. Enabling the oracle flag would therefore only be sound as a dedicated ablation that
+simultaneously removes \texttt{topic\_qos\_criticality\_ord} from the feature contract --- which would
+invalidate every QoS-variant result in this paper and require a full retrain; we did not run that ablation.
 
 \noindent\textbf{Primary oracle declaration.} Because the three reliability-facing
 component-level oracles ($I^*$, $I_{\text{comp}}$, $I_{\text{dyn}}$) measure different

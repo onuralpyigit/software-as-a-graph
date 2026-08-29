@@ -17,6 +17,18 @@ its size alone: the seed, the entity counts, the mean publish/subscribe fan-out
 per application, the mean applications per host, and the modal QoS profile with
 the share of topics that carry it.
 
+The modal QoS column is computed from the committed topology
+(``data/scenarios/<name>.json``'s ``topics``), not from the config's
+``qos_stats`` block. Domain-driven topic QoS (``get_qos_for_topic`` in
+``tools/generation/datasets.py``) takes precedence over the pool sampled from
+``qos_stats`` whenever a scenario declares a ``domain`` -- true of every
+scenario in this corpus -- so ``qos_stats.category_counts`` does not describe
+what was actually generated for domains whose ``QOS_MAPPINGS`` entry is a
+single ``"default"`` triple (``hub-and-spoke``, ``microservices``,
+``enterprise``; ``av`` collapses four of five patterns to one triple). An
+earlier version of this script read ``qos_stats`` directly and reported that
+un-realized target distribution.
+
 Usage
 -----
     PYTHONPATH=. python reproduce/scenario_param_table.py
@@ -53,19 +65,26 @@ def _mean(block: Optional[Dict[str, Any]]) -> Optional[float]:
     return None if not isinstance(block, dict) else block.get("mean")
 
 
-def _modal_qos(qos: Dict[str, Any]) -> str:
-    """Modal (reliability, durability, priority) triple and the topic share."""
+def _modal_qos_from_topics(topics: List[Dict[str, Any]]) -> str:
+    """Modal (reliability, durability, priority) triple and the topic share,
+    computed from the committed topology rather than the config's declared
+    (and not always realized) ``qos_stats`` distribution -- see module
+    docstring."""
+    import collections
+
+    if not topics:
+        return "---"
     parts, pcts = [], []
-    for key in ("qos_reliability_distribution",
-                "qos_durability_distribution",
-                "qos_transport_priority_distribution"):
-        blk = qos.get(key) or {}
-        mode = blk.get("mode")
-        if mode is None:
+    for field in ("reliability", "durability", "transport_priority"):
+        counts = collections.Counter(
+            str((t.get("qos") or {}).get(field, "")).upper() for t in topics
+        )
+        counts.pop("", None)
+        if not counts:
             continue
-        parts.append(str(mode).replace("_", r"\_").upper())
-        if isinstance(blk.get("mode_percentage"), (int, float)):
-            pcts.append(float(blk["mode_percentage"]))
+        mode, mode_n = counts.most_common(1)[0]
+        parts.append(mode.replace("_", r"\_"))
+        pcts.append(100.0 * mode_n / len(topics))
     if not parts:
         return "---"
     share = f" ({min(pcts):.0f}--{max(pcts):.0f}\\%)" if pcts else ""
@@ -87,8 +106,10 @@ def collect(manifest: Dict[str, Any]) -> List[Dict[str, Any]]:
         g = (yaml.safe_load(cfg_path.read_text()) or {}).get("graph", {})
         counts = g.get("counts", {})
         app = g.get("application_stats", {}) or {}
-        qos = g.get("qos_stats", {}) or {}
         node = (g.get("node_stats", {}) or {}).get("applications_per_node")
+
+        data_path = SCENARIOS_DIR / f"{name}.json"
+        topics = json.loads(data_path.read_text()).get("topics", []) if data_path.exists() else []
 
         rows.append({
             "dataset": name,
@@ -99,7 +120,7 @@ def collect(manifest: Dict[str, Any]) -> List[Dict[str, Any]]:
             "mean_publish": _mean(app.get("direct_publish_count")),
             "mean_subscribe": _mean(app.get("direct_subscribe_count")),
             "mean_apps_per_host": _mean(node),
-            "modal_qos": _modal_qos(qos),
+            "modal_qos": _modal_qos_from_topics(topics),
             "sha256": entry.get("sha256", "")[:12],
         })
     return rows
@@ -114,12 +135,13 @@ def render_tex(rows: List[Dict[str, Any]], path: Path) -> None:
         r"\begin{table}[htbp]",
         r"\centering",
         r"\small",
-        r"\caption{Generative parameters of the seven synthetic evaluation scenarios, "
-        r"read directly from the committed configurations. Counts are "
-        r"Applications/Topics/Brokers/Hosts/Libraries. Fan-out figures are per-application "
-        r"means over the configured distribution; the modal QoS column gives the most "
-        r"common reliability/durability/priority value and the range of topic shares "
-        r"carrying them.}",
+        r"\caption{Generative parameters of the seven synthetic evaluation scenarios. "
+        r"Counts, seed and fan-out figures are read directly from the committed "
+        r"configurations. The modal QoS column gives the most common "
+        r"reliability/durability/priority value and the range of topic shares carrying "
+        r"them, computed from the committed topology rather than the config's declared "
+        r"QoS targets, which domain-driven assignment does not always realize "
+        r"(Section~\ref{sec:6.1}).}",
         r"\label{tab:genparams}",
         r"\begin{tabular}{llrrrrl}",
         r"\toprule",

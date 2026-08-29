@@ -263,6 +263,14 @@ shifts them by only $0.013$), so the null result above bounds the effect of \emp
 rather than of QoS-aware labelling in general. The one untested arm where a QoS weight is not
 structurally clipped is $I_{\text{dyn}}$'s delivery-rate label, which we leave to future work.
 
+\noindent\textbf{A second, corpus-level contributor to this null result.} This comparison is
+computed across all seven scenarios, four of which (Section~\ref{sec:6.1}) have $w(t)$ standard
+deviation $\approx 0.02$ --- effectively no QoS signal for either oracle's weighting to
+discriminate on. A null measured partly on a QoS-flat substrate is expected regardless of how
+strong either treatment is; we did not isolate the two effects (weak treatment vs. absent signal)
+by re-running this comparison restricted to the three QoS-varying scenarios, and flag this as an
+open confound rather than resolving it (Section~\ref{sec:8.2}).
+
 \subsubsection{Domain-Specific Weighting Sensitivity}
 
 We investigated the impact of Context of Use reweighting $\vec{\omega} = [q_R, q_M]^\top$ across 10 evaluation scenarios by sweeping the composite reliability weight $w_R$ over its full range and reading off three points on that one curve: the shipped static default ($w_R = 0.80$), an unweighted equal split ($w_R = 0.50$), and the domain-derived value per scenario. The three are statistically indistinguishable: mean $\rho = 0.353$ (static), $0.349$ (equal), $0.347$ (domain-derived), so domain derivation trails equal weighting by $\Delta\rho = -0.001$ and the static default by $\Delta\rho = -0.006$. Neither difference is meaningful, and the sweep explains why: over the \emph{entire} $w_R \in [0, 1]$ range mean $\rho$ moves only from $0.341$ to $0.365$, a total spread of $0.024$. The composite weight is simply not a lever on ranking. Two structural facts compound this: across the declared domains the derived $w_R$ lies in $[0.70, 0.76]$, i.e.\ at most $0.10$ from the static default, and mean Kendall rank fidelity between domain-derived and static rankings is $\tau = 0.974$ --- the two weightings order components almost identically. We therefore read this ablation as confirming the scoping in Section~\ref{sec:4.1}: operational Context of Use reweighting is an \emph{attributional} mechanism --- explaining why a component matters in stakeholder terms --- and not a ranking-improvement device. It should not be reported as either an accuracy gain or an accuracy loss.
