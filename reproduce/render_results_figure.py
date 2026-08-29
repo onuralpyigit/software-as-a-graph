@@ -52,7 +52,7 @@ _VARIANTS: List[Tuple[str, str, str]] = [
     ("gl",            "GL (Homogeneous)",        "homogeneous"),
     ("topo_qos",      "Topo-QoS (Weighted)",     "untrained"),
     ("topo_baseline", "Topo-BL (Centrality)",    "untrained"),
-    ("topology_rm",   "RM / $Q(v)$ (Diagnostic)", "untrained"),
+    ("topology_rm",   "RM / $Q(v)$ (Pathway A, diagnostic)", "diagnostic"),
 ]
 
 _COLOURS = {
@@ -60,7 +60,15 @@ _COLOURS = {
     "learned":      "#1F6FB4",
     "homogeneous":  "#C77DBA",
     "untrained":    "#8A8A8A",
+    # RM/Q(v) is the diagnostic pathway (Section 1.2), not a competing ranking
+    # predictor -- same neutral colour as the untrained baselines, but hatched
+    # so a reader can tell at a glance it is not part of that comparison.
+    "diagnostic":   "#8A8A8A",
 }
+
+#: Families rendered with a hatch pattern instead of a solid fill, to mark
+#: bars that are not part of the baseline/predictor ranking comparison.
+_HATCH = {"diagnostic": "///"}
 
 _ORACLE_LABELS = {
     "i_dyn__i_star":  "MessageFlow vs. FaultInjector\n($I_{dyn}$ vs. $I^*$)",
@@ -174,9 +182,13 @@ def render(variants, oracles, jac, population, output: Path, dpi: int = 300):
     # ── A: LOSO rho, sorted on the data ──────────────────────────────────────
     a = sorted(variants, key=lambda r: r["rho"])
     ypos = range(len(a))
-    axa.barh(list(ypos), [r["rho"] for r in a],
+    bars_a = axa.barh(list(ypos), [r["rho"] for r in a],
              xerr=[r["std"] for r in a], capsize=3,
              color=[_COLOURS[r["family"]] for r in a], zorder=3)
+    for bar, r in zip(bars_a, a):
+        if r["family"] in _HATCH:
+            bar.set_hatch(_HATCH[r["family"]])
+            bar.set_edgecolor("#444")
     axa.set_yticks(list(ypos))
     axa.set_yticklabels([r["label"] for r in a], fontsize=10)
     axa.axvline(0.0, color="#555", linestyle="--", linewidth=1.0, zorder=2)
@@ -192,8 +204,12 @@ def render(variants, oracles, jac, population, output: Path, dpi: int = 300):
                  va="center", ha="left", fontsize=9.5, fontweight="bold", color="#111")
 
     # ── B: F1@K, same variant order as A so the eye can track a row ──────────
-    axb.barh(list(ypos), [r["f1"] for r in a],
+    bars_b = axb.barh(list(ypos), [r["f1"] for r in a],
              color=[_COLOURS[r["family"]] for r in a], zorder=3)
+    for bar, r in zip(bars_b, a):
+        if r["family"] in _HATCH:
+            bar.set_hatch(_HATCH[r["family"]])
+            bar.set_edgecolor("#444")
     axb.set_yticks(list(ypos))
     axb.set_yticklabels([])
     axb.set_xlabel("Critical-Set Detection ($F_1@K$)", fontsize=11, fontweight="bold")

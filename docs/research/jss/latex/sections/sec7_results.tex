@@ -54,19 +54,24 @@ Under inductive Leave-One-Scenario-Out (LOSO) cross-validation, the model must p
 \begin{table}[htbp]
 \centering
 \small
-\caption{Inductive Leave-One-Scenario-Out (LOSO) evaluation, Application population, eight folds. The RM baseline is included as a reference point rather than as a competing predictor: it is the diagnostic path of Section~\ref{sec:1.2} and is not proposed as a ranking model (Section~\ref{sec:4.1}). Its row quantifies how much the predictive path adds over static attribution, which is the only sense in which the comparison is meaningful.}
+\caption{Inductive Leave-One-Scenario-Out (LOSO) evaluation, Application population, eight folds. Rows are grouped by role, not listed as competing variants: training-free structural baselines, the learned predictors proposed in this paper, and the RM/$Q(v)$ diagnostic reference of Section~\ref{sec:1.2} (Pathway A), which is not a ranking model (Section~\ref{sec:4.1}) and is included only to quantify how much the predictive path adds over static attribution.}
 \label{tab:7}
 \begin{tabular}{lcccc}
 \toprule
-\textbf{Model Variant} & \textbf{Mean LOSO $\rho$} & \textbf{Std $\rho$} & \textbf{Critical-Set $F_1@K$} & \textbf{Requires Training} \\
+\textbf{Predictor / Reference} & \textbf{Mean LOSO $\rho$} & \textbf{Std $\rho$} & \textbf{Critical-Set $F_1@K$} & \textbf{Requires Training} \\
 \midrule
+\multicolumn{5}{l}{\textit{Training-free structural baselines}} \\
 \textbf{Topo-BL} & 0.301 & 0.126 & 0.363 & No \\
 \textbf{Topo-QoS} & 0.571 & 0.181 & 0.380 & No \\
-\textbf{RM / $Q(v)$ Baseline} & 0.195 & 0.130 & 0.327 & No \\
+\midrule
+\multicolumn{5}{l}{\textit{Learned predictors (Pathway B)}} \\
 \textbf{GL (Homogeneous)} & 0.086 & 0.122 & 0.237 & Yes \\
 \textbf{GL-QoS (Homogeneous)} & 0.363 & \textbf{0.089} & 0.341 & Yes \\
 \textbf{HGL (Typed Heterogeneous)} & 0.439 & 0.145 & 0.327 & Yes \\
 \textbf{HGL-QoS (Typed + QoS)} & \textbf{0.608} & 0.143 & \textbf{0.414} & Yes \\
+\midrule
+\multicolumn{5}{l}{\textit{Diagnostic reference (Pathway A) --- not a ranking model}} \\
+\textbf{RM / $Q(v)$} & 0.195 & 0.130 & 0.327 & No \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -86,7 +91,7 @@ Under inductive Leave-One-Scenario-Out (LOSO) cross-validation, the model must p
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/Figure_5}
-\caption{Results at a glance, all on the Application population. \textbf{(A)} Out-of-distribution rank correlation per variant, whiskers showing $\sigma$ across the eight LOSO folds; note that the training-free Topo-QoS baseline places second. \textbf{(B)} Critical-set detection at $K = 20\%$. \textbf{(C)} Agreement between the three simulation oracles, whiskers showing the observed range across scenarios; the annotation gives top-$K$ set agreement against both chance and the labeler's own seed-to-seed floor.}
+\caption{Results at a glance, all on the Application population. \textbf{(A)} Out-of-distribution rank correlation per variant, whiskers showing $\sigma$ across the eight LOSO folds; note that the training-free Topo-QoS baseline places second. The hatched bar is RM/$Q(v)$, the Pathway A diagnostic reference of Section~\ref{sec:1.2} --- shown for context, not as a competing ranking predictor. \textbf{(B)} Critical-set detection at $K = 20\%$, same hatching convention. \textbf{(C)} Agreement between the three simulation oracles, whiskers showing the observed range across scenarios; the annotation gives top-$K$ set agreement against both chance and the labeler's own seed-to-seed floor.}
 \label{fig:5}
 \end{figure}
 
@@ -105,6 +110,8 @@ We further probed edge criticality by simulating the removal of candidate relati
 
 \subsection{RQ3: Ablations and Sensitivity Analysis}
 \label{sec:7.3}
+
+\noindent\textbf{A note on what $\rho$ measures in this subsection.} Several sweeps below --- the AHP shrinkage $\lambda$, the topic-weight triple, the QoS sub-weights, the Morris and Dirichlet joint sweeps --- report RM's rank correlation against $I^*(v)$ as their outcome variable. RM is not proposed as a ranking model (Section~\ref{sec:4.1}), so within this subsection $\rho$ is used strictly as a \emph{sensitivity probe}: does perturbing a declared constant move a measurable quantity, and by how much relative to the gaps between predictor families elsewhere in this paper. A sweep finding that one setting yields higher $\rho$ than another is evidence about that constant's leverage on the score, not an optimality claim about RM as a ranker.
 
 \subsubsection{QoS Feature Encoding}
 Explicitly encoding continuous QoS attributes in the GNN (HGL-QoS) does not yield a uniform effect --- it trades a little in-distribution accuracy for a large out-of-distribution gain. The two directions are summarised below; note that they are measured under different protocols on different fold counts, though both are scored on the Application population.
@@ -182,7 +189,7 @@ We evaluated the sensitivity of the RM attribution baseline by sweeping a shrink
 \label{fig:4}
 \end{figure}
 
-\noindent\textbf{The AHP judgement does not improve ranking, and we report that directly.} As Figure~\ref{fig:4} shows, $\rho$ declines monotonically as the weights move from the uniform prior toward the elicited judgement. The uniform prior is the best setting in the sweep ($\rho = 0.348$ against $0.232$ at raw AHP), it wins in all seven scenarios individually (paired Wilcoxon, $p = 0.0156$), and the shipped $\lambda = 0.70$ default costs $\Delta\rho = -0.081$ relative to it ($p = 0.0156$). There is no plateau around the default. The honest reading is that the elicited intra-dimension hierarchy is a \emph{transparency} device --- it makes the composite auditable and its terms nameable to an architect --- and not a ranking-accuracy device; on this corpus, weighting the terms equally ranks components better. We retain $\lambda = 0.70$ because RM's role is interpretable attribution rather than standalone ranking (Section~\ref{sec:4.1}), but we do not claim the sweep validates the expert hierarchy, because it does not.
+\noindent\textbf{$\lambda$ is the most consequential of the ten constants on this probe, and moving it toward the elicited judgement does not raise $\rho$.} As Figure~\ref{fig:4} shows, $\rho$ declines monotonically as the weights move from the uniform prior toward the elicited judgement: the uniform prior scores highest on this sensitivity probe ($\rho = 0.348$ against $0.232$ at raw AHP), winning in all seven scenarios individually (paired Wilcoxon, $p = 0.0156$), and the shipped $\lambda = 0.70$ default trails it by $\Delta\rho = -0.081$ ($p = 0.0156$). There is no plateau around the default. Read as the sensitivity probe this subsection declares it to be (not as a ranking-optimality claim about RM, which is not proposed as a ranker, Section~\ref{sec:4.1}), the honest reading is that the elicited intra-dimension hierarchy buys \emph{transparency} --- it makes the composite auditable and its terms nameable to an architect --- rather than ranking accuracy: on this corpus, weighting the terms equally moves the probe higher. We retain $\lambda = 0.70$ because RM's role is interpretable attribution rather than standalone ranking (Section~\ref{sec:4.1}), and we do not claim the sweep validates the expert hierarchy as a ranking device, because it does not.
 
 \noindent\textbf{A measurement correction.} An earlier version of this analysis scored $Q(v)$ from features restricted to the Application--Library \texttt{DEPENDS\_ON} projection --- the feature substrate built for GNN training --- rather than from the full typed graph. On that projection no Application is an articulation point and no incident edge is a bridge in six of the eight scenarios, so four of Availability's five terms vanish and $A(v)$, which carries $w_R(1 - \alpha) \approx 0.51$ of the composite, is constant across the Application population. Sweeping $\lambda$ against that variant measured a degenerate score and returned uniformly negative $\rho$ (from $-0.146$ at $\lambda = 0$ to $-0.111$ at $\lambda = 1$). The figures above are computed through the full analysis pipeline, which is the RM baseline defined in Section~\ref{sec:4.3}; both series are retained in the replication artifact. The same correction applies to the threshold and domain-weighting ablations below, which shared that scorer.
 

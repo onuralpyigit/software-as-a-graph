@@ -10,6 +10,8 @@ Our empirical findings provide clear guidance for software architects and reliab
     \item \textbf{When to Use Interpretable Attribution:} For root-cause diagnosis and remediation planning, the deterministic RM profile is indispensable. Distinguishing whether a service is critical due to single-point-of-failure exposure (Availability) or wide error propagation (Fault Tolerance) directly dictates whether to introduce load-balanced replicas or circuit-breaker policies.
 \end{itemize}
 
+\noindent This split mirrors Figure~\ref{fig:1}: Pathway A (RM/$Q(v)$) and Pathway B (Topo-BL/Topo-QoS/GL/HGL) answer different questions from the same graph, so Table~\ref{tab:7} and Figure~\ref{fig:5} report RM alongside the ranking predictors as a reference point rather than as a competing entry in that comparison.
+
 \subsection{Threats to Validity}
 \label{sec:8.2}
 

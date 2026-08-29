@@ -51,14 +51,14 @@ The corpus is regenerable rather than merely archived. Each dataset is produced 
 \subsection{Baselines and Evaluated Predictors}
 \label{sec:6.2}
 
-We compare four primary predictor configurations:
+We compare four primary predictor configurations, split into training-free baselines and the learned predictors proposed in this paper:
 \begin{enumerate}
-    \item \textbf{Topo-BL:} Unweighted structural centrality (betweenness centrality and articulation point scoring).
-    \item \textbf{Topo-QoS:} QoS-weighted topological centrality baseline.
-    \item \textbf{GL / GL-QoS:} Homogeneous Graph Attention Networks (GAT) \cite{velickovic2018graph} trained on the flattened, untyped graph projection.
-    \item \textbf{HGL / HGL-QoS:} Relation-specific Heterogeneous Graph Transformers (Section~\ref{sec:5}).
+    \item \textbf{Topo-BL} (baseline): Unweighted structural centrality (betweenness centrality and articulation point scoring).
+    \item \textbf{Topo-QoS} (baseline): QoS-weighted topological centrality baseline.
+    \item \textbf{GL / GL-QoS} (proposed): Homogeneous Graph Attention Networks (GAT) \cite{velickovic2018graph} trained on the flattened, untyped graph projection.
+    \item \textbf{HGL / HGL-QoS} (proposed): Relation-specific Heterogeneous Graph Transformers (Section~\ref{sec:5}).
 \end{enumerate}
-\noindent Every table additionally reports \textbf{RM / $Q(v)$} (the deterministic hierarchical quality attribution model of Section~\ref{sec:4}) as a non-competing diagnostic reference point, not as a fifth predictor: RM is not fitted to rank components, and its row exists to show how much the predictive path adds over static attribution (Section~\ref{sec:1.2}), not to compete on ranking accuracy.
+\noindent The out-of-distribution table (Table~\ref{tab:7}) additionally reports \textbf{RM / $Q(v)$} (the deterministic hierarchical quality attribution model of Section~\ref{sec:4}) as a non-competing diagnostic reference point, not as a fifth predictor: RM is not fitted to rank components, and its row exists to show how much the predictive path adds over static attribution (Section~\ref{sec:1.2}), not to compete on ranking accuracy. The same deterministic RM scorer is also the instrument behind every sensitivity sweep in Section~\ref{sec:7.3}: because RM is a closed-form function of its declared constants, sweeping those constants isolates their effect from training variance in a way the learned predictors cannot.
 
 \subsection{Evaluation Metrics and Protocols}
 \label{sec:6.3}
