@@ -143,7 +143,7 @@ where:
 - $\beta = 0.75$ (QoS weight), $\alpha = 0.15$ (Payload size weight), $\psi = 0.10$ (Publishing frequency weight), $w_{\min} = 0.01$.
 
 #### 1. QoS Score Formulation
-$$\text{QoS}(t) = 0.30 \cdot \text{Score}_{\text{reliability}} + 0.40 \cdot \text{Score}_{\text{durability}} + 0.30 \cdot \text{Score}_{\text{priority}}$$
+$$\text{QoS}(t) = 0.24 \cdot \text{Score}_{\text{reliability}} + 0.62 \cdot \text{Score}_{\text{durability}} + 0.14 \cdot \text{Score}_{\text{priority}}$$
 
 | QoS Attribute | Value | Score | Rationale |
 |:---|:---|:---:|:---|
@@ -151,10 +151,32 @@ $$\text{QoS}(t) = 0.30 \cdot \text{Score}_{\text{reliability}} + 0.40 \cdot \tex
 | **Durability** | `PERSISTENT`<br/>`TRANSIENT`<br/>`TRANSIENT_LOCAL`<br/>`VOLATILE` | `1.0`<br/>`0.6`<br/>`0.5`<br/>`0.0` | State survival across restarts ensures recoverability. |
 | **Transport Priority** | `HIGHEST` / `CRITICAL` / `URGENT`<br/>`HIGH`<br/>`MEDIUM`<br/>`LOW` | `1.0`<br/>`0.66`<br/>`0.33`<br/>`0.0` | Scheduling priority under queue contention. |
 
-#### 2. Size and Frequency Normalization
-$$\text{SizeNorm}(t) = \min\left(1.0, \; \frac{\log_2(1 + \text{size\_kb})}{50.0}\right) \quad (\text{where } \text{size\_kb} = \text{bytes} / 1024)$$
+The $(0.24, 0.62, 0.14)$ split is the geometric-mean priority vector of an
+independently-stated Saaty pairwise-comparison matrix
+(`AHPMatrices.criteria_topic_qos`), with a small but genuinely nonzero
+Consistency Ratio ($CR \approx 0.016$): Durability dominates because it
+governs whether data survives at all, while Reliability and Priority both
+govern in-flight delivery quality, with Reliability weighing somewhat more
+since an unconditional delivery guarantee precedes the scheduling of it.
 
-$$\text{FreqNorm}(t) = \min\left(1.0, \; \frac{\log_{10}(1 + f_t)}{3.0}\right) \quad (\text{where } f_t \text{ is message rate in Hz})$$
+Lookups are case-normalised (trimmed and upper-cased) before matching the
+score tables, so an authored value such as `"reliable"` scores identically to
+`"RELIABLE"` rather than silently falling through to `0.0`.
+
+#### 2. Size and Frequency Normalization
+$$\text{SizeNorm}(t) = \min\left(1.0, \; \frac{\log_2(1 + \text{size\_bytes})}{20.0}\right)$$
+
+$$\text{FreqNorm}(t) = \min\left(1.0, \; \frac{\log_{10}(1 + f_t)}{3.0}\right) \quad (\text{where } f_t \text{ is message rate in Hz, defaulting to } 1.0 \text{ Hz when unstated})$$
+
+SizeNorm operates on raw payload bytes against a 1 MiB design envelope
+($\log_2(1 + 2^{20}) \approx 20.0$) — the practical DDS sample ceiling before
+RTPS fragmentation dominates. An earlier KiB-based divisor of $50.0$ implied
+an unstated ~1 EiB envelope, under which alpha's declared 15% budget realized
+only ~2% of its share on real payloads (32 B – 32 KiB in the evaluation
+corpus); the corrected divisor restores that budget. The missing-frequency
+fallback is a single declared constant rather than a rate re-derived from the
+topic's own reliability × priority score, which previously fed the QoS term
+back into the nominally independent frequency term.
 
 > [!TIP]
 > **Edge Inheritance**: Once $w(t)$ is computed, all incident structural edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`) automatically inherit $w(t)$ and the topic's QoS vector.
@@ -176,8 +198,8 @@ Dependency:     Subscriber ─────────────────�
 |:---:|:---|:---|:---|
 | **1** | `app_to_app` | Subscriber $\to$ Topic $\leftarrow$ Publisher *(includes transitive library usage)* | Probabilistic union: $1 - \prod_{t \in T} (1 - w(t))$ |
 | **2** | `app_to_broker` | App $\to$ Topic $\leftarrow$ Broker *(publisher or subscriber)* | Probabilistic union: $1 - \prod_{t \in T} (1 - w(t))$ |
-| **3** | `node_to_node` | Node $B \to$ Node $A$ *(when hosted apps have an `app_to_app` dependency)* | Lifted union: $1 - \prod_{d} (1 - w(d))$ |
-| **4** | `node_to_broker` | Node $\to$ Broker *(when a hosted app depends on a broker)* | Lifted union: $1 - \prod_{d} (1 - w(d))$ |
+| **3** | `node_to_node` | Node $B \to$ Node $A$ *(when hosted apps have an `app_to_app` dependency)* | Worst-case lift: $\max_{d} w(d)$ |
+| **4** | `node_to_broker` | Node $\to$ Broker *(when a hosted app depends on a broker)* | Worst-case lift: $\max_{d} w(d)$ |
 | **5** | `app_to_lib` | Application $\to$ Library *(via `USES` relationship)* | Harmonic mean: $\frac{2 \cdot w(\text{app}) \cdot w(\text{lib})}{w(\text{app}) + w(\text{lib})}$ |
 | **6** | `broker_to_broker` | Broker $A \leftrightarrow$ Broker $B$ *(colocated on the same Node)* | Shared Node weight: $w(\text{node})$ |
 
@@ -185,6 +207,15 @@ Dependency:     Subscriber ─────────────────�
 When two applications communicate over multiple topics $T_{uv} = \{t_1, t_2, \dots, t_k\}$, they collapse into a single directed edge with:
 - **`path_count`** $= |T_{uv}|$ (integer coupling density).
 - **`weight`** $= 1 - \prod_{t \in T_{uv}} (1 - w(t))$ (monotonic failure exposure).
+
+Rules 3–4 use worst-case lift rather than this union: the probabilistic union
+assumes the combined events are independent, but the dependencies a node/broker
+lift are aggregates over overlapping sets of hosted apps and mediating topics,
+so that assumption fails and the union saturates almost every lifted edge to
+~1.0 (measured at 91–100% of `node_to_node` edges $\geq 0.95$ on the evaluation
+corpus under the union). A lifting node is exposed to the single most critical
+dependency any hosted component carries, which worst-case propagation
+captures correctly.
 
 ---
 
@@ -341,24 +372,25 @@ Let us trace a concrete system with two applications (`A0: SensorApp`, `A1: Moni
 
 ### 1. Topic Weight Calculation (Phase 3)
 - **QoS**: `RELIABLE` (1.0), `TRANSIENT_LOCAL` (0.5), `HIGH` (0.66)
-  $$\text{QoS\_score} = 0.30(1.0) + 0.40(0.5) + 0.30(0.66) = 0.698$$
-- **Size**: 64 bytes $\implies \text{SizeNorm} = \frac{\log_2(1 + 0.0625)}{50.0} \approx 0.00175$
-- **Frequency**: Derived from $r \cdot p = 1.0 \times 0.66 = 0.66 \implies f = 100\text{ Hz} \implies \text{FreqNorm} \approx 0.6681$
+  $$\text{QoS\_score} = 0.24(1.0) + 0.62(0.5) + 0.14(0.66) = 0.6424$$
+- **Size**: 64 bytes $\implies \text{SizeNorm} = \frac{\log_2(1 + 64)}{20.0} \approx 0.3011$
+- **Frequency**: declared explicitly at $f = 100\text{ Hz}$ (frequency is no longer derived from
+  QoS when unstated — see §4.3 — so this example states it directly) $\implies \text{FreqNorm} \approx 0.6681$
 - **Total Topic Weight**:
-  $$w(T0) = 0.75(0.698) + 0.15(0.00175) + 0.10(0.6681) \approx \mathbf{0.591}$$
+  $$w(T0) = 0.75(0.6424) + 0.15(0.3011) + 0.10(0.6681) \approx \mathbf{0.594}$$
 
 ### 2. Vertex Weight Aggregation (Phase 5a)
-- $w(\text{SensorApp}) = w(\text{MonitorApp}) = w(\text{MainBroker}) = \mathbf{0.591}$ (single topic power mean).
+- $w(\text{SensorApp}) = w(\text{MonitorApp}) = w(\text{MainBroker}) = \mathbf{0.594}$ (single topic power mean).
 - For `NavLib` ($\text{DG}_{\text{in}} = 2$ consuming apps):
-  $$w(\text{NavLib}) = 0.591 \times \left(1 + 0.15 \times \log_2(1 + 2)\right) \approx 0.591 \times 1.238 = \mathbf{0.732}$$
+  $$w(\text{NavLib}) = 0.594 \times \left(1 + 0.15 \times \log_2(1 + 2)\right) \approx 0.594 \times 1.238 = \mathbf{0.735}$$
 
 ### 3. Dependency Derivation & Edge Finalization (Phases 4 & 5b)
-- **`app_to_app`**: $\text{MonitorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{SensorApp}$ ($w = 0.591$, $\text{path\_count} = 1$)
-- **`app_to_broker`**: $\text{MonitorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{MainBroker}$ ($w = 0.591$)
-- **`app_to_broker`**: $\text{SensorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{MainBroker}$ ($w = 0.591$)
+- **`app_to_app`**: $\text{MonitorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{SensorApp}$ ($w = 0.594$, $\text{path\_count} = 1$)
+- **`app_to_broker`**: $\text{MonitorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{MainBroker}$ ($w = 0.594$)
+- **`app_to_broker`**: $\text{SensorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{MainBroker}$ ($w = 0.594$)
 - **`app_to_lib`**: $\text{SensorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{NavLib}$ with harmonic mean:
-  $$w_E = \frac{2 \times 0.591 \times 0.732}{0.591 + 0.732} = \mathbf{0.654}$$
-- **`app_to_lib`**: $\text{MonitorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{NavLib}$ ($w_E = \mathbf{0.654}$)
+  $$w_E = \frac{2 \times 0.594 \times 0.735}{0.594 + 0.735} = \mathbf{0.657}$$
+- **`app_to_lib`**: $\text{MonitorApp} \xrightarrow{\text{DEPENDS\_ON}} \text{NavLib}$ ($w_E = \mathbf{0.657}$)
 
 ---
 

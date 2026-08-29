@@ -12,8 +12,7 @@ from saag.core.ports.graph_repository import IGraphRepository
 from saag.core.models import (
     GraphData, ComponentData, EdgeData, QoSPolicy, compute_topic_weight,
     compute_effective_edge_weight, compute_harmonic_coupling, compute_power_mean_weight,
-    APP_HYBRID_MAX_COEFF, APP_HYBRID_MEAN_COEFF,
-    BROKER_HYBRID_MAX_COEFF, BROKER_HYBRID_MEAN_COEFF,
+    compute_lifted_edge_weight,
     LIB_FANOUT_GAMMA, MIN_TOPIC_WEIGHT,
 )
 from saag.core.utils import serialization
@@ -83,7 +82,16 @@ class MemoryRepository:
         # 1. Topic weights
         for topic in self.data["topics"]:
             qos = QoSPolicy.from_node_attrs(topic)
-            freq = topic.get("frequency")
+            # save_graph() flattens components before this runs (step 2 above),
+            # and flatten_component renames "frequency" to "topic_frequency"
+            # (saag.core.utils.serialization) to match the Neo4j property name
+            # -- so a bare topic.get("frequency") is always None here and every
+            # topic silently took the missing-frequency default. Every other
+            # frequency-reading consumer in the codebase (structural_analyzer,
+            # message_flow_simulator, visualization/collector,
+            # prediction/data_preparation, validation/service) already guards
+            # against this rename; this was the one that did not.
+            freq = topic.get("frequency", topic.get("topic_frequency"))
             # Negative sizes are clamped rather than rejected, matching the
             # `size <= 0 -> 0.0` branch of the Cypher size-norm expression.
             topic["weight"] = compute_topic_weight(
@@ -324,6 +332,12 @@ class MemoryRepository:
 
         node_to_node needs both endpoints hosted on *different* nodes; node_to_broker
         only needs the dependent app to be hosted, since the broker is the target.
+
+        Weight is the worst-case lift (``compute_lifted_edge_weight``), matching
+        ``Neo4jRepository``'s Rules 3-4. A probabilistic union is not valid here:
+        the lifted dependencies are aggregates over overlapping sets of hosted
+        apps and mediating topics, not independent events, and saturates almost
+        every edge to ~1.0 on the committed corpus.
         """
         node_node: Dict = {}
         node_broker: Dict = {}
@@ -338,14 +352,14 @@ class MemoryRepository:
 
         lifted = {
             (n1, n2, "node_to_node"): {
-                "weight": compute_effective_edge_weight(weights),
+                "weight": compute_lifted_edge_weight(weights),
                 "path_count": len(weights),
             }
             for (n1, n2), weights in node_node.items()
         }
         lifted.update({
             (node, broker, "node_to_broker"): {
-                "weight": compute_effective_edge_weight(weights),
+                "weight": compute_lifted_edge_weight(weights),
                 "path_count": len(weights),
             }
             for (node, broker), weights in node_broker.items()

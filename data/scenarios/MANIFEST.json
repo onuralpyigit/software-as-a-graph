@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-11T05:37:48+00:00",
-  "generator_commit": "610f7e73658c61e5e7569d126335421b798b0adb",
+  "generated_at": "2026-08-29T06:39:05+00:00",
+  "generator_commit": "a098b9b7a4a7590ac5886b1182382290a6ba3ef5",
   "regenerate_with": "PYTHONPATH=. python cli/generate_graph.py batch --input-dir data/scenarios --output-dir <dir> --force",
   "pooled_evaluation_suite": {
     "applications": 850,
@@ -51,7 +51,7 @@
         "nodes": 6,
         "libraries": 18
       },
-      "sha256": "103f897ba3fb1051d0b6ce99d24a61268d7abf12009138d3230cd1388a334cb1"
+      "sha256": "c3759238db963e2a8b342c2c95268dbf2b91e6154dc9b0a2672bd5f955728ac7"
     },
     "healthcare_system": {
       "config": "scenario_04_healthcare.yaml",
@@ -149,7 +149,7 @@
         "nodes": 8,
         "libraries": 8
       },
-      "sha256": "8b0a313a3b1751935e03b8349a0d4344be90c1ec4c5ac04ba29fbeea6dc7d18a"
+      "sha256": "82825354053c77599d78059c4e14774c9dc82110b9f3e6726fa8f679cd9bacca"
     },
     "integration_hub_migration_system": {
       "config": "scenario_11_integration_hub_migration.yaml",
@@ -163,7 +163,7 @@
         "nodes": 6,
         "libraries": 10
       },
-      "sha256": "fb566155214a76fb20edadd3a95d673a7e8a4a6eb97ccdfd370a97a2119436ff"
+      "sha256": "524cafc57e042a179315a53d2e46b4d6e8b477df6005cf9561930e7f21a0bec6"
     },
     "atm_system_tiny": {
       "config": "scenario_14_atm_tiny.yaml",
@@ -177,7 +177,7 @@
         "nodes": 3,
         "libraries": 3
       },
-      "sha256": "ba0b4c9dc64efd43e16b9065e80147a3cc0b216474cc777f51050cd032661a69"
+      "sha256": "39e21d1d82fedca6f1dd772f593b2653b86dfe16fc133686a44a4d56aa138c3e"
     },
     "atm_system_medium": {
       "config": "scenario_15_atm_medium.yaml",
@@ -191,7 +191,7 @@
         "nodes": 16,
         "libraries": 16
       },
-      "sha256": "1c3db4f394624412c71d717ac185741919302b2f8b831c4ced6d642e18b1411b"
+      "sha256": "5b4e5ba81b486452f3dae5463ce2d79ef9132784e7a8936c1ea8a4a838c6c598"
     },
     "atm_system_large": {
       "config": "scenario_16_atm_large.yaml",
@@ -205,7 +205,7 @@
         "nodes": 32,
         "libraries": 32
       },
-      "sha256": "05ba50d81c04f518c62106d5f439e9c7552a04aa81de069f202f3ffc3fea6075"
+      "sha256": "1a00d4f01ad7785ed976738478c73799240f937b3e3cb484b1a268f516bf79d0"
     },
     "atm_system_xlarge": {
       "config": "scenario_17_atm_xlarge.yaml",
@@ -219,7 +219,7 @@
         "nodes": 48,
         "libraries": 48
       },
-      "sha256": "08071d8897f97b1df4e160772ec2a992c2f00dcc21e29d8c1a87ef1c0064336d"
+      "sha256": "15c02b25f704dbfeafdf0aceea75a95233eb461af1fc41a39f8738f79845c97b"
     }
   }
 }

@@ -65,6 +65,20 @@ def test_topic_qos_matrix_reproduces_shipped_weights():
     assert result["durability"] == pytest.approx(QoSPolicy.W_DURABILITY, abs=0.01)
     assert result["priority"] == pytest.approx(QoSPolicy.W_PRIORITY, abs=0.01)
 
+    # Non-degeneracy: an earlier version of this matrix was solved backward
+    # from the target vector, which makes CR ~= 0 by construction (a matrix
+    # filled in to reproduce a chosen answer is consistent almost by
+    # definition) rather than by evidence of a genuine independent judgement.
+    # An honestly-elicited 3x3 matrix over non-trivial pairwise ratios is
+    # exceedingly unlikely to land on a CR this small by chance, so this
+    # floor catches a reconstructed matrix without pinning an exact value.
+    assert result["consistency_ratio"] > 0.005, (
+        "CR is suspiciously close to zero for a 3x3 matrix with non-trivial "
+        "off-diagonal ratios -- check that criteria_topic_qos was stated "
+        "independently rather than solved backward from W_RELIABILITY/"
+        "W_DURABILITY/W_PRIORITY."
+    )
+
 
 if __name__ == "__main__":
     test_shrinkage()

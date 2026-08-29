@@ -165,11 +165,26 @@ class AHPMatrices:
     criteria_availability: List[List[float]] = None
 
     # Topic QoS Importance: Reliability (Rel), Durability (Dur), Priority (Pri)
-    # Justifies the 0.30/0.40/0.30 split used in Phase 3 modeling (Intrinsic
+    # Justifies the 0.24/0.62/0.14 split used in Phase 3 modeling (Intrinsic
     # Weight Computation, docs/graph-model.md §4.3), i.e. QoSPolicy.W_RELIABILITY/
     # W_DURABILITY/W_PRIORITY in saag.core.models. Enforced by
     # tests/test_ahp_shrinkage.py::test_topic_qos_matrix_reproduces_shipped_weights
     # via AHPProcessor.compute_topic_qos_weights().
+    #
+    # An earlier version of this matrix ([[1,0.75,1],[1.33,1,1.33],[1,0.75,1]])
+    # was solved backward from the target vector (0.30, 0.40, 0.30) rather than
+    # stated independently, so its near-zero CR was an artifact of construction,
+    # not evidence of a genuine judgement -- a matrix filled in to reproduce a
+    # chosen answer is consistent almost by definition. The matrix below states
+    # three pairwise judgements independently, grounded in DDS QoS semantics
+    # (durability governs whether data survives at all; reliability and
+    # transport priority both govern in-flight delivery quality, with
+    # reliability -- an unconditional guarantee -- weighing somewhat more than
+    # priority, which only governs relative scheduling under contention), and
+    # is not forced to reproduce any particular target: its CR is small but
+    # genuinely nonzero (~0.016), reflecting the mild real inconsistency among
+    # three independently-stated judgements rather than perfect-by-construction
+    # agreement.
     criteria_topic_qos: List[List[float]] = None
 
     # Impact (I(v)): Reachability (RL), Fragmentation (FR), Throughput (TL), Flow Disruption (FD)
@@ -218,13 +233,15 @@ class AHPMatrices:
 
         if self.criteria_topic_qos is None:
             self.criteria_topic_qos = [
-                # Rel  Dur  Pri
-                [1.0, 0.75, 1.0],  # Rel: Slightly less critical than Durability
-                [1.33, 1.0, 1.33], # Dur: Most critical (state persistence)
-                [1.0, 0.75, 1.0],  # Pri: Same as Reliability
+                # Rel   Dur   Pri
+                [1.0,  1/3,  2.0],  # Rel: moderately less critical than Dur; moderately more than Pri
+                [3.0,  1.0,  4.0],  # Dur: moderately more critical than Rel; much more than Pri
+                [0.5,  0.25, 1.0],  # Pri: least critical (scheduling-only signal)
             ]
-            # Matrix check: Dur/Rel = 1.33, Rel/Dur = 0.75. 
-            # Calculated weights: [0.30, 0.40, 0.30]
+            # Geometric-mean priority vector ≈ [0.238, 0.625, 0.136] -> rounds to
+            # the shipped (0.24, 0.62, 0.14). lambda_max ≈ 3.018, CR ≈ 0.016 —
+            # small and genuinely nonzero, not the ≈0 a backward-solved matrix
+            # produces (see the class-level docstring above).
             
         if self.criteria_impact is None:
             self.criteria_impact = [

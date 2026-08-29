@@ -163,7 +163,7 @@ where `Q3` is the 75th percentile and `IQR = Q3 − Q1`. A component is flagged 
 
 ### 4.4 The RM Prediction Framework
 
-The RM framework maps structural metrics to two ISO/IEC 25010:2023 quality characteristics — Reliability and Maintainability. Reliability is itself hierarchical, composed of a Fault Tolerance and an Availability sub-characteristic. These characteristics provide the explanatory bridge between raw topological metrics and named anti-patterns, and they determine which anti-patterns a component is susceptible to. The formulas themselves — FT(v), A(v), R(v), M(v), Q(v), and the AHP/shrinkage/QoS-adaptation machinery behind their weights — are defined once, in [structural-analysis.md §11.2](structural-analysis.md#112-rm-formulas); they are not repeated here.
+The RM framework maps structural metrics to two ISO/IEC 25010:2023 quality characteristics — Reliability and Maintainability. Reliability is itself hierarchical, composed of a Fault Tolerance and an Availability sub-characteristic. These characteristics provide the explanatory bridge between raw topological metrics and named anti-patterns, and they determine which anti-patterns a component is susceptible to. The formulas themselves — FT(v), A(v), R(v), M(v), Q(v), and the AHP/shrinkage/QoS-adaptation machinery behind their weights — are defined once, in [structural-analysis.md §9.2](structural-analysis.md#92-exact-scoring-formulas); they are not repeated here.
 
 Each RM characteristic addresses a distinct operational concern:
 

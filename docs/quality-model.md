@@ -190,13 +190,17 @@ $$\begin{aligned}
 
 #### Topic QoS and Weight Formulation
 
-$$\text{QoS}(t) = 0.30 \cdot \text{Rel}(t) + 0.40 \cdot \text{Dur}(t) + 0.30 \cdot \text{Pri}(t)$$
+$$\text{QoS}(t) = 0.24 \cdot \text{Rel}(t) + 0.62 \cdot \text{Dur}(t) + 0.14 \cdot \text{Pri}(t)$$
 
-$$w(t) = \max\left(0.01, \; 0.85 \cdot \text{QoS}(t) + 0.15 \cdot \min\left(\frac{\log_2(1 + \text{size\_kb})}{50}, \; 1.0\right)\right)$$
+$$w(t) = \max\left(0.01, \; \min\left(1.0,\; 0.75 \cdot \text{QoS}(t) + 0.15 \cdot \text{SizeNorm}(t) + 0.10 \cdot \text{FreqNorm}(t)\right)\right)$$
 
-- **Weight Rationale**: Durability ($0.40$) is prioritized over Reliability ($0.30$) and Priority ($0.30$) because state preservation across network partitions is more critical than transient delivery quality in distributed pub/sub middleware.
-- **AHP Verification**: This $(0.30, 0.40, 0.30)$ distribution reproduces the geometric mean of the pairwise Saaty matrix in `AHPMatrices.criteria_topic_qos` with Consistency Ratio $CR \approx 0$.
-- **Beta ($\beta = 0.85$)**: Guarantees that QoS policy semantics govern $85\%$ of the weight, with payload size acting as a secondary scaling factor.
+$$\text{SizeNorm}(t) = \min\left(\frac{\log_2(1 + \text{size\_bytes})}{20}, \; 1.0\right), \qquad
+\text{FreqNorm}(t) = \min\left(\frac{\log_{10}(1 + f_t)}{3}, \; 1.0\right)$$
+
+See [graph-model.md §4.3](graph-model.md#43-phase-3-intrinsic-topic-weighting) for the full three-term derivation, including the size/frequency design envelopes; the two-term form previously shown here (a bare $0.85/0.15$ QoS/size split with no frequency term) was retired.
+
+- **Weight Rationale**: Durability ($0.62$) dominates Reliability ($0.24$) and Priority ($0.14$) because state preservation across network partitions and restarts is more consequential than either in-flight delivery quality signal in distributed pub/sub middleware; Reliability weighs somewhat more than Priority because an unconditional delivery guarantee precedes the scheduling of it.
+- **AHP Provenance**: This $(0.24, 0.62, 0.14)$ distribution is the geometric-mean priority vector of an independently-stated pairwise Saaty matrix in `AHPMatrices.criteria_topic_qos`, with a small but genuinely nonzero Consistency Ratio ($CR \approx 0.016$). An earlier version of the matrix was solved backward from a target $(0.30, 0.40, 0.30)$ vector rather than stated independently, which is why its $CR \approx 0$ was an artifact of construction rather than evidence of a real judgement — see that matrix's docstring in `saag/analysis/weight_calculator.py`.
 
 ---
 

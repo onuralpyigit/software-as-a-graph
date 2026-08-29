@@ -223,7 +223,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 200.0,
-      "criticality": "medium"
+      "criticality": "low"
     },
     {
       "id": "T13",

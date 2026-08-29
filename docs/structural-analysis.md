@@ -238,6 +238,19 @@ $$FOC(t) = \frac{\ln(1 + f(t)) \cdot s(t)}{\max_{t'} [\ln(1 + f(t')) \cdot s(t')
 
 *(where $f(t)$ is topic message frequency in Hz and $s(t)$ is subscriber count).*
 
+#### 5. QoS-Weighted In-Degree ($w_{in}$) — Topic Nodes Only
+Summed in-edge QoS weight across every incoming edge type (`PUBLISHES_TO` and
+broker `ROUTES`), rank-normalised against the whole component population, not
+against topics alone:
+
+$$w_{in}(v) = \sum_{(u,v) \in \text{InEdges}(v)} \text{weight}(u,v)$$
+
+`dependency_weight_in` was the QADS (QoS-weighted Attack-Dependent Surface)
+Tier-1 input to $V(v)$ before Vulnerability/Security was retired from the
+composite; the field was not retired with it — it was repurposed as the
+$CDPot_{\text{topic}}$ publisher-redundancy discount in $FT_{\text{topic}}(v)$
+(§9.2). Non-Topic node types read $0.0$.
+
 ---
 
 ### 7.2 Maintainability Inputs ($M$)

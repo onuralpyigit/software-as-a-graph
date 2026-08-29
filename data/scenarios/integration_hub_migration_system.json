@@ -67,7 +67,7 @@
         "transport_priority": "high"
       },
       "frequency": 1.0,
-      "criticality": "minimal"
+      "criticality": "critical"
     },
     {
       "id": "T1",
@@ -91,7 +91,7 @@
         "transport_priority": "critical"
       },
       "frequency": 1.0,
-      "criticality": "minimal"
+      "criticality": "critical"
     },
     {
       "id": "T3",
@@ -103,7 +103,7 @@
         "transport_priority": "medium"
       },
       "frequency": 10.0,
-      "criticality": "minimal"
+      "criticality": "medium"
     },
     {
       "id": "T4",
@@ -115,7 +115,7 @@
         "transport_priority": "high"
       },
       "frequency": 1.0,
-      "criticality": "minimal"
+      "criticality": "critical"
     },
     {
       "id": "T5",
@@ -139,7 +139,7 @@
         "transport_priority": "high"
       },
       "frequency": 10.0,
-      "criticality": "minimal"
+      "criticality": "low"
     },
     {
       "id": "T7",
@@ -151,7 +151,7 @@
         "transport_priority": "medium"
       },
       "frequency": 1.0,
-      "criticality": "minimal"
+      "criticality": "medium"
     },
     {
       "id": "T8",
@@ -175,7 +175,7 @@
         "transport_priority": "critical"
       },
       "frequency": 1.0,
-      "criticality": "minimal"
+      "criticality": "high"
     },
     {
       "id": "T10",
@@ -187,7 +187,7 @@
         "transport_priority": "low"
       },
       "frequency": 25.0,
-      "criticality": "minimal"
+      "criticality": "medium"
     },
     {
       "id": "T11",
@@ -199,7 +199,7 @@
         "transport_priority": "high"
       },
       "frequency": 1.0,
-      "criticality": "minimal"
+      "criticality": "medium"
     },
     {
       "id": "T12",
@@ -211,7 +211,7 @@
         "transport_priority": "medium"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T13",
@@ -235,7 +235,7 @@
         "transport_priority": "medium"
       },
       "frequency": 10.0,
-      "criticality": "minimal"
+      "criticality": "medium"
     },
     {
       "id": "T15",
@@ -247,7 +247,7 @@
         "transport_priority": "critical"
       },
       "frequency": 50.0,
-      "criticality": "minimal"
+      "criticality": "critical"
     },
     {
       "id": "T16",
@@ -259,7 +259,7 @@
         "transport_priority": "high"
       },
       "frequency": 25.0,
-      "criticality": "minimal"
+      "criticality": "medium"
     },
     {
       "id": "T17",
@@ -271,7 +271,7 @@
         "transport_priority": "low"
       },
       "frequency": 1.0,
-      "criticality": "minimal"
+      "criticality": "high"
     },
     {
       "id": "T18",
@@ -283,7 +283,7 @@
         "transport_priority": "medium"
       },
       "frequency": 1.0,
-      "criticality": "minimal"
+      "criticality": "critical"
     },
     {
       "id": "T19",
@@ -295,7 +295,7 @@
         "transport_priority": "medium"
       },
       "frequency": 1.0,
-      "criticality": "minimal"
+      "criticality": "high"
     }
   ],
   "applications": [

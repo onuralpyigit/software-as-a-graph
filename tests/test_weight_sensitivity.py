@@ -1,9 +1,29 @@
 
-import math
 import random
 import statistics
+from contextlib import contextmanager
+
 import pytest
-from saag.core.models import Topic, QoSPolicy
+from saag.core.models import Topic, QoSPolicy, compute_topic_weight
+
+
+@contextmanager
+def _perturbed_qos_weights(w_rel: float, w_dur: float, w_pri: float):
+    """Temporarily install a (W_RELIABILITY, W_DURABILITY, W_PRIORITY) triple.
+
+    ``QoSPolicy.calculate_weight`` reads these as class attributes at call
+    time, so patching them is enough to move ``compute_topic_weight`` without
+    a parallel reimplementation of the formula that could drift from it —
+    the earlier version of this test hand-rolled the formula inline (no
+    beta/alpha/psi, no frequency term, and a 0.20 cap on the size term that
+    does not exist in production) and so never exercised the shipped code.
+    """
+    saved = (QoSPolicy.W_RELIABILITY, QoSPolicy.W_DURABILITY, QoSPolicy.W_PRIORITY)
+    QoSPolicy.W_RELIABILITY, QoSPolicy.W_DURABILITY, QoSPolicy.W_PRIORITY = w_rel, w_dur, w_pri
+    try:
+        yield
+    finally:
+        QoSPolicy.W_RELIABILITY, QoSPolicy.W_DURABILITY, QoSPolicy.W_PRIORITY = saved
 
 def test_topic_weight_sensitivity():
     """
@@ -50,25 +70,20 @@ def test_topic_weight_sensitivity():
         p_rel = perturb(QoSPolicy.W_RELIABILITY)
         p_dur = perturb(QoSPolicy.W_DURABILITY)
         p_pri = perturb(QoSPolicy.W_PRIORITY)
-        
+
         # Re-normalize
         total = p_rel + p_dur + p_pri
         p_rel /= total
         p_dur /= total
         p_pri /= total
 
-        # Compute perturbed weights
-        trial_weights = {}
-        for t in topics:
-            # Manually calculate with perturbed weights
-            s_rel = QoSPolicy.RELIABILITY_SCORES.get(t.qos.reliability, 0.0)
-            s_dur = QoSPolicy.DURABILITY_SCORES.get(t.qos.durability, 0.0)
-            s_pri = QoSPolicy.PRIORITY_SCORES.get(t.qos.transport_priority, 0.0)
-            
-            qos_score = p_rel * s_rel + p_dur * s_dur + p_pri * s_pri
-            size_kb = t.size / 1024
-            size_weight = min(math.log2(1 + size_kb) / 50, 0.20)
-            trial_weights[t.id] = qos_score + size_weight
+        # Compute perturbed weights through the shipped formula
+        # (compute_topic_weight), not a parallel reimplementation of it.
+        with _perturbed_qos_weights(p_rel, p_dur, p_pri):
+            trial_weights = {
+                t.id: compute_topic_weight(t.qos, t.size, frequency=t.frequency)
+                for t in topics
+            }
 
         trial_ranking = sorted(topics, key=lambda t: trial_weights[t.id], reverse=True)
         trial_rank_ids = [t.id for t in trial_ranking]

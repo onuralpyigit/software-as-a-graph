@@ -25,10 +25,10 @@ from saag.core.models import (
     ComponentData, EdgeData, GraphData, QoSPolicy,
     MIN_TOPIC_WEIGHT, TOPIC_QOS_WEIGHT_BETA,
     TOPIC_SIZE_WEIGHT_ALPHA, TOPIC_FREQ_WEIGHT_PSI,
+    TOPIC_SIZE_NORM_DIVISOR, TOPIC_FREQ_NORM_DIVISOR,
+    TOPIC_DEFAULT_FREQUENCY_HZ,
     COMPONENT_POWER_MEAN_P,
-    APP_HYBRID_MAX_COEFF, APP_HYBRID_MEAN_COEFF,
-    BROKER_HYBRID_MAX_COEFF, BROKER_HYBRID_MEAN_COEFF,
-    LIB_FANOUT_GAMMA
+    LIB_FANOUT_GAMMA,
 )
 from . import config
 from saag.core.utils import serialization
@@ -432,13 +432,17 @@ class Neo4jRepository:
         The branches are generated from the ``QoSPolicy`` tables rather than
         spelled out, so the Cypher scorer cannot drift from the Python one —
         the drift that once made a CRITICAL topic score like a LOW one.
-        Values scoring 0.0 are left to the ELSE branch.
+        Values scoring 0.0 are left to the ELSE branch. The attribute is
+        upper-cased and trimmed before matching (mirrors ``QoSPolicy._canon``)
+        so a lowercase-authored value scores correctly instead of silently
+        falling through to 0.0.
         """
         branches = " ".join(
             f"WHEN '{value}' THEN {score}"
             for value, score in scores.items() if score
         )
-        return f"CASE {attribute} {branches} ELSE 0.0 END"
+        normalized = f"toUpper(trim(coalesce({attribute}, '')))"
+        return f"CASE {normalized} {branches} ELSE 0.0 END"
 
     def _get_qos_weight_cypher(self, topic_var: str) -> str:
         """
@@ -449,9 +453,14 @@ class Neo4jRepository:
         beta = TOPIC_QOS_WEIGHT_BETA
         alpha = TOPIC_SIZE_WEIGHT_ALPHA
         psi = TOPIC_FREQ_WEIGHT_PSI
-        size_kb = f"{topic_var}.size / 1024.0"
-        log2_size = f"(log(1 + {size_kb}) / (log(2) * 50.0))"
-        log10_freq = f"(log(1 + {topic_var}.frequency) / (log(10) * 3.0))"
+        # SizeNorm operates on raw bytes against TOPIC_SIZE_NORM_DIVISOR
+        # (saag.core.models.compute_size_norm) rather than a KiB-based /50.0
+        # divisor, which implied an unstated ~1 EiB envelope.
+        log2_size = f"(log(1 + {topic_var}.size) / (log(2) * {TOPIC_SIZE_NORM_DIVISOR}))"
+        log10_freq = f"(log(1 + {topic_var}.frequency) / (log(10) * {TOPIC_FREQ_NORM_DIVISOR}))"
+        log10_default_freq = (
+            f"(log(1 + {TOPIC_DEFAULT_FREQUENCY_HZ}) / (log(10) * {TOPIC_FREQ_NORM_DIVISOR}))"
+        )
 
         r_score = self._score_case_cypher(f'{topic_var}.qos_reliability', QoSPolicy.RELIABILITY_SCORES)
         d_score = self._score_case_cypher(f'{topic_var}.qos_durability', QoSPolicy.DURABILITY_SCORES)
@@ -469,18 +478,17 @@ class Neo4jRepository:
             f"ELSE {log2_size} END"
         )
 
+        # Missing frequency falls back to TOPIC_DEFAULT_FREQUENCY_HZ, a
+        # declared constant (saag.core.models.compute_freq_norm) — not a
+        # rate derived from reliability x priority, which fed the QoS term
+        # back into the nominally independent frequency term.
         freq_norm = (
-            f"CASE WHEN {topic_var}.frequency IS NOT NULL "
+            f"CASE WHEN {topic_var}.frequency IS NOT NULL AND {topic_var}.frequency > 0 "
             f"THEN CASE WHEN {log10_freq} > 1.0 THEN 1.0 WHEN {log10_freq} < 0.0 THEN 0.0 ELSE {log10_freq} END "
-            f"WHEN {topic_var}.topic_frequency IS NOT NULL "
-            f"THEN CASE WHEN (log(1 + {topic_var}.topic_frequency)/(log(10)*3.0)) > 1.0 THEN 1.0 ELSE (log(1 + {topic_var}.topic_frequency)/(log(10)*3.0)) END "
-            f"ELSE (CASE "
-            f"  WHEN ({r_score} * {p_score}) >= 0.81 THEN (log(1 + 200.0) / (log(10) * 3.0)) "
-            f"  WHEN ({r_score} * {p_score}) >= 0.56 THEN (log(1 + 100.0) / (log(10) * 3.0)) "
-            f"  WHEN ({r_score} * {p_score}) >= 0.44 THEN (log(1 + 50.0) / (log(10) * 3.0)) "
-            f"  WHEN ({r_score} * {p_score}) >= 0.31 THEN (log(1 + 25.0) / (log(10) * 3.0)) "
-            f"  WHEN ({r_score} * {p_score}) >= 0.13 THEN (log(1 + 10.0) / (log(10) * 3.0)) "
-            f"  ELSE (log(1 + 1.0) / (log(10) * 3.0)) END) END"
+            f"WHEN {topic_var}.topic_frequency IS NOT NULL AND {topic_var}.topic_frequency > 0 "
+            f"THEN CASE WHEN (log(1 + {topic_var}.topic_frequency)/(log(10)*{TOPIC_FREQ_NORM_DIVISOR})) > 1.0 "
+            f"THEN 1.0 ELSE (log(1 + {topic_var}.topic_frequency)/(log(10)*{TOPIC_FREQ_NORM_DIVISOR})) END "
+            f"ELSE {log10_default_freq} END"
         )
 
         weighted_sum = f"({beta} * {qos_score} + {alpha} * {size_norm} + {psi} * {freq_norm})"

@@ -28,9 +28,9 @@ class TestQoSPolicy:
     """Tests for QoSPolicy weight calculation matching §1.5 scoring table."""
 
     def test_default_qos_weight(self):
-        """Default QoS (BEST_EFFORT, VOLATILE, MEDIUM) → ~0.1 (0.3*0 + 0.4*0 + 0.3*0.33)."""
+        """Default QoS (BEST_EFFORT, VOLATILE, MEDIUM) → ~0.046 (0.24*0 + 0.62*0 + 0.14*0.33)."""
         policy = QoSPolicy()
-        assert policy.calculate_weight() == pytest.approx(0.1, abs=0.01)
+        assert policy.calculate_weight() == pytest.approx(0.14 * 0.33, abs=0.005)
 
     def test_maximum_qos_weight(self):
         """Maximum QoS (RELIABLE + PERSISTENT + URGENT) → 1.0 (0.3*1 + 0.4*1 + 0.3*1)."""
@@ -53,14 +53,14 @@ class TestQoSPolicy:
     # --- Individual QoS attribute tests (justified weights) ---
 
     @pytest.mark.parametrize("reliability, durability, transport_priority, expected", [
-        ("RELIABLE", "VOLATILE", "LOW", 0.3),          # reliability weight = 0.30
-        ("BEST_EFFORT", "PERSISTENT", "LOW", 0.4),     # durability weight = 0.40
-        ("BEST_EFFORT", "TRANSIENT_LOCAL", "LOW", 0.2),  # transient local (0.5) * 0.40 = 0.20
-        ("BEST_EFFORT", "TRANSIENT", "LOW", 0.24),     # transient (0.6) * 0.40 = 0.24
-        ("BEST_EFFORT", "VOLATILE", "URGENT", 0.3),    # urgent (1.0) * priority weight (0.30) = 0.30
-        ("BEST_EFFORT", "VOLATILE", "HIGH", 0.2),      # high (0.66) * 0.30 ≈ 0.20
-        ("BEST_EFFORT", "VOLATILE", "MEDIUM", 0.1),    # medium (0.33) * 0.30 ≈ 0.10
-        ("BEST_EFFORT", "VOLATILE", "LOW", 0.0),       # low priority adds 0
+        ("RELIABLE", "VOLATILE", "LOW", 0.24),           # reliability weight = 0.24
+        ("BEST_EFFORT", "PERSISTENT", "LOW", 0.62),      # durability weight = 0.62
+        ("BEST_EFFORT", "TRANSIENT_LOCAL", "LOW", 0.31),  # transient local (0.5) * 0.62 = 0.31
+        ("BEST_EFFORT", "TRANSIENT", "LOW", 0.372),      # transient (0.6) * 0.62 = 0.372
+        ("BEST_EFFORT", "VOLATILE", "URGENT", 0.14),     # urgent (1.0) * priority weight (0.14) = 0.14
+        ("BEST_EFFORT", "VOLATILE", "HIGH", 0.0924),     # high (0.66) * 0.14 ≈ 0.0924
+        ("BEST_EFFORT", "VOLATILE", "MEDIUM", 0.0462),   # medium (0.33) * 0.14 ≈ 0.0462
+        ("BEST_EFFORT", "VOLATILE", "LOW", 0.0),         # low priority adds 0
     ])
     def test_individual_qos_attribute_weight(self, reliability, durability, transport_priority, expected):
         policy = QoSPolicy(reliability=reliability, durability=durability, transport_priority=transport_priority)
@@ -92,21 +92,41 @@ class TestTopicWeight:
     """Tests for Topic.calculate_weight() with minimum weight floor."""
 
     def test_minimum_weight_floor(self):
-        """Lowest possible topic (LOW QoS, tiny size) still gets ε = MIN_TOPIC_WEIGHT."""
+        """A topic with genuinely zero signal on every term still gets ε = MIN_TOPIC_WEIGHT.
+
+        ``Topic.__post_init__`` always auto-assigns a nonzero generator frequency
+        (>= 1 Hz) when none is supplied, so a *realistic* topic never actually
+        reaches the floor (see ``test_realistic_tiny_topic_no_longer_floors``
+        below) — the floor clamp is exercised directly here via
+        ``compute_topic_weight`` with an explicit near-zero frequency instead.
+        """
+        from saag.core.models import compute_topic_weight
+
+        qos = QoSPolicy(reliability="BEST_EFFORT", durability="VOLATILE", transport_priority="LOW")
+        weight = compute_topic_weight(qos, size=0, frequency=1e-9)
+        assert weight == pytest.approx(MIN_TOPIC_WEIGHT, abs=1e-6)
+        assert weight > 0.0, "Topic weight must never be zero"
+
+    def test_realistic_tiny_topic_no_longer_floors(self):
+        """1-byte, LOW-QoS topic with the generator's auto-assigned frequency.
+
+        SizeNorm's envelope moved from an unstated ~1 EiB (KiB-based /50.0
+        divisor) to a documented 1 MiB (TOPIC_SIZE_ENVELOPE_BYTES), so alpha's
+        declared 15% budget is no longer negligible even at the smallest
+        payload — this topic no longer collapses to the floor the way it did
+        before the rescale.
+        """
         topic = Topic(
-            id="t0", name="minimal",
-            size=1,  # 1 byte → size_kb ≈ 0.001 → score ≈ log2(1.001)/50 ≈ 0.00002
+            id="t0", name="minimal", size=1,
             qos=QoSPolicy(reliability="BEST_EFFORT", durability="VOLATILE", transport_priority="LOW"),
         )
-        weight = topic.calculate_weight()
-        assert weight == pytest.approx(MIN_TOPIC_WEIGHT, abs=0.001)
-        assert weight > 0.0, "Topic weight must never be zero"
+        assert topic.calculate_weight() > MIN_TOPIC_WEIGHT + 0.005
 
     def test_small_topic_weight(self):
         """1 KB topic with default QoS."""
         topic = Topic(id="t1", name="small", size=1024)
         weight = topic.calculate_weight()
-        assert 0.085 < weight < 0.090
+        assert 0.115 < weight < 0.125
 
     def test_medium_topic_weight(self):
         """64 KB topic with RELIABLE QoS."""
@@ -116,7 +136,7 @@ class TestTopicWeight:
             qos=QoSPolicy(reliability="RELIABLE"),
         )
         weight = topic.calculate_weight()
-        assert 0.35 < weight < 0.38
+        assert 0.37 < weight < 0.40
 
     def test_max_topic_weight(self):
         """Maximum QoS + large size."""
@@ -126,20 +146,20 @@ class TestTopicWeight:
             qos=QoSPolicy(reliability="RELIABLE", durability="PERSISTENT", transport_priority="URGENT"),
         )
         weight = topic.calculate_weight()
-        assert weight == pytest.approx(0.857, abs=0.02)
+        assert weight == pytest.approx(0.977, abs=0.02)
 
     def test_size_score_formula(self):
-        """Verify w = max(MIN, beta*QoS + alpha*size_norm + psi*freq_norm) exactly."""
+        """Verify w = max(MIN, beta*QoS + alpha*size_norm + psi*freq_norm) exactly.
+
+        Reads SizeNorm/FreqNorm through ``compute_size_norm``/``compute_freq_norm``
+        rather than reimplementing the envelope math inline, so this test cannot
+        drift from the shipped formula the way an earlier version of it did.
+        """
         from saag.core.models import (
             TOPIC_QOS_WEIGHT_BETA, TOPIC_SIZE_WEIGHT_ALPHA, TOPIC_FREQ_WEIGHT_PSI,
+            compute_size_norm, compute_freq_norm,
         )
-        expected_freq_norm = math.log10(2.0) / 3.0
-        test_cases = [
-            (64, min(math.log2(1 + 64 / 1024) / 50, 1.0)),
-            (1024, min(math.log2(1 + 1024 / 1024) / 50, 1.0)),
-            (65536, min(math.log2(1 + 65536 / 1024) / 50, 1.0)),
-        ]
-        for size, expected_size_norm in test_cases:
+        for size in (64, 1024, 65536):
             topic = Topic(
                 id="t", name="test", size=size,
                 qos=QoSPolicy(reliability="BEST_EFFORT", durability="VOLATILE", transport_priority="LOW"),
@@ -148,8 +168,8 @@ class TestTopicWeight:
             expected = max(
                 MIN_TOPIC_WEIGHT,
                 TOPIC_QOS_WEIGHT_BETA * 0.0 +
-                TOPIC_SIZE_WEIGHT_ALPHA * expected_size_norm +
-                TOPIC_FREQ_WEIGHT_PSI * expected_freq_norm
+                TOPIC_SIZE_WEIGHT_ALPHA * compute_size_norm(topic.size) +
+                TOPIC_FREQ_WEIGHT_PSI * compute_freq_norm(topic.frequency)
             )
             assert weight == pytest.approx(expected, abs=0.001), f"Failed for size={size}"
 
@@ -403,9 +423,12 @@ class TestNeo4jGraphImport:
         assert lib.weight == pytest.approx(0.012377, abs=0.001)
 
     def test_broker_hybrid_weight(self, neo4j_repo):
-        """Test broker hybrid weight calculation: 0.70 * max + 0.30 * avg."""
-        # Topic 1: RELIABLE + PERSISTENT + URGENT -> weight 1.0 + size weight (0) = 1.0
-        # Topic 2: RELIABLE + TRANSIENT_LOCAL + LOW -> 0.3(Rel) + 0.4*0.5(Dur) + 0.0(Pri) = 0.5 + size weight (0) = 0.5
+        """Test broker hybrid weight calculation: Generalized Power Mean (p=3).
+
+        w(t1) = compute_topic_weight(RELIABLE+PERSISTENT+URGENT, size=0) ~= 0.7600
+        w(t2) = compute_topic_weight(RELIABLE+TRANSIENT_LOCAL+LOW, size=0) ~= 0.3850
+        (no explicit frequency -> TOPIC_DEFAULT_FREQUENCY_HZ fallback for both)
+        """
         graph_data = {
             "brokers": [
                 {"id": "b1", "name": "Broker 1"}
@@ -432,8 +455,8 @@ class TestNeo4jGraphImport:
         neo4j_repo.save_graph(graph_data, clear=True)
         
         broker = neo4j_repo.get_graph_data(component_types=["Broker"]).components[0]
-        # Power Mean (p=3) over routed topics: ((w(t1)^3 + w(t2)^3)/2)^(1/3) ≈ 0.6776
-        assert broker.weight == pytest.approx(0.6776, abs=0.01)
+        # Power Mean (p=3) over routed topics: ((w(t1)^3 + w(t2)^3)/2)^(1/3) ≈ 0.6283
+        assert broker.weight == pytest.approx(0.6283, abs=0.01)
 
     def test_application_hybrid_weight(self, neo4j_repo):
         """Test application weight calculation using Generalized Power Mean (p=3)."""
@@ -463,6 +486,7 @@ class TestNeo4jGraphImport:
         neo4j_repo.save_graph(graph_data, clear=True)
         
         app = neo4j_repo.get_graph_data(component_types=["Application"]).components[0]
-        # Power Mean (p=3) over attached topics: ((w(t1)^3 + w(t2)^3)/2)^(1/3) ≈ 0.6776
-        assert app.weight == pytest.approx(0.6776, abs=0.01)
+        # Power Mean (p=3) over attached topics: ((w(t1)^3 + w(t2)^3)/2)^(1/3) ≈ 0.6283
+        # (same two topic QoS profiles as test_broker_hybrid_weight above.)
+        assert app.weight == pytest.approx(0.6283, abs=0.01)
 

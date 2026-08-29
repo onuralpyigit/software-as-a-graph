@@ -64,16 +64,34 @@ TOPIC_QOS_WEIGHT_BETA: float = 0.75
 TOPIC_SIZE_WEIGHT_ALPHA: float = 0.15
 TOPIC_FREQ_WEIGHT_PSI: float = 0.10
 
+#: Payload design envelope for SizeNorm: log2-normalises raw message bytes
+#: against a practical DDS sample ceiling before RTPS fragmentation dominates
+#: (OMG DDSI-RTPS 2.3 §8.4.14). Replaces an earlier undocumented KiB-based
+#: divisor of 50.0, which implied a ~1 EiB envelope and left SizeNorm — and
+#: therefore alpha's declared 15% budget — realizing only ~2% of its share on
+#: real payloads (see reproduce/weight_dispersion_diagnostic.py).
+TOPIC_SIZE_ENVELOPE_BYTES: float = 2.0 ** 20
+TOPIC_SIZE_NORM_DIVISOR: float = math.log2(1.0 + TOPIC_SIZE_ENVELOPE_BYTES)  # == 20.0
+
+#: Publish-rate design envelope for FreqNorm: log10-normalises Hz against a
+#: ~1 kHz ceiling. Chosen so log10(1 + envelope) == 3.0 exactly, reproducing
+#: the previously unnamed literal divisor bit-for-bit — this is a naming
+#: change only, not a rescale (unlike TOPIC_SIZE_ENVELOPE_BYTES above).
+TOPIC_FREQ_ENVELOPE_HZ: float = 999.0
+TOPIC_FREQ_NORM_DIVISOR: float = math.log10(1.0 + TOPIC_FREQ_ENVELOPE_HZ)  # == 3.0
+
+#: Declared default publish rate used only when a topic supplies no frequency.
+#: The prior fallback derived a rate from the topic's own reliability x
+#: priority score, feeding a QoS-derived value back into the nominally
+#: independent frequency term of w(t). A single declared constant removes
+#: that circularity; every scenario in the committed corpus supplies an
+#: explicit frequency, so this path is not exercised in practice.
+TOPIC_DEFAULT_FREQUENCY_HZ: float = 1.0
+
 #: AHP Shrinkage Factor (λ) for weight distribution smoothing.
 #: Applied as: w_final = λ * w_ahp + (1 - λ) * w_uniform.
 #: Rationale: Blends expert AHP judgment with a uniform prior to reduce over-fitting/bias.
 AHP_SHRINKAGE_LAMBDA: float = 0.70
-
-#: Hybrid weight coefficients for aggregate components (Legacy backward compatibility)
-APP_HYBRID_MAX_COEFF: float = 0.80
-APP_HYBRID_MEAN_COEFF: float = 0.20
-BROKER_HYBRID_MAX_COEFF: float = 0.70
-BROKER_HYBRID_MEAN_COEFF: float = 0.30
 
 #: Power mean exponent (p) for smooth worst-case component aggregation
 COMPONENT_POWER_MEAN_P: float = 3.0
@@ -121,6 +139,25 @@ def compute_harmonic_coupling(w1: float, w2: float) -> float:
         return MIN_TOPIC_WEIGHT
     harmonic = 2.0 * (w1 * w2) / (w1 + w2)
     return max(MIN_TOPIC_WEIGHT, min(1.0, harmonic))
+
+
+def compute_lifted_edge_weight(weights: List[float]) -> float:
+    """Compute the worst-case lift for Rules 3-4 (node_to_node, node_to_broker).
+
+    w_E = max(w_1, ..., w_n)
+
+    ``compute_effective_edge_weight``'s probabilistic union assumes the events
+    it combines are independent (Pearl 1988). Rules 3-4 lift dependencies that
+    are already aggregated over overlapping sets of hosted apps and mediating
+    topics, so that assumption fails, and the union saturates: measured at
+    91-100% of node_to_node edges >= 0.95 on the committed corpus. Worst-case
+    propagation is the correct operator for a lifted dependency — the lifting
+    node is exposed to the single most critical dependency any hosted
+    component carries, not to the union of all of them.
+    """
+    if not weights:
+        return MIN_TOPIC_WEIGHT
+    return max(MIN_TOPIC_WEIGHT, min(1.0, max(float(w) for w in weights)))
 
 
 def compute_power_mean_weight(weights: List[float], p: float = COMPONENT_POWER_MEAN_P) -> float:
@@ -229,14 +266,21 @@ class QoSPolicy:
         "HIGHEST": 1.0,
     }
     
-    # Justification (AHP): 
-    # Durability (0.4) > Reliability (0.3) = Priority (0.3)
-    # Rationale: In DDS systems, durability defines state survival which is 
-    # fundamentally critical for resilience, while reliability/priority 
-    # govern transient delivery quality.
-    W_RELIABILITY: ClassVar[float] = 0.30
-    W_DURABILITY: ClassVar[float] = 0.40
-    W_PRIORITY: ClassVar[float] = 0.30
+    # Justification (AHP): Durability (0.62) > Reliability (0.24) > Priority (0.14).
+    # Rationale: in DDS systems, durability governs whether data survives at
+    # all (state persistence across restarts/partitions), which is why it
+    # dominates; reliability (an unconditional delivery guarantee) and
+    # transport priority (relative scheduling under contention) both govern
+    # in-flight delivery quality rather than survival, with reliability
+    # weighing somewhat more since a guarantee precedes the scheduling of it.
+    # This is the geometric-mean priority vector of an independently-stated
+    # Saaty matrix (AHPMatrices.criteria_topic_qos, CR ~= 0.016 — see that
+    # matrix's docstring for why a small nonzero CR is the honest result here,
+    # not a defect). Enforced by
+    # tests/test_ahp_shrinkage.py::test_topic_qos_matrix_reproduces_shipped_weights.
+    W_RELIABILITY: ClassVar[float] = 0.24
+    W_DURABILITY: ClassVar[float] = 0.62
+    W_PRIORITY: ClassVar[float] = 0.14
 
     durability: str = "VOLATILE"
     reliability: str = "BEST_EFFORT"
@@ -250,11 +294,23 @@ class QoSPolicy:
         }
 
     @staticmethod
+    def _canon(value: Any, default: str) -> str:
+        """Canonicalise a raw QoS enum value: trim whitespace, upper-case.
+
+        Scenario generators and hand-authored topologies mix case
+        (``"reliable"`` vs ``"RELIABLE"``); the score tables are upper-case
+        only, so an unnormalised lookup silently fell through to 0.0 —
+        scoring a lowercase-authored CRITICAL/PERSISTENT/RELIABLE topic
+        identically to a LOW/VOLATILE/BEST_EFFORT one.
+        """
+        return str(value).strip().upper() if value else default
+
+    @staticmethod
     def from_dict(data: Dict[str, Any]) -> "QoSPolicy":
         return QoSPolicy(
-            durability=data.get("durability", "VOLATILE"),
-            reliability=data.get("reliability", "BEST_EFFORT"),
-            transport_priority=data.get("transport_priority", "MEDIUM")
+            durability=QoSPolicy._canon(data.get("durability"), "VOLATILE"),
+            reliability=QoSPolicy._canon(data.get("reliability"), "BEST_EFFORT"),
+            transport_priority=QoSPolicy._canon(data.get("transport_priority"), "MEDIUM"),
         )
 
     @staticmethod
@@ -275,38 +331,39 @@ class QoSPolicy:
         """
         nested = attrs.get("qos") or attrs.get("qos_policy") or {}
         return QoSPolicy(
-            durability=(
-                attrs.get("qos_durability")
-                or nested.get("durability")
-                or "VOLATILE"
+            durability=QoSPolicy._canon(
+                attrs.get("qos_durability") or nested.get("durability"), "VOLATILE"
             ),
-            reliability=(
-                attrs.get("qos_reliability")
-                or nested.get("reliability")
-                or "BEST_EFFORT"
+            reliability=QoSPolicy._canon(
+                attrs.get("qos_reliability") or nested.get("reliability"), "BEST_EFFORT"
             ),
-            transport_priority=(
+            transport_priority=QoSPolicy._canon(
                 attrs.get("qos_transport_priority")
                 or attrs.get("qos_priority")
                 or nested.get("transport_priority")
-                or nested.get("priority")
-                or "MEDIUM"
+                or nested.get("priority"),
+                "MEDIUM",
             ),
         )
-    
+
     def calculate_weight(self) -> float:
         """
         Calculates the weighted QoS score based on AHP-derived coefficients.
-        
+
         QoS = 0.30*Rel + 0.40*Dur + 0.30*Pri
+
+        Lookups are case-normalised (see ``_canon``) so a policy built by
+        direct construction with a lowercase value — bypassing ``from_dict``/
+        ``from_node_attrs`` — still scores correctly rather than silently
+        falling through to 0.0.
         """
-        s_reliability = self.RELIABILITY_SCORES.get(self.reliability, 0.0)
-        s_durability = self.DURABILITY_SCORES.get(self.durability, 0.0)
-        s_priority = self.PRIORITY_SCORES.get(self.transport_priority, 0.0)
-        
+        s_reliability = self.RELIABILITY_SCORES.get(self._canon(self.reliability, ""), 0.0)
+        s_durability = self.DURABILITY_SCORES.get(self._canon(self.durability, ""), 0.0)
+        s_priority = self.PRIORITY_SCORES.get(self._canon(self.transport_priority, ""), 0.0)
+
         return (
-            self.W_RELIABILITY * s_reliability + 
-            self.W_DURABILITY * s_durability + 
+            self.W_RELIABILITY * s_reliability +
+            self.W_DURABILITY * s_durability +
             self.W_PRIORITY * s_priority
         )
 
@@ -488,6 +545,30 @@ class Topic(GraphEntity):
         return compute_topic_weight(self.qos, self.size, frequency=self.frequency)
 
 
+def compute_size_norm(size: float) -> float:
+    """SizeNorm(t) = min(1.0, log2(1 + size_bytes) / log2(1 + envelope)).
+
+    Extracted from ``compute_topic_weight`` so the realized-dynamic-range
+    diagnostic (``reproduce/weight_dispersion_diagnostic.py``) can measure this
+    term without a parallel reimplementation that could drift from it.
+    """
+    size_bytes = max(0.0, float(size))
+    return min(math.log2(1.0 + size_bytes) / TOPIC_SIZE_NORM_DIVISOR, 1.0)
+
+
+def compute_freq_norm(frequency: Optional[float]) -> float:
+    """FreqNorm(t) = min(1.0, log10(1 + f) / log10(1 + envelope)).
+
+    Falls back to ``TOPIC_DEFAULT_FREQUENCY_HZ`` — a declared constant — when
+    no frequency is supplied, rather than deriving one from the topic's own
+    reliability x priority score. The QoS score already carries that signal;
+    re-deriving a frequency from it made the frequency term partially
+    re-encode the QoS term it is supposed to be independent of.
+    """
+    f = float(frequency) if frequency and frequency > 0 else TOPIC_DEFAULT_FREQUENCY_HZ
+    return min(math.log10(1.0 + f) / TOPIC_FREQ_NORM_DIVISOR, 1.0)
+
+
 def compute_topic_weight(
     qos: "QoSPolicy",
     size: int,
@@ -499,21 +580,8 @@ def compute_topic_weight(
     :class:`Topic` can reach the same formula the repositories use.
     """
     qos_score = qos.calculate_weight()
-    size_kb = max(0.0, float(size)) / 1024.0
-    size_norm = min(math.log2(1.0 + size_kb) / 50.0, 1.0)
-
-    if frequency is not None and frequency > 0:
-        freq_norm = min(math.log10(1.0 + float(frequency)) / 3.0, 1.0)
-    else:
-        # Fall back to reliability × priority bin lookup
-        score_map = QoSPolicy.RELIABILITY_SCORES
-        r = score_map.get(qos.reliability, 0.0)
-        p = QoSPolicy.PRIORITY_SCORES.get(qos.transport_priority, 0.0)
-        combined = r * p
-        bin_idx = int(combined * len(TOPIC_FREQUENCY_HZ))
-        bin_idx = max(0, min(bin_idx, len(TOPIC_FREQUENCY_HZ) - 1))
-        freq_val = float(TOPIC_FREQUENCY_HZ[bin_idx])
-        freq_norm = min(math.log10(1.0 + freq_val) / 3.0, 1.0)
+    size_norm = compute_size_norm(size)
+    freq_norm = compute_freq_norm(frequency)
 
     weight = (
         TOPIC_QOS_WEIGHT_BETA * qos_score +

@@ -257,41 +257,47 @@ def _derive_depends_on_edges(topology: Dict) -> List[Dict]:
         if src and dst and "qos_profile" in r:
             sub_qos[(str(src), str(dst))] = r["qos_profile"]
 
+    from saag.core.models import compute_effective_edge_weight
+
     edges: List[Dict] = []
     seen: set = set()
 
     # Rule 1 — app_to_app: subscriber depends on publisher (via shared topic).
-    # One pair may share several topics; the strongest QoS contract between them
-    # governs the dependency, so we keep the max w(t) rather than the first seen.
-    edge_index: Dict[Tuple[str, str], int] = {}
+    # One pair may share several topics; docs/graph-model.md §4.4 and both
+    # repositories (Neo4jRepository, MemoryRepository) combine them via the
+    # probabilistic union w_E = 1 - prod(1 - w(t)), not the strongest single
+    # contract. Collect every mediating topic's weight per pair first, then
+    # apply the same operator, so this research path cannot diverge from the
+    # documented one — the earlier "keep the max" merge was a fourth,
+    # disagreeing implementation of the same formula.
+    pair_topics: Dict[Tuple[str, str], List[str]] = {}
     for topic_id, publishers in topic_publishers.items():
-        w = topic_weight.get(topic_id, 1.0)
         for subscriber in topic_subscribers.get(topic_id, set()):
             for publisher in publishers:
                 if subscriber == publisher:
                     continue
-                key = (subscriber, publisher)
-                qp = (pub_qos.get((publisher, topic_id))
-                      or sub_qos.get((subscriber, topic_id))
-                      or (topic_attrs.get(topic_id, {}).get("qos") or {}))
-                if key in edge_index:
-                    e = edges[edge_index[key]]
-                    if w > e["qos_weight"]:
-                        e["qos_weight"] = w
-                        e["qos_profile"] = qp
-                        e["via_topic"] = topic_id
-                    continue
-                seen.add(key)
-                edge_index[key] = len(edges)
-                edges.append({
-                    "source": subscriber,
-                    "target": publisher,
-                    "type": "app_to_app",
-                    "weight": 1.0,
-                    "qos_weight": w,
-                    "qos_profile": qp,
-                    "via_topic": topic_id,
-                })
+                pair_topics.setdefault((subscriber, publisher), []).append(topic_id)
+
+    for (subscriber, publisher), topic_ids in pair_topics.items():
+        seen.add((subscriber, publisher))
+        weights = [topic_weight.get(tid, 1.0) for tid in topic_ids]
+        # Representative profile/via_topic: the mediating topic with the
+        # single strongest contract, matching the prior "max" tie-break for
+        # these descriptive-only fields (the numeric weight is now a union).
+        via_topic = max(topic_ids, key=lambda tid: topic_weight.get(tid, 1.0))
+        qp = (pub_qos.get((publisher, via_topic))
+              or sub_qos.get((subscriber, via_topic))
+              or (topic_attrs.get(via_topic, {}).get("qos") or {}))
+        edges.append({
+            "source": subscriber,
+            "target": publisher,
+            "type": "app_to_app",
+            "weight": 1.0,
+            "qos_weight": compute_effective_edge_weight(weights),
+            "qos_profile": qp,
+            "via_topic": via_topic,
+            "path_count": len(topic_ids),
+        })
 
     # Rule 5 — app_to_lib: application depends on library (USES edge)
     for r in rels.get("uses", []):
@@ -315,6 +321,7 @@ def _derive_depends_on_edges(topology: Dict) -> List[Dict]:
                     # edges instead of privileging or suppressing them.
                     "qos_weight": neutral_weight,
                     "qos_profile": qp,
+                    "path_count": 1,
                 })
 
     return edges

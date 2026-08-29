@@ -403,7 +403,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 1.0,
-      "criticality": "medium"
+      "criticality": "low"
     },
     {
       "id": "T15",
@@ -475,7 +475,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 1.0,
-      "criticality": "medium"
+      "criticality": "low"
     },
     {
       "id": "T21",
@@ -703,7 +703,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 50.0,
-      "criticality": "medium"
+      "criticality": "low"
     },
     {
       "id": "T40",
@@ -811,7 +811,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 50.0,
-      "criticality": "medium"
+      "criticality": "low"
     },
     {
       "id": "T49",
@@ -871,7 +871,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 10.0,
-      "criticality": "medium"
+      "criticality": "low"
     },
     {
       "id": "T54",
@@ -967,7 +967,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 25.0,
-      "criticality": "low"
+      "criticality": "medium"
     },
     {
       "id": "T62",
@@ -979,7 +979,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 100.0,
-      "criticality": "medium"
+      "criticality": "low"
     },
     {
       "id": "T63",
@@ -1027,7 +1027,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 1.0,
-      "criticality": "medium"
+      "criticality": "low"
     },
     {
       "id": "T67",
@@ -1039,7 +1039,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 100.0,
-      "criticality": "medium"
+      "criticality": "low"
     },
     {
       "id": "T68",
@@ -1123,7 +1123,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 100.0,
-      "criticality": "medium"
+      "criticality": "low"
     },
     {
       "id": "T75",
@@ -1351,7 +1351,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 25.0,
-      "criticality": "medium"
+      "criticality": "low"
     },
     {
       "id": "T94",
