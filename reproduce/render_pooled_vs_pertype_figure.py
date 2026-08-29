@@ -34,8 +34,8 @@ this script's output is the printed "Fig. 4". See the numbering table in
 docs/research/jss/latex/README.md before renaming anything here.
 
 Output:
-  docs/research/jss/latex/figures/Figure_4.png  (300 dpi)
-  docs/research/jss/latex/figures/Figure_4.pdf  (vector)
+  docs/research/thesis/material/figures/pooled_vs_pertype.png  (300 dpi)
+  docs/research/thesis/material/figures/pooled_vs_pertype.pdf  (vector)
 
 Usage
 -----
@@ -47,7 +47,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-_OUTPUT = Path("docs/research/jss/latex/figures/Figure_4")
+# Was hardcoded to docs/research/jss/latex/figures/Figure_4, silently
+# overwriting the AHP shrinkage figure (reproduce/render_shrinkage_figure.py)
+# on every run -- exactly the landmine the docstring above warns about.
+# Retargeted at the thesis material this script's analysis actually lives in.
+_OUTPUT = Path("docs/research/thesis/material/figures/pooled_vs_pertype")
 
 # (label, rho, n) -- draft.md §5.5.
 _POOLED = ("Pooled\n(all types)", 0.374, 1545)

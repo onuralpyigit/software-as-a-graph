@@ -3,12 +3,16 @@
 reproduce/ahp_sensitivity.py — AHP shrinkage (lambda) sensitivity sweep
 ======================================================================
 
-Produces ``results/ahp_shrinkage_sweep.json``, the artifact that
-``docs/structural-analysis.md`` §11.2 and §11.6 cite for the claim that Spearman
-rho plateaus over lambda in [0.65, 0.75] and that the lambda = 0.70 default is
-therefore not a tuned coincidence. That artifact did not previously exist —
-``docs/internal/`` was empty — so the sensitivity claim rested on nothing
-committed.
+Produces ``results/ahp_shrinkage_sweep.json``, cited by
+``docs/structural-analysis.md`` §9.4/§9.5 and ``sec7_results.tex`` §7.3
+("Intra-Dimension AHP Weight Shrinkage"). The measured result is the opposite
+of a plateau at the default: rho declines monotonically from the uniform
+prior (lambda=0, best) to raw AHP (lambda=1, worst), and the shipped
+lambda=0.70 costs ~0.079 rho relative to lambda=0. Do not restate a "plateau
+around 0.65-0.75" claim here or in the paper — that claim predates this
+artifact and this sweep retracts it; the honest reading (reported in
+sec7_results.tex) is that the intra-dimension AHP hierarchy is a transparency
+device, not a ranking-accuracy device.
 
 What the sweep varies
 ---------------------

@@ -160,14 +160,24 @@ def compute_lifted_edge_weight(weights: List[float]) -> float:
     return max(MIN_TOPIC_WEIGHT, min(1.0, max(float(w) for w in weights)))
 
 
-def compute_power_mean_weight(weights: List[float], p: float = COMPONENT_POWER_MEAN_P) -> float:
+def compute_power_mean_weight(weights: List[float], p: Optional[float] = None) -> float:
     """Compute Generalized Power Mean (p=3) for component vertex aggregation.
 
     w_p(v) = ( (1 / |T|) * ∑_{t ∈ T} w(t)^p )^(1/p)
 
     Provides smooth, scale-free approximation to worst-case topic exposure while
     penalizing components with multiple critical topic attachments.
+
+    ``p`` resolves to ``COMPONENT_POWER_MEAN_P`` at call time when not given
+    explicitly, rather than being bound as an ordinary default argument —
+    a default argument is evaluated once, at function-definition time, so
+    binding it directly to ``COMPONENT_POWER_MEAN_P`` silently froze every
+    caller that omits ``p`` (i.e. every caller in this codebase) to whatever
+    value the constant held when this module was first imported, making the
+    "constant" un-patchable at runtime unlike every other one in this file.
     """
+    if p is None:
+        p = COMPONENT_POWER_MEAN_P
     if not weights:
         return MIN_TOPIC_WEIGHT
     n = len(weights)

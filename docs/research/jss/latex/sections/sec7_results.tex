@@ -131,6 +131,17 @@ Under LOSO the relationship reverses decisively and \emph{is} significant: HGL-Q
 \subsubsection{Topic-Weight Coefficients (\texorpdfstring{$\beta$, $\alpha$, $\psi$}{beta, alpha, psi})}
 \label{sec:7.3.topicw}
 
+% TODO(revision): every number in this subsubsection (Table~8b and the
+% following paragraph) was measured against the pre-revision SizeNorm divisor
+% (/50 on KiB) and the pre-revision QoS sub-weights (0.30, 0.40, 0.30). Both
+% changed (Section~\ref{sec:3.2}): SizeNorm now operates on raw bytes against
+% a 1 MiB envelope so alpha's weighted contribution is no longer ~50x below
+% the QoS term's, and the QoS sub-weights are now (0.24, 0.62, 0.14) from an
+% honestly independent Saaty matrix. Re-run
+% reproduce/topic_weight_sensitivity.py and replace Table~8b, the "Spread
+% across grid" row, and the weighted-standard-deviation figures in the
+% paragraph below before this subsubsection is cited as current.
+
 The outer split of Equation~\ref{eq:3} is a declared convex combination, not an elicited one, so we measure what rests on it rather than argue for the particular triple. We swept $(\beta, \alpha, \psi)$ over a grid spanning the whole simplex --- including the QoS-only corner $(1, 0, 0)$ and a uniform prior $(\tfrac13, \tfrac13, \tfrac13)$ --- and propagated each point through the derived \texttt{DEPENDS\_ON} edge weights into two closed-form scorers.
 
 \begin{table}[htbp]
@@ -155,9 +166,17 @@ $(\tfrac13, \tfrac13, \tfrac13)$ \emph{uniform} & $0.925$ & $0.603$ & $0.266$ \\
 \end{tabular}
 \end{table}
 
-\noindent The coefficients are not load-bearing. Across the entire simplex the induced ordering of $w(t)$ never falls below $\rho = 0.925$ against the shipped ordering, and downstream rank correlation moves by at most $0.020$ (Topo-QoS) and $0.012$ (RM) --- an order of magnitude below the differences between the predictor families the tables above compare. The mechanism is visible in the terms themselves: over the 375 corpus topics the QoS term contributes a weighted standard deviation of $0.188$, the frequency term $0.021$, and the payload term $0.0039$, because $\text{SizeNorm}$ log-compresses realistic payloads into a band roughly $50\times$ narrower than the QoS term's spread. The payload term is therefore close to inert on this corpus whatever $\alpha$ is set to, which we report as a limitation of the construct rather than as a tuned parameter. We emphasise the direction of this claim: it establishes that the declared triple does not drive any reported result, \emph{not} that $(0.75, 0.15, 0.10)$ is optimal --- the QoS-only corner is in fact marginally better for Topo-QoS ($0.617$ against $0.599$) and marginally worse for RM. The inner QoS split $(0.30, 0.40, 0.30)$ is a separate matter: it is AHP-derived, its Saaty matrix is consistency-audited, and both are pinned by regression tests.
+\noindent The coefficients are not load-bearing. Across the entire simplex the induced ordering of $w(t)$ never falls below $\rho = 0.925$ against the shipped ordering, and downstream rank correlation moves by at most $0.020$ (Topo-QoS) and $0.012$ (RM) --- an order of magnitude below the differences between the predictor families the tables above compare. The mechanism is visible in the terms themselves: over the 375 corpus topics the QoS term contributes a weighted standard deviation of $0.188$, the frequency term $0.021$, and the payload term $0.0039$, because $\text{SizeNorm}$ log-compresses realistic payloads into a band roughly $50\times$ narrower than the QoS term's spread. The payload term is therefore close to inert on this corpus whatever $\alpha$ is set to, which we report as a limitation of the construct rather than as a tuned parameter. We emphasise the direction of this claim: it establishes that the declared triple does not drive any reported result, \emph{not} that $(0.75, 0.15, 0.10)$ is optimal --- the QoS-only corner is in fact marginally better for Topo-QoS ($0.617$ against $0.599$) and marginally worse for RM. The inner QoS split is a separate matter: it is now $(0.24, 0.62, 0.14)$, the geometric-mean priority vector of an honestly independent Saaty matrix (CR~$\approx 0.016$, Section~\ref{sec:3.2}) rather than the earlier matrix, which was solved backward from a chosen target vector and whose near-zero CR was accordingly an artifact of construction, not evidence of a genuine judgement. Both the matrix and the constants it implies are pinned by regression tests.
 
 \subsubsection{Intra-Dimension AHP Weight Shrinkage}
+
+% TODO(revision): Table~8 and Figure~4 below were measured against the
+% pre-revision w(t) formula (SizeNorm envelope and QoS sub-weights, both
+% changed in Section~\ref{sec:3.2}). w(t) feeds every derived edge weight and
+% therefore the structural features this sweep is computed over, independent
+% of lambda itself. Re-run reproduce/ahp_sensitivity.py and
+% reproduce/render_shrinkage_figure.py and replace the table, the figure, and
+% the specific rho/Delta-rho/p-values quoted in the paragraph below.
 
 We evaluated the sensitivity of the RM attribution baseline by sweeping a shrinkage parameter $\lambda \in [0, 1]$ blending internal term weights from uniform prior ($\lambda = 0$) to calibrated AHP judgement ($\lambda = 1$). Note that $\lambda$ shrinks only the \emph{intra-dimension} vectors: the composite weights $(q_R, q_M) = (0.80, 0.20)$ are declared constants and are identical at every $\lambda$.
 
@@ -214,9 +233,16 @@ Set-level agreement is a different and weaker story, and we report it as the bin
 
 \subsubsection{Domain-Specific Weighting Sensitivity}
 
+% TODO(revision): re-run reproduce/domain_weight_comparison.py -- w(t) feeds
+% the structural features this sweep is computed over (Section~\ref{sec:3.2}).
+
 We investigated the impact of Context of Use reweighting $\vec{\omega} = [q_R, q_M]^\top$ across 10 evaluation scenarios by sweeping the composite reliability weight $w_R$ over its full range and reading off three points on that one curve: the shipped static default ($w_R = 0.80$), an unweighted equal split ($w_R = 0.50$), and the domain-derived value per scenario. The three are statistically indistinguishable: mean $\rho = 0.345$ (static), $0.342$ (equal), $0.345$ (domain-derived), so domain derivation beats equal weighting by $\Delta\rho = +0.002$ and trails the static default by $\Delta\rho = -0.001$. Neither difference is meaningful, and the sweep explains why: over the \emph{entire} $w_R \in [0, 1]$ range mean $\rho$ moves only from $0.341$ to $0.354$, a total spread of $0.014$. The composite weight is simply not a lever on ranking. Two structural facts compound this: across all ten declared domains the derived $w_R$ lies in $[0.70, 0.80]$, i.e.\ at most $0.10$ from the static default, and mean Kendall rank fidelity between domain-derived and static rankings is $\tau = 0.976$ --- the two weightings order components almost identically. We therefore read this ablation as confirming the scoping in Section~\ref{sec:4.1}: operational Context of Use reweighting is an \emph{attributional} mechanism --- explaining why a component matters in stakeholder terms --- and not a ranking-improvement device. It should not be reported as either an accuracy gain or an accuracy loss.
 
 \subsubsection{Threshold and Normalization Sensitivity}
+
+% TODO(revision): re-run reproduce/threshold_sensitivity.py -- w(t) feeds the
+% structural features and ground-truth graph this sweep is computed over
+% (Section~\ref{sec:3.2}).
 
 We swept 7 scenarios $\times$ a cascade propagation-threshold parameter $\in \{0.0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0\}$ controlling the ground-truth oracle's eligibility cutoff for cascade propagation, and separately swept 3 label-normalization techniques (robust, min-max, standard) holding the threshold fixed. Ranking performance is more sensitive to the propagation threshold ($\Delta\rho = 0.099$ across the extreme settings; mean $\rho$ rises from $0.183$ at threshold $0$ to $0.281$ at threshold $0.5$ and plateaus thereafter, the shipped $0.35$ sitting inside that plateau at $0.276$) than to normalization choice ($\Delta\rho = 0.027$; robust $0.268$ against $0.241$ for both min-max and standard). The threshold is thus the more consequential free parameter of the two, and the shipped setting is on the flat part of its curve rather than at a tuned peak. A small spread under either sweep means the reported ordering is stable under that parameter --- it is not, by itself, evidence that the ordering is \emph{correct}.
 

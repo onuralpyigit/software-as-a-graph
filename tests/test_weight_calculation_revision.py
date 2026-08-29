@@ -15,6 +15,11 @@ Pins the corrections made to Intrinsic Topic Weighting (docs/graph-model.md
    into the nominally independent frequency term.
 4. Rules 3-4 (node_to_node, node_to_broker) use worst-case lift, not a
    probabilistic union, matching the corrected doc and both repositories.
+5. ``compute_power_mean_weight``'s exponent resolves ``COMPONENT_POWER_MEAN_P``
+   at call time rather than freezing it as an ordinary default argument value
+   at function-definition time -- the latter made the constant silently
+   un-patchable by any caller that omits ``p``, discovered while building
+   ``reproduce/weight_global_sensitivity.py``.
 """
 
 from __future__ import annotations
@@ -37,6 +42,7 @@ from saag.core.models import (
     compute_freq_norm,
     compute_topic_weight,
     compute_lifted_edge_weight,
+    compute_power_mean_weight,
     topic_weight_from_node_attrs,
 )
 
@@ -186,3 +192,33 @@ class TestLiftedEdgeWeight:
 
     def test_bounded_to_unit_interval(self):
         assert compute_lifted_edge_weight([1.5, 2.0]) == pytest.approx(1.0)
+
+
+# ── COMPONENT_POWER_MEAN_P is genuinely live-patchable ──────────────────────
+
+class TestPowerMeanPIsLive:
+    def test_module_constant_change_takes_effect_without_explicit_p(self):
+        """The defect: `p: float = COMPONENT_POWER_MEAN_P` as an ordinary
+        default argument freezes at function-definition time, so patching
+        the module constant silently had no effect on any caller (every
+        caller in this codebase) that omits `p`."""
+        from saag.core import models
+
+        weights = [0.2, 0.9, 0.5]
+        default_result = compute_power_mean_weight(weights)
+
+        saved = models.COMPONENT_POWER_MEAN_P
+        try:
+            models.COMPONENT_POWER_MEAN_P = 1.0
+            patched_result = compute_power_mean_weight(weights)
+        finally:
+            models.COMPONENT_POWER_MEAN_P = saved
+
+        assert patched_result == pytest.approx(sum(weights) / len(weights))
+        assert patched_result != pytest.approx(default_result)
+
+    def test_explicit_p_still_overrides(self):
+        weights = [0.2, 0.9, 0.5]
+        assert compute_power_mean_weight(weights, p=1.0) == pytest.approx(
+            sum(weights) / len(weights)
+        )

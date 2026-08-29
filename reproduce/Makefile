@@ -36,7 +36,7 @@ RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
 .PHONY: setup scenarios cache block0 table3 table4 kfold convergent-validity \
-        topic-weight-sensitivity inference-latency \
+        topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
         jss-figures jss-tables all smoke-test clean clean-all
 
@@ -149,6 +149,18 @@ topic-weight-sensitivity:
 	$(PYTHON) reproduce/topic_weight_sensitivity.py \
 	    --output $(RESULTS_DIR)/topic_weight_sensitivity.json
 	@echo "✓ Topic-weight sensitivity ready: $(RESULTS_DIR)/topic_weight_sensitivity.json"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Joint Morris + Dirichlet sensitivity over every weight constant (k=10).
+# Opt-in (not part of `all`): default excludes enterprise_system, which costs
+# ~15x any other scenario per evaluation (see script docstring); pass
+# --scenarios explicitly for a full-corpus run and budget accordingly.
+# ─────────────────────────────────────────────────────────────────────────────
+
+weight-global-sensitivity:
+	$(PYTHON) reproduce/weight_global_sensitivity.py \
+	    --output $(RESULTS_DIR)/weight_global_sensitivity.json
+	@echo "✓ Weight global sensitivity ready: $(RESULTS_DIR)/weight_global_sensitivity.json"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Block F: Figure 4 — stratified per-node-type ρ

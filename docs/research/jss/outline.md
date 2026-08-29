@@ -288,19 +288,32 @@ edge-type list here is the normative one — §5.2 contradicts it (item 8 below)
 and every simulator in §5.1.
 
 #### §3.2 QoS-Aware Weights and Logical Dependency Derivation
-**Argues.** Edge coupling weight
-$w_E(e) = 0.85(w_{\text{rel}}q_{\text{rel}} + w_{\text{dur}}q_{\text{dur}} + w_{\text{prio}}q_{\text{prio}}) + 0.15\,q_{\text{payload}}$
-with AHP weights $(0.30, 0.40, 0.30)$ at $CR < 0.05$ and a floor $w_E \ge 0.01$ so best-effort edges
-stay traversable. Durability carries the highest weight because it governs persistence across
+**Argues.** Topic weight
+$w(t) = 0.75 \cdot \text{QoS}(t) + 0.15 \cdot \text{SizeNorm}(t) + 0.10 \cdot \text{FreqNorm}(t)$,
+with $\text{QoS}(t) = 0.24\,w_{\text{rel}}q_{\text{rel}} + 0.62\,w_{\text{dur}}q_{\text{dur}} + 0.14\,w_{\text{prio}}q_{\text{prio}}$
+at CR~$\approx 0.016$ (an honestly independent Saaty matrix, not solved backward from the target
+vector — see the revision note below) and a floor $w(t) \ge 0.01$ so best-effort edges stay
+traversable. Durability carries the highest weight because it governs persistence across
 partitions. Six projection rules derive a single `DEPENDS_ON` relation directed dependent → dependency.
 Closes with the **sequential cascade (Rule 1) vs simultaneous blast (Rule 5)** distinction that
 untyped graphs cannot express.
 **Evidence.** Table 2 (six rules: `app_to_app`, `app_to_broker`, `node_to_node`, `node_to_broker`,
 `app_to_lib`, `broker_to_broker`), each with structural pattern and derived weight.
-**Load-bearing caveats.** The $(0.30, 0.40, 0.30)$ triple is a **repo invariant** — `QoSPolicy`'s
+**Load-bearing caveats.** The $(0.24, 0.62, 0.14)$ triple is a **repo invariant** — `QoSPolicy`'s
 constants must match `AHPMatrices.criteria_topic_qos`'s priority vector within `abs=0.01` at
-$CR < 0.10$, enforced by `tests/test_ahp_shrinkage.py`. Do not edit the paper's numbers without the
-code, or vice versa.
+$0.005 < CR < 0.10$ (the lower bound catches a matrix reconstructed from the target vector, which
+this one no longer is), enforced by `tests/test_ahp_shrinkage.py`. Do not edit the paper's numbers
+without the code, or vice versa.
+**Revision note (weight-calculation review).** The previously-shipped $(0.30, 0.40, 0.30)$ split and
+its Saaty matrix were reconstructed backward from that target vector, making $CR \approx 0$ an
+artifact of construction rather than evidence of a genuine judgement — the deleted
+`structural-analysis.md` §11.5 said as much and was not carried forward. The matrix was replaced with
+one stated independently from DDS QoS semantics, moving the shipped split to $(0.24, 0.62, 0.14)$ at a
+small but real $CR \approx 0.016$. Separately, the KiB-based `SizeNorm` divisor of 50 implied an
+unstated ~1 EiB payload envelope and left `alpha`'s declared 15% budget realizing only ~2% of its
+share on real payloads; it is now a byte-based 1 MiB envelope (divisor 20). Both changes moved every
+downstream topic weight, so the entire evaluation corpus was regenerated and every sensitivity result
+in §7.3 needs re-running against the new constants before publication.
 **Reviewer risk.** The sequential/simultaneous distinction is asserted as "a key insight" but its only
 direct empirical support is §7.2's edge-removal result (4/50 non-zero edges, all library channels) —
 which is $I_{\text{comp}}$-scoped and therefore does not transfer to the $I^*$-backed tables. The
@@ -849,10 +862,11 @@ corresponding `latex/sections/*.tex`.
 8. **§5.2 names edge types that do not exist.** It lists "`CALLS`, `PUBLISHES_TO`, `SUBSCRIBES_TO`,
    `HOSTED_ON`, etc."; Table 1 defines `PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`,
    `CONNECTS_TO`, `USES`. `CALLS` and `HOSTED_ON` appear nowhere else in the paper.
-9. **Two incompatible definitions of $w(e)$.** §3.2: weighted arithmetic sum,
-   $0.85(w_{\text{rel}}q_{\text{rel}} + w_{\text{dur}}q_{\text{dur}} + w_{\text{prio}}q_{\text{prio}}) + 0.15q_{\text{payload}}$.
-   §5.2.1 index 0: "harmonic mean of reliability, durability, priority, deadline, and blocking
-   multipliers." Different operator, different operand set, same symbol.
+9. ~~**Two incompatible definitions of $w(e)$.**~~ **Resolved (weight-calculation review).**
+   §5.2.1 index 0 wrongly described a harmonic mean of reliability/durability/priority/deadline/
+   blocking multipliers that no code ever computed; the field is literally the graph edge's `weight`
+   attribute (`saag/prediction/data_preparation.py`), i.e. $w_E(e)$ as defined in §3.2. §5.2.1 now
+   says so.
 10. **RQ3's stated scope under-covers §7.3.** §1.4 promises "explicit QoS feature encodings and
     multi-attribute weighting calibrations"; §7.3 delivers those plus oracle convergent validity,
     threshold/normalisation sensitivity, anti-pattern detection with CI/CD runtimes, a
