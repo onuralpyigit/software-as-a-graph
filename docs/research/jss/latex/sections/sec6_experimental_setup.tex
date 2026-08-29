@@ -75,6 +75,15 @@ We compare four primary predictor configurations, split into training-free basel
 \end{enumerate}
 \noindent The out-of-distribution table (Table~\ref{tab:7}) additionally reports \textbf{RM / $Q(v)$} (the deterministic hierarchical quality attribution model of Section~\ref{sec:4}) as a non-competing diagnostic reference point, not as a fifth predictor: RM is not fitted to rank components, and its row exists to show how much the predictive path adds over static attribution (Section~\ref{sec:1.2}), not to compete on ranking accuracy. The same deterministic RM scorer is also the instrument behind every sensitivity sweep in Section~\ref{sec:7.3}: because RM is a closed-form function of its declared constants, sweeping those constants isolates their effect from training variance in a way the learned predictors cannot.
 
+\subsubsection{Evaluation Substrate}
+\label{sec:6.2.substrate}
+
+Predictors in this comparison are not all evaluated over the same graph view, and the distinction matters for reading the tables that follow. \textbf{Topo-BL, Topo-QoS, GL and GL-QoS} are scored on the derived Application--Library \texttt{DEPENDS\_ON} projection (Section~\ref{sec:3.2}) --- the same substrate built for GNN feature/label alignment and discussed further in Section~\ref{sec:7.3} --- while \textbf{HGL and HGL-QoS} consume the full native typed multigraph over all five entity types. \textbf{No predictor in either group reads $G_{\text{structural}}$}: that graph remains the exclusive substrate of the ground-truth simulation oracles (Section~\ref{sec:5.4}), and the independence guarantee enforced by \texttt{tests/test\_independence\_guarantee.py} holds identically for every variant in this section.
+
+The projection substrate was adopted for the homogeneous and untrained baselines because the full native pub-sub graph is not learnable by an untyped model on this corpus: Application nodes carry near-zero betweenness and bridge-ratio in the raw graph (they never route messages), producing degenerate, near-constant feature vectors, and a single homogeneous message-passing layer over-smooths every Application into an identical representation by aggregating the same high-fan-in Topic hub. This is the design rationale recorded in the replication package rather than a measured ablation --- we did not run GL/GL-QoS on the native substrate to quantify the collapse directly, and do not report a number for it.
+
+This asymmetry is a scope condition on the RQ2 comparisons in Section~\ref{sec:7.2}: part of HGL's advantage over GL reflects the wider native node set the typed model can consume, not relation-specific typing alone, since the untyped baseline could not be evaluated on that same view. It does not, however, affect which nodes are scored: the evaluation population is pinned identically across every variant, resolved from the native graph and the simulation labels alone --- never from a variant's own substrate or predictions --- so no comparison in this paper is confounded by which nodes a particular predictor happened to see (Section~\ref{sec:6.3}).
+
 \subsection{Evaluation Metrics and Protocols}
 \label{sec:6.3}
 
