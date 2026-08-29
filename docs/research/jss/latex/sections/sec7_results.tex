@@ -131,18 +131,7 @@ Under LOSO the relationship reverses decisively and \emph{is} significant: HGL-Q
 \subsubsection{Topic-Weight Coefficients (\texorpdfstring{$\beta$, $\alpha$, $\psi$}{beta, alpha, psi})}
 \label{sec:7.3.topicw}
 
-% TODO(revision): every number in this subsubsection (Table~8b and the
-% following paragraph) was measured against the pre-revision SizeNorm divisor
-% (/50 on KiB) and the pre-revision QoS sub-weights (0.30, 0.40, 0.30). Both
-% changed (Section~\ref{sec:3.2}): SizeNorm now operates on raw bytes against
-% a 1 MiB envelope so alpha's weighted contribution is no longer ~50x below
-% the QoS term's, and the QoS sub-weights are now (0.24, 0.62, 0.14) from an
-% honestly independent Saaty matrix. Re-run
-% reproduce/topic_weight_sensitivity.py and replace Table~8b, the "Spread
-% across grid" row, and the weighted-standard-deviation figures in the
-% paragraph below before this subsubsection is cited as current.
-
-The outer split of Equation~\ref{eq:3} is a declared convex combination, not an elicited one, so we measure what rests on it rather than argue for the particular triple. We swept $(\beta, \alpha, \psi)$ over a grid spanning the whole simplex --- including the QoS-only corner $(1, 0, 0)$ and a uniform prior $(\tfrac13, \tfrac13, \tfrac13)$ --- and propagated each point through the derived \texttt{DEPENDS\_ON} edge weights into two closed-form scorers.
+The outer split of Equation~\ref{eq:3} is a declared convex combination, not an elicited one, so we measure what rests on it rather than argue for the particular triple. We swept $(\beta, \alpha, \psi)$ over a grid spanning the whole simplex --- including the QoS-only corner $(1, 0, 0)$ and a uniform prior $(\tfrac13, \tfrac13, \tfrac13)$ --- and propagated each point through the derived \texttt{DEPENDS\_ON} edge weights into two closed-form scorers. Reported against the revised $\text{SizeNorm}$ envelope and the re-elicited QoS sub-weights (Section~\ref{sec:3.2}).
 
 \begin{table}[htbp]
 \centering
@@ -153,30 +142,22 @@ The outer split of Equation~\ref{eq:3} is a declared convex combination, not an 
 \toprule
 \textbf{$(\beta, \alpha, \psi)$} & \textbf{$\rho$ of $w(t)$ vs.\ shipped} & \textbf{Topo-QoS $\rho$} & \textbf{RM $\rho$} \\
 \midrule
-$(0.75, 0.15, 0.10)$ \emph{shipped} & $1.000$ & $0.599$ & $0.268$ \\
-$(0.90, 0.05, 0.05)$ & $0.9999$ & $0.597$ & $0.269$ \\
-$(0.85, 0.15, 0.00)$ & $0.936$ & $0.607$ & $0.270$ \\
-$(1.00, 0.00, 0.00)$ & $0.925$ & $0.617$ & $0.258$ \\
-$(0.60, 0.20, 0.20)$ & $0.995$ & $0.602$ & $0.268$ \\
-$(0.50, 0.25, 0.25)$ & $0.986$ & $0.602$ & $0.266$ \\
-$(\tfrac13, \tfrac13, \tfrac13)$ \emph{uniform} & $0.925$ & $0.603$ & $0.266$ \\
+$(0.75, 0.15, 0.10)$ \emph{shipped} & $1.000$ & $0.604$ & $0.267$ \\
+$(0.90, 0.05, 0.05)$ & $0.966$ & $0.600$ & $0.273$ \\
+$(0.85, 0.15, 0.00)$ & $0.950$ & $0.608$ & $0.268$ \\
+$(1.00, 0.00, 0.00)$ & $0.852$ & $0.618$ & $0.268$ \\
+$(0.60, 0.20, 0.20)$ & $0.970$ & $0.604$ & $0.261$ \\
+$(0.50, 0.25, 0.25)$ & $0.942$ & $0.603$ & $0.259$ \\
+$(\tfrac13, \tfrac13, \tfrac13)$ \emph{uniform} & $0.870$ & $0.608$ & $0.256$ \\
 \midrule
-\textbf{Spread across grid} & --- & $\mathbf{0.020}$ & $\mathbf{0.012}$ \\
+\textbf{Spread across grid} & --- & $\mathbf{0.018}$ & $\mathbf{0.017}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\noindent The coefficients are not load-bearing. Across the entire simplex the induced ordering of $w(t)$ never falls below $\rho = 0.925$ against the shipped ordering, and downstream rank correlation moves by at most $0.020$ (Topo-QoS) and $0.012$ (RM) --- an order of magnitude below the differences between the predictor families the tables above compare. The mechanism is visible in the terms themselves: over the 375 corpus topics the QoS term contributes a weighted standard deviation of $0.188$, the frequency term $0.021$, and the payload term $0.0039$, because $\text{SizeNorm}$ log-compresses realistic payloads into a band roughly $50\times$ narrower than the QoS term's spread. The payload term is therefore close to inert on this corpus whatever $\alpha$ is set to, which we report as a limitation of the construct rather than as a tuned parameter. We emphasise the direction of this claim: it establishes that the declared triple does not drive any reported result, \emph{not} that $(0.75, 0.15, 0.10)$ is optimal --- the QoS-only corner is in fact marginally better for Topo-QoS ($0.617$ against $0.599$) and marginally worse for RM. The inner QoS split is a separate matter: it is now $(0.24, 0.62, 0.14)$, the geometric-mean priority vector of an honestly independent Saaty matrix (CR~$\approx 0.016$, Section~\ref{sec:3.2}) rather than the earlier matrix, which was solved backward from a chosen target vector and whose near-zero CR was accordingly an artifact of construction, not evidence of a genuine judgement. Both the matrix and the constants it implies are pinned by regression tests.
+\noindent The coefficients are not load-bearing. Across the entire simplex the induced ordering of $w(t)$ never falls below $\rho = 0.852$ against the shipped ordering, and downstream rank correlation moves by at most $0.018$ (Topo-QoS) and $0.017$ (RM) --- an order of magnitude below the differences between the predictor families the tables above compare. The mechanism is visible in the terms themselves: over the 375 corpus topics the QoS term contributes a weighted standard deviation of $0.194$, the frequency term $0.021$, and the payload term $0.020$. This is a corrected figure: an earlier measurement of this sweep used a $\text{SizeNorm}$ divisor of $50$ on kilobytes, an unstated $\sim$1~EiB envelope under which the payload term's weighted contribution was $0.0039$ --- roughly $50\times$ below the QoS term's --- so alpha's declared 15\% budget was realizing only $\sim$2\% of its share; SizeNorm now operates on raw bytes against a 1~MiB envelope (Section~\ref{sec:3.2}), and the payload term's contribution is no longer negligible, sitting on par with the frequency term's. We emphasise the direction of this claim: it establishes that the declared triple does not drive any reported result, \emph{not} that $(0.75, 0.15, 0.10)$ is optimal --- the QoS-only corner is in fact marginally better for both Topo-QoS ($0.618$ against $0.604$) and RM ($0.268$ against $0.267$). The inner QoS split is a separate matter: it is now $(0.24, 0.62, 0.14)$, the geometric-mean priority vector of an honestly independent Saaty matrix (CR~$\approx 0.016$, Section~\ref{sec:3.2}) rather than the earlier matrix, which was solved backward from a chosen target vector and whose near-zero CR was accordingly an artifact of construction, not evidence of a genuine judgement. Both the matrix and the constants it implies are pinned by regression tests.
 
 \subsubsection{Intra-Dimension AHP Weight Shrinkage}
-
-% TODO(revision): Table~8 and Figure~4 below were measured against the
-% pre-revision w(t) formula (SizeNorm envelope and QoS sub-weights, both
-% changed in Section~\ref{sec:3.2}). w(t) feeds every derived edge weight and
-% therefore the structural features this sweep is computed over, independent
-% of lambda itself. Re-run reproduce/ahp_sensitivity.py and
-% reproduce/render_shrinkage_figure.py and replace the table, the figure, and
-% the specific rho/Delta-rho/p-values quoted in the paragraph below.
 
 We evaluated the sensitivity of the RM attribution baseline by sweeping a shrinkage parameter $\lambda \in [0, 1]$ blending internal term weights from uniform prior ($\lambda = 0$) to calibrated AHP judgement ($\lambda = 1$). Note that $\lambda$ shrinks only the \emph{intra-dimension} vectors: the composite weights $(q_R, q_M) = (0.80, 0.20)$ are declared constants and are identical at every $\lambda$.
 
@@ -189,7 +170,7 @@ We evaluated the sensitivity of the RM attribution baseline by sweeping a shrink
 \toprule
 \textbf{$\lambda$ Setting} & \textbf{0.00 (Uniform)} & \textbf{0.50} & \textbf{0.70 (Default)} & \textbf{0.80} & \textbf{1.00 (Raw AHP)} \\
 \midrule
-\textbf{Mean Rank Correlation ($\rho$)} & \textbf{0.347} & $0.291$ & $0.268$ & $0.256$ & $0.234$ \\
+\textbf{Mean Rank Correlation ($\rho$)} & \textbf{0.348} & $0.291$ & $0.267$ & $0.256$ & $0.232$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -201,9 +182,43 @@ We evaluated the sensitivity of the RM attribution baseline by sweeping a shrink
 \label{fig:4}
 \end{figure}
 
-\noindent\textbf{The AHP judgement does not improve ranking, and we report that directly.} As Figure~\ref{fig:4} shows, $\rho$ declines monotonically as the weights move from the uniform prior toward the elicited judgement. The uniform prior is the best setting in the sweep ($\rho = 0.347$ against $0.234$ at raw AHP), it wins in all seven scenarios individually (paired Wilcoxon, $p = 0.0156$), and the shipped $\lambda = 0.70$ default costs $\Delta\rho = -0.079$ relative to it ($p = 0.0156$). There is no plateau around the default. The honest reading is that the elicited intra-dimension hierarchy is a \emph{transparency} device --- it makes the composite auditable and its terms nameable to an architect --- and not a ranking-accuracy device; on this corpus, weighting the terms equally ranks components better. We retain $\lambda = 0.70$ because RM's role is interpretable attribution rather than standalone ranking (Section~\ref{sec:4.1}), but we do not claim the sweep validates the expert hierarchy, because it does not.
+\noindent\textbf{The AHP judgement does not improve ranking, and we report that directly.} As Figure~\ref{fig:4} shows, $\rho$ declines monotonically as the weights move from the uniform prior toward the elicited judgement. The uniform prior is the best setting in the sweep ($\rho = 0.348$ against $0.232$ at raw AHP), it wins in all seven scenarios individually (paired Wilcoxon, $p = 0.0156$), and the shipped $\lambda = 0.70$ default costs $\Delta\rho = -0.081$ relative to it ($p = 0.0156$). There is no plateau around the default. The honest reading is that the elicited intra-dimension hierarchy is a \emph{transparency} device --- it makes the composite auditable and its terms nameable to an architect --- and not a ranking-accuracy device; on this corpus, weighting the terms equally ranks components better. We retain $\lambda = 0.70$ because RM's role is interpretable attribution rather than standalone ranking (Section~\ref{sec:4.1}), but we do not claim the sweep validates the expert hierarchy, because it does not.
 
-\noindent\textbf{A measurement correction.} An earlier version of this analysis scored $Q(v)$ from features restricted to the Application--Library \texttt{DEPENDS\_ON} projection --- the feature substrate built for GNN training --- rather than from the full typed graph. On that projection no Application is an articulation point and no incident edge is a bridge in six of the eight scenarios, so four of Availability's five terms vanish and $A(v)$, which carries $w_R(1 - \alpha) \approx 0.51$ of the composite, is constant across the Application population. Sweeping $\lambda$ against that variant measured a degenerate score and returned uniformly negative $\rho$ (from $-0.146$ at $\lambda = 0$ to $-0.112$ at $\lambda = 1$). The figures above are computed through the full analysis pipeline, which is the RM baseline defined in Section~\ref{sec:4.3}; both series are retained in the replication artifact. The same correction applies to the threshold and domain-weighting ablations below, which shared that scorer.
+\noindent\textbf{A measurement correction.} An earlier version of this analysis scored $Q(v)$ from features restricted to the Application--Library \texttt{DEPENDS\_ON} projection --- the feature substrate built for GNN training --- rather than from the full typed graph. On that projection no Application is an articulation point and no incident edge is a bridge in six of the eight scenarios, so four of Availability's five terms vanish and $A(v)$, which carries $w_R(1 - \alpha) \approx 0.51$ of the composite, is constant across the Application population. Sweeping $\lambda$ against that variant measured a degenerate score and returned uniformly negative $\rho$ (from $-0.146$ at $\lambda = 0$ to $-0.111$ at $\lambda = 1$). The figures above are computed through the full analysis pipeline, which is the RM baseline defined in Section~\ref{sec:4.3}; both series are retained in the replication artifact. The same correction applies to the threshold and domain-weighting ablations below, which shared that scorer.
+
+\subsubsection{Joint Sensitivity Across All Ten Weight Constants}
+\label{sec:7.3.global}
+
+The two sweeps above, like every other ablation in this section, vary one declared constant (or one convex combination on its own simplex) at a time. That is the standard one-at-a-time (OAT) design, and it cannot detect interactions between factors or say whether a factor found flat in isolation would stay flat if a second factor moved with it \cite{saltelli2008global}. We closed that gap directly, sweeping all ten hand-set weight constants jointly --- $(\beta, \alpha, \psi)$, $(w_{\text{rel}}, w_{\text{dur}}, w_{\text{prio}})$, the vertex power-mean exponent $p$, the library fan-out coefficient $\gamma$, the AHP shrinkage $\lambda$, and $r_\alpha$ --- using two complementary designs on six scenarios (\texttt{enterprise\_system} excluded on cost grounds; its structural analysis costs roughly $15\times$ any other scenario per evaluation point).
+
+\textbf{Morris elementary-effects screening} \cite{morris1991factorial,campolongo2007effective} takes 10 random trajectories through the full ten-dimensional hyper-rectangle each factor's plausible range spans (110 evaluations), deliberately \emph{not} constraining the two convex-combination groups to a unit sum --- this is the tool for finding interactions and non-linearities an on-simplex sweep cannot see. It ranks factors by $\mu^*$, the mean absolute elementary effect on mean $\rho$ against $I^*(v)$:
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Morris elementary-effects screening over all ten weight constants, ranked by influence ($\mu^*$) on mean $\rho$. Six scenarios, 10 trajectories, 110 evaluations.}
+\label{tab:8e}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Factor} & \textbf{$\mu^*$} & \textbf{$\sigma$} \\
+\midrule
+$\lambda$ (AHP shrinkage) & $0.124$ & $0.077$ \\
+$r_\alpha$ & $0.096$ & $0.035$ \\
+$\alpha$ & $0.019$ & $0.034$ \\
+$w_{\text{rel}}$ & $0.019$ & $0.018$ \\
+$\beta$ & $0.017$ & $0.023$ \\
+$w_{\text{dur}}$ & $0.014$ & $0.017$ \\
+$w_{\text{prio}}$ & $0.013$ & $0.018$ \\
+$\psi$ & $0.012$ & $0.015$ \\
+$p$ (power-mean exponent) & $0.005$ & $0.005$ \\
+$\gamma$ (fan-out) & $0.001$ & $0.002$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The AHP shrinkage $\lambda$ and the Reliability-Availability blend $r_\alpha$ dominate, consistent with the two OAT sweeps above (Section~\ref{sec:7.3}, this section) already showing $\lambda$ as the more consequential of the two intra-dimension parameters. The topic-weight triple and the QoS sub-weight triple now sit in a comparable, modest band ($\mu^* \in [0.012, 0.019]$) rather than one dominating another by an order of magnitude, confirming at the joint level what the corrected term-contribution figures above show at the formula level: none of these six factors is individually load-bearing, and none is now negligible by construction either. $p$ and $\gamma$ are the least influential factors in the whole design, both roughly an order of magnitude below the topic-weight/QoS-sub-weight band; $\sigma$ relative to $\mu^*$ is largest for $\lambda$ and $\alpha$, indicating their effect on $\rho$ depends more on where the other nine factors sit --- the specific kind of interaction an OAT sweep cannot diagnose, though its magnitude here remains within the same order as $\mu^*$ itself rather than dominating it.
+
+\textbf{Dirichlet simplex sampling} answers the sharper, practically relevant question: over the realistic space of "declared budgets" --- points that respect the unit-sum constraint on both convex-combination groups simultaneously, holding the other six factors at shipped values --- how much does ranking accuracy and the ranked shortlist itself actually vary. Over 100 draws, mean $\rho = 0.243$ (shipped $\rho = 0.252$), $\text{sd} = 0.006$, range $[0.229, 0.260]$, a 90\% interval of $[0.231, 0.253]$. Rank-stability against the shipped ranking is high across the same draws: mean Kendall $\tau = 0.899$ (worst draw $0.791$) and mean top-20\%-of-population Jaccard overlap $= 0.825$ (worst draw $0.699$). The declared topic-weight and QoS-sub-weight budgets are, jointly and on the realistic simplex, not a lever on either the score or the shortlist it produces.
 
 \subsubsection{Convergent Validity Across Simulation Oracles}
 
@@ -233,18 +248,11 @@ Set-level agreement is a different and weaker story, and we report it as the bin
 
 \subsubsection{Domain-Specific Weighting Sensitivity}
 
-% TODO(revision): re-run reproduce/domain_weight_comparison.py -- w(t) feeds
-% the structural features this sweep is computed over (Section~\ref{sec:3.2}).
-
-We investigated the impact of Context of Use reweighting $\vec{\omega} = [q_R, q_M]^\top$ across 10 evaluation scenarios by sweeping the composite reliability weight $w_R$ over its full range and reading off three points on that one curve: the shipped static default ($w_R = 0.80$), an unweighted equal split ($w_R = 0.50$), and the domain-derived value per scenario. The three are statistically indistinguishable: mean $\rho = 0.345$ (static), $0.342$ (equal), $0.345$ (domain-derived), so domain derivation beats equal weighting by $\Delta\rho = +0.002$ and trails the static default by $\Delta\rho = -0.001$. Neither difference is meaningful, and the sweep explains why: over the \emph{entire} $w_R \in [0, 1]$ range mean $\rho$ moves only from $0.341$ to $0.354$, a total spread of $0.014$. The composite weight is simply not a lever on ranking. Two structural facts compound this: across all ten declared domains the derived $w_R$ lies in $[0.70, 0.80]$, i.e.\ at most $0.10$ from the static default, and mean Kendall rank fidelity between domain-derived and static rankings is $\tau = 0.976$ --- the two weightings order components almost identically. We therefore read this ablation as confirming the scoping in Section~\ref{sec:4.1}: operational Context of Use reweighting is an \emph{attributional} mechanism --- explaining why a component matters in stakeholder terms --- and not a ranking-improvement device. It should not be reported as either an accuracy gain or an accuracy loss.
+We investigated the impact of Context of Use reweighting $\vec{\omega} = [q_R, q_M]^\top$ across 10 evaluation scenarios by sweeping the composite reliability weight $w_R$ over its full range and reading off three points on that one curve: the shipped static default ($w_R = 0.80$), an unweighted equal split ($w_R = 0.50$), and the domain-derived value per scenario. The three are statistically indistinguishable: mean $\rho = 0.353$ (static), $0.349$ (equal), $0.347$ (domain-derived), so domain derivation trails equal weighting by $\Delta\rho = -0.001$ and the static default by $\Delta\rho = -0.006$. Neither difference is meaningful, and the sweep explains why: over the \emph{entire} $w_R \in [0, 1]$ range mean $\rho$ moves only from $0.341$ to $0.365$, a total spread of $0.024$. The composite weight is simply not a lever on ranking. Two structural facts compound this: across the declared domains the derived $w_R$ lies in $[0.70, 0.76]$, i.e.\ at most $0.10$ from the static default, and mean Kendall rank fidelity between domain-derived and static rankings is $\tau = 0.974$ --- the two weightings order components almost identically. We therefore read this ablation as confirming the scoping in Section~\ref{sec:4.1}: operational Context of Use reweighting is an \emph{attributional} mechanism --- explaining why a component matters in stakeholder terms --- and not a ranking-improvement device. It should not be reported as either an accuracy gain or an accuracy loss.
 
 \subsubsection{Threshold and Normalization Sensitivity}
 
-% TODO(revision): re-run reproduce/threshold_sensitivity.py -- w(t) feeds the
-% structural features and ground-truth graph this sweep is computed over
-% (Section~\ref{sec:3.2}).
-
-We swept 7 scenarios $\times$ a cascade propagation-threshold parameter $\in \{0.0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0\}$ controlling the ground-truth oracle's eligibility cutoff for cascade propagation, and separately swept 3 label-normalization techniques (robust, min-max, standard) holding the threshold fixed. Ranking performance is more sensitive to the propagation threshold ($\Delta\rho = 0.099$ across the extreme settings; mean $\rho$ rises from $0.183$ at threshold $0$ to $0.281$ at threshold $0.5$ and plateaus thereafter, the shipped $0.35$ sitting inside that plateau at $0.276$) than to normalization choice ($\Delta\rho = 0.027$; robust $0.268$ against $0.241$ for both min-max and standard). The threshold is thus the more consequential free parameter of the two, and the shipped setting is on the flat part of its curve rather than at a tuned peak. A small spread under either sweep means the reported ordering is stable under that parameter --- it is not, by itself, evidence that the ordering is \emph{correct}.
+We swept 7 scenarios $\times$ a cascade propagation-threshold parameter $\in \{0.0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0\}$ controlling the ground-truth oracle's eligibility cutoff for cascade propagation, and separately swept 3 label-normalization techniques (robust, min-max, standard) holding the threshold fixed. Ranking performance is more sensitive to the propagation threshold ($\Delta\rho = 0.102$ across the extreme settings; mean $\rho$ rises from $0.177$ at threshold $0$ to $0.278$ at threshold $0.5$ and plateaus thereafter, the shipped $0.35$ sitting inside that plateau at $0.274$) than to normalization choice ($\Delta\rho = 0.022$; robust $0.267$ against $0.244$ for both min-max and standard). The threshold is thus the more consequential free parameter of the two, and the shipped setting is on the flat part of its curve rather than at a tuned peak. A small spread under either sweep means the reported ordering is stable under that parameter --- it is not, by itself, evidence that the ordering is \emph{correct}.
 
 \subsubsection{Availability Was Measuring Almost Nothing, and Why}
 \label{sec:7.3.availability}

@@ -126,34 +126,26 @@ class _TopicWeights:
 # ── Level 1: the induced ordering of w(t) itself ──────────────────────────────
 
 def _topic_terms(topologies: Dict[str, Dict]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """The three normalised terms for every topic in the corpus, unweighted."""
-    import math
+    """The three normalised terms for every topic in the corpus, unweighted.
 
-    from saag.core.models import QoSPolicy, TOPIC_FREQUENCY_HZ
+    Reads SizeNorm/FreqNorm through ``compute_size_norm``/``compute_freq_norm``
+    rather than reimplementing the envelope math inline, so this diagnostic
+    cannot silently drift from the shipped formula the way an earlier version
+    of it did (a hardcoded KiB/50.0 divisor and a bespoke frequency-fallback
+    ladder, both retired -- see saag/core/models.py).
+    """
+    from saag.core.models import QoSPolicy, compute_size_norm, compute_freq_norm
 
     qos, size, freq = [], [], []
     for topology in topologies.values():
         for t in topology.get("topics", []):
             policy = QoSPolicy.from_dict(t.get("qos", {}))
-            q = policy.calculate_weight()
+            qos.append(policy.calculate_weight())
 
             raw_size = t.get("size", t.get("message_size", 1024)) or 1024
-            size_norm = min(math.log2(1.0 + float(raw_size) / 1024.0) / 50.0, 1.0)
+            size.append(compute_size_norm(raw_size))
 
-            f = t.get("frequency")
-            if f is None:
-                # Same fallback ladder compute_topic_weight uses when the
-                # generator supplied no rate, so this stays a faithful mirror.
-                r = QoSPolicy.RELIABILITY_SCORES.get(policy.reliability, 0.0)
-                pr = QoSPolicy.PRIORITY_SCORES.get(policy.transport_priority, 0.0)
-                idx = max(0, min(int(r * pr * len(TOPIC_FREQUENCY_HZ)),
-                                 len(TOPIC_FREQUENCY_HZ) - 1))
-                f = TOPIC_FREQUENCY_HZ[idx]
-            freq_norm = min(math.log10(1.0 + float(f)) / 3.0, 1.0)
-
-            qos.append(q)
-            size.append(size_norm)
-            freq.append(freq_norm)
+            freq.append(compute_freq_norm(t.get("frequency")))
     return np.array(qos), np.array(size), np.array(freq)
 
 
