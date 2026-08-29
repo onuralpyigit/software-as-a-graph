@@ -218,7 +218,7 @@ PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_c
 ## Step 3b: Train GNN
 
 **Script:** `cli/train_graph.py`  
-**Purpose:** Train a Heterogeneous Graph Attention Network (HeteroGAT) to predict component criticality.
+**Purpose:** Train a Heterogeneous Graph Transformer (HGT) to predict component criticality.
 
 ```bash
 PYTHONPATH=. python cli/train_graph.py --layer system --epochs 500 --hidden 128 --heads 8 --checkpoint output/gnn_checkpoints/

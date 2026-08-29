@@ -76,6 +76,11 @@ class ComponentFacade:
         return dict(self._inner.scores)
 
     @property
+    def provenance(self) -> str:
+        """Which scoring pathway produced this component's scores: 'rm' or 'gnn'."""
+        return self._inner.provenance
+
+    @property
     def levels(self) -> dict:
         """Alias for criticality_levels to support backward compatibility."""
         return self.criticality_levels
@@ -101,7 +106,8 @@ class ComponentFacade:
             "criticality_levels": self.criticality_levels,
             "scores": self.scores,
             "blast_radius": self.blast_radius,
-            "cascade_depth": self.cascade_depth
+            "cascade_depth": self.cascade_depth,
+            "provenance": self.provenance
         }
 
 

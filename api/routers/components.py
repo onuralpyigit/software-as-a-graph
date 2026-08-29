@@ -76,7 +76,8 @@ async def get_critical_components(
             return {
                 "success": True,
                 "count": len(formatted_components),
-                "components": formatted_components
+                "components": formatted_components,
+                "prediction_mode": prediction.prediction_mode
             }
         finally:
             repo.close()
@@ -147,7 +148,8 @@ async def get_critical_edges(
             return {
                 "success": True,
                 "count": len(formatted_edges),
-                "edges": formatted_edges
+                "edges": formatted_edges,
+                "prediction_mode": prediction.prediction_mode
             }
         finally:
             repo.close()

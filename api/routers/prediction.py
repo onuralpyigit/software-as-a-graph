@@ -46,11 +46,11 @@ class TrainRequest(BaseModel):
         default="hetero_qos",
         description=(
             "Model architecture variant: "
-            "'hetero_qos' (QoS-aware HeteroGAT, default), "
+            "'hetero_qos' (QoS-aware HGT, default), "
             "'homo_unweighted' (flat GAT, no edge_attr), "
             "'homo_scalar' (flat GAT, scalar weight), "
             "'topology_rm' (RM baseline, no GNN). "
-            "Paper-name mapping (docs/research/jss/draft.md Section 7.2): "
+            "Paper-name mapping (reproduce/EXPERIMENTS.md §3 Model Variants): "
             "hetero_qos=HGL-QoS, homo_unweighted=GL, homo_scalar=GL-QoS."
         ),
     )
@@ -168,7 +168,7 @@ async def train_gnn(
     client: Client = Depends(get_client),
 ):
     """
-    Train a Heterogeneous Graph Attention Network (HeteroGAT) on the current
+    Train a Heterogeneous Graph Transformer (HGT) on the current
     graph topology.  Runs structural analysis and failure simulation as
     prerequisites, then trains the GNN and saves model checkpoints.
     """

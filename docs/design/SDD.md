@@ -670,7 +670,7 @@ The GNN prediction component (`saag.prediction.service.PredictionService`) uses 
 saag.prediction.service.PredictionService.predict_layer(structural_result, checkpoint_path)
   (also exposed as FastAPI POST /api/v1/prediction/predict)
          │
-    1. Check GNN model checkpoint path (fallback silently to RM on failure)
+    1. Check GNN model checkpoint path (logs a warning and falls back to RM on failure)
     2. GNNService.load_model(checkpoint_path)
     3. networkx_to_hetero_data(graph) -> PyG HeteroData DTO
          │  → Build type-specific feature width tensors (§6.24)

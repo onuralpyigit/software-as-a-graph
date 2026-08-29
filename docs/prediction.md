@@ -263,6 +263,12 @@ $$Q_{\text{GNN}}(u, v) = \text{Sigmoid}\left(\text{MLP}_{\text{edge}}\left(\left
 | **Generalization** | Immediate on any valid graph | Optimal within trained domain (fine-tuning for transfer) |
 | **Primary Use Case** | Baseline analysis, CI gates, unlabelled graphs | Deep architectural ranking, edge prioritization |
 
+**`cli/predict_graph.py` (`saag-predict`) always computes the Rule-Based RM path** — it is a
+static diagnostic quality attribution, not a dynamic multi-hop cascade forecast. The learned GNN
+path only runs additionally when `--gnn-model <checkpoint>` is passed and a valid checkpoint is
+found there; the CLI prints an explicit notice and the exported JSON's `prediction_mode` field
+records `"rm"` whenever it does not.
+
 ---
 
 ## 7. Output Schema & Sample JSON

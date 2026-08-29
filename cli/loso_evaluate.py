@@ -5,7 +5,7 @@ cli/loso_evaluate.py — Leave-One-Scenario-Out Inductive Evaluation
 
 Closes G4 (transductive leakage) for the GNN Predict stage by establishing
 a strict inductive evaluation protocol: for every scenario k in the suite,
-train the HeteroGAT on the N-1 remaining scenarios and evaluate on k. The
+train the HGT on the N-1 remaining scenarios and evaluate on k. The
 held-out scenario is never observed during training — its node features
 never participate in any forward pass, its labels never enter any loss.
 
@@ -1100,8 +1100,8 @@ def parse_args() -> argparse.Namespace:
         default="hgl_qos",
         help=(
             "Model architecture variant (default: hgl_qos). "
-            "hgl_qos = QoS-embedded HeteroGAT on native graph; "
-            "hgl     = QoS-masked HeteroGAT on native graph; "
+            "hgl_qos = QoS-embedded HGT on native graph; "
+            "hgl     = QoS-masked HGT on native graph; "
             "gl_qos  = QoS-weighted homogeneous GAT on projection; "
             "gl      = unweighted homogeneous GAT on projection; "
             "topology_rm = RM scores only (no GNN)."

@@ -374,7 +374,7 @@ def main() -> None:
     else:
         mode_parts.append("default weights")
     if args.gnn_model:
-        mode_parts.append("GNN prediction")
+        mode_parts.append("GNN prediction requested")
     if not args.no_antipatterns:
         if args.pattern:
             mode_parts.append(f"patterns: {args.pattern}")
@@ -390,6 +390,7 @@ def main() -> None:
     all_problems: list = []
     all_failed_patterns: list[str] = []
     all_output: dict = {"layers": {}}
+    gnn_requested_but_unavailable = False  # --gnn-model given but no layer produced GNN scores
 
     for layer in layers:
         display.print_step(f"[{layer.upper()}] Structural analysis…")
@@ -453,6 +454,13 @@ def main() -> None:
                         f"{ns.maintainability_score:>6.3f}  {ns.source}"
                     )
                 print()
+            else:
+                gnn_requested_but_unavailable = True
+                display.print_error(
+                    f"[{layer.upper()}] GNN inference unavailable — this run's scores are "
+                    "static diagnostic quality attribution (RM), not dynamic multi-hop "
+                    "cascade forecasting."
+                )
 
         # ── Anti-pattern detection  (Issue #1, #5, #6, #7) ───────────────────
         # Reused from client.predict() above, not re-run: predict() already
@@ -482,6 +490,7 @@ def main() -> None:
         # ── Accumulate layer output ───────────────────────────────────────────
         layer_entry: dict = {
             "total_components": total_components,
+            "prediction_mode": "gnn_only" if gnn_result else prediction.prediction_mode,
             "rm": {
                 c.id: {
                     "overall":          c.scores.overall,
@@ -517,6 +526,12 @@ def main() -> None:
         display.print_success(f"Anti-pattern report saved → {args.output_antipatterns}")
 
     # ── Summary line ──────────────────────────────────────────────────────────
+    if gnn_requested_but_unavailable:
+        display.print_error(
+            "GNN prediction was requested but unavailable for at least one layer — "
+            "output for those layers is static diagnostic quality attribution (RM), "
+            "not dynamic multi-hop cascade forecasting."
+        )
     if not args.no_antipatterns:
         n_critical = sum(1 for p in all_problems if p.severity == "CRITICAL")
         n_high     = sum(1 for p in all_problems if p.severity == "HIGH")

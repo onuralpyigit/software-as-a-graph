@@ -493,6 +493,7 @@ Documented so they aren't mistaken for working code.
 | L5 | **`kappa` has no effect on an edit whose seed spread is exactly zero.** The simulator is deterministic for many edits, giving $\sigma = 0$ at every threshold. | The bar $\kappa \cdot \sigma$ collapses to 0 and the rule degenerates to "mean reduction > 0" no matter how large `kappa` is. Raising `kappa` only filters edits whose measured deltas actually vary across seeds. |
 | L6 | **Verification cost is linear in candidate count** ([§3.2](#32-cost-model)). | Large scenarios with tens of candidates run hundreds of exhaustive sweeps. |
 | L7 | **No REST surface.** Stage 6 has no router in `api/routers/` and no presenter. | Prescribe is reachable from the SDK and the CLI only. |
+| L8 | **Individually-verified edits are not shown to compose.** Acceptance is decided on singletons ([§3](#3-closed-loop-verification-mechanics)): each candidate is simulated alone, on a graph containing only that edit. | Nothing in the procedure establishes that a set of individually-accepted edits remains beneficial applied together — the reported whole-policy `ΔSRI` (L4) is the outcome of applying the accepted subset, not a verified prediction of it. Verifying subsets rather than singletons would close this at combinatorial cost. |
 
 ---
 

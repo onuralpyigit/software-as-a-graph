@@ -75,6 +75,7 @@ class ComponentResponse(BaseModel):
     criticality_level: str
     criticality_levels: CriticalityLevelsModel
     scores: ScoresModel
+    provenance: str = "rm"
 
 
 class EdgeResponse(BaseModel):

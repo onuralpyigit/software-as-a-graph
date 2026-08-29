@@ -233,7 +233,7 @@ export default function TrainPage() {
   return (
     <AppLayout
       title="Train GNN Model"
-      description="Train a Heterogeneous Graph Attention Network to predict component criticality"
+      description="Train a Heterogeneous Graph Transformer to predict component criticality"
     >
       {!isConnected ? (
         <NoConnectionInfo />
@@ -249,7 +249,7 @@ export default function TrainPage() {
               <div>
                 <h2 className="text-2xl font-bold">Training Configuration</h2>
                 <p className="text-sm text-muted-foreground">
-                  Configure <TermTooltip term="HeteroGAT">HeteroGAT</TermTooltip> hyperparameters. Checkpoints auto-saved to{" "}
+                  Configure <TermTooltip term="HGT">HGT</TermTooltip> hyperparameters. Checkpoints auto-saved to{" "}
                   <code className="text-xs bg-muted px-1 py-0.5 rounded">output/gnn_checkpoints/YYYY-MM-DD_HH-MM-SS</code>
                 </p>
               </div>

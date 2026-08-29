@@ -8,7 +8,7 @@ Headline experiment for the Middleware 2026 paper:
     "QoS-Aware Heterogeneous Graph Attention for Pre-Deployment
      Cascade Prediction in Publish-Subscribe Middleware"
 
-For each scenario in the suite, this script trains a HeteroGAT criticality
+For each scenario in the suite, this script trains an HGT criticality
 model TWICE per seed:
 
     Arm A — topology-only: QoS edge weights and QoS-derived node features

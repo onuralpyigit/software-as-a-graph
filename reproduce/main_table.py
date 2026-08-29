@@ -84,8 +84,8 @@ ALL_VARIANTS = [
     "topo_qos",             # Topo-QoS: structural baseline (QoS-weighted projection)
     "gl",                   # GL: Homogeneous GAT (unweighted projection)
     "gl_qos",               # GL-QoS: Homogeneous GAT (QoS-weighted projection)
-    "hgl",                  # HGL: Heterogeneous GAT (unweighted native)
-    "hgl_qos",              # HGL-QoS: Heterogeneous GAT (QoS-embedded native)
+    "hgl",                  # HGL: Heterogeneous Graph Transformer (unweighted native)
+    "hgl_qos",              # HGL-QoS: Heterogeneous Graph Transformer (QoS-embedded native)
 ]
 
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
@@ -956,7 +956,7 @@ def _mask_qos_in_graph(nx_graph):
        the PyG conversion pipeline.
 
     Preserves topology and edge-type attributes (PUBLISHES_TO / DEPENDS_ON /
-    …) so the heterogeneous GAT still sees the relation structure.
+    …) so the HGT still sees the relation structure.
     """
     import networkx as _nx
     masked = _nx.DiGraph()
@@ -1439,8 +1439,8 @@ def _train_cell(
         )
 
     elif variant in ("hgl", "hgl_qos"):
-        # hgl: heterogeneous GAT with QoS dimensions masked (unweighted native).
-        # hgl_qos: full QoS-aware heterogeneous GAT (QoS native).
+        # hgl: HGT with QoS dimensions masked (unweighted native).
+        # hgl_qos: full QoS-aware HGT (QoS native).
         from saag.prediction.gnn_service import GNNService
 
         use_qos = (variant == "hgl_qos")

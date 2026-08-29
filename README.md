@@ -112,7 +112,7 @@ python cli/predict_graph.py --layer system
 python cli/visualize_graph.py --layer system --output output/dashboard.html --open
 ```
 
-On a first run there is no GNN checkpoint, so `run.py` disables the Predict stage's ML path and falls back to deterministic RM scoring. To enable the GNN, run Simulate to produce labels, train, then pass the checkpoint **directory**:
+On a first run there is no GNN checkpoint, so `run.py` skips the Predict stage entirely rather than crashing (`predict_graph.py` itself never runs a GNN unless `--gnn-model` is passed — it always computes deterministic RM scoring). To enable the GNN, run Simulate to produce labels, train, then pass the checkpoint **directory**:
 
 ```bash
 python cli/train_graph.py --layer system

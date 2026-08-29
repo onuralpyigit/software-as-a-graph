@@ -667,8 +667,8 @@ def parse_args() -> argparse.Namespace:
         default="hgl_qos",
         help=(
             "Model architecture variant (default: hgl_qos). "
-            "hgl_qos = QoS-embedded HeteroGAT on native graph; "
-            "hgl     = QoS-masked HeteroGAT on native graph; "
+            "hgl_qos = QoS-embedded HGT on native graph; "
+            "hgl     = QoS-masked HGT on native graph; "
             "gl_qos  = QoS-weighted homogeneous GAT on projection; "
             "gl      = unweighted homogeneous GAT on projection; "
             "topology_rm = RM scores only (no GNN)."

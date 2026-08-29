@@ -117,13 +117,14 @@ class PredictionService:
             rm_result, layer=layer, active_patterns=active_patterns
         )
 
-        if not (
-            self.prefer_gnn
-            and self.gnn_checkpoint_dir
-            and self._has_checkpoint(self.gnn_checkpoint_dir)
-        ):
-            logger.info(
-                "No GNN checkpoint at '%s'; returning RM scores.", self.gnn_checkpoint_dir
+        if not self.prefer_gnn:
+            logger.debug("RM scoring requested (mode='rm'); returning RM scores.")
+            return rm_result
+
+        if not (self.gnn_checkpoint_dir and self._has_checkpoint(self.gnn_checkpoint_dir)):
+            logger.warning(
+                "GNN prediction requested but no checkpoint found at '%s'; "
+                "returning RM scores instead.", self.gnn_checkpoint_dir
             )
             return rm_result
 

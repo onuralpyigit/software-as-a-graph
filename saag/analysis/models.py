@@ -98,6 +98,7 @@ class QualityAnalysisResult:
             "components": [c.to_dict() for c in self.components],
             "edges": [e.to_dict() for e in self.edges],
             "classification_summary": self.classification_summary.to_dict() if hasattr(self.classification_summary, "to_dict") else self.classification_summary,
+            "prediction_mode": self.prediction_mode,
         }
         if self.sensitivity:
             result["sensitivity"] = self.sensitivity

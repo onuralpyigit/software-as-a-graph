@@ -138,7 +138,7 @@ orthogonal Reliability, Maintainability, Availability, and Vulnerability (RMAV) 
 stated weighting audited for Analytic Hierarchy Process (AHP) consistency (§4.3).
 
 SaG then performs **failure-impact analysis**, predicting cascade impact $I(v)$ with two predictors:
-the multi-dimensional composite $Q(v)$ and a learned **Heterogeneous Graph Transformer** (**HGL**).
+the multi-dimensional composite $Q(v)$ and a learned **Heterogeneous Graph Transformer** (**HGT**).
 We evaluate the learned predictor in two variants — QoS-masked (HGL) and QoS-encoded
 ($HGL\text{-}QoS$) — to isolate what explicit QoS contract features contribute; §8.3 reports that
 contribution as a null, so every headline figure in this paper is the QoS-masked HGL, and we name the

@@ -102,7 +102,7 @@ def parse_args() -> argparse.Namespace:
             "homo_unweighted = flat GAT, no edge_attr; "
             "homo_scalar = flat GAT, scalar QoS weight; "
             "topology_rm = RM scores only, no GNN training. "
-            "Paper-name mapping (docs/research/jss/draft.md Section 7.2): "
+            "Paper-name mapping (reproduce/EXPERIMENTS.md §3 Model Variants): "
             "hetero_qos=HGL-QoS, homo_unweighted=GL, homo_scalar=GL-QoS. "
             "NOTE: this flag does not expose the paper's QoS-masked heterogeneous variant "
             "(HGL) as a distinct choice, and topology_rm (RM composite score) is not the "
