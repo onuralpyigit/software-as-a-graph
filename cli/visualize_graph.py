@@ -169,6 +169,38 @@ def _demo_layer_data() -> LayerData:
         "G3_precision": True, "G4_top5": True,
     }
 
+    # Dual-Pathway & Triage data (§4 Prediction Architecture)
+    demo_data.has_gnn = True
+    demo_data.gnn_spearman = 0.892
+    demo_data.gnn_f1 = 0.935
+    demo_data.gnn_ndcg = 0.941
+    demo_data.gnn_top5_overlap = 0.85
+    demo_data.triage_ranking_source = "gnn"
+    demo_data.triage_entries = [
+        {
+            "component_id": "sensor_fusion",
+            "rank": 1,
+            "ranking_score": 0.865,
+            "component_type": "Application",
+            "pattern": "GOD_COMPONENT",
+            "level": "CRITICAL",
+            "roles": ["Architect", "Developer"],
+            "elevated_dimensions": [{"dimension": "maintainability", "value": 0.88}],
+            "priority_action": "Decompose monolithic pub-sub responsibilities across specialized microservices.",
+        },
+        {
+            "component_id": "main_broker",
+            "rank": 2,
+            "ranking_score": 0.840,
+            "component_type": "Broker",
+            "pattern": "SPOF",
+            "level": "CRITICAL",
+            "roles": ["DevOps / SRE"],
+            "elevated_dimensions": [{"dimension": "availability", "value": 0.93}],
+            "priority_action": "Deploy clustered broker replicas with automated failover.",
+        },
+    ]
+
     return demo_data
 
 
@@ -244,6 +276,20 @@ def main():
              "docs/visualization.md §3.4). Enables the Cascade risk tab.",
     )
 
+    # Dual-pathway & Triage arguments
+    parser.add_argument(
+        "--gnn-model",
+        metavar="PATH",
+        help="Path to trained GNN model checkpoint directory. Enables GNN blast radius overlay in visualization.",
+    )
+    parser.add_argument(
+        "--triage-k",
+        type=int,
+        default=None,
+        metavar="K",
+        help="Shortlist Top-K critical components and render actionable stakeholder triage remediation panel.",
+    )
+
     # Use -b (browser) for --open to avoid conflict with -o (output).
     parser.add_argument("--open", "-b", action="store_true",
                         help="Open dashboard in browser after generation")
@@ -283,6 +329,8 @@ def main():
         antipatterns_file=args.antipatterns,
         multi_seed=multi_seed_arg,
         cascade_file=args.cascade_file,
+        gnn_model=args.gnn_model,
+        triage_k=args.triage_k,
     )
 
     display.display_visualization_summary(out_path)

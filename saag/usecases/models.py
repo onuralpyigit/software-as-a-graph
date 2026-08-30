@@ -45,3 +45,6 @@ class VisOptions:
     antipatterns_file: Optional[str] = None
     multi_seed: int = 0
     cascade_file: Optional[str] = None
+    gnn_checkpoint: Optional[str] = None
+    triage_k: Optional[int] = None
+

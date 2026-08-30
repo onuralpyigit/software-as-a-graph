@@ -71,6 +71,16 @@ TYPE_COLORS: Dict[str, str] = {
     "Library":     "#3B6D11",
 }
 
+# ── Component shapes for Cytoscape network graph ──────────────────────────────
+TYPE_SHAPES: Dict[str, str] = {
+    "Application": "round-rectangle",
+    "Broker":      "diamond",
+    "Topic":       "ellipse",
+    "Library":     "hexagon",
+    "Node":        "barrel",
+}
+
+
 # ── MIL-STD-498 hierarchy levels: (background, accent) ─────────────────────────
 HIERARCHY_COLORS: Dict[str, tuple] = {
     "CSS":  ("#EEEDFE", "#534AB7"),
@@ -90,9 +100,22 @@ CATEGORICAL_PALETTE = [
 ]
 
 
+# ── Stakeholder Roles (Triage Bridge) ─────────────────────────────────────────
+ROLE_BADGE_COLORS: Dict[str, tuple] = {
+    "DevOps / SRE":     ("#E6F1FB", "#0C447C"),  # blue operational
+    "DevOps":           ("#E6F1FB", "#0C447C"),
+    "SRE":              ("#E6F1FB", "#0C447C"),
+    "Architect":        ("#EEEDFE", "#534AB7"),  # purple architectural
+    "System Architect": ("#EEEDFE", "#534AB7"),
+    "Developer":        ("#E1F5EE", "#0F6E56"),  # teal code/maintainability
+    "Software Developer": ("#E1F5EE", "#0F6E56"),
+}
+
+
 def criticality_badge_css() -> str:
     """Render the `.badge-<level>` rules from CRITICALITY_BADGE_COLORS."""
     return "\n".join(
         f"    .badge-{level.lower():<9} {{ background: {bg}; color: {fg}; }}"
         for level, (bg, fg) in CRITICALITY_BADGE_COLORS.items()
     )
+

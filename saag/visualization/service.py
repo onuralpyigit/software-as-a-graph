@@ -328,13 +328,16 @@ class VisualizationService:
         self, gen: DashboardGenerator, data: LayerData
     ) -> None:
         """
-        Section 3: Interactive component table (sort + filter) + RM chart.
+        Section 3: Interactive component table (sort + filter) + RM chart + Triage.
 
         Table columns: ID, Name, Type, Q(v), Level, Impact, R, M, FT, A, RM, SPOF
         FT and A are Reliability's sub-characteristics, reported alongside R.
         type_col=2, level_col=4 enables the filter dropdowns.
         """
         gen.start_section("Component Details", "details")
+
+        if data.triage_entries:
+            gen.add_triage_panel(data.triage_entries, ranking_source=data.triage_ranking_source)
 
         headers = [
             "ID", "Name", "Type", "Q(v)", "Level",

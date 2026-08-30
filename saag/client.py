@@ -150,9 +150,19 @@ class Client:
         Problems are computed as part of predict(); this method simply surfaces
         them with an optional pattern filter rather than re-running detection.
         """
-        problems = getattr(prediction_result, "problems", []) or []
+        raw = getattr(prediction_result, "raw", prediction_result)
+        problems = getattr(raw, "problems", None) or getattr(prediction_result, "problems", []) or []
         if active_patterns:
-            problems = [p for p in problems if getattr(p, "pattern", None) in active_patterns]
+            active_set = {p.upper() for p in active_patterns}
+            problems = [
+                p for p in problems
+                if (
+                    getattr(p, "pattern", "").upper() in active_set
+                    or getattr(p, "name", "").upper() in active_set
+                    or getattr(p, "pattern_id", "").upper() in active_set
+                    or getattr(p, "id", "").upper() in active_set
+                )
+            ]
         return problems
 
     def simulate(self, layer: str = "system", mode: str = "exhaustive", target_id: Optional[str] = None, **kwargs) -> Any:
@@ -183,7 +193,7 @@ class Client:
         from saag.validation.service import ValidationService
         
         analysis_service = AnalysisService(self.repo)
-        gnn_checkpoint = kwargs.get("gnn_checkpoint") or kwargs.get("gnn_checkpoint_dir")
+        gnn_checkpoint = kwargs.get("gnn_checkpoint") or kwargs.get("gnn_checkpoint_dir") or kwargs.get("gnn_model")
         prediction_service = PredictionService(gnn_checkpoint_dir=gnn_checkpoint)
         simulation_service = SimulationService(self.repo)
         validation_service = ValidationService(
@@ -242,8 +252,9 @@ class Client:
         from saag.validation.service import ValidationService
         from saag.visualization.service import VisualizationService
         
+        gnn_checkpoint = kwargs.get("gnn_checkpoint") or kwargs.get("gnn_model")
         analysis_service = AnalysisService(self.repo)
-        prediction_service = PredictionService()
+        prediction_service = PredictionService(gnn_checkpoint_dir=gnn_checkpoint)
         if hasattr(self.repo, 'driver'):
              simulation_service = SimulationService(self.repo)
         else:
@@ -265,9 +276,12 @@ class Client:
         if "include_network" in kwargs: options.include_network = kwargs["include_network"]
         if "include_matrix" in kwargs: options.include_matrix = kwargs["include_matrix"]
         if "include_validation" in kwargs: options.include_validation = kwargs["include_validation"]
+        if "include_per_dim_scatter" in kwargs: options.include_per_dim_scatter = kwargs["include_per_dim_scatter"]
         if "antipatterns_file" in kwargs: options.antipatterns_file = kwargs["antipatterns_file"]
         if "multi_seed" in kwargs: options.multi_seed = kwargs["multi_seed"]
         if "cascade_file" in kwargs: options.cascade_file = kwargs["cascade_file"]
+        if gnn_checkpoint: options.gnn_checkpoint = gnn_checkpoint
+        if "triage_k" in kwargs: options.triage_k = kwargs["triage_k"]
         
         return uc.execute(layers=layers, output_file=output, options=options)
 

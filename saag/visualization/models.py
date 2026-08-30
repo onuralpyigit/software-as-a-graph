@@ -35,6 +35,12 @@ class ComponentDetail:
     # Cascade risk (§6.4.5) — populated by cascade_risk_scorer
     cascade_risk: float = 0.0
     cascade_risk_topo: float = 0.0  # topology-only baseline
+    # Dual-Pathway B (GNN forecast) & Triage Bridge attributes
+    gnn_score: float = 0.0
+    triage_rank: Optional[int] = None
+    triage_priority_action: str = ""
+    triage_roles: List[str] = field(default_factory=list)
+    triage_pattern: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -50,6 +56,11 @@ class ComponentDetail:
             "explanation": self.explanation,
             "cascade_risk": self.cascade_risk,
             "cascade_risk_topo": self.cascade_risk_topo,
+            "gnn_score": self.gnn_score,
+            "triage_rank": self.triage_rank,
+            "triage_priority_action": self.triage_priority_action,
+            "triage_roles": self.triage_roles,
+            "triage_pattern": self.triage_pattern,
         }
 
 
@@ -147,6 +158,17 @@ class LayerData:
     multiseed_rho: List[float] = field(default_factory=list)
     multiseed_f1: List[float] = field(default_factory=list)
     multiseed_seeds: List[str] = field(default_factory=list)
+
+    # Dual-Pathway B (GNN forecasting metrics)
+    has_gnn: bool = False
+    gnn_spearman: float = 0.0
+    gnn_f1: float = 0.0
+    gnn_ndcg: float = 0.0
+    gnn_top5_overlap: float = 0.0
+
+    # Triage Bridge (§4 Prediction Architecture)
+    triage_entries: List[Dict[str, Any]] = field(default_factory=list)
+    triage_ranking_source: str = ""
 
     # ── Computed properties ─────────────────────────────────────────────
 

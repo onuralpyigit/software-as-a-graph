@@ -27,6 +27,7 @@ def main():
     parser.add_argument("--severity", type=str, help="Filter by severity (comma-separated, e.g. 'critical,high')")
     parser.add_argument("--pattern", type=str, help="Filter by pattern ID (comma-separated, e.g. 'SPOF,CYCLE')")
     parser.add_argument("--catalog", action="store_true", help="Print the anti-pattern catalog and exit")
+    parser.add_argument("--no-exit-code", action="store_true", help="Always exit with code 0 (disables CI/CD blocking)")
     
     add_neo4j_arguments(parser)
     add_common_arguments(parser)
@@ -38,7 +39,7 @@ def main():
     if args.catalog:
         from saag.analysis.antipattern_detector import CATALOG
         display.print_header("Anti-Pattern Catalog")
-        for pid, spec in CATALOG.items():
+        for pid, spec in sorted(CATALOG.items(), key=lambda kv: (kv[1].severity, kv[0])):
             color = display.severity_color(spec.severity)
             print(f"\n  {display.colored(f'[{pid}]', color, bold=True)} {display.colored(spec.name, display.Colors.WHITE, bold=True)}")
             print(f"  {'Category:':<12} {spec.category}")
@@ -47,55 +48,68 @@ def main():
             print(f"  {'Risk:':<12} {spec.risk}")
             print(f"  {'Fix:':<12} {display.colored(spec.recommendation, display.Colors.GREEN)}")
         sys.exit(0)
+
     display.print_header("Architectural Anti-Pattern Detection")
     
     client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
     
-    display.print_step(f"Analyzing layer '{args.layer}' for bad smells...")
-    analysis = client.analyze(
-        layer=args.layer, 
-        use_ahp=args.use_ahp, 
-        ahp_shrinkage=args.ahp_shrinkage
-    )
-    
-    display.print_step("Generating criticality predictions...")
-    prediction = client.predict(analysis)
-    
-    display.print_step("Scanning for structural and probabilistic anti-patterns...")
+    layers = [args.layer]
+    if args.layer.lower() == "all":
+        layers = ["app", "infra", "mw", "system"]
+    elif "," in args.layer:
+        layers = [l.strip() for l in args.layer.split(",") if l.strip()]
+
     active_patterns = None
     if args.pattern:
-        active_patterns = [p.strip().upper() for p in args.pattern.split(",")]
+        active_patterns = [p.strip().upper() for p in args.pattern.split(",") if p.strip()]
+
+    all_problems = []
+    
+    for layer in layers:
+        display.print_step(f"Analyzing layer '{layer}' for bad smells...")
+        analysis = client.analyze(layer=layer)
         
-    problems = client.detect_antipatterns(analysis, active_patterns=active_patterns)
-    
-    # Apply severity filter
-    if args.severity:
-        allowed_sevs = {s.strip().upper() for s in args.severity.split(",")}
-        problems = [p for p in problems if p.severity.upper() in allowed_sevs]
-    
-    # Report results
-    total_components = len(analysis.all_components)
-    display.display_antipatterns(problems, [args.layer], total_components)
+        display.print_step(f"[{layer.upper()}] Scanning for anti-patterns...")
+        prediction = client.predict(
+            analysis,
+            use_ahp=args.use_ahp,
+            ahp_shrinkage=args.ahp_shrinkage,
+            active_patterns=active_patterns,
+        )
+        
+        problems = client.detect_antipatterns(prediction, active_patterns=active_patterns)
+        
+        # Apply severity filter
+        if args.severity:
+            allowed_sevs = {s.strip().upper() for s in args.severity.split(",")}
+            problems = [p for p in problems if p.severity.upper() in allowed_sevs]
+        
+        all_problems.extend(problems)
+        total_components = len(getattr(analysis.raw, "all_components", []))
+        display.display_antipatterns(problems, [layer], total_components)
     
     if args.output:
         import json
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w") as f:
-            json.dump([p.to_dict() for p in problems], f, indent=2)
+            json.dump([p.to_dict() for p in all_problems], f, indent=2)
         display.print_success(f"Detailed anti-pattern report saved to {args.output}")
     else:
         display.print_success("Anti-pattern detection complete.")
 
-    # CI Exit Codes
-    if any(p.severity == "CRITICAL" for p in problems):
-        sys.exit(2)
-    elif any(p.severity == "HIGH" for p in problems):
-        sys.exit(2)
-    elif problems:
-        sys.exit(1)
+    if args.no_exit_code:
+        return 0
+
+    # CI Exit Codes (0=clean, 1=medium, 2=high/critical)
+    severities = {p.severity.upper() for p in all_problems}
+    if "CRITICAL" in severities or "HIGH" in severities:
+        return 2
+    elif "MEDIUM" in severities:
+        return 1
     else:
-        sys.exit(0)
+        return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
+

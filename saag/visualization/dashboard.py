@@ -17,8 +17,12 @@ from typing import Any, Dict, List, Optional
 from .palette import (
     BRAND_PURPLE,
     CRITICALITY_COLORS,
+    CRITICALITY_BADGE_COLORS,
     DEFAULT_COLOR,
     HIERARCHY_COLORS,
+    ROLE_BADGE_COLORS,
+    TYPE_COLORS,
+    TYPE_SHAPES,
     criticality_badge_css,
 )
 
@@ -45,7 +49,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{title}}</title>
+  <title>{title}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
@@ -97,14 +101,26 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       padding-top: 20px;
     }}
     .sag-header {{
-      padding: 24px 0; margin-bottom: 0; background: transparent; color: var(--text);
+      padding: 24px 0 18px; margin-bottom: 0; background: transparent; color: var(--text);
+    }}
+    .sag-header-top {{
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;
     }}
     .sag-header .meta {{
-      font-size: 11px; opacity: 0.5; font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
+      font-size: 11px; opacity: 0.75; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+    }}
+    .sag-header-badges {{
+      display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    }}
+    .sag-header-main {{
+      margin-top: 4px;
     }}
     .sag-header h1 {{
-      font-size: 24px; font-weight: 600; letter-spacing: -0.5px;
+      font-size: 24px; font-weight: 700; letter-spacing: -0.5px; color: var(--text); margin-bottom: 4px;
+    }}
+    .sag-subtitle {{
+      font-size: 13px; color: var(--muted); font-weight: 400;
     }}
     /* ── Sections ── */
     .section {{
@@ -189,6 +205,30 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .badge-failed    {{ background: #FCEBEB; color: #791F1F; }}
     .badge-spof      {{ background: #F4C0D1; color: #72243E; }}
     .badge-tag       {{ background: #EEEDFE; color: #3C3489; }}
+    .badge-devops-sre {{ background: #E6F1FB; color: #0C447C; }}
+    .badge-architect  {{ background: #EEEDFE; color: #534AB7; }}
+    .badge-developer  {{ background: #E1F5EE; color: #0F6E56; }}
+    /* ── Triage cards ── */
+    .triage-card {{
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-md); padding: 14px 18px;
+      margin-bottom: 10px; border-left: 4px solid var(--primary);
+    }}
+    .triage-header {{
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 6px; flex-wrap: wrap; gap: 8px;
+    }}
+    .triage-title {{
+      font-size: 13px; font-weight: 600; color: var(--text);
+    }}
+    .triage-action {{
+      font-size: 12px; color: var(--text); background: #f9fafb;
+      padding: 8px 12px; border-radius: 6px; margin-top: 8px;
+      border-left: 3px solid var(--success);
+    }}
+    .triage-elevated {{
+      display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; align-items: center; font-size: 11px;
+    }}
     /* ── Cascade risk panel ── */
     .cascade-stat {{
       background: #f3f4f6; border-radius: var(--radius-md);
@@ -276,13 +316,78 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .explanation-card h4 {{ font-size: 13px; font-weight: 500; margin-bottom: 6px; }}
     .explanation-card p  {{ font-size: 12px; color: var(--muted); }}
     /* ── Network graph ── */
+    .cy-wrapper {{
+      position: relative; margin-bottom: 20px;
+    }}
+    .cy-toolbar {{
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 10px 14px; background: #f8fafc;
+      border: 0.5px solid var(--border); border-bottom: none;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }}
+    .cy-toolbar-group {{
+      display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted);
+    }}
+    .cy-select, .cy-input {{
+      padding: 5px 9px; font-size: 12px; border: 0.5px solid var(--border);
+      border-radius: 4px; background: #ffffff; color: var(--text); outline: none;
+    }}
+    .cy-select:focus, .cy-input:focus {{
+      border-color: var(--primary);
+    }}
+    .cy-btn {{
+      padding: 5px 10px; font-size: 12px; font-weight: 500;
+      border: 0.5px solid var(--border); border-radius: 4px;
+      background: #ffffff; cursor: pointer; color: var(--text);
+      transition: background 0.15s;
+    }}
+    .cy-btn:hover {{ background: #f1f5f9; }}
+    .cy-viewport-box {{
+      position: relative; width: 100%;
+      border: 0.5px solid var(--border);
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+      overflow: hidden; background: #fafafa;
+    }}
     .cy-container {{
-      width: 100%; border: 0.5px solid var(--border);
-      border-radius: var(--radius-md); background: #fafafa;
+      width: 100%; height: 100%;
+    }}
+    .cy-inspector {{
+      position: absolute; top: 12px; right: 12px; width: 330px;
+      max-height: calc(100% - 24px); overflow-y: auto;
+      background: #ffffff; border: 0.5px solid var(--border);
+      border-radius: var(--radius-md); box-shadow: 0 4px 18px rgba(0,0,0,0.12);
+      padding: 16px; z-index: 1000; font-size: 12px;
+    }}
+    .cy-inspector-header {{
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 12px; border-bottom: 0.5px solid #f1f5f9; padding-bottom: 8px;
+    }}
+    .cy-inspector-title {{
+      font-size: 14px; font-weight: 600; color: var(--text); word-break: break-all;
+    }}
+    .cy-inspector-close {{
+      cursor: pointer; font-size: 18px; line-height: 1; color: var(--muted);
+      background: none; border: none; padding: 0 4px;
+    }}
+    .cy-inspector-close:hover {{ color: var(--text); }}
+    .cy-metric-grid {{
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;
+    }}
+    .cy-metric-card {{
+      background: #f8fafc; padding: 8px 10px; border-radius: 6px; border: 0.5px solid #e2e8f0;
+    }}
+    .cy-metric-label {{
+      font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 500; margin-bottom: 2px;
+    }}
+    .cy-metric-value {{
+      font-size: 14px; font-weight: 600; color: var(--text);
     }}
     .cy-legend {{
-      display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px;
-      font-size: 12px; color: var(--muted);
+      display: flex; flex-wrap: wrap; gap: 18px; margin-top: 14px;
+      font-size: 12px; color: var(--muted); align-items: center;
+    }}
+    .cy-legend-section {{
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     }}
     .cy-legend-item {{ display: flex; align-items: center; gap: 5px; }}
     .cy-swatch {{
@@ -302,8 +407,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <body>
   <div class="sag-main">
     <div class="sag-header">
-      <div class="meta">Step 7 · Visualization · {timestamp}</div>
-      <h1>{title}</h1>
+      <div class="sag-header-top">
+        <div class="meta">Software-as-a-Graph (SaaG) &nbsp;&bull;&nbsp; Step 7 &nbsp;&bull;&nbsp; Architectural Decision Support</div>
+        <div class="sag-header-badges">
+          <span class="badge badge-tag">ISO/IEC 25010 &amp; 25019</span>
+          <span class="badge badge-architect">Dual-Pathway: ISO-RM + HGT GNN</span>
+          <span class="badge badge-devops-sre">Generated: {timestamp}</span>
+        </div>
+      </div>
+      <div class="sag-header-main">
+        <h1>{title}</h1>
+        <p class="sag-subtitle">Architectural Quality Scoring, Blast-Radius Forecasting &amp; Stakeholder Remediation</p>
+      </div>
     </div>
     <div class="db">
       {tabs_html}
@@ -322,6 +437,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     if (btn) btn.classList.add('active');
     // Force chart resize if hidden tab had charts
     window.dispatchEvent(new Event('resize'));
+    // Force Cytoscape viewport recalculation and auto-fit on tab display
+    if (window.sagCyInstances) {{
+      Object.keys(window.sagCyInstances).forEach(function(k) {{
+        var cy = window.sagCyInstances[k];
+        if (cy) {{
+          cy.resize();
+          cy.fit(25);
+        }}
+      }});
+    }}
   }}
   </script>
   {scripts}
@@ -706,6 +831,80 @@ class DashboardGenerator:
         if html:
             self._emit("".join(html))
 
+    # ── Triage Bridge Panel ────────────────────────────────────────────────
+
+    def add_triage_panel(
+        self,
+        triage_entries: List[Dict[str, Any]],
+        ranking_source: str = "gnn",
+    ) -> None:
+        """Render the Triage Bridge Top-K shortlist with root-cause patterns and stakeholder roles."""
+        if not triage_entries:
+            return
+
+        source_label = "Pathway B (GNN Blast Radius)" if ranking_source.lower() == "gnn" else "Pathway A (RM Quality)"
+        html = [
+            f'<div class="triage-panel" style="margin-bottom:24px;">',
+            f'<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Triage Bridge — Actionable Stakeholder Remediation</div>',
+            f'<div style="font-size:12px;color:var(--muted);margin-bottom:14px">Top-{len(triage_entries)} critical assets ranked via {source_label} and scoped to ISO-RM root-cause diagnosis.</div>',
+        ]
+
+        for entry in triage_entries:
+            rank = entry.get("rank", 1)
+            cid = entry.get("component_id", "")
+            ctype = entry.get("component_type", "")
+            score = entry.get("ranking_score", 0.0)
+            pattern = entry.get("pattern", "UNSPECIFIED")
+            level = str(entry.get("level", "MINIMAL")).lower()
+            roles = entry.get("roles", [])
+            elevated = entry.get("elevated_dimensions", [])
+            action = entry.get("priority_action", "")
+
+            role_badges = []
+            for r in roles:
+                r_slug = r.lower().replace(" / ", "-").replace(" ", "-")
+                if "devops" in r_slug or "sre" in r_slug:
+                    badge_cls = "badge-devops-sre"
+                elif "architect" in r_slug:
+                    badge_cls = "badge-architect"
+                else:
+                    badge_cls = "badge-developer"
+                role_badges.append(f'<span class="badge {badge_cls}">{r}</span>')
+
+            elevated_tags = []
+            for ed in elevated:
+                d_name = ed.get("dimension", "")
+                d_val = ed.get("value", 0.0)
+                elevated_tags.append(f'<span class="badge badge-tag" style="background:#FCEBEB;color:#791F1F">{d_name}: {d_val:.2f}</span>')
+
+            elevated_block = f'<div class="triage-elevated" style="margin-bottom:6px"><strong>Elevated:</strong> {" ".join(elevated_tags)}</div>' if elevated_tags else ""
+            action_block = f'<div class="triage-action"><strong>Priority Action:</strong> {action}</div>' if action else ""
+
+            html.append(f"""
+            <div class="triage-card">
+              <div class="triage-header">
+                <div class="triage-title">
+                  <span style="color:var(--muted);margin-right:6px">#{rank}</span>
+                  <strong>{cid}</strong>
+                  <span style="font-size:11px;color:var(--muted);font-weight:normal;margin-left:4px">({ctype})</span>
+                  <span class="badge badge-{level}" style="margin-left:6px">{level.upper()}</span>
+                </div>
+                <div style="display:flex;gap:4px;align-items:center;">
+                  <span style="font-size:12px;font-weight:600;color:var(--primary);margin-right:6px">Score: {score:.3f}</span>
+                  {''.join(role_badges)}
+                </div>
+              </div>
+              <div style="font-size:12px;color:var(--text);margin-bottom:4px;">
+                <strong>Root Cause:</strong> <span style="font-family:monospace;color:var(--primary)">{pattern}</span>
+              </div>
+              {elevated_block}
+              {action_block}
+            </div>
+            """)
+
+        html.append("</div>")
+        self._emit("".join(html))
+
     # ── Anti-Pattern Catalog ───────────────────────────────────────────────
 
     def add_antipattern_catalog(self, patterns: List[Dict[str, Any]]) -> None:
@@ -713,11 +912,11 @@ class DashboardGenerator:
             content = '<p style="color:var(--muted);font-size:13px">No anti-patterns detected.</p>'
         else:
             html = []
-            for p in patterns:
+            for p in patterns[:50]:
                 sev = p.get("severity", "medium").lower()
                 name = p.get("name", "Unknown pattern")
                 desc = p.get("description", "")
-                components = p.get("components", [])
+                components = p.get("components", []) or p.get("component_ids", [])
                 comp_badges = "".join(
                     f'<span class="badge badge-tag">{c}</span> ' for c in components[:5]
                 )
@@ -728,6 +927,8 @@ class DashboardGenerator:
                     + (f'<div style="margin-top:6px">{comp_badges}</div>' if comp_badges else "")
                     + f'</div>'
                 )
+            if len(patterns) > 50:
+                html.append(f'<p style="font-size:12px;color:var(--muted);margin-top:8px;">...and {len(patterns) - 50} more anti-pattern instances detected.</p>')
             content = "".join(html)
 
         self._emit(content)
@@ -739,7 +940,7 @@ class DashboardGenerator:
         graph_id: str,
         nodes: List[Dict[str, Any]],
         edges: List[Dict[str, Any]],
-        title: str = "Network Graph",
+        title: str = "Interactive Network Topology",
         use_compound_nodes: bool = True,
     ) -> None:
         elements = []
@@ -754,17 +955,44 @@ class DashboardGenerator:
             node_type = node.get("type", "Application")
             parent = COMPONENT_LAYER_MAP.get(node_type) if use_compound_nodes else None
             level = node.get("level", "MINIMAL")
+            shape = TYPE_SHAPES.get(node_type, "round-rectangle")
+            is_spof = bool(node.get("spof", False))
+            border_width = 3 if is_spof else 1.5
+            border_color = "#791F1F" if is_spof else "#ffffff"
+            border_style = "double" if is_spof else "solid"
+
             nd: Dict[str, Any] = {
                 "data": {
                     "id": node["id"],
+                    "name": node.get("name", node.get("label", node["id"])),
                     "label": node.get("label", node["id"]),
                     "nodeType": node_type,
                     "level": level,
-                    "score": node.get("value", 10),
+                    "score": node.get("score", node.get("value", 10)),
+                    "dim_score": node.get("value", 10),
+                    "reliability": node.get("reliability", 0.0),
+                    "maintainability": node.get("maintainability", 0.0),
+                    "fault_tolerance": node.get("fault_tolerance", 0.0),
+                    "availability": node.get("availability", 0.0),
+                    "gnn_score": node.get("gnn_score", 0.0),
+                    "impact": node.get("impact", 0.0),
+                    "cascade_depth": node.get("cascade_depth", 0),
+                    "mpci": node.get("mpci", 0.0),
+                    "foc": node.get("foc", 0.0),
+                    "spof": is_spof,
+                    "anti_patterns": node.get("anti_patterns", []),
+                    "triage_rank": node.get("triage_rank"),
+                    "triage_roles": node.get("triage_roles", []),
+                    "triage_pattern": node.get("triage_pattern", ""),
+                    "triage_priority_action": node.get("triage_priority_action", ""),
                     "title": node.get("title", ""),
                     "color": CRITICALITY_COLORS.get(level, DEFAULT_COLOR),
+                    "shape": shape,
+                    "borderWidth": border_width,
+                    "borderColor": border_color,
+                    "borderStyle": border_style,
                 },
-                "classes": f"node-{node_type.lower()} level-{level.lower()}",
+                "classes": f"node-{node_type.lower()} level-{level.lower()}" + (" node-spof" if is_spof else ""),
             }
             if parent:
                 nd["data"]["parent"] = parent
@@ -790,44 +1018,163 @@ class DashboardGenerator:
             })
 
         cy_style = [
-            {"selector": "node", "style": {
-                "label": "data(label)", "font-size": "10px",
-                "background-color": "data(color)",
-                "width": "data(score)", "height": "data(score)",
-                "color": "#fff", "text-valign": "center",
-                "text-halign": "center", "text-wrap": "wrap",
-                "text-max-width": "80px",
-            }},
-            {"selector": ".compound", "style": {
-                "label": "data(label)", "font-size": "11px",
-                "background-opacity": 0.06, "background-color": BRAND_PURPLE,
-                "border-color": BRAND_PURPLE, "border-width": "0.5px",
-                "color": BRAND_PURPLE, "text-valign": "top",
-                "text-halign": "center",
-            }},
-            {"selector": "edge", "style": {
-                "width": "data(thickness)", "line-color": "#d1d5db",
-                "target-arrow-color": "#d1d5db",
-                "target-arrow-shape": "triangle",
-                "curve-style": "bezier",
-            }},
+            {
+                "selector": "node",
+                "style": {
+                    "label": "data(label)",
+                    "font-size": "10px",
+                    "font-weight": "500",
+                    "shape": "data(shape)",
+                    "background-color": "data(color)",
+                    "width": "data(dim_score)",
+                    "height": "data(dim_score)",
+                    "border-width": "data(borderWidth)",
+                    "border-color": "data(borderColor)",
+                    "border-style": "data(borderStyle)",
+                    "color": "#ffffff",
+                    "text-valign": "center",
+                    "text-halign": "center",
+                    "text-wrap": "wrap",
+                    "text-max-width": "80px",
+                    "text-outline-color": "data(color)",
+                    "text-outline-width": "1px",
+                    "transition-property": "border-width, border-color, opacity",
+                    "transition-duration": "0.2s",
+                },
+            },
+            {
+                "selector": ".compound",
+                "style": {
+                    "label": "data(label)",
+                    "font-size": "12px",
+                    "font-weight": "600",
+                    "background-opacity": 0.04,
+                    "background-color": BRAND_PURPLE,
+                    "border-color": BRAND_PURPLE,
+                    "border-width": "1px",
+                    "border-style": "dashed",
+                    "color": BRAND_PURPLE,
+                    "text-valign": "top",
+                    "text-halign": "center",
+                    "padding": "16px",
+                },
+            },
+            {
+                "selector": "edge",
+                "style": {
+                    "width": "data(thickness)",
+                    "line-color": "#cbd5e1",
+                    "target-arrow-color": "#94a3b8",
+                    "target-arrow-shape": "triangle",
+                    "curve-style": "bezier",
+                    "arrow-scale": 1.0,
+                    "opacity": 0.7,
+                    "transition-property": "line-color, target-arrow-color, width, opacity",
+                    "transition-duration": "0.2s",
+                },
+            },
+            {
+                "selector": "node.highlighted",
+                "style": {
+                    "border-width": "4px",
+                    "border-color": "#1e293b",
+                    "border-style": "solid",
+                    "z-index": 999,
+                    "opacity": 1.0,
+                },
+            },
+            {
+                "selector": "node.neighbor",
+                "style": {
+                    "border-width": "3px",
+                    "border-color": BRAND_PURPLE,
+                    "border-style": "solid",
+                    "z-index": 900,
+                    "opacity": 1.0,
+                },
+            },
+            {
+                "selector": "edge.edge-highlighted",
+                "style": {
+                    "line-color": BRAND_PURPLE,
+                    "target-arrow-color": BRAND_PURPLE,
+                    "width": "data(thickness)",
+                    "opacity": 1.0,
+                    "z-index": 950,
+                },
+            },
+            {
+                "selector": ".dimmed",
+                "style": {
+                    "opacity": 0.15,
+                },
+            },
         ]
 
         elem_json = json.dumps(elements)
         style_json = json.dumps(cy_style)
-        height = min(640, max(360, len(nodes) * 14))
-        content = (
-            f'<p style="font-size:13px;font-weight:500;margin-bottom:12px">{title}</p>'
-            f'<div id="{graph_id}" class="cy-container" style="height:{height}px"></div>'
-        )
-        legend_items = "".join(
+        height = min(680, max(420, len(nodes) * 15))
+
+        # Criticality swatches
+        crit_legend = "".join(
             f'<div class="cy-legend-item">'
             f'<div class="cy-swatch" style="background:{CRITICALITY_COLORS[lv]}"></div>'
             f'{lv.capitalize()}'
             f'</div>'
-            for lv in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
+            for lv in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "MINIMAL")
         )
-        content += f'<div class="cy-legend">{legend_items}</div>'
+        # Type shape swatches
+        shape_svg = {
+            "round-rectangle": '<span style="display:inline-block;width:12px;height:10px;background:#64748b;border-radius:2px;"></span>',
+            "diamond": '<span style="display:inline-block;width:8px;height:8px;background:#64748b;transform:rotate(45deg);margin:0 2px;"></span>',
+            "ellipse": '<span style="display:inline-block;width:10px;height:10px;background:#64748b;border-radius:50%;"></span>',
+            "hexagon": '<span style="display:inline-block;width:10px;height:10px;background:#64748b;clip-path:polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);"></span>',
+            "barrel": '<span style="display:inline-block;width:10px;height:11px;background:#64748b;border-radius:3px;"></span>',
+        }
+        type_legend = "".join(
+            f'<div class="cy-legend-item">'
+            f'{shape_svg.get(TYPE_SHAPES.get(t, "round-rectangle"), "")}'
+            f'{t}'
+            f'</div>'
+            for t in ("Application", "Broker", "Topic", "Library", "Node")
+        )
+        spof_legend = '<div class="cy-legend-item"><span style="display:inline-block;width:12px;height:12px;border:2px double #791F1F;background:#FCEBEB;border-radius:3px;"></span>SPOF (Articulation Point)</div>'
+
+        content = f"""
+        <div class="cy-wrapper">
+          <div class="cy-toolbar">
+            <div class="cy-toolbar-group">
+              <label for="{graph_id}-layout"><strong>Layout:</strong></label>
+              <select id="{graph_id}-layout" class="cy-select" onchange="window.sagChangeLayout('{graph_id}', this.value)">
+                <option value="cose-bilkent" selected>CoSE-Bilkent (Compound)</option>
+                <option value="concentric">Concentric (Criticality)</option>
+                <option value="breadthfirst">Breadthfirst (Flow)</option>
+                <option value="circle">Circle</option>
+                <option value="grid">Grid</option>
+              </select>
+            </div>
+            <div class="cy-toolbar-group">
+              <label for="{graph_id}-search"><strong>Find:</strong></label>
+              <input type="text" id="{graph_id}-search" class="cy-input" placeholder="Search node or ID..." oninput="window.sagSearchNodes('{graph_id}', this.value)">
+            </div>
+            <div class="cy-toolbar-group">
+              <button class="cy-btn" onclick="window.sagZoom('{graph_id}', 1.25)" title="Zoom In">+</button>
+              <button class="cy-btn" onclick="window.sagZoom('{graph_id}', 0.8)" title="Zoom Out">&minus;</button>
+              <button class="cy-btn" onclick="window.sagFit('{graph_id}')" title="Fit to View">Fit</button>
+              <button class="cy-btn" onclick="window.sagReset('{graph_id}')" title="Reset Selection">Reset</button>
+            </div>
+          </div>
+          <div class="cy-viewport-box">
+            <div id="{graph_id}" class="cy-container" style="height:{height}px"></div>
+            <div id="{graph_id}-inspector" class="cy-inspector" style="display:none"></div>
+          </div>
+          <div class="cy-legend">
+            <div class="cy-legend-section"><strong>Criticality:</strong> {crit_legend}</div>
+            <div class="cy-legend-section"><strong>Types:</strong> {type_legend}</div>
+            <div class="cy-legend-section">{spof_legend}</div>
+          </div>
+        </div>
+        """
 
         self._emit(content)
 
@@ -835,8 +1182,11 @@ class DashboardGenerator:
         <script>
         (function() {{
           if (typeof cytoscape === 'undefined') return;
+          var container = document.getElementById('{graph_id}');
+          if (!container) return;
+
           var cy = cytoscape({{
-            container: document.getElementById('{graph_id}'),
+            container: container,
             elements: {elem_json},
             style: {style_json},
             layout: {{
@@ -847,10 +1197,213 @@ class DashboardGenerator:
               nodeDimensionsIncludeLabels: true,
             }},
           }});
+
+          window.sagCyInstances = window.sagCyInstances || {{}};
+          window.sagCyInstances['{graph_id}'] = cy;
+
+          var inspector = document.getElementById('{graph_id}-inspector');
+
+          function resetHighlight() {{
+            cy.elements().removeClass('highlighted neighbor dimmed edge-highlighted');
+            if (inspector) inspector.style.display = 'none';
+          }}
+
+          function highlightNode(node) {{
+            cy.elements().removeClass('highlighted neighbor edge-highlighted').addClass('dimmed');
+
+            node.removeClass('dimmed').addClass('highlighted');
+            var connectedEdges = node.connectedEdges();
+            connectedEdges.removeClass('dimmed').addClass('edge-highlighted');
+
+            var neighborhood = node.neighborhood('node');
+            neighborhood.removeClass('dimmed').addClass('neighbor');
+
+            node.parents().removeClass('dimmed');
+            neighborhood.parents().removeClass('dimmed');
+
+            showInspector(node.data(), connectedEdges, neighborhood);
+          }}
+
+          function showInspector(d, edges, neighbors) {{
+            if (!inspector) return;
+
+            var inEdges = 0, outEdges = 0;
+            if (edges) {{
+              edges.forEach(function(e) {{
+                if (e.data('target') === d.id) inEdges++;
+                if (e.data('source') === d.id) outEdges++;
+              }});
+            }}
+
+            var html = [];
+            html.push('<div class="cy-inspector-header">');
+            html.push('  <div>');
+            html.push('    <div class="cy-inspector-title">' + (d.name || d.id) + '</div>');
+            html.push('    <div style="font-size:11px;color:var(--muted);margin-top:2px;">' + d.id + ' &middot; ' + d.nodeType + '</div>');
+            html.push('  </div>');
+            html.push('  <div style="display:flex;align-items:center;gap:6px;">');
+            html.push('    <span class="badge badge-' + d.level.toLowerCase() + '">' + d.level + '</span>');
+            html.push('    <button class="cy-inspector-close" onclick="window.sagCloseInspector(\\'{graph_id}\\')">&times;</button>');
+            html.push('  </div>');
+            html.push('</div>');
+
+            html.push('<div class="cy-metric-grid">');
+            html.push('  <div class="cy-metric-card"><div class="cy-metric-label">Criticality Q(v)</div><div class="cy-metric-value" style="color:var(--primary);">' + Number(d.score || 0).toFixed(3) + '</div></div>');
+            if (d.gnn_score > 0) {{
+              html.push('  <div class="cy-metric-card"><div class="cy-metric-label">GNN Blast Radius</div><div class="cy-metric-value" style="color:#534AB7;">' + Number(d.gnn_score).toFixed(3) + '</div></div>');
+            }}
+            html.push('  <div class="cy-metric-card"><div class="cy-metric-label">Reliability R(v)</div><div class="cy-metric-value">' + Number(d.reliability || 0).toFixed(2) + ' <span style="font-size:10px;font-weight:normal;color:var(--muted);">(FT:' + Number(d.fault_tolerance || 0).toFixed(2) + ' A:' + Number(d.availability || 0).toFixed(2) + ')</span></div></div>');
+            html.push('  <div class="cy-metric-card"><div class="cy-metric-label">Maintainability M(v)</div><div class="cy-metric-value">' + Number(d.maintainability || 0).toFixed(2) + '</div></div>');
+            if (d.impact > 0) {{
+              html.push('  <div class="cy-metric-card"><div class="cy-metric-label">Simulation Impact</div><div class="cy-metric-value">' + Number(d.impact).toFixed(3) + '</div></div>');
+              html.push('  <div class="cy-metric-card"><div class="cy-metric-label">Cascade Depth</div><div class="cy-metric-value">' + (d.cascade_depth || 1) + ' layers</div></div>');
+            }}
+            html.push('  <div class="cy-metric-card"><div class="cy-metric-label">Centrality (MPCI)</div><div class="cy-metric-value">' + Number(d.mpci || 0).toFixed(3) + '</div></div>');
+            html.push('  <div class="cy-metric-card"><div class="cy-metric-label">Fan-out (FOC)</div><div class="cy-metric-value">' + Number(d.foc || 0).toFixed(3) + '</div></div>');
+            html.push('</div>');
+
+            if (d.spof) {{
+              html.push('<div style="background:#FCEBEB;color:#791F1F;padding:6px 10px;border-radius:4px;font-size:11px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px;">');
+              html.push('  <span class="badge badge-spof">SPOF</span> Articulation Point: failure disconnects topology');
+              html.push('</div>');
+            }}
+
+            if (d.anti_patterns && d.anti_patterns.length > 0) {{
+              html.push('<div style="margin-bottom:10px;">');
+              html.push('  <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;">Detected Anti-Patterns</div>');
+              html.push('  <div style="display:flex;gap:4px;flex-wrap:wrap;">');
+              d.anti_patterns.forEach(function(ap) {{
+                html.push('    <span class="badge badge-tag">' + ap + '</span>');
+              }});
+              html.push('  </div>');
+              html.push('</div>');
+            }}
+
+            if (d.triage_rank || d.triage_priority_action) {{
+              html.push('<div style="background:#f8fafc;border:0.5px solid #e2e8f0;border-left:3px solid var(--primary);padding:8px 10px;border-radius:4px;margin-bottom:10px;">');
+              html.push('  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">');
+              html.push('    <span style="font-size:11px;font-weight:600;color:var(--primary);">Triage Shortlist #' + (d.triage_rank || '-') + '</span>');
+              if (d.triage_roles && d.triage_roles.length) {{
+                var roleBadges = d.triage_roles.map(function(r) {{
+                  var cls = r.toLowerCase().indexOf('devops') >= 0 ? 'badge-devops-sre' : (r.toLowerCase().indexOf('architect') >= 0 ? 'badge-architect' : 'badge-developer');
+                  return '<span class="badge ' + cls + '" style="font-size:10px;">' + r + '</span>';
+                }}).join(' ');
+                html.push('    <div>' + roleBadges + '</div>');
+              }}
+              html.push('  </div>');
+              if (d.triage_pattern) {{
+                html.push('  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Root Cause: <code>' + d.triage_pattern + '</code></div>');
+              }}
+              if (d.triage_priority_action) {{
+                html.push('  <div style="font-size:11px;color:var(--text);font-weight:500;">' + d.triage_priority_action + '</div>');
+              }}
+              html.push('</div>');
+            }}
+
+            html.push('<div style="font-size:11px;color:var(--muted);border-top:0.5px solid #f1f5f9;padding-top:6px;display:flex;justify-content:space-between;">');
+            html.push('  <span>Inbound dependencies: <strong>' + inEdges + '</strong></span>');
+            html.push('  <span>Outbound dependents: <strong>' + outEdges + '</strong></span>');
+            html.push('</div>');
+
+            inspector.innerHTML = html.join('');
+            inspector.style.display = 'block';
+          }}
+
           cy.on('tap', 'node', function(e) {{
-            var d = e.target.data();
-            if (d.title) alert(d.title.replace(/<[^>]*>/g, ''));
+            if (e.target.isParent && e.target.isParent()) return;
+            highlightNode(e.target);
           }});
+
+          cy.on('tap', function(e) {{
+            if (e.target === cy) {{
+              resetHighlight();
+            }}
+          }});
+
+          window.sagCloseInspector = window.sagCloseInspector || function(gid) {{
+            var insp = document.getElementById(gid + '-inspector');
+            if (insp) insp.style.display = 'none';
+            var cyInst = window.sagCyInstances && window.sagCyInstances[gid];
+            if (cyInst) {{
+              cyInst.elements().removeClass('highlighted neighbor dimmed edge-highlighted');
+            }}
+          }};
+
+          window.sagChangeLayout = window.sagChangeLayout || function(gid, layoutName) {{
+            var cyInst = window.sagCyInstances && window.sagCyInstances[gid];
+            if (!cyInst) return;
+            var opts = {{ name: layoutName, animate: true, animationDuration: 400 }};
+            if (layoutName === 'cose-bilkent') {{
+              opts.nodeRepulsion = 6000;
+              opts.idealEdgeLength = 80;
+              opts.nodeDimensionsIncludeLabels = true;
+            }} else if (layoutName === 'concentric') {{
+              opts.concentric = function(n) {{ return (n.data('score') || 0) * 10; }};
+              opts.levelWidth = function() {{ return 2; }};
+            }} else if (layoutName === 'breadthfirst') {{
+              opts.directed = true;
+              opts.spacingFactor = 1.2;
+            }}
+            var l = cyInst.layout(opts);
+            l.run();
+          }};
+
+          window.sagSearchNodes = window.sagSearchNodes || function(gid, query) {{
+            var cyInst = window.sagCyInstances && window.sagCyInstances[gid];
+            if (!cyInst) return;
+            if (!query || !query.trim()) {{
+              cyInst.elements().removeClass('highlighted neighbor dimmed edge-highlighted');
+              var insp = document.getElementById(gid + '-inspector');
+              if (insp) insp.style.display = 'none';
+              return;
+            }}
+            var q = query.trim().toLowerCase();
+            var matched = cyInst.nodes().filter(function(n) {{
+              if (n.isParent && n.isParent()) return false;
+              var id = (n.data('id') || '').toLowerCase();
+              var name = (n.data('name') || '').toLowerCase();
+              var label = (n.data('label') || '').toLowerCase();
+              return id.indexOf(q) >= 0 || name.indexOf(q) >= 0 || label.indexOf(q) >= 0;
+            }});
+
+            if (matched.length > 0) {{
+              cyInst.elements().removeClass('highlighted neighbor edge-highlighted').addClass('dimmed');
+              matched.removeClass('dimmed').addClass('highlighted');
+              matched.parents().removeClass('dimmed');
+              if (matched.length === 1) {{
+                highlightNode(matched[0]);
+                cyInst.center(matched[0]);
+              }}
+            }} else {{
+              cyInst.elements().removeClass('highlighted neighbor edge-highlighted').addClass('dimmed');
+            }}
+          }};
+
+          window.sagZoom = window.sagZoom || function(gid, factor) {{
+            var cyInst = window.sagCyInstances && window.sagCyInstances[gid];
+            if (!cyInst) return;
+            cyInst.zoom({{
+              level: cyInst.zoom() * factor,
+              renderedPosition: {{ x: cyInst.width() / 2, y: cyInst.height() / 2 }}
+            }});
+          }};
+
+          window.sagFit = window.sagFit || function(gid) {{
+            var cyInst = window.sagCyInstances && window.sagCyInstances[gid];
+            if (!cyInst) return;
+            cyInst.fit(25);
+          }};
+
+          window.sagReset = window.sagReset || function(gid) {{
+            var cyInst = window.sagCyInstances && window.sagCyInstances[gid];
+            if (!cyInst) return;
+            var search = document.getElementById(gid + '-search');
+            if (search) search.value = '';
+            cyInst.elements().removeClass('highlighted neighbor dimmed edge-highlighted');
+            var insp = document.getElementById(gid + '-inspector');
+            if (insp) insp.style.display = 'none';
+            cyInst.fit(25);
+          }};
         }})();
         </script>
         """

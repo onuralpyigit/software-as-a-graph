@@ -76,8 +76,27 @@ class LayerDataCollector:
         """
         try:
             analysis = self.analysis_service.analyze_layer(layer)
-            prediction = self.prediction_service.predict_quality(analysis.structural)
+            
+            # Predict quality — prefer GNN when configured / checkpoint exists
+            if hasattr(self.prediction_service, "predict_quality_with_gnn"):
+                prediction = self.prediction_service.predict_quality_with_gnn(
+                    analysis.structural,
+                    getattr(analysis.structural, "graph", None),
+                    layer=layer,
+                )
+            else:
+                prediction = self.prediction_service.predict_quality(analysis.structural)
             analysis.quality = prediction
+
+            # Check for GNN predictions
+            gnn_node_scores = getattr(prediction, "node_scores", None) or {}
+            if gnn_node_scores:
+                data.has_gnn = True
+                gnn_metrics = getattr(prediction, "gnn_metrics", {}) or {}
+                data.gnn_spearman = _safe_float(gnn_metrics.get("spearman", 0.0))
+                data.gnn_f1 = _safe_float(gnn_metrics.get("f1_score", 0.0))
+                data.gnn_ndcg = _safe_float(gnn_metrics.get("ndcg_10", 0.0))
+                data.gnn_top5_overlap = _safe_float(gnn_metrics.get("top_5_overlap", 0.0))
 
             # Structural Stats
             data.nodes = analysis.structural.graph_summary.nodes
@@ -94,7 +113,7 @@ class LayerDataCollector:
             if hasattr(analysis, "explanation") and analysis.explanation:
                 data.explanation = analysis.explanation.to_dict()
 
-            # Build component details with RM breakdown            # 3. Quality Metrics & Ranking
+            # 3. Quality Metrics & Ranking
             sorted_comps = sorted(
                 prediction.components,
                 key=lambda x: _safe_float(x.scores.overall),
@@ -108,7 +127,7 @@ class LayerDataCollector:
             data.low_count = 0
             data.minimal_count = 0
             
-            # New: Full component details with RM breakdown
+            # Full component details with RM breakdown and GNN prediction
             data.component_details = []
             data.scatter_data = []
             
@@ -135,6 +154,10 @@ class LayerDataCollector:
                             break
 
                 overall = _safe_float(c.scores.overall)
+                gnn_score = 0.0
+                if c.id in gnn_node_scores:
+                    gnn_score = _safe_float(gnn_node_scores[c.id].composite_score)
+
                 detail = ComponentDetail(
                     id=c.id,
                     name=c.structural.name if hasattr(c, "structural") else c.id,
@@ -148,14 +171,31 @@ class LayerDataCollector:
                     mpci=_safe_float(getattr(c.scores, "mpci", 0.0)),
                     foc=_safe_float(getattr(c.scores, "foc", 0.0)),
                     spof=bool(getattr(c.structural, "is_articulation_point", False)),
-                    explanation=c_explanation
+                    explanation=c_explanation,
+                    gnn_score=gnn_score,
                 )
                 data.component_details.append(detail)
                 
                 # Populate scatter data (Predicted Q vs Ground Truth I) as tuples
-                # to guarantee immutable structure. Impact (index 2) is updated
-                # to the real simulation value in _collect_simulation_data().
                 data.scatter_data.append((c.id, overall, 0.0, level))
+
+            # Run Triage Bridge (§4 Prediction Architecture)
+            try:
+                from saag.analysis.triage import triage
+                triage_res = triage(prediction, k=10, layer=layer)
+                data.triage_ranking_source = triage_res.ranking_source
+                data.triage_entries = [e.to_dict() for e in triage_res.entries]
+
+                triage_map = {e.component_id: e for e in triage_res.entries}
+                for detail in data.component_details:
+                    if detail.id in triage_map:
+                        te = triage_map[detail.id]
+                        detail.triage_rank = te.rank
+                        detail.triage_priority_action = te.priority_action
+                        detail.triage_roles = list(te.roles)
+                        detail.triage_pattern = te.pattern
+            except Exception as te_exc:
+                self.logger.debug("Triage calculation omitted: %s", te_exc)
 
             return analysis
 
@@ -251,6 +291,15 @@ class LayerDataCollector:
                     data.availability_ci = val_result.confidence_intervals.get("availability")
                     data.composite_ci = val_result.confidence_intervals.get("composite")
 
+                # GNN forecasting metrics if available
+                if getattr(val_result, "gnn_forecasting_metrics", None):
+                    g_metrics = val_result.gnn_forecasting_metrics
+                    data.has_gnn = True
+                    data.gnn_spearman = _safe_float(g_metrics.get("spearman", data.gnn_spearman))
+                    data.gnn_f1 = _safe_float(g_metrics.get("f1_score", data.gnn_f1))
+                    data.gnn_ndcg = _safe_float(g_metrics.get("ndcg_10", data.gnn_ndcg))
+                    data.gnn_top5_overlap = _safe_float(g_metrics.get("top_5_overlap", data.gnn_top5_overlap))
+
         except Exception as e:
             self.logger.error(f"Validation failed for layer {layer}: {e}")
             self.logger.exception("Validation failure details")
@@ -307,17 +356,26 @@ class LayerDataCollector:
             smell_map: Dict[str, List[str]] = {}
             for s in smells:
                 # s can be a dict (from JSON) or DetectedSmell object (from detector)
-                pattern_id = s.get("pattern_id") if isinstance(s, dict) else s.pattern_id
-                comp_ids = s.get("component_ids", []) if isinstance(s, dict) else s.component_ids
+                pattern_id = (
+                    s.get("pattern_id") or s.get("name")
+                    if isinstance(s, dict)
+                    else (getattr(s, "pattern_id", None) or getattr(s, "name", "UNKNOWN"))
+                )
+                comp_ids = (
+                    s.get("component_ids", []) or s.get("components", [])
+                    if isinstance(s, dict)
+                    else (getattr(s, "component_ids", []) or getattr(s, "components", []))
+                )
                 
                 for c_id in comp_ids:
                     if c_id not in smell_map:
                         smell_map[c_id] = []
-                    smell_map[c_id].append(pattern_id)
+                    if pattern_id and pattern_id not in smell_map[c_id]:
+                        smell_map[c_id].append(pattern_id)
             
             for detail in data.component_details:
                 if detail.id in smell_map:
-                    detail.anti_patterns = smell_map[detail.id]
+                    detail.anti_patterns = list(dict.fromkeys(smell_map[detail.id]))
                     
         except Exception as e:
             self.logger.error(f"Anti-pattern detection failed for layer {layer}: {e}")
@@ -352,6 +410,8 @@ class LayerDataCollector:
             ]
             
             if detail:
+                if detail.gnn_score > 0:
+                    title_parts.append(f"GNN Score: {detail.gnn_score:.3f}")
                 title_parts.append(f"MPCI: {detail.mpci:.3f}")
                 title_parts.append(f"FOC: {detail.foc:.3f}")
                 if detail.impact > 0:
@@ -359,14 +419,36 @@ class LayerDataCollector:
                     title_parts.append(f"Cascade: {detail.cascade_depth} layers")
                 if detail.anti_patterns:
                     title_parts.append(f"Anti-Patterns: {', '.join(detail.anti_patterns)}")
+                if detail.triage_rank:
+                    roles_str = f" ({', '.join(detail.triage_roles)})" if detail.triage_roles else ""
+                    title_parts.append(f"Triage: #{detail.triage_rank}{roles_str}")
+                    if detail.triage_priority_action:
+                        title_parts.append(f"Action: {detail.triage_priority_action}")
 
             data.network_nodes.append(
                 {
                     "id": c.id,
-                    "label": f"{c.id}\n({c.structural.name})",
+                    "name": c.structural.name,
+                    "label": f"{c.id}\n({c.structural.name})" if c.structural.name else c.id,
                     "type": c.type,
                     "level": level,
                     "value": value,
+                    "score": score,
+                    "reliability": _safe_float(c.scores.reliability),
+                    "maintainability": _safe_float(c.scores.maintainability),
+                    "fault_tolerance": _safe_float(c.scores.fault_tolerance),
+                    "availability": _safe_float(c.scores.availability),
+                    "gnn_score": detail.gnn_score if detail else 0.0,
+                    "impact": detail.impact if detail else 0.0,
+                    "cascade_depth": detail.cascade_depth if detail else 0,
+                    "mpci": detail.mpci if detail else 0.0,
+                    "foc": detail.foc if detail else 0.0,
+                    "spof": detail.spof if detail else False,
+                    "anti_patterns": detail.anti_patterns if detail else [],
+                    "triage_rank": detail.triage_rank if detail else None,
+                    "triage_roles": detail.triage_roles if detail else [],
+                    "triage_pattern": detail.triage_pattern if detail else "",
+                    "triage_priority_action": detail.triage_priority_action if detail else "",
                     "title": "<br>".join(title_parts),
                 }
             )

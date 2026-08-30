@@ -357,9 +357,13 @@ def mock_prediction_service():
     mock_result = MagicMock()
     mock_result.components = [mock_comp]
     mock_result.problems = [MagicMock(), MagicMock()]
+    mock_result.node_scores = {}
+    mock_result.gnn_metrics = {}
     
     service.predict_quality.return_value = mock_result
+    service.predict_quality_with_gnn.return_value = mock_result
     return service
+
 
 
 class TestLayerDataCollector:
@@ -823,3 +827,91 @@ class TestBuildHtml:
         assert f"G3: Top-K precision ≥ {targets.precision:.2f}" in html
         assert "G7:" not in html
         assert "G9:" not in html
+
+    def test_demo_fixture_renders_triage_panel(self):
+        """Demo fixture should render the Triage bridge panel and role badges."""
+        from cli.visualize_graph import _demo_layer_data
+
+        html = self._service().build_html([_demo_layer_data()])
+        assert "Triage Bridge — Actionable Stakeholder Remediation" in html
+        assert "sensor_fusion" in html
+        assert "GOD_COMPONENT" in html
+        assert "badge-architect" in html
+        assert "badge-devops-sre" in html
+
+
+class TestTriageAndGNNModels:
+    """Unit tests for ComponentDetail and LayerData GNN/Triage extensions."""
+
+    def test_component_detail_gnn_and_triage_fields(self):
+        detail = ComponentDetail(
+            id="app_1",
+            name="App 1",
+            type="Application",
+            overall=0.85,
+            level="CRITICAL",
+            gnn_score=0.89,
+            triage_rank=1,
+            triage_priority_action="Split logical topic",
+            triage_roles=["Architect", "Developer"],
+            triage_pattern="GOD_COMPONENT",
+        )
+        assert detail.gnn_score == 0.89
+        assert detail.triage_rank == 1
+        assert detail.triage_roles == ["Architect", "Developer"]
+
+        d = detail.to_dict()
+        assert d["gnn_score"] == 0.89
+        assert d["triage_rank"] == 1
+        assert d["triage_priority_action"] == "Split logical topic"
+        assert d["triage_roles"] == ["Architect", "Developer"]
+        assert d["triage_pattern"] == "GOD_COMPONENT"
+
+    def test_layer_data_gnn_and_triage_fields(self):
+        data = LayerData(layer="system", name="System")
+        assert not data.has_gnn
+        assert data.triage_entries == []
+        assert data.triage_ranking_source == ""
+
+        data.has_gnn = True
+        data.gnn_spearman = 0.88
+        data.triage_ranking_source = "gnn"
+        data.triage_entries = [{"component_id": "c1", "rank": 1}]
+        assert data.has_gnn
+        assert data.gnn_spearman == 0.88
+        assert len(data.triage_entries) == 1
+
+
+class TestInteractiveNetworkGraph:
+    """Unit tests for revised Cytoscape interactive network topology."""
+
+    def test_cytoscape_network_renders_toolbar_and_inspector(self):
+        dash = DashboardGenerator("Network Test")
+        dash.add_tab("Topology", "topology")
+        nodes = [
+            {"id": "app_1", "name": "App 1", "type": "Application", "level": "CRITICAL", "value": 35.0, "score": 0.85, "spof": True},
+            {"id": "topic_1", "name": "Topic 1", "type": "Topic", "level": "MEDIUM", "value": 20.0, "score": 0.40, "spof": False},
+        ]
+        edges = [
+            {"source": "app_1", "target": "topic_1", "weight": 2.5, "dependency_type": "PUBLISHES"},
+        ]
+        dash.add_cytoscape_network("test-net", nodes, edges, title="Test Network")
+        dash.end_tab()
+        html = dash.generate()
+
+        assert "cy-toolbar" in html
+        assert "cy-inspector" in html
+        assert "window.sagChangeLayout" in html
+        assert "window.sagSearchNodes" in html
+        assert "round-rectangle" in html
+        assert "ellipse" in html
+        assert "SPOF (Articulation Point)" in html
+
+    def test_cytoscape_tab_switch_registers_resizing(self):
+        dash = DashboardGenerator("Resize Test")
+        html = dash.generate()
+        assert "window.sagCyInstances" in html
+        assert "cy.resize()" in html
+        assert "cy.fit(25)" in html
+
+

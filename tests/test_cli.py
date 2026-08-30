@@ -17,6 +17,8 @@ import cli.validate_graph
 import cli.visualize_graph
 import cli.export_graph
 import cli.benchmark
+import cli.detect_antipatterns
+
 
 def _run_main(module, argv: list[str]) -> int:
     with patch.object(sys, "argv", ["run.py"] + argv), \
@@ -237,6 +239,68 @@ class TestVisualizeGraphCLI:
             
             MockClient.assert_called_once()
             mock_client.visualize.assert_called_once()
+
+    def test_main_with_gnn_and_triage(self, script_module):
+        mock_client = MagicMock()
+        mock_client.visualize.return_value = 'test.html'
+        
+        with patch.object(sys, 'argv', ['visualize_graph.py', '--layers', 'app,system', '--gnn-model', 'ckpts/', '--triage-k', '5']), \
+             patch.object(script_module, 'Client', return_value=mock_client) as MockClient, \
+             patch('os.path.exists', return_value=True), \
+             patch('os.path.getsize', return_value=1024):
+            
+            ret = script_module.main()
+            
+            MockClient.assert_called_once()
+            mock_client.visualize.assert_called_once_with(
+                output="dashboard.html",
+                layers=["app", "system"],
+                include_network=True,
+                include_matrix=True,
+                include_validation=True,
+                antipatterns_file=None,
+                multi_seed=0,
+                cascade_file=None,
+                gnn_model="ckpts/",
+                triage_k=5,
+            )
+
+
+class TestDetectAntipatternsCLI:
+    """Tests for bin/detect_antipatterns.py"""
+    
+    @pytest.fixture(scope="class")
+    def script_module(self):
+        return cli.detect_antipatterns
+
+    def test_main_catalog(self, script_module):
+        with patch.object(sys, 'argv', ['detect_antipatterns.py', '--catalog']), \
+             pytest.raises(SystemExit) as exc:
+            script_module.main()
+        assert exc.value.code == 0
+
+    def test_main_scan(self, script_module):
+        mock_client = MagicMock()
+        mock_analysis = MagicMock()
+        mock_prediction = MagicMock()
+        mock_client.analyze.return_value = mock_analysis
+        mock_client.predict.return_value = mock_prediction
+        mock_client.detect_antipatterns.return_value = []
+        
+        with patch.object(sys, 'argv', ['detect_antipatterns.py', '--layer', 'app', '--use-ahp', '--no-exit-code']), \
+             patch.object(script_module, 'Client', return_value=mock_client) as MockClient:
+            
+            script_module.main()
+            
+            MockClient.assert_called_once()
+            mock_client.analyze.assert_called_once_with(layer='app')
+            mock_client.predict.assert_called_once_with(
+                mock_analysis, use_ahp=True, ahp_shrinkage=0.7, active_patterns=None,
+            )
+            mock_client.detect_antipatterns.assert_called_once_with(
+                mock_prediction, active_patterns=None,
+            )
+
 
 
 class TestExportGraphCLI:
