@@ -7,10 +7,16 @@ it is exactly the kind of design and validation detail a thesis chapter has room
 paper does not. This folder is where it lives so it doesn't have to be re-derived or re-split out of
 git history later.
 
-**`jss_draft_full.md` is frozen.** It is a byte-identical copy of `docs/research/jss/draft.md` as it
-stood at commit `f0cba41822820a79ebdab123d54a76072b8f1689`, immediately before the condensation pass.
-Write thesis chapters *from* it — don't edit it in place. If you need to compare against the current
-(condensed) JSS draft, diff the two files directly.
+**`jss_draft_full.md` is frozen.** It is a near-byte-identical copy of `docs/research/jss/draft.md`
+as it stood at commit `f0cba41822820a79ebdab123d54a76072b8f1689`, immediately before the condensation
+pass — one word drifted since (`HGL` → `HGT` on line 141, from the repo-wide HeteroGAT→HGT rename in
+`904f64b`; harmless, but the file is no longer literally byte-identical to that commit). Write thesis
+chapters *from* it — don't edit it in place. If you need to compare against the current (condensed) JSS
+draft, diff the two files directly. **It is also RMAV-era throughout** (the retired four-dimension
+Reliability/Maintainability/Availability/Vulnerability model — 42 occurrences, e.g. §4.2 "RMAV
+Formulas") and its results tables are superseded by later reruns; see
+[`outline.md`](outline.md#source-integrity) for the source-precedence rules that govern when this file
+may and may not be used directly.
 
 **`material/*.md`** are the individual sections lifted out of the full draft, verbatim, each with its
 own provenance header. They exist so a specific piece of content (say, the RM formulas) doesn't
@@ -29,6 +35,12 @@ require re-reading all 30k words of `jss_draft_full.md` to find.
 | *(none — new material)* | [`material/why_not_simulate.md`](material/why_not_simulate.md) | Not in the journal paper | **Written for the thesis, not lifted from the condensation.** Answers the "if simulation defines criticality, why train a predictor?" question that `../jss/outline.md` records as an unresolved reviewer risk. It is the upstream text that `docs/criticality.md` §7.2 and the JSS introduction condense from |
 
 ## Suggested chapter mapping
+
+**Superseded by [`outline.md`](outline.md).** That file is now the authoritative eleven-chapter plan
+(the "natural first cut" below was five bullets and explicitly non-binding); it also carries the
+thesis's central claim, the publication map with co-authorship boundaries, and the source-integrity
+rules this folder needs. Keep the table below for its provenance detail — which JSS subsection each
+material file came from and why it was cut — but plan chapters from `outline.md`, not from here.
 
 None of this is binding — the actual thesis structure depends on what else surrounds the SaG work —
 but a natural first cut:
