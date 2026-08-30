@@ -237,3 +237,27 @@ def test_triage_module_imports_no_simulation_symbol():
     src = inspect.getsource(triage_mod)
     assert "import saag.simulation" not in src
     assert "from saag.simulation" not in src
+
+
+# ── Presenter formatting & Stakeholder grouping ────────────────────────────
+
+def test_triage_presenter_stakeholder_categorization(rm_result):
+    from api.presenters.triage_presenter import categorize_by_stakeholder, format_triage_result
+    
+    result = triage(rm_result, k=3)
+    formatted = format_triage_result(result)
+    assert formatted["k"] == 3
+    assert len(formatted["entries"]) == 3
+
+    stakeholder_view = categorize_by_stakeholder(result, name_lookup={"App_Controller": "Main Controller"})
+    assert "stakeholders" in stakeholder_view
+    assert "devops_sre" in stakeholder_view["stakeholders"]
+    assert "architect" in stakeholder_view["stakeholders"]
+    assert "developer" in stakeholder_view["stakeholders"]
+    
+    devops_items = stakeholder_view["stakeholders"]["devops_sre"]["items"]
+    assert any(item["component_id"] == "Aux_Service" or item["component_id"] == "App_Controller" for item in devops_items)
+    
+    # Name lookup verified
+    assert any(item["component_name"] == "Main Controller" for item in devops_items)
+

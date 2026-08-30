@@ -166,13 +166,14 @@ sequenceDiagram
     participant UC as Pipeline Orchestrator
     participant Repo as IGraphRepository (Adapter)
     participant DB as Neo4j DBMS
-    participant Engine as Core Analysis Services
-    participant PyG as PyTorch Geometric / GNN
+    participant Engine as Diagnostic / Analysis Services
+    participant PyG as Predictive HGT GNN Service
+    participant Sim as Offline/Counterfactual Simulation Engine
 
     Client->>UC: Execute Pipeline (topology.json, layer='system')
     UC->>Repo: save_graph(topology_data)
-    Repo->>DB: Write Entities & Create DEPENDS_ON Edges
-    DB-->>Repo: Return Entity Count
+    Repo->>DB: Ingest G_structural & Derive G_analysis (DEPENDS_ON)
+    DB-->>Repo: Return Entity & Edge Counts
     
     UC->>Repo: get_layer_data('system')
     Repo->>DB: Project System Subgraph
@@ -182,15 +183,30 @@ sequenceDiagram
     UC->>Engine: analyze_structural(graph_data)
     Engine-->>UC: Return StructuralAnalysisResult (Metric Vectors M)
     
-    UC->>PyG: predict_criticality(M, GNN_checkpoint)
-    PyG-->>UC: Return GNNNodeScores & GNNEdgeScores
-    
-    UC->>Engine: run_failure_simulation(raw_graph)
-    Engine-->>UC: Return SimulationResults (Impact Labels I)
-    
-    UC->>Engine: validate_predictions(Predictions, Labels)
-    Engine-->>UC: Return ValidationGroupResult (Spearman ρ, F1-Score)
-    
+    par Dual-Pathway Execution
+        UC->>PyG: Pathway B: predict_criticality(M, GNN_checkpoint)
+        PyG-->>UC: Return Quantitative Blast Radius I*(v) & Top-K Shortlist
+    and
+        UC->>Engine: Pathway A: diagnose_quality_and_smells(M)
+        Engine-->>UC: Return ISO/IEC RM Scores & Structural Smells
+    end
+
+    Note over UC,Engine: Triage Bridge: Scopes deep root-cause attribution to Top-K high-risk nodes
+
+    opt Offline Training & Validation
+        UC->>Sim: run_failure_simulation(G_structural)
+        Sim-->>UC: Return Ground-Truth Labels I_comp
+        UC->>Engine: validate_predictions(Predictions, Labels)
+        Engine-->>UC: Return ValidationGroupResult (Spearman ρ, F1-Score)
+    end
+
+    opt Prescriptive Remediation & Closed-Loop Verification
+        UC->>Engine: compile_remediation_policy(Predictions, Diagnoses)
+        Engine-->>UC: Return Candidate Edits Δ(G)
+        UC->>Sim: verify_candidate_edits(Δ(G), G_structural)
+        Sim-->>UC: Return Verified Edits (ΔI > κ·σ_seed)
+    end
+
     UC->>Engine: generate_dashboard(Results)
     Engine-->>Client: Save dashboard.html & Return Success
 ```

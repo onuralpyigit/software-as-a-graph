@@ -143,6 +143,65 @@ class TestUseCaseOrchestration:
         assert result is not None
         assert "app" in result.layers
 
+    def test_diagnostic_use_case(self, analysis_service, prediction_service):
+        """Verifies DiagnosticUseCase (Pathway A) produces ISO-RM scores, smells, and explanations."""
+        from saag.usecases.diagnostic import DiagnosticUseCase
+        from saag.usecases.analyze_graph import AnalyzeGraphUseCase
+
+        analyze_uc = AnalyzeGraphUseCase(analysis_service)
+        struct_res = analyze_uc.execute("app").structural
+
+        diag_uc = DiagnosticUseCase(prediction_service=prediction_service)
+        quality, problems, summary, explanation = diag_uc.execute("app", struct_res, detect_problems=True)
+
+        assert quality is not None
+        assert len(quality.components) >= 1
+        assert problems is not None
+        assert summary is not None
+        assert explanation is not None
+
+    def test_predictive_use_case_cold_start(self, analysis_service, prediction_service):
+        """Verifies PredictiveUseCase (Pathway B) handles zero-GNN cold-start fallback and Top-K extraction."""
+        from saag.usecases.predictive import PredictiveUseCase
+        from saag.usecases.analyze_graph import AnalyzeGraphUseCase
+
+        analyze_uc = AnalyzeGraphUseCase(analysis_service)
+        struct_res = analyze_uc.execute("app").structural
+
+        pred_uc = PredictiveUseCase(prediction_service=prediction_service, prefer_gnn=False)
+        pred_res = pred_uc.execute(layer="app", structural_result=struct_res)
+
+        assert pred_res is not None
+        top_k = pred_uc.get_top_k_critical(pred_res, k=2)
+        assert len(top_k) <= 2
+        assert len(top_k) > 0
+        assert isinstance(top_k[0][0], str)
+        assert isinstance(top_k[0][1], float)
+
+    def test_triage_use_case_coordination(self, analysis_service, prediction_service):
+        """Verifies TriageUseCase coordinates Pathway B's Top-K shortlist with Pathway A's root-cause attribution."""
+        from saag.usecases.predictive import PredictiveUseCase
+        from saag.usecases.triage import TriageUseCase
+        from saag.usecases.analyze_graph import AnalyzeGraphUseCase
+
+        analyze_uc = AnalyzeGraphUseCase(analysis_service)
+        struct_res = analyze_uc.execute("system").structural
+
+        pred_uc = PredictiveUseCase(prediction_service=prediction_service, prefer_gnn=False)
+        pred_res = pred_uc.execute(layer="system", structural_result=struct_res)
+
+        triage_uc = TriageUseCase()
+        triage_res = triage_uc.execute(pred_res, k=3, layer="system")
+
+        assert triage_res is not None
+        assert triage_res.k == 3
+        assert triage_res.layer == "system"
+        assert len(triage_res.entries) > 0
+        first_entry = triage_res.entries[0]
+        assert first_entry.rank == 1
+        assert hasattr(first_entry, "pattern")
+        assert hasattr(first_entry, "roles")
+
 
 class TestAnalysisServiceLayerBatching:
     """AnalysisService.analyze_layers is the single structural-analysis entry point."""

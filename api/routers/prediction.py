@@ -19,6 +19,10 @@ from api.presenters.prediction_presenter import (
     format_node_scores,
     format_summary,
 )
+from api.presenters.triage_presenter import (
+    categorize_by_stakeholder,
+    format_triage_result,
+)
 from saag import Client
 
 router = APIRouter(prefix="/api/v1/graph/prediction", tags=["prediction"])
@@ -118,6 +122,37 @@ class PredictResponse(BaseModel):
     summary: TrainSummaryModel
     scores: List[GNNScoreModel]
     edge_scores: List[GNNEdgeScoreModel]
+
+
+class StakeholderGroupModel(BaseModel):
+    role_name: str
+    focus: str
+    count: int
+    items: List[Dict[str, Any]]
+
+
+class StakeholderSummaryModel(BaseModel):
+    devops_sre: StakeholderGroupModel
+    architect: StakeholderGroupModel
+    developer: StakeholderGroupModel
+
+
+class TriageRequest(BaseModel):
+    credentials: Dict[str, Any] = Field(..., description="Neo4j connection credentials")
+    layer: str = Field(default="system", description="Graph layer to triage")
+    checkpoint_dir: str = Field(default="", description="Optional GNN checkpoint path (falls back to RM in cold start)")
+    k: int = Field(default=10, ge=1, description="Number of top critical components to shortlist")
+    node_types: Optional[List[str]] = Field(default=None, description="Optional node type filter (e.g. ['Application', 'Topic'])")
+
+
+class TriageResponse(BaseModel):
+    success: bool
+    layer: str
+    k: int
+    ranking_source: str
+    population: int
+    stakeholders: StakeholderSummaryModel
+    entries: List[Dict[str, Any]]
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -374,3 +409,73 @@ async def predict_gnn(
     except Exception as e:
         logger.error("GNN inference failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=f"Prediction failed: {e}")
+
+
+@router.post("/triage", response_model=TriageResponse)
+async def triage_components_endpoint(
+    request: TriageRequest,
+    client: Client = Depends(get_client),
+):
+    """
+    Run Triage bridge: shortlists Top-K critical components (via GNN or RM fallback)
+    and formats root-cause attribution categorized by stakeholder role (DevOps/SRE,
+    Architect, Developer).
+    """
+    from saag.usecases.triage import TriageUseCase
+    from saag.prediction.service import PredictionService
+    from saag.analysis.structural_analyzer import StructuralAnalyzer
+    from saag.core.layers import AnalysisLayer
+
+    def _run_triage():
+        graph_data = client.repo.get_graph_data()
+        struct_analyzer = StructuralAnalyzer()
+        layer_enum = AnalysisLayer.from_string(request.layer)
+        struct_result = struct_analyzer.analyze(graph_data, layer=layer_enum)
+        nx_graph = struct_result.graph
+
+        ckpt_dir = request.checkpoint_dir.strip() or str(_GNN_CHECKPOINTS_DIR)
+        has_gnn = Path(ckpt_dir).exists() and (
+            (Path(ckpt_dir) / "node_model.pt").exists() or (Path(ckpt_dir) / "best_model.pt").exists()
+        )
+
+        pred_svc = PredictionService(
+            gnn_checkpoint_dir=ckpt_dir if has_gnn else None,
+            prefer_gnn=has_gnn,
+        )
+
+        pred_result = pred_svc.predict_quality_with_gnn(
+            structural_result=struct_result,
+            graph=nx_graph,
+            layer=request.layer,
+        )
+
+        triage_uc = TriageUseCase()
+        triage_res = triage_uc.execute(
+            prediction_result=pred_result,
+            k=request.k,
+            layer=request.layer,
+            node_types=request.node_types,
+        )
+
+        name_lookup = {}
+        if nx_graph is not None:
+            name_lookup = {node: attrs.get("name", node) for node, attrs in nx_graph.nodes(data=True)}
+
+        stakeholder_data = categorize_by_stakeholder(triage_res, name_lookup=name_lookup)
+        return triage_res, stakeholder_data
+
+    try:
+        triage_res, stakeholder_data = await asyncio.to_thread(_run_triage)
+        return TriageResponse(
+            success=True,
+            layer=triage_res.layer,
+            k=triage_res.k,
+            ranking_source=triage_res.ranking_source,
+            population=triage_res.population,
+            stakeholders=stakeholder_data["stakeholders"],
+            entries=[e.to_dict() for e in triage_res.entries],
+        )
+    except Exception as e:
+        logger.error("Triage execution failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Triage execution failed: {e}")
+

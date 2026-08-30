@@ -49,66 +49,79 @@ The analytical pipeline is a Directed Acyclic Graph, not a linear chain. Step 2 
 Step 3 (Predict) is a unified **Prediction Step** that forks into two deliberately separate pathways over the same `StructuralAnalysisResult` (mirrors the manuscript's Figure 1): **Pathway A (Diagnostic)** always computes the rule-based RM composite — Fault Tolerance, Availability, and Maintainability — plus anti-pattern detection and a human-readable explanation; **Pathway B (Predictive, opt-in)** blends in a Heterogeneous Graph Transformer (HGT) inference pass when a trained checkpoint is available, ranking components by predicted blast radius. The two pathways share no parameters and neither is fitted to the other's output. A **Triage** bridge then scopes Pathway A's root-cause diagnosis to Pathway B's Top-*K* shortlist (GNN-ranked when a checkpoint exists, RM-ranked otherwise — see `saag/analysis/triage.py`), joining each shortlisted id back to its RM `CriticalityProfile` pattern rather than reading a root cause off the ranking itself. Step 4 (Simulate) is an **offline** ground-truth oracle: it trains and validates Pathway B's ranking (Step 5) but is never an online inference dependency, and Step 5 validates the ranking pathway, not Pathway A's diagnosis — a quality profile is not a ranking to score.
 
 ```
-                  ┌──────────────┐
-                  │ Topology JSON│
-                  └──────┬───────┘
-                         │
-                         ▼ [Step 1: Model]
-                  ┌──────────────┐
-                  │ Neo4j Graph  │
-                  └──────┬───────┘
-                         │
-                         ▼ [Step 2: Analyze]
-              ┌─────────────────────────┐
-              │ StructuralAnalysisResult│
-              └───────────┬─────────────┘
-                          │
-         ┌────────────────┴────────────────┐
-         ▼ [Step 3: Predict]               ▼ [Step 4: Simulate — offline oracle]
-   ┌────────────────────────┐        ┌───────────────┐
-   │ PATHWAY A — Diagnostic │        │  Simulation   │
-   │ RM Q*(v) (always):     │        │    Result     │
-   │ Fault Tolerance +      │        │ (ground-truth │
-   │ Availability +         │        │    labels)    │
-   │ Maintainability        │        └───────┬───────┘
-   └───────────┬─────────────┘                │
-               │        ┌───────────────────┐ │ trains /
-               │        │ PATHWAY B —       │◄┘ validates
-               │        │ Predictive (opt-in)│
-               │        │ HGT ranking from a │
-               │        │ checkpoint → Top-K │
-               │        │ blast-radius set   │
-               │        └─────────┬───────────┘
-               │   Triage: B's    │
-               │◄──Top-K scopes───┘
-               │   A's diagnosis
-               ▼
-    ┌──────────────────────────────┐
-    │ Prediction Result            │
-    │ (RM + GNN when available +   │
-    │  AntiPattern + Explain +     │
-    │  Triage shortlist)           │
-    └───────────────┬───────────────┘
-                     │
-         ┌───────────┴───────────┐
-         ▼ [Step 5: Validate]    ▼ [Step 6: Prescribe]
-   ┌──────────────┐        ┌──────────────┐
-   │  Validation  │        │  Prescribe   │
-   │    Result    │        │    Result    │
-   └──────────────┘        └──────┬───────┘
-                                   │ each accepted edit is counterfactually
-                                   │ re-simulated before acceptance
-                                   │ (saag/prescription/verifier.py)
-                                   ▼ [Step 7: Visualize]
-                            ┌──────────────┐
-                            │  Dashboard   │
-                            └──────────────┘
+                              ┌────────────────────────────────────────┐
+                              │ Topology JSON / Architecture Artifacts │
+                              └───────────────────┬────────────────────┘
+                                                  │ [Step 1: Model]
+                                                  ▼
+                               ┌──────────────────────────────────────┐
+                               │ Neo4j Multigraph Data Representation │
+                               │  • G_structural: physical/logical    │
+                               │  • G_analysis: derived DEPENDS_ON    │
+                               └───────┬──────────────────────┬───────┘
+                                       │                      │
+                                       │                      ▼ [Step 4: Simulate] (Offline Oracle)
+                                       │             ┌───────────────────────────────────┐
+                                       │             │ Ground-Truth Discrete-Event Sim   │
+                                       │             │ (FaultInjector / FailureSimulator)│
+                                       │             │  • Operates on G_structural       │
+                                       │             │  • Emits I*(v), I_comp labels     │
+                                       │             └─────────┬───────────────┬─────────┘
+                                       ▼ [Step 2: Analyze]     │ (trains)      │ (ground-truth)
+                         ┌─────────────────────────────┐       │               │
+                         │  StructuralAnalysisResult   │       │               │
+                         │ (11 Tier-1 Metrics Vector M)│       │               │
+                         └──────┬───────────────┬──────┘       │               │
+                                │               │              │               │
+    [Pathway B: Predictive / HGL]               [Pathway A: Diagnostic / ISO-RM]│
+                                │               │                              │
+                                ▼               ▼                              │
+                     ┌──────────────────┐ ┌───────────────────────────┐        │
+                     │NodeCriticalityGNN│ │ QualityAnalyzer (ISO RM)  │        │
+                     │(16-D QoS / HGT)  │ │ • Fault Tolerance (FT)    │        │
+                     │• Forecasts I*(v) │ │ • Availability (SPOF)     │        │
+                     └────────┬─────────┘ │ • Maintainability (CQP)   │        │
+                              │           └─────────────┬─────────────┘        │
+                              ▼                         │                      │
+                     ┌──────────────────┐               │                      │
+                     │Top-K Risk Targets│               │                      │
+                     │ (5-15% Shortlist)│               │                      │
+                     └────────┬─────────┘               │                      │
+                              │                         │                      │
+                              └──► [ Triage Bridge ] ───┘                      │
+                                           │                                   │
+                                           ▼ [Step 3: Predict Output]          │
+                             ┌───────────────────────────┐                     │
+                             │ Scoped Diagnosis & Smells │                     │
+                             │ (Targeted Deep Profile)   │                     │
+                             └─────────────┬─────────────┘                     │
+                                           │                                   │
+                                           ├───────────────────────────────────┼──► [Step 5: Validate]
+                                           ▼ [Step 6: Prescribe]               │    (Spearman ρ, F1,
+                             ┌───────────────────────────┐                     │     Validation Gates)
+                             │ Remediation Gating Engine │                     │
+                             │ • DevOps: Node/Replica    │                     │
+                             │ • Architect: Topics/QoS   │                     │
+                             │ • Developer: Code Smells  │                     │
+                             └─────────────┬─────────────┘                     │
+                                           │ candidate edit Δ(G)               │
+                                           ▼                                   │
+                             ┌───────────────────────────┐                     │
+                             │ In-Memory Counterfactual  │                     │
+                             │ Simulation (κ·σ_seed gate)│                     │
+                             └─────────────┬─────────────┘                     │
+                                           │ [Verified Improvement]            │
+                                           ▼ [Step 7: Visualize]               │
+                             ┌───────────────────────────┐                     │
+                             │ Interactive SMART / HTML  │                     │
+                             │ Visualisation Dashboard   │                     │
+                             └───────────────────────────┘
 ```
 
 > [!NOTE]
-> **First-run sequencing:** Step 3 (Predict) depends on simulation-derived training labels for GNN training. On the first run, execute Steps 1 $\rightarrow$ 2 $\rightarrow$ 4 to generate those labels, then train the GNN model, and finally run Step 3 inference. The Predict stage (Step 3) is fully self-contained for its rule-based path and produces valid RM $Q^*(v)$ scores without requiring a GNN checkpoint (the Analyze stage, Step 2, is structural-only and does not compute RM/Q scores) — this is also Pathway A's zero-GNN cold-start fallback, and Triage falls back to ranking by RM `Q*(v)` alongside it.
+> **First-run sequencing & Offline Oracle:** Step 3 (Predict) depends on simulation-derived training labels for GNN training. On the first run, execute Steps 1 $\rightarrow$ 2 $\rightarrow$ 4 to generate those labels, then train the GNN model, and finally run Step 3 inference. Step 4 (Simulate) is strictly an **offline training supervisor and validation oracle** operating on $G_{\text{structural}}$ — it is never an online runtime inference dependency. The Predict stage (Step 3) is fully self-contained for its rule-based path and produces valid RM $Q^*(v)$ scores without requiring a GNN checkpoint (the Analyze stage, Step 2, is structural-only and does not compute RM/Q scores) — this serves as Pathway A's zero-GNN cold-start fallback, and Triage falls back to ranking by RM $Q^*(v)$ alongside it.
 >
-> **Counterfactual loop:** Step 6 (Prescribe) does not hand a candidate edit to the graph unconditionally. `EditVerifier` re-simulates each candidate on its own mutated copy of $G_{\text{structural}}$ and keeps only edits that beat the simulator's own seed-to-seed noise at every propagation threshold (`saag/prescription/verifier.py`, annotated on Step 6 above) — this loop is internal to Step 6's own execution, not a separate pipeline stage or a second call into Step 4.
+> **Counterfactual loop:** Step 6 (Prescribe) does not commit candidate edits unconditionally. `EditVerifier` applies candidate mutation $\Delta(G)$ and re-simulates each candidate in-memory on its own mutated copy of $G_{\text{structural}}$, accepting only edits whose failure-impact reduction beats the simulator's seed noise at every propagation threshold ($\Delta I > \kappa \cdot \sigma_{\text{seed}}$, implemented in `saag/prescription/verifier.py`).
 
 ---
 

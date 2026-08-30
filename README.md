@@ -57,12 +57,71 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
 | 7 | **Visualize** | Renders network graphs, dependency matrices, cascade heatmaps, and RM radar charts | Self-contained `dashboard.html` | [visualization.md](docs/visualization.md) |
 
 ```
- topology JSON ──▶ 1 Model ──▶ 2 Analyze ──┬──▶ 3 Predict ──┐
-                                           │                 ├──▶ 5 Validate ──▶ 6 Prescribe ──▶ 7 Visualize
-                                           └──▶ 4 Simulate ──┘
+                              ┌────────────────────────────────────────┐
+                              │ Topology JSON / Architecture Artifacts │
+                              └───────────────────┬────────────────────┘
+                                                  │ [Step 1: Model]
+                                                  ▼
+                               ┌──────────────────────────────────────┐
+                               │  Neo4j Graph (G_struct & G_analysis) │
+                               └───────┬──────────────────────┬───────┘
+                                       │                      │
+                                       │                      ▼ [Step 4: Simulate] (Offline Oracle)
+                                       │             ┌───────────────────────────────────┐
+                                       │             │ Discrete-Event Failure Simulator  │
+                                       │             │ (FaultInjector / FailureSimulator)│
+                                       │             │  • Operates on G_structural       │
+                                       │             │  • Produces labels I*(v), I_comp  │
+                                       │             └─────────┬───────────────┬─────────┘
+                                       ▼ [Step 2: Analyze]     │ (trains)      │ (ground-truth)
+                         ┌─────────────────────────────┐       │               │
+                         │  StructuralAnalysisResult   │       │               │
+                         │ (11 Tier-1 Metrics Vector M)│       │               │
+                         └──────┬───────────────┬──────┘       │               │
+                                │               │              │               │
+    [Pathway B: Predictive / HGL]               [Pathway A: Diagnostic / ISO-RM]│
+                                │               │                              │
+                                ▼               ▼                              │
+                     ┌──────────────────┐ ┌───────────────────────────┐        │
+                     │NodeCriticalityGNN│ │ QualityAnalyzer (ISO RM)  │        │
+                     │(16-D QoS / HGT)  │ │ • Fault Tolerance (FT)    │        │
+                     │• Forecasts I*(v) │ │ • Availability (SPOF)     │        │
+                     └────────┬─────────┘ │ • Maintainability (CQP)   │        │
+                              │           └─────────────┬─────────────┘        │
+                              ▼                         │                      │
+                     ┌──────────────────┐               │                      │
+                     │Top-K Risk Targets│               │                      │
+                     └────────┬─────────┘               │                      │
+                              │                         │                      │
+                              └──► [ Triage Bridge ] ───┘                      │
+                                           │                                   │
+                                           ▼ [Step 3: Predict Output]          │
+                             ┌───────────────────────────┐                     │
+                             │ Scoped Diagnosis & Smells │                     │
+                             │ (SPOF, Hubs, Explanations)│                     │
+                             └─────────────┬─────────────┘                     │
+                                           │                                   │
+                                           ├───────────────────────────────────┼──► [Step 5: Validate]
+                                           ▼ [Step 6: Prescribe]               │    (Spearman ρ, F1,
+                             ┌───────────────────────────┐                     │     Validation Gates)
+                             │ Remediation Gating Engine │                     │
+                             │ (DevOps / Arch / Dev)     │                     │
+                             └─────────────┬─────────────┘                     │
+                                           │ candidate edit Δ(G)               │
+                                           ▼                                   │
+                             ┌───────────────────────────┐                     │
+                             │ In-Memory Counterfactual  │                     │
+                             │ Simulation (κ·σ_seed gate)│                     │
+                             └─────────────┬─────────────┘                     │
+                                           │ [Verified Improvement]            │
+                                           ▼ [Step 7: Visualize]               │
+                             ┌───────────────────────────┐                     │
+                             │ Interactive SMART / HTML  │                     │
+                             │ Visualisation Dashboard   │                     │
+                             └───────────────────────────┘
 ```
 
-Stages 3 and 4 are independent by construction — that separation is what makes the validation in stage 5 meaningful, and it is enforced by tests. The full DAG, the first-run sequencing rule, and the package boundaries are in [ARCHITECTURE.md](ARCHITECTURE.md#system-pipeline--data-flow).
+The analytical pipeline is an explicit dual-pathway architecture: **Pathway B (Predictive)** isolates critical risk hotspots ($\hat{I}^*$), while **Pathway A (Diagnostic)** grounds root-cause attribution in ISO/IEC 25010/25019 standards. The **Triage Bridge** channels high-risk components into targeted root-cause profiles, and Step 6 applies closed-loop counterfactual simulation on $G_{\text{structural}}$ before accepting any remediation. See [ARCHITECTURE.md](ARCHITECTURE.md#system-pipeline--data-flow) for package boundaries, formal contracts, and sequencing rules.
 
 ---
 

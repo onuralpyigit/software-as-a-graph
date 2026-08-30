@@ -368,42 +368,71 @@ software-as-a-graph/
 ```
 JSON / GraphML Topology
      │
-     ▼
-┌─────────────┐    ┌──────────────────────────┐    ┌─────────────────────┐
-│  Import      │    │  Analyze                 │    │  Predict (optional) │
-│  (Step 1)    │───▶│  Structural Analyzer     │───▶│  GNN Service        │
-│              │    │  + Quality Analyzer      │    │  (Step 3)           │
-│              │    │  + Anti-Pattern Detector │    │                     │
-└─────────────┘    │  (Step 2)                │    └──────────┬──────────┘
-                   └────────────┬─────────────┘               │
-                                │                              │
-                    G_analysis  Q(v) + RM                     Q_ens(v)
-                                │        └────────────────────┘
-                    G_structural │                Q(v) or Q_ens(v) predicted
-                         │      │                        │
-                         ▼      │                        │
-                   ┌─────────────┐                      │
-                   │  Simulate   │                      │
-                   │  (Step 4)   │                      │
-                   └──────┬──────┘                      │
-                          │                             │
-                     I(v) ground truth                  │
-                          │                             │
-                          ▼                             ▼
-                   ┌─────────────────────────────────────┐
-                   │        Validate (Step 5)             │
-                   │   Compare Q(v)/Q_ens(v) vs I(v)      │
-                   └──────────────┬──────────────────────┘
-                                  │
-                          All results
-                                  │
-                                  ▼
-                   ┌─────────────────────────────┐
-                   │    Visualize (Step 6)        │
-                   └─────────────────────────────┘
+     ▼ [Step 1: Model]
+┌──────────────────────────────────────┐
+│  Neo4j Multigraph Representation     │
+│   • G_structural (raw relationships) │
+│   • G_analysis (derived DEPENDS_ON)  │
+└──────┬──────────────────────┬────────┘
+       │                      │
+       │                      ▼ [Step 4: Simulate] (Offline Oracle)
+       │             ┌───────────────────────────────────┐
+       │             │ Ground-Truth Failure Simulation   │
+       │             │ (FaultInjector / FailureSimulator)│
+       │             │  • Evaluates G_structural cascades│
+       │             │  • Produces labels I*(v), I_comp  │
+       │             └─────────┬───────────────┬─────────┘
+       ▼ [Step 2: Analyze]     │ (trains)      │ (ground-truth)
+┌─────────────────────────────┐│               │
+│  Structural Analysis Result ││               │
+│ (11 Tier-1 Metric Vector M) ││               │
+└──────┬───────────────┬──────┘│               │
+       │               │       │               │
+[Pathway B: Predictive]│       │[Pathway A: Diagnostic]
+       │               │       │               │
+       ▼               ▼       │               │
+┌───────────────┐ ┌────────────┴────────┐      │
+│NodeCriticality│ │ QualityAnalyzer     │      │
+│GNN (HGT / QoS)│ │ (ISO/IEC RM Model)  │      │
+│Forecasts I*(v)│ │ FT, Availability,   │      │
+└──────┬────────┘ │ Maintainability     │      │
+       │          └────────────┬────────┘      │
+       ▼                       │               │
+┌───────────────┐              │               │
+│ Top-K Targets │              │               │
+└──────┬────────┘              │               │
+       │                       │               │
+       └──► [ Triage Bridge ] ─┘               │
+                    │                          │
+                    ▼ [Step 3: Predict Result] │
+      ┌───────────────────────────┐            │
+      │ Scoped Diagnosis & Smells │            │
+      └─────────────┬─────────────┘            │
+                    │                          │
+                    ├──────────────────────────┼──► [Step 5: Validate]
+                    ▼ [Step 6: Prescribe]      │    (Spearman ρ, F1,
+      ┌───────────────────────────┐            │     Validation Gates)
+      │ Remediation Gating Engine │            │
+      │ (Role-Gated Candidates)   │            │
+      └─────────────┬─────────────┘            │
+                    │ candidate edit Δ(G)      │
+                    ▼                          │
+      ┌───────────────────────────┐            │
+      │ In-Memory Counterfactual  │            │
+      │ Simulation (κ·σ_seed gate)│            │
+      └─────────────┬─────────────┘            │
+                    │ [Verified Improvement]   │
+                    ▼ [Step 7: Visualize]      │
+      ┌───────────────────────────┐            │
+      │ Interactive SMART / HTML  │            │
+      │ Visualisation Dashboard   │            │
+      └───────────────────────────┘            │
 ```
 
-**Key:** Steps 2–3 (Analyze and Predict) operate on **G\_analysis** (derived DEPENDS\_ON edges only). Step 4 (Simulate) operates on **G\_structural** (all raw relationships) for realistic cascade propagation. This separation is deliberate — analysis needs abstracted dependencies for centrality, simulation needs physical topology for cascades.
+**Key:** 
+- **$G_{\text{structural}}$ vs. $G_{\text{analysis}}$ Separation:** Steps 2–3 (Analyze, Predict, Diagnostic Attribution) operate on $G_{\text{analysis}}$ (derived `DEPENDS_ON` edges with QoS-adapted weights). Step 4 (Simulate) and Step 6 (Prescribe Counterfactual Verification) operate directly on $G_{\text{structural}}$ (physical/logical pub-sub relationships) to preserve real-world failure dynamics.
+- **Dual-Pathway & Triage:** Pathway B (HGL) pinpoints high-risk components ($\hat{I}^*$), while Pathway A decomposes quality attributes according to ISO/IEC standards. The Triage Bridge scopes deep root-cause attribution to the Top-$K$ shortlist.
+- **Counterfactual Gating:** Candidate edits $\Delta(G)$ are re-simulated in memory on $G_{\text{structural}}$, accepting only edits that beat simulator seed noise ($\Delta I > \kappa \cdot \sigma_{\text{seed}}$).
 
 ### 3.5 Deployment Architecture
 

@@ -116,6 +116,10 @@ def build_parser() -> argparse.ArgumentParser:
              "each one's RM root-cause diagnosis: pattern, elevated "
              "dimensions, priority action, and stakeholder roles.",
     )
+    triage_grp.add_argument(
+        "--by-stakeholder", action="store_true",
+        help="Group triage remediation actions by stakeholder role (DevOps/SRE, Architect, Developer).",
+    )
 
     # ── Anti-pattern detection ────────────────────────────────────────────────
     ap_grp = parser.add_argument_group("Anti-pattern detection")
@@ -522,6 +526,20 @@ def main() -> None:
                     f"{entry.pattern:<22} {entry.level:<9} {', '.join(entry.roles)}"
                 )
             print()
+
+            if args.by_stakeholder:
+                from api.presenters.triage_presenter import categorize_by_stakeholder
+                stakeholder_view = categorize_by_stakeholder(triage_result)
+                print(f"  Remediation Actions by Stakeholder Role:")
+                print(f"  {'─'*60}")
+                for role_key, group in stakeholder_view["stakeholders"].items():
+                    print(f"  ► {group['role_name']} ({group['count']} components):")
+                    print(f"    Focus: {group['focus']}")
+                    for item in group["items"]:
+                        if item["priority_action"]:
+                            print(f"    • {item['component_id']} ({item['criticality_level']}): {item['priority_action']}")
+                    print()
+
 
         # ── Accumulate layer output ───────────────────────────────────────────
         layer_entry: dict = {

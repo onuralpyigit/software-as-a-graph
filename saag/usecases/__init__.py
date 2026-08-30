@@ -2,7 +2,9 @@ from .models import ImportStats, SimulationMode, VisOptions
 from .model_graph import ModelGraphUseCase
 from .analyze_graph import AnalyzeGraphUseCase
 from .predict_graph import PredictGraphUseCase
-from .triage_graph import TriageGraphUseCase
+from .diagnostic import DiagnosticUseCase, DiagnosticGraphUseCase
+from .predictive import PredictiveUseCase, PredictiveGraphUseCase
+from .triage import TriageUseCase, TriageGraphUseCase, TriageResult, TriageEntry
 from .simulate_graph import SimulateGraphUseCase
 from .validate_graph import ValidateGraphUseCase
 from .visualize_graph import VisualizeGraphUseCase
@@ -16,7 +18,14 @@ __all__ = [
     "ModelGraphUseCase",
     "AnalyzeGraphUseCase",
     "PredictGraphUseCase",
+    "DiagnosticUseCase",
+    "DiagnosticGraphUseCase",
+    "PredictiveUseCase",
+    "PredictiveGraphUseCase",
+    "TriageUseCase",
     "TriageGraphUseCase",
+    "TriageResult",
+    "TriageEntry",
     "SimulateGraphUseCase",
     "ValidateGraphUseCase",
     "VisualizeGraphUseCase",
