@@ -105,14 +105,14 @@ A key insight of the SaG model is distinguishing between two fundamentally diffe
 
 Retaining entity types and relation-specific dependency rules allows SaG to model both mechanisms, whereas untyped graphs collapse them into identical edges.
 
-\noindent\textbf{On the symmetry of Rule 6.} Rule 6 is the one projection rule that is symmetric, and deliberately so: it does not assert that one broker functionally depends on another, but that two brokers co-located on the same host \emph{share that host's failure domain}. This is the same simultaneous-blast semantics as Rule 5, which is why the derived weight is the shared \emph{Node's} weight rather than either broker's, and why the relation holds in both directions. The mechanism is real in deployed middleware --- co-located brokers contend for CPU, page cache, file descriptors and NIC bandwidth, and a host loss takes both at once, which is precisely why operational guidance for Kafka, RabbitMQ and EMQX is to spread brokers across fault domains. What Rule 6 does \emph{not} model is intra-cluster broker coupling proper (partition replication, controller or quorum election, federation and shovel links), which is directional and does not require co-location; extending the schema to express it is left to future work. We also note that the rule is close to inert on our corpus: it fires in four of the eight cached scenarios and contributes twelve directed edges in total across 1{,}770 components, and because the simulation oracles read only $G_{\text{structural}}$ (Section~\ref{sec:5.4}), it cannot influence any ground-truth label.
+\noindent\textbf{On the symmetry of Rule 6.} Rule 6 is the one projection rule that is symmetric, and deliberately so: it does not assert that one broker functionally depends on another, but that two brokers co-located on the same host \emph{share that host's failure domain}. This is the same simultaneous-blast semantics as Rule 5, which is why the derived weight is the shared \emph{Node's} weight rather than either broker's, and why the relation holds in both directions. The mechanism is real in deployed middleware --- co-located brokers contend for CPU, page cache, file descriptors and NIC bandwidth, and a host loss takes both at once, which is precisely why operational guidance for Kafka, RabbitMQ and EMQX is to spread brokers across fault domains. What Rule 6 does \emph{not} model is intra-cluster broker coupling proper (partition replication, controller or quorum election, federation and shovel links), which is directional and does not require co-location; extending the schema to express it is left to future work. We also note that the rule is close to inert on our corpus: it fires in four of the eight cached scenarios and contributes twelve directed edges in total across 1{,}770 components, and because the simulation oracles read only $G_{\text{structural}}$ (Section~\ref{sec:4.4}), it cannot influence any ground-truth label.
 
 \subsection{Dual Graph Views and Architectural Layers}
 \label{sec:3.3}
 
 The SaG framework maintains two distinct representations of the system:
 \begin{enumerate}
-    \item \textbf{Structural Graph ($G_{\text{structural}}$):} The raw graph containing physical and structural edges (\texttt{PUBLISHES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{USES}). This view is consumed exclusively by discrete-event simulators to execute unbiased failure injections (Section~\ref{sec:5.1}).
+    \item \textbf{Structural Graph ($G_{\text{structural}}$):} The raw graph containing physical and structural edges (\texttt{PUBLISHES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{USES}). This view is consumed exclusively by discrete-event simulators to execute unbiased failure injections (Section~\ref{sec:4.3}).
     \item \textbf{Analysis Graph ($G_{\text{analysis}}$):} The projected graph containing derived \texttt{DEPENDS\_ON} edges annotated with QoS weights and ingested SCA code metrics. All GNN feature representations, graph embeddings, and analytical metrics are computed on $G_{\text{analysis}}$.
 \end{enumerate}
 
@@ -124,3 +124,15 @@ The SaG framework maintains two distinct representations of the system:
 \end{figure}
 
 $G_{\text{analysis}}$ is further organized into four analytical layers (Application, Middleware, Infrastructure, and Global System), allowing architects to evaluate criticality at subsystem levels (e.g., following MIL-STD-498 hierarchical structures).
+
+\subsection{Typed Node Feature Representation}
+\label{sec:3.4}
+
+Both pathways read the same typed node features off $G_{\text{analysis}}$: the predictor (Section~\ref{sec:4}) projects them per entity type before message passing, and the explanation layer (Section~\ref{sec:5}) aggregates them into its quality profile. SaG extracts feature vectors tailored to the 5 entity types:
+\begin{itemize}
+    \item \textbf{Application ($|V_{\text{app}}|$, 23 dims):} Indices 0--17 represent shared topological metrics (in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, bridge load). Indices 18--22 capture source code metrics extracted via Static Code Analysis (SCA): Lines of Code (LOC), Cyclomatic Complexity, Martin's Instability metric ($I_{\text{code}} = \frac{C_e}{C_a + C_e}$), Lack of Cohesion in Methods (LCOM), and composite Code Quality Penalty (CQP).
+    \item \textbf{Library ($|V_{\text{lib}}|$, 25 dims):} Same shared topological (0--17) and code quality (18--22) metrics as Application, plus two library-specific extras (indices 23--24): the size of the transitive reverse-\texttt{USES} closure (normalized) and the count of distinct subscribers reachable from that closure's published topics (normalized) --- the two structural drivers of a library's blast radius under both simulators' cascade rules that the code-quality metrics alone do not capture.
+    \item \textbf{Broker ($|V_{\text{broker}}|$, 19 dims):} Indices 0--17 shared topological metrics; index 18 represents normalized queue buffer capacity.
+    \item \textbf{Topic ($|V_{\text{topic}}|$, 22 dims):} Indices 0--17 shared topological metrics; indices 18--21 capture publisher count, subscriber count, log message frequency $\log(1 + \text{freq})$, and ordinal QoS criticality.
+    \item \textbf{Infrastructure Node ($|V_{\text{node}}|$, 20 dims):} Indices 0--17 shared topological metrics; indices 18--19 capture normalized CPU core allocation and physical memory (RAM).
+\end{itemize}

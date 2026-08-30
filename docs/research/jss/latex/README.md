@@ -25,6 +25,7 @@ organised by topic under [`../../thesis/material/`](../../thesis/material/).
 latex/
 ├── manuscript.tex       — main file: preamble, frontmatter, abstract, \input of every section
 ├── sections/            — one .tex per draft.md section (mirrors its numbering), + declarations.tex
+│                         NOTE: sec4_* is the PREDICTIVE pathway (HGT), sec5_* the EXPLANATION layer (RM)
 ├── refs.bib             — 53 references + [Anon-A], transcribed from draft.md's numbered list
 ├── title_page.tex        — SEPARATE, non-anonymous title page (placeholders — see below)
 ├── highlights.tex        — SEPARATE file, 5 bullets ≤85 chars (Elsevier requires "highlights" in the name)
@@ -50,7 +51,7 @@ No system-wide LaTeX package installation is required — `vendor/` is self-cont
 points `TEXINPUTS`/`BSTINPUTS` at it. Verified against a minimal `texlive-latex-base` install (Debian,
 2026), `pdflatex`, `bibtex`. `latexmk` and `xelatex` are not required or used.
 
-**The `times` class option is intentionally not used** (see the comment atop `manuscript.tex`): it
+**The `times` class option is not used** (note: URW Times *is* now installed here and `[preprint,3p,times]` builds cleanly at the same page count, so this is no longer a hard constraint — it is left off only to avoid an unrequested change of appearance) (see the comment atop `manuscript.tex`): it
 pulls in `mathptmx`, which needs URW Times Type 1 font metrics from `texlive-fonts-recommended` — not
 present in the no-sudo toolchain this was built against. The document uses `lmodern` instead (needed
 anyway for microtype's font-expansion feature, which requires scalable outlines). Swap `times` back in
@@ -64,11 +65,11 @@ layout, and omitting `review` leaves `\@blstr{1}` (single spacing). Measured on 
 
 | Class options | Pages | Note |
 |---|---:|---|
-| **`[preprint,3p]`** | **31** | **current setting** — single-spaced, one column; the layout JSS's "<36 pages single-column" guidance reads naturally against |
+| **`[preprint,3p]`** | **37** | **current setting** — single-spaced, one column; the layout JSS's "<36 pages single-column" guidance reads naturally against |
 | `[preprint,review,3p]` | 43 | 1.5-spaced reviewing copy; add `review` back if the editor asks for one |
 | `[preprint]` | 43 | Elsevier's generic preprint layout (larger type/margins) |
 
-Only `[preprint,3p]` comes in under 36 pages. If an editor insists on the plain `preprint` layout,
+`[preprint,3p]` is the only viable option, and at 37 pages it is now 1 over JSS's <36 guidance. A controlled build shows the overage is attributable to §8.2 (Performance and Sustainability Implications): removing that subsection alone returns the manuscript to 36 pages. Either justify the length in the cover letter as an extended conference version, shorten §8.2, or move §7.3's weighting sweeps to supplementary material. If an editor insists on the plain `preprint` layout,
 the manuscript is 43 pages and would need either a length justification in the cover letter or a
 further round of cuts — §8.5 and §9.2 are the next candidates.
 
@@ -78,7 +79,7 @@ Five figures, each `\includegraphics`'d from a live section and cross-referenced
 
 | Fig. | File | Content | Source section | Generator |
 |:---:|---|---|---|---|
-| 1 | `Figure_1.pdf` | end-to-end SaG pipeline (two pathways) | §1.3 | `figures/src/figure1_pipeline.dot` |
+| 1 | `Figure_1.pdf` | end-to-end SaG pipeline (Pathway B drawn first) | §1.3 | `figures/src/figure1_pipeline.dot` |
 | 2 | `Figure_2.pdf` | running example: structural graph + `DEPENDS_ON` | §3.3 | `figures/src/figure2_running_example.dot` |
 | 3 | `Figure_3.pdf` | HGT attention-weight case study | §7.3 | `reproduce/extract_attention.py` + `render_attention_subgraph.py` |
 | 4 | `Figure_4.pdf` | AHP shrinkage sensitivity | §7.3 | `reproduce/render_shrinkage_figure.py` |
@@ -136,7 +137,7 @@ than left to overflow.
 
 ## Verification performed
 
-Against the condensed `../draft.md` (~16,800 words, 13 tables, 4 figures):
+Against `../draft.md` after the predictive-pathway revision (~20,300 words, 16 tables, 5 figures + 1 Markdown-only ASCII figure):
 
 - Clean build (`make distclean && make`) with `[preprint,3p]`: **31 pages**, **zero LaTeX errors,
   zero undefined references, zero undefined citations**, across a full

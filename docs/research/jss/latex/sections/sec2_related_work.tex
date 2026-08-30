@@ -23,8 +23,15 @@ Traditional \textbf{Static Code Analysis (SCA)} tools (such as SonarQube) inspec
 
 To close this ``Architecture--Code Gap,'' \textbf{Static System Analysis (SSA)} elevates static analysis from single-service source code to the global system architecture. By modeling distributed applications, message topics, brokers, and execution nodes as a connected graph, SSA propagates code-level metrics across architectural dependencies. This allows software teams to catch structural anti-patterns \cite{garcia2009catalogue,garcia2009identifying,taibi2018microservice,dragoni2017microservices} and architectural technical debt \cite{cunningham1992wycash,li2015technicaldebt} early during continuous integration (CI/CD) \cite{humble2010continuous,chen2015continuous}.
 
-\subsection{Network Science and Graph Representation Learning}
+\subsection{Software Quality Models and Multi-Criteria Evaluation}
 \label{sec:2.3}
+
+Software product quality is standardized by the \textbf{ISO/IEC 25010:2023} product quality model \cite{iso25010_2023} (which defines characteristics including Reliability, Maintainability, and Performance Efficiency) and the \textbf{ISO/IEC 25019:2023} Quality-in-Use model \cite{iso25019_2023}. Software measurement distinguishes between \emph{internal quality} (measured on static artifacts at rest) and \emph{external quality} (measured on executing software) \cite{iso25023_2016,iso25021_2012}.
+
+Combining multi-attribute structural metrics into an overall quality score is a classic Multi-Criteria Decision Making (MCDM) problem. The \textbf{Analytic Hierarchy Process (AHP)} \cite{saaty1980ahp} provides a structured pairwise-comparison method with an explicit Consistency Ratio ($CR \le 0.10$) to ensure weighting schemes remain mathematically sound. In this paper, we use AHP to construct an audited, explainable Reliability--Maintainability (RM) quality baseline, providing transparent architectural diagnostics alongside our learned graph models.
+
+\subsection{Network Science and Graph Representation Learning}
+\label{sec:2.4}
 
 Network science provides established centrality metrics to identify critical nodes, such as degree, closeness, betweenness centrality \cite{freeman1977centrality,brandes2001faster}, articulation points, and PageRank \cite{brin1998pagerank,newman2010networks}. Foundational studies on network robustness \cite{albert2000error}, cascading overloads \cite{motter2002cascade}, and interdependent networks \cite{buldyrev2010cascade} model how failures propagate across connected systems. However, standard network metrics suffer from two major limitations when applied to software architectures:
 \begin{enumerate}
@@ -36,13 +43,7 @@ To move beyond hand-engineered graph metrics, recent research has applied machin
 
 Heterogeneous Graph Neural Networks (RGCN \cite{schlichtkrull2018rgcn}, HAN \cite{wang2019han}, HGT \cite{hu2020hgt}, MAGNN \cite{fu2020magnn}) solve this by using relation-specific transformations. We build upon the \textbf{Heterogeneous Graph Transformer (HGT)} architecture \cite{hu2020hgt} to maintain typed relational semantics when forecasting cascading failure blast radii.
 
-\subsection{Software Quality Models and Multi-Criteria Evaluation}
-\label{sec:2.4}
-
-Software product quality is standardized by the \textbf{ISO/IEC 25010:2023} product quality model \cite{iso25010_2023} (which defines characteristics including Reliability, Maintainability, and Performance Efficiency) and the \textbf{ISO/IEC 25019:2023} Quality-in-Use model \cite{iso25019_2023}. Software measurement distinguishes between \emph{internal quality} (measured on static artifacts at rest) and \emph{external quality} (measured on executing software) \cite{iso25023_2016,iso25021_2012}.
-
-Combining multi-attribute structural metrics into an overall quality score is a classic Multi-Criteria Decision Making (MCDM) problem. The \textbf{Analytic Hierarchy Process (AHP)} \cite{saaty1980ahp} provides a structured pairwise-comparison method with an explicit Consistency Ratio ($CR \le 0.10$) to ensure weighting schemes remain mathematically sound. In this paper, we use AHP to construct an audited, explainable Reliability--Maintainability (RM) quality baseline, providing transparent architectural diagnostics alongside our learned graph models.
-
+A learned ranker is actionable only if a practitioner can see what drove it. Attention weights are the most direct such signal in transformer-style architectures, and are what we inspect in Section~\ref{sec:7.3}; perturbation- and mask-based explainers such as GNNExplainer \cite{ying2019gnnexplainer} instead search for the minimal subgraph preserving a prediction. Both families explain a model \emph{in its own terms} --- which nodes and edges mattered --- and neither says \emph{why} a flagged component is architecturally fragile in the vocabulary of a quality standard. That gap is what the explanation layer of Section~\ref{sec:5} addresses.
 \begin{table}[htbp]
 \centering
 \small

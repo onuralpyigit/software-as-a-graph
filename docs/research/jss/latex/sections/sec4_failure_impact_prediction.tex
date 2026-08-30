@@ -1,7 +1,7 @@
 \section{Graph Learning for Failure-Impact Prediction}
 \label{sec:4}
 
-Cascading failure impact is a non-linear, multi-hop, relation-dependent quantity: how far an outage travels depends not only on how many neighbours a component has but on \emph{which kind} of edge carries the failure outward, and on what lies two and three hops beyond. No closed-form aggregate of centrality measures expresses that, which is why the primary pathway of Section~\ref{sec:1.2} is a learned one. This section presents it: the Heterogeneous Graph Transformer (HGT) architecture and its 16-dimensional typed edge representation (Section~\ref{sec:4.1}), the multi-task prediction heads and dimension-masked loss that let one model emit component impact, reliability, maintainability and per-relationship criticality together (Section~\ref{sec:4.2}), the ground-truth simulation oracles that supply its labels (Section~\ref{sec:4.3}), and the input--label independence guarantee that keeps the two apart (Section~\ref{sec:4.4}).
+Cascading failure impact is non-linear, multi-hop and relation-dependent: how far an outage travels depends not on how many neighbours a component has but on \emph{which kind} of edge carries the failure outward, and on what lies two and three hops beyond. No closed-form aggregate of centrality measures expresses that, which is why the primary pathway of Section~\ref{sec:1.2} is a learned one. This section presents the HGT architecture and its typed edge representation (Section~\ref{sec:4.1}), the multi-task heads and dimension-masked loss (Section~\ref{sec:4.2}), the simulation oracles supplying its labels (Section~\ref{sec:4.3}), and the input--label independence guarantee keeping the two apart (Section~\ref{sec:4.4}).
 
 \subsection{Heterogeneous Graph Transformer Architecture}
 \label{sec:4.1}
@@ -126,7 +126,7 @@ $I_{\text{comp}}(v)$ (\texttt{FailureSimulator}) is the Validate-stage oracle fo
 quality gates and anti-pattern detection only, $I_{\text{dyn}}(v)$ (\texttt{MessageFlowSimulator})
 is used only as an independent, behaviourally-constructed convergent-validity probe,
 $I_M(v)$ (\texttt{ChangePropagationSimulator}) is the declared but internally-consistent oracle
-for Maintainability alone and is not empirically validated in this paper (Section~\ref{sec:8.2}),
+for Maintainability alone and is not empirically validated in this paper (Section~\ref{sec:8.3}),
 and $I_{\text{edge}}(u,v)$ scores relationships rather than components. Each table and figure names
 the oracle it was measured against; no number is transferred between them.
 

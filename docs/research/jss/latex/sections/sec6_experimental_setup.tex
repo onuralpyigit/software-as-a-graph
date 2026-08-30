@@ -50,7 +50,9 @@ at the single modal triple, against $51$--$79\%$ for the three domains (\texttt{
 $w(t)$ has standard deviation $\approx 0.02$ on a $[0,1]$ scale in the four QoS-flat scenarios,
 versus $0.19$--$0.28$ in the other three. We report this as a corpus limitation rather than
 correct it: doing so would change what those four scenarios generate and require regenerating
-every cached result built on them (Section~\ref{sec:8.2}).
+every cached result built on them (Section~\ref{sec:8.3}).
+
+\noindent\textbf{A note on the ATM case study.} One further scenario, an Automated Teller Machine network, serves as an eighth LOSO fold (Section~\ref{sec:6.3}) and as the subject of the attention analysis (Section~\ref{sec:7.3}), but is deliberately \emph{not} a row in Table~\ref{tab:4} and contributes none of the 1{,}770 components counted there: it was authored as an illustrative walkthrough, and its configuration lacks the seven-number fan-out summaries the other synthetic scenarios declare. It enters LOSO because that protocol needs held-out topologies rather than characterised ones, so every LOSO figure reports eight folds against a ten-architecture corpus.
 
 \subsubsection{Reproducibility of the Corpus}
 \label{sec:6.1.repro}
@@ -66,19 +68,19 @@ The corpus is regenerable rather than merely archived. Each dataset is produced 
 \subsection{Baselines and Evaluated Predictors}
 \label{sec:6.2}
 
-We compare four primary predictor configurations, split into training-free baselines and the learned predictors proposed in this paper:
+We compare four primary predictor configurations, listing the learned predictors proposed in this paper first and the training-free baselines they are measured against second:
 \begin{enumerate}
-    \item \textbf{Topo-BL} (baseline): Unweighted structural centrality (betweenness centrality and articulation point scoring).
-    \item \textbf{Topo-QoS} (baseline): QoS-weighted topological centrality baseline.
-    \item \textbf{GL / GL-QoS} (proposed): Homogeneous Graph Attention Networks (GAT) \cite{velickovic2018graph} trained on the flattened, untyped graph projection.
-    \item \textbf{HGL / HGL-QoS} (proposed): Relation-specific Heterogeneous Graph Transformers (Section~\ref{sec:5}).
+    \item \textbf{HGL / HGL-QoS} (proposed): Relation-specific Heterogeneous Graph Transformers (Section~\ref{sec:4}), without and with the explicit 7-dimensional QoS edge encoding.
+    \item \textbf{GL / GL-QoS} (proposed ablation): Homogeneous Graph Attention Networks (GAT) \cite{velickovic2018graph} trained on the flattened, untyped graph projection --- the controlled comparison that isolates what relation-specific typing buys.
+    \item \textbf{Topo-QoS} (baseline): QoS-weighted topological centrality baseline, training-free.
+    \item \textbf{Topo-BL} (baseline): Unweighted structural centrality (betweenness centrality and articulation point scoring), training-free.
 \end{enumerate}
-\noindent The out-of-distribution table (Table~\ref{tab:7}) additionally reports \textbf{RM / $Q(v)$} (the deterministic hierarchical quality attribution model of Section~\ref{sec:4}) as a non-competing diagnostic reference point, not as a fifth predictor: RM is not fitted to rank components, and its row exists to show how much the predictive path adds over static attribution (Section~\ref{sec:1.2}), not to compete on ranking accuracy. The same deterministic RM scorer is also the instrument behind every sensitivity sweep in Section~\ref{sec:7.3}: because RM is a closed-form function of its declared constants, sweeping those constants isolates their effect from training variance in a way the learned predictors cannot.
+\noindent The out-of-distribution table (Table~\ref{tab:7}) additionally reports \textbf{RM / $Q(v)$} (the deterministic hierarchical quality attribution model of Section~\ref{sec:5}) as a non-competing diagnostic reference point, not as a fifth predictor: RM is not fitted to rank components, and its row exists to show how much the predictive path adds over static attribution (Section~\ref{sec:1.2}), not to compete on ranking accuracy. The same deterministic RM scorer is also the instrument behind every sensitivity sweep in Section~\ref{sec:7.3}: because RM is a closed-form function of its declared constants, sweeping those constants isolates their effect from training variance in a way the learned predictors cannot.
 
 \subsubsection{Evaluation Substrate}
 \label{sec:6.2.substrate}
 
-Predictors in this comparison are not all evaluated over the same graph view, and the distinction matters for reading the tables that follow. \textbf{Topo-BL, Topo-QoS, GL and GL-QoS} are scored on the derived Application--Library \texttt{DEPENDS\_ON} projection (Section~\ref{sec:3.2}) --- the same substrate built for GNN feature/label alignment and discussed further in Section~\ref{sec:7.3} --- while \textbf{HGL and HGL-QoS} consume the full native typed multigraph over all five entity types. \textbf{No predictor in either group reads $G_{\text{structural}}$}: that graph remains the exclusive substrate of the ground-truth simulation oracles (Section~\ref{sec:5.4}), and the independence guarantee enforced by \texttt{tests/test\_independence\_guarantee.py} holds identically for every variant in this section.
+Predictors in this comparison are not all evaluated over the same graph view, and the distinction matters for reading the tables that follow. \textbf{Topo-BL, Topo-QoS, GL and GL-QoS} are scored on the derived Application--Library \texttt{DEPENDS\_ON} projection (Section~\ref{sec:3.2}) --- the same substrate built for GNN feature/label alignment and discussed further in Section~\ref{sec:7.3} --- while \textbf{HGL and HGL-QoS} consume the full native typed multigraph over all five entity types. \textbf{No predictor in either group reads $G_{\text{structural}}$}: that graph remains the exclusive substrate of the ground-truth simulation oracles (Section~\ref{sec:4.4}), and the independence guarantee enforced by \texttt{tests/test\_independence\_guarantee.py} holds identically for every variant in this section.
 
 The projection substrate was adopted for the homogeneous and untrained baselines because the full native pub-sub graph is not learnable by an untyped model on this corpus: Application nodes carry near-zero betweenness and bridge-ratio in the raw graph (they never route messages), producing degenerate, near-constant feature vectors, and a single homogeneous message-passing layer over-smooths every Application into an identical representation by aggregating the same high-fan-in Topic hub. This is the design rationale recorded in the replication package rather than a measured ablation --- we did not run GL/GL-QoS on the native substrate to quantify the collapse directly, and do not report a number for it.
 
@@ -88,7 +90,7 @@ This asymmetry is a scope condition on the RQ2 comparisons in Section~\ref{sec:7
 \label{sec:6.3}
 
 \begin{itemize}
-    \item \textbf{Ranking Accuracy:} Spearman rank correlation ($\rho$) and Kendall's tau ($\tau$) between predicted rankings and ground-truth simulated impact $I^*(v)$, the primary oracle declared in Section~\ref{sec:5.1}.
+    \item \textbf{Ranking Accuracy:} Spearman rank correlation ($\rho$) and Kendall's tau ($\tau$) between predicted rankings and ground-truth simulated impact $I^*(v)$, the primary oracle declared in Section~\ref{sec:4.3}.
     \item \textbf{Critical-Set Identification:} $F_1@K$, Precision@$K$, and Recall@$K$ for top-$K$ critical components, where $K$ is $20\%$ of the evaluated node population, rounded to nearest. Because the predicted and true sets both contain exactly $K$ elements, precision, recall and $F_1$ coincide at $K$; the figure is a top-$K$ overlap and we read it as such.
     \item \textbf{Statistical Significance:} Paired Wilcoxon signed-rank tests \cite{wilcoxon1945individual} ($p < 0.05$) and bootstrap 95\% confidence intervals ($B = 2,000$) \cite{efron1993introduction,spearman1904proof}.
 \end{itemize}
@@ -100,6 +102,6 @@ Every predictor in a given table is scored on an identical node set, resolved fr
 \subsubsection{Evaluation Protocols}
 \begin{itemize}
     \item \textbf{In-Distribution Evaluation:} 60\% train / 20\% validation / 20\% test node splits pinned by node identity within each scenario, evaluated over five random seeds $\{42, 123, 456, 789, 2024\}$.
-    \item \textbf{Inductive Leave-One-Scenario-Out (LOSO):} Across all eight cached scenarios (the seven synthetic scenarios plus the ATM case study, Section~\ref{sec:7.4}), models are trained on the remaining seven and evaluated zero-shot on the held-out scenario, for eight folds total, to test out-of-distribution generalizability.
+    \item \textbf{Inductive Leave-One-Scenario-Out (LOSO):} Across all eight cached scenarios (the seven synthetic scenarios plus the ATM case study, Section~\ref{sec:7.3}), models are trained on the remaining seven and evaluated zero-shot on the held-out scenario, for eight folds total, to test out-of-distribution generalizability.
     \item \textbf{Real-World Architectural Transfer:} Evaluating zero-shot transfer on authentic open-source architectures.
 \end{itemize}

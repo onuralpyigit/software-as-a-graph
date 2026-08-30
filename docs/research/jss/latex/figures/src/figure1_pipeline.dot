@@ -9,7 +9,7 @@
 // ranked critical set, and only the latter is validated against the simulation
 // oracle — the oracle scores rankings, and a quality profile is not one. The one
 // link between the lanes is a triage relation, not a data dependency: the paths
-// share no parameters and neither is fitted to the other's output (§5.4).
+// share no parameters and neither is fitted to the other's output (§4.4).
 //
 // KEEP THE NATURAL WIDTH NEAR THE TEXT BLOCK (~468pt at \textwidth).
 // The manuscript includes this at width=\linewidth, so a canvas twice the text
@@ -69,9 +69,42 @@ digraph Figure1 {
     fillcolor="#E0E7FF", color="#3730A3"
   ];
 
+  // ── Pathway B: predictive ─────────────────────────────────────────────────
+  subgraph cluster_b {
+    label = "PATHWAY B — Predictive (§4)";
+    fontname = "Helvetica-Bold";
+    fontsize = 10.5;
+    fontcolor = "#4C1D95";
+    style = "dashed,rounded";
+    color = "#6D28D9";
+    penwidth = 1.4;
+    margin = 10;
+
+    hgl [
+      label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+        <tr><td><b>Heterogeneous Graph Transformer</b></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Relation-specific attention</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• 16-D QoS edge embedding</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Multi-task risk &amp; ranking heads</font></td></tr>
+      </table>>,
+      fillcolor="#EDE9FE", color="#6D28D9"
+    ];
+
+    topk [
+      label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+        <tr><td><b>Top-<i>K</i> Critical Component Set</b></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Blast radius <i>Ĉ</i>(<i>v</i>) (§4.2)</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Out-of-distribution ranking</font></td></tr>
+      </table>>,
+      fillcolor="#F5F3FF", color="#6D28D9"
+    ];
+
+    hgl -> topk;
+  }
+
   // ── Pathway A: diagnostic ─────────────────────────────────────────────────
   subgraph cluster_a {
-    label = "PATHWAY A — Diagnostic (§4)";
+    label = "PATHWAY A — Explanation (§5)";
     fontname = "Helvetica-Bold";
     fontsize = 10.5;
     fontcolor = "#14532D";
@@ -102,7 +135,7 @@ digraph Figure1 {
 
     remediate [
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-        <tr><td><b>Remediation Guidance</b> (§4, §8.1)</td></tr>
+        <tr><td><b>Remediation Guidance</b> (§5, §8.1)</td></tr>
         <tr><td align="left"><font point-size="9.5" color="#14532D">• Replication (DevOps/SRE)</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#14532D">• Circuit breakers (architect)</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#14532D">• Refactoring (developers)</font></td></tr>
@@ -114,43 +147,10 @@ digraph Figure1 {
     diag -> remediate;
   }
 
-  // ── Pathway B: predictive ─────────────────────────────────────────────────
-  subgraph cluster_b {
-    label = "PATHWAY B — Predictive (§5)";
-    fontname = "Helvetica-Bold";
-    fontsize = 10.5;
-    fontcolor = "#4C1D95";
-    style = "dashed,rounded";
-    color = "#6D28D9";
-    penwidth = 1.4;
-    margin = 10;
-
-    hgl [
-      label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-        <tr><td><b>Heterogeneous Graph Transformer</b></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Relation-specific attention</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• 16-D QoS edge embedding</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Multi-task risk &amp; ranking heads</font></td></tr>
-      </table>>,
-      fillcolor="#EDE9FE", color="#6D28D9"
-    ];
-
-    topk [
-      label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-        <tr><td><b>Top-<i>K</i> Critical Component Set</b></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Blast radius <i>Ĉ</i>(<i>v</i>) (§5.3)</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Out-of-distribution ranking</font></td></tr>
-      </table>>,
-      fillcolor="#F5F3FF", color="#6D28D9"
-    ];
-
-    hgl -> topk;
-  }
-
   // ── Ground truth, reached only by the predictive lane ─────────────────────
   oracle [
     label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-      <tr><td><b>Ground-Truth Simulation Oracle (<i>I*</i>(<i>v</i>))</b> (§5.1)</td></tr>
+      <tr><td><b>Ground-Truth Simulation Oracle (<i>I*</i>(<i>v</i>))</b> (§4.3)</td></tr>
       <tr><td><font point-size="9.5" color="#7C2D12">FaultInjector on raw <i>G</i><sub>structural</sub></font></td></tr>
       <tr><td><font point-size="9.5" color="#7C2D12">Offline: training &amp; validation only</font></td></tr>
     </table>>,
@@ -160,17 +160,17 @@ digraph Figure1 {
   // ── Flow ──────────────────────────────────────────────────────────────────
   manifest -> graph_s [label=" Ingestion", weight=10];
   graph_s -> graph_a [label=" Typed projection\l &amp; QoS weights (§3.2)\l", weight=10];
-  graph_a -> rm   [lhead=cluster_a];
   graph_a -> hgl  [lhead=cluster_b];
+  graph_a -> rm   [lhead=cluster_a];
 
   topk -> oracle [
     label=" Validated against\l ground truth (§6.3)\l",
     style="dashed", color="#C2410C", fontcolor="#9A3412", penwidth=1.4, weight=10
   ];
 
-  // Independence guarantee: the oracle never sees G_analysis (§5.4).
+  // Independence guarantee: the oracle never sees G_analysis (§4.4).
   graph_s -> oracle [
-    label=" Independent run\l on G_struct (§5.4)\l",
+    label=" Independent run\l on G_struct (§4.4)\l",
     style="dotted", color="#9A3412", fontcolor="#9A3412", penwidth=1.2,
     constraint=false
   ];
