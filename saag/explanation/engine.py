@@ -10,7 +10,11 @@ from saag.core.metrics import ComponentQuality, CriticalityLevel
 from saag.analysis.models import QualityAnalysisResult, DetectedProblem
 from saag.analysis.smells import AntiPatternReport
 
-from saag.explanation.templates import PATTERN_TEMPLATES, DEFAULT_DIMENSION_TEMPLATES
+from saag.explanation.templates import (
+    PATTERN_TEMPLATES,
+    DEFAULT_DIMENSION_TEMPLATES,
+    STAKEHOLDER_MAPPING,
+)
 
 
 @dataclass
@@ -138,6 +142,36 @@ def identify_driver(component: ComponentQuality, dimension: str) -> tuple[str, f
     return max(values, key=lambda x: x[1])
 
 
+def resolve_roles(exp: "ComponentExplanation") -> List[str]:
+    """Return the stakeholder roles (SRE / DevOps / Architect / Security)
+    responsible for a component's explanation.
+
+    Extracted from ``ExplanationEngine.explain_system`` so ``triage`` can
+    route the same component to the same roles without re-deriving the
+    mapping. Pattern-specific overrides win over the per-dimension mapping;
+    "Architect" is the default when nothing else matches.
+    """
+    if exp.pattern == "Total Hub":
+        roles = ["SRE", "DevOps", "Architect"]
+    elif exp.pattern == "Fragile Hub":
+        roles = ["SRE", "DevOps"]
+    elif exp.pattern == "Exposed Bottleneck":
+        roles = ["Architect", "Security"]
+    else:
+        role = STAKEHOLDER_MAPPING["patterns"].get(exp.pattern)
+        if role:
+            roles = [role]
+        else:
+            roles = []
+            for dim in exp.dimensions:
+                if dim.level in ("CRITICAL", "HIGH"):
+                    r = STAKEHOLDER_MAPPING["dimensions"].get(dim.dimension)
+                    if r:
+                        roles.append(r)
+
+    return roles or ["Architect"]
+
+
 class ExplanationEngine:
     """
     Engine for translating ComponentQuality and AntiPattern reports into 
@@ -223,8 +257,6 @@ class ExplanationEngine:
     def explain_system(self, quality_result: QualityAnalysisResult,
                        smell_report: AntiPatternReport) -> SystemReport:
         """Generate a system-level report with executive summaries and action plans."""
-        from .templates import STAKEHOLDER_MAPPING
-        
         all_components = quality_result.components
         total = len(all_components)
         
@@ -275,28 +307,9 @@ class ExplanationEngine:
         action_map = {}
         for exp in component_explanations:
             act = exp.priority_action
-            
-            # Determine stakeholders (multiple possible)
-            roles = []
-            if exp.pattern == "Total Hub":
-                roles = ["SRE", "DevOps", "Architect"]
-            elif exp.pattern == "Fragile Hub":
-                roles = ["SRE", "DevOps"]
-            elif exp.pattern == "Exposed Bottleneck":
-                roles = ["Architect", "Security"]
-            else:
-                role = STAKEHOLDER_MAPPING["patterns"].get(exp.pattern)
-                if role:
-                    roles = [role]
-                else:
-                    for dim in exp.dimensions:
-                        if dim.level in ("CRITICAL", "HIGH"):
-                            r = STAKEHOLDER_MAPPING["dimensions"].get(dim.dimension)
-                            if r: roles.append(r)
-            
-            if not roles:
-                roles = ["Architect"]
-                
+
+            roles = resolve_roles(exp)
+
             for role in set(roles):
                 if role not in stakeholder_actions: continue
                 if exp.level == "CRITICAL":

@@ -182,6 +182,12 @@ class GNNAnalysisResult:
     # Internal: structural metadata for shimming
     _structural_cache: Dict[str, Any] = field(default_factory=dict, repr=False)
     layer: str = "system"
+    #: The Pathway A RM result this GNN ranking was produced alongside. The
+    #: `components` shim below cannot carry a root cause -- it leaves
+    #: fault_tolerance/availability at 0.0 and `profile` at None, since those
+    #: are scored on the analysis side, not predicted. Triage joins this
+    #: result's CriticalityProfile back onto the ranking by component id.
+    rm_result: Optional[Any] = field(default=None, repr=False)
 
     @property
     def components(self) -> List[ComponentQuality]:

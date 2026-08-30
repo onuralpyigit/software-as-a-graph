@@ -152,6 +152,7 @@ digraph Figure1 {
     label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
       <tr><td><b>Ground-Truth Simulation Oracle (<i>I*</i>(<i>v</i>))</b> (§5.1)</td></tr>
       <tr><td><font point-size="9.5" color="#7C2D12">FaultInjector on raw <i>G</i><sub>structural</sub></font></td></tr>
+      <tr><td><font point-size="9.5" color="#7C2D12">Offline: training &amp; validation only</font></td></tr>
     </table>>,
     fillcolor="#FFEDD5", color="#C2410C"
   ];
@@ -179,6 +180,17 @@ digraph Figure1 {
   topk -> diag [
     label=" Triage ",
     style="dashed", color="#6D28D9", fontcolor="#5B21B6", penwidth=1.1,
+    constraint=false
+  ];
+
+  // Prescribe's per-edit acceptance filter re-simulates each candidate on its
+  // own mutated copy of G_structural before accepting it (EditVerifier) — a
+  // closed loop back into the trunk, not a second call into the oracle above.
+  // xlabel (not label): an inline label on a back-edge this long re-reserves
+  // canvas width the MediaBox budget doesn't have room for (§ header note).
+  remediate -> graph_s [
+    xlabel="Counterfactual\nre-simulation",
+    style="dashed", color="#166534", fontcolor="#166534", penwidth=1.1,
     constraint=false
   ];
 }

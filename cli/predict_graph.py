@@ -107,6 +107,16 @@ def build_parser() -> argparse.ArgumentParser:
              "When provided, runs HGT/HGTConv inference and reports GNN scores.",
     )
 
+    # ── Triage bridge ────────────────────────────────────────────────────────
+    triage_grp = parser.add_argument_group("Triage bridge (optional)")
+    triage_grp.add_argument(
+        "--triage-k", type=int, default=None, metavar="K",
+        help="Shortlist the Top-K critical components (ranked by GNN when "
+             "--gnn-model is set and succeeds, by RM otherwise) and print "
+             "each one's RM root-cause diagnosis: pattern, elevated "
+             "dimensions, priority action, and stakeholder roles.",
+    )
+
     # ── Anti-pattern detection ────────────────────────────────────────────────
     ap_grp = parser.add_argument_group("Anti-pattern detection")
     ap_grp.add_argument(
@@ -487,6 +497,32 @@ def main() -> None:
         else:
             display.print_step(f"[{layer.upper()}] Anti-pattern scan skipped (--no-antipatterns).")
 
+        # ── Triage bridge (optional) ──────────────────────────────────────────
+        # Scopes the RM root-cause diagnosis to the Top-K components the
+        # ranking (GNN when available, RM otherwise) flagged as critical.
+        # The GNN result carries no root cause of its own (its `.components`
+        # shim leaves `profile` at None), so the diagnosis is always joined
+        # back to the RM prediction by component id — see saag/analysis/triage.py.
+        triage_result = None
+        if args.triage_k:
+            display.print_step(f"[{layer.upper()}] Triage — Top-{args.triage_k} shortlist…")
+            triage_target = prediction
+            if gnn_result is not None:
+                gnn_result.rm_result = prediction.raw
+                triage_target = gnn_result
+            triage_result = client.triage(triage_target, k=args.triage_k)
+
+            print()
+            print(f"  Triage shortlist (ranking source: {triage_result.ranking_source}):")
+            print(f"  {'Rank':<4} {'Component':<32} {'Pattern':<22} {'Level':<9} {'Roles'}")
+            print(f"  {'─'*4} {'─'*32} {'─'*22} {'─'*9} {'─'*20}")
+            for entry in triage_result.entries:
+                print(
+                    f"  {entry.rank:<4} {str(entry.component_id)[:31]:<32} "
+                    f"{entry.pattern:<22} {entry.level:<9} {', '.join(entry.roles)}"
+                )
+            print()
+
         # ── Accumulate layer output ───────────────────────────────────────────
         layer_entry: dict = {
             "total_components": total_components,
@@ -507,6 +543,8 @@ def main() -> None:
         }
         if gnn_result:
             layer_entry["gnn"] = gnn_result.to_dict()
+        if triage_result:
+            layer_entry["triage"] = triage_result.to_dict()
         all_output["layers"][layer] = layer_entry
 
     # ── Persist combined output ────────────────────────────────────────────────

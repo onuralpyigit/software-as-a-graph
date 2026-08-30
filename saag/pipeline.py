@@ -34,6 +34,7 @@ class Pipeline:
         #: None means "use whatever analyze()/self._layer resolved to".
         self._simulate_layer: Optional[str] = None
         self._predict_kwargs: dict = {}
+        self._triage_kwargs: dict = {}
         self._simulate_kwargs: dict = {}
         self._visualize_kwargs: dict = {}
         self._clear: bool = False
@@ -41,6 +42,7 @@ class Pipeline:
 
         self._do_analyze = False
         self._do_predict = False
+        self._do_triage = False
         self._do_simulate = False
         self._do_validate = False
         self._do_prescribe = False
@@ -110,6 +112,21 @@ class Pipeline:
         """
         self._do_predict = True
         self._predict_kwargs = {"mode": mode, "gnn_checkpoint": gnn_checkpoint, **kwargs}
+        return self
+
+    def triage(self, k: int = 10, node_types: Optional[List[str]] = None) -> "Pipeline":
+        """Triage bridge — scope Pathway A's (RM) root-cause diagnosis to the
+        Top-K components Pathway B's ranking (GNN when a checkpoint was
+        available at predict()-time, RM otherwise) flagged as critical.
+
+        Requires predict() to have been configured first. Each shortlisted
+        component is joined back to its RM CriticalityProfile pattern,
+        elevated dimensions, priority action, and stakeholder roles by id —
+        never read off the ranking itself, since a GNN result carries no
+        root cause of its own.
+        """
+        self._do_triage = True
+        self._triage_kwargs = {"k": k, "node_types": node_types}
         return self
 
     def simulate(self, layer: Optional[str] = None, mode: str = "exhaustive", **kwargs) -> "Pipeline":
@@ -197,6 +214,18 @@ class Pipeline:
 
             logger.info("Running unified Prediction step (RM + GNN)...")
             result.prediction = self.client.predict(result.analysis, **self._predict_kwargs)
+
+        # Execution step 4b — Triage bridge: scope Pathway A's RM diagnosis
+        # to Pathway B's Top-K shortlist. Runs immediately after Predict,
+        # on whatever ranking Predict produced (GNN or RM fallback).
+        if self._do_triage:
+            if result.prediction is None:
+                raise RuntimeError(
+                    "triage() requires a PredictionResult. "
+                    "Make sure to call predict() in the pipeline."
+                )
+            logger.info("Running Triage bridge...")
+            result.triage = self.client.triage(result.prediction, **self._triage_kwargs)
 
         # Execution step 5 (Stage 5: Validate) — compare Predict/Analyze
         # output against Simulate ground truth

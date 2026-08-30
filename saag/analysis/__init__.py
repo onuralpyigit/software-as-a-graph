@@ -23,6 +23,7 @@ from .analyzer import QualityAnalyzer, CriticalityProfile
 from .classifier import BoxPlotClassifier
 from .weight_calculator import AHPProcessor, QualityWeights
 from .problem_detector import ProblemDetector
+from .triage import triage, select_top_k, TriageResult, TriageEntry
 
 __all__ = [
     "AnalysisService",
@@ -43,4 +44,8 @@ __all__ = [
     "QualityAnalysisResult",
     "DetectedProblem",
     "ProblemSummary",
+    "triage",
+    "select_top_k",
+    "TriageResult",
+    "TriageEntry",
 ]

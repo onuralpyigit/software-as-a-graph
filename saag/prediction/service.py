@@ -150,6 +150,7 @@ class PredictionService:
         gnn_result.problem_summary = problem_summary
         gnn_result.explanation = explanation
         gnn_result.failed_patterns = rm_result.failed_patterns
+        gnn_result.rm_result = rm_result
         return gnn_result
 
     # ── Internals ─────────────────────────────────────────────────────────────

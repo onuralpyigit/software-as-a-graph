@@ -121,6 +121,29 @@ class Client:
         )
         return PredictionResult(result)
 
+    def triage(
+        self,
+        prediction_result: Any,
+        k: int = 10,
+        node_types: Optional[List[str]] = None,
+    ) -> Any:
+        """Run the Triage bridge: scope Pathway A's (RM) root-cause diagnosis
+        to the Top-K components Pathway B's ranking (GNN when a checkpoint
+        was available at predict()-time, RM otherwise) flagged as critical.
+
+        Consumes the result produced by predict() -- no repository access.
+        Each shortlisted component is joined back to its RM
+        CriticalityProfile pattern, elevated dimensions, priority action,
+        and stakeholder roles by id, never read off the ranking itself (a
+        GNN result carries no root cause of its own).
+        """
+        from saag.usecases.triage_graph import TriageGraphUseCase
+
+        raw = getattr(prediction_result, "raw", prediction_result)
+        layer = getattr(raw, "layer", "system")
+        uc = TriageGraphUseCase()
+        return uc.execute(raw, k=k, layer=layer, node_types=node_types)
+
     def detect_antipatterns(self, prediction_result: Any, active_patterns: Optional[List[str]] = None) -> List[Any]:
         """Return anti-patterns detected during the Predict stage.
 

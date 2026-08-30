@@ -448,12 +448,14 @@ class PipelineExecutionResult:
     Stage mapping:
       analysis     — deterministic Analyze stage (structural metrics only)
       prediction   — unified Predict stage (RM always + GNN when available + anti-patterns + explanation); optional
+      triage       — Triage bridge: Pathway B's Top-K joined to Pathway A's RM diagnosis; optional
       simulation   — Simulate stage (counterfactual cascade ground truth)
       validation   — Validate stage (Predict/Analyze vs Simulate ground truth)
       prescription — prescriptive Stage 6 optimization; optional
     """
     analysis: Optional[AnalysisResult] = None
     prediction: Optional[PredictionResult] = None
+    triage: Optional[Any] = None
     simulation: Optional[Any] = None
     validation: Optional[ValidationPipelineFacade] = None
     prescription: Optional["PrescribeResult"] = None
@@ -475,6 +477,8 @@ class PipelineExecutionResult:
             }
         if self.prediction:
             data["prediction"] = self.prediction.raw.to_dict()
+        if self.triage:
+            data["triage"] = self.triage.to_dict() if hasattr(self.triage, "to_dict") else self.triage
         if self.simulation:
             if hasattr(self.simulation, "to_dict"):
                 data["simulation"] = self.simulation.to_dict()

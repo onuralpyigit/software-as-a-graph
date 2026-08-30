@@ -173,3 +173,54 @@ def test_gnn_independence_invariant_assertion():
 
     assert "Violation of Independence Guarantee" in str(exc_info.value)
 
+
+def test_pipeline_triage_requires_predict():
+    """triage() without predict() must fail fast, mirroring predict()'s own
+    analyze()-required guard."""
+    repo = MemoryRepository()
+    repo.save_graph({"applications": [{"id": "AppA", "name": "App A"}], "relationships": {}})
+
+    pipeline = Pipeline(repo=repo)
+    pipeline.analyze().triage(k=1)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        pipeline.run()
+
+    assert "triage() requires a PredictionResult" in str(exc_info.value)
+
+
+def test_pipeline_triage_runs_after_predict(monkeypatch):
+    """triage() must execute after predict() and receive predict()'s result
+    and its own kwargs, not predict()'s."""
+    repo = MemoryRepository()
+    repo.save_graph({"applications": [{"id": "AppA", "name": "App A"}], "relationships": {}})
+
+    pipeline = Pipeline(repo=repo)
+    execution_order = []
+    sentinel_prediction = object()
+
+    monkeypatch.setattr(pipeline.client, "analyze", lambda *a, **kw: object())
+    monkeypatch.setattr(
+        pipeline.client, "predict",
+        lambda *a, **kw: execution_order.append("predict") or sentinel_prediction,
+    )
+    captured = {}
+
+    def fake_triage(prediction_result, **kw):
+        execution_order.append("triage")
+        captured["prediction_result"] = prediction_result
+        captured.update(kw)
+        return object()
+
+    monkeypatch.setattr(pipeline.client, "triage", fake_triage)
+    from saag.prediction.service import PredictionService
+    monkeypatch.setattr(PredictionService, "_has_checkpoint", staticmethod(lambda d: True))
+
+    pipeline.analyze("app").predict(mode="rm").triage(k=5, node_types=["Application"])
+    pipeline.run()
+
+    assert execution_order == ["predict", "triage"]
+    assert captured["prediction_result"] is sentinel_prediction
+    assert captured["k"] == 5
+    assert captured["node_types"] == ["Application"]
+

@@ -191,6 +191,12 @@ PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_c
 |------|-------------|
 | `--gnn-model` | Path to trained checkpoint directory |
 
+**Triage bridge (optional):**
+
+| Flag | Description |
+|------|-------------|
+| `--triage-k` | Shortlist the Top-K critical components (GNN-ranked when `--gnn-model` is set and succeeds, RM-ranked otherwise) and print each one's RM root-cause diagnosis: pattern, elevated dimensions, priority action, stakeholder roles |
+
 **Anti-pattern detection:**
 
 | Flag | Default | Description |
@@ -547,6 +553,7 @@ PYTHONPATH=. python cli/run.py --all --layer system --gnn-model output/gnn_check
 | `--clear` | Clear Neo4j before import |
 | `--use-ahp` | AHP weights |
 | `--gnn-model` | GNN checkpoint path |
+| `--triage-k` | Run the Triage bridge after predict (requires `--predict` or `--all` in the same invocation; not run by `--all` on its own) |
 | `--sim-mode` | `exhaustive` (default), `monte_carlo` |
 | `--no-network`, `--no-matrix`, `--no-validation` | Visualization exclusions |
 

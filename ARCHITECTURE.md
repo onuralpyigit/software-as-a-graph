@@ -46,7 +46,7 @@ docs/          # Per-stage methodology documentation + formal specs
 
 The analytical pipeline is a Directed Acyclic Graph, not a linear chain. Step 2 (Analyze) computes structural metrics only and feeds them to both Step 3 (Predict) and Step 4 (Simulate), which run independently. Step 5 (Validate) then compares prediction outcomes against the simulation ground-truth labels.
 
-Step 3 (Predict) is a unified **Prediction Step**: the legacy "Quality Scoring" mechanism that used to live inside Analyze has been removed and replaced by a single step that always computes rule-based (RM) scores, blends in ML (GNN) inference when a trained checkpoint is available, and runs anti-pattern detection and explanation generation on the result.
+Step 3 (Predict) is a unified **Prediction Step** that forks into two deliberately separate pathways over the same `StructuralAnalysisResult` (mirrors the manuscript's Figure 1): **Pathway A (Diagnostic)** always computes the rule-based RM composite — Fault Tolerance, Availability, and Maintainability — plus anti-pattern detection and a human-readable explanation; **Pathway B (Predictive, opt-in)** blends in a Heterogeneous Graph Transformer (HGT) inference pass when a trained checkpoint is available, ranking components by predicted blast radius. The two pathways share no parameters and neither is fitted to the other's output. A **Triage** bridge then scopes Pathway A's root-cause diagnosis to Pathway B's Top-*K* shortlist (GNN-ranked when a checkpoint exists, RM-ranked otherwise — see `saag/analysis/triage.py`), joining each shortlisted id back to its RM `CriticalityProfile` pattern rather than reading a root cause off the ranking itself. Step 4 (Simulate) is an **offline** ground-truth oracle: it trains and validates Pathway B's ranking (Step 5) but is never an online inference dependency, and Step 5 validates the ranking pathway, not Pathway A's diagnosis — a quality profile is not a ranking to score.
 
 ```
                   ┌──────────────┐
@@ -64,40 +64,51 @@ Step 3 (Predict) is a unified **Prediction Step**: the legacy "Quality Scoring" 
               └───────────┬─────────────┘
                           │
          ┌────────────────┴────────────────┐
-         ▼ [Step 3: Predict]               ▼ [Step 4: Simulate]
-   ┌───────────┐                     ┌───────────┐
-   │Prediction │                     │Simulation │
-   │  Result   │                     │  Result   │
-   │(RM+GNN+   │                     │  (Labels) │
-   │AntiPattern│                     │           │
-   │+Explain)  │                     │           │
-   └─────┬─────┘                     └─────┬─────┘
-         │                                 │
-         │      - - - (trains) - - - >     │
-         │     [Simulate ground-truth]     │
-         │                                 │
-         └────────────────┬────────────────┘
-                          │
-                           ▼ [Step 5: Validate]
-                    ┌──────────────┐
-                    │  Validation  │
-                    │    Result    │
-                    └──────┬───────┘
-                           │
-                           ▼ [Step 6: Prescribe]
-                    ┌──────────────┐
-                    │  Prescribe   │
-                    │    Result    │
-                    └──────┬───────┘
-                           │
-                           ▼ [Step 7: Visualize]
-                    ┌──────────────┐
-                    │  Dashboard   │
-                    └──────┬───────┘
+         ▼ [Step 3: Predict]               ▼ [Step 4: Simulate — offline oracle]
+   ┌────────────────────────┐        ┌───────────────┐
+   │ PATHWAY A — Diagnostic │        │  Simulation   │
+   │ RM Q*(v) (always):     │        │    Result     │
+   │ Fault Tolerance +      │        │ (ground-truth │
+   │ Availability +         │        │    labels)    │
+   │ Maintainability        │        └───────┬───────┘
+   └───────────┬─────────────┘                │
+               │        ┌───────────────────┐ │ trains /
+               │        │ PATHWAY B —       │◄┘ validates
+               │        │ Predictive (opt-in)│
+               │        │ HGT ranking from a │
+               │        │ checkpoint → Top-K │
+               │        │ blast-radius set   │
+               │        └─────────┬───────────┘
+               │   Triage: B's    │
+               │◄──Top-K scopes───┘
+               │   A's diagnosis
+               ▼
+    ┌──────────────────────────────┐
+    │ Prediction Result            │
+    │ (RM + GNN when available +   │
+    │  AntiPattern + Explain +     │
+    │  Triage shortlist)           │
+    └───────────────┬───────────────┘
+                     │
+         ┌───────────┴───────────┐
+         ▼ [Step 5: Validate]    ▼ [Step 6: Prescribe]
+   ┌──────────────┐        ┌──────────────┐
+   │  Validation  │        │  Prescribe   │
+   │    Result    │        │    Result    │
+   └──────────────┘        └──────┬───────┘
+                                   │ each accepted edit is counterfactually
+                                   │ re-simulated before acceptance
+                                   │ (saag/prescription/verifier.py)
+                                   ▼ [Step 7: Visualize]
+                            ┌──────────────┐
+                            │  Dashboard   │
+                            └──────────────┘
 ```
 
 > [!NOTE]
-> **First-run sequencing:** Step 3 (Predict) depends on simulation-derived training labels for GNN training. On the first run, execute Steps 1 $\rightarrow$ 2 $\rightarrow$ 4 to generate those labels, then train the GNN model, and finally run Step 3 inference. The Predict stage (Step 3) is fully self-contained for its rule-based path and produces valid RM $Q^*(v)$ scores without requiring a GNN checkpoint (the Analyze stage, Step 2, is structural-only and does not compute RM/Q scores).
+> **First-run sequencing:** Step 3 (Predict) depends on simulation-derived training labels for GNN training. On the first run, execute Steps 1 $\rightarrow$ 2 $\rightarrow$ 4 to generate those labels, then train the GNN model, and finally run Step 3 inference. The Predict stage (Step 3) is fully self-contained for its rule-based path and produces valid RM $Q^*(v)$ scores without requiring a GNN checkpoint (the Analyze stage, Step 2, is structural-only and does not compute RM/Q scores) — this is also Pathway A's zero-GNN cold-start fallback, and Triage falls back to ranking by RM `Q*(v)` alongside it.
+>
+> **Counterfactual loop:** Step 6 (Prescribe) does not hand a candidate edit to the graph unconditionally. `EditVerifier` re-simulates each candidate on its own mutated copy of $G_{\text{structural}}$ and keeps only edits that beat the simulator's own seed-to-seed noise at every propagation threshold (`saag/prescription/verifier.py`, annotated on Step 6 above) — this loop is internal to Step 6's own execution, not a separate pipeline stage or a second call into Step 4.
 
 ---
 
@@ -153,6 +164,7 @@ Computes structural metrics only on the layer subgraph. No RM/Q scores or anti-p
 - `StructuralAnalyzer` — NetworkX-based PageRank, Betweenness, Harmonic Closeness, Eigenvector, and Reverse PageRank, plus custom pub-sub metrics (MPCI, FOC, CDI, PC).
 - `AnalysisService` — Orchestrates layer projections and calculations against `IGraphRepository`.
 - `AntiPatternDetector` — Audits RM scores to flag architectural smells (SPOF, FAILURE_HUB, GOD_COMPONENT, etc.). It lives here but is invoked by `prediction/`, since it operates on Predict-stage output.
+- `triage.py` — The Triage bridge: `triage()` and `select_top_k()` scope Pathway A's RM root-cause diagnosis to Pathway B's Top-*K* ranking, joining by component id (never reading the diagnosis off the ranking itself). Lives here alongside `AntiPatternDetector` for the same reason — it operates on Predict-stage output.
 - `QualityAnalyzer`, `BoxPlotClassifier`, `AHPProcessor` — the RM scoring, classification, and AHP-weighting implementations used by the Predict stage. Import them from here; `saag/prediction/` no longer re-exports them.
 
 ### `prediction/` — Step 3 Predictive Engine (unified Prediction Step)
@@ -207,7 +219,7 @@ Supports the paper's result tables independently of the runtime pipeline.
 - `metrics.py` — `compute_inductive_metrics()`, `resolve_eval_keys()`, critical-topic-coverage-at-K, and per-QoS-tier Spearman $\rho$. Consumed by `reproduce/main_table.py` and `reproduce/loso_all_variants.py`.
 
 ### `usecases/` — Application Layer orchestrators
-Thin interactor classes representing the application boundaries; each pipeline step maps to one class (`ModelGraphUseCase`, `AnalyzeGraphUseCase`, `PredictGraphUseCase`, `SimulateGraphUseCase`, `ValidateGraphUseCase`, `PrescribeGraphUseCase`, `VisualizeGraphUseCase`, `MultiLayerAnalysisUseCase`), each delegating to a single service's `execute()`.
+Thin interactor classes representing the application boundaries; each pipeline step maps to one class (`ModelGraphUseCase`, `AnalyzeGraphUseCase`, `PredictGraphUseCase`, `TriageGraphUseCase`, `SimulateGraphUseCase`, `ValidateGraphUseCase`, `PrescribeGraphUseCase`, `VisualizeGraphUseCase`, `MultiLayerAnalysisUseCase`), each delegating to a single service's `execute()`. `TriageGraphUseCase` delegates to `saag.analysis.triage.triage()` — the Triage bridge described above — rather than to a dedicated service, since the function is already pure and stateless.
 
 ### `infrastructure/` — Persistence Adapters
 - `Neo4jRepository` — Production adapter. Handles connection sessions, executes Cypher to load/export topologies, and drives the Cypher-based `DEPENDS_ON` derivation logic.

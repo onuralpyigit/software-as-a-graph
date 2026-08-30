@@ -68,6 +68,12 @@ def main():
     opts.add_argument("--clear", "--clean", action="store_true", dest="clear", help="Clear Neo4j DB before import")
     opts.add_argument("--use-ahp", action="store_true", help="Use AHP-derived weights instead of default fixed weights")
     opts.add_argument("--gnn-model", metavar="PATH", help="Path to GNN model checkpoint directory")
+    opts.add_argument("--triage-k", type=int, default=None, metavar="K",
+                       help="Run the Triage bridge after predict: shortlist the Top-K "
+                            "critical components (GNN-ranked when --gnn-model is set, "
+                            "RM-ranked otherwise) and print each one's RM root-cause "
+                            "diagnosis. Requires predict to run this same invocation "
+                            "(--predict or --all); not run by --all on its own.")
     opts.add_argument("--sim-mode", default="exhaustive", help="Simulation mode (e.g., exhaustive, monte_carlo)")
     opts.add_argument("--no-network", action="store_true", help="Skip interactive network in visualization")
     opts.add_argument("--no-matrix", action="store_true", help="Skip dependency matrix in visualization")
@@ -163,6 +169,8 @@ def main():
 
     if (args.predict or args.all) and not skip_predict:
         pipeline.predict(gnn_checkpoint=args.gnn_model, use_ahp=args.use_ahp)
+        if args.triage_k:
+            pipeline.triage(k=args.triage_k)
 
     if args.simulate or args.all:
         pipeline.simulate(layer=args.layer, mode=args.sim_mode)
@@ -207,7 +215,13 @@ def main():
     
     if result.prediction:
         display.display_prediction_summary(result.prediction)
-        
+
+    if result.triage:
+        display.print_subheader(f"Triage Shortlist (Top-{result.triage.k}, ranking source: {result.triage.ranking_source})")
+        for entry in result.triage.entries:
+            print(f"  {entry.rank}. {entry.component_id} — {entry.pattern} [{entry.level}] "
+                  f"→ {', '.join(entry.roles)}")
+
     if result.simulation:
         display.display_simulation_summary(result.simulation)
         
