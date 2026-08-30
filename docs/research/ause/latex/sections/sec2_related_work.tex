@@ -1,0 +1,40 @@
+\section{Background and Related Work}
+\label{sec:related_work}
+
+\subsection{Publish--Subscribe Middleware Dependability}
+\label{sec:related:pubsub}
+
+Message-oriented middleware research has historically focused on protocol correctness, broker replication, network load balancing, and runtime QoS verification. Classical broker fault-tolerance techniques replicate or partition broker processes to withstand crash faults \cite{pallickara2007fault, chang2014p2s}, while log-centric architectures such as Apache Kafka provide distributed commit-log durability \cite{wang2015building}. In DDS and ROS~2 ecosystems, recent studies investigate the probabilistic latency characteristics of QoS-driven retransmission protocols \cite{lee2025probabilistic} and static verification of interdependent QoS policies \cite{lee2025dependency}. While Chaos Engineering injects runtime faults into active deployments, it introduces operational hazards and occurs late in the software lifecycle. SaG-Prescribe shifts resilience analysis left into CI/CD, evaluating Architecture-as-Code descriptors statically before deployment.
+
+\subsection{Automated Code Review and Static System Analysis}
+\label{sec:related:codereview}
+
+Automated code review tools traditionally focus on lexical syntax, coding conventions, and localized security vulnerabilities via AST parsing and data-flow analysis (e.g., SonarQube, SpotBugs). Recent research has advanced automated code review using deep learning and large language models for review comment generation and code change assessment \cite{tufano2022towards, lu2021codexglue}. However, these approaches remain confined to source-file boundaries. They cannot infer system-wide topological cascades resulting from decentralized pub-sub message routing. SaG-Prescribe introduces \emph{Static System Analysis (SSA)}, augmenting file-level code quality metrics with global architectural graph models to review structural and middleware-level design flaws.
+
+\subsection{Software Quality Models and Explainable Diagnostic Pathways}
+\label{sec:related:quality_models}
+
+Software quality models, standardized in ISO/IEC 25010 (Product Quality) and ISO/IEC 25019 (Quality-in-Use), provide structured taxonomies decomposing quality into maintainability, reliability, and usability \cite{iso25010_2023, iso25019_2023}. While these standards establish top-down quality characteristics, mapping them to concrete, automated measurements in distributed architectures remains challenging. Classical software analytics often collapse multiple structural metrics into a single opaque score or rely on black-box machine learning classifiers that lack explanatory transparency \cite{menzies2018bad}. In automated code review, developers reject opaque recommendations without clear causal rationale. The Diagnostic Pathway in SaG-Prescribe implements a transparent, deterministic attribution hierarchy: it decomposes structural and code metrics into explicit Reliability (Fault Tolerance, Availability) and Maintainability dimensions, mapping technical debt directly to stakeholder harm vectors.
+
+\subsection{Anti-Pattern and Code Smell Catalogs}
+\label{sec:related:catalogs}
+
+In object-oriented software engineering, Fowler's refactoring catalog \cite{fowler1999refactoring} and Brown et al.'s AntiPatterns taxonomy \cite{brown1998antipatterns} formalized bad smells (e.g., God Class, Feature Envy) alongside remediation strategies. Suryanarayana et al. systematized design smells using formal structural metrics \cite{suryanarayana2014refactoring}. In distributed systems, Richardson cataloged microservices design patterns \cite{richardson2018microservices}, while Taibi et al. established empirical taxonomies of microservices anti-patterns (e.g., Cyclic Dependency, Shared Database, Distributed Monolith) \cite{taibi2020microservices}. Our catalog (Section~\ref{sec:antipattern_catalog}) adopts this proven specification structure---formal topological rule, affected quality dimension, and concrete remediation---while addressing the unique structural anomalies of publish--subscribe middleware (e.g., broker saturation, topic fan-out explosion, QoS policy mismatches).
+
+\subsection{Refactoring Recommendation and Technical Debt Management}
+\label{sec:related:refactoring}
+
+Automated refactoring recommendation has been investigated across multiple paradigms:
+\begin{enumerate}
+    \item \emph{Metric- and Rule-Based Recommenders:} Rule-driven engines identify code smells and suggest deterministic refactorings \cite{fowler1999refactoring, suryanarayana2014refactoring}.
+    \item \emph{Search-Based Software Engineering (SBSE):} Multi-objective optimization algorithms (e.g., NSGA-II) search architectural trade-off spaces to optimize coupling and cohesion \cite{harman2012sbse, aleti2013software, deb2002fast}. However, traditional SBSE operates open-loop, generating candidate architectures without empirically verifying resilience gains against simulated failure cascades.
+    \item \emph{Machine Learning-Based Refactoring:} Supervised and self-affirming models predict refactoring opportunities from historical commit data and code quality trajectories \cite{alomar2021can, bavota2012when, ouni2017search}.
+    \item \emph{LLM-Assisted Refactoring:} Recent foundation models assist in automated code transformation and refactoring explanation \cite{white2024toward, hou2024large, alkaswan2024automatic}.
+\end{enumerate}
+
+SaG-Prescribe differs fundamentally in scope and verification: its scope is the global publish--subscribe topology, and its verification model is strictly closed-loop---every candidate refactoring is measured on a counterfactual sandbox graph against a cascade failure simulator before being presented to the architect.
+
+\subsection{Structural Criticality and Graph Centrality}
+\label{sec:related:centrality}
+
+Graph-theoretic analysis has long utilized centrality indices---betweenness \cite{freeman1977set}, PageRank, closeness, and articulation points---to identify critical vertices. Bakhtin et al. applied network centralities to microservice call graphs \cite{bakhtin2025network}, while complex network studies demonstrate scale-free, hub-dominated characteristics in software dependency graphs \cite{falci2018complex}. Baldwin and Clark's design structure matrices \cite{baldwin2000design} and combinatorial network reliability theory \cite{colbourn1987combinatorics} provide formal foundations for topological fault tolerance. While theoretical literature posits that multi-dimensional metrics should outperform simple centrality on heterogeneous graphs, our empirical findings (Section~\ref{sec:results:detection}) reveal that scalar degree centrality remains a formidable baseline, reinforcing the necessity of empirical verification over theoretical assertion.

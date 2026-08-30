@@ -1,0 +1,24 @@
+\section{DevOps Integration and CI/CD Quality Gating}
+\label{sec:cicd_gating}
+
+\subsection{Automated Code Review Bot Architecture}
+\label{sec:cicd:bot}
+
+To govern architectural quality during continuous evolution, the Diagnostic Pathway is packaged as a lightweight pre-merge review bot. When a pull request modifies system topology or QoS configurations, the bot analyzes the change, executes the 19 anti-pattern detectors, attributes RM debt, and posts structured review comments.
+
+\subsection{Regression Semantics: Absolute vs. Delta-Aware Gating}
+\label{sec:cicd:semantics}
+
+\begin{itemize}
+    \item \textbf{Absolute Gating:} Evaluates the entire topology against global thresholds. However, real-world industrial systems carry intentional, risk-accepted legacy debt; blocking builds on pre-existing debt paralyzes development.
+    \item \textbf{Delta-Aware Gating (Design):} Compares the PR candidate topology against the target branch merge-base, blocking only \emph{newly introduced} anti-patterns or worsening severities, while honoring a signed \textbf{waiver register}.
+\end{itemize}
+
+\subsection{Three-Tier Exit-Code Protocol}
+\label{sec:cicd:protocol}
+
+\begin{itemize}
+    \item \textbf{Exit Code 0 (Pass):} No findings above threshold; deployment permitted.
+    \item \textbf{Exit Code 1 (Warning):} \texttt{MEDIUM}-severity smells detected; build passes with advisory comments.
+    \item \textbf{Exit Code 2 (Block):} \texttt{CRITICAL} or \texttt{HIGH} anti-patterns detected; build fails, blocking merge.
+\end{itemize}

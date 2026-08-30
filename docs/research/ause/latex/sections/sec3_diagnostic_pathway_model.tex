@@ -1,0 +1,124 @@
+\section{System Model and The Multi-Level Diagnostic Pathway}
+\label{sec:sag_model}
+
+\subsection{Heterogeneous Graph Formulation}
+\label{sec:model:formulation}
+
+A distributed publish--subscribe system is modeled as a typed, weighted, directed multigraph:
+\begin{equation}
+G = (V, E, \tau_V, \tau_E, w_E, w_V)
+\end{equation}
+where the vertex type mapping $\tau_V : V \to T_V$ partitions components into five distinct semantic classes:
+\begin{equation}
+T_V = \{\text{Application}, \text{Library}, \text{Topic}, \text{Broker}, \text{Node}\}
+\end{equation}
+\begin{itemize}
+    \item \textbf{Application ($V_{\text{app}}$):} Active execution processes (e.g., ROS~2 nodes, microservices) that publish or subscribe to data channels.
+    \item \textbf{Library ($V_{\text{lib}}$):} Shared software libraries linked by applications.
+    \item \textbf{Topic ($V_{\text{topic}}$):} Named communication channels routing message streams.
+    \item \textbf{Broker ($V_{\text{broker}}$):} Message routing intermediaries (e.g., MQTT brokers, DDS participants).
+    \item \textbf{Node ($V_{\text{node}}$):} Physical or virtual compute hosts providing computational substrate.
+\end{itemize}
+
+The edge type mapping $\tau_E : E \to T_E$ assigns each link to an architectural relationship:
+\begin{equation}
+T_E = \{\text{PUBLISHES\_TO}, \text{SUBSCRIBES\_TO}, \text{ROUTES}, \text{RUNS\_ON}, \text{CONNECTS\_TO}, \text{USES}\}
+\end{equation}
+
+\subsection{Derived Dependencies: The \texttt{DEPENDS\_ON} Projection}
+\label{sec:model:projection}
+
+To expose indirect failure propagation channels hidden behind asynchronous pub-sub decoupling, the Diagnostic Pathway derives explicit \texttt{DEPENDS\_ON} relations ($G_{\text{analysis}}$) via formal projection rules (directed as $\text{dependent} \to \text{dependency}$):
+\begin{itemize}
+    \item \textbf{Application-to-Application:} Formed when application $A_1$ subscribes to a topic $T$ published by application $A_2$: $(A_1 \to A_2) \in E_{\text{depends}}$.
+    \item \textbf{Application-to-Broker:} Formed when application $A$ relies on broker $B$ routing topic $T$: $(A \to B) \in E_{\text{depends}}$.
+    \item \textbf{Application-to-Library:} Formed when application $A$ uses shared library $L$: $(A \to L) \in E_{\text{depends}}$, capturing simultaneous blast radius if $L$ experiences a defect.
+    \item \textbf{Broker-to-Broker / Node Colocation:} Captures shared-fate host vulnerabilities when multiple brokers or critical services share physical node $N$.
+\end{itemize}
+
+The projection is organized across four architectural layers:
+\begin{enumerate}
+    \item \textbf{Application Layer ($\text{app}$):} $V_{\text{app}} \cup V_{\text{lib}}$, focusing on business logic dependencies.
+    \item \textbf{Infrastructure Layer ($\text{infra}$):} $V_{\text{node}}$, capturing compute host topology.
+    \item \textbf{Middleware Layer ($\text{mw}$):} $V_{\text{app}} \cup V_{\text{broker}}$, capturing message mediation.
+    \item \textbf{System Layer ($\text{system}$):} All five vertex types, capturing global cross-layer coupling.
+\end{enumerate}
+
+\subsection{The Code Quality Penalty (CQP): Bridging SCA and Architecture}
+\label{sec:model:cqp}
+
+To bridge source-code health with architectural risk during automated review, the Diagnostic Pathway ingests file-level static code analysis (SCA) metrics: Lines of Code (\texttt{cm\_total\_loc}), Weighted Methods per Class (\texttt{cm\_avg\_wmc}), Lack of Cohesion in Methods (\texttt{cm\_avg\_lcom}), and the SonarQube Technical Debt Ratio (\texttt{sqale\_debt\_ratio}).
+
+These metrics are rank-normalized and synthesized into a per-component \textbf{Code Quality Penalty (CQP)} for Application and Library vertices:
+\begin{equation}
+\begin{aligned}
+\mathrm{CQP}(v) = & \; 0.10\,\text{loc\_norm}(v) + 0.35\,\text{complexity\_norm}(v) \\
+                  & + 0.30\,\text{instability\_code}(v) + 0.25\,\text{lcom\_norm}(v)
+\end{aligned}
+\end{equation}
+$\mathrm{CQP}(v) \in [0,1]$ provides an explicit, quantitative bridge from source-code technical debt to architectural criticality, entering directly into the Maintainability dimension of the RM model.
+
+\subsection{Hierarchical Reliability--Maintainability (RM) Quality Attribution}
+\label{sec:model:rm}
+
+Grounded in \textbf{ISO/IEC 25010} (Product Quality) and \textbf{ISO/IEC 25019} (Quality-in-Use) \cite{iso25010_2023, iso25019_2023}, the Diagnostic Pathway decomposes structural quality into two primary dimensions---\textbf{Reliability} and \textbf{Maintainability}---providing explainable, role-specific diagnostics (Table~\ref{tab:rm_stakeholders}).
+
+\begin{table}[htbp]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{RM Quality Dimensions, Stakeholder Roles, and ISO/IEC 25019 Quality-in-Use Mapping.}
+\label{tab:rm_stakeholders}
+\begin{tabularx}{\textwidth}{lp{2.8cm}p{2.6cm}Xp{2.2cm}}
+\toprule
+\textbf{Dim.} & \textbf{Sub-Characteristic} & \textbf{Engineering Role} & \textbf{High Score Meaning} & \textbf{ISO 25019 Harm} \\
+\midrule
+\textbf{R} & \textbf{Fault Tolerance ($FT$)} & Reliability Engineer & Cascades deeply; large blast radius & Indirect Harm \\
+& \textbf{Availability ($A$)} & DevOps / SRE & Single point of failure; partition & Primary Task Loss \\
+\textbf{M} & Structural Coupling & Software Architect & High change ripple; code-level debt & Maintainer Effort \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Formal Quality Definitions.}
+\begin{itemize}
+    \item \textbf{Definition D1 (Component Criticality):} Let $G_l = (V_l, E_l)$ be a layer-projected graph. Component criticality $\mathrm{crit}_l : V_l \to [0,1]^2 \times [0,1]$ maps vertex $v$ to metric vector $\mathbf{s}(v) = [R(v), M(v)]^T$ and composite score $Q(v)$, estimating Quality-in-Use degradation.
+    \item \textbf{Definition D2 (Relationship Criticality):} Let $e = (u,v) \in E_l$ be a dependency edge. Relationship criticality $\mathrm{crit}_l(e) \in [0,1]$ estimates Quality-in-Use loss resulting from link disruption.
+    \item \textbf{Definition D3 (Consequence Metric):} Criticality measures structural consequence given failure. Failure likelihood must be supplied externally from operational MTTF telemetry.
+    \item \textbf{Definition D4 (Relative Distribution):} Criticality classifications are relative to the score distribution of system $S$ at layer $l$.
+\end{itemize}
+
+\paragraph{Mathematical Formulation of Quality Dimensions.}
+\begin{enumerate}
+    \item \textbf{Fault Tolerance ($FT$):} Evaluates cascade reach using Reverse PageRank ($\mathrm{RPR}$) and fan-out concentration:
+    \begin{equation}
+    FT(v) = f(\mathrm{RPR}(v), \mathrm{DG}_{\text{in}}(v), \mathrm{MPCI}(v), \mathrm{FOC}(v))
+    \end{equation}
+    \item \textbf{Availability ($A$):} Evaluates single-point-of-failure exposure via directed cut-vertex articulation scoring ($\mathrm{AP}_{c,\text{directed}}$) and bridge ratios:
+    \begin{equation}
+    A(v) = g(\mathrm{AP}_{c,\text{directed}}(v), \mathrm{BR}(v), \mathrm{CDI}(v), w(v))
+    \end{equation}
+    \item \textbf{Reliability Composite ($R$):} Blends Fault Tolerance and Availability with $\alpha = 0.36$:
+    \begin{equation}
+    R(v) = \alpha \cdot FT(v) + (1-\alpha) \cdot A(v)
+    \end{equation}
+    \item \textbf{Maintainability ($M$):} Blends betweenness centrality ($\mathrm{BT}$), efferent QoS out-degree ($w_{\text{out}}$), enhanced coupling risk, and the Code Quality Penalty ($\mathrm{CQP}$):
+    \begin{equation}
+    \begin{aligned}
+    M(v) = & \; 0.35\,\mathrm{BT}(v) + 0.30\,w_{\text{out}}(v) + 0.15\,\mathrm{CQP}(v) \\
+           & + 0.12\,\mathrm{CouplingRisk\_enh}(v) + 0.08\,(1-\mathrm{CC}(v))
+    \end{aligned}
+    \end{equation}
+\end{enumerate}
+
+\paragraph{Stakeholder Harm Projection Matrix.}
+The diagnostic vector $\mathbf{s}_{\text{RM}}(v) = [R(v), M(v)]^T$ projects into ISO/IEC 25019 Quality-in-Use stakeholder harm scores $[H_{\text{Ben}}, H_{\text{Risk}}, H_{\text{Acc}}]^T$ via transformation matrix $\mathbf{M}_{\text{RM} \to \text{QiU}}$:
+\begin{equation}
+\mathbf{h}_{\text{QiU}}(v) = \mathbf{M}_{\text{RM} \to \text{QiU}} \cdot \mathbf{s}_{\text{RM}}(v) = \begin{bmatrix} 0.75 & 0.25 \\ 0.80 & 0.20 \\ 0.60 & 0.40 \end{bmatrix} \begin{bmatrix} R(v) \\ M(v) \end{bmatrix}
+\end{equation}
+
+Composite criticality blends the dimensions under declared weights $(w_R, w_M) = (0.80, 0.20)$ \cite{saaty1980analytic}:
+\begin{equation}
+Q(v) = 0.80\,R(v) + 0.20\,M(v)
+\end{equation}
+Components are categorized into five severity tiers (\texttt{CRITICAL}, \texttt{HIGH}, \texttt{MEDIUM}, \texttt{LOW}, \texttt{MINIMAL}) using adaptive box-plot thresholding ($Q > Q_3 + 1.5\,\mathrm{IQR}$ for \texttt{CRITICAL}; $Q_3 < Q \le \text{upper fence}$ for \texttt{HIGH}).

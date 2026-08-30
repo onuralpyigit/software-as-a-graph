@@ -1,0 +1,19 @@
+\section{Closed-Loop Optimization Objective}
+\label{sec:optimization_objective}
+
+The prescriptive refactoring objective computes a graph transformation $\Delta(G)$ producing mutated topology $G' = \Delta(G)$ that minimizes global failure impact subject to a budget constraint:
+\begin{equation}
+\min_{\Delta} \sum_{v \in V} I^*_{\Delta(G)}(v) \quad \text{subject to} \quad \mathrm{Cost}(\Delta) \le \mathcal{B}
+\end{equation}
+Candidate refactorings are compiled from entities flagged \texttt{CRITICAL} or \texttt{HIGH} by the Diagnostic Pathway. Rather than relying on an unconstrained heuristic search, SaG-Prescribe enforces a \textbf{two-level closed-loop acceptance filter}:
+\begin{enumerate}
+    \item \textbf{Per-Edit Counterfactual Acceptance Filter:} Each candidate edit $\delta$ is applied in isolation to a sandboxed copy of $G$ and simulated across propagation thresholds $\Theta = \{0.1, 0.2, 0.5\}$ and seed set $S = \{42, 123, 456\}$. It is retained if and only if its mean impact reduction exceeds the simulator's seed noise at every threshold:
+    \begin{equation}
+    \overline{\Delta I}_\theta(\delta) > \kappa \cdot \sigma_{\text{seed},\theta}(\delta) \quad \forall \theta \in \Theta
+    \end{equation}
+    where $\kappa = 1.0$ is the noise-rejection margin.
+    \item \textbf{Whole-Policy Acceptance Gate:} The surviving subset of edits $\Delta_{\text{admitted}}$ is applied jointly to $G$, and the resulting system is re-evaluated. The whole policy is accepted if and only if the net System Risk Index improves:
+    \begin{equation}
+    \Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} - \mathrm{SRI}_{\text{mutated}} > 0
+    \end{equation}
+\end{enumerate}

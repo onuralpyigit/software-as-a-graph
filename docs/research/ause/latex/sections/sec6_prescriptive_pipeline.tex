@@ -1,0 +1,41 @@
+\section{The SaG-Prescribe Prescriptive Pipeline}
+\label{sec:prescriptive_pipeline}
+
+\subsection{Hexagonal Core Architecture}
+\label{sec:prescribe:hexagonal}
+
+SaG-Prescribe implements a hexagonal ports-and-adapters architecture. The domain service depends on the \texttt{IGraphRepository} port:
+\begin{itemize}
+    \item \texttt{Neo4jRepository}: Bolt-driven graph store for persistent, production deployments.
+    \item \texttt{MemoryRepository}: High-speed, in-memory graph repository ensuring thread-safe, isolated sandboxing for counterfactual verification in CI/CD pipelines.
+\end{itemize}
+
+\subsection{The Seven Pipeline Stages}
+\label{sec:prescribe:stages}
+
+\begin{enumerate}
+    \item \textbf{Stage 1 (Model Ingestion):} Ingest JSON/YAML Architecture-as-Code descriptors and file-level SCA metrics.
+    \item \textbf{Stage 2 (Topological Projection):} Construct multi-layer graph $G_{\text{analysis}}$ and derived \texttt{DEPENDS\_ON} edges.
+    \item \textbf{Stage 3 (Diagnostic Quality Attribution):} Compute CQP, RM dimensions ($FT, A, R, M$), and ISO 25019 harm mapping.
+    \item \textbf{Stage 4 (Anti-Pattern Detection):} Run the 19-pattern detection engine with adaptive box-plot thresholds.
+    \item \textbf{Stage 5 (Candidate Compilation):} Compile candidate refactoring mutations from \texttt{CRITICAL}/\texttt{HIGH} findings.
+    \item \textbf{Stage 6 (Counterfactual Verification):} Execute two-level simulation verification in \texttt{MemoryRepository}.
+    \item \textbf{Stage 7 (Review Interface):} Emit verified refactoring blueprint and CI/CD quality gate verdicts.
+\end{enumerate}
+
+\subsection{Refactoring Mutation Operators}
+\label{sec:prescribe:operators}
+
+\begin{enumerate}
+    \item \textbf{Logical Topic Splitting (Operator 1):} Targets \texttt{TOPIC\_FANOUT}, \texttt{GOD\_COMPONENT}, and \texttt{FAILURE\_HUB}. Decomposes a multi-publisher topic $T$ into dedicated sub-topics $\{T_a : a \in P(T)\}$, isolating data flows and bounding blast radius.
+    \item \textbf{Physical Anti-Affinity Reallocation (Operator 2):} Targets \texttt{SPOF}, \texttt{BROKER\_OVERLOAD}, and \texttt{COMPOUND\_RISK}. Generates orchestration anti-affinity constraints to migrate co-located critical components from shared compute host $N_{\text{from}}$ to isolated host $N_{\text{to}}$, updating \texttt{RUNS\_ON} and \texttt{CONNECTS\_TO} edges.
+    \item \textbf{Transport QoS Contract Hardening (Operator 3):} Fires on \texttt{CRITICAL}/\texttt{HIGH} channels operating under volatile contracts (\texttt{BEST\_EFFORT} / \texttt{VOLATILE}), upgrading them to \texttt{RELIABLE} and \texttt{TRANSIENT\_LOCAL}.
+\end{enumerate}
+
+\paragraph{Automation Footprint Disclosure.}
+Exactly \textbf{five of the nineteen patterns} directly trigger an automated mutation operator (\texttt{SPOF} $\to$ Operator 2; \texttt{GOD\_COMPONENT}, \texttt{BOTTLENECK\_EDGE}, \texttt{FAILURE\_HUB}, \texttt{HUB\_AND\_SPOKE} $\to$ Operator 1). Operator 3 triggers from generic criticality tiers. The remaining fourteen patterns provide advisory recommendations for human review.
+
+\subsection{Closed-Loop Counterfactual Verification Procedure}
+\label{sec:prescribe:verification}
+
+Candidate generation and verification are strictly decoupled: candidate refactorings are generated exclusively from $G_{\text{analysis}}$ and diagnostic RM attribution, and edits are simulated in isolation on $G_{\text{structural}}$ within \texttt{MemoryRepository}, enforcing complete view independence.

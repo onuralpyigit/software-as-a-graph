@@ -1,0 +1,72 @@
+% manuscript.tex -- Automated Software Engineering (AuSE) submission
+% Special Issue on "Intelligent Techniques for Automated Code Review and Software Quality Evaluation"
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{lineno}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{cite}
+\usepackage{tabularx}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black
+}
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+\title{\textbf{SaG-Prescribe: Unifying Diagnostic Pathways with Counterfactual Refactoring for Automated Code Review and Software Quality Evaluation in Distributed Publish--Subscribe Systems}}
+
+\author{
+  \textbf{Author Information Redacted for Double-Blind Review} \\
+  Special Issue: Intelligent Techniques for Automated Code Review and Software Quality Evaluation \\
+  Automated Software Engineering (Springer)
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\input{sections/abstract.tex}
+\end{abstract}
+
+\textbf{Keywords:} Automated code review, software quality evaluation, diagnostic pathway, architectural anti-patterns, bad smells, technical debt analysis, refactoring recommendation, publish--subscribe middleware, CI/CD quality gates, counterfactual verification.
+
+\linenumbers
+
+\input{sections/sec1_introduction.tex}
+\input{sections/sec2_related_work.tex}
+\input{sections/sec3_diagnostic_pathway_model.tex}
+\input{sections/sec4_antipattern_catalog.tex}
+\input{sections/sec5_optimization_objective.tex}
+\input{sections/sec6_prescriptive_pipeline.tex}
+\input{sections/sec7_cicd_gating.tex}
+\input{sections/sec8_experimental_design.tex}
+\input{sections/sec9_results.tex}
+\input{sections/sec10_discussion.tex}
+\input{sections/sec11_conclusion.tex}
+
+\input{sections/declarations.tex}
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}

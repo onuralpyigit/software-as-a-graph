@@ -1,0 +1,21 @@
+\section{Discussion and Threats to Validity}
+\label{sec:discussion}
+
+\subsection{Diagnostic Explainability vs. Threshold Calibration}
+\label{sec:disc:explainability}
+
+The Diagnostic Pathway successfully provides deterministic, role-specific quality attribution (Reliability Engineer vs. SRE vs. Architect), translating abstract topological risk into actionable review decisions. However, its current box-plot thresholds over-flag in dense graphs ($94.8\%$ implicated). Threshold recalibration and delta-aware gating are essential for production CI/CD deployment.
+
+\subsection{The Verify-Before-Recommend Discipline}
+\label{sec:disc:verify}
+
+Counterfactual verification proves essential: an unverified engine would have applied 461 harmful or ineffective mutations ($29.0\%$). By filtering mutations against cascade noise, SaG-Prescribe ensures that recommended refactorings reliably harden system architecture.
+
+\subsection{Threats to Validity}
+\label{sec:disc:threats}
+
+\begin{itemize}
+    \item \textbf{Construct Validity:} Both detection and verification utilize a discrete-event cascade simulator. We mitigate simulator dependency by grounding operators in established distributed systems dependability patterns (anti-affinity scheduling, topic isolation, QoS hardening).
+    \item \textbf{Internal Validity:} Decoupled in-memory repositories ensure no circular data leakage between diagnostic candidate generation and counterfactual simulation.
+    \item \textbf{External Validity:} Scenarios are synthetic domain models; validation on harvested industrial cyber-physical codebases remains high-priority future work.
+\end{itemize}

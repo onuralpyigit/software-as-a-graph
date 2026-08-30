@@ -1,0 +1,72 @@
+\section{A Catalog of Architectural Anti-Patterns for Publish--Subscribe Systems}
+\label{sec:antipattern_catalog}
+
+\subsection{Anti-Patterns vs. Bad Smells in Automated Review}
+\label{sec:catalog:taxonomy}
+
+In automated code review, findings fall into two distinct confidence tiers:
+\begin{itemize}
+    \item \textbf{Architectural Anti-Pattern:} A proven structural pathology known to cause systemic vulnerability or failure cascades, requiring structural intervention (e.g., Single Point of Failure, God Component, Broker Overload).
+    \item \textbf{Architectural Bad Smell:} A localized structural heuristic signaling potential technical debt, warranting review and localized refactoring (e.g., Chatty Pair, QoS Mismatch, Orphaned Topic).
+\end{itemize}
+
+Publish--subscribe architectural anomalies leave distinct \textbf{topological signatures} in the dependency graph. Because these signatures are computable from static descriptors, automated review bots can flag them before code is deployed.
+
+\subsection{Detection Methodology}
+\label{sec:catalog:methodology}
+
+Detection operates over a 16-element structural metric vector. Twelve metrics are Tier-1 inputs feeding the RM model: Reverse PageRank ($\mathrm{RPR}$), in-degree ($\mathrm{DG}_{\text{in}}$), multi-path coupling index ($\mathrm{MPCI}$), topic fan-out criticality ($\mathrm{FOC}$), betweenness ($\mathrm{BT}$), QoS out-degree ($w_{\text{out}}$), clustering coefficient ($\mathrm{CC}$), path complexity ($\mathrm{PC}$), directed articulation score ($\mathrm{AP}_{c,\text{directed}}$), bridge ratio ($\mathrm{BR}$), connectivity degradation index ($\mathrm{CDI}$), and component weight ($w$). The Code Quality Penalty ($\mathrm{CQP}$) serves as the thirteenth input, while forward centralities (PageRank, Closeness, Eigenvector) are held at Tier-2 for visualization. Detectors employ \textbf{adaptive box-plot thresholds} ($Q_3 + 1.5\,\mathrm{IQR}$).
+
+\subsection{Catalog Overview}
+\label{sec:catalog:overview}
+
+Table~\ref{tab:antipattern_catalog} summarizes the nineteen anti-patterns and smells spanning three severity tiers and four catalog categories.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Publish--Subscribe Architectural Anti-Pattern and Bad Smell Catalog.}
+\label{tab:antipattern_catalog}
+\begin{tabularx}{\textwidth}{p{3.2cm}llXp{3.3cm}}
+\toprule
+\textbf{Pattern} & \textbf{Severity} & \textbf{Category} & \textbf{Detection Signal} & \textbf{Automated Refactoring} \\
+\midrule
+\texttt{SPOF} & CRITICAL & Availability & Articulation point $\wedge$ QoS SPOF score & Anti-affinity reallocation \\
+\texttt{SYSTEMIC\_RISK} & CRITICAL & Reliability & Share of CRITICAL components $> 20\%$ & Advisory \\
+\texttt{CYCLE} & HIGH & Architecture & Strongly connected component / loop & Advisory \\
+\texttt{GOD\_COMPONENT} & CRITICAL & Maintainability & Extreme betweenness $\wedge$ CRITICAL $M(v)$ & Logical topic splitting \\
+\texttt{BOTTLENECK\_EDGE}& HIGH & Availability & Edge betweenness centrality outlier & Logical topic splitting \\
+\texttt{BROKER\_OVERLOAD} & HIGH & Availability & Broker availability $\ge 2\times$ median load & Anti-affinity reallocation \\
+\texttt{DEEP\_PIPELINE} & HIGH & Reliability & Path length $\ge \max(5, P_{75})$ & Advisory \\
+\texttt{TOPIC\_FANOUT} & MEDIUM & Reliability & Topic subscriber out-degree outlier & Logical topic splitting \\
+\texttt{CHATTY\_PAIR} & MEDIUM & Maintainability & Bidirectional weight product $> \tau_{\text{chatty}}$ & Advisory \\
+\texttt{QOS\_MISMATCH} & MEDIUM & Reliability & Pub/Sub QoS-weight gap $> \tau_{\text{qos}}$ & Advisory (Manual / Relay) \\
+\texttt{ORPHANED\_TOPIC}& MEDIUM & Maintainability & Zero in- or out-degree on graph & Advisory \\
+\texttt{UNSTABLE\_INTERFACE}& MEDIUM & Maintainability & High \texttt{CouplingRisk\_enh} $\wedge$ high $M(v)$ & Advisory \\
+\texttt{BRIDGE\_EDGE} & HIGH & Availability & Graph-theoretic bridge cut-edge & Advisory \\
+\texttt{FAILURE\_HUB} & CRITICAL & Reliability & Reliability outlier $\wedge$ high out-degree & Logical topic splitting \\
+\texttt{CONCENTRATION\_RISK}& MEDIUM & Reliability & Top-3 PageRank share $> 0.50$ & Advisory \\
+\texttt{HUB\_AND\_SPOKE} & MEDIUM & Maintainability & Low clustering $\wedge$ degree $> 3$ & Logical topic splitting \\
+\texttt{CHAIN} & MEDIUM & Architecture & Degree-bounded linear subgraph & Advisory \\
+\texttt{ISOLATED} & MEDIUM & Architecture & Zero total degree & Advisory \\
+\texttt{COMPOUND\_RISK} & CRITICAL & Architecture & Co-occurring SPOF + God/Hub finding & Anti-affinity reallocation \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Representative Pattern Walkthroughs}
+\label{sec:catalog:walkthroughs}
+
+\begin{enumerate}
+    \item \textbf{SPOF (Single Point of Failure):} A node whose removal disconnects the graph ($\mathrm{AP}_{c,\text{directed}}(v) > 0$). Detection combines graph connectivity testing with QoS weighting ($\mathrm{QSPOF}(v) = \mathrm{AP}_c(v) \times w(v)$). Remediation generates container anti-affinity constraints.
+    \item \textbf{GOD\_COMPONENT:} An entity exhibiting extreme betweenness and CRITICAL maintainability ($\mathrm{BT}(v) > 0.30 \wedge M(v) \in \text{CRITICAL}$). Remediation decomposes pub-sub channels via logical topic splitting.
+    \item \textbf{BROKER\_OVERLOAD (Cautionary Benchmark Case):} A broker routing $\ge 2\times$ the median broker's traffic. \emph{Cautionary finding:} In scenario S05 (two equally overloaded brokers), the within-population relative median rule cannot fire because each broker \emph{is} the median. This highlights the necessity of absolute capacity-aware thresholds (Section~\ref{sec:conclusion:future_work}).
+    \item \textbf{CHATTY\_PAIR:} Two components maintaining bidirectional high-frequency dependencies across separate topics ($(u \to v) \wedge (v \to u)$), representing logical coupling masquerading as pub-sub decoupling.
+    \item \textbf{QOS\_MISMATCH:} A publisher offering weaker reliability than the subscriber requires ($w_{\text{pub}}(u) < w_{\text{sub}}(v) - \tau$). In DDS/ROS~2, this produces silent connection dropouts at runtime without compile-time errors.
+\end{enumerate}
+
+\subsection{Detection Validation Methodology}
+\label{sec:catalog:validation}
+
+Detection accuracy is validated against an independent discrete-event cascade simulation oracle ($I_{\text{comp}}(v)$) that models cascading message dropouts and queue exhaustion under component removal.

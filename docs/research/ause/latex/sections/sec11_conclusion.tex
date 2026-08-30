@@ -1,0 +1,23 @@
+\section{Conclusion and Future Work}
+\label{sec:conclusion}
+
+\subsection{Conclusion}
+\label{sec:conclusion:summary}
+
+This paper presented \textbf{SaG-Prescribe}, bringing the \textbf{Diagnostic Pathway} to the forefront of automated code review and software quality evaluation for distributed publish--subscribe systems. By integrating code-level SCA metrics (CQP), multi-layer heterogeneous dependency modeling, hierarchical ISO 25010/25019 RM quality attribution, and formal anti-pattern detection with counterfactually verified refactoring, SaG-Prescribe closes the Architecture-Code Gap. Empirical results confirm that diagnostic review gating executes in sub-second to 20s latency, while counterfactual verification reliably admits $71.0\%$ of refactoring candidates, delivering statistically significant resilience improvements across all evaluated domains.
+
+\subsection{Future Work}
+\label{sec:conclusion:future_work}
+
+\begin{enumerate}
+    \item \textbf{Detection Threshold Recalibration:} Sweep percentile fences to optimize precision/recall balance.
+    \item \textbf{Path-Bounded \texttt{DEEP\_PIPELINE}:} Restrict path enumeration to bound execution time.
+    \item \textbf{Delta-Aware CI/CD Gating:} Implement merge-base diffing and waiver registers.
+    \item \textbf{Combinatorial Subset Verification:} Explore greedy forward-selection to optimize multi-edit composition.
+    \item \textbf{Dynamic $\kappa$ Estimation:} Adapt noise margins based on empirical simulator variance.
+    \item \textbf{Per-Candidate Latency Profiling:} Instrument fine-grained verification timing.
+    \item \textbf{Operator Attribution Ablation:} Isolate per-operator $\Delta\mathrm{SRI}$ contributions.
+    \item \textbf{Catalog Extension for Hybrid Architectures:} Incorporate REST/gRPC hybrid microservice patterns.
+    \item \textbf{Industrial Telemetry Replication:} Validate against live ROS~2 and DDS production traces.
+    \item \textbf{LLM-Assisted Pull-Request Synthesis:} Integrate generative code models to automatically draft pull requests implementing verified refactoring blueprints.
+\end{enumerate}

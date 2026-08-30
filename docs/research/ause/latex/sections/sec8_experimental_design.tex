@@ -1,0 +1,49 @@
+\section{Experimental Design}
+\label{sec:experimental_design}
+
+\subsection{Research Questions}
+\label{sec:exp:rqs}
+
+\begin{itemize}
+    \item \textbf{RQ1 (Diagnostic Detection Efficacy \& Precision):} How accurately does the Diagnostic Pathway correlate with cascade failure impact, and how effectively does the anti-pattern catalog identify architectural debt without over-flagging?
+    \item \textbf{RQ2 (Prescriptive Refactoring Efficacy):} Does the closed-loop prescriptive engine achieve statistically significant reductions in System Risk Index across heterogeneous scenarios?
+    \item \textbf{RQ3 (Operator Survival \& Contributions):} How do individual refactoring operators survive counterfactual verification across structural regimes?
+    \item \textbf{RQ4 (Verification Yield \& Compositionality):} What proportion of generated candidates survive verification, and do individually admitted edits compose beneficially?
+    \item \textbf{RQ5 (Computational Overhead \& CI/CD Feasibility):} What is the execution latency of diagnostic gating and prescriptive verification across system scales?
+\end{itemize}
+
+\subsection{Benchmark Scenarios}
+\label{sec:exp:scenarios}
+
+We evaluate eight benchmark scenarios spanning distinct architectural domains (Table~\ref{tab:scenarios}). Scenarios S01--S08 evaluate detection; S01--S07 evaluate prescription (S08 excluded as a minimal regression smoke test).
+
+\begin{table}[htbp]
+\centering
+\small
+\setlength{\tabcolsep}{4.5pt}
+\caption{Benchmark Scenario Scales and Topological Dimensions.}
+\label{tab:scenarios}
+\begin{tabular}{lrrrrrr}
+\toprule
+\textbf{Scenario} & \textbf{Applications} & \textbf{Libraries} & \textbf{Topics} & \textbf{Brokers} & \textbf{Nodes} & \textbf{Total Edges ($|E|$)} \\
+\midrule
+S01 Autonomous Vehicle & 80 & 20 & 40 & 4 & 8 & 797 \\
+S02 IoT Smart City & 200 & 10 & 80 & 6 & 30 & 1322 \\
+S03 Financial Trading & 60 & 18 & 35 & 5 & 6 & 580 \\
+S04 Healthcare & 50 & 12 & 25 & 3 & 8 & 400 \\
+S05 Hub-and-Spoke & 70 & 25 & 30 & 2 & 12 & 797 \\
+S06 Microservices Mesh & 90 & 30 & 45 & 6 & 15 & 680 \\
+S07 Hyper-Scale Enterprise & 300 & 50 & 120 & 10 & 40 & 3245 \\
+S08 Tiny Regression & 12 & 4 & 8 & 2 & 3 & 48 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Experimental Protocol and Metrics}
+\label{sec:exp:protocol}
+
+\begin{itemize}
+    \item \textbf{Detection Metrics:} Spearman rank correlation $\rho(Q, I_{\text{comp}})$ (pooled and stratified), precision, recall, $F_1$, and Top-5 overlap against simulation ground truth $I_{\text{comp}}$. Baselines: betweenness and degree centrality.
+    \item \textbf{Prescriptive Metrics:} System Risk Index ($\mathrm{SRI} = 0.5(1-H_R) + 0.5(1-H_M)$), $\Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} - \mathrm{SRI}_{\text{mutated}}$, per-operator candidate generation counts, admitted edit counts, and per-edit survival rates.
+    \item \textbf{Verification Parameters:} $\kappa = 1.0$, $\Theta = \{0.1, 0.2, 0.5\}$, $S = \{42, 123, 456\}$.
+\end{itemize}
