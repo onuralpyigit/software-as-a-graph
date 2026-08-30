@@ -16,7 +16,7 @@ SaG-Prescribe implements a hexagonal ports-and-adapters architecture. The domain
 \begin{enumerate}
     \item \textbf{Stage 1 (Model Ingestion):} Ingest JSON/YAML Architecture-as-Code descriptors and file-level SCA metrics.
     \item \textbf{Stage 2 (Topological Projection):} Construct multi-layer graph $G_{\text{analysis}}$ and derived \texttt{DEPENDS\_ON} edges.
-    \item \textbf{Stage 3 (Diagnostic Quality Attribution):} Compute CQP, RM dimensions ($FT, A, R, M$), and ISO 25019 harm mapping.
+    \item \textbf{Stage 3 (Diagnostic Attribution):} Compute CQP, RM dimensions ($FT, A, R, M$), and ISO/IEC 25019 harm mapping.
     \item \textbf{Stage 4 (Anti-Pattern Detection):} Run the 19-pattern detection engine with adaptive box-plot thresholds.
     \item \textbf{Stage 5 (Candidate Compilation):} Compile candidate refactoring mutations from \texttt{CRITICAL}/\texttt{HIGH} findings.
     \item \textbf{Stage 6 (Counterfactual Verification):} Execute two-level simulation verification in \texttt{MemoryRepository}.

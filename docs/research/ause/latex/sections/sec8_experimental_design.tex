@@ -19,8 +19,8 @@ We evaluate eight benchmark scenarios spanning six architectural domains---auton
 
 \begin{table}[htbp]
 \centering
-\small
-\setlength{\tabcolsep}{4.5pt}
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
 \caption{Benchmark Scenario Scales and Topological Dimensions.}
 \label{tab:scenarios}
 \begin{tabular}{lrrrrrr}
@@ -43,7 +43,7 @@ S08 Tiny Regression & 12 & 4 & 8 & 2 & 3 & 101 \\
 \label{sec:exp:protocol}
 
 \begin{itemize}
-    \item \textbf{Detection Metrics:} Spearman rank correlation $\rho(Q, I_{\text{comp}})$ (pooled and stratified), Cohen's $\kappa$, NDCG@10, Top-$k$ overlap, precision, recall, and $F_1$ against simulation ground truth $I_{\text{comp}}$ (Section~\ref{sec:catalog:validation}). Baselines: betweenness and degree centrality. For $Q(v)$/betweenness/degree, the predicted and true critical sets are both sized by the same box-plot-or-top-20\% rule (Section~\ref{sec:results:detection}), which pins precision, recall, and $F_1$ to near-equal values by construction; the catalog's flagged set has no such constraint, so its precision and recall are measured independently.
+    \item \textbf{Detection Metrics:} Spearman rank correlation $\rho(Q, I_{\text{comp}})$ (pooled and stratified), Cohen's $\kappa$, NDCG@10, Top-$k$ overlap, precision, recall, and $F_1$ against simulation ground truth $I_{\text{comp}}$ (Section~\ref{sec:catalog:validation}). Baselines: betweenness and degree centrality. For $Q(v)$, betweenness, and degree, the predicted and true critical sets are both sized by the same box-plot-or-top-20\% rule (Section~\ref{sec:results:detection}), which pins precision, recall, and $F_1$ to near-equal values by construction; the catalog's flagged set has no such constraint, so its precision and recall are measured independently.
     \item \textbf{Prescriptive Metrics:} System Risk Index ($\mathrm{SRI} = 0.5(1-H_R) + 0.5(1-H_M)$), $\Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} - \mathrm{SRI}_{\text{mutated}}$, per-operator candidate generation counts, admitted edit counts, and per-edit survival rates.
     \item \textbf{Verification Parameters:} $\kappa = 1.0$, $\Theta = \{0.1, 0.2, 0.5\}$, $S = \{42, 123, 456\}$.
     \item \textbf{Two Oracles, Not One:} This paper's ground truth, $I_{\text{comp}}(v)$, is an independent discrete-event cascade simulator modeling message dropouts and queue exhaustion under component removal on the directed \texttt{DEPENDS\_ON} projection. Our prior work \cite{yigit2025graph} validated against a different oracle, Reachability Loss, on the undirected pub-sub graph---a distinction Section~\ref{sec:results:attribution} returns to when reconciling the two papers' correlation figures.

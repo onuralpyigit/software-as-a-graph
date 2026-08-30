@@ -22,7 +22,10 @@ T_V = \{\text{Application}, \text{Library}, \text{Topic}, \text{Broker}, \text{N
 
 The edge type mapping $\tau_E : E \to T_E$ assigns each link to an architectural relationship:
 \begin{equation}
-T_E = \{\text{PUBLISHES\_TO}, \text{SUBSCRIBES\_TO}, \text{ROUTES}, \text{RUNS\_ON}, \text{CONNECTS\_TO}, \text{USES}\}
+\begin{split}
+T_E = \{ & \text{PUBLISHES\_TO}, \text{SUBSCRIBES\_TO}, \text{ROUTES}, \\
+        & \text{RUNS\_ON}, \text{CONNECTS\_TO}, \text{USES}\}
+\end{split}
 \end{equation}
 
 \subsection{Derived Dependencies: The \texttt{DEPENDS\_ON} Projection}
@@ -84,18 +87,18 @@ Grounded in \textbf{ISO/IEC 25010} (Product Quality) and \textbf{ISO/IEC 25019} 
 \begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[
-    box/.style={draw, rounded corners, align=center, font=\footnotesize, inner sep=4pt},
-    role/.style={draw, rounded corners, align=center, font=\scriptsize\itshape, fill=gray!8, inner sep=3pt},
-    >={Stealth[length=2mm]}, node distance=7mm and 10mm
+    box/.style={draw, rounded corners, align=center, font=\footnotesize, inner sep=2.5pt},
+    role/.style={draw, rounded corners, align=center, font=\scriptsize\itshape, fill=gray!8, inner sep=2pt},
+    >={Stealth[length=2mm]}, node distance=5mm and 5mm
 ]
-\node[box, fill=purple!8, minimum width=6.4cm] (q) {Composite Criticality $Q(v)$ \\ $(0.80\,R(v) + 0.20\,M(v))$};
-\node[box, fill=blue!8, below left=9mm and 4mm of q, minimum width=3.5cm] (r) {Reliability $R(v)$ \\ $(0.36\,FT(v) + 0.64\,A(v))$};
-\node[box, fill=orange!10, below right=9mm and 4mm of q, minimum width=3.5cm] (m) {Maintainability $M(v)$ \\ (BT, $w_{\text{out}}$, CQP, coupling)};
-\node[box, below left=8mm and -2mm of r, minimum width=1.9cm] (ft) {Fault Tolerance $FT(v)$ \\ \scriptsize (cascade depth)};
-\node[box, below right=8mm and -2mm of r, minimum width=1.9cm] (a) {Availability $A(v)$ \\ \scriptsize (SPOF / cut-vertex)};
-\node[role, below=5mm of ft] (rft) {Reliability Engineer \\ (blast radius)};
-\node[role, below=5mm of a] (ra) {DevOps / SRE \\ (task continuity)};
-\node[role, below=17mm of m] (rm) {Software Architect \\ (cognitive load \& debt)};
+\node[box, fill=purple!8, minimum width=5.2cm] (q) {Composite Criticality $Q(v)$ \\ $(0.80\,R(v) + 0.20\,M(v))$};
+\node[box, fill=blue!8, below left=6mm and 0mm of q, minimum width=3.0cm] (r) {Reliability $R(v)$ \\ $(0.36\,FT(v) + 0.64\,A(v))$};
+\node[box, fill=orange!10, below right=6mm and 0mm of q, minimum width=3.0cm] (m) {Maintainability $M(v)$ \\ (BT, $w_{\text{out}}$, CQP, coupling)};
+\node[box, below left=5mm and -6mm of r, minimum width=1.7cm] (ft) {Fault Tolerance $FT(v)$ \\ \scriptsize (cascade depth)};
+\node[box, below right=5mm and -6mm of r, minimum width=1.7cm] (a) {Availability $A(v)$ \\ \scriptsize (SPOF / cut-vertex)};
+\node[role, below=3mm of ft] (rft) {Reliability Engineer \\ (blast radius)};
+\node[role, below=3mm of a] (ra) {DevOps / SRE \\ (task continuity)};
+\node[role, below=12mm of m] (rm) {Software Architect \\ (cognitive load \& debt)};
 \draw[->] (q) -- (r);
 \draw[->] (q) -- (m);
 \draw[->] (r) -- (ft);
@@ -114,7 +117,7 @@ Grounded in \textbf{ISO/IEC 25010} (Product Quality) and \textbf{ISO/IEC 25019} 
 \setlength{\tabcolsep}{4pt}
 \caption{RM Quality Dimensions, Stakeholder Roles, and ISO/IEC 25019 Quality-in-Use Mapping.}
 \label{tab:rm_stakeholders}
-\begin{tabularx}{\textwidth}{lp{2.8cm}p{2.6cm}Xp{2.2cm}}
+\begin{tabularx}{\textwidth}{l>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{2.4cm}X>{\raggedright\arraybackslash}p{2.4cm}}
 \toprule
 \textbf{Dim.} & \textbf{Sub-Characteristic} & \textbf{Engineering Role} & \textbf{High Score Meaning} & \textbf{ISO 25019 Harm} \\
 \midrule
