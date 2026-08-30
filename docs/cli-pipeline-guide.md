@@ -165,16 +165,20 @@ The RM-weighting flags (`--use-ahp`, `--equal-weights`, `--ahp-shrinkage`, `--no
 
 ## Step 3: Predict
 
-**Script:** `cli/predict_graph.py`  
-**Purpose:** Unified prediction — RM scoring, optional GNN inference, and anti-pattern detection.
+**Script:** `cli/predict_graph.py` (`saag-predict`)  
+**Purpose:** Dual-pathway prediction — deterministic ISO-RM scoring (Pathway A: Diagnostic), optional Heterogeneous Graph Transformer neural inference (Pathway B: Predictive), 19-pattern anti-pattern detection, natural-language explanation generation, and stakeholder-oriented root-cause attribution via the Triage Bridge.
 
 ```bash
-PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model
+# Rule-based RM scoring + Triage (cold start, zero GNN)
+PYTHONPATH=. python cli/predict_graph.py --layer system --triage-k 10
+
+# Dual-pathway prediction with GNN checkpoint and Triage Bridge
+PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model --triage-k 10 --output output/prediction.json
 ```
 
 ### Arguments
 
-**Weighting:**
+**Pathway A (Diagnostic / RM) Weighting:**
 
 | Flag | Description |
 |------|-------------|
@@ -185,39 +189,40 @@ PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_c
 | `--winsorize` | Cap raw metric values above the 95th percentile before normalization |
 | `--sensitivity` | Run Kendall τ weight sensitivity analysis after scoring |
 
-**GNN inference:**
+**Pathway B (Predictive / HGL) GNN Inference:**
 
 | Flag | Description |
 |------|-------------|
-| `--gnn-model` | Path to trained checkpoint directory |
+| `--gnn-model` | Path to trained checkpoint directory (enables HGT blast-radius forecasting) |
 
-**Triage bridge (optional):**
+**The Triage Bridge (Quantitative Risk → Stakeholder Diagnosis):**
 
 | Flag | Description |
 |------|-------------|
-| `--triage-k` | Shortlist the Top-K critical components (GNN-ranked when `--gnn-model` is set and succeeds, RM-ranked otherwise) and print each one's RM root-cause diagnosis: pattern, elevated dimensions, priority action, stakeholder roles |
+| `--triage-k` | Shortlist the Top-K critical components (GNN-ranked when `--gnn-model` is set and succeeds, RM-ranked otherwise) and print each one's RM root-cause diagnosis: pattern signature, elevated dimensions, priority action, and mapped stakeholder roles (`DevOps / SRE`, `Architect`, `Developer`) |
 
-**Anti-pattern detection:**
+**Anti-Pattern Detection (CI/CD Quality Gate):**
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--no-antipatterns` | `False` | Skip detection; exit code always 0 |
 | `--severity` | `None` | Comma-separated filter: `critical`, `high`, `medium` |
 | `--pattern` | `None` | Comma-separated pattern IDs (e.g. `SPOF,FAILURE_HUB,GOD_COMPONENT`) |
-| `--catalog` | `False` | Print full catalog and exit |
+| `--catalog` | `False` | Print full 19-pattern catalog and exit |
 
-**Output:**
+**Output & Gating:**
 
 | Flag | Description |
 |------|-------------|
-| `--output-antipatterns` | Write anti-pattern report JSON (feeds `visualize_graph.py`) |
+| `--output` / `-o` | Write full prediction JSON (includes RM profiles, GNN scores, and Triage shortlist) |
+| `--output-antipatterns` | Write standalone anti-pattern report JSON (feeds `visualize_graph.py`) |
 | `--no-exit-code` | Always exit 0 (disable CI/CD gating) |
 
-### Exit Codes (CI/CD Gate)
+### Exit Codes (CI/CD Quality Gating)
 
-- `0` — clean (no anti-patterns, or `--no-antipatterns`)
-- `1` — MEDIUM anti-patterns detected
-- `2` — HIGH or CRITICAL anti-patterns detected → blocks deployment
+- `0` — clean (no anti-patterns detected, or `--no-antipatterns` / `--no-exit-code`)
+- `1` — MEDIUM anti-patterns detected (warnings/smells)
+- `2` — HIGH or CRITICAL anti-patterns detected → blocks pre-merge deployment gate
 
 ---
 

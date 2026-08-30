@@ -22,16 +22,18 @@
 
 ## 1. What This Step Does
 
-Visualization is the final step. It takes the outputs of Steps 2–5 — structural metric vectors $M(v)$, RM prediction scores $Q(v)$, simulation impact scores $I(v)$, and validation metrics — and synthesizes them into one interactive dashboard. The goal is to move from numbers to decisions: every view answers a specific stakeholder question, tabulated in [From Dashboard to Decisions](#6-from-dashboard-to-decisions).
+Visualization is the final step. It takes the outputs of Steps 2–5 — structural metric vectors $M(v)$, dual-pathway prediction outputs (diagnostic RM $Q^*(v)$, learned GNN $\hat{I}^*(v)$, Top-K Triage profiles), simulation impact scores $I^*(v)$, and validation metrics — and synthesizes them into one interactive dashboard. The goal is to move from numbers to decisions: every view answers a specific stakeholder question, tabulated in [From Dashboard to Decisions](#6-from-dashboard-to-decisions).
 
 ```
 Steps 2–5 Outputs                    Visualization              Output
 ─────────────────────────────        ─────────────              ──────
 M(v)  — Tier 1 structural metrics    Pipeline         →   HTML dashboard
-Q(v)  — R, M (FT, A sub-chars), composite │                (archivable research artifact)
-I(v), IR, IM, IA — ground truths          │            →   SMART live web app
-ρ, F1, PG, specialist metrics    ────────┘                (operational practitioner tool)
-Anti-pattern report
+Q*(v) — Diagnostic RM profiles       │                    (archivable research artifact)
+Î*(v) — Learned GNN forecasts        │                →   SMART live web app
+Triage — Scoped stakeholder actions  │                    (operational practitioner tool)
+I*(v), IR, IM, IA — ground truths    │
+ρ, F1, PG, specialist metrics        │
+Anti-pattern report (19 smells) ─────┘
 ```
 
 ### Implementation Map

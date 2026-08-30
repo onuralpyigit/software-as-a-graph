@@ -50,10 +50,10 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
 | — | *Generate (prep)* | Synthesizes a pub-sub topology for experiments, benchmarks, and CI regression | Topology JSON | [graph-generation.md](docs/graph-generation.md) |
 | 1 | **Model** | Imports topology JSON into Neo4j as a weighted directed graph $G = (V, E, \tau_V, \tau_E, w)$; derives logical `DEPENDS_ON` edges via six rules; computes QoS-derived weights | $G_{\text{structural}}$, $G_{\text{analysis}}(l)$ | [graph-model.md](docs/graph-model.md) |
 | 2 | **Analyze** | Deterministic, closed-form. Computes the 11 Tier-1 structural metrics $M(v)$ — and nothing else | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
-| 3 | **Predict** | Maps $M(v)$ to RM dimension scores and $Q^*(v)$ via declared-weight formulas (always); blends in a heterogeneous GNN when a trained checkpoint exists; detects anti-patterns; generates a natural-language explanation | RM/$Q^*(v)$ scores, 5-level classification, GNN ranks, anti-pattern report | [prediction.md](docs/prediction.md) |
-| 4 | **Simulate** | Injects faults and propagates cascades over the raw structural graph to obtain ground-truth impact — training labels for stage 3 and the oracle for stage 5 | $I^*(v)$ composite and per-dimension $I_R, I_M$ (itself $\alpha\cdot I_{FT}+(1-\alpha)\cdot I_A$) | [failure-simulation.md](docs/failure-simulation.md) |
+| 3 | **Predict** | Dual-pathway: computes deterministic ISO-RM dimension scores $Q^*(v)$ (Pathway A: Diagnostic) and optional HGT neural blast-radius forecasts $\hat{I}^*(v)$ (Pathway B: Predictive); links them via the Triage Bridge to map Top-K risks to stakeholder actions; detects 19 anti-patterns; generates natural-language explanations | RM/$Q^*(v)$ scores, 5-level classification, GNN ranks, Triage profile, anti-pattern report | [prediction.md](docs/prediction.md) |
+| 4 | **Simulate** | Injects faults and propagates cascades over the raw structural graph to obtain ground-truth impact — training labels for stage 3 and the offline oracle for stage 5 | $I^*(v)$ composite and per-dimension $I_R, I_M$ (itself $\alpha\cdot I_{FT}+(1-\alpha)\cdot I_A$) | [failure-simulation.md](docs/failure-simulation.md) |
 | 5 | **Validate** | Correlates predictions against simulated ground truth: Spearman $\rho$, Kendall $\tau$, F1, predictive gain, bootstrap CIs, Wilcoxon — scored against seven gates | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
-| 6 | **Prescribe** | Generates architectural edits (topic splits, host reallocations, QoS upgrades) and accepts each only if a closed-loop counterfactual simulation confirms the improvement | `PrescribeResult` with baseline vs. mutated SRI | [prescription.md](docs/prescription.md) |
+| 6 | **Prescribe** | Generates stakeholder-oriented architectural edits (topic splits, host reallocations, QoS upgrades) and accepts each only if a closed-loop counterfactual simulation confirms the improvement | `PrescribeResult` with baseline vs. mutated SRI | [prescription.md](docs/prescription.md) |
 | 7 | **Visualize** | Renders network graphs, dependency matrices, cascade heatmaps, and RM radar charts | Self-contained `dashboard.html` | [visualization.md](docs/visualization.md) |
 
 ```
@@ -329,8 +329,8 @@ import saag
 result = (
     saag.Pipeline.from_json("data/system.json", clear=True)
         .analyze(layer="app")                      # structural metrics only
-        .simulate(layer="app", mode="exhaustive")  # ground-truth labels
-        .predict()                                 # RM (+ GNN if a checkpoint exists)
+        .simulate(layer="app", mode="exhaustive")  # ground-truth labels (offline oracle)
+        .predict(triage_k=10)                      # RM + GNN (if checkpoint exists) + Triage Bridge
         .validate()                                # statistical validation
         .prescribe()                               # counterfactual-verified remediations
         .visualize(output="output/report.html")
@@ -340,6 +340,11 @@ result = (
 for layer, v in result.validation.layers.items():
     print(f"{layer}: rho={v.spearman_rho:.3f}  F1={v.f1_score:.3f}")
 
+if result.prediction and result.prediction.triage:
+    print(f"Top-{result.prediction.triage.k} High-Risk Components identified via Triage Bridge:")
+    for entry in result.prediction.triage.entries:
+        print(f"  [{entry.rank}] {entry.component_id} ({entry.level}): {entry.priority_action} -> Roles: {', '.join(entry.roles)}")
+
 if result.prescription:
     print(f"SRI improvement = {result.prescription.sri_improvement:.4f}")
 ```
@@ -348,10 +353,14 @@ if result.prescription:
 |:---|:---|:---|
 | [Pipeline](saag/pipeline.py#L12) | `saag.Pipeline` | Fluent builder that sequences and runs the stages |
 | [Client](saag/client.py#L9) | `saag.Client` | Step-by-step service façade for finer control |
-| [AnalysisResult](saag/models.py#L102) | `saag.AnalysisResult` | Stage 2 — structural metrics |
-| [PredictionResult](saag/models.py#L190) | `saag.PredictionResult` | Stage 3 — RM/GNN scores, anti-patterns, explanation |
+| [AnalysisResult](saag/models.py#L102) | `saag.AnalysisResult` | Stage 2 — structural metrics vector $M(v)$ |
+| [PredictionResult](saag/models.py#L190) | `saag.PredictionResult` | Stage 3 — RM/GNN scores, anti-patterns, explanation, triage results |
+| [TriageResult](saag/analysis/triage.py#L31) | `saag.analysis.triage.TriageResult` | Stage 3 — Scoped Top-K root-cause profiles and stakeholder roles |
 | [ValidationResult](saag/models.py#L396) | `saag.ValidationResult` | Stage 5 — per-layer correlations and gate outcomes |
 | [PrescribeResult](saag/prescription/models.py#L212) | `saag.prescription.PrescribeResult` | Stage 6 — accepted policy, per-edit verdicts and SRI delta |
+| [DiagnosticUseCase](saag/usecases/diagnostic.py#L22) | `saag.usecases.DiagnosticUseCase` | Pathway A application interactor (ISO-RM quality attribution) |
+| [PredictiveUseCase](saag/usecases/predictive.py#L17) | `saag.usecases.PredictiveUseCase` | Pathway B application interactor (HGL blast-radius forecasting) |
+| [TriageUseCase](saag/usecases/triage.py#L12) | `saag.usecases.TriageUseCase` | Triage Bridge application interactor (scoping diagnosis to Top-K) |
 
 More runnable examples — including a round-trip persistence check and per-stage ATM walkthroughs — are in [`examples/`](examples/).
 

@@ -10,7 +10,7 @@
 
 1. [Overview](#1-overview)
 2. [Analysis Pipeline Architecture](#2-analysis-pipeline-architecture)
-   - 2.1 [Execution Paths (Path A vs. Path B)](#21-execution-paths-path-a-vs-path-b)
+   - 2.1 [Execution Modes: Pure Structural vs. Multi-Layer Orchestration](#21-execution-modes-pure-structural-vs-multi-layer-orchestration)
    - 2.2 [Pre-Analysis Dependency Derivation](#22-pre-analysis-dependency-derivation)
 3. [Layer Projections](#3-layer-projections)
 4. [Cross-Layer Analysis & Multi-Layer Insights](#4-cross-layer-analysis--multi-layer-insights)
@@ -70,20 +70,20 @@ flowchart LR
 
 ## 2. Analysis Pipeline Architecture
 
-### 2.1 Execution Paths (Path A vs. Path B)
+### 2.1 Execution Modes: Pure Structural vs. Multi-Layer Orchestration
 
 The framework provides two entry routes that funnel through `AnalysisService.analyze_layers()`:
 
 ```mermaid
 flowchart TD
-    subgraph PathA["Path A: Pure Structural Analysis"]
+    subgraph ModePure["Mode 1: Pure Structural Metric Extraction"]
         CLI_A["cli/analyze_graph.py<br>client.analyze(layer)"] --> UC_A["AnalyzeGraphUseCase"]
         UC_A --> AS_A["AnalysisService.analyze_layers()"]
         AS_A --> SA_A["StructuralAnalyzer.analyze()"]
         SA_A --> RES_A["LayerAnalysisResult<br>(.structural populated only)"]
     end
 
-    subgraph PathB["Path B: Structural + RM + Antipatterns"]
+    subgraph ModeMulti["Mode 2: Structural + Multi-Layer Orchestration"]
         CLI_B["saag --analyze<br>REST API /api/v1/analysis"] --> UC_B["MultiLayerAnalysisUseCase"]
         UC_B --> AS_B["AnalysisService.analyze_layers()"]
         AS_B --> PS_B["PredictionService.predict_quality()<br>(Computes RM Scores)"]
@@ -93,8 +93,8 @@ flowchart TD
     end
 ```
 
-- **Path A (`cli/analyze_graph.py`)**: Computes structural metrics $M(v)$ and graph summary $S(G)$ only. Fast, lightweight, and completely decoupled from scoring models.
-- **Path B (`saag --analyze` / API)**: Computes structural metrics, evaluates rule-based RM criticality ($Q(v)$), runs graph antipattern detection, and synthesizes multi-layer cross-tier insights.
+- **Pure Structural Mode (`cli/analyze_graph.py`)**: Computes the 11 Tier-1 structural metrics $M(v)$ and graph summary $S(G)$ only. Fast, lightweight, and completely decoupled from scoring models. (This directly feeds Step 3's Pathway A and Pathway B).
+- **Multi-Layer Orchestrated Mode (`saag --analyze` / API)**: Computes structural metrics across all layer projections, evaluates rule-based RM criticality ($Q(v)$), runs graph antipattern detection, and synthesizes multi-layer cross-tier insights.
 
 ### 2.2 Pre-Analysis Dependency Derivation
 

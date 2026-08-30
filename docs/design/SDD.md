@@ -691,29 +691,40 @@ saag.analysis.service.AnalysisService.analyze_layer(layer)
     Return LayerAnalysisResult
 ```
 
-### 5.4 GNN Prediction Pipeline (Step 3)
+### 5.4 Dual-Pathway Prediction & Diagnostic Pipeline (Step 3)
 
-The GNN prediction component (`saag.prediction.service.PredictionService`) uses a PyTorch Heterogeneous Graph Transformer model to predict node and edge criticality.
+Step 3 combines two conceptually and computationally distinct pathways:
+- **Pathway A (Diagnostic / ISO-RM)**: Handled by `DiagnosticUseCase` (`saag/usecases/diagnostic.py`) and `QualityAnalyzer` (`saag/analysis/analyzer.py`). Computes deterministic ISO/IEC 25010 RM scores ($FT, A, M, R, Q^*$), audits 19 structural anti-patterns, and generates natural-language explanations.
+- **Pathway B (Predictive / Heterogeneous Graph Learning)**: Handled by `PredictiveUseCase` (`saag/usecases/predictive.py`) and `GNNService` (`saag/prediction/gnn_service.py`). Evaluates a 3-layer Heterogeneous Graph Transformer (`HGTConv`) to predict composite blast radius $\hat{I}^*(v)$ and edge criticality $Q_{\text{GNN}}(u, v)$.
+- **The Triage Bridge**: Handled by `TriageUseCase` (`saag/usecases/triage.py`) and `saag.analysis.triage.triage()`. Connects Pathway B's Top-$K$ ranked components with Pathway A's root-cause profiles, grouping results by stakeholder roles (`DevOps / SRE`, `Architect`, `Developer`).
 
 ```
-saag.prediction.service.PredictionService.predict_layer(structural_result, checkpoint_path)
-  (also exposed as FastAPI POST /api/v1/prediction/predict)
+Dual-Pathway Execution Sequence
          │
-    1. Check GNN model checkpoint path (logs a warning and falls back to RM on failure)
-    2. GNNService.load_model(checkpoint_path)
-    3. networkx_to_hetero_data(graph) -> PyG HeteroData DTO
-         │  → Build type-specific feature width tensors (§6.24)
-         │  → Inject 16-dim edge features (§6.24)
-    4. Model Inference Pass (GNNService.predict()):
-         │  → Feed edge features to EdgeFeatureEncoder
-         │  → Execute 3-layer HGTConv message passing (bidirectional optional) (§6.25)
-         │  → Run multi-task prediction heads (Reliability, Maintainability, and Composite; Fault Tolerance and Availability are analysis-side sub-characteristics, not separate GNN heads)
-         │  → Execute TypedEdgeEncoder for link criticality scores (§6.26)
-    5. Criticality Classification:
-         │  → BoxPlotClassifier.classify(node_scores) -> Criticality levels
-         │
-         ▼
-    Return QualityAnalysisResult (containing GNN predictions)
+    ┌────┴──────────────────────────────────────────────────────┐
+    │                                                           │
+    ▼ Pathway A: Diagnostic ISO-RM                              ▼ Pathway B: Predictive HGL
+saag.usecases.DiagnosticUseCase                            saag.usecases.PredictiveUseCase
+  (AnalysisService.predict_quality())                        (GNNService.predict())
+    │                                                           │
+    ├─ 1. Compute FT, A, M, R, Q*                               ├─ 1. Check GNN checkpoint (or fallback to RM)
+    ├─ 2. Audit 19 anti-patterns                                ├─ 2. networkx_to_hetero_data (18D+ base, 16D edge)
+    ├─ 3. Synthesize natural-language explanations              ├─ 3. 3-layer HGTConv + ResidualMLP multi-task heads
+    │                                                           ├─ 4. Predict Î*(v), R̂(v), M̂(v), Q_GNN(u,v)
+    │                                                           │
+    └───────────────────────────┬───────────────────────────────┘
+                                │
+                                ▼
+                   The Triage Bridge (TriageUseCase)
+                   saag.analysis.triage.triage(pred_result, k)
+                                │
+                                ├─ 1. Rank population by Î*(v) (or fallback to Q*(v))
+                                ├─ 2. Select Top-K highest-risk components
+                                ├─ 3. Exact join on Component ID → extract Pathway A root-cause diagnosis
+                                └─ 4. Map to stakeholder buckets (DevOps, Architect, Developer)
+                                │
+                                ▼
+                   Return PredictionResult / TriageResult
 ```
 
 ### 5.5 Simulation Pipeline (Step 4)

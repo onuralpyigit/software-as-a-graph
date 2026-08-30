@@ -232,7 +232,11 @@ Supports the paper's result tables independently of the runtime pipeline.
 - `metrics.py` — `compute_inductive_metrics()`, `resolve_eval_keys()`, critical-topic-coverage-at-K, and per-QoS-tier Spearman $\rho$. Consumed by `reproduce/main_table.py` and `reproduce/loso_all_variants.py`.
 
 ### `usecases/` — Application Layer orchestrators
-Thin interactor classes representing the application boundaries; each pipeline step maps to one class (`ModelGraphUseCase`, `AnalyzeGraphUseCase`, `PredictGraphUseCase`, `TriageGraphUseCase`, `SimulateGraphUseCase`, `ValidateGraphUseCase`, `PrescribeGraphUseCase`, `VisualizeGraphUseCase`, `MultiLayerAnalysisUseCase`), each delegating to a single service's `execute()`. `TriageGraphUseCase` delegates to `saag.analysis.triage.triage()` — the Triage bridge described above — rather than to a dedicated service, since the function is already pure and stateless.
+Thin interactor classes representing the application boundaries:
+- **Core Pipeline Use Cases**: `ModelGraphUseCase`, `AnalyzeGraphUseCase`, `PredictGraphUseCase`, `SimulateGraphUseCase`, `ValidateGraphUseCase`, `PrescribeGraphUseCase`, `VisualizeGraphUseCase`, `MultiLayerAnalysisUseCase`.
+- **Pathway A (Diagnostic)**: `DiagnosticUseCase` (alias `DiagnosticGraphUseCase`) executes deterministic ISO-RM quality attribution, anti-pattern detection, and natural language explanations.
+- **Pathway B (Predictive)**: `PredictiveUseCase` (alias `PredictiveGraphUseCase`) executes inductive HGT neural message passing and blast radius forecasting ($\hat{I}^*(v)$) with 16-D QoS edge encodings.
+- **Triage Bridge**: `TriageUseCase` (alias `TriageGraphUseCase`) delegates to `saag.analysis.triage.triage()` to scope Pathway A's root-cause attribution to Pathway B's Top-*K* shortlist.
 
 ### `infrastructure/` — Persistence Adapters
 - `Neo4jRepository` — Production adapter. Handles connection sessions, executes Cypher to load/export topologies, and drives the Cypher-based `DEPENDS_ON` derivation logic.
@@ -249,7 +253,7 @@ The REST API exposes the analytical pipeline as a JSON web service via FastAPI (
 | `graph.py` | `/api/v1/graph` | 13 |
 | `components.py` | `/api/v1` | 5 |
 | `statistics.py` | `/api/v1/stats` | 5 |
-| `prediction.py` | `/api/v1/graph/prediction` | 4 |
+| `prediction.py` | `/api/v1/graph/prediction` | 5 |
 | `simulation.py` | `/api/v1/simulation` | 4 |
 | `validation.py` | `/api/v1/validation` | 4 |
 | `analysis.py` | `/api/v1/analysis` | 3 |
@@ -257,8 +261,8 @@ The REST API exposes the analytical pipeline as a JSON web service via FastAPI (
 | `health.py` | *(none)* | 3 |
 | `classification.py` | `/api/v1` | 1 |
 
-- **Routers (`api/routers/`)** — Validate request schemas (`api/models.py`) and call SDK services or use cases.
-- **Presenters (`api/presenters/`)** — Decouple domain response schemas from HTTP endpoints. Used by `graph.py`, `simulation.py`, and `analysis.py`; the other routers currently serialize inline — a gap to close, not a pattern to follow.
+- **Routers (`api/routers/`)** — Validate request schemas (`api/models.py`) and call SDK services or use cases. Includes dedicated endpoints for training (`/train`), inference (`/predict`), checkpoint management (`/checkpoints`), and the Triage bridge (`/triage`).
+- **Presenters (`api/presenters/`)** — Decouple domain response schemas from HTTP endpoints. Fully implemented for `graph_presenter.py`, `simulation_presenter.py`, `analysis_presenter.py`, `prediction_presenter.py`, `validation_presenter.py`, and `triage_presenter.py`; `components_presenter.py` handles critical edge serialization.
 - **Dependency Injection (`api/dependencies.py`)** — `get_repository()` builds a request-scoped `Neo4jRepository`. Credentials are read from the **JSON request body** (top-level or nested under `"credentials"`) on POST/PUT, or from **query parameters** (`uri`, `user`, `password`, `database`) on GET/HEAD/DELETE — not from HTTP headers.
 
 ---
@@ -275,7 +279,7 @@ Scripts mirror the pipeline stages. Eight have console-script entry points insta
 | `export_graph.py` | Step 1 — export Neo4j → JSON | *(none)* |
 | `analyze_graph.py` | Step 2 — structural metrics | `saag-analyze` |
 | `train_graph.py` | Step 3 (training) — GNN training | *(none)* |
-| `predict_graph.py` | Step 3 (inference) — RM + GNN + anti-patterns | `saag-predict` |
+| `predict_graph.py` | Step 3 (inference) — RM + GNN + Triage bridge (`--triage-k`) + anti-patterns | `saag-predict` |
 | `detect_antipatterns.py` | Standalone anti-pattern / CI gate | *(none)* |
 | `simulate_graph.py` | Step 4 — `fault-inject` \| `message-flow` \| `combined` | `saag-simulate` |
 | `validate_graph.py` | Step 5 — `single` \| `sweep` \| `report` \| `compare` \| `harness` | `saag-validate` |

@@ -131,8 +131,9 @@ The logical view decomposes the codebase into specialized packages with strict d
                                  ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ Use Cases Layer (saag.usecases)                                 │
-│ - ModelGraphUseCase     - AnalyzeGraphUseCase                   │
-│ - PredictGraphUseCase   - SimulateGraphUseCase                  │
+│ - DiagnosticUseCase     - PredictiveUseCase  - TriageUseCase    │
+│ - ModelGraphUseCase     - AnalyzeGraphUseCase- SimulateGraphUC  │
+│ - ValidateGraphUseCase  - PrescribeGraphUC   - VisualizeGraphUC │
 └────────────────────────────────┬────────────────────────────────┘
                                  │ invokes
                                  ▼

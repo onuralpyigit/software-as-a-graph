@@ -8,7 +8,7 @@ This document bridges [Step 3: Predict](prediction.md) (anti-pattern detection) 
 
 ## 1. Detection: the 19-pattern catalog
 
-`AntiPatternDetector` (`saag/analysis/antipattern_detector.py`) evaluates the 13-element structural metric vector $M(v)$ (see [structural-analysis.md](structural-analysis.md)) and the derived RM criticality scores against a catalog of **19** anti-patterns, each with a severity tier and a formal detection rule.
+`AntiPatternDetector` (`saag/analysis/antipattern_detector.py`) evaluates the 11 Tier-1 structural metric vector $M(v)$ (see [structural-analysis.md](structural-analysis.md)) and the derived RM criticality scores against a catalog of **19** anti-patterns, each with a severity tier and a formal detection rule.
 
 A key design property: thresholds are **population-relative, not universal**. Most detectors compare a component's metric against an adaptive box-plot fence (`Q3 + 1.5 × IQR`) computed over the *current system's own* metric distribution, not a fixed constant. A 300-component enterprise system and a 15-component ROS 2 stack get different absolute cutoffs for the same pattern, because "anomalous" is defined relative to each system's own population.
 
@@ -55,7 +55,19 @@ This is a principled boundary, not an oversight: the three operators only automa
 
 ---
 
-## 3. The in-silico trial: closed-loop verification
+## 3. The Triage Bridge: Stakeholder-Oriented Remediation Routing
+
+The **Triage Bridge** (`saag.analysis.triage.triage()` / `TriageUseCase` / `triage_presenter.py`) connects Step 3's high-risk shortlist (Top-$K$ ranked components) to targeted architectural root causes, routing recommendations to three distinct stakeholder groups:
+
+| Stakeholder Role | Primary Focus & Domain | Associated Patterns & Metrics | Concrete Remediation Actions |
+|:---|:---|:---|:---|
+| **DevOps / SRE** | Infrastructure locality & broker resilience | `SPOF`, `BROKER_OVERLOAD`, $AP_c^{\text{dir}}$, host co-location | Configure Kubernetes pod anti-affinity, replicate message brokers, reallocate co-located high-risk services |
+| **System Architect** | Pub-sub topology & transport contracts | `GOD_COMPONENT`, `FAILURE_HUB`, `BOTTLENECK_EDGE`, `HUB_AND_SPOKE`, `CYCLE`, $CDI$ | Apply automated Operator 1 (Topic Splitting), Operator 3 (Transport QoS Hardening), and insert circuit breakers or event bridges |
+| **Software Developer** | Code complexity & component coupling | `CYCLIC_DEPENDENCY`, High $CQP$, High $MPCI$, High $PC$ | Refactor god classes, decompose high-cyclomatic-complexity methods, prune redundant transitive library imports |
+
+---
+
+## 4. The in-silico trial: closed-loop verification
 
 Every compiled policy is verified before it is ever reported as viable — and it is *never* applied to the live system:
 
@@ -72,23 +84,25 @@ A rejected policy is still returned in full, with its before/after metrics, for 
 
 ---
 
-## 4. From blueprint to deployment
+## 5. From blueprint to deployment
 
 The output of a `prescribe()` call is a remediation blueprint: an itemized `applied_changes` list, per-edit verdicts for everything that was declined, and before/after metrics (reachability loss, fragmentation, throughput loss). It is reachable from the SDK and the CLI — Stage 6 has no REST router and is not rendered in the SMART dashboard. The architect is the one who turns this into real deployment artifacts — topic redesign in middleware config, Kubernetes anti-affinity scheduling constraints, DDS/MQTT QoS profile changes. The framework diagnoses and simulates the treatment; it never administers it to the live system.
 
 ---
 
-## 5. Summary table: diagnosis → automated vs. advisory remediation
+## 6. Summary table: diagnosis → automated vs. advisory remediation
 
-| Catalog ID | Severity | Remediation |
-|---|---|---|
-| `SPOF` | CRITICAL | **Automated** (Operator 2) + advisory redundancy/failover guidance beyond reallocation |
-| `GOD_COMPONENT` | CRITICAL | **Automated** (Operator 1) |
-| `FAILURE_HUB` | CRITICAL | **Automated** (Operator 1) |
-| `BOTTLENECK_EDGE` | HIGH | **Automated** (Operator 1) |
-| `HUB_AND_SPOKE` | MEDIUM | **Automated** (Operator 1) |
-| `SYSTEMIC_RISK`, `COMPOUND_RISK` | CRITICAL | Advisory only |
-| `CYCLE`, `BRIDGE_EDGE`, `BROKER_OVERLOAD`, `DEEP_PIPELINE` | HIGH | Advisory only |
-| `CONCENTRATION_RISK`, `TOPIC_FANOUT`, `CHATTY_PAIR`, `QOS_MISMATCH`, `ORPHANED_TOPIC`, `UNSTABLE_INTERFACE`, `CHAIN`, `ISOLATED` | MEDIUM | Advisory only |
+| Catalog ID | Severity | Remediation | Primary Stakeholder |
+|---|---|---|---|
+| `SPOF` | CRITICAL | **Automated** (Operator 2: Anti-Affinity) + advisory failover | DevOps / SRE |
+| `GOD_COMPONENT` | CRITICAL | **Automated** (Operator 1: Topic Splitting) | System Architect |
+| `FAILURE_HUB` | CRITICAL | **Automated** (Operator 1: Topic Splitting) | System Architect |
+| `BOTTLENECK_EDGE` | HIGH | **Automated** (Operator 1: Topic Splitting) | System Architect |
+| `HUB_AND_SPOKE` | MEDIUM | **Automated** (Operator 1: Topic Splitting) | System Architect |
+| `BROKER_OVERLOAD` | HIGH | Advisory (Cluster replication / Broker scale-out) | DevOps / SRE |
+| `QOS_MISMATCH` | MEDIUM | **Automated** (Operator 3: Transport QoS Hardening) via Tier | System Architect |
+| `SYSTEMIC_RISK`, `COMPOUND_RISK` | CRITICAL | Advisory only | System Architect & SRE |
+| `CYCLE`, `BRIDGE_EDGE`, `DEEP_PIPELINE` | HIGH | Advisory only | System Architect |
+| `CONCENTRATION_RISK`, `TOPIC_FANOUT`, `CHATTY_PAIR`, `ORPHANED_TOPIC`, `UNSTABLE_INTERFACE`, `CHAIN`, `ISOLATED` | MEDIUM | Advisory only | Software Developer & Architect |
 
 See [antipatterns.md](antipatterns.md) for each pattern's full specification and remediation narrative, and [prescription.md](prescription.md) for the operator implementation, schema, and API.

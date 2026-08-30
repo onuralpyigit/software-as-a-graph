@@ -596,7 +596,7 @@ A complete index of all numeric constants driving the RM quality model:
 | $A$ Weights ($AP_c^{\text{dir}}, QSPOF, BR, CDI, w$) | $0.35, 0.25, 0.25, 0.10, 0.05$ | **DERIVED** (AHP) | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | *Structural* |
 | $CQP$ Weights (`loc`, `complexity`, $I_{\text{code}}$, `lcom`) | $0.10, 0.35, 0.30, 0.25$ | **DECLARED** | [`structural_analyzer.py`](../saag/analysis/structural_analyzer.py) | *Functional* |
 | Edge Weights ($e_{BT}, e_{\text{bridge}}, e_{\text{endpoint}}, e_{\text{qos}}$) | $0.35, 0.30, 0.20, 0.15$ | **DECLARED** | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | *Default config* |
-| Topic QoS Split (Rel, Dur, Pri) | $0.30, 0.40, 0.30$ | **DERIVED** (AHP) | [`core/models.py`](../saag/core/models.py) | **Exact** (`test_topic_qos_matrix`) |
+| Topic QoS Split (Rel, Dur, Pri) | $0.24, 0.62, 0.14$ | **DERIVED** (AHP) | [`core/models.py`](../saag/core/models.py) | **Exact** (`test_topic_qos_matrix`) |
 | $\lambda$ (`AHP_SHRINKAGE_LAMBDA`) | $0.70$ | **DECLARED** | [`core/models.py`](../saag/core/models.py) | **Exact** |
 | $\beta$ (`TOPIC_QOS_WEIGHT_BETA`) | $0.75$ | **DECLARED** | [`core/models.py`](../saag/core/models.py) | **Exact** |
 | $\alpha$ (`TOPIC_SIZE_WEIGHT_ALPHA`) | $0.15$ | **DECLARED** | [`core/models.py`](../saag/core/models.py) | **Exact** |
@@ -613,18 +613,21 @@ sequenceDiagram
     autonumber
     participant M as Step 1: Model
     participant A as Step 2: Analyze
-    participant S as Step 4: Simulate
+    participant P as Step 3: Predict (Dual Pathway)
+    participant S as Step 4: Simulate (Offline Oracle)
     participant V as Step 5: Validate
-    participant P as Step 6: Prescribe
+    participant Rx as Step 6: Prescribe
 
     M->>A: Graph topology, code metrics, QoS contracts (Layer 0)
-    A->>A: Compute 19 metrics (Layer 1) & External attributes FT, A, M, R, Q (Layer 2)
-    A-->>A: Apply optional Domain QiU Weights (Layer 3)
-    S->>V: Generate simulation impact oracles IR(v), IM(v)
-    A->>V: Supply predicted scores Q(v), R(v), M(v)
+    A->>P: 11 Tier-1 structural metrics M(v) (Layer 1)
+    P->>P: Pathway A: Diagnostic ISO-RM Q*(v) (Layer 2) & Anti-Patterns
+    P->>P: Pathway B: Predictive HGL Î*(v) (GNN)
+    P->>P: Triage Bridge: Scope Diagnosis to Top-K Risks
+    S->>V: Generate simulation impact oracles IR(v), IM(v), I*(v)
+    P->>V: Supply predicted scores & rankings
     V->>V: Run validation battery (Spearman rho, NDCG, top-k gates)
-    A->>P: Provide criticality profiles & antipattern candidates
-    P->>P: Formulate refactoring prescriptions & counterfactual delta-Q
+    P->>Rx: Provide scoped triage diagnosis & candidate edits
+    Rx->>Rx: Closed-loop counterfactual verification (ΔI > κ·σ)
 ```
 
 ---

@@ -1,6 +1,6 @@
-# Step 3: Predict — Rule-Based (RM) + Learned (GNN) Criticality
+# Step 3: Predict — Dual-Pathway Architecture (Diagnostic RM + Learned HGT) & Triage Bridge
 
-**Predict architectural component and relationship criticality by combining deterministic rule-based RM scoring with a Heterogeneous Graph Transformer (HGT) trained on simulation ground truth, alongside antipattern detection and explainability.**
+**Predict architectural component and relationship criticality through a dual-pathway architecture: combining deterministic ISO/IEC 25010/25019 quality attribution (Pathway A: Diagnostic) with Heterogeneous Graph Transformer neural blast-radius forecasting (Pathway B: Predictive), connected via the Triage Bridge to map high-risk components to stakeholder-oriented remediations.**
 
 ← [Step 2: Analyze](structural-analysis.md) | → [Step 4: Simulate](failure-simulation.md)
 
@@ -8,55 +8,148 @@
 
 ## Table of Contents
 
-1. [Overview & Core Philosophy](#1-overview--core-philosophy)
-2. [Graph Data Preparation (PyTorch Geometric `HeteroData`)](#2-graph-data-preparation-pytorch-geometric-heterodata)
-   - 2.1 [Node Feature Schema](#21-node-feature-schema)
-   - 2.2 [Edge Feature Schema (16 Dimensions)](#22-edge-feature-schema-16-dimensions)
-   - 2.3 [Target Labels & Dimension Masking](#23-target-labels--dimension-masking)
-3. [Model Architecture](#3-model-architecture)
-   - 3.1 [Heterogeneous Message Passing Backbone](#31-heterogeneous-message-passing-backbone)
-   - 3.2 [Prediction Heads](#32-prediction-heads)
-4. [Training Protocol & Loss Formulation](#4-training-protocol--loss-formulation)
-   - 4.1 [Multi-Task Loss Equation](#41-multi-task-loss-equation)
-   - 4.2 [Training Hyperparameters & Optimisation](#42-training-hyperparameters--optimisation)
-5. [Edge Criticality Prediction](#5-edge-criticality-prediction)
-6. [Comparing Rule-Based (RM) vs. Learned (GNN) Modes](#6-comparing-rule-based-rm-vs-learned-gnn-modes)
-7. [Output Schema & Sample JSON](#7-output-schema--sample-json)
-8. [CLI Reference & Commands](#8-cli-reference--commands)
-9. [Known Limitations & Design Boundaries](#9-known-limitations--design-boundaries)
-10. [What Comes Next](#10-what-comes-next)
+1. [Overview & Dual-Pathway Architecture](#1-overview--dual-pathway-architecture)
+2. [Pathway A: Deterministic Diagnostic Quality Attribution (ISO-RM)](#2-pathway-a-deterministic-diagnostic-quality-attribution-iso-rm)
+   - 2.1 [Theoretical Grounding (ISO/IEC 25010 & 25019)](#21-theoretical-grounding-isoiec-25010--25019)
+   - 2.2 [The Declared RM Composite](#22-the-declared-rm-composite)
+   - 2.3 [Anti-Pattern Auditing & Explanations](#23-anti-pattern-auditing--explanations)
+3. [Pathway B: Inductive Learned Criticality & Blast-Radius Forecasting (HGT)](#3-pathway-b-inductive-learned-criticality--blast-radius-forecasting-hgt)
+   - 3.1 [Heterogeneous Graph Transformer (HGT) Message Passing](#31-heterogeneous-graph-transformer-hgt-message-passing)
+   - 3.2 [16-Dimensional QoS Edge Encodings](#32-16-dimensional-qos-edge-encodings)
+   - 3.3 [Zero-GNN Cold-Start Fallback](#33-zero-gnn-cold-start-fallback)
+4. [The Triage Bridge & Stakeholder-Oriented Root-Cause Attribution](#4-the-triage-bridge--stakeholder-oriented-root-cause-attribution)
+   - 4.1 [Bridging Quantitative Blast Radius with Qualitative Root Cause](#41-bridging-quantitative-blast-radius-with-qualitative-root-cause)
+   - 4.2 [Stakeholder Role Taxonomy](#42-stakeholder-role-taxonomy)
+   - 4.3 [Triage Workflow & Data Contracts](#43-triage-workflow--data-contracts)
+5. [Graph Data Preparation (PyTorch Geometric `HeteroData`)](#5-graph-data-preparation-pytorch-geometric-heterodata)
+   - 5.1 [Node Feature Schema](#51-node-feature-schema)
+   - 5.2 [Edge Feature Schema (16 Dimensions)](#52-edge-feature-schema-16-dimensions)
+   - 5.3 [Target Labels & Dimension Masking](#53-target-labels--dimension-masking)
+6. [Model Architecture & Prediction Heads](#6-model-architecture--prediction-heads)
+   - 6.1 [Backbone Structure](#61-backbone-structure)
+   - 6.2 [Multi-Task Node Prediction Heads](#62-multi-task-node-prediction-heads)
+   - 6.3 [Relation-Specific Edge Prediction Head](#63-relation-specific-edge-prediction-head)
+7. [Training Protocol & Multi-Task Loss Formulation](#7-training-protocol--multi-task-loss-formulation)
+   - 7.1 [Multi-Task Loss Equation](#71-multi-task-loss-equation)
+   - 7.2 [Training Hyperparameters & Optimisation](#72-training-hyperparameters--optimisation)
+8. [Programmatic Python SDK & Use Cases](#8-programmatic-python-sdk--use-cases)
+   - 8.1 [Pipeline Integration](#81-pipeline-integration)
+   - 8.2 [Direct Use Case Execution (`saag.usecases`)](#82-direct-use-case-execution-saagusecases)
+9. [CLI Reference & Commands](#9-cli-reference--commands)
+10. [Output Schema & Sample JSON](#10-output-schema--sample-json)
+11. [Known Limitations & Design Boundaries](#11-known-limitations--design-boundaries)
+12. [What Comes Next](#12-what-comes-next)
 
 ---
 
-## 1. Overview & Core Philosophy
+## 1. Overview & Dual-Pathway Architecture
 
-Step 3 is the **unified prediction engine** of the framework. It evaluates the structural metric vector $M(v)$ and topology produced in Step 2 to generate component and edge criticality scores through two complementary modalities:
+Step 3 is the **core analytical and predictive engine** of the Software-as-a-Graph (SaG) framework. Rather than forcing a single model to act simultaneously as a statistical estimator and an explainable standards compliance checker, Step 3 implements an explicit **dual-pathway architecture**:
 
 ```mermaid
 flowchart TD
-    M["Step 2 Output<br>Metric Vector M(v) & Graph G"] --> PE["Step 3: Prediction Engine"]
+    M["Step 2 Output<br>StructuralAnalysisResult M(v) & Graph G"] --> PE["Step 3: Unified Prediction Engine"]
     
-    subgraph PathRM["1. Deterministic Rule-Based Path (Always Active)"]
-        PE --> RM["Closed-Form RM Scoring<br>FT(v), A(v), R(v), M(v), Q(v)"]
-        RM --> AP["AntiPattern Detection & Explanations"]
-        RM --> OUT_RM["Rule-Based Scores Q_RM(v)"]
+    subgraph PathRM["Pathway A: Diagnostic / ISO-RM (Always Active)"]
+        PE --> RM["Closed-Form RM Scoring<br>FT(v), A(v), R(v), M(v), Q*(v)"]
+        RM --> AP["19 Anti-Pattern Auditing & Explanations"]
+        RM --> OUT_RM["Diagnostic Quality Profiles Q*(v)"]
     end
 
-    subgraph PathGNN["2. Inductive Learned Path (With Checkpoint)"]
+    subgraph PathGNN["Pathway B: Predictive / HGL (Opt-In / Checkpoint)"]
         PE --> HGT["Heterogeneous Graph Transformer (HGT)"]
-        HGT --> NH["Node Heads: R(v), M(v), Composite Q(v)"]
+        HGT --> NH["Node Heads: R̂(v), M̂(v), Composite Î*(v)"]
         HGT --> EH["TypedEdgeEncoder: Edge Criticality Q(u,v)"]
-        NH --> OUT_GNN_N["Learned Node Scores Q_GNN(v)"]
-        EH --> OUT_GNN_E["Learned Edge Scores Q_GNN(u,v)"]
+        NH --> TOPK["Top-K Critical Components (Shortlist)"]
     end
+
+    TOPK --> TB["TRIAGE BRIDGE<br>(Join on component_id)"]
+    OUT_RM --> TB
+    TB --> SO["Stakeholder Remediation Action Profiles<br>(DevOps/SRE, Architect, Developer)"]
+    SO --> PRESCRIBE["Step 6: Prescribe & Closed-Loop Gating"]
+    NH --> VALIDATE["Step 5: Statistical Validation (Gate G1-G6, G8)"]
 ```
 
-### Core Outputs
+### Key Architectural Invariants
+1. **Parameter Independence**: Pathway A and Pathway B share no learned weights; neither is fitted to the other's output.
+2. **Offline Oracle Separation**: Simulation (Step 4) acts solely as an offline supervisor generating supervised training labels ($I^*(v)$ via `FaultInjector`) and serving as the validation oracle (`FailureSimulator`). Prediction consumes labels from disk during training but has zero runtime dependency on the simulation engine.
+3. **No Hallucination in Root-Cause Attribution**: The Triage Bridge joins quantitative rankings to qualitative RM diagnostics strictly by component ID, preventing neural models from guessing unverified architectural root causes.
 
-1. **Deterministic Rule-Based Scores ($Q_{\text{RM}}(v) \in [0, 1]$)**: Always computed. Uses closed-form AHP-weighted equations rooted in ISO/IEC 25010 ([structural-analysis.md §9](structural-analysis.md#9-analyze-stage--rule-based-rm-scoring)).
-2. **Learned Node Criticality ($Q_{\text{GNN}}(v) \in [0, 1]$)**: Computed when a trained checkpoint exists. Discovers non-linear, multi-hop topological motifs.
-3. **Learned Edge Criticality ($Q_{\text{GNN}}(u, v) \in [0, 1]$)**: Predicts relationship criticality directly on individual links.
-4. **Architectural Antipatterns & Explanations**: Detects structural risks (e.g., SPOFs, Bottlenecks) with human-readable recommendations.
+---
+
+## 2. Pathway A: Deterministic Diagnostic Quality Attribution (ISO-RM)
+
+Pathway A provides deterministic, closed-form architectural quality attribution grounded in established software engineering standards.
+
+### 2.1 Theoretical Grounding (ISO/IEC 25010 & 25019)
+Criticality is formulated as a **Quality-in-Use** construct (ISO/IEC 25019:2023): the extent to which component degradation impairs system stakeholders from achieving their operational goals. It decomposes into two primary ISO/IEC 25010:2023 characteristics evaluated over the derived dependency multigraph $G_{\text{analysis}}$:
+
+- **Reliability ($R$)**: Hierarchically combines:
+  - **Fault Tolerance ($FT$)**: Cascading failure propagation depth, fan-out reach ($FOC$), and Multi-Path Coupling Index ($MPCI$).
+  - **Availability ($A$)**: Topological single points of failure ($AP_c^{\text{dir}}$), bridge ratios ($BR$), and connectivity degradation ($CDI$).
+- **Maintainability ($M$)**: Resistance to safe modification, code complexity penalty ($CQP$), and structural coupling ($PC$).
+
+*(Note: Vulnerability/Security was formally retired because no fault-model instrument could validate it by construction; see [criticality.md](criticality.md) for full rationale).*
+
+### 2.2 The Declared RM Composite
+The composite score is algebraically derived from the retired 4-D model by dropping Vulnerability and renormalizing:
+
+$$R(v) = 0.36 \cdot FT(v) + 0.64 \cdot A(v)$$
+
+$$Q^*(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$$
+
+Scores are classified into 5 adaptive tiers using box-plot fences calculated over the system's score distribution: **CRITICAL** ($> Q_3 + 1.5 \cdot IQR$), **HIGH** ($> Q_3$), **MEDIUM** ($> Q_2$), **LOW** ($> Q_1$), and **MINIMAL** ($\le Q_1$).
+
+### 2.3 Anti-Pattern Auditing & Explanations
+Pathway A audits computed RM metrics against a formal catalog of **19 structural anti-patterns** (5 CRITICAL, 5 HIGH, 9 MEDIUM; see [antipatterns.md](antipatterns.md)) and generates human-readable explanations via `ExplanationEngine`.
+
+---
+
+## 3. Pathway B: Inductive Learned Criticality & Blast-Radius Forecasting (HGT)
+
+Pathway B evaluates multi-hop, non-linear failure dynamics that exceed closed-form 1-hop and 2-hop structural metrics.
+
+### 3.1 Heterogeneous Graph Transformer (HGT) Message Passing
+The machine learning backbone uses stacked `torch_geometric.nn.HGTConv` layers with multi-head attention ($H=4$, $D=64$, dropout $p=0.2$). Heterogeneous node types (`Application`, `Library`, `Broker`, `Topic`, `Node`) and typed edges are parameterized with type-specific projection matrices.
+
+### 3.2 16-Dimensional QoS Edge Encodings
+Edge representations capture both topological connectivity and declared transport Quality-of-Service contracts (Reliability, Durability, Priority, Deadlines, Blocking Timeouts, and Heterogeneity Flags). An `EdgeFeatureEncoder` injects these 16-D representations into target nodes via scatter-mean aggregation prior to each convolution layer.
+
+### 3.3 Zero-GNN Cold-Start Fallback
+When no trained GNN checkpoint is available on disk, Pathway B falls back gracefully to Pathway A's deterministic $Q^*(v)$ ranking. The system never crashes in uncalibrated or cold-start deployments.
+
+---
+
+## 4. The Triage Bridge & Stakeholder-Oriented Root-Cause Attribution
+
+### 4.1 Bridging Quantitative Blast Radius with Qualitative Root Cause
+High-throughput predictive models (Pathway B) excel at isolating *which* components will cause the largest blast radius ($\hat{I}^*$), but neural embeddings cannot articulate *why* a component failed or *what* remediation an engineer should apply.
+
+The **Triage Bridge** (`saag.analysis.triage.triage()` / `TriageUseCase`) solves this by filtering the system population down to the Top-$K$ (typically 5–15%) highest-risk components and joining each component ID with Pathway A's deterministic root-cause profile:
+
+```
+Top-K Shortlist (Pathway B) ──► Join on component_id ◄── RM CriticalityProfile (Pathway A)
+                                          │
+                                          ▼
+                            Structured TriageEntry:
+                            • Component ID & Rank
+                            • Quantitative Score (GNN Î* or RM Q*)
+                            • Elevated RM Dimensions (FT, A, M)
+                            • Detected Anti-Pattern Signature
+                            • Stakeholder Role Routing
+```
+
+### 4.2 Stakeholder Role Taxonomy
+Triage entries map prioritized remediation actions to distinct engineering roles:
+
+| Stakeholder Role | Key Responsibility | Targeted Anti-Patterns & Metrics | Primary Remediation Action |
+|:---|:---|:---|:---|
+| **DevOps / SRE** | Infrastructure locality & resilience | `SPOF`, `BROKER_OVERLOAD`, $AP_c^{\text{dir}}$, host co-location | Host anti-affinity rules, container migration, broker replication |
+| **System Architect** | Pub-sub topology & transport contracts | `GOD_COMPONENT`, `FAILURE_HUB`, `CYCLE`, `DEEP_PIPELINE`, $CDI$ | Topic splitting, pub-sub decoupling, transport QoS contract upgrades |
+| **Software Developer** | Internal code modularity & coupling | `CYCLIC_DEPENDENCY`, High $CQP$, High $MPCI$, High $PC$ | Code complexity refactoring, coupling reduction, dead dependency cleanup |
+
+### 4.3 Triage Workflow & Data Contracts
+The Triage Bridge produces a `TriageResult` containing `TriageEntry` items. In the REST API (`POST /api/v1/graph/prediction/triage`), `triage_presenter.py` categorizes these entries into structured stakeholder buckets (`devops_sre`, `architect`, `developer`).
 
 ---
 
@@ -105,9 +198,54 @@ graph LR
 - `16`: Directed Articulation Point ($AP_c^{\text{dir}}$)
 - `17`: Connectivity Degradation Index ($CDI$)
 
-### 2.2 Edge Feature Schema (16 Dimensions)
+## 5. Graph Data Preparation (PyTorch Geometric `HeteroData`)
 
-Edge features capture both topological properties and declared QoS delivery guarantees:
+[`networkx_to_hetero_data()`](../saag/prediction/data_preparation.py) converts the NetworkX graph into a PyTorch Geometric `HeteroData` multigraph structure, partitioning nodes and edges by entity type.
+
+### 5.1 Node Feature Schema
+
+Node vectors combine a **shared 18-dimensional topological base** (indices 0–17) with **type-specific attributes** (indices 18+):
+
+| Node Type | Total Dimensions | Type-Specific Extensions (Indices 18+) |
+|:---|:---:|:---|
+| `Application` | **23** | 5 Code Quality attributes (`loc_norm`, `complexity_norm`, $I_{\text{code}}$, `lcom_norm`, $CQP$) |
+| `Library` | **23** | 5 Code Quality attributes (`loc_norm`, `complexity_norm`, $I_{\text{code}}$, `lcom_norm`, $CQP$) |
+| `Broker` | **19** | `max_connections_norm` |
+| `Topic` | **22** | `subscriber_count_norm`, `publisher_count_norm`, `log1p_frequency_norm`, `topic_qos_criticality_ord` |
+| `Node` (Infra) | **20** | `cpu_cores_norm`, `memory_gb_norm` |
+
+```mermaid
+graph LR
+    subgraph NodeVec["Node Feature Vector"]
+        Base["Indices 0–17:<br>Shared Topological Base<br>(PR, RPR, BT, DG_in, AP_c_dir, CDI, w, etc.)"]
+        Ext["Indices 18+:<br>Type-Specific Attributes<br>(Code metrics, HW cores, Topic frequencies)"]
+    end
+    Base --> Ext
+```
+
+#### Shared Topological Base (Indices 0–17 across all Node Types)
+- `0`: PageRank ($PR$)
+- `1`: Reverse PageRank ($RPR$)
+- `2`: Betweenness Centrality ($BT$)
+- `3`: Closeness Centrality ($CL$)
+- `4`: Eigenvector Centrality ($EV$)
+- `5`: In-Degree Normalised ($DG_{in}$)
+- `6`: Out-Degree Normalised ($DG_{out}$)
+- `7`: Clustering Coefficient ($CC$)
+- `8`: Undirected Articulation Score
+- `9`: Bridge Ratio ($BR$)
+- `10`: Component QoS Weight ($w(v)$)
+- `11`: QoS-Weighted In-Degree ($w_{in}$)
+- `12`: QoS-Weighted Out-Degree ($w_{out}$)
+- `13`: Multi-Path Coupling Index ($MPCI$)
+- `14`: Path Complexity ($PC$)
+- `15`: Fan-Out Criticality ($FOC$)
+- `16`: Directed Articulation Point ($AP_c^{\text{dir}}$)
+- `17`: Connectivity Degradation Index ($CDI$)
+
+### 5.2 Edge Feature Schema (16 Dimensions)
+
+Edge features capture both topological connectivity and declared transport QoS delivery guarantees:
 
 | Index | Feature Key | Semantic Meaning |
 |:---:|:---|:---|
@@ -124,11 +262,11 @@ Edge features capture both topological properties and declared QoS delivery guar
 
 *(Note: Indices 9–15 are active for pub/sub interaction links; structural links default to 0).*
 
-### 2.3 Target Labels & Dimension Masking
+### 5.3 Target Labels & Dimension Masking
 
 | Tensor Name | Target Shape | Semantic Purpose |
 |:---|:---:|:---|
-| `data[type].y` | $(N, 3)$ | Simulation ground-truth vectors: $[I^*(v), IR(v), IM(v)]$ |
+| `data[type].y` | $(N, 3)$ | Simulation ground-truth vectors: $[I^*(v), I_R(v), I_M(v)]$ |
 | `data[type].y_rm` | $(N, 3)$ | Rule-based consistency regularization target: $[Q(v), R(v), M(v)]$. Populated whenever `rm_scores` are supplied; only consumed as a training signal when `rm_consistency_weight > 0` (default 0.0 — the diagnostic and predictive pathways are trained independently unless this ablation is opted into explicitly). |
 | `data[type].label_mask` | $(N,)$ | Boolean mask indicating which nodes were simulated (excludes unlabelled nodes) |
 | `data[type].dimension_mask`| $(3,)$ | Boolean mask indicating measured ground-truth columns (masks unmeasured targets) |
@@ -136,7 +274,7 @@ Edge features capture both topological properties and declared QoS delivery guar
 
 ---
 
-## 3. Model Architecture
+## 6. Model Architecture & Prediction Heads
 
 ```mermaid
 flowchart TD
@@ -171,7 +309,7 @@ flowchart TD
     end
 ```
 
-### 3.1 Heterogeneous Message Passing Backbone
+### 6.1 Backbone Structure
 
 The backbone consists of **3 layers of Heterogeneous Graph Transformer (`HGTConv`)** with hidden dimension $D = 64$, 4 attention heads, and dropout $p = 0.2$.
 
@@ -185,23 +323,29 @@ The backbone consists of **3 layers of Heterogeneous Graph Transformer (`HGTConv
    When `use_bidirectional=True`, an inverted convolution pass transmits upstream signals:
    $$\mathbf{h}_v \leftarrow \mathbf{h}_v + 0.5 \cdot \mathbf{h}_v^{\text{rev}}$$
 
-### 3.2 Prediction Heads
+### 6.2 Multi-Task Node Prediction Heads
 
 All prediction heads utilize `ResidualMLP` networks with final sigmoid activations bounding outputs in $[0, 1]$:
 
 $$\begin{aligned}
 \hat{R}(v) &= \text{Sigmoid}(\text{MLP}_R(\mathbf{h}_v)) \quad &\text{(Reliability)} \\
 \hat{M}(v) &= \text{Sigmoid}(\text{MLP}_M(\mathbf{h}_v)) \quad &\text{(Maintainability)} \\
-\hat{I}^*(v) &= \text{Sigmoid}(\text{MLP}_C([\mathbf{h}_v \parallel \hat{R}(v) \parallel \hat{M}(v)])) \quad &\text{(Composite Criticality)}
+\hat{I}^*(v) &= \text{Sigmoid}(\text{MLP}_C([\mathbf{h}_v \parallel \hat{R}(v) \parallel \hat{M}(v)])) \quad &\text{(Composite Blast Radius)}
 \end{aligned}$$
 
 *(The composite head explicitly consumes dimension predictions to capture non-linear cross-attribute interactions).*
 
+### 6.3 Relation-Specific Edge Prediction Head
+
+Evaluated directly on individual links via `TypedEdgeEncoder`:
+
+$$Q_{\text{GNN}}(u, v) = \text{Sigmoid}\left(\text{MLP}_{\text{edge}}\left(\left[\mathbf{h}_u \parallel \mathbf{h}_v \parallel \mathbf{W}_r \mathbf{e}_{uv}\right]\right)\right)$$
+
 ---
 
-## 4. Training Protocol & Loss Formulation
+## 7. Training Protocol & Multi-Task Loss Formulation
 
-### 4.1 Multi-Task Loss Equation
+### 7.1 Multi-Task Loss Equation
 
 The model is trained end-to-end using a balanced composite loss combining point regression, ranking objectives, pairwise margin separation, and rule-based consistency:
 
@@ -216,7 +360,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{di
 | **$\mathcal{L}_{\text{consistency}}$**| $\text{MSE}(\hat{s}_{\text{unlabelled}}, y_{\text{RM}})$ | Semi-supervised regularization on unlabelled nodes toward $Q_{\text{RM}}$ |
 | **$\mathcal{L}_{\text{edge}}$** | $\frac{1}{|\mathcal{R}|} \sum_{r \in \mathcal{R}} \text{MSE}(\hat{y}_{\text{edge}}^{(r)}, y_{\text{edge}}^{(r)})$ | Relation-balanced MSE on edge criticality predictions |
 
-### 4.2 Training Hyperparameters & Optimisation
+### 7.2 Training Hyperparameters & Optimisation
 
 - **Data Splits**: 60% Train / 20% Validation / 20% Test (stratified per node type).
 - **Optimizer**: AdamW ($\text{lr} = 3 \times 10^{-4}$, weight decay $= 10^{-4}$, gradient clipping norm $= 1.0$).
@@ -226,54 +370,96 @@ $$\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{di
 
 ---
 
-## 5. Edge Criticality Prediction
+## 8. Programmatic Python SDK & Use Cases
 
-```mermaid
-graph LR
-    H_U["Source Node Embedding h_u"] --> Cat["Concatenate"]
-    H_V["Target Node Embedding h_v"] --> Cat
-    E_UV["Edge Feature Vector e_uv"] --> Proj["Relation-Specific Projection W_r"]
-    Proj --> Cat
-    Cat --> MLP["MLP + LayerNorm + Sigmoid"]
-    MLP --> EdgeScore["Edge Score Q_GNN(u,v) ∈ [0, 1]"]
+### 8.1 Pipeline Integration
+
+The high-level `Pipeline` builder configures and executes Pathway A, Pathway B, and the Triage Bridge in dependency order:
+
+```python
+import saag
+
+pipeline = (
+    saag.Pipeline.from_json("data/system.json", clear=True)
+        .analyze(layer="system")
+        .simulate(layer="system", mode="exhaustive")  # offline ground truth
+        .predict(triage_k=10)                         # Pathway A + Pathway B + Triage Bridge
+        .validate()
+        .prescribe()
+        .run()
+)
+
+# Inspect Triage Bridge output
+if pipeline.prediction and pipeline.prediction.triage:
+    triage_res = pipeline.prediction.triage
+    print(f"Triage Source: {triage_res.ranking_source}, Evaluated: {triage_res.population} nodes")
+    for entry in triage_res.entries:
+        print(f"Rank #{entry.rank}: {entry.component_id} ({entry.level}) -> Action: {entry.priority_action}")
+        print(f"  Stakeholder Roles: {', '.join(entry.roles)}")
 ```
 
-Edge criticality is evaluated directly on individual links via `TypedEdgeEncoder`:
+### 8.2 Direct Use Case Execution (`saag.usecases`)
 
-$$Q_{\text{GNN}}(u, v) = \text{Sigmoid}\left(\text{MLP}_{\text{edge}}\left(\left[\mathbf{h}_u \parallel \mathbf{h}_v \parallel \mathbf{W}_r \mathbf{e}_{uv}\right]\right)\right)$$
+For fine-grained, decoupled execution without database dependencies:
 
-### Ground Truth vs. Removal Oracle
-- **Heuristic Training Labels**: Derived from source node impact discounted by bridge status:
-  $$y_{\text{edge}}(u, v) = I^*(u) \times \begin{cases} 1.0 & \text{if } e \text{ is bridge} \\ 0.1 & \text{otherwise} \end{cases}$$
-- **Simulated Removal Ground Truth**: Directly measured by severing edge $(u,v)$ under live endpoints:
-  $$I_{\text{edge}}(u, v) = \text{Impact}(G \setminus \{(u,v)\}) - \text{Impact}(G)$$
+```python
+from saag.usecases import DiagnosticUseCase, PredictiveUseCase, TriageUseCase
 
----
+# Pathway A: Diagnostic Quality Attribution
+diag_uc = DiagnosticUseCase()
+quality, problems, summary, explanation = diag_uc.execute(structural_result=struct_result)
 
-## 6. Comparing Rule-Based (RM) vs. Learned (GNN) Modes
+# Pathway B: Inductive Blast-Radius Forecasting
+pred_uc = PredictiveUseCase(gnn_checkpoint_dir="output/gnn_checkpoints/best_model")
+gnn_result = pred_uc.execute(structural_result=struct_result, graph=nx_graph)
 
-| Dimension | Rule-Based RM (`--predict-mode rm_only`) | Learned GNN (`--predict-mode gnn_only`) |
-|:---|:---:|:---:|
-| **Training Requirement** | **None** (Zero-shot deterministic execution) | Requires simulation ground truth ($I^*(v)$) |
-| **Execution Latency** | $\approx 20\text{ms}$ (Algebraic closed-form) | $\approx 80\text{ms}$ (Forward neural pass) |
-| **Node Scoring** | Exact AHP-weighted formula | Multi-task neural prediction heads |
-| **Edge Scoring** | Structural proxies ($BR, BT, w(e)$) | Direct per-edge inference via `TypedEdgeEncoder` |
-| **Interpretability** | **Complete** (Transparent metric contributions) | High (Multi-head attribution + attention) |
-| **Multi-Hop Non-Linearity**| Bounded by 1-hop / 2-hop metric formulas | Deep multi-hop structural motif discovery |
-| **Generalization** | Immediate on any valid graph | Optimal within trained domain (fine-tuning for transfer) |
-| **Primary Use Case** | Baseline analysis, CI gates, unlabelled graphs | Deep architectural ranking, edge prioritization |
-
-**`cli/predict_graph.py` (`saag-predict`) always computes the Rule-Based RM path** — it is a
-static diagnostic quality attribution, not a dynamic multi-hop cascade forecast. The learned GNN
-path only runs additionally when `--gnn-model <checkpoint>` is passed and a valid checkpoint is
-found there; the CLI prints an explicit notice and the exported JSON's `prediction_mode` field
-records `"rm"` whenever it does not.
+# Triage Bridge: Scoping Diagnosis to Top-K Risks
+triage_uc = TriageUseCase()
+triage_result = triage_uc.execute(prediction_result=gnn_result, k=10)
+```
 
 ---
 
-## 7. Output Schema & Sample JSON
+## 9. CLI Reference & Commands
 
-Running `python cli/predict_graph.py --gnn-model <ckpt> --output results/prediction.json` produces the following unified schema:
+### 1. Training GNN Checkpoints (Requires Step 4 Simulation Results)
+
+```bash
+# Standard training across 5 random seeds
+PYTHONPATH=. python cli/train_graph.py --layer system --seeds 42 123 456 789 2024
+
+# Multi-scenario inductive training
+PYTHONPATH=. python cli/train_graph.py --layer system --multi-scenario
+
+# Train node model only (disable edge head)
+PYTHONPATH=. python cli/train_graph.py --layer system --no-edge-model
+```
+
+### 2. Running Criticality Predictions & Triage
+
+```bash
+# Rule-based RM scoring + Triage (cold-start fallback mode)
+PYTHONPATH=. python cli/predict_graph.py --layer system --triage-k 10
+
+# Full Dual-Pathway Prediction + GNN Inference + Triage Bridge
+PYTHONPATH=. python cli/predict_graph.py --layer system \
+  --gnn-model output/gnn_checkpoints/best_model \
+  --triage-k 10 \
+  --output output/prediction.json
+```
+
+### 3. Evaluating Anti-Pattern CI/CD Gates
+
+```bash
+# Standalone anti-pattern scan: exit 0 (clean), 1 (medium smells), 2 (critical/high smells)
+PYTHONPATH=. python cli/detect_antipatterns.py --layer system --output-antipatterns output/antipatterns.json
+```
+
+---
+
+## 10. Output Schema & Sample JSON
+
+Running `python cli/predict_graph.py --gnn-model <ckpt> --triage-k 5 --output output/prediction.json` produces the following unified schema:
 
 ```json
 {
@@ -309,10 +495,10 @@ Running `python cli/predict_graph.py --gnn-model <ckpt> --output results/predict
         "node_scores": {
           "NavLib": {
             "component": "NavLib",
-            "composite_score": 0.5432,
-            "reliability_score": 0.6321,
-            "maintainability_score": 0.4121,
-            "criticality_level": "HIGH",
+            "composite_score": 0.8432,
+            "reliability_score": 0.8321,
+            "maintainability_score": 0.6121,
+            "criticality_level": "CRITICAL",
             "source": "GNN"
           }
         },
@@ -333,6 +519,25 @@ Running `python cli/predict_graph.py --gnn-model <ckpt> --output results/predict
           "ndcg_10": 0.9211,
           "top_5_overlap": 0.60
         }
+      },
+      "triage": {
+        "layer": "system",
+        "k": 5,
+        "ranking_source": "gnn",
+        "population": 35,
+        "entries": [
+          {
+            "component_id": "NavLib",
+            "rank": 1,
+            "ranking_score": 0.8432,
+            "component_type": "Library",
+            "pattern": "Single Point of Failure (SPOF)",
+            "level": "CRITICAL",
+            "priority_action": "Introduce redundancy: deploy backup instances or redundant routing paths.",
+            "roles": ["DevOps", "Architect"],
+            "elevated_dimensions": ["Availability", "Fault Tolerance"]
+          }
+        ]
       }
     }
   }
@@ -341,44 +546,7 @@ Running `python cli/predict_graph.py --gnn-model <ckpt> --output results/predict
 
 ---
 
-## 8. CLI Reference & Commands
-
-### 1. Training GNN Checkpoints (Requires Step 4 Simulation Results)
-
-```bash
-# Standard training across 5 random seeds
-PYTHONPATH=. python cli/train_graph.py --layer system --seeds 42 123 456 789 2024
-
-# Multi-scenario inductive training
-PYTHONPATH=. python cli/train_graph.py --layer system --multi-scenario
-
-# Train node model only (disable edge head)
-PYTHONPATH=. python cli/train_graph.py --layer system --no-edge-model
-```
-
-### 2. Running Criticality Predictions
-
-```bash
-# Rule-based RM scoring only (no checkpoint required)
-PYTHONPATH=. python cli/predict_graph.py --layer system
-
-# GNN inference using trained checkpoint
-PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model --output results/prediction.json
-```
-
-### 3. Running Evaluation Protocols
-
-```bash
-# Primary: Repeated per-domain 5-fold cross-validation
-PYTHONPATH=. python cli/kfold_evaluate.py
-
-# Secondary: Cross-scenario Leave-One-Scenario-Out (LOSO) evaluation
-PYTHONPATH=. python cli/loso_evaluate.py
-```
-
----
-
-## 9. Known Limitations & Design Boundaries
+## 11. Known Limitations & Design Boundaries
 
 | # | Boundary / Limitation | Methodological Context & Mitigation |
 |:--|:---|:---|
@@ -390,9 +558,9 @@ PYTHONPATH=. python cli/loso_evaluate.py
 
 ---
 
-## 10. What Comes Next
+## 12. What Comes Next
 
-- **For Inference**: Proceed to **[Step 4: Simulate](failure-simulation.md)** and **[Step 5: Validate](validation.md)** to statistically evaluate predicted scores against discrete-event failure injection.
+- **For Inference**: Proceed to **[Step 4: Simulate](failure-simulation.md)** and **[Step 5: Validate](validation.md)** to statistically evaluate predicted scores against discrete-event failure injection, and **[Step 6: Prescribe](prescription.md)** to compile verified refactoring blueprints.
 - **For Training**: Execute **[Step 4: Simulate](failure-simulation.md)** first to generate ground-truth impact labels $I^*(v)$ before running `cli/train_graph.py`.
 
 ---
