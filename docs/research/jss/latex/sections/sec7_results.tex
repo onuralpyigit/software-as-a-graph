@@ -33,6 +33,7 @@ Table~\ref{tab:5} presents the in-distribution held-out Spearman rank correlatio
 \small
 \caption{Paired Wilcoxon signed-rank tests across scenarios ($n = 7$, two-sided).}
 \label{tab:6}
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{lrcrcl}
 \toprule
 \textbf{Comparison} & \textbf{$\Delta\rho$} & \textbf{Won} & \textbf{Wilcoxon $W$} & \textbf{$p$-value} & \textbf{Significance} \\
@@ -44,7 +45,8 @@ Table~\ref{tab:5} presents the in-distribution held-out Spearman rank correlatio
 \textbf{HGL vs. GL} & \textbf{+0.116} & 5/7 & 7.0 & 0.297 & Not significant \\
 \textbf{HGL-QoS vs. HGL} & \textbf{$-$0.072} & 1/7 & 3.0 & 0.078 & Not significant (marginal; HGL-QoS trails in-distribution) \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \subsubsection{Out-of-Distribution (LOSO) Generalization}
@@ -311,6 +313,7 @@ To assess external validity on authentic production architectures, we evaluated 
 \small
 \caption{Empirical validation on authentic real-world distributed software architectures.}
 \label{tab:9}
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccccccc}
 \toprule
 \textbf{Real-World Architecture} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Spearman $\rho$} & \textbf{Kendall $\tau$} & \textbf{$F_1@K$} & \textbf{Tie-Robust $F_1$} & \textbf{Non-Zero} & \textbf{Gain} \\
@@ -319,7 +322,8 @@ To assess external validity on authentic production architectures, we evaluated 
 \textbf{Cloud Microservices Mesh} & 60 & 22 & \textbf{0.778 $\pm$ 0.001} & 0.639 & \textbf{1.000} & 0.760 & 8 / 22 & +0.014 \\
 \textbf{Train-Ticket Booking Mesh} & 90 & 41 & \textbf{0.759 $\pm$ 0.001} & 0.605 & \textbf{1.000} & 0.810 & 14 / 41 & +0.264 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \noindent\textbf{Key Insights for RQ4:}

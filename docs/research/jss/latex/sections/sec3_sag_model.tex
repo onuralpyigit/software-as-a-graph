@@ -26,6 +26,7 @@ where:
 \small
 \caption{Entity and structural edge types in the SaG model.}
 \label{tab:1}
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{lll}
 \toprule
 \textbf{Entity Type ($\mathcal{T}_V$)} & \textbf{Architectural Role} & \textbf{Concrete System Examples} \\
@@ -45,7 +46,8 @@ where:
 \texttt{CONNECTS\_TO} & Node $\to$ Node & Physical network link between hosts \\
 \texttt{USES} & App $\to$ Library & Application links to shared library dependency \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 Application and Library entities additionally ingest static code metrics computed via SCA tools (\texttt{cm\_*} attributes: lines of code, cyclomatic complexity, coupling between objects, LCOM), directly bridging code-level fragility with topological analysis.
@@ -79,6 +81,7 @@ Structural edges capture explicit deployment connections but omit implicit runti
 \small
 \caption{The six \texttt{DEPENDS\_ON} logical dependency projection rules.}
 \label{tab:2}
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{clll}
 \toprule
 \textbf{Rule} & \textbf{Dependency Category} & \textbf{Structural Pattern ($\text{Dependent} \to \text{Dependency}$)} & \textbf{Derived Weight ($w$)} \\
@@ -90,7 +93,8 @@ Structural edges capture explicit deployment connections but omit implicit runti
 \textbf{5} & \texttt{app\_to\_lib} & Application $\to$ Shared Library it \texttt{USES} & $H\!\left(w_V(\text{app}), w_V(\text{lib})\right)$ \\
 \textbf{6} & \texttt{broker\_to\_broker} & Broker $\leftrightarrow$ Broker (shared-host fate, symmetric) & $w_V(\text{node})$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \noindent Rules 1 and 2 aggregate the several topics $T$ mediating one component pair by \emph{probabilistic union} rather than by a maximum, so that additional parallel failure vectors raise coupling monotonically while preserving $w \in (0, 1]$. Rule 5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ of the consuming Application's and the shared Library's own vertex weights, which calibrates caller criticality against dependency criticality instead of letting either endpoint dominate. Rules 3 and 4 lift the maximum weight of the component-level dependencies crossing the host boundary.

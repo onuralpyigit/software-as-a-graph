@@ -11,6 +11,7 @@ Our evaluation corpus comprises 1,770 components across ten distributed system a
 \small
 \caption{Experimental evaluation corpus.}
 \label{tab:4}
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{llrrrrrrr}
 \toprule
 \textbf{Dataset / Architecture} & \textbf{System Paradigm} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Topics} & \textbf{Brokers} & \textbf{Hosts} & \textbf{Libs} & \textbf{$|E|$} \\
@@ -28,7 +29,8 @@ Our evaluation corpus comprises 1,770 components across ten distributed system a
 \midrule
 \textbf{Total} & & \textbf{1{,}770} & & & & & & \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 $|V|$ is the sum of all five entity-type counts per scenario and sums to exactly the corpus total stated above. $|E|$ counts every raw structural relationship instance recorded in the scenario file (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}) --- the substrate the simulation oracles traverse --- not the denser derived \texttt{DEPENDS\_ON} projection used for GNN training.

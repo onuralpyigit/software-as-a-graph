@@ -19,6 +19,7 @@ Criticality is evaluated primarily across two orthogonal quality characteristics
 \small
 \caption{The Reliability--Maintainability (RM) quality decomposition.}
 \label{tab:3}
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{lllll}
 \toprule
 \textbf{Dimension} & \textbf{Sub-Characteristic} & \textbf{Architectural Question} & \textbf{Underlying Graph Metrics} & \textbf{Role / Remediation} \\
@@ -27,7 +28,8 @@ Criticality is evaluated primarily across two orthogonal quality characteristics
 & \textbf{Availability ($A$)} & Is this a single point of failure? & Directed articulation score (raw + QoS-weighted), bridge ratio, connectivity degradation & DevOps/SRE: replicate host/broker \\
 \textbf{Maintainability ($M$)} & \textbf{Modularity/Modifiability} & How complex and coupled is this? & Betweenness, QoS-weighted out-degree, Code Penalty, coupling-risk imbalance, inverse clustering & Architect: refactor code, decouple \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \noindent\textit{Coverage Scope:} SaG focuses on Reliability and Maintainability. Safety (which requires domain-specific hazard logs, e.g., ISO 26262 ASIL ratings) and Security (which requires explicit threat models, e.g., STRIDE) are declared external to purely structural analysis and are left for domain-specific extensions.
