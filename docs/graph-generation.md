@@ -27,7 +27,7 @@ For the full CLI flag reference (`generate_graph.py`, `batch`, `validate`), see 
 Synthetic graph generation is an offline input preparation stage that supports the core 6-step Software-as-a-Graph (SaG) analytical pipeline:
 
 ```
-Offline Input Prep (Generate) → Model / Import (Step 1) → Analyze (Step 2) → Predict (Step 3) → Simulate (Step 4) → Validate (Step 5) → Visualize (Step 6)
+Offline Input Prep (Generate) → Model / Import (Step 1) → Analyze (Step 2) → Predict (Step 3) → Diagnose (Step 4) → Simulate (Step 5) → Validate (Step 6) → Prescribe (Step 7) → Visualize (Step 8)
 ```
 
 Its role is to produce a **synthetic publish-subscribe system topology** in JSON format that can be loaded into Neo4j and subsequently subjected to structural analysis and failure simulation. The generator is self-contained: it requires no running database, no external service, and no runtime monitoring data. A single deterministic seed produces an identical dataset on every invocation.
@@ -82,7 +82,7 @@ A generated graph contains five node types and six structural edge types.
 | `USES` | Application/Library $\rightarrow$ Library | Component or library depends on this shared library (transitive chains also generated, 30% probability per library) |
 | `CONNECTS_TO` | Node $\rightarrow$ Node | Network link between infrastructure nodes (30% probability by default, `--connection-density`) |
 
-These six edge types constitute the **structural graph $G_{\text{structural}}$**, which is used by the simulation stage (Step 4) to trace failure propagation. A separate **analysis graph $G_{\text{analysis}}$** is derived from $G_{\text{structural}}$ by computing `DEPENDS_ON` edges, which are used exclusively by Steps 2 and 3 (analysis and prediction). The separation ensures that prediction and simulation remain independent.
+These six edge types constitute the **structural graph $G_{\text{structural}}$**, which is used by the simulation stage (Step 5) to trace failure propagation. A separate **analysis graph $G_{\text{analysis}}$** is derived from $G_{\text{structural}}$ by computing `DEPENDS_ON` edges, which are used exclusively by Steps 2, 3, and 4 (analysis, prediction, and diagnosis). The separation ensures that prediction and simulation remain independent.
 
 ---
 

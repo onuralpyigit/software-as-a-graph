@@ -1,8 +1,8 @@
-# Step 6: Prescribe
+# Step 7: Prescribe
 
 **Rule-based architectural refactoring recommendations, verified edit by edit in closed-loop simulation.**
 
-← [Step 5: Validate](validation.md) | → [Step 7: Visualize](visualization.md)
+← [Step 6: Validate](validation.md) | → [Step 8: Visualize](visualization.md)
 
 ---
 
@@ -31,14 +31,14 @@
 
 ## 1. What This Step Does
 
-Step 6 (Prescribe) closes the optimization loop. Once high-risk components and topological
+Step 7 (Prescribe) closes the optimization loop. Once high-risk components and topological
 anti-patterns (Single Points of Failure, god components, bottleneck topic hubs) have been
 scored by the Predict stage and validated against cascade-simulation ground truth by the
 Validate stage, Prescribe compiles an optimization policy $\Delta(G)$ from three rule-based
 transformations, verifies each proposed edit on its own, and applies only those that survive.
 
 ```
-   Validated risks (Step 5)
+   Validated risks (Step 6)
              │
              ▼
    Compile candidate Δ(G)          rules.py
@@ -252,7 +252,7 @@ says which threshold actually blocked the edit.
 
 ### 3.2 Cost Model
 
-Verification is the expensive part of Stage 6. It costs one exhaustive failure-simulation sweep
+Verification is the expensive part of Stage 7. It costs one exhaustive failure-simulation sweep
 per grid point:
 
 | Phase | Sweeps |
@@ -331,6 +331,14 @@ for verdict in prescription.edit_verdicts:
 > and can never trigger. A splits-only policy is this omission's signature, not evidence those
 > operators have nothing to contribute — `PrescribeService.prescribe` logs a warning when it
 > detects exactly this pattern.
+>
+> RM criticality scores (`critical`) are unconditional on `prediction_result` — Step 3 (Predict)
+> always computes them, whether or not Step 4 (Diagnose) also ran in the same `Pipeline`. Anti-
+> pattern smells (`spof`, `god`) are Step 4's output specifically: a `Pipeline` chain that calls
+> `.predict().prescribe()` without `.diagnose()` in between still gets criticality-triggered
+> edits, but SPOF/GOD_COMPONENT-triggered ones stay silent until `.diagnose()` is added to the
+> chain. `Client.predict()` called directly (outside `Pipeline`) bundles Step 4 in by default, so
+> this only applies to the `Pipeline` builder's explicit stage chaining.
 
 ### 4.3 Filter Parameters
 
@@ -492,20 +500,20 @@ Documented so they aren't mistaken for working code.
 | L4 | **The whole-policy gate is reported, not enforced** ([§3](#3-closed-loop-verification-mechanics) step 7). A policy with `accepted = false` is still returned in full, and the mutation is not rolled back in the result object. | Callers must check `accepted` themselves. Nothing is written to the source repository either way — the mutation only ever exists in a sandbox. |
 | L5 | **`kappa` has no effect on an edit whose seed spread is exactly zero.** The simulator is deterministic for many edits, giving $\sigma = 0$ at every threshold. | The bar $\kappa \cdot \sigma$ collapses to 0 and the rule degenerates to "mean reduction > 0" no matter how large `kappa` is. Raising `kappa` only filters edits whose measured deltas actually vary across seeds. |
 | L6 | **Verification cost is linear in candidate count** ([§3.2](#32-cost-model)). | Large scenarios with tens of candidates run hundreds of exhaustive sweeps. |
-| L7 | **No REST surface.** Stage 6 has no router in `api/routers/` and no presenter. | Prescribe is reachable from the SDK and the CLI only. |
+| L7 | **No REST surface.** Stage 7 has no router in `api/routers/` and no presenter. | Prescribe is reachable from the SDK and the CLI only. |
 | L8 | **Individually-verified edits are not shown to compose.** Acceptance is decided on singletons ([§3](#3-closed-loop-verification-mechanics)): each candidate is simulated alone, on a graph containing only that edit. | Nothing in the procedure establishes that a set of individually-accepted edits remains beneficial applied together — the reported whole-policy `ΔSRI` (L4) is the outcome of applying the accepted subset, not a verified prediction of it. Verifying subsets rather than singletons would close this at combinatorial cost. |
 
 ---
 
 ## 8. What Comes Next
 
-Prescribe consumes the validated risk scores from Step 5 and the cascade oracle from Step 4; it
+Prescribe consumes the validated risk scores from Step 6 and the cascade oracle from Step 5; it
 produces a remediation blueprint rather than a change applied to the source graph. Feed the
 accepted policy back into the topology by hand, or re-import the mutated JSON and re-run the
 pipeline to confirm the improvement independently.
 
-→ [Step 7: Visualize](visualization.md)
+→ [Step 8: Visualize](visualization.md)
 
 ---
 
-← [Step 5: Validate](validation.md) | → [Step 7: Visualize](visualization.md)
+← [Step 6: Validate](validation.md) | → [Step 8: Visualize](visualization.md)

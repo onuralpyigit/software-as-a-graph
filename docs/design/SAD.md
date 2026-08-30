@@ -109,11 +109,11 @@ This mapping reconciles the flattened layered description with the hexagonal str
 
 ### 2.4 Entry Points (Driving Adapters)
 The domain layer is driven via thin boundary layers:
-- **CLI Pipeline**: Execution commands (e.g., `saag-analyze`, `saag-predict`) read arguments, instantiate adapters, invoke domain use cases, and display formatted outputs.
+- **CLI Pipeline**: Execution commands (e.g., `saag-analyze`, `saag-predict`, `saag-diagnose`) read arguments, instantiate adapters, invoke domain use cases, and display formatted outputs.
 - **REST API**: FastAPI routers receive HTTP payloads, inject scoped repositories, execute use cases, and pass results to presenters.
 - **SDK Fluent Interface**: Allows programmatic execution in Python:
   ```python
-  result = Pipeline.from_json("topology.json").analyze().predict().simulate().validate().run()
+  result = Pipeline.from_json("topology.json").analyze().predict().diagnose().simulate().validate().run()
   ```
 
 ---
@@ -184,15 +184,15 @@ sequenceDiagram
     UC->>Engine: analyze_structural(graph_data)
     Engine-->>UC: Return StructuralAnalysisResult (Metric Vectors M)
     
-    par Dual-Pathway Execution
-        UC->>PyG: Pathway B: predict_criticality(M, GNN_checkpoint)
+    par Predict (Step 3) / Diagnose (Step 4)
+        UC->>PyG: Step 3, Pathway B: predict_criticality(M, GNN_checkpoint)
         PyG-->>UC: Return Quantitative Blast Radius I*(v) & Top-K Shortlist
     and
-        UC->>Engine: Pathway A: diagnose_quality_and_smells(M)
+        UC->>Engine: Step 4, Pathway A: diagnose_quality_and_smells(M)
         Engine-->>UC: Return ISO/IEC RM Scores & Structural Smells
     end
 
-    Note over UC,Engine: Triage Bridge: Scopes deep root-cause attribution to Top-K high-risk nodes
+    Note over UC,Engine: Triage Bridge (Step 4): Scopes deep root-cause attribution to Top-K high-risk nodes
 
     opt Offline Training & Validation
         UC->>Sim: run_failure_simulation(G_structural)

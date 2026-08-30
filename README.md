@@ -16,7 +16,7 @@
 ## Table of Contents
 
 1. [The Problem](#the-problem)
-2. [The Seven Capabilities](#the-seven-capabilities)
+2. [The Eight Capabilities](#the-eight-capabilities)
 3. [Quick Start](#quick-start)
 4. [Reproducing the Published Results](#reproducing-the-published-results)
 5. [Validation Gates](#validation-gates)
@@ -41,7 +41,7 @@ SaG operationalizes that insight as a framework: it models the architecture as a
 
 ---
 
-## The Seven Capabilities
+## The Eight Capabilities
 
 Each capability is a pipeline stage with its own CLI script, SDK method, and methodology document. `Generate` is an offline prep step used for experiments and benchmarks; real deployments start at **Model**.
 
@@ -50,11 +50,12 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
 | — | *Generate (prep)* | Synthesizes a pub-sub topology for experiments, benchmarks, and CI regression | Topology JSON | [graph-generation.md](docs/graph-generation.md) |
 | 1 | **Model** | Imports topology JSON into Neo4j as a weighted directed graph $G = (V, E, \tau_V, \tau_E, w)$; derives logical `DEPENDS_ON` edges via six rules; computes QoS-derived weights | $G_{\text{structural}}$, $G_{\text{analysis}}(l)$ | [graph-model.md](docs/graph-model.md) |
 | 2 | **Analyze** | Deterministic, closed-form. Computes the 11 Tier-1 structural metrics $M(v)$ — and nothing else | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
-| 3 | **Predict** | Dual-pathway: computes deterministic ISO-RM dimension scores $Q^*(v)$ (Pathway A: Diagnostic) and optional HGT neural blast-radius forecasts $\hat{I}^*(v)$ (Pathway B: Predictive); links them via the Triage Bridge to map Top-K risks to stakeholder actions; detects 19 anti-patterns; generates natural-language explanations | RM/$Q^*(v)$ scores, 5-level classification, GNN ranks, Triage profile, anti-pattern report | [prediction.md](docs/prediction.md) |
-| 4 | **Simulate** | Injects faults and propagates cascades over the raw structural graph to obtain ground-truth impact — training labels for stage 3 and the offline oracle for stage 5 | $I^*(v)$ composite and per-dimension $I_R, I_M$ (itself $\alpha\cdot I_{FT}+(1-\alpha)\cdot I_A$) | [failure-simulation.md](docs/failure-simulation.md) |
-| 5 | **Validate** | Correlates predictions against simulated ground truth: Spearman $\rho$, Kendall $\tau$, F1, predictive gain, bootstrap CIs, Wilcoxon — scored against seven gates | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
-| 6 | **Prescribe** | Generates stakeholder-oriented architectural edits (topic splits, host reallocations, QoS upgrades) and accepts each only if a closed-loop counterfactual simulation confirms the improvement | `PrescribeResult` with baseline vs. mutated SRI | [prescription.md](docs/prescription.md) |
-| 7 | **Visualize** | Renders network graphs, dependency matrices, cascade heatmaps, and RM radar charts | Self-contained `dashboard.html` | [visualization.md](docs/visualization.md) |
+| 3 | **Predict** | Pathway B: optional HGT neural blast-radius forecasts $\hat{I}^*(v)$ and Top-K criticality ranking; always computes the deterministic ISO-RM composite $Q^*(v)$ as the GNN's own input feature and zero-checkpoint fallback | GNN ranks (or RM fallback), Top-K shortlist | [prediction.md](docs/prediction.md) |
+| 4 | **Diagnose** | Pathway A: deterministic ISO-RM dimension scores $Q^*(v)$ and 5-level classification, grounded in ISO/IEC 25010/25019; detects 19 anti-patterns; generates natural-language explanations; links to stage 3's ranking via the Triage Bridge to map Top-K risks to stakeholder actions — needs no GNN checkpoint (zero-GNN cold start) | RM/$Q^*(v)$ scores, Triage profile, anti-pattern report | [diagnosis.md](docs/diagnosis.md) |
+| 5 | **Simulate** | Injects faults and propagates cascades over the raw structural graph to obtain ground-truth impact — training labels for stage 3 and the offline oracle for stage 6 | $I^*(v)$ composite and per-dimension $I_R, I_M$ (itself $\alpha\cdot I_{FT}+(1-\alpha)\cdot I_A$) | [failure-simulation.md](docs/failure-simulation.md) |
+| 6 | **Validate** | Correlates predictions against simulated ground truth: Spearman $\rho$, Kendall $\tau$, F1, predictive gain, bootstrap CIs, Wilcoxon — scored against seven gates | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
+| 7 | **Prescribe** | Generates stakeholder-oriented architectural edits (topic splits, host reallocations, QoS upgrades) and accepts each only if a closed-loop counterfactual simulation confirms the improvement | `PrescribeResult` with baseline vs. mutated SRI | [prescription.md](docs/prescription.md) |
+| 8 | **Visualize** | Renders network graphs, dependency matrices, cascade heatmaps, and RM radar charts | Self-contained `dashboard.html` | [visualization.md](docs/visualization.md) |
 
 ```
                               ┌────────────────────────────────────────┐
@@ -66,7 +67,7 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
                                │  Neo4j Graph (G_struct & G_analysis) │
                                └───────┬──────────────────────┬───────┘
                                        │                      │
-                                       │                      ▼ [Step 4: Simulate] (Offline Oracle)
+                                       │                      ▼ [Step 5: Simulate] (Offline Oracle)
                                        │             ┌───────────────────────────────────┐
                                        │             │ Discrete-Event Failure Simulator  │
                                        │             │ (FaultInjector / FailureSimulator)│
@@ -79,7 +80,7 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
                          │ (11 Tier-1 Metrics Vector M)│       │               │
                          └──────┬───────────────┬──────┘       │               │
                                 │               │              │               │
-    [Pathway B: Predictive / HGL]               [Pathway A: Diagnostic / ISO-RM]│
+              [Step 3: Predict — Pathway B]      [Step 4: Diagnose — Pathway A]│
                                 │               │                              │
                                 ▼               ▼                              │
                      ┌──────────────────┐ ┌───────────────────────────┐        │
@@ -95,14 +96,14 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
                               │                         │                      │
                               └──► [ Triage Bridge ] ───┘                      │
                                            │                                   │
-                                           ▼ [Step 3: Predict Output]          │
+                                           ▼ [Step 4: Diagnose Output]         │
                              ┌───────────────────────────┐                     │
                              │ Scoped Diagnosis & Smells │                     │
                              │ (SPOF, Hubs, Explanations)│                     │
                              └─────────────┬─────────────┘                     │
                                            │                                   │
-                                           ├───────────────────────────────────┼──► [Step 5: Validate]
-                                           ▼ [Step 6: Prescribe]               │    (Spearman ρ, F1,
+                                           ├───────────────────────────────────┼──► [Step 6: Validate]
+                                           ▼ [Step 7: Prescribe]               │    (Spearman ρ, F1,
                              ┌───────────────────────────┐                     │     Validation Gates)
                              │ Remediation Gating Engine │                     │
                              │ (DevOps / Arch / Dev)     │                     │
@@ -114,14 +115,14 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
                              │ Simulation (κ·σ_seed gate)│                     │
                              └─────────────┬─────────────┘                     │
                                            │ [Verified Improvement]            │
-                                           ▼ [Step 7: Visualize]               │
+                                           ▼ [Step 8: Visualize]               │
                              ┌───────────────────────────┐                     │
                              │ Interactive SMART / HTML  │                     │
                              │ Visualisation Dashboard   │                     │
                              └───────────────────────────┘
 ```
 
-The analytical pipeline is an explicit dual-pathway architecture: **Pathway B (Predictive)** isolates critical risk hotspots ($\hat{I}^*$), while **Pathway A (Diagnostic)** grounds root-cause attribution in ISO/IEC 25010/25019 standards. The **Triage Bridge** channels high-risk components into targeted root-cause profiles, and Step 6 applies closed-loop counterfactual simulation on $G_{\text{structural}}$ before accepting any remediation. See [ARCHITECTURE.md](ARCHITECTURE.md#system-pipeline--data-flow) for package boundaries, formal contracts, and sequencing rules.
+The analytical pipeline is an explicit dual-pathway architecture: **Step 3 (Predict, Pathway B)** isolates critical risk hotspots ($\hat{I}^*$), while **Step 4 (Diagnose, Pathway A)** grounds root-cause attribution in ISO/IEC 25010/25019 standards. The **Triage Bridge** channels Step 3's high-risk components into Step 4's targeted root-cause profiles, and Step 7 applies closed-loop counterfactual simulation on $G_{\text{structural}}$ before accepting any remediation. See [ARCHITECTURE.md](ARCHITECTURE.md#system-pipeline--data-flow) for package boundaries, formal contracts, and sequencing rules.
 
 ---
 
@@ -161,17 +162,17 @@ docker run -d --name neo4j -p 7474:7474 -p 7687:7687 \
 ### 3. Run the pipeline
 
 ```bash
-# All stages (Model → Analyze → Simulate → Predict → Validate → Prescribe → Visualize)
+# All stages (Model → Analyze → Simulate → Predict → Diagnose → Validate → Prescribe → Visualize)
 python cli/run.py --all --layer system
 
 # Or one stage at a time; see the CLI table in ARCHITECTURE.md
 python cli/import_graph.py --input data/system.json --clear
 python cli/analyze_graph.py --layer system
-python cli/predict_graph.py --layer system
+python cli/predict_graph.py --layer system     # Step 3 (Pathway B) + Step 4 bundled by default
 python cli/visualize_graph.py --layer system --output output/dashboard.html --open
 ```
 
-On a first run there is no GNN checkpoint, so `run.py` skips the Predict stage entirely rather than crashing (`predict_graph.py` itself never runs a GNN unless `--gnn-model` is passed — it always computes deterministic RM scoring). To enable the GNN, run Simulate to produce labels, train, then pass the checkpoint **directory**:
+On a first run there is no GNN checkpoint, so `run.py` skips the Predict stage entirely rather than crashing — but the Diagnose stage still runs (RM scores, anti-patterns, explanation need no checkpoint at all). `predict_graph.py` itself never runs a GNN unless `--gnn-model` is passed — it always computes deterministic RM scoring, with Diagnose bundled in unless `--no-diagnose` is given (see `saag-diagnose` for Step 4 standalone). To enable the GNN, run Simulate to produce labels, train, then pass the checkpoint **directory**:
 
 ```bash
 python cli/train_graph.py --layer system
@@ -228,7 +229,7 @@ Shell orchestrators for longer sweeps live in [`scripts/`](scripts/): `verify_pi
 
 ## Validation Gates
 
-Stage 5 scores each run against seven gates (G1–G6, G8; G7 and G9 were retired along with the Vulnerability/Security dimension both were built to gate — the numbering gap is intentional). Thresholds are defined in [`ValidationTargets`](saag/validation/models.py#L10) and evaluated in [`ValidationService`](saag/validation/service.py#L713); full definitions are in [validation.md](docs/validation.md).
+Stage 6 scores each run against seven gates (G1–G6, G8; G7 and G9 were retired along with the Vulnerability/Security dimension both were built to gate — the numbering gap is intentional). Thresholds are defined in [`ValidationTargets`](saag/validation/models.py#L10) and evaluated in [`ValidationService`](saag/validation/service.py#L713); full definitions are in [validation.md](docs/validation.md).
 
 | Tier | Gate | Threshold |
 |:---|:---|:---|
@@ -308,7 +309,7 @@ The per-dimension formulas, all Tier-1 metric definitions, and the composite's r
 
 ## Anti-Pattern Detection in Brief
 
-Stage 3 audits its own RM output against a catalog of **19** structural anti-patterns — 5 CRITICAL (SPOF, SYSTEMIC_RISK, GOD_COMPONENT, FAILURE_HUB, COMPOUND_RISK), 5 HIGH (CYCLE, BRIDGE_EDGE, BOTTLENECK_EDGE, BROKER_OVERLOAD, DEEP_PIPELINE), and 9 MEDIUM. (TARGET and EXPOSURE, keyed on the now-retired Security dimension, were retired along with it — the catalog was 21 before that.) Trigger conditions and remediations for each are specified in [antipatterns.md](docs/antipatterns.md) and [remediation.md](docs/remediation.md); the catalog itself lives in [`antipattern_detector.py`](saag/analysis/antipattern_detector.py#L35).
+Stage 4 (Diagnose) audits its own RM output against a catalog of **19** structural anti-patterns — 5 CRITICAL (SPOF, SYSTEMIC_RISK, GOD_COMPONENT, FAILURE_HUB, COMPOUND_RISK), 5 HIGH (CYCLE, BRIDGE_EDGE, BOTTLENECK_EDGE, BROKER_OVERLOAD, DEEP_PIPELINE), and 9 MEDIUM. (TARGET and EXPOSURE, keyed on the now-retired Security dimension, were retired along with it — the catalog was 21 before that.) Trigger conditions and remediations for each are specified in [antipatterns.md](docs/antipatterns.md) and [remediation.md](docs/remediation.md); the catalog itself lives in [`antipattern_detector.py`](saag/analysis/antipattern_detector.py#L35).
 
 ```bash
 python cli/detect_antipatterns.py --layer system --output output/antipatterns.json
@@ -330,7 +331,8 @@ result = (
     saag.Pipeline.from_json("data/system.json", clear=True)
         .analyze(layer="app")                      # structural metrics only
         .simulate(layer="app", mode="exhaustive")  # ground-truth labels (offline oracle)
-        .predict(triage_k=10)                      # RM + GNN (if checkpoint exists) + Triage Bridge
+        .predict()                                 # Pathway B: GNN ranking (if checkpoint exists) or RM fallback
+        .diagnose(k=10)                            # Pathway A: RM scores + anti-patterns + Triage Bridge (Top-10)
         .validate()                                # statistical validation
         .prescribe()                               # counterfactual-verified remediations
         .visualize(output="output/report.html")
@@ -340,9 +342,9 @@ result = (
 for layer, v in result.validation.layers.items():
     print(f"{layer}: rho={v.spearman_rho:.3f}  F1={v.f1_score:.3f}")
 
-if result.prediction and result.prediction.triage:
-    print(f"Top-{result.prediction.triage.k} High-Risk Components identified via Triage Bridge:")
-    for entry in result.prediction.triage.entries:
+if result.diagnosis and result.diagnosis.triage:
+    print(f"Top-{result.diagnosis.triage.k} High-Risk Components identified via Triage Bridge:")
+    for entry in result.diagnosis.triage.entries:
         print(f"  [{entry.rank}] {entry.component_id} ({entry.level}): {entry.priority_action} -> Roles: {', '.join(entry.roles)}")
 
 if result.prescription:
@@ -352,12 +354,13 @@ if result.prescription:
 | Class | Import path | Purpose |
 |:---|:---|:---|
 | [Pipeline](saag/pipeline.py#L12) | `saag.Pipeline` | Fluent builder that sequences and runs the stages |
-| [Client](saag/client.py#L9) | `saag.Client` | Step-by-step service façade for finer control |
-| [AnalysisResult](saag/models.py#L102) | `saag.AnalysisResult` | Stage 2 — structural metrics vector $M(v)$ |
-| [PredictionResult](saag/models.py#L190) | `saag.PredictionResult` | Stage 3 — RM/GNN scores, anti-patterns, explanation, triage results |
-| [TriageResult](saag/analysis/triage.py#L31) | `saag.analysis.triage.TriageResult` | Stage 3 — Scoped Top-K root-cause profiles and stakeholder roles |
-| [ValidationResult](saag/models.py#L396) | `saag.ValidationResult` | Stage 5 — per-layer correlations and gate outcomes |
-| [PrescribeResult](saag/prescription/models.py#L212) | `saag.prescription.PrescribeResult` | Stage 6 — accepted policy, per-edit verdicts and SRI delta |
+| [Client](saag/client.py#L14) | `saag.Client` | Step-by-step service façade for finer control |
+| [AnalysisResult](saag/models.py#L161) | `saag.AnalysisResult` | Stage 2 — structural metrics vector $M(v)$ |
+| [PredictionResult](saag/models.py#L215) | `saag.PredictionResult` | Stage 3 — GNN ranks (or RM fallback) |
+| [DiagnosisResult](saag/models.py#L366) | `saag.DiagnosisResult` | Stage 4 — RM scores, anti-patterns, explanation, triage result |
+| [TriageResult](saag/analysis/triage.py#L31) | `saag.analysis.triage.TriageResult` | Stage 4 — Scoped Top-K root-cause profiles and stakeholder roles |
+| [ValidationResult](saag/models.py#L421) | `saag.ValidationResult` | Stage 6 — per-layer correlations and gate outcomes |
+| [PrescribeResult](saag/prescription/models.py#L212) | `saag.prescription.PrescribeResult` | Stage 7 — accepted policy, per-edit verdicts and SRI delta |
 | [DiagnosticUseCase](saag/usecases/diagnostic.py#L22) | `saag.usecases.DiagnosticUseCase` | Pathway A application interactor (ISO-RM quality attribution) |
 | [PredictiveUseCase](saag/usecases/predictive.py#L17) | `saag.usecases.PredictiveUseCase` | Pathway B application interactor (HGL blast-radius forecasting) |
 | [TriageUseCase](saag/usecases/triage.py#L12) | `saag.usecases.TriageUseCase` | Triage Bridge application interactor (scoping diagnosis to Top-K) |
@@ -368,19 +371,19 @@ More runnable examples — including a round-trip persistence check and per-stag
 
 ## Further Reading
 
-Routed by what you're trying to do — each doc also links forward/back along the pipeline itself (Model → Analyze → Predict → Simulate → Validate → Prescribe → Visualize).
+Routed by what you're trying to do — each doc also links forward/back along the pipeline itself (Model → Analyze → Predict → Diagnose → Simulate → Validate → Prescribe → Visualize).
 
 | I want to... | Start here |
 |---|---|
 | **Run this on my own system** | [cli-pipeline-guide.md](docs/cli-pipeline-guide.md) (every flag, every stage) → [graph-model.md](docs/graph-model.md) (input format) |
 | **Understand what a score means** | [structural-analysis.md](docs/structural-analysis.md) §10–11 (the metric catalogue and RM formulas) → [criticality.md](docs/criticality.md) (what "criticality" is defined to mean, and its validity limits) |
 | **Look up a quality attribute, coefficient, or constant** | [quality-model.md](docs/quality-model.md) (the RM models layer by layer: every attribute, the measure that operationalizes it, its coefficient and provenance, for components and edges alike) |
-| **Find and fix architectural problems** | [antipatterns.md](docs/antipatterns.md) (the 19-pattern catalog) → [remediation.md](docs/remediation.md) (which patterns are auto-fixable) → [prescription.md](docs/prescription.md) (the closed-loop verifier) |
+| **Find and fix architectural problems** | [diagnosis.md](docs/diagnosis.md) (RM root-cause attribution + Triage Bridge) → [antipatterns.md](docs/antipatterns.md) (the 19-pattern catalog) → [remediation.md](docs/remediation.md) (which patterns are auto-fixable) → [prescription.md](docs/prescription.md) (the closed-loop verifier) |
 | **Check the evidence behind a claim** | [failure-simulation.md](docs/failure-simulation.md) (the two ground-truth engines) → [validation.md](docs/validation.md) (the statistical battery and gates) → [scenario.md](docs/scenario.md) (which scenario backs which published number) |
 | **Reproduce the published results** | [reproduce/README.md](reproduce/README.md) and [reproduce/EXPERIMENTS.md](reproduce/EXPERIMENTS.md) (the protocol) → [scenario.md](docs/scenario.md) (the corpus) |
 | **Extend or contribute to the framework** | [ARCHITECTURE.md](ARCHITECTURE.md) (package boundaries, data flow) → [CLAUDE.md](CLAUDE.md) (conventions, test-enforced invariants) |
 | **Generate synthetic topologies** | [graph-generation.md](docs/graph-generation.md) |
-| **Read GNN prediction or dashboard internals** | [prediction.md](docs/prediction.md) · [visualization.md](docs/visualization.md) · [statistics.md](docs/statistics.md) |
+| **Read GNN prediction or dashboard internals** | [prediction.md](docs/prediction.md) · [diagnosis.md](docs/diagnosis.md) · [visualization.md](docs/visualization.md) · [statistics.md](docs/statistics.md) |
 
 **Formal specifications** — [SRS](docs/requirements/SRS.md) · [SAD](docs/design/SAD.md) · [SDD](docs/design/SDD.md) · [STD](docs/tests/STD.md) · [SAR](docs/tests/SAR.md) · [User Manual](docs/user/SUM.md)
 

@@ -93,7 +93,7 @@ flowchart TD
     end
 ```
 
-- **Pure Structural Mode (`cli/analyze_graph.py`)**: Computes the 11 Tier-1 structural metrics $M(v)$ and graph summary $S(G)$ only. Fast, lightweight, and completely decoupled from scoring models. (This directly feeds Step 3's Pathway A and Pathway B).
+- **Pure Structural Mode (`cli/analyze_graph.py`)**: Computes the 11 Tier-1 structural metrics $M(v)$ and graph summary $S(G)$ only. Fast, lightweight, and completely decoupled from scoring models. (This directly feeds Step 3's Pathway B and Step 4's Pathway A).
 - **Multi-Layer Orchestrated Mode (`saag --analyze` / API)**: Computes structural metrics across all layer projections, evaluates rule-based RM criticality ($Q(v)$), runs graph antipattern detection, and synthesizes multi-layer cross-tier insights.
 
 ### 2.2 Pre-Analysis Dependency Derivation

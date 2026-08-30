@@ -34,6 +34,10 @@ class Pipeline:
         #: None means "use whatever analyze()/self._layer resolved to".
         self._simulate_layer: Optional[str] = None
         self._predict_kwargs: dict = {}
+        self._diagnose_kwargs: dict = {}
+        #: legacy Triage-only builder (see triage()), kept independent of
+        #: diagnose() for backward compatibility — it calls Client.triage
+        #: directly rather than going through the Diagnose stage.
         self._triage_kwargs: dict = {}
         self._simulate_kwargs: dict = {}
         self._visualize_kwargs: dict = {}
@@ -42,6 +46,7 @@ class Pipeline:
 
         self._do_analyze = False
         self._do_predict = False
+        self._do_diagnose = False
         self._do_triage = False
         self._do_simulate = False
         self._do_validate = False
@@ -73,8 +78,8 @@ class Pipeline:
         (PageRank, betweenness, closeness, articulation points, etc.).
 
         Produces a fully deterministic AnalysisResult from topology and metadata.
-        No RM/Q scores or anti-patterns here — see predict() for the unified
-        Prediction Step that produces those.
+        No RM/Q scores or anti-patterns here — see predict() (Stage 3, ranking)
+        and diagnose() (Stage 4, RM scores + anti-patterns) for those.
         """
         self._layer = layer
         self._do_analyze = True
@@ -86,16 +91,19 @@ class Pipeline:
         gnn_checkpoint: Optional[str] = None,
         **kwargs,
     ) -> "Pipeline":
-        """Stage 3: Unified Prediction Step — rule-based (RM) + ML (GNN) scoring.
+        """Stage 3: Predict — Pathway B ranking (rule-based RM + ML/GNN scoring).
 
-        Always computes the AHP-weighted RM composite (deterministic, closed-form).
-        When a trained GNN checkpoint is available, blends in a Heterogeneous Graph
-        Transformer (HGT / HGTConv) inference pass that learns patterns the RM
-        composite cannot encode (nonlinear interactions, multi-hop motifs); falls
-        back to RM otherwise. Also runs anti-pattern detection and generates a
-        human-readable explanation. This replaces the legacy "Quality Scoring" step
-        that used to live inside Analyze.
-        Requires analyze() to have been configured first.
+        Always computes the AHP-weighted RM composite (deterministic, closed-form)
+        as the GNN's own input feature and cold-start fallback. When a trained
+        GNN checkpoint is available, blends in a Heterogeneous Graph Transformer
+        (HGT / HGTConv) inference pass that learns patterns the RM composite
+        cannot encode (nonlinear interactions, multi-hop motifs); falls back to
+        RM otherwise. Requires analyze() to have been configured first.
+
+        Anti-pattern detection and explanation generation are Stage 4's job —
+        see diagnose() — and are *not* run here by default; pass
+        ``diagnose=True`` to bundle them into this call for the pre-split
+        one-shot behaviour.
 
         Parameters
         ----------
@@ -107,30 +115,71 @@ class Pipeline:
             Forwarded to ``Client.predict`` — the RM weighting/normalisation
             options (``use_ahp``, ``equal_weights``, ``ahp_shrinkage``,
             ``normalization_method``, ``winsorize``, ``winsorize_limit``,
-            ``run_sensitivity``, ``active_patterns``). These belong to the
-            Predict stage, not analyze() — pass them here, not to analyze().
+            ``run_sensitivity``, ``active_patterns``, ``diagnose``). These
+            belong to the Predict stage, not analyze() — pass them here, not
+            to analyze().
         """
         self._do_predict = True
+        kwargs.setdefault("diagnose", False)
         self._predict_kwargs = {"mode": mode, "gnn_checkpoint": gnn_checkpoint, **kwargs}
         return self
 
+    def diagnose(
+        self,
+        k: Optional[int] = None,
+        node_types: Optional[List[str]] = None,
+        **kwargs,
+    ) -> "Pipeline":
+        """Stage 4: Diagnose — Pathway A root-cause attribution (ISO-RM).
+
+        Deterministic quality attribution grounded in ISO/IEC 25010/25019:
+        dimension scores, 5-level classification, anti-pattern detection, and
+        a human-readable explanation. Runs standalone off analyze()'s result
+        when predict() was not configured (zero-GNN cold start); reuses
+        predict()'s RM pass when it was, rather than recomputing it. Requires
+        analyze() to have been configured first.
+
+        When ``k`` is given, also runs the Triage Bridge: scopes this
+        diagnosis to the Top-K components Pathway B's ranking (GNN when
+        predict() had a checkpoint, RM otherwise) flagged as critical —
+        attached to the result as ``diagnosis.triage``.
+
+        Parameters
+        ----------
+        k:
+            Triage Bridge shortlist size. None (default) skips triage.
+        node_types:
+            Restrict the Triage Bridge shortlist to these component types.
+        **kwargs:
+            Forwarded to ``Client.diagnose`` — ``detect_problems``,
+            ``active_patterns``, ``run_sensitivity``, and (when predict() was
+            not configured) the RM weighting options ``use_ahp``,
+            ``equal_weights``, ``ahp_shrinkage``, ``normalization_method``,
+            ``winsorize``, ``winsorize_limit``.
+        """
+        self._do_diagnose = True
+        self._diagnose_kwargs = {"k": k, "node_types": node_types, **kwargs}
+        return self
+
     def triage(self, k: int = 10, node_types: Optional[List[str]] = None) -> "Pipeline":
-        """Triage bridge — scope Pathway A's (RM) root-cause diagnosis to the
-        Top-K components Pathway B's ranking (GNN when a checkpoint was
-        available at predict()-time, RM otherwise) flagged as critical.
+        """Legacy Triage-only builder — scope Pathway A's (RM) root-cause
+        diagnosis to the Top-K components Pathway B's ranking (GNN when a
+        checkpoint was available at predict()-time, RM otherwise) flagged as
+        critical, without running the rest of the Diagnose stage.
 
         Requires predict() to have been configured first. Each shortlisted
         component is joined back to its RM CriticalityProfile pattern,
         elevated dimensions, priority action, and stakeholder roles by id —
         never read off the ranking itself, since a GNN result carries no
-        root cause of its own.
+        root cause of its own. Prefer diagnose(k=...) for new code — this
+        method skips Diagnose's anti-pattern detection and explanation.
         """
         self._do_triage = True
         self._triage_kwargs = {"k": k, "node_types": node_types}
         return self
 
     def simulate(self, layer: Optional[str] = None, mode: str = "exhaustive", **kwargs) -> "Pipeline":
-        """Stage 4: Simulate cascading failures.
+        """Stage 5: Simulate cascading failures.
 
         layer defaults to whatever analyze() was configured with when not
         given explicitly here.
@@ -141,18 +190,26 @@ class Pipeline:
         return self
 
     def validate(self, layers: Optional[List[str]] = None) -> "Pipeline":
-        """Stage 5: Validate prediction vs simulation ground truth."""
+        """Stage 6: Validate prediction vs simulation ground truth."""
         self._do_validate = True
         self._validate_layers = layers
         return self
 
     def prescribe(self) -> "Pipeline":
-        """Stage 6: Prescriptive remediation generation."""
+        """Stage 7: Prescriptive remediation generation.
+
+        Uses predict()'s RM criticality scores regardless of whether
+        diagnose() ran (RM scoring is unconditional in predict()). SPOF/
+        GOD_COMPONENT-triggered edits specifically need diagnose()'s
+        anti-pattern detection to have run in this pipeline — without it
+        those two rules see no smells and stay silent, while
+        criticality-triggered rules are unaffected.
+        """
         self._do_prescribe = True
         return self
 
     def visualize(self, output: str = "report.html", layers: Optional[List[str]] = None, **kwargs) -> "Pipeline":
-        """Stage 7: Generate HTML dashboard report."""
+        """Stage 8: Generate HTML dashboard report."""
         self._do_visualize = True
         self._visualize_kwargs = {"output": output, "layers": layers, **kwargs}
         return self
@@ -160,13 +217,14 @@ class Pipeline:
     def run(self) -> PipelineExecutionResult:
         """Execute all configured stages sequentially and compile results.
 
-        Execution order (Import -> Analyze -> Simulate -> Predict -> Validate
-        -> Prescribe -> Visualize) does not match pipeline stage *identity*
-        numbers (Predict is Stage 3, Simulate is Stage 4) — Simulate runs
-        before Predict so a first run can generate the ground-truth labels
-        GNN training needs before Predict's checkpoint-dependent path runs.
-        See ARCHITECTURE.md's first-run sequencing note. Comments below name
-        both: execution position and stage identity.
+        Execution order (Import -> Analyze -> Simulate -> Predict -> Diagnose
+        -> Validate -> Prescribe -> Visualize) does not match pipeline stage
+        *identity* numbers (Predict is Stage 3, Diagnose is Stage 4, Simulate
+        is Stage 5) — Simulate runs before Predict so a first run can
+        generate the ground-truth labels GNN training needs before Predict's
+        checkpoint-dependent path runs. See ARCHITECTURE.md's first-run
+        sequencing note. Comments below name both: execution position and
+        stage identity.
         """
         result = PipelineExecutionResult()
 
@@ -212,12 +270,30 @@ class Pipeline:
                     "first to generate labels for training."
                 )
 
-            logger.info("Running unified Prediction step (RM + GNN)...")
+            logger.info("Running Predict step (RM + GNN ranking)...")
             result.prediction = self.client.predict(result.analysis, **self._predict_kwargs)
 
-        # Execution step 4b — Triage bridge: scope Pathway A's RM diagnosis
-        # to Pathway B's Top-K shortlist. Runs immediately after Predict,
-        # on whatever ranking Predict produced (GNN or RM fallback).
+        # Execution step 4b (Stage 4: Diagnose) — Pathway A root-cause
+        # attribution. Reuses Predict's RM pass when predict() ran (no
+        # rescoring); otherwise computes its own directly off Analyze's
+        # result (zero-GNN cold start — predict() is not required).
+        if self._do_diagnose:
+            if result.analysis is None:
+                raise RuntimeError(
+                    "diagnose() requires an AnalysisResult. "
+                    "Make sure to call analyze() in the pipeline."
+                )
+            logger.info("Running Diagnose step (RM + anti-patterns + explanation)...")
+            result.diagnosis = self.client.diagnose(
+                result.analysis, prediction_result=result.prediction, **self._diagnose_kwargs
+            )
+            if result.diagnosis.triage is not None:
+                result.triage = result.diagnosis.triage
+
+        # Execution step 4c — legacy Triage-only bridge (see triage()):
+        # scope Pathway A's RM diagnosis to Pathway B's Top-K shortlist
+        # without the rest of Diagnose. Runs on whatever ranking Predict
+        # produced (GNN or RM fallback).
         if self._do_triage:
             if result.prediction is None:
                 raise RuntimeError(
@@ -227,7 +303,7 @@ class Pipeline:
             logger.info("Running Triage bridge...")
             result.triage = self.client.triage(result.prediction, **self._triage_kwargs)
 
-        # Execution step 5 (Stage 5: Validate) — compare Predict/Analyze
+        # Execution step 5 (Stage 6: Validate) — compare Predict/Diagnose
         # output against Simulate ground truth
         if self._do_validate:
             logger.info("Validating against simulation ground truth...")
@@ -235,7 +311,7 @@ class Pipeline:
             gnn_checkpoint = self._predict_kwargs.get("gnn_checkpoint")
             result.validation = self.client.validate(layers=validate_layers, gnn_checkpoint=gnn_checkpoint)
 
-        # Execution step 6 (Stage 6: Prescribe) — generate recommendations
+        # Execution step 6 (Stage 7: Prescribe) — generate recommendations
         # and verify them in closed loop
         if self._do_prescribe:
             if result.analysis is None:
@@ -243,7 +319,7 @@ class Pipeline:
                     "prescribe() requires an AnalysisResult. "
                     "Make sure to call analyze() in the pipeline."
                 )
-            logger.info("Running prescriptive remediation (Stage 6)...")
+            logger.info("Running prescriptive remediation (Stage 7)...")
             gnn_checkpoint = self._predict_kwargs.get("gnn_checkpoint")
             result.prescription = self.client.prescribe(
                 analysis_result=result.analysis,
@@ -252,7 +328,7 @@ class Pipeline:
                 gnn_checkpoint=gnn_checkpoint
             )
 
-        # Execution step 7 (Stage 7: Visualize)
+        # Execution step 7 (Stage 8: Visualize)
         if self._do_visualize:
             out_file = self._visualize_kwargs.pop("output", "report.html")
             vis_layers = self._visualize_kwargs.pop("layers", [self._layer]) or [self._layer]

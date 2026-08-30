@@ -102,6 +102,7 @@ Section 2 describes the system context, design constraints, and guiding principl
 | 2.4 | April 2026 | Clarified pipeline stage semantics: **Analyze** (deterministic, closed-form RMAV/Q scoring + anti-patterns) and **Predict** (inductive GNN forecasting, optional) are now named distinct stages. Updated §1.2, §2.1, §2.3, §3.4, §4.2 to reflect Import → Analyze → Predict → Simulate → Validate → Visualize naming. Updated `saag.Pipeline`, `saag.Client`, `saag.AnalysisResult`, and `saag.PredictionResult` SDK contracts accordingly. |
 | 3.0 | June 2026 | Full alignment with ISO/IEC/IEEE 1016-2009 and ISO/IEC/IEEE 12207:2026. Added detailed designs for the offline Synthetic Graph Generation tool and Step 3 (GNN Prediction) components. Incorporated PyG HeteroData layout features, HGTConv forward equations, typed edge encoders, and multi-task loss pseudocodes in algorithmic design. Updated REST API endpoint table to cover train/predict routes. |
 | 3.1 | August 2026 | Migrated the quality model from 4-D "RMAV" (Reliability, Maintainability, Availability, Vulnerability) to 2-D "RM" per ISO/IEC 25010:2023. Vulnerability/Security is deleted entirely (no successor metric or gate); Availability is demoted from a peer dimension to a Reliability sub-characteristic alongside a new Fault Tolerance sub-characteristic: `R(v) = α·FT(v) + (1−α)·A(v)`, `α = 0.36`. Composite becomes `Q(v) = 0.80·R(v) + 0.20·M(v)`. Updated §1.5 Glossary, §4.2 data structures, §5.3/§5.4/§5.7/§5.8, §6.18–§6.23, Appendix B AHP matrices, Appendix D traceability. Removed `TARGET`/`EXPOSURE` anti-patterns (catalog 21→19). |
+| 3.2 | August 2026 | Split the former unified "Predict" (§5.4) into two independent pipeline stages: §5.4 Predict (Step 3, Pathway B — GNN ranking, always falling back to RM) and new §5.5 Diagnose (Step 4, Pathway A — RM quality attribution, anti-pattern detection, and the Triage Bridge; needs no GNN checkpoint). Renumbered §5.6–§5.9 and the pipeline diagrams (§2, §3.4) to an 8-step scheme; updated Appendix D traceability pointers. |
 
 ---
 
@@ -122,8 +123,9 @@ The framework offers two usage modes: a **CLI pipeline** for batch analysis and 
              │   CLI Pipeline (cli/)   │  │  SMART Web App          │
              │                        │  │                         │
              │  Import → Analyze →    │  │  Next.js Frontend       │
-             │  Predict → Simulate →  │  │  (port 7000)            │
-             │  Validate → Visualize  │  │       │ HTTP             │
+             │  Predict → Diagnose →  │  │  (port 7000)            │
+             │  Simulate → Validate → │  │       │ HTTP             │
+             │  Prescribe → Visualize │  │                         │
              │                        │  │  FastAPI Backend         │
              └───────────┬────────────┘  │  (port 8000)            │
                          │               └──────────┬──────────────┘
@@ -155,7 +157,7 @@ Input formats: JSON topology (REQ-GM-01), GraphML topology (REQ-GM-02)
 
 The system follows SOLID principles with emphasis on three key decisions:
 
-**Separation of scoring from validation.** The Analyze stage (Step 2) produces deterministic Q(v) from topology alone; the optional Predict stage (Step 3) refines to Q_ens(v) via GNN. The Simulate stage (Step 4) produces ground-truth I(v) independently. The Validate stage (Step 5) compares the two. This separation prevents circular reasoning and ensures methodological rigor.
+**Separation of scoring from validation.** The Analyze stage (Step 2) produces structural metrics M(v) only, from topology alone. The Predict stage (Step 3) ranks by GNN blast-radius forecast when a checkpoint exists, or the RM composite otherwise. The Diagnose stage (Step 4) produces the deterministic RM composite Q(v) and its anti-pattern audit. The Simulate stage (Step 5) produces ground-truth I(v) independently. The Validate stage (Step 6) compares the two. This separation prevents circular reasoning and ensures methodological rigor.
 
 **Layered architecture with dependency inversion.** Domain logic (models, services, algorithms) has zero dependencies on infrastructure (Neo4j, file system). Infrastructure adapters implement domain-defined interfaces, making the core testable without a database.
 
@@ -375,7 +377,7 @@ JSON / GraphML Topology
 │   • G_analysis (derived DEPENDS_ON)  │
 └──────┬──────────────────────┬────────┘
        │                      │
-       │                      ▼ [Step 4: Simulate] (Offline Oracle)
+       │                      ▼ [Step 5: Simulate] (Offline Oracle)
        │             ┌───────────────────────────────────┐
        │             │ Ground-Truth Failure Simulation   │
        │             │ (FaultInjector / FailureSimulator)│
@@ -388,7 +390,7 @@ JSON / GraphML Topology
 │ (11 Tier-1 Metric Vector M) ││               │
 └──────┬───────────────┬──────┘│               │
        │               │       │               │
-[Pathway B: Predictive]│       │[Pathway A: Diagnostic]
+[Step 3: Predict — Pathway B]  │[Step 4: Diagnose — Pathway A]
        │               │       │               │
        ▼               ▼       │               │
 ┌───────────────┐ ┌────────────┴────────┐      │
@@ -404,13 +406,13 @@ JSON / GraphML Topology
        │                       │               │
        └──► [ Triage Bridge ] ─┘               │
                     │                          │
-                    ▼ [Step 3: Predict Result] │
+                    ▼ [Step 4: Diagnose Output] │
       ┌───────────────────────────┐            │
       │ Scoped Diagnosis & Smells │            │
       └─────────────┬─────────────┘            │
                     │                          │
-                    ├──────────────────────────┼──► [Step 5: Validate]
-                    ▼ [Step 6: Prescribe]      │    (Spearman ρ, F1,
+                    ├──────────────────────────┼──► [Step 6: Validate]
+                    ▼ [Step 7: Prescribe]      │    (Spearman ρ, F1,
       ┌───────────────────────────┐            │     Validation Gates)
       │ Remediation Gating Engine │            │
       │ (Role-Gated Candidates)   │            │
@@ -422,7 +424,7 @@ JSON / GraphML Topology
       │ Simulation (κ·σ_seed gate)│            │
       └─────────────┬─────────────┘            │
                     │ [Verified Improvement]   │
-                    ▼ [Step 7: Visualize]      │
+                    ▼ [Step 8: Visualize]      │
       ┌───────────────────────────┐            │
       │ Interactive SMART / HTML  │            │
       │ Visualisation Dashboard   │            │
@@ -430,8 +432,8 @@ JSON / GraphML Topology
 ```
 
 **Key:** 
-- **$G_{\text{structural}}$ vs. $G_{\text{analysis}}$ Separation:** Steps 2–3 (Analyze, Predict, Diagnostic Attribution) operate on $G_{\text{analysis}}$ (derived `DEPENDS_ON` edges with QoS-adapted weights). Step 4 (Simulate) and Step 6 (Prescribe Counterfactual Verification) operate directly on $G_{\text{structural}}$ (physical/logical pub-sub relationships) to preserve real-world failure dynamics.
-- **Dual-Pathway & Triage:** Pathway B (HGL) pinpoints high-risk components ($\hat{I}^*$), while Pathway A decomposes quality attributes according to ISO/IEC standards. The Triage Bridge scopes deep root-cause attribution to the Top-$K$ shortlist.
+- **$G_{\text{structural}}$ vs. $G_{\text{analysis}}$ Separation:** Steps 2–4 (Analyze, Predict, Diagnose) operate on $G_{\text{analysis}}$ (derived `DEPENDS_ON` edges with QoS-adapted weights). Step 5 (Simulate) and Step 7 (Prescribe Counterfactual Verification) operate directly on $G_{\text{structural}}$ (physical/logical pub-sub relationships) to preserve real-world failure dynamics.
+- **Dual-Pathway & Triage:** Step 3 (Predict, Pathway B / HGL) pinpoints high-risk components ($\hat{I}^*$), while Step 4 (Diagnose, Pathway A) decomposes quality attributes according to ISO/IEC standards. The Triage Bridge (part of Step 4) scopes deep root-cause attribution to the Top-$K$ shortlist.
 - **Counterfactual Gating:** Candidate edits $\Delta(G)$ are re-simulated in memory on $G_{\text{structural}}$, accepting only edits that beat simulator seed noise ($\Delta I > \kappa \cdot \sigma_{\text{seed}}$).
 
 ### 3.5 Deployment Architecture
@@ -554,7 +556,7 @@ These are Python dataclasses that flow between services. All continuous metrics 
 
 `FT` and `A` are Reliability's two sub-characteristics: `R(v) = α·FT(v) + (1−α)·A(v)`, `α = 0.36` (§6.22). `M` feeds the composite directly: `Q(v) = w_R·R(v) + w_M·M(v)`, `w_R = 0.80, w_M = 0.20` (§6.23).
 
-**QualityScores** — output of the Analyze stage (Step 2), one per component:
+**QualityScores** — output of the Diagnose stage (Step 4), one per component:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -567,7 +569,7 @@ These are Python dataclasses that flow between services. All continuous metrics 
 
 > **Note:** `vulnerability` is not a field on `QualityScores`. The Vulnerability/Security dimension was deleted entirely in the RMAV→RM migration — not folded into another dimension, no successor metric or gate. `fault_tolerance` and `availability` are reported as diagnostics alongside `reliability`, not summed independently into `overall` (double-counting would occur, since they already feed `reliability` via the α-blend).
 
-**ImpactMetrics** — output of Step 4, one per simulated failure:
+**ImpactMetrics** — output of Step 5, one per simulated failure:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -578,7 +580,7 @@ These are Python dataclasses that flow between services. All continuous metrics 
 | `cascade_depth` | int | Maximum cascade propagation depth |
 | `composite_impact` | float | I(v) = weighted combination |
 
-**ValidationGroupResult** — output of Step 5, one per layer:
+**ValidationGroupResult** — output of Step 6, one per layer:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -691,19 +693,24 @@ saag.analysis.service.AnalysisService.analyze_layer(layer)
     Return LayerAnalysisResult
 ```
 
-### 5.4 Dual-Pathway Prediction & Diagnostic Pipeline (Step 3)
+### 5.4 Predict Pipeline — Pathway B (Step 3)
 
-Step 3 combines two conceptually and computationally distinct pathways:
+Step 3 (Predict) is handled by `PredictiveUseCase` (`saag/usecases/predictive.py`) and `GNNService` (`saag/prediction/gnn_service.py`). It evaluates a 3-layer Heterogeneous Graph Transformer (`HGTConv`) to predict composite blast radius $\hat{I}^*(v)$ and edge criticality $Q_{\text{GNN}}(u, v)$ when a trained checkpoint is available, always computing the RM composite first (§5.5) as its own input feature and as the fallback when no checkpoint exists.
+
+Both Step 3 and Step 4 are implemented by one module, `saag/prediction/service.py`'s `PredictionService`, distinguished by a `diagnose: bool` flag: `Client.predict()` defaults `diagnose=True` for backward compatibility with pre-split callers; `Pipeline.predict()` sets `diagnose=False` so the two stages are genuinely independent when chained explicitly (`.predict().diagnose(k=...)`).
+
+### 5.5 Diagnose Pipeline — Pathway A & Triage Bridge (Step 4)
+
+Step 4 (Diagnose) needs no GNN checkpoint (zero-GNN cold start) and reuses Step 3's RM pass when one is available in the same run rather than recomputing it.
 - **Pathway A (Diagnostic / ISO-RM)**: Handled by `DiagnosticUseCase` (`saag/usecases/diagnostic.py`) and `QualityAnalyzer` (`saag/analysis/analyzer.py`). Computes deterministic ISO/IEC 25010 RM scores ($FT, A, M, R, Q^*$), audits 19 structural anti-patterns, and generates natural-language explanations.
-- **Pathway B (Predictive / Heterogeneous Graph Learning)**: Handled by `PredictiveUseCase` (`saag/usecases/predictive.py`) and `GNNService` (`saag/prediction/gnn_service.py`). Evaluates a 3-layer Heterogeneous Graph Transformer (`HGTConv`) to predict composite blast radius $\hat{I}^*(v)$ and edge criticality $Q_{\text{GNN}}(u, v)$.
-- **The Triage Bridge**: Handled by `TriageUseCase` (`saag/usecases/triage.py`) and `saag.analysis.triage.triage()`. Connects Pathway B's Top-$K$ ranked components with Pathway A's root-cause profiles, grouping results by stakeholder roles (`DevOps / SRE`, `Architect`, `Developer`).
+- **The Triage Bridge**: Handled by `TriageUseCase` (`saag/usecases/triage.py`) and `saag.analysis.triage.triage()`. Connects Step 3's Top-$K$ ranked components with Step 4's root-cause profiles, grouping results by stakeholder roles (`DevOps / SRE`, `Architect`, `Developer`).
 
 ```
-Dual-Pathway Execution Sequence
+Predict (Step 3) / Diagnose (Step 4) Execution Sequence
          │
     ┌────┴──────────────────────────────────────────────────────┐
     │                                                           │
-    ▼ Pathway A: Diagnostic ISO-RM                              ▼ Pathway B: Predictive HGL
+    ▼ Step 4: Diagnose — Pathway A / ISO-RM                     ▼ Step 3: Predict — Pathway B / HGL
 saag.usecases.DiagnosticUseCase                            saag.usecases.PredictiveUseCase
   (AnalysisService.predict_quality())                        (GNNService.predict())
     │                                                           │
@@ -715,19 +722,19 @@ saag.usecases.DiagnosticUseCase                            saag.usecases.Predict
     └───────────────────────────┬───────────────────────────────┘
                                 │
                                 ▼
-                   The Triage Bridge (TriageUseCase)
+                   The Triage Bridge (TriageUseCase, part of Step 4)
                    saag.analysis.triage.triage(pred_result, k)
                                 │
                                 ├─ 1. Rank population by Î*(v) (or fallback to Q*(v))
                                 ├─ 2. Select Top-K highest-risk components
-                                ├─ 3. Exact join on Component ID → extract Pathway A root-cause diagnosis
+                                ├─ 3. Exact join on Component ID → extract Step 4's root-cause diagnosis
                                 └─ 4. Map to stakeholder buckets (DevOps, Architect, Developer)
                                 │
                                 ▼
-                   Return PredictionResult / TriageResult
+                   Return PredictionResult / DiagnosisResult / TriageResult
 ```
 
-### 5.5 Simulation Pipeline (Step 4)
+### 5.6 Simulation Pipeline (Step 5)
 
 ```
 saag.simulation.service.SimulationService.run_failure_simulation(layer)
@@ -752,7 +759,7 @@ saag.simulation.service.SimulationService.run_failure_simulation(layer)
     Return List[FailureResult] with I(v) for every component
 ```
 
-### 5.6 Validation Pipeline (Step 5)
+### 5.7 Validation Pipeline (Step 6)
 
 ```
 saag.validation.service.ValidationService.validate_layer(analysis_result, simulation_results)
@@ -772,7 +779,7 @@ saag.validation.service.ValidationService.validate_layer(analysis_result, simula
     Return ValidationGroupResult
 ```
 
-### 5.7 Visualization Pipeline (Step 6)
+### 5.8 Visualization Pipeline (Step 8)
 
 ```
 saag.visualization.service.VisualizationService.generate_dashboard(layers, output_file)
@@ -803,9 +810,9 @@ saag.visualization.service.VisualizationService.generate_dashboard(layers, outpu
     Write HTML file; optionally open in browser
 ```
 
-### 5.8 Anti-Pattern Detection Pipeline
+### 5.9 Anti-Pattern Detection Pipeline
 
-The `AntiPatternDetector` is invoked at the end of the Analysis Pipeline (§5.3, Step 2). It identifies 11 categories of architectural anti-patterns from `QualityAnalysisResult` using box-plot classification levels (never static thresholds). (Full detector catalog: 19 patterns — see `saag/analysis/antipattern_detector.py`; this table shows the subset most relevant to design discussion, not the exhaustive list.)
+The `AntiPatternDetector` is invoked as part of the Diagnose Pipeline (§5.5, Step 4). It identifies 11 categories of architectural anti-patterns from `QualityAnalysisResult` using box-plot classification levels (never static thresholds). (Full detector catalog: 19 patterns — see `saag/analysis/antipattern_detector.py`; this table shows the subset most relevant to design discussion, not the exhaustive list.)
 
 > **Note:** The **Security** category (`Target`, `Exposure`) was retired along with the Vulnerability/Security dimension — no successor pattern replaces it. The catalog total dropped from 21 to 19 patterns.
 
@@ -1756,17 +1763,17 @@ Domain weighting has been measured to barely perturb component ranking on this c
 | REQ-QS-01 | §6.19 Fault Tolerance Score FT(v), §6.21 Availability Score A(v), §6.22 Reliability Score R(v) (hierarchical), §6.20 Maintainability Score M(v)  [Prediction — RM] |
 | REQ-QS-02 | §6.20 Maintainability Score M(v) |
 | REQ-QS-03 | §6.21 Availability Score A(v) (Reliability sub-characteristic, §6.22) |
-| REQ-QS-04 | §5.8 Anti-Pattern Detection Pipeline (SPOF, Failure Hub; high-vulnerability-cluster reporting retired with the Vulnerability/Security dimension — see docs/structural-analysis.md §11) |
+| REQ-QS-04 | §5.9 Anti-Pattern Detection Pipeline (SPOF, Failure Hub; high-vulnerability-cluster reporting retired with the Vulnerability/Security dimension — see docs/structural-analysis.md §11) |
 | REQ-QS-05 | §6.23 Composite Quality Score Q(v) |
 | REQ-QS-06 | §6.9 Box-Plot Classification |
 | REQ-QS-07–08 | §6.7 AHP Weight Calculation; Appendix C AHP error handling |
 | REQ-QS-09 | §6.9 Box-Plot Classification (normal path and fallback) |
-| REQ-QS-10 | §5.6 Anti-Pattern Detection Pipeline |
-| REQ-FS-01–05 | §5.3 Simulation Pipeline; §6.10 Cascade Propagation |
+| REQ-QS-10 | §5.9 Anti-Pattern Detection Pipeline |
+| REQ-FS-01–05 | §5.6 Simulation Pipeline; §6.10 Cascade Propagation |
 | REQ-VL-01 | §6.11 Spearman Rank Correlation |
-| REQ-VL-02–10 | §5.4 Validation Pipeline (classification, ranking, error metrics, min-n check) |
+| REQ-VL-02–10 | §5.7 Validation Pipeline (classification, ranking, error metrics, min-n check) |
 | REQ-VL-07 | §6.12 NDCG@K |
-| REQ-VZ-01–08 | §5.5 Visualization Pipeline; §9.1 Static Dashboard |
+| REQ-VZ-01–08 | §5.8 Visualization Pipeline; §9.1 Static Dashboard |
 | REQ-CLI-01–04 | §8.1 CLI Interface |
 | REQ-CLI-05 | §8.1 CLI Interface (`--generate` flag via `cli/run.py`) |
 | REQ-CLI-06 | §8.1 CLI Interface (`--scale` flag) |

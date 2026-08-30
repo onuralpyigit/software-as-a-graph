@@ -20,6 +20,53 @@ if TYPE_CHECKING:
     from saag.prescription.models import PrescribeResult
 
 
+def _rm_components_to_facades(components) -> List["ComponentFacade"]:
+    """Map an iterable of RM ``ComponentQuality`` objects to ranked
+    ``ComponentFacade``s, sorted by overall score descending.
+
+    Shared by ``AnalysisResult``, ``PredictionResult`` (RM fallback path),
+    and ``DiagnosisResult`` — all three surface the same RM dimension
+    breakdown, just sourced from different stages of the pipeline.
+    """
+    from saag.core.criticality import CriticalityRanking
+
+    rankings = []
+    for cq in components:
+        scores = {
+            "reliability": cq.scores.reliability,
+            "maintainability": cq.scores.maintainability,
+            "fault_tolerance": cq.scores.fault_tolerance,
+            "availability": cq.scores.availability,
+            "overall": cq.scores.overall,
+        }
+        levels = {
+            "reliability": cq.levels.reliability.name if hasattr(cq.levels.reliability, "name") else str(cq.levels.reliability).upper(),
+            "maintainability": cq.levels.maintainability.name if hasattr(cq.levels.maintainability, "name") else str(cq.levels.maintainability).upper(),
+            "fault_tolerance": cq.levels.fault_tolerance.name if hasattr(cq.levels.fault_tolerance, "name") else str(cq.levels.fault_tolerance).upper(),
+            "availability": cq.levels.availability.name if hasattr(cq.levels.availability, "name") else str(cq.levels.availability).upper(),
+            "overall": cq.levels.overall.name if hasattr(cq.levels.overall, "name") else str(cq.levels.overall).upper(),
+        }
+        name = getattr(cq.structural, "name", cq.id) if cq.structural else cq.id
+        blast_radius = getattr(cq.structural, "blast_radius", 0) if cq.structural else 0
+        cascade_depth = getattr(cq.structural, "cascade_depth", 0) if cq.structural else 0
+        is_articulation_point = getattr(cq.structural, "is_articulation_point", False) if cq.structural else False
+        rankings.append(CriticalityRanking(
+            id=cq.id,
+            type=cq.type,
+            scores=scores,
+            levels=levels,
+            overall=cq.scores.overall,
+            level=levels["overall"],
+            provenance="rm",
+            name=name,
+            blast_radius=blast_radius,
+            cascade_depth=cascade_depth,
+            is_articulation_point=is_articulation_point
+        ))
+    rankings.sort(key=lambda x: x.overall, reverse=True)
+    return [ComponentFacade(r) for r in rankings]
+
+
 class ComponentFacade:
     """A developer-friendly wrapper around a component's quality metrics."""
     def __init__(self, inner: CriticalityRanking):
@@ -142,43 +189,9 @@ class AnalysisResult:
     @property
     def all_components(self) -> List["ComponentFacade"]:
         """All assessed components with their RM scores and criticality levels (requires predict() to have run)."""
-        from saag.core.criticality import CriticalityRanking
         if self._inner.quality is None:
             return []
-        rankings = []
-        for cq in self._inner.quality.components:
-            scores = {
-                "reliability": cq.scores.reliability,
-                "maintainability": cq.scores.maintainability,
-                "fault_tolerance": cq.scores.fault_tolerance,
-                "availability": cq.scores.availability,
-                "overall": cq.scores.overall,
-            }
-            levels = {
-                "reliability": cq.levels.reliability.name if hasattr(cq.levels.reliability, "name") else str(cq.levels.reliability).upper(),
-                "maintainability": cq.levels.maintainability.name if hasattr(cq.levels.maintainability, "name") else str(cq.levels.maintainability).upper(),
-                "fault_tolerance": cq.levels.fault_tolerance.name if hasattr(cq.levels.fault_tolerance, "name") else str(cq.levels.fault_tolerance).upper(),
-                "availability": cq.levels.availability.name if hasattr(cq.levels.availability, "name") else str(cq.levels.availability).upper(),
-                "overall": cq.levels.overall.name if hasattr(cq.levels.overall, "name") else str(cq.levels.overall).upper(),
-            }
-            name = getattr(cq.structural, "name", cq.id) if cq.structural else cq.id
-            blast_radius = getattr(cq.structural, "blast_radius", 0) if cq.structural else 0
-            cascade_depth = getattr(cq.structural, "cascade_depth", 0) if cq.structural else 0
-            is_articulation_point = getattr(cq.structural, "is_articulation_point", False) if cq.structural else False
-            rankings.append(CriticalityRanking(
-                id=cq.id,
-                type=cq.type,
-                scores=scores,
-                levels=levels,
-                overall=cq.scores.overall,
-                level=levels["overall"],
-                provenance="rm",
-                name=name,
-                blast_radius=blast_radius,
-                cascade_depth=cascade_depth,
-                is_articulation_point=is_articulation_point
-            ))
-        return [ComponentFacade(r) for r in rankings]
+        return _rm_components_to_facades(self._inner.quality.components)
 
     @property
     def problems(self) -> List[_DetectedProblem]:
@@ -302,42 +315,7 @@ class PredictionResult:
             return [ComponentFacade(r) for r in rankings]
         else:
             # RM path (QualityAnalysisResult)
-            rankings = []
-            for cq in getattr(self._inner, "components", []):
-                scores = {
-                    "reliability": cq.scores.reliability,
-                    "maintainability": cq.scores.maintainability,
-                    "fault_tolerance": cq.scores.fault_tolerance,
-                    "availability": cq.scores.availability,
-                    "overall": cq.scores.overall,
-                }
-                levels = {
-                    "reliability": cq.levels.reliability.name if hasattr(cq.levels.reliability, "name") else str(cq.levels.reliability).upper(),
-                    "maintainability": cq.levels.maintainability.name if hasattr(cq.levels.maintainability, "name") else str(cq.levels.maintainability).upper(),
-                    "fault_tolerance": cq.levels.fault_tolerance.name if hasattr(cq.levels.fault_tolerance, "name") else str(cq.levels.fault_tolerance).upper(),
-                    "availability": cq.levels.availability.name if hasattr(cq.levels.availability, "name") else str(cq.levels.availability).upper(),
-                    "overall": cq.levels.overall.name if hasattr(cq.levels.overall, "name") else str(cq.levels.overall).upper(),
-                }
-                name = getattr(cq.structural, "name", cq.id) if cq.structural else cq.id
-                blast_radius = getattr(cq.structural, "blast_radius", 0) if cq.structural else 0
-                cascade_depth = getattr(cq.structural, "cascade_depth", 0) if cq.structural else 0
-                is_articulation_point = getattr(cq.structural, "is_articulation_point", False) if cq.structural else False
-                rankings.append(CriticalityRanking(
-                    id=cq.id,
-                    type=cq.type,
-                    scores=scores,
-                    levels=levels,
-                    overall=cq.scores.overall,
-                    level=levels["overall"],
-                    provenance="rm",
-                    name=name,
-                    blast_radius=blast_radius,
-                    cascade_depth=cascade_depth,
-                    is_articulation_point=is_articulation_point
-                ))
-            # Sort by overall score descending
-            rankings.sort(key=lambda x: x.overall, reverse=True)
-            return [ComponentFacade(r) for r in rankings]
+            return _rm_components_to_facades(getattr(self._inner, "components", []))
 
     @property
     def components(self) -> List[ComponentFacade]:
@@ -381,6 +359,61 @@ class PredictionResult:
             data = self._inner.to_dict()
         else:
             data = getattr(self._inner, "__dict__", self._inner)
+        with out.open("w") as f:
+            json.dump(data, f, indent=2, default=str)
+
+
+class DiagnosisResult:
+    """Result of the Diagnose stage (Step 4, Pathway A): deterministic
+    ISO-RM root-cause attribution — dimension scores, 5-level classification,
+    anti-pattern detection, and a human-readable explanation. Optionally
+    carries the Triage Bridge shortlist joining Pathway B's ranking to this
+    diagnosis (see ``Client.diagnose()``).
+    """
+    def __init__(self, inner: Any, triage: Optional[Any] = None):
+        self._inner = inner
+        self._triage = triage
+
+    @property
+    def raw(self) -> Any:
+        """Access the underlying RM QualityAnalysisResult."""
+        return self._inner
+
+    @property
+    def components(self) -> List[ComponentFacade]:
+        """All components with their RM dimension scores and criticality levels."""
+        return _rm_components_to_facades(getattr(self._inner, "components", []))
+
+    @property
+    def problems(self) -> List[Any]:
+        """Anti-patterns and architectural smells detected from the RM scores."""
+        return list(getattr(self._inner, "problems", None) or [])
+
+    @property
+    def problem_summary(self) -> Any:
+        """Aggregate counts/severity breakdown of detected problems."""
+        return getattr(self._inner, "problem_summary", None)
+
+    @property
+    def explanation(self) -> Any:
+        """Human-readable narrative explanation of the system's quality/criticality."""
+        return getattr(self._inner, "explanation", None)
+
+    @property
+    def triage(self) -> Optional[Any]:
+        """Triage Bridge shortlist (Top-K joined to this diagnosis), if requested."""
+        return self._triage
+
+    def save(self, filepath: str) -> None:
+        """Export the diagnosis result to a JSON file."""
+        import json
+        from pathlib import Path
+        out = Path(filepath)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        data = self._inner.to_dict() if hasattr(self._inner, "to_dict") else getattr(self._inner, "__dict__", self._inner)
+        if self._triage is not None:
+            data = dict(data)
+            data["triage"] = self._triage.to_dict() if hasattr(self._triage, "to_dict") else self._triage
         with out.open("w") as f:
             json.dump(data, f, indent=2, default=str)
 
@@ -446,15 +479,17 @@ class PipelineExecutionResult:
     """Aggregate result from running the full Pipeline sequentially.
 
     Stage mapping:
-      analysis     — deterministic Analyze stage (structural metrics only)
-      prediction   — unified Predict stage (RM always + GNN when available + anti-patterns + explanation); optional
-      triage       — Triage bridge: Pathway B's Top-K joined to Pathway A's RM diagnosis; optional
-      simulation   — Simulate stage (counterfactual cascade ground truth)
-      validation   — Validate stage (Predict/Analyze vs Simulate ground truth)
-      prescription — prescriptive Stage 6 optimization; optional
+      analysis     — deterministic Analyze stage (Step 2: structural metrics only)
+      prediction   — Predict stage (Step 3, Pathway B: GNN ranking when available, RM fallback); optional
+      diagnosis    — Diagnose stage (Step 4, Pathway A: RM scores + anti-patterns + explanation); optional
+      triage       — Triage bridge: Pathway B's Top-K joined to Pathway A's RM diagnosis; mirrors diagnosis.triage; optional
+      simulation   — Simulate stage (Step 5: counterfactual cascade ground truth)
+      validation   — Validate stage (Step 6: Predict/Diagnose vs Simulate ground truth)
+      prescription — Prescribe stage (Step 7 optimization); optional
     """
     analysis: Optional[AnalysisResult] = None
     prediction: Optional[PredictionResult] = None
+    diagnosis: Optional[DiagnosisResult] = None
     triage: Optional[Any] = None
     simulation: Optional[Any] = None
     validation: Optional[ValidationPipelineFacade] = None
@@ -477,6 +512,8 @@ class PipelineExecutionResult:
             }
         if self.prediction:
             data["prediction"] = self.prediction.raw.to_dict()
+        if self.diagnosis:
+            data["diagnosis"] = self.diagnosis.raw.to_dict() if hasattr(self.diagnosis.raw, "to_dict") else self.diagnosis.raw
         if self.triage:
             data["triage"] = self.triage.to_dict() if hasattr(self.triage, "to_dict") else self.triage
         if self.simulation:

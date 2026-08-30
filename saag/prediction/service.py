@@ -103,19 +103,27 @@ class PredictionService:
         layer: str = "system",
         active_patterns: Optional[List[str]] = None,
         run_sensitivity: bool = False,
+        diagnose: bool = True,
     ) -> Union[QualityAnalysisResult, Any]:
         """Return GNN predictions when a checkpoint exists, else fall back to RM.
 
         RM scores are always computed — they serve as the consistency
         regularisation target for the GNN and as a fallback when no
-        checkpoint is present. Anti-patterns and explanations are always
-        derived from the RM scores and attached to whichever result
-        (GNN or RM) is ultimately returned.
+        checkpoint is present. When ``diagnose`` is True (default), Step 4's
+        anti-pattern detection and explanation are also run on the RM scores
+        and attached to whichever result (GNN or RM) is ultimately returned.
+        Set ``diagnose=False`` for a Step-3-only (Pathway B ranking) call —
+        the RM pass still runs and is kept as ``.rm_result`` for the Diagnose
+        stage to reuse later without recomputing it.
         """
         rm_result = self.predict_quality(structural_result, run_sensitivity=run_sensitivity)
-        problems, problem_summary, explanation = self._attach_problems_and_explanation(
-            rm_result, layer=layer, active_patterns=active_patterns
-        )
+        rm_result.prediction_mode = "rm"
+        if diagnose:
+            problems, problem_summary, explanation = self._attach_problems_and_explanation(
+                rm_result, layer=layer, active_patterns=active_patterns
+            )
+        else:
+            problems, problem_summary, explanation = None, None, None
 
         if not self.prefer_gnn:
             logger.debug("RM scoring requested (mode='rm'); returning RM scores.")
@@ -149,7 +157,7 @@ class PredictionService:
         gnn_result.problems = problems
         gnn_result.problem_summary = problem_summary
         gnn_result.explanation = explanation
-        gnn_result.failed_patterns = rm_result.failed_patterns
+        gnn_result.failed_patterns = getattr(rm_result, "failed_patterns", [])
         gnn_result.rm_result = rm_result
         return gnn_result
 

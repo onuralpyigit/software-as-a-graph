@@ -276,13 +276,13 @@ To guarantee scientific rigor, the framework strictly decouples discrete-event s
                       │                                             │
                       ▼                                             ▼
            ┌─────────────────────┐                       ┌─────────────────────┐
-           │ Step 4: Simulation  │                       │ Steps 2-3: Analysis │
-           │ (Ground-Truth Sim)  │                       │   (GNN & Metrics)   │
+           │ Step 5: Simulation  │                       │ Steps 2-4: Analysis │
+           │ (Ground-Truth Sim)  │                       │(GNN, RM & Metrics)  │
            └─────────────────────┘                       └─────────────────────┘
 ```
 
-- **$G_{\text{structural}}$**: Contains physical edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`, `USES`, `CONNECTS_TO`). Consumed **only** by Step 4 simulation.
-- **$G_{\text{analysis}}(\ell)$**: Contains derived `DEPENDS_ON` edges across layer $\ell$. Consumed **only** by Step 2 structural metrics and Step 3 GNN prediction.
+- **$G_{\text{structural}}$**: Contains physical edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`, `USES`, `CONNECTS_TO`). Consumed **only** by Step 5 simulation.
+- **$G_{\text{analysis}}(\ell)$**: Contains derived `DEPENDS_ON` edges across layer $\ell$. Consumed **only** by Step 2 structural metrics, Step 3 GNN prediction, and Step 4 RM diagnosis.
 
 > [!IMPORTANT]
 > **Independence Guarantee**: Prediction metrics never leak into simulation logic, and simulation cascade outputs never pollute graph construction.

@@ -1,8 +1,8 @@
-# Step 5: Validate — Empirical Validation
+# Step 6: Validate — Empirical Validation
 
 **Statistically prove that pre-deployment topology-based predictions $Q(v)$ agree with simulation-derived cascade impact $I(v)$, establishing empirical validity.**
 
-← [Step 4: Simulate](failure-simulation.md) | → [Step 6: Prescribe](prescription.md)
+← [Step 5: Simulate](failure-simulation.md) | → [Step 7: Prescribe](prescription.md)
 
 ---
 
@@ -39,19 +39,19 @@
 
 ## 1. Overview & Core Thesis
 
-Step 5 closes the scientific loop of the Software-as-a-Graph methodology. It evaluates whether **pre-deployment topological predictions ($Q(v)$)** accurately correlate with **simulated runtime failure cascades ($I(v)$)**.
+Step 6 closes the scientific loop of the Software-as-a-Graph methodology. It evaluates whether **pre-deployment topological predictions ($Q(v)$)** accurately correlate with **simulated runtime failure cascades ($I(v)$)**.
 
 ```mermaid
 flowchart TD
-    subgraph Prediction["1. Predict Stage (Step 3)"]
+    subgraph Prediction["1. Predict/Diagnose Stages (Step 3/4)"]
         Q["Predicted Criticality Q(v)<br>Q_RM(v) = 0.80·R(v) + 0.20·M(v)<br>or Learned Q_GNN(v)"]
     end
 
-    subgraph Simulation["2. Simulate Stage (Step 4)"]
+    subgraph Simulation["2. Simulate Stage (Step 5)"]
         I["Simulated Ground Truth I(v)<br>FaultInjector I*(v)<br>FailureSimulator I_comp(v)<br>MessageFlow I_dyn(v)"]
     end
 
-    Q --> STAT["Step 5: Statistical Validation Battery"]
+    Q --> STAT["Step 6: Statistical Validation Battery"]
     I --> STAT
 
     subgraph Battery["3. Statistical Tests & Analysis"]
@@ -379,9 +379,9 @@ $$\Delta\rho = \rho(Q_{\text{QoS}}, \; I) - \rho(Q_{\text{topo}}, \; I) > 0 \qua
 ## 11. What Comes Next
 
 Validation outputs serve as the decision foundation for downstream stages:
-- **[Step 6: Prescribe](prescription.md)** reads `SRI` (System Risk Index) as the baseline for evaluating counterfactual architectural refactorings.
-- **[Step 7: Visualize](visualization.md)** renders $Q(v)$ vs. $I(v)$ scatter plots, quadrant classifications, and topology risk heatmaps.
+- **[Step 7: Prescribe](prescription.md)** reads `SRI` (System Risk Index) as the baseline for evaluating counterfactual architectural refactorings.
+- **[Step 8: Visualize](visualization.md)** renders $Q(v)$ vs. $I(v)$ scatter plots, quadrant classifications, and topology risk heatmaps.
 
 ---
 
-← [Step 4: Simulate](failure-simulation.md) | → [Step 6: Prescribe](prescription.md)
+← [Step 5: Simulate](failure-simulation.md) | → [Step 7: Prescribe](prescription.md)

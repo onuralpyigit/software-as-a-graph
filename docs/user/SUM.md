@@ -203,10 +203,10 @@ Offline Input Preparation
 └────┬─────┘
      │ (input topology)
      ▼
-┌──────────┐     ┌─────────┐     ┌─────────┐     ┌──────────┐     ┌──────────┐     ┌───────────┐
-│  Model   │ ──> │ Analyze │ ──> │ Predict │ ──> │ Simulate │ ──> │ Validate │ ──> │ Visualize │
-│  Step 1  │     │ Step 2  │     │ Step 3  │     │  Step 4  │     │  Step 5  │     │  Step 6   │
-└──────────┘     └─────────┘     └─────────┘     └──────────┘     └──────────┘     └───────────┘
+┌──────────┐ ┌─────────┐ ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐ ┌───────────┐
+│  Model   │>│ Analyze │>│ Predict │>│ Diagnose │>│ Simulate │>│ Validate │>│ Prescribe │>│ Visualize │
+│  Step 1  │ │ Step 2  │ │ Step 3  │ │  Step 4  │ │  Step 5  │ │  Step 6  │ │  Step 7   │ │  Step 8   │
+└──────────┘ └─────────┘ └─────────┘ └──────────┘ └──────────┘ └──────────┘ └───────────┘ └───────────┘
 ```
 
 ---
@@ -268,11 +268,12 @@ Trains the HGT (Heterogeneous Graph Transformer) GNN on simulated fault labels t
   ```
 
 #### GNN Model Prediction (Inference)
-Executes inference on a Neo4j graph using a trained GNN checkpoint.
+Executes inference on a Neo4j graph using a trained GNN checkpoint. Bundles Step 4 (Diagnose: anti-patterns, explanation, Triage bridge) by default for backward compatibility — pass `--no-diagnose` to run Step 3 alone.
 - **Script:** [cli/predict_graph.py] or `saag-predict`
 - **Arguments:**
   - `--gnn-model`: Path to model checkpoint directory.
   - `--layer`: Targets specific system layer.
+  - `--no-diagnose`: Skip the bundled Diagnose stage (no anti-patterns, explanation, triage, or exit-code gating).
   - `--output`: Path to save prediction metrics JSON.
 - **Example:**
   ```bash
@@ -281,7 +282,23 @@ Executes inference on a Neo4j graph using a trained GNN checkpoint.
 
 ---
 
-### 5.5 Step 4: Cascade Failure Simulation
+### 5.5 Step 4: Diagnose (RM Root Cause & Triage)
+Scores deterministic ISO-RM quality attribution, detects 19 architectural anti-patterns, generates natural-language explanations, and — via the Triage Bridge — scopes Step 3's Top-K ranking to a root-cause profile. Needs no GNN checkpoint (zero-GNN cold start); when a Step 3 result is available in the same run it reuses that stage's RM pass instead of recomputing it.
+- **Script:** [cli/diagnose_graph.py] or `saag-diagnose`
+- **Arguments:**
+  - `--layer`: Targets specific system layer.
+  - `--use-ahp`: Use AHP-derived dimension weights.
+  - `--triage-k`: Shortlist size for the Triage Bridge.
+  - `--by-stakeholder`: Group Triage remediation actions by stakeholder role.
+  - `--output`: Path to save diagnosis metrics JSON.
+- **Example:**
+  ```bash
+  python cli/diagnose_graph.py --layer system --use-ahp --triage-k 10 --output output/diagnosis.json
+  ```
+
+---
+
+### 5.6 Step 5: Cascade Failure Simulation
 Injects synthetic failures and evaluates cascade propagation, change propagation, and service disruptions to compute ground-truth impact labels.
 - **Script:** [cli/simulate_graph.py] or `saag-simulate`
 - **Arguments:**
@@ -295,8 +312,8 @@ Injects synthetic failures and evaluates cascade propagation, change propagation
 
 ---
 
-### 5.6 Step 5: Statistical Validation
-Computes Q(v) internally, derives simulation ground truth, and verifies validation gates (Spearman, F1-Score, NDCG@K, RMSE) in one command. Takes the same `system.json` used in Step 1, not the separate per-step output files from Steps 2–4.
+### 5.7 Step 6: Statistical Validation
+Computes Q(v) internally, derives simulation ground truth, and verifies validation gates (Spearman, F1-Score, NDCG@K, RMSE) in one command. Takes the same `system.json` used in Step 1, not the separate per-step output files from Steps 2–5.
 - **Script:** [cli/validate_graph.py] or `saag-validate`
 - **Subcommands:** `single` (one seed), `sweep` (multi-seed stability), `report` (sweep + topology-class gates + node-type strata), `compare` (topology-only vs. QoS-enriched ablation), `harness` (validate pre-computed Q(v)/I(v) JSON artifacts against each other, for pipelines that already have `predict_graph.py` output on disk).
 - **Arguments (common to `single`/`sweep`/`report`/`compare`):**
@@ -312,7 +329,22 @@ Computes Q(v) internally, derives simulation ground truth, and verifies validati
 
 ---
 
-### 5.7 Step 6: Interactive Dashboard Visualization
+### 5.8 Step 7: Prescriptive Remediation
+Generates architectural remediation edits (topic splits, host reallocations, QoS upgrades) from Step 4's diagnosis and Step 6's validated risk scores, accepting only edits a closed-loop counterfactual simulation confirms improve resilience.
+- **Script:** [cli/prescribe_graph.py] (no console-script entry point)
+- **Arguments:**
+  - `--layer`: Targets specific system layer.
+  - `--gnn-checkpoint`: Path to a GNN checkpoint directory (optional).
+  - `--kappa`: Acceptance multiple for the counterfactual gate (default: 1.0).
+  - `--output`: Path to save the `PrescribeResult` JSON.
+- **Example:**
+  ```bash
+  python cli/prescribe_graph.py --layer system --output output/prescription.json
+  ```
+
+---
+
+### 5.9 Step 8: Interactive Dashboard Visualization
 Generates an interactive, standalone HTML report containing system visualizations, metrics charts, and validation matrices.
 - **Script:** [cli/visualize_graph.py] or `saag-visualize`
 - **Arguments:**
@@ -325,7 +357,7 @@ Generates an interactive, standalone HTML report containing system visualization
 
 ---
 
-### 5.8 Full Pipeline Orchestration
+### 5.10 Full Pipeline Orchestration
 Run the entire end-to-end pipeline from a single command:
 - **Script:** [cli/run.py] or `saag`
 - **Arguments:**

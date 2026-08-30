@@ -1,8 +1,8 @@
-# Step 7: Visualize
+# Step 8: Visualize
 
 **Translate quantitative analysis into an interactive dashboard for architectural decision-making.**
 
-← [Step 6: Prescribe](prescription.md) | [README](../README.md)
+← [Step 7: Prescribe](prescription.md) | [README](../README.md)
 
 ---
 
@@ -119,7 +119,7 @@ Renders unless `--no-validation` is given. KPI cards for Spearman ρ, F1 (top-k)
 
 **Per-dimension ρ bars.** A horizontal progress-bar panel for R, M and A (Reliability, Maintainability, and the Availability sub-characteristic, reported as a diagnostic) using the RM semantic colours. Negative ρ is valid but cannot be a CSS width, so it renders as 0 % width with a red value label. When multi-seed data is loaded, the stability line chart sits beside it.
 
-**Per-dimension scatter plots** (when `include_per_dim_scatter` and the dimensional ground truths are present) — three plots against the Step 4 per-dimension ground truths:
+**Per-dimension scatter plots** (when `include_per_dim_scatter` and the dimensional ground truths are present) — three plots against the Step 5 per-dimension ground truths:
 
 | Plot | Horizontal | Vertical | Answers |
 |------|-----------|----------|---------|
@@ -305,7 +305,7 @@ One limit is enforced in code: **above 500 nodes the network graph is skipped** 
 
 `--no-network` skips the graph at any size — the right choice for batch dashboard generation, where layout is the dominant cost. `--no-matrix` and `--no-validation` similarly trim their sections.
 
-The component table caps at 100 rows regardless of graph size; use the CSV/JSON exports from Step 3 when you need the full ranking.
+The component table caps at 100 rows regardless of graph size; use the CSV/JSON exports from Step 3 (Predict, with Step 4 Diagnose bundled by default) when you need the full ranking.
 
 ---
 
@@ -356,7 +356,7 @@ PYTHONPATH=. python cli/visualize_graph.py --layers app \
     --output output/dashboard_multiseed.html
 ```
 
-Full flag table: [cli-pipeline-guide.md §Step 7](cli-pipeline-guide.md).
+Full flag table: [cli-pipeline-guide.md §Step 8](cli-pipeline-guide.md).
 
 ---
 
@@ -413,4 +413,4 @@ See [examples/example_visualization.py](../examples/example_visualization.py) fo
 
 ---
 
-← [Step 6: Prescribe](prescription.md) | [README](../README.md)
+← [Step 7: Prescribe](prescription.md) | [README](../README.md)

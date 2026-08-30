@@ -1,8 +1,8 @@
-# Step 4: Simulate — Failure Simulation
+# Step 5: Simulate — Failure Simulation
 
 **Generates simulation-derived ground-truth impact $I(v)$ to train and validate predicted architectural criticality $Q(v)$, using discrete-event and graph cascade failure engines.**
 
-← [Step 3: Predict](prediction.md) | → [Step 5: Validate](validation.md)
+← [Step 4: Diagnose](diagnosis.md) | → [Step 6: Validate](validation.md)
 
 ---
 
@@ -42,7 +42,7 @@ The Software-as-a-Graph (SaaG) framework predicts architectural component critic
 
 ```mermaid
 flowchart TD
-    G["Input Graph Topology<br>(data/scenarios/*.json)"] --> SIM["Step 4: Simulation Suite"]
+    G["Input Graph Topology<br>(data/scenarios/*.json)"] --> SIM["Step 5: Simulation Suite"]
     
     subgraph Mode1["Mode 1: Fault Injection (Graph Cascade)"]
         SIM --> FI["FaultInjector<br>(saag/simulation/fault_injector.py)"]
@@ -55,7 +55,7 @@ flowchart TD
     end
 
     IMP --> GNN["Step 3: GNN Training<br>(Supervised Training Target)"]
-    IMP --> VAL["Step 5: Validation<br>(Spearman Correlation Gate)"]
+    IMP --> VAL["Step 6: Validation<br>(Spearman Correlation Gate)"]
     MFR --> VAL
 ```
 
@@ -411,7 +411,7 @@ if result.fault_event:
 | # | Boundary / Limitation | Methodological Scope & Handling |
 |:---|:---|:---|
 | **L1** | **Unmodelled Topic/Node Direct Failures** | Cascade derives `DEPENDS_ON` from pub/sub and `USES`; physical host and raw topic failures are listed in `unlabeled_node_ids`. |
-| **L2** | **Unmeasured Maintainability Dimension** | `FaultInjector` measures operational cascade reach ($IR$ / composite). Maintainability ground truth is supplied by `FailureSimulator` in Step 5. |
+| **L2** | **Unmeasured Maintainability Dimension** | `FaultInjector` measures operational cascade reach ($IR$ / composite). Maintainability ground truth is supplied by `FailureSimulator` in Step 6. |
 | **L3** | **Single Fault per Simulation** | Simulators evaluate one component failure per run; multi-failure cascades model cascading effects rather than concurrent disjoint failures. |
 | **L4** | **Discrete-Event Latency Saturation** | In low-utilization scenarios (~1 Hz), queue build-up is negligible. $I_{\text{dyn}}(v)$ uses empirical delivery rates rather than latency jitter. |
 | **L5** | **Edge Ground Truth Scope** | Edge impact is evaluated via single-edge removal sweeps ($\Delta \text{Impact}$) with unmeasured edges marked `evaluated: false`. |
@@ -423,8 +423,8 @@ if result.fault_event:
 
 Simulation ground-truth files (`impact_scores.json` and `message_flow_results.json`) are consumed downstream:
 - **[Step 3: Predict](prediction.md)** trains GNN models on $I^*(v)$ labels.
-- **[Step 5: Validate](validation.md)** executes statistical correlation gates (Spearman $\rho \ge 0.70$, $F_1\text{@top-}K$) to validate topological $Q(v)$ against simulated impact.
+- **[Step 6: Validate](validation.md)** executes statistical correlation gates (Spearman $\rho \ge 0.70$, $F_1\text{@top-}K$) to validate topological $Q(v)$ against simulated impact.
 
 ---
 
-← [Step 3: Predict](prediction.md) | → [Step 5: Validate](validation.md)
+← [Step 4: Diagnose](diagnosis.md) | → [Step 6: Validate](validation.md)

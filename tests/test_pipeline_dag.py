@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 from saag import Pipeline
 from saag.infrastructure.memory_repo import MemoryRepository
@@ -223,4 +225,90 @@ def test_pipeline_triage_runs_after_predict(monkeypatch):
     assert captured["prediction_result"] is sentinel_prediction
     assert captured["k"] == 5
     assert captured["node_types"] == ["Application"]
+
+
+def test_pipeline_diagnose_requires_analyze():
+    """diagnose() without analyze() must fail fast, mirroring predict()'s
+    and triage()'s own analyze()/predict()-required guards."""
+    repo = MemoryRepository()
+    repo.save_graph({"applications": [{"id": "AppA", "name": "App A"}], "relationships": {}})
+
+    pipeline = Pipeline(repo=repo)
+    pipeline.diagnose(k=1)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        pipeline.run()
+
+    assert "diagnose() requires an AnalysisResult" in str(exc_info.value)
+
+
+def test_pipeline_diagnose_runs_after_predict(monkeypatch):
+    """diagnose() must execute after predict() and receive predict()'s
+    result as prediction_result, plus its own k/node_types kwargs — Step 4
+    (Diagnose) runs on whatever ranking Step 3 (Predict) produced."""
+    repo = MemoryRepository()
+    repo.save_graph({"applications": [{"id": "AppA", "name": "App A"}], "relationships": {}})
+
+    pipeline = Pipeline(repo=repo)
+    execution_order = []
+    sentinel_prediction = object()
+    sentinel_diagnosis = SimpleNamespace(triage=None)
+
+    monkeypatch.setattr(pipeline.client, "analyze", lambda *a, **kw: object())
+    monkeypatch.setattr(
+        pipeline.client, "predict",
+        lambda *a, **kw: execution_order.append("predict") or sentinel_prediction,
+    )
+    captured = {}
+
+    def fake_diagnose(analysis_result, prediction_result=None, **kw):
+        execution_order.append("diagnose")
+        captured["prediction_result"] = prediction_result
+        captured.update(kw)
+        return sentinel_diagnosis
+
+    monkeypatch.setattr(pipeline.client, "diagnose", fake_diagnose)
+    from saag.prediction.service import PredictionService
+    monkeypatch.setattr(PredictionService, "_has_checkpoint", staticmethod(lambda d: True))
+
+    pipeline.analyze("app").predict(mode="rm").diagnose(k=5, node_types=["Application"])
+    result = pipeline.run()
+
+    assert execution_order == ["predict", "diagnose"]
+    assert captured["prediction_result"] is sentinel_prediction
+    assert captured["k"] == 5
+    assert captured["node_types"] == ["Application"]
+    assert result.diagnosis is sentinel_diagnosis
+
+
+def test_pipeline_diagnose_standalone_cold_start(monkeypatch):
+    """diagnose() must work without predict() having run at all (zero-GNN
+    cold start) — Client.diagnose() receives prediction_result=None and
+    scores its own RM pass directly off analyze()'s result. Also verifies
+    a triage() result attached to the diagnosis surfaces on
+    PipelineExecutionResult.triage for backward compatibility."""
+    repo = MemoryRepository()
+    repo.save_graph({"applications": [{"id": "AppA", "name": "App A"}], "relationships": {}})
+
+    pipeline = Pipeline(repo=repo)
+    sentinel_triage = SimpleNamespace(k=2)
+    sentinel_diagnosis = SimpleNamespace(triage=sentinel_triage)
+
+    monkeypatch.setattr(pipeline.client, "analyze", lambda *a, **kw: object())
+    captured = {}
+
+    def fake_diagnose(analysis_result, prediction_result=None, **kw):
+        captured["prediction_result"] = prediction_result
+        captured.update(kw)
+        return sentinel_diagnosis
+
+    monkeypatch.setattr(pipeline.client, "diagnose", fake_diagnose)
+
+    pipeline.analyze("system").diagnose(k=2)
+    result = pipeline.run()
+
+    assert captured["prediction_result"] is None
+    assert captured["k"] == 2
+    assert result.diagnosis is sentinel_diagnosis
+    assert result.triage is sentinel_triage
 

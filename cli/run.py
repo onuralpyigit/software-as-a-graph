@@ -46,15 +46,17 @@ def main():
     group = parser.add_argument_group("Pipeline Stages")
     group.add_argument("--all", action="store_true",
                        help=("Run all stages sequentially: generate → import → analyze → "
-                             "simulate → predict → validate → prescribe → visualize. "
+                             "simulate → predict → diagnose → validate → prescribe → visualize. "
                              "NOTE: the predict stage requires a pre-trained GNN checkpoint "
-                             "(--gnn-model). On a first run, omit --predict/--all and train "
-                             "the model first with: python cli/train_graph.py --layer system "
-                             "--output <checkpoint_dir>"))
+                             "(--gnn-model); without one it is skipped, but the diagnose stage "
+                             "still runs (RM scores, anti-patterns) since it needs no checkpoint. "
+                             "To enable GNN ranking, train first with: "
+                             "python cli/train_graph.py --layer system --output <checkpoint_dir>"))
     group.add_argument("--generate", action="store_true", help="Run graph generation stage")
     group.add_argument("--input", "-i", metavar="FILE", help="System topology JSON file (input for import, output for generate)")
     group.add_argument("--analyze", action="store_true", help="Run analysis stage (structural metrics only)")
-    group.add_argument("--predict", action="store_true", help="Run the unified Prediction stage (RM always + GNN when available + anti-patterns)")
+    group.add_argument("--predict", action="store_true", help="Run the Predict stage (Pathway B: RM always + GNN ranking when available)")
+    group.add_argument("--diagnose", action="store_true", help="Run the Diagnose stage (Pathway A: RM scores + anti-patterns + explanation; no checkpoint required)")
     group.add_argument("--simulate", action="store_true", help="Run failure simulation stage")
     group.add_argument("--validate", action="store_true", help="Run validation stage (compare prediction vs simulation)")
     group.add_argument("--prescribe", action="store_true", help="Run prescriptive remediation stage")
@@ -69,11 +71,12 @@ def main():
     opts.add_argument("--use-ahp", action="store_true", help="Use AHP-derived weights instead of default fixed weights")
     opts.add_argument("--gnn-model", metavar="PATH", help="Path to GNN model checkpoint directory")
     opts.add_argument("--triage-k", type=int, default=None, metavar="K",
-                       help="Run the Triage bridge after predict: shortlist the Top-K "
-                            "critical components (GNN-ranked when --gnn-model is set, "
-                            "RM-ranked otherwise) and print each one's RM root-cause "
-                            "diagnosis. Requires predict to run this same invocation "
-                            "(--predict or --all); not run by --all on its own.")
+                       help="Run the Triage bridge as part of diagnose: shortlist the "
+                            "Top-K critical components (GNN-ranked when --gnn-model was "
+                            "set and predict ran, RM-ranked otherwise) and print each "
+                            "one's RM root-cause diagnosis. Requires diagnose to run "
+                            "this same invocation (--diagnose or --all); --all alone "
+                            "does not imply a --triage-k value.")
     opts.add_argument("--sim-mode", default="exhaustive", help="Simulation mode (e.g., exhaustive, monte_carlo)")
     opts.add_argument("--no-network", action="store_true", help="Skip interactive network in visualization")
     opts.add_argument("--no-matrix", action="store_true", help="Skip dependency matrix in visualization")
@@ -97,7 +100,7 @@ def main():
     )
 
     # Ensure at least one stage is selected
-    stages = [args.all, args.generate, bool(args.input), args.analyze, args.predict, args.simulate, args.validate, args.prescribe, args.visualize]
+    stages = [args.all, args.generate, bool(args.input), args.analyze, args.predict, args.diagnose, args.simulate, args.validate, args.prescribe, args.visualize]
     if not any(stages):
         parser.error("No stages selected. Use --all or specific stage flags.")
 
@@ -117,11 +120,14 @@ def main():
                 "    2. PYTHONPATH=. python cli/train_graph.py --layer system \\\n"
                 f"           --output {_default_ckpt}\n"
                 f"    3. python cli/run.py --all --gnn-model {_default_ckpt}\n\n"
-                "  The predict stage will be skipped this run to avoid a crash.\n",
+                "  The predict stage (GNN ranking) will be skipped this run to avoid a\n"
+                "  crash — the diagnose stage (RM scores, anti-patterns, explanation)\n"
+                "  needs no checkpoint and still runs.\n",
                 file=sys.stderr,
             )
             skip_predict = True   # neutralise predict in --all mode for this run
-            # Note: args.all stays True so all other stages still execute.
+            # Note: args.all stays True so all other stages, including
+            # diagnose, still execute.
 
     # 0. Generation Stage (Pre-Pipeline)
     # If using --all, we assume generation is desired if --config or --scale provided
@@ -169,8 +175,11 @@ def main():
 
     if (args.predict or args.all) and not skip_predict:
         pipeline.predict(gnn_checkpoint=args.gnn_model, use_ahp=args.use_ahp)
-        if args.triage_k:
-            pipeline.triage(k=args.triage_k)
+
+    if args.diagnose or args.all:
+        # use_ahp only takes effect when predict() didn't already run (or was
+        # skipped above) — otherwise diagnose() reuses predict()'s RM pass.
+        pipeline.diagnose(k=args.triage_k, use_ahp=args.use_ahp)
 
     if args.simulate or args.all:
         pipeline.simulate(layer=args.layer, mode=args.sim_mode)
@@ -216,6 +225,9 @@ def main():
     if result.prediction:
         display.display_prediction_summary(result.prediction)
 
+    if result.diagnosis:
+        display.display_prediction_summary(result.diagnosis)
+
     if result.triage:
         display.print_subheader(f"Triage Shortlist (Top-{result.triage.k}, ranking source: {result.triage.ranking_source})")
         for entry in result.triage.entries:
@@ -229,7 +241,7 @@ def main():
         display.display_validation_summary(result.validation)
         
     if result.prescription:
-        display.print_subheader("Prescriptive Remediation Summary (Stage 6)")
+        display.print_subheader("Prescriptive Remediation Summary (Stage 7)")
         print(f"  Baseline SRI : {result.prescription.original_sri:.4f}")
         print(f"  Mutated SRI  : {result.prescription.mutated_sri:.4f}")
         improvement = result.prescription.sri_improvement
@@ -244,8 +256,15 @@ def main():
         if len(result.prescription.applied_changes) > 5:
             print(f"    ... and {len(result.prescription.applied_changes) - 5} more changes.")
     
-    # Anti-patterns (produced by the Predict stage, not Analyze)
-    problems = result.prediction.problems if result.prediction else []
+    # Anti-patterns (produced by the Diagnose stage; fall back to the
+    # Predict stage's own problems for callers who bundled diagnose=True
+    # into predict() instead of running diagnose() separately)
+    if result.diagnosis:
+        problems = result.diagnosis.problems
+    elif result.prediction:
+        problems = result.prediction.problems
+    else:
+        problems = []
     if problems and not getattr(args, "quiet", False):
         display.print_subheader(f"Architectural Anti-Patterns ({len(problems)})")
         for p in problems:

@@ -48,13 +48,14 @@ These guidelines represent best-practice rules for AI coding assistants working 
 Install, Docker, and frontend commands are documented once, in [README §Quick Start](README.md#quick-start) — do not re-derive them here; link instead.
 
 ### Pipeline Entry Points
-Eight CLI scripts have console-script entry points (`pyproject.toml`); the rest run as `python cli/<script>.py` (or `PYTHONPATH=. python cli/<script>.py` if not installed editable):
+Nine CLI scripts have console-script entry points (`pyproject.toml`); the rest run as `python cli/<script>.py` (or `PYTHONPATH=. python cli/<script>.py` if not installed editable):
 
 ```bash
 saag --all --layer system              # cli/run.py — full pipeline
 saag-import  --input data/system.json --clear
 saag-analyze --layer system
-saag-predict --layer system
+saag-predict  --layer system           # Step 3 (Pathway B) + Step 4 bundled by default
+saag-diagnose --layer system           # Step 4 (Pathway A) alone — no GNN checkpoint required
 saag-simulate fault-inject --input data/system.json --export-json
 saag-validate report --input data/system.json --qos
 saag-visualize --layer system --output output/dashboard.html

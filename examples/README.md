@@ -90,7 +90,7 @@ $$w(lib) = \min(1.0, base\_w \times (1 + 0.15 \times \log_2(1 + DG_{in})))$$
 
 ## Step 2: Structural Analysis & Quality Scoring
 
-- **`run_structural_analysis.py`**: Executes the Step 2 Analyze phase. It computes directed centrality, continuous articulation point scores, Connectivity Degradation Index (CDI), and the final criticality scores (Reliability — hierarchical, blending Fault Tolerance and Availability as sub-characteristics — Maintainability, and Overall Q).
+- **`run_structural_analysis.py`**: Executes the Step 2 Analyze phase (directed centrality, continuous articulation point scores, Connectivity Degradation Index (CDI)) followed by the Step 3 Predict / Step 4 Diagnose stages (`client.predict()`, which bundles Step 4 in by default) to obtain the final criticality scores — Reliability (hierarchical, blending Fault Tolerance and Availability as sub-characteristics), Maintainability, and Overall Q.
 
 ### Running the Analysis Example
 
@@ -124,9 +124,9 @@ When comparing the output of the actual Python script against the theoretical Se
 
 ---
 
-## Step 4: Failure Simulation
+## Step 5: Failure Simulation
 
-- **`run_failure_simulation.py`**: Executes the Step 4 Failure Simulation phase. It showcases both simulation engines: the stochastic **Fault Injector** (BFS cascade propagation) and the discrete-event **Message Flow Simulator** (SimPy queue timing).
+- **`run_failure_simulation.py`**: Executes the Step 5 Failure Simulation phase. It showcases both simulation engines: the stochastic **Fault Injector** (BFS cascade propagation) and the discrete-event **Message Flow Simulator** (SimPy queue timing).
 
 ### Running the Simulation Example
 
@@ -152,9 +152,9 @@ This runs:
 
 ---
 
-## Step 5: Validation Pipeline
+## Step 6: Validation Pipeline
 
-- **`run_validation.py`**: Executes the Step 5 Validation phase. It runs the programmatic validation pipeline on the Complete System (`system`) layer, comparing the topological quality predictions against the simulation-derived ground truths.
+- **`run_validation.py`**: Executes the Step 6 Validation phase. It runs the programmatic validation pipeline on the Complete System (`system`) layer, comparing the topological quality predictions against the simulation-derived ground truths.
 
 ### Running the Validation Example
 
@@ -190,9 +190,9 @@ It also outputs a clean comparison table:
 
 ---
 
-## Step 6: Visualization Dashboard
+## Step 8: Visualization Dashboard
 
-- **`run_visualization.py`**: Executes the Step 6 Visualization phase. It compiles results from all preceding steps (Analysis, Simulation, Validation, and Anti-Patterns) and generates a self-contained, interactive HTML dashboard showcasing all 10 standard sections defined in the specifications.
+- **`run_visualization.py`**: Executes the Step 8 Visualization phase. It compiles results from all preceding steps (Analysis, Simulation, Validation, and Anti-Patterns) and generates a self-contained, interactive HTML dashboard showcasing all 10 standard sections defined in the specifications.
 - **`example_visualization.py`**: An alias/wrapper script provided for out-of-the-box execution matching the exact command referenced in `docs/visualization.md`.
 
 ### Running the Visualization Example
@@ -224,7 +224,7 @@ Verifying dashboard contents:
 Worked example dashboard verified successfully! Strictly adheres to docs/visualization.md.
 ```
 
-The script outputs the static dashboard to `output/worked_example_dashboard.html`. You can open this file in any web browser to view the interactive elements. Note: the **Validation Report** section (§7) only renders when the layer's Spearman correlation is positive — on this 5-node worked example it is exactly `0.0` (see the Step 5 discussion above), so that one section is legitimately skipped here. It renders normally on the larger ATM dataset (`run_atm_visualization.py`).
+The script outputs the static dashboard to `output/worked_example_dashboard.html`. You can open this file in any web browser to view the interactive elements. Note: the **Validation Report** section (§7) only renders when the layer's Spearman correlation is positive — on this 5-node worked example it is exactly `0.0` (see the Step 6 discussion above), so that one section is legitimately skipped here. It renders normally on the larger ATM dataset (`run_atm_visualization.py`).
 
 ### Dashboard Sections Rendered
 

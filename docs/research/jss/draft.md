@@ -26,7 +26,7 @@ We evaluate SaG on 1,770 components from seven synthetic scenarios and three rea
 
 By enabling automated architectural analysis inside CI/CD before deployment, SaG bridges the Architecture–Code Gap, fostering resilient, dependable, and energy-efficient software systems.
 
-**Keywords:** Graph representation learning; heterogeneous graph neural networks; publish–subscribe middleware; distributed systems dependability; cascading failures; static system analysis; architectural quality models; explainable AI; CI/CD quality gates.
+**Keywords:** Graph representation learning; heterogeneous graph neural networks; publish–subscribe middleware; distributed systems dependability; cascading failures; static system analysis; architectural quality models; explainable AI; sustainable software systems; software performance engineering; CI/CD quality gates.
 
 ---
 
@@ -143,6 +143,8 @@ Because discrete-event simulation $I^*(v)$ defines ground-truth criticality in t
 2. **Variance Reduction and CI/CD-Viable Cost:** Cascade simulations are noisy and highly sensitive to seeds and propagation thresholds (label standard deviation across seeds reaches $0.416$); the network learns a smooth, threshold-marginalized representation instead. It is also two orders of magnitude cheaper than the analysis feeding it — $44\,\text{ms}$ on a 2,000-component system against minutes to hours for exhaustive multi-seed simulation — which is what makes per-commit gating affordable rather than nightly (§7.5).
 
 3. **Diagnostic Explainability:** Simulators and trained GNNs both return impact — a score, a rank, and in the GNN’s case an attention distribution showing *where* the model looked (§7.3). Neither returns cause attributed in standardised quality terms. A simulator can name precisely which subscriber lost which feed, and is fully inspectable in that sense, but it cannot say whether the component is fragile because it is a single point of failure or because it is a high-coupling maintenance bottleneck — and those two diagnoses call for different remediations (host or broker replication versus topic decoupling and refactoring). Our ISO-grounded RM model supplies exactly that missing layer: once the predictive path has identified a critical component, the diagnostic path says which quality characteristic is at risk and therefore which architectural fix applies.
+
+4. **Pre-Deployment Zero-Telemetry Transfer:** Dynamic simulators require runnable containers, operational mock environments, or configured communication harnesses to execute message exchanges. Heterogeneous graph learning enables zero-shot inductive evaluation directly from Architecture-as-Code manifests during continuous integration, assessing topological fragility and performance bottlenecks before any runtime infrastructure is provisioned.
 
 ## 1.4 Research Questions
 
@@ -293,7 +295,7 @@ Structural edges capture explicit deployment connections but omit implicit runti
 |  **2**   | `app_to_broker`         | Publisher/Subscriber $\to$ Broker routing its topics                   | $1 - \prod_{t \in T}(1 - w(t))$                    |
 |  **3**   | `node_to_node`          | Host $\to$ Host (lifted from inter-host app dependencies)              | Lifted $\max w$                                    |
 |  **4**   | `node_to_broker`        | Host $\to$ Broker (lifted from hosted app dependencies)                | Lifted $\max w$                                    |
-|  **5**   | `app_to_lib`            | Application $\to$ Shared Library it `USES`                             | $H!\left(w_V(\text{app}), w_V(\text{lib})\right)$ |
+|  **5**   | `app_to_lib`            | Application $\to$ Shared Library it `USES`                             | $H(w_V(\text{app}), w_V(\text{lib}))$              |
 |  **6**   | `broker_to_broker`      | Broker $\leftrightarrow$ Broker (shared-host fate, symmetric)          | $w_V(\text{node})$                                 |
 
 Rules 1 and 2 aggregate the several topics $T$ mediating one component pair by *probabilistic union* rather than by a maximum, so that additional parallel failure vectors raise coupling monotonically while preserving $w \in (0, 1]$. Rule 5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ of the consuming Application’s and the shared Library’s own vertex weights, which calibrates caller criticality against dependency criticality instead of letting either endpoint dominate. Rules 3 and 4 lift the maximum weight of the component-level dependencies crossing the host boundary.

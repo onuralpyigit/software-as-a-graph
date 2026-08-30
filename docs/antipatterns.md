@@ -123,17 +123,18 @@ Analysis is organized across four architectural projections, each providing a di
 
 ### 4.1 The Analysis Pipeline
 
-Anti-pattern detection runs as part of the Analyze stage. The structural sub-phase produces the metric vectors on which detection is based. The Simulate stage validates detection findings empirically.
+Anti-pattern detection runs as part of the Diagnose stage. The Analyze stage's structural sub-phase produces the metric vectors Diagnose's RM scoring is based on. The Simulate stage validates detection findings empirically.
 
 ```
-Step 1: Import                         G(V, E, w) from system topology
-Step 2: Analyze — structural           M(v) — full structural metric vector per component
-Step 2: Analyze — RM scoring      Q(v) — deterministic criticality scores
-        └── Anti-Pattern Detection     Pattern(v) — smell classification  ← this document
+Step 1: Model                          G(V, E, w) from system topology
+Step 2: Analyze                        M(v) — full structural metric vector per component
 Step 3: Predict (optional)             Q_gnn(v) — GNN node criticality scores
-Step 4: Simulate                       I(v) — ground-truth impact scores
-Step 5: Validate                       ρ(Q, I), F1 — empirical verification
-Step 6: Visualize                      Interactive dashboard with pattern annotations
+Step 4: Diagnose — RM scoring          Q(v) — deterministic criticality scores
+        └── Anti-Pattern Detection     Pattern(v) — smell classification  ← this document
+Step 5: Simulate                       I(v) — ground-truth impact scores
+Step 6: Validate                       ρ(Q, I), F1 — empirical verification
+Step 7: Prescribe                      Verified remediation edits from detected patterns
+Step 8: Visualize                      Interactive dashboard with pattern annotations
 ```
 
 ### 4.2 The Structural Metrics Detection Draws On

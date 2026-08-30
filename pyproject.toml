@@ -46,6 +46,7 @@ saag-simulate   = "cli.simulate_graph:main"
 saag-validate   = "cli.validate_graph:main"
 saag-visualize  = "cli.visualize_graph:main"
 saag-predict    = "cli.predict_graph:main"
+saag-diagnose   = "cli.diagnose_graph:main"
 saag-import     = "cli.import_graph:main"
 saag-generate   = "cli.generate_graph:main"
 

@@ -1,18 +1,12 @@
 #!/usr/bin/env python3
 """
-cli/predict_graph.py — Predict & Diagnose CLI (Step 3, + Step 4 bundled)
-=========================================================================
-Runs Step 3 (Predict, Pathway B: GNN blast-radius ranking) in one command,
-with Step 4 (Diagnose, Pathway A: RM scores + anti-patterns + explanation)
-bundled in by default for backward compatibility with this script's
-pre-split behaviour:
-
-  RM quality scoring     (always — Step 3's own input feature & fallback)
-  GNN inference           (opt-in: --gnn-model PATH)
-  Diagnose (Step 4)       (on by default; skip with --no-diagnose)
-    └── Anti-pattern scan   (on by default within Diagnose; skip with --no-antipatterns)
-
-For Step 4 on its own — no GNN, cold start — see `saag-diagnose`.
+cli/diagnose_graph.py — Diagnose & Anti-Pattern CLI (Step 4: Pathway A)
+========================================================================
+Runs the Diagnose stage in one command: deterministic ISO-RM root-cause
+attribution, anti-pattern detection, natural-language explanation, and
+(optionally) the Triage Bridge. Requires no GNN checkpoint — this is the
+zero-GNN cold-start path; for Step 3 (Pathway B: GNN blast-radius ranking),
+see `saag-predict`.
 
 Exit codes (CI/CD gate):
   0 — clean (no anti-patterns, or --no-antipatterns)
@@ -21,26 +15,26 @@ Exit codes (CI/CD gate):
 
 Usage examples
 --------------
-  # Minimal — RM + antipatterns on system layer
-  python cli/predict_graph.py
+  # Minimal — RM scoring + antipatterns on system layer
+  python cli/diagnose_graph.py
 
   # Multi-layer
-  python cli/predict_graph.py --layer app,system
+  python cli/diagnose_graph.py --layer app,system
 
-  # AHP-weighted RM + GNN prediction
-  python cli/predict_graph.py --use-ahp --gnn-model output/gnn_checkpoints/best
+  # AHP-weighted RM + Triage bridge, grouped by stakeholder
+  python cli/diagnose_graph.py --use-ahp --triage-k 10 --by-stakeholder
 
   # Strict CI gate — only CRITICAL patterns block
-  python cli/predict_graph.py --severity critical --output-antipatterns results/ap.json
+  python cli/diagnose_graph.py --severity critical --output-antipatterns results/ap.json
 
   # Filter to specific patterns
-  python cli/predict_graph.py --pattern SPOF,FAILURE_HUB,GOD_COMPONENT
+  python cli/diagnose_graph.py --pattern SPOF,FAILURE_HUB,GOD_COMPONENT
 
-  # Baseline equal weights, no GNN, skip antipatterns
-  python cli/predict_graph.py --equal-weights --no-antipatterns
+  # Baseline equal weights, skip antipatterns
+  python cli/diagnose_graph.py --equal-weights --no-antipatterns
 
   # Print the full pattern catalog and exit
-  python cli/predict_graph.py --catalog
+  python cli/diagnose_graph.py --catalog
 """
 
 import json
@@ -48,7 +42,7 @@ import logging
 import sys
 from pathlib import Path
 
-# Add project root to sys.path to support direct execution (python cli/predict_graph.py)
+# Add project root to sys.path to support direct execution (python cli/diagnose_graph.py)
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -56,11 +50,8 @@ import argparse
 from saag import Client
 from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay
-# Diagnose (Step 4) owns the catalog printer and RM breakdown display now —
-# reused here so this script's bundled-diagnose default renders identically.
-from cli.diagnose_graph import print_catalog, display_rm_breakdown
 
-logger = logging.getLogger("predict_graph")
+logger = logging.getLogger("diagnose_graph")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -69,11 +60,11 @@ logger = logging.getLogger("predict_graph")
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="predict_graph.py",
+        prog="diagnose_graph.py",
         description=(
-            "Predict CLI (Step 3): RM scoring and optional GNN inference, "
-            "with Step 4 (Diagnose: anti-pattern detection, explanation, "
-            "triage) bundled by default for backward compatibility."
+            "Diagnose CLI: RM root-cause attribution, anti-pattern detection, "
+            "explanation, and the Triage Bridge (Step 4, Pathway A) — no GNN "
+            "checkpoint required."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Usage examples")[1] if "Usage examples" in __doc__ else "",
@@ -109,32 +100,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run Kendall τ weight sensitivity analysis after scoring",
     )
 
-    # ── GNN inference ─────────────────────────────────────────────────────────
-    gnn_grp = parser.add_argument_group("GNN inference (Predict, optional)")
-    gnn_grp.add_argument(
-        "--gnn-model", metavar="PATH", default=None,
-        help="Path to a trained GNN checkpoint directory. "
-             "When provided, runs HGT/HGTConv inference and reports GNN scores.",
-    )
-
-    # ── Diagnose (Step 4) bundling ────────────────────────────────────────────
-    diag_grp = parser.add_argument_group("Diagnose (Step 4, bundled by default)")
-    diag_grp.add_argument(
-        "--no-diagnose", action="store_true",
-        help="Run Predict alone (Step 3: GNN ranking) without bundling the "
-             "Diagnose stage — no RM anti-pattern detection, explanation, "
-             "triage, or CI/CD exit-code gating. For Step 4 on its own, "
-             "with no GNN checkpoint required, see `saag-diagnose`.",
-    )
-
     # ── Triage bridge ────────────────────────────────────────────────────────
-    triage_grp = parser.add_argument_group("Triage bridge (optional, part of Diagnose)")
+    triage_grp = parser.add_argument_group("Triage bridge (optional)")
     triage_grp.add_argument(
         "--triage-k", type=int, default=None, metavar="K",
-        help="Shortlist the Top-K critical components (ranked by GNN when "
-             "--gnn-model is set and succeeds, by RM otherwise) and print "
-             "each one's RM root-cause diagnosis: pattern, elevated "
-             "dimensions, priority action, and stakeholder roles.",
+        help="Shortlist the Top-K critical components by RM score and print "
+             "each one's root-cause diagnosis: pattern, elevated dimensions, "
+             "priority action, and stakeholder roles.",
     )
     triage_grp.add_argument(
         "--by-stakeholder", action="store_true",
@@ -183,87 +155,80 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Blast-radius / cascade-depth helpers  (Issue #2)
+# Catalog printer
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def compute_propagation_metrics(nx_graph) -> dict[str, dict]:
-    """
-    For each node, compute:
-      blast_radius  — number of nodes reachable from this node in the DEPENDS_ON graph
-      cascade_depth — length of the longest directed path from this node
-    Both are O(V+E) amortised via a single DFS per source.
-    Returns {node_id: {"blast_radius": int, "cascade_depth": int}}.
-    """
+def print_catalog(display: ConsoleDisplay) -> None:
+    """Print the full anti-pattern catalog and exit."""
     try:
-        import networkx as nx
-    except ImportError:
-        return {}
-
-    result: dict[str, dict] = {}
-    for node in nx_graph.nodes():
-        reachable = nx.descendants(nx_graph, node)
-        blast_radius = len(reachable)
-        # Longest path on the ego sub-DAG
-        sub = nx_graph.subgraph(reachable | {node})
-        try:
-            cascade_depth = nx.dag_longest_path_length(sub)
-        except (nx.NetworkXError, nx.NetworkXUnfeasible):
-            # Graph has cycles in the ego subgraph — use simple BFS depth instead
-            lengths = nx.single_source_shortest_path_length(nx_graph, node)
-            cascade_depth = max(lengths.values()) if lengths else 0
-        result[node] = {"blast_radius": blast_radius, "cascade_depth": cascade_depth}
-    return result
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# GNN inference helper
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def run_gnn_inference(nx_graph, analysis, prediction, gnn_model: str, display: ConsoleDisplay):
-    """
-    Run GNN inference using a trained checkpoint.
-    Returns a GNNAnalysisResult or None on failure.
-    """
-    try:
-        from saag.prediction import GNNService, extract_structural_metrics_dict, extract_rm_scores_dict
+        from saag.analysis.antipattern_detector import CATALOG
     except ImportError as exc:
-        display.print_error(f"GNN module not available (PyTorch Geometric required): {exc}")
-        return None
+        display.print_error(f"Cannot load anti-pattern catalog: {exc}")
+        sys.exit(1)
 
-    try:
-        structural_dict = extract_structural_metrics_dict(analysis.raw)
-        rm_dict = extract_rm_scores_dict(prediction.raw)
+    _SEV_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+    entries = sorted(CATALOG.values(), key=lambda s: (_SEV_ORDER.get(s.severity, 9), s.id))
 
-        gnn_svc = GNNService.from_checkpoint(gnn_model, graph=nx_graph)
-        return gnn_svc.predict(
-            graph=nx_graph,
-            structural_metrics=structural_dict,
-            rm_scores=rm_dict,
-        )
-    except Exception as exc:
-        display.print_error(f"GNN inference failed: {exc}")
-        logger.debug("GNN inference traceback", exc_info=True)
-        return None
+    display.print_header("Anti-Pattern Catalog")
+
+    current_sev = None
+    for spec in entries:
+        if spec.severity != current_sev:
+            current_sev = spec.severity
+            display.print_step(f"── {current_sev} ──")
+        print(f"  {spec.id:<22}  [{spec.category:<16}]  {spec.description[:72]}")
+        print(f"  {'':22}  Risk:    {spec.risk[:72]}")
+        print(f"  {'':22}  Fix:     {spec.recommendation[:72]}")
+        print()
 
 
-def display_propagation_metrics(components: list, prop_metrics: dict, top_n: int = 10) -> None:
+# ═══════════════════════════════════════════════════════════════════════════════
+# RM dimension display helper
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_RM_LABELS = {
+    "fault_tolerance":  "Cascade / propagation risk",
+    "availability":     "SPOF / availability loss",
+    "maintainability":  "Coupling / change fragility",
+}
+
+def display_rm_breakdown(components: list, top_n: int = 10) -> None:
     """
-    Print blast-radius and cascade-depth for the top-ranked components
-    by composite Q score.  (Issue #2)
+    Print a ranked table of components with per-RM dimension scores and the
+    dominant risk dimension — so maintainability concerns (high M) are
+    distinguished from SPOF concerns (high A) at a glance.
+
+    The dominant-dimension max() runs over Fault Tolerance, Availability and
+    Maintainability — the three orthogonal signals — not Reliability itself,
+    which is their weighted combination and would double-count.
     """
-    if not components or not prop_metrics:
+    if not components:
         return
 
+    # Sort by composite score descending
     ranked = sorted(components, key=lambda c: c.scores.overall, reverse=True)[:top_n]
 
     print()
-    print(f"  {'Component':<32} {'Q':>5}  {'Blast radius':>12}  {'Cascade depth':>13}")
-    print(f"  {'─'*32} {'─'*5}  {'─'*12}  {'─'*13}")
-    for comp in ranked:
-        pm = prop_metrics.get(comp.id, {})
+    print(f"  {'Rank':<4} {'Component':<32} {'Q':>5}  {'R':>5}  {'M':>5}  {'FT':>5}  {'A':>5}  {'Dominant risk':<28}  {'SPOF'}")
+    print(f"  {'─'*4} {'─'*32} {'─'*5}  {'─'*5}  {'─'*5}  {'─'*5}  {'─'*5}  {'─'*28}  {'─'*4}")
+
+    for rank, comp in enumerate(ranked, 1):
+        s = comp.scores
+        dim_scores = {
+            "fault_tolerance": s.fault_tolerance,
+            "availability":    s.availability,
+            "maintainability": s.maintainability,
+        }
+        dominant_dim = max(dim_scores, key=dim_scores.get)
+        dominant_label = _RM_LABELS[dominant_dim]
+        is_spof = getattr(comp.structural, "is_articulation_point", False)
+        spof_mark = "  ✗" if is_spof else ""
+
         print(
-            f"  {str(comp.id)[:31]:<32} {comp.scores.overall:>5.3f}  "
-            f"{pm.get('blast_radius', '?'):>12}  {pm.get('cascade_depth', '?'):>13}"
+            f"  {rank:<4} {str(comp.id)[:31]:<32} "
+            f"{s.overall:>5.3f}  {s.reliability:>5.3f}  {s.maintainability:>5.3f}  "
+            f"{s.fault_tolerance:>5.3f}  {s.availability:>5.3f}  "
+            f"{dominant_label:<28}  {spof_mark}"
         )
     print()
 
@@ -287,12 +252,7 @@ def main() -> None:
     if args.equal_weights and args.use_ahp:
         parser.error("--equal-weights and --use-ahp are mutually exclusive.")
 
-    # ── Triage is part of Diagnose (Step 4) — can't ask for one without the other
-    if args.no_diagnose and args.triage_k:
-        parser.error("--no-diagnose disables the Diagnose stage; --triage-k belongs "
-                      "to it. Drop --no-diagnose or --triage-k.")
-
-    # ── Parse layers (multi-layer support)  (Issue #3) ───────────────────────
+    # ── Parse layers (multi-layer support) ────────────────────────────────────
     layers = [l.strip() for l in args.layer.split(",") if l.strip()]
     if not layers:
         layers = ["system"]
@@ -333,17 +293,13 @@ def main() -> None:
         mode_parts.append("equal weights")
     else:
         mode_parts.append("default weights")
-    if args.gnn_model:
-        mode_parts.append("GNN prediction requested")
-    if args.no_diagnose:
-        mode_parts.append("Diagnose stage skipped")
-    elif not args.no_antipatterns:
+    if not args.no_antipatterns:
         if args.pattern:
             mode_parts.append(f"patterns: {args.pattern}")
         else:
             mode_parts.append("full anti-pattern scan")
 
-    display.print_header(f"Prediction — {layer_label}  [{' · '.join(mode_parts)}]")
+    display.print_header(f"Diagnosis — {layer_label}  [{' · '.join(mode_parts)}]")
 
     # ── Connect ───────────────────────────────────────────────────────────────
     client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
@@ -352,95 +308,40 @@ def main() -> None:
     all_problems: list = []
     all_failed_patterns: list[str] = []
     all_output: dict = {"layers": {}}
-    gnn_requested_but_unavailable = False  # --gnn-model given but no layer produced GNN scores
 
     for layer in layers:
         display.print_step(f"[{layer.upper()}] Structural analysis…")
-
         analysis = client.analyze(layer=layer)
 
-        # ── RM prediction (Step 3: unified Predict step, RM path) ─────────
-        display.print_step(f"[{layer.upper()}] RM quality scoring…")
-        prediction = client.predict(
+        display.print_step(f"[{layer.upper()}] RM quality scoring & diagnosis…")
+        diagnosis = client.diagnose(
             analysis,
-            mode="rm",
-            equal_weights=args.equal_weights,
+            k=args.triage_k,
+            detect_problems=not args.no_antipatterns,
+            active_patterns=active_patterns,
+            run_sensitivity=args.sensitivity,
             use_ahp=args.use_ahp,
+            equal_weights=args.equal_weights,
             ahp_shrinkage=args.ahp_shrinkage,
             normalization_method=args.norm,
             winsorize=args.winsorize,
-            run_sensitivity=args.sensitivity,
-            # predict(diagnose=True) attaches anti-patterns internally; the
-            # anti-pattern block below reuses prediction.raw.problems rather
-            # than re-running the detector, so the *real* --pattern filter
-            # has to reach this call (not a coarse "full catalogue or
-            # nothing") — a second full pass here used to also pay for
-            # DEEP_PIPELINE a second time, which does not terminate in
-            # practical time above ~100 components.
-            active_patterns=[] if args.no_antipatterns else active_patterns,
-            diagnose=not args.no_diagnose,
         )
 
-        components = prediction.raw.components if prediction.raw else []
+        components = diagnosis.raw.components if diagnosis.raw else []
         total_components = len(components)
 
-        # ── Blast-radius / cascade-depth  (Issue #2) ─────────────────────────
-        nx_graph = getattr(analysis.raw, "graph", None)
-        prop_metrics: dict = {}
-        if nx_graph is not None:
-            display.print_step(f"[{layer.upper()}] Computing failure propagation metrics…")
-            prop_metrics = compute_propagation_metrics(nx_graph)
-
-        # ── RM breakdown display  (Issue #4) ───────────────────────────────
+        # ── RM breakdown display ────────────────────────────────────────────
         display.print_step(f"[{layer.upper()}] Top components by RM score:")
         display_rm_breakdown(components, top_n=10)
 
-        # ── Propagation metrics display  (Issue #2) ──────────────────────────
-        if prop_metrics:
-            display.print_step(f"[{layer.upper()}] Failure propagation (blast radius / cascade depth):")
-            display_propagation_metrics(components, prop_metrics, top_n=10)
-
-        # ── GNN inference (Step 3b, optional) ────────────────────────────────
-        gnn_result = None
-        if args.gnn_model:
-            display.print_step(f"[{layer.upper()}] GNN inference from checkpoint: {args.gnn_model}")
-            gnn_result = run_gnn_inference(nx_graph, analysis, prediction, args.gnn_model, display)
-            if gnn_result:
-                top_nodes = gnn_result.top_critical_nodes(n=10)
-                print()
-                print(f"  GNN top-10 components:")
-                print(f"  {'Rank':<4} {'Component':<32} {'Q_GNN':>6}  {'R':>6}  {'M':>6}  {'Source'}")
-                print(f"  {'─'*4} {'─'*32} {'─'*6}  {'─'*6}  {'─'*6}  {'─'*10}")
-                for rank, ns in enumerate(top_nodes, 1):
-                    print(
-                        f"  {rank:<4} {str(ns.component)[:31]:<32} "
-                        f"{ns.composite_score:>6.3f}  {ns.reliability_score:>6.3f}  "
-                        f"{ns.maintainability_score:>6.3f}  {ns.source}"
-                    )
-                print()
-            else:
-                gnn_requested_but_unavailable = True
-                display.print_error(
-                    f"[{layer.upper()}] GNN inference unavailable — this run's scores are "
-                    "static diagnostic quality attribution (RM), not dynamic multi-hop "
-                    "cascade forecasting."
-                )
-
-        # ── Anti-pattern detection (Diagnose, Step 4)  (Issue #1, #5, #6, #7) ─
-        # Reused from client.predict(diagnose=True) above, not re-run: predict()
-        # already detected against the same active_patterns filter, so a second
-        # full AntiPatternDetector pass here only doubled the cost (DEEP_PIPELINE
-        # included) for the same result.
+        # ── Anti-pattern detection ────────────────────────────────────────────
         layer_problems: list = []
-        if args.no_diagnose:
-            display.print_step(f"[{layer.upper()}] Diagnose stage skipped (--no-diagnose): "
-                                "no anti-pattern scan, explanation, or exit-code gating.")
-        elif not args.no_antipatterns:
+        if not args.no_antipatterns:
             display.print_step(f"[{layer.upper()}] Anti-pattern scan…")
-            layer_problems = prediction.raw.problems if prediction.raw else []
+            layer_problems = diagnosis.problems
             if severity_filter:
                 layer_problems = [p for p in layer_problems if p.severity.lower() in severity_filter]
-            layer_failed_patterns = getattr(prediction.raw, "failed_patterns", []) if prediction.raw else []
+            layer_failed_patterns = getattr(diagnosis.raw, "failed_patterns", []) or []
 
             all_problems.extend(layer_problems)
             all_failed_patterns.extend(layer_failed_patterns)
@@ -455,20 +356,8 @@ def main() -> None:
             display.print_step(f"[{layer.upper()}] Anti-pattern scan skipped (--no-antipatterns).")
 
         # ── Triage bridge (optional) ──────────────────────────────────────────
-        # Scopes the RM root-cause diagnosis to the Top-K components the
-        # ranking (GNN when available, RM otherwise) flagged as critical.
-        # The GNN result carries no root cause of its own (its `.components`
-        # shim leaves `profile` at None), so the diagnosis is always joined
-        # back to the RM prediction by component id — see saag/analysis/triage.py.
-        triage_result = None
-        if args.triage_k:
-            display.print_step(f"[{layer.upper()}] Triage — Top-{args.triage_k} shortlist…")
-            triage_target = prediction
-            if gnn_result is not None:
-                gnn_result.rm_result = prediction.raw
-                triage_target = gnn_result
-            triage_result = client.triage(triage_target, k=args.triage_k)
-
+        triage_result = diagnosis.triage
+        if triage_result:
             print()
             print(f"  Triage shortlist (ranking source: {triage_result.ranking_source}):")
             print(f"  {'Rank':<4} {'Component':<32} {'Pattern':<22} {'Level':<9} {'Roles'}")
@@ -493,11 +382,9 @@ def main() -> None:
                             print(f"    • {item['component_id']} ({item['criticality_level']}): {item['priority_action']}")
                     print()
 
-
         # ── Accumulate layer output ───────────────────────────────────────────
         layer_entry: dict = {
             "total_components": total_components,
-            "prediction_mode": "gnn_only" if gnn_result else prediction.prediction_mode,
             "rm": {
                 c.id: {
                     "overall":          c.scores.overall,
@@ -506,14 +393,11 @@ def main() -> None:
                     "fault_tolerance":  c.scores.fault_tolerance,
                     "availability":     c.scores.availability,
                     "is_spof":          getattr(c.structural, "is_articulation_point", False),
-                    **prop_metrics.get(c.id, {}),
                 }
                 for c in components
             },
             "antipatterns": [p.to_dict() for p in layer_problems],
         }
-        if gnn_result:
-            layer_entry["gnn"] = gnn_result.to_dict()
         if triage_result:
             layer_entry["triage"] = triage_result.to_dict()
         all_output["layers"][layer] = layer_entry
@@ -524,7 +408,7 @@ def main() -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w") as fh:
             json.dump(all_output, fh, indent=2, default=str)
-        display.print_success(f"Full prediction report saved → {args.output}")
+        display.print_success(f"Full diagnosis report saved → {args.output}")
 
     # ── Persist antipattern-only output (for visualize_graph.py) ─────────────
     if args.output_antipatterns and not args.no_antipatterns:
@@ -535,13 +419,7 @@ def main() -> None:
         display.print_success(f"Anti-pattern report saved → {args.output_antipatterns}")
 
     # ── Summary line ──────────────────────────────────────────────────────────
-    if gnn_requested_but_unavailable:
-        display.print_error(
-            "GNN prediction was requested but unavailable for at least one layer — "
-            "output for those layers is static diagnostic quality attribution (RM), "
-            "not dynamic multi-hop cascade forecasting."
-        )
-    if not (args.no_antipatterns or args.no_diagnose):
+    if not args.no_antipatterns:
         n_critical = sum(1 for p in all_problems if p.severity == "CRITICAL")
         n_high     = sum(1 for p in all_problems if p.severity == "HIGH")
         n_medium   = sum(1 for p in all_problems if p.severity == "MEDIUM")
@@ -549,8 +427,8 @@ def main() -> None:
         print(f"  Anti-pattern summary: {len(all_problems)} total  "
               f"({n_critical} CRITICAL  {n_high} HIGH  {n_medium} MEDIUM)")
 
-    # ── CI/CD exit codes  (Issue #6) ─────────────────────────────────────────
-    if args.no_antipatterns or args.no_diagnose or args.no_exit_code:
+    # ── CI/CD exit codes ─────────────────────────────────────────────────────
+    if args.no_antipatterns or args.no_exit_code:
         sys.exit(0)
 
     # A crashed detector can silently miss a CRITICAL/HIGH finding it would
@@ -579,7 +457,7 @@ def main() -> None:
         )
         sys.exit(1)
     else:
-        display.print_success("No anti-patterns detected. Prediction complete.")
+        display.print_success("No anti-patterns detected. Diagnosis complete.")
         sys.exit(0)
 
 

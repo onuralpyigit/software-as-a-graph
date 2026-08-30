@@ -600,20 +600,22 @@ sequenceDiagram
     autonumber
     participant M as Step 1: Model
     participant A as Step 2: Analyze
-    participant P as Step 3: Predict (Dual Pathway)
-    participant S as Step 4: Simulate (Offline Oracle)
-    participant V as Step 5: Validate
-    participant Rx as Step 6: Prescribe
+    participant P as Step 3: Predict (Pathway B)
+    participant D as Step 4: Diagnose (Pathway A)
+    participant S as Step 5: Simulate (Offline Oracle)
+    participant V as Step 6: Validate
+    participant Rx as Step 7: Prescribe
 
     M->>A: Graph topology, code metrics, QoS contracts
     A->>P: Structural Metric Vector M(v)
-    P->>P: Pathway A: Diagnostic ISO-RM Q*(v) & Anti-Patterns
+    A->>D: Structural Metric Vector M(v)
     P->>P: Pathway B: Predictive HGL Î*(v) (GNN)
-    P->>P: Triage Bridge: Scope Diagnosis to Top-K Risks
+    D->>D: Pathway A: Diagnostic ISO-RM Q*(v) & Anti-Patterns
+    P->>D: Triage Bridge: Scope Diagnosis to Top-K Risks
     S->>V: Emits Ground-Truth Oracles I*(v), IR(v), IM(v)
     P->>V: Supply Forecast Rankings Î*(v) / Q*(v)
     V->>V: Statistical Validation Battery (G1-G6, G8)
-    P->>Rx: Scoped Triage Diagnosis & Candidate Edits
+    D->>Rx: Scoped Triage Diagnosis & Candidate Edits
     Rx->>Rx: Closed-Loop Counterfactual Verification (ΔI > κ·σ)
 ```
 

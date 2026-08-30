@@ -4,7 +4,7 @@
 
 ### Neo4j
 
-Start a local Neo4j instance (default Bolt URI `bolt://localhost:7687`, user `neo4j`, password `password`). Ensure the database is reachable before running stages that require it (Steps 1–6 unless `--input` is provided for file-mode utilities).
+Start a local Neo4j instance (default Bolt URI `bolt://localhost:7687`, user `neo4j`, password `password`). Ensure the database is reachable before running stages that require it (Steps 1–7 unless `--input` is provided for file-mode utilities).
 
 ### Python Environment
 
@@ -144,7 +144,7 @@ PYTHONPATH=. python cli/export_graph.py --output output/exported_graph.json --fo
 ## Step 2: Analyze
 
 **Script:** `cli/analyze_graph.py`  
-**Purpose:** Compute structural metrics M(v) and the graph summary S(G) only — no RM/Q scoring, no anti-pattern detection. Those belong to Step 3 (Predict); `analyze_graph.py` takes no RM-weighting flags because scoring is not this stage's job. See [structural-analysis.md §1](structural-analysis.md#1-what-this-step-does).
+**Purpose:** Compute structural metrics M(v) and the graph summary S(G) only — no RM/Q scoring, no anti-pattern detection. RM/Q scoring and anti-pattern detection belong to Step 4 (Diagnose); GNN ranking belongs to Step 3 (Predict). `analyze_graph.py` takes no RM-weighting flags because scoring is not this stage's job. See [structural-analysis.md §1](structural-analysis.md#1-what-this-step-does).
 
 ```bash
 PYTHONPATH=. python cli/analyze_graph.py --layer system
@@ -159,35 +159,27 @@ PYTHONPATH=. python cli/analyze_graph.py --layer system
 
 Multi-layer output filenames append the layer (e.g. `analysis_app.json`, `analysis_system.json`).
 
-The RM-weighting flags (`--use-ahp`, `--equal-weights`, `--ahp-shrinkage`, `--norm`, `--winsorize`, `--sensitivity`) belong to Step 3 below.
+The RM-weighting flags (`--use-ahp`, `--equal-weights`, `--ahp-shrinkage`, `--norm`, `--winsorize`, `--sensitivity`) belong to Step 4 below.
 
 ---
 
 ## Step 3: Predict
 
 **Script:** `cli/predict_graph.py` (`saag-predict`)  
-**Purpose:** Dual-pathway prediction — deterministic ISO-RM scoring (Pathway A: Diagnostic), optional Heterogeneous Graph Transformer neural inference (Pathway B: Predictive), 19-pattern anti-pattern detection, natural-language explanation generation, and stakeholder-oriented root-cause attribution via the Triage Bridge.
+**Purpose:** Pathway B — optional Heterogeneous Graph Transformer neural inference ranking components by predicted blast radius, always computing the deterministic ISO-RM composite first as its own input feature and zero-checkpoint fallback. Step 4 (Diagnose: anti-pattern detection, explanation, Triage Bridge) is bundled into this script by default for backward compatibility with its pre-split behaviour — pass `--no-diagnose` to run Step 3 alone.
 
 ```bash
-# Rule-based RM scoring + Triage (cold start, zero GNN)
+# RM fallback (cold start, zero GNN) + Step 4 bundled (anti-patterns, Triage)
 PYTHONPATH=. python cli/predict_graph.py --layer system --triage-k 10
 
-# Dual-pathway prediction with GNN checkpoint and Triage Bridge
+# GNN inference with checkpoint + Step 4 bundled + Triage Bridge
 PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model --triage-k 10 --output output/prediction.json
+
+# Step 3 alone — GNN ranking only, no anti-patterns/explanation/triage/exit-code gating
+PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model --no-diagnose
 ```
 
 ### Arguments
-
-**Pathway A (Diagnostic / RM) Weighting:**
-
-| Flag | Description |
-|------|-------------|
-| `--use-ahp` | AHP-derived dimension weights |
-| `--equal-weights` | q_reliability=q_maintainability=0.5, r_alpha=0.5 — equal at every level of the RM composite (baseline ablation) |
-| `--ahp-shrinkage` | λ blending factor (default `0.7`) |
-| `--norm` | Normalization applied to Tier-1 metrics before the RM weighted sum: `robust` (rank-based, default), `minmax`, `zscore`, or `rank` |
-| `--winsorize` | Cap raw metric values above the 95th percentile before normalization |
-| `--sensitivity` | Run Kendall τ weight sensitivity analysis after scoring |
 
 **Pathway B (Predictive / HGL) GNN Inference:**
 
@@ -195,32 +187,25 @@ PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_c
 |------|-------------|
 | `--gnn-model` | Path to trained checkpoint directory (enables HGT blast-radius forecasting) |
 
-**The Triage Bridge (Quantitative Risk → Stakeholder Diagnosis):**
+**Diagnose (Step 4) bundling:**
 
 | Flag | Description |
 |------|-------------|
-| `--triage-k` | Shortlist the Top-K critical components (GNN-ranked when `--gnn-model` is set and succeeds, RM-ranked otherwise) and print each one's RM root-cause diagnosis: pattern signature, elevated dimensions, priority action, and mapped stakeholder roles (`DevOps / SRE`, `Architect`, `Developer`) |
+| `--no-diagnose` | Run Step 3 alone — skip anti-pattern detection, explanation, Triage, and CI/CD exit-code gating |
 
-**Anti-Pattern Detection (CI/CD Quality Gate):**
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--no-antipatterns` | `False` | Skip detection; exit code always 0 |
-| `--severity` | `None` | Comma-separated filter: `critical`, `high`, `medium` |
-| `--pattern` | `None` | Comma-separated pattern IDs (e.g. `SPOF,FAILURE_HUB,GOD_COMPONENT`) |
-| `--catalog` | `False` | Print full 19-pattern catalog and exit |
+The RM weighting, Triage bridge, and anti-pattern flags documented under Step 4 below are also accepted here and forwarded to the bundled Diagnose call (ignored when `--no-diagnose` is set).
 
 **Output & Gating:**
 
 | Flag | Description |
 |------|-------------|
-| `--output` / `-o` | Write full prediction JSON (includes RM profiles, GNN scores, and Triage shortlist) |
-| `--output-antipatterns` | Write standalone anti-pattern report JSON (feeds `visualize_graph.py`) |
+| `--output` / `-o` | Write full prediction JSON (includes RM profiles, GNN scores, and — unless `--no-diagnose` — the Triage shortlist) |
+| `--output-antipatterns` | Write standalone anti-pattern report JSON (feeds `visualize_graph.py`); no-op with `--no-diagnose` |
 | `--no-exit-code` | Always exit 0 (disable CI/CD gating) |
 
 ### Exit Codes (CI/CD Quality Gating)
 
-- `0` — clean (no anti-patterns detected, or `--no-antipatterns` / `--no-exit-code`)
+- `0` — clean (no anti-patterns detected, or `--no-antipatterns` / `--no-diagnose` / `--no-exit-code`)
 - `1` — MEDIUM anti-patterns detected (warnings/smells)
 - `2` — HIGH or CRITICAL anti-patterns detected → blocks pre-merge deployment gate
 
@@ -241,8 +226,8 @@ PYTHONPATH=. python cli/train_graph.py --layer system --epochs 500 --hidden 128 
 |------|---------|----------------|-------------|
 | `--layer` | `app` | `app`, `infra`, `mw`, `system` | System layer |
 | `--structural` | `None` | Path | Skip Step 2, load pre-computed metrics JSON |
-| `--simulated` | `None` | Path | Skip Step 4, load simulation results JSON |
-| `--rm` | `None` | Path | Skip Step 3, load RM scores JSON |
+| `--simulated` | `None` | Path | Skip Step 5, load simulation results JSON |
+| `--rm` | `None` | Path | Skip Step 4, load RM scores JSON |
 | `--hidden` | `64` | int | Hidden dimension |
 | `--heads` | `4` | int | Attention heads |
 | `--layers` | `3` | int | GNN layers |
@@ -262,7 +247,65 @@ PYTHONPATH=. python cli/train_graph.py --layer system --epochs 500 --hidden 128 
 
 ---
 
-## Step 4: Simulate
+## Step 4: Diagnose
+
+**Script:** `cli/diagnose_graph.py` (`saag-diagnose`)  
+**Purpose:** Pathway A — deterministic ISO-RM scoring, 19-pattern anti-pattern detection, natural-language explanation generation, and stakeholder-oriented root-cause attribution via the Triage Bridge. Needs no GNN checkpoint (zero-GNN cold start); when a Step 3 result is available it reuses that stage's RM pass rather than recomputing it.
+
+```bash
+# RM scoring + anti-patterns + Triage, no GNN checkpoint required
+PYTHONPATH=. python cli/diagnose_graph.py --layer system --triage-k 10
+
+# AHP-weighted RM composite, grouped by stakeholder role
+PYTHONPATH=. python cli/diagnose_graph.py --layer system --use-ahp --triage-k 10 --by-stakeholder --output output/diagnosis.json
+```
+
+### Arguments
+
+**Pathway A (Diagnostic / RM) Weighting:**
+
+| Flag | Description |
+|------|-------------|
+| `--use-ahp` | AHP-derived dimension weights |
+| `--equal-weights` | q_reliability=q_maintainability=0.5, r_alpha=0.5 — equal at every level of the RM composite (baseline ablation) |
+| `--ahp-shrinkage` | λ blending factor (default `0.7`) |
+| `--norm` | Normalization applied to Tier-1 metrics before the RM weighted sum: `robust` (rank-based, default), `minmax`, `zscore`, or `rank` |
+| `--winsorize` | Cap raw metric values above the 95th percentile before normalization |
+| `--sensitivity` | Run Kendall τ weight sensitivity analysis after scoring |
+
+**The Triage Bridge (Quantitative Risk → Stakeholder Diagnosis):**
+
+| Flag | Description |
+|------|-------------|
+| `--triage-k` | Shortlist the Top-K critical components (RM-ranked here; GNN-ranked when this diagnosis was joined to a Step 3 result that had a checkpoint) and print each one's RM root-cause diagnosis: pattern signature, elevated dimensions, priority action, and mapped stakeholder roles (`DevOps / SRE`, `Architect`, `Developer`) |
+| `--by-stakeholder` | Group Triage remediation actions by stakeholder role |
+
+**Anti-Pattern Detection (CI/CD Quality Gate):**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--no-antipatterns` | `False` | Skip detection; exit code always 0 |
+| `--severity` | `None` | Comma-separated filter: `critical`, `high`, `medium` |
+| `--pattern` | `None` | Comma-separated pattern IDs (e.g. `SPOF,FAILURE_HUB,GOD_COMPONENT`) |
+| `--catalog` | `False` | Print full 19-pattern catalog and exit |
+
+**Output & Gating:**
+
+| Flag | Description |
+|------|-------------|
+| `--output` / `-o` | Write full diagnosis JSON (RM profiles, anti-patterns, and Triage shortlist) |
+| `--output-antipatterns` | Write standalone anti-pattern report JSON (feeds `visualize_graph.py`) |
+| `--no-exit-code` | Always exit 0 (disable CI/CD gating) |
+
+### Exit Codes (CI/CD Quality Gating)
+
+- `0` — clean (no anti-patterns detected, or `--no-antipatterns` / `--no-exit-code`)
+- `1` — MEDIUM anti-patterns detected (warnings/smells)
+- `2` — HIGH or CRITICAL anti-patterns detected → blocks pre-merge deployment gate
+
+---
+
+## Step 5: Simulate
 
 **Script:** `cli/simulate_graph.py`  
 **Purpose:** Fault injection and discrete-event message-flow simulation.
@@ -323,7 +366,7 @@ Run `fault-inject` then `message-flow` in sequence. Accepts all flags from both 
 
 ---
 
-## Step 5: Validate
+## Step 6: Validate
 
 **Script:** `cli/validate_graph.py`  
 **Purpose:** Statistically prove that topology-based Q(v) predictions agree with simulation-derived I(v).
@@ -401,7 +444,7 @@ Append `:qos` to a ground-truth source to mark it QoS-coupled (triggers independ
 
 ---
 
-## Step 6: Prescribe
+## Step 7: Prescribe
 
 **Script:** `cli/prescribe_graph.py` (no console-script entry point — invoke directly)
 **Purpose:** Compile refactoring recommendations, verify each one in a counterfactual
@@ -446,7 +489,7 @@ PYTHONPATH=. python reproduce/run_prescribe_all.py --kappa 1.0 --output results/
 
 ---
 
-## Step 7: Visualize
+## Step 8: Visualize
 
 **Script:** `cli/visualize_graph.py`  
 **Purpose:** Generate multi-layer HTML dashboards.
@@ -547,7 +590,8 @@ PYTHONPATH=. python cli/run.py --all --layer system --gnn-model output/gnn_check
 | `--all` | Run all stages sequentially |
 | `--generate` | Run graph generation |
 | `--analyze` | Run analysis |
-| `--predict` | Run prediction (requires GNN) |
+| `--predict` | Run Predict (Pathway B: GNN ranking, requires checkpoint, or RM fallback) |
+| `--diagnose` | Run Diagnose (Pathway A: RM scores + anti-patterns + explanation; no checkpoint required) |
 | `--simulate` | Run simulation |
 | `--validate` | Run validation |
 | `--visualize` | Run visualization |
@@ -558,7 +602,7 @@ PYTHONPATH=. python cli/run.py --all --layer system --gnn-model output/gnn_check
 | `--clear` | Clear Neo4j before import |
 | `--use-ahp` | AHP weights |
 | `--gnn-model` | GNN checkpoint path |
-| `--triage-k` | Run the Triage bridge after predict (requires `--predict` or `--all` in the same invocation; not run by `--all` on its own) |
+| `--triage-k` | Run the Triage bridge as part of diagnose (requires `--diagnose` or `--all` in the same invocation; `--all` alone does not imply a `--triage-k` value) |
 | `--sim-mode` | `exhaustive` (default), `monte_carlo` |
 | `--no-network`, `--no-matrix`, `--no-validation` | Visualization exclusions |
 
@@ -569,7 +613,7 @@ PYTHONPATH=. python cli/run.py --all --layer system --gnn-model output/gnn_check
 Correct dependency order for a fresh project:
 
 ```
-Generate → Import → Analyze → Simulate → Train → Predict → Validate → Visualize
+Generate → Import → Analyze → Simulate → Train → Predict → Diagnose → Validate → Prescribe → Visualize
 ```
 
 Corresponding CLI commands:
@@ -591,12 +635,18 @@ PYTHONPATH=. python cli/simulate_graph.py fault-inject --input data/atm_system.j
 PYTHONPATH=. python cli/train_graph.py --layer system --output output/gnn_checkpoints/best_model
 
 # 4. Predict
-PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model
+PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model --no-diagnose
 
-# 5. Validate
+# 5. Diagnose (no checkpoint required — can also run before Predict/Simulate/Train)
+PYTHONPATH=. python cli/diagnose_graph.py --layer system --triage-k 10 --output output/diagnosis.json
+
+# 6. Validate
 PYTHONPATH=. python cli/validate_graph.py report --input data/atm_system.json --output output/validation_report.json --qos
 
-# 6. Visualize
+# 7. Prescribe
+PYTHONPATH=. python cli/prescribe_graph.py --layer system
+
+# 8. Visualize
 PYTHONPATH=. python cli/visualize_graph.py --layer system -o output/dashboard.html --antipatterns results/ap.json
 ```
 
@@ -674,6 +724,8 @@ PYTHONPATH=. python cli/predict_graph.py --layer system \
     --output-antipatterns results/ap.json
 ```
 
+`predict_graph.py` bundles Step 4 (Diagnose, where the anti-pattern gate lives) by default; use `cli/diagnose_graph.py` (`saag-diagnose`) instead when no GNN checkpoint is available or wanted for this gate.
+
 - Exit `0`: no anti-patterns
 - Exit `1`: MEDIUM patterns
 - Exit `2`: HIGH / CRITICAL → blocks pipeline
@@ -699,9 +751,11 @@ PYTHONPATH=. python cli/benchmark.py --scales tiny,small,medium,large,jumbo,xlar
 | Export | user-specified | `persistence` or `analysis` format |
 | Analyze | propagated via console | Save with `--output` |
 | Train | `output/gnn_checkpoints/` | Checkpoint directory |
-| Predict | user-specified via `--output` | Anti-patterns via `--output-antipatterns` |
+| Predict | user-specified via `--output` | Anti-patterns via `--output-antipatterns`; both no-ops with `--no-diagnose` |
+| Diagnose | user-specified via `--output` | Anti-patterns via `--output-antipatterns` |
 | Simulate | `output/simulation/` | JSON + text summaries |
 | Validate | user-specified via `--output` | Optional CSV / LaTeX |
+| Prescribe | propagated via console | Save with `--output` (`PrescribeResult` JSON) |
 | Visualize | `dashboard.html` | Configurable via `-o` |
 | Batch | `output/<domain>_results/` | Per-scenario output directories |
 
@@ -715,7 +769,7 @@ Direct invocation requires the project root on `PYTHONPATH`. Omitting it causes 
 
 ### Missing GNN Checkpoint for `--all`
 
-`cli/run.py --all` (or `--predict`) requires a trained GNN checkpoint. If `--gnn-model` is not provided and `output/gnn_checkpoints/best_model` does not exist, the predict stage is skipped with a warning. Train first:
+`cli/run.py --all` (or `--predict`) requires a trained GNN checkpoint. If `--gnn-model` is not provided and `output/gnn_checkpoints/best_model` does not exist, the predict stage is skipped with a warning — the diagnose stage still runs, since RM scores, anti-patterns and explanations need no checkpoint at all. Train first to enable GNN ranking:
 
 ```bash
 PYTHONPATH=. python cli/train_graph.py --layer system --output output/gnn_checkpoints/best_model
@@ -733,7 +787,7 @@ QoS scenario names (`--domain`, `--scenario`) must match exactly: `av`, `iot`, `
 
 ### First-Run Guard Warning
 
-The orchestrator warns when `--all` is used without a GNN checkpoint. Follow the printed three-step sequence to generate data, train, and then run the full pipeline.
+The orchestrator warns when `--all` is used without a GNN checkpoint and skips the predict stage (the diagnose stage still runs). Follow the printed three-step sequence to generate data, train, and then run the full pipeline.
 
 ### Small Graphs and Unreliable Spearman ρ
 
@@ -747,8 +801,10 @@ The orchestrator warns when `--all` is used without a GNN checkpoint. Follow the
 - Graph model and topology: [graph-model.md](graph-model.md)
 - Structural analysis: [structural-analysis.md](structural-analysis.md)
 - Prediction and GNN: [prediction.md](prediction.md)
+- Diagnosis and Triage Bridge: [diagnosis.md](diagnosis.md)
 - Failure simulation: [failure-simulation.md](failure-simulation.md)
 - Validation methodology: [validation.md](validation.md)
+- Prescription: [prescription.md](prescription.md)
 - Visualization: [visualization.md](visualization.md)
 - Scenario management: [scenario.md](scenario.md)
 - Statistics: [statistics.md](statistics.md)

@@ -4,7 +4,7 @@ saag/client.py
 import json
 from typing import TYPE_CHECKING, Optional, List, Dict, Any
 
-from .models import AnalysisResult, PredictionResult, ValidationResult, ValidationPipelineFacade, ImportResult
+from .models import AnalysisResult, PredictionResult, DiagnosisResult, ValidationResult, ValidationPipelineFacade, ImportResult
 
 if TYPE_CHECKING:
     # Import-time only: pulling saag.prescription in eagerly would drag the
@@ -65,14 +65,15 @@ class Client:
         winsorize_limit: float = 0.05,
         run_sensitivity: bool = False,
         active_patterns: Optional[List[str]] = None,
+        diagnose: bool = True,
     ) -> PredictionResult:
-        """Run the unified Prediction stage (Step 3) on a prior AnalysisResult.
+        """Run the Predict stage (Step 3, Pathway B) on a prior AnalysisResult.
 
         Consumes the StructuralAnalysisResult produced by analyze() — no
-        repository access. Always computes rule-based RM scores; blends in
-        GNN-derived criticality ranks when a trained checkpoint is available
-        at ``gnn_checkpoint`` (falls back to RM otherwise). Also runs
-        anti-pattern detection and generates a human-readable explanation.
+        repository access. Always computes rule-based RM scores (the GNN's
+        own input feature and cold-start fallback); blends in GNN-derived
+        criticality ranks when a trained checkpoint is available at
+        ``gnn_checkpoint`` (falls back to RM otherwise).
 
         Parameters
         ----------
@@ -95,7 +96,13 @@ class Client:
             list skips detection entirely. The distinction matters for callers
             that only want RM scores: DEEP_PIPELINE enumerates every simple
             source-to-sink path and does not terminate in practical time on
-            topologies of a few hundred components.
+            topologies of a few hundred components. Ignored when ``diagnose``
+            is False.
+        diagnose:
+            Bundle the Diagnose stage (Step 4, Pathway A: anti-pattern
+            detection + explanation) into this call, for callers that still
+            want the pre-split one-shot behaviour. Default True. Set False
+            to run Predict alone and call ``client.diagnose()`` separately.
         """
         from saag.prediction.service import PredictionService
 
@@ -117,9 +124,89 @@ class Client:
 
         result = service.predict_quality_with_gnn(
             structural, structural.graph, layer=layer, run_sensitivity=run_sensitivity,
-            active_patterns=active_patterns,
+            active_patterns=active_patterns, diagnose=diagnose,
         )
         return PredictionResult(result)
+
+    def diagnose(
+        self,
+        analysis_result: AnalysisResult,
+        prediction_result: Optional[Any] = None,
+        k: Optional[int] = None,
+        node_types: Optional[List[str]] = None,
+        detect_problems: bool = True,
+        active_patterns: Optional[List[str]] = None,
+        run_sensitivity: bool = False,
+        use_ahp: bool = False,
+        equal_weights: bool = False,
+        ahp_shrinkage: float = 0.7,
+        normalization_method: str = "robust",
+        winsorize: bool = True,
+        winsorize_limit: float = 0.05,
+    ) -> DiagnosisResult:
+        """Run the Diagnose stage (Step 4, Pathway A) on a prior AnalysisResult.
+
+        Deterministic ISO-RM root-cause attribution: dimension scores,
+        5-level classification, anti-pattern detection, and a human-readable
+        explanation. Runs standalone off ``analysis_result`` — no predict()
+        call is required (this is the zero-GNN cold-start path).
+
+        When ``prediction_result`` is given, its RM pass is reused rather
+        than recomputed: an RM-mode ``predict()`` result *is* the RM pass;
+        a GNN-mode one carries it as ``.rm_result``. Anti-pattern detection
+        and explanation are skipped if that pass was already diagnosed (a
+        ``predict(diagnose=True)`` call) and no ``active_patterns`` override
+        is given — otherwise they run now, on that same RM pass. Either way
+        the result is written back onto ``prediction_result`` so a later
+        ``prescribe()``/``visualize()`` call sees the same problems this
+        call returns. ``use_ahp``/``equal_weights``/``ahp_shrinkage``/
+        ``normalization_method``/``winsorize``/``winsorize_limit`` only take
+        effect when no ``prediction_result`` is given — otherwise its RM
+        weighting is inherited unchanged.
+
+        When ``k`` is given, also runs the Triage Bridge: scopes this
+        diagnosis to the Top-K components Pathway B's ranking (GNN when
+        ``prediction_result`` came from a checkpoint, RM otherwise) flagged
+        as critical — attached as ``DiagnosisResult.triage``.
+        """
+        from saag.prediction.service import PredictionService
+
+        layer_result = analysis_result.raw
+        structural = layer_result.structural
+        layer = getattr(layer_result, "layer", "system")
+
+        raw_prediction = getattr(prediction_result, "raw", prediction_result) if prediction_result is not None else None
+        quality = (getattr(raw_prediction, "rm_result", None) or raw_prediction) if raw_prediction is not None else None
+
+        if quality is None:
+            service = PredictionService(
+                use_ahp=use_ahp,
+                equal_weights=equal_weights,
+                ahp_shrinkage=ahp_shrinkage,
+                normalization_method=normalization_method,
+                winsorize=winsorize,
+                winsorize_limit=winsorize_limit,
+            )
+            quality = service.predict_quality(structural, run_sensitivity=run_sensitivity)
+            quality.prediction_mode = "rm"
+
+        if detect_problems and (getattr(quality, "explanation", None) is None or active_patterns is not None):
+            problems, problem_summary, explanation = PredictionService()._attach_problems_and_explanation(
+                quality, layer=layer, active_patterns=active_patterns
+            )
+        else:
+            problems = getattr(quality, "problems", None) or []
+            problem_summary = getattr(quality, "problem_summary", None)
+            explanation = getattr(quality, "explanation", None)
+
+        if raw_prediction is not None and raw_prediction is not quality:
+            raw_prediction.problems = problems
+            raw_prediction.problem_summary = problem_summary
+            raw_prediction.explanation = explanation
+            raw_prediction.rm_result = quality
+
+        triage_result = self.triage(quality, k=k, node_types=node_types) if k else None
+        return DiagnosisResult(quality, triage=triage_result)
 
     def triage(
         self,
@@ -145,10 +232,11 @@ class Client:
         return uc.execute(raw, k=k, layer=layer, node_types=node_types)
 
     def detect_antipatterns(self, prediction_result: Any, active_patterns: Optional[List[str]] = None) -> List[Any]:
-        """Return anti-patterns detected during the Predict stage.
+        """Return anti-patterns detected during the Diagnose stage.
 
-        Problems are computed as part of predict(); this method simply surfaces
-        them with an optional pattern filter rather than re-running detection.
+        Problems are computed as part of predict()/diagnose(); this method
+        simply surfaces them with an optional pattern filter rather than
+        re-running detection.
         """
         raw = getattr(prediction_result, "raw", prediction_result)
         problems = getattr(raw, "problems", None) or getattr(prediction_result, "problems", []) or []

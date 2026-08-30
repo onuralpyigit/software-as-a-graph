@@ -337,6 +337,7 @@ def mock_pipeline():
         # Mock fluent interface
         instance.analyze.return_value = instance
         instance.predict.return_value = instance
+        instance.diagnose.return_value = instance
         instance.simulate.return_value = instance
         instance.validate.return_value = instance
         instance.visualize.return_value = instance
@@ -344,6 +345,8 @@ def mock_pipeline():
         run_result = MagicMock()
         run_result.analysis = None
         run_result.prediction = None
+        run_result.diagnosis = None
+        run_result.triage = None
         run_result.simulation = None
         run_result.validation = None
         run_result.prescription = None
@@ -466,6 +469,39 @@ class TestOptionsPassthrough:
         _run_main(run_module, ["--predict", "--use-ahp"])
         mock_inst.predict.assert_called_once_with(gnn_checkpoint=None, use_ahp=True)
         mock_inst.analyze.assert_not_called()
+
+    def test_diagnose_flag_reaches_pipeline(self, run_module, mock_pipeline):
+        """--diagnose (Step 4, Pathway A) must reach Pipeline.diagnose(),
+        with --triage-k forwarded as its k= — the Triage bridge now belongs
+        to Diagnose, not Predict."""
+        mock_class, mock_inst = mock_pipeline
+        _run_main(run_module, ["--diagnose", "--triage-k", "5"])
+        mock_inst.diagnose.assert_called_once_with(k=5, use_ahp=False)
+        mock_inst.predict.assert_not_called()
+
+
+class TestDiagnoseStage:
+    """Tests for the Step 3/Step 4 split in run.py: Predict (Pathway B
+    ranking) and Diagnose (Pathway A root cause) are independent stages."""
+
+    @pytest.fixture(scope="class")
+    def run_module(self):
+        return cli.run
+
+    def test_all_skips_predict_but_diagnose_still_runs_without_checkpoint(
+        self, run_module, mock_pipeline, monkeypatch
+    ):
+        """On a first run with no GNN checkpoint, --all must skip Predict
+        (it would crash without one) but still run Diagnose — RM scores,
+        anti-patterns and explanations need no checkpoint at all."""
+        from saag.prediction.service import PredictionService
+        monkeypatch.setattr(PredictionService, "_has_checkpoint", staticmethod(lambda d: False))
+
+        mock_class, mock_inst = mock_pipeline
+        ret = _run_main(run_module, ["--all"])
+        assert ret == 0
+        mock_inst.predict.assert_not_called()
+        mock_inst.diagnose.assert_called_once_with(k=None, use_ahp=False)
 
 class TestOutputPaths:
     """Tests for output directory and file paths in run.py"""

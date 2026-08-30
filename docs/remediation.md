@@ -2,7 +2,7 @@
 
 **How Software-as-a-Graph goes from a flagged structural smell to a verified remediation.**
 
-This document bridges [Step 3: Predict](prediction.md) (anti-pattern detection) and [Step 6: Prescribe](prescription.md) (closed-loop remediation). For the full formal specification of each anti-pattern, see [antipatterns.md](antipatterns.md); for the full prescription API and schema, see [prescription.md](prescription.md). This page focuses on how the two connect — and where they don't.
+This document bridges [Step 4: Diagnose](diagnosis.md) (anti-pattern detection) and [Step 7: Prescribe](prescription.md) (closed-loop remediation). For the full formal specification of each anti-pattern, see [antipatterns.md](antipatterns.md); for the full prescription API and schema, see [prescription.md](prescription.md). This page focuses on how the two connect — and where they don't.
 
 ---
 
@@ -86,7 +86,7 @@ A rejected policy is still returned in full, with its before/after metrics, for 
 
 ## 5. From blueprint to deployment
 
-The output of a `prescribe()` call is a remediation blueprint: an itemized `applied_changes` list, per-edit verdicts for everything that was declined, and before/after metrics (reachability loss, fragmentation, throughput loss). It is reachable from the SDK and the CLI — Stage 6 has no REST router and is not rendered in the SMART dashboard. The architect is the one who turns this into real deployment artifacts — topic redesign in middleware config, Kubernetes anti-affinity scheduling constraints, DDS/MQTT QoS profile changes. The framework diagnoses and simulates the treatment; it never administers it to the live system.
+The output of a `prescribe()` call is a remediation blueprint: an itemized `applied_changes` list, per-edit verdicts for everything that was declined, and before/after metrics (reachability loss, fragmentation, throughput loss). It is reachable from the SDK and the CLI — Stage 7 has no REST router and is not rendered in the SMART dashboard. The architect is the one who turns this into real deployment artifacts — topic redesign in middleware config, Kubernetes anti-affinity scheduling constraints, DDS/MQTT QoS profile changes. The framework diagnoses and simulates the treatment; it never administers it to the live system.
 
 ---
 

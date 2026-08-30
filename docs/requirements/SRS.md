@@ -18,12 +18,13 @@
    - 3.1 [Synthetic Graph Generation (Offline Input Preparation)](#31-synthetic-graph-generation-offline-input-preparation)
    - 3.2 [Graph Model Construction (Step 1)](#32-graph-model-construction-step-1)
    - 3.3 [Structural Analysis (Step 2)](#33-structural-analysis-step-2)
-   - 3.4 [Unified Prediction Step: Rule-Based (RM) + ML (GNN) (Step 3)](#34-unified-prediction-step-rule-based-rm--ml-gnn-step-3)
-   - 3.5 [Failure Simulation (Step 4)](#35-failure-simulation-step-4)
-   - 3.6 [Statistical Validation (Step 5)](#36-statistical-validation-step-5)
-   - 3.7 [Visualization (Step 6)](#37-visualization-step-6)
-   - 3.8 [Multi-Layer Analysis](#38-multi-layer-analysis)
-   - 3.9 [System Interface Requirements](#39-system-interface-requirements)
+   - 3.4 [Predict: ML (GNN) Blast-Radius Ranking, Pathway B (Step 3)](#34-predict-ml-gnn-blast-radius-ranking-pathway-b-step-3)
+   - 3.5 [Diagnose: Rule-Based (RM) Quality Attribution, Pathway A (Step 4)](#35-diagnose-rule-based-rm-quality-attribution-pathway-a-step-4)
+   - 3.6 [Failure Simulation (Step 5)](#36-failure-simulation-step-5)
+   - 3.7 [Statistical Validation (Step 6)](#37-statistical-validation-step-6)
+   - 3.8 [Visualization (Step 8)](#38-visualization-step-8)
+   - 3.9 [Multi-Layer Analysis](#39-multi-layer-analysis)
+   - 3.10 [System Interface Requirements](#310-system-interface-requirements)
 4. [Non-Functional Requirements](#4-non-functional-requirements)
 5. [Data Requirements](#5-data-requirements)
 6. [Validation Targets and Achieved Results](#6-validation-targets-and-achieved-results)
@@ -43,17 +44,19 @@ This specification is aligned with **ISO/IEC/IEEE 29148:2018** for requirements 
 ### 1.2 Scope
 Software-as-a-Graph transforms a distributed publish-subscribe system's topology description into a weighted heterogeneous directed graph, evaluates its structural characteristics, and applies both rule-based (RM) and machine-learning (Heterogeneous Graph Transformer - GNN) approaches to forecast component and link criticality before deployment, without requiring runtime telemetry.
 
-The framework implements a 6-step core analytical pipeline, preceded by an offline input preparation stage:
+The framework implements an 8-step core analytical pipeline, preceded by an offline input preparation stage. This specification's functional requirements (§3) cover Steps 1–6 and 8; Step 7 (Prescribe — closed-loop counterfactual remediation) is implemented (see [prescription.md](../prescription.md)) but not yet formally specified here:
 
 | Step | Function | Output |
 |------|----------|--------|
 | **Offline Prep: Generate** | Produce synthetic pub-sub topologies for evaluation | Topology JSON |
 | **1. Model** | Load topology JSON into Neo4j; derive logical dependencies | Heterogeneous Graph $G(V, E)$ |
 | **2. Analyze** | Compute 18+ topological metrics per component | Metric vectors $\mathbf{M}(v)$ |
-| **3. Predict** | Forecast criticality via rule-based (RM) and learning-based (GNN) models | Node $Q(v)$ & Edge $Q(e)$ scores |
-| **4. Simulate** | Inject cascade failure scenarios to generate labels | Ground-truth labels $\mathbf{I}(v)$ |
-| **5. Validate** | Compare predictions $Q$ against simulation results $\mathbf{I}$ | Spearman $\rho$, F1-score, NDCG |
-| **6. Visualize**| Generate dashboard reports and interactive viewers | HTML Reports / SMART Web App |
+| **3. Predict** | Forecast criticality via learning-based (GNN) models when a checkpoint exists, or the RM fallback | Node $Q(v)$ & Edge $Q(e)$ scores |
+| **4. Diagnose** | Score rule-based (RM) quality attribution and detect anti-patterns | Node $Q(v)$ scores, anti-pattern report |
+| **5. Simulate** | Inject cascade failure scenarios to generate labels | Ground-truth labels $\mathbf{I}(v)$ |
+| **6. Validate** | Compare predictions $Q$ against simulation results $\mathbf{I}$ | Spearman $\rho$, F1-score, NDCG |
+| *7. Prescribe (not covered by §3)* | Generate and counterfactually verify architectural edits | `PrescribeResult` |
+| **8. Visualize**| Generate dashboard reports and interactive viewers | HTML Reports / SMART Web App |
 
 The system is delivered through three interfaces:
 1. **Core SDK ([saag])**: Hexagonal-architecture Python package.
@@ -84,6 +87,7 @@ The system is delivered through three interfaces:
 - **v2.3 (Mar 2026):** Refactored backend architecture to follow presenter patterns and updated quality formulations to align with expert weight shifts.
 - **v3.0 (Jun 2026 - Current):** Full alignment with **ISO/IEC/IEEE 12207:2026** and **ISO/IEC/IEEE 29148:2018**. Expanded GNN details (Heterogeneous Graph Transformers, bidirectional propagation, custom edge projections, multi-task losses, robust normalization) and added Step 0 (Synthetic Graph Generation) functional requirements. Added ML Operational NFRs and the process mapping matrix.
 - **v3.1 (Aug 2026):** Migrated the quality model from 4-D "RMAV" (Reliability, Maintainability, Availability, Vulnerability) to 2-D "RM" per ISO/IEC 25010:2023. Vulnerability/Security is deleted entirely (no successor metric or gate); Availability is demoted from a peer dimension to a Reliability sub-characteristic alongside a new Fault Tolerance sub-characteristic: $R(v) = \alpha \cdot FT(v) + (1-\alpha) \cdot A(v)$, $\alpha = 0.36$. Composite becomes $Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$. Updated §1.2, §2.3, §2.4, §3.4, §3.4.2/3.5 GNN head counts, Appendix A formula reference, Appendix B glossary. Removed the Security Engineer persona (§2.3) and the `Target`/`Exposure` anti-patterns from REQ-QS-04's scope.
+- **v3.2 (Aug 2026):** Split the former unified "Prediction Step" into two independent pipeline stages: Step 3 (Predict, Pathway B — GNN blast-radius ranking, always falling back to the RM composite) and Step 4 (Diagnose, Pathway A — RM quality attribution, anti-pattern detection, and the Triage Bridge; needs no GNN checkpoint). Renumbered §3.4–§3.10 and the overview pipeline table (§1.2) to an 8-step scheme; added `saag-diagnose` / `cli/diagnose_graph.py` (REQ-CLI-06).
 
 ---
 
@@ -161,20 +165,10 @@ The system must extract topological metrics from the projected subgraphs.
 | **REQ-SA-04** | The system shall normalize all computed topological and QoS metrics to the interval $[0, 1]$ prior to downstream utilization. |
 | **REQ-SA-05** | The system shall compute graph-level statistics (density, clustering coefficient, bridge ratio, and node/edge ratios) for diagnostic reporting. |
 
-### 3.4 Unified Prediction Step: Rule-Based (RM) + ML (GNN) (Step 3)
-The legacy "Quality Scoring" mechanism (formerly part of Step 2) has been removed and replaced by a single, unified Prediction Step. The system must forecast node and edge criticality using rule-based metrics (always computed) and trained GNN models (blended in when available), and derive anti-pattern reports and explanations from the result.
+### 3.4 Predict: ML (GNN) Blast-Radius Ranking, Pathway B (Step 3)
+The legacy "Quality Scoring" mechanism (formerly part of Step 2) has been removed. Step 3 (Predict) is the learned-ranking stage: the system must forecast node and edge criticality using trained GNN models when a checkpoint is available, always computing the rule-based RM composite first (Section 3.5) as the GNN's own input feature and as the ranking Step 3 falls back to when no checkpoint exists.
 
-#### 3.4.1 Rule-Based Quality Scoring (RM)
-Per ISO/IEC 25010:2023, the system scores two external quality characteristics: Reliability and Maintainability. Reliability is hierarchical, with Fault Tolerance and Availability as sub-characteristics. Vulnerability/Security was a third peer dimension in earlier versions of this system (the "RMAV" model); it has been deleted entirely — not folded into another dimension, and with no successor metric or gate.
-
-| ID | Requirement |
-|----|-------------|
-| **REQ-QS-01** | The system shall compute individual sub-characteristic scores for Fault Tolerance $FT(v)$ and Availability $A(v)$, blend them into the hierarchical Reliability score $R(v) = \alpha \cdot FT(v) + (1-\alpha) \cdot A(v)$ ($\alpha = 0.36$), and compute Maintainability $M(v)$, using the closed-form expressions in Appendix A.2 to A.5. |
-| **REQ-QS-02** | The system shall compute the composite score $Q(v) = w_R \cdot R(v) + w_M \cdot M(v)$ using declared composite weights ($w_R = 0.80$, $w_M = 0.20$ by default), optionally QoS-adapted or domain-derived per component. |
-| **REQ-QS-03** | The system shall validate AHP matrix consistency, ensuring the Consistency Ratio ($CR$) is less than $0.10$, for the intra-sub-characteristic term weights (Fault Tolerance, Maintainability, Availability) before applying derived weights. |
-| **REQ-QS-04** | The system shall isolate and report architectural anti-patterns: Single Points of Failure (SPOF) and failure hubs. |
-
-#### 3.4.2 GNN-Based Prediction (Inductive Forecasting)
+#### 3.4.1 GNN-Based Prediction (Inductive Forecasting)
 | ID | Requirement |
 |----|-------------|
 | **REQ-GNN-01** | The system shall convert NetworkX topology representations into PyTorch Geometric `HeteroData` representations with type-partitioned nodes and edges. |
@@ -187,13 +181,13 @@ Per ISO/IEC 25010:2023, the system scores two external quality characteristics: 
 | **REQ-GNN-08** | The system shall feed the outputs of the two dimension heads directly into the composite head alongside the node representation to learn non-linear dimension interactions. |
 | **REQ-GNN-09** | The system shall calculate direct edge-level criticality rankings using a `TypedEdgeEncoder` which projects edge features and fuses them with source and destination node embeddings. |
 
-#### 3.4.3 Criticality Classification
+#### 3.4.2 Criticality Classification
 | ID | Requirement |
 |----|-------------|
 | **REQ-GNN-CLS-01** | The system shall classify components into five criticality levels (CRITICAL, HIGH, MEDIUM, LOW, MINIMAL) using box-plot statistical classification ($Q_3 + k \cdot IQR$) with adaptive thresholds rather than static cuts. |
 | **REQ-GNN-CLS-02** | The system shall log fallback alerts and default to RM scoring if the specified GNN model checkpoint is missing or incompatible with the target layer. |
 
-#### 3.4.4 GNN Training and Optimization
+#### 3.4.3 GNN Training and Optimization
 | ID | Requirement |
 |----|-------------|
 | **REQ-GNN-TR-01** | The system shall utilize AdamW optimization, Cosine Annealing learning rate scheduling with restarts, and gradient norm clipping. |
@@ -202,7 +196,18 @@ Per ISO/IEC 25010:2023, the system scores two external quality characteristics: 
 | **REQ-GNN-TR-04** | The system shall perform robust label normalization in-place on target simulation labels using IQR-scaled sigmoidal bounds to mitigate outlier influence. |
 | **REQ-GNN-TR-05** | The system shall support multi-seed training loops (default seeds: 42, 123, 456, 789, 2024), logging validation Spearman $\rho$ per seed, and restoring the best weights before checkpoint serialization. |
 
-### 3.5 Failure Simulation (Step 4)
+### 3.5 Diagnose: Rule-Based (RM) Quality Attribution, Pathway A (Step 4)
+Step 4 (Diagnose) is the deterministic root-cause stage. It requires no trained GNN checkpoint (zero-GNN cold start) and, when a Step 3 result is available in the same run, reuses its RM composite rather than recomputing it. Per ISO/IEC 25010:2023, the system scores two external quality characteristics: Reliability and Maintainability. Reliability is hierarchical, with Fault Tolerance and Availability as sub-characteristics. Vulnerability/Security was a third peer dimension in earlier versions of this system (the "RMAV" model); it has been deleted entirely — not folded into another dimension, and with no successor metric or gate.
+
+| ID | Requirement |
+|----|-------------|
+| **REQ-QS-01** | The system shall compute individual sub-characteristic scores for Fault Tolerance $FT(v)$ and Availability $A(v)$, blend them into the hierarchical Reliability score $R(v) = \alpha \cdot FT(v) + (1-\alpha) \cdot A(v)$ ($\alpha = 0.36$), and compute Maintainability $M(v)$, using the closed-form expressions in Appendix A.2 to A.5. |
+| **REQ-QS-02** | The system shall compute the composite score $Q(v) = w_R \cdot R(v) + w_M \cdot M(v)$ using declared composite weights ($w_R = 0.80$, $w_M = 0.20$ by default), optionally QoS-adapted or domain-derived per component. |
+| **REQ-QS-03** | The system shall validate AHP matrix consistency, ensuring the Consistency Ratio ($CR$) is less than $0.10$, for the intra-sub-characteristic term weights (Fault Tolerance, Maintainability, Availability) before applying derived weights. |
+| **REQ-QS-04** | The system shall isolate and report architectural anti-patterns: Single Points of Failure (SPOF) and failure hubs. |
+| **REQ-QS-05** | The system shall scope Step 3's Top-K ranking to Step 4's root-cause profile via the Triage Bridge, joining strictly by component ID (never reading a root cause off the ranking itself), and route the joined profile to stakeholder roles (DevOps/SRE, Architect, Developer). |
+
+### 3.6 Failure Simulation (Step 5)
 The system must run cascade simulations to establish target criticality labels.
 
 | ID | Requirement |
@@ -213,7 +218,7 @@ The system must run cascade simulations to establish target criticality labels.
 | **REQ-FS-04** | The system shall propagate cascades using four semantic rules: PHYSICAL (RUNS_ON), LOGICAL (Broker routes), NETWORK (CONNECTS_TO), and LIBRARY (USES). |
 | **REQ-FS-05** | The system shall output a composite impact score $I(v)$ representing the overall cascading footprint of each component. |
 
-### 3.6 Statistical Validation (Step 5)
+### 3.7 Statistical Validation (Step 6)
 The system must validate prediction accuracy against simulation ground truth.
 
 | ID | Requirement |
@@ -224,7 +229,7 @@ The system must validate prediction accuracy against simulation ground truth.
 | **REQ-VL-04** | The system shall compute Root Mean Squared Error (RMSE) and Mean Absolute Error (MAE) between normalized prediction and simulation scores. |
 | **REQ-VL-05** | The system shall evaluate metrics against three tiers of validation gates (Primary, Secondary, Specialist) and block downstream deployments upon gate failure. |
 
-### 3.7 Visualization (Step 6)
+### 3.8 Visualization (Step 8)
 The system must generate visual reports for end-user analysis.
 
 | ID | Requirement |
@@ -234,14 +239,14 @@ The system must generate visual reports for end-user analysis.
 | **REQ-VZ-03** | The SMART web application (smart) shall provide a Dashboard view, an interactive Graph Explorer (2D/3D force-directed layouts), an Analysis interface, and a Failure Simulator panel. |
 | **REQ-VZ-04** | The Graph Explorer side panel shall display detailed node metrics, direct dependency links, and active anti-pattern flags upon component selection. |
 
-### 3.8 Multi-Layer Analysis
+### 3.9 Multi-Layer Analysis
 | ID | Requirement |
 |----|-------------|
 | **REQ-ML-01** | The system shall support graph projections and pipeline executions targeted at specific layers: Application (`app`), Infrastructure (`infra`), Middleware (`mw`), and System (`system`). |
 
-### 3.9 System Interface Requirements
+### 3.10 System Interface Requirements
 
-#### 3.9.1 REST API Endpoints
+#### 3.10.1 REST API Endpoints
 All API routers shall serve versioned JSON payloads under the `/api/v1/` prefix.
 
 | ID | Requirement | Endpoint | Method |
@@ -257,7 +262,7 @@ All API routers shall serve versioned JSON payloads under the `/api/v1/` prefix.
 | **REQ-API-09** | Execute Full Pipeline | `/api/v1/validation/run-pipeline` | POST |
 | **REQ-API-10** | Retrieve Layers | `/api/v1/validation/layers` | GET |
 
-#### 3.9.2 Command-Line Interface (CLI) Scripts
+#### 3.10.2 Command-Line Interface (CLI) Scripts
 The system shall expose command-line entry points registered via package configuration.
 
 | ID | Requirement | Entrypoint | Script / Purpose |
@@ -267,10 +272,11 @@ The system shall expose command-line entry points registered via package configu
 | **REQ-CLI-03** | Analyze Graph | `saag-analyze` | `cli/analyze_graph.py` |
 | **REQ-CLI-04** | GNN Training | `saag-train` | `cli/train_graph.py` |
 | **REQ-CLI-05** | Predict Criticality | `saag-predict` | `cli/predict_graph.py` |
-| **REQ-CLI-06** | Fail Components | `saag-simulate` | `cli/simulate_graph.py` |
-| **REQ-CLI-07** | Validate Results | `saag-validate` | `cli/validate_graph.py` |
-| **REQ-CLI-08** | Visualise Data | `saag-visualize` | `cli/visualize_graph.py` |
-| **REQ-CLI-09** | Orchestrate Pipeline | `saag` | `cli/run.py` |
+| **REQ-CLI-06** | Diagnose Root Cause | `saag-diagnose` | `cli/diagnose_graph.py` |
+| **REQ-CLI-07** | Fail Components | `saag-simulate` | `cli/simulate_graph.py` |
+| **REQ-CLI-08** | Validate Results | `saag-validate` | `cli/validate_graph.py` |
+| **REQ-CLI-09** | Visualise Data | `saag-visualize` | `cli/visualize_graph.py` |
+| **REQ-CLI-10** | Orchestrate Pipeline | `saag` | `cli/run.py` |
 
 ---
 
