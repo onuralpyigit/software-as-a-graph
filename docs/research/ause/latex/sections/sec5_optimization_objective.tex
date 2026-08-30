@@ -1,7 +1,7 @@
 \section{Closed-Loop Optimization Objective}
 \label{sec:optimization_objective}
 
-The prescriptive refactoring objective computes a graph transformation $\Delta(G)$ producing mutated topology $G' = \Delta(G)$ that minimizes global failure impact subject to a budget constraint:
+The prescriptive engine consumes the Diagnostic Pathway's output directly---severity tiers from Section~\ref{sec:model:rm} and pattern findings from Section~\ref{sec:antipattern_catalog}---rather than re-deriving its own criticality signal, so diagnosis and prescription cannot silently drift apart. The prescriptive refactoring objective computes a graph transformation $\Delta(G)$ producing mutated topology $G' = \Delta(G)$ that minimizes global failure impact subject to a budget constraint:
 \begin{equation}
 \min_{\Delta} \sum_{v \in V} I^*_{\Delta(G)}(v) \quad \text{subject to} \quad \mathrm{Cost}(\Delta) \le \mathcal{B}
 \end{equation}

@@ -47,9 +47,9 @@ The projection is organized across four architectural layers:
 \subsection{The Code Quality Penalty (CQP): Bridging SCA and Architecture}
 \label{sec:model:cqp}
 
-To bridge source-code health with architectural risk during automated review, the Diagnostic Pathway ingests file-level static code analysis (SCA) metrics: Lines of Code (\texttt{cm\_total\_loc}), Weighted Methods per Class (\texttt{cm\_avg\_wmc}), Lack of Cohesion in Methods (\texttt{cm\_avg\_lcom}), and the SonarQube Technical Debt Ratio (\texttt{sqale\_debt\_ratio}).
+To bridge source-code health with architectural risk during automated review, the Diagnostic Pathway ingests four file-level static code analysis (SCA) signals for Application and Library vertices: Lines of Code (\texttt{loc}, from \texttt{code\_metrics.size.total\_loc}), Weighted Methods per Class as a complexity proxy (\texttt{cyclomatic\_complexity}, from \texttt{code\_metrics.complexity.avg\_wmc}), Lack of Cohesion in Methods (\texttt{lcom}, from \texttt{code\_metrics.cohesion.avg\_lcom}), and code-level instability, $\text{instability\_code}(v) = C_e(v) / (C_a(v) + C_e(v))$, computed from afferent/efferent coupling (\texttt{avg\_fanin}/\texttt{avg\_fanout}). The SonarQube Technical Debt Ratio (\texttt{sqale\_debt\_ratio}) is ingested and persisted alongside these fields but does not enter the CQP formula below or any other scoring path (Table~\ref{tab:cqp_gotcha}); it is exported for dashboard display only.
 
-These metrics are rank-normalized and synthesized into a per-component \textbf{Code Quality Penalty (CQP)} for Application and Library vertices:
+LOC, complexity, and LCOM are \textbf{min-max normalized independently within each node type}---Application and Library vertices form two separate populations, since their typical scales differ---while instability is already bounded in $[0,1]$ and is not renormalized. A population with zero variance (e.g., every node of a type carries no \texttt{code\_metrics}) collapses to a normalized value of $0$ for all its members rather than $1$, so that "uniformly absent data" is not scored as "uniformly worst"; a population of exactly one measured node keeps its full normalized value of $1$. These normalized signals synthesize into a per-component \textbf{Code Quality Penalty (CQP)}:
 \begin{equation}
 \begin{aligned}
 \mathrm{CQP}(v) = & \; 0.10\,\text{loc\_norm}(v) + 0.35\,\text{complexity\_norm}(v) \\
@@ -58,10 +58,55 @@ These metrics are rank-normalized and synthesized into a per-component \textbf{C
 \end{equation}
 $\mathrm{CQP}(v) \in [0,1]$ provides an explicit, quantitative bridge from source-code technical debt to architectural criticality, entering directly into the Maintainability dimension of the RM model.
 
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{CQP input fields: what feeds the score vs. what is ingested but does not.}
+\label{tab:cqp_gotcha}
+\begin{tabular}{lll}
+\toprule
+\textbf{Field} & \textbf{CQP term} & \textbf{Status} \\
+\midrule
+\texttt{loc} & $0.10\times\text{loc\_norm}$ & Scores \\
+\texttt{cyclomatic\_complexity} (avg WMC) & $0.35\times\text{complexity\_norm}$ & Scores \\
+\texttt{lcom} & $0.25\times\text{lcom\_norm}$ & Scores \\
+\texttt{avg\_fanin}/\texttt{avg\_fanout} & $0.30\times\text{instability\_code}$ & Scores \\
+\texttt{sqale\_debt\_ratio} & --- & Ingested, exported, never scored \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Hierarchical Reliability--Maintainability (RM) Quality Attribution}
 \label{sec:model:rm}
 
-Grounded in \textbf{ISO/IEC 25010} (Product Quality) and \textbf{ISO/IEC 25019} (Quality-in-Use) \cite{iso25010_2023, iso25019_2023}, the Diagnostic Pathway decomposes structural quality into two primary dimensions---\textbf{Reliability} and \textbf{Maintainability}---providing explainable, role-specific diagnostics (Table~\ref{tab:rm_stakeholders}).
+Grounded in \textbf{ISO/IEC 25010} (Product Quality) and \textbf{ISO/IEC 25019} (Quality-in-Use) \cite{iso25010_2023, iso25019_2023}, the Diagnostic Pathway decomposes structural quality into two primary dimensions---\textbf{Reliability} and \textbf{Maintainability}---providing explainable, role-specific diagnostics (Figure~\ref{fig:rm_hierarchy}, Table~\ref{tab:rm_stakeholders}).
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, font=\footnotesize, inner sep=4pt},
+    role/.style={draw, rounded corners, align=center, font=\scriptsize\itshape, fill=gray!8, inner sep=3pt},
+    >={Stealth[length=2mm]}, node distance=7mm and 10mm
+]
+\node[box, fill=purple!8, minimum width=6.4cm] (q) {Composite Criticality $Q(v)$ \\ $(0.80\,R(v) + 0.20\,M(v))$};
+\node[box, fill=blue!8, below left=9mm and 4mm of q, minimum width=3.5cm] (r) {Reliability $R(v)$ \\ $(0.36\,FT(v) + 0.64\,A(v))$};
+\node[box, fill=orange!10, below right=9mm and 4mm of q, minimum width=3.5cm] (m) {Maintainability $M(v)$ \\ (BT, $w_{\text{out}}$, CQP, coupling)};
+\node[box, below left=8mm and -2mm of r, minimum width=1.9cm] (ft) {Fault Tolerance $FT(v)$ \\ \scriptsize (cascade depth)};
+\node[box, below right=8mm and -2mm of r, minimum width=1.9cm] (a) {Availability $A(v)$ \\ \scriptsize (SPOF / cut-vertex)};
+\node[role, below=5mm of ft] (rft) {Reliability Engineer \\ (blast radius)};
+\node[role, below=5mm of a] (ra) {DevOps / SRE \\ (task continuity)};
+\node[role, below=17mm of m] (rm) {Software Architect \\ (cognitive load \& debt)};
+\draw[->] (q) -- (r);
+\draw[->] (q) -- (m);
+\draw[->] (r) -- (ft);
+\draw[->] (r) -- (a);
+\draw[->] (ft) -- (rft);
+\draw[->] (a) -- (ra);
+\draw[->] (m) -- (rm);
+\end{tikzpicture}
+\caption{The hierarchical RM Diagnostic Attribution Model and stakeholder role mapping. Each arrow is a scoring dependency computed by the same deterministic pass, not a post-hoc explanation of a separately trained model.}
+\label{fig:rm_hierarchy}
+\end{figure}
 
 \begin{table}[htbp]
 \centering
@@ -122,3 +167,10 @@ Composite criticality blends the dimensions under declared weights $(w_R, w_M) =
 Q(v) = 0.80\,R(v) + 0.20\,M(v)
 \end{equation}
 Components are categorized into five severity tiers (\texttt{CRITICAL}, \texttt{HIGH}, \texttt{MEDIUM}, \texttt{LOW}, \texttt{MINIMAL}) using adaptive box-plot thresholding ($Q > Q_3 + 1.5\,\mathrm{IQR}$ for \texttt{CRITICAL}; $Q_3 < Q \le \text{upper fence}$ for \texttt{HIGH}).
+
+\subsection{Substrate Adequacy: Which Layer Each Dimension Presumes}
+\label{sec:model:substrate}
+
+The RM model's dimensions are not equally well-posed on every layer projection of Section~\ref{sec:model:projection}. $FT(v)$ and $M(v)$ are continuous functionals of reachability and coupling and vary smoothly across projections of any size. $A(v)$ is different: its dominant terms, $\mathrm{AP}_{c,\text{directed}}$ (directed articulation-point membership) and $\mathrm{BR}$ (bridge ratio), are discrete structural predicates that fire only where the projected graph actually contains cut vertices or bridge edges. A projection that happens to be densely interconnected---many alternate paths between any two applications---can have \emph{zero} such structures by construction, in which case $A(v)$ collapses to a near-constant value for every vertex in that projection, regardless of the underlying system's true availability risk.
+
+This is a property of the projection, not a defect in the formula: $A(v)$ is answering "does removing $v$ disconnect this graph," and on a well-connected projection the honest answer is "no, for almost every $v$." Because $A(v)$ carries $(1-\alpha) = 0.64$ of $R(v)$'s weight and $R(v)$ carries $w_R = 0.80$ of $Q(v)$'s weight, a near-constant $A(v)$ on a given layer flattens roughly half of the composite score on that layer specifically---not a general property of the RM model, but a property of scoring it on a projection where the availability substrate is degenerate. Section~\ref{sec:results:attribution} reports this concretely for the application-layer projection used throughout Section~\ref{sec:results:detection}'s headline evaluation. The practical implication is that Availability-focused review (SPOF and \texttt{BROKER\_OVERLOAD} detection) should be scored on a layer projection where cut structures are structurally possible---the middleware or system layer (Section~\ref{sec:model:projection}), where brokers and physical nodes reintroduce genuine bottlenecks---rather than assumed to transfer unchanged from the application layer.

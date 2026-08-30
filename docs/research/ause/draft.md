@@ -10,13 +10,13 @@
 
 ## Abstract
 
-Automated code review and software quality evaluation are vital for modern software engineering, where systems evolve rapidly and continuous integration demands proactive quality assurance. However, conventional quality assurance practices rely primarily on modular static code analysis (SCA) operating at the file or class level. In distributed publish–subscribe architectures (ROS 2, DDS, MQTT), loose coupling among producers and consumers obscures indirect dependencies, creating an **Architecture-Code Gap**: a codebase may exhibit clean unit-level metrics while harboring severe architectural technical debt, such as single points of failure, co-located deployment bottlenecks, and transport contract mismatches. Furthermore, existing structural diagnostic frameworks operate open-loop—ranking components by scalar criticality without identifying the underlying architectural pathology or verifying remediation actions.
+Automated code review and software quality evaluation are vital for modern software engineering, where systems evolve rapidly and continuous integration demands proactive quality assurance. However, conventional quality assurance practices rely primarily on modular static code analysis (SCA) operating at the file or class level. In distributed publish–subscribe architectures (ROS 2, DDS, MQTT), loose coupling among producers and consumers obscures indirect dependencies, creating an **Architecture-Code Gap**: a codebase may exhibit clean unit-level metrics while harboring severe architectural technical debt, such as single points of failure, co-located deployment bottlenecks, and transport contract mismatches. Furthermore, existing structural diagnostic frameworks operate open-loop—ranking components by scalar criticality without identifying the underlying architectural pathology, attributing it to an engineering role, or verifying remediation actions.
 
 To address these challenges, we introduce **SaG-Prescribe**, an intelligent static system analysis framework that brings a deterministic **Diagnostic Pathway** to the forefront of automated code review and software quality evaluation. The framework unifies two complementary mechanisms:
 1. **Explainable Diagnostic Pathway & Technical Debt Analysis:** It extracts a multi-layer heterogeneous dependency graph from Architecture-as-Code descriptors, synthesizes code-level SCA metrics into a **Code Quality Penalty (CQP)**, and computes a hierarchical **Reliability–Maintainability (RM)** quality attribution model grounded in ISO/IEC 25010 and ISO/IEC 25019 Quality-in-Use standards. It drives a catalog of nineteen formal publish–subscribe anti-patterns and bad smells with adaptive box-plot thresholds, providing explainable review decisions mapped to specific engineering roles (Reliability Engineers, SREs, Software Architects).
 2. **Prescriptive Refactoring with Counterfactual Verification:** It compiles diagnostic findings into three graph-mutation refactoring operators (logical topic splitting, physical anti-affinity reallocation, and transport QoS contract hardening). Crucially, every candidate refactoring is independently verified on a sandboxed counterfactual graph against a discrete-event cascade simulator, admitting only edits whose measured risk reduction exceeds simulator seed noise across a sweep of propagation thresholds ($\overline{\Delta I} > \kappa \sigma_{\text{seed}}$).
 
-We evaluate SaG-Prescribe across eight benchmark scenarios spanning autonomous vehicles, IoT smart cities, financial trading, healthcare, microservices, and hyper-scale enterprise systems, reporting empirical findings with full methodological transparency. On the diagnostic side, composite criticality correlates moderately with cascade impact (mean Spearman $\rho = 0.485$, app layer), highlighting that scalar ranking is out-performed by degree centrality ($\rho = 0.519$) and that the anti-pattern catalog functions as a highly sensitive screen (mean recall $0.942$, precision $0.253$, implicating $94.8\%$ of components) requiring threshold recalibration and delta-aware gating. We also document a Simpson's paradox pooling effect across heterogeneous node types ($\rho = 0.028$ pooled vs. $\rho = 0.503$ on applications). On the prescriptive side, counterfactual verification admits 1128 of 1589 candidate refactorings ($71.0\%$), with anti-affinity reallocation demonstrating the highest survival rate ($77.7\%$), followed by transport QoS hardening ($58.0\%$) and topic splitting ($49.7\%$). Every scenario achieves a statistically significant net reduction in System Risk Index (Wilcoxon $W=0, p=0.0156, n=7$). The diagnostic review gate executes in 0.01–20.98 s, confirming its feasibility as a real-time, pre-commit automated code review check in CI/CD pipelines.
+We evaluate SaG-Prescribe across eight benchmark scenarios spanning six architectural domains (autonomous vehicles, IoT smart cities, financial trading, healthcare, hub-and-spoke microservices, and hyper-scale enterprise systems, 29–3325 vertices), reporting empirical findings with full methodological transparency, including two calibration results a purely accuracy-framed evaluation would omit. On the diagnostic side, composite criticality, betweenness, and degree centrality all saturate around $\mathrm{NDCG@10} \approx 0.82$–$0.86$ and Cohen's $\kappa \approx 0.41$–$0.48$ against cascade-impact ground truth (mean Spearman $\rho = 0.485$ for the composite, app layer, versus $0.519$ for degree alone)—no single scalar ranking dominates, which is precisely why deterministic, role-attributed diagnosis (Reliability Engineer vs. SRE vs. Architect) is the pathway's value, not superior ranking accuracy. This re-measures, under an independent discrete-event cascade oracle, a criticality-ranking claim from our own prior work ($\rho = 0.94$ on a ten-application system against reachability loss); we report the full methodological delta (§1.5, §9.3). We also find that the anti-pattern catalog, while a highly sensitive component-level screen (mean recall $0.942$, precision $0.253$, implicating $94.8\%$ of components), agrees with ground-truth criticality at chance level (Cohen's $\kappa = -0.002$)—a consequence of $98.4\%$ of its 6329 findings (dominated by two edge-scoped patterns) not being attributable to any single component—and that the Availability dimension is measured on a degenerate substrate at this layer (zero predicted articulation points in 6 of 8 scenarios, SPOF detector $F_1 = 0.0$ throughout), motivating threshold recalibration, delta-aware gating, and layer-aware scoring. We also document a Simpson's paradox pooling effect across heterogeneous node types ($\rho = 0.028$ pooled vs. $\rho = 0.503$ on applications). On the prescriptive side, counterfactual verification admits 1128 of 1589 candidate refactorings ($71.0\%$), with anti-affinity reallocation demonstrating the highest survival rate ($77.7\%$), followed by transport QoS hardening ($58.0\%$) and topic splitting ($49.7\%$). Every scenario achieves a statistically significant net reduction in System Risk Index (Wilcoxon $W=0, p=0.0156, n=7$). The diagnostic review gate executes in 0.01–20.98 s, confirming its feasibility as a real-time, pre-commit automated code review check in CI/CD pipelines.
 
 **Keywords:** Automated code review; software quality evaluation; diagnostic pathway; architectural anti-patterns; bad smells; technical debt analysis; refactoring recommendation; publish–subscribe middleware; CI/CD quality gates; counterfactual verification.
 
@@ -41,7 +41,7 @@ Quality evaluation in continuous integration has historically relied on Static C
 To address these gaps, this paper brings the **Diagnostic Pathway** to the forefront of automated code review and software quality evaluation in distributed systems. We present **SaG-Prescribe**, a comprehensive framework that integrates deterministic diagnostic quality attribution, anti-pattern detection, and closed-loop prescriptive refactoring within continuous integration workflows.
 
 As illustrated in Figure 1, SaG-Prescribe decouples quality assurance into two principled, cooperative pathways:
-- **The Diagnostic Pathway (Deterministic Software Quality Evaluation & Attribution):** The Diagnostic Pathway operates statically on Architecture-as-Code descriptors. It constructs a multi-layer heterogeneous dependency graph ($G_{\text{analysis}}$) encompassing applications, libraries, topics, brokers, and physical hosting nodes. It bridges code-level and architecture-level quality by synthesizing modular SCA metrics into a **Code Quality Penalty (CQP)**. It then applies a hierarchical **Reliability–Maintainability (RM)** attribution model grounded in the **ISO/IEC 25010** (Product Quality) and **ISO/IEC 25019** (Quality-in-Use) standards. Reliability decomposes into **Fault Tolerance** ($FT$, error propagation reach) and **Availability** ($A$, structural single-point-of-failure exposure), while **Maintainability** ($M$) quantifies coupling complexity and change ripple risk. The diagnostic pathway maps structural technical debt directly to stakeholder harm categories ($\mathbf{h}_{\text{QiU}}$) and routes explainable findings to specific engineering roles (Reliability Engineers, DevOps/SREs, and Software Architects). Over these metric vectors, it executes a catalog of nineteen formal publish–subscribe anti-patterns using adaptive box-plot thresholds.
+- **The Diagnostic Pathway (Deterministic Software Quality Evaluation & Attribution):** The Diagnostic Pathway operates statically on Architecture-as-Code descriptors. It constructs a multi-layer heterogeneous dependency graph ($G_{\text{analysis}}$) encompassing applications, libraries, topics, brokers, and physical hosting nodes. It bridges code-level and architecture-level quality by synthesizing modular SCA metrics into a **Code Quality Penalty (CQP)**. It then applies a hierarchical **Reliability–Maintainability (RM)** attribution model grounded in the **ISO/IEC 25010** (Product Quality) and **ISO/IEC 25019** (Quality-in-Use) standards. Reliability decomposes into **Fault Tolerance** ($FT$, error propagation reach) and **Availability** ($A$, structural single-point-of-failure exposure), while **Maintainability** ($M$) quantifies coupling complexity and change ripple risk. The diagnostic pathway maps structural technical debt directly to stakeholder harm categories ($\mathbf{h}_{\text{QiU}}$) and routes explainable findings to specific engineering roles (Reliability Engineers, DevOps/SREs, and Software Architects). Over these metric vectors, it executes a catalog of nineteen formal publish–subscribe anti-patterns using adaptive box-plot thresholds. Crucially, its contribution is *attribution*, not superior ranking accuracy: §9.1 shows composite criticality, betweenness, and degree centrality reach comparable ranking quality, so what the pathway adds is a deterministic, auditable decomposition a scalar centrality score cannot provide.
 - **The Counterfactual Prescriptive Pathway (Closed-Loop Refactoring Verification):** Rather than offering open-loop suggestions, the prescriptive engine compiles diagnostic findings into three typed graph-mutation operators: logical topic splitting, physical anti-affinity reallocation, and transport QoS contract hardening. It subjects every candidate refactoring to **counterfactual verification** on an in-memory sandbox graph (`MemoryRepository`), simulating failure cascades across multiple seeds and propagation thresholds. An edit is admitted if and only if its measured impact reduction exceeds the simulator's seed noise at every threshold ($\overline{\Delta I} > \kappa \sigma_{\text{seed}}$), and the composite policy is gated on a net positive System Risk Index delta ($\Delta\text{SRI} > 0$).
 
 ```
@@ -74,21 +74,25 @@ As illustrated in Figure 1, SaG-Prescribe decouples quality assurance into two p
 ### 1.4 Contributions
 
 This paper makes the following contributions to automated software quality assurance and code review:
-1. **A Formal Diagnostic Pathway for Pub-Sub Software Quality Evaluation (§3):** We formalize a multi-level diagnostic model that ingests file-level SCA metrics via the Code Quality Penalty (CQP), derives multi-layer dependency projections ($G_{\text{analysis}}$), and computes a hierarchical Reliability–Maintainability (RM) attribution model grounded in ISO/IEC 25010 and ISO/IEC 25019 Quality-in-Use standards.
-2. **A Comprehensive Catalog of 19 Publish–Subscribe Anti-Patterns and Bad Smells (§4):** We formalize nineteen architectural anti-patterns and smells as topological signatures over a 16-element structural metric vector with adaptive box-plot thresholds, providing explainable review feedback for automated review bots.
-3. **A Prescriptive Refactoring Pipeline with Counterfactual Verification (§5–§6):** We introduce a rule-based refactoring compiler translating diagnostic findings into three graph-mutation operators (topic splitting, anti-affinity reallocation, QoS hardening), verified against a discrete-event cascade simulator using a two-level margin-gating criterion. We disclose the exact automation footprint (5 of 19 patterns automated, 14 advisory).
-4. **An Automated Code Review Bot and CI/CD Quality Gate (§7):** We operationalize the Diagnostic Pathway as a sub-second pre-merge quality gate featuring standardized exit codes (0/1/2) and formalize delta-aware merge-base regression semantics.
-5. **Empirical Evaluation and Methodological Findings (§8–§9):** Evaluated across eight benchmark scenarios (12 to 520 components), we report:
-   - *Diagnostic Evaluation:* Detection achieves mean Spearman $\rho = 0.485$ against simulated cascade impact. The catalog functions as a sensitive screen (recall $0.942$, precision $0.253$, implicating $94.8\%$ of components), out-performed by scalar degree centrality ($\rho = 0.519$). We document a Simpson's paradox pooling effect across heterogeneous node types ($\rho = 0.028$ pooled vs. $0.503$ on applications).
+1. **A Formal Diagnostic Pathway for Pub-Sub Software Quality Evaluation (§3):** We formalize a multi-level diagnostic model that ingests file-level SCA metrics via the Code Quality Penalty (CQP), derives multi-layer dependency projections ($G_{\text{analysis}}$), and computes a hierarchical Reliability–Maintainability (RM) attribution model grounded in ISO/IEC 25010 and ISO/IEC 25019 Quality-in-Use standards, including an explicit statement of the layer on which each dimension is well-posed.
+2. **A Comprehensive Catalog of 19 Publish–Subscribe Anti-Patterns and Bad Smells (§4):** We formalize nineteen architectural anti-patterns and smells as topological signatures over a structural metric vector with adaptive box-plot thresholds, classify each pattern's finding scope (component vs. edge vs. system-level), and report which patterns actually trigger on the benchmark corpus.
+3. **A Calibration and Validity Analysis of Deterministic Architectural Diagnosis (§9.1–§9.3):** Rather than reporting ranking correlation alone, we measure agreement (Cohen's $\kappa$), ranking-quality saturation across three predictors (NDCG@10, Top-$k$), the mechanism behind the catalog's over-flagging (edge- vs. component-scoped findings), and the structural degeneracy of the Availability dimension on the application-layer projection—evidence a purely accuracy-framed evaluation would omit.
+4. **A Prescriptive Refactoring Pipeline with Counterfactual Verification (§5–§6):** We introduce a rule-based refactoring compiler translating diagnostic findings into three graph-mutation operators (topic splitting, anti-affinity reallocation, QoS hardening), verified against a discrete-event cascade simulator using a two-level margin-gating criterion. We disclose the exact automation footprint (5 of 19 patterns automated, 14 advisory).
+5. **An Automated Code Review Bot and CI/CD Quality Gate (§7):** We operationalize the Diagnostic Pathway as a sub-second pre-merge quality gate featuring standardized exit codes (0/1/2) and formalize delta-aware merge-base regression semantics.
+6. **Empirical Evaluation and Methodological Findings (§8–§9):** Evaluated across eight benchmark scenarios (29 to 3325 vertices; 12 to 300 applications), we report:
+   - *Diagnostic Ranking:* Diagnostic ranking saturates across predictors (mean Spearman $\rho = 0.485$ for the composite vs. $0.519$ for degree centrality, both around $\mathrm{NDCG@10} \approx 0.82$–$0.86$) and exhibits a Simpson's paradox pooling effect ($\rho = 0.028$ pooled vs. $0.503$ on applications).
+   - *Catalog Calibration:* The catalog is a sensitive but chance-level-agreeing screen (recall $0.942$, precision $0.253$, Cohen's $\kappa = -0.002$, implicating $94.8\%$ of components, $98.4\%$ of findings not component-scoped).
+   - *Attribution Validity:* The Availability dimension is degenerate at the application layer (SPOF $F_1 = 0.0$ in all 8 scenarios).
    - *Prescriptive Evaluation:* Per-edit verification admits 1128 of 1589 candidate edits ($71.0\%$), with anti-affinity reallocation demonstrating the highest survival rate ($77.7\%$), followed by QoS hardening ($58.0\%$) and topic splitting ($49.7\%$). Every scenario achieves a statistically significant risk reduction (Wilcoxon $W=0, p=0.0156, n=7$).
    - *Performance:* Diagnostic gating executes in 0.01–20.98 s, validating its fitness for real-time CI/CD review workflows.
 
 ### 1.5 Relationship to Prior Work
 
-This submission builds upon the foundational graph schema and simulation infrastructure introduced in our companion work [1], while contributing novel, unshared capabilities:
-- Companion manuscript [1] introduces the heterogeneous graph schema, simulation kernels, and a learned Graph Neural Network (GNN) for failure-impact prediction.
-- This paper contributes the **Diagnostic Pathway** for automated code review, the Code Quality Penalty (CQP), the 19-pattern pub-sub anti-pattern catalog, the prescriptive refactoring compiler, the counterfactual verification engine, the CI/CD quality gate, and the comprehensive empirical evaluation of detection and prescription.
-- Detection figures previously reported from preliminary conference workshops are re-measured here with strict artifact reproducibility, reporting negative results and harness corrections with complete scientific candor.
+This submission relates to two prior bodies of work along different axes.
+
+First, our earlier conference paper [35] introduced the multi-layer pub-sub graph model this paper builds on and a two-term Criticality Score, $CS(v) = 0.7 \cdot C_B(v) + 0.3 \cdot AP(v)$ (betweenness and articulation-point membership), validated on a ten-application simulated system against Reachability Loss—the fraction of directed application-pair paths broken by removing $v$—reporting $\rho = 0.94$. That validation shares its substrate with its predictor: Reachability Loss is itself a connectivity statistic on the same undirected application graph that $C_B$ and $AP$ are computed on, and the benchmark is a single, small system. This paper re-measures the analogous claim under an independent discrete-event cascade oracle ($I_{\text{comp}}$, §4.5) across eight scenarios up to 300 applications, on the directed `DEPENDS_ON` projection rather than the undirected pub-sub graph, and finds a substantially lower correlation ($\rho = 0.485$) that is not surpassed by any single structural predictor (§9.1). We report the full delta with complete candor, including the mechanism (§9.3): on the projection this paper measures, the application layer has essentially no articulation points, so $AP(v)$—and hence 30% of the prior work's own composite—carries almost no signal at this layer, an instance of the more general substrate-adequacy issue §3.5 states as a modeling constraint rather than an ex post excuse.
+
+Second, our companion manuscript [1] introduces the heterogeneous graph schema, simulation kernels, and a learned Graph Neural Network (GNN) for failure-impact prediction; this paper contributes the **Diagnostic Pathway** for automated code review, the Code Quality Penalty (CQP), the 19-pattern pub-sub anti-pattern catalog with its scope and coverage analysis, the prescriptive refactoring compiler, the counterfactual verification engine, the CI/CD quality gate, and the comprehensive empirical evaluation of detection, calibration, and prescription. Detection figures previously reported from preliminary conference workshops are re-measured here with strict artifact reproducibility.
 
 ### 1.6 Organization
 
@@ -108,7 +112,9 @@ Automated code review tools traditionally focus on lexical syntax, coding conven
 
 ### 2.3 Software Quality Models and Explainable Diagnostic Pathways
 
-Software quality models, standardized in ISO/IEC 25010 (Product Quality) and ISO/IEC 25019 (Quality-in-Use), provide structured taxonomies decomposing quality into maintainability, reliability, and usability [25, 26]. While these standards establish top-down quality characteristics, mapping them to concrete, automated measurements in distributed architectures remains challenging. Classical software analytics often collapse multiple structural metrics into a single opaque score or rely on black-box machine learning classifiers that lack explanatory transparency [27]. In automated code review, developers reject opaque recommendations without clear causal rationale. The Diagnostic Pathway in SaG-Prescribe implements a transparent, deterministic attribution hierarchy: it decomposes structural and code metrics into explicit Reliability (Fault Tolerance, Availability) and Maintainability dimensions, mapping technical debt directly to stakeholder harm vectors.
+Software quality models, standardized in ISO/IEC 25010 (Product Quality) and ISO/IEC 25019 (Quality-in-Use), provide structured taxonomies decomposing quality into maintainability, reliability, and usability [25, 26]. While these standards establish top-down quality characteristics, mapping them to concrete, automated measurements in distributed architectures remains challenging. Classical software analytics often collapse multiple structural metrics into a single opaque score or rely on black-box machine learning classifiers that lack explanatory transparency [27]. In automated code review, developers reject opaque recommendations without clear causal rationale.
+
+Two distinct notions of "explainability" appear in this literature, and they are not interchangeable. *Post-hoc attribution* methods (e.g., SHAP, LIME, and attention-weight inspection for GNN-based scorers) approximate why an already-trained black-box model produced a given score, but the explanation is itself an approximation, can be unstable across re-fits, and does not constrain the model to respect any declared quality taxonomy. *Score decomposition*, by contrast, is intrinsic: the score is defined as a declared weighted sum over named sub-characteristics, so the same computation that produces $Q(v)$ also produces its provenance. The Diagnostic Pathway in SaG-Prescribe adopts the latter: it decomposes structural and code metrics into explicit Reliability (Fault Tolerance, Availability) and Maintainability dimensions, mapping technical debt directly to stakeholder harm vectors and specific engineering roles, with no separate explanation model to validate or drift out of sync with the scorer it explains.
 
 ### 2.4 Anti-Pattern and Code Smell Catalogs
 
@@ -126,7 +132,7 @@ SaG-Prescribe differs fundamentally in scope and verification: its scope is the 
 
 ### 2.6 Structural Criticality and Graph Centrality
 
-Graph-theoretic analysis has long utilized centrality indices—betweenness [9], PageRank, closeness, and articulation points—to identify critical vertices. Bakhtin et al. applied network centralities to microservice call graphs [10], while complex network studies demonstrate scale-free, hub-dominated characteristics in software dependency graphs [11]. Baldwin and Clark's design structure matrices [18] and combinatorial network reliability theory [19] provide formal foundations for topological fault tolerance. While theoretical literature posits that multi-dimensional metrics should outperform simple centrality on heterogeneous graphs, our empirical findings (§9.1) reveal that scalar degree centrality remains a formidable baseline, reinforcing the necessity of empirical verification over theoretical assertion.
+Graph-theoretic analysis has long utilized centrality indices—betweenness [9], PageRank, closeness, and articulation points—to identify critical vertices. Bakhtin et al. applied network centralities to microservice call graphs [10], while complex network studies demonstrate scale-free, hub-dominated characteristics in software dependency graphs [11]. Closest to this paper, our own earlier conference work [35] combined betweenness and articulation-point membership into a two-term Criticality Score and validated it against reachability loss on a ten-application pub-sub system, reporting $\rho = 0.94$. Baldwin and Clark's design structure matrices [18] and combinatorial network reliability theory [19] provide formal foundations for topological fault tolerance. While theoretical literature posits that multi-dimensional metrics should outperform simple centrality on heterogeneous graphs, our empirical findings (§9.1)—including a re-measurement of [35]'s own claim under an independent cascade oracle and a larger, more heterogeneous benchmark corpus—reveal that scalar degree centrality remains a formidable baseline and that ranking accuracy alone is not where a diagnostic pathway's value lies, reinforcing the necessity of empirical verification over theoretical assertion.
 
 ---
 
@@ -168,17 +174,23 @@ The projection is organized across four architectural layers:
 
 ### 3.3 The Code Quality Penalty (CQP): Bridging SCA and Architecture
 
-To bridge source-code health with architectural risk during automated review, the Diagnostic Pathway ingests file-level static code analysis (SCA) metrics:
-- Lines of Code (`cm_total_loc`)
-- Weighted Methods per Class (`cm_avg_wmc`)
-- Lack of Cohesion in Methods (`cm_avg_lcom`)
-- SonarQube Technical Debt Ratio (`sqale_debt_ratio`)
+To bridge source-code health with architectural risk during automated review, the Diagnostic Pathway ingests four file-level static code analysis (SCA) signals for Application and Library vertices: Lines of Code (`loc`, from `code_metrics.size.total_loc`), Weighted Methods per Class as a complexity proxy (`cyclomatic_complexity`, from `code_metrics.complexity.avg_wmc`), Lack of Cohesion in Methods (`lcom`, from `code_metrics.cohesion.avg_lcom`), and code-level instability, $\text{instability\_code}(v) = C_e(v) / (C_a(v) + C_e(v))$, computed from afferent/efferent coupling (`avg_fanin`/`avg_fanout`). The SonarQube Technical Debt Ratio (`sqale_debt_ratio`) is ingested and persisted alongside these fields but does **not** enter the CQP formula below or any other scoring path (Table 3.0); it is exported for dashboard display only.
 
-These metrics are rank-normalized and synthesized into a per-component **Code Quality Penalty (CQP)** for Application and Library vertices:
+LOC, complexity, and LCOM are **min-max normalized independently within each node type**—Application and Library vertices form two separate populations, since their typical scales differ—while instability is already bounded in $[0,1]$ and is not renormalized. A population with zero variance (e.g., every node of a type carries no `code_metrics`) collapses to a normalized value of $0$ for all its members rather than $1$, so that "uniformly absent data" is not scored as "uniformly worst"; a population of exactly one measured node keeps its full normalized value of $1$. These normalized signals synthesize into a per-component **Code Quality Penalty (CQP)**:
 
 $$\mathrm{CQP}(v) = 0.10\,\text{loc\_norm}(v) + 0.35\,\text{complexity\_norm}(v) + 0.30\,\text{instability\_code}(v) + 0.25\,\text{lcom\_norm}(v)$$
 
 $\mathrm{CQP}(v) \in [0,1]$ provides an explicit, quantitative bridge from source-code technical debt to architectural criticality, entering directly into the Maintainability dimension of the RM model.
+
+**Table 3.0 — CQP input fields: what feeds the score vs. what is ingested but does not.**
+
+| Field | CQP term | Status |
+| :--- | :--- | :--- |
+| `loc` | $0.10\times\text{loc\_norm}$ | Scores |
+| `cyclomatic_complexity` (avg WMC) | $0.35\times\text{complexity\_norm}$ | Scores |
+| `lcom` | $0.25\times\text{lcom\_norm}$ | Scores |
+| `avg_fanin`/`avg_fanout` | $0.30\times\text{instability\_code}$ | Scores |
+| `sqale_debt_ratio` | — | Ingested, exported, never scored |
 
 ### 3.4 Hierarchical Reliability–Maintainability (RM) Quality Attribution
 
@@ -239,6 +251,12 @@ $$Q(v) = 0.80\,R(v) + 0.20\,M(v)$$
 
 Components are categorized into five severity tiers (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `MINIMAL`) using adaptive box-plot thresholding ($Q > Q_3 + 1.5\,\mathrm{IQR}$ for `CRITICAL`; $Q_3 < Q \le \text{upper fence}$ for `HIGH`).
 
+### 3.5 Substrate Adequacy: Which Layer Each Dimension Presumes
+
+The RM model's dimensions are not equally well-posed on every layer projection of §3.2. $FT(v)$ and $M(v)$ are continuous functionals of reachability and coupling and vary smoothly across projections of any size. $A(v)$ is different: its dominant terms, $\mathrm{AP}_{c,\text{directed}}$ (directed articulation-point membership) and $\mathrm{BR}$ (bridge ratio), are discrete structural predicates that fire only where the projected graph actually contains cut vertices or bridge edges. A projection that happens to be densely interconnected—many alternate paths between any two applications—can have *zero* such structures by construction, in which case $A(v)$ collapses to a near-constant value for every vertex in that projection, regardless of the underlying system's true availability risk.
+
+This is a property of the projection, not a defect in the formula: $A(v)$ is answering "does removing $v$ disconnect this graph," and on a well-connected projection the honest answer is "no, for almost every $v$." Because $A(v)$ carries $(1-\alpha) = 0.64$ of $R(v)$'s weight and $R(v)$ carries $w_R = 0.80$ of $Q(v)$'s weight, a near-constant $A(v)$ on a given layer flattens roughly half of the composite score on that layer specifically—not a general property of the RM model, but a property of scoring it on a projection where the availability substrate is degenerate. §9.3 reports this concretely for the application-layer projection used throughout §9.1's headline evaluation. The practical implication is that Availability-focused review (SPOF and `BROKER_OVERLOAD` detection) should be scored on a layer projection where cut structures are structurally possible—the middleware or system layer (§3.2), where brokers and physical nodes reintroduce genuine bottlenecks—rather than assumed to transfer unchanged from the application layer.
+
 ---
 
 ## 4. A Catalog of Architectural Anti-Patterns for Publish–Subscribe Systems
@@ -253,37 +271,37 @@ Publish–subscribe architectural anomalies leave distinct **topological signatu
 
 ### 4.2 Detection Methodology
 
-Detection operates over a 16-element structural metric vector. Twelve metrics are Tier-1 inputs feeding the RM model: Reverse PageRank ($\mathrm{RPR}$), in-degree ($\mathrm{DG}_{\text{in}}$), multi-path coupling index ($\mathrm{MPCI}$), topic fan-out criticality ($\mathrm{FOC}$), betweenness ($\mathrm{BT}$), QoS out-degree ($w_{\text{out}}$), clustering coefficient ($\mathrm{CC}$), path complexity ($\mathrm{PC}$), directed articulation score ($\mathrm{AP}_{c,\text{directed}}$), bridge ratio ($\mathrm{BR}$), connectivity degradation index ($\mathrm{CDI}$), and component weight ($w$). The Code Quality Penalty ($\mathrm{CQP}$) serves as the thirteenth input, while forward centralities (PageRank, Closeness, Eigenvector) are held at Tier-2 for visualization.
+Detection operates over the same fourteen structural inputs that feed RM attribution (§3.4): Reverse PageRank ($\mathrm{RPR}$), in-degree and out-degree ($\mathrm{DG}_{\text{in}}$, $\mathrm{DG}_{\text{out}}$), multi-path coupling index ($\mathrm{MPCI}$), topic fan-out criticality ($\mathrm{FOC}$), betweenness ($\mathrm{BT}$), QoS-weighted in- and out-degree ($w_{\text{in}}$, Topic-only, $w_{\text{out}}$), clustering coefficient ($\mathrm{CC}$), path complexity ($\mathrm{PC}$), directed articulation score ($\mathrm{AP}_{c,\text{directed}}$), bridge ratio ($\mathrm{BR}$), connectivity degradation index ($\mathrm{CDI}$), and component weight ($w$)—plus the synthesized Code Quality Penalty ($\mathrm{CQP}$, §3.3), for fifteen scoring metrics in total, verified field-for-field against the `SCORING` role in the codebase's metric registry. Forward centralities (PageRank, Closeness, Eigenvector) feed only the learned GNN companion pathway of the JSS submission [1] and play no role in this deterministic detector layer.
 
-To ensure scale-invariance across systems ranging from tens to thousands of components, detectors employ **adaptive box-plot thresholds** ($Q_3 + 1.5\,\mathrm{IQR}$).
+To ensure scale-invariance across systems ranging from tens to thousands of components, detectors employ **adaptive box-plot thresholds** ($Q_3 + k\,\mathrm{IQR}$, fixed at $k=1.5$ in this work; §11.2 discusses sweeping $k$).
 
 ### 4.3 Catalog Overview
 
-The nineteen anti-patterns and smells span three severity tiers and four catalog categories (Reliability, Availability, Maintainability, Architecture). Table 4.1 summarizes the catalog.
+The nineteen anti-patterns and smells span three severity tiers, four catalog categories (Reliability, Availability, Maintainability, Architecture), and three finding scopes—**Component** (attributed to one vertex), **Edge** (attributed to one relationship), and **System** (a corpus-wide statistic, not attributable to any single element). The scope column matters for interpreting §9.2: component-level agreement metrics (precision, recall, Cohen's $\kappa$) are measured against component-scoped findings, while edge-scoped findings only implicate components indirectly, as endpoints. Table 4.1 summarizes the catalog; the **Trig.** column marks patterns that fire at least once on the eight-scenario benchmark corpus (§4.6).
 
 **Table 4.1 — Publish–Subscribe Architectural Anti-Pattern and Bad Smell Catalog.**
 
-| Pattern | Severity | Category | Detection Signal | Automated Refactoring |
-| :--- | :--- | :--- | :--- | :--- |
-| `SPOF` | CRITICAL | Availability | Articulation point $\wedge$ QoS-weighted SPOF score | Anti-affinity reallocation |
-| `SYSTEMIC_RISK` | CRITICAL | Reliability | Share of CRITICAL-tier components $> 20\%$ | Advisory |
-| `CYCLE` | HIGH | Architecture | Strongly connected component / self-loop | Advisory |
-| `GOD_COMPONENT` | CRITICAL | Maintainability | Extreme betweenness ($\mathrm{BT} > 0.30$) $\wedge$ CRITICAL $M(v)$ | Logical topic splitting |
-| `BOTTLENECK_EDGE`| HIGH | Availability | Edge betweenness centrality outlier | Logical topic splitting |
-| `BROKER_OVERLOAD` | HIGH | Availability | Broker availability $\ge 2\times$ median broker load | Anti-affinity reallocation |
-| `DEEP_PIPELINE` | HIGH | Reliability | Path length $\ge \max(5, P_{75})$ | Advisory |
-| `TOPIC_FANOUT` | MEDIUM | Reliability | Topic subscriber out-degree outlier | Logical topic splitting |
-| `CHATTY_PAIR` | MEDIUM | Maintainability | Bidirectional edge-weight product $> \tau_{\text{chatty}}$ | Advisory |
-| `QOS_MISMATCH` | MEDIUM | Reliability | Publisher/subscriber QoS-weight gap $> \tau_{\text{qos}}$ | Advisory (Manual / Relay) |
-| `ORPHANED_TOPIC`| MEDIUM | Maintainability | Zero in-degree or out-degree on structural graph | Advisory |
-| `UNSTABLE_INTERFACE`| MEDIUM | Maintainability | High `CouplingRisk_enh` $\wedge$ high $M(v)$ | Advisory |
-| `BRIDGE_EDGE` | HIGH | Availability | Graph-theoretic bridge cut-edge | Advisory |
-| `FAILURE_HUB` | CRITICAL | Reliability | Reliability outlier $\wedge$ above-median out-degree | Logical topic splitting |
-| `CONCENTRATION_RISK`| MEDIUM | Reliability | Top-3 PageRank share $> 0.50$ | Advisory |
-| `HUB_AND_SPOKE` | MEDIUM | Maintainability | Low clustering coefficient $\wedge$ degree $> 3$ | Logical topic splitting |
-| `CHAIN` | MEDIUM | Architecture | Degree-bounded linear weakly-connected subgraph | Advisory |
-| `ISOLATED` | MEDIUM | Architecture | Zero total degree | Advisory |
-| `COMPOUND_RISK` | CRITICAL | Architecture | Co-occurring SPOF + God/Hub/Failure-Hub finding | Anti-affinity reallocation |
+| Pattern | Severity | Category | Scope | Detection Signal | Automated Refactoring | Trig.\ |
+| :--- | :--- | :--- | :--- | :--- | :--- | :---: |
+| `SPOF` | CRITICAL | Availability | Component | Articulation point $\wedge$ QoS-weighted SPOF score | Anti-affinity reallocation | ✓ |
+| `SYSTEMIC_RISK` | CRITICAL | Reliability | System | Share of CRITICAL-tier components $> 20\%$ | Advisory | |
+| `CYCLE` | HIGH | Architecture | System | Strongly connected component / self-loop | Advisory | ✓ |
+| `GOD_COMPONENT` | CRITICAL | Maintainability | Component | Extreme betweenness ($\mathrm{BT} > 0.30$) $\wedge$ CRITICAL $M(v)$ | Logical topic splitting | |
+| `BOTTLENECK_EDGE`| HIGH | Availability | Edge | Edge betweenness centrality outlier | Logical topic splitting | ✓ |
+| `BROKER_OVERLOAD` | HIGH | Availability | Component | Broker availability $\ge 2\times$ median broker load | Anti-affinity reallocation | |
+| `DEEP_PIPELINE` | HIGH | Reliability | System | Path length $\ge \max(5, P_{75})$ | Advisory | (excl.) |
+| `TOPIC_FANOUT` | MEDIUM | Reliability | Component | Topic subscriber out-degree outlier | Logical topic splitting | |
+| `CHATTY_PAIR` | MEDIUM | Maintainability | Pair | Bidirectional edge-weight product $> \tau_{\text{chatty}}$ | Advisory | |
+| `QOS_MISMATCH` | MEDIUM | Reliability | Edge | Publisher/subscriber QoS-weight gap $> \tau_{\text{qos}}$ | Advisory (Manual / Relay) | ✓ |
+| `ORPHANED_TOPIC`| MEDIUM | Maintainability | Component | Zero in-degree or out-degree on structural graph | Advisory | |
+| `UNSTABLE_INTERFACE`| MEDIUM | Maintainability | Component | High `CouplingRisk_enh` $\wedge$ high $M(v)$ | Advisory | ✓ |
+| `BRIDGE_EDGE` | HIGH | Availability | Edge | Graph-theoretic bridge cut-edge | Advisory | ✓ |
+| `FAILURE_HUB` | CRITICAL | Reliability | Component | Reliability outlier $\wedge$ above-median out-degree | Logical topic splitting | |
+| `CONCENTRATION_RISK`| MEDIUM | Reliability | System | Top-3 PageRank share $> 0.50$ | Advisory | |
+| `HUB_AND_SPOKE` | MEDIUM | Maintainability | Component | Low clustering coefficient $\wedge$ degree $> 3$ | Logical topic splitting | ✓ |
+| `CHAIN` | MEDIUM | Architecture | System | Degree-bounded linear weakly-connected subgraph | Advisory | |
+| `ISOLATED` | MEDIUM | Architecture | Component | Zero total degree | Advisory | ✓ |
+| `COMPOUND_RISK` | CRITICAL | Architecture | Component | Co-occurring SPOF + God/Hub/Failure-Hub finding | Anti-affinity reallocation | |
 
 ### 4.4 Representative Pattern Walkthroughs
 
@@ -297,11 +315,17 @@ The nineteen anti-patterns and smells span three severity tiers and four catalog
 
 Detection accuracy is validated against an independent discrete-event cascade simulation oracle ($I_{\text{comp}}(v)$) that models cascading message dropouts and queue exhaustion under component removal.
 
+### 4.6 Catalog Coverage on the Benchmark Corpus
+
+A catalog contribution should disclose which of its patterns are actually exercised by its own evaluation corpus, not only which are specified. Across all eight benchmark scenarios (§8.2), `DEEP_PIPELINE` is excluded for the reason given in §9.5, and of the remaining eighteen active detectors, exactly **eight trigger at least one finding** (Table 4.1, **Trig.** column): Bottleneck Dependency (`BOTTLENECK_EDGE`, 4974 findings across the corpus), QoS Policy Mismatch (`QOS_MISMATCH`, 1243), Unstable Interface (64), SPOF (17), Hub-and-Spoke (14), Dependency Cycle (`CYCLE`, 9), Bridge Edge (5), and Isolated Component (3). The remaining ten active patterns—including `GOD_COMPONENT`, `FAILURE_HUB`, `BROKER_OVERLOAD`, `TOPIC_FANOUT`, `CHATTY_PAIR`, `ORPHANED_TOPIC`, `CONCENTRATION_RISK`, `CHAIN`, `SYSTEMIC_RISK`, and `COMPOUND_RISK`—are specified and unit-tested but never fire on this corpus. This is consistent with, and explains, §7.1's automation-footprint disclosure being scoped to what the corpus can exercise rather than what the catalog specifies; it does not indicate the unexercised patterns are miscalibrated, since triggering depends on topological structure this synthetic corpus may simply not contain (e.g., `SYSTEMIC_RISK` requires more than 20% of a scenario's components at `CRITICAL`, which none of the eight scenarios reach).
+
+Of the 6329 total findings the triggered eight produce, only **98 (1.5%)** are attributable to a single component (SPOF 17, Unstable Interface 64, Isolated Component 3, Hub-and-Spoke 14); the remaining **6231 (98.4%)** are Edge- or System-scoped (Bottleneck Dependency 4974 and QoS Policy Mismatch 1243 alone account for 6217 of these). This scope imbalance is the mechanism behind §9.2's implication-rate and agreement findings: a catalog whose active findings are overwhelmingly non-component-scoped will still implicate a large fraction of components, as edge endpoints, even when its direct component-level agreement with ground truth is weak.
+
 ---
 
 ## 5. Closed-Loop Optimization Objective
 
-The prescriptive refactoring objective computes a graph transformation $\Delta(G)$ producing mutated topology $G' = \Delta(G)$ that minimizes global failure impact subject to a budget constraint:
+The prescriptive engine consumes the Diagnostic Pathway's output directly—severity tiers from §3.4 and pattern findings from §4—rather than re-deriving its own criticality signal, so diagnosis and prescription cannot silently drift apart. The prescriptive refactoring objective computes a graph transformation $\Delta(G)$ producing mutated topology $G' = \Delta(G)$ that minimizes global failure impact subject to a budget constraint:
 
 $$\min_{\Delta} \sum_{v \in V} I^*_{\Delta(G)}(v) \quad \text{subject to} \quad \mathrm{Cost}(\Delta) \le \mathcal{B}$$
 
@@ -342,7 +366,7 @@ Stage 7: Review Interface (Advisory Refactoring Blueprint & CI Gating)
 3. **Transport QoS Contract Hardening (Operator 3):** Fires on `CRITICAL`/`HIGH` channels operating under volatile contracts (`BEST_EFFORT` / `VOLATILE`), upgrading them to `RELIABLE` and `TRANSIENT_LOCAL`.
 
 #### Automation Footprint Disclosure
-Exactly **five of the nineteen patterns** directly trigger an automated mutation operator (`SPOF` $\to$ Operator 2; `GOD_COMPONENT`, `BOTTLENECK_EDGE`, `FAILURE_HUB`, `HUB_AND_SPOKE` $\to$ Operator 1). Operator 3 triggers from generic criticality tiers. The remaining fourteen patterns provide advisory recommendations for human review.
+Exactly **five of the nineteen patterns** directly trigger an automated mutation operator (`SPOF` $\to$ Operator 2; `GOD_COMPONENT`, `BOTTLENECK_EDGE`, `FAILURE_HUB`, `HUB_AND_SPOKE` $\to$ Operator 1). Operator 3 triggers from generic criticality tiers. The remaining fourteen patterns provide advisory recommendations for human review. Of these five, two—`SPOF` and `BOTTLENECK_EDGE`—are among the eight patterns §4.6 finds actually trigger on the benchmark corpus; the other three (`GOD_COMPONENT`, `FAILURE_HUB`, `HUB_AND_SPOKE`) are specified operator triggers this corpus does not exercise. In practice, Rule 2 (anti-affinity reallocation) fires from RM criticality tier membership and `SPOF` findings rather than the catalog name directly, while Rule 1 (topic splitting) fires on multi-publisher/multi-subscriber congestion, RM-critical topics, or a topic feeding a `Bottleneck`/`Hub`-matched finding—so the corpus's candidate mix (Table 9.3) is shaped as much by criticality-tier membership as by which of the five triggering patterns fires.
 
 ### 6.4 Closed-Loop Counterfactual Verification Procedure
 
@@ -364,6 +388,8 @@ To govern architectural quality during continuous evolution, the Diagnostic Path
 - **Absolute Gating:** Evaluates the entire topology against global thresholds. However, real-world industrial systems carry intentional, risk-accepted legacy debt; blocking builds on pre-existing debt paralyzes development.
 - **Delta-Aware Gating (Design):** Compares the PR candidate topology against the target branch merge-base, blocking only *newly introduced* anti-patterns or worsening severities, while honoring a signed **waiver register**. (Absolute mode is implemented today; delta-aware mode is specified for production integration).
 
+**Absolute Gating Outcome on the Benchmark Corpus.** Every one of the eight benchmark scenarios contains at least one `CRITICAL`- or `HIGH`-severity finding (§9.2), so under absolute gating the review bot returns **Exit Code 2 (Block) on all eight scenarios**. Given the $94.8\%$ mean component-implication rate this catalog configuration produces (§9.1), this is the expected, mechanical consequence of absolute thresholds applied globally, not a scenario-specific anomaly—and it is precisely why delta-aware gating is a necessity for adoption rather than a convenience: an absolute gate that blocks every commit on legacy debt trains developers to ignore or bypass it.
+
 ### 7.3 Three-Tier Exit-Code Protocol
 
 - **Exit Code 0 (Pass):** No findings above threshold; deployment permitted.
@@ -376,15 +402,15 @@ To govern architectural quality during continuous evolution, the Diagnostic Path
 
 ### 8.1 Research Questions
 
-- **RQ1 (Diagnostic Detection Efficacy & Precision):** How accurately does the Diagnostic Pathway correlate with cascade failure impact, and how effectively does the anti-pattern catalog identify architectural debt without over-flagging?
-- **RQ2 (Prescriptive Refactoring Efficacy):** Does the closed-loop prescriptive engine achieve statistically significant reductions in System Risk Index across heterogeneous scenarios?
-- **RQ3 (Operator Survival & Contributions):** How do individual refactoring operators survive counterfactual verification across structural regimes?
-- **RQ4 (Verification Yield & Compositionality):** What proportion of generated candidates survive verification, and do individually admitted edits compose beneficially?
-- **RQ5 (Computational Overhead & CI/CD Feasibility):** What is the execution latency of diagnostic gating and prescriptive verification across system scales?
+- **RQ1 (Diagnostic Ranking Efficacy):** How does the RM composite's rank correlation with cascade failure impact compare to single-metric structural baselines (betweenness, degree)?
+- **RQ2 (Catalog Screening and Calibration):** How well does the anti-pattern catalog's component-level agreement match its precision/recall profile, and what accounts for its implication rate?
+- **RQ3 (Attribution Validity and Substrate Adequacy):** Does the Availability dimension carry genuine signal on the layer this evaluation measures, how does stratification by node type affect the pooled ranking result, and how does this re-measurement compare to our prior published claim?
+- **RQ4 (Prescriptive Refactoring Efficacy & Operator Survival):** Does the closed-loop prescriptive engine achieve statistically significant reductions in System Risk Index across heterogeneous scenarios, and how do individual refactoring operators survive counterfactual verification?
+- **RQ5 (Verification Yield, Compositionality & CI/CD Feasibility):** What proportion of generated candidates survive verification, do individually admitted edits compose beneficially, and what is the execution latency of diagnostic gating and prescriptive verification across system scales?
 
 ### 8.2 Benchmark Scenarios
 
-We evaluate eight benchmark scenarios spanning distinct architectural domains (Table 8.1). Scenarios S01–S08 evaluate detection; S01–S07 evaluate prescription (S08 excluded as a minimal regression smoke test).
+We evaluate eight benchmark scenarios spanning six architectural domains—autonomous vehicles, IoT smart cities, financial trading, healthcare, hub-and-spoke microservices, and hyper-scale enterprise systems—plus a minimal regression fixture (Table 8.1). Scenarios S01–S08 evaluate detection; S01–S07 evaluate prescription (S08 excluded as a minimal regression smoke test, not as a scale-driven exclusion).
 
 **Table 8.1 — Benchmark Scenario Scales and Topological Dimensions.**
 
@@ -397,21 +423,22 @@ We evaluate eight benchmark scenarios spanning distinct architectural domains (T
 | S05 Hub-and-Spoke | 70 | 25 | 30 | 2 | 12 | 797 |
 | S06 Microservices Mesh | 90 | 30 | 45 | 6 | 15 | 680 |
 | S07 Hyper-Scale Enterprise | 300 | 50 | 120 | 10 | 40 | 3245 |
-| S08 Tiny Regression | 12 | 4 | 8 | 2 | 3 | 48 |
+| S08 Tiny Regression | 12 | 4 | 8 | 2 | 3 | 101 |
 
 ### 8.3 Experimental Protocol and Metrics
 
-- **Detection Metrics:** Spearman rank correlation $\rho(Q, I_{\text{comp}})$ (pooled and stratified), precision, recall, $F_1$, and Top-5 overlap against simulation ground truth $I_{\text{comp}}$. Baselines: betweenness and degree centrality.
+- **Detection Metrics:** Spearman rank correlation $\rho(Q, I_{\text{comp}})$ (pooled and stratified), Cohen's $\kappa$, NDCG@10, Top-$k$ overlap, precision, recall, and $F_1$ against simulation ground truth $I_{\text{comp}}$ (§4.5). Baselines: betweenness and degree centrality. For $Q(v)$/betweenness/degree, the predicted and true critical sets are both sized by the same box-plot-or-top-20% rule (§9.1), which pins precision, recall, and $F_1$ to near-equal values by construction; the catalog's flagged set has no such constraint, so its precision and recall are measured independently.
 - **Prescriptive Metrics:** System Risk Index ($\mathrm{SRI} = 0.5(1-H_R) + 0.5(1-H_M)$), $\Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} - \mathrm{SRI}_{\text{mutated}}$, per-operator candidate generation counts, admitted edit counts, and per-edit survival rates.
 - **Verification Parameters:** $\kappa = 1.0$, $\Theta = \{0.1, 0.2, 0.5\}$, $S = \{42, 123, 456\}$.
+- **Two Oracles, Not One:** This paper's ground truth, $I_{\text{comp}}(v)$, is an independent discrete-event cascade simulator modeling message dropouts and queue exhaustion under component removal on the directed `DEPENDS_ON` projection. Our prior work [35] validated against a different oracle, Reachability Loss, on the undirected pub-sub graph—a distinction §9.3 returns to when reconciling the two papers' correlation figures.
 
 ---
 
 ## 9. Empirical Results
 
-### 9.1 Diagnostic Detection Efficacy and Precision (RQ1)
+### 9.1 Diagnostic Ranking Efficacy (RQ1)
 
-Table 9.1 presents detection validation at the application layer across all eight scenarios.
+Table 9.1 presents detection validation at the application layer across all eight scenarios; Table 9.1b compares the three ranking predictors across four independent quality measures.
 
 **Table 9.1 — Diagnostic Detection Validation (App Layer) against Simulation Ground Truth $I_{\text{comp}}(v)$.**
 
@@ -427,14 +454,36 @@ Table 9.1 presents detection validation at the application layer across all eigh
 | S08 Tiny Regression | 12 | 0.538 | 0.333 | 0.60 | 0.250 | 1.000 | 100.0% | 0.01 |
 | **Mean** | — | **0.485** | **0.590** | **0.550** | **0.253** | **0.942** | **94.8%** | **3.00** |
 
-#### Key Findings on Diagnostic Quality Evaluation
-1. **Ranking Efficacy:** Mean Spearman correlation is $\rho = 0.485$ (ranging from $0.365$ to $0.718$). Comparing against single-metric baselines, betweenness centrality achieves $\rho = 0.435$, while **degree centrality alone achieves $\rho = 0.519$**. The value of the RM Diagnostic Pathway lies not in superior scalar ranking, but in **explainable quality attribution**—routing structural flaws to specific stakeholder roles (Figure 2), which a scalar degree count cannot achieve.
-2. **Catalog Screening Behavior:** The anti-pattern catalog functions as a sensitive screen: mean recall is $0.942$, while precision is $0.253$. The catalog implicates a mean of **$94.8\%$ of components** at `CRITICAL`/`HIGH` severity. This high base-rate confirms that uncalibrated global box-plot thresholds over-flag in dense topologies, underscoring the urgent necessity of delta-aware CI/CD gating (§7.2).
-3. **Simpson's Paradox in Node Pooling:** At the system layer (pooling all five node types), the pooled correlation drops to $\rho = 0.028$, while per-type strata show robust positive correlations (Application $0.503$, Broker $0.395$, Node $0.142$). This documents a severe Simpson's paradox resulting from between-type score offsets, proving that stratified evaluation is methodologically essential for heterogeneous software graphs.
+**Table 9.1b — Predictor Comparison, App Layer, Mean over 8 Scenarios. No predictor dominates on every measure.**
 
-### 9.2 Prescriptive Refactoring Efficacy (RQ2)
+| Predictor | $\rho$ | Cohen's $\kappa$ | NDCG@10 | Top-10 |
+| :--- | ---: | ---: | ---: | ---: |
+| $Q(v)$ composite (RM) | 0.4850 | 0.4514 | 0.8295 | 0.5875 |
+| Betweenness | 0.4346 | 0.4139 | **0.8592** | **0.6250** |
+| Degree | **0.5187** | **0.4792** | 0.8214 | 0.5625 |
 
-Table 9.2 presents prescriptive refactoring results under per-edit counterfactual verification across all seven benchmark scenarios.
+#### Key Diagnostic Findings
+1. **Ranking Saturation, Not a Clear Winner.** Table 9.1b shows all three predictors cluster tightly: degree centrality leads on $\rho$ ($0.519$) and $\kappa$ ($0.479$), betweenness leads on NDCG@10 ($0.859$) and Top-10 overlap ($0.625$), and the RM composite is never last by more than $0.03$ on any measure. No predictor is uniformly better, which means the composite's contribution cannot rest on out-ranking a scalar centrality score—it does not. What the RM composite adds beyond ranking is the decomposition §3.4 defines: a scalar centrality count has no Fault Tolerance/Availability/Maintainability breakdown to route to a Reliability Engineer, an SRE, or an Architect.
+2. **Ranking Improves at Scale.** Stratifying by scenario size, mean $\rho$ is $0.599$ for the two large scenarios ($\ge 150$ components: S02, S07) versus $0.447$ for the six smaller ones—the composite's ranking quality is not degrading as systems grow, which is the direction that matters for the CI/CD use case this paper targets.
+3. **Catalog Screening Behavior.** The anti-pattern catalog functions as a sensitive screen: mean recall is $0.942$, precision is $0.253$, implicating a mean of $94.8\%$ of components at `CRITICAL`/`HIGH` severity. §9.2 explains the mechanism. Note that for the $Q(v)$/betweenness/degree predictors, precision, recall, and $F_1$ are numerically identical (§8.3)—an artifact of the equal-sized-set validation rule, not evidence that these predictors have no false positives or false negatives individually.
+
+### 9.2 Catalog Screening and Calibration (RQ2)
+
+Precision and recall alone understate how the catalog's findings relate to ground-truth criticality. Cohen's $\kappa$ measures chance-corrected agreement between the catalog's flagged/unflagged partition and the true critical/non-critical partition; it is **$\kappa = -0.0022$** at the application layer (mean over 8 scenarios, range $-0.125$ to $+0.141$) and **$\kappa = -0.0300$** at the system layer—both indistinguishable from chance agreement, despite recall of $0.942$.
+
+The mechanism is scope, not miscalibration of any single threshold: §4.6 shows that of the 6329 findings the eight triggered patterns produce across all scenarios, only 98 ($1.5\%$) are attributable to a single component, while 6231 ($98.4\%$) are Edge- or System-scoped. `n_flagged_directly`—findings whose entity is a component—is zero in 4 of 8 scenarios. A component is "implicated" almost entirely by being an endpoint of a flagged edge (chiefly `BOTTLENECK_EDGE` and `QOS_MISMATCH`), not by a component-level detector firing on it. High recall together with chance-level $\kappa$ is therefore consistent, not contradictory: the catalog reliably flags *some* edge touching almost every genuinely critical component (hence high recall), while its component-level partition of flagged vs. unflagged carries almost no discriminative information beyond what a random partition of the same size would (hence $\kappa \approx 0$). We report this as a calibration finding: the catalog, as configured with a fixed $k=1.5$ IQR fence (§4.2), is a highly sensitive but poorly discriminating component-level screen, and its practical CI/CD value depends on the delta-aware gating design of §7.2, not on tightening $k$ alone—since tightening $k$ would improve $\kappa$ at recall's expense on the same edge-dominated finding mix.
+
+### 9.3 Attribution Validity and Substrate Adequacy (RQ3)
+
+**The Availability Dimension Is Degenerate at This Layer.** §3.5 anticipates that $A(v)$ requires a projection where cut vertices and bridge edges actually occur. At the application layer, they largely do not: the `SPOF` detector scores $F_1 = 0.0$ in **all 8 scenarios**, predicting zero articulation points in 6 of 8 (the two exceptions, S02 and S04, predict 1–4 apiece against ground truth that is itself near-zero). Since $A(v)$ carries $0.64$ of $R(v)$'s weight and $R(v)$ carries $0.80$ of $Q(v)$'s weight, this means roughly half of the composite score is measured on a substrate with almost no structural variance at this layer—a concrete instance of the mechanism §3.5 states as a design-time caveat, not a failure discovered post hoc. This is also a plausible contributor to Table 9.1b's saturation result: a composite that devotes half its weight to a near-constant term should be expected to under-perform a predictor (degree) that has no such dead weight.
+
+**Reconciling with Our Prior Published Result.** §1.5 previewed the delta with [35]'s $\rho = 0.94$; the mechanism above completes the explanation. That prior result used (a) Reachability Loss as ground truth, a connectivity statistic computed on the same undirected application graph its $CS(v)$ predictor is computed on—predictor and oracle share a substrate, which structurally favors high correlation; (b) a single ten-application system, where the specific mix of articulation points present is a property of that one topology, not a population statistic; and (c) $AP(v)$ contributing $30\%$ of the composite by design, which is informative precisely because that topology had articulation points to find. This paper's $I_{\text{comp}}$ oracle is an independent discrete-event cascade simulator sharing no computational substrate with the RM score, is measured across eight topologies up to 300 applications, and is measured on a directed `DEPENDS_ON` projection where—as shown above—articulation structure is largely absent. Both results are correct measurements of what they measured; they are not measurements of the same underlying quantity, and the honest reading is that ranking correlation against a connectivity-derived oracle is not a portable measure of a criticality score's real-world diagnostic value.
+
+**Simpson's Paradox in Node Pooling.** At the system layer (pooling all five node types), the pooled correlation is $\rho = 0.028$, while per-type strata show robust positive correlations (Application $0.503$, Broker $0.395$, Node $0.142$)—the pooled figure falls *outside* the per-type range entirely (`pooled_inside_per_type_range: false`). This is a severe Simpson's paradox from between-type score offsets: node types with systematically different score levels but internally consistent rankings can pool into a near-zero aggregate correlation. Stratified evaluation is therefore not a presentational choice but a methodological requirement for heterogeneous software graphs; every correlation this paper reports outside this paragraph is single-type (Application) or explicitly stratified for this reason.
+
+### 9.4 Prescriptive Refactoring Efficacy and Operator Survival (RQ4)
+
+Table 9.2 presents prescriptive refactoring results under per-edit counterfactual verification across all seven benchmark scenarios; Table 9.3 breaks this down by refactoring operator.
 
 **Table 9.2 — Prescriptive Refactoring Performance under Per-Edit Counterfactual Verification.**
 
@@ -449,14 +498,6 @@ Table 9.2 presents prescriptive refactoring results under per-edit counterfactua
 | S07 Hyper-Scale Enterprise | 0.3283 | 0.3112 | **+0.0171** | 528 | 479 | 49 | 90.7% |
 | **Total / Overall** | — | — | — | **1589** | **1128** | **461** | **71.0%** |
 
-#### Key Findings on Prescriptive Efficacy
-1. **Statistically Significant Improvement:** Every scenario achieves a net positive $\Delta\mathrm{SRI}$. A Wilcoxon signed-rank test against zero yields $W=0, p=0.0156 (n=7)$, confirming statistically significant risk reduction across all evaluated domains.
-2. **Substantial Yield:** Across 1589 generated candidates, **1128 edits ($71.0\%$) survive counterfactual verification**.
-
-### 9.3 Operator Survival and Contributions (RQ3)
-
-Table 9.3 breaks down candidate generation and admission rates by refactoring operator.
-
 **Table 9.3 — Candidate Generation vs. Verified Admission by Refactoring Operator.**
 
 | Refactoring Operator | Candidates Generated | Edits Admitted | Survival Rate | Primary Structural Target |
@@ -466,18 +507,18 @@ Table 9.3 breaks down candidate generation and admission rates by refactoring op
 | **Logical Topic Splitting** | 332 | **165** | **49.7%** | High-fan-out message channels, topic hubs |
 | **Total** | **1589** | **1128** | **71.0%** | — |
 
-**Anti-affinity reallocation demonstrates the highest survival rate ($77.7\%$)**, achieving near-$100\%$ survival in dense topologies (408/409 in Enterprise, 123/123 in Microservices). Transport QoS hardening achieves $58.0\%$ survival where triggered, while topic splitting achieves $49.7\%$.
+#### Key Prescriptive Findings
+1. **Statistically Significant Improvement:** Every scenario achieves a net positive $\Delta\mathrm{SRI}$. A Wilcoxon signed-rank test against zero yields $W=0, p=0.0156 (n=7)$, confirming statistically significant risk reduction across all evaluated domains.
+2. **Substantial Yield:** Across 1589 generated candidates, **1128 edits ($71.0\%$) survive counterfactual verification**.
+3. **Anti-Affinity Reallocation Demonstrates the Highest Survival Rate ($77.7\%$)**, achieving near-$100\%$ survival in dense topologies (408/409 in Enterprise, 123/123 in Microservices)—mechanistically plausible, since Rule 2 only fires on nodes already flagged `SPOF` or RM-critical (§6.3). Transport QoS hardening achieves $58.0\%$ survival where triggered, while topic splitting achieves $49.7\%$.
 
-### 9.4 Verification Yield and Compositionality (RQ4)
+### 9.5 Verification Yield, Compositionality & CI/CD Feasibility (RQ5)
 
 1. **Informative Rejection:** All 461 rejected edits record the binding propagation threshold $\theta$ where impact reduction failed to clear $\kappa \sigma_{\text{seed}}$, providing transparent review feedback.
 2. **Compositional Dynamics:** While every scenario achieves net positive system-level $\Delta\mathrm{SRI}$, two scenarios (S03 Financial Trading and S06 Microservices Mesh) exhibit slight negative mean per-component changes among accepted edits. This demonstrates that individually verified edits can interact sub-additively, validating the necessity of the second-level whole-policy gate.
-
-### 9.5 Computational Overhead and CI/CD Feasibility (RQ5)
-
-1. **Diagnostic Review Gate Latency:** The complete diagnostic pipeline (graph construction, CQP computation, RM attribution, and 18 active anti-pattern detectors) executes in **0.01 s to 20.98 s** (Table 9.1). The eighteen detectors run in under **0.2 s total**; computational overhead is dominated by base metric computation.
-2. **`DEEP_PIPELINE` Bounding:** The unconstrained `DEEP_PIPELINE` detector attempts exhaustive path enumeration, generating 247,761 findings on tiny fixtures and hanging on larger graphs. Excluding this detector restores sub-second gate execution.
-3. **Prescriptive Verification Latency:** The full 7-scenario prescriptive sweep (14,301 simulation sweeps) completed in **2 h 47 min** using multi-core process parallelism (20 workers), establishing its viability for nightly or on-demand CI/CD refactoring runs.
+3. **Diagnostic Review Gate Latency:** The complete diagnostic pipeline (graph construction, CQP computation, RM attribution, and 18 active anti-pattern detectors) executes in **0.01 s to 20.98 s** (Table 9.1). The eighteen detectors run in under **0.2 s total**; computational overhead is dominated by base metric computation.
+4. **`DEEP_PIPELINE` Bounding:** The unconstrained `DEEP_PIPELINE` detector attempts exhaustive path enumeration, generating 247,761 findings on tiny fixtures and hanging on larger graphs. Excluding this detector (§4.6) restores sub-second gate execution.
+5. **Prescriptive Verification Latency:** The full 7-scenario prescriptive sweep (14,301 simulation sweeps) completed in **2 h 47 min** using multi-core process parallelism (20 workers), establishing its viability for nightly or on-demand CI/CD refactoring runs.
 
 ---
 
@@ -485,17 +526,26 @@ Table 9.3 breaks down candidate generation and admission rates by refactoring op
 
 ### 10.1 Diagnostic Explainability vs. Threshold Calibration
 
-The Diagnostic Pathway successfully provides deterministic, role-specific quality attribution (Reliability Engineer vs. SRE vs. Architect), translating abstract topological risk into actionable review decisions. However, its current box-plot thresholds over-flag in dense graphs ($94.8\%$ implicated). Threshold recalibration and delta-aware gating are essential for production CI/CD deployment.
+The Diagnostic Pathway successfully provides deterministic, role-specific quality attribution (Reliability Engineer vs. SRE vs. Architect), translating abstract topological risk into actionable review decisions—and §9.1 shows this attribution, not superior ranking, is where its value over a scalar centrality score lies. That value is not free, however: §9.2 shows the catalog's fixed $k=1.5$ IQR fence produces near-chance component-level agreement ($\kappa \approx 0$) despite high recall, because $98.4\%$ of active findings are edge-scoped and implicate components only as endpoints. Tightening $k$ would trade recall for precision on the same finding mix, but would not by itself change the underlying scope imbalance—a catalog dominated by two edge-level detectors (`BOTTLENECK_EDGE`, `QOS_MISMATCH`) will always implicate components indirectly at scale. The mitigation this paper actually validates is architectural rather than purely statistical: absolute gating blocks on every one of the eight benchmark scenarios (§7.2), which is unusable in practice, while delta-aware gating—blocking only newly introduced findings relative to a merge-base—bounds the review surface to what a given change actually introduces, regardless of the base rate. Threshold recalibration (§11.2) and delta-aware gating are therefore complementary, not substitutes: one narrows what fires, the other narrows what is enforced.
 
 ### 10.2 The Verify-Before-Recommend Discipline
 
-Counterfactual verification proves essential: an unverified engine would have applied 461 harmful or ineffective mutations ($29.0\%$). By filtering mutations against cascade noise, SaG-Prescribe ensures that recommended refactorings reliably harden system architecture.
+Counterfactual verification proves essential: an unverified engine would have applied 461 harmful or ineffective mutations ($29.0\%$). By filtering mutations against cascade noise, SaG-Prescribe ensures that recommended refactorings reliably harden system architecture. Notably, this discipline is what makes §9.4's reallocation result trustworthy rather than merely plausible: the mechanistic argument for why anti-affinity reallocation should work (removing SPOF co-location) is exactly the kind of confident-sounding reasoning an open-loop recommender would have shipped regardless of whether it was true, and it is only because every candidate is independently simulated that the $77.7\%$ survival rate is a measurement rather than an assumption.
 
-### 10.3 Threats to Validity
+### 10.3 Construct Validity: Substrate Adequacy
 
-- **Construct Validity:** Both detection and verification utilize a discrete-event cascade simulator. We mitigate simulator dependency by grounding operators in established distributed systems dependability patterns (anti-affinity scheduling, topic isolation, QoS hardening).
+Beyond the general dependence on a discrete-event cascade simulator, this paper surfaces a more specific construct-validity threat, promoted here to first-class status rather than left implicit: a composite score's sub-dimensions can be individually well- or ill-posed on a given graph projection, and scoring on an ill-posed projection silently degrades the composite without changing its formula. §3.5 states this as a design-time property; §9.3 measures its concrete instance—the Availability dimension carrying almost no variance on the application-layer projection used throughout this paper's headline detection evaluation, because that projection has essentially no articulation points to find. The mitigation is not a different formula for $A(v)$, but scoring Availability-sensitive review on a projection where cut structures can occur (the middleware or system layer), and reporting per-layer results rather than treating the application layer as universally representative. We flag this as a threat other RM-style composite scores on typed dependency graphs should check for explicitly, not only fix locally: any weighted sum over structurally heterogeneous sub-scores inherits this risk whenever one term is a discrete graph predicate.
+
+### 10.4 Comparison with Prior Self-Reported Results
+
+§9.3 reconciles this paper's $\rho = 0.485$ against our own prior published $\rho = 0.94$ [35]. In discussion terms, the general lesson is broader than this one paper pair: a criticality score whose ground-truth oracle is itself a connectivity statistic on the same graph the score is computed from will tend to correlate well with that oracle almost by construction, and that correlation does not necessarily transfer to an oracle with independent causal mechanics (here, a discrete-event message-dropout and queue-exhaustion simulator). We consider the re-measurement a strength of this submission's methodology rather than a weakness to minimize: reporting a negative result against one's own prior work, with the mechanism identified rather than merely disclosed, is what makes the finding actionable for other researchers evaluating structural criticality scores against connectivity-derived oracles.
+
+### 10.5 Further Threats to Validity
+
+- **Construct Validity:** Both detection and verification utilize a discrete-event cascade simulator. We mitigate simulator dependency by grounding operators in established distributed systems dependability patterns (anti-affinity scheduling, topic isolation, QoS hardening), and by validating the composite against SPOF ground truth directly (§9.3) rather than relying on ranking correlation alone.
 - **Internal Validity:** Decoupled in-memory repositories ensure no circular data leakage between diagnostic candidate generation and counterfactual simulation.
 - **External Validity:** Scenarios are synthetic domain models; validation on harvested industrial cyber-physical codebases remains high-priority future work.
+- **Conclusion Validity:** The Wilcoxon test underlying §9.4's significance claim has $n=7$, the minimum for which a two-sided signed-rank test can reach $p<0.05$; the reported $p=0.0156$ is the best attainable significance at this sample size, not evidence of an especially large effect.
 
 ---
 
@@ -503,20 +553,21 @@ Counterfactual verification proves essential: an unverified engine would have ap
 
 ### 11.1 Conclusion
 
-This paper presented **SaG-Prescribe**, bringing the **Diagnostic Pathway** to the forefront of automated code review and software quality evaluation for distributed publish–subscribe systems. By integrating code-level SCA metrics (CQP), multi-layer heterogeneous dependency modeling, hierarchical ISO 25010/25019 RM quality attribution, and formal anti-pattern detection with counterfactually verified refactoring, SaG-Prescribe closes the Architecture-Code Gap. Empirical results confirm that diagnostic review gating executes in sub-second to 20s latency, while counterfactual verification reliably admits $71.0\%$ of refactoring candidates, delivering statistically significant resilience improvements across all evaluated domains.
+This paper presented **SaG-Prescribe**, bringing the **Diagnostic Pathway** to the forefront of automated code review and software quality evaluation for distributed publish–subscribe systems. By integrating code-level SCA metrics (CQP), multi-layer heterogeneous dependency modeling, hierarchical ISO 25010/25019 RM quality attribution, and formal anti-pattern detection with counterfactually verified refactoring, SaG-Prescribe closes the Architecture-Code Gap. Rather than claiming diagnostic superiority in ranking accuracy, the paper establishes the diagnostic contribution empirically as *attribution and calibration evidence*: three structural predictors saturate around comparable ranking quality (§9.1), the anti-pattern catalog is a sensitive but chance-level-agreeing component-level screen whose mechanism we identify (§9.2), and the Availability dimension's substrate adequacy is stated as a modeling property and measured directly rather than assumed (§9.3)—including an explicit, mechanistically explained re-measurement of our own prior published criticality-ranking claim. Empirical results further confirm that diagnostic review gating executes in sub-second to 20s latency, while counterfactual verification reliably admits $71.0\%$ of refactoring candidates, delivering statistically significant resilience improvements across all evaluated domains.
 
 ### 11.2 Future Work
 
-1. **Detection Threshold Recalibration:** Sweep percentile fences to optimize precision/recall balance.
-2. **Path-Bounded `DEEP_PIPELINE`:** Restrict path enumeration to bound execution time.
-3. **Delta-Aware CI/CD Gating:** Implement merge-base diffing and waiver registers.
-4. **Combinatorial Subset Verification:** Explore greedy forward-selection to optimize multi-edit composition.
-5. **Dynamic $\kappa$ Estimation:** Adapt noise margins based on empirical simulator variance.
-6. **Per-Candidate Latency Profiling:** Instrument fine-grained verification timing.
-7. **Operator Attribution Ablation:** Isolate per-operator $\Delta\mathrm{SRI}$ contributions.
-8. **Catalog Extension for Hybrid Architectures:** Incorporate REST/gRPC hybrid microservice patterns.
-9. **Industrial Telemetry Replication:** Validate against live ROS 2 and DDS production traces.
-10. **LLM-Assisted Pull-Request Synthesis:** Integrate generative code models to automatically draft pull requests implementing verified refactoring blueprints.
+1. **Detection Threshold Recalibration:** Sweep the box-plot fence multiplier $k$ in $Q_3 + k\,\mathrm{IQR}$—already a parameter of `BoxPlotClassifier`, but hardcoded at $k=1.5$ in the anti-pattern detectors (§4.2)—against the precision/$\kappa$/recall trade-off §9.2 measures, rather than assuming the classical outlier convention is the right operating point for a CI/CD screen.
+2. **Layer-Aware Availability Scoring:** Score $A(v)$ on a projection where cut structures are structurally possible (§3.5), and report Reliability/Availability results per-layer by default rather than defaulting to the application layer alone.
+3. **Path-Bounded `DEEP_PIPELINE`:** Restrict path enumeration to bound execution time.
+4. **Delta-Aware CI/CD Gating:** Implement merge-base diffing and waiver registers.
+5. **Combinatorial Subset Verification:** Explore greedy forward-selection to optimize multi-edit composition.
+6. **Dynamic $\kappa$ Estimation:** Adapt noise margins based on empirical simulator variance.
+7. **Per-Candidate Latency Profiling:** Instrument fine-grained verification timing.
+8. **Operator Attribution Ablation:** Isolate per-operator $\Delta\mathrm{SRI}$ contributions.
+9. **Catalog Extension for Hybrid Architectures:** Incorporate REST/gRPC hybrid microservice patterns.
+10. **Industrial Telemetry Replication:** Validate against live ROS 2 and DDS production traces, including a direct replication of [35]'s reachability-loss validation on the larger corpus used here.
+11. **LLM-Assisted Pull-Request Synthesis:** Integrate generative code models to automatically draft pull requests implementing verified refactoring blueprints.
 
 ---
 
@@ -589,6 +640,8 @@ This paper presented **SaG-Prescribe**, bringing the **Diagnostic Pathway** to t
 [33] X. Hou, Y. Zhao, Y. Liu, Z. Yang, K. Wang, L. Li, X. Luo, D. Lo, J. Grundy, H. Wang, "Large Language Models for Software Engineering: A Systematic Literature Review," *ACM Transactions on Software Engineering and Methodology*, vol. 33, no. 5, pp. 1–68, 2024.
 
 [34] A. M. Al-Kaswan, T. Ahmed, M. Izadi, P. Sawant, P. Devanbu, A. van Deursen, "Automatic Refactoring Using Large Language Models: A Study on Extract Method and Rename," *Empirical Software Engineering*, vol. 29, no. 4, p. 98, 2024.
+
+[35] I. O. Yigit, F. Buzluca, "A Graph-Based Dependency Analysis Method for Identifying Critical Components in Distributed Publish-Subscribe Systems," in *Proc. IEEE International Conference on Recent Advances in Systems Science and Engineering (RASSE)*, 2025.
 
 ---
 

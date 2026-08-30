@@ -5,17 +5,17 @@
 \label{sec:exp:rqs}
 
 \begin{itemize}
-    \item \textbf{RQ1 (Diagnostic Detection Efficacy \& Precision):} How accurately does the Diagnostic Pathway correlate with cascade failure impact, and how effectively does the anti-pattern catalog identify architectural debt without over-flagging?
-    \item \textbf{RQ2 (Prescriptive Refactoring Efficacy):} Does the closed-loop prescriptive engine achieve statistically significant reductions in System Risk Index across heterogeneous scenarios?
-    \item \textbf{RQ3 (Operator Survival \& Contributions):} How do individual refactoring operators survive counterfactual verification across structural regimes?
-    \item \textbf{RQ4 (Verification Yield \& Compositionality):} What proportion of generated candidates survive verification, and do individually admitted edits compose beneficially?
-    \item \textbf{RQ5 (Computational Overhead \& CI/CD Feasibility):} What is the execution latency of diagnostic gating and prescriptive verification across system scales?
+    \item \textbf{RQ1 (Diagnostic Ranking Efficacy):} How does the RM composite's rank correlation with cascade failure impact compare to single-metric structural baselines (betweenness, degree)?
+    \item \textbf{RQ2 (Catalog Screening and Calibration):} How well does the anti-pattern catalog's component-level agreement match its precision/recall profile, and what accounts for its implication rate?
+    \item \textbf{RQ3 (Attribution Validity and Substrate Adequacy):} Does the Availability dimension carry genuine signal on the layer this evaluation measures, how does stratification by node type affect the pooled ranking result, and how does this re-measurement compare to our prior published claim?
+    \item \textbf{RQ4 (Prescriptive Refactoring Efficacy \& Operator Survival):} Does the closed-loop prescriptive engine achieve statistically significant reductions in System Risk Index across heterogeneous scenarios, and how do individual refactoring operators survive counterfactual verification?
+    \item \textbf{RQ5 (Verification Yield, Compositionality \& CI/CD Feasibility):} What proportion of generated candidates survive verification, do individually admitted edits compose beneficially, and what is the execution latency of diagnostic gating and prescriptive verification across system scales?
 \end{itemize}
 
 \subsection{Benchmark Scenarios}
 \label{sec:exp:scenarios}
 
-We evaluate eight benchmark scenarios spanning distinct architectural domains (Table~\ref{tab:scenarios}). Scenarios S01--S08 evaluate detection; S01--S07 evaluate prescription (S08 excluded as a minimal regression smoke test).
+We evaluate eight benchmark scenarios spanning six architectural domains---autonomous vehicles, IoT smart cities, financial trading, healthcare, hub-and-spoke microservices, and hyper-scale enterprise systems---plus a minimal regression fixture (Table~\ref{tab:scenarios}). Scenarios S01--S08 evaluate detection; S01--S07 evaluate prescription (S08 excluded as a minimal regression smoke test, not as a scale-driven exclusion).
 
 \begin{table}[htbp]
 \centering
@@ -34,7 +34,7 @@ S04 Healthcare & 50 & 12 & 25 & 3 & 8 & 400 \\
 S05 Hub-and-Spoke & 70 & 25 & 30 & 2 & 12 & 797 \\
 S06 Microservices Mesh & 90 & 30 & 45 & 6 & 15 & 680 \\
 S07 Hyper-Scale Enterprise & 300 & 50 & 120 & 10 & 40 & 3245 \\
-S08 Tiny Regression & 12 & 4 & 8 & 2 & 3 & 48 \\
+S08 Tiny Regression & 12 & 4 & 8 & 2 & 3 & 101 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -43,7 +43,8 @@ S08 Tiny Regression & 12 & 4 & 8 & 2 & 3 & 48 \\
 \label{sec:exp:protocol}
 
 \begin{itemize}
-    \item \textbf{Detection Metrics:} Spearman rank correlation $\rho(Q, I_{\text{comp}})$ (pooled and stratified), precision, recall, $F_1$, and Top-5 overlap against simulation ground truth $I_{\text{comp}}$. Baselines: betweenness and degree centrality.
+    \item \textbf{Detection Metrics:} Spearman rank correlation $\rho(Q, I_{\text{comp}})$ (pooled and stratified), Cohen's $\kappa$, NDCG@10, Top-$k$ overlap, precision, recall, and $F_1$ against simulation ground truth $I_{\text{comp}}$ (Section~\ref{sec:catalog:validation}). Baselines: betweenness and degree centrality. For $Q(v)$/betweenness/degree, the predicted and true critical sets are both sized by the same box-plot-or-top-20\% rule (Section~\ref{sec:results:detection}), which pins precision, recall, and $F_1$ to near-equal values by construction; the catalog's flagged set has no such constraint, so its precision and recall are measured independently.
     \item \textbf{Prescriptive Metrics:} System Risk Index ($\mathrm{SRI} = 0.5(1-H_R) + 0.5(1-H_M)$), $\Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} - \mathrm{SRI}_{\text{mutated}}$, per-operator candidate generation counts, admitted edit counts, and per-edit survival rates.
     \item \textbf{Verification Parameters:} $\kappa = 1.0$, $\Theta = \{0.1, 0.2, 0.5\}$, $S = \{42, 123, 456\}$.
+    \item \textbf{Two Oracles, Not One:} This paper's ground truth, $I_{\text{comp}}(v)$, is an independent discrete-event cascade simulator modeling message dropouts and queue exhaustion under component removal on the directed \texttt{DEPENDS\_ON} projection. Our prior work \cite{yigit2025graph} validated against a different oracle, Reachability Loss, on the undirected pub-sub graph---a distinction Section~\ref{sec:results:attribution} returns to when reconciling the two papers' correlation figures.
 \end{itemize}

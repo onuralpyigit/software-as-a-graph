@@ -4,13 +4,14 @@
 \subsection{Conclusion}
 \label{sec:conclusion:summary}
 
-This paper presented \textbf{SaG-Prescribe}, bringing the \textbf{Diagnostic Pathway} to the forefront of automated code review and software quality evaluation for distributed publish--subscribe systems. By integrating code-level SCA metrics (CQP), multi-layer heterogeneous dependency modeling, hierarchical ISO 25010/25019 RM quality attribution, and formal anti-pattern detection with counterfactually verified refactoring, SaG-Prescribe closes the Architecture-Code Gap. Empirical results confirm that diagnostic review gating executes in sub-second to 20s latency, while counterfactual verification reliably admits $71.0\%$ of refactoring candidates, delivering statistically significant resilience improvements across all evaluated domains.
+This paper presented \textbf{SaG-Prescribe}, bringing the \textbf{Diagnostic Pathway} to the forefront of automated code review and software quality evaluation for distributed publish--subscribe systems. By integrating code-level SCA metrics (CQP), multi-layer heterogeneous dependency modeling, hierarchical ISO 25010/25019 RM quality attribution, and formal anti-pattern detection with counterfactually verified refactoring, SaG-Prescribe closes the Architecture-Code Gap. Rather than claiming diagnostic superiority in ranking accuracy, the paper establishes the diagnostic contribution empirically as \emph{attribution and calibration evidence}: three structural predictors saturate around comparable ranking quality (Section~\ref{sec:results:detection}), the anti-pattern catalog is a sensitive but chance-level-agreeing component-level screen whose mechanism we identify (Section~\ref{sec:results:calibration}), and the Availability dimension's substrate adequacy is stated as a modeling property and measured directly rather than assumed (Section~\ref{sec:results:attribution})---including an explicit, mechanistically explained re-measurement of our own prior published criticality-ranking claim. Empirical results further confirm that diagnostic review gating executes in sub-second to 20s latency, while counterfactual verification reliably admits $71.0\%$ of refactoring candidates, delivering statistically significant resilience improvements across all evaluated domains.
 
 \subsection{Future Work}
 \label{sec:conclusion:future_work}
 
 \begin{enumerate}
-    \item \textbf{Detection Threshold Recalibration:} Sweep percentile fences to optimize precision/recall balance.
+    \item \textbf{Detection Threshold Recalibration:} Sweep the box-plot fence multiplier $k$ in $Q_3 + k\,\mathrm{IQR}$---already a parameter of \texttt{BoxPlotClassifier}, but hardcoded at $k=1.5$ in the anti-pattern detectors (Section~\ref{sec:catalog:methodology})---against the precision/$\kappa$/recall trade-off Section~\ref{sec:results:calibration} measures, rather than assuming the classical outlier convention is the right operating point for a CI/CD screen.
+    \item \textbf{Layer-Aware Availability Scoring:} Score $A(v)$ on a projection where cut structures are structurally possible (Section~\ref{sec:model:substrate}), and report Reliability/Availability results per-layer by default rather than defaulting to the application layer alone.
     \item \textbf{Path-Bounded \texttt{DEEP\_PIPELINE}:} Restrict path enumeration to bound execution time.
     \item \textbf{Delta-Aware CI/CD Gating:} Implement merge-base diffing and waiver registers.
     \item \textbf{Combinatorial Subset Verification:} Explore greedy forward-selection to optimize multi-edit composition.
@@ -18,6 +19,6 @@ This paper presented \textbf{SaG-Prescribe}, bringing the \textbf{Diagnostic Pat
     \item \textbf{Per-Candidate Latency Profiling:} Instrument fine-grained verification timing.
     \item \textbf{Operator Attribution Ablation:} Isolate per-operator $\Delta\mathrm{SRI}$ contributions.
     \item \textbf{Catalog Extension for Hybrid Architectures:} Incorporate REST/gRPC hybrid microservice patterns.
-    \item \textbf{Industrial Telemetry Replication:} Validate against live ROS~2 and DDS production traces.
+    \item \textbf{Industrial Telemetry Replication:} Validate against live ROS~2 and DDS production traces, including a direct replication of \cite{yigit2025graph}'s reachability-loss validation on the larger corpus used here.
     \item \textbf{LLM-Assisted Pull-Request Synthesis:} Integrate generative code models to automatically draft pull requests implementing verified refactoring blueprints.
 \end{enumerate}

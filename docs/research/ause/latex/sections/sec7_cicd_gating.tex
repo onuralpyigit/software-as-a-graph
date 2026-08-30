@@ -11,8 +11,10 @@ To govern architectural quality during continuous evolution, the Diagnostic Path
 
 \begin{itemize}
     \item \textbf{Absolute Gating:} Evaluates the entire topology against global thresholds. However, real-world industrial systems carry intentional, risk-accepted legacy debt; blocking builds on pre-existing debt paralyzes development.
-    \item \textbf{Delta-Aware Gating (Design):} Compares the PR candidate topology against the target branch merge-base, blocking only \emph{newly introduced} anti-patterns or worsening severities, while honoring a signed \textbf{waiver register}.
+    \item \textbf{Delta-Aware Gating (Design):} Compares the PR candidate topology against the target branch merge-base, blocking only \emph{newly introduced} anti-patterns or worsening severities, while honoring a signed \textbf{waiver register}. Absolute mode is implemented today; delta-aware mode is specified here for production integration but not yet implemented.
 \end{itemize}
+
+\paragraph{Absolute Gating Outcome on the Benchmark Corpus.} Every one of the eight benchmark scenarios contains at least one \texttt{CRITICAL}- or \texttt{HIGH}-severity finding (Section~\ref{sec:results:calibration}), so under absolute gating the review bot returns \textbf{Exit Code 2 (Block) on all eight scenarios}. Given the $94.8\%$ mean component-implication rate this catalog configuration produces (Section~\ref{sec:results:detection}), this is the expected, mechanical consequence of absolute thresholds applied globally, not a scenario-specific anomaly---and it is precisely why delta-aware gating is a necessity for adoption rather than a convenience: an absolute gate that blocks every commit on legacy debt trains developers to ignore or bypass it.
 
 \subsection{Three-Tier Exit-Code Protocol}
 \label{sec:cicd:protocol}

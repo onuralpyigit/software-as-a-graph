@@ -15,42 +15,42 @@ Publish--subscribe architectural anomalies leave distinct \textbf{topological si
 \subsection{Detection Methodology}
 \label{sec:catalog:methodology}
 
-Detection operates over a 16-element structural metric vector. Twelve metrics are Tier-1 inputs feeding the RM model: Reverse PageRank ($\mathrm{RPR}$), in-degree ($\mathrm{DG}_{\text{in}}$), multi-path coupling index ($\mathrm{MPCI}$), topic fan-out criticality ($\mathrm{FOC}$), betweenness ($\mathrm{BT}$), QoS out-degree ($w_{\text{out}}$), clustering coefficient ($\mathrm{CC}$), path complexity ($\mathrm{PC}$), directed articulation score ($\mathrm{AP}_{c,\text{directed}}$), bridge ratio ($\mathrm{BR}$), connectivity degradation index ($\mathrm{CDI}$), and component weight ($w$). The Code Quality Penalty ($\mathrm{CQP}$) serves as the thirteenth input, while forward centralities (PageRank, Closeness, Eigenvector) are held at Tier-2 for visualization. Detectors employ \textbf{adaptive box-plot thresholds} ($Q_3 + 1.5\,\mathrm{IQR}$).
+Detection operates over the same fourteen structural inputs that feed RM attribution (Section~\ref{sec:model:rm}): Reverse PageRank ($\mathrm{RPR}$), in-degree and out-degree ($\mathrm{DG}_{\text{in}}$, $\mathrm{DG}_{\text{out}}$), multi-path coupling index ($\mathrm{MPCI}$), topic fan-out criticality ($\mathrm{FOC}$), betweenness ($\mathrm{BT}$), QoS-weighted in- and out-degree ($w_{\text{in}}$, Topic-only, $w_{\text{out}}$), clustering coefficient ($\mathrm{CC}$), path complexity ($\mathrm{PC}$), directed articulation score ($\mathrm{AP}_{c,\text{directed}}$), bridge ratio ($\mathrm{BR}$), connectivity degradation index ($\mathrm{CDI}$), and component weight ($w$)---plus the synthesized Code Quality Penalty ($\mathrm{CQP}$, Section~\ref{sec:model:cqp}), for fifteen scoring metrics in total, verified field-for-field against the \texttt{SCORING} role in the codebase's metric registry. Forward centralities (PageRank, Closeness, Eigenvector) feed only the learned GNN companion pathway of the JSS submission \cite{sag_companion} and play no role in this deterministic detector layer. Detectors employ \textbf{adaptive box-plot thresholds} ($Q_3 + k\,\mathrm{IQR}$, fixed at $k=1.5$ in this work; Section~\ref{sec:conclusion:future_work} discusses sweeping $k$).
 
 \subsection{Catalog Overview}
 \label{sec:catalog:overview}
 
-Table~\ref{tab:antipattern_catalog} summarizes the nineteen anti-patterns and smells spanning three severity tiers and four catalog categories.
+Table~\ref{tab:antipattern_catalog} summarizes the nineteen anti-patterns and smells spanning three severity tiers, four catalog categories, and three finding scopes---\textbf{Component} (attributed to one vertex), \textbf{Edge} (attributed to one relationship), and \textbf{System} (a corpus-wide statistic, not attributable to any single element). The scope column matters for interpreting Section~\ref{sec:results:calibration}: component-level agreement metrics (precision, recall, Cohen's $\kappa$) are measured against component-scoped findings, while edge-scoped findings only implicate components indirectly, as endpoints.
 
 \begin{table}[htbp]
 \centering
-\footnotesize
-\setlength{\tabcolsep}{4pt}
-\caption{Publish--Subscribe Architectural Anti-Pattern and Bad Smell Catalog.}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Publish--Subscribe Architectural Anti-Pattern and Bad Smell Catalog. \textbf{Trig.} marks patterns that fire at least once on the eight-scenario benchmark corpus (Section~\ref{sec:catalog:coverage}).}
 \label{tab:antipattern_catalog}
-\begin{tabularx}{\textwidth}{p{3.2cm}llXp{3.3cm}}
+\begin{tabularx}{\textwidth}{p{2.9cm}lllXp{2.7cm}c}
 \toprule
-\textbf{Pattern} & \textbf{Severity} & \textbf{Category} & \textbf{Detection Signal} & \textbf{Automated Refactoring} \\
+\textbf{Pattern} & \textbf{Sev.} & \textbf{Category} & \textbf{Scope} & \textbf{Detection Signal} & \textbf{Autom. Refactoring} & \textbf{Trig.} \\
 \midrule
-\texttt{SPOF} & CRITICAL & Availability & Articulation point $\wedge$ QoS SPOF score & Anti-affinity reallocation \\
-\texttt{SYSTEMIC\_RISK} & CRITICAL & Reliability & Share of CRITICAL components $> 20\%$ & Advisory \\
-\texttt{CYCLE} & HIGH & Architecture & Strongly connected component / loop & Advisory \\
-\texttt{GOD\_COMPONENT} & CRITICAL & Maintainability & Extreme betweenness $\wedge$ CRITICAL $M(v)$ & Logical topic splitting \\
-\texttt{BOTTLENECK\_EDGE}& HIGH & Availability & Edge betweenness centrality outlier & Logical topic splitting \\
-\texttt{BROKER\_OVERLOAD} & HIGH & Availability & Broker availability $\ge 2\times$ median load & Anti-affinity reallocation \\
-\texttt{DEEP\_PIPELINE} & HIGH & Reliability & Path length $\ge \max(5, P_{75})$ & Advisory \\
-\texttt{TOPIC\_FANOUT} & MEDIUM & Reliability & Topic subscriber out-degree outlier & Logical topic splitting \\
-\texttt{CHATTY\_PAIR} & MEDIUM & Maintainability & Bidirectional weight product $> \tau_{\text{chatty}}$ & Advisory \\
-\texttt{QOS\_MISMATCH} & MEDIUM & Reliability & Pub/Sub QoS-weight gap $> \tau_{\text{qos}}$ & Advisory (Manual / Relay) \\
-\texttt{ORPHANED\_TOPIC}& MEDIUM & Maintainability & Zero in- or out-degree on graph & Advisory \\
-\texttt{UNSTABLE\_INTERFACE}& MEDIUM & Maintainability & High \texttt{CouplingRisk\_enh} $\wedge$ high $M(v)$ & Advisory \\
-\texttt{BRIDGE\_EDGE} & HIGH & Availability & Graph-theoretic bridge cut-edge & Advisory \\
-\texttt{FAILURE\_HUB} & CRITICAL & Reliability & Reliability outlier $\wedge$ high out-degree & Logical topic splitting \\
-\texttt{CONCENTRATION\_RISK}& MEDIUM & Reliability & Top-3 PageRank share $> 0.50$ & Advisory \\
-\texttt{HUB\_AND\_SPOKE} & MEDIUM & Maintainability & Low clustering $\wedge$ degree $> 3$ & Logical topic splitting \\
-\texttt{CHAIN} & MEDIUM & Architecture & Degree-bounded linear subgraph & Advisory \\
-\texttt{ISOLATED} & MEDIUM & Architecture & Zero total degree & Advisory \\
-\texttt{COMPOUND\_RISK} & CRITICAL & Architecture & Co-occurring SPOF + God/Hub finding & Anti-affinity reallocation \\
+\texttt{SPOF} & CRITICAL & Availability & Component & Articulation point $\wedge$ QoS SPOF score & Anti-affinity reallocation & \checkmark \\
+\texttt{SYSTEMIC\_RISK} & CRITICAL & Reliability & System & Share of CRITICAL components $> 20\%$ & Advisory & \\
+\texttt{CYCLE} & HIGH & Architecture & System & Strongly connected component / loop & Advisory & \checkmark \\
+\texttt{GOD\_COMPONENT} & CRITICAL & Maintainability & Component & Extreme betweenness $\wedge$ CRITICAL $M(v)$ & Logical topic splitting & \\
+\texttt{BOTTLENECK\_EDGE}& HIGH & Availability & Edge & Edge betweenness centrality outlier & Logical topic splitting & \checkmark \\
+\texttt{BROKER\_OVERLOAD} & HIGH & Availability & Component & Broker availability $\ge 2\times$ median load & Anti-affinity reallocation & \\
+\texttt{DEEP\_PIPELINE} & HIGH & Reliability & System & Path length $\ge \max(5, P_{75})$ & Advisory & (excl.) \\
+\texttt{TOPIC\_FANOUT} & MEDIUM & Reliability & Component & Topic subscriber out-degree outlier & Logical topic splitting & \\
+\texttt{CHATTY\_PAIR} & MEDIUM & Maintainability & Pair & Bidirectional weight product $> \tau_{\text{chatty}}$ & Advisory & \\
+\texttt{QOS\_MISMATCH} & MEDIUM & Reliability & Edge & Pub/Sub QoS-weight gap $> \tau_{\text{qos}}$ & Advisory (Manual / Relay) & \checkmark \\
+\texttt{ORPHANED\_TOPIC}& MEDIUM & Maintainability & Component & Zero in- or out-degree on graph & Advisory & \\
+\texttt{UNSTABLE\_INTERFACE}& MEDIUM & Maintainability & Component & High \texttt{CouplingRisk\_enh} $\wedge$ high $M(v)$ & Advisory & \checkmark \\
+\texttt{BRIDGE\_EDGE} & HIGH & Availability & Edge & Graph-theoretic bridge cut-edge & Advisory & \checkmark \\
+\texttt{FAILURE\_HUB} & CRITICAL & Reliability & Component & Reliability outlier $\wedge$ high out-degree & Logical topic splitting & \\
+\texttt{CONCENTRATION\_RISK}& MEDIUM & Reliability & System & Top-3 PageRank share $> 0.50$ & Advisory & \\
+\texttt{HUB\_AND\_SPOKE} & MEDIUM & Maintainability & Component & Low clustering $\wedge$ degree $> 3$ & Logical topic splitting & \checkmark \\
+\texttt{CHAIN} & MEDIUM & Architecture & System & Degree-bounded linear subgraph & Advisory & \\
+\texttt{ISOLATED} & MEDIUM & Architecture & Component & Zero total degree & Advisory & \checkmark \\
+\texttt{COMPOUND\_RISK} & CRITICAL & Architecture & Component & Co-occurring SPOF + God/Hub finding & Anti-affinity reallocation & \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -70,3 +70,10 @@ Table~\ref{tab:antipattern_catalog} summarizes the nineteen anti-patterns and sm
 \label{sec:catalog:validation}
 
 Detection accuracy is validated against an independent discrete-event cascade simulation oracle ($I_{\text{comp}}(v)$) that models cascading message dropouts and queue exhaustion under component removal.
+
+\subsection{Catalog Coverage on the Benchmark Corpus}
+\label{sec:catalog:coverage}
+
+A catalog contribution should disclose which of its patterns are actually exercised by its own evaluation corpus, not only which are specified. Across all eight benchmark scenarios (Section~\ref{sec:exp:scenarios}), \texttt{DEEP\_PIPELINE} is excluded for the reason given in Section~\ref{sec:results:performance}, and of the remaining eighteen active detectors, exactly \textbf{eight trigger at least one finding} (Table~\ref{tab:antipattern_catalog}, \textbf{Trig.} column): Bottleneck Dependency (\texttt{BOTTLENECK\_EDGE}, 4974 findings across the corpus), QoS Policy Mismatch (\texttt{QOS\_MISMATCH}, 1243), Unstable Interface (64), SPOF (17), Hub-and-Spoke (14), Dependency Cycle (\texttt{CYCLE}, 9), Bridge Edge (5), and Isolated Component (3). The remaining ten active patterns---including \texttt{GOD\_COMPONENT}, \texttt{FAILURE\_HUB}, \texttt{BROKER\_OVERLOAD}, \texttt{TOPIC\_FANOUT}, \texttt{CHATTY\_PAIR}, \texttt{ORPHANED\_TOPIC}, \texttt{CONCENTRATION\_RISK}, \texttt{CHAIN}, \texttt{SYSTEMIC\_RISK}, and \texttt{COMPOUND\_RISK}---are specified and unit-tested but never fire on this corpus. This is consistent with, and explains, Section~\ref{sec:cicd:bot}'s automation-footprint disclosure being scoped to what the corpus can exercise rather than what the catalog specifies; it does not indicate the unexercised patterns are miscalibrated, since triggering depends on topological structure this synthetic corpus may simply not contain (e.g., \texttt{SYSTEMIC\_RISK} requires more than 20\% of a scenario's components at \texttt{CRITICAL}, which none of the eight scenarios reach).
+
+Of the 6329 total findings the triggered eight produce, only \textbf{98 (1.5\%)} are attributable to a single component (SPOF 17, Unstable Interface 64, Isolated Component 3, Hub-and-Spoke 14); the remaining \textbf{6231 (98.4\%)} are Edge- or System-scoped (Bottleneck Dependency 4974 and QoS Policy Mismatch 1243 alone account for 6217 of these). This scope imbalance is the mechanism behind Section~\ref{sec:results:calibration}'s implication-rate and agreement findings: a catalog whose active findings are overwhelmingly non-component-scoped will still implicate a large fraction of components, as edge endpoints, even when its direct component-level agreement with ground truth is weak.
