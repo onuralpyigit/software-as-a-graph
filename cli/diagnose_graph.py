@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-cli/diagnose_graph.py — Diagnose & Anti-Pattern CLI (Step 4: Pathway A)
-========================================================================
+cli/diagnose_graph.py — Diagnose & Anti-Pattern CLI (Step 4)
+==============================================================
 Runs the Diagnose stage in one command: deterministic ISO-RM root-cause
 attribution, anti-pattern detection, natural-language explanation, and
 (optionally) the Triage Bridge. Requires no GNN checkpoint — this is the
-zero-GNN cold-start path; for Step 3 (Pathway B: GNN blast-radius ranking),
+zero-GNN cold-start path; for Step 3 (GNN blast-radius ranking),
 see `saag-predict`.
 
 Exit codes (CI/CD gate):
@@ -63,7 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="diagnose_graph.py",
         description=(
             "Diagnose CLI: RM root-cause attribution, anti-pattern detection, "
-            "explanation, and the Triage Bridge (Step 4, Pathway A) — no GNN "
+            "explanation, and the Triage Bridge (Step 4) — no GNN "
             "checkpoint required."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,

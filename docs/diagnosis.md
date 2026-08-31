@@ -1,6 +1,6 @@
 # Step 4: Diagnose — Deterministic ISO-RM Root-Cause Attribution & Triage Bridge
 
-**Attribute architectural component criticality through deterministic ISO/IEC 25010/25019 quality attribution (Pathway A: Diagnostic), detect 19 structural anti-patterns, generate natural-language explanations, and — via the Triage Bridge — connect this root-cause profile to Step 3's high-risk ranking to map it to stakeholder-oriented remediations.**
+**Attribute architectural component criticality through deterministic ISO/IEC 25010/25019 quality attribution, detect 19 structural anti-patterns, generate natural-language explanations, and — via the Triage Bridge — connect this root-cause profile to Step 3's high-risk ranking to map it to stakeholder-oriented remediations.**
 
 ← [Step 3: Predict](prediction.md) | → [Step 5: Simulate](failure-simulation.md)
 
@@ -29,19 +29,19 @@
 
 ## 1. Overview & Dual-Pathway Architecture
 
-Steps 3 and 4 together are the **core analytical and predictive engine** of the Software-as-a-Graph (SaG) framework, split into two deliberately separate stages rather than forcing a single model to act simultaneously as a statistical estimator and an explainable standards compliance checker. This document covers **Step 4 (Diagnose, Pathway A)** — the deterministic root-cause engine and the Triage Bridge; see [prediction.md](prediction.md) for **Step 3 (Predict, Pathway B)** — the learned ranking engine.
+Steps 3 and 4 together are the **core analytical and predictive engine** of the Software-as-a-Graph (SaG) framework, split into two deliberately separate stages rather than forcing a single model to act simultaneously as a statistical estimator and an explainable standards compliance checker. This document covers **Step 4 (Diagnose)** — the deterministic root-cause engine and the Triage Bridge; see [prediction.md](prediction.md) for **Step 3 (Predict)** — the learned ranking engine.
 
 ```mermaid
 flowchart TD
     M["Step 2 Output<br>StructuralAnalysisResult M(v) & Graph G"] --> PE["Step 3 + Step 4: Prediction Engine"]
 
-    subgraph PathRM["Step 4: Diagnose — Pathway A / ISO-RM (Always Active)"]
+    subgraph PathRM["Step 4: Diagnose — ISO-RM (Always Active)"]
         PE --> RM["Closed-Form RM Scoring<br>FT(v), A(v), R(v), M(v), Q*(v)"]
         RM --> AP["19 Anti-Pattern Auditing & Explanations"]
         RM --> OUT_RM["Diagnostic Quality Profiles Q*(v)"]
     end
 
-    subgraph PathGNN["Step 3: Predict — Pathway B / HGL (Opt-In / Checkpoint)"]
+    subgraph PathGNN["Step 3: Predict — HGL (Opt-In / Checkpoint)"]
         PE --> HGT["Heterogeneous Graph Transformer (HGT)"]
         HGT --> NH["Node Heads: R̂(v), M̂(v), Composite Î*(v)"]
         HGT --> EH["TypedEdgeEncoder: Edge Criticality Q(u,v)"]
@@ -59,6 +59,8 @@ flowchart TD
 1. **Parameter Independence**: Pathway A (Step 4, this document) and Pathway B (Step 3) share no learned weights; neither is fitted to the other's output.
 2. **Offline Oracle Separation**: Simulation (Step 5) is never a Step 4 input — Pathway A operates deterministically on structural metrics and declared QoS topology, with zero ML or simulation runtime access.
 3. **No Hallucination in Root-Cause Attribution**: The Triage Bridge joins quantitative rankings to qualitative RM diagnostics strictly by component ID, preventing neural models from guessing unverified architectural root causes.
+
+> The JSS manuscript's Figure 1 calls these **Pathway B** (predictive/learned ranking) and **Pathway A** (explanation/deterministic ISO-RM). Those labels name the two *methods*, which is not quite the same cut as the two *stages*: Step 3 always computes the RM composite — Pathway A's own math — as the GNN's input feature and its zero-checkpoint fallback, so a cold-start Step 3 emits a pure Pathway A ranking.
 
 ---
 
@@ -93,12 +95,12 @@ Pathway A audits computed RM metrics against a formal catalog of **19 structural
 ## 3. The Triage Bridge & Stakeholder-Oriented Root-Cause Attribution
 
 ### 3.1 Bridging Quantitative Blast Radius with Qualitative Root Cause
-High-throughput predictive models (Step 3, Pathway B) excel at isolating *which* components will cause the largest blast radius ($\hat{I}^*$), but neural embeddings cannot articulate *why* a component failed or *what* remediation an engineer should apply.
+High-throughput predictive models (Step 3) excel at isolating *which* components will cause the largest blast radius ($\hat{I}^*$), but neural embeddings cannot articulate *why* a component failed or *what* remediation an engineer should apply.
 
 The **Triage Bridge** (`saag.analysis.triage.triage()` / `TriageUseCase`) solves this by filtering the system population down to the Top-$K$ (typically 5–15%) highest-risk components and joining each component ID with Pathway A's deterministic root-cause profile:
 
 ```
-Top-K Shortlist (Step 3, Pathway B) ──► Join on component_id ◄── RM CriticalityProfile (Step 4, Pathway A)
+Top-K Shortlist (Step 3) ──► Join on component_id ◄── RM CriticalityProfile (Step 4)
                                           │
                                           ▼
                             Structured TriageEntry:
@@ -218,7 +220,7 @@ import saag
 result = (
     saag.Pipeline.from_json("data/system.json", clear=True)
         .analyze(layer="system")
-        .diagnose(k=10)   # Step 4: Pathway A + Triage Bridge (Top-10)
+        .diagnose(k=10)   # Step 4: RM + Triage Bridge (Top-10)
         .run()
 )
 
@@ -227,8 +229,8 @@ result = (
     saag.Pipeline.from_json("data/system.json", clear=True)
         .analyze(layer="system")
         .simulate(layer="system", mode="exhaustive")  # offline ground truth for Step 3's checkpoint
-        .predict()        # Step 3: Pathway B ranking (or RM fallback)
-        .diagnose(k=10)    # Step 4: Pathway A + Triage Bridge, reuses Step 3's RM pass
+        .predict()        # Step 3: GNN ranking (or RM fallback)
+        .diagnose(k=10)    # Step 4: RM + Triage Bridge, reuses Step 3's RM pass
         .validate()
         .prescribe()
         .run()

@@ -18,8 +18,8 @@
    - 3.1 [Synthetic Graph Generation (Offline Input Preparation)](#31-synthetic-graph-generation-offline-input-preparation)
    - 3.2 [Graph Model Construction (Step 1)](#32-graph-model-construction-step-1)
    - 3.3 [Structural Analysis (Step 2)](#33-structural-analysis-step-2)
-   - 3.4 [Predict: ML (GNN) Blast-Radius Ranking, Pathway B (Step 3)](#34-predict-ml-gnn-blast-radius-ranking-pathway-b-step-3)
-   - 3.5 [Diagnose: Rule-Based (RM) Quality Attribution, Pathway A (Step 4)](#35-diagnose-rule-based-rm-quality-attribution-pathway-a-step-4)
+   - 3.4 [Predict: ML (GNN) Blast-Radius Ranking (Step 3)](#34-predict-ml-gnn-blast-radius-ranking-step-3)
+   - 3.5 [Diagnose: Rule-Based (RM) Quality Attribution (Step 4)](#35-diagnose-rule-based-rm-quality-attribution-step-4)
    - 3.6 [Failure Simulation (Step 5)](#36-failure-simulation-step-5)
    - 3.7 [Statistical Validation (Step 6)](#37-statistical-validation-step-6)
    - 3.8 [Visualization (Step 8)](#38-visualization-step-8)
@@ -165,7 +165,7 @@ The system must extract topological metrics from the projected subgraphs.
 | **REQ-SA-04** | The system shall normalize all computed topological and QoS metrics to the interval $[0, 1]$ prior to downstream utilization. |
 | **REQ-SA-05** | The system shall compute graph-level statistics (density, clustering coefficient, bridge ratio, and node/edge ratios) for diagnostic reporting. |
 
-### 3.4 Predict: ML (GNN) Blast-Radius Ranking, Pathway B (Step 3)
+### 3.4 Predict: ML (GNN) Blast-Radius Ranking (Step 3)
 The legacy "Quality Scoring" mechanism (formerly part of Step 2) has been removed. Step 3 (Predict) is the learned-ranking stage: the system must forecast node and edge criticality using trained GNN models when a checkpoint is available, always computing the rule-based RM composite first (Section 3.5) as the GNN's own input feature and as the ranking Step 3 falls back to when no checkpoint exists.
 
 #### 3.4.1 GNN-Based Prediction (Inductive Forecasting)
@@ -196,7 +196,7 @@ The legacy "Quality Scoring" mechanism (formerly part of Step 2) has been remove
 | **REQ-GNN-TR-04** | The system shall perform robust label normalization in-place on target simulation labels using IQR-scaled sigmoidal bounds to mitigate outlier influence. |
 | **REQ-GNN-TR-05** | The system shall support multi-seed training loops (default seeds: 42, 123, 456, 789, 2024), logging validation Spearman $\rho$ per seed, and restoring the best weights before checkpoint serialization. |
 
-### 3.5 Diagnose: Rule-Based (RM) Quality Attribution, Pathway A (Step 4)
+### 3.5 Diagnose: Rule-Based (RM) Quality Attribution (Step 4)
 Step 4 (Diagnose) is the deterministic root-cause stage. It requires no trained GNN checkpoint (zero-GNN cold start) and, when a Step 3 result is available in the same run, reuses its RM composite rather than recomputing it. Per ISO/IEC 25010:2023, the system scores two external quality characteristics: Reliability and Maintainability. Reliability is hierarchical, with Fault Tolerance and Availability as sub-characteristics. Vulnerability/Security was a third peer dimension in earlier versions of this system (the "RMAV" model); it has been deleted entirely — not folded into another dimension, and with no successor metric or gate.
 
 | ID | Requirement |

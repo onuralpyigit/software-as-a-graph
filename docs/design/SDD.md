@@ -390,7 +390,7 @@ JSON / GraphML Topology
 │ (11 Tier-1 Metric Vector M) ││               │
 └──────┬───────────────┬──────┘│               │
        │               │       │               │
-[Step 3: Predict — Pathway B]  │[Step 4: Diagnose — Pathway A]
+[Step 3: Predict]              │[Step 4: Diagnose]
        │               │       │               │
        ▼               ▼       │               │
 ┌───────────────┐ ┌────────────┴────────┐      │
@@ -433,7 +433,7 @@ JSON / GraphML Topology
 
 **Key:** 
 - **$G_{\text{structural}}$ vs. $G_{\text{analysis}}$ Separation:** Steps 2–4 (Analyze, Predict, Diagnose) operate on $G_{\text{analysis}}$ (derived `DEPENDS_ON` edges with QoS-adapted weights). Step 5 (Simulate) and Step 7 (Prescribe Counterfactual Verification) operate directly on $G_{\text{structural}}$ (physical/logical pub-sub relationships) to preserve real-world failure dynamics.
-- **Dual-Pathway & Triage:** Step 3 (Predict, Pathway B / HGL) pinpoints high-risk components ($\hat{I}^*$), while Step 4 (Diagnose, Pathway A) decomposes quality attributes according to ISO/IEC standards. The Triage Bridge (part of Step 4) scopes deep root-cause attribution to the Top-$K$ shortlist.
+- **Dual-Pathway & Triage:** Step 3 (Predict) pinpoints high-risk components ($\hat{I}^*$), while Step 4 (Diagnose) decomposes quality attributes according to ISO/IEC standards. The Triage Bridge (part of Step 4) scopes deep root-cause attribution to the Top-$K$ shortlist.
 - **Counterfactual Gating:** Candidate edits $\Delta(G)$ are re-simulated in memory on $G_{\text{structural}}$, accepting only edits that beat simulator seed noise ($\Delta I > \kappa \cdot \sigma_{\text{seed}}$).
 
 ### 3.5 Deployment Architecture
@@ -693,13 +693,13 @@ saag.analysis.service.AnalysisService.analyze_layer(layer)
     Return LayerAnalysisResult
 ```
 
-### 5.4 Predict Pipeline — Pathway B (Step 3)
+### 5.4 Predict Pipeline (Step 3)
 
 Step 3 (Predict) is handled by `PredictiveUseCase` (`saag/usecases/predictive.py`) and `GNNService` (`saag/prediction/gnn_service.py`). It evaluates a 3-layer Heterogeneous Graph Transformer (`HGTConv`) to predict composite blast radius $\hat{I}^*(v)$ and edge criticality $Q_{\text{GNN}}(u, v)$ when a trained checkpoint is available, always computing the RM composite first (§5.5) as its own input feature and as the fallback when no checkpoint exists.
 
 Both Step 3 and Step 4 are implemented by one module, `saag/prediction/service.py`'s `PredictionService`, distinguished by a `diagnose: bool` flag: `Client.predict()` defaults `diagnose=True` for backward compatibility with pre-split callers; `Pipeline.predict()` sets `diagnose=False` so the two stages are genuinely independent when chained explicitly (`.predict().diagnose(k=...)`).
 
-### 5.5 Diagnose Pipeline — Pathway A & Triage Bridge (Step 4)
+### 5.5 Diagnose Pipeline & Triage Bridge (Step 4)
 
 Step 4 (Diagnose) needs no GNN checkpoint (zero-GNN cold start) and reuses Step 3's RM pass when one is available in the same run rather than recomputing it.
 - **Pathway A (Diagnostic / ISO-RM)**: Handled by `DiagnosticUseCase` (`saag/usecases/diagnostic.py`) and `QualityAnalyzer` (`saag/analysis/analyzer.py`). Computes deterministic ISO/IEC 25010 RM scores ($FT, A, M, R, Q^*$), audits 19 structural anti-patterns, and generates natural-language explanations.
@@ -710,7 +710,7 @@ Predict (Step 3) / Diagnose (Step 4) Execution Sequence
          │
     ┌────┴──────────────────────────────────────────────────────┐
     │                                                           │
-    ▼ Step 4: Diagnose — Pathway A / ISO-RM                     ▼ Step 3: Predict — Pathway B / HGL
+    ▼ Step 4: Diagnose — ISO-RM                                  ▼ Step 3: Predict — HGL
 saag.usecases.DiagnosticUseCase                            saag.usecases.PredictiveUseCase
   (AnalysisService.predict_quality())                        (GNNService.predict())
     │                                                           │

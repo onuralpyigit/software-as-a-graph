@@ -2,8 +2,8 @@
 """
 cli/predict_graph.py — Predict & Diagnose CLI (Step 3, + Step 4 bundled)
 =========================================================================
-Runs Step 3 (Predict, Pathway B: GNN blast-radius ranking) in one command,
-with Step 4 (Diagnose, Pathway A: RM scores + anti-patterns + explanation)
+Runs Step 3 (Predict: GNN blast-radius ranking) in one command,
+with Step 4 (Diagnose: RM scores + anti-patterns + explanation)
 bundled in by default for backward compatibility with this script's
 pre-split behaviour:
 

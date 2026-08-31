@@ -1,6 +1,6 @@
 # Step 3: Predict — Inductive Blast-Radius Forecasting (HGT)
 
-**Rank architectural components by predicted failure blast radius using a Heterogeneous Graph Transformer (Pathway B: Predictive), with the deterministic ISO-RM composite computed underneath as the model's own input feature and zero-checkpoint fallback.**
+**Rank architectural components by predicted failure blast radius using a Heterogeneous Graph Transformer, with the deterministic ISO-RM composite computed underneath as the model's own input feature and zero-checkpoint fallback.**
 
 ← [Step 2: Analyze](structural-analysis.md) | → [Step 4: Diagnose](diagnosis.md)
 
@@ -36,19 +36,19 @@
 
 ## 1. Overview & Dual-Pathway Architecture
 
-Steps 3 and 4 together are the **core analytical and predictive engine** of the Software-as-a-Graph (SaG) framework, split into two deliberately separate stages rather than forcing a single model to act simultaneously as a statistical estimator and an explainable standards compliance checker. This document covers **Step 3 (Predict, Pathway B)** — the learned ranking engine; see [diagnosis.md](diagnosis.md) for **Step 4 (Diagnose, Pathway A)** — the deterministic root-cause engine and the Triage Bridge that joins the two.
+Steps 3 and 4 together are the **core analytical and predictive engine** of the Software-as-a-Graph (SaG) framework, split into two deliberately separate stages rather than forcing a single model to act simultaneously as a statistical estimator and an explainable standards compliance checker. This document covers **Step 3 (Predict)** — the learned ranking engine; see [diagnosis.md](diagnosis.md) for **Step 4 (Diagnose)** — the deterministic root-cause engine and the Triage Bridge that joins the two.
 
 ```mermaid
 flowchart TD
     M["Step 2 Output<br>StructuralAnalysisResult M(v) & Graph G"] --> PE["Step 3 + Step 4: Prediction Engine"]
 
-    subgraph PathRM["Step 4: Diagnose — Pathway A / ISO-RM (Always Active)"]
+    subgraph PathRM["Step 4: Diagnose — ISO-RM (Always Active)"]
         PE --> RM["Closed-Form RM Scoring<br>FT(v), A(v), R(v), M(v), Q*(v)"]
         RM --> AP["19 Anti-Pattern Auditing & Explanations"]
         RM --> OUT_RM["Diagnostic Quality Profiles Q*(v)"]
     end
 
-    subgraph PathGNN["Step 3: Predict — Pathway B / HGL (Opt-In / Checkpoint)"]
+    subgraph PathGNN["Step 3: Predict — HGL (Opt-In / Checkpoint)"]
         PE --> HGT["Heterogeneous Graph Transformer (HGT)"]
         HGT --> NH["Node Heads: R̂(v), M̂(v), Composite Î*(v)"]
         HGT --> EH["TypedEdgeEncoder: Edge Criticality Q(u,v)"]
@@ -66,6 +66,8 @@ flowchart TD
 1. **Parameter Independence**: Pathway A (Step 4) and Pathway B (Step 3) share no learned weights; neither is fitted to the other's output.
 2. **Offline Oracle Separation**: Simulation (Step 5) acts solely as an offline supervisor generating supervised training labels ($I^*(v)$ via `FaultInjector`) and serving as the validation oracle (`FailureSimulator`). Step 3 consumes labels from disk during training but has zero runtime dependency on the simulation engine.
 3. **No Hallucination in Root-Cause Attribution**: The Triage Bridge (Step 4) joins quantitative rankings to qualitative RM diagnostics strictly by component ID, preventing neural models from guessing unverified architectural root causes.
+
+> The JSS manuscript's Figure 1 calls these **Pathway B** (predictive/learned ranking) and **Pathway A** (explanation/deterministic ISO-RM). Those labels name the two *methods*, which is not quite the same cut as the two *stages*: Step 3 always computes the RM composite — Pathway A's own math — as the GNN's input feature and its zero-checkpoint fallback, so a cold-start Step 3 emits a pure Pathway A ranking.
 
 ---
 
@@ -269,8 +271,8 @@ pipeline = (
     saag.Pipeline.from_json("data/system.json", clear=True)
         .analyze(layer="system")
         .simulate(layer="system", mode="exhaustive")  # offline ground truth
-        .predict()                                    # Step 3: Pathway B ranking (or RM fallback)
-        .diagnose(k=10)                               # Step 4: Pathway A + Triage Bridge
+        .predict()                                    # Step 3: GNN ranking (or RM fallback)
+        .diagnose(k=10)                               # Step 4: RM scores + Triage Bridge
         .validate()
         .prescribe()
         .run()

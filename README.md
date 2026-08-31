@@ -80,7 +80,7 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
                          │ (11 Tier-1 Metrics Vector M)│       │               │
                          └──────┬───────────────┬──────┘       │               │
                                 │               │              │               │
-              [Step 3: Predict — Pathway B]      [Step 4: Diagnose — Pathway A]│
+              [Step 3: Predict]      [Step 4: Diagnose]                        │
                                 │               │                              │
                                 ▼               ▼                              │
                      ┌──────────────────┐ ┌───────────────────────────┐        │

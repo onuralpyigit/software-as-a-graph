@@ -185,10 +185,10 @@ sequenceDiagram
     Engine-->>UC: Return StructuralAnalysisResult (Metric Vectors M)
     
     par Predict (Step 3) / Diagnose (Step 4)
-        UC->>PyG: Step 3, Pathway B: predict_criticality(M, GNN_checkpoint)
+        UC->>PyG: Step 3: predict_criticality(M, GNN_checkpoint)
         PyG-->>UC: Return Quantitative Blast Radius I*(v) & Top-K Shortlist
     and
-        UC->>Engine: Step 4, Pathway A: diagnose_quality_and_smells(M)
+        UC->>Engine: Step 4: diagnose_quality_and_smells(M)
         Engine-->>UC: Return ISO/IEC RM Scores & Structural Smells
     end
 

@@ -91,7 +91,7 @@ class Pipeline:
         gnn_checkpoint: Optional[str] = None,
         **kwargs,
     ) -> "Pipeline":
-        """Stage 3: Predict — Pathway B ranking (rule-based RM + ML/GNN scoring).
+        """Stage 3: Predict — ranking (rule-based RM + ML/GNN scoring).
 
         Always computes the AHP-weighted RM composite (deterministic, closed-form)
         as the GNN's own input feature and cold-start fallback. When a trained
@@ -130,7 +130,7 @@ class Pipeline:
         node_types: Optional[List[str]] = None,
         **kwargs,
     ) -> "Pipeline":
-        """Stage 4: Diagnose — Pathway A root-cause attribution (ISO-RM).
+        """Stage 4: Diagnose — root-cause attribution (ISO-RM).
 
         Deterministic quality attribution grounded in ISO/IEC 25010/25019:
         dimension scores, 5-level classification, anti-pattern detection, and
@@ -273,8 +273,8 @@ class Pipeline:
             logger.info("Running Predict step (RM + GNN ranking)...")
             result.prediction = self.client.predict(result.analysis, **self._predict_kwargs)
 
-        # Execution step 4b (Stage 4: Diagnose) — Pathway A root-cause
-        # attribution. Reuses Predict's RM pass when predict() ran (no
+        # Execution step 4b (Stage 4: Diagnose) — root-cause attribution.
+        # Reuses Predict's RM pass when predict() ran (no
         # rescoring); otherwise computes its own directly off Analyze's
         # result (zero-GNN cold start — predict() is not required).
         if self._do_diagnose:

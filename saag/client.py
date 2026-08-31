@@ -67,7 +67,7 @@ class Client:
         active_patterns: Optional[List[str]] = None,
         diagnose: bool = True,
     ) -> PredictionResult:
-        """Run the Predict stage (Step 3, Pathway B) on a prior AnalysisResult.
+        """Run the Predict stage (Step 3) on a prior AnalysisResult.
 
         Consumes the StructuralAnalysisResult produced by analyze() — no
         repository access. Always computes rule-based RM scores (the GNN's
@@ -99,8 +99,8 @@ class Client:
             topologies of a few hundred components. Ignored when ``diagnose``
             is False.
         diagnose:
-            Bundle the Diagnose stage (Step 4, Pathway A: anti-pattern
-            detection + explanation) into this call, for callers that still
+            Bundle the Diagnose stage (Step 4: anti-pattern detection +
+            explanation) into this call, for callers that still
             want the pre-split one-shot behaviour. Default True. Set False
             to run Predict alone and call ``client.diagnose()`` separately.
         """
@@ -144,7 +144,7 @@ class Client:
         winsorize: bool = True,
         winsorize_limit: float = 0.05,
     ) -> DiagnosisResult:
-        """Run the Diagnose stage (Step 4, Pathway A) on a prior AnalysisResult.
+        """Run the Diagnose stage (Step 4) on a prior AnalysisResult.
 
         Deterministic ISO-RM root-cause attribution: dimension scores,
         5-level classification, anti-pattern detection, and a human-readable
