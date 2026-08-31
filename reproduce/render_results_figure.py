@@ -52,7 +52,7 @@ _VARIANTS: List[Tuple[str, str, str]] = [
     ("gl",            "GL (Homogeneous)",        "homogeneous"),
     ("topo_qos",      "Topo-QoS (Weighted)",     "untrained"),
     ("topo_baseline", "Topo-BL (Centrality)",    "untrained"),
-    ("topology_rm",   "RM / $Q(v)$ (Pathway A, diagnostic)", "diagnostic"),
+    ("topology_rm",   "RM / $Q(v)$ (diagnostic reference)", "diagnostic"),
 ]
 
 _COLOURS = {

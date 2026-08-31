@@ -11,7 +11,7 @@ Our empirical findings provide clear guidance for software architects and reliab
     \item \textbf{What the Explanation Layer Adds:} The deterministic RM profile is what makes a ranked set actionable. Whether a service is critical through single-point-of-failure exposure (Availability) or wide error propagation (Fault Tolerance) dictates whether to add load-balanced replicas or circuit-breaker policies --- a distinction neither the predictor nor the oracle expresses.
 \end{itemize}
 
-\noindent This split mirrors Figure~\ref{fig:1}: Pathway A (RM/$Q(v)$) and Pathway B (Topo-BL/Topo-QoS/GL/HGL) answer different questions from the same graph, so Table~\ref{tab:7} and Figure~\ref{fig:5} report RM alongside the ranking predictors as a reference point rather than as a competing entry in that comparison.
+\noindent This split mirrors Figure~\ref{fig:1}: the explanation layer (RM/$Q(v)$) and the predictive pathway (Topo-BL/Topo-QoS/GL/HGL) answer different questions from the same graph, so Table~\ref{tab:7} and Figure~\ref{fig:5} report RM alongside the ranking predictors as a reference point rather than as a competing entry in that comparison.
 
 \subsection{Performance and Sustainability Implications}
 \label{sec:8.2}

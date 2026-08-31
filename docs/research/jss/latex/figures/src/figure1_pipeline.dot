@@ -69,9 +69,9 @@ digraph Figure1 {
     fillcolor="#E0E7FF", color="#3730A3"
   ];
 
-  // ── Pathway B: predictive ─────────────────────────────────────────────────
+  // ── Predictive pathway ────────────────────────────────────────────────────
   subgraph cluster_b {
-    label = "PATHWAY B — Predictive (§4)";
+    label = "PREDICTIVE PATHWAY (§4)";
     fontname = "Helvetica-Bold";
     fontsize = 10.5;
     fontcolor = "#4C1D95";
@@ -102,9 +102,9 @@ digraph Figure1 {
     hgl -> topk;
   }
 
-  // ── Pathway A: diagnostic ─────────────────────────────────────────────────
+  // ── Explanation layer ─────────────────────────────────────────────────────
   subgraph cluster_a {
-    label = "PATHWAY A — Explanation (§5)";
+    label = "EXPLANATION LAYER (§5)";
     fontname = "Helvetica-Bold";
     fontsize = 10.5;
     fontcolor = "#14532D";

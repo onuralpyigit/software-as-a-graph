@@ -67,7 +67,7 @@ flowchart TD
 2. **Offline Oracle Separation**: Simulation (Step 5) acts solely as an offline supervisor generating supervised training labels ($I^*(v)$ via `FaultInjector`) and serving as the validation oracle (`FailureSimulator`). Step 3 consumes labels from disk during training but has zero runtime dependency on the simulation engine.
 3. **No Hallucination in Root-Cause Attribution**: The Triage Bridge (Step 4) joins quantitative rankings to qualitative RM diagnostics strictly by component ID, preventing neural models from guessing unverified architectural root causes.
 
-> The JSS manuscript's Figure 1 calls these **Pathway B** (predictive/learned ranking) and **Pathway A** (explanation/deterministic ISO-RM). Those labels name the two *methods*, which is not quite the same cut as the two *stages*: Step 3 always computes the RM composite — Pathway A's own math — as the GNN's input feature and its zero-checkpoint fallback, so a cold-start Step 3 emits a pure Pathway A ranking.
+> The JSS manuscript calls these the **predictive pathway** (§4) and the **explanation layer** (§5) — Pathway B and Pathway A in earlier drafts. Those labels name the two *methods*, which is not quite the same cut as the two *stages*: Step 3 always computes the RM composite — Pathway A's own math — as the GNN's input feature and its zero-checkpoint fallback, so a cold-start Step 3 emits a pure Pathway A ranking.
 
 ---
 

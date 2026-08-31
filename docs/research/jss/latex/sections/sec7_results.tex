@@ -56,7 +56,7 @@ Under inductive Leave-One-Scenario-Out (LOSO) cross-validation, the model must p
 \begin{table}[htbp]
 \centering
 \small
-\caption{Inductive Leave-One-Scenario-Out (LOSO) evaluation, Application population, eight folds. Rows are grouped by role, not listed as competing variants: training-free structural baselines, the learned predictors proposed in this paper, and the RM/$Q(v)$ diagnostic reference of Section~\ref{sec:1.2} (Pathway A), which is not a ranking model (Section~\ref{sec:5.1}) and is included only to quantify how much the predictive path adds over static attribution.}
+\caption{Inductive Leave-One-Scenario-Out (LOSO) evaluation, Application population, eight folds. Rows are grouped by role, not listed as competing variants: training-free structural baselines, the learned predictors proposed in this paper, and the RM/$Q(v)$ diagnostic reference of Section~\ref{sec:1.2}, which is not a ranking model (Section~\ref{sec:5.1}) and is included only to quantify how much the predictive path adds over static attribution.}
 \label{tab:7}
 \begin{tabular}{lcccc}
 \toprule
@@ -66,13 +66,13 @@ Under inductive Leave-One-Scenario-Out (LOSO) cross-validation, the model must p
 \textbf{Topo-BL} & 0.301 & 0.126 & 0.363 & No \\
 \textbf{Topo-QoS} & 0.571 & 0.181 & 0.380 & No \\
 \midrule
-\multicolumn{5}{l}{\textit{Learned predictors (Pathway B)}} \\
+\multicolumn{5}{l}{\textit{Learned predictors}} \\
 \textbf{GL (Homogeneous)} & 0.086 & 0.122 & 0.237 & Yes \\
 \textbf{GL-QoS (Homogeneous)} & 0.363 & \textbf{0.089} & 0.341 & Yes \\
 \textbf{HGL (Typed Heterogeneous)} & 0.439 & 0.145 & 0.327 & Yes \\
 \textbf{HGL-QoS (Typed + QoS)} & \textbf{0.608} & 0.143 & \textbf{0.414} & Yes \\
 \midrule
-\multicolumn{5}{l}{\textit{Diagnostic reference (Pathway A) --- not a ranking model}} \\
+\multicolumn{5}{l}{\textit{Diagnostic reference --- not a ranking model}} \\
 \textbf{RM / $Q(v)$} & 0.195 & 0.130 & 0.327 & No \\
 \bottomrule
 \end{tabular}
@@ -94,7 +94,7 @@ Under inductive Leave-One-Scenario-Out (LOSO) cross-validation, the model must p
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/Figure_5}
-\caption{Results at a glance, all on the Application population. \textbf{(A)} Out-of-distribution rank correlation per variant, whiskers showing $\sigma$ across the eight LOSO folds; note that the training-free Topo-QoS baseline places second. The hatched bar is RM/$Q(v)$, the Pathway A diagnostic reference of Section~\ref{sec:1.2} --- shown for context, not as a competing ranking predictor. \textbf{(B)} Critical-set detection at $K = 20\%$, same hatching convention. \textbf{(C)} Agreement between the three simulation oracles, whiskers showing the observed range across scenarios; the annotation gives top-$K$ set agreement against both chance and the labeler's own seed-to-seed floor.}
+\caption{Results at a glance, all on the Application population. \textbf{(A)} Out-of-distribution rank correlation per variant, whiskers showing $\sigma$ across the eight LOSO folds; note that the training-free Topo-QoS baseline places second. The hatched bar is RM/$Q(v)$, the diagnostic reference of Section~\ref{sec:1.2} --- shown for context, not as a competing ranking predictor. \textbf{(B)} Critical-set detection at $K = 20\%$, same hatching convention. \textbf{(C)} Agreement between the three simulation oracles, whiskers showing the observed range across scenarios; the annotation gives top-$K$ set agreement against both chance and the labeler's own seed-to-seed floor.}
 \label{fig:5}
 \end{figure}
 

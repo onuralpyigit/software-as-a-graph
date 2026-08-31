@@ -35,7 +35,7 @@ forward-reference §5. Within §4 the model now leads and the oracle apparatus f
 §4.2 heads and loss, §4.3 oracles, §4.4 independence guarantee). §7 gained **RQ5**, which adopts the
 previously orphaned scalability subsection, and §8 gained **§8.2 Performance and Sustainability
 Implications**, which fulfils a forward reference §1.6 had been making to a section that did not exist.
-Figure 1 and its ASCII counterpart in `draft.md` now draw Pathway B first.
+Figure 1 and its ASCII counterpart in `draft.md` now draw the predictive pathway first.
 
 **What did not change: any number, or the strength of any claim.** The `p = 0.64` boundary on the ranking
 comparison is stated in the abstract, in §7.1, in §8.1 and in the conclusion, exactly as before.
@@ -172,7 +172,7 @@ LaTeX numbers automatically; `draft.md` numbers by hand and keeps **Table 0** pl
 | Table 13 | `tab:8c` | §7.3 | Inter-oracle agreement |
 | Table 14 | `tab:9` | §7.4 | Real-world architecture validation |
 | Table 15 | `tab:scale` | §7.5 | Per-stage inference cost |
-| Figure 1 | `fig:1` | §1.3 | End-to-end pipeline (Pathway B drawn first) |
+| Figure 1 | `fig:1` | §1.3 | End-to-end pipeline (predictive pathway drawn first) |
 | — | `fig:2` | §3.3 | Running example — LaTeX only |
 | Figure 2 | — | §4.1 | HGT layer stack (ASCII) — `draft.md` only |
 | Figure 3 | `fig:5` | §7.1 | Results at a glance |

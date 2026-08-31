@@ -79,7 +79,7 @@ Five figures, each `\includegraphics`'d from a live section and cross-referenced
 
 | Fig. | File | Content | Source section | Generator |
 |:---:|---|---|---|---|
-| 1 | `Figure_1.pdf` | end-to-end SaG pipeline (Pathway B drawn first) | §1.3 | `figures/src/figure1_pipeline.dot` |
+| 1 | `Figure_1.pdf` | end-to-end SaG pipeline (predictive pathway drawn first) | §1.3 | `figures/src/figure1_pipeline.dot` |
 | 2 | `Figure_2.pdf` | running example: structural graph + `DEPENDS_ON` | §3.3 | `figures/src/figure2_running_example.dot` |
 | 3 | `Figure_3.pdf` | HGT attention-weight case study | §7.3 | `reproduce/extract_attention.py` + `render_attention_subgraph.py` |
 | 4 | `Figure_4.pdf` | AHP shrinkage sensitivity | §7.3 | `reproduce/render_shrinkage_figure.py` |

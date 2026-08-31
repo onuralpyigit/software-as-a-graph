@@ -106,7 +106,7 @@ To ensure methodological rigor, SaG enforces an **input–label independence gua
                                          |                               |
             +----------------------------+----------------------------+  |
             |                                                         |  |
-            v  PATHWAY B - PREDICTIVE (§4)    PATHWAY A - EXPLANATION (§5)|
+            v  PREDICTIVE PATHWAY (§4)            EXPLANATION LAYER (§5)  |
 +-------------------------------------+   +-------------------------------------+
 |  Heterogeneous Graph Transformer    |   |   Explainable Quality Attribution   |
 |  - Relation-specific attention      |   |  - Fault Tolerance (cascade depth)  |
@@ -130,7 +130,7 @@ To ensure methodological rigor, SaG enforces an **input–label independence gua
         [scores B's ranking only]         +-------------------------------------+
 ```
 
-*Figure 1. End-to-end architecture of the Software-as-a-Graph (SaG) framework. A shared front end (manifest ingestion $\to$ typed multigraph $\to$ QoS-weighted `DEPENDS_ON` projection $\to$ typed node features) feeds two deliberately separate pathways. **Pathway B (predictive)** is the primary one: it produces a ranked critical set and per-relationship criticality, and is the only pathway validated against the simulation oracle — the oracle scores rankings, which a quality profile is not, and it is strictly an offline training-and-validation component, never a dependency of online inference. **Pathway A (explanation)** then produces a standards-grounded quality profile for what B flagged, and the remediation it implies; it explains *why* a component is fragile and is not a ranking model. The single link between them is triage rather than data flow: the architect applies A’s explanation to whatever B flagged. The pathways share no parameters, and the oracle runs on $G_{\text{structural}}$ alone, never on the graph the predictors see (§4.4). A’s remediation guidance closes a loop of its own: each candidate edit is re-simulated on its own mutated copy of $G_{\text{structural}}$ and kept only if it beats the simulator’s own seed-to-seed noise, before being accepted.*
+*Figure 1. End-to-end architecture of the Software-as-a-Graph (SaG) framework. A shared front end (manifest ingestion $\to$ typed multigraph $\to$ QoS-weighted `DEPENDS_ON` projection $\to$ typed node features) feeds two deliberately separate pathways. The **predictive pathway** (§4) is the primary one: it produces a ranked critical set and per-relationship criticality, and is the only pathway validated against the simulation oracle — the oracle scores rankings, which a quality profile is not, and it is strictly an offline training-and-validation component, never a dependency of online inference. The **explanation layer** (§5) then produces a standards-grounded quality profile for what the predictor flagged, and the remediation it implies; it explains *why* a component is fragile and is not a ranking model. The single link between them is triage rather than data flow: the architect applies the explanation to whatever the predictor flagged. The two share no parameters, and the oracle runs on $G_{\text{structural}}$ alone, never on the graph the predictors see (§4.4). The remediation guidance closes a loop of its own: each candidate edit is re-simulated on its own mutated copy of $G_{\text{structural}}$ and kept only if it beats the simulator’s own seed-to-seed noise, before being accepted.*
 
 > **Figure numbering.** This document keeps its own figure sequence, which differs from the LaTeX submission sources in `latex/`. Figure 1 (pipeline), Figure 3 (results at a glance), Figure 4 (AHP shrinkage) and Figure 5 (HGT attention) correspond to `Figure_1`, `Figure_5`, `Figure_4` and `Figure_3` there. Figure 2 below (the HGT layer diagram) is specific to this document; the LaTeX `Figure_2`, a running-example graph, has no counterpart here.
 
@@ -648,19 +648,19 @@ Table 6 presents the in-distribution held-out Spearman rank correlation ($\rho$)
 
 Under inductive Leave-One-Scenario-Out (LOSO) cross-validation, the model must predict cascading criticality on an unseen system topology:
 
-**Table 8. Inductive Leave-One-Scenario-Out (LOSO) evaluation, Application population, eight folds.** Rows are grouped by role, not listed as competing variants: training-free structural baselines, the learned predictors proposed in this paper, and the RM/$Q(v)$ diagnostic reference of §1.2 (Pathway A), which is not a ranking model (§5.1) and is included only to quantify how much the predictive path adds over static attribution.
+**Table 8. Inductive Leave-One-Scenario-Out (LOSO) evaluation, Application population, eight folds.** Rows are grouped by role, not listed as competing variants: training-free structural baselines, the learned predictors proposed in this paper, and the RM/$Q(v)$ diagnostic reference of §1.2, which is not a ranking model (§5.1) and is included only to quantify how much the predictive path adds over static attribution.
 
 | **Predictor / Reference**                                | **Mean LOSO $\rho$** | **Std $\rho$** | **Critical-Set $F_1@K$** | **Requires Training** |
 |:---------------------------------------------------------|:--------------------:|:--------------:|:------------------------:|:---------------------:|
 | *Training-free structural baselines*                     |                      |                |                          |                       |
 | **Topo-BL**                                              |        0.301         |     0.126      |          0.363           |          No           |
 | **Topo-QoS**                                             |        0.571         |     0.181      |          0.380           |          No           |
-| *Learned predictors (Pathway B)*                         |                      |                |                          |                       |
+| *Learned predictors*                                     |                      |                |                          |                       |
 | **GL (Homogeneous)**                                     |        0.086         |     0.122      |          0.237           |          Yes          |
 | **GL-QoS (Homogeneous)**                                 |        0.363         |   **0.089**    |          0.341           |          Yes          |
 | **HGL (Typed Heterogeneous)**                            |        0.439         |     0.145      |          0.327           |          Yes          |
 | **HGL-QoS (Typed + QoS)**                                |      **0.608**       |     0.143      |        **0.414**         |          Yes          |
-| *Diagnostic reference (Pathway A) — not a ranking model* |                      |                |                          |                       |
+| *Diagnostic reference — not a ranking model*             |                      |                |                          |                       |
 | **RM / $Q(v)$**                                          |        0.195         |     0.130      |          0.327           |          No           |
 
 Eight LOSO folds are reported (the seven synthetic scenarios plus the ATM case study of §7.3), each holding out one scenario and training on the remaining seven. Every variant is scored on the identical Application node set per fold (§6.3); paired Wilcoxon tests below are over the eight folds.
@@ -679,7 +679,7 @@ Eight LOSO folds are reported (the seven synthetic scenarios plus the ATM case s
 
 **A note on population.** An earlier version of this table pooled every node type carrying a simulated label, which inverted several conclusions: it placed the RM baseline at $\rho = -0.014$ rather than $+0.195$ and GL at $0.381$ rather than $0.086$. This is the Simpson’s-paradox hazard analysed in §8.3, and it is why every figure here is reported on a single, stated population.
 
-*Figure 3. Results at a glance, all on the Application population. **(A)** Out-of-distribution rank correlation per variant, whiskers showing $\sigma$ across the eight LOSO folds; note that the training-free Topo-QoS baseline places second. The hatched bar is RM/$Q(v)$, the Pathway A diagnostic reference of §1.2 — shown for context, not as a competing ranking predictor. **(B)** Critical-set detection at $K = 20%$, same hatching convention. **(C)** Agreement between the three simulation oracles, whiskers showing the observed range across scenarios; the annotation gives top-$K$ set agreement against both chance and the labeler’s own seed-to-seed floor.*
+*Figure 3. Results at a glance, all on the Application population. **(A)** Out-of-distribution rank correlation per variant, whiskers showing $\sigma$ across the eight LOSO folds; note that the training-free Topo-QoS baseline places second. The hatched bar is RM/$Q(v)$, the diagnostic reference of §1.2 — shown for context, not as a competing ranking predictor. **(B)** Critical-set detection at $K = 20%$, same hatching convention. **(C)** Agreement between the three simulation oracles, whiskers showing the observed range across scenarios; the annotation gives top-$K$ set agreement against both chance and the labeler’s own seed-to-seed floor.*
 
 ## 7.2 RQ2: Value of Typed Heterogeneity
 
@@ -883,7 +883,7 @@ Our empirical findings provide clear guidance for software architects and reliab
 
 - **What the Explanation Layer Adds:** The deterministic RM profile is what makes a ranked set actionable. Whether a service is critical through single-point-of-failure exposure (Availability) or wide error propagation (Fault Tolerance) dictates whether to add load-balanced replicas or circuit-breaker policies — a distinction neither the predictor nor the oracle expresses.
 
-This split mirrors Figure 1: Pathway A (RM/$Q(v)$) and Pathway B (Topo-BL/Topo-QoS/GL/HGL) answer different questions from the same graph, so Table 8 and Figure 3 report RM alongside the ranking predictors as a reference point rather than as a competing entry in that comparison.
+This split mirrors Figure 1: the explanation layer (RM/$Q(v)$) and the predictive pathway (Topo-BL/Topo-QoS/GL/HGL) answer different questions from the same graph, so Table 8 and Figure 3 report RM alongside the ranking predictors as a reference point rather than as a competing entry in that comparison.
 
 ## 8.2 Performance and Sustainability Implications
 
