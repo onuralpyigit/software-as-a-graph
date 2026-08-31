@@ -1,16 +1,23 @@
-Modern distributed software decouples components to achieve scalability. However, this decoupling obscures how cascading failures propagate across message brokers, topics, shared libraries, and host nodes. Detecting systemically critical components \emph{before} deployment is difficult because operational telemetry does not yet exist and static code analysis cannot observe distributed communication topologies. Uncontained cascades that reach production cause costly downtime, emergency restart loops, and wasted computational energy.
+Modern distributed software systems decouple components to achieve scalability. However, this decoupling obscures the propagation of cascading failures across message brokers, topics, shared libraries, and host nodes. Identifying systemically critical components prior to deployment is challenging because operational telemetry is unavailable and static code analysis cannot capture distributed communication topologies. Uncontained cascades in production environments result in costly downtime, emergency restart loops, and wasted computational resources.
 
-We present \textbf{Software-as-a-Graph (SaG)}, an AI-driven Static System Analysis framework for pre-deployment dependability assessment. SaG models distributed architectures as typed multigraphs over Applications, Brokers, Topics, Execution Nodes, and Shared Libraries. It integrates two decoupled pathways:
-(1) a \textbf{predictive pathway} using a relation-specific \textbf{Heterogeneous Graph Transformer (HGT)} with Quality-of-Service (QoS) edge encodings to forecast cascading failure blast radii, rank critical components, and score per-relationship criticality directly from Architecture-as-Code manifests; and
-(2) an \textbf{interpretable explanation layer} grounded in ISO/IEC 25010 and 25019 that diagnoses the architectural root cause of fragility (e.g., distinguishing single points of failure from error-propagation hubs) to prescribe targeted remediations.
+This study introduces \textbf{Software-as-a-Graph (SaG)}, an AI-driven static system analysis framework for pre-deployment dependability assessment. SaG models distributed architectures as typed multigraphs over Applications, Brokers, Topics, Execution Nodes, and Shared Libraries. The framework integrates two decoupled pathways:
 
-We evaluate SaG across 1,770 components from seven synthetic scenarios and three real-world systems (Autoware.universe ROS~2, GCP Microservices, and Train-Ticket) against independent discrete-event cascade simulators under a strict input--label independence guarantee:
+(1) A \textbf{predictive pathway} employs a relation-specific \textbf{Heterogeneous Graph Transformer (HGT)} with Quality-of-Service (QoS) edge encodings to forecast cascading failure blast radii, rank critical components, and score per-relationship criticality directly from Architecture-as-Code manifests; and
+
+(2) An \textbf{interpretable explanation layer} grounded in ISO/IEC 25010 and 25019 diagnoses the architectural root causes of fragility, such as distinguishing single points of failure from error-propagation hubs, and prescribes targeted remediations.
+
+SaG is evaluated across 1,770 components from seven synthetic scenarios and three real-world systems (Autoware.universe ROS~2, GCP Microservices, and Train-Ticket) against independent discrete-event cascade simulators under a strict input-label independence guarantee:
+
 \begin{itemize}
-    \item \textbf{Typing enables transfer:} On unseen architectures, the typed model achieves \(\rho = 0.608\), outperforming its homogeneous counterpart by \(+0.353\) (\(\rho = 0.439\) vs.\ \(0.086\)) across all eight leave-one-scenario-out folds (\(p = 0.008\)). QoS edge encoding adds \(+0.169\) out-of-distribution (\(p = 0.016\)).
-    \item \textbf{Accurate critical-set detection at CI/CD speed:} The predictor identifies the critical top-\(K\) component set with \(F_1@K = 0.414\). Inference takes only \(44\,\text{ms}\) on a 2,000-component system, enabling fast, per-commit architectural gating.
-    \item \textbf{Transparent empirical boundary:} Against a training-free QoS-weighted structural baseline, the ranking advantage is \(+0.037\) and not statistically significant (\(p = 0.64\)). Graph learning earns its cost through cross-architecture generalization, typed attention, and relational attribution rather than ranking accuracy alone.
-    \item \textbf{Real-world generalization:} SaG transfers zero-shot to production cyber-physical and cloud-native systems (\(\rho = 0.688\) to \(0.778\)), capturing up to \(100\%\) of failure-impactful services.
+
+    \item \textbf{Typing enables transfer:} On unseen architectures, the typed model achieves \(\rho = 0.608\), outperforming the homogeneous counterpart by \(+0.353\) (\(\rho = 0.439\) vs.\ \(0.086\)) across all eight leave-one-scenario-out folds (\(p = 0.008\)). QoS edge encoding contributes an additional \(+0.169\) out-of-distribution (\(p = 0.016\)).
+
+    \item \textbf{Accurate critical-set detection at CI/CD speed:} The predictor identifies the critical top-\(K\) component set with \(F_1@K = 0.414\). Inference requires only \(44\,\text{ms}\) on a 2,000-component system, enabling rapid, per-commit architectural gating.
+
+    \item \textbf{Transparent empirical boundary:} Compared to a training-free QoS-weighted structural baseline, the ranking advantage is \(+0.037\) and is not statistically significant (\(p = 0.64\)). The value of graph learning arises from cross-architecture generalization, typed attention, and relational attribution rather than ranking accuracy alone.
+
+    \item \textbf{Real-world generalization:} SaG demonstrates zero-shot transfer to production cyber-physical and cloud-native systems (\(\rho = 0.688\) to \(0.778\)), capturing up to \(100\%\) of failure-impactful services.
+
 \end{itemize}
 
-By enabling automated architectural analysis in CI/CD before deployment, SaG bridges the Architecture--Code Gap and supports resilient, dependable, and energy-efficient software systems.
-
+By enabling automated architectural analysis in CI/CD prior to deployment, SaG bridges the Architecture-Code Gap and supports the development of resilient, dependable, and energy-efficient software systems.
