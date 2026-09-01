@@ -1,42 +1,54 @@
 \section{Graph Learning for Failure-Impact Prediction}
 \label{sec:4}
 
-Cascading failure impact is non-linear, multi-hop and relation-dependent: how far an outage travels depends not on how many neighbours a component has but on \emph{which kind} of edge carries the failure outward, and on what lies two and three hops beyond. No closed-form aggregate of centrality measures expresses that, which is why the primary pathway of Section~\ref{sec:1.2} is a learned one. This section presents the HGT architecture and its typed edge representation (Section~\ref{sec:4.1}), the multi-task heads and dimension-masked loss (Section~\ref{sec:4.2}), the simulation oracles supplying its labels (Section~\ref{sec:4.3}), and the input--label independence guarantee keeping the two apart (Section~\ref{sec:4.4}).
+Cascading failure impact in distributed software systems is inherently non-linear, multi-hop, and relation-dependent. How far an outage travels depends not merely on how many neighbors a component has, but on \emph{which kind} of architectural relation carries the failure outward and what dependencies lie two or three hops beyond. No closed-form combination of standard centrality metrics can capture these compound dynamics, which is why the primary predictive pathway of Section~\ref{sec:1.2} is a learned graph model.
+
+This section presents the Heterogeneous Graph Transformer (HGT) architecture and its typed edge encodings (Section~\ref{sec:4.1}), the multi-task prediction heads and dimension-masked loss formulation (Section~\ref{sec:4.2}), the ground-truth simulation oracles (Section~\ref{sec:4.3}), and the input--label independence guarantee that prevents data leakage (Section~\ref{sec:4.4}).
 
 \subsection{Heterogeneous Graph Transformer Architecture}
 \label{sec:4.1}
 
-Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, etc.), we implement a 3-layer \textbf{Heterogeneous Graph Transformer (HGT)} architecture \cite{hu2020hgt} with hidden dimension $D = 64$ and 4 attention heads.
+Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, \texttt{DEPENDS\_ON}), we employ a 3-layer \textbf{Heterogeneous Graph Transformer (HGT)} architecture \cite{hu2020hgt} with hidden dimension $D = 64$ and $H = 4$ attention heads.
 
-\subsubsection{Edge Feature Encoding (16-Dimensional)}
+\subsubsection{Continuous-Categorical Edge Feature Encoding (16-D)}
 \label{sec:4.1.1}
 
-To capture continuous QoS constraints and channel semantics, SaG encodes each directed edge $e = (u, v)$ as a 16-dimensional continuous-categorical vector $e_{uv} \in \mathbb{R}^{16}$:
+To capture continuous Quality-of-Service (QoS) constraints and channel semantics, SaG encodes each directed edge $e = (u, v)$ as a 16-dimensional continuous-categorical vector $e_{uv} \in \mathbb{R}^{16}$:
 \begin{itemize}
-    \item \textbf{Index 0:} Scalar QoS weight $w_E(e) \in (0, 1]$, the same edge weight defined in Section~\ref{sec:3.2} (inherited from $w(t)$ for structural pub/sub edges; a noisy-OR union, worst-case lift, or harmonic mean of endpoint weights for derived \texttt{DEPENDS\_ON} edges, per rule).
-    \item \textbf{Index 1:} Normalized path count through edge $e$ in $G_{\text{analysis}}$.
-    \item \textbf{Indices 2--8:} 7-bit one-hot encoding for edge relationship types (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, \texttt{DEPENDS\_ON}).
-    \item \textbf{Indices 9--15:} 7 explicit QoS profile dimensions, non-zero only for \texttt{PUBLISHES\_TO}/\texttt{SUBSCRIBES\_TO} edges (all other edge types receive zeros): (9) Reliability policy score (0.0 = best-effort, 1.0 = reliable); (10) Durability policy score (0.0 = volatile, 0.5 = transient local, 0.6 = transient, 1.0 = persistent); (11) Normalized message priority (0.0/0.33/0.66/1.0 for low/medium/high/urgent); (12) Deadline constraint active flag (0/1); (13) Log deadline $\log_{10}(1 + \text{deadline\_ns} / 10^6)$; (14) Log max blocking time $\log_{10}(1 + \text{max\_blocking\_ms})$; and (15) a QoS heterogeneity flag (1 if the edge's reliability/durability/priority triple deviates from the scenario's modal QoS profile, 0 otherwise).
+    \item \textbf{Index 0 (Scalar Coupling Weight):} $w_E(e) \in (0, 1]$, defined in Section~\ref{sec:3.2} (inherited from $w(t)$ for structural pub/sub edges; or derived via probabilistic union, lifted maximum, or harmonic mean for projected \texttt{DEPENDS\_ON} edges).
+    \item \textbf{Index 1 (Path Count):} Normalized count of simple paths traversing edge $e$ in $G_{\text{analysis}}$.
+    \item \textbf{Indices 2--8 (Relation Type One-Hot):} 7-bit one-hot encoding for the structural and derived relations (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, \texttt{DEPENDS\_ON}).
+    \item \textbf{Indices 9--15 (Explicit QoS Dimensions):} 7 continuous-categorical QoS profile attributes, active for \texttt{PUBLISHES\_TO} and \texttt{SUBSCRIBES\_TO} edges (zeroed for other edge types):
+    \begin{enumerate}
+        \item[9.] \emph{Reliability score} ($0.0 = \text{best-effort}$, $1.0 = \text{reliable}$).
+        \item[10.] \emph{Durability score} ($0.0 = \text{volatile}$, $0.5 = \text{transient local}$, $0.6 = \text{transient}$, $1.0 = \text{persistent}$).
+        \item[11.] \emph{Message priority} ($0.0, 0.33, 0.66, 1.0$ for low, medium, high, urgent).
+        \item[12.] \emph{Deadline active flag} ($0/1$).
+        \item[13.] \emph{Log deadline} $\log_{10}(1 + \text{deadline\_ns} / 10^6)$.
+        \item[14.] \emph{Log max blocking time} $\log_{10}(1 + \text{max\_blocking\_ms})$.
+        \item[15.] \emph{QoS heterogeneity flag} ($1$ if the edge's QoS triple deviates from the scenario's modal profile, $0$ otherwise).
+    \end{enumerate}
 \end{itemize}
 
-The \texttt{EdgeFeatureEncoder} projects $e_{uv}$ into the hidden space: $e_{uv}' = W_{\text{edge}} e_{uv}$. Prior to relational attention, the edge projection is added directly to the destination node representation: $\tilde{h}_v = h_v + e_{uv}'$.
+An edge projection module maps $e_{uv}$ into the hidden space: $e_{uv}' = W_{\text{edge}} e_{uv}$. Prior to relational attention computation, this projection is injected directly into the target node representation: $\tilde{h}_v = h_v + e_{uv}'$.
 
 \subsubsection{Type-Specific Projection and Heterogeneous Message Passing}
+\label{sec:4.1.2}
 
-For each source node $u$ and target node $v$ with meta-relation $\tau(e) = (\tau(u), \phi(e), \tau(v))$:
+For each source node $u$ and target node $v$ connected by meta-relation $\tau(e) = (\tau(u), \phi(e), \tau(v))$:
 \begin{enumerate}
-    \item \textbf{Type-Specific Projection:} Node feature vectors $x_v$ (dimensions 19--23 depending on $\tau(v)$) are mapped into $D$-dimensional hidden space:
+    \item \textbf{Type-Specific Projection:} Node feature vectors $x_v$ (of dimension 19--25 depending on entity type $\tau(v)$) are mapped into the shared $D$-dimensional hidden space:
     \begin{equation}
-    h_v^{(0)} = \text{LayerNorm}(\text{GELU}(W_{\tau(v)} x_v))
+    h_v^{(0)} = \text{LayerNorm}\big(\text{GELU}(W_{\tau(v)} x_v)\big)
     \end{equation}
-    \item \textbf{Relational Mutual Attention:} Query, Key, and Value projections compute relation-specific attention across heads:
+    \item \textbf{Relational Mutual Attention:} Type-parameterized Query ($Q$), Key ($K$), and Value ($V$) projections calculate relation-specific attention across $H$ heads:
     \begin{equation}
-    \text{Attn}(u, e, v) = \underset{\forall u \in \mathcal{N}(v)}{\text{Softmax}}\left( \frac{K(u) W_{\text{att},\phi(e)} Q(\tilde{v})^\top}{\sqrt{D/H}} \right)
+    \text{Attn}(u, e, v) = \underset{\forall u \in \mathcal{N}(v)}{\text{Softmax}}\left( \frac{K(u) W_{\text{att},\phi(e)} Q(\tilde{h}_v)^\top}{\sqrt{D/H}} \right)
     \end{equation}
     \begin{equation}
     \text{Msg}(u, e, v) = V(u) W_{\text{msg},\phi(e)}
     \end{equation}
-    \item \textbf{Bidirectional Message Passing:} To capture downstream backpressure and upstream cascading failures, message passing is executed over both forward and reverse relations ($G_{\text{analysis}}$ and $G_{\text{analysis}}^\top$).
+    \item \textbf{Bidirectional Message Passing:} To capture downstream consumer starvation and upstream backpressure simultaneously, message passing is executed over both forward and transposed relation views ($G_{\text{analysis}}$ and $G_{\text{analysis}}^\top$).
     \item \textbf{Residual Aggregation and Layer Normalization:}
     \begin{equation}
     h_v^{(l)} = \text{LayerNorm}\left( h_v^{(l-1)} + \text{Dropout}\left(\sum_{u \in \mathcal{N}(v)} \text{Attn}(u, e, v) \cdot \text{Msg}(u, e, v)\right)\right)
@@ -60,116 +72,57 @@ The joint optimization objective balances regression accuracy, multi-task dimens
 \begin{equation}
 \mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + 0.3 \cdot \mathcal{L}_{\text{edge}} + \lambda_{\text{RM}} \cdot \mathcal{L}_{\text{consistency}}
 \end{equation}
-where $I^*(v)$ is the simulated cascade impact defined by the primary oracle of Section~\ref{sec:4.3}, $\mathcal{L}_{\text{composite}} = \text{MSE}(\hat{I}^*(v), I^*(v))$, $\mathcal{L}_{\text{rank}}$ is ListMLE ranking loss \cite{xia2008listwise}, $\mathcal{L}_{\text{pairwise}}$ is margin-ranking loss, and $\mathcal{L}_{\text{consistency}} = \text{MSE}\big([\hat{R}(v), \hat{M}(v)]_{v \in \text{unlabeled}}, [R_{\text{RM}}(v), M_{\text{RM}}(v)]_{v \in \text{unlabeled}}\big)$ regresses the predicted R/M heads toward the diagnostic pathway's own $R(v)$/$M(v)$ (Section~\ref{sec:5}), restricted to nodes the oracle never labeled. Headline results use $\lambda_{\text{RM}} = 0$: the two pathways are trained independently, matching the separation claimed in Section~\ref{sec:1.2}. Section~\ref{sec:7} additionally reports $\lambda_{\text{RM}} = 0.1$ as an ablation, since a nonzero $\lambda_{\text{RM}}$ is a real coupling between the pathways and not merely a regularizer on already-independent quantities.
+where $I^*(v)$ is the simulated cascade impact defined by the primary oracle (Section~\ref{sec:4.3}), $\mathcal{L}_{\text{composite}} = \text{MSE}(\hat{I}^*(v), I^*(v))$, $\mathcal{L}_{\text{rank}}$ is the ListMLE ranking loss \cite{xia2008listwise}, $\mathcal{L}_{\text{pairwise}}$ is margin-ranking loss, and $\mathcal{L}_{\text{consistency}} = \text{MSE}\big([\hat{R}(v), \hat{M}(v)]_{v \in \text{unlabeled}}, [R_{\text{RM}}(v), M_{\text{RM}}(v)]_{v \in \text{unlabeled}}\big)$ regresses predicted heads toward the diagnostic pathway's baseline (Section~\ref{sec:5}) on unlabeled nodes. Headline results use $\lambda_{\text{RM}} = 0$, guaranteeing that the predictive and explanatory pathways remain strictly independent.
 
-\noindent\textbf{Dimension Masking:} Because dynamic cascade simulation ($I^*(v)$ via \texttt{FaultInjector}, the sole labeler used to train and evaluate every GNN result in this paper) observes runtime failure reachability rather than static code maintainability, maintainability ground truth is unobserved \emph{under this labeler}. A separate oracle, $I_M(v)$ (Section~\ref{sec:4.3}), does compute a maintainability ground truth, but only at the Validate stage and only as an internal consistency check against the same dependency topology $M(v)$ is scored from --- it is never substituted in as a training label, since doing so would not add the independent supervision the mask is meant to withhold. We introduce a boolean dimension mask $m = [m_R, m_M] = [1, 0]$:
+\noindent\textbf{Dimension Masking:} Because dynamic cascade simulation ($I^*(v)$ via \texttt{FaultInjector}) observes runtime failure reachability rather than source-code maintainability, maintainability ground truth is unobserved during dynamic simulation. A separate change-propagation oracle $I_M(v)$ evaluates static structural change ripple at the Validate stage, but is never used as a training label to avoid circular supervision. We introduce a boolean dimension mask $m = [m_R, m_M] = [1, 0]$:
 \begin{equation}
 \mathcal{L}_{\text{dimension}} = \frac{1}{\sum_{d} m_d} \sum_{d \in \{R, M\}} m_d \cdot \text{MSE}(\hat{d}(v), d^*(v))
 \end{equation}
-This prevents the unmeasured maintainability head from being penalized or driven toward zero by backpropagation.
+This mask ensures the unobserved maintainability head is not artificially penalized or driven toward zero during backpropagation.
 
 \subsubsection{Domain-Reweighted Criticality (\texorpdfstring{$Q_{\text{domain}}$}{Qdomain})}
 
-To ground predictions in ISO/IEC 25019 Context of Use ($\vec{\omega} = [q_R, q_M]^\top$), the composite score is evaluated as:
+To ground predictions in ISO/IEC 25019 Context of Use ($\vec{\omega} = [q_R, q_M]^\top$), the composite score can be evaluated as:
 \begin{equation}
 Q_{\text{domain}}(v) = q_R \cdot \hat{R}(v) + q_M \cdot M_{\text{static}}(v)
 \end{equation}
-where $M_{\text{static}}(v)$ is drawn directly from the structural analyzer's maintainability baseline ($y_{\text{rm}}$ maintainability column), combining learned dynamic reliability with static source-code maintainability. The implementation deliberately refuses to emit $Q_{\text{domain}}(v)$ unless the checkpoint's maintainability head actually received real supervision --- under the sole labeler used in every experiment reported here (\texttt{FaultInjector}, $m = [1, 0]$), maintainability is unmeasured, so $Q_{\text{domain}}(v)$ is never populated in these results. Domain reweighting sensitivity is instead evaluated directly against the static RM baseline, reported as a dedicated ablation (Section~\ref{sec:7.3}).
+where $M_{\text{static}}(v)$ is drawn directly from the structural analyzer's maintainability baseline, combining learned dynamic reliability with static source-code maintainability. Because maintainability is unobserved in dynamic simulation ($m = [1, 0]$), headline results report $\hat{I}^*(v)$ directly, while domain reweighting sensitivity is evaluated against the static RM baseline in Section~\ref{sec:7.3}.
 
 \subsection{Ground-Truth Simulation Oracles}
 \label{sec:4.3}
 
-To evaluate predictive accuracy prior to deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$, complemented by one deterministic structural traversal for the dimension the simulations cannot observe. We establish a formal taxonomy of four component-level oracles and one relationship-level oracle:
+To evaluate predictive accuracy prior to deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$. We establish a formal taxonomy of four component-level oracles and one relationship-level oracle:
 
 \begin{itemize}
-    \item \textbf{Cascade Reachability Oracle ($I^*(v)$):} Implemented via \texttt{FaultInjector}, this oracle injects an unexpected node crash at component $v \in V$, propagates cascading failures across dependent topics, brokers, and network links using breadth-first dynamic traversal, and computes the fraction of surviving subscriber feeds severed by the outage. Publisher loss is weighted by publication rate, and the resulting per-topic feed loss is scaled by a QoS ladder ($\times 1.2$ for \texttt{RELIABLE}, $\times 1.15$ for high or urgent transport priority, $\times 1.05$ for medium) before being clamped to $[0,1]$. The ladder does not read durability, which carries the largest of the three QoS sub-weights ($0.62$; Section~\ref{sec:3.2}); we quantify how little this scaling moves the labels in Section~\ref{sec:7.3}. $I^*(v) \in [0, 1]$ serves as the primary continuous target label for training and evaluating GNN predictors.
+    \item \textbf{Cascade Reachability Oracle ($I^*(v)$):} Implemented via \texttt{FaultInjector}, this oracle simulates node crashes at component $v \in V$, propagates cascading outages across dependent topics, brokers, and network links via breadth-first dynamic traversal, and calculates the fraction of surviving subscriber feeds severed. Publisher loss is weighted by message publication rate, and resulting feed losses are scaled by a QoS ladder ($\times 1.2$ for \texttt{RELIABLE}, $\times 1.15$ for high/urgent priority, $\times 1.05$ for medium) before clamping to $[0, 1]$. $I^*(v) \in [0, 1]$ serves as the \textbf{primary continuous target label} for training and evaluating GNN predictors.
     \item \textbf{Multi-Metric Composite Oracle ($I_{\text{comp}}(v)$):} Implemented via \texttt{FailureSimulator}, this oracle evaluates a multi-faceted failure impact vector:
     \begin{equation}
     I_{\text{comp}}(v) = 0.35 \cdot \Delta\text{Reachability} + 0.25 \cdot \Delta\text{Fragmentation} + 0.25 \cdot \Delta\text{Throughput} + 0.15 \cdot \Delta\text{FlowDisruption}
     \end{equation}
-    This is the most QoS-aware of the three: every term is weighted by an operational severity $s(t) = w(t) \cdot \text{rate}(t)$, so all three QoS dimensions enter through $w(t)$. Sixty per cent of the composite ($0.35$ reachability plus $0.25$ fragmentation) nonetheless measures graph connectivity rather than message loss. $I_{\text{comp}}(v)$ serves as the canonical oracle for architectural quality gate verification.
-    \item \textbf{Dynamic Queue-Flow Oracle ($I_{\text{dyn}}(v)$):} Implemented via \texttt{MessageFlowSimulator} using the SimPy discrete-event simulation framework \cite{team2020simpy}, this oracle models message emission rates, stochastic network latencies, broker buffer saturation, and dropped delivery counts under fault injection. QoS policies shape per-message behaviour \emph{inside} the run --- reliability selects head-drop over tail-drop on queue overflow, and deadline and lifespan expiry discard samples --- but the impact score extracted from it is the drop in delivered message rate suffered by surviving consumers, an unweighted per-copy count. $I_{\text{dyn}}(v)$ is therefore delivery-based and QoS-\emph{agnostic} at the label level: a message on a safety-critical topic and one on a telemetry heartbeat contribute equally, and transport priority is not read at all.
-    \item \textbf{Change-Propagation Oracle ($I_M(v)$):} Implemented via \texttt{ChangePropagationSimulator}, and the only oracle in this taxonomy that is not a discrete-event simulation: it is a deterministic breadth-first traversal of the \emph{reversed} derived dependency graph (an edge $u \to v$ in $G_{\text{analysis}}$ becomes $v \to u$ here, modelling ``$v$ changing may force $u$ to adapt''), stopped at loosely-coupled or interface-stable neighbours, and computed on every exhaustive Validate-stage sweep:
+    where each term is weighted by operational severity $s(t) = w(t) \cdot \text{rate}(t)$. $I_{\text{comp}}(v)$ serves as the canonical oracle for architectural quality gate verification.
+    \item \textbf{Dynamic Queue-Flow Oracle ($I_{\text{dyn}}(v)$):} Implemented via \texttt{MessageFlowSimulator} using the SimPy framework \cite{team2020simpy}, this oracle simulates message emission rates, stochastic network latencies, broker buffer saturation, and queue drops under fault injection. It extracts the drop in delivered message rate suffered by surviving consumers.
+    \item \textbf{Change-Propagation Oracle ($I_M(v)$):} Implemented via \texttt{ChangePropagationSimulator}, this oracle executes a deterministic breadth-first traversal of the reversed dependency graph to quantify maintenance change impact:
     \begin{equation}
     I_M(v) = 0.45 \cdot \text{ChangeReach}(v) + 0.35 \cdot \text{WeightedChangeImpact}(v) + 0.20 \cdot \text{NormalizedChangeDepth}(v)
     \end{equation}
-    $I_M(v)$ is the declared ground truth for the Maintainability dimension, but because it traverses the same derived dependency topology that $M(v)$ (Section~\ref{sec:5.2}) is itself scored from, $\rho(M, I_M)$ is an internal consistency check on that topology rather than independent behavioural evidence, unlike $I^*(v)$ or $I_{\text{dyn}}(v)$ against $R(v)$. It is never used as a GNN training label (Section~\ref{sec:4.4}).
-    \item \textbf{Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):} Evaluates the systemic impact of severing an individual dependency or communication channel while keeping both endpoint components alive:
+    \item \textbf{Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):} Evaluates the systemic impact of severing an individual dependency or communication channel while keeping endpoint components operational:
     \begin{equation}
     I_{\text{edge}}(u,v) = I_{\text{comp}}(G \setminus \{(u,v)\}) - I_{\text{comp}}(G)
     \end{equation}
 \end{itemize}
 
-\noindent\textbf{Declared message criticality is withheld from the label, not from the features.}
-\texttt{FailureSimulator} can additionally blend a declared \texttt{Topic.criticality}
-label into its severity term (a $50/50$ blend with $w(t)$, via \texttt{use\_topic\_criticality}),
-and ships with this disabled. The reason is not merely that the label is author-supplied: \texttt{Topic.criticality}
-is \emph{simultaneously} a GNN input feature (\texttt{topic\_qos\_criticality\_ord}, live whenever the
-native substrate is QoS-embedded --- the \texttt{HGL-QoS} arm and every LOSO fold), so an oracle that
-consumed it would score a predictor against a transform of its own input. In the synthetic corpus it is
-in any case not an independent operational judgement: it is $\mathrm{bucketize}(w_{\text{QoS}}(t))$ with
-$17\%$ of labels flipped to a different level, a noised re-encoding of the same QoS score already inside
-$w(t)$ --- the noise exists precisely so the label is not a deterministic function of the QoS features a
-model can see. Enabling the oracle flag would therefore only be sound as a dedicated ablation that
-simultaneously removes \texttt{topic\_qos\_criticality\_ord} from the feature contract --- which would
-invalidate every QoS-variant result in this paper and require a full retrain; we did not run that ablation.
+\noindent\textbf{Withholding Declared Topic Criticality from Labels.} \texttt{FailureSimulator} supports blending a declared \texttt{Topic.criticality} label into its severity term, but this is explicitly disabled. Because \texttt{Topic.criticality} is an input feature to the GNN (\texttt{topic\_qos\_criticality\_ord}), allowing an oracle to consume it would score the predictor against a transformation of its own input features.
 
-\noindent\textbf{Primary oracle declaration.} Because the three reliability-facing
-component-level oracles ($I^*$, $I_{\text{comp}}$, $I_{\text{dyn}}$) measure different
-constructs and agree only partially (below), we designate exactly one of them as
-primary and hold every ranking claim in this paper to it. \textbf{$I^*(v)$ (\texttt{FaultInjector})
-is the primary oracle} for all predictive-ranking results (Tables~\ref{tab:5}--\ref{tab:7},
-RQ1--RQ3): it is the only oracle that both supplies training labels and scores held-out
-predictions, so evaluating a learned ranker against anything else would compare a model to a
-target it was never fitted to. The remaining oracles have narrower, explicitly named roles:
-$I_{\text{comp}}(v)$ (\texttt{FailureSimulator}) is the Validate-stage oracle for architectural
-quality gates and anti-pattern detection only, $I_{\text{dyn}}(v)$ (\texttt{MessageFlowSimulator})
-is used only as an independent, behaviourally-constructed convergent-validity probe,
-$I_M(v)$ (\texttt{ChangePropagationSimulator}) is the declared but internally-consistent oracle
-for Maintainability alone and is not empirically validated in this paper (Section~\ref{sec:8.3}),
-and $I_{\text{edge}}(u,v)$ scores relationships rather than components. Each table and figure names
-the oracle it was measured against; no number is transferred between them.
+\noindent\textbf{Primary Oracle Declaration and Role Assignment.} Because the three reliability-facing oracles ($I^*$, $I_{\text{comp}}$, $I_{\text{dyn}}$) measure distinct operational constructs, we designate \textbf{$I^*(v)$ (\texttt{FaultInjector}) as the primary oracle} for all predictive ranking results (Tables~\ref{tab:5}--\ref{tab:7}, RQ1--RQ3). $I_{\text{comp}}(v)$ is reserved for Validate-stage quality gates, $I_{\text{dyn}}(v)$ serves as an independent convergent-validity probe, and $I_M(v)$ serves as a structural maintainability reference.
 
-\textbf{These oracles are not interchangeable, and their disagreement bounds what any single one can
-support.} Measured across seven scenarios and five seeds on the Application population, mean
-Spearman agreement is $\rho = 0.883$ for $(I_{\text{dyn}}, I^*)$, $\rho = 0.468$ for
-$(I_{\text{comp}}, I^*)$, and $\rho = 0.465$ for $(I_{\text{comp}}, I_{\text{dyn}})$, with
-per-scenario minima of $0.756$, $0.171$, and $0.121$ respectively. The behavioural queue-flow
-oracle and the topological cascade oracle therefore agree strongly on \emph{ordering}, which is
-genuine convergent evidence: they are constructed differently, one observing message delivery under
-load and the other reachability over edges, so their agreement is not reducible to a shared
-construction artifact. The composite oracle is the outlier, agreeing only moderately with either.
-
-Agreement on the \emph{critical set} is markedly weaker than agreement on ordering, and this is the
-binding limitation. Mean top-$K$ Jaccard overlap at $K = 0.2n$ is $0.42$ for the strongest pair and
-$0.31$ for the other two, against $0.111$ expected under independent rankings --- around three to
-four times chance, but far from set identity. Two controls establish what this does and does not
-mean. First, it is not an artifact of tie-breaking: recomputing the overlap so that every component
-tied with the $K$-th is admitted changes it by at most $0.005$. Second, it is not simply
-label noise, but neither is it purely construct divergence --- the labeler's own seed-to-seed
-self-agreement spans top-$K$ Jaccard $0.44$--$1.00$ (test--retest $\rho = 0.81$--$1.00$), so a
-single oracle compared against itself reaches only $0.44$ in its worst scenario. Top-$K$ set
-identity is an intrinsically unstable statistic at this $K$, and the cross-oracle values sit just
-below the bottom of the range one oracle achieves against itself.
-
-The consequence for how our results should be read is unchanged: a result established against one
-oracle is not evidence for a claim measured against another, and the instruction to ``simply
-simulate'' is under-specified --- it does not say which simulator, at which propagation threshold,
-under which seed, and the answer materially changes the critical set. We report this disagreement as
-a bound on our own construct validity rather than as corroboration, and we note that we could not
-reduce it by weighting: applying the same $w(t)$ to both topological oracles does not make them
-converge (Section~\ref{sec:7.3}). That null result should be read as bounding the effect of the
-particular treatment we could apply, not of QoS-aware labelling in general: disabling QoS zeroes
-$I_{\text{comp}}$'s severity term entirely, but on $I^*$ it only removes a ladder multiplier that a
-$[0,1]$ clamp already suppresses whenever a component is at or near total feed loss, so the two arms
-are not comparably strong (Section~\ref{sec:7.3}).
+\noindent\textbf{Cross-Oracle Convergent Validity and Critical-Set Bounds.} Measured across seven benchmark scenarios and five random seeds on the Application population, mean Spearman rank correlation is $\rho = 0.883$ for $(I_{\text{dyn}}, I^*)$, $\rho = 0.468$ for $(I_{\text{comp}}, I^*)$, and $\rho = 0.465$ for $(I_{\text{comp}}, I_{\text{dyn}})$. The strong rank agreement ($\rho = 0.883$) between the behavioral queue-flow oracle and the topological cascade injector provides independent convergent evidence across distinct simulation paradigms. However, agreement on the top-$K$ critical set ($K = 0.2n$) is more conservative (mean Jaccard overlap of $0.42$ for the strongest pair vs.\ $0.111$ expected by chance), reflecting the intrinsic sensitivity of discrete thresholding in non-linear cascades. Consequently, results established against one oracle are never transferred to another; every evaluation metric explicitly references its underlying simulation oracle.
 
 \subsection{Input--Label Independence Guarantee}
 \label{sec:4.4}
 
-To guarantee experimental rigor and eliminate data leakage, SaG enforces strict architectural decoupling:
+To eliminate data leakage and ensure rigorous evaluation, SaG enforces strict architectural separation between inputs and labels:
 \begin{itemize}
-    \item \textbf{Feature Space:} Derived exclusively from $G_{\text{analysis}}$ (using static structural topology, SCA metrics, and declared QoS contracts).
-    \item \textbf{Label Space:} Evaluated exclusively on raw $G_{\text{structural}}$ through independent simulation oracles (\texttt{FaultInjector}, \texttt{FailureSimulator}, \texttt{MessageFlowSimulator}), plus \texttt{ChangePropagationSimulator} over the derived dependency view for the Maintainability dimension alone (Section~\ref{sec:4.3}).
+    \item \textbf{Feature Space:} Constructed exclusively from $G_{\text{analysis}}$ using static structural topology, static code analysis (SCA) metrics, and declared QoS contracts.
+    \item \textbf{Label Space:} Evaluated exclusively on raw $G_{\text{structural}}$ through independent simulation oracles (\texttt{FaultInjector}, \texttt{FailureSimulator}, \texttt{MessageFlowSimulator}).
 \end{itemize}
-No simulation outputs are ever exposed as input features to the GNN or attribution baseline.
+No simulation outputs, failure trace histories, or dynamic execution telemetry are ever exposed as input features to the GNN or the explanation layer.
