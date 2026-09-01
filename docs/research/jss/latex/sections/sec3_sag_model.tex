@@ -1,18 +1,18 @@
 \section{The Software-as-a-Graph (SaG) Architectural Model}
 \label{sec:3}
 
-This section formalizes the Software-as-a-Graph multigraph representation (Section~\ref{sec:3.1}), the QoS-aware weighting and logical dependency derivation rules (Section~\ref{sec:3.2}), and the dual graph views utilized throughout the framework (Section~\ref{sec:3.3}).
+This section formalizes the Software-as-a-Graph multigraph representation (Section~\ref{sec:3.1}), the QoS-aware weighting and logical dependency derivation rules (Section~\ref{sec:3.2}), the dual graph views (Section~\ref{sec:3.3}), and the typed node feature representations (Section~\ref{sec:3.4}).
 
 \subsection{Formal Multigraph Definition}
 \label{sec:3.1}
 
-We model a complex distributed system as a typed, weighted, directed multigraph:
+A complex distributed software system is modeled as a typed, weighted, directed multigraph:
 \begin{equation}
 \mathcal{G} = (V, E, \tau_V, \tau_E, w_V, w_E)
 \end{equation}
 where:
 \begin{itemize}
-    \item $V$ is the set of system entities, partitioned into five disjoint types:
+    \item $V$ is the set of system entities, partitioned into five disjoint entity types:
     \begin{equation}
     V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{node}} \cup V_{\text{lib}}
     \end{equation}
@@ -31,7 +31,7 @@ where:
 \toprule
 \textbf{Entity Type ($\mathcal{T}_V$)} & \textbf{Architectural Role} & \textbf{Concrete System Examples} \\
 \midrule
-\textbf{Application} ($V_{\text{app}}$) & Autonomous process producing/consuming messages & ROS 2 node, Kafka microservice, MQTT client \\
+\textbf{Application} ($V_{\text{app}}$) & Autonomous process producing/consuming messages & ROS~2 node, Kafka microservice, MQTT client \\
 \textbf{Broker} ($V_{\text{broker}}$) & Message routing and queuing intermediary & RabbitMQ exchange, Mosquitto, EMQX broker \\
 \textbf{Topic} ($V_{\text{topic}}$) & Named logical communication channel & \texttt{/sensor/lidar}, \texttt{orders.payment.completed} \\
 \textbf{Node} ($V_{\text{node}}$) & Physical host or virtualized environment & Bare-metal server, Kubernetes worker, Cloud VM \\
@@ -50,31 +50,31 @@ where:
 }
 \end{table}
 
-Application and Library entities additionally ingest static code metrics computed via SCA tools (\texttt{cm\_*} attributes: lines of code, cyclomatic complexity, coupling between objects, LCOM), directly bridging code-level fragility with topological analysis.
+Application and Library entities additionally incorporate static code metrics computed via Static Code Analysis (SCA) tools (\texttt{cm\_*} attributes: lines of code, cyclomatic complexity, coupling between objects, LCOM), thereby linking code-level fragility to topological analysis.
 
 \subsection{QoS-Aware Weights and Logical Dependency Derivation}
 \label{sec:3.2}
 
-In distributed middleware, communication links exhibit varying degrees of coupling based on their Quality-of-Service (QoS) contracts. For example, a \texttt{RELIABLE} topic with \texttt{TRANSIENT\_LOCAL} durability binds communicating services far more tightly than a \texttt{BEST\_EFFORT} telemetry stream.
+In distributed middleware, communication links vary in coupling strength based on their Quality-of-Service (QoS) contracts. For example, a \texttt{RELIABLE} topic with \texttt{TRANSIENT\_LOCAL} durability binds communicating services more tightly than a \texttt{BEST\_EFFORT} telemetry stream.
 
-Each topic $t$ carries an intrinsic criticality weight $w(t) \in [0, 1]$ combining its declared QoS semantics with two runtime-stress modulators, payload size and publication frequency:
+Each topic $t$ carries an intrinsic criticality weight $w(t) \in [0, 1]$ combining its declared QoS semantics with two runtime-stress modulators: payload size and publication frequency:
 \begin{equation}
 \label{eq:3}
 w(t) = \beta \cdot \text{QoS}(t) + \alpha \cdot \text{SizeNorm}(t) + \psi \cdot \text{FreqNorm}(t),
 \quad (\beta, \alpha, \psi) = (0.75,\, 0.15,\, 0.10)
 \end{equation}
-where the QoS term is itself an AHP-weighted aggregate of the declared contract,
+where the QoS term is itself an AHP-weighted aggregate of the declared contract:
 \begin{equation}
 \text{QoS}(t) = w_{\text{rel}} \cdot q_{\text{rel}} + w_{\text{dur}} \cdot q_{\text{dur}} + w_{\text{prio}} \cdot q_{\text{prio}},
-\quad (w_{\text{rel}}, w_{\text{dur}}, w_{\text{prio}}) = (0.24,\, 0.62,\, 0.14),
+\quad (w_{\text{rel}}, w_{\text{dur}}, w_{\text{prio}}) = (0.24,\, 0.62,\, 0.14)
 \end{equation}
-with $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ the normalized reliability, durability and transport-priority scores. Durability dominates because it governs whether data survives at all (state persistence across restarts and network partitions), whereas reliability and transport priority both govern in-flight delivery quality, with reliability weighing somewhat more since an unconditional delivery guarantee precedes the scheduling of it. The sub-weight vector is the geometric-mean priority vector of an independently-stated Saaty pairwise-comparison matrix, with a small but genuinely nonzero consistency ratio ($CR \approx 0.016$). An earlier version of this matrix was solved backward from a chosen target vector rather than stated independently, which is why its near-zero $CR$ was an artifact of construction and not evidence of a real judgement; we report the honest, independently-elicited $CR$ here instead. The modulators are logarithmically compressed, $\text{SizeNorm}(t) = \log_2(1 + \text{bytes})/20$ (a 1~MiB design envelope, the practical DDS sample ceiling before RTPS fragmentation dominates) and $\text{FreqNorm}(t) = \log_{10}(1 + \text{Hz})/3$, and $w(t)$ is clamped to $[0.01, 1]$ so that best-effort edges remain visible to graph traversals. Every structural communication edge incident on $t$ (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}) inherits $w_E(e) = w(t)$ together with the topic's QoS vector.
+with $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ denoting the normalized reliability, durability, and transport-priority scores. Durability dominates because it governs whether data survives at all (state persistence across restarts and network partitions), whereas reliability and transport priority both govern in-flight delivery quality, with reliability weighing somewhat more since an unconditional delivery guarantee precedes scheduling. The sub-weight vector is the geometric-mean priority vector of an independently stated Saaty pairwise-comparison matrix, with a small but genuinely non-zero consistency ratio ($CR \approx 0.016$). An earlier version of this matrix was solved backward from a chosen target vector rather than stated independently, so its near-zero $CR$ was an artifact of construction rather than evidence of a real judgment; we report the honest, independently elicited $CR$ here instead. The modulators are logarithmically compressed, $\text{SizeNorm}(t) = \log_2(1 + \text{bytes})/20$ (a 1~MiB design envelope, the practical DDS sample ceiling before RTPS fragmentation dominates) and $\text{FreqNorm}(t) = \log_{10}(1 + \text{Hz})/3$, and $w(t)$ is clamped to $[0.01, 1]$ so that best-effort edges remain visible to graph traversals. Every structural communication edge incident on $t$ (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}) inherits $w_E(e) = w(t)$ together with the topic's QoS vector.
 
-The outer split $(\beta, \alpha, \psi)$ is a declared convex combination rather than an elicited one, and we report its sensitivity directly (Section~\ref{sec:7.3.topicw}) rather than defending the particular triple. An earlier KiB-based $\text{SizeNorm}$ divisor of $50$ implied an unstated $\sim$1~EiB envelope and left the term realizing only $\sim$2\% of alpha's declared 15\% budget on the evaluation corpus's real payload sizes (32~B--32~KiB); the byte-based 1~MiB envelope above corrects that so alpha's contribution is no longer negligible by construction.
+The outer split $(\beta, \alpha, \psi)$ is a declared convex combination rather than an elicited one, and we report its sensitivity directly (Section~\ref{sec:7.3.topicw}) rather than defending the particular triple. A prior KiB-based $\text{SizeNorm}$ divisor of $50$ implied an unstated $\sim$1~EiB envelope and left the term realizing only $\sim$2\% of alpha's declared 15\% budget on the evaluation corpus's real payload sizes (32~B--32~KiB); the byte-based 1~MiB envelope above corrects that so alpha's contribution is no longer negligible by construction.
 
 \subsubsection{Logical Dependency Projection (\texttt{DEPENDS\_ON})}
 
-Structural edges capture explicit deployment connections but omit implicit runtime dependencies. For example, a subscriber depends upon a publisher, yet no direct edge connects them in pub-sub architectures. We derive a single unified semantic relation, \texttt{DEPENDS\_ON}, directed from \emph{dependent} to \emph{dependency} (``if target fails, source is impacted''):
+Structural edges capture explicit deployment connections but omit implicit runtime dependencies. For example, a subscriber depends upon a publisher, yet no direct edge connects them in pub-sub architectures. We therefore derive a single unified semantic relation, \texttt{DEPENDS\_ON}, directed from \emph{dependent} to \emph{dependency} (``if target fails, source is impacted''):
 
 \begin{table}[htbp]
 \centering
@@ -90,7 +90,7 @@ Structural edges capture explicit deployment connections but omit implicit runti
 \textbf{2} & \texttt{app\_to\_broker} & Publisher/Subscriber $\to$ Broker routing its topics & $1 - \prod_{t \in T}(1 - w(t))$ \\
 \textbf{3} & \texttt{node\_to\_node} & Host $\to$ Host (lifted from inter-host app dependencies) & Lifted $\max w$ \\
 \textbf{4} & \texttt{node\_to\_broker} & Host $\to$ Broker (lifted from hosted app dependencies) & Lifted $\max w$ \\
-\textbf{5} & \texttt{app\_to\_lib} & Application $\to$ Shared Library it \texttt{USES} & $H\!\left(w_V(\text{app}), w_V(\text{lib})\right)$ \\
+\textbf{5} & \texttt{app\_to\_lib} & Application $\to$ Shared Library it \texttt{USES} & $H(w_V(\text{app}), w_V(\text{lib}))$ \\
 \textbf{6} & \texttt{broker\_to\_broker} & Broker $\leftrightarrow$ Broker (shared-host fate, symmetric) & $w_V(\text{node})$ \\
 \bottomrule
 \end{tabular}%
@@ -103,27 +103,27 @@ Structural edges capture explicit deployment connections but omit implicit runti
 
 A key insight of the SaG model is distinguishing between two fundamentally different failure modes:
 \begin{itemize}
-    \item \textbf{Sequential Cascade (Rule 1):} When an application publisher fails, downstream subscribers experience data starvation. The failure propagates step-by-step through topics and message queues.
+    \item \textbf{Sequential Cascade (Rule 1):} When an application publisher fails, downstream subscribers experience data starvation. The failure propagates step by step through topics and message queues.
     \item \textbf{Simultaneous Blast (Rule 5):} When a shared software library or execution node crashes, all consuming applications and colocated brokers fail \emph{instantaneously} in a single event.
 \end{itemize}
 
 Retaining entity types and relation-specific dependency rules allows SaG to model both mechanisms, whereas untyped graphs collapse them into identical edges.
 
-\noindent\textbf{On the symmetry of Rule 6.} Rule 6 is the one projection rule that is symmetric, and deliberately so: it does not assert that one broker functionally depends on another, but that two brokers co-located on the same host \emph{share that host's failure domain}. This is the same simultaneous-blast semantics as Rule 5, which is why the derived weight is the shared \emph{Node's} weight rather than either broker's, and why the relation holds in both directions. The mechanism is real in deployed middleware --- co-located brokers contend for CPU, page cache, file descriptors and NIC bandwidth, and a host loss takes both at once, which is precisely why operational guidance for Kafka, RabbitMQ and EMQX is to spread brokers across fault domains. What Rule 6 does \emph{not} model is intra-cluster broker coupling proper (partition replication, controller or quorum election, federation and shovel links), which is directional and does not require co-location; extending the schema to express it is left to future work. We also note that the rule is close to inert on our corpus: it fires in four of the eight cached scenarios and contributes twelve directed edges in total across 1{,}770 components, and because the simulation oracles read only $G_{\text{structural}}$ (Section~\ref{sec:4.4}), it cannot influence any ground-truth label.
+\noindent\textbf{On the symmetry of Rule 6.} Rule 6 is the one symmetric projection rule, and deliberately so: it does not assert that one broker functionally depends on another, but that two brokers co-located on the same host \emph{share that host's failure domain}. This is the same simultaneous-blast semantics as Rule 5, which is why the derived weight is the shared \emph{Node's} weight rather than either broker's, and why the relation holds in both directions. The mechanism is real in deployed middleware---co-located brokers contend for CPU, page cache, file descriptors, and NIC bandwidth, and a host loss takes both at once, which is precisely why operational guidance for Kafka, RabbitMQ, and EMQX is to spread brokers across fault domains. What Rule 6 does \emph{not} model is intra-cluster broker coupling proper (partition replication, controller or quorum election, federation and shovel links), which is directional and does not require co-location; extending the schema to express it is left to future work. We also note that the rule is close to inert on our corpus: it fires in four of the eight cached scenarios and contributes twelve directed edges in total across 1{,}770 components, and because the simulation oracles read only $G_{\text{structural}}$ (Section~\ref{sec:4.4}), it cannot influence any ground-truth label.
 
 \subsection{Dual Graph Views and Architectural Layers}
 \label{sec:3.3}
 
 The SaG framework maintains two distinct representations of the system:
 \begin{enumerate}
-    \item \textbf{Structural Graph ($G_{\text{structural}}$):} The raw graph containing physical and structural edges (\texttt{PUBLISHES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{USES}). This view is consumed exclusively by discrete-event simulators to execute unbiased failure injections (Section~\ref{sec:4.3}).
+    \item \textbf{Structural Graph ($G_{\text{structural}}$):} The raw deployment graph containing physical and structural relations (such as \texttt{PUBLISHES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, and \texttt{USES}). Discrete-event simulators consume this view exclusively to execute unbiased failure injections (Section~\ref{sec:4.3}).
     \item \textbf{Analysis Graph ($G_{\text{analysis}}$):} The projected graph containing derived \texttt{DEPENDS\_ON} edges annotated with QoS weights and ingested SCA code metrics. All GNN feature representations, graph embeddings, and analytical metrics are computed on $G_{\text{analysis}}$.
 \end{enumerate}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/Figure_2}
-\caption{Running example: the raw structural graph (left) and the \texttt{DEPENDS\_ON} projection derived from it (right). The projection makes implicit runtime dependencies explicit --- a subscriber depends on the publishers of its topics even though no structural edge joins them --- while the simulators continue to operate on the structural view alone.}
+\caption{Running example: the raw structural graph (left) and the \texttt{DEPENDS\_ON} projection derived from it (right). The projection makes implicit runtime dependencies explicit---a subscriber depends on the publishers of its topics even though no structural edge joins them---while the simulators continue to operate on the structural view alone.}
 \label{fig:2}
 \end{figure}
 
@@ -135,7 +135,7 @@ $G_{\text{analysis}}$ is further organized into four analytical layers (Applicat
 Both pathways read the same typed node features off $G_{\text{analysis}}$: the predictor (Section~\ref{sec:4}) projects them per entity type before message passing, and the explanation layer (Section~\ref{sec:5}) aggregates them into its quality profile. SaG extracts feature vectors tailored to the 5 entity types:
 \begin{itemize}
     \item \textbf{Application ($|V_{\text{app}}|$, 23 dims):} Indices 0--17 represent shared topological metrics (in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, bridge load). Indices 18--22 capture source code metrics extracted via Static Code Analysis (SCA): Lines of Code (LOC), Cyclomatic Complexity, Martin's Instability metric ($I_{\text{code}} = \frac{C_e}{C_a + C_e}$), Lack of Cohesion in Methods (LCOM), and composite Code Quality Penalty (CQP).
-    \item \textbf{Library ($|V_{\text{lib}}|$, 25 dims):} Same shared topological (0--17) and code quality (18--22) metrics as Application, plus two library-specific extras (indices 23--24): the size of the transitive reverse-\texttt{USES} closure (normalized) and the count of distinct subscribers reachable from that closure's published topics (normalized) --- the two structural drivers of a library's blast radius under both simulators' cascade rules that the code-quality metrics alone do not capture.
+    \item \textbf{Library ($|V_{\text{lib}}|$, 25 dims):} Same shared topological (0--17) and code quality (18--22) metrics as Application, plus two library-specific extras (indices 23--24): the size of the transitive reverse-\texttt{USES} closure (normalized) and the count of distinct subscribers reachable from that closure's published topics (normalized)---the two structural drivers of a library's blast radius under both simulators' cascade rules that the code-quality metrics alone do not capture.
     \item \textbf{Broker ($|V_{\text{broker}}|$, 19 dims):} Indices 0--17 shared topological metrics; index 18 represents normalized queue buffer capacity.
     \item \textbf{Topic ($|V_{\text{topic}}|$, 22 dims):} Indices 0--17 shared topological metrics; indices 18--21 capture publisher count, subscriber count, log message frequency $\log(1 + \text{freq})$, and ordinal QoS criticality.
     \item \textbf{Infrastructure Node ($|V_{\text{node}}|$, 20 dims):} Indices 0--17 shared topological metrics; indices 18--19 capture normalized CPU core allocation and physical memory (RAM).
