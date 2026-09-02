@@ -3,7 +3,6 @@
 \small
 \caption{Generative parameters of the seven synthetic evaluation scenarios. Counts, seed and fan-out figures are read directly from the committed configurations. The modal QoS column gives the most common reliability/durability/priority value and the range of topic shares carrying them, computed from the committed topology rather than the config's declared QoS targets, which domain-driven assignment does not always realize (Section~\ref{sec:6.1}).}
 \label{tab:genparams}
-\resizebox{\linewidth}{!}{%
 \begin{tabular}{llrrrrl}
 \toprule
 \textbf{Scenario} & \textbf{Config} & \textbf{Seed} & \textbf{Counts} & \textbf{Pub} & \textbf{Sub} & \textbf{Modal QoS (R/D/P)} \\
@@ -16,6 +15,5 @@
 \textbf{IoT Smart City} & \texttt{scenario\_02\_iot\_smart\_city} & 2002 & 200/80/6/30/10 & 2.0 & 1.5 & BEST\_EFFORT/VOLATILE/LOW (56--79\%) \\
 \textbf{Microservices Mesh} & \texttt{scenario\_06\_microservices} & 6006 & 90/45/6/15/30 & 1.5 & 2.0 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (100--100\%) \\
 \bottomrule
-\end{tabular}%
-}
+\end{tabular}
 \end{table}

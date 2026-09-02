@@ -1,20 +1,20 @@
 # reproduce/Makefile
 # ===================
-# One-command reproducibility bundle for Middleware 2026 submission.
+# One-command reproducibility bundle for Journal of Systems and Software (JSS)
+# Special Issue VSI:AI4MSS submission.
 #
 # Usage:
 #   make setup           — install Python deps
 #   make scenarios       — regenerate the scenario corpus + verify its manifest
 #   make cache           — rebuild output/loso_cache from the corpus (needs Neo4j)
 #   make block0          — W1 QoS pipeline audit (go/no-go gate)
-#   make table3          — Table 3: 8×4×5 training matrix
-#   make table4          — Table 4: LOSO × 4 variants
+#   make table3          — JSS Table 6: 7×6×5 in-distribution held-out training matrix
+#   make table4          — JSS Table 8: LOSO × 4 variants
 #   make kfold           — Per-domain k-fold × 5 variants (opt-in; primary validation protocol)
-#   make convergent-validity — Three-oracle rank agreement (opt-in; expensive)
-#   make figure4         — Stratified per-node-type ρ (old Middleware numbering)
-#   make figure5         — ATM attention subgraph (old Middleware numbering)
-#   make jss-figures     — all 4 figures for the JSS submission (docs/research/jss/latex/figures/)
-#   make all             — full end-to-end pipeline
+#   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
+#   make jss-figures     — all 5 figures for the JSS submission (docs/research/jss/latex/figures/)
+#   make jss-tables      — JSS Table 5: generator-parameter table (tab_genparams.tex)
+#   make all             — full end-to-end pipeline (tables + JSS figures)
 #   make clean           — remove generated outputs (keeps checkpoints)
 #   make clean-all       — remove everything including checkpoints
 
@@ -186,7 +186,7 @@ figure5:
 	@echo "✓ Figure 5 ready: $(OUTPUT_DIR)/atm_case_study/attention_subgraph.[png|pdf]"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# JSS submission figures (docs/research/jss/latex/figures/Figure_1..4).
+# JSS submission figures (docs/research/jss/latex/figures/Figure_1..5).
 #
 # Since the manuscript was condensed to four figures, printed number, filename
 # and draft.md's own caption label all agree -- the old 1,2,6,3,4,5 mismatch is
@@ -258,15 +258,15 @@ inference-latency:
 # Full pipeline
 # ─────────────────────────────────────────────────────────────────────────────
 
-all: setup scenarios block0 table3 table4 figure4 figure5
+all: setup scenarios block0 table3 table4 jss-tables jss-figures
 	@echo ""
 	@echo "══════════════════════════════════════════════════════"
-	@echo "  Q-HGL Middleware 2026 — Full Pipeline Complete"
+	@echo "  Software-as-a-Graph (JSS) — Full Pipeline Complete"
 	@echo "══════════════════════════════════════════════════════"
-	@echo "  Table 3  : $(RESULTS_DIR)/table3_main_results.tex"
-	@echo "  Table 4  : $(RESULTS_DIR)/table4_loso_results.tex"
-	@echo "  Figure 4 : $(RESULTS_DIR)/figure4_stratified_rho.pdf"
-	@echo "  Figure 5 : $(OUTPUT_DIR)/atm_case_study/attention_subgraph.pdf"
+	@echo "  In-Distribution (JSS Tab. 6) : $(RESULTS_DIR)/table3_main_results.tex"
+	@echo "  Inductive LOSO (JSS Tab. 8)  : $(RESULTS_DIR)/table4_loso_results.tex"
+	@echo "  Generator Params (JSS Tab. 5): docs/research/jss/latex/sections/tab_genparams.tex"
+	@echo "  Figures (JSS Figs. 1-5)      : docs/research/jss/latex/figures/Figure_*.pdf"
 	@echo ""
 
 # ─────────────────────────────────────────────────────────────────────────────

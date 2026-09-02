@@ -1,8 +1,8 @@
 FROM python:3.11-slim
 
-LABEL org.opencontainers.image.title="Q-HGL Middleware 2026 / JSS"
-LABEL org.opencontainers.image.description="QoS-Aware Heterogeneous Graph Learning -- reproducibility container"
-LABEL org.opencontainers.image.authors="Q-HGL Authors"
+LABEL org.opencontainers.image.title="Software-as-a-Graph (SaG) JSS"
+LABEL org.opencontainers.image.description="Software-as-a-Graph reproducibility container (Journal of Systems and Software)"
+LABEL org.opencontainers.image.authors="Software-as-a-Graph Authors"
 
 # ── System dependencies ────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \

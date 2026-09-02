@@ -1,14 +1,14 @@
-# Reproducing HGL-QoS
+# Reproducing Software-as-a-Graph (SaG)
 
-> **Graph Neural Networks for Reliability and Dependability Analysis in Complex Distributed Systems
-> based on Publish–Subscribe Architecture**
+> **Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Reliability and Dependability Analysis of Complex Distributed Systems**
 > Submitted to the *Journal of Systems and Software* Special Issue **VSI:AI4MSS** (AI Techniques for
 > Performance, Reliability, and Sustainability of Modern Software Systems). See
-> `docs/research/jss/draft.md` for the paper text this package reproduces, and
+> `docs/research/jss/draft.md` for the Markdown version of the paper, `docs/research/jss/latex/`
+> for the authoritative Elsevier LaTeX submission sources, and
 > `docs/research/jss/methodology_revision_findings.md` for the pre-submission audit that regenerated
 > its numbers.
 
-This directory contains everything needed to reproduce the paper's results from scratch.
+This directory contains everything needed to reproduce the paper's experimental results, tables, and figures from scratch.
 A Docker image is provided for exact environment replication.
 
 ---
@@ -20,7 +20,7 @@ A Docker image is provided for exact environment replication.
 | CPU-only (8 cores, 32 GB RAM) | ~6–12 h (full, 5 seeds) |
 | GPU (CUDA 11.8+, ≥8 GB VRAM) | ~1–2 h |
 | Smoke-test (50 epochs, 2 seeds) | ~15–30 min CPU |
-| Reversed-projection ablation / hardening-budget analysis (Tables 8–9) | seconds — no GNN training, pure graph computation |
+| Diagnostic & sensitivity sweeps (Tables 10–13) | seconds to minutes — pure graph computation & simulation |
 
 ---
 
@@ -28,14 +28,14 @@ A Docker image is provided for exact environment replication.
 
 ```bash
 # 1. Build the image (≈5 min first run, cached afterwards)
-docker build -t qhgl-mw26 -f reproduce/Dockerfile .
+docker build -t sag-jss -f reproduce/Dockerfile .
 
 # 2. Full pipeline (~6-12 h)
-docker run --rm -v $(pwd)/results:/workspace/results qhgl-mw26
+docker run --rm -v $(pwd)/results:/workspace/results sag-jss
 
 # 3. Smoke-test only (~15-30 min)
 docker run --rm -v $(pwd)/results:/workspace/results \
-    qhgl-mw26 make -C /workspace/reproduce smoke-test
+    sag-jss make -C /workspace/reproduce smoke-test
 ```
 
 ---
@@ -57,38 +57,30 @@ truth for dependencies (see its `[project.optional-dependencies]` table for the 
 
 ```bash
 make -f reproduce/Makefile block0
-# Expected: 26/26 tests pass
+# Expected: 32/32 tests pass
 ```
 
-### Step 2 — Main results table (~2–6 h CPU)
+### Step 2 — Main in-distribution results (JSS Tables 6 & 7, ~2–6 h CPU)
 
 ```bash
 make -f reproduce/Makefile table3
 # Output: results/table3_main_results.tex  /  .csv  /  .md
 ```
 
-> **Table-number mapping.** This harness's internal name "Table 3" is also the paper's: in
-> `draft.md` §8.1 this output is the in-distribution Spearman ρ table (Table 3), with the LOSO table
-> below it (Table 4). The evaluation design is 7 scenarios × 6 variants × 5 seeds = 210 cells
-> (140 GNN + 70 structural), over the predictor matrix of `draft.md` §7.2. Every variant is scored
-> through the single evaluation contract described in §7.3 — one key set, one pinned split — which
-> is a correction over earlier runs of this harness and is why its numbers supersede any figures
-> quoted from a pre-audit draft.
+> **Table-number mapping.** This harness's internal target `table3` feeds **JSS Table 6 (`tab:5`)**
+> (In-distribution held-out Spearman $\rho$ across 7 scenarios × 6 variants × 5 seeds = 210 cells)
+> and **JSS Table 7 (`tab:6`)** (Paired Wilcoxon signed-rank tests across scenarios).
 
-### Step 3 — Table 4 → paper's Table 7 (LOSO inductive, ~3–8 h CPU)
+### Step 3 — Inductive LOSO cross-validation (JSS Table 8, ~3–8 h CPU)
 
 ```bash
 make -f reproduce/Makefile table4
 # Output: results/table4_loso_results.tex  /  .md
 ```
 
-> Same table-number caveat as Step 2: this harness's "Table 4" is the paper's **Table 7**
-> (Leave-One-Scenario-Out Cross-Validation Results). **Superseded** — both papers now report
-> per-domain k-fold (Step 3b) as the primary generalization-adjacent result instead; this LOSO table
-> is retained as a secondary domain-gap analysis, not the paper's headline claim (see `docs/prediction.md`'s
-> G4 note and both papers' §6.1/§6.2 for why).
+> Feeds **JSS Table 8 (`tab:7`)** (Inductive Leave-One-Scenario-Out evaluation across 8 folds).
 
-### Step 3b — Per-domain k-fold → paper's Table 5/6 (primary protocol, ~8–20 h CPU)
+### Step 3b — Per-domain k-fold (primary intra-scenario validation, ~8–20 h CPU)
 
 ```bash
 make -f reproduce/Makefile kfold
@@ -97,41 +89,44 @@ make -f reproduce/Makefile kfold
 
 Runs `reproduce/kfold_all_variants.py` for all 5 variants (`hgl_qos`, `hgl`, `gl_qos`, `gl`,
 `topology_rm`), each evaluated via repeated stratified k-fold (`k=5`, 5 seeds) *independently
-within* each of the 7 cached scenarios — no cross-scenario training, unlike Step 3's LOSO. This is
-slower than Step 3 per variant (k-fold trains ~5× more model fits than LOSO for the same seed count:
-scenarios × k × seeds vs. scenarios × seeds), but requires no cross-scenario data-loader coupling,
-so each scenario's run can be reasoned about, and re-run, in isolation. Confirmed result (full sweep,
-2026-07-20): HGL-QoS reaches mean cross-scenario ρ=0.587 (σ=0.146), F1@K=0.505, positive in all
-seven scenarios individually (range ρ=0.341–0.781) — see `output/kfold/hgl_qos/summary.md` for the
-per-scenario breakdown and `results/kfold_all_variants.json` for the full per-variant/per-scenario
-results.
+within* each of the 7 cached scenarios. Confirmed result: HGL-QoS reaches mean cross-scenario
+$\rho=0.587$ ($\sigma=0.146$), $F_1@K=0.505$, positive in all seven scenarios individually.
 
-### Step 4 — Figures (run after Tables 3+4, or 3+3b)
+### Step 4 — Figures (JSS Figures 1–5)
+
+To generate all 5 manuscript figures into `docs/research/jss/latex/figures/`:
 
 ```bash
-make -f reproduce/Makefile figure4   # Stratified ρ (instantaneous, reads JSON)
-make -f reproduce/Makefile figure5   # ATM attention subgraph (~10 min)
+make -f reproduce/Makefile jss-figures
 ```
 
-For the JSS submission's own six figures (`docs/research/jss/latex/figures/`), use
-`make -f reproduce/Makefile jss-figures` instead — see that folder's README for the full command
-list and the figure-numbering note (draft.md's own figure labels are not in reading order, so the
-printed number in the compiled PDF differs from draft.md's caption text for four of the six).
+Individual figures can also be generated:
+- `make -f reproduce/Makefile jss-fig1`: Figure 1 — SaG Dual-Pathway Architecture (`Figure_1.pdf`)
+- `make -f reproduce/Makefile jss-fig2`: Figure 2 — Running Example Multigraph (`Figure_2.pdf`)
+- `make -f reproduce/Makefile jss-fig3`: Figure 3 — HGT Attention Case Study (`Figure_3.pdf`)
+- `make -f reproduce/Makefile jss-fig4`: Figure 4 — AHP Shrinkage Sensitivity (`Figure_4.pdf`)
+- `make -f reproduce/Makefile jss-fig5`: Figure 5 — Results at a Glance (`Figure_5.pdf`)
 
-### Step 5 — Reversed-Projection Ablation & Hardening-Budget Analysis (paper's Tables 8–9, JSS revision only)
-
-These two experiments were added during the JSS revision and do not require GNN training — they
-reuse the same `FaultInjector` ground-truth engine as every other number in the paper, run in
-seconds:
+### Step 5 — Sensitivity & Diagnostic Sweeps (JSS Tables 5, 10–13, 15)
 
 ```bash
-python reproduce/reversed_projection_ablation.py
-# Output: output/reversed_projection_ablation.json — feeds paper's Table 8
+# Table 5: Generative parameters (tab_genparams.tex)
+make -f reproduce/Makefile jss-tables
 
-python reproduce/hardening_budget.py
-# Output: output/hardening_budget_experiment.json — feeds paper's Table 9
-# (imports build_projection from reversed_projection_ablation.py — run that one first,
-#  or just run both from this directory; Python adds each script's own directory to sys.path)
+# Table 10: Topic-weight coefficient sensitivity (beta, alpha, psi)
+make -f reproduce/Makefile topic-weight-sensitivity
+
+# Table 11: AHP shrinkage parameter lambda sweep
+python reproduce/ahp_sensitivity.py
+
+# Table 12: Global Morris screening & Dirichlet sampling (k=10)
+make -f reproduce/Makefile weight-global-sensitivity
+
+# Table 13: Three-oracle rank agreement (I*, I_comp, I_dyn)
+make -f reproduce/Makefile convergent-validity
+
+# Table 15: Per-stage inference latency vs. system size
+make -f reproduce/Makefile inference-latency
 ```
 
 ### All at once
@@ -148,38 +143,39 @@ make -f reproduce/Makefile smoke-test EPOCHS=50
 
 ---
 
-## Expected Outputs
+## Expected Outputs & JSS Paper Mapping
 
-| File | Content |
-|---|---|
-| `results/table3_main_results.tex` | LaTeX table — Spearman ρ 7×6 (paper Table 4) |
-| `results/table3_main_results.csv` | CSV version for Excel/R |
-| `results/table4_kfold_results.tex` | LaTeX table — per-domain k-fold ρ (paper Table 5/6, primary) |
-| `results/table4_loso_results.tex` | LaTeX table — LOSO Δρ (paper Table 7, superseded/secondary) |
-| `results/figure4_stratified_rho.pdf` | Figure — per-node-type ρ |
-| `output/atm_case_study/attention_subgraph.pdf` | Figure — HGT attention (ATM running example) |
-| `results/kfold_all_variants.json` | Raw per-domain k-fold data (primary) |
-| `results/loso_all_variants.json` | Raw LOSO Δρ data (superseded/secondary) |
-| `output/reversed_projection_ablation.json` | Paper Table 8 — reversed-projection ablation |
-| `output/hardening_budget_experiment.json` | Paper Table 9 — hardening-budget risk-mass coverage |
+| Script / Target | Generated Artifact | JSS Paper Output | Content |
+|---|---|---|---|
+| `main_table.py` (`make table3`) | `results/table3_main_results.tex` | **Table 6 (`tab:5`)**, **Table 7 (`tab:6`)** | In-distribution held-out $\rho$, Wilcoxon tests |
+| `loso_all_variants.py` (`make table4`) | `results/table4_loso_results.tex` | **Table 8 (`tab:7`)** | Inductive LOSO cross-validation (8 folds) |
+| `scenario_param_table.py` (`make jss-tables`) | `tab_genparams.tex` | **Table 5 (`tab:genparams`)** | Scenario generation parameters |
+| `topic_weight_sensitivity.py` | `results/topic_weight_sensitivity.json` | **Table 10 (`tab:8b`)** | Sensitivity of topic weights $(\beta, \alpha, \psi)$ |
+| `ahp_sensitivity.py` | `results/ahp_shrinkage_sweep.json` | **Table 11 (`tab:8`)** | AHP shrinkage $\lambda$ sweep |
+| `weight_global_sensitivity.py` | `results/weight_global_sensitivity.json` | **Table 12 (`tab:8e`)** | Global Morris screening + Dirichlet sampling |
+| `convergent_validity.py` | `results/convergent_validity.json` | **Table 13 (`tab:8c`)** | Inter-oracle agreement ($I^*, I_{\text{comp}}, I_{\text{dyn}}$) |
+| `inference_latency.py` | `results/inference_latency.json` | **Table 15 (`tab:scale`)** | Per-stage inference latency |
+| `figure1_pipeline.dot` (`make jss-fig1`) | `docs/research/jss/latex/figures/Figure_1.pdf` | **Figure 1 (`fig:1`)** | Architecture flowchart |
+| `figure2_running_example.dot` (`make jss-fig2`) | `docs/research/jss/latex/figures/Figure_2.pdf` | **Figure 2 (`fig:2`)** | Running example graph |
+| `extract_attention.py` + `render_attention_subgraph.py` (`make jss-fig3`) | `docs/research/jss/latex/figures/Figure_3.pdf` | **Figure 3 (`fig:3`)** | HGT attention case study |
+| `render_shrinkage_figure.py` (`make jss-fig4`) | `docs/research/jss/latex/figures/Figure_4.pdf` | **Figure 4 (`fig:4`)** | AHP shrinkage curve |
+| `render_results_figure.py` (`make jss-fig5`) | `docs/research/jss/latex/figures/Figure_5.pdf` | **Figure 5 (`fig:5`)** | Results at a glance |
 
 ---
 
 ## Architecture Variants (Table columns)
 
-These identifiers are used directly by `main_table.py`, `loso_all_variants.py`, and the
-two Table 8/9 scripts, and match the paper's Table 1 naming exactly (unlike some other CLI entry
-points in this repo, e.g. `cli/train_graph.py`, which predate the paper and use a different internal
-naming scheme — see that file's `--variant` help text for the mapping if you need it):
+These identifiers are used directly by `main_table.py`, `loso_all_variants.py`, and the evaluation suite:
 
 | Variant flag | Description |
 |---|---|
-| `hgl_qos` | **HGL-QoS (Proposed)** — Heterogeneous Graph Transformer (HGTConv) with 7-d edge features |
+| `hgl_qos` | **HGL-QoS (Proposed)** — Heterogeneous Graph Transformer (HGTConv) with 16-D continuous-categorical edge features |
 | `hgl` | **HGL** — Heterogeneous Graph Transformer (HGTConv) with QoS attributes masked |
 | `gl_qos` | **GL-QoS** — Homogeneous GAT with scalar QoS weight per edge |
 | `gl` | **GL** — Homogeneous GAT with no edge weighting |
 | `topo_qos` | **Topo-QoS** — QoS-weighted structural centrality baseline |
 | `topo_baseline` | **Topo-BL** — Unweighted structural centrality baseline |
+| `topology_rm` | **RM / $Q(v)$** — Diagnostic reference score from the ISO/IEC explanation layer |
 
 ---
 
@@ -212,65 +208,50 @@ python reproduce/render_table.py \
 
 ```
 reproduce/
-├── Makefile           — orchestration targets
+├── Makefile           — orchestration targets for JSS tables and figures
 ├── Dockerfile         — exact environment (Python 3.11, PyG CPU)
 ├── README.md          — this file
 ├── EXPERIMENTS.md      — technical deep-dive on the harness internals and metrics
 ├── __init__.py        — package initialization
 │
-│   Core harness — this paper's Tables 1, 4-7:
-├── main_table.py                — 7×6×5 evaluation matrix (paper Tables 4-5)
-├── loso_all_variants.py         — LOSO × 4 variants (paper Table 7)
+│   Core empirical harness (JSS Tables 6, 7, 8):
+├── main_table.py                — 7×6×5 evaluation matrix (JSS Tables 6-7)
+├── loso_all_variants.py         — LOSO 8 folds (JSS Table 8)
+├── kfold_all_variants.py        — Stratified k-fold evaluation
 ├── render_table.py              — LaTeX/CSV/MD table renderer
-├── render_stratified_figure.py  — per-node-type ρ figure
-├── extract_attention.py         — HGT attention extraction (ATM running example)
-├── render_attention_subgraph.py — attention figure renderer
 │
-│   New for the JSS revision — this paper's Tables 8-9:
-├── reversed_projection_ablation.py  — inverted DEPENDS_ON direction ablation (Table 8)
-├── hardening_budget.py              — risk-mass coverage by top-K selection method (Table 9)
+│   JSS manuscript figures (Figures 1–5):
+├── extract_attention.py         — HGT attention extraction for ATM System (Figure 3)
+├── render_attention_subgraph.py — Figure 3 renderer (Figure_3.{pdf,png})
+├── render_shrinkage_figure.py   — Figure 4 renderer (Figure_4.{pdf,png})
+├── render_results_figure.py     — Figure 5 renderer (Figure_5.{pdf,png})
 │
-│   Auxiliary / support scripts for this paper:
-├── convergent_validity.py       — pairwise rank agreement across the three simulation oracles
-│                                   (I*, I_comp, I_dyn). Opt-in via `make convergent-validity`;
-│                                   backs docs/validation.md §3.3. I_dyn costs one discrete-event
-│                                   run per candidate — use --max-candidates on large scenarios
-├── qos_pipeline_inspect.py      — stage-by-stage QoS attribute trace (source data for a figure)
-├── pilot_hgl_native.py          — Go/No-Go sanity pilot for the HGL-native variant
-├── recalibrate_main_table.py    — post-hoc F1 recalibration utility for main_table.json
-├── run_experiment.py            — topology-only-vs-QoS-aware ablation harness (requires a
-│                                   pre-populated Neo4j-backed cli/ pipeline; not offline-only)
+│   JSS sensitivity & diagnostic sweeps (Tables 5, 10, 11, 12, 13, 15):
+├── scenario_param_table.py      — Generative scenario parameter table (Table 5)
+├── topic_weight_sensitivity.py  — Topic weight coefficient sensitivity (Table 10)
+├── ahp_sensitivity.py           — AHP shrinkage parameter lambda sweep (Table 11)
+├── weight_global_sensitivity.py — Joint Morris screening & Dirichlet sampling (Table 12)
+├── convergent_validity.py       — Inter-oracle rank agreement I*, I_comp, I_dyn (Table 13)
+├── inference_latency.py         — Per-stage inference latency vs scale (Table 15)
 │
-│   NOT used by this paper — tooling for the separate, deprioritized SaG flagship paper
-│   (docs/research/jss/draft.md; see docs/research/middleware2026/middleware26_revision_plan.md
-│   for why this paper extends the Middleware submission instead of that draft):
-├── run_expert_study.py          — expert-panel Fleiss' Kappa / Kendall's Tau calculations for
-│                                   the flagship draft's §9; that expert panel was never convened
-│                                   and is explicitly withdrawn in that draft — do not cite results
-│                                   from this script as part of this paper
-└── run_prescribe_all.py         — prescriptive-remediation (SRI) batch evaluation for the
-                                    flagship draft's §6; this paper makes no remediation claims
+│   Auxiliary validation & diagnostic utilities:
+├── qos_pipeline_inspect.py      — Stage-by-stage QoS attribute trace
+├── recalibrate_main_table.py    — Post-hoc F1 recalibration utility
+├── run_prescribe_all.py         — Closed-loop counterfactual remediation verification
+├── reversed_projection_ablation.py  — Dependency projection direction ablation
+└── hardening_budget.py          — Risk-mass coverage by top-K selection
 ```
 
 ---
 
 ## Citation
 
-If you use this code, please cite the JSS submission (once accepted) or, until then, the original
-conference submission it extends:
-
 ```bibtex
-@article{qhgl2026jss,
-  title   = {Heterogeneous Graph Learning for Cascade Impact Prediction in Distributed Publish-Subscribe Middleware},
+@article{sag2026jss,
+  author  = {Yigit, Onuralp and Collaborators},
+  title   = {Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Reliability and Dependability Analysis of Complex Distributed Systems},
   journal = {Journal of Systems and Software},
   note    = {Special Issue: AI Techniques for Performance, Reliability, and Sustainability of Modern Software Systems (VSI:AI4MSS). Under submission.},
   year    = {2026}
-}
-
-@inproceedings{qhgl2026,
-  title     = {Heterogeneous Graph Learning for Cascade Impact Prediction in Distributed Publish-Subscribe Middleware},
-  booktitle = {Proceedings of the 27th ACM/IFIP International Middleware Conference},
-  year      = {2026},
-  note      = {Middleware 2026 submission; rejected, revised and extended into the JSS submission above}
 }
 ```

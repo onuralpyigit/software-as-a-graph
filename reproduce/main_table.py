@@ -1740,7 +1740,7 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Middleware 2026 main table harness (Block C).")
+    p = argparse.ArgumentParser(description="Software-as-a-Graph / JSS main table evaluation harness (Block C).")
     p.add_argument("--scenarios", nargs="+", default=None,
                    help=f"Scenarios to run (default: all {len(ALL_SCENARIOS)})")
     p.add_argument("--variants", nargs="+", default=None, choices=ALL_VARIANTS,
@@ -1795,7 +1795,7 @@ def main():
     seeds = args.seeds or DEFAULT_SEEDS
 
     total = len(scenarios) * len(variants) * len(seeds)
-    print("\n  Middleware 2026 Main Table Harness")
+    print("\n  Software-as-a-Graph (JSS) Main Table Harness")
     print(f"  Scenarios : {scenarios}")
     print(f"  Variants  : {variants}")
     print(f"  Seeds     : {seeds}")

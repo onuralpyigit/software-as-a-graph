@@ -1,8 +1,7 @@
 # Experimental Harness & Evaluation Suite
 
 This document provides a technical deep-dive into the reproducibility infrastructure for the paper
-**"Graph Neural Networks for Reliability and Dependability Analysis in Complex Distributed Systems
-based on Publish–Subscribe Architecture"** (JSS special issue VSI:AI4MSS — see
+**"Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Reliability and Dependability Analysis of Complex Distributed Systems"** (JSS special issue VSI:AI4MSS — see
 `docs/research/jss/draft.md`).
 
 ---
@@ -71,23 +70,28 @@ Measures the intersection between the top $K$ most critical components in the gr
 
 ---
 
-## 4. Reproducing the Table
+## 4. Reproducing the Tables (JSS Tables 6, 7, and 8)
 
-To reproduce the full Table 3 with all identification metrics:
+To reproduce the in-distribution results (JSS Tables 6 & 7) with all identification metrics:
 
 ```bash
-# Run the harness
+# Run the in-distribution harness
 python reproduce/main_table.py --epochs 300 --seeds 42 123 456 789 2024
 
-# Render the report
+# Render the report (outputs table3_main_results.tex and table3_id_metrics.md)
 python reproduce/render_table.py --table3 results/main_table.json
 ```
 
-The resulting `results/table3_id_metrics.md` will contain the F1, Precision, Recall, and Top-K breakdown for each scenario.
+The resulting `results/table3_main_results.tex` corresponds to JSS Table 6 & 7. For the inductive LOSO cross-validation (JSS Table 8):
+
+```bash
+python reproduce/loso_all_variants.py --cache-dir output/loso_cache --epochs 300
+python reproduce/render_table.py --table4 results/loso_all_variants.json
+```
 
 ---
 
-## 5. Oracle Agreement (`convergent_validity.py`)
+## 5. Oracle Agreement (JSS Table 13, `convergent_validity.py`)
 
 The harness above scores predictors against $I^*(v)$. The project has **three** simulation oracles,
 and this script measures how far they agree — a construct-validity check, not a predictor
