@@ -12,7 +12,7 @@ Following \textbf{ISO/IEC 25010:2023} (Product Quality Model) \cite{iso25010_202
     \item \textbf{Relationship Criticality ($D_2$):} The degree of systemic service degradation resulting from the severance, partitioning, or failure of a specific dependency or communication channel while both endpoint components remain operational.
 \end{itemize}
 
-Criticality is evaluated primarily across two orthogonal quality characteristics: \textbf{Reliability ($R$)} and \textbf{Maintainability ($M$)}.
+Criticality is evaluated primarily across two orthogonal quality characteristics: \textbf{Reliability ($R$)} and \textbf{Maintainability ($M$)}. In distributed systems, Reliability and Maintainability degradation directly drives runtime performance collapse and computational energy waste: components with high $FT$ (cascade hubs) generate catastrophic message queue build-ups, head-of-line blocking, and tail-latency spikes under partial failure, while single points of failure (high $A$) trigger failover storms, connection thrashing, and redundant retries that consume CPU and cloud resources without completing useful transactions.
 
 \begin{table}[htbp]
 \centering
@@ -78,4 +78,4 @@ Components are categorized into adaptive criticality tiers using box-plot quarti
     \item \textbf{MINIMAL:} $Q \le Q_1$
 \end{itemize}
 
-This enables actionable diagnostics: a service scoring high on $A$ but low on $FT$ is diagnosed as a pure SPOF requiring horizontal replication, whereas a service scoring high on $FT$ is an error cascade hub requiring circuit breakers and bulkhead isolation.
+This enables actionable diagnostics: a service scoring high on $A$ but low on $FT$ is diagnosed as a pure SPOF requiring horizontal replication, whereas a service scoring high on $FT$ is an error cascade hub requiring circuit breakers, queue rate limiting, and bulkhead isolation. Remedying these targeted vulnerabilities not only restores architectural dependability but directly improves performance efficiency and curtails energy-intensive restart storms.
