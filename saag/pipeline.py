@@ -238,7 +238,7 @@ class Pipeline:
             logger.info(f"Analyzing layer '{self._layer}': structural metrics")
             result.analysis = self.client.analyze(layer=self._layer)
 
-        # Execution step 3 (Stage 4: Simulate) — counterfactual cascade engine;
+        # Execution step 3 (Stage 5: Simulate) — counterfactual cascade engine;
         # generates ground-truth labels. Uses its own layer, defaulting to
         # analyze()'s, so simulate("infra") cannot redirect analyze's layer.
         if self._do_simulate:

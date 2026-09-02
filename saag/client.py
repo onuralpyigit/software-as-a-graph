@@ -303,7 +303,7 @@ class Client:
         gnn_checkpoint: Optional[str] = None,
         **kwargs: Any,
     ) -> "PrescribeResult":
-        """Run the prescriptive Stage 6 optimization on critical items and smells.
+        """Run the prescriptive Stage 7 optimization on critical items and smells.
 
         ``kwargs`` is forwarded to ``PrescribeService.prescribe`` — notably
         ``kappa``, ``seeds`` and ``thresholds``, which parameterise the per-edit

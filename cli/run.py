@@ -146,7 +146,7 @@ def main():
         gen_args = _ap.Namespace(**vars(args))
         gen_args.output = gen_output
 
-        display.print_header("Stage 0/6: Graph Generation (optional)")
+        display.print_header("Stage 0: Graph Generation (optional)")
         display.print_step("Generating synthetic topology...")
         data = dispatch_generate(gen_args)
         display.display_graph_data_summary(data)

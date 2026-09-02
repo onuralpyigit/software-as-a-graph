@@ -91,7 +91,8 @@ Infrastructure/Runtime Extras:
                        topic_qos_criticality_ord (ordinal 0–4)
 
 Total dimensions:
-  Application, Library: 23
+  Application:          23
+  Library:              25   ← +2 (reverse-USES closure reach + downstream subscribers)
   Broker:               19
   Topic:                22   ← +2 vs previous (frequency + QoS criticality)
   Node:                 20
