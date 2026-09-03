@@ -253,19 +253,19 @@ Existing GNN explanation techniques, such as GNNExplainer [65], identify influen
 
 # 3. The Software-as-a-Graph (SaG) Architectural Model
 
-This section formalizes the Software-as-a-Graph multigraph representation (§3.1), the QoS-aware weighting and logical dependency derivation rules (§3.2), the dual graph views (§3.3), and the typed node feature representations (§3.4).
+This section formalizes the Software-as-a-Graph multigraph representation (§3.1), the QoS-aware weighting and logical dependency derivation rules (§3.2), the dual graph views (§3.3), and the typed node feature encodings (§3.4).
 
 ## 3.1 Formal Multigraph Definition
 
-We model a complex distributed system as a typed, weighted, directed multigraph: $$\mathcal{G} = (V, E, \tau_V, \tau_E, w_V, w_E)$$ where:
+A complex distributed software system is formally modeled as a typed, weighted, directed multigraph: $$\mathcal{G} = (V, E, \tau_V, \tau_E, w_V, w_E)$$ where:
 
-- $V$ is the set of system entities, partitioned into five disjoint types: $$V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{node}} \cup V_{\text{lib}}$$
+- $V$ is the set of system entities, partitioned into five disjoint entity types: $$V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{node}} \cup V_{\text{lib}}$$
 
 - $E$ is the set of directed edges connecting entities.
 
 - $\tau_V: V \to \mathcal{T}_V$ and $\tau_E: E \to \mathcal{T}_E$ are typing functions assigning node and edge categories.
 
-- $w_V: V \to [0, 1]$ and $w_E: E \to [0, 1]$ are weighting functions representing entity criticality and coupling strength.
+- $w_V: V \to [0, 1]$ and $w_E: E \to [0, 1]$ are weighting functions representing entity criticality and connection strength.
 
 **Table 2. Entity and structural edge types in the SaG model.**
 
@@ -274,8 +274,8 @@ We model a complex distributed system as a typed, weighted, directed multigraph:
 | **Application** ($V_{\text{app}}$)    | Autonomous process producing/consuming messages | ROS 2 node, Kafka microservice, MQTT client    |
 | **Broker** ($V_{\text{broker}}$)      | Message routing and queuing intermediary        | RabbitMQ exchange, Mosquitto, EMQX broker      |
 | **Topic** ($V_{\text{topic}}$)        | Named logical communication channel             | `/sensor/lidar`, `orders.payment.completed`    |
-| **Node** ($V_{\text{node}}$)          | Physical host or virtualized environment        | Bare-metal server, Kubernetes worker, Cloud VM |
-| **Library** ($V_{\text{lib}}$)        | Shared software package or driver dependency    | `librdkafka`, OpenCV, Protobuf runtime         |
+| **Node** ($V_{\text{node}}$)          | Physical host or virtualized execution environment | Bare-metal server, Kubernetes worker, Cloud VM |
+| **Library** ($V_{\text{lib}}$)        | Shared software package or runtime dependency   | `librdkafka`, OpenCV, Protobuf runtime         |
 | **Structural Edge ($\mathcal{T}_E$)** | **Direction**                                   | **Semantic Meaning**                           |
 | `PUBLISHES_TO`                        | App/Library $\to$ Topic                         | Component publishes messages to topic          |
 | `SUBSCRIBES_TO`                       | App/Library $\to$ Topic                         | Component consumes messages from topic         |
@@ -284,66 +284,70 @@ We model a complex distributed system as a typed, weighted, directed multigraph:
 | `CONNECTS_TO`                         | Node $\to$ Node                                 | Physical network link between hosts            |
 | `USES`                                | App $\to$ Library                               | Application links to shared library dependency |
 
-Application and Library entities additionally ingest static code metrics computed via SCA tools (`cm_` attributes: lines of code, cyclomatic complexity, coupling between objects, LCOM), directly bridging code-level fragility with topological analysis.
+Application and Library entities additionally incorporate static code metrics computed via Static Code Analysis (SCA) tools (`cm_*` attributes: lines of code, cyclomatic complexity, coupling between objects, LCOM), linking code-level fragility directly to topological analysis.
 
 ## 3.2 QoS-Aware Weights and Logical Dependency Derivation
 
-In distributed middleware, communication links exhibit varying degrees of coupling based on their Quality-of-Service (QoS) contracts. For example, a `RELIABLE` topic with `TRANSIENT_LOCAL` durability binds communicating services far more tightly than a `BEST_EFFORT` telemetry stream.
+In distributed middleware, communication links vary in coupling strength based on their Quality-of-Service (QoS) contracts. For instance, a `RELIABLE` topic with `TRANSIENT_LOCAL` durability binds communicating services substantially more tightly than a `BEST_EFFORT` telemetry stream.
 
-Each topic $t$ carries an intrinsic criticality weight $w(t) \in [0, 1]$ combining its declared QoS semantics with two runtime-stress modulators, payload size and publication frequency: $$w(t) = \beta \cdot \text{QoS}(t) + \alpha \cdot \text{SizeNorm}(t) + \psi \cdot \text{FreqNorm}(t),
-\quad (\beta, \alpha, \psi) = (0.75,\, 0.15,\, 0.10)$$ where the QoS term is itself an AHP-weighted aggregate of the declared contract, $$\text{QoS}(t) = w_{\text{rel}} \cdot q_{\text{rel}} + w_{\text{dur}} \cdot q_{\text{dur}} + w_{\text{prio}} \cdot q_{\text{prio}},
-\quad (w_{\text{rel}}, w_{\text{dur}}, w_{\text{prio}}) = (0.24,\, 0.62,\, 0.14),$$ with $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ the normalized reliability, durability and transport-priority scores. Durability dominates because it governs whether data survives at all (state persistence across restarts and network partitions), whereas reliability and transport priority both govern in-flight delivery quality, with reliability weighing somewhat more since an unconditional delivery guarantee precedes the scheduling of it. The sub-weight vector is the geometric-mean priority vector of an independently-stated Saaty pairwise-comparison matrix, with a small but genuinely nonzero consistency ratio ($CR \approx 0.016$). An earlier version of this matrix was solved backward from a chosen target vector rather than stated independently, which is why its near-zero $CR$ was an artifact of construction and not evidence of a real judgement; we report the honest, independently-elicited $CR$ here instead. The modulators are logarithmically compressed, $\text{SizeNorm}(t) = \log_2(1 + \text{bytes})/20$ (a 1 MiB design envelope, the practical DDS sample ceiling before RTPS fragmentation dominates) and $\text{FreqNorm}(t) = \log_{10}(1 + \text{Hz})/3$, and $w(t)$ is clamped to $[0.01, 1]$ so that best-effort edges remain visible to graph traversals. Every structural communication edge incident on $t$ (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`) inherits $w_E(e) = w(t)$ together with the topic’s QoS vector.
+Each topic $t$ carries an intrinsic criticality weight $w(t) \in [0, 1]$ combining its declared QoS semantics with two runtime-stress modulators: payload size and publication frequency:
+$$w(t) = \beta \cdot \text{QoS}(t) + \alpha \cdot \text{SizeNorm}(t) + \psi \cdot \text{FreqNorm}(t),
+\quad (\beta, \alpha, \psi) = (0.75,\, 0.15,\, 0.10)$$
+where the QoS term is an AHP-weighted aggregate of the declared contract:
+$$\text{QoS}(t) = w_{\text{rel}} \cdot q_{\text{rel}} + w_{\text{dur}} \cdot q_{\text{dur}} + w_{\text{prio}} \cdot q_{\text{prio}},
+\quad (w_{\text{rel}}, w_{\text{dur}}, w_{\text{prio}}) = (0.24,\, 0.62,\, 0.14)$$
+Here, $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ represent normalized reliability, durability, and transport-priority scores. Durability dominates because it governs whether data persists across restarts and network partitions. Reliability and transport priority both govern in-flight delivery quality, with reliability receiving higher weight because unconditional delivery guarantees precede message scheduling. The sub-weight vector is the geometric-mean priority vector of an independently stated Saaty pairwise-comparison matrix with a small, non-zero consistency ratio ($CR \approx 0.016 \le 0.10$). The modulators are logarithmically compressed: $\text{SizeNorm}(t) = \log_2(1 + \text{bytes})/20$ (a 1~MiB design envelope, representing the practical DDS sample ceiling before RTPS fragmentation dominates) and $\text{FreqNorm}(t) = \log_{10}(1 + \text{Hz})/3$. The weight $w(t)$ is clamped to $[0.01, 1]$ ensuring that best-effort edges remain visible to graph traversals. Every structural communication edge incident on $t$ (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`) inherits $w_E(e) = w(t)$ along with the topic’s QoS vector.
 
-The outer split $(\beta, \alpha, \psi)$ is a declared convex combination rather than an elicited one, and we report its sensitivity directly (§7.3.topicw) rather than defending the particular triple. An earlier KiB-based $\text{SizeNorm}$ divisor of $50$ implied an unstated $\sim$1 EiB envelope and left the term realizing only $\sim$2% of alpha’s declared 15% budget on the evaluation corpus’s real payload sizes (32 B–32 KiB); the byte-based 1 MiB envelope above corrects that so alpha’s contribution is no longer negligible by construction.
+The outer split $(\beta, \alpha, \psi)$ is a declared convex combination whose sensitivity is evaluated directly in §7.3.topicw. A prior KiB-based $\text{SizeNorm}$ divisor of $50$ implied an unintended $\sim$1~EiB envelope and left the term realizing only $\sim$2% of $\alpha$’s declared 15% budget on the evaluation corpus’s actual payload sizes (32~B–32~KiB); the byte-based 1~MiB envelope corrects this, ensuring that $\alpha$’s contribution remains meaningful.
 
 ### Logical Dependency Projection (`DEPENDS_ON`)
 
-Structural edges capture explicit deployment connections but omit implicit runtime dependencies. For example, a subscriber depends upon a publisher, yet no direct edge connects them in pub-sub architectures. We derive a single unified semantic relation, `DEPENDS_ON`, directed from *dependent* to *dependency* (“if target fails, source is impacted”):
+Structural edges capture explicit deployment connections but omit implicit runtime dependencies. For example, a subscriber depends upon a publisher, yet no direct edge connects them in pub-sub architectures. We therefore derive a single unified semantic relation, `DEPENDS_ON`, directed from *dependent* to *dependency* (“if target fails, source is impacted”):
 
 **Table 3. The six `DEPENDS_ON` logical dependency projection rules.**
 
 | **Rule** | **Dependency Category** | **Structural Pattern ($\text{Dependent} \to \text{Dependency}$)**      | **Derived Weight ($w$)**                           |
 |:--------:|:------------------------|:-----------------------------------------------------------------------|:---------------------------------------------------|
-|  **1**   | `app_to_app`            | Subscriber $\to$ Publisher (via shared Topic, incl. transitive `USES`) | $1 - \prod_{t \in T}(1 - w(t))$                    |
+|  **1**   | `app_to_app`            | Subscriber $\to$ Publisher (via shared Topic, incl. transitive `USES`) | $1 - \prod_{t \in T}(1 - w(t))$                    |
 |  **2**   | `app_to_broker`         | Publisher/Subscriber $\to$ Broker routing its topics                   | $1 - \prod_{t \in T}(1 - w(t))$                    |
 |  **3**   | `node_to_node`          | Host $\to$ Host (lifted from inter-host app dependencies)              | Lifted $\max w$                                    |
 |  **4**   | `node_to_broker`        | Host $\to$ Broker (lifted from hosted app dependencies)                | Lifted $\max w$                                    |
 |  **5**   | `app_to_lib`            | Application $\to$ Shared Library it `USES`                             | $H(w_V(\text{app}), w_V(\text{lib}))$              |
 |  **6**   | `broker_to_broker`      | Broker $\leftrightarrow$ Broker (shared-host fate, symmetric)          | $w_V(\text{node})$                                 |
 
-Rules 1 and 2 aggregate the several topics $T$ mediating one component pair by *probabilistic union* rather than by a maximum, so that additional parallel failure vectors raise coupling monotonically while preserving $w \in (0, 1]$. Rule 5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ of the consuming Application’s and the shared Library’s own vertex weights, which calibrates caller criticality against dependency criticality instead of letting either endpoint dominate. Rules 3 and 4 lift the maximum weight of the component-level dependencies crossing the host boundary.
+Rules 1 and 2 aggregate the set of topics $T$ connecting a component pair using a probabilistic union rather than a maximum. This guarantees that additional parallel failure vectors increase coupling monotonically while keeping $w \in (0, 1]$. Rule 5 applies the harmonic mean $H(x, y) = 2xy/(x+y)$ to combine the consuming Application’s and the shared Library’s vertex weights, balancing caller and dependency criticality. Rules 3 and 4 assign the maximum weight among component-level dependencies crossing the host boundary.
 
 ### Sequential Cascades vs. Simultaneous Blasts
 
-A key insight of the SaG model is distinguishing between two fundamentally different failure modes:
+A foundational principle of the SaG model is distinguishing between two fundamentally different degradation modes:
 
-- **Sequential Cascade (Rule 1):** When an application publisher fails, downstream subscribers experience data starvation. The failure propagates step-by-step through topics and message queues.
+- **Sequential Cascade (Rule 1):** When an application publisher fails, downstream subscribers suffer message starvation. The failure propagates hop by hop through message queues and topic buffers.
 
-- **Simultaneous Blast (Rule 5):** When a shared software library or execution node crashes, all consuming applications and colocated brokers fail *instantaneously* in a single event.
+- **Simultaneous Blast (Rule 5):** When a shared software library or execution node crashes, all consuming applications and colocated brokers fail *instantaneously* in a single shared-fate event.
 
-Retaining entity types and relation-specific dependency rules allows SaG to model both mechanisms, whereas untyped graphs collapse them into identical edges.
+Preserving architectural entity types and relation-specific projection rules enables SaG to model both mechanisms, whereas untyped homogeneous graphs collapse them into indistinguishable edges.
 
-**On the symmetry of Rule 6.** Rule 6 is the one projection rule that is symmetric, and deliberately so: it does not assert that one broker functionally depends on another, but that two brokers co-located on the same host *share that host’s failure domain*. This is the same simultaneous-blast semantics as Rule 5, which is why the derived weight is the shared *Node’s* weight rather than either broker’s, and why the relation holds in both directions. The mechanism is real in deployed middleware — co-located brokers contend for CPU, page cache, file descriptors and NIC bandwidth, and a host loss takes both at once, which is precisely why operational guidance for Kafka, RabbitMQ and EMQX is to spread brokers across fault domains. What Rule 6 does *not* model is intra-cluster broker coupling proper (partition replication, controller or quorum election, federation and shovel links), which is directional and does not require co-location; extending the schema to express it is left to future work. We also note that the rule is close to inert on our corpus: it fires in four of the eight cached scenarios and contributes twelve directed edges in total across 1,770 components, and because the simulation oracles read only $G_{\text{structural}}$ (§4.4), it cannot influence any ground-truth label.
+Rule 6 is intentionally the only symmetric projection rule. It does not imply that one broker functionally depends on another, but rather that two brokers colocated on the same host share that host’s physical failure domain. This follows the same simultaneous-blast principle as Rule 5, which is why the derived weight equals the shared Node’s weight and the relation is bidirectional. In production middleware deployments, colocated brokers compete for host resources (CPU cores, page cache, file descriptors, and NIC bandwidth); a host outage takes down all colocated instances simultaneously. Operational best practices for Kafka, RabbitMQ, and EMQX recommend distributing brokers across fault domains. Rule 6 does not model directional intra-cluster broker coupling (e.g., partition replication, controller quorum election, federation, or shovel links), which do not require physical colocation; extending the schema to capture these interactions is reserved for future work. In our evaluation corpus, Rule 6 applies in four of eight cached scenarios and contributes only 12 directed edges among 1,770 components. Because the simulation oracles operate strictly on $G_{\text{structural}}$ (§4.4), Rule 6 has zero influence on ground-truth failure labels.
 
 ## 3.3 Dual Graph Views and Architectural Layers
 
 The SaG framework maintains two distinct representations of the system:
 
-1. **Structural Graph ($G_{\text{structural}}$):** The raw graph containing physical and structural edges (`PUBLISHES_TO`, `ROUTES`, `RUNS_ON`, `USES`). This view is consumed exclusively by discrete-event simulators to execute unbiased failure injections (§4.3).
+1. **Structural Graph ($G_{\text{structural}}$):** The raw deployment graph containing physical and structural relations (such as `PUBLISHES_TO`, `ROUTES`, `RUNS_ON`, and `USES`). Discrete-event simulators consume this view exclusively to execute unbiased failure injections (§4.3).
 
 2. **Analysis Graph ($G_{\text{analysis}}$):** The projected graph containing derived `DEPENDS_ON` edges annotated with QoS weights and ingested SCA code metrics. All GNN feature representations, graph embeddings, and analytical metrics are computed on $G_{\text{analysis}}$.
 
 *Figure 2. Running example: the raw structural graph (left) and the `DEPENDS_ON` projection derived from it (right). The projection makes implicit runtime dependencies explicit — a subscriber depends on the publishers of its topics even though no structural edge joins them — while the simulators continue to operate on the structural view alone.*
 
-$G_{\text{analysis}}$ is further organized into four analytical layers (Application, Middleware, Infrastructure, and Global System), allowing architects to evaluate criticality at subsystem levels (e.g., following MIL-STD-498 hierarchical structures).
+$G_{\text{analysis}}$ is further structured into four analytical layers (Application, Middleware, Infrastructure, and Global System), enabling evaluation of criticality at subsystem levels, consistent with hierarchical frameworks such as MIL-STD-498.
 
-## 3.4 Typed Node Feature Representation
+## 3.4 Typed Node Feature Encoding
 
-Both pathways read the same typed node features off $G_{\text{analysis}}$: the predictor (§4) projects them per entity type before message passing, and the explanation layer (§5) aggregates them into its quality profile. SaG extracts feature vectors tailored to the 5 entity types:
+Both pathways read the same typed node properties from $G_{\text{analysis}}$: the predictive pathway (§4) projects them per entity type before heterogeneous message passing, and the explanation layer (§5) aggregates them into its quality profile. SaG extracts feature vectors tailored to the five entity types:
 
 - **Application ($|V_{\text{app}}|$, 23 dims):** Indices 0–17 represent shared topological metrics (in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, bridge load). Indices 18–22 capture source code metrics extracted via Static Code Analysis (SCA): Lines of Code (LOC), Cyclomatic Complexity, Martin’s Instability metric ($I_{\text{code}} = \frac{C_e}{C_a + C_e}$), Lack of Cohesion in Methods (LCOM), and composite Code Quality Penalty (CQP).
 
-- **Library ($|V_{\text{lib}}|$, 25 dims):** Same shared topological (0–17) and code quality (18–22) metrics as Application, plus two library-specific extras (indices 23–24): the size of the transitive reverse-`USES` closure (normalized) and the count of distinct subscribers reachable from that closure’s published topics (normalized) — the two structural drivers of a library’s blast radius under both simulators’ cascade rules that the code-quality metrics alone do not capture.
+- **Library ($|V_{\text{lib}}|$, 25 dims):** Shared topological (0–17) and code quality (18–22) metrics as Application, plus two library-specific structural drivers (indices 23–24): the normalized size of the transitive reverse-`USES` closure and the normalized count of distinct subscribers reachable from published topics within that closure — the two structural drivers of a library’s blast radius under cascade rules that code-quality metrics alone cannot capture.
 
 - **Broker ($|V_{\text{broker}}|$, 19 dims):** Indices 0–17 shared topological metrics; index 18 represents normalized queue buffer capacity.
 
