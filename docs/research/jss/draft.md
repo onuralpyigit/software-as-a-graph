@@ -359,13 +359,13 @@ Both pathways read the same typed node properties from $G_{\text{analysis}}$: th
 
 # 4. Graph Learning for Failure-Impact Prediction
 
-Cascading failure impact in distributed software systems is inherently non-linear, multi-hop, and relation-dependent. How far an outage travels depends not merely on how many neighbors a component has, but on *which kind* of architectural relation carries the failure outward and what dependencies lie two or three hops beyond. No closed-form combination of standard centrality metrics can capture these compound dynamics, which is why the primary predictive pathway of §1.2 is a learned graph model.
+Cascading failure impact in distributed software systems is inherently non-linear, multi-hop, and relation-dependent. Outages propagate not merely based on neighbor count, but through architectural relations and dependencies extending multiple hops beyond the initial fault. No closed-form combination of standard centrality metrics can adequately capture these compound dynamics; therefore, the primary predictive pathway of §1.2 employs a learned graph model.
 
-This section presents the Heterogeneous Graph Transformer (HGT) architecture and its typed edge encodings (§4.1), the multi-task prediction heads and dimension-masked loss formulation (§4.2), the ground-truth simulation oracles (§4.3), and the input–label independence guarantee that prevents data leakage (§4.4).
+This section details the Heterogeneous Graph Transformer (HGT) architecture and its typed edge encodings (§4.1), the multi-task prediction heads and dimension-masked loss formulation (§4.2), the ground-truth simulation oracles (§4.3), and the input–label independence guarantee that prevents data leakage (§4.4).
 
 ## 4.1 Heterogeneous Graph Transformer Architecture
 
-Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `RUNS_ON`, `CONNECTS_TO`, `USES`, `DEPENDS_ON`), we employ a 3-layer **Heterogeneous Graph Transformer (HGT)** architecture [12] with hidden dimension $D = 64$ and $H = 4$ attention heads.
+Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `RUNS_ON`, `CONNECTS_TO`, `USES`, `DEPENDS_ON`), we employ a three-layer **Heterogeneous Graph Transformer (HGT)** architecture [12] with hidden dimension $D = 64$ and $H = 4$ attention heads. This architecture ensures that typed relations, rather than simple adjacency, govern failure-impact forecasting.
 
 ```
 +-----------------------------------------------------------------------------------+

@@ -1,14 +1,14 @@
 \section{Graph Learning for Failure-Impact Prediction}
 \label{sec:4}
 
-Cascading failure impact in distributed software systems is inherently non-linear, multi-hop, and relation-dependent. How far an outage travels depends not merely on how many neighbors a component has, but on \emph{which kind} of architectural relation carries the failure outward and what dependencies lie two or three hops beyond. No closed-form combination of standard centrality metrics can capture these compound dynamics, which is why the primary predictive pathway of Section~\ref{sec:1.2} is a learned graph model.
+Cascading failure impact in distributed software systems is inherently non-linear, multi-hop, and relation-dependent. Outages propagate not merely based on neighbor count, but through architectural relations and dependencies extending multiple hops beyond the initial fault. No closed-form combination of standard centrality metrics can adequately capture these compound dynamics; therefore, the primary predictive pathway of Section~\ref{sec:1.2} employs a learned graph model.
 
-This section presents the Heterogeneous Graph Transformer (HGT) architecture and its typed edge encodings (Section~\ref{sec:4.1}), the multi-task prediction heads and dimension-masked loss formulation (Section~\ref{sec:4.2}), the ground-truth simulation oracles (Section~\ref{sec:4.3}), and the input--label independence guarantee that prevents data leakage (Section~\ref{sec:4.4}).
+This section details the Heterogeneous Graph Transformer (HGT) architecture and its typed edge encodings (Section~\ref{sec:4.1}), the multi-task prediction heads and dimension-masked loss formulation (Section~\ref{sec:4.2}), the ground-truth simulation oracles (Section~\ref{sec:4.3}), and the input--label independence guarantee that prevents data leakage (Section~\ref{sec:4.4}).
 
 \subsection{Heterogeneous Graph Transformer Architecture}
 \label{sec:4.1}
 
-Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, \texttt{DEPENDS\_ON}), we employ a 3-layer \textbf{Heterogeneous Graph Transformer (HGT)} architecture \cite{hu2020hgt} with hidden dimension $D = 64$ and $H = 4$ attention heads.
+Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, \texttt{DEPENDS\_ON}), we employ a three-layer \textbf{Heterogeneous Graph Transformer (HGT)} architecture \cite{hu2020hgt} with hidden dimension $D = 64$ and $H = 4$ attention heads. This architecture ensures that typed relations, rather than simple adjacency, govern failure-impact forecasting.
 
 \subsubsection{Continuous-Categorical Edge Feature Encoding (16-D)}
 \label{sec:4.1.1}
@@ -30,7 +30,7 @@ To capture continuous Quality-of-Service (QoS) constraints and channel semantics
     \end{enumerate}
 \end{itemize}
 
-An edge projection module maps $e_{uv}$ into the hidden space: $e_{uv}' = W_{\text{edge}} e_{uv}$. Prior to relational attention computation, this projection is injected directly into the target node representation: $\tilde{h}_v = h_v + e_{uv}'$.
+An edge projection module maps $e_{uv}$ into the hidden space: $e_{uv}' = W_{\text{edge}} e_{uv}$. Prior to relational attention computation, this projection vector is incorporated directly into the target node representation: $\tilde{h}_v = h_v + e_{uv}'$.
 
 \subsubsection{Type-Specific Projection and Heterogeneous Message Passing}
 \label{sec:4.1.2}
@@ -49,7 +49,7 @@ For each source node $u$ and target node $v$ connected by meta-relation $\tau(e)
     \text{Msg}(u, e, v) = V(u) W_{\text{msg},\phi(e)}
     \end{equation}
     \item \textbf{Bidirectional Message Passing:} To capture downstream consumer starvation and upstream backpressure simultaneously, message passing is executed over both forward and transposed relation views ($G_{\text{analysis}}$ and $G_{\text{analysis}}^\top$).
-    \item \textbf{Residual Aggregation and Layer Normalization:}
+    \item \textbf{Residual Aggregation and Layer Normalization:} Target node representations are updated across layers $l \in \{1, \dots, L\}$ via residual connections and layer normalization:
     \begin{equation}
     h_v^{(l)} = \text{LayerNorm}\left( h_v^{(l-1)} + \text{Dropout}\left(\sum_{u \in \mathcal{N}(v)} \text{Attn}(u, e, v) \cdot \text{Msg}(u, e, v)\right)\right)
     \end{equation}
@@ -58,7 +58,7 @@ For each source node $u$ and target node $v$ connected by meta-relation $\tau(e)
 \subsection{Multi-Task Prediction Heads and Dimension Masking}
 \label{sec:4.2}
 
-From the final node embeddings $h_v^{(L)}$, SaG branches into specialized multi-task prediction heads:
+From the final node embeddings $h_v^{(L)}$, SaG utilizes specialized multi-task prediction heads:
 \begin{itemize}
     \item \textbf{Reliability Head:} $\hat{R}(v) = \sigma(\text{MLP}_R(h_v)) \in [0, 1]$
     \item \textbf{Maintainability Head:} $\hat{M}(v) = \sigma(\text{MLP}_M(h_v)) \in [0, 1]$
@@ -67,8 +67,9 @@ From the final node embeddings $h_v^{(L)}$, SaG branches into specialized multi-
 \end{itemize}
 
 \subsubsection{Dimension-Masked Loss Formulation}
+\label{sec:4.2.1}
 
-The joint optimization objective balances regression accuracy, multi-task dimension learning, ranking fidelity, pairwise ordering, and edge prediction:
+The combined optimization objective integrates regression accuracy, multi-task dimension learning, ranking fidelity, pairwise ordering, and edge prediction:
 \begin{equation}
 \mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + 0.3 \cdot \mathcal{L}_{\text{edge}} + \lambda_{\text{RM}} \cdot \mathcal{L}_{\text{consistency}}
 \end{equation}
@@ -81,18 +82,18 @@ where $I^*(v)$ is the simulated cascade impact defined by the primary oracle (Se
 This mask ensures the unobserved maintainability head is not artificially penalized or driven toward zero during backpropagation.
 
 \subsubsection{Domain-Reweighted Criticality (\texorpdfstring{$Q_{\text{domain}}$}{Qdomain})}
+\label{sec:4.2.2}
 
 To ground predictions in ISO/IEC 25019 Context of Use ($\vec{\omega} = [q_R, q_M]^\top$), the composite score can be evaluated as:
 \begin{equation}
 Q_{\text{domain}}(v) = q_R \cdot \hat{R}(v) + q_M \cdot M_{\text{static}}(v)
 \end{equation}
-where $M_{\text{static}}(v)$ is drawn directly from the structural analyzer's maintainability baseline, combining learned dynamic reliability with static source-code maintainability. Because maintainability is unobserved in dynamic simulation ($m = [1, 0]$), headline results report $\hat{I}^*(v)$ directly, while domain reweighting sensitivity is evaluated against the static RM baseline in Section~\ref{sec:7.3}.
+where $M_{\text{static}}(v)$ is obtained directly from the structural analyzer's maintainability baseline, combining learned dynamic reliability with static source-code maintainability. Because maintainability is unobserved in dynamic simulation ($m = [1, 0]$), headline results report $\hat{I}^*(v)$ directly, while domain reweighting sensitivity is evaluated against the static RM baseline in Section~\ref{sec:7.3}.
 
 \subsection{Ground-Truth Simulation Oracles}
 \label{sec:4.3}
 
 To evaluate predictive accuracy prior to deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$. We establish a formal taxonomy of four component-level oracles and one relationship-level oracle:
-
 \begin{itemize}
     \item \textbf{Cascade Reachability Oracle ($I^*(v)$):} Implemented via \texttt{FaultInjector}, this oracle simulates node crashes at component $v \in V$, propagates cascading outages across dependent topics, brokers, and network links via breadth-first dynamic traversal, and calculates the fraction of surviving subscriber feeds severed. Publisher loss is weighted by message publication rate, and resulting feed losses are scaled by a QoS ladder ($\times 1.2$ for \texttt{RELIABLE}, $\times 1.15$ for high/urgent priority, $\times 1.05$ for medium) before clamping to $[0, 1]$. $I^*(v) \in [0, 1]$ serves as the \textbf{primary continuous target label} for training and evaluating GNN predictors.
     \item \textbf{Multi-Metric Composite Oracle ($I_{\text{comp}}(v)$):} Implemented via \texttt{FailureSimulator}, this oracle evaluates a multi-faceted failure impact vector:
@@ -115,7 +116,7 @@ To evaluate predictive accuracy prior to deployment without relying on productio
 
 \noindent\textbf{Primary Oracle Declaration and Role Assignment.} Because the three reliability-facing oracles ($I^*$, $I_{\text{comp}}$, $I_{\text{dyn}}$) measure distinct operational constructs, we designate \textbf{$I^*(v)$ (\texttt{FaultInjector}) as the primary oracle} for all predictive ranking results (Tables~\ref{tab:5}--\ref{tab:7}, RQ1--RQ3). $I_{\text{comp}}(v)$ is reserved for Validate-stage quality gates, $I_{\text{dyn}}(v)$ serves as an independent convergent-validity probe, and $I_M(v)$ serves as a structural maintainability reference.
 
-\noindent\textbf{Cross-Oracle Convergent Validity and Critical-Set Bounds.} Measured across seven benchmark scenarios and five random seeds on the Application population, mean Spearman rank correlation is $\rho = 0.883$ for $(I_{\text{dyn}}, I^*)$, $\rho = 0.468$ for $(I_{\text{comp}}, I^*)$, and $\rho = 0.465$ for $(I_{\text{comp}}, I_{\text{dyn}})$. The strong rank agreement ($\rho = 0.883$) between the behavioral queue-flow oracle and the topological cascade injector provides independent convergent evidence across distinct simulation paradigms. However, agreement on the top-$K$ critical set ($K = 0.2n$) is more conservative (mean Jaccard overlap of $0.42$ for the strongest pair vs.\ $0.111$ expected by chance), reflecting the intrinsic sensitivity of discrete thresholding in non-linear cascades. Consequently, results established against one oracle are never transferred to another; every evaluation metric explicitly references its underlying simulation oracle.
+\noindent\textbf{Cross-Oracle Convergent Validity and Critical-Set Bounds.} Measured across seven benchmark scenarios and five random seeds on the Application population, the mean Spearman rank correlation is $\rho = 0.883$ for $(I_{\text{dyn}}, I^*)$, $\rho = 0.468$ for $(I_{\text{comp}}, I^*)$, and $\rho = 0.465$ for $(I_{\text{comp}}, I_{\text{dyn}})$. The strong rank agreement ($\rho = 0.883$) between the behavioral queue-flow oracle and the topological cascade injector provides independent convergent evidence across distinct simulation paradigms. However, agreement on the top-$K$ critical set ($K = 0.2n$) is more conservative (mean Jaccard overlap of $0.42$ for the strongest pair vs.\ $0.111$ expected by chance), highlighting the intrinsic sensitivity of discrete thresholding in non-linear cascades. Consequently, results established against one oracle are never transferred to another; every evaluation metric explicitly references its underlying simulation oracle.
 
 \subsection{Input--Label Independence Guarantee}
 \label{sec:4.4}
