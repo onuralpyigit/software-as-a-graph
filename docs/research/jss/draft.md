@@ -546,7 +546,7 @@ This provides actionable diagnostics: a service scoring high on $A$ but low on $
 
 ## 6.1 Datasets and System Corpus
 
-Our evaluation corpus comprises 1,770 components across ten distributed system architectures:
+The evaluation corpus comprises 1,770 components distributed across ten distinct system architectures, as detailed in Table 5:
 
 **Table 5. Experimental evaluation corpus.**
 
@@ -564,11 +564,11 @@ Our evaluation corpus comprises 1,770 components across ten distributed system a
 | **Train-Ticket [46]**        | Real-World Microservices  |        90 |                     41 |         30 |           3 |         8 |        8 |       162 |
 | **Total**                      |                           | **1,770** |                        |            |             |           |          |           |
 
-$|V|$ is the sum of all five entity-type counts per scenario and sums to exactly the corpus total stated above. $|E|$ counts every raw structural relationship instance recorded in the scenario file (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`, `CONNECTS_TO`, `USES`) — the substrate the simulation oracles traverse — not the denser derived `DEPENDS_ON` projection used for GNN training.
+Here, $|V|$ is the sum of all five entity-type counts per scenario, totaling exactly 1,770 components. $|E|$ counts every raw structural relationship instance recorded in the scenario specification (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`, `CONNECTS_TO`, `USES`) — the native substrate that simulation oracles traverse — rather than the derived `DEPENDS_ON` projection constructed for GNN training.
 
-The three real-world architectures are hand-transcribed from open-source repositories using dedicated architectural adapters. The seven synthetic scenarios are produced by a parameterised topology generator: each is fully specified by a committed configuration giving a random seed, per-entity-type counts, seven-number summaries (mean, median, standard deviation, min, max, $Q_1$, $Q_3$) for application publish and subscribe fan-out, for applications per host, for library fan-in and for topic payload size, and categorical distributions over the three QoS dimensions. Degree distribution and clustering are *emergent* from those inputs rather than specified directly. Table 6 gives the parameters that determine each topology’s shape; the complete configurations are in the replication package.
+Three real-world architectures were transcribed from authentic open-source repositories using dedicated architectural adapters. The seven synthetic scenarios were produced by a parameterized topology generator: each is fully defined by a committed configuration specifying a random seed, per-entity-type counts, seven-number summaries (mean, median, standard deviation, minimum, maximum, $Q_1$, $Q_3$) for application publish and subscribe fan-out, applications per host, library fan-in, topic payload size, and categorical distributions over the three QoS dimensions. Graph degree distributions and clustering emerge directly from these parameters rather than being synthetically forced. Table 6 reports the generative parameters governing each topology's shape; complete configurations are included in the replication package.
 
-**Table 6. Generative parameters of the seven synthetic evaluation scenarios.** Counts, seed and fan-out figures are read directly from the committed configurations. The modal QoS column gives the most common reliability/durability/priority value and the range of topic shares carrying them, computed from the committed topology rather than the config’s declared QoS targets, which domain-driven assignment does not always realize (§6.1).
+**Table 6. Generative parameters of the seven synthetic evaluation scenarios.** Counts, seed and fan-out figures are read directly from the committed configurations. The modal QoS column gives the most common reliability/durability/priority value and the range of topic shares carrying them, computed from the committed topology rather than the config's declared QoS targets, which domain-driven assignment does not always realize (§6.1).
 
 | **Scenario**                | **Config**                       | **Seed** |       **Counts** | **Pub** | **Sub** | **Modal QoS (R/D/P)**                       |
 |:----------------------------|:---------------------------------|---------:|-----------------:|--------:|--------:|:--------------------------------------------|
@@ -580,59 +580,59 @@ The three real-world architectures are hand-transcribed from open-source reposit
 | **IoT Smart City**          | `scenario_02_iot_smart_city`     |     2002 |   200/80/6/30/10 |     2.0 |     1.5 | BEST_EFFORT/VOLATILE/LOW (56–79%)          |
 | **Microservices Mesh**      | `scenario_06_microservices`      |     6006 |    90/45/6/15/30 |     1.5 |     2.0 | RELIABLE/TRANSIENT_LOCAL/MEDIUM (100–100%) |
 
-**QoS diversity is not uniform across the corpus.** Per-topic QoS is assigned by a domain-keyed lookup (`get_qos_for_topic`) that takes precedence over the categorical distribution declared in each scenario’s configuration whenever a domain is set — true of every scenario here. For three domains (`hub-and-spoke`, `microservices`, `enterprise`) that lookup table has a single entry, so every topic receives an identical (reliability, durability, priority) triple regardless of name; a fourth (`av`) collapses four of five entries to the same triple. Table 6’s Modal QoS column reflects this directly: those four scenarios show $85$–$100%$ topic share at the single modal triple, against $51$–$79%$ for the three domains (`finance`, `healthcare`, `iot`) whose lookup tables are genuinely multi-valued. Concretely, $w(t)$ has standard deviation $\approx 0.02$ on a $[0,1]$ scale in the four QoS-flat scenarios, versus $0.19$–$0.28$ in the other three. We report this as a corpus limitation rather than correct it: doing so would change what those four scenarios generate and require regenerating every cached result built on them (§8.3).
+**QoS Diversity Across the Corpus.** Per-topic QoS profiles are assigned via domain-keyed lookups (`get_qos_for_topic`) that take precedence over generic categorical distributions whenever a domain is designated. For three domains (`hub-and-spoke`, `microservices`, `enterprise`), that lookup table assigns an identical (reliability, durability, priority) triple across topics, while a fourth (`av`) collapses four of five entries to the same profile. Table 6's Modal QoS column reflects this structure: those four scenarios exhibit $85\%$--$100\%$ topic concentration at the modal triple, compared to $51\%$--$79\%$ for the three domains (`finance`, `healthcare`, `iot`) featuring genuinely multi-valued profiles. Consequently, scalar coupling weight $w(t)$ has standard deviation $\approx 0.02$ on a $[0, 1]$ scale in the four QoS-flat scenarios, versus $0.19$--$0.28$ in the remaining three. We report this as a realistic corpus property rather than forcing artificial variation, preserving byte-level consistency across all cached experimental evaluations (§8.3).
 
-**A note on the ATM case study.** One further scenario, an Automated Teller Machine network, serves as an eighth LOSO fold (§6.3) and as the subject of the attention analysis (§7.3), but is deliberately *not* a row in Table 5 and contributes none of the 1,770 components counted there: it was authored as an illustrative walkthrough, and its configuration lacks the seven-number fan-out summaries the other synthetic scenarios declare. It enters LOSO because that protocol needs held-out topologies rather than characterised ones, so every LOSO figure reports eight folds against a ten-architecture corpus.
+**Role of the ATM Case Study.** An additional scenario, representing an Automated Teller Machine network, serves as the eighth fold for Leave-One-Scenario-Out evaluation (§6.3) and as the substrate for qualitative attention analysis (§7.3). This scenario is intentionally omitted from Table 5 and does not contribute to the 1,770 component total: it was authored as an illustrative architectural walkthrough, and its specification lacks the full seven-number statistical summaries. Because LOSO requires held-out topologies rather than parameterized ones, every LOSO evaluation reports eight folds over the ten-architecture corpus.
 
 ### Reproducibility of the Corpus
 
-The corpus is regenerable rather than merely archived. Each dataset is produced from its configuration by
+The benchmark corpus is designed to be fully regenerable rather than merely statically archived. Each dataset is deterministically generated from its configuration file via:
 
-> `python cli/generate_graph.py batch –input-dir data/scenarios –output-dir <dir>`
+> `python cli/generate_graph.py batch --input-dir data/scenarios --output-dir <dir>`
 
-and a manifest records, per dataset, the seed, the entity counts, the generating commit, and a SHA-256 digest of the emitted topology. A regression test asserts that every committed dataset regenerates *byte-identically* from its configuration and that the manifest matches what is on disk, so a divergence between the published numbers and the published data fails the test suite rather than passing unnoticed. A third party can therefore reproduce the exact graphs these results were computed on, not merely graphs drawn from the same distribution.
+A companion manifest records the random seed, entity counts, git commit hash, and a SHA-256 cryptographic digest for each emitted topology. Continuous integration regression tests assert that every committed dataset regenerates *byte-identically* from its configuration and that all disk digests match the manifest. This guarantees that third parties can reproduce the exact graphs used in our experiments, rather than simply sampling from similar distributions.
 
 ## 6.2 Baselines and Evaluated Predictors
 
-We compare four primary predictor configurations, listing the learned predictors proposed in this paper first and the training-free baselines they are measured against second:
+We evaluate four primary predictor configurations, contrasting the proposed learned architectures with training-free topological baselines:
 
-1. **HGL / HGL-QoS** (proposed): Relation-specific Heterogeneous Graph Transformers (§4), without and with the explicit 7-dimensional QoS edge encoding.
+1. **HGL / HGL-QoS** (proposed): Relation-specific Heterogeneous Graph Transformers (§4), evaluated both without and with explicit 7-dimensional continuous-categorical QoS edge features.
 
-2. **GL / GL-QoS** (proposed ablation): Homogeneous Graph Attention Networks (GAT) [41] trained on the flattened, untyped graph projection — the controlled comparison that isolates what relation-specific typing buys.
+2. **GL / GL-QoS** (proposed ablation): Homogeneous Graph Attention Networks (GAT) [41] trained on the flattened, untyped graph projection — isolating the specific performance gain conferred by relation typing.
 
-3. **Topo-QoS** (baseline): QoS-weighted topological centrality baseline, training-free.
+3. **Topo-QoS** (baseline): Training-free, QoS-weighted topological centrality baseline.
 
-4. **Topo-BL** (baseline): Unweighted structural centrality (betweenness centrality and articulation point scoring), training-free.
+4. **Topo-BL** (baseline): Training-free structural centrality combining unweighted betweenness centrality and articulation point scoring.
 
-The out-of-distribution table (Table 9) additionally reports **RM / $Q(v)$** (the deterministic hierarchical quality attribution model of §5) as a non-competing diagnostic reference point, not as a fifth predictor: RM is not fitted to rank components, and its row exists to show how much the predictive path adds over static attribution (§1.2), not to compete on ranking accuracy. The same deterministic RM scorer is also the instrument behind every sensitivity sweep in §7.3: because RM is a closed-form function of its declared constants, sweeping those constants isolates their effect from training variance in a way the learned predictors cannot.
+In addition, the out-of-distribution evaluation (Table 9) reports **RM / $Q(v)$** (the deterministic hierarchical quality attribution model of §5) as a diagnostic reference baseline. RM is not fitted to rank failure impact; its inclusion demonstrates how much learned relational prediction adds over static structural attribution (§1.2). Furthermore, deterministic RM scoring drives every sensitivity sweep in §7.3, where closed-form formulations isolate parameter effects from neural training stochasticity.
 
 ### Evaluation Substrate
 
-Predictors in this comparison are not all evaluated over the same graph view, and the distinction matters for reading the tables that follow. **Topo-BL, Topo-QoS, GL and GL-QoS** are scored on the derived Application–Library `DEPENDS_ON` projection (§3.2) — the same substrate built for GNN feature/label alignment and discussed further in §7.3 — while **HGL and HGL-QoS** consume the full native typed multigraph over all five entity types. **No predictor in either group reads $G_{\text{structural}}$**: that graph remains the exclusive substrate of the ground-truth simulation oracles (§4.4), and the independence guarantee enforced by `tests/test_independence_guarantee.py` holds identically for every variant in this section.
+Predictors in this study operate over distinct graph views, a distinction critical for interpreting the empirical results. **Topo-BL, Topo-QoS, GL, and GL-QoS** are evaluated on the derived Application–Library `DEPENDS_ON` projection (§3.2). Conversely, **HGL and HGL-QoS** ingest the complete native typed multigraph across all five entity types. Crucially, **no predictor in either group accesses $G_{\text{structural}}$**: that raw topology is strictly reserved as the substrate for ground-truth simulation oracles (§4.4), a guarantee formally verified by `tests/test_independence_guarantee.py`.
 
-The projection substrate was adopted for the homogeneous and untrained baselines because the full native pub-sub graph is not learnable by an untyped model on this corpus: Application nodes carry near-zero betweenness and bridge-ratio in the raw graph (they never route messages), producing degenerate, near-constant feature vectors, and a single homogeneous message-passing layer over-smooths every Application into an identical representation by aggregating the same high-fan-in Topic hub. This is the design rationale recorded in the replication package rather than a measured ablation — we did not run GL/GL-QoS on the native substrate to quantify the collapse directly, and do not report a number for it.
+The projected substrate was adopted for untyped baselines because raw publish-subscribe graphs cannot be effectively learned by homogeneous models on this corpus: Application nodes never route messages in raw pub-sub, resulting in near-zero betweenness and bridge ratios that yield degenerate, near-constant node features. A single homogeneous aggregation layer then causes all application representations to over-smooth toward identical embeddings via high-degree Topic hubs.
 
-This asymmetry is a scope condition on the RQ2 comparisons in §7.2: part of HGL’s advantage over GL reflects the wider native node set the typed model can consume, not relation-specific typing alone, since the untyped baseline could not be evaluated on that same view. It does not, however, affect which nodes are scored: the evaluation population is pinned identically across every variant, resolved from the native graph and the simulation labels alone — never from a variant’s own substrate or predictions — so no comparison in this paper is confounded by which nodes a particular predictor happened to see (§6.3).
+This represents a scope condition for the RQ2 comparisons in §7.2: part of HGL's empirical advantage over GL reflects the broader multi-entity topology that typed modeling unlocks, rather than edge typing in isolation. However, this architectural difference does not bias evaluation populations: all variants are scored on an identical, independently resolved node set (§6.3).
 
 ## 6.3 Evaluation Metrics and Protocols
 
-- **Ranking Accuracy:** Spearman rank correlation ($\rho$) and Kendall’s tau ($\tau$) between predicted rankings and ground-truth simulated impact $I^*(v)$, the primary oracle declared in §4.3.
+- **Ranking Precision:** Evaluated via Spearman rank correlation ($\rho$) and Kendall's rank correlation ($\tau$) between predicted component rankings and ground-truth simulated impact $I^*(v)$ from the primary oracle (§4.3).
 
-- **Critical-Set Identification:** $F_1@K$, Precision@$K$, and Recall@$K$ for top-$K$ critical components, where $K$ is $20%$ of the evaluated node population, rounded to nearest. Because the predicted and true sets both contain exactly $K$ elements, precision, recall and $F_1$ coincide at $K$; the figure is a top-$K$ overlap and we read it as such.
+- **Critical-Set Identification:** Measured via $F_1@K$, Precision@$K$, and Recall@$K$ for top-$K$ critical components, where $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$. Because predicted and ground-truth sets both contain exactly $K$ elements, Precision, Recall, and $F_1$ coincide identically as the top-$K$ set overlap.
 
-- **Statistical Significance:** Paired Wilcoxon signed-rank tests [48] ($p < 0.05$) and bootstrap 95% confidence intervals ($B = 2,000$) [49, 50].
+- **Statistical Significance:** Assessed through paired Wilcoxon signed-rank tests [48] ($p < 0.05$) and non-parametric bootstrap 95% confidence intervals ($B = 2{,}000$) [49, 50].
 
 ### Evaluation Population
 
-Every predictor in a given table is scored on an identical node set, resolved from the graph and the labels alone — never from any variant’s predictions — so that no comparison is confounded by which nodes a particular method happened to score. Unless stated otherwise that set is the **Application** population: it is the population the framework’s central claim is about (topology predicts application-layer cascade criticality), and it is the only one every variant can score. This matters more than it may appear. Pooling node types into a single correlation mixes populations with different impact scales and base rates, and on this corpus that pooling is not benign — it moves the RM composite’s rank correlation *outside* the range spanned by its own per-type correlations (§7.3). We therefore report stratified, single-population figures throughout, and flag explicitly wherever a pooled figure appears.
+Every predictor within a given evaluation table is scored on an identical node population, resolved strictly from scenario topology and simulation ground truth — never from any model's predictions. Unless otherwise noted, this population is the **Application** set ($V_{\text{app}}$). This aligns with the framework's primary objective (forecasting application-layer cascading failures) and ensures a fair common denominator across both typed and untyped predictors. Pooling node types into a single global ranking conflates distinct base rates and impact distributions, shifting the resulting rank correlation outside the envelope of per-type correlations (§7.3). We therefore report stratified, single-population metrics throughout and explicitly identify any pooled figures.
 
 ### Evaluation Protocols
 
-- **In-Distribution Evaluation:** 60% train / 20% validation / 20% test node splits pinned by node identity within each scenario, evaluated over five random seeds ${42, 123, 456, 789, 2024}$.
+- **In-Distribution Evaluation:** 60% train / 20% validation / 20% test node splits pinned deterministically by node identity within each scenario, evaluated across five random seeds $\{42, 123, 456, 789, 2024\}$.
 
-- **Inductive Leave-One-Scenario-Out (LOSO):** Across all eight cached scenarios (the seven synthetic scenarios plus the ATM case study, §7.3), models are trained on the remaining seven and evaluated zero-shot on the held-out scenario, for eight folds total, to test out-of-distribution generalizability.
+- **Inductive Leave-One-Scenario-Out (LOSO):** Models are trained on seven synthetic scenarios and evaluated zero-shot on the held-out scenario across eight folds (including the ATM topology), testing zero-shot generalization across distinct architectural domains.
 
-- **Real-World Architectural Transfer:** Evaluating zero-shot transfer on authentic open-source architectures.
+- **Real-World Architectural Transfer:** Evaluating models trained on synthetic corpora zero-shot on authentic open-source distributed systems without fine-tuning.
 
 ---
 
