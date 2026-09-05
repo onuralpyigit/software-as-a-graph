@@ -48,7 +48,7 @@ Degree & \textbf{0.5187} & \textbf{0.4792} & 0.8214 & 0.5625 \\
 
 \paragraph{Key Diagnostic Findings.}
 \begin{enumerate}
-    \item \textbf{Ranking Saturation, Not a Clear Winner.} Table~\ref{tab:predictor_comparison} shows all three predictors cluster tightly: degree centrality leads on $\rho$ ($0.519$) and $\kappa$ ($0.479$), betweenness leads on NDCG@10 ($0.859$) and Top-10 overlap ($0.625$), and the RM composite is never last by more than $0.03$ on any measure. No predictor is uniformly better, so the composite's contribution cannot rest on out-ranking a scalar centrality score---it does not. What the RM composite offers instead is the decomposition Section~\ref{sec:model:rm} defines: a scalar centrality has no Fault Tolerance/Availability/Maintainability breakdown to route to a Reliability Engineer, an SRE, or an Architect. Whether that decomposition helps a reviewer in practice is a question about reviewers, and this evaluation does not answer it (Section~\ref{sec:disc:explainability}).
+    \item \textbf{No Predictor Is Distinguishable from Any Other.} Table~\ref{tab:predictor_comparison}'s means cluster tightly---degree leads on $\rho$ ($0.519$) and $\kappa$ ($0.479$), betweenness on NDCG@10 ($0.859$) and Top-10 overlap ($0.625$), and the RM composite is never last by more than $0.03$---but the means are the wrong statistic here, and we resist the temptation to read a ranking off them. Paired across the eight scenarios, no difference approaches significance: $Q$ versus degree gives Wilcoxon $p = 0.945$ (paired $t$, $p = 0.465$), and $Q$ versus betweenness $p = 0.148$. Head to head, $Q$ attains the higher $\rho$ in \textbf{five of eight} scenarios. Degree's mean advantage rests almost entirely on \texttt{tiny\_system}, the 12-component regression fixture, where $\rho_Q = 0.538$ against $\rho_{\text{deg}} = 0.848$---and where $Q$'s own correlation is not significantly different from zero ($p = 0.071$, 95\% CI $[-0.039, 0.852]$). Excluding that fixture the ordering reverses ($Q = 0.4774$, degree $= 0.4716$), and weighting each scenario by its component count rather than equally makes them indistinguishable ($0.5151$ versus $0.5170$). The defensible conclusion is saturation, not a winner in either direction: on this corpus a multi-dimensional composite buys no ranking advantage over degree centrality, and degree buys none over the composite. What the RM composite offers instead is the decomposition Section~\ref{sec:model:rm} defines: a scalar centrality has no Fault Tolerance/Availability/Maintainability breakdown to route to a Reliability Engineer, an SRE, or an Architect. Whether that decomposition helps a reviewer in practice is a question about reviewers, and this evaluation does not answer it (Section~\ref{sec:disc:explainability}).
     \item \textbf{No Evidence of Degradation at Scale (Descriptive).} Stratifying by scenario size, mean $\rho$ is $0.599$ for the two large scenarios ($\ge 150$ components: S02, S07) versus $0.447$ for the six smaller ones. We report this descriptively and draw no trend from it: the ``large'' group has $n=2$, and the gap is driven entirely by S02 ($\rho = 0.718$)---S07, the largest system in the corpus at 300 applications, scores $0.480$, essentially the corpus mean. The defensible reading is that ranking quality does not visibly collapse as these scenarios grow, not that it improves.
     \item \textbf{Catalog Screening Behavior.} The anti-pattern catalog functions as a sensitive screen: mean recall is $0.942$, precision is $0.253$, implicating a mean of $94.8\%$ of components at \texttt{CRITICAL}/\texttt{HIGH} severity. Section~\ref{sec:results:calibration} explains the mechanism. Note that for the $Q(v)$/betweenness/degree predictors, precision, recall, and $F_1$ are numerically identical (Section~\ref{sec:exp:protocol})---an artifact of the equal-sized-set validation rule, not evidence that these predictors have no false positives or false negatives individually.
 \end{enumerate}
@@ -56,9 +56,69 @@ Degree & \textbf{0.5187} & \textbf{0.4792} & 0.8214 & 0.5625 \\
 \subsection{Catalog Screening and Calibration (RQ2)}
 \label{sec:results:calibration}
 
-Precision and recall alone understate how the catalog's findings relate to ground-truth criticality. Cohen's $\kappa$ measures chance-corrected agreement between the catalog's flagged/unflagged partition and the true critical/non-critical partition; it is $\mathbf{\kappa = -0.0022}$ at the application layer (mean over 8 scenarios, range $-0.125$ to $+0.141$) and $\mathbf{\kappa = -0.0300}$ at the system layer---both indistinguishable from chance agreement, despite recall of $0.942$.
+Precision and recall do not merely understate how the catalog's findings relate to ground-truth criticality on this corpus---they are close to uninformative, and we set them aside before interpreting anything else. Two constructions pin them. First, the ground-truth critical set is the box-plot top tier ($\ge Q_3$), so it is the top quartile of components by construction: $n_{\text{critical}}/n$ lies in $[0.250, 0.260]$ in all eight scenarios. Second, the catalog flags between $71.0\%$ and $100\%$ of components (five of eight scenarios exceed $97\%$; three flag every component). A screen that flags nearly everything has precision equal to the base rate and recall equal to one, arithmetically. That is what we observe: $|\text{precision} - \text{base rate}| \le 0.06$ in every scenario, and exactly $0.000$ in three of them. The mean precision of $0.253$ reported in Table~\ref{tab:detection_results} is therefore a restatement of the corpus's $25\%$ critical base rate, not a measurement of the catalog, and the mean recall of $0.942$ is a restatement of its implication rate. Only \texttt{iot\_smart\_city} (flagging $71\%$, precision $+0.060$ above base rate) departs from this materially.
 
-The mechanism is scope, not miscalibration of any single threshold: Section~\ref{sec:catalog:coverage} shows that of the 6329 findings the eight triggered patterns produce across all scenarios, only 98 ($1.5\%$) are attributable to a single component, while 6231 ($98.4\%$) are Edge- or System-scoped. \texttt{n\_flagged\_directly}---findings whose entity is a component---is zero in 4 of 8 scenarios. A component is "implicated" almost entirely by being an endpoint of a flagged edge (chiefly \texttt{BOTTLENECK\_EDGE} and \texttt{QOS\_MISMATCH}), not by a component-level detector firing on it. High recall together with chance-level $\kappa$ is therefore consistent, not contradictory: the catalog reliably flags \emph{some} edge touching almost every genuinely critical component (hence high recall), while its component-level partition of flagged vs.\ unflagged carries almost no discriminative information beyond what a random partition of the same size would (hence $\kappa \approx 0$). We report this as a calibration finding: the catalog, as configured with a fixed $k=1.5$ IQR fence (Section~\ref{sec:catalog:methodology}), is a highly sensitive but poorly discriminating component-level screen, and its practical CI/CD value depends on the delta-aware gating design of Section~\ref{sec:cicd:semantics}, not on tightening $k$ alone---since tightening $k$ would improve $\kappa$ at recall's expense on the same edge-dominated finding mix.
+Cohen's $\kappa$ is the one member of the triple that is not pinned, because it corrects for exactly the chance agreement the other two absorb. It measures chance-corrected agreement between the catalog's flagged/unflagged partition and the true critical/non-critical partition; it is $\mathbf{\kappa = -0.0022}$ at the application layer (mean over 8 scenarios, range $-0.125$ to $+0.141$) and $\mathbf{\kappa = -0.0300}$ at the system layer---both indistinguishable from chance agreement, despite recall of $0.942$.
+
+The mechanism is scope, not miscalibration of any single threshold: Section~\ref{sec:catalog:coverage} shows that of the 6329 findings the eight triggered patterns produce across all scenarios, only 98 ($1.5\%$) are attributable to a single component, while 6231 ($98.4\%$) are Edge- or System-scoped. \texttt{n\_flagged\_directly}---findings whose entity is a component---is zero in 4 of 8 scenarios. A component is "implicated" almost entirely by being an endpoint of a flagged edge (chiefly \texttt{BOTTLENECK\_EDGE} and \texttt{QOS\_MISMATCH}), not by a component-level detector firing on it. High recall together with chance-level $\kappa$ is therefore consistent, not contradictory: the catalog reliably flags \emph{some} edge touching almost every genuinely critical component (hence high recall), while its component-level partition of flagged vs.\ unflagged carries almost no discriminative information beyond what a random partition of the same size would (hence $\kappa \approx 0$). We report this as a calibration finding: the catalog, as configured with a fixed $k=1.5$ IQR fence (Section~\ref{sec:catalog:methodology}), is an indiscriminate component-level screen on synthetic topologies---Section~\ref{sec:results:realworld} shows it behaves markedly better on transcribed real-world ones--- and its practical CI/CD value depends on the delta-aware gating design of Section~\ref{sec:cicd:semantics}, not on tightening $k$ alone---since tightening $k$ would improve $\kappa$ at recall's expense on the same edge-dominated finding mix.
+
+\subsection{Generalisation Check: Transcribed Real-World Topologies (RQ2, external validity)}
+\label{sec:results:realworld}
+
+The calibration result above is a property of the corpus as much as of the catalog, and the
+distinction is testable. We ran the same detection pipeline over three architectures transcribed
+from public open-source systems rather than generated: \textbf{Autoware.universe} (ROS~2/DDS
+autonomous driving; 32 applications, 24 topics with explicit DDS QoS profiles, 3 middleware
+brokers, 6 ECUs, 10 shared C++ libraries; 75 components), the \textbf{Train-Ticket} microservices
+benchmark (41 applications, 30 topics, 3 brokers, 8 nodes, 8 libraries; 90 components), and a
+\textbf{cloud microservice mesh} modelled on a production e-commerce reference architecture (22
+applications, 20 topics, 4 brokers, 6 nodes, 8 libraries; 60 components). All three are converted
+to the typed multigraph of Section~\ref{sec:model:formulation} by a documented adapter. Both
+corpora were swept over five oracle seeds ($\{42, 123, 456, 789, 2024\}$) at the system layer, so
+the comparison in Table~\ref{tab:realworld} is like-for-like.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Catalog behaviour on generated versus transcribed topologies, system layer, five oracle seeds. Cells are mean $\pm$ standard deviation over scenario-seed pairs. The catalog discriminates on transcribed architectures and does not on generated ones}
+\label{tab:realworld}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Measure} & \textbf{Generated} ($n=40$) & \textbf{Transcribed} ($n=15$) \\
+\midrule
+Cohen's $\kappa$          & $-0.036 \pm 0.049$ & $\mathbf{+0.296 \pm 0.100}$ \\
+Precision                 & $0.237 \pm 0.014$  & $\mathbf{0.402 \pm 0.060}$ \\
+Recall                    & $0.887 \pm 0.059$  & $0.861 \pm 0.105$ \\
+$F_1$                     & $0.374 \pm 0.022$  & $\mathbf{0.545 \pm 0.061}$ \\
+Components implicated     & $93.7\% \pm 3.2$   & $\mathbf{56.3\% \pm 9.8}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The contrast is substantial and it runs in the direction that matters. On transcribed
+architectures the catalog's chance-corrected agreement rises from indistinguishable-from-chance to
+$\kappa = +0.296$---fair agreement---precision rises by two thirds at essentially unchanged recall,
+and the implication rate falls from $93.7\%$ to $56.3\%$. Per scenario, the directly-flagged
+component rate is $21.3\%$ (Autoware), $18.3\%$ (cloud mesh) and $14.4\%$ (Train-Ticket), against
+a generated-corpus mean above $90\%$. The honest reading of Section~\ref{sec:results:calibration}
+is therefore narrower than it first appears: \emph{the catalog is an indiscriminate screen on our
+generated corpus}, and the indiscriminacy is substantially a property of how those topologies are
+constructed---plausibly their uniform density, which leaves few components that are not an
+endpoint of some outlier edge.
+
+Two cautions keep this from being a stronger claim than it is. First, these are hand-transcribed
+\emph{architectural models} of open-source systems, not automatically harvested code, so they
+inherit the transcriber's judgement about what to include; they are a step toward the industrial
+validation Section~\ref{sec:disc:threats} calls for, not that validation. Second, the ground-truth
+oracle is still the same simulator, so this tests generalisation of the corpus, not of the oracle.
+
+Two results do not change. Detection is deterministic: findings counts have zero variance across
+all five seeds in every scenario of both corpora, so the only seed-driven variation in
+Table~\ref{tab:realworld} enters through the oracle. And the review gate returns \textbf{Exit Code
+2 (Block) on all eleven scenarios at every seed}, transcribed included---which strengthens rather
+than softens Section~\ref{sec:cicd:semantics}'s argument: absolute gating is unusable on real
+architectures too, not merely on synthetic ones where the implication rate is inflated.
 
 \subsection{Attribution Validity and Substrate Adequacy (RQ3)}
 \label{sec:results:attribution}
@@ -133,6 +193,8 @@ S07 Hyper-Scale Enterprise & $+0.0060$ & \textbf{+0.0171} & 528 & 479 & 49 & 90.
 
 \begin{enumerate}
     \item \textbf{Informative Rejection:} All 461 rejected edits record the binding propagation threshold $\theta$ where impact reduction failed to clear $\kappa \sigma_{\text{seed}}$, providing transparent review feedback.
+    \item \textbf{The Noise Margin Does Little Work.} Sweeping the acceptance multiple over $\kappa \in \{0, 0.5, 1, 1.5, 2, 3\}$ moves admission only from roughly $79\%$ to roughly $62\%$; at the shipped $\kappa = 1.0$ it is $71.0\%$. Against $\kappa = 0$---a plain sign test asking only that the mean reduction be positive---the noise margin withholds about eight further percentage points of candidates. We report this because the two-level filter is presented in Section~\ref{sec:optimization_objective} as this paper's central methodological safeguard, and the sweep shows most of its selectivity comes from requiring a positive mean at \emph{every} threshold rather than from the $\sigma$ bar itself. The reason is that the cascade simulator is highly reproducible across seeds, so $\sigma_{\text{seed}}$ is small and the median accepted edit clears it by a factor of $11.2$ (inter-quartile range $4.0$--$33.5$; only $6.9\%$ of accepted threshold-statistics fall below $2\sigma$). A margin calibrated against simulator determinism is not the same thing as a margin calibrated against real-world variability, and only the former is demonstrated here.
+    \item \textbf{Effect Magnitudes Are Small and Their Practical Significance Is Unestablished.} The median admitted edit reduces composite cascade impact by $4.2 \times 10^{-5}$ at its binding threshold (inter-quartile range $1.0 \times 10^{-5}$ to $1.2 \times 10^{-4}$; maximum $3.0 \times 10^{-3}$), against a median of $-2.1 \times 10^{-5}$ among rejected edits. The filter therefore separates sign reliably, which is what it is designed to do. Whether a reduction of this magnitude is operationally meaningful---whether it corresponds to any difference an operator would notice---is a question about the mapping from simulated impact to field outcomes that this paper does not address, and we make no claim about it.
     \item \textbf{Compositional Dynamics:} S03 and S06 are the two scenarios where individually admitted edits compose to a net \emph{increase} in cascade impact ($-6.9\%$ and $-0.15\%$ respectively, Table~\ref{tab:prescriptive_results}), despite every constituent edit having cleared the per-edit margin in isolation. Edits verified one at a time can therefore interact sub-additively, which is the strongest evidence in this paper for the necessity of a second-level whole-policy gate---and simultaneously evidence that the gate as currently formulated does not catch it, since both scenarios pass the $\Delta\mathrm{SRI} > 0$ check. A whole-policy gate scored in oracle units rather than RM units would have rejected both.
     \item \textbf{Diagnostic Review Gate Latency:} The complete diagnostic pipeline (graph construction, CQP computation, RM attribution, and 18 active anti-pattern detectors) executes in \textbf{0.01~s to 20.98~s} (Table~\ref{tab:detection_results}). The eighteen detectors run in under \textbf{0.2~s total}; computational overhead is dominated by base metric computation.
     \item \textbf{\texttt{DEEP\_PIPELINE} Bounding:} The unconstrained \texttt{DEEP\_PIPELINE} detector attempts exhaustive path enumeration, generating 247,761 findings on tiny fixtures and hanging on larger graphs. Excluding this detector (Section~\ref{sec:catalog:coverage}) restores sub-second gate execution.

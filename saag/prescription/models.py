@@ -118,9 +118,14 @@ class ThresholdStat:
         return self.mean_delta - kappa * self.sigma_seed
 
     def to_dict(self) -> Dict[str, float]:
+        # 12 dp, not 6: acceptance is decided on ``mean_delta - kappa*sigma_seed``,
+        # and margins run down to ~1e-7. At 6 dp a genuine accept serialises as
+        # {0.0, 0.0}, so recomputing the rule from the artifact reads "0 > 0" and
+        # contradicts the stored verdict. Round wide enough that the record can
+        # justify its own decision.
         return {
-            "mean_delta": round(self.mean_delta, 6),
-            "sigma_seed": round(self.sigma_seed, 6),
+            "mean_delta": round(self.mean_delta, 12),
+            "sigma_seed": round(self.sigma_seed, 12),
         }
 
 
@@ -169,7 +174,11 @@ class EditVerdict:
             "kappa": self.kappa,
             "accepted": self.accepted,
             "reason": self.reason,
-            "worst_delta": round(self.worst_delta, 6),
+            "worst_delta": round(self.worst_delta, 12),
+            # The quantity acceptance is actually decided on. Published so a
+            # reader can check ``accepted`` without re-deriving it from the
+            # per-threshold pairs.
+            "worst_margin": round(self.worst_margin, 12),
             "per_threshold": {k: s.to_dict() for k, s in self.per_threshold.items()},
         }
 

@@ -245,6 +245,39 @@ def test_prescribe_result_to_dict_includes_accepted():
     assert d["accepted"] is True
 
 
+def test_edit_verdict_to_dict_can_justify_its_own_acceptance():
+    """The exported record must let a reader re-derive ``accepted``.
+
+    Acceptance is decided on ``mean_delta - kappa*sigma_seed``, whose magnitude
+    runs down to ~1e-7. Serialising at 6 dp collapsed such a verdict to
+    {0.0, 0.0}, so recomputing the rule from the artifact read "0 > 0" and
+    contradicted the stored verdict — on 26 of the 1128 admitted edits in
+    results/prescribe_all.json. Reproducibility, not scoring: the filter itself
+    was always correct.
+    """
+    from saag.prescription.models import EditVerdict, ThresholdStat
+
+    verdict = EditVerdict(
+        kind="node_reallocation", target="A95", kappa=1.0,
+        per_threshold={
+            t: ThresholdStat(mean_delta=4e-7, sigma_seed=1e-7)
+            for t in ("0.1", "0.2", "0.5")
+        },
+    )
+    verdict.accepted = verdict.worst_margin > 0
+    assert verdict.accepted
+
+    d = verdict.to_dict()
+    recomputed = all(
+        s["mean_delta"] > verdict.kappa * s["sigma_seed"]
+        for s in d["per_threshold"].values()
+    )
+    assert recomputed is d["accepted"], (
+        "published per-threshold stats contradict the stored verdict"
+    )
+    assert d["worst_margin"] > 0
+
+
 # ── Rule compilation, in isolation ────────────────────────────────────────────
 
 def _graph(components, edges):

@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from saag import Client
 from saag.analysis.antipattern_detector import CATALOG
 from saag.infrastructure.memory_repo import MemoryRepository
+from saag.prescription.verifier import DEFAULT_SEEDS, DEFAULT_THRESHOLDS
 from reproduce.detection_validation import DEFAULT_EXCLUDED_PATTERNS
 
 SCENARIOS = {
@@ -190,8 +191,13 @@ def _write_output(args, records) -> None:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps({
         "kappa": args.kappa,
-        "seeds": args.seeds,
-        "thresholds": args.thresholds,
+        # Record the *effective* sweep, not the CLI flags: both default to None
+        # when the caller relies on the service defaults, which left the artifact
+        # claiming "seeds: null" for a run that actually swept (42, 123, 456).
+        "seeds": list(args.seeds if args.seeds is not None else DEFAULT_SEEDS),
+        "thresholds": list(
+            args.thresholds if args.thresholds is not None else DEFAULT_THRESHOLDS
+        ),
         "scenarios": records,
         "summary": {
             "n_candidate_edits": n_cand,
