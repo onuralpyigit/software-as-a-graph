@@ -1,5 +1,24 @@
 % manuscript.tex -- Automated Software Engineering (AuSE) submission
 % Special Issue on "Intelligent Techniques for Automated Code Review and Software Quality Evaluation"
+%
+% ---------------------------------------------------------------------------
+% SUBMISSION FORMAT NOTE
+% ---------------------------------------------------------------------------
+% The AuSE Guide for Authors requires the submission PDF to be generated with
+% the Springer Nature template:  \documentclass{sn-jnl}
+%
+% sn-jnl.cls is NOT part of a standard TeX Live installation. Before uploading
+% to Editorial Manager:
+%   1. Download the Springer Nature LaTeX template bundle and place sn-jnl.cls
+%      (plus sn-*.bst) alongside this file.
+%   2. Replace the \documentclass line below with \documentclass[sn-basic]{sn-jnl}
+%      and drop the geometry/lmodern/fontenc lines the class already provides.
+%   3. Switch \bibliographystyle{plainnat} to the matching sn-*.bst.
+% The article class below is retained only so the manuscript compiles locally
+% during revision. Everything else (author-year citations, alphabetised
+% reference list, title page, abstract length, keyword count) is already in
+% the format the guide requires.
+% ---------------------------------------------------------------------------
 
 \documentclass[11pt,a4paper]{article}
 
@@ -17,7 +36,7 @@
 \usepackage{xcolor}
 \usepackage{hyperref}
 \usepackage{microtype}
-\usepackage{cite}
+\usepackage[round,authoryear]{natbib}
 \usepackage{tabularx}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds}
@@ -32,13 +51,19 @@
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 
+% ---------------------------------------------------------------------------
+% Title page. AuSE operates SINGLE-BLIND peer review: authors are named to
+% reviewers. Complete the bracketed fields before submission.
+% ---------------------------------------------------------------------------
 \title{\Large\bfseries SaG-Prescribe: Unifying Diagnostic Pathways with Counterfactual Refactoring for Automated Code Review and Software Quality Evaluation in Distributed Publish--Subscribe Systems}
 
 \author{
-  \textbf{Author Information Redacted for Double-Blind Review} \\[4pt]
-  \textit{Special Issue on Intelligent Techniques for Automated Code Review} \\
-  \textit{and Software Quality Evaluation} \\[2pt]
-  Automated Software Engineering (Springer)
+  Ibrahim Onuralp Yigit\thanks{Corresponding author. E-mail: \texttt{[CORRESPONDING-AUTHOR-EMAIL]}. ORCID: \texttt{[0000-0000-0000-0000]}.}
+  \and
+  Feza Buzluca\thanks{ORCID: \texttt{[0000-0000-0000-0000]}.}
+  \\[6pt]
+  \normalsize [DEPARTMENT], [INSTITUTION] \\
+  \normalsize [STREET ADDRESS], [CITY], [POSTAL CODE], [COUNTRY]
 }
 
 \date{\today}
@@ -51,7 +76,7 @@
 \input{sections/abstract.tex}
 \end{abstract}
 
-\textbf{Keywords:} Automated code review, software quality evaluation, diagnostic pathway, architectural anti-patterns, bad smells, technical debt analysis, refactoring recommendation, publish--subscribe middleware, CI/CD quality gates, counterfactual verification.
+\textbf{Keywords:} Automated code review; Software quality evaluation; Architectural anti-patterns; Refactoring recommendation; Publish--subscribe middleware; Counterfactual verification.
 
 \linenumbers
 
@@ -69,7 +94,7 @@
 
 \input{sections/declarations.tex}
 
-\bibliographystyle{IEEEtran}
+\bibliographystyle{plainnat}
 \bibliography{refs}
 
 \end{document}

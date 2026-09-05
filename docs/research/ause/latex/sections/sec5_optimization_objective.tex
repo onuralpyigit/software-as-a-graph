@@ -1,11 +1,15 @@
 \section{Closed-Loop Optimization Objective}
 \label{sec:optimization_objective}
 
-The prescriptive engine consumes the Diagnostic Pathway's output directly---severity tiers from Section~\ref{sec:model:rm} and pattern findings from Section~\ref{sec:antipattern_catalog}---rather than re-deriving its own criticality signal, so diagnosis and prescription cannot silently drift apart. The prescriptive refactoring objective computes a graph transformation $\Delta(G)$ producing mutated topology $G' = \Delta(G)$ that minimizes global failure impact subject to a budget constraint:
+The prescriptive engine consumes the Diagnostic Pathway's output directly---severity tiers from Section~\ref{sec:model:rm} and pattern findings from Section~\ref{sec:antipattern_catalog}---rather than re-deriving its own criticality signal, so diagnosis and prescription cannot silently drift apart. The idealised prescriptive objective is a graph transformation $\Delta(G)$ producing mutated topology $G' = \Delta(G)$ that minimises global failure impact subject to a budget constraint:
 \begin{equation}
 \min_{\Delta} \sum_{v \in V} I^*_{\Delta(G)}(v) \quad \text{subject to} \quad \mathrm{Cost}(\Delta) \le \mathcal{B}
+\label{eq:ideal_objective}
 \end{equation}
-Candidate refactorings are compiled from entities flagged \texttt{CRITICAL} or \texttt{HIGH} by the Diagnostic Pathway. Rather than relying on an unconstrained heuristic search, SaG-Prescribe enforces a \textbf{two-level closed-loop acceptance filter}:
+
+We state Equation~\ref{eq:ideal_objective} to locate this work relative to search-based architecture optimisation \citep{harman2012sbse, aleti2013software, koziolek2011peropteryx}, and we are explicit that SaG-Prescribe does not solve it. No search over the space of transformations is performed, no cost model $\mathrm{Cost}(\cdot)$ is instantiated, and no budget $\mathcal{B}$ is enforced anywhere in the implementation or the evaluation. What the system implements is a \emph{screening rule} over a candidate set that the Diagnostic Pathway fixes in advance---a greedy, verification-gated approximation whose admitted set carries no optimality guarantee of any kind. Casting it as constrained minimisation would invite a comparison with SBSE methods that this design could not survive, and would misdescribe what the results in Section~\ref{sec:results:prescriptive} measure. Section~\ref{sec:conclusion:future_work} lists cost-aware subset selection as the step that would begin to close the gap.
+
+Candidate refactorings are compiled from entities flagged \texttt{CRITICAL} or \texttt{HIGH} by the Diagnostic Pathway, and SaG-Prescribe applies a \textbf{two-level acceptance filter} to them:
 \begin{enumerate}
     \item \textbf{Per-Edit Counterfactual Acceptance Filter:} Each candidate edit $\delta$ is applied in isolation to a sandboxed copy of $G$ and simulated across propagation thresholds $\Theta = \{0.1, 0.2, 0.5\}$ and seed set $S = \{42, 123, 456\}$. It is retained if and only if its mean impact reduction exceeds the simulator's seed noise at every threshold:
     \begin{equation}

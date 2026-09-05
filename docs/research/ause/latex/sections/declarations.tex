@@ -1,14 +1,19 @@
 \section*{Declarations}
 
-\paragraph{Funding:} This work was supported in part by the Scientific and Technological Research Council of Turkey.
+\paragraph{Funding:} This work was supported in part by the Scientific and Technological Research Council of T\"urkiye (T\"UB\.ITAK), grant number [GRANT-NUMBER].
 
 \paragraph{Competing Interests:} The authors declare that they have no competing financial or non-financial interests that are directly or indirectly related to the work submitted for publication.
 
-\paragraph{Data Availability:} Replication code, scenario topologies, seeds, and execution logs are reproducible via the repository harness:
+\paragraph{Related Submissions and Overlap Disclosure:} A companion manuscript by the same authors, \emph{Software-as-a-Graph: A Static System Analysis Framework for Pre-Deployment Quality Gating and Failure Simulation of Publish-Subscribe Middleware}, is currently under review at another journal. The two submissions share three research artifacts---the heterogeneous graph schema, the benchmark scenario corpus, and the discrete-event cascade simulator---and are otherwise disjoint. That manuscript contributes the learned Graph Neural Network pathway for failure-impact prediction and its evaluation; this manuscript contributes the deterministic Diagnostic Pathway, the Code Quality Penalty, the nineteen-pattern anti-pattern catalog, the prescriptive refactoring compiler, the counterfactual verification engine, and the CI/CD quality gate. No result, table, or figure appears in both. We disclose this so the editor can assess the overlap directly.
+
+\paragraph{Data Availability:} All scenario topologies, generator configurations, result artifacts, seeds, and execution logs supporting the findings of this study are available in the replication package archived at [REPOSITORY-URL], persistent identifier \texttt{[TODO(DOI): mint a Zenodo DOI before submission]}. The two entry points that regenerate this paper's tables are:
 \begin{verbatim}
 PYTHONPATH=. python reproduce/detection_validation.py --layer app \
     --output results/detection_validation_app.json
 PYTHONPATH=. python reproduce/run_prescribe_all.py --kappa 1.0
 \end{verbatim}
+The first regenerates Tables~\ref{tab:detection_results} and \ref{tab:predictor_comparison}; the second regenerates Tables~\ref{tab:prescriptive_results} and \ref{tab:operator_results}. The prescriptive sweep takes approximately 2\,h 47\,min on 20 cores.
+
+\paragraph{Author Contributions:} [To be completed via the submission interface, per the journal's Submitting Declarations requirements.]
 
 \paragraph{Ethics Approval:} Not applicable.

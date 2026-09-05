@@ -4,7 +4,7 @@
 \subsection{Automated Code Review Bot Architecture}
 \label{sec:cicd:bot}
 
-To govern architectural quality during continuous evolution, the Diagnostic Pathway is packaged as a lightweight pre-merge review bot. When a pull request modifies system topology or QoS configurations, the bot analyzes the change, executes the 19 anti-pattern detectors, attributes RM debt, and posts structured review comments.
+To govern architectural quality during continuous evolution, the Diagnostic Pathway is packaged as a lightweight pre-merge review bot. When a pull request modifies system topology or QoS configurations, the bot analyzes the change, executes the 18 active anti-pattern detectors (Section~\ref{sec:results:performance} excludes \texttt{DEEP\_PIPELINE}), attributes RM debt, and posts structured review comments.
 
 \subsection{Regression Semantics: Absolute vs. Delta-Aware Gating}
 \label{sec:cicd:semantics}

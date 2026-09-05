@@ -82,7 +82,7 @@ $\mathrm{CQP}(v) \in [0,1]$ provides an explicit, quantitative bridge from sourc
 \subsection{Hierarchical Reliability--Maintainability (RM) Quality Attribution}
 \label{sec:model:rm}
 
-Grounded in \textbf{ISO/IEC 25010} (Product Quality) and \textbf{ISO/IEC 25019} (Quality-in-Use) \cite{iso25010_2023, iso25019_2023}, the Diagnostic Pathway decomposes structural quality into two primary dimensions---\textbf{Reliability} and \textbf{Maintainability}---providing explainable, role-specific diagnostics (Figure~\ref{fig:rm_hierarchy}, Table~\ref{tab:rm_stakeholders}).
+Grounded in \textbf{ISO/IEC 25010} (Product Quality) and \textbf{ISO/IEC 25019} (Quality-in-Use) \citep{iso25010_2023, iso25019_2023}, the Diagnostic Pathway decomposes structural quality into two primary dimensions---\textbf{Reliability} and \textbf{Maintainability}---providing explainable, role-specific diagnostics (Figure~\ref{fig:rm_hierarchy}, Table~\ref{tab:rm_stakeholders}).
 
 \begin{figure}[htbp]
 \centering
@@ -136,26 +136,52 @@ Grounded in \textbf{ISO/IEC 25010} (Product Quality) and \textbf{ISO/IEC 25019} 
     \item \textbf{Definition D4 (Relative Distribution):} Criticality classifications are relative to the score distribution of system $S$ at layer $l$.
 \end{itemize}
 
+\paragraph{Structural Inputs.}
+The RM formulas below consume the following structural quantities, computed on the
+layer-projected graph $G_l$. Let $\varepsilon = 10^{-9}$.
+\begin{itemize}
+    \item $\mathrm{RPR}(v)$: PageRank on the transposed graph $G_l^{\mathsf T}$, rank-normalised over the component population. \texttt{DEPENDS\_ON} edges point dependent~$\to$~dependency, so failure propagates \emph{against} edge direction; reverse PageRank is therefore the cascade-reach estimator, not forward PageRank.
+    \item $\mathrm{DG}_{\text{in}}(v) = \deg^{-}(v) / (|V_l| - 1)$ and $\mathrm{DG}_{\text{out}}(v) = \deg^{+}(v) / (|V_l| - 1)$.
+    \item \textbf{Multi-Path Coupling Index:} $\mathrm{MPCI}(v) = \sum_{e \in \mathrm{In}(v)} \max(\mathrm{paths}(e) - 1,\, 0) \,/\, (|V_l| - 1)$, where $\mathrm{paths}(e)$ counts the distinct pub-sub channels realising dependency $e$.
+    \item \textbf{Fan-Out Criticality} (Topic vertices only): $\mathrm{FOC}(t) = \ln(1 + f(t))\, s(t) \,/\, \max_{t'} [\ln(1 + f(t'))\, s(t')]$, for topic publication frequency $f(t)$ in Hz and subscriber count $s(t)$.
+    \item \textbf{Directed Articulation Score:} with $L(H)$ the order of the largest connected component of $H$, $\mathrm{AP}_{c}^{\text{out}}(v) = 1 - L(G_l \setminus \{v\})/(|V_l|-1)$, $\mathrm{AP}_{c}^{\text{in}}(v)$ the same on $G_l^{\mathsf T}$, and $\mathrm{AP}_{c,\text{directed}}(v) = \max(\mathrm{AP}_c^{\text{out}}(v), \mathrm{AP}_c^{\text{in}}(v))$. This is continuous, not the binary cut-vertex predicate.
+    \item \textbf{Bridge Ratio:} $\mathrm{BR}(v) = |\{e \in \mathrm{bridges}(G_l^{\text{und}}) : v \in e\}| / \deg^{\text{und}}(v)$.
+    \item \textbf{Connectivity Degradation Index:} $\mathrm{CDI}(v) = \min\!\big( [\bar{d}(G_l \setminus \{v\}) - \bar{d}(G_l)] / \bar{d}(G_l),\; 1 \big)$, for $\bar{d}$ the average shortest-path length over reachable pairs.
+    \item $\mathrm{BT}(v)$: betweenness centrality; $\mathrm{CC}(v)$: clustering coefficient; $\mathrm{PC}(v)$: path complexity (count of distinct paths through $v$, normalised); $w(v)$: rank-normalised QoS component weight; $w_{\text{in}}(v), w_{\text{out}}(v)$: rank-normalised summed QoS weight over in- and out-edges.
+\end{itemize}
+
 \paragraph{Mathematical Formulation of Quality Dimensions.}
 \begin{enumerate}
-    \item \textbf{Fault Tolerance ($FT$):} Evaluates cascade reach using Reverse PageRank ($\mathrm{RPR}$) and fan-out concentration:
-    \begin{equation}
-    FT(v) = f(\mathrm{RPR}(v), \mathrm{DG}_{\text{in}}(v), \mathrm{MPCI}(v), \mathrm{FOC}(v))
-    \end{equation}
-    \item \textbf{Availability ($A$):} Evaluates single-point-of-failure exposure via directed cut-vertex articulation scoring ($\mathrm{AP}_{c,\text{directed}}$) and bridge ratios:
-    \begin{equation}
-    A(v) = g(\mathrm{AP}_{c,\text{directed}}(v), \mathrm{BR}(v), \mathrm{CDI}(v), w(v))
-    \end{equation}
-    \item \textbf{Reliability Composite ($R$):} Blends Fault Tolerance and Availability with $\alpha = 0.36$:
-    \begin{equation}
-    R(v) = \alpha \cdot FT(v) + (1-\alpha) \cdot A(v)
-    \end{equation}
-    \item \textbf{Maintainability ($M$):} Blends betweenness centrality ($\mathrm{BT}$), efferent QoS out-degree ($w_{\text{out}}$), enhanced coupling risk, and the Code Quality Penalty ($\mathrm{CQP}$):
+    \item \textbf{Fault Tolerance ($FT$).} Estimates cascade reach. For Application, Library, Broker and Node vertices, an enhanced cascade-depth potential $\mathrm{CDPot}$ discounts vertices that forward more than they absorb, then amplifies by multi-path coupling:
     \begin{equation}
     \begin{aligned}
+    \mathrm{CDPot}_{\text{base}}(v) &= \frac{\mathrm{RPR}(v) + \mathrm{DG}_{\text{in}}(v)}{2}\left(1 - \min\!\left(\frac{\deg^{+}(v)}{\max(\deg^{-}(v),\varepsilon)},\, 1\right)\right) \\
+    \mathrm{CDPot}(v) &= \min\!\big(\mathrm{CDPot}_{\text{base}}(v)\,(1 + \mathrm{MPCI}(v)),\; 1\big) \\
+    FT(v) &= 0.45\,\mathrm{RPR}(v) + 0.30\,\mathrm{DG}_{\text{in}}(v) + 0.25\,\mathrm{CDPot}(v)
+    \end{aligned}
+    \end{equation}
+    Topic vertices take a separate branch, since a topic's blast surface is its subscriber set moderated by publisher redundancy:
+    \begin{equation}
+    FT_{\text{topic}}(t) = 0.50\,\mathrm{FOC}(t) + 0.50\,\mathrm{FOC}(t)\big(1 - \min(w_{\text{in}}(t), 1)\big)
+    \end{equation}
+    \item \textbf{Availability ($A$).} Evaluates single-point-of-failure exposure. The interaction term $\mathrm{QSPOF}(v) = \mathrm{AP}_{c,\text{directed}}(v)\cdot w(v)$ deliberately reuses $\mathrm{AP}_{c,\text{directed}}$ so that structural SPOF risk is not masked at low QoS weight; its effective weight therefore ranges over $[0.2563,\, 0.4561]$ as $w(v)$ ranges over $[0,1]$:
+    \begin{equation}
+    \begin{aligned}
+    A(v) = & \; 0.2563\,\mathrm{AP}_{c,\text{directed}}(v) + 0.1998\,\mathrm{QSPOF}(v) \\
+           & + 0.1998\,\mathrm{BR}(v) + 0.2563\,\mathrm{CDI}(v) + 0.0878\,w(v)
+    \end{aligned}
+    \end{equation}
+    \item \textbf{Maintainability ($M$).} Blends betweenness, efferent QoS out-degree, the Code Quality Penalty, a path-complexity-enriched coupling risk, and inverse clustering. With $\iota(v) = \deg^{+}(v) / (\deg^{-}(v) + \deg^{+}(v) + \varepsilon)$ the deployment-graph instability,
+    \begin{equation}
+    \begin{aligned}
+    \mathrm{CouplingRisk\_enh}(v) &= \min\!\big(1,\; \big[1 - |2\iota(v) - 1|\big]\,(1 + 0.10\,\mathrm{PC}(v))\big) \\
     M(v) = & \; 0.35\,\mathrm{BT}(v) + 0.30\,w_{\text{out}}(v) + 0.15\,\mathrm{CQP}(v) \\
            & + 0.12\,\mathrm{CouplingRisk\_enh}(v) + 0.08\,(1-\mathrm{CC}(v))
     \end{aligned}
+    \end{equation}
+    \item \textbf{Reliability Composite ($R$).} Blends Fault Tolerance and Availability with $\alpha = 0.36$:
+    \begin{equation}
+    R(v) = \alpha \cdot FT(v) + (1-\alpha) \cdot A(v)
     \end{equation}
 \end{enumerate}
 
@@ -165,10 +191,39 @@ The diagnostic vector $\mathbf{s}_{\text{RM}}(v) = [R(v), M(v)]^T$ projects into
 \mathbf{h}_{\text{QiU}}(v) = \mathbf{M}_{\text{RM} \to \text{QiU}} \cdot \mathbf{s}_{\text{RM}}(v) = \begin{bmatrix} 0.75 & 0.25 \\ 0.80 & 0.20 \\ 0.60 & 0.40 \end{bmatrix} \begin{bmatrix} R(v) \\ M(v) \end{bmatrix}
 \end{equation}
 
-Composite criticality blends the dimensions under declared weights $(w_R, w_M) = (0.80, 0.20)$ \cite{saaty1980analytic}:
+We are explicit about what this projection does and does not add. $\mathbf{M}_{\text{RM} \to \text{QiU}}$
+is row-stochastic and maps a two-vector into three dimensions, so it cannot introduce information:
+each harm score is an affine function of the same $(R, M)$ pair, and any domain-weighted
+scalarisation onto quality-in-use harm is algebraically identical to scoring the same RM vector
+under different composite weights ($\mathbf{M}^{\mathsf T}\boldsymbol{\omega}$). The three rows are
+close to collinear besides. $\mathbf{h}_{\text{QiU}}$ is therefore a \emph{re-presentation} of RM in
+stakeholder-facing terms---useful for routing a finding to the role that owns it, which is its
+purpose---and not an independent assessment along three axes. We do not report it as a quantity
+distinct from a reweighted $Q(v)$, and readers should not treat it as one.
+
+Composite criticality blends the dimensions under declared weights $(w_R, w_M) = (0.80, 0.20)$:
 \begin{equation}
 Q(v) = 0.80\,R(v) + 0.20\,M(v)
 \end{equation}
+
+\paragraph{Provenance of the Composite Weights.}
+$\alpha = 0.36$ and $(w_R, w_M) = (0.80, 0.20)$ are not independently tuned constants, and we
+state their derivation rather than citing a method name. They are a re-parameterisation of a
+retired four-dimensional composite whose weights were elicited by Analytic Hierarchy Process
+\citep{saaty1980analytic} over the criteria (Availability, Reliability, Maintainability,
+Vulnerability), yielding the priority vector $(0.43, 0.24, 0.17, 0.16)$. When the Vulnerability
+dimension was withdrawn from the model, the remaining three were renormalised over their residual
+mass $0.84$, giving Availability $0.512$, Reliability $0.286$, Maintainability $0.202$. The
+hierarchical form above reproduces exactly these: $w_R(1-\alpha) = 0.512$,
+$w_R\,\alpha = 0.288$, $w_M = 0.20$, each within $0.003$ of the renormalised AHP value. Two
+consequences follow, and we state both. First, the weights should not be re-tuned independently of
+that derivation without re-eliciting the underlying comparison matrix. Second, and more
+importantly for a reader assessing this model, they inherit whatever subjectivity the original
+elicitation carried; we report no sensitivity analysis over $\alpha$ or $(w_R, w_M)$ in this paper,
+and Section~\ref{sec:conclusion:future_work} lists it as required work. Section~\ref{sec:results:attribution}
+gives a concrete reason it matters: on the application-layer projection, $A(v)$ is near-constant, so
+a large region of $\alpha$-space produces near-identical rankings and the nominal $0.64$ weight on
+Availability overstates its actual influence on that layer.
 Components are categorized into five severity tiers (\texttt{CRITICAL}, \texttt{HIGH}, \texttt{MEDIUM}, \texttt{LOW}, \texttt{MINIMAL}) using adaptive box-plot thresholding ($Q > Q_3 + 1.5\,\mathrm{IQR}$ for \texttt{CRITICAL}; $Q_3 < Q \le \text{upper fence}$ for \texttt{HIGH}).
 
 \subsection{Substrate Adequacy: Which Layer Each Dimension Presumes}

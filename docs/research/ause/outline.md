@@ -77,7 +77,7 @@ Automated code review; software quality evaluation; diagnostic pathway; architec
 
 ### 8. Experimental Design
 * **8.1 Research Questions:** RQ1 (Diagnostic Ranking Efficacy), RQ2 (Catalog Screening & Calibration), RQ3 (Attribution Validity & Substrate Adequacy), RQ4 (Prescriptive Efficacy & Operator Survival), RQ5 (Verification Yield, Compositionality & CI/CD Feasibility).
-* **8.2 Benchmark Scenarios:** Table 8.1 (8 scenarios, S01–S08, 6 domains, 29 to 3325 vertices, 12–300 applications; S08 |E| corrected to 101).
+* **8.2 Benchmark Scenarios:** Table 8.1 (8 scenarios, S01–S08, 6 domains, 29 to 520 vertices, 12–300 applications; S08 |E| corrected to 101).
 * **8.3 Experimental Protocol & Metrics:** Adds Cohen's κ, NDCG@10, Top-$k$; discloses the equal-sized-set precision=recall=F₁ artifact; states the two-oracle distinction (this paper's $I_{\text{comp}}$ vs. RASSE 2025's Reachability Loss) that §9.3 reconciles.
 
 ### 9. Empirical Results
