@@ -14,7 +14,7 @@
 * **Target Topics:** *AI for Reliability and Dependability Analysis in Complex ICT Systems* (primary); *Explainable, Interpretable, and Robust AI in Performance Analysis* (secondary, now carried by §4's attention analysis plus §5's explanation layer); *AI for Automated Performance Tasks* (RQ5/§7.5)
 * **Review model:** double-anonymised (`[Anon-A]` withheld; author identity confined to `title_page.tex`)
 * **Scale:** ~18,100 words in `latex/sections/`, 8 sections, 16 tables, 5 figures, 56 cited references + `[Anon-A]`
-* **Build:** 37 pages under `[preprint,3p]`, zero LaTeX errors, zero undefined references or citations
+* **Build:** 36 pages under `[preprint,3p]` (strictly complying with JSS page budget), zero LaTeX errors, zero undefined references or citations
 
 ---
 
