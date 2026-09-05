@@ -15,15 +15,15 @@ Table~\ref{tab:5} presents the in-distribution held-out Spearman rank correlatio
 \toprule
 \textbf{Scenario} & \textbf{$n$} & \textbf{Topo-BL} & \textbf{Topo-QoS} & \textbf{GL} & \textbf{GL-QoS} & \textbf{HGL} & \textbf{HGL-QoS} \\
 \midrule
-\textbf{AV System} & 16 & 0.283 & 0.701 & 0.764 & 0.678 & \textbf{0.789} & 0.649 \\
-\textbf{Enterprise} & 60 & 0.420 & 0.789 & 0.871 & 0.483 & 0.880 & \textbf{0.891} \\
-\textbf{Financial Trading} & 12 & 0.289 & 0.700 & 0.645 & 0.539 & \textbf{0.854} & 0.770 \\
-\textbf{Healthcare} & 10 & $-0.101$ & \textbf{0.772} & 0.623 & 0.463 & 0.652 & 0.645 \\
-\textbf{Hub-and-Spoke} & 14 & 0.234 & 0.359 & \textbf{0.547} & 0.054 & 0.534 & 0.297 \\
-\textbf{IoT Smart City} & 40 & $-0.063$ & 0.073 & 0.289 & 0.291 & \textbf{0.881} & 0.842 \\
-\textbf{Microservices} & 18 & 0.401 & \textbf{0.707} & 0.525 & 0.564 & 0.483 & 0.476 \\
+\textbf{AV System} & 16 & 0.297 & 0.723 & 0.777 & 0.618 & \textbf{0.789} & 0.649 \\
+\textbf{Enterprise} & 60 & 0.415 & 0.805 & 0.872 & 0.461 & 0.880 & \textbf{0.891} \\
+\textbf{Financial Trading} & 12 & 0.268 & 0.700 & 0.641 & 0.568 & \textbf{0.854} & 0.770 \\
+\textbf{Healthcare} & 10 & $-0.155$ & \textbf{0.768} & 0.613 & 0.521 & 0.652 & 0.645 \\
+\textbf{Hub-and-Spoke} & 14 & 0.285 & 0.401 & \textbf{0.554} & 0.057 & 0.534 & 0.296 \\
+\textbf{IoT Smart City} & 40 & $-0.058$ & 0.071 & 0.264 & 0.259 & \textbf{0.881} & 0.842 \\
+\textbf{Microservices} & 18 & 0.352 & \textbf{0.698} & 0.556 & 0.578 & 0.483 & 0.476 \\
 \midrule
-\textbf{Mean} & — & \textbf{0.209} & \textbf{0.586} & \textbf{0.609} & \textbf{0.439} & \textbf{0.725} & \textbf{0.653} \\
+\textbf{Mean} & — & \textbf{0.201} & \textbf{0.595} & \textbf{0.611} & \textbf{0.438} & \textbf{0.725} & \textbf{0.653} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -38,11 +38,11 @@ Table~\ref{tab:5} presents the in-distribution held-out Spearman rank correlatio
 \toprule
 \textbf{Comparison} & \textbf{$\Delta\rho$} & \textbf{Won} & \textbf{Wilcoxon $W$} & \textbf{$p$-value} & \textbf{Significance} \\
 \midrule
-\textbf{HGL vs. Topo-BL} & \textbf{+0.516} & 7/7 & 0.0 & \textbf{0.0156} & \textbf{Statistically Significant} ($p < 0.05$) \\
-\textbf{HGL vs. GL-QoS} & \textbf{+0.286} & 6/7 & 1.0 & \textbf{0.0312} & \textbf{Statistically Significant} ($p < 0.05$) \\
-\textbf{HGL vs. Topo-QoS} & \textbf{+0.139} & 5/7 & 9.0 & 0.469 & Not significant \\
-\textbf{GL vs. Topo-QoS} & \textbf{+0.023} & 4/7 & 10.0 & 0.578 & Not significant \\
-\textbf{HGL vs. GL} & \textbf{+0.116} & 5/7 & 7.0 & 0.297 & Not significant \\
+\textbf{HGL vs. Topo-BL} & \textbf{+0.524} & 7/7 & 0.0 & \textbf{0.0156} & \textbf{Statistically Significant} ($p < 0.05$) \\
+\textbf{HGL vs. GL-QoS} & \textbf{+0.287} & 6/7 & 1.0 & \textbf{0.0312} & \textbf{Statistically Significant} ($p < 0.05$) \\
+\textbf{HGL vs. Topo-QoS} & \textbf{+0.130} & 5/7 & 9.0 & 0.469 & Not significant \\
+\textbf{GL vs. Topo-QoS} & \textbf{+0.016} & 4/7 & 12.0 & 0.813 & Not significant \\
+\textbf{HGL vs. GL} & \textbf{+0.114} & 5/7 & 8.0 & 0.375 & Not significant \\
 \textbf{HGL-QoS vs. HGL} & \textbf{$-$0.072} & 1/7 & 3.0 & 0.078 & Not significant (marginal; HGL-QoS trails in-distribution) \\
 \bottomrule
 \end{tabular}%
@@ -78,14 +78,14 @@ In inductive Leave-One-Scenario-Out (LOSO) cross-validation, models are evaluate
 \end{tabular}
 \end{table}
 
-Eight LOSO folds are reported, comprising the seven synthetic scenarios and the ATM case study from Section~\ref{sec:7.3}. In each fold, one scenario is held out for zero-shot testing while the model is trained exclusively on the remaining seven. All variants are evaluated on the identical Application node set per fold (Section~\ref{sec:6.3}); paired Wilcoxon tests are conducted across the eight folds.
+Eight LOSO folds are reported, comprising the seven synthetic scenarios and the ATM case study from Section~\ref{sec:7.3}. In each fold, one scenario is held out for zero-shot testing while the model is trained exclusively on the remaining seven. All variants are evaluated on the identical Application node set per fold (Section~\ref{sec:6.3}); paired Wilcoxon tests are conducted across the eight folds. Per-fold evaluated populations range from 26 to 300 Application nodes, so $K = \text{round}(0.20\,|V_{\text{app}}|)$ ranges from 5 to 60. On $F_1@K$, HGL-QoS beats Topo-QoS in 4 of 8 folds ($W = 9.0$, $p = 0.469$) and GL in 8 of 8 ($W = 0.0$, $p = 0.0078$): the learned model separates itself from untyped learning on this metric, but not from the training-free QoS baseline.
 
 \noindent\textbf{Key Insights for RQ1:}
 \begin{enumerate}
     \item \textbf{The typed predictor is the best learned configuration overall.} HGL-QoS leads every other learned variant on both metrics ($\rho = 0.608$, $F_1@K = 0.414$), with a significant ranking margin over both homogeneous GNNs ($+0.246$ over GL-QoS and $+0.522$ over GL, 8/8 folds, $p = 0.0078$ in both cases). Section~\ref{sec:7.2} states the substrate caveat that qualifies this comparison.
-    \item \textbf{Critical-set identification separates learned models from each other, but not from the untrained QoS baseline.} HGL-QoS improves $F_1@K$ over GL by $+0.177$. Against Topo-QoS the margin is only $+0.034$ ($0.414$ vs.\ $0.380$); we report no significance test for it, and it should not be read as an established advantage. With $K$ between 2 and 12 components per fold, a single component changing rank in one fold moves the mean by more than this margin, and the gap is smaller than the oracle's own seed-to-seed critical-set reproducibility (Section~\ref{sec:8.3}).
+    \item \textbf{Critical-set identification separates learned models from each other, but not from the untrained QoS baseline.} HGL-QoS improves $F_1@K$ over GL by $+0.177$. Against Topo-QoS the margin is only $+0.034$ ($0.414$ vs.\ $0.380$) and does not survive testing: HGL-QoS wins 4 of 8 folds, and the paired Wilcoxon signed-rank test over folds gives $W = 9.0$, $p = 0.469$. Per-fold differences alternate in sign ($+0.000$, $+0.188$, $-0.087$, $+0.067$, $+0.120$, $-0.014$, $+0.020$, $-0.022$). Critical-set identification is therefore not a demonstrated advantage of the learned model over the QoS-weighted baseline on this corpus.
     \item \textbf{QoS encoding carries the typed model out of distribution.} HGL-QoS leads HGL by $\Delta\rho = +0.169$, winning 7 of 8 folds ($p = 0.0156$) --- a substantial, consistent advantage under distribution shift.
-    \item \textbf{Ranking Boundary:} Against \emph{Topo-QoS}, HGL-QoS's margin is $+0.037$, won in 5 of 8 folds ($p = 0.64$, not statistically significant). On out-of-distribution ranking, heterogeneous graph learning matches rather than outperforms a well-constructed QoS baseline, and the critical-set margin above is untested. The case for training a model therefore rests on the qualitative capabilities the baseline cannot supply --- actionable explanations, per-relationship edge criticality, and multi-task quality attributions --- which this study describes but does not yet quantify (Section~\ref{sec:8.4}).
+    \item \textbf{Ranking Boundary:} Against \emph{Topo-QoS}, HGL-QoS's margin is $+0.037$, won in 5 of 8 folds ($p = 0.64$, not statistically significant). On out-of-distribution ranking, heterogeneous graph learning matches rather than outperforms a well-constructed QoS baseline, and the critical-set margin above is likewise not significant. The case for training a model therefore rests on the qualitative capabilities the baseline cannot supply --- actionable explanations, per-relationship edge criticality, and multi-task quality attributions --- which this study describes but does not yet quantify (Section~\ref{sec:8.4}).
     \item \textbf{The explanation layer is weakly predictive, not noise.} RM/$Q(v)$ achieves $\rho = 0.195$ under distribution shift --- outperforming untyped GL ($0.086$) while providing interpretable architectural diagnostics (Section~\ref{sec:5}).
 \end{enumerate}
 
@@ -101,7 +101,7 @@ Eight LOSO folds are reported, comprising the seven synthetic scenarios and the 
 
 To evaluate the specific contribution of node and edge typing, we contrast relation-specific HGL against homogeneous GL:
 \begin{itemize}
-    \item \textbf{In-Distribution:} Heterogeneous HGL leads homogeneous GL by $\Delta\rho = +0.116$ ($0.725$ vs.\ $0.609$; $p = 0.297$, 5/7 scenarios won). On familiar topologies, homogeneous GNNs partially approximate typing via structural degree signatures.
+    \item \textbf{In-Distribution:} Heterogeneous HGL leads homogeneous GL by $\Delta\rho = +0.114$ ($0.725$ vs.\ $0.611$; $p = 0.375$, 5/7 scenarios won). On familiar topologies, homogeneous GNNs partially approximate typing via structural degree signatures.
     \item \textbf{Out-of-Distribution (LOSO):} The gap widens sharply under distribution shift. Heterogeneous HGL outperforms homogeneous GL by \textbf{$+0.353$} ($\rho = 0.439$ vs.\ $0.086$), winning \emph{all eight} folds (paired Wilcoxon, $p = 0.0078$). Similarly, HGL-QoS outperforms GL-QoS by $+0.246$ ($0.608$ vs.\ $0.363$, $p = 0.0078$). Without relation typing, homogeneous models degrade below unweighted structural baselines ($0.086$ vs.\ $0.301$).
 \end{itemize}
 
@@ -279,14 +279,14 @@ We evaluated SaG zero-shot on three open-source distributed systems transcribed 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Zero-shot transfer evaluation on open-source reference systems (held-out, without fine-tuning). Ground truth is simulator-derived, as elsewhere in this study; these are not observed production incidents.}
+\caption{Zero-shot transfer evaluation on open-source reference systems (held-out, without fine-tuning). The evaluated variant is HGL (typed, QoS edge features disabled); $\pm$ denotes the standard deviation over the five training seeds $\{42, 123, 456, 789, 2024\}$. ``Gain vs.\ Deg'' is $|\rho_{\text{SaG}}| - |\rho_{\text{deg}}|$. Ground truth is simulator-derived, as elsewhere in this study; these are not observed production incidents.}
 \label{tab:9}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccccccc}
 \toprule
 \textbf{Real-World Architecture} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Spearman $\rho$} & \textbf{Kendall $\tau$} & \textbf{App $F_1@K$} & \textbf{Pooled $F_1@K$} & \textbf{Impactful Apps} & \textbf{Gain vs.\ Deg} \\
 \midrule
-\textbf{Autoware.universe (ROS 2)} & 75 & 32 & \textbf{0.688 $\pm$ 0.009} & 0.517 & 0.333 & 0.800 & 19 / 32 & +0.360 \\
+\textbf{Autoware.universe (ROS 2)} & 75 & 32 & \textbf{0.685 $\pm$ 0.010} & 0.513 & 0.333 & 0.800 & 19 / 32 & +0.357 \\
 \textbf{Cloud Microservices Mesh} & 60 & 22 & \textbf{0.778 $\pm$ 0.001} & 0.639 & 0.500 & 1.000 & 8 / 22 & +0.014 \\
 \textbf{Train-Ticket Booking Mesh} & 90 & 41 & \textbf{0.759 $\pm$ 0.001} & 0.605 & 0.625 & 1.000 & 14 / 41 & +0.264 \\
 \bottomrule
@@ -296,9 +296,9 @@ We evaluated SaG zero-shot on three open-source distributed systems transcribed 
 
 \noindent\textbf{Key Insights for RQ4:}
 \begin{enumerate}
-    \item \textbf{Strong Real-World Zero-Shot Transfer:} Trained exclusively on synthetic scenarios, SaG achieves high zero-shot rank correlation on Cloud Microservices ($\rho = 0.778$), Train-Ticket ($\rho = 0.759$), and Autoware.universe ($\rho = 0.688$), indicating that relation-specific graph representations transfer to architectures outside the generator's distribution. Because the comparison in this table is against degree centrality alone, it does not establish transfer superiority over the stronger \texttt{Topo-QoS} baseline of Table~\ref{tab:7}.
+    \item \textbf{Strong Real-World Zero-Shot Transfer:} Trained exclusively on synthetic scenarios, SaG achieves high zero-shot rank correlation on Cloud Microservices ($\rho = 0.778$), Train-Ticket ($\rho = 0.759$), and Autoware.universe ($\rho = 0.685$), indicating that relation-specific graph representations transfer to architectures outside the generator's distribution. Because the comparison in this table is against degree centrality alone, it does not establish transfer superiority over the stronger \texttt{Topo-QoS} baseline of Table~\ref{tab:7}.
     \item \textbf{Stratified vs.\ Pooled Critical Set Identification:} On the stratified Application population ($V_{\text{app}}$ with $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$), SaG identifies the top-20\% critical services with $F_1@K = 0.333$ in Autoware, $0.500$ in Cloud Microservices, and $0.625$ in Train-Ticket. When evaluated across the pooled multigraph ($K = \text{round}(0.20 \cdot |V|)$), the pooled $F_1@K$ reaches $0.800$, $1.000$, and $1.000$, respectively. This disparity highlights the base-rate phenomenon discussed in Section~\ref{sec:6.3}: unmeasured passive infrastructure entities (Topics, Nodes, Libraries) exhibit constant zero failure impact under process crash simulation. While the pooled metric confirms that SaG cleanly separates critical active services from inert infrastructure, reporting stratified $V_{\text{app}}$ metrics provides the more rigorous, non-inflated evaluation.
-    \item \textbf{Predictive Advantage over Structural Heuristics:} The ``Gain vs.\ Deg'' column reports SaG's ranking margin over an unweighted degree centrality baseline (+0.360 on Autoware, +0.264 on Train-Ticket, +0.014 on Cloud Microservices). Heterogeneous message passing captures multi-hop topic-broker cascades that degree and local connectivity metrics fail to resolve.
+    \item \textbf{Predictive Advantage over Structural Heuristics:} The ``Gain vs.\ Deg'' column reports SaG's rank-correlation margin over an unweighted degree centrality baseline ($+0.357$ on Autoware, $+0.264$ on Train-Ticket, $+0.014$ on Cloud Microservices), consistent with heterogeneous message passing capturing multi-hop topic--broker cascades that degree centrality does not resolve. This margin is a difference between aggregate rank correlations and should not be read as a significance result: the paired per-node test recorded alongside it --- a Wilcoxon signed-rank test on $|\hat{Q}(v) - I^*(v)| - |\text{deg}(v) - I^*(v)|$ --- does not reach significance on any of the three systems ($p \ge 0.97$). That test compares raw score errors between quantities on different scales and is therefore weak evidence in either direction, but we report it rather than omit it. Establishing a transfer advantage over structural heuristics requires the stronger \texttt{Topo-QoS} baseline of Table~\ref{tab:7}, which this table does not yet include.
 \end{enumerate}
 
 \subsection{RQ5: Analysis Cost, Computational Sustainability, and CI/CD Feasibility}
