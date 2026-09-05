@@ -12,7 +12,7 @@ In accordance with \textbf{ISO/IEC 25010:2023} (Product Quality Model) \cite{iso
     \item \textbf{Relationship Criticality ($D_2$):} The degree of systemic service degradation resulting from the severance, partitioning, or failure of a specific dependency or communication channel while both endpoint components remain operational.
 \end{itemize}
 
-Criticality is evaluated across two orthogonal quality characteristics: \textbf{Reliability ($R$)} and \textbf{Maintainability ($M$)}. In distributed systems, degradation of Reliability and Maintainability directly precipitates runtime performance collapse and computational energy waste. Specifically, components with high Fault Tolerance risk ($FT$, cascade hubs) cause severe message queue accumulation, head-of-line blocking, and tail-latency amplification during partial outages. Conversely, single points of failure (high Availability risk, $A$) trigger failover storms, connection thrashing, and retry loops with exponential backoff that dissipate substantial CPU and network bandwidth without completing useful work. Table~\ref{tab:3} outlines this Reliability--Maintainability (RM) quality decomposition, mapping ISO/IEC sub-characteristics to architectural questions, underlying graph metrics, and targeted engineering remediations.
+Criticality is evaluated across two orthogonal quality characteristics: \textbf{Reliability ($R$)} and \textbf{Maintainability ($M$)}. The two are separated because they imply different repairs, not because they predict different runtime quantities: this layer attributes structural fragility and does not forecast latency, throughput or queue occupancy. Table~\ref{tab:3} outlines this Reliability--Maintainability (RM) quality decomposition, mapping ISO/IEC sub-characteristics to architectural questions, underlying graph metrics, and targeted engineering remediations.
 
 \begin{table}[htbp]
 \centering
@@ -52,8 +52,9 @@ All raw topological and code metrics are rank-normalized to $[0, 1]$. Quality su
     where $\text{AP}_c^{\text{dir}}(v)$ is Directed Articulation Point severity, $\text{QSPOF}(v)$ is QoS-weighted Single Point of Failure severity, $\text{BR}(v)$ is Bridge Ratio (edge-level irrecoverability), $\text{CDI}(v)$ is Connectivity Degradation Index, and $w(v)$ is the component's intrinsic QoS weight.
     \item \textbf{Reliability ($R(v)$):} Blends Fault Tolerance and Availability hierarchically:
     \begin{equation}
-    R(v) = \alpha \cdot FT(v) + (1 - \alpha) \cdot A(v), \quad \alpha = 0.36
+    R(v) = r_\alpha \cdot FT(v) + (1 - r_\alpha) \cdot A(v), \quad r_\alpha = 0.36
     \end{equation}
+    The blend weight is written $r_\alpha$ throughout to distinguish it from the payload-size coefficient $\alpha$ of Equation~(\ref{eq:3}); the two are unrelated parameters and are screened separately in Table~\ref{tab:8e}.
     Intra-dimension pairwise comparison matrices are audited against Saaty's consistency ratio and measure $CR = 0.001$ (Fault Tolerance), $CR = 0.001$ (Availability), and $CR = 0.000$ (Maintainability) --- all well within the $CR \le 0.10$ acceptability threshold. The shipped intra-dimension weights apply a $\lambda = 0.70$ shrinkage blend between the raw AHP-derived vector and a uniform prior (Section~\ref{sec:7.3} reports ranking sensitivity to $\lambda$).
     \item \textbf{Maintainability ($M(v)$):} Evaluates structural coupling combined with code-level static analysis across five terms --- betweenness, QoS-weighted efferent coupling, the Code Quality Penalty, an afferent/efferent coupling-risk imbalance term, and inverse clustering:
     \begin{equation}
@@ -80,4 +81,4 @@ Components are categorized into adaptive criticality tiers using box-plot quarti
     \item \textbf{MINIMAL:} $Q \le Q_1$
 \end{itemize}
 
-This provides actionable diagnostics: a service scoring high on $A$ but low on $FT$ is diagnosed as a pure SPOF requiring horizontal replication, whereas a service scoring high on $FT$ is an error cascade hub requiring circuit breakers, queue rate limiting, and bulkhead isolation. Remedying these targeted vulnerabilities not only restores architectural dependability but directly improves performance efficiency and curtails energy-intensive restart storms.
+This yields a directly actionable distinction: a component scoring high on $A$ but low on $FT$ is a single point of failure calling for horizontal replication, whereas one scoring high on $FT$ is an error-cascade hub calling for circuit breakers, rate limiting and bulkhead isolation. Whether acting on these diagnoses improves any measured runtime property is not evaluated here (Section~\ref{sec:8.4}).

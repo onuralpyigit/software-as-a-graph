@@ -502,10 +502,15 @@
   year      = {2020}
 }
 
+% ACTION REQUIRED BEFORE SUBMISSION: JSS operates a SINGLE-anonymised review
+% process -- reviewers are anonymous, authors are disclosed. The prior conference
+% paper must therefore be cited in full; without it neither the editor nor the
+% reviewers can verify the >70% extension claim in Section 1.5, which is a
+% precondition for an extended conference submission.
 @misc{anon-a,
-  author = {{[Anon-A]}},
-  title  = {Authors' prior work on multi-layer graph dependency analysis for publish--subscribe systems},
-  note   = {Citation withheld for double-anonymised review},
+  author = {{[REPLACE WITH FULL AUTHOR LIST]}},
+  title  = {Authors' prior conference paper on multi-layer graph dependency analysis for publish--subscribe systems},
+  note   = {PLACEHOLDER -- replace with the full citation (venue, year, pages, DOI) before submission},
   year   = {n.d.}
 }
 
@@ -612,4 +617,114 @@
   volume    = {33},
   pages     = {19620--19631},
   year      = {2020}
+}
+
+% ACTION REQUIRED BEFORE SUBMISSION: mint a Zenodo/figshare DOI for the replication
+% package and complete this entry. JSS applies Option C of the Elsevier research-data
+% policy: deposit in a repository, then cite and link the dataset from the article.
+@misc{sag-replication-package,
+  author       = {{[REPLACE WITH FULL AUTHOR LIST]}},
+  title        = {Software-as-a-Graph: replication package (datasets, generator configurations, simulation harnesses, model checkpoints and analysis scripts)},
+  year         = {2026},
+  publisher    = {Zenodo},
+  note         = {[dataset] PLACEHOLDER -- insert version and DOI before submission},
+  howpublished = {\url{https://doi.org/XX.XXXX/zenodo.XXXXXXX}}
+}
+
+% ---------------------------------------------------------------------------
+% Added during revision to close two literature gaps flagged in review:
+% (a) architecture-based reliability prediction -- the classical pre-deployment
+%     alternative to a learned model; (b) microservice failure prediction / RCA.
+% ACTION: verify page ranges and add DOIs before submission.
+% ---------------------------------------------------------------------------
+@article{cheung1980user,
+  author  = {Roger C. Cheung},
+  title   = {A user-oriented software reliability model},
+  journal = {IEEE Transactions on Software Engineering},
+  volume  = {SE-6},
+  number  = {2},
+  pages   = {118--125},
+  year    = {1980}
+}
+
+@article{gosevapopstojanova2001architecture,
+  author  = {Katerina Goseva-Popstojanova and Kishor S. Trivedi},
+  title   = {Architecture-based approach to reliability assessment of software systems},
+  journal = {Performance Evaluation},
+  volume  = {45},
+  number  = {2--3},
+  pages   = {179--204},
+  year    = {2001}
+}
+
+@article{immonen2008survey,
+  author  = {Anne Immonen and Eila Niemel{\"a}},
+  title   = {Survey of reliability and availability prediction methods from the architectural perspective},
+  journal = {Software and Systems Modeling},
+  volume  = {7},
+  number  = {1},
+  pages   = {49--65},
+  year    = {2008}
+}
+
+@article{becker2009palladio,
+  author  = {Steffen Becker and Heiko Koziolek and Ralf Reussner},
+  title   = {The {Palladio} component model for model-driven performance prediction},
+  journal = {Journal of Systems and Software},
+  volume  = {82},
+  number  = {1},
+  pages   = {3--22},
+  year    = {2009}
+}
+
+@article{franks2009layered,
+  author  = {Greg Franks and Tariq Al-Omari and Murray Woodside and Olivia Das and Salem Derisavi},
+  title   = {Enhanced modeling and solution of layered queueing networks},
+  journal = {IEEE Transactions on Software Engineering},
+  volume  = {35},
+  number  = {2},
+  pages   = {148--161},
+  year    = {2009}
+}
+
+@inproceedings{gan2019seer,
+  author    = {Yu Gan and Yanqi Zhang and Kelvin Hu and Dailun Cheng and Yuan He and Meghna Pancholi and Christina Delimitrou},
+  title     = {Seer: Leveraging big data to navigate the complexity of performance debugging in cloud microservices},
+  booktitle = {Proc. ACM Int. Conf. on Architectural Support for Programming Languages and Operating Systems (ASPLOS)},
+  year      = {2019}
+}
+
+@inproceedings{gan2021sage,
+  author    = {Yu Gan and Mingyu Liang and Sundar Dev and David Lo and Christina Delimitrou},
+  title     = {Sage: Practical and scalable {ML}-driven performance debugging in microservices},
+  booktitle = {Proc. ACM Int. Conf. on Architectural Support for Programming Languages and Operating Systems (ASPLOS)},
+  year      = {2021}
+}
+
+@inproceedings{wu2020microrca,
+  author    = {Li Wu and Johan Tordsson and Erik Elmroth and Odej Kao},
+  title     = {{MicroRCA}: Root cause localization of performance issues in microservices},
+  booktitle = {Proc. IEEE/IFIP Network Operations and Management Symposium (NOMS)},
+  year      = {2020}
+}
+
+@inproceedings{li2021tracerca,
+  author    = {Zeyan Li and Junjie Chen and Rui Jiao and Nengwen Zhao and Zhijun Wang and Shuwei Zhang and Yanjun Wu and Long Jiang and Leiqin Yan and Zikai Wang and Zhekang Chen and Wenchi Zhang and Xiaohui Nie and Kaixin Sui and Dan Pei},
+  title     = {Practical root cause localization for microservice systems via trace analysis},
+  booktitle = {Proc. IEEE/ACM Int. Symposium on Quality of Service (IWQoS)},
+  year      = {2021}
+}
+
+@inproceedings{zhang2022deeptralog,
+  author    = {Chenxi Zhang and Xin Peng and Chaofeng Sha and Ke Zhang and Zhenghui Fu and Xiya Wu and Qingwei Lin and Dongmei Zhang},
+  title     = {{DeepTraLog}: Trace-log combined microservice anomaly detection through graph-based deep learning},
+  booktitle = {Proc. IEEE/ACM Int. Conf. on Software Engineering (ICSE)},
+  year      = {2022}
+}
+
+@inproceedings{lee2023eadro,
+  author    = {Cheryl Lee and Tianyi Yang and Zhuangbin Chen and Yuxin Su and Yongqiang Yang and Michael R. Lyu},
+  title     = {{Eadro}: An end-to-end troubleshooting framework for microservices on multi-source data},
+  booktitle = {Proc. IEEE/ACM Int. Conf. on Software Engineering (ICSE)},
+  year      = {2023}
 }

@@ -18,6 +18,16 @@
 \usepackage{hyperref}
 \usepackage{microtype}
 
+% Float packing: the default Elsevier preprint parameters strand large tables and
+% leave partially-filled pages. These are typesetting settings only.
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.75}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
+
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 
@@ -31,8 +41,13 @@
   Pre-Deployment Dependability Analysis of
   Complex Distributed Systems}
 
-% Author/affiliation block intentionally omitted from the review copy --
-% see title_page.tex. JSS operates a single-anonymised review process.
+% ACTION REQUIRED: JSS operates a SINGLE-anonymised review process, meaning
+% reviewers are anonymous and AUTHORS ARE DISCLOSED. The author/affiliation
+% block below must be completed (mirroring title_page.tex) before submission --
+% anonymising it is a double-anonymised convention that does not apply here.
+% \author{...}
+% \affiliation{organization={...}, addressline={...}, city={...},
+%              postcode={...}, country={...}}
 
 \begin{abstract}
 \input{sections/abstract.tex}

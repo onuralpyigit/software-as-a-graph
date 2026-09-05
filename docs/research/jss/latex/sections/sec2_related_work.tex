@@ -8,14 +8,17 @@ This work builds upon and connects four foundational research areas: (1) dependa
 
 The publish--subscribe (pub-sub) and asynchronous event-driven paradigms decouple communicating entities in space, time, and synchronization, enabling elastic scalability and high throughput \cite{eugster2003faces}. Modern middleware standards---such as ROS~2 \cite{macenski2022robot}, Apache Kafka \cite{kreps2011kafka}, DDS \cite{omg2015dds}, and MQTT \cite{oasis2019mqtt}---govern these exchanges through fine-grained Quality-of-Service (QoS) policies that regulate message durability, transport reliability, priorities, and delivery deadlines. In cloud-native microservice meshes and distributed AI/LLM serving backbones, asynchronous message passing and queueing topologies form the primary communication substrate, directly shaping tail latencies, throughput bottlenecks, and hardware resource utilization.
 
-Prior dependability and performance research has focused predominantly on \textbf{runtime mechanisms}, including dynamic consensus protocols, broker clustering, adaptive backpressure throttling, autoscaling, and automated failover. In parallel, \textbf{chaos engineering and runtime verification} \cite{basiri2016chaos} inject simulated faults or artificial latency into staging or production clusters to observe degradation and recovery behaviors. While runtime fault injection delivers valuable operational validation, it exhibits critical limitations:
-\begin{itemize}
-    \item \textbf{Requires live infrastructure:} It demands fully provisioned, operational clusters, rendering it unusable during pre-deployment architectural design and early CI/CD phases.
-    \item \textbf{Operational risk:} Injecting faults on staging or production systems carries operational risks, including accidental service disruptions and customer impact.
-    \item \textbf{High computational and carbon cost:} Running multi-node chaos sweeps, canary deployments, and distributed tracing consumes extensive CPU, memory, and networking resources across cloud clusters, conflicting with modern sustainable computing mandates.
-\end{itemize}
+Prior dependability and performance research has focused predominantly on \textbf{runtime mechanisms}, including dynamic consensus protocols, broker clustering, adaptive backpressure throttling, autoscaling, and automated failover. In parallel, \textbf{chaos engineering and runtime verification} \cite{basiri2016chaos} inject faults or latency into staging or production clusters to observe degradation and recovery. This delivers operational validation that no static method can match, but it requires a fully provisioned cluster, carries the risk of real service disruption, and consumes substantial cluster time per sweep --- so it cannot be applied during architectural design or early CI/CD.
 
-Our work addresses the complementary \textbf{pre-deployment phase}: predicting systemic cascading vulnerabilities and performance bottlenecks directly from Architecture-as-Code descriptors before runtime infrastructure is provisioned. This approach enables zero-runtime, environmentally sustainable architectural gating within CI/CD pipelines.
+Our work addresses the complementary \textbf{pre-deployment phase}: predicting systemic cascading vulnerabilities directly from Architecture-as-Code descriptors before runtime infrastructure is provisioned, enabling architectural gating within CI/CD pipelines without a running cluster.
+
+\paragraph{Architecture-Based Reliability Prediction}
+Predicting dependability from an architectural description before deployment is not a new ambition, and SaG should be read against the tradition that pursued it analytically. Cheung's absorbing-Markov-chain model \cite{cheung1980user} derives system reliability from component reliabilities and a transfer-of-control graph; Goseva-Popstojanova and Trivedi \cite{gosevapopstojanova2001architecture} systematize the state-based, path-based and additive families that followed, and Immonen and Niemel{\"a} \cite{immonen2008survey} survey the resulting methods from the architectural perspective. Model-driven descendants such as the Palladio Component Model \cite{becker2009palladio} and layered queueing networks \cite{franks2009layered} predict performance and reliability from parameterized component models with well-understood solution techniques.
+
+These methods are complementary to ours rather than superseded by it, and the distinction is one of required inputs rather than of accuracy. They need per-component failure probabilities, transition probabilities or service demands --- parameters that are themselves estimated from operational profiles, measurement or expert judgement, and that are unavailable in the setting we target (a manifest at commit time, with no telemetry). SaG asks a narrower question in exchange: not what the system's reliability \emph{is}, but which components' failures would propagate furthest through the declared topology. Where those parameters can be obtained, an analytical model answers a stronger question than a ranking does, and we make no claim to displace it.
+
+\paragraph{Data-Driven Failure Prediction and Root-Cause Analysis in Microservices}
+A large recent literature localizes faults in microservice systems from operational data. Seer \cite{gan2019seer} and Sage \cite{gan2021sage} predict and debug QoS violations from traces and hardware telemetry; MicroRCA \cite{wu2020microrca} and TraceRCA \cite{li2021tracerca} localize root causes over service-dependency and trace graphs; DeepTraLog \cite{zhang2022deeptralog} and Eadro \cite{lee2023eadro} combine traces, logs and metrics under graph-based deep models. This line is the closest methodological neighbour to our predictive pathway, and it consistently outperforms what a purely static analysis can achieve --- because it observes the running system. That is precisely the boundary: every one of these approaches requires a deployed system emitting traces, logs or metrics, and therefore cannot answer a question posed at design or pull-request time. SaG occupies the pre-deployment complement, and accepts a correspondingly weaker evidential basis: simulated rather than observed failures, and topology rather than behaviour.
 
 \subsection{Static Code Analysis (SCA) vs.\ Static System Analysis (SSA)}
 \label{sec:2.2}
@@ -29,10 +32,12 @@ To bridge this ``Architecture--Code Gap,'' \textbf{Static System Analysis (SSA)}
 
 Software product quality is standardized by the \textbf{ISO/IEC 25010:2023} product quality model \cite{iso25010_2023} and the \textbf{ISO/IEC 25019:2023} Quality-in-Use model \cite{iso25019_2023}. ISO/IEC 25010:2023 defines three closely intertwined characteristics critical to modern distributed systems:
 \begin{itemize}
-    \item \textbf{Reliability:} The degree to which a system performs specified functions under stated conditions, comprising Fault Tolerance and Availability.
-    \item \textbf{Maintainability:} The degree of effectiveness and efficiency with which software can be modified, comprising Modularity, Modifiability, and Analysability.
+    \item \textbf{Reliability:} The degree to which a system performs specified functions under stated conditions, comprising Faultlessness, Availability, Fault Tolerance and Recoverability.
+    \item \textbf{Maintainability:} The degree of effectiveness and efficiency with which software can be modified, comprising Modularity, Reusability, Analysability, Modifiability and Testability.
     \item \textbf{Performance Efficiency:} Performance relative to resource consumption under stated conditions, comprising Time Behavior (latency, response time), Resource Utilization (CPU, memory, bandwidth), and Capacity.
 \end{itemize}
+
+SaG operationalizes a strict subset of these: Availability and Fault Tolerance under Reliability, and Modularity, Modifiability and Analysability under Maintainability (Section~\ref{sec:5.1}). Faultlessness, Recoverability, Reusability and Testability are not derivable from deployment topology alone and are outside the scope of this work.
 
 Software engineering measurement explicitly distinguishes between \emph{internal quality} (measured on static artifacts at rest) and \emph{external quality} (measured on executing software systems) \cite{iso25023_2016,iso25021_2012}. In distributed architectures, architectural debt (such as over-centralized message topics or unreplicated brokers) degrades internal quality and precipitates severe external performance bottlenecks, queue congestion, and outages.
 
@@ -54,24 +59,5 @@ Heterogeneous Graph Neural Networks (RGCN \cite{schlichtkrull2018rgcn}, HAN \cit
 \paragraph{Explainable AI (XAI) vs.\ The Black-Box Barrier}
 A critical hurdle in applying modern AI to software engineering is the \textbf{black-box barrier}: deep neural models output risk scores or continuous embeddings without explaining underlying structural causality. In production software engineering, uninterpretable risk rankings hinder actionable decision-making: developers and SREs cannot determine whether to replicate a host, configure circuit breakers, or refactor shared libraries.
 
-Existing GNN explanation techniques, such as GNNExplainer \cite{ying2019gnnexplainer} and PGExplainer \cite{luo2020pgexplainer}, identify influential subgraphs through edge masking or parameterized learning. Although useful, these methods explain the model using internal latent representations rather than standardized software engineering concepts. SaG resolves this limitation through a decoupled dual-pathway design: the predictive HGT pathway reveals typed mutual-attention distributions indicating \emph{which} architectural relations propagated the cascade (Section~\ref{sec:7.3}), while the deterministic explanation layer attributes fragility to standardized ISO/IEC quality sub-characteristics (Section~\ref{sec:5}), translating raw predictions into actionable, cost-effective remediations. Table~\ref{tab:paradigm_comparison} summarizes and compares SaG against existing dependability and performance analysis paradigms across key lifecycle, topological, explainability, and cost dimensions.
+Existing GNN explanation techniques, such as GNNExplainer \cite{ying2019gnnexplainer} and PGExplainer \cite{luo2020pgexplainer}, identify influential subgraphs through edge masking or parameterized learning. Although useful, these methods explain the model using internal latent representations rather than standardized software engineering concepts. SaG resolves this limitation through a decoupled dual-pathway design: the predictive HGT pathway reveals typed mutual-attention distributions indicating \emph{which} architectural relations propagated the cascade (Section~\ref{sec:7.3}), while the deterministic explanation layer attributes fragility to standardized ISO/IEC quality sub-characteristics (Section~\ref{sec:5}), translating raw predictions into actionable, cost-effective remediations.
 
-\begin{table}[htbp]
-\centering
-\small
-\caption{Comparison of dependability and performance analysis paradigms for distributed systems.}
-\label{tab:paradigm_comparison}
-\resizebox{\linewidth}{!}{%
-\begin{tabular}{lcccccc}
-\toprule
-\textbf{Paradigm} & \textbf{Lifecycle Stage} & \textbf{Topology-Aware} & \textbf{Multi-Typed} & \textbf{Explainable (XAI)} & \textbf{Zero-Runtime Needed} & \textbf{CI/CD Energy Cost} \\
-\midrule
-\textbf{Static Code Analysis (SCA)} \cite{mccabe1976complexity,chidamber1994metrics} & Pre-Deployment & No (Single Service) & No & Yes (Code Smells) & Yes & Minimal (Seconds) \\
-\textbf{Chaos Engineering} \cite{basiri2016chaos} & Post-Deployment & Yes (Live Cluster) & Partial & Partial (Logs/Traces) & No (Requires Cluster) & High (Cluster-Hours) \\
-\textbf{Network Centralities} \cite{freeman1977centrality,brin1998pagerank} & Pre-Deployment & Yes (Flat Graph) & No & No (Single Scalar) & Yes & Low (Seconds) \\
-\textbf{Homogeneous GNNs} \cite{kipf2017semi,velickovic2018graph} & Pre-Deployment & Yes (Flat Graph) & No & No (Black-Box) & Yes & Low (Milliseconds) \\
-\textbf{Software-as-a-Graph (SaG)} & \textbf{Pre-Deployment} & \textbf{Yes (Multigraph)} & \textbf{Yes (5 Types)} & \textbf{Yes (ISO/IEC RM)} & \textbf{Yes (Manifest-Based)} & \textbf{Minimal (44 ms Forward)} \\
-\bottomrule
-\end{tabular}%
-}
-\end{table}

@@ -13,22 +13,7 @@ Because distributed systems comprise heterogeneous entity types (Applications, L
 \subsubsection{Continuous-Categorical Edge Feature Encoding (16-D)}
 \label{sec:4.1.1}
 
-To capture continuous Quality-of-Service (QoS) constraints and channel semantics, SaG encodes each directed edge $e = (u, v)$ as a 16-dimensional continuous-categorical vector $e_{uv} \in \mathbb{R}^{16}$:
-\begin{itemize}
-    \item \textbf{Index 0 (Scalar Coupling Weight):} $w_E(e) \in (0, 1]$, defined in Section~\ref{sec:3.2} (inherited from $w(t)$ for structural pub/sub edges; or derived via probabilistic union, lifted maximum, or harmonic mean for projected \texttt{DEPENDS\_ON} edges).
-    \item \textbf{Index 1 (Path Count):} Normalized count of simple paths traversing edge $e$ in $G_{\text{analysis}}$.
-    \item \textbf{Indices 2--8 (Relation Type One-Hot):} 7-bit one-hot encoding for the structural and derived relations (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, \texttt{DEPENDS\_ON}).
-    \item \textbf{Indices 9--15 (Explicit QoS Dimensions):} 7 continuous-categorical QoS profile attributes, active for \texttt{PUBLISHES\_TO} and \texttt{SUBSCRIBES\_TO} edges (zeroed for other edge types):
-    \begin{enumerate}
-        \item[9.] \emph{Reliability score} ($0.0 = \text{best-effort}$, $1.0 = \text{reliable}$).
-        \item[10.] \emph{Durability score} ($0.0 = \text{volatile}$, $0.5 = \text{transient local}$, $0.6 = \text{transient}$, $1.0 = \text{persistent}$).
-        \item[11.] \emph{Message priority} ($0.0, 0.33, 0.66, 1.0$ for low, medium, high, urgent).
-        \item[12.] \emph{Deadline active flag} ($0/1$).
-        \item[13.] \emph{Log deadline} $\log_{10}(1 + \text{deadline\_ns} / 10^6)$.
-        \item[14.] \emph{Log max blocking time} $\log_{10}(1 + \text{max\_blocking\_ms})$.
-        \item[15.] \emph{QoS heterogeneity flag} ($1$ if the edge's QoS triple deviates from the scenario's modal profile, $0$ otherwise).
-    \end{enumerate}
-\end{itemize}
+To capture continuous QoS constraints and channel semantics, SaG encodes each directed edge $e = (u,v)$ as a 16-dimensional continuous-categorical vector $e_{uv} \in \mathbb{R}^{16}$. Index 0 is the scalar coupling weight $w_E(e) \in (0,1]$ of Section~\ref{sec:3.2}; index 1 is the normalized count of simple paths through $e$ in $G_{\text{analysis}}$; indices 2--8 one-hot encode the seven structural and derived relations (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, \texttt{DEPENDS\_ON}). Indices 9--15 carry the seven explicit QoS dimensions, active on \texttt{PUBLISHES\_TO} and \texttt{SUBSCRIBES\_TO} edges and zeroed elsewhere: reliability ($0$ best-effort, $1$ reliable); durability ($0$ volatile, $0.5$ transient-local, $0.6$ transient, $1$ persistent); message priority ($0$, $0.33$, $0.66$, $1$); a deadline-active flag; $\log_{10}(1 + \text{deadline\_ns}/10^6)$; $\log_{10}(1 + \text{max\_blocking\_ms})$; and a heterogeneity flag set when the edge's QoS triple departs from its scenario's modal profile.
 
 An edge projection module maps $e_{uv}$ into the hidden space: $e_{uv}' = W_{\text{edge}} e_{uv}$. Prior to relational attention computation, this projection vector is incorporated directly into the target node representation: $\tilde{h}_v = h_v + e_{uv}'$.
 
@@ -56,7 +41,7 @@ For each source node $u$ and target node $v$ connected by meta-relation $\tau(e)
 \end{enumerate}
 
 \paragraph{Training Protocol and Optimization Hyperparameters}
-Models are optimized end-to-end using AdamW with initial learning rate $\eta = 3 \times 10^{-4}$, weight decay $10^{-4}$, and dropout probability $p = 0.10$ applied post-attention. Learning rates follow a cosine annealing schedule with warm restarts ($\text{CosineAnnealingWarmRestarts}$, $T_0 = 75$, $T_{\text{mult}} = 2$, $\eta_{\min} = 3 \times 10^{-6}$). Training executes for a maximum of 300 epochs with early stopping governed by a patience of 30 epochs monitored on validation loss over labeled nodes. Inductive subgraphs are processed per scenario using full-graph inductive packing without mini-batch subsampling, with validation masks isolating held-out nodes to prevent information leakage across data splits. Five independent random seeds $\{42, 123, 456, 789, 2024\}$ are evaluated across all runs, redrawing both partition masks and initializations.
+Models are optimized end-to-end using AdamW with initial learning rate $\eta = 3 \times 10^{-4}$, weight decay $10^{-4}$, and dropout probability $p = 0.10$ applied post-attention. Learning rates follow a cosine annealing schedule with warm restarts ($\text{CosineAnnealingWarmRestarts}$, $T_0 = 75$, $T_{\text{mult}} = 2$, $\eta_{\min} = 3 \times 10^{-6}$). Training executes for a maximum of 300 epochs with early stopping governed by a patience of 30 epochs monitored on validation loss over labeled nodes. Inductive subgraphs are processed per scenario using full-graph inductive packing without mini-batch subsampling, with validation masks isolating held-out nodes to prevent information leakage across data splits. Five independent random seeds $\{42, 123, 456, 789, 2024\}$ are evaluated across all runs, redrawing both partition masks and initializations. \emph{Selection protocol:} the architectural hyperparameters ($D = 64$, $H = 4$, dropout, learning rate and schedule) and the loss coefficients of Equation~(\ref{eq:loss}) were fixed a priori from values conventional for HGT \cite{hu2020hgt} and were not tuned against any evaluation reported in this paper; no search over them was performed, on either the in-distribution test split or the LOSO folds. This avoids selection leakage, at the cost of leaving open whether either family is reported near its own optimum --- a comparison between untuned configurations, which we state rather than treat as a like-for-like optimum comparison.
 
 \subsection{Multi-Task Prediction Heads and Dimension Masking}
 \label{sec:4.2}
@@ -74,6 +59,7 @@ From the final node embeddings $h_v^{(L)}$, SaG utilizes specialized multi-task 
 
 The combined optimization objective integrates regression accuracy, multi-task dimension learning, ranking fidelity, pairwise ordering, and edge prediction:
 \begin{equation}
+\label{eq:loss}
 \mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + 0.3 \cdot \mathcal{L}_{\text{edge}} + \lambda_{\text{RM}} \cdot \mathcal{L}_{\text{consistency}}
 \end{equation}
 where $I^*(v)$ is the simulated cascade impact defined by the primary oracle (Section~\ref{sec:4.3}), $\mathcal{L}_{\text{composite}} = \text{MSE}(\hat{I}^*(v), I^*(v))$, $\mathcal{L}_{\text{rank}}$ is the ListMLE ranking loss \cite{xia2008listwise}, $\mathcal{L}_{\text{pairwise}}$ is margin-ranking loss, and $\mathcal{L}_{\text{consistency}} = \text{MSE}\big([\hat{R}(v), \hat{M}(v)]_{v \in \text{unlabeled}}, [R_{\text{RM}}(v), M_{\text{RM}}(v)]_{v \in \text{unlabeled}}\big)$ regresses predicted heads toward the diagnostic pathway's baseline (Section~\ref{sec:5}) on unlabeled nodes. Headline results use $\lambda_{\text{RM}} = 0$, guaranteeing that the predictive and explanatory pathways remain strictly independent.
@@ -98,7 +84,7 @@ where $M_{\text{static}}(v)$ is obtained directly from the structural analyzer's
 
 To evaluate predictive accuracy prior to deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$. We establish a formal taxonomy of four component-level oracles and one relationship-level oracle:
 \begin{itemize}
-    \item \textbf{Cascade Reachability Oracle ($I^*(v)$):} Implemented via \texttt{FaultInjector}, this oracle simulates node crashes at component $v \in V$, propagates cascading outages across dependent topics, brokers, and network links via breadth-first dynamic traversal, and calculates the fraction of surviving subscriber feeds severed. Publisher loss is weighted by message publication rate, and resulting feed losses are scaled by a QoS ladder ($\times 1.2$ for \texttt{RELIABLE}, $\times 1.15$ for high/urgent priority, $\times 1.05$ for medium) before clamping to $[0, 1]$. $I^*(v) \in [0, 1]$ serves as the \textbf{primary continuous target label} for training and evaluating GNN predictors.
+    \item \textbf{Cascade Reachability Oracle ($I^*(v)$):} Implemented via \texttt{FaultInjector}, it crashes component $v$, propagates outages across dependent topics, brokers and links by breadth-first traversal, and returns the fraction of surviving subscriber feeds severed. Publisher loss is weighted by publication rate and feed losses scaled by a QoS ladder ($\times 1.2$ \texttt{RELIABLE}, $\times 1.15$ high/urgent priority, $\times 1.05$ medium) before clamping to $[0,1]$. This is the \textbf{primary continuous target label} throughout.
     \item \textbf{Multi-Metric Composite Oracle ($I_{\text{comp}}(v)$):} Implemented via \texttt{FailureSimulator}, this oracle evaluates a multi-faceted failure impact vector:
     \begin{equation}
     I_{\text{comp}}(v) = 0.35 \cdot \Delta\text{Reachability} + 0.25 \cdot \Delta\text{Fragmentation} + 0.25 \cdot \Delta\text{Throughput} + 0.15 \cdot \Delta\text{FlowDisruption}
@@ -115,7 +101,7 @@ To evaluate predictive accuracy prior to deployment without relying on productio
     \end{equation}
 \end{itemize}
 
-\noindent\textbf{Withholding Declared Topic Criticality from Labels.} \texttt{FailureSimulator} supports blending a declared \texttt{Topic.criticality} label into its severity term, but this is explicitly disabled. Because \texttt{Topic.criticality} is an input feature to the GNN (\texttt{topic\_qos\_criticality\_ord}), allowing an oracle to consume it would score the predictor against a transformation of its own input features.
+\noindent\textbf{Withholding declared topic criticality from labels.} \texttt{FailureSimulator} can blend a declared \texttt{Topic.criticality} into its severity term; this is disabled, because that field is a GNN input feature (\texttt{topic\_qos\_criticality\_ord}) and consuming it would score the predictor against a transformation of its own input.
 
 \noindent\textbf{Primary Oracle Declaration and Role Assignment.} Because the three reliability-facing oracles ($I^*$, $I_{\text{comp}}$, $I_{\text{dyn}}$) measure distinct operational constructs, we designate \textbf{$I^*(v)$ (\texttt{FaultInjector}) as the primary oracle} for all predictive ranking results (Tables~\ref{tab:5}--\ref{tab:7}, RQ1--RQ3). $I_{\text{comp}}(v)$ is reserved for Validate-stage quality gates, $I_{\text{dyn}}(v)$ serves as an independent convergent-validity probe, and $I_M(v)$ serves as a structural maintainability reference.
 
