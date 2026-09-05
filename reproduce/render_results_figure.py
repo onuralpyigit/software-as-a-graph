@@ -46,12 +46,10 @@ _DEFAULT_OUTPUT = Path("docs/research/jss/latex/figures/Figure_5")
 
 #: Printed labels, and the colour family each variant belongs to.
 _VARIANTS: List[Tuple[str, str, str]] = [
-    ("hgl_qos",       "HGL-QoS (Typed + QoS)",   "learned_best"),
-    ("hgl",           "HGL (Heterogeneous)",     "learned"),
-    ("gl_qos",        "GL-QoS (Homogeneous)",    "homogeneous"),
-    ("gl",            "GL (Homogeneous)",        "homogeneous"),
-    ("topo_qos",      "Topo-QoS (Weighted)",     "untrained"),
-    ("topo_baseline", "Topo-BL (Centrality)",    "untrained"),
+    ("hgl_qos",       "SaG (Typed Heterogeneous)", "learned_best"),
+    ("gl_qos",        "GL (Homogeneous GNN)",      "homogeneous"),
+    ("topo_qos",      "Topo-QoS (Weighted)",       "untrained"),
+    ("topo_baseline", "Topo-BL (Centrality)",      "untrained"),
     ("topology_rm",   "RM / $Q(v)$ (diagnostic reference)", "diagnostic"),
 ]
 

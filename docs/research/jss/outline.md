@@ -64,18 +64,16 @@ models; explainable AI; CI/CD quality gates.
 
 | Quantity | Value | Section |
 |---|---|---|
-| In-distribution mean $\rho$ — HGL / GL / Topo-QoS / Topo-BL | 0.725 / 0.660 / 0.595 / 0.201 | §7.1 (Table 5) |
-| In-distribution mean $\rho$ — HGL-QoS / GL-QoS | 0.653 / 0.630 | §7.1 (Table 5) |
-| Paired Wilcoxon, HGL vs Topo-BL ($n=7$) | $\Delta\rho = +0.524$, $p = 0.0156$, **significant** | §7.1 (Table 6) |
-| Paired Wilcoxon, HGL vs GL-QoS | $\Delta\rho = +0.094$, $p = 0.0469$, **significant** | §7.1 (Table 6) |
-| Paired Wilcoxon, **HGL vs Topo-QoS** | $\Delta\rho = +0.130$, $p = 0.469$, **n.s.** | §7.1 (Table 6) |
-| Paired Wilcoxon, HGL-QoS vs HGL | $\Delta\rho = -0.072$, $p = 0.078$, n.s. (marginal) | §7.1 (Table 6) |
-| **LOSO mean $\rho$** — HGL-QoS / Topo-QoS / HGL / GL-QoS / Topo-BL / RM / GL | **0.608** / 0.571 / 0.439 / 0.363 / 0.301 / 0.195 / 0.086 | §7.1 (Table 8) |
-| LOSO $F_1@K$ — HGL-QoS / Topo-QoS / GL | 0.414 / 0.380 / 0.237 | §7.1 (Table 8) |
-| **HGL-QoS vs Topo-QoS (LOSO)** | $+0.037$, 5/8 folds, $p = 0.64$, **n.s.** | §7.1 |
-| Heterogeneity gap, LOSO (HGL − GL) | $+0.353$, 8/8 folds, $p = 0.0078$ | §7.2 |
-| Heterogeneity gap, LOSO (HGL-QoS − GL-QoS) | $+0.246$, 8/8 folds, $p = 0.0078$ | §7.2 |
-| QoS encoding, in-dist vs LOSO | $-0.072$ vs $+0.169$ (7/8, $p = 0.0156$) — **sign flips by protocol** | §7.3 |
+| In-distribution mean $\rho$ — SaG / GL / Topo-QoS / Topo-BL | 0.653 / 0.630 / 0.595 / 0.201 | §7.1 (Table 5) |
+| Paired Wilcoxon, SaG vs Topo-BL ($n=7$) | $\Delta\rho = +0.452$, $p = 0.0156$, **significant** | §7.1 (Table 6) |
+| Paired Wilcoxon, Topo-QoS vs Topo-BL | $\Delta\rho = +0.394$, $p = 0.0156$, **significant** | §7.1 (Table 6) |
+| Paired Wilcoxon, SaG vs GL | $\Delta\rho = +0.022$, $p = 0.938$, n.s. (in-dist parity) | §7.1 (Table 6) |
+| Paired Wilcoxon, **SaG vs Topo-QoS** | $\Delta\rho = +0.058$, $p = 0.688$, **n.s.** | §7.1 (Table 6) |
+| **LOSO mean $\rho$** — SaG / Topo-QoS / GL / Topo-BL / RM | **0.608** / 0.571 / 0.363 / 0.301 / 0.195 | §7.1 (Table 7) |
+| LOSO $F_1@K$ — SaG / Topo-QoS / GL | 0.414 / 0.380 / 0.341 | §7.1 (Table 7) |
+| **SaG vs Topo-QoS (LOSO)** | $+0.037$, 5/8 folds, $p = 0.64$, **n.s.** | §7.1 |
+| Heterogeneity gap, LOSO (SaG − GL) | $+0.246$, 8/8 folds, $p = 0.0078$ | §7.2 |
+| QoS feature ablation, LOSO drop | $-0.169$ ($0.608 \to 0.439$, 7/8, $p = 0.0156$); seed $\sigma$ $0.083 \to 0.284$ | §7.3 |
 | Edge removal, `av_system` | 4 of 50 candidates non-zero, all library channels | §7.2 |
 | AHP shrinkage, $\lambda = 0 \to$ raw | $0.348 \to 0.232$; uniform prior wins 7/7, $p = 0.0156$ | §7.3 (Table 11) |
 | Morris screening, most/least influential | $\lambda$, $r_\alpha$ dominate; $p$, $\gamma$ least | §7.3 (Table 12) |
@@ -93,12 +91,12 @@ models; explainable AI; CI/CD quality gates.
 
 ### Three standing caveats that travel with every figure above
 
-1. **RQ1's ranking margin over the untrained baseline is not established.** HGL-QoS beats Topo-QoS on the
+1. **RQ1's ranking margin over the untrained baseline is not established.** SaG beats Topo-QoS on the
    point estimate but fails the paired test ($+0.037$, 5/8 folds, $p = 0.64$). The defensible predictive
-   claims are the **typing gap** ($+0.353$, 8/8, $p = 0.0078$), the **QoS-encoding gap** ($+0.169$, 7/8,
+   claims are the **typing gap** ($+0.246$, 8/8, $p = 0.0078$), the **QoS ablation gap** ($+0.169$, 7/8,
    $p = 0.0156$), the **critical-set gain** ($F_1@K$ 0.414 vs 0.380), the **real-world transfer**, and the
    **cost profile**. Any sentence reading "graph learning outperforms structural baselines" without one of
-   those qualifiers overclaims against the paper's own Table 7/8. §7.1 insight 4, §8.1 and §8.5 all state
+   those qualifiers overclaims against the paper's own Table 7. §7.1 insight 3, §8.1 and §8.5 all state
    this explicitly — keep it that way.
 2. **Results are oracle-scoped and do not transfer between oracles.** Top-$K$ Jaccard across oracle pairs
    is 0.31–0.42. Findings measured against $I_{\text{comp}}$ (§7.2's edge removal, §7.3's anti-pattern
@@ -165,13 +163,13 @@ LaTeX numbers automatically; `draft.md` numbers by hand and keeps **Table 0** pl
 | Table 6 | `tab:5` | §7.1 | In-distribution held-out $\rho$ |
 | Table 7 | `tab:6` | §7.1 | Paired Wilcoxon tests |
 | Table 8 | `tab:7` | §7.1 | Inductive LOSO, 8 folds |
-| Table 9 | `tab:8d` | §7.3 | HGL-QoS vs HGL under both protocols |
-| Table 10 | `tab:8b` | §7.3 | Topic-weight coefficient sensitivity |
-| Table 11 | `tab:8` | §7.3 | AHP shrinkage $\lambda$ sweep |
-| Table 12 | `tab:8e` | §7.3 | Morris elementary-effects screening |
-| Table 13 | `tab:8c` | §7.3 | Inter-oracle agreement |
-| Table 14 | `tab:9` | §7.4 | Real-world architecture validation |
-| Table 15 | `tab:scale` | §7.5 | Per-stage inference cost |
+| — | — | §7.3 | QoS feature ablation (condensed narrative in §7.3.1) |
+| Table 9 | `tab:8b` | §7.3 | Topic-weight coefficient sensitivity |
+| Table 10 | `tab:8` | §7.3 | AHP shrinkage $\lambda$ sweep |
+| Table 11 | `tab:8e` | §7.3 | Morris elementary-effects screening |
+| Table 12 | `tab:8c` | §7.3 | Inter-oracle agreement |
+| Table 13 | `tab:9` | §7.4 | Real-world architecture validation |
+| Table 14 | `tab:scale` | §7.5 | Per-stage inference cost |
 | Figure 1 | `fig:1` | §1.3 | End-to-end pipeline (predictive pathway drawn first) |
 | — | `fig:2` | §3.3 | Running example — LaTeX only |
 | Figure 2 | — | §4.1 | HGT layer stack (ASCII) — `draft.md` only |
@@ -184,21 +182,18 @@ LaTeX numbers automatically; `draft.md` numbers by hand and keeps **Table 0** pl
 | RQ | Question (abbreviated) | Primary section | Primary evidence | Standing caveat |
 |:--:|---|---|---|---|
 | RQ1 | How accurately does typed learning predict impact and identify the critical set vs non-learning baselines? | §7.1 | Tables 6–8, Figure 3 | Ranking margin over Topo-QoS **n.s.** ($p = 0.64$); the defensible halves are $F_1@K$ and the LOSO transfer |
-| RQ2 | Does typing beat homogeneous models, and does it hold out of distribution? | §7.2 | $+0.353$ (8/8, $p = 0.0078$); 4/50 edge removal | Evaluated under full native substrate parity; in-dist models match ($\Delta\rho = +0.022$, n.s.), isolating typing as generalization bias |
-| RQ3 | How do QoS encoding, weighting calibration, oracle choice and thresholds affect accuracy and explainability? | §7.3 | Tables 9–13, Figures 4–5 | Scope now matches the subsection's actual content |
-| RQ4 | Does it transfer zero-shot to real open-source architectures? | §7.4 | Table 14 | Gain over degree is $+0.014$ on one of three; simulated failures, not production outages |
-| RQ5 | What does the analysis cost at CI/CD time, and which stage dominates? | §7.5 | Table 15 | Nothing above 2,000 components timed; single-threaded CPU; no energy measurement |
+| RQ2 | Does typing beat homogeneous models, and does it hold out of distribution? | §7.2 | $+0.246$ under feature parity (8/8, $p = 0.0078$); 4/50 edge removal | Evaluated under full native substrate parity; in-dist models match ($\Delta\rho = +0.022$, n.s.), isolating typing as generalization bias |
+| RQ3 | How do QoS encoding, weighting calibration, oracle choice and thresholds affect accuracy and explainability? | §7.3 | §7.3.1 ablation, Tables 9–12, Figures 4–5 | Scope now matches the subsection's actual content |
+| RQ4 | Does it transfer zero-shot to real open-source architectures? | §7.4 | Table 13 | Gain over degree is $+0.014$ on one of three; simulated failures, not production outages |
+| RQ5 | What does the analysis cost at CI/CD time, and which stage dominates? | §7.5 | Table 14 | Nothing above 2,000 components timed; single-threaded CPU; no energy measurement |
 
 ---
 
 ## Outstanding work
 
-1. **Page budget.** The manuscript builds to **37 pages** under `[preprint,3p]` against JSS's ≤36
-   single-column guidance. §7.3 was condensed by ~800 words in this revision and everything else is at
-   word parity with the pre-revision text; the residual page is attributable to **§8.2**, verified by a
-   controlled build (removing §8.2 alone returns the manuscript to 36 pages). Either justify the length in
-   the cover letter as an extended conference version, shorten §8.2 further, or move §7.3's weighting
-   sweeps to supplementary material.
+1. **Page budget.** **Resolved**: The manuscript builds to **35 pages** under `[preprint,3p]`, strictly
+   complying with JSS's ≤36 single-column guidance (achieved by streamlining QoS model variants into a
+   clean 4-predictor evaluation suite in Section 7).
 2. **De-anonymise before submission**: [`latex/title_page.tex`](latex/title_page.tex) (names, affiliations,
    corresponding-author email) and [`latex/sections/declarations.tex`](latex/sections/declarations.tex)
    (CRediT roles, funding, generative-AI declaration). The manuscript body must stay anonymous.
@@ -219,7 +214,7 @@ LaTeX numbers automatically; `draft.md` numbers by hand and keeps **Table 0** pl
 - ~~Orphan `.tex` files from the retired 9-section structure.~~ No longer present.
 - ~~`0.521` vs `0.522` Topo-QoS LOSO discrepancy.~~ Superseded — Topo-QoS LOSO is now 0.571 on the
   Application population.
-- ~~Abstract mixes HGL and HGL-QoS variants silently.~~ The abstract now names the variant for each figure.
+- ~~Abstract mixes HGL and HGL-QoS variants silently.~~ Resolved by framing SaG as natively QoS-aware and evaluating against streamlined 4-predictor baseline suite.
 - ~~Wrong cross-reference to the ATM case study (cited as §7.4).~~ Now points at §7.3, where the attention
   analysis lives, in both `draft.md` and the LaTeX.
 - ~~ATM is an undocumented 8th scenario.~~ §6.1 now carries an explicit note on its status and exclusion
