@@ -76,6 +76,8 @@ The projected substrate was adopted for untyped baselines because raw publish--s
 \subsection{Evaluation Metrics and Protocols}
 \label{sec:6.3}
 
+\noindent\textbf{Figure accessibility.} All figures in this paper use the high-contrast, colorblind-safe Okabe--Ito palette together with distinct marker, hatching and node-shape encodings, so that every distinction carried by colour is also carried by form and remains legible in monochrome.
+
 \begin{itemize}
     \item \textbf{Ranking Precision:} Evaluated via Spearman rank correlation ($\rho$) and Kendall's rank correlation ($\tau$) between predicted component rankings and ground-truth simulated impact $I^*(v)$ from the primary oracle (Section~\ref{sec:4.3}).
     \item \textbf{Critical-Set Identification:} Measured via $F_1@K$, Precision@$K$, and Recall@$K$ for top-$K$ critical components, where $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$. Because predicted and ground-truth sets both contain exactly $K$ elements, Precision, Recall, and $F_1$ coincide identically as the top-$K$ set overlap.

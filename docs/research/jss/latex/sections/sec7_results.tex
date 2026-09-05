@@ -9,7 +9,7 @@ Table~\ref{tab:5} presents the in-distribution held-out Spearman rank correlatio
 \begin{table}[htbp]
 \centering
 \small
-\caption{In-distribution held-out Spearman rank correlation ($\rho$) against $I^*(v)$ (seed means over 5 seeds with bootstrap 95\% CIs; $n$ is held-out Application count).}
+\caption{In-distribution held-out Spearman rank correlation ($\rho$) against $I^*(v)$ (seed means over 5 seeds; $n$ is held-out Application count). With held-out counts of 10--60, single-scenario $\rho$ values carry wide uncertainty and should be read alongside the paired tests of Table~\ref{tab:6} rather than individually.}
 \label{tab:5}
 \begin{tabular}{lrcccccc}
 \toprule
@@ -82,17 +82,17 @@ Eight LOSO folds are reported, comprising the seven synthetic scenarios and the 
 
 \noindent\textbf{Key Insights for RQ1:}
 \begin{enumerate}
-    \item \textbf{The typed predictor is the best configuration overall, and its margin over every learned alternative is decisive.} HGL-QoS leads on both metrics ($\rho = 0.608$, $F_1@K = 0.414$), establishing a statistically significant margin over both homogeneous GNNs ($+0.246$ over GL-QoS, 8/8 folds, $p = 0.0078$).
-    \item \textbf{Critical-set identification separates learned models from untrained baselines.} HGL-QoS improves $F_1@K$ over Topo-QoS by $+0.034$ ($0.414$ vs.\ $0.380$, an $8.9\%$ relative gain) and over GL by $+0.177$.
+    \item \textbf{The typed predictor is the best learned configuration overall.} HGL-QoS leads every other learned variant on both metrics ($\rho = 0.608$, $F_1@K = 0.414$), with a significant ranking margin over both homogeneous GNNs ($+0.246$ over GL-QoS and $+0.522$ over GL, 8/8 folds, $p = 0.0078$ in both cases). Section~\ref{sec:7.2} states the substrate caveat that qualifies this comparison.
+    \item \textbf{Critical-set identification separates learned models from each other, but not from the untrained QoS baseline.} HGL-QoS improves $F_1@K$ over GL by $+0.177$. Against Topo-QoS the margin is only $+0.034$ ($0.414$ vs.\ $0.380$); we report no significance test for it, and it should not be read as an established advantage. With $K$ between 2 and 12 components per fold, a single component changing rank in one fold moves the mean by more than this margin, and the gap is smaller than the oracle's own seed-to-seed critical-set reproducibility (Section~\ref{sec:8.3}).
     \item \textbf{QoS encoding carries the typed model out of distribution.} HGL-QoS leads HGL by $\Delta\rho = +0.169$, winning 7 of 8 folds ($p = 0.0156$) --- a substantial, consistent advantage under distribution shift.
-    \item \textbf{Ranking Boundary:} Against \emph{Topo-QoS}, HGL-QoS's margin is $+0.037$, won in 5 of 8 folds ($p = 0.64$, not statistically significant). On out-of-distribution ranking alone, heterogeneous graph learning matches rather than outperforms a well-constructed QoS baseline; its core value lies in actionable explanations, per-relationship edge criticality, and multi-task quality attributions.
+    \item \textbf{Ranking Boundary:} Against \emph{Topo-QoS}, HGL-QoS's margin is $+0.037$, won in 5 of 8 folds ($p = 0.64$, not statistically significant). On out-of-distribution ranking, heterogeneous graph learning matches rather than outperforms a well-constructed QoS baseline, and the critical-set margin above is untested. The case for training a model therefore rests on the qualitative capabilities the baseline cannot supply --- actionable explanations, per-relationship edge criticality, and multi-task quality attributions --- which this study describes but does not yet quantify (Section~\ref{sec:8.4}).
     \item \textbf{The explanation layer is weakly predictive, not noise.} RM/$Q(v)$ achieves $\rho = 0.195$ under distribution shift --- outperforming untyped GL ($0.086$) while providing interpretable architectural diagnostics (Section~\ref{sec:5}).
 \end{enumerate}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/Figure_5}
-\caption{Results at a glance, evaluated on the Application population. \textbf{(A)} Out-of-distribution rank correlation per variant across eight LOSO folds (whiskers denote $\sigma$). \textbf{(B)} Critical-set identification at $K = 20\%$. \textbf{(C)} Pairwise agreement across the three simulation oracles. All subplots utilize high-contrast, colorblind-safe palettes (Okabe--Ito) and distinct marker and hatching encodings to preserve legibility under monochrome and color-deficient viewing.}
+\caption{Results at a glance, evaluated on the Application population. \textbf{(A)} Out-of-distribution rank correlation per variant across eight LOSO folds (whiskers denote $\sigma$). \textbf{(B)} Critical-set identification at $K = 20\%$. \textbf{(C)} Pairwise agreement across the three simulation oracles.}
 \label{fig:5}
 \end{figure}
 
@@ -102,10 +102,10 @@ Eight LOSO folds are reported, comprising the seven synthetic scenarios and the 
 To evaluate the specific contribution of node and edge typing, we contrast relation-specific HGL against homogeneous GL:
 \begin{itemize}
     \item \textbf{In-Distribution:} Heterogeneous HGL leads homogeneous GL by $\Delta\rho = +0.116$ ($0.725$ vs.\ $0.609$; $p = 0.297$, 5/7 scenarios won). On familiar topologies, homogeneous GNNs partially approximate typing via structural degree signatures.
-    \item \textbf{Out-of-Distribution (LOSO):} Typing becomes decisive under distribution shift. Heterogeneous HGL outperforms homogeneous GL by \textbf{$+0.353$} ($\rho = 0.439$ vs.\ $0.086$), winning \emph{all eight} folds (paired Wilcoxon, $p = 0.0078$). Similarly, HGL-QoS outperforms GL-QoS by $+0.246$ ($0.608$ vs.\ $0.363$, $p = 0.0078$). Without relation typing, homogeneous models degrade below unweighted structural baselines ($0.086$ vs.\ $0.301$).
+    \item \textbf{Out-of-Distribution (LOSO):} The gap widens sharply under distribution shift. Heterogeneous HGL outperforms homogeneous GL by \textbf{$+0.353$} ($\rho = 0.439$ vs.\ $0.086$), winning \emph{all eight} folds (paired Wilcoxon, $p = 0.0078$). Similarly, HGL-QoS outperforms GL-QoS by $+0.246$ ($0.608$ vs.\ $0.363$, $p = 0.0078$). Without relation typing, homogeneous models degrade below unweighted structural baselines ($0.086$ vs.\ $0.301$).
 \end{itemize}
 
-\noindent\textbf{Scope Condition and Confound Dissection.} As detailed in Section~\ref{sec:6.2.substrate}, GL and HGL are evaluated on distinct graph views: GL/GL-QoS operate on the Application--Library \texttt{DEPENDS\_ON} projection (preventing structural collapse on raw graphs), whereas HGL/HGL-QoS ingest the complete native multigraph. Consequently, HGL's out-of-distribution margin reflects both relation-specific attention parameterization and direct topological visibility into the multi-entity infrastructure layer (brokers, topics, and host nodes). Disentangling these two complementary factors via uniform-multigraph baselines remains an important objective for future benchmarking.
+\noindent\textbf{Scope Condition and Confound Dissection.} As detailed in Section~\ref{sec:6.2.substrate}, GL and HGL are evaluated on distinct graph views: GL/GL-QoS operate on the Application--Library \texttt{DEPENDS\_ON} projection (preventing structural collapse on raw graphs), whereas HGL/HGL-QoS ingest the complete native multigraph. Consequently, HGL's out-of-distribution margin reflects both relation-specific attention parameterization and direct topological visibility into the multi-entity infrastructure layer (brokers, topics, and host nodes). We therefore report this result as a comparison between typed learning on the full multigraph and untyped learning on a projected view, not as an isolated measurement of typing. The control that would isolate typing --- an untyped architecture over the identical multigraph with node-type indicators supplied as input features --- is not run here and is the principal outstanding validation of our central claim.
 
 \subsubsection{Empirical Edge-Removal Analysis}
 
@@ -187,7 +187,7 @@ We evaluated the sensitivity of the RM attribution baseline across shrinkage par
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.62\linewidth]{figures/Figure_4}
-\caption{Sensitivity of RM composite rank correlation against $I^*(v)$ across AHP shrinkage $\lambda$ (Application population, mean over 7 scenarios). Distinct markers and high-contrast lines are used for accessibility in monochrome and across color vision profiles.}
+\caption{Sensitivity of RM composite rank correlation against $I^*(v)$ across AHP shrinkage $\lambda$ (Application population, mean over 7 scenarios).}
 \label{fig:4}
 \end{figure}
 
@@ -252,7 +252,7 @@ Sweeping composite reliability weight $w_R \in [0, 1]$ moves mean $\rho$ by only
 \subsubsection{Availability Metric Recalibration}
 \label{sec:7.3.availability}
 
-In initial formulations, hard articulation-point gating caused Availability $A(v)$ to collapse to a constant ($0.05 \cdot w(v)$) in six of eight scenarios where applications do not form cut vertices. Replacing the hard cut-vertex gate with a continuous redundancy-deficit metric (fractional increase in average shortest paths upon removal) widened $\sigma_A$ to $[0.0254, 0.0530]$ and restored structural discriminability.
+In initial formulations, hard articulation-point gating caused Availability $A(v)$ to collapse to a constant multiple of $w(v)$ in six of eight scenarios (the pre-recalibration formulation weighted $w(v)$ at $0.05$; the shipped formulation of Equation~(\ref{eq:availability}) weights it at $0.0878$) where applications do not form cut vertices. Replacing the hard cut-vertex gate with a continuous redundancy-deficit metric (fractional increase in average shortest paths upon removal) widened $\sigma_A$ to $[0.0254, 0.0530]$ and restored structural discriminability.
 
 \subsubsection{Anti-Pattern Detection and Node-Type Stratification}
 
@@ -265,7 +265,7 @@ Validating our rule-based anti-pattern catalog against $I_{\text{comp}}(v)$ yiel
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.86\linewidth]{figures/Figure_3}
-\caption{Relational attention extracted from the trained HGT on the ATM case study. Peak attention focuses on \texttt{USES} (Application $\to$ Library) and \texttt{ROUTES} (Broker $\to$ Topic) channels. The subgraph uses high-contrast edge colorings and node geometry designed for visual accessibility across viewing modalities.}
+\caption{Relational attention extracted from the trained HGT on the ATM case study. Peak attention focuses on \texttt{USES} (Application $\to$ Library) and \texttt{ROUTES} (Broker $\to$ Topic) channels.}
 \label{fig:3}
 \end{figure}
 
@@ -274,12 +274,12 @@ Extracted attention weights (Figure~\ref{fig:3}) show that the HGT places maximu
 \subsection{RQ4: Real-World Distributed Architecture Validation}
 \label{sec:7.4}
 
-We evaluated SaG zero-shot on three authentic open-source distributed systems:
+We evaluated SaG zero-shot on three open-source distributed systems transcribed from their public repositories by dedicated architectural adapters. We note the scope of this evaluation before reporting it: Online Boutique is a vendor demonstration application and Train-Ticket an academic benchmark, so these are reference implementations rather than production deployments; each is an abstraction of its upstream repository rather than a complete transcription; and their labels come from the same simulation oracle used throughout, so what follows tests topological transfer, not agreement with observed field failures.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Zero-shot transfer evaluation on authentic production architectures (evaluating held-out systems without fine-tuning).}
+\caption{Zero-shot transfer evaluation on open-source reference systems (held-out, without fine-tuning). Ground truth is simulator-derived, as elsewhere in this study; these are not observed production incidents.}
 \label{tab:9}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccccccc}
@@ -296,7 +296,7 @@ We evaluated SaG zero-shot on three authentic open-source distributed systems:
 
 \noindent\textbf{Key Insights for RQ4:}
 \begin{enumerate}
-    \item \textbf{Strong Real-World Zero-Shot Transfer:} Trained exclusively on synthetic scenarios, SaG achieves high zero-shot rank correlation on Cloud Microservices ($\rho = 0.778$), Train-Ticket ($\rho = 0.759$), and Autoware.universe ($\rho = 0.688$), confirming that relation-specific graph representations transfer effectively to complex, authentic distributed systems.
+    \item \textbf{Strong Real-World Zero-Shot Transfer:} Trained exclusively on synthetic scenarios, SaG achieves high zero-shot rank correlation on Cloud Microservices ($\rho = 0.778$), Train-Ticket ($\rho = 0.759$), and Autoware.universe ($\rho = 0.688$), indicating that relation-specific graph representations transfer to architectures outside the generator's distribution. Because the comparison in this table is against degree centrality alone, it does not establish transfer superiority over the stronger \texttt{Topo-QoS} baseline of Table~\ref{tab:7}.
     \item \textbf{Stratified vs.\ Pooled Critical Set Identification:} On the stratified Application population ($V_{\text{app}}$ with $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$), SaG identifies the top-20\% critical services with $F_1@K = 0.333$ in Autoware, $0.500$ in Cloud Microservices, and $0.625$ in Train-Ticket. When evaluated across the pooled multigraph ($K = \text{round}(0.20 \cdot |V|)$), the pooled $F_1@K$ reaches $0.800$, $1.000$, and $1.000$, respectively. This disparity highlights the base-rate phenomenon discussed in Section~\ref{sec:6.3}: unmeasured passive infrastructure entities (Topics, Nodes, Libraries) exhibit constant zero failure impact under process crash simulation. While the pooled metric confirms that SaG cleanly separates critical active services from inert infrastructure, reporting stratified $V_{\text{app}}$ metrics provides the more rigorous, non-inflated evaluation.
     \item \textbf{Predictive Advantage over Structural Heuristics:} The ``Gain vs.\ Deg'' column reports SaG's ranking margin over an unweighted degree centrality baseline (+0.360 on Autoware, +0.264 on Train-Ticket, +0.014 on Cloud Microservices). Heterogeneous message passing captures multi-hop topic-broker cascades that degree and local connectivity metrics fail to resolve.
 \end{enumerate}
@@ -323,6 +323,6 @@ RQ5 quantifies computational overhead and sustainability during CI/CD evaluation
 \end{tabular}
 \end{table}
 
-\noindent\textbf{The Neural Model is the Fastest, Greenest Stage.} For a 2,000-component topology, HGT forward inference requires only $43.7\,\text{ms}$, while classical structural analysis takes $23.8\,\text{s}$ ($545\times$ slower). The computational bottleneck resides entirely in deterministic graph algorithms ($O(|V|^2 + |V||E|)$). Computational overhead scales primarily with edge density: the 520-component Enterprise mesh requires $27.2\,\text{s}$ due to 3,245 structural edges, whereas a sparser 999-component system takes only $4.7\,\text{s}$. Across all corpus scenarios, the complete quality gate (structural analysis plus 18 anti-pattern detectors) runs in $0.02\,\text{s}$ to $27.4\,\text{s}$, well within standard pull-request CI/CD budgets.
+\noindent\textbf{The Neural Model is the Cheapest Stage, but Not the Whole Cost.} For a 2,000-component topology, HGT forward inference requires only $43.7\,\text{ms}$, while classical structural analysis takes $23.8\,\text{s}$ ($545\times$ slower). This ratio is a statement about where the cost sits inside the pipeline, not about the cost of evaluating an architecture: indices 0--17 of every node feature vector (Section~\ref{sec:3.4}) are betweenness, closeness, reverse PageRank, articulation and bridge scores produced by that same analysis stage, so the forward pass cannot run without it. End-to-end pre-deployment evaluation of a previously unseen 2,000-component architecture therefore costs approximately $24\,\text{s}$, of which the neural model is $0.2\%$. The $43.7\,\text{ms}$ figure is the marginal cost of re-scoring a graph that has already been analysed. The computational bottleneck resides entirely in deterministic graph algorithms ($O(|V|^2 + |V||E|)$). Computational overhead scales primarily with edge density: the 520-component Enterprise mesh requires $27.2\,\text{s}$ due to 3,245 structural edges, whereas a sparser 999-component system takes only $4.7\,\text{s}$. Across all corpus scenarios, the complete quality gate (structural analysis plus 18 anti-pattern detectors) runs in $0.02\,\text{s}$ to $27.4\,\text{s}$, well within standard pull-request CI/CD budgets.
 
-\noindent\textbf{Computational Efficiency and Projected Sustainability Gains.} Replacing multi-seed simulation sweeps (which demand substantial CPU runtime across cluster environments) with an HGT forward pass ($43.7\,\text{ms}$) achieves a $>99.9\%$ reduction in verification latency and compute cycles. Although physical power counters were not instrumented in this study (Section~\ref{sec:8.2}), this order-of-magnitude reduction in compute workload translates to substantial projected energy and infrastructure cost savings, proving that deep neural inference can serve as a green, sub-second quality gate during pull-request CI/CD.
+\noindent\textbf{Computational Efficiency.} The quantity we measured is wall-clock time: the complete gate runs in $0.02$--$27.4\,\text{s}$ per architecture, against multi-seed discrete-event simulation sweeps that are substantially more expensive on the same corpus. We deliberately do not convert this into an energy or carbon figure. No physical power counters were instrumented in this study (Section~\ref{sec:8.2}), the mapping from CPU-seconds to joules depends on hardware and utilisation we did not control, and a latency ratio is not an energy ratio. What the measurements support is the narrower claim that pre-deployment architectural gating fits inside a pull-request CI/CD budget without a simulation cluster.

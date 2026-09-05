@@ -1,7 +1,7 @@
 \section{Graph Learning for Failure-Impact Prediction}
 \label{sec:4}
 
-Cascading failure impact in distributed software systems is inherently non-linear, multi-hop, and relation-dependent. Outages propagate not merely based on neighbor count, but through architectural relations and dependencies extending multiple hops beyond the initial fault. No closed-form combination of standard centrality metrics can adequately capture these compound dynamics; therefore, the primary predictive pathway of Section~\ref{sec:1.2} employs a learned graph model.
+Cascading failure impact in distributed software systems is inherently non-linear, multi-hop, and relation-dependent. Outages propagate not merely based on neighbor count, but through architectural relations and dependencies extending multiple hops beyond the initial fault. Whether a closed-form combination of standard centrality metrics can capture these compound dynamics is an empirical question rather than a settled one. The primary predictive pathway of Section~\ref{sec:1.2} therefore employs a learned graph model, and Section~\ref{sec:7.1} evaluates it against exactly such a closed-form baseline --- which, on out-of-distribution ranking, it does not significantly surpass.
 
 This section details the Heterogeneous Graph Transformer (HGT) architecture and its typed edge encodings (Section~\ref{sec:4.1}), the multi-task prediction heads and dimension-masked loss formulation (Section~\ref{sec:4.2}), the ground-truth simulation oracles (Section~\ref{sec:4.3}), and the input--label independence guarantee that prevents data leakage (Section~\ref{sec:4.4}).
 
@@ -109,9 +109,9 @@ To evaluate predictive accuracy prior to deployment without relying on productio
     \begin{equation}
     I_M(v) = 0.45 \cdot \text{ChangeReach}(v) + 0.35 \cdot \text{WeightedChangeImpact}(v) + 0.20 \cdot \text{NormalizedChangeDepth}(v)
     \end{equation}
-    \item \textbf{Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):} Evaluates the systemic impact of severing an individual dependency or communication channel while keeping endpoint components operational:
+    \item \textbf{Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):} Evaluates the systemic impact of severing an individual dependency or communication channel while keeping endpoint components operational. Writing $\bar{I}_{\text{comp}}(G) = |V|^{-1}\sum_{v \in V} I_{\text{comp}}(v; G)$ for the mean composite impact over a graph $G$:
     \begin{equation}
-    I_{\text{edge}}(u,v) = I_{\text{comp}}(G \setminus \{(u,v)\}) - I_{\text{comp}}(G)
+    I_{\text{edge}}(u,v) = \bar{I}_{\text{comp}}\big(G \setminus \{(u,v)\}\big) - \bar{I}_{\text{comp}}(G)
     \end{equation}
 \end{itemize}
 
