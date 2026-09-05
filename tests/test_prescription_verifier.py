@@ -97,9 +97,10 @@ def test_edit_verdict_to_dict_schema():
     assert payload["schema"] == 2
     assert set(payload) == {
         "schema", "kind", "target", "kappa", "accepted", "reason",
-        "worst_delta", "per_threshold",
+        "worst_delta", "worst_margin", "per_threshold",
     }
     assert payload["per_threshold"]["0.2"] == {"mean_delta": 0.05, "sigma_seed": 0.01}
+    assert payload["worst_margin"] == pytest.approx(0.03)
 
 
 # ── mean_reduction ────────────────────────────────────────────────────────────
