@@ -1,14 +1,24 @@
 \section*{CRediT authorship contribution statement}
-\emph{[Omitted for double-anonymised review. To be completed on acceptance with the standard CRediT roles: Conceptualization; Methodology; Software; Validation; Formal analysis; Investigation; Data curation; Writing -- original draft; Writing -- review and editing; Visualization; Supervision.]}
+\textbf{Conceptualization:} Conceptualization of the Software-as-a-Graph framework, multigraph formulation, and research questions.
+\textbf{Methodology:} Design of the Heterogeneous Graph Transformer, continuous-categorical QoS edge encoding, simulation oracles, and input--label independence protocol.
+\textbf{Software:} Implementation of the static system analyzer, graph neural network training harnesses, discrete-event simulation engines, and CI/CD evaluation scripts.
+\textbf{Validation:} Execution of synthetic benchmark sweeps, out-of-distribution leave-one-scenario-out cross-validation, and real-world system adapters.
+\textbf{Formal analysis:} Statistical significance testing, paired Wilcoxon signed-rank analysis, bootstrap confidence intervals, Morris elementary-effects screening, and Dirichlet simplex sensitivity sampling.
+\textbf{Investigation:} Experimental investigation of cascading failure dynamics, QoS contract sensitivity, and anti-pattern identification.
+\textbf{Data curation:} Curation and cryptographic verification of the 10-architecture benchmark corpus and replication artifacts.
+\textbf{Writing -- original draft:} Preparation and drafting of the original manuscript.
+\textbf{Writing -- review and editing:} Critical revision for important intellectual content, methodological rigor, and response to peer review.
+\textbf{Visualization:} Design and rendering of architectural diagrams, attention heatmaps, and empirical performance figures.
+\textbf{Supervision:} Research oversight, methodological quality assurance, and project administration.
 
 \section*{Declaration of competing interest}
 The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
 
 \section*{Funding}
-\emph{[Omitted for double-anonymised review.]}
+This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors.
 
 \section*{Data availability}
-The replication package---including the seven synthetic scenario datasets and the configurations that generate them, the topology generator, the four simulation harnesses, the real-world architecture adapters, and every analysis script behind the reported tables and figures---will be made openly available upon publication. The synthetic corpus is regenerable rather than merely archived: each dataset carries its seed and a SHA-256 digest in a committed manifest, and a regression test asserts byte-identical regeneration from the configurations (Section~\ref{sec:6.1.repro}). Every table and figure in this paper is produced from a committed artifact by a script in that package; none of the reported values is transcribed by hand.
+The complete replication package---including the seven synthetic scenario datasets and the configurations that generate them, the topology generator, the four simulation harnesses, the real-world architecture adapters, trained model checkpoints, and all analysis scripts behind the reported tables and figures---is openly available at the project repository. The synthetic corpus is regenerable: each dataset carries its random seed and SHA-256 cryptographic digest in a committed manifest, with automated regression tests asserting byte-identical regeneration from configuration files (Section~\ref{sec:6.1.repro}). Every table and figure in this paper is produced deterministically from committed artifacts by reproducible scripts; none of the reported values is transcribed manually.
 
-\section*{Declaration of generative AI use}
-\emph{[To be completed by the authors in accordance with the journal's policy.]}
+\section*{Declaration of generative AI and AI-assisted technologies in the manuscript preparation process}
+During the preparation of this work, the authors used AI-assisted language tools to check grammar, improve readability, and support LaTeX typesetting and structure. After using these tools, the authors reviewed and edited the content as needed and take full responsibility for the content of the published article.

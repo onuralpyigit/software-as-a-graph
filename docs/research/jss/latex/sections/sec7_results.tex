@@ -105,7 +105,7 @@ To evaluate the specific contribution of node and edge typing, we contrast relat
     \item \textbf{Out-of-Distribution (LOSO):} Typing becomes decisive under distribution shift. Heterogeneous HGL outperforms homogeneous GL by \textbf{$+0.353$} ($\rho = 0.439$ vs.\ $0.086$), winning \emph{all eight} folds (paired Wilcoxon, $p = 0.0078$). Similarly, HGL-QoS outperforms GL-QoS by $+0.246$ ($0.608$ vs.\ $0.363$, $p = 0.0078$). Without relation typing, homogeneous models degrade below unweighted structural baselines ($0.086$ vs.\ $0.301$).
 \end{itemize}
 
-\noindent\textbf{Scope Condition on this Comparison.} GL and HGL are evaluated on distinct graph views: GL/GL-QoS operate on the Application--Library \texttt{DEPENDS\_ON} projection (preventing structural collapse on raw graphs, Section~\ref{sec:6.2.substrate}), whereas HGL/HGL-QoS ingest the complete native multigraph. Part of HGL's advantage reflects the broader multi-entity topology that typed modeling unlocks.
+\noindent\textbf{Scope Condition and Confound Dissection.} As detailed in Section~\ref{sec:6.2.substrate}, GL and HGL are evaluated on distinct graph views: GL/GL-QoS operate on the Application--Library \texttt{DEPENDS\_ON} projection (preventing structural collapse on raw graphs), whereas HGL/HGL-QoS ingest the complete native multigraph. Consequently, HGL's out-of-distribution margin reflects both relation-specific attention parameterization and direct topological visibility into the multi-entity infrastructure layer (brokers, topics, and host nodes). Disentangling these two complementary factors via uniform-multigraph baselines remains an important objective for future benchmarking.
 
 \subsubsection{Empirical Edge-Removal Analysis}
 
@@ -279,16 +279,16 @@ We evaluated SaG zero-shot on three authentic open-source distributed systems:
 \begin{table}[htbp]
 \centering
 \small
-\caption{Zero-shot transfer evaluation on authentic production architectures.}
+\caption{Zero-shot transfer evaluation on authentic production architectures (evaluating held-out systems without fine-tuning).}
 \label{tab:9}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccccccc}
 \toprule
-\textbf{Real-World Architecture} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Spearman $\rho$} & \textbf{Kendall $\tau$} & \textbf{$F_1@K$} & \textbf{Tie-Robust $F_1$} & \textbf{Non-Zero} & \textbf{Gain} \\
+\textbf{Real-World Architecture} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Spearman $\rho$} & \textbf{Kendall $\tau$} & \textbf{App $F_1@K$} & \textbf{Pooled $F_1@K$} & \textbf{Impactful Apps} & \textbf{Gain vs.\ Deg} \\
 \midrule
-\textbf{Autoware.universe (ROS 2)} & 75 & 32 & \textbf{0.688 $\pm$ 0.009} & 0.517 & \textbf{0.800} & 0.800 & 19 / 32 & +0.360 \\
-\textbf{Cloud Microservices Mesh} & 60 & 22 & \textbf{0.778 $\pm$ 0.001} & 0.639 & \textbf{1.000} & 0.760 & 8 / 22 & +0.014 \\
-\textbf{Train-Ticket Booking Mesh} & 90 & 41 & \textbf{0.759 $\pm$ 0.001} & 0.605 & \textbf{1.000} & 0.810 & 14 / 41 & +0.264 \\
+\textbf{Autoware.universe (ROS 2)} & 75 & 32 & \textbf{0.688 $\pm$ 0.009} & 0.517 & 0.333 & 0.800 & 19 / 32 & +0.360 \\
+\textbf{Cloud Microservices Mesh} & 60 & 22 & \textbf{0.778 $\pm$ 0.001} & 0.639 & 0.500 & 1.000 & 8 / 22 & +0.014 \\
+\textbf{Train-Ticket Booking Mesh} & 90 & 41 & \textbf{0.759 $\pm$ 0.001} & 0.605 & 0.625 & 1.000 & 14 / 41 & +0.264 \\
 \bottomrule
 \end{tabular}%
 }
@@ -296,9 +296,9 @@ We evaluated SaG zero-shot on three authentic open-source distributed systems:
 
 \noindent\textbf{Key Insights for RQ4:}
 \begin{enumerate}
-    \item \textbf{Strong Real-World Transfer:} SaG achieves high zero-shot rank correlation on Cloud Microservices ($\rho = 0.778$), Train-Ticket ($\rho = 0.759$), and Autoware.universe ($\rho = 0.688$).
-    \item \textbf{Critical-Set Containment:} All applications with non-zero cascading impact in Cloud Microservices and Train-Ticket are captured within the predicted top-$K$ critical set.
-    \item \textbf{Substantial Predictive Advantage:} SaG outperforms degree centrality baselines by $+0.360$ on Autoware and $+0.264$ on Train-Ticket.
+    \item \textbf{Strong Real-World Zero-Shot Transfer:} Trained exclusively on synthetic scenarios, SaG achieves high zero-shot rank correlation on Cloud Microservices ($\rho = 0.778$), Train-Ticket ($\rho = 0.759$), and Autoware.universe ($\rho = 0.688$), confirming that relation-specific graph representations transfer effectively to complex, authentic distributed systems.
+    \item \textbf{Stratified vs.\ Pooled Critical Set Identification:} On the stratified Application population ($V_{\text{app}}$ with $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$), SaG identifies the top-20\% critical services with $F_1@K = 0.333$ in Autoware, $0.500$ in Cloud Microservices, and $0.625$ in Train-Ticket. When evaluated across the pooled multigraph ($K = \text{round}(0.20 \cdot |V|)$), the pooled $F_1@K$ reaches $0.800$, $1.000$, and $1.000$, respectively. This disparity highlights the base-rate phenomenon discussed in Section~\ref{sec:6.3}: unmeasured passive infrastructure entities (Topics, Nodes, Libraries) exhibit constant zero failure impact under process crash simulation. While the pooled metric confirms that SaG cleanly separates critical active services from inert infrastructure, reporting stratified $V_{\text{app}}$ metrics provides the more rigorous, non-inflated evaluation.
+    \item \textbf{Predictive Advantage over Structural Heuristics:} The ``Gain vs.\ Deg'' column reports SaG's ranking margin over an unweighted degree centrality baseline (+0.360 on Autoware, +0.264 on Train-Ticket, +0.014 on Cloud Microservices). Heterogeneous message passing captures multi-hop topic-broker cascades that degree and local connectivity metrics fail to resolve.
 \end{enumerate}
 
 \subsection{RQ5: Analysis Cost, Computational Sustainability, and CI/CD Feasibility}
@@ -325,4 +325,4 @@ RQ5 quantifies computational overhead and sustainability during CI/CD evaluation
 
 \noindent\textbf{The Neural Model is the Fastest, Greenest Stage.} For a 2,000-component topology, HGT forward inference requires only $43.7\,\text{ms}$, while classical structural analysis takes $23.8\,\text{s}$ ($545\times$ slower). The computational bottleneck resides entirely in deterministic graph algorithms ($O(|V|^2 + |V||E|)$). Computational overhead scales primarily with edge density: the 520-component Enterprise mesh requires $27.2\,\text{s}$ due to 3,245 structural edges, whereas a sparser 999-component system takes only $4.7\,\text{s}$. Across all corpus scenarios, the complete quality gate (structural analysis plus 18 anti-pattern detectors) runs in $0.02\,\text{s}$ to $27.4\,\text{s}$, well within standard pull-request CI/CD budgets.
 
-\noindent\textbf{Computational Sustainability and Energy Savings.} Replacing multi-seed simulation sweeps ($50$--$200\,\text{kJ}$) with an HGT forward pass ($\ll 1\,\text{J}$) achieves a $>99.9\%$ reduction in evaluation energy, making continuous per-commit verification viable and environmentally sustainable.
+\noindent\textbf{Computational Efficiency and Projected Sustainability Gains.} Replacing multi-seed simulation sweeps (which demand substantial CPU runtime across cluster environments) with an HGT forward pass ($43.7\,\text{ms}$) achieves a $>99.9\%$ reduction in verification latency and compute cycles. Although physical power counters were not instrumented in this study (Section~\ref{sec:8.2}), this order-of-magnitude reduction in compute workload translates to substantial projected energy and infrastructure cost savings, proving that deep neural inference can serve as a green, sub-second quality gate during pull-request CI/CD.

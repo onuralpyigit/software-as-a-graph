@@ -1,38 +1,6 @@
-Modern distributed software systems, including cloud microservices, event-driven meshes, and distributed AI serving infrastructures, decouple components to increase throughput. However, this decoupling obscures domino effects and performance bottlenecks across message brokers, asynchronous topics, shared libraries, and host nodes. Identifying critical components before deployment is difficult because operational telemetry is unavailable, and traditional static code analysis cannot represent distributed communication topologies. In production environments, uncontrolled cascades can cause compute-intensive restart loops, failover storms, and significant tail-latency spikes, leading to substantial computational energy waste and costly downtime. Additionally, modern AI applied to dependability often produces opaque models that lack actionable architectural insights.
+Pre-deployment dependability and performance assessment of asynchronous distributed systems is hindered by the absence of runtime telemetry and the inability of traditional static code analysis to model distributed communication topologies. This paper presents Software-as-a-Graph (SaG), a static system analysis framework that constructs typed multigraphs from Architecture-as-Code manifests across Applications, Brokers, Topics, Execution Nodes, and Shared Libraries. SaG integrates two complementary pathways: a predictive pathway employing a relation-specific Heterogeneous Graph Transformer (HGT) with Quality-of-Service (QoS) edge encodings to forecast cascading failure blast radii, and an interpretable explanation layer grounded in ISO/IEC 25010 that attributes vulnerabilities to Availability (single points of failure) or Fault Tolerance (cascade hubs) to prescribe targeted architectural repairs.
 
-
-
-This work introduces Software-as-a-Graph (SaG), an AI-driven static analysis framework for pre-deployment assessment of dependability, performance, and sustainability. SaG constructs typed multigraphs directly from Architecture-as-Code manifests, modeling Applications, Brokers, Topics, Execution Nodes, and Shared Libraries. The framework integrates two complementary pathways: (1) a predictive pathway employing a relation-specific Heterogeneous Graph Transformer (HGT) with Quality-of-Service (QoS) edge encodings to forecast cascading failure blast radii and rapidly rank critical components; and (2) an interpretable explanation layer, grounded in ISO/IEC 25010 and 25019, that addresses neural opacity by diagnosing whether fragility arises from single points of failure, cascade hubs, or maintainability bottlenecks, and prescribes targeted architectural remediations.
-
-
-
-SaG is evaluated on 1,770 components spanning seven synthetic scenarios and three production systems (Autoware.universe ROS 2, GCP Online Boutique, Train-Ticket), using independent discrete-event cascade simulators under strict input–label independence conditions:
-
-
-
-\begin{itemize}
-
-    
-
-\item Typing enables transfer: On previously unseen architectures, relation-specific typing outperforms homogeneous graph learning in rank correlation (?rho = 0.439 vs. 0.086, p = 0.008). QoS contract encoding further increases out-of-distribution correlation to ?rho = 0.608 (p = 0.016).
-
-    
-
-\item Accurate detection at CI/CD speed: SaG identifies the top 20% most critical components with F_1@K = 0.414. Inference completes in 44 ms on a 2,000-component system, replacing energy-intensive simulation sweeps and enabling environmentally sustainable, per-commit gating.
-
-    
-
-\item Honest empirical boundary: Compared to a training-free QoS-weighted structural baseline, the ranking advantage is +0.037 and not statistically significant (p = 0.64). Graph learning matters through cross-architecture transfer, typed attention, and multi-task attribution.
-
-    
-
-\item Practical validation: SaG demonstrates zero-shot transfer to production cyber-physical and cloud-native systems (?rho = 0.688 to 0.778), identifying up to 100% of failure-impactful services.
-
-\end{itemize}
-
-
-
-By integrating sub-second, explainable architectural gating into pre-deployment CI/CD processes, SaG advances the Architecture–Code Gap and enables dependable, high-performance, and computationally sustainable modern software systems.
+Evaluated across seven synthetic scenarios and three production systems (Autoware.universe ROS~2, GCP Online Boutique, Train-Ticket) under strict input--label independence: (1) Relational typing governs cross-architecture transfer, outperforming homogeneous graph learning out-of-distribution ($\rho = 0.439$ vs.\ $0.086$, $p = 0.008$), with QoS encoding reaching $\rho = 0.608$ ($p = 0.016$). (2) Against a training-free QoS-weighted centrality baseline, the ranking margin is $+0.037$ and not statistically significant ($p = 0.64$); the GNN's primary benefits reside in critical-set identification ($F_1@K = 0.414$ vs.\ $0.380$), relational attention interpretability, and multi-task attribution. (3) SaG transfers zero-shot to production systems ($\rho = 0.688$--$0.778$). (4) Fast $44\,\text{ms}$ CPU inference enables sub-second CI/CD quality gating, projecting substantial compute and latency savings over exhaustive simulation sweeps. SaG bridges the Architecture--Code Gap, facilitating dependable and performant distributed software systems.
 
 
 
