@@ -21,6 +21,8 @@ where:
     \item $w_V: V \to [0, 1]$ and $w_E: E \to [0, 1]$ are weighting functions representing entity criticality and connection strength.
 \end{itemize}
 
+Table~\ref{tab:1} summarizes the five entity types and six structural edge types formalized in the SaG model, along with their semantics and representative concrete distributed systems implementations.
+
 \begin{table}[htbp]
 \centering
 \small
@@ -74,7 +76,7 @@ The outer split $(\beta, \alpha, \psi)$ is a declared convex combination whose s
 
 \subsubsection{Logical Dependency Projection (\texttt{DEPENDS\_ON})}
 
-Structural edges capture explicit deployment connections but omit implicit runtime dependencies. For example, a subscriber depends upon a publisher, yet no direct edge connects them in pub-sub architectures. We therefore derive a single unified semantic relation, \texttt{DEPENDS\_ON}, directed from \emph{dependent} to \emph{dependency} (``if target fails, source is impacted''):
+Structural edges capture explicit deployment connections but omit implicit runtime dependencies. For example, a subscriber depends upon a publisher, yet no direct edge connects them in pub-sub architectures. We therefore derive a single unified semantic relation, \texttt{DEPENDS\_ON}, directed from \emph{dependent} to \emph{dependency} (``if target fails, source is impacted''), according to the six projection rules detailed in Table~\ref{tab:2}:
 
 \begin{table}[htbp]
 \centering
@@ -119,6 +121,8 @@ The SaG framework maintains two distinct representations of the system:
     \item \textbf{Structural Graph ($G_{\text{structural}}$):} The raw deployment graph containing physical and structural relations (such as \texttt{PUBLISHES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, and \texttt{USES}). Discrete-event simulators consume this view exclusively to execute unbiased failure injections (Section~\ref{sec:4.3}).
     \item \textbf{Analysis Graph ($G_{\text{analysis}}$):} The projected graph containing derived \texttt{DEPENDS\_ON} edges annotated with QoS weights and ingested SCA code metrics. All GNN feature representations, graph embeddings, and analytical metrics are computed on $G_{\text{analysis}}$.
 \end{enumerate}
+
+Figure~\ref{fig:2} illustrates this duality on a running example, contrasting the raw structural graph against the derived \texttt{DEPENDS\_ON} projection.
 
 \begin{figure}[htbp]
 \centering
