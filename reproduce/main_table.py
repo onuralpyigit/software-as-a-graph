@@ -88,6 +88,21 @@ ALL_VARIANTS = [
     "hgl_qos",              # HGL-QoS: Heterogeneous Graph Transformer (QoS-embedded native)
 ]
 
+#: RQ2 substrate-confound control (§7.2/§6.2.substrate): the same homogeneous
+#: GAT architecture as GL/GL-QoS (build_baseline("homo_unweighted"/"homo_scalar")),
+#: but fed the native multigraph (substrate="native", same graph HGL/HGL-QoS see)
+#: instead of the Application-Library DEPENDS_ON projection. Node type reaches
+#: this model only through its per-type input embedding (input_proj), never
+#: through relation-specific message-passing weights — HGTConv's per-relation
+#: parameters are what GL_FULL still lacks relative to HGL. Isolates "visibility
+#: into the full multigraph" from "typed message passing" for the in-distribution
+#: table. Not part of ALL_VARIANTS: this is a standalone control, not a seventh
+#: column in the canonical 210-cell (7x6x5) matrix.
+CONTROL_VARIANTS = [
+    "gl_full",              # GL-Full: Homogeneous GAT (unweighted, native substrate)
+    "gl_full_qos",          # GL-Full-QoS: Homogeneous GAT (QoS-weighted, native substrate)
+]
+
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
 
 #: Fraction of non-zero composite labels below which a simulation cache is
@@ -1339,8 +1354,9 @@ def _train_cell(
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    # Decouple substrate per variant
-    substrate = "native" if variant in ("hgl", "hgl_qos") else "projection"
+    # Decouple substrate per variant. gl_full/gl_full_qos are the RQ2 control:
+    # same architecture as gl/gl_qos, native substrate like hgl/hgl_qos.
+    substrate = "native" if variant in ("hgl", "hgl_qos", "gl_full", "gl_full_qos") else "projection"
     nx_graph, structural_dict, simulation_dict, rm_dict, gt_source = _load_scenario_data(scenario, substrate=substrate)
 
     if nx_graph.number_of_nodes() == 0:
@@ -1397,12 +1413,14 @@ def _train_cell(
             **score_common,
         )
 
-    elif variant in ("gl", "gl_qos"):
+    elif variant in ("gl", "gl_qos", "gl_full", "gl_full_qos"):
         from saag.prediction.models.baselines import build_baseline
         start = time.time()
 
-        # gl is homogeneous unweighted projection; gl_qos is homogeneous QoS-weighted projection
-        use_qos = (variant == "gl_qos")
+        # gl/gl_full are homogeneous unweighted; gl_qos/gl_full_qos are homogeneous
+        # QoS-weighted. The "_full" pair differs only in substrate (native, set
+        # above), not in architecture -- see CONTROL_VARIANTS docstring.
+        use_qos = variant in ("gl_qos", "gl_full_qos")
         if use_qos:
             train_graph = nx_graph
             train_sm    = structural_dict
@@ -1420,7 +1438,7 @@ def _train_cell(
         effective_lr = 1e-3
         effective_patience = max(patience, 60)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        baseline_name = "homo_unweighted" if variant == "gl" else "homo_scalar"
+        baseline_name = "homo_unweighted" if variant in ("gl", "gl_full") else "homo_scalar"
         model = build_baseline(baseline_name, hidden_channels=hidden, num_heads=num_heads,
                                num_layers=effective_layers, dropout=dropout)
         model.to(device)
@@ -1743,8 +1761,9 @@ def parse_args():
     p = argparse.ArgumentParser(description="Software-as-a-Graph / JSS main table evaluation harness (Block C).")
     p.add_argument("--scenarios", nargs="+", default=None,
                    help=f"Scenarios to run (default: all {len(ALL_SCENARIOS)})")
-    p.add_argument("--variants", nargs="+", default=None, choices=ALL_VARIANTS,
-                   help="Variants to include (default: all 4)")
+    p.add_argument("--variants", nargs="+", default=None, choices=ALL_VARIANTS + CONTROL_VARIANTS,
+                   help="Variants to include (default: all 6; add gl_full/gl_full_qos "
+                        "for the RQ2 substrate-confound control)")
     p.add_argument("--seeds", nargs="+", type=int, default=None,
                    help=f"Seeds to use (default: {DEFAULT_SEEDS})")
     p.add_argument("--epochs", type=int, default=200, help="Training epochs per run (default: 200)")
