@@ -92,7 +92,7 @@ Eight LOSO folds are reported, comprising the seven synthetic scenarios and the 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/Figure_5}
-\caption{Results at a glance, evaluated on the Application population. \textbf{(A)} Out-of-distribution rank correlation per variant across eight LOSO folds (whiskers denote $\sigma$). \textbf{(B)} Critical-set identification at $K = 20\%$. \textbf{(C)} Pairwise agreement across the three simulation oracles.}
+\caption{Results at a glance, evaluated on the Application population. \textbf{(A)} Out-of-distribution rank correlation per variant across eight LOSO folds (whiskers denote $\sigma$). \textbf{(B)} Critical-set identification at $K = 20\%$. \textbf{(C)} Pairwise agreement across the three simulation oracles. All subplots utilize high-contrast, colorblind-safe palettes (Okabe--Ito) and distinct marker and hatching encodings to preserve legibility under monochrome and color-deficient viewing.}
 \label{fig:5}
 \end{figure}
 
@@ -187,7 +187,7 @@ We evaluated the sensitivity of the RM attribution baseline across shrinkage par
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.62\linewidth]{figures/Figure_4}
-\caption{Sensitivity of RM composite rank correlation against $I^*(v)$ across AHP shrinkage $\lambda$ (Application population, mean over 7 scenarios).}
+\caption{Sensitivity of RM composite rank correlation against $I^*(v)$ across AHP shrinkage $\lambda$ (Application population, mean over 7 scenarios). Distinct markers and high-contrast lines are used for accessibility in monochrome and across color vision profiles.}
 \label{fig:4}
 \end{figure}
 
@@ -196,12 +196,12 @@ We evaluated the sensitivity of the RM attribution baseline across shrinkage par
 \subsubsection{Joint Sensitivity Across All Ten Weight Constants}
 \label{sec:7.3.global}
 
-To assess interactions, we swept all ten weight constants jointly across six scenarios:
+To assess interactions, we swept all ten weight constants jointly across six scenarios using Morris elementary-effects screening \cite{morris1991factorial,campolongo2007effective} (a computationally efficient alternative to variance-based global sensitivity analysis \cite{saltelli2008global,sobol1993sensitivity}):
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Morris elementary-effects screening across ten weight constants, ranked by influence ($\mu^*$) on mean $\rho$ (6 scenarios, 10 trajectories, 110 evaluations).}
+\caption{Morris elementary-effects screening \cite{morris1991factorial,campolongo2007effective} across ten weight constants, ranked by influence ($\mu^*$) on mean $\rho$ (6 scenarios, 10 trajectories, 110 evaluations).}
 \label{tab:8e}
 \begin{tabular}{lcc}
 \toprule
@@ -265,7 +265,7 @@ Validating our rule-based anti-pattern catalog against $I_{\text{comp}}(v)$ yiel
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.86\linewidth]{figures/Figure_3}
-\caption{Relational attention extracted from the trained HGT on the ATM case study. Peak attention focuses on \texttt{USES} (Application $\to$ Library) and \texttt{ROUTES} (Broker $\to$ Topic) channels.}
+\caption{Relational attention extracted from the trained HGT on the ATM case study. Peak attention focuses on \texttt{USES} (Application $\to$ Library) and \texttt{ROUTES} (Broker $\to$ Topic) channels. The subgraph uses high-contrast edge colorings and node geometry designed for visual accessibility across viewing modalities.}
 \label{fig:3}
 \end{figure}
 

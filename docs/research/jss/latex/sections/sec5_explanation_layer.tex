@@ -6,7 +6,7 @@ The predictor of Section~\ref{sec:4} answers \emph{where} to act. It does not an
 \subsection{Grounding in ISO/IEC Standards}
 \label{sec:5.1}
 
-In accordance with \textbf{ISO/IEC 25010:2023} (Product Quality Model) \cite{iso25010_2023} and \textbf{ISO/IEC 25019:2023} (Quality-in-Use) \cite{iso25019_2023}, SaG formalizes two primary criticality constructs:
+In accordance with \textbf{ISO/IEC 25010:2023} (Product Quality Model) \cite{iso25010_2023}, \textbf{ISO/IEC 25019:2023} (Quality-in-Use) \cite{iso25019_2023}, and \textbf{ISO/IEC 25022:2016} (Measurement of Quality-in-Use) \cite{iso25022_2016}, SaG formalizes two primary criticality constructs:
 \begin{itemize}
     \item \textbf{Component Criticality ($D_1$):} The degree to which the sudden failure, unexpected termination, or severe degradation of an individual component reduces the system's capacity to deliver required services within its operational context of use.
     \item \textbf{Relationship Criticality ($D_2$):} The degree of systemic service degradation resulting from the severance, partitioning, or failure of a specific dependency or communication channel while both endpoint components remain operational.
@@ -32,7 +32,7 @@ Criticality is evaluated across two orthogonal quality characteristics: \textbf{
 }
 \end{table}
 
-\noindent\textit{Coverage Scope:} SaG focuses specifically on Reliability and Maintainability. Safety (which requires domain-specific hazard logs, such as ISO 26262 ASIL ratings) and Security (which requires explicit threat models, such as STRIDE) fall outside purely structural topology analysis and are reserved for domain-specific extensions.
+\noindent\textit{Coverage Scope:} SaG focuses specifically on Reliability and Maintainability. Safety (which requires domain-specific hazard logs, such as ISO 26262 Automotive Safety Integrity Level [ASIL] ratings) and Security (which requires explicit threat models, such as STRIDE [Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege]) fall outside purely structural topology analysis and are reserved for domain-specific extensions.
 
 \subsection{Composite Quality Score Formulation}
 \label{sec:5.2}
@@ -43,11 +43,12 @@ All raw topological and code metrics are rank-normalized to $[0, 1]$. Quality su
     \begin{equation}
     FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)
     \end{equation}
-    where RPR is Reverse PageRank and $\text{CDPot}_{\text{enh}}$ is the enhanced Cascade Depth Potential term.
+    where $\text{RPR}(v)$ is Reverse PageRank, $\text{Deg}_{\text{in}}(v)$ is normalized in-degree, and $\text{CDPot}_{\text{enh}}(v)$ is the enhanced Cascade Depth Potential term.
     \item \textbf{Availability ($A(v)$):} Identifies structural single points of failure (SPOFs) across five terms --- directed articulation severity, its QoS-weighted variant, edge-level irrecoverability, connectivity degradation, and the component's own QoS weight:
     \begin{equation}
     A(v) = 0.2563 \cdot \text{AP}_c^{\text{dir}}(v) + 0.1998 \cdot \text{QSPOF}(v) + 0.1998 \cdot \text{BR}(v) + 0.2563 \cdot \text{CDI}(v) + 0.0878 \cdot w(v)
     \end{equation}
+    where $\text{AP}_c^{\text{dir}}(v)$ is Directed Articulation Point severity, $\text{QSPOF}(v)$ is QoS-weighted Single Point of Failure severity, $\text{BR}(v)$ is Bridge Ratio (edge-level irrecoverability), $\text{CDI}(v)$ is Connectivity Degradation Index, and $w(v)$ is the component's intrinsic QoS weight.
     \item \textbf{Reliability ($R(v)$):} Blends Fault Tolerance and Availability hierarchically:
     \begin{equation}
     R(v) = \alpha \cdot FT(v) + (1 - \alpha) \cdot A(v), \quad \alpha = 0.36
@@ -57,6 +58,7 @@ All raw topological and code metrics are rank-normalized to $[0, 1]$. Quality su
     \begin{equation}
     M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))
     \end{equation}
+    where $\text{BT}(v)$ is Betweenness Centrality, $w_{\text{out}}(v)$ is QoS-weighted efferent coupling (out-degree), $\text{CQP}(v)$ is the Code Quality Penalty, $\text{CouplingRisk}_{\text{enh}}(v)$ is an afferent/efferent coupling-risk imbalance term, and $\text{CC}(v)$ is the local Clustering Coefficient.
 \end{enumerate}
 
 The baseline composite quality score $Q(v)$ combines both dimensions:

@@ -8,7 +8,7 @@ This section details the Heterogeneous Graph Transformer (HGT) architecture and 
 \subsection{Heterogeneous Graph Transformer Architecture}
 \label{sec:4.1}
 
-Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, \texttt{DEPENDS\_ON}), we employ a three-layer \textbf{Heterogeneous Graph Transformer (HGT)} architecture \cite{hu2020hgt} with hidden dimension $D = 64$ and $H = 4$ attention heads. This architecture ensures that typed relations, rather than simple adjacency, govern failure-impact forecasting.
+Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, \texttt{DEPENDS\_ON}), we employ a three-layer \textbf{Heterogeneous Graph Transformer (HGT)} architecture \cite{hu2020hgt}, implemented within PyTorch Geometric \cite{fey2019fast}, with hidden dimension $D = 64$ and $H = 4$ attention heads. This architecture ensures that typed relations, rather than simple adjacency, govern failure-impact forecasting.
 
 \subsubsection{Continuous-Categorical Edge Feature Encoding (16-D)}
 \label{sec:4.1.1}

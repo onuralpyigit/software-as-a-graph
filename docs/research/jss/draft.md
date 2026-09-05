@@ -22,7 +22,7 @@ Evaluated across seven synthetic scenarios and three production systems (Autowar
 
 ## 1.1 Motivation
 
-Modern large-scale distributed software systems increasingly rely on asynchronous, event-driven, and publish–subscribe (pub-sub) architectures. Across diverse domains---from autonomous driving (ROS 2 [44]) and enterprise event streams (Apache Kafka [43]) to cyber-physical backbones (DDS [2]), IoT fleets (MQTT [3]), cloud-native microservices, and distributed AI/LLM serving clusters---pub-sub decouples producers and consumers in space, time, and synchronization [1]. Components interact indirectly through intermediate message topics and brokers without maintaining direct static references. Furthermore, modern middleware specifications allow engineers to configure deployment-time Quality-of-Service (QoS) policies---such as reliability guarantees, durability, message priorities, and delivery deadlines---to govern how traffic behaves under peak load and network stress.
+Modern large-scale distributed software systems increasingly rely on asynchronous, event-driven, and publish–subscribe (pub-sub) architectures. Across diverse domains---from autonomous driving (ROS 2 [44]) and enterprise event streams (Apache Kafka [43]) to cyber-physical backbones (DDS [2]), IoT fleets (MQTT [3]), cloud-native microservices [Dragoni et al. 2017, Newman 2015], and distributed AI/LLM serving clusters---pub-sub decouples producers and consumers in space, time, and synchronization [1]. Components interact indirectly through intermediate message topics and brokers without maintaining direct static references. Furthermore, modern middleware specifications allow engineers to configure deployment-time Quality-of-Service (QoS) policies---such as reliability guarantees, durability, message priorities, and delivery deadlines---to govern how traffic behaves under peak load and network stress.
 
 While this architectural decoupling confers elastic scalability and operational flexibility, it creates a formidable **visibility barrier** for system performance, reliability, and computational sustainability:
 
@@ -30,7 +30,7 @@ While this architectural decoupling confers elastic scalability and operational 
 
 - **Distinct Degradation Mechanisms:** Disturbances in complex distributed systems do not propagate in a uniform manner. They manifest either as *sequential cascades* (e.g., a slow subscriber causing broker queue saturation and upstream backpressure) or as *simultaneous blast radii* (e.g., a shared runtime library crash, memory exhaustion, or host machine outage instantly disabling multiple colocated services). Conventional architectural diagrams and static call graphs fail to represent these multi-layer dependencies.
 
-Addressing these architectural vulnerabilities is most effective and cost-efficient **prior to deployment**, during design and Continuous Integration / Continuous Delivery (CI/CD). However, at design and build time, **no runtime telemetry, distributed tracing, or operational logs exist**. Consequently, software architects, performance engineers, and Site Reliability Engineers (SREs) face two fundamental questions without operational data:
+Addressing these architectural vulnerabilities is most effective and cost-efficient **prior to deployment**, during design and Continuous Integration / Continuous Delivery (CI/CD), adhering to established foundational principles of dependable computing [Avizienis et al. 2004]. However, at design and build time, **no runtime telemetry, distributed tracing, or operational logs exist**. Consequently, software architects, performance engineers, and Site Reliability Engineers (SREs) face two fundamental questions without operational data:
 
 1. *Which components, message topics, and communication links are systemically critical to system dependability and performance?*
 
@@ -48,9 +48,9 @@ We formulate pre-deployment dependability and performance analysis around two di
 
 This separation is architectural rather than merely presentational: both pathways operate on the same graph but share no parameters, and neither is trained on the other's output. The coupling term that could connect them is disabled by default and reported only as an ablation (§4.2). Maintaining this independence allows SaG to identify components that are structurally central yet operationally low-impact---a nuanced diagnosis unattainable by either pathway alone.
 
-Existing software engineering approaches fail to bridge what we define as the **Architecture–Code Gap**: *a distributed system can have pristine, 100% bug-free source code within each individual service, yet remain fragile to catastrophic global outages and tail-latency explosions due to hidden architectural single points of failure (SPOFs) or mismatched middleware Quality-of-Service (QoS) contracts.* Three prevailing paradigms leave this gap unaddressed:
+Existing software engineering approaches fail to bridge what we define as the **Architecture–Code Gap**: *a distributed system can have pristine, 100% bug-free source code within each individual service, yet remain fragile to catastrophic global outages and tail-latency explosions due to hidden architectural single points of failure (SPOFs) or mismatched middleware Quality-of-Service (QoS) contracts.* Although classical architecture evaluation methods such as the Architecture Tradeoff Analysis Method (ATAM) [Kazman et al. 1998, Bass et al. 2012] identify architectural risks, and software studies analyze architectural technical debt [Cunningham 1992] and bad smells [Garcia et al. 2009], they rely on manual stakeholder elicitation rather than quantitative structural learning. Prevailing automated paradigms leave this gap unaddressed:
 
-- **Static Code Analysis (SCA):** Tools such as SonarQube inspect source code complexity [29], modularity, and cohesion [28, 30] within single services. However, SCA cannot observe the broader distributed network, message queues, or cross-host failure propagation.
+- **Static Code Analysis (SCA):** Tools such as SonarQube [SonarSource 2024] inspect source code complexity [29], modularity, and object-oriented cohesion and coupling metrics (e.g., Lack of Cohesion in Methods [LCOM] and Coupling Between Objects [CBO]) [28, 30] within single services. However, SCA cannot observe the broader distributed network, message queues, or cross-host failure propagation.
 
 - **Runtime Chaos Engineering:** Techniques like Chaos Monkey [18] and distributed tracing inject real faults into running staging or production environments. While effective for live systems, they require fully deployed infrastructure, carry operational risks, incur high computational and energy costs through repeated test executions, and arrive too late to guide initial architectural design.
 
@@ -118,7 +118,7 @@ To ensure methodological rigor, SaG enforces a strict **input–label independen
         [scores B's ranking only]         +-------------------------------------+
 ```
 
-*Figure 1. End-to-end architecture of the Software-as-a-Graph (SaG) framework. A shared front end (manifest ingestion $\to$ typed multigraph $\to$ QoS-weighted `DEPENDS_ON` projection $\to$ typed node features) feeds two deliberately separate pathways. The **predictive pathway** (§4) is the primary one: it produces a ranked critical set and per-relationship criticality, and is the only pathway validated against the simulation oracle — the oracle scores rankings, which a quality profile is not, and it is strictly an offline training-and-validation component, never a dependency of online inference. The **explanation layer** (§5) then produces a standards-grounded quality profile for what the predictor flagged, and the remediation it implies; it explains *why* a component is fragile and is not a ranking model. The single link between them is triage rather than data flow: the architect applies the explanation to whatever the predictor flagged. The two share no parameters, and the oracle runs on $G_{\text{structural}}$ alone, never on the graph the predictors see (§4.4). The remediation guidance closes a loop of its own: each candidate edit is re-simulated on its own mutated copy of $G_{\text{structural}}$ and kept only if it beats the simulator’s own seed-to-seed noise, before being accepted.*
+*Figure 1. End-to-end architecture of the Software-as-a-Graph (SaG) framework. (Visual elements employ high-contrast colorblind-safe palettes and distinct node geometries for accessibility.) A shared front end (manifest ingestion $\to$ typed multigraph $\to$ QoS-weighted `DEPENDS_ON` projection $\to$ typed node features) feeds two deliberately separate pathways. The **predictive pathway** (§4) is the primary one: it produces a ranked critical set and per-relationship criticality, and is the only pathway validated against the simulation oracle — the oracle scores rankings, which a quality profile is not, and it is strictly an offline training-and-validation component, never a dependency of online inference. The **explanation layer** (§5) then produces a standards-grounded quality profile for what the predictor flagged, and the remediation it implies; it explains *why* a component is fragile and is not a ranking model. The single link between them is triage rather than data flow: the architect applies the explanation to whatever the predictor flagged. The two share no parameters, and the oracle runs on $G_{\text{structural}}$ alone, never on the graph the predictors see (§4.4). The remediation guidance closes a loop of its own: each candidate edit is re-simulated on its own mutated copy of $G_{\text{structural}}$ and kept only if it beats the simulator’s own seed-to-seed noise, before being accepted.*
 
 > **Figure numbering.** This document keeps its own figure sequence, which differs from the LaTeX submission sources in `latex/`. Figure 1 (pipeline), Figure 3 (results at a glance), Figure 4 (AHP shrinkage) and Figure 5 (HGT attention) correspond to `Figure_1`, `Figure_5`, `Figure_4` and `Figure_3` there. Figure 2 below (the HGT layer diagram) is specific to this document; the LaTeX `Figure_2`, a running-example graph, has no counterpart here.
 
@@ -197,7 +197,7 @@ Our work addresses the complementary **pre-deployment phase**: predicting system
 
 ## 2.2 Static Code Analysis (SCA) vs. Static System Analysis (SSA)
 
-Traditional **Static Code Analysis (SCA)** tools (e.g., SonarQube) inspect source code Abstract Syntax Trees (ASTs) within individual services. They evaluate cyclomatic complexity [29], class cohesion, module coupling (e.g., LCOM, CBO) [28, 30], and code duplication to flag internal code smells and defect-prone modules [55, 56, 57, 58]. However, SCA cannot observe runtime communication topology: it is blind to inter-service messaging channels, message broker queue saturation, and cross-host failure propagation.
+Traditional **Static Code Analysis (SCA)** tools (e.g., SonarQube [SonarSource 2024]) inspect source code Abstract Syntax Trees (ASTs) within individual services. They evaluate cyclomatic complexity [29], class cohesion, module coupling (e.g., Lack of Cohesion in Methods [LCOM], Coupling Between Objects [CBO]) [28, 30], and code duplication to flag internal code smells and defect-prone modules [55, 56, 57, 58]. However, SCA cannot observe runtime communication topology: it is blind to inter-service messaging channels, message broker queue saturation, and cross-host failure propagation.
 
 To bridge this “Architecture–Code Gap,” **Static System Analysis (SSA)** extends static analysis from single-service source code to the global system architecture. By modeling distributed applications, message topics, brokers, execution nodes, and shared libraries as a connected multigraph, SSA propagates code-level quality metrics across architectural dependencies. This allows engineering teams to detect structural anti-patterns [21, 22, 23, 24] and architectural technical debt [26, 27] early during continuous integration (CI/CD) [19, 20], before defective topologies enter production.
 
@@ -228,7 +228,7 @@ Heterogeneous Graph Neural Networks (RGCN [10], HAN [11], HGT [12], MAGNN [13]) 
 
 A critical hurdle in applying modern AI to software engineering is the **black-box barrier**: deep neural models output risk scores or continuous embeddings without explaining underlying structural causality. In production software engineering, uninterpretable risk rankings hinder actionable decision-making: developers and SREs cannot determine whether to replicate a host, configure circuit breakers, or refactor shared libraries.
 
-Existing GNN explanation techniques, such as GNNExplainer [65], identify influential subgraphs through edge masking. Although useful, these methods explain the model using internal latent representations rather than standardized software engineering concepts. SaG resolves this limitation through a decoupled dual-pathway design: the predictive HGT pathway reveals typed mutual-attention distributions indicating *which* architectural relations propagated the cascade (§7.3), while the deterministic explanation layer attributes fragility to standardized ISO/IEC quality sub-characteristics (§5), translating raw predictions into actionable, cost-effective remediations.
+Existing GNN explanation techniques, such as GNNExplainer [65] and PGExplainer [Luo et al. 2020], identify influential subgraphs through edge masking or parameterized learning. Although useful, these methods explain the model using internal latent representations rather than standardized software engineering concepts. SaG resolves this limitation through a decoupled dual-pathway design: the predictive HGT pathway reveals typed mutual-attention distributions indicating *which* architectural relations propagated the cascade (§7.3), while the deterministic explanation layer attributes fragility to standardized ISO/IEC quality sub-characteristics (§5), translating raw predictions into actionable, cost-effective remediations.
 
 **Table 1. Comparison of dependability and performance analysis paradigms for distributed systems.**
 
@@ -304,9 +304,9 @@ Structural edges capture explicit deployment connections but omit implicit runti
 |  **3**   | `node_to_node`          | Host $\to$ Host (lifted from inter-host app dependencies)              | Lifted $\max w$                                    |
 |  **4**   | `node_to_broker`        | Host $\to$ Broker (lifted from hosted app dependencies)                | Lifted $\max w$                                    |
 |  **5**   | `app_to_lib`            | Application $\to$ Shared Library it `USES`                             | $H(w_V(\text{app}), w_V(\text{lib}))$              |
-|  **6**   | `broker_to_broker`      | Broker $\leftrightarrow$ Broker (shared-host fate, symmetric)          | $w_V(\text{node})$                                 |
+|  **6**   | `broker_to_broker`      | Broker $\leftrightarrow$ Broker (shared physical fault-domain colocation, symmetric) | $w_V(\text{node})$                  |
 
-Rules 1 and 2 aggregate the set of topics $T$ connecting a component pair using a probabilistic union rather than a maximum. This guarantees that additional parallel failure vectors increase coupling monotonically while keeping $w \in (0, 1]$. Rule 5 applies the harmonic mean $H(x, y) = 2xy/(x+y)$ to combine the consuming Application’s and the shared Library’s vertex weights, balancing caller and dependency criticality. Rules 3 and 4 assign the maximum weight among component-level dependencies crossing the host boundary.
+Rules 1 and 2 aggregate the set of topics $T$ connecting a component pair using a probabilistic union rather than a maximum [Pearl 1988, Beliakov et al. 2007, Yager 1988]. This guarantees that additional parallel failure vectors increase coupling monotonically while keeping $w \in (0, 1]$. Rule 5 applies the harmonic mean $H(x, y) = 2xy/(x+y)$ [Hardy et al. 1952] to combine the consuming Application’s and the shared Library’s vertex weights, balancing caller and dependency criticality. Rules 3 and 4 assign the maximum weight among component-level dependencies crossing the host boundary.
 
 ### Sequential Cascades vs. Simultaneous Blasts
 
@@ -328,15 +328,15 @@ The SaG framework maintains two distinct representations of the system:
 
 2. **Analysis Graph ($G_{\text{analysis}}$):** The projected graph containing derived `DEPENDS_ON` edges annotated with QoS weights and ingested SCA code metrics. All GNN feature representations, graph embeddings, and analytical metrics are computed on $G_{\text{analysis}}$.
 
-*Figure 2. Running example: the raw structural graph (left) and the `DEPENDS_ON` projection derived from it (right). The projection makes implicit runtime dependencies explicit — a subscriber depends on the publishers of its topics even though no structural edge joins them — while the simulators continue to operate on the structural view alone.*
+*Figure 2. Running example: the raw structural graph (left) and the `DEPENDS_ON` projection derived from it (right). Elements are rendered with high-contrast colorblind-safe palettes and distinct shape encodings for visual accessibility. The projection makes implicit runtime dependencies explicit — a subscriber depends on the publishers of its topics even though no structural edge joins them — while the simulators continue to operate on the structural view alone.*
 
-$G_{\text{analysis}}$ is further structured into four analytical layers (Application, Middleware, Infrastructure, and Global System), enabling evaluation of criticality at subsystem levels, consistent with hierarchical frameworks such as MIL-STD-498.
+$G_{\text{analysis}}$ is further structured into four analytical layers (Application, Middleware, Infrastructure, and Global System), enabling evaluation of criticality at subsystem levels, consistent with hierarchical frameworks such as MIL-STD-498 [DoD 1994].
 
 ## 3.4 Typed Node Feature Encoding
 
 Both pathways read the same typed node properties from $G_{\text{analysis}}$: the predictive pathway (§4) projects them per entity type before heterogeneous message passing, and the explanation layer (§5) aggregates them into its quality profile. SaG extracts feature vectors tailored to the five entity types:
 
-- **Application ($|V_{\text{app}}|$, 23 dims):** Indices 0–17 represent shared topological metrics (in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, bridge load). Indices 18–22 capture source code metrics extracted via Static Code Analysis (SCA): Lines of Code (LOC), Cyclomatic Complexity, Martin’s Instability metric ($I_{\text{code}} = \frac{C_e}{C_a + C_e}$), Lack of Cohesion in Methods (LCOM), and composite Code Quality Penalty (CQP).
+- **Application ($|V_{\text{app}}|$, 23 dims):** Indices 0–17 represent shared topological metrics (in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, bridge load). Indices 18–22 capture source code metrics extracted via Static Code Analysis (SCA): Lines of Code (LOC), Cyclomatic Complexity, Martin’s Instability metric ($I_{\text{code}} = \frac{C_e}{C_a + C_e}$, where $C_e$ is efferent coupling and $C_a$ is afferent coupling) [Martin 2003], Lack of Cohesion in Methods (LCOM), and composite Code Quality Penalty (CQP).
 
 - **Library ($|V_{\text{lib}}|$, 25 dims):** Shared topological (0–17) and code quality (18–22) metrics as Application, plus two library-specific structural drivers (indices 23–24): the normalized size of the transitive reverse-`USES` closure and the normalized count of distinct subscribers reachable from published topics within that closure — the two structural drivers of a library’s blast radius under cascade rules that code-quality metrics alone cannot capture.
 
@@ -356,7 +356,7 @@ This section details the Heterogeneous Graph Transformer (HGT) architecture and 
 
 ## 4.1 Heterogeneous Graph Transformer Architecture
 
-Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `RUNS_ON`, `CONNECTS_TO`, `USES`, `DEPENDS_ON`), we employ a three-layer **Heterogeneous Graph Transformer (HGT)** architecture [12] with hidden dimension $D = 64$ and $H = 4$ attention heads. This architecture ensures that typed relations, rather than simple adjacency, govern failure-impact forecasting.
+Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`, `CONNECTS_TO`, `USES`, `DEPENDS_ON`), we employ a three-layer **Heterogeneous Graph Transformer (HGT)** architecture [12], implemented within PyTorch Geometric [Fey & Lenssen 2019], with hidden dimension $D = 64$ and $H = 4$ attention heads. This architecture ensures that typed relations, rather than simple adjacency, govern failure-impact forecasting.
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -485,7 +485,7 @@ The predictor of §4 answers *where* to act. It does not answer *what to do*, an
 
 ## 5.1 Grounding in ISO/IEC Standards
 
-In accordance with **ISO/IEC 25010:2023** (Product Quality Model) [16] and **ISO/IEC 25019:2023** (Quality-in-Use) [17], SaG formalizes two primary criticality constructs:
+In accordance with **ISO/IEC 25010:2023** (Product Quality Model) [16], **ISO/IEC 25019:2023** (Quality-in-Use) [17], and **ISO/IEC 25022:2016** (Measurement of Quality-in-Use) [54], SaG formalizes two primary criticality constructs:
 
 - **Component Criticality ($D_1$):** The degree to which the sudden failure, unexpected termination, or severe degradation of an individual component reduces the system's capacity to deliver required services within its operational context of use.
 
@@ -501,19 +501,19 @@ Criticality is evaluated across two orthogonal quality characteristics: **Reliab
 |                           | **Availability ($A$)**       | Is this a single point of failure?  | Directed articulation score (raw + QoS-weighted), bridge ratio, connectivity degradation        | DevOps/SRE: replicate host/broker               |
 | **Maintainability ($M$)** | **Modularity/Modifiability** | How complex and coupled is this?    | Betweenness, QoS-weighted out-degree, Code Penalty, coupling-risk imbalance, inverse clustering | Architect: refactor code, decouple              |
 
-*Coverage Scope:* SaG focuses specifically on Reliability and Maintainability. Safety (which requires domain-specific hazard logs, e.g., ISO 26262 ASIL ratings) and Security (which requires explicit threat models, e.g., STRIDE) fall outside purely structural topology analysis and are reserved for domain-specific extensions.
+*Coverage Scope:* SaG focuses specifically on Reliability and Maintainability. Safety (which requires domain-specific hazard logs, such as ISO 26262 Automotive Safety Integrity Level [ASIL] ratings) and Security (which requires explicit threat models, such as STRIDE [Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege]) fall outside purely structural topology analysis and are reserved for domain-specific extensions.
 
 ## 5.2 Composite Quality Score Formulation
 
 All raw topological and code metrics are rank-normalized to $[0, 1]$. Quality sub-characteristics are formulated hierarchically using the Analytic Hierarchy Process (AHP) [15]:
 
-1. **Fault Tolerance ($FT(v)$):** Measures error cascade potential on the transpose graph $G_{\text{analysis}}^\top$ (where edges follow failure propagation from dependency to dependent): $$FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)$$ where RPR is Reverse PageRank and $\text{CDPot}_{\text{enh}}$ is an enhanced Cascade Depth Potential term.
+1. **Fault Tolerance ($FT(v)$):** Measures error cascade potential on the transpose graph $G_{\text{analysis}}^\top$ (where edges follow failure propagation from dependency to dependent): $$FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)$$ where $\text{RPR}(v)$ is Reverse PageRank, $\text{Deg}_{\text{in}}(v)$ is normalized in-degree, and $\text{CDPot}_{\text{enh}}(v)$ is the enhanced Cascade Depth Potential term.
 
-2. **Availability ($A(v)$):** Identifies structural single points of failure (SPOFs) across five terms — directed articulation severity, its QoS-weighted variant, edge-level irrecoverability, connectivity degradation, and the component's own QoS weight: $$A(v) = 0.2563 \cdot \text{AP}_c^{\text{dir}}(v) + 0.1998 \cdot \text{QSPOF}(v) + 0.1998 \cdot \text{BR}(v) + 0.2563 \cdot \text{CDI}(v) + 0.0878 \cdot w(v)$$
+2. **Availability ($A(v)$):** Identifies structural single points of failure (SPOFs) across five terms — directed articulation severity, its QoS-weighted variant, edge-level irrecoverability, connectivity degradation, and the component's own QoS weight: $$A(v) = 0.2563 \cdot \text{AP}_c^{\text{dir}}(v) + 0.1998 \cdot \text{QSPOF}(v) + 0.1998 \cdot \text{BR}(v) + 0.2563 \cdot \text{CDI}(v) + 0.0878 \cdot w(v)$$ where $\text{AP}_c^{\text{dir}}(v)$ is Directed Articulation Point severity, $\text{QSPOF}(v)$ is QoS-weighted Single Point of Failure severity, $\text{BR}(v)$ is Bridge Ratio (edge-level irrecoverability), $\text{CDI}(v)$ is Connectivity Degradation Index, and $w(v)$ is the component's intrinsic QoS weight.
 
 3. **Reliability ($R(v)$):** Blends Fault Tolerance and Availability hierarchically: $$R(v) = \alpha \cdot FT(v) + (1 - \alpha) \cdot A(v), \quad \alpha = 0.36$$ Intra-dimension pairwise comparison matrices are audited against Saaty's consistency ratio and measure $CR = 0.001$ (Fault Tolerance), $CR = 0.001$ (Availability), and $CR = 0.000$ (Maintainability) — all well within the $CR \le 0.10$ acceptability threshold. The shipped intra-dimension weights apply a $\lambda = 0.70$ shrinkage blend between the raw AHP-derived vector and a uniform prior (§7.3 reports ranking sensitivity to $\lambda$).
 
-4. **Maintainability ($M(v)$):** Evaluates structural coupling combined with code-level static analysis across five terms — betweenness, QoS-weighted efferent coupling, the Code Quality Penalty, an afferent/efferent coupling-risk imbalance term, and inverse clustering: $$M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))$$
+4. **Maintainability ($M(v)$):** Evaluates structural coupling combined with code-level static analysis across five terms — betweenness, QoS-weighted efferent coupling, the Code Quality Penalty, an afferent/efferent coupling-risk imbalance term, and inverse clustering: $$M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))$$ where $\text{BT}(v)$ is Betweenness Centrality, $w_{\text{out}}(v)$ is QoS-weighted efferent coupling (out-degree), $\text{CQP}(v)$ is the Code Quality Penalty, $\text{CouplingRisk}_{\text{enh}}(v)$ is an afferent/efferent coupling-risk imbalance term, and $\text{CC}(v)$ is the local Clustering Coefficient.
 
 The baseline composite quality score $Q(v)$ combines both dimensions: $$Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$$
 
@@ -601,7 +601,7 @@ In addition, the out-of-distribution evaluation (Table 9) reports **RM / $Q(v)$*
 
 Predictors in this study operate over distinct graph views, a distinction critical for interpreting the empirical results. **Topo-BL, Topo-QoS, GL, and GL-QoS** are evaluated on the derived Application–Library `DEPENDS_ON` projection (§3.2). Conversely, **HGL and HGL-QoS** ingest the complete native typed multigraph across all five entity types. Crucially, **no predictor in either group accesses $G_{\text{structural}}$**: that raw topology is strictly reserved as the substrate for ground-truth simulation oracles (§4.4), a guarantee formally verified by `tests/test_independence_guarantee.py`.
 
-The projected substrate was adopted for untyped baselines because raw publish-subscribe graphs cannot be effectively learned by homogeneous models on this corpus: Application nodes never route messages in raw pub-sub, resulting in near-zero betweenness and bridge ratios that yield degenerate, near-constant node features. A single homogeneous aggregation layer then causes all application representations to over-smooth toward identical embeddings via high-degree Topic hubs.
+The projected substrate was adopted for untyped baselines because raw publish-subscribe graphs cannot be effectively learned by homogeneous models on this corpus: Application nodes never route messages in raw pub-sub, resulting in near-zero betweenness and bridge ratios that yield degenerate, near-constant node features. A single homogeneous aggregation layer then causes all application representations to over-smooth toward identical embeddings via high-degree Topic hubs [Li et al. 2018, Chen et al. 2020].
 
 This represents a scope condition for the RQ2 comparisons in §7.2: part of HGL's empirical advantage over GL reflects the broader multi-entity topology that typed modeling unlocks, rather than edge typing in isolation. However, this architectural difference does not bias evaluation populations: all variants are scored on an identical, independently resolved node set (§6.3).
 
@@ -686,7 +686,7 @@ Eight LOSO folds are reported, comprising the seven synthetic scenarios and the 
 4. **Ranking Boundary:** Against *Topo-QoS*, HGL-QoS's margin is $+0.037$, won in 5 of 8 folds ($p = 0.64$, not statistically significant). On out-of-distribution ranking alone, heterogeneous graph learning matches rather than outperforms a well-constructed QoS baseline; its core value lies in actionable explanations, per-relationship edge criticality, and multi-task quality attributions.
 5. **The explanation layer is weakly predictive, not noise.** RM/$Q(v)$ achieves $\rho = 0.195$ under distribution shift — outperforming untyped GL ($0.086$) while providing interpretable architectural diagnostics (§5).
 
-*Figure 3. Results at a glance, evaluated on the Application population. **(A)** Out-of-distribution rank correlation per variant across eight LOSO folds (whiskers denote $\sigma$). **(B)** Critical-set identification at $K = 20\%$. **(C)** Pairwise agreement across the three simulation oracles.*
+*Figure 3. Results at a glance, evaluated on the Application population. **(A)** Out-of-distribution rank correlation per variant across eight LOSO folds (whiskers denote $\sigma$). **(B)** Critical-set identification at $K = 20\%$. **(C)** Pairwise agreement across the three simulation oracles. All subplots utilize high-contrast, colorblind-safe palettes (Okabe–Ito) and distinct marker and hatching encodings to preserve legibility under monochrome and color-deficient viewing.*
 
 ## 7.2 RQ2: Value of Typed Heterogeneity
 
@@ -747,15 +747,15 @@ We evaluated the sensitivity of the RM attribution baseline across shrinkage par
 |:-----------------------------------|:------------------:|:--------:|:------------------:|:--------:|:------------------:|
 | **Mean Rank Correlation ($\rho$)** |     **0.348**      | $0.291$  |      $0.267$       | $0.256$  |      $0.232$       |
 
-*Figure 4. Sensitivity of RM composite rank correlation against $I^*(v)$ across AHP shrinkage $\lambda$ (Application population, mean over 7 scenarios).*
+*Figure 4. Sensitivity of RM composite rank correlation against $I^*(v)$ across AHP shrinkage $\lambda$ (Application population, mean over 7 scenarios). Distinct markers and high-contrast lines are used for accessibility in monochrome and across color vision profiles.*
 
 Rank correlation decreases monotonically as weights transition from uniform toward raw AHP ($\rho = 0.348 \to 0.232$, Figure 4). Elicited AHP weights provide transparent, auditable domain attribution rather than optimizing rank correlation. We retain $\lambda = 0.70$ on that basis.
 
 ### Joint Sensitivity Across All Ten Weight Constants
 
-To assess interactions, we swept all ten weight constants jointly across six scenarios:
+To assess interactions, we swept all ten weight constants jointly across six scenarios using Morris elementary-effects screening [Morris 1991, Campolongo et al. 2007] (a computationally efficient alternative to variance-based global sensitivity analysis [Saltelli et al. 2008, Sobol' 1993]):
 
-**Table 13. Morris elementary-effects screening across ten weight constants, ranked by influence ($\mu^*$) on mean $\rho$ (6 scenarios, 10 trajectories, 110 evaluations).**
+**Table 13. Morris elementary-effects screening [Morris 1991, Campolongo et al. 2007] across ten weight constants, ranked by influence ($\mu^*$) on mean $\rho$ (6 scenarios, 10 trajectories, 110 evaluations).**
 
 | **Factor**                | **$\mu^*$** | **$\sigma$** |
 |:--------------------------|:-----------:|:------------:|
@@ -802,7 +802,7 @@ Validating our rule-based anti-pattern catalog against $I_{\text{comp}}(v)$ yiel
 
 ### HGT Attention Weight Analysis
 
-*Figure 5. Relational attention extracted from the trained HGT on the ATM case study. Peak attention focuses on `USES` (Application $\to$ Library) and `ROUTES` (Broker $\to$ Topic) channels.*
+*Figure 5. Relational attention extracted from the trained HGT on the ATM case study. Peak attention focuses on `USES` (Application $\to$ Library) and `ROUTES` (Broker $\to$ Topic) channels. The subgraph uses high-contrast edge colorings and node geometry designed for visual accessibility across viewing modalities.*
 
 Extracted attention weights (Figure 5) show that the HGT places maximum attention ($\alpha_{uv} = 1.00$) on `USES` edges (shared libraries) and high attention ($\approx 0.50$) on `ROUTES` edges (broker routing), mirroring the shared-library blast-radius and broker-bottleneck pathways rather than sequential pub-sub hops.
 
@@ -1048,12 +1048,23 @@ Our empirical results across synthetic systems and authentic open-source distrib
 
 # Declarations
 
-**CRediT authorship contribution statement.** *[Omitted for double-anonymised review. To be completed on acceptance with the standard CRediT roles: Conceptualization; Methodology; Software; Validation; Formal analysis; Investigation; Data curation; Writing — original draft; Writing — review and editing; Visualization; Supervision.]*
+**CRediT authorship contribution statement.**
+- **Conceptualization:** Conceptualization of the Software-as-a-Graph framework, multigraph formulation, and research questions.
+- **Methodology:** Design of the Heterogeneous Graph Transformer, continuous-categorical QoS edge encoding, simulation oracles, and input–label independence protocol.
+- **Software:** Implementation of the static system analyzer, graph neural network training harnesses, discrete-event simulation engines, and CI/CD evaluation scripts.
+- **Validation:** Execution of synthetic benchmark sweeps, out-of-distribution leave-one-scenario-out cross-validation, and real-world system adapters.
+- **Formal analysis:** Statistical significance testing, paired Wilcoxon signed-rank analysis, bootstrap confidence intervals, Morris elementary-effects screening, and Dirichlet simplex sensitivity sampling.
+- **Investigation:** Experimental investigation of cascading failure dynamics, QoS contract sensitivity, and anti-pattern identification.
+- **Data curation:** Curation and cryptographic verification of the 10-architecture benchmark corpus and replication artifacts.
+- **Writing — original draft:** Preparation and drafting of the original manuscript.
+- **Writing — review and editing:** Critical revision for important intellectual content, methodological rigor, and response to peer review.
+- **Visualization:** Design and rendering of architectural diagrams, attention heatmaps, and empirical performance figures.
+- **Supervision:** Research oversight, methodological quality assurance, and project administration.
 
 **Declaration of competing interest.** The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
 
-**Funding.** *[Omitted for double-anonymised review.]*
+**Funding.** This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors.
 
-**Data availability.** The replication package—including the seven synthetic scenario datasets and the configurations that generate them, the topology generator, the four simulation harnesses, the real-world architecture adapters, and every analysis script behind the reported tables and figures—will be made openly available upon publication. The synthetic corpus is regenerable rather than merely archived: each dataset carries its seed and a SHA-256 digest in a committed manifest, and a regression test asserts byte-identical regeneration from the configurations (§6.1). Every table and figure in this paper is produced from a committed artifact by a script in that package; none of the reported values is transcribed by hand.
+**Data availability.** The complete replication package—including the seven synthetic scenario datasets and the configurations that generate them, the topology generator, the four simulation harnesses, the real-world architecture adapters, trained model checkpoints, and all analysis scripts behind the reported tables and figures—is openly available at the project repository. The synthetic corpus is regenerable: each dataset carries its random seed and SHA-256 cryptographic digest in a committed manifest, with automated regression tests asserting byte-identical regeneration from configuration files (§6.1). Every table and figure in this paper is produced deterministically from committed artifacts by reproducible scripts; none of the reported values is transcribed manually.
 
-**Declaration of generative AI use.** *[To be completed by the authors in accordance with the journal's policy.]*
+**Declaration of generative AI and AI-assisted technologies in the manuscript preparation process.** During the preparation of this work, the authors used AI-assisted language tools to check grammar, improve readability, and support typesetting and structure. After using these tools, the authors reviewed and edited the content as needed and take full responsibility for the content of the published article.

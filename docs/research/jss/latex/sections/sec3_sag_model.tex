@@ -91,13 +91,13 @@ Structural edges capture explicit deployment connections but omit implicit runti
 \textbf{3} & \texttt{node\_to\_node} & Host $\to$ Host (lifted from inter-host app dependencies) & Lifted $\max w$ \\
 \textbf{4} & \texttt{node\_to\_broker} & Host $\to$ Broker (lifted from hosted app dependencies) & Lifted $\max w$ \\
 \textbf{5} & \texttt{app\_to\_lib} & Application $\to$ Shared Library it \texttt{USES} & $H(w_V(\text{app}), w_V(\text{lib}))$ \\
-\textbf{6} & \texttt{broker\_to\_broker} & Broker $\leftrightarrow$ Broker (shared-host fate, symmetric) & $w_V(\text{node})$ \\
+\textbf{6} & \texttt{broker\_to\_broker} & Broker $\leftrightarrow$ Broker (shared physical fault-domain colocation, symmetric) & $w_V(\text{node})$ \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-Rules 1 and 2 aggregate the set of topics $T$ connecting a component pair using a probabilistic union rather than a maximum. This guarantees that additional parallel failure vectors increase coupling monotonically while keeping $w \in (0, 1]$. Rule 5 applies the harmonic mean $H(x, y) = 2xy/(x+y)$ to combine the consuming Application's and the shared Library's vertex weights, balancing caller and dependency criticality. Rules 3 and 4 assign the maximum weight among component-level dependencies crossing the host boundary.
+Rules 1 and 2 aggregate the set of topics $T$ connecting a component pair using a probabilistic union rather than a maximum \cite{pearl1988probabilistic,beliakov2007aggregation,yager1988owa}. This guarantees that additional parallel failure vectors increase coupling monotonically while keeping $w \in (0, 1]$. Rule 5 applies the harmonic mean $H(x, y) = 2xy/(x+y)$ \cite{hardy1952inequalities} to combine the consuming Application's and the shared Library's vertex weights, balancing caller and dependency criticality. Rules 3 and 4 assign the maximum weight among component-level dependencies crossing the host boundary.
 
 \subsubsection{Sequential Cascades vs.\ Simultaneous Blasts}
 
@@ -123,18 +123,18 @@ The SaG framework maintains two distinct representations of the system:
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/Figure_2}
-\caption{Running example: the raw structural graph (left) and the \texttt{DEPENDS\_ON} projection derived from it (right). The projection makes implicit runtime dependencies explicit---a subscriber depends on the publishers of its topics even though no structural edge joins them---while the simulators continue to operate on the structural view alone.}
+\caption{Running example: the raw structural graph (left) and the \texttt{DEPENDS\_ON} projection derived from it (right). Elements are rendered with high-contrast colorblind-safe palettes and distinct shape encodings for visual accessibility. The projection makes implicit runtime dependencies explicit---a subscriber depends on the publishers of its topics even though no structural edge joins them---while the simulators continue to operate on the structural view alone.}
 \label{fig:2}
 \end{figure}
 
-$G_{\text{analysis}}$ is further structured into four analytical layers (Application, Middleware, Infrastructure, and Global System), enabling evaluation of criticality at subsystem levels, consistent with hierarchical frameworks such as MIL-STD-498.
+$G_{\text{analysis}}$ is further structured into four analytical layers (Application, Middleware, Infrastructure, and Global System), enabling evaluation of criticality at subsystem levels, consistent with hierarchical frameworks such as MIL-STD-498 \cite{dod1994milstd498}.
 
 \subsection{Typed Node Feature Encoding}
 \label{sec:3.4}
 
 Both pathways read the same typed node properties from $G_{\text{analysis}}$: the predictive pathway (Section~\ref{sec:4}) projects them per entity type before heterogeneous message passing, and the explanation layer (Section~\ref{sec:5}) aggregates them into its quality profile. SaG extracts feature vectors tailored to the five entity types:
 \begin{itemize}
-    \item \textbf{Application ($|V_{\text{app}}|$, 23 dims):} Indices 0--17 represent shared topological metrics (in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, bridge load). Indices 18--22 capture source code metrics extracted via Static Code Analysis (SCA): Lines of Code (LOC), Cyclomatic Complexity, Martin's Instability metric ($I_{\text{code}} = \frac{C_e}{C_a + C_e}$), Lack of Cohesion in Methods (LCOM), and composite Code Quality Penalty (CQP).
+    \item \textbf{Application ($|V_{\text{app}}|$, 23 dims):} Indices 0--17 represent shared topological metrics (in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, bridge load). Indices 18--22 capture source code metrics extracted via Static Code Analysis (SCA): Lines of Code (LOC), Cyclomatic Complexity, Martin's Instability metric ($I_{\text{code}} = \frac{C_e}{C_a + C_e}$, where $C_e$ is efferent coupling and $C_a$ is afferent coupling) \cite{martin2003agile}, Lack of Cohesion in Methods (LCOM), and composite Code Quality Penalty (CQP).
     \item \textbf{Library ($|V_{\text{lib}}|$, 25 dims):} Shared topological (0--17) and code quality (18--22) metrics as Application, plus two library-specific structural drivers (indices 23--24): the normalized size of the transitive reverse-\texttt{USES} closure and the normalized count of distinct subscribers reachable from published topics within that closure---the two structural drivers of a library's blast radius under cascade rules that code-quality metrics alone cannot capture.
     \item \textbf{Broker ($|V_{\text{broker}}|$, 19 dims):} Indices 0--17 shared topological metrics; index 18 represents normalized queue buffer capacity.
     \item \textbf{Topic ($|V_{\text{topic}}|$, 22 dims):} Indices 0--17 shared topological metrics; indices 18--21 capture publisher count, subscriber count, log message frequency $\log(1 + \text{freq})$, and ordinal QoS criticality.
