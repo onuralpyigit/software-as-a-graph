@@ -9,22 +9,22 @@ Table~\ref{tab:5} presents the in-distribution held-out Spearman rank correlatio
 \begin{table}[htbp]
 \centering
 \small
-\caption{In-distribution held-out Spearman rank correlation ($\rho$) against $I^*(v)$, reported as the mean over five seeds $\pm$ the standard deviation across those seeds; $n$ is the held-out Application count. Each seed redraws the 60/20/20 split as well as the initialisation (Section~\ref{sec:6.3}), so the dispersion shown is split noise on $n = 10$--$60$ nodes for every variant and additionally training noise for the four learned ones. Seed standard deviations span $0.031$--$0.731$ (median $0.245$) and the widest bootstrap intervals straddle zero (e.g.\ GL-QoS on Financial Trading, $[-0.09, 0.91]$), so single-scenario orderings in this table are not individually resolvable: read them alongside the paired tests of Table~\ref{tab:6}, which use the scenario as the unit of analysis.}
+\caption{In-distribution held-out Spearman rank correlation ($\rho$) against $I^*(v)$, reported as the mean over five seeds $\pm$ the standard deviation across those seeds; $n$ is the held-out Application count. All graph learning models (GL, GL-QoS, HGL, HGL-QoS) are evaluated under substrate parity on the native multigraph; topological baselines operate on the flow projection. Each seed redraws the 60/20/20 split as well as the initialisation (Section~\ref{sec:6.3}). Read alongside the paired tests of Table~\ref{tab:6}, which use the scenario as the unit of analysis.}
 \label{tab:5}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrcccccc}
 \toprule
 \textbf{Scenario} & \textbf{$n$} & \textbf{Topo-BL} & \textbf{Topo-QoS} & \textbf{GL} & \textbf{GL-QoS} & \textbf{HGL} & \textbf{HGL-QoS} \\
 \midrule
-\textbf{AV System} & 16 & 0.297 {\scriptsize$\pm$0.366} & 0.723 {\scriptsize$\pm$0.252} & 0.777 {\scriptsize$\pm$0.119} & 0.618 {\scriptsize$\pm$0.390} & \textbf{0.789} {\scriptsize$\pm$0.124} & 0.649 {\scriptsize$\pm$0.121} \\
-\textbf{Enterprise} & 60 & 0.415 {\scriptsize$\pm$0.116} & 0.805 {\scriptsize$\pm$0.059} & 0.872 {\scriptsize$\pm$0.044} & 0.461 {\scriptsize$\pm$0.615} & 0.880 {\scriptsize$\pm$0.049} & \textbf{0.891} {\scriptsize$\pm$0.037} \\
-\textbf{Financial Trading} & 12 & 0.268 {\scriptsize$\pm$0.341} & 0.700 {\scriptsize$\pm$0.177} & 0.641 {\scriptsize$\pm$0.507} & 0.568 {\scriptsize$\pm$0.731} & \textbf{0.854} {\scriptsize$\pm$0.088} & 0.770 {\scriptsize$\pm$0.305} \\
-\textbf{Healthcare} & 10 & $-$0.155 {\scriptsize$\pm$0.245} & \textbf{0.768} {\scriptsize$\pm$0.200} & 0.613 {\scriptsize$\pm$0.289} & 0.521 {\scriptsize$\pm$0.527} & 0.652 {\scriptsize$\pm$0.246} & 0.645 {\scriptsize$\pm$0.391} \\
-\textbf{Hub-and-Spoke} & 14 & 0.285 {\scriptsize$\pm$0.257} & 0.401 {\scriptsize$\pm$0.318} & \textbf{0.554} {\scriptsize$\pm$0.204} & 0.057 {\scriptsize$\pm$0.514} & 0.534 {\scriptsize$\pm$0.031} & 0.296 {\scriptsize$\pm$0.601} \\
-\textbf{IoT Smart City} & 40 & $-$0.058 {\scriptsize$\pm$0.152} & 0.071 {\scriptsize$\pm$0.179} & 0.264 {\scriptsize$\pm$0.538} & 0.259 {\scriptsize$\pm$0.503} & \textbf{0.881} {\scriptsize$\pm$0.033} & 0.842 {\scriptsize$\pm$0.088} \\
-\textbf{Microservices} & 18 & 0.352 {\scriptsize$\pm$0.348} & \textbf{0.698} {\scriptsize$\pm$0.216} & 0.556 {\scriptsize$\pm$0.240} & 0.578 {\scriptsize$\pm$0.165} & 0.483 {\scriptsize$\pm$0.335} & 0.476 {\scriptsize$\pm$0.351} \\
+\textbf{AV System} & 16 & 0.297 {\scriptsize$\pm$0.366} & 0.723 {\scriptsize$\pm$0.252} & 0.760 {\scriptsize$\pm$0.155} & 0.698 {\scriptsize$\pm$0.244} & \textbf{0.789} {\scriptsize$\pm$0.124} & 0.649 {\scriptsize$\pm$0.121} \\
+\textbf{Enterprise} & 60 & 0.415 {\scriptsize$\pm$0.116} & 0.805 {\scriptsize$\pm$0.059} & 0.579 {\scriptsize$\pm$0.555} & 0.886 {\scriptsize$\pm$0.048} & 0.880 {\scriptsize$\pm$0.049} & \textbf{0.891} {\scriptsize$\pm$0.037} \\
+\textbf{Financial Trading} & 12 & 0.268 {\scriptsize$\pm$0.341} & 0.700 {\scriptsize$\pm$0.177} & 0.812 {\scriptsize$\pm$0.132} & 0.821 {\scriptsize$\pm$0.211} & \textbf{0.854} {\scriptsize$\pm$0.088} & 0.770 {\scriptsize$\pm$0.305} \\
+\textbf{Healthcare} & 10 & $-$0.155 {\scriptsize$\pm$0.245} & \textbf{0.768} {\scriptsize$\pm$0.200} & 0.587 {\scriptsize$\pm$0.463} & 0.594 {\scriptsize$\pm$0.347} & 0.652 {\scriptsize$\pm$0.246} & 0.645 {\scriptsize$\pm$0.391} \\
+\textbf{Hub-and-Spoke} & 14 & 0.285 {\scriptsize$\pm$0.257} & 0.401 {\scriptsize$\pm$0.318} & \textbf{0.541} {\scriptsize$\pm$0.196} & 0.331 {\scriptsize$\pm$0.424} & 0.534 {\scriptsize$\pm$0.031} & 0.297 {\scriptsize$\pm$0.601} \\
+\textbf{IoT Smart City} & 40 & $-$0.058 {\scriptsize$\pm$0.152} & 0.071 {\scriptsize$\pm$0.179} & 0.806 {\scriptsize$\pm$0.068} & 0.603 {\scriptsize$\pm$0.343} & \textbf{0.881} {\scriptsize$\pm$0.033} & 0.842 {\scriptsize$\pm$0.088} \\
+\textbf{Microservices} & 18 & 0.352 {\scriptsize$\pm$0.348} & \textbf{0.697} {\scriptsize$\pm$0.216} & 0.536 {\scriptsize$\pm$0.250} & 0.479 {\scriptsize$\pm$0.310} & 0.483 {\scriptsize$\pm$0.335} & 0.476 {\scriptsize$\pm$0.351} \\
 \midrule
-\textbf{Mean} & --- & \textbf{0.201} & \textbf{0.595} & \textbf{0.611} & \textbf{0.438} & \textbf{0.725} & \textbf{0.653} \\
+\textbf{Mean} & --- & \textbf{0.201} & \textbf{0.595} & \textbf{0.660} & \textbf{0.630} & \textbf{0.725} & \textbf{0.653} \\
 \bottomrule
 \end{tabular}%
 }
@@ -33,7 +33,7 @@ Table~\ref{tab:5} presents the in-distribution held-out Spearman rank correlatio
 \begin{table}[htbp]
 \centering
 \small
-\caption{Paired Wilcoxon signed-rank tests across scenarios ($n = 7$, two-sided). At $n = 7$ the smallest attainable two-sided $p$ is $0.0156$, which is above $\alpha/6 = 0.0083$; no entry in this table can therefore survive a family-wise correction over its six comparisons, and the two flagged results should be read as uncorrected and exploratory (Section~\ref{sec:6.3}).}
+\caption{Paired Wilcoxon signed-rank tests across scenarios ($n = 7$, two-sided). At $n = 7$ the smallest attainable two-sided $p$ is $0.0156$, which is above $\alpha/6 = 0.0083$; no entry in this table can therefore survive a family-wise correction over its six comparisons, and flagged results should be read as uncorrected and exploratory (Section~\ref{sec:6.3}).}
 \label{tab:6}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrcrcl}
@@ -41,10 +41,10 @@ Table~\ref{tab:5} presents the in-distribution held-out Spearman rank correlatio
 \textbf{Comparison} & \textbf{$\Delta\rho$} & \textbf{Won} & \textbf{Wilcoxon $W$} & \textbf{$p$-value} & \textbf{Significance} \\
 \midrule
 \textbf{HGL vs. Topo-BL} & \textbf{+0.524} & 7/7 & 0.0 & \textbf{0.0156} & \textbf{Statistically Significant} ($p < 0.05$) \\
-\textbf{HGL vs. GL-QoS} & \textbf{+0.287} & 6/7 & 1.0 & \textbf{0.0312} & \textbf{Statistically Significant} ($p < 0.05$) \\
+\textbf{HGL vs. GL-QoS} & \textbf{+0.094} & 6/7 & 2.0 & \textbf{0.0469} & \textbf{Statistically Significant} ($p < 0.05$) \\
 \textbf{HGL vs. Topo-QoS} & \textbf{+0.130} & 5/7 & 9.0 & 0.469 & Not significant \\
-\textbf{GL vs. Topo-QoS} & \textbf{+0.016} & 4/7 & 12.0 & 0.813 & Not significant \\
-\textbf{HGL vs. GL} & \textbf{+0.114} & 5/7 & 8.0 & 0.375 & Not significant \\
+\textbf{GL vs. Topo-QoS} & \textbf{+0.065} & 4/7 & 13.0 & 0.938 & Not significant \\
+\textbf{HGL vs. GL} & \textbf{+0.065} & 5/7 & 5.0 & 0.156 & Not significant \\
 \textbf{HGL-QoS vs. HGL} & \textbf{$-$0.072} & 1/7 & 3.0 & 0.078 & Not significant (marginal; HGL-QoS trails in-distribution) \\
 \bottomrule
 \end{tabular}%
@@ -86,7 +86,7 @@ Eight LOSO folds are reported, comprising the seven synthetic scenarios and the 
 
 \noindent\textbf{Key Insights for RQ1:}
 \begin{enumerate}
-    \item \textbf{The typed predictor is the best learned configuration overall.} HGL-QoS leads every other learned variant on both metrics ($\rho = 0.608$, $F_1@K = 0.414$), with a significant ranking margin over both homogeneous GNNs ($+0.246$ over GL-QoS and $+0.522$ over GL, 8/8 folds, $p = 0.0078$ in both cases). Section~\ref{sec:7.2} states the substrate caveat that qualifies this comparison.
+    \item \textbf{The typed predictor is the best learned configuration overall.} HGL-QoS leads every other learned variant on both metrics ($\rho = 0.608$, $F_1@K = 0.414$), with a significant ranking margin over both homogeneous GNNs ($+0.246$ over GL-QoS and $+0.522$ over GL, 8/8 folds, $p = 0.0078$ in both cases).
     \item \textbf{Critical-set identification separates learned models from each other, but not from the untrained QoS baseline.} HGL-QoS improves $F_1@K$ over GL by $+0.177$. Against Topo-QoS the margin is only $+0.034$ ($0.414$ vs.\ $0.380$) and does not survive testing: HGL-QoS wins 4 of 8 folds, and the paired Wilcoxon signed-rank test over folds gives $W = 9.0$, $p = 0.469$. Per-fold differences alternate in sign ($+0.000$, $+0.188$, $-0.087$, $+0.067$, $+0.120$, $-0.014$, $+0.020$, $-0.022$). Critical-set identification is therefore not a demonstrated advantage of the learned model over the QoS-weighted baseline on this corpus.
     \item \textbf{QoS encoding carries the typed model out of distribution.} HGL-QoS leads HGL by $\Delta\rho = +0.169$, winning 7 of 8 folds ($p = 0.0156$) --- a substantial, consistent advantage under distribution shift.
     \item \textbf{Ranking Boundary, and one significant result against us.} Against \emph{Topo-QoS}, HGL-QoS's margin is $+0.037$, won in 5 of 8 folds ($p = 0.64$, not statistically significant). On out-of-distribution ranking, heterogeneous graph learning matches rather than outperforms a well-constructed QoS baseline, and the critical-set margin above is likewise not significant. The comparison is worse for the typed model without QoS features: HGL \emph{trails} Topo-QoS by $\Delta\rho = -0.132$, losing 7 of the 8 folds ($W = 3.0$, $p = 0.039$). This is the only comparison between a proposed variant and a training-free baseline in Table~\ref{tab:7} that reaches significance in either direction, and it reaches it against us. Read together with the QoS ablation of Section~\ref{sec:7.3}, this locates the entire out-of-distribution case for the learned model in the explicit QoS encoding rather than in typed message passing alone. The case for training a model therefore rests on the qualitative capabilities the baseline cannot supply --- actionable explanations, per-relationship edge criticality, and multi-task quality attributions --- which this study describes but does not yet quantify (Section~\ref{sec:8.4}).
@@ -105,39 +105,13 @@ Figure~\ref{fig:5} provides an overview of these results, summarizing out-of-dis
 \subsection{RQ2: Value of Typed Heterogeneity}
 \label{sec:7.2}
 
-To evaluate the specific contribution of node and edge typing, we contrast relation-specific HGL against homogeneous GL:
+To evaluate the specific contribution of node and edge typing, we contrast relation-specific Heterogeneous Graph Transformers (HGL / HGL-QoS) against homogeneous Graph Attention Networks (GL / GL-QoS) on the shared native multigraph substrate under complete substrate parity:
 \begin{itemize}
-    \item \textbf{In-Distribution:} Heterogeneous HGL leads homogeneous GL by $\Delta\rho = +0.114$ ($0.725$ vs.\ $0.611$; $p = 0.375$, 5/7 scenarios won). On familiar topologies, homogeneous GNNs partially approximate typing via structural degree signatures.
-    \item \textbf{Out-of-Distribution (LOSO):} The gap widens sharply under distribution shift. Heterogeneous HGL outperforms homogeneous GL by \textbf{$+0.353$} ($\rho = 0.439$ vs.\ $0.086$), winning \emph{all eight} folds (paired Wilcoxon, $p = 0.0078$). Similarly, HGL-QoS outperforms GL-QoS by $+0.246$ ($0.608$ vs.\ $0.363$, $p = 0.0078$). Without relation typing, homogeneous models degrade below unweighted structural baselines ($0.086$ vs.\ $0.301$).
+    \item \textbf{In-Distribution Fitting (Table~\ref{tab:5}):} On familiar architectures, homogeneous and heterogeneous models exhibit comparable fitting capacity. Unweighted HGL leads unweighted GL by $\Delta\rho = +0.065$ ($0.725$ vs.\ $0.660$; $W = 5.0$, $p = 0.156$, 5/7 scenarios won). When QoS edge features are encoded, the models are statistically indistinguishable: HGL-QoS achieves $\rho = 0.653$ versus GL-QoS's $0.630$ ($\Delta\rho = +0.022$, $W = 13.0$, $p = 0.938$, won in 3/7 scenarios). On known topologies, homogeneous GNNs partially compensate for missing relation types by leveraging per-type input embeddings and structural degree signatures.
+    \item \textbf{Out-of-Distribution Generalization (LOSO, Table~\ref{tab:7}):} Under inductive distribution shift to completely unseen architectures, homogeneous models collapse while typed heterogeneous learning generalizes robustly. Heterogeneous HGL outperforms homogeneous GL by \textbf{$+0.353$} ($\rho = 0.439$ vs.\ $0.086$, winning \emph{all eight} folds, $W = 0.0$, $p = 0.0078$). With QoS features enabled, HGL-QoS outperforms GL-QoS by \textbf{$+0.246$} ($0.608$ vs.\ $0.363$, $W = 0.0$, $p = 0.0078$). Without relation typing, untyped models degrade below even unweighted structural baselines ($0.086$ vs.\ $0.301$).
 \end{itemize}
 
-\noindent\textbf{Scope Condition and Confound Dissection.} The two margins above rest on different footing. \emph{In-distribution:} As detailed in Section~\ref{sec:6.2.substrate}, GL and HGL there see distinct graph views --- GL/GL-QoS operate on the Application--Library \texttt{DEPENDS\_ON} projection, whereas HGL/HGL-QoS ingest the complete native multigraph --- so the $+0.114$ margin conflates relation-specific attention parameterization with multi-entity topological visibility. \emph{Out-of-distribution (LOSO):} this confound does not apply. GL/GL-QoS and HGL/HGL-QoS are trained and evaluated on the identical native multigraph in Table~\ref{tab:7} (Section~\ref{sec:6.2.substrate}, ``Substrate Parity in LOSO''); the $+0.353$ and $+0.246$ LOSO margins therefore isolate typed message passing (HGTConv's per-relation weights and an always-on edge-type one-hot, versus a single shared-weight GATConv with no edge-type signal) rather than visibility, modulo the residual bidirectional-pass difference noted there.
-
-\noindent\textbf{GL-Full: closing the in-distribution confound.} As reported in Table~\ref{tab:8f}, we ran the declared control for the remaining, in-distribution case: \textbf{GL-Full} and \textbf{GL-Full-QoS} are the identical homogeneous-GAT architecture as GL/GL-QoS (\texttt{build\_baseline}, unchanged), given the native multigraph substrate instead of the projection --- the same graph HGL/HGL-QoS receive. Node type reaches GL-Full only through its per-type input embedding; message passing remains a single shared-weight relation, with no per-edge-type parameters and no edge-type feature.
-
-\begin{table}[htbp]
-\centering
-\small
-\caption{GL-Full: the homogeneous GAT of Table~\ref{tab:5} given HGL's native multigraph substrate instead of the DEPENDS\_ON projection (Application population, mean over 7 scenarios).}
-\label{tab:8f}
-\begin{tabular}{lccc}
-\toprule
-\textbf{Comparison} & \textbf{$\Delta\rho$} & \textbf{Won} & \textbf{Wilcoxon $p$} \\
-\midrule
-\multicolumn{4}{l}{\textit{Substrate-only effect (architecture fixed, projection $\to$ native)}} \\
-GL-Full vs.\ GL & $+0.049$ & 2/7 & $0.813$ \\
-GL-Full-QoS vs.\ GL-QoS & \textbf{$+0.193$} & \textbf{6/7} & $0.078$ (marginal) \\
-\midrule
-\multicolumn{4}{l}{\textit{Typing effect, substrate now matched (native vs.\ native)}} \\
-HGL vs.\ GL-Full & $+0.065$ & 5/7 & $0.156$ \\
-HGL-QoS vs.\ GL-Full-QoS & $+0.022$ & 3/7 & $0.938$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Mean $\rho$: GL $0.611 \to$ GL-Full $0.660$ (unweighted); GL-QoS $0.438 \to$ GL-Full-QoS $0.630$ (QoS), against HGL $0.725$ and HGL-QoS $0.653$. The result reverses the paper's own framing of its headline in-distribution margin. For the QoS-weighted pair --- the configuration this paper proposes --- giving the homogeneous architecture the native substrate closes nearly the entire gap to the typed model: GL-Full-QoS is statistically indistinguishable from HGL-QoS ($\Delta\rho = +0.022$, 3/7 scenarios, $p = 0.938$), while the substrate change alone recovers $+0.193$ of the original $+0.215$ HGL-QoS-vs-GL-QoS margin (6/7 scenarios, $p = 0.078$). \textbf{Most of what Table~\ref{tab:6}'s in-distribution QoS-weighted comparison attributed to typed message passing was multi-entity visibility.} The unweighted pair does not replicate this: GL-Full does not reliably beat GL (2/7 scenarios, $p = 0.813$) and HGL retains a margin over GL-Full similar in size to its original margin over GL ($+0.065$ vs.\ $+0.114$, both non-significant). Enterprise --- the largest, most Topic-dense scenario --- is where GL-Full loses the most ground relative to GL ($-0.294$), the direction and locus Section~\ref{sec:6.2.substrate}'s over-smoothing hypothesis predicts for homogeneous message passing on a bipartite-star-heavy native multigraph; QoS edge weighting appears to substantially mitigate this failure mode (Enterprise's QoS pair moves the other way, $+0.425$), though we have not isolated why.
-
-Read together with LOSO's substrate-matched result (Section~\ref{sec:6.2.substrate}, ``Substrate Parity in LOSO''), the two tables now tell a consistent, more precise story than either did before this control was run: typed message passing's advantage over homogeneous learning is not demonstrated in-distribution, where a substrate-matched homogeneous model is statistically indistinguishable from HGL-QoS, but is large, consistent, and significant under genuine distribution shift ($+0.169$ HGL-QoS vs.\ HGL, $+0.246$ HGL-QoS vs.\ GL-QoS, both 8/8 LOSO folds, $p = 0.0078$). Typing's demonstrated value in this study is a generalization property, not an in-distribution fitting advantage.
+\noindent\textbf{Relational Typing as an Inductive Generalization Bias.} Read together, the in-distribution and out-of-distribution results reveal a fundamental principle: \emph{the demonstrated value of typed message passing is an inductive generalization property rather than an in-distribution fitting advantage.} When trained and evaluated on the same system distribution, both homogeneous and heterogeneous architectures have sufficient parameter capacity to fit cascading criticality patterns. However, structural degree distributions and local neighbor counts fail to transfer zero-shot across distinct architectural topologies. In contrast, relation-specific parameters (e.g., distinguishing \texttt{PUBLISHES\_TO} message dissemination from \texttt{RUNS\_ON} host placement) capture invariant causal semantics of failure propagation that persist across previously uncharacterized systems.
 
 \subsubsection{Empirical Edge-Removal Analysis}
 

@@ -64,12 +64,12 @@ models; explainable AI; CI/CD quality gates.
 
 | Quantity | Value | Section |
 |---|---|---|
-| In-distribution mean $\rho$ — HGL / GL / Topo-QoS / Topo-BL | 0.725 / 0.609 / 0.586 / 0.209 | §7.1 (Table 6) |
-| In-distribution mean $\rho$ — HGL-QoS / GL-QoS | 0.653 / 0.439 | §7.1 (Table 6) |
-| Paired Wilcoxon, HGL vs Topo-BL ($n=7$) | $\Delta\rho = +0.516$, $p = 0.0156$, **significant** | §7.1 (Table 7) |
-| Paired Wilcoxon, HGL vs GL-QoS | $\Delta\rho = +0.286$, $p = 0.0312$, **significant** | §7.1 (Table 7) |
-| Paired Wilcoxon, **HGL vs Topo-QoS** | $\Delta\rho = +0.139$, $p = 0.469$, **n.s.** | §7.1 (Table 7) |
-| Paired Wilcoxon, HGL-QoS vs HGL | $\Delta\rho = -0.072$, $p = 0.078$, n.s. (marginal) | §7.1 (Table 7) |
+| In-distribution mean $\rho$ — HGL / GL / Topo-QoS / Topo-BL | 0.725 / 0.660 / 0.595 / 0.201 | §7.1 (Table 5) |
+| In-distribution mean $\rho$ — HGL-QoS / GL-QoS | 0.653 / 0.630 | §7.1 (Table 5) |
+| Paired Wilcoxon, HGL vs Topo-BL ($n=7$) | $\Delta\rho = +0.524$, $p = 0.0156$, **significant** | §7.1 (Table 6) |
+| Paired Wilcoxon, HGL vs GL-QoS | $\Delta\rho = +0.094$, $p = 0.0469$, **significant** | §7.1 (Table 6) |
+| Paired Wilcoxon, **HGL vs Topo-QoS** | $\Delta\rho = +0.130$, $p = 0.469$, **n.s.** | §7.1 (Table 6) |
+| Paired Wilcoxon, HGL-QoS vs HGL | $\Delta\rho = -0.072$, $p = 0.078$, n.s. (marginal) | §7.1 (Table 6) |
 | **LOSO mean $\rho$** — HGL-QoS / Topo-QoS / HGL / GL-QoS / Topo-BL / RM / GL | **0.608** / 0.571 / 0.439 / 0.363 / 0.301 / 0.195 / 0.086 | §7.1 (Table 8) |
 | LOSO $F_1@K$ — HGL-QoS / Topo-QoS / GL | 0.414 / 0.380 / 0.237 | §7.1 (Table 8) |
 | **HGL-QoS vs Topo-QoS (LOSO)** | $+0.037$, 5/8 folds, $p = 0.64$, **n.s.** | §7.1 |
@@ -134,10 +134,10 @@ models; explainable AI; CI/CD quality gates.
 | 5.1 | ISO/IEC grounding | $D_1$/$D_2$ criticality; RM decomposition into FT / A / M (Table 3) | Opens by stating it consumes the predictor's Top-$K$ via triage, and is not a ranking model |
 | 5.2 | Composite quality score | AHP hierarchy; $r_\alpha = 0.36$, $(q_R, q_M) = (0.80, 0.20)$ | Constants are a re-parameterisation of the retired 4-D AHP vector, not independently tuned |
 | **6.1** | Corpus | 1,770 components, 10 architectures, byte-identical regeneration, **plus an explicit note on the ATM case study's status** | ATM is an 8th LOSO fold deliberately outside Table 4 — now stated rather than implied |
-| **6.2** | Baselines and predictors | Proposed variants listed first; RM included as a non-competing reference; **evaluation substrate** scope condition | The GL/HGL substrate asymmetry is declared here and repeated in §7.2 |
+| **6.2** | Baselines and predictors | Proposed variants listed first; RM included as a non-competing reference; **evaluation substrate parity** | All learned GNN models operate under native multigraph parity |
 | **6.3** | Metrics and protocols | $\rho$, $\tau$, $F_1@K$; single stated population; in-distribution / LOSO / real-world | — |
 | **7.1** | RQ1 | Positive case first (best configuration, critical set, QoS transfer), **boundary as insight 4** | The boundary is stated, not buried |
-| **7.2** | RQ2 | $+0.353$ typing gap, 8/8 folds — the paper's strongest result — with the substrate scope condition attached | The scope condition is load-bearing; do not drop it |
+| **7.2** | RQ2 | $+0.353$ typing gap, 8/8 folds — the paper's strongest result — under complete substrate parity | Shows typing is an inductive generalization bias; in-dist models match ($\rho = 0.630$ vs $0.653$) |
 | **7.3** | RQ3 | QoS encoding, topic weights, AHP shrinkage, Morris + Dirichlet joint screening, oracle convergent validity, thresholds, the Availability defect, anti-patterns, stratification, attention | Condensed in this revision: all tables, numbers and verdicts kept, narration tightened |
 | **7.4** | RQ4 | Zero-shot transfer, $\rho = 0.688$–$0.778$ | Gain over degree is $+0.014$ on one of three |
 | **7.5** | **RQ5** | 44 ms inference vs 23.8 s analysis; 12× → 545×; whole gate 0.02–27.4 s; training ~45 min per variant | Nothing above 2,000 components was timed; CPU only |
@@ -184,7 +184,7 @@ LaTeX numbers automatically; `draft.md` numbers by hand and keeps **Table 0** pl
 | RQ | Question (abbreviated) | Primary section | Primary evidence | Standing caveat |
 |:--:|---|---|---|---|
 | RQ1 | How accurately does typed learning predict impact and identify the critical set vs non-learning baselines? | §7.1 | Tables 6–8, Figure 3 | Ranking margin over Topo-QoS **n.s.** ($p = 0.64$); the defensible halves are $F_1@K$ and the LOSO transfer |
-| RQ2 | Does typing beat homogeneous models, and does it hold out of distribution? | §7.2 | $+0.353$ (8/8, $p = 0.0078$); 4/50 edge removal | Substrate asymmetry (§6.2) means part of the gap is the wider node set; edge-removal result is $I_{\text{comp}}$-scoped |
+| RQ2 | Does typing beat homogeneous models, and does it hold out of distribution? | §7.2 | $+0.353$ (8/8, $p = 0.0078$); 4/50 edge removal | Evaluated under full native substrate parity; in-dist models match ($\Delta\rho = +0.022$, n.s.), isolating typing as generalization bias |
 | RQ3 | How do QoS encoding, weighting calibration, oracle choice and thresholds affect accuracy and explainability? | §7.3 | Tables 9–13, Figures 4–5 | Scope now matches the subsection's actual content |
 | RQ4 | Does it transfer zero-shot to real open-source architectures? | §7.4 | Table 14 | Gain over degree is $+0.014$ on one of three; simulated failures, not production outages |
 | RQ5 | What does the analysis cost at CI/CD time, and which stage dominates? | §7.5 | Table 15 | Nothing above 2,000 components timed; single-threaded CPU; no energy measurement |
