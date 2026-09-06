@@ -55,7 +55,7 @@ class TrainRequest(BaseModel):
             "'homo_scalar' (flat GAT, scalar weight), "
             "'topology_rm' (RM baseline, no GNN). "
             "Paper-name mapping (reproduce/EXPERIMENTS.md §3 Model Variants): "
-            "hetero_qos=HGL-QoS, homo_unweighted=GL, homo_scalar=GL-QoS."
+            "hetero_qos=HGT-QoS, homo_unweighted=GAT, homo_scalar=GAT-QoS."
         ),
     )
 

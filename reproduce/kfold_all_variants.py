@@ -39,6 +39,8 @@ from typing import Dict, List, Optional
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from saag.evaluation import variant_registry as _registry
+
 # Structural baselines first: training-free, so their score is the bar a
 # learned variant must clear to justify being trained at all.
 ALL_VARIANTS = ["topo_baseline", "topo_qos", "topology_rm", "gl", "gl_qos", "hgl", "hgl_qos"]
@@ -115,12 +117,11 @@ def _run_variant(
 
 # ── Comparison table ──────────────────────────────────────────────────────────
 
+# Display names come from saag/evaluation/variant_registry.py. Under this
+# harness gl/gl_qos run on the native graph, so they report as GAT-N / GAT-N-QoS.
 _VARIANT_LABELS = {
-    "hgl_qos":         "HGL-QoS",
-    "hgl":             "HGL",
-    "gl_qos":          "GL-QoS",
-    "gl":              "GL",
-    "topology_rm":   "RM baseline",
+    v: _registry.label(v, harness="kfold")
+    for v in ("topology_rm", "gl", "gl_qos", "hgl", "hgl_qos")
 }
 
 

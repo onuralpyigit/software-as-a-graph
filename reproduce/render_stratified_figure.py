@@ -34,6 +34,8 @@ from typing import Any, Dict, List, Optional, Tuple
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from saag.evaluation import variant_registry as _registry
+
 # ── Config ────────────────────────────────────────────────────────────────────
 
 _NODE_TYPE_ORDER  = ["Application", "Broker", "Topic", "Node", "Library"]
@@ -44,14 +46,13 @@ _NODE_TYPE_LABELS = {
     "Node":        "Node",
     "Library":     "Lib",
 }
-_VARIANT_ORDER = ["topology_rm", "gl", "gl_qos", "hgl", "hgl_qos"]
-_VARIANT_LABELS = {
-    "hgl_qos":         "HGL-QoS",
-    "hgl":             "HGL",
-    "gl_qos":          "GL-QoS",
-    "gl":              "GL",
-    "topology_rm":   "RM baseline",
-}
+# Labels come from saag/evaluation/variant_registry.py under the "loso" harness:
+# this figure reads output/loso/<variant>/results.json, where gl/gl_qos are run
+# on the native graph and are therefore reported as GAT-N / GAT-N-QoS.
+_VARIANT_ORDER = _registry.order(
+    include=["topology_rm", "gl", "gl_qos", "hgl", "hgl_qos"]
+)
+_VARIANT_LABELS = {v: _registry.label(v, harness="loso") for v in _VARIANT_ORDER}
 _VARIANT_COLORS = {
     "hgl_qos":         "#4C72B0",
     "hgl":             "#55A868",
@@ -246,7 +247,7 @@ def _make_figure(
     ax.set_ylabel("Spearman ρ (mean ± std)", fontsize=11)
     ax.set_title(
         "Figure 4: Per-Node-Type Spearman ρ by Variant\n"
-        "(HGL-QoS gains most on QoS-bearing node types: App, Topic)",
+        "(HGT-QoS gains most on QoS-bearing node types: App, Topic)",
         fontsize=12, fontweight="bold",
     )
     ax.set_ylim(bottom=0.0)

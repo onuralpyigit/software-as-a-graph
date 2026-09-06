@@ -641,7 +641,7 @@ def run_one_fold(
                     rm_scores=holdout.rm,
                     # GNNService.train() names this simulation_results, predict() names
                     # it eval_labels. Passing the train() spelling here raised TypeError
-                    # inside the per-seed try/except, so every HGL/HGL-QoS seed was
+                    # inside the per-seed try/except, so every HGT/HGT-QoS seed was
                     # skipped and the fold aggregated to nan.
                     eval_labels=holdout.simulation,
                     mode=effective_mode,
@@ -1099,12 +1099,18 @@ def parse_args() -> argparse.Namespace:
         choices=["hgl_qos", "hgl", "gl_qos", "gl", "topology_rm", "topo_baseline", "topo_qos"],
         default="hgl_qos",
         help=(
-            "Model architecture variant (default: hgl_qos). "
-            "hgl_qos = QoS-embedded HGT on native graph; "
-            "hgl     = QoS-masked HGT on native graph; "
-            "gl_qos  = QoS-weighted homogeneous GAT on projection; "
-            "gl      = unweighted homogeneous GAT on projection; "
-            "topology_rm = RM scores only (no GNN)."
+            "Model architecture variant (default: hgl_qos). Display names come "
+            "from saag/evaluation/variant_registry.py. "
+            "hgl_qos [HGT-QoS] = QoS-embedded HGT on native graph; "
+            "hgl     [HGT]     = QoS-masked HGT on native graph; "
+            "gl_qos  [GAT-N-QoS] = homogeneous GAT with scalar w(e), native graph; "
+            "gl      [GAT-N]     = unweighted homogeneous GAT, native graph; "
+            "topology_rm [RM]  = RM composite scores only (no GNN); "
+            "topo_baseline [Topo] / topo_qos [Topo-QoS] = training-free centrality "
+            "on the DEPENDS_ON projection. "
+            "NOTE: this harness runs gl/gl_qos on the NATIVE graph (unlike "
+            "reproduce/main_table.py, which runs them on the projection), which is "
+            "why they are reported as GAT-N/GAT-N-QoS."
         ),
     )
     p.add_argument("--epochs", type=int, default=300)

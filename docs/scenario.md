@@ -254,7 +254,7 @@ full gate table), and several scenarios do not clear them. Regenerate with
 
 ### 5.1 In-distribution Spearman ρ (Table 3)
 
-| Scenario | Topo-BL | Topo-QoS | GL | GL-QoS | HGL | HGL-QoS |
+| Scenario | Topo | Topo-QoS | GAT | GAT-QoS | HGT | HGT-QoS |
 |---|---:|---:|---:|---:|---:|---:|
 | AV System | 0.308 | 0.750 | 0.760 | 0.655 | 0.713 | 0.692 |
 | Enterprise | 0.393 | 0.797 | 0.853 | 0.513 | 0.885 | 0.883 |
@@ -265,7 +265,7 @@ full gate table), and several scenarios do not clear them. Regenerate with
 | Microservices | 0.302 | 0.556 | 0.524 | 0.436 | 0.362 | 0.354 |
 | **Mean** | **0.186** | **0.595** | **0.710** | **0.604** | **0.730** | **0.731** |
 
-Microservices is the hardest scenario for the learned predictors (HGL 0.362), consistent with its
+Microservices is the hardest scenario for the learned predictors (HGT 0.362), consistent with its
 design intent: a sparse, low-centralisation topology with few genuine bottlenecks. Healthcare and IoT
 are where the unweighted structural baseline fails outright (ρ ≤ 0).
 
@@ -273,15 +273,15 @@ are where the unweighted structural baseline fails outright (ρ ≤ 0).
 
 | Variant | LOSO ρ | LOSO F1@K | k-fold ρ | k-fold F1@K |
 |---|---:|---:|---:|---:|
-| Topo-BL | 0.105 | 0.179 | 0.038 | 0.219 |
+| Topo | 0.105 | 0.179 | 0.038 | 0.219 |
 | Topo-QoS | 0.521 | 0.308 | 0.492 | 0.359 |
-| RM / Q(v) | — | — | TODO(needs re-measurement) | — |
-| GL | 0.436 | 0.440 | 0.409 | 0.423 |
-| GL-QoS | 0.430 | 0.435 | 0.397 | 0.446 |
-| HGL | **0.608** | **0.465** | 0.666 | **0.491** |
-| HGL-QoS | 0.595 | 0.461 | **0.693** | 0.479 |
+| RM | — | — | TODO(needs re-measurement) | — |
+| GAT-N | 0.436 | 0.440 | 0.409 | 0.423 |
+| GAT-N-QoS | 0.430 | 0.435 | 0.397 | 0.446 |
+| HGT | **0.608** | **0.465** | 0.666 | **0.491** |
+| HGT-QoS | 0.595 | 0.461 | **0.693** | 0.479 |
 
-> The k-fold `RM / Q(v)` row's old value (−0.123, under the retired RMAV composite) predates this
+> The k-fold `RM` row's old value (−0.123, under the retired RMAV composite) predates this
 > corpus rebuild and used a different protocol than Table 3/4 above; it has not been re-measured
 > under the RM model this session — TODO(needs re-measurement).
 
@@ -294,7 +294,7 @@ logs show them too — and both are now fixed:
   `_derive_depends_on_edges` looked for it on the pub-sub relationship, which the generated
   topologies emit as bare `{from, to}`. The lookup never matched, every derived dependency edge kept
   a unit weight, and `_qos_weighted_betweenness` fell back to plain betweenness on **all seven**
-  scenarios (35/35 cells), making `Topo-QoS` identical to `Topo-BL`. It now resolves *w(t)* from the
+  scenarios (35/35 cells), making `Topo-QoS` identical to `Topo`. It now resolves *w(t)* from the
   shared Topic via `topic_weight_from_node_attrs`, taking the max when a pair shares several topics.
   `app_to_lib` edges get the scenario's median *w(t)*, since a fixed 1.0 exceeds every observed topic
   weight and would make library edges the most critical in the graph.

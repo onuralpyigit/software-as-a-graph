@@ -2,7 +2,7 @@
 saag/usecases/triage.py
 
 The Triage Bridge Use Case (Pathway B ──(Triage)──► Pathway A).
-Coordinates high-throughput blast-radius filtering from Pathway B (HGL)
+Coordinates high-throughput blast-radius filtering from Pathway B (HGT)
 with targeted, deep root-cause attribution from Pathway A (ISO/IEC RM).
 """
 from typing import Any, List, Optional, Sequence, Tuple

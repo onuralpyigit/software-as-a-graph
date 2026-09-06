@@ -102,13 +102,14 @@ def parse_args() -> argparse.Namespace:
             "homo_unweighted = flat GAT, no edge_attr; "
             "homo_scalar = flat GAT, scalar QoS weight; "
             "topology_rm = RM scores only, no GNN training. "
-            "Paper-name mapping (reproduce/EXPERIMENTS.md §3 Model Variants): "
-            "hetero_qos=HGL-QoS, homo_unweighted=GL, homo_scalar=GL-QoS. "
-            "NOTE: this flag does not expose the paper's QoS-masked heterogeneous variant "
-            "(HGL) as a distinct choice, and topology_rm (RM composite score) is not the "
-            "same computation as the paper's Topo-BL/Topo-QoS structural (betweenness) "
+            "Display-name mapping (saag/evaluation/variant_registry.py): "
+            "hetero_qos=HGT-QoS, homo_unweighted=GAT, homo_scalar=GAT-QoS. "
+            "NOTE: this flag does not expose the QoS-masked heterogeneous variant "
+            "(HGT) as a distinct choice, and topology_rm (RM composite score) is not the "
+            "same computation as the Topo/Topo-QoS structural (betweenness) "
             "baselines -- use cli/loso_evaluate.py's --variant, which has hgl/hgl_qos/gl/"
-            "gl_qos choices matching the paper directly, for HGL-vs-GL comparisons."
+            "gl_qos choices matching the reported tables directly, for HGT-vs-GAT "
+            "comparisons."
         ),
     )
 

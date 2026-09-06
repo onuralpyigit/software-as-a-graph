@@ -41,16 +41,21 @@ from typing import Any, Dict, List, Optional, Tuple
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from saag.evaluation import variant_registry as _registry
+
 RESULTS_DIR = Path("results")
 _DEFAULT_OUTPUT = Path("docs/research/jss/latex/figures/Figure_5")
 
-#: Printed labels, and the colour family each variant belongs to.
+#: Printed labels, and the colour family each variant belongs to. Labels come
+#: from saag/evaluation/variant_registry.py under the "loso" harness — this
+#: figure reads results/loso_all_variants.json, where gl_qos is run on the
+#: native graph and is therefore reported as GAT-N-QoS.
 _VARIANTS: List[Tuple[str, str, str]] = [
-    ("hgl_qos",       "SaG (Typed Heterogeneous)", "learned_best"),
-    ("gl_qos",        "GL (Homogeneous GNN)",      "homogeneous"),
-    ("topo_qos",      "Topo-QoS (Weighted)",       "untrained"),
-    ("topo_baseline", "Topo-BL (Centrality)",      "untrained"),
-    ("topology_rm",   "RM / $Q(v)$ (diagnostic reference)", "diagnostic"),
+    ("hgl_qos",       f"{_registry.label('hgl_qos', 'loso')} (Typed Heterogeneous)", "learned_best"),
+    ("gl_qos",        f"{_registry.label('gl_qos', 'loso')} (Homogeneous GNN)",      "homogeneous"),
+    ("topo_qos",      f"{_registry.label('topo_qos', 'loso')} (Weighted)",           "untrained"),
+    ("topo_baseline", f"{_registry.label('topo_baseline', 'loso')} (Centrality)",    "untrained"),
+    ("topology_rm",   f"{_registry.label('topology_rm', 'loso')} / $Q(v)$ (diagnostic reference)", "diagnostic"),
 ]
 
 _COLOURS = {

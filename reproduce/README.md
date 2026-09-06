@@ -89,7 +89,7 @@ make -f reproduce/Makefile kfold
 
 Runs `reproduce/kfold_all_variants.py` for all 5 variants (`hgl_qos`, `hgl`, `gl_qos`, `gl`,
 `topology_rm`), each evaluated via repeated stratified k-fold (`k=5`, 5 seeds) *independently
-within* each of the 7 cached scenarios. Confirmed result: HGL-QoS reaches mean cross-scenario
+within* each of the 7 cached scenarios. Confirmed result: HGT-QoS reaches mean cross-scenario
 $\rho=0.587$ ($\sigma=0.146$), $F_1@K=0.505$, positive in all seven scenarios individually.
 
 ### Step 4 — Figures (JSS Figures 1–5)
@@ -169,12 +169,12 @@ These identifiers are used directly by `main_table.py`, `loso_all_variants.py`, 
 
 | Variant flag | Description |
 |---|---|
-| `hgl_qos` | **HGL-QoS (Proposed)** — Heterogeneous Graph Transformer (HGTConv) with 16-D continuous-categorical edge features |
-| `hgl` | **HGL** — Heterogeneous Graph Transformer (HGTConv) with QoS attributes masked |
-| `gl_qos` | **GL-QoS** — Homogeneous GAT with scalar QoS weight per edge |
+| `hgl_qos` | **HGT-QoS (Proposed)** — Heterogeneous Graph Transformer (HGTConv) with 16-D continuous-categorical edge features |
+| `hgl` | **HGT** — Heterogeneous Graph Transformer (HGTConv) with QoS attributes masked |
+| `gl_qos` | **GAT-QoS** (in-distribution) / **GAT-N-QoS** (LOSO, k-fold) — Homogeneous GAT with scalar QoS weight per edge |
 | `gl` | **GL** — Homogeneous GAT with no edge weighting |
 | `topo_qos` | **Topo-QoS** — QoS-weighted structural centrality baseline |
-| `topo_baseline` | **Topo-BL** — Unweighted structural centrality baseline |
+| `topo_baseline` | **Topo** — Unweighted structural centrality baseline |
 | `topology_rm` | **RM / $Q(v)$** — Diagnostic reference score from the ISO/IEC explanation layer |
 
 ---

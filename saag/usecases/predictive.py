@@ -16,7 +16,7 @@ from saag.analysis.models import (
 
 class PredictiveUseCase:
     """
-    Use Case for Pathway B: Inductive Criticality & Blast Radius Forecasting (HGL).
+    Use Case for Pathway B: Inductive Criticality & Blast Radius Forecasting (HGT).
     
     INDEPENDENCE GUARANTEE:
     Pathway B consumes structural graph topology and edge QoS attributes.

@@ -10,7 +10,7 @@ ground truth I*(v). Reports the resulting Spearman rho degradation.
 Ground truth and raw structural graph loading reuse the exact same code path as the
 published numbers (cli.simulate_graph._load_graph + saag.simulation.fault_injector.FaultInjector),
 so the only thing varied here is the direction of the derived DEPENDS_ON edges used for the
-structural baseline (Topo-BL) ranking — nothing about the simulator itself is touched.
+structural baseline (Topo) ranking — nothing about the simulator itself is touched.
 """
 import json
 import sys

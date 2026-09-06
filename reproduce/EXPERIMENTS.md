@@ -53,7 +53,7 @@ Measures the intersection between the top $K$ most critical components in the gr
 
 ### D. Statistical Rigor
 - **Bootstrap 95% Confidence Intervals**: Computed using $B=2,000$ resamples for each mean Spearman ρ.
-- **Paired Wilcoxon Signed-Rank Test**: A non-parametric test used to prove that **HGL-QoS** is statistically superior to the baselines (`Topo-BL`, `Topo-QoS`, `GL`, `GL-QoS`, `HGL`) across different seeds and scenarios ($p < 0.05$).
+- **Paired Wilcoxon Signed-Rank Test**: A non-parametric test used to prove that **HGT-QoS** is statistically superior to the baselines (`Topo`, `Topo-QoS`, `GAT`, `GAT-QoS`, `HGT`) across different seeds and scenarios ($p < 0.05$).
 
 ---
 
@@ -61,12 +61,12 @@ Measures the intersection between the top $K$ most critical components in the gr
 
 | Variant | Logic |
 |---|---|
-| `topo_baseline` (`Topo-BL`) | **Baseline**: Structural centrality (Betweenness + Articulation Point) on unweighted `DEPENDS_ON` projection. |
+| `topo_baseline` (`Topo`) | **Baseline**: Structural centrality (Betweenness + Articulation Point) on unweighted `DEPENDS_ON` projection. |
 | `topo_qos` (`Topo-QoS`) | **Baseline**: Structural centrality weighted by local QoS edge features on `DEPENDS_ON` projection. |
 | `gl` (`GL`) | **Baseline**: Homogeneous GAT on unweighted `DEPENDS_ON` projection. |
-| `gl_qos` (`GL-QoS`) | **Baseline**: Homogeneous GAT over QoS-weighted `DEPENDS_ON` projection (edge weight = QoS-derived weight). |
-| `hgl` (`HGL`) | **Baseline/Ablation**: Heterogeneous Graph Transformer (HGTConv) over native pub-sub graph substrate with QoS attributes masked (isolates heterogeneous structure). |
-| `hgl_qos` (`HGL-QoS`) | **Proposed Variant**: QoS-aware Heterogeneous Graph Transformer (HGTConv) over native pub-sub graph substrate. |
+| `gl_qos` (`GAT-QoS` in-distribution, `GAT-N-QoS` under LOSO/k-fold) | **Baseline**: Homogeneous GAT over QoS-weighted `DEPENDS_ON` projection (edge weight = QoS-derived weight). |
+| `hgl` (`HGT`) | **Baseline/Ablation**: Heterogeneous Graph Transformer (HGTConv) over native pub-sub graph substrate with QoS attributes masked (isolates heterogeneous structure). |
+| `hgl_qos` (`HGT-QoS`) | **Proposed Variant**: QoS-aware Heterogeneous Graph Transformer (HGTConv) over native pub-sub graph substrate. |
 
 ---
 

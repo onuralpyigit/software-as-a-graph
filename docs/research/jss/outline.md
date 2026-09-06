@@ -64,14 +64,14 @@ models; explainable AI; CI/CD quality gates.
 
 | Quantity | Value | Section |
 |---|---|---|
-| In-distribution mean $\rho$ — SaG / GL / Topo-QoS / Topo-BL | 0.653 / 0.630 / 0.595 / 0.201 | §7.1 (Table 5) |
-| Paired Wilcoxon, SaG vs Topo-BL ($n=7$) | $\Delta\rho = +0.452$, $p = 0.0156$, **significant** | §7.1 (Table 6) |
-| Paired Wilcoxon, Topo-QoS vs Topo-BL | $\Delta\rho = +0.394$, $p = 0.0156$, **significant** | §7.1 (Table 6) |
-| Paired Wilcoxon, SaG vs GL | $\Delta\rho = +0.022$, $p = 0.938$, n.s. (in-dist parity) | §7.1 (Table 6) |
-| Paired Wilcoxon, **SaG vs Topo-QoS** | $\Delta\rho = +0.058$, $p = 0.688$, **n.s.** | §7.1 (Table 6) |
-| **LOSO mean $\rho$** — SaG / Topo-QoS / GL / Topo-BL / RM | **0.608** / 0.571 / 0.363 / 0.301 / 0.195 | §7.1 (Table 7) |
+| In-distribution mean $\rho$ — HGT-QoS / GAT-N-QoS / Topo-QoS / Topo | 0.653 / 0.630 / 0.595 / 0.201 | §7.1 (Table 5) |
+| Paired Wilcoxon, HGT-QoS vs Topo ($n=7$) | $\Delta\rho = +0.452$, $p = 0.0156$, **significant** | §7.1 (Table 6) |
+| Paired Wilcoxon, Topo-QoS vs Topo | $\Delta\rho = +0.394$, $p = 0.0156$, **significant** | §7.1 (Table 6) |
+| Paired Wilcoxon, HGT-QoS vs GAT-N-QoS | $\Delta\rho = +0.022$, $p = 0.938$, n.s. (in-dist parity) | §7.1 (Table 6) |
+| Paired Wilcoxon, **HGT-QoS vs Topo-QoS** | $\Delta\rho = +0.058$, $p = 0.688$, **n.s.** | §7.1 (Table 6) |
+| **LOSO mean $\rho$** — HGT-QoS / Topo-QoS / GAT-N-QoS / Topo / RM | **0.608** / 0.571 / 0.363 / 0.301 / 0.195 | §7.1 (Table 7) |
 | LOSO $F_1@K$ — SaG / Topo-QoS / GL | 0.414 / 0.380 / 0.341 | §7.1 (Table 7) |
-| **SaG vs Topo-QoS (LOSO)** | $+0.037$, 5/8 folds, $p = 0.64$, **n.s.** | §7.1 |
+| **HGT-QoS vs Topo-QoS (LOSO)** | $+0.037$, 5/8 folds, $p = 0.64$, **n.s.** | §7.1 |
 | Heterogeneity gap, LOSO (SaG − GL) | $+0.246$, 8/8 folds, $p = 0.0078$ | §7.2 |
 | QoS feature ablation, LOSO drop | $-0.169$ ($0.608 \to 0.439$, 7/8, $p = 0.0156$); seed $\sigma$ $0.083 \to 0.284$ | §7.3 |
 | Edge removal, `av_system` | 4 of 50 candidates non-zero, all library channels | §7.2 |
@@ -214,7 +214,7 @@ LaTeX numbers automatically; `draft.md` numbers by hand and keeps **Table 0** pl
 - ~~Orphan `.tex` files from the retired 9-section structure.~~ No longer present.
 - ~~`0.521` vs `0.522` Topo-QoS LOSO discrepancy.~~ Superseded — Topo-QoS LOSO is now 0.571 on the
   Application population.
-- ~~Abstract mixes HGL and HGL-QoS variants silently.~~ Resolved by framing SaG as natively QoS-aware and evaluating against streamlined 4-predictor baseline suite.
+- ~~Abstract mixes HGT and HGT-QoS variants silently.~~ Resolved by framing the proposed predictor as natively QoS-aware and evaluating against streamlined 4-predictor baseline suite.
 - ~~Wrong cross-reference to the ATM case study (cited as §7.4).~~ Now points at §7.3, where the attention
   analysis lives, in both `draft.md` and the LaTeX.
 - ~~ATM is an undocumented 8th scenario.~~ §6.1 now carries an explicit note on its status and exclusion

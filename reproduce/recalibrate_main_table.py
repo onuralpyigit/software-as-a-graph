@@ -9,7 +9,7 @@ calibration patch landed in _train_cell.
 
 Strategy
 --------
-  • Topo-BL / Q-Topo-BL cells:
+  • Topo / Topo-QoS cells:
       Recompute deterministically from the scenario's structural metrics
       and graph.  Cheap, no checkpoint needed.
 
@@ -302,7 +302,7 @@ def _try_recompute_hetero(
     train_ratio: float, val_ratio: float,
     cached_data: Optional[Tuple] = None,
 ) -> Tuple[Optional[Dict], Tuple]:
-    """Best-effort recompute for HGL and Q-HGL via GNNService."""
+    """Best-effort recompute for HGT and HGT-QoS via GNNService."""
     if cached_data is None:
         cached_data = _load_scenario_data(scenario)
     nx_graph, structural_dict, simulation_dict, rm_dict, _ = cached_data

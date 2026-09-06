@@ -12,13 +12,13 @@ when computing Spearman ρ between the topology-derived Q(v) predictor and
 observed impact.
 
 This is the SOLE engine that produces the I*(v) ground truth reported in
-docs/research/jss/draft.md Section 7.5 (the HGL/HGL-QoS/GL/GL-QoS/
-Topo-BL/Topo-QoS evaluation). Do not confuse this with the differently-named
+docs/research/jss/draft.md Section 7.5 (the HGT/HGT-QoS/GAT/GAT-QoS/
+Topo/Topo-QoS evaluation). Do not confuse this with the differently-named
 "impact"/"I(v)" quantities elsewhere in this package -- e.g.
 saag.simulation.models.ImpactMetrics.composite_impact and its IR(v)/IM(v)/
 IA(v)/IS(v) properties (AHP-weighted RM metrics from FailureSimulator, used
 for an unrelated quality-attribution framework) -- which are different
-formulas over different targets and are never used as HGL/GL ground truth.
+formulas over different targets and are never used as HGT/GAT ground truth.
 
 ALGORITHM
 ─────────

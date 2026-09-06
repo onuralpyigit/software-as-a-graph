@@ -269,7 +269,7 @@ class HomogeneousGAT_ScalarWeighted(_HomoGATBase):
     Ablation: captures the bulk QoS signal (w(e) = 0.3·R + 0.4·D + 0.3·P)
     without per-dimension decomposition.  Sits between Unweighted and HeteroQoS.
 
-    Paper name: **GL-QoS** (Section 7.2, docs/research/jss/draft.md). Internal
+    Display name: **GAT-QoS** (saag/evaluation/variant_registry.py). Internal
     identifier ``homo_scalar`` kept as-is; see HomogeneousGAT_Unweighted's docstring for why.
     """
 

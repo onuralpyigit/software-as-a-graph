@@ -363,11 +363,11 @@ def reliability_alpha() -> float:
 class ImpactMetrics:
     """Impact metrics from a failure simulation.
 
-    NOT the HGL/GL paper's ground truth. ``composite_impact`` below and the IR(v)/IM(v)/IA(v)/
+    NOT the HGT/GAT paper's ground truth. ``composite_impact`` below and the IR(v)/IM(v)/IA(v)/
     IS(v) properties are AHP-weighted RM-dimension metrics produced by ``FailureSimulator``,
     used for the separate multi-dimensional quality-attribution framework (Q(v) validation).
     They are unrelated to, and must not be conflated with, the paper's I*(v) cascade-impact
-    ground truth used to evaluate HGL/HGL-QoS/GL/GL-QoS/Topo-BL/Topo-QoS: that I*(v) is produced
+    ground truth used to evaluate HGT/HGT-QoS/GAT/GAT-QoS/Topo/Topo-QoS: that I*(v) is produced
     solely by ``saag.simulation.fault_injector.FaultInjector`` (rate-weighted feed-loss fractions
     times topic QoS factors) and reported as ``FaultInjectionRecord.impact_score``. The two
     engines compute genuinely different quantities from genuinely different formulas; see

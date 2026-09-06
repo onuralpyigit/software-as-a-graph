@@ -33,6 +33,8 @@ from typing import Any, Dict, List, Optional, Tuple
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from saag.evaluation import variant_registry as _registry
+
 # ── Display config ─────────────────────────────────────────────────────────────
 
 _SCENARIO_LABELS = {
@@ -46,40 +48,37 @@ _SCENARIO_LABELS = {
     "enterprise_system":      "Enterprise",
 }
 
-_VARIANT_LABELS = {
-    "topo_baseline":     r"\textsc{Topo-BL}",
-    "topo_qos":          r"\textsc{Topo-QoS}",
-    "topology_rm":       r"\textsc{RM} / $Q(v)$",
-    "gl":                r"\textsc{GL}",
-    "gl_qos":            r"\textsc{GL-QoS}",
-    "hgl":               r"\textsc{HGL}",
-    "hgl_qos":           r"\textbf{HGL-QoS}",
-}
-_VARIANT_LABELS_PLAIN = {
-    "topo_baseline":     "Topo-BL",
-    "topo_qos":          "Topo-QoS",
-    "topology_rm":       "RM / Q(v)",
-    "gl":                "GL",
-    "gl_qos":            "GL-QoS",
-    "hgl":               "HGL",
-    "hgl_qos":           "HGL-QoS",
-}
-_VARIANT_ORDER = [
-    "topo_baseline", "topo_qos",
-    "gl", "gl_qos",
-    "hgl", "hgl_qos",
-]
+# Display labels and family-grouped ordering come from the registry, so this
+# renderer, the figure scripts and the LOSO/k-fold harnesses cannot print two
+# different names for one variant. See saag/evaluation/variant_registry.py.
+#
+# Two label sets, because gl/gl_qos do not denote one substrate: this file's
+# main table is in-distribution (projection), while the LOSO tables below report
+# the same ids run on the native graph (GAT-N / GAT-N-QoS).
+_IN_DIST_VARIANTS = _registry.order(
+    include=["topo_baseline", "topo_qos", "gl", "gl_qos", "hgl", "hgl_qos"]
+)
+
+_VARIANT_LABELS = {v: _registry.label(v, latex=True) for v in _IN_DIST_VARIANTS}
+_VARIANT_LABELS_PLAIN = {v: _registry.label(v) for v in _IN_DIST_VARIANTS}
+_VARIANT_ORDER = list(_IN_DIST_VARIANTS)
 # Table 3 has no `topology_rm` cells (it is only computed by the LOSO/k-fold
 # harnesses), so it stays out of _VARIANT_ORDER — adding it there would render
 # an empty column. LOSO's comparison_table does carry it (see
 # reproduce/loso_all_variants.py's ALL_VARIANTS), and previously it was
 # silently dropped by every LOSO renderer because they all iterated
 # _VARIANT_ORDER instead.
-_LOSO_VARIANT_ORDER = [
-    "topo_baseline", "topo_qos", "topology_rm",
-    "gl", "gl_qos",
-    "hgl", "hgl_qos",
-]
+_LOSO_VARIANT_ORDER = _registry.order(
+    include=["topo_baseline", "topo_qos", "topology_rm", "gl", "gl_qos", "hgl", "hgl_qos"]
+)
+# LOSO and k-fold both run gl/gl_qos on the native graph, so both report them as
+# GAT-N / GAT-N-QoS. One map serves the renderers of either harness.
+_NATIVE_VARIANT_LABELS = {
+    v: _registry.label(v, harness="loso", latex=True) for v in _LOSO_VARIANT_ORDER
+}
+_NATIVE_VARIANT_LABELS_PLAIN = {
+    v: _registry.label(v, harness="loso") for v in _LOSO_VARIANT_ORDER
+}
 
 _RESULTS_DIR = Path("results")
 
@@ -174,7 +173,7 @@ def render_table3_tex(data: Dict, output: Path):
         r"\begin{table}[t]",
         r"\centering",
         rf"\caption{{Spearman $\rho$ (composite score) across 8 scenarios $\times$ {n_vars} variants,",
-        r"         5 seeds, Bootstrap 95\% CI. $^{*}p<0.05$, $^{**}p<0.01$, $^{***}p<0.001$ vs Q-HGL (Wilcoxon).}",
+        r"         5 seeds, Bootstrap 95\% CI. $^{*}p<0.05$, $^{**}p<0.01$, $^{***}p<0.001$ vs HGT-QoS (Wilcoxon).}",
         r"\label{tab:main_results}",
         rf"\begin{{tabular}}{{{col_spec}}}",
         r"\toprule",
@@ -570,7 +569,7 @@ def render_table4_tex(loso_data: Dict, output: Path):
         r"\label{tab:loso_results}",
         r"\begin{tabular}{lcccc}",
         r"\toprule",
-        r"Variant & Mean $\rho$ & Std $\rho$ & Mean F1@K & $\Delta\rho$ vs BL \\",
+        r"Variant & Mean $\rho$ & Std $\rho$ & Mean F1@K & $\Delta\rho$ vs best baseline \\",
         r"\midrule",
     ]
 
@@ -578,7 +577,7 @@ def render_table4_tex(loso_data: Dict, output: Path):
         if var not in table:
             continue
         r = table[var]
-        label = _VARIANT_LABELS.get(var, var)
+        label = _NATIVE_VARIANT_LABELS.get(var, var)
         mean_r = r.get("mean_rho")
         std_r  = r.get("std_rho")
         f1     = r.get("mean_f1")
@@ -611,14 +610,14 @@ def render_table4_md(loso_data: Dict, output: Path):
         default=None,
     )
     rows = [
-        "| Variant | Mean ρ | Std ρ | F1@K | Δρ vs BL |",
+        "| Variant | Mean ρ | Std ρ | F1@K | Δρ vs best baseline |",
         "|---|---|---|---|---|",
     ]
     for var in _LOSO_VARIANT_ORDER:
         if var not in table:
             continue
         r = table[var]
-        label = _VARIANT_LABELS_PLAIN.get(var, var)
+        label = _NATIVE_VARIANT_LABELS_PLAIN.get(var, var)
         mean_r = r.get("mean_rho")
         std_r  = r.get("std_rho")
         f1     = r.get("mean_f1")
@@ -655,7 +654,7 @@ def render_table4kfold_tex(kfold_data: Dict, output: Path):
         r"\label{tab:kfold_results}",
         r"\begin{tabular}{lcccc}",
         r"\toprule",
-        r"Variant & Mean $\rho$ & Std $\rho$ & Mean F1@K & $\Delta\rho$ vs BL \\",
+        r"Variant & Mean $\rho$ & Std $\rho$ & Mean F1@K & $\Delta\rho$ vs best baseline \\",
         r"\midrule",
     ]
 
@@ -663,7 +662,7 @@ def render_table4kfold_tex(kfold_data: Dict, output: Path):
         if var not in table:
             continue
         r = table[var]
-        label = _VARIANT_LABELS.get(var, var)
+        label = _NATIVE_VARIANT_LABELS.get(var, var)
         mean_r = r.get("mean_rho")
         std_r  = r.get("std_rho")
         f1     = r.get("mean_f1")
@@ -691,14 +690,14 @@ def render_table4kfold_tex(kfold_data: Dict, output: Path):
 def render_table4kfold_md(kfold_data: Dict, output: Path):
     table = kfold_data.get("comparison_table", {})
     rows = [
-        "| Variant | Mean ρ | Std ρ | F1@K | Δρ vs BL |",
+        "| Variant | Mean ρ | Std ρ | F1@K | Δρ vs best baseline |",
         "|---|---|---|---|---|",
     ]
     for var in _VARIANT_ORDER:
         if var not in table:
             continue
         r = table[var]
-        label = _VARIANT_LABELS_PLAIN.get(var, var)
+        label = _NATIVE_VARIANT_LABELS_PLAIN.get(var, var)
         mean_r = r.get("mean_rho")
         std_r  = r.get("std_rho")
         f1     = r.get("mean_f1")
@@ -798,13 +797,13 @@ def main():
                 render_table4_md(loso_data, out / "table4_loso_results.md")
         table = loso_data.get("comparison_table", {})
         print("\n  Table 4: LOSO Results")
-        print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'Δρ vs BL'}")
+        print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'Δρ vs best baseline'}")
         print("  " + "─" * 55)
         for var in _LOSO_VARIANT_ORDER:
             if var not in table:
                 continue
             r = table[var]
-            label = _VARIANT_LABELS_PLAIN.get(var, var)
+            label = _NATIVE_VARIANT_LABELS_PLAIN.get(var, var)
             mean_r = r.get("mean_rho")
             std_r  = r.get("std_rho")
             delta  = r.get("delta_vs_best_baseline")
@@ -827,13 +826,13 @@ def main():
                 render_table4kfold_md(kfold_data, out / "table4_kfold_results.md")
         table = kfold_data.get("comparison_table", {})
         print("\n  Per-Domain K-Fold Results")
-        print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'Δρ vs BL'}")
+        print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'Δρ vs best baseline'}")
         print("  " + "─" * 55)
         for var in _VARIANT_ORDER:
             if var not in table:
                 continue
             r = table[var]
-            label = _VARIANT_LABELS_PLAIN.get(var, var)
+            label = _NATIVE_VARIANT_LABELS_PLAIN.get(var, var)
             mean_r = r.get("mean_rho")
             std_r  = r.get("std_rho")
             delta  = r.get("delta_vs_best_baseline")

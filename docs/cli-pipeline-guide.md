@@ -181,7 +181,7 @@ PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_c
 
 ### Arguments
 
-**Pathway B (Predictive / HGL) GNN Inference:**
+**Pathway B (Predictive / HGT) GNN Inference:**
 
 | Flag | Description |
 |------|-------------|

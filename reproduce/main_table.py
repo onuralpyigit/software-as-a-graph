@@ -10,11 +10,17 @@ Orchestrates the 7×6×5 evaluation matrix behind Table 3 of the paper
   matching the paper's "210 evaluation cells: 140 trained GNN models and 70
   structural-baseline computations" exactly (see ALL_SCENARIOS / ALL_VARIANTS below).
 
-  Factorial design (2×3: architecture × qos), paper names (draft.md Section 7.2) with
-  this file's ALL_VARIANTS identifiers in parentheses:
-    Structural BL : Topo-BL (topo_baseline) | Topo-QoS (topo_qos)
-    Homogeneous   : GL      (gl)            | GL-QoS   (gl_qos)
-    Heterogeneous : HGL     (hgl)           | HGL-QoS  (hgl_qos)
+  Factorial design (2×3: architecture × qos), display names (see
+  saag/evaluation/variant_registry.py) with this file's ALL_VARIANTS identifiers
+  in parentheses:
+    Structural baselines : Topo (topo_baseline) | Topo-QoS (topo_qos)
+    Homogeneous (GAT)    : GAT  (gl)            | GAT-QoS  (gl_qos)
+    Heterogeneous (HGT)  : HGT  (hgl)           | HGT-QoS  (hgl_qos)
+
+  Note the substrate: this harness runs gl/gl_qos on the DEPENDS_ON projection,
+  so they are reported as GAT/GAT-QoS. cli/loso_evaluate.py and
+  cli/kfold_evaluate.py run the same two ids on the native graph, where the
+  registry reports them as GAT-N/GAT-N-QoS.
 
 For each cell, emits:
   - Spearman ρ (composite), per-node-type ρ, F1, RMSE, NDCG@10
@@ -54,7 +60,7 @@ logger = logging.getLogger(__name__)
 
 # ── Capability detection ─────────────────────────────────────────────────────
 # GNNService.train() may accept a native `qos_enabled` flag (Change-1 from
-# the QoS-ablation work in reproduce/run_experiment.py).  When available, HGL
+# the QoS-ablation work in reproduce/run_experiment.py).  When available, HGT
 # masks edge_attr QoS dimensions inside HeteroData; when not, we mask the
 # upstream graph + structural metrics before calling train().
 try:
@@ -80,27 +86,27 @@ ALL_SCENARIOS = [
 ]
 
 ALL_VARIANTS = [
-    "topo_baseline",        # Topo-BL: structural baseline (unweighted projection)
+    "topo_baseline",        # Topo: structural baseline (unweighted projection)
     "topo_qos",             # Topo-QoS: structural baseline (QoS-weighted projection)
-    "gl",                   # GL: Homogeneous GAT (unweighted projection)
-    "gl_qos",               # GL-QoS: Homogeneous GAT (QoS-weighted projection)
-    "hgl",                  # HGL: Heterogeneous Graph Transformer (unweighted native)
-    "hgl_qos",              # HGL-QoS: Heterogeneous Graph Transformer (QoS-embedded native)
+    "gl",                   # GAT: Homogeneous GAT (unweighted projection)
+    "gl_qos",               # GAT-QoS: Homogeneous GAT (QoS-weighted projection)
+    "hgl",                  # HGT: Heterogeneous Graph Transformer (unweighted native)
+    "hgl_qos",              # HGT-QoS: Heterogeneous Graph Transformer (QoS-embedded native)
 ]
 
 #: RQ2 substrate-confound control (§7.2/§6.2.substrate): the same homogeneous
-#: GAT architecture as GL/GL-QoS (build_baseline("homo_unweighted"/"homo_scalar")),
-#: but fed the native multigraph (substrate="native", same graph HGL/HGL-QoS see)
+#: GAT architecture as GAT/GAT-QoS (build_baseline("homo_unweighted"/"homo_scalar")),
+#: but fed the native multigraph (substrate="native", same graph HGT/HGT-QoS see)
 #: instead of the Application-Library DEPENDS_ON projection. Node type reaches
 #: this model only through its per-type input embedding (input_proj), never
 #: through relation-specific message-passing weights — HGTConv's per-relation
-#: parameters are what GL_FULL still lacks relative to HGL. Isolates "visibility
+#: parameters are what GAT-N still lacks relative to HGT. Isolates "visibility
 #: into the full multigraph" from "typed message passing" for the in-distribution
 #: table. Not part of ALL_VARIANTS: this is a standalone control, not a seventh
 #: column in the canonical 210-cell (7x6x5) matrix.
 CONTROL_VARIANTS = [
-    "gl_full",              # GL-Full: Homogeneous GAT (unweighted, native substrate)
-    "gl_full_qos",          # GL-Full-QoS: Homogeneous GAT (QoS-weighted, native substrate)
+    "gl_full",              # GAT-N: Homogeneous GAT (unweighted, native substrate)
+    "gl_full_qos",          # GAT-N-QoS: Homogeneous GAT (QoS-weighted, native substrate)
 ]
 
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
@@ -237,7 +243,7 @@ def _derive_depends_on_edges(topology: Dict) -> List[Dict]:
     # topologies emit publishes_to/subscribes_to as bare {from, to}. Reading
     # r["qos_profile"] therefore never matched, every derived edge kept weight 1.0,
     # and _qos_weighted_betweenness fell back to unweighted betweenness on every
-    # scenario, silently making Topo-QoS identical to Topo-BL. Resolve w(t) from the
+    # scenario, silently making Topo-QoS identical to Topo. Resolve w(t) from the
     # shared Topic with the same helper the rest of the codebase uses
     # (saag.evaluation.metrics._topic_qos_weights).
     from saag.core.models import topic_weight_from_node_attrs
@@ -731,7 +737,7 @@ def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[A
                 if src in allowed and dst in allowed:
                     dep_graph.add_edge(src, dst, weight=float(e.get("weight", 1.0)),
                                        # Carried separately from `weight` so the
-                                       # unweighted Topo-BL arm stays unweighted.
+                                       # unweighted Topo arm stays unweighted.
                                        qos_weight=float(e.get("qos_weight", 1.0)),
                                        type="DEPENDS_ON",
                                        dependency_type=e.get("type", "app_to_app"),
@@ -912,7 +918,7 @@ def _parse_quality_scores(raw: Dict) -> Dict:
     return {str(k): v for k, v in raw.items() if isinstance(v, dict)}
 
 
-# ── QoS masking helpers (HGL and Q-Topo-BL) ──────────────────────────────────
+# ── QoS masking helpers (HGT and Topo-QoS) ───────────────────────────────────
 
 # Structural-metric keys whose values are derived from QoS edge weights.
 # Matches docs/prediction.md feature indices 10-12 plus the QSPOF amplifier
@@ -922,7 +928,7 @@ _QOS_STRUCTURAL_KEYS = ("w", "w_in", "w_out", "qspof", "qos_aggregate",
                          "qos_weight", "qos_weight_in", "qos_weight_out")
 
 # Edge-attribute keys carrying the 7-dimensional QoS profile that networkx_to_hetero_data
-# reads into edge_attr.  These must be zeroed for the HGL variant so that the masking
+# reads into edge_attr.  These must be zeroed for the HGT variant so that the masking
 # is complete at both the node-structural and edge-attribute levels (§3.D).
 _QOS_EDGE_PROFILE_KEYS = (
     "reliability", "durability", "priority",
@@ -934,7 +940,7 @@ _QOS_EDGE_PROFILE_KEYS = (
 def _mask_qos_in_structural(structural_dict: Dict) -> Dict:
     """Return a copy of structural_dict with QoS-derived keys zeroed.
 
-    Used by the HGL variant.  Mirrors mask_qos_in_structural_metrics in
+    Used by the HGT variant.  Mirrors mask_qos_in_structural_metrics in
     reproduce/run_experiment.py but operates on the post-_parse_structural_metrics
     in-memory dict the harness already holds.
     """
@@ -960,7 +966,7 @@ _mask_qos_in_structural_metrics = _mask_qos_in_structural
 def _mask_qos_in_graph(nx_graph):
     """Return a copy of nx_graph with all QoS signals replaced by neutral values.
 
-    Zeroes / uniformises three tiers of QoS information so that the HGL
+    Zeroes / uniformises three tiers of QoS information so that the HGT
     variant is truly QoS-masked at the edge-attribute level (§3.D):
 
     1. Scalar structural weights (``weight``, ``qos_weight``) → 1.0
@@ -991,7 +997,7 @@ def _mask_qos_in_graph(nx_graph):
     return masked
 
 
-# ── Q-Topo-BL: QoS-weighted betweenness ──────────────────────────────────────
+# ── Topo-QoS: QoS-weighted betweenness ───────────────────────────────────────
 
 def _qos_weighted_betweenness(nx_graph) -> Dict[str, float]:
     """Compute betweenness with QoS-weighted edges.
@@ -1026,7 +1032,7 @@ def _compute_topo_baseline_scores(
 ) -> Optional[Dict[str, float]]:
     """Return {node_id: 0.6*BT + 0.4*AP} prediction dict.
 
-    When use_qos=True, betweenness is QoS-weighted (Q-Topo-BL).
+    When use_qos=True, betweenness is QoS-weighted (Topo-QoS).
     Returns None when neither structural_dict nor the graph yields a usable
     signal — caller emits an 'insufficient_signal' cell.
     """
@@ -1040,8 +1046,8 @@ def _compute_topo_baseline_scores(
         bt = _qos_weighted_betweenness(nx_graph)
         if not bt:
             logger.warning(
-                "Q-Topo-BL: no QoS weights on graph; falling back to "
-                "topology betweenness (Q-Topo-BL equivalent to Topo-BL for this cell)."
+                "Topo-QoS: no QoS weights on graph; falling back to "
+                "topology betweenness (Topo-QoS equivalent to Topo for this cell)."
             )
             bt = {str(n): float(v) for n, v
                   in _nx.betweenness_centrality(nx_graph).items()}
@@ -1433,7 +1439,7 @@ def _train_cell(
         # Pinned split: identical train/test nodes for every variant in this cell.
         apply_external_splits(data, conv, splits)
         # NOTE: intentionally pinned to 1e-3 (not args.lr) — this value produced the
-        # currently-published Table 3/4 numbers for the gl/gl_qos baselines. Do not
+        # currently-published Table 3/4 numbers for the GAT/GAT-QoS baselines. Do not
         # make this configurable without a documented rerun of those tables.
         effective_lr = 1e-3
         effective_patience = max(patience, 60)
@@ -1457,8 +1463,8 @@ def _train_cell(
         )
 
     elif variant in ("hgl", "hgl_qos"):
-        # hgl: HGT with QoS dimensions masked (unweighted native).
-        # hgl_qos: full QoS-aware HGT (QoS native).
+        # hgl (HGT): HGT with QoS dimensions masked (unweighted native).
+        # hgl_qos (HGT-QoS): full QoS-aware HGT (QoS native).
         from saag.prediction.gnn_service import GNNService
 
         use_qos = (variant == "hgl_qos")
@@ -1489,7 +1495,7 @@ def _train_cell(
             val_ratio=val_ratio,
             num_epochs=num_epochs,
             # NOTE: intentionally pinned to 1e-3 — this value produced the currently-
-            # published Table 3/4 numbers for hgl/hgl_qos. Do not make this configurable
+            # published Table 3/4 numbers for HGT/HGT-QoS. Do not make this configurable
             # without a documented rerun of those tables.
             lr=1e-3,
             patience=patience,

@@ -254,10 +254,10 @@ Figures below are re-run under the RM model (`make -f reproduce/Makefile table3`
 | Metric | Target | Achieved (best single run) |
 |:---|:---:|:---:|
 | Composite Spearman $\rho(Q^*, I^*)$ | $\ge 0.85$ | **0.928** (av_system, Topo-QoS) |
-| Composite $\rho$ at large scale (300 apps, enterprise_system) | — | **0.920** (HGL) |
-| Composite F1 | $\ge 0.90$ | **1.00** (multiple HGL runs) |
+| Composite $\rho$ at large scale (300 apps, enterprise_system) | — | **0.920** (HGT) |
+| Composite F1 | $\ge 0.90$ | **1.00** (multiple HGT runs) |
 | Predictive gain vs. degree baseline | $> 0.03$ | measured per run, see LOSO/table3 reports |
-| Best variant | — | HGL-QoS (mean ρ = 0.652 LOSO, 0.631 table3) — heterogeneous + QoS-aware beats topology-only baselines throughout |
+| Best variant | — | HGT-QoS (mean ρ = 0.652 LOSO, 0.631 table3) — heterogeneous + QoS-aware beats topology-only baselines throughout |
 | Scale effect | — | Accuracy improves with system size (Enterprise, 300 apps, outperforms smaller scenarios on mean ρ) |
 
 ---
@@ -362,7 +362,7 @@ if result.prescription:
 | [ValidationResult](saag/models.py#L421) | `saag.ValidationResult` | Stage 6 — per-layer correlations and gate outcomes |
 | [PrescribeResult](saag/prescription/models.py#L212) | `saag.prescription.PrescribeResult` | Stage 7 — accepted policy, per-edit verdicts and SRI delta |
 | [DiagnosticUseCase](saag/usecases/diagnostic.py#L22) | `saag.usecases.DiagnosticUseCase` | Pathway A application interactor (ISO-RM quality attribution) |
-| [PredictiveUseCase](saag/usecases/predictive.py#L17) | `saag.usecases.PredictiveUseCase` | Pathway B application interactor (HGL blast-radius forecasting) |
+| [PredictiveUseCase](saag/usecases/predictive.py#L17) | `saag.usecases.PredictiveUseCase` | Pathway B application interactor (HGT blast-radius forecasting) |
 | [TriageUseCase](saag/usecases/triage.py#L12) | `saag.usecases.TriageUseCase` | Triage Bridge application interactor (scoping diagnosis to Top-K) |
 
 More runnable examples — including a round-trip persistence check and per-stage ATM walkthroughs — are in [`examples/`](examples/).
