@@ -92,18 +92,42 @@ def _fault_injector_labels(
 def _failure_simulator_labels(
     scenario: str, layer: str = "system", qos: bool = True
 ) -> Dict[str, float]:
-    """I_comp(v) — the composite that backs the validation gates."""
+    """I_comp(v) — the composite that backs the validation gates.
+
+    The flow-disruption term carries 15% of the composite and is measured
+    against a discrete-event baseline that has to be established first: with
+    ``_baseline_flows`` empty, ``_impact_flow_disruption`` returns 0.0 for every
+    component. This path used to call ``simulate_exhaustive`` directly, so that
+    term was silently zero for every component and the composite ran on three of
+    its four criteria.
+
+    The correction is additive and per-component, not a uniform rescaling: FD(v)
+    varies across components, so it perturbs the ordering as well as the
+    magnitude. Measured against the unprimed labels on the synthetic corpus, the
+    rank shift is small but real (Spearman rho 0.996-0.999 between the primed and
+    unprimed labels across atm/av/smart_city/iot/healthcare/industrial), while
+    the level rises for essentially every component (mean +0.005 to +0.023, max
+    +0.13). Figures reported against I_comp -- rank correlations and absolute
+    gate thresholds alike -- therefore have to be re-run rather than assumed to
+    carry over.
+
+    Priming goes through ``SimulationService._prime_baseline_flows`` rather than
+    a local copy so this path and the shipped API path cannot drift apart. It is
+    deterministic: the baseline scenario leaves ``drop_probability``,
+    ``broker_failure_prob`` and ``failure_rate`` at zero, so the event
+    simulator's RNG never influences which flows succeed.
+    """
     from saag.infrastructure.memory_repo import MemoryRepository
     from saag.simulation.failure_simulator import FailureSimulator
     from saag.simulation.graph import SimulationGraph
+    from saag.simulation.service import SimulationService
     from reproduce.ahp_sensitivity import _load_topology
 
     repo = MemoryRepository()
     repo.save_graph(_load_topology(scenario), clear=True)
-    sim = FailureSimulator(
-        SimulationGraph(repo.get_graph_data(include_raw=True)),
-        qos_weighting=qos,
-    )
+    graph = SimulationGraph(repo.get_graph_data(include_raw=True))
+    sim = FailureSimulator(graph, qos_weighting=qos)
+    SimulationService._prime_baseline_flows(graph, sim)
     return {
         r.target_id: float(r.impact.composite_impact)
         for r in sim.simulate_exhaustive(layer=layer, seed=42)

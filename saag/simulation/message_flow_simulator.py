@@ -60,6 +60,8 @@ import networkx as nx
 
 from ._stats import percentile
 
+from saag.core.models import QoSPolicy
+
 from .simulation_results import (
     FaultEventRecord,
     MessageFlowResult,
@@ -98,12 +100,35 @@ class QoSProfile:
 
 
 def _extract_qos(data: Dict[str, Any], default_queue: int = 100) -> QoSProfile:
-    qos_raw = data.get("qos_profile") or data.get("qos_policy") or {}
+    """Resolve a QoSProfile from Topic-node attributes or relationship metadata.
+
+    Topic QoS reaches this engine in three shapes and none of them is wrong:
+    ``qos_profile`` (written onto relationships by the repositories),
+    ``qos_policy``, and a nested ``qos`` sub-dict — which is how raw topology
+    JSON and the ``cli`` research loaders shape it, and which this function did
+    not read.  Every generated scenario therefore resolved to the fallbacks
+    below, so reliability and durability were never enforced on the research
+    path.  ``QoSPolicy.from_node_attrs`` is the canonical resolver for the node
+    shapes; it also accepts the flat ``qos_reliability`` / ``qos_durability``
+    keys and canonicalises mixed-case values (the corpus mixes ``reliable`` and
+    ``RELIABLE``).  See tests/test_qos_resolution.py.
+
+    Its *defaults* are deliberately not adopted: ``QoSPolicy`` falls back to
+    BEST_EFFORT/VOLATILE, whereas an undeclared queue has always behaved as
+    RELIABLE here.  Changing that is a semantic decision about queue overflow
+    policy, separate from reading the key, so the engine's own fallbacks stand.
+    """
+    qos_raw = data.get("qos_profile") or data.get("qos_policy") or data.get("qos") or {}
     if not isinstance(qos_raw, dict):
         qos_raw = {}
+
+    declared = QoSPolicy.from_node_attrs({**data, "qos": qos_raw})
+    has_reliability = bool(data.get("qos_reliability") or qos_raw.get("reliability"))
+    has_durability = bool(data.get("qos_durability") or qos_raw.get("durability"))
+
     return QoSProfile(
-        reliability=str(qos_raw.get("reliability", "RELIABLE")).upper(),
-        durability=str(qos_raw.get("durability", "VOLATILE")).upper(),
+        reliability=declared.reliability if has_reliability else "RELIABLE",
+        durability=declared.durability if has_durability else "VOLATILE",
         deadline_ms=qos_raw.get("deadline_ms") or qos_raw.get("deadline"),
         lifespan_ms=qos_raw.get("lifespan_ms"),
         queue_size=int(qos_raw.get("queue_size", default_queue)),

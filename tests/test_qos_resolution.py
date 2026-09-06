@@ -16,6 +16,10 @@ simulation, each of which passed every pre-existing test:
    pub/sub edge carried ``qos_profile={}`` and ``weight=1.0``.
 4. Consequently ``FaultInjector``'s I*(v) was numerically independent of QoS on
    the research path — the property test at the bottom of this file.
+5. ``MessageFlowSimulator._extract_qos`` read only ``qos_profile`` /
+   ``qos_policy``, never the nested ``qos`` sub-dict the corpus writes, so the
+   discrete-event oracle behind I_dyn resolved every topic to RELIABLE/VOLATILE
+   and its BEST_EFFORT drop path was structurally unreachable.
 """
 
 from __future__ import annotations
@@ -202,3 +206,53 @@ def test_unknown_qos_factor_mode_is_rejected():
     empty = nx.DiGraph()
     with pytest.raises(ValueError, match="qos_factor_mode"):
         FaultInjector(empty, qos_factor_mode="bogus")
+
+
+# ── 5. The discrete-event engine reads the same shapes ────────────────────────
+
+def test_message_flow_qos_resolves_every_attribute_shape():
+    """The nested ``qos`` shape is what the corpus writes and what was missed."""
+    from saag.simulation.message_flow_simulator import _extract_qos
+
+    nested = _extract_qos({"qos": dict(MIN_QOS)})
+    profile = _extract_qos({"qos_profile": dict(MIN_QOS)})
+    flat = _extract_qos({"qos_reliability": "BEST_EFFORT", "qos_durability": "VOLATILE"})
+
+    assert nested.reliability == profile.reliability == flat.reliability == "BEST_EFFORT"
+    assert nested.durability == profile.durability == flat.durability == "VOLATILE"
+
+
+def test_message_flow_qos_canonicalises_mixed_case():
+    """The corpus states both ``reliable`` and ``RELIABLE``; the queue policy
+    lookup is upper-case only, so the lower-case arm silently read as RELIABLE."""
+    from saag.simulation.message_flow_simulator import _extract_qos
+
+    assert _extract_qos({"qos": {"reliability": "best_effort"}}).reliability == "BEST_EFFORT"
+
+
+def test_message_flow_qos_keeps_engine_fallbacks_when_undeclared():
+    """QoSPolicy defaults to BEST_EFFORT; an undeclared queue here stays RELIABLE.
+
+    Overflow policy is the behavioural difference (head-drop vs. drop-newest),
+    so adopting the resolver's defaults would have been a semantics change
+    smuggled in with the key fix.
+    """
+    from saag.simulation.message_flow_simulator import _extract_qos
+
+    for undeclared in ({}, {"qos_profile": {}}, {"qos": "not-a-dict"}):
+        qos = _extract_qos(undeclared)
+        assert (qos.reliability, qos.durability) == ("RELIABLE", "VOLATILE")
+
+
+@pytest.mark.skipif(not ATM.exists(), reason="ATM scenario not present")
+def test_message_flow_topic_reliability_is_not_constant():
+    """The defect was constancy: every topic in every scenario read RELIABLE."""
+    from cli.loso_evaluate import _build_graph_from_json
+    from saag.simulation.message_flow_simulator import _extract_qos
+
+    graph = _build_graph_from_json(json.loads(ATM.read_text()))
+    resolved = {
+        _extract_qos(d).reliability
+        for _, d in graph.nodes(data=True) if d.get("type") == "Topic"
+    }
+    assert resolved == {"RELIABLE", "BEST_EFFORT"}
