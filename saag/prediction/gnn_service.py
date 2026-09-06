@@ -315,6 +315,10 @@ class GNNService:
         self._best_seed = 42
         self.layer = "unknown"
         self._conversion_result: Optional[GraphConversionResult] = None
+        #: Feature transform this service was trained under. `predict` reads it
+        #: so inference cannot silently build features on a different scale
+        #: from the ones the weights were fitted to.
+        self._rank_normalize_features = False
 
         logger.info(
             "GNNService initialised | device=%s | hidden=%d | heads=%d | layers=%d",
@@ -403,6 +407,7 @@ class GNNService:
         lr: float = 3e-4,
         patience: int = 30,
         inductive_graphs: Optional[List['HeteroData']] = None,
+        val_graph: Optional['HeteroData'] = None,
         seeds: Optional[List[int]] = None,
         mode: str = "gnn",
         layer: str = "app",
@@ -444,6 +449,13 @@ class GNNService:
         inductive_graphs:
             Optional list of additional HeteroData graphs for
             inductive multi-graph training (e.g., all 8 domain scenarios).
+        val_graph:
+            Optional HeteroData graph that takes no part in training and
+            drives validation, early stopping and checkpoint selection
+            instead of the primary graph's own val_mask. The caller owns its
+            masks and is responsible for keeping it out of
+            ``inductive_graphs``. ``None`` (default) preserves the existing
+            behaviour exactly.
         rank_normalize_features:
             Apply within-graph rank normalization to node features (see
             `_rank_normalize_base_columns`). Off by default; the
@@ -461,6 +473,7 @@ class GNNService:
             rm_scores = extract_rm_scores_dict(rm_scores)
 
         # Convert to HeteroData
+        self._rank_normalize_features = rank_normalize_features
         conv = networkx_to_hetero_data(
             graph, structural_metrics, simulation_results, rm_scores, qos_enabled=qos_enabled,
             rank_normalize_features=rank_normalize_features,
@@ -498,6 +511,12 @@ class GNNService:
         if inductive_graphs:
             for ig in inductive_graphs:
                 normalize_labels_robust(ig, rank_normalize=rank_normalize_labels)
+        # The validation graph never enters the loss, but the selection metric
+        # is computed against its labels, so it needs the same scale as the
+        # training graphs or early stopping compares predictions on one scale
+        # to targets on another.
+        if val_graph is not None:
+            normalize_labels_robust(val_graph, rank_normalize=rank_normalize_labels)
 
         # Handle multi-seed training (Issue G6)
         training_seeds = seeds if seeds else [42]
@@ -539,7 +558,9 @@ class GNNService:
                 dimension_mask=conv.dimension_mask,
             )
             _, best_val_metrics = trainer.train(
-                training_input, primary_data=data if inductive_graphs else None
+                training_input,
+                primary_data=data if inductive_graphs else None,
+                val_data=val_graph,
             )
 
             # Track global best across seeds
@@ -575,6 +596,7 @@ class GNNService:
         mode: str = "gnn",
         qos_enabled: bool = True,
         domain: Optional[str] = None,
+        rank_normalize_features: Optional[bool] = None,
     ) -> GNNAnalysisResult:
         """Run inference on a graph without training.
 
@@ -599,6 +621,11 @@ class GNNService:
             learned one — see ``GNNCriticalityScore.domain_composite_score``.
             Requires ``rm_scores`` to also be passed, since the composite's
             maintainability term is M_static, not the GNN's own head.
+        rank_normalize_features:
+            Feature transform to build inference features with. ``None``
+            (default) reuses whatever :meth:`train` was given, which is what
+            callers want: features built on a different scale from the ones
+            the weights were fitted to are silently wrong, not noisily wrong.
         """
         if self._node_model is None:
             raise RuntimeError(
@@ -612,7 +639,13 @@ class GNNService:
         if rm_scores is not None and not isinstance(rm_scores, dict):
             rm_scores = extract_rm_scores_dict(rm_scores)
 
-        conv = networkx_to_hetero_data(graph, structural_metrics, eval_labels, rm_scores, qos_enabled=qos_enabled)
+        conv = networkx_to_hetero_data(
+            graph, structural_metrics, eval_labels, rm_scores, qos_enabled=qos_enabled,
+            rank_normalize_features=(
+                self._rank_normalize_features
+                if rank_normalize_features is None else rank_normalize_features
+            ),
+        )
         self._conversion_result = conv
         # ── Run prediction ────────────────────────────────────────────────────
         return self.predict_from_data(
@@ -925,6 +958,7 @@ class GNNService:
                     "node_feature_dims": NODE_TYPE_TO_DIM,
                     "best_seed": self._best_seed,
                     "layer": self.layer,
+                    "rank_normalize_features": self._rank_normalize_features,
                     "feature_version": 4,
                     "label_dims": NUM_LABEL_DIMS,
                     "default_mode": "gnn",
@@ -1045,6 +1079,7 @@ class GNNService:
             device=device,
         )
         service._best_seed = cfg.get("best_seed", 42)
+        service._rank_normalize_features = cfg.get("rank_normalize_features", False)
         service.layer = ckpt_layer
 
         if metadata is None:

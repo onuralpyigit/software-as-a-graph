@@ -1,0 +1,242 @@
+# =============================================================================
+# Scenario 19 — Industrial SCADA / OT Floor (Wide Sensor Fan-Out, Thin Core)
+# =============================================================================
+# Domain   : Plant-floor supervisory control. PLC and sensor agents publish
+#            per-tag process values; a thin supervisory layer (HMI, historian,
+#            interlock logic) consumes them.
+# Scale    : 140 apps, 70 topics, 4 brokers, 25 nodes
+# Purpose  : Add a LOSO fold with the corpus's most extreme publisher:consumer
+#            asymmetry and its lowest broker count. Every other scenario gives
+#            the model at least five brokers; this one forces broker
+#            concentration without hub-and-spoke's topic concentration.
+#
+# Topology fingerprint:
+#   • Strict tag ownership — essentially one publisher per topic
+#   • A handful of applications subscribe very broadly (historian, HMI)
+#   • Lowest library reuse in the corpus; vendor-specific driver stacks
+#   • Safety interlocks push a heavy CRITICAL/HIGH priority tail
+#   • Smallest payloads in the corpus (scalar process values)
+#
+# Expected analysis outcomes:
+#   • Criticality concentrates on the four brokers and the historian/HMI pair
+#   • Application betweenness is near-flat — sensors are leaves
+#   • Stresses the QoS-weighted terms: priority carries most of the signal
+#
+# Usage:
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_19_industrial_scada.yaml \
+#          --output output/industrial_scada_system.json
+# =============================================================================
+
+graph:
+  seed: 1902
+  domain: industrial
+  scenario: industrial_scada
+
+  counts:
+    nodes: 25
+    applications: 140
+    libraries: 15
+    topics: 70
+    brokers: 4
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS — Control cabinets, each hosting a cell's agents
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 5.6
+      median: 5.0
+      std: 2.2
+      min: 1
+      max: 11
+      q1: 4.0
+      q3: 7.0
+      iqr: 3.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS — Sensors publish one tag; few consumers read many
+  # ---------------------------------------------------------------------------
+  application_stats:
+    direct_publish_count:
+      mean: 1.1
+      median: 1.0
+      std: 0.6
+      min: 0
+      max: 3
+      q1: 1.0
+      q3: 1.0
+      iqr: 0.0
+
+    # High std, low median: the historian and HMI are the long tail
+    direct_subscribe_count:
+      mean: 1.0
+      median: 1.0
+      std: 1.4
+      min: 0
+      max: 12
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    total_publish_count_including_libraries:
+      mean: 1.3
+      median: 1.0
+      std: 0.7
+      min: 0
+      max: 4
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    total_subscribe_count_including_libraries:
+      mean: 1.4
+      median: 1.0
+      std: 1.8
+      min: 0
+      max: 15
+      q1: 0.0
+      q3: 2.0
+      iqr: 2.0
+
+    app_role_distribution:
+      total_count: 140
+      category_counts:
+        pub: 92       # PLC gateways, sensor agents, drive controllers
+        sub: 30       # HMI panels, historian writers, alarm annunciators
+        pubsub: 18    # Interlock logic, batch sequencers
+      mode: pub
+      mode_count: 92
+      mode_percentage: 65.7
+
+    # ~7.1 % critical — interlocks, historian, and the cell sequencers
+    app_criticality_distribution:
+      total_count: 140
+      category_counts:
+        critical: 10
+        non_critical: 130
+      mode: non_critical
+      mode_count: 130
+      mode_percentage: 92.9
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS — Few libraries, but each is widely linked (fieldbus drivers)
+  # ---------------------------------------------------------------------------
+  library_stats:
+    applications_using_this_library:
+      mean: 6.0
+      median: 5.0
+      std: 4.0
+      min: 1
+      max: 20
+      q1: 3.0
+      q3: 8.0
+      iqr: 5.0
+
+    direct_publish_count:
+      mean: 0.4
+      median: 0.0
+      std: 0.5
+      min: 0
+      max: 2
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    direct_subscribe_count:
+      mean: 0.5
+      median: 0.0
+      std: 0.6
+      min: 0
+      max: 2
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    total_publish_count_including_libraries:
+      mean: 0.7
+      median: 1.0
+      std: 0.6
+      min: 0
+      max: 2
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    total_subscribe_count_including_libraries:
+      mean: 0.8
+      median: 1.0
+      std: 0.7
+      min: 0
+      max: 3
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS — One tag, one owner; narrow but not trivial consumer sets
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    topic_size_bytes:
+      mean: 256.0
+      median: 128.0
+      std: 400.0
+      min: 16
+      max: 4096
+      q1: 64.0
+      q3: 256.0
+      iqr: 192.0
+
+    applications_publishing_to_this_topic:
+      mean: 1.0
+      median: 1.0
+      std: 0.2
+      min: 1
+      max: 2
+      q1: 1.0
+      q3: 1.0
+      iqr: 0.0
+
+    applications_subscribing_to_this_topic:
+      mean: 2.0
+      median: 2.0
+      std: 1.2
+      min: 1
+      max: 6
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — Safety-driven: reliability near-universal, priority heavy
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 70
+      category_counts:
+        volatile: 12        # Fast scan-cycle process values
+        transient_local: 20 # Setpoints, last-known-good state
+        transient: 22       # Batch recipe steps, sequencer state
+        persistent: 16      # Alarm journal, regulatory historian tags
+      mode: transient
+      mode_count: 22
+      mode_percentage: 31.4
+
+    qos_reliability_distribution:
+      total_count: 70
+      category_counts:
+        best_effort: 14     # High-rate vibration and current samples
+        reliable: 56        # Everything the interlocks can act on
+      mode: reliable
+      mode_count: 56
+      mode_percentage: 80.0
+
+    qos_transport_priority_distribution:
+      total_count: 70
+      category_counts:
+        low: 6
+        medium: 18
+        high: 28
+        critical: 18        # Safety interlocks and e-stop paths
+      mode: high
+      mode_count: 28
+      mode_percentage: 40.0

@@ -46,6 +46,13 @@ CORPUS = {
     "scenario_15_atm_medium": ("atm_system_medium", "case_study"),
     "scenario_16_atm_large": ("atm_system_large", "case_study"),
     "scenario_17_atm_xlarge": ("atm_system_xlarge", "case_study"),
+    # Added to raise the LOSO fold count from 8 to 12. Four new domains,
+    # not re-seeds of existing ones: a same-domain repeat is not an
+    # independent fold and would be pseudo-replication under LOSO.
+    "scenario_18_telecom_ran": ("telecom_ran_system", "evaluation"),
+    "scenario_19_industrial_scada": ("industrial_scada_system", "evaluation"),
+    "scenario_20_realtime_gaming": ("realtime_gaming_system", "evaluation"),
+    "scenario_21_logistics_fleet": ("logistics_fleet_system", "evaluation"),
 }
 
 ENTITY_KEYS = ("applications", "topics", "brokers", "nodes", "libraries")

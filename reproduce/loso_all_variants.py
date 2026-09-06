@@ -15,7 +15,8 @@ Usage
   # Smoke test: 1 variant, 2 seeds
   python reproduce/loso_all_variants.py --variants gl hgl --seeds 42,123
 
-  # Resume (skips variants whose output dir already has results.json)
+  # Resume (reuses a variant's results.json only when it is newer than the
+  # cache and less than _RESUME_MAX_AGE_DAYS old; otherwise re-runs it)
   python reproduce/loso_all_variants.py --resume
 """
 
@@ -40,6 +41,10 @@ from saag.evaluation import variant_registry as _registry
 ALL_VARIANTS = ["topo_baseline", "topo_qos", "topology_rm", "gl", "gl_qos", "hgl", "hgl_qos"]
 DEFAULT_SEEDS = "42,123,456,789,2024"
 OUTPUT_BASE   = Path("output/loso")
+#: Beyond this, a --resume result is re-run rather than trusted. Model code
+#: changes far more often than the cache does, and a code change leaves no
+#: mtime on any input this can check.
+_RESUME_MAX_AGE_DAYS = 2
 RESULTS_DIR   = Path("results")
 
 
@@ -107,6 +112,59 @@ def _run_variant(
 
     print(f"  ✓ {variant} ({elapsed:.1f}s)")
     return json.loads(results_path.read_text())
+
+
+def _staleness(results_path: Path, cache_dir: Path) -> Optional[str]:
+    """Why ``results_path`` cannot be reused, or None when it is safe to reuse.
+
+    ``--resume`` used to skip any variant with a ``results.json`` on disk,
+    regardless of age. On this repository that is not a convenience, it is a
+    correctness hazard: `make table4` passes ``--resume``, so a table could be
+    assembled from variants trained weeks apart against different caches, and
+    nothing would say so. The one artifact that was checked this way —
+    results/loso_all_variants.json — turned out not to reproduce from any commit.
+
+    A result is reusable only when it is newer than every input that feeds it.
+    """
+    if not results_path.exists():
+        return "no results.json"
+    result_mtime = results_path.stat().st_mtime
+
+    newest_input, newest_name = 0.0, ""
+    for artefact in cache_dir.rglob("*.json"):
+        m = artefact.stat().st_mtime
+        if m > newest_input:
+            newest_input, newest_name = m, str(artefact)
+    if newest_input > result_mtime:
+        return (f"cache artefact {newest_name} is newer "
+                f"({_ago(newest_input)} vs result {_ago(result_mtime)})")
+
+    age_days = (time.time() - result_mtime) / 86400
+    if age_days > _RESUME_MAX_AGE_DAYS:
+        return f"result is {age_days:.1f} days old (limit {_RESUME_MAX_AGE_DAYS})"
+    return None
+
+
+def _ago(ts: float) -> str:
+    return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))
+
+
+def _extra_args(args) -> List[str]:
+    """Flags forwarded verbatim to every cli/loso_evaluate.py invocation.
+
+    Built once so every variant in the sweep runs under the same configuration —
+    a flag applied to some variants and not others silently turns the comparison
+    into an ablation of the flag.
+    """
+    extra = ["--eval-population", args.eval_population]
+    if not args.auto_layers:
+        extra.append("--no-auto-layers")
+    extra += ["--inner-val-scenario", args.inner_val_scenario]
+    if args.rank_normalize_features:
+        extra.append("--rank-normalize-features")
+    if args.rank_normalize_labels:
+        extra.append("--rank-normalize-labels")
+    return extra
 
 
 # ── Comparison table ──────────────────────────────────────────────────────────
@@ -210,7 +268,11 @@ def parse_args():
     p.add_argument("--epochs", type=int, default=300)
     p.add_argument("--output", type=Path, default=RESULTS_DIR / "loso_all_variants.json")
     p.add_argument("--resume", action="store_true",
-                   help="Skip variants with existing results.json")
+                   help="Reuse a variant's existing results.json when it is newer "
+                        "than every cache artefact and less than "
+                        f"{_RESUME_MAX_AGE_DAYS} days old. Anything older is re-run: "
+                        "a table assembled from variants trained against different "
+                        "caches is wrong in a way nothing else detects.")
     p.add_argument("--table-only", action="store_true",
                    help="Load existing results and print table only (no training)")
     p.add_argument(
@@ -220,6 +282,23 @@ def parse_args():
              "cli/loso_evaluate.py. Defaults to 'application' so this table and "
              "reproduce/main_table.py compare like with like.",
     )
+    p.add_argument(
+        "--auto-layers", dest="auto_layers", action="store_true", default=False,
+        help="Let cli/loso_evaluate.py derive the layer count from the primary "
+             "scenario's size. OFF by default in this sweep: the primary changes "
+             "with the holdout, so the enterprise fold trains 2 layers while the "
+             "other seven train 3, and a capacity difference that tracks the fold "
+             "is a confound in the very comparison this table reports.",
+    )
+    p.add_argument(
+        "--inner-val-scenario", default="none", choices=["none", "auto"],
+        help="Forwarded to cli/loso_evaluate.py. 'auto' selects checkpoints on a "
+             "held-out training scenario instead of a within-primary split.",
+    )
+    p.add_argument("--rank-normalize-features", action="store_true",
+                   help="Forwarded to cli/loso_evaluate.py.")
+    p.add_argument("--rank-normalize-labels", action="store_true",
+                   help="Forwarded to cli/loso_evaluate.py.")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -254,15 +333,18 @@ def main():
         for var in variants:
             rp = OUTPUT_BASE / var / "results.json"
             if args.resume and rp.exists():
-                print(f"  SKIP (resume): {var}")
-                results_by_variant[var] = json.loads(rp.read_text())
-                continue
+                stale = _staleness(rp, args.cache_dir)
+                if stale is None:
+                    print(f"  SKIP (resume): {var}")
+                    results_by_variant[var] = json.loads(rp.read_text())
+                    continue
+                print(f"  STALE, re-running {var}: {stale}")
 
             print(f"  Running {var} ...")
             data = _run_variant(
                 variant=var, seeds=args.seeds,
                 cache_dir=args.cache_dir, epochs=args.epochs,
-                extra_args=["--eval-population", args.eval_population],
+                extra_args=_extra_args(args),
                 verbose=args.verbose,
             )
             results_by_variant[var] = data

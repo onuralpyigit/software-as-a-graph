@@ -1,0 +1,243 @@
+# =============================================================================
+# Scenario 18 — Telecom RAN Control Plane (Aggregation Funnel)
+# =============================================================================
+# Domain   : 5G radio-access-network management plane. Element managers on RAN
+#            sites publish telemetry and alarm streams that a small set of core
+#            network functions aggregates and acts on.
+# Scale    : 120 apps, 55 topics, 8 brokers, 20 nodes
+# Purpose  : Add a LOSO fold whose criticality spine comes from *convergence*
+#            rather than from a hub broker. No existing scenario has many
+#            publishers converging on comparatively few aggregation topics; the
+#            corpus otherwise pairs high fan-in with a hub-and-spoke broker
+#            layout, which conflates the two.
+#
+# Topology fingerprint:
+#   • Many publishers per topic (aggregation funnel), moderate subscriber sets
+#   • Publish-dominant role mix — element managers emit far more than they consume
+#   • Deep manager -> aggregator -> core-function chains
+#   • Deadline-driven: priority skewed high, reliability mostly RELIABLE
+#   • Moderate library sharing (a common telemetry-encoding stack)
+#
+# Expected analysis outcomes:
+#   • Aggregation topics and the core functions behind them dominate betweenness
+#   • Criticality concentrated in ~12 % of applications
+#   • Distinct from hub_and_spoke: concentration is at topics, not brokers
+#
+# Usage:
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_18_telecom_ran.yaml \
+#          --output output/telecom_ran_system.json
+# =============================================================================
+
+graph:
+  seed: 1801
+  domain: telecom
+  scenario: telecom_ran
+
+  counts:
+    nodes: 20
+    applications: 120
+    libraries: 22
+    topics: 55
+    brokers: 8
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS — RAN sites host a fairly even spread of element managers
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 6.0
+      median: 6.0
+      std: 2.5
+      min: 2
+      max: 12
+      q1: 4.0
+      q3: 8.0
+      iqr: 4.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS — Publish-dominant: telemetry flows one way
+  # ---------------------------------------------------------------------------
+  application_stats:
+    direct_publish_count:
+      mean: 2.2
+      median: 2.0
+      std: 1.2
+      min: 0
+      max: 6
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    direct_subscribe_count:
+      mean: 1.6
+      median: 1.0
+      std: 1.1
+      min: 0
+      max: 5
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    total_publish_count_including_libraries:
+      mean: 2.8
+      median: 3.0
+      std: 1.4
+      min: 0
+      max: 8
+      q1: 2.0
+      q3: 4.0
+      iqr: 2.0
+
+    total_subscribe_count_including_libraries:
+      mean: 2.3
+      median: 2.0
+      std: 1.3
+      min: 0
+      max: 7
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    # Element managers outnumber aggregators and core functions
+    app_role_distribution:
+      total_count: 120
+      category_counts:
+        pub: 52       # RAN element managers, probe agents
+        sub: 30       # Core network functions, alarm correlators
+        pubsub: 38    # Regional aggregators, policy controllers
+      mode: pub
+      mode_count: 52
+      mode_percentage: 43.3
+
+    # ~11.7 % critical — aggregators and the core functions behind them
+    app_criticality_distribution:
+      total_count: 120
+      category_counts:
+        critical: 14
+        non_critical: 106
+      mode: non_critical
+      mode_count: 106
+      mode_percentage: 88.3
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS — Shared telemetry-encoding and 3GPP model stack
+  # ---------------------------------------------------------------------------
+  library_stats:
+    applications_using_this_library:
+      mean: 5.5
+      median: 5.0
+      std: 3.0
+      min: 1
+      max: 14
+      q1: 3.0
+      q3: 7.0
+      iqr: 4.0
+
+    direct_publish_count:
+      mean: 0.6
+      median: 1.0
+      std: 0.5
+      min: 0
+      max: 2
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    direct_subscribe_count:
+      mean: 0.9
+      median: 1.0
+      std: 0.6
+      min: 0
+      max: 3
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    total_publish_count_including_libraries:
+      mean: 1.0
+      median: 1.0
+      std: 0.7
+      min: 0
+      max: 3
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    total_subscribe_count_including_libraries:
+      mean: 1.3
+      median: 1.0
+      std: 0.9
+      min: 0
+      max: 4
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS — The funnel: many publishers per aggregation topic
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    topic_size_bytes:
+      mean: 768.0
+      median: 384.0
+      std: 1100.0
+      min: 48
+      max: 8192
+      q1: 192.0
+      q3: 1024.0
+      iqr: 832.0
+
+    applications_publishing_to_this_topic:
+      mean: 4.8
+      median: 4.0
+      std: 3.2
+      min: 1
+      max: 18
+      q1: 2.0
+      q3: 7.0
+      iqr: 5.0
+
+    applications_subscribing_to_this_topic:
+      mean: 3.5
+      median: 3.0
+      std: 2.4
+      min: 1
+      max: 12
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — Deadline-driven control plane
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 55
+      category_counts:
+        volatile: 20        # Periodic counters and KPI samples
+        transient_local: 16 # Alarm state, late-joiner sync
+        transient: 12       # Configuration deltas in flight
+        persistent: 7       # Fault journals, audit records
+      mode: volatile
+      mode_count: 20
+      mode_percentage: 36.4
+
+    qos_reliability_distribution:
+      total_count: 55
+      category_counts:
+        best_effort: 18     # High-rate counter streams
+        reliable: 37        # Alarms, configuration, policy
+      mode: reliable
+      mode_count: 37
+      mode_percentage: 67.3
+
+    qos_transport_priority_distribution:
+      total_count: 55
+      category_counts:
+        low: 8
+        medium: 16
+        high: 22
+        critical: 9
+      mode: high
+      mode_count: 22
+      mode_percentage: 40.0

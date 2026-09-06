@@ -530,6 +530,10 @@ def run_batch_generation(args: argparse.Namespace) -> int:
         "scenario_09_xlarge_stress": "xlarge_system",
         "scenario_10_atm_system": "atm_system",
         "scenario_11_integration_hub_migration": "integration_hub_migration_system",
+        "scenario_18_telecom_ran": "telecom_ran_system",
+        "scenario_19_industrial_scada": "industrial_scada_system",
+        "scenario_20_realtime_gaming": "realtime_gaming_system",
+        "scenario_21_logistics_fleet": "logistics_fleet_system",
     }
 
     for yaml_path in yaml_files:

@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-08-29T06:39:05+00:00",
-  "generator_commit": "a098b9b7a4a7590ac5886b1182382290a6ba3ef5",
+  "generated_at": "2026-09-06T04:58:27+00:00",
+  "generator_commit": "9a22fa6f1e1834318fd259ea4cfe47b1498d632b",
   "regenerate_with": "PYTHONPATH=. python cli/generate_graph.py batch --input-dir data/scenarios --output-dir <dir> --force",
   "pooled_evaluation_suite": {
-    "applications": 850,
-    "topics": 375,
-    "brokers": 36,
-    "nodes": 119,
-    "libraries": 165,
-    "total": 1545
+    "applications": 1295,
+    "topics": 588,
+    "brokers": 60,
+    "nodes": 194,
+    "libraries": 250,
+    "total": 2387
   },
   "datasets": {
     "av_system": {
@@ -220,6 +220,62 @@
         "libraries": 48
       },
       "sha256": "15c02b25f704dbfeafdf0aceea75a95233eb461af1fc41a39f8738f79845c97b"
+    },
+    "telecom_ran_system": {
+      "config": "scenario_18_telecom_ran.yaml",
+      "role": "evaluation",
+      "seed": 1801,
+      "domain": "telecom",
+      "counts": {
+        "applications": 120,
+        "topics": 55,
+        "brokers": 8,
+        "nodes": 20,
+        "libraries": 22
+      },
+      "sha256": "1ad202f0cfa18329a740000813a6f612012cdbf78e150e593234d5bbbfb9ce75"
+    },
+    "industrial_scada_system": {
+      "config": "scenario_19_industrial_scada.yaml",
+      "role": "evaluation",
+      "seed": 1902,
+      "domain": "industrial",
+      "counts": {
+        "applications": 140,
+        "topics": 70,
+        "brokers": 4,
+        "nodes": 25,
+        "libraries": 15
+      },
+      "sha256": "1d9c1fc5e0145f0dd70d5b06d979aae40616a56675bebf8c7c0bd2759486a7e0"
+    },
+    "realtime_gaming_system": {
+      "config": "scenario_20_realtime_gaming.yaml",
+      "role": "evaluation",
+      "seed": 2003,
+      "domain": "gaming",
+      "counts": {
+        "applications": 75,
+        "topics": 38,
+        "brokers": 5,
+        "nodes": 12,
+        "libraries": 28
+      },
+      "sha256": "416766a9841f17d97062d71a2a1b0f1ade7c8aa3cd1cf314f04e799fbe4a41e3"
+    },
+    "logistics_fleet_system": {
+      "config": "scenario_21_logistics_fleet.yaml",
+      "role": "evaluation",
+      "seed": 2104,
+      "domain": "logistics",
+      "counts": {
+        "applications": 110,
+        "topics": 50,
+        "brokers": 7,
+        "nodes": 18,
+        "libraries": 20
+      },
+      "sha256": "ba625fbb27dd592358dba812f36b7e3057a846f1bf60bb07dc6fa7c528444303"
     }
   }
 }

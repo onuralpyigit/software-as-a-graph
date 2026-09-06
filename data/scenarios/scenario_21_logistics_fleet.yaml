@@ -1,0 +1,241 @@
+# =============================================================================
+# Scenario 21 — Logistics Fleet Telemetry (Regionally Partitioned Bridges)
+# =============================================================================
+# Domain   : Fleet and freight operations. Vehicle and depot agents report over
+#            intermittent links into regional gateways, which bridge into
+#            central routing, ETA and compliance planning.
+# Scale    : 110 apps, 50 topics, 7 brokers, 18 nodes
+# Purpose  : Add a LOSO fold whose critical set is a *bridge* set rather than a
+#            hub or a funnel. Regional partitioning with a handful of
+#            cross-partition gateways produces genuine articulation structure —
+#            the regime A(v) is meant to detect, and one the corpus currently
+#            exercises only incidentally.
+#
+# Topology fingerprint:
+#   • Partitioned by region, joined by a small number of gateway applications
+#   • Store-and-forward links: TRANSIENT_LOCAL and PERSISTENT dominate
+#   • Largest payloads in the corpus (batched telemetry and manifest documents)
+#   • Balanced role mix; moderate coupling on both sides
+#
+# Expected analysis outcomes:
+#   • Regional gateways are articulation points with high betweenness
+#   • ~11 % critical, concentrated on the bridges rather than the leaves
+#   • Distinct from telecom_ran: concentration is at applications, not topics
+#
+# Usage:
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_21_logistics_fleet.yaml \
+#          --output output/logistics_fleet_system.json
+# =============================================================================
+
+graph:
+  seed: 2104
+  domain: logistics
+  scenario: logistics_fleet
+
+  counts:
+    nodes: 18
+    applications: 110
+    libraries: 20
+    topics: 50
+    brokers: 7
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS — Depot and regional-hub compute
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 6.1
+      median: 6.0
+      std: 2.6
+      min: 2
+      max: 12
+      q1: 4.0
+      q3: 8.0
+      iqr: 4.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS — Balanced; gateways carry the cross-region load
+  # ---------------------------------------------------------------------------
+  application_stats:
+    direct_publish_count:
+      mean: 1.8
+      median: 2.0
+      std: 1.1
+      min: 0
+      max: 5
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    direct_subscribe_count:
+      mean: 1.9
+      median: 2.0
+      std: 1.2
+      min: 0
+      max: 6
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    total_publish_count_including_libraries:
+      mean: 2.4
+      median: 2.0
+      std: 1.3
+      min: 0
+      max: 7
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    total_subscribe_count_including_libraries:
+      mean: 2.6
+      median: 2.0
+      std: 1.4
+      min: 0
+      max: 8
+      q1: 2.0
+      q3: 3.0
+      iqr: 1.0
+
+    app_role_distribution:
+      total_count: 110
+      category_counts:
+        pub: 36       # Vehicle agents, dock scanners, sensor gateways
+        sub: 32       # Compliance archivers, ETA consumers, dashboards
+        pubsub: 42    # Regional gateways, routing and dispatch planners
+      mode: pubsub
+      mode_count: 42
+      mode_percentage: 38.2
+
+    # ~10.9 % critical — the regional bridges and the central router
+    app_criticality_distribution:
+      total_count: 110
+      category_counts:
+        critical: 12
+        non_critical: 98
+      mode: non_critical
+      mode_count: 98
+      mode_percentage: 89.1
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS — Shared geo/manifest codecs, moderate reuse
+  # ---------------------------------------------------------------------------
+  library_stats:
+    applications_using_this_library:
+      mean: 4.5
+      median: 4.0
+      std: 2.8
+      min: 1
+      max: 12
+      q1: 2.0
+      q3: 6.0
+      iqr: 4.0
+
+    direct_publish_count:
+      mean: 0.7
+      median: 1.0
+      std: 0.5
+      min: 0
+      max: 2
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    direct_subscribe_count:
+      mean: 0.9
+      median: 1.0
+      std: 0.6
+      min: 0
+      max: 3
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    total_publish_count_including_libraries:
+      mean: 1.1
+      median: 1.0
+      std: 0.7
+      min: 0
+      max: 3
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    total_subscribe_count_including_libraries:
+      mean: 1.4
+      median: 1.0
+      std: 0.9
+      min: 0
+      max: 4
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS — Batched telemetry and manifest documents
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    topic_size_bytes:
+      mean: 2048.0
+      median: 1024.0
+      std: 3000.0
+      min: 128
+      max: 32768
+      q1: 512.0
+      q3: 2560.0
+      iqr: 2048.0
+
+    applications_publishing_to_this_topic:
+      mean: 3.2
+      median: 3.0
+      std: 2.0
+      min: 1
+      max: 10
+      q1: 2.0
+      q3: 4.0
+      iqr: 2.0
+
+    applications_subscribing_to_this_topic:
+      mean: 4.0
+      median: 3.0
+      std: 2.6
+      min: 1
+      max: 12
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — Intermittent links: durability carries the weight
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 50
+      category_counts:
+        volatile: 8         # Live position pings
+        transient_local: 21 # Last-known vehicle state across reconnects
+        transient: 12       # Dispatch assignments in flight
+        persistent: 9       # Proof-of-delivery, compliance records
+      mode: transient_local
+      mode_count: 21
+      mode_percentage: 42.0
+
+    qos_reliability_distribution:
+      total_count: 50
+      category_counts:
+        best_effort: 12     # Position pings, signal-strength telemetry
+        reliable: 38        # Assignments, manifests, compliance
+      mode: reliable
+      mode_count: 38
+      mode_percentage: 76.0
+
+    qos_transport_priority_distribution:
+      total_count: 50
+      category_counts:
+        low: 12
+        medium: 20
+        high: 14
+        critical: 4
+      mode: medium
+      mode_count: 20
+      mode_percentage: 40.0

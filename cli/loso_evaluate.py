@@ -19,15 +19,32 @@ Protocol
 ────────────────────────────────────────────────────────────────────────────
 For each scenario k ∈ {1..N}:
     train_set := scenarios \\ {k}             (N-1 scenarios)
-    primary  := argmax_{j ∈ train_set} |V_j|  (most signal for early-stopping)
-    inductive := train_set \\ {primary}       (passed via inductive_graphs)
+    primary  := argmax_{j ∈ train_set} |V_j|  (the graph splits are drawn on)
+    val      := median-sized inductive        (--inner-val-scenario auto only)
+    inductive := train_set \\ {primary, val}  (passed via inductive_graphs)
 
 For each seed s ∈ {42, 123, 456, 789, 2024}:
-    GNNService.train(primary, inductive_graphs=inductive, seeds=[s])
+    GNNService.train(primary, inductive_graphs=inductive, val_graph=val, seeds=[s])
     GNNService.predict(holdout_graph)         # holdout never seen
     Compute ρ, F1@K, NDCG@10, RMSE, MAE — overall and per-node-type
 
 Reports: per-fold mean ± std across seeds, then cross-fold mean ± std.
+
+Two options change what is being measured rather than how well:
+
+  --inner-val-scenario auto
+      Early stopping and checkpoint selection move off a within-`primary` split
+      onto a training scenario held out of the loss entirely. Selecting on a
+      split of a training scenario selects for in-distribution fit, under a
+      protocol whose entire point is distribution shift.
+
+  --no-auto-layers
+      Fixes the depth at --layers for every fold. With the default auto-downgrade
+      the depth is derived from `primary`'s size, and `primary` changes with the
+      holdout — on the 8-scenario corpus, seven folds train 3 layers and the fold
+      that holds out enterprise_system trains 2. A capacity difference that
+      tracks the fold is a confound in whatever that table reports.
+      reproduce/loso_all_variants.py passes this by default.
 
 ────────────────────────────────────────────────────────────────────────────
 Cache layout (one directory per scenario)
@@ -96,6 +113,7 @@ from saag.evaluation.metrics import (
 from saag.prediction.gnn_service import GNNService
 from saag.prediction.data_preparation import (
     networkx_to_hetero_data,
+    normalize_labels_robust,
     extract_simulation_dict,
     extract_structural_metrics_dict,
     extract_rm_scores_dict,
@@ -140,6 +158,16 @@ class FoldResult:
     per_type_rho: Dict[str, Dict[str, float]] = field(default_factory=dict)
     # Mean predictions across seeds: {node_id: {score_type: mean_val}}
     node_predictions: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    #: Depth this fold actually trained at. Reported because ``--auto-layers``
+    #: derives it from the *primary* scenario's size, which changes with the
+    #: holdout: enterprise_system is primary in 7 of 8 folds (3 layers) and the
+    #: fold that holds it out silently drops to 2. A capacity difference that
+    #: tracks the fold is a confound, so it is recorded rather than inferred.
+    effective_layers: Optional[int] = None
+    #: Scenario held out of training to drive early stopping, when
+    #: ``--inner-val-scenario auto`` is in effect. None = legacy behaviour
+    #: (selection on a within-primary split).
+    val_scenario_id: Optional[str] = None
 
 
 @dataclass
@@ -390,6 +418,77 @@ compute_inductive_metrics = _shared_inductive_metrics
 # Single-fold execution
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _prepare_bundle_graph(
+    bundle: ScenarioBundle, use_qos: bool
+) -> Tuple[Any, Dict[str, Any]]:
+    """Return ``(graph, structural_metrics)`` with QoS masked out when disabled.
+
+    The unweighted variants must never see QoS through *any* door — the node
+    features, the edge features, or the structural metrics — so the masking is
+    applied once here rather than repeated at each of the four call sites that
+    used to inline it.
+    """
+    if use_qos:
+        return bundle.graph, bundle.structural
+    from reproduce.main_table import _mask_qos_in_graph, _mask_qos_in_structural
+
+    return _mask_qos_in_graph(bundle.graph), _mask_qos_in_structural(bundle.structural)
+
+
+def _build_training_hetero(
+    bundle: ScenarioBundle, use_qos: bool, rank_normalize_features: bool
+) -> HeteroData:
+    """HeteroData for one training scenario, splits left to the caller."""
+    graph, sm = _prepare_bundle_graph(bundle, use_qos)
+    return networkx_to_hetero_data(
+        graph, sm, bundle.simulation, bundle.rm,
+        qos_enabled=use_qos,
+        rank_normalize_features=rank_normalize_features,
+    ).hetero_data
+
+
+def _build_validation_hetero(
+    bundle: ScenarioBundle, use_qos: bool, rank_normalize_features: bool
+) -> HeteroData:
+    """HeteroData for the inner validation scenario.
+
+    Every labelled node goes in ``val_mask`` and nothing goes in ``train_mask``
+    or ``test_mask``: this graph is scored, never fitted. Using the whole
+    labelled population (rather than a 20% slice of it) makes the selection
+    signal as stable as the scenario allows, which is the point of moving
+    selection off the training distribution in the first place.
+    """
+    from saag.prediction.data_preparation import _labelled_index_mask
+
+    data = _build_training_hetero(bundle, use_qos, rank_normalize_features)
+    for store in data.node_stores:
+        n = store.num_nodes
+        if hasattr(store, "y") and store.y.numel() > 0:
+            labelled = torch.from_numpy(_labelled_index_mask(store))
+        else:
+            labelled = torch.zeros(n, dtype=torch.bool)
+        store.train_mask = torch.zeros(n, dtype=torch.bool)
+        store.val_mask = labelled
+        store.test_mask = torch.zeros(n, dtype=torch.bool)
+    return data
+
+
+def _select_val_bundle(
+    inductives: List[ScenarioBundle], inner_val: str
+) -> Optional[ScenarioBundle]:
+    """Pick the inner validation scenario, or None for the legacy behaviour.
+
+    Deterministic and independent of the holdout's identity: the median-sized
+    inductive scenario, ties broken by scenario id. Picking the largest would
+    hand validation to whichever scenario also dominates the training signal;
+    picking the smallest would validate on the noisiest ρ available.
+    """
+    if inner_val != "auto" or not inductives:
+        return None
+    ordered = sorted(inductives, key=lambda b: (b.n_nodes, b.scenario_id))
+    return ordered[len(ordered) // 2]
+
+
 def run_one_fold(
     bundles: List[ScenarioBundle],
     holdout_idx: int,
@@ -413,12 +512,16 @@ def run_one_fold(
     rm_consistency_weight: float = 0.0,
     ranking_weight: float = 0.3,
     pairwise_ranking_weight: float = 0.1,
+    inner_val: str = "none",
+    rank_normalize_features: bool = False,
+    rank_normalize_labels: bool = False,
 ) -> FoldResult:
     """
     One LOSO fold: train on N-1 scenarios with multi-seed, predict on held-out.
 
     Defensive invariants:
       - holdout never appears in train_ids
+      - holdout never appears in the inner validation set
       - holdout's structural/rm are passed at predict() time (needed for features)
       - holdout's simulation is passed only for evaluation, never for training
     """
@@ -434,10 +537,36 @@ def run_one_fold(
     primary = max(train_set, key=lambda b: b.n_nodes)
     inductives = [b for b in train_set if b.scenario_id != primary.scenario_id]
 
+    # Inner validation scenario, when enabled, is held out of the training
+    # loader as well — otherwise early stopping would be selecting on a graph
+    # the loss is already fitting.
+    val_bundle = _select_val_bundle(inductives, inner_val)
+    if val_bundle is not None:
+        inductives = [b for b in inductives if b.scenario_id != val_bundle.scenario_id]
+        assert val_bundle.scenario_id != holdout.scenario_id, (
+            f"G4 leakage violation: holdout {holdout.scenario_id} selected as "
+            "inner validation scenario"
+        )
+
     logger.info(
-        "Fold[holdout=%s]  primary=%s (|V|=%d)  inductive=%d scenarios",
+        "Fold[holdout=%s]  primary=%s (|V|=%d)  inductive=%d scenarios  inner_val=%s",
         holdout.scenario_id, primary.scenario_id, primary.n_nodes, len(inductives),
+        val_bundle.scenario_id if val_bundle else "(none)",
     )
+
+    # Depth is a property of the fold, not of the seed. Computed once here so it
+    # can be reported: with --auto-layers on, it is derived from the primary
+    # scenario's size, which changes with the holdout.
+    if auto_layers:
+        effective_layers = 1 if primary.n_nodes <= 200 else (2 if primary.n_nodes <= 500 else layers)
+        if effective_layers != layers:
+            logger.info(
+                "  [auto-layers] primary.n_nodes=%d -> downgrading layers %d -> %d "
+                "(disable with --no-auto-layers)",
+                primary.n_nodes, layers, effective_layers,
+            )
+    else:
+        effective_layers = layers
 
     fold_dir = workdir / f"fold_{holdout.scenario_id}"
     fold_dir.mkdir(parents=True, exist_ok=True)
@@ -498,23 +627,53 @@ def run_one_fold(
                 from saag.prediction.trainer import GNNTrainer, evaluate
 
                 use_qos = (variant == "gl_qos")
-                if use_qos:
-                    train_graph = primary.graph
-                    train_sm    = primary.structural
-                    holdout_graph = holdout.graph
-                    holdout_sm    = holdout.structural
-                else:
-                    from reproduce.main_table import _mask_qos_in_graph, _mask_qos_in_structural
-                    train_graph = _mask_qos_in_graph(primary.graph)
-                    train_sm    = _mask_qos_in_structural(primary.structural)
-                    holdout_graph = _mask_qos_in_graph(holdout.graph)
-                    holdout_sm    = _mask_qos_in_structural(holdout.structural)
+                train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
+                holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
 
                 conv = networkx_to_hetero_data(
-                    train_graph, train_sm, primary.simulation, primary.rm, qos_enabled=use_qos
+                    train_graph, train_sm, primary.simulation, primary.rm,
+                    qos_enabled=use_qos,
+                    rank_normalize_features=rank_normalize_features,
                 )
                 data = conv.hetero_data
                 create_node_splits(data, seed=seed)
+
+                # Training-set parity with the HGT branch below. This branch
+                # used to train on `primary` alone while the HGT branch trained
+                # on primary + every inductive scenario, so the published
+                # typed-vs-untyped LOSO margin compared a model with N-1
+                # training graphs against one with a single graph. Same folds,
+                # same substrate, same graph count.
+                inductive_data = [
+                    _build_training_hetero(b, use_qos, rank_normalize_features)
+                    for b in inductives
+                ]
+                for ig in inductive_data:
+                    create_node_splits(ig, seed=seed)
+
+                # Multi-graph training also requires the label normalization the
+                # GNNService path has always applied and this branch never did:
+                # without it each scenario's labels reach the same scale-sensitive
+                # loss terms on its own raw scale.
+                normalize_labels_robust(data, rank_normalize=rank_normalize_labels)
+                for ig in inductive_data:
+                    normalize_labels_robust(ig, rank_normalize=rank_normalize_labels)
+
+                val_data = None
+                if val_bundle is not None:
+                    val_data = _build_validation_hetero(
+                        val_bundle, use_qos, rank_normalize_features
+                    )
+                    normalize_labels_robust(val_data, rank_normalize=rank_normalize_labels)
+
+                if inductive_data:
+                    from torch_geometric.loader import DataLoader as _PyGDataLoader
+                    training_input = _PyGDataLoader(
+                        [data] + inductive_data, batch_size=1, shuffle=True
+                    )
+                else:
+                    training_input = data
+
                 baseline_name = "homo_unweighted" if variant == "gl" else "homo_scalar"
                 model = build_baseline(baseline_name, hidden_channels=hidden, num_heads=heads,
                                        num_layers=layers, dropout=dropout)
@@ -529,12 +688,24 @@ def run_one_fold(
                                          multitask_weight=multitask_weight,
                                          rm_consistency_weight=rm_consistency_weight,
                                          ranking_weight=ranking_weight,
-                                         pairwise_ranking_weight=pairwise_ranking_weight)
-                    trainer.train(data)
+                                         pairwise_ranking_weight=pairwise_ranking_weight,
+                                         # Also parity: without the labeler's
+                                         # dimension mask the unmeasured
+                                         # maintainability head is regressed
+                                         # toward a fabricated zero, which the
+                                         # HGT branch has never done.
+                                         dimension_mask=conv.dimension_mask)
+                    trainer.train(
+                        training_input,
+                        primary_data=data if inductive_data else None,
+                        val_data=val_data,
+                    )
 
                 # Evaluate on holdout
                 conv_h = networkx_to_hetero_data(
-                    holdout_graph, holdout_sm, holdout.simulation, holdout.rm, qos_enabled=use_qos
+                    holdout_graph, holdout_sm, holdout.simulation, holdout.rm,
+                    qos_enabled=use_qos,
+                    rank_normalize_features=rank_normalize_features,
                 )
                 data_h = conv_h.hetero_data
                 create_node_splits(data_h, seed=seed)
@@ -566,30 +737,10 @@ def run_one_fold(
             else:
                 # hgl_qos (default) or hgl or topology_rm → GNNService path
                 effective_mode = "rm" if variant == "topology_rm" else mode
-                if auto_layers:
-                    effective_layers = 1 if primary.n_nodes <= 200 else (2 if primary.n_nodes <= 500 else layers)
-                    if effective_layers != layers:
-                        logger.info(
-                            "  [auto-layers] primary.n_nodes=%d -> downgrading layers %d -> %d "
-                            "(disable with --no-auto-layers)",
-                            primary.n_nodes, layers, effective_layers,
-                        )
-                else:
-                    effective_layers = layers
                 use_qos = (variant == "hgl_qos")
+                train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
+                holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
 
-                if use_qos:
-                    train_graph = primary.graph
-                    train_sm    = primary.structural
-                    holdout_graph = holdout.graph
-                    holdout_sm    = holdout.structural
-                else:
-                    from reproduce.main_table import _mask_qos_in_graph, _mask_qos_in_structural
-                    train_graph = _mask_qos_in_graph(primary.graph)
-                    train_sm    = _mask_qos_in_structural(primary.structural)
-                    holdout_graph = _mask_qos_in_graph(holdout.graph)
-                    holdout_sm    = _mask_qos_in_structural(holdout.structural)
-                
                 best_path = ckpt_dir / "best_model.pt"
                 if best_path.exists():
                     logger.info("  Found GNN checkpoint %s. Skipping training.", best_path)
@@ -613,15 +764,15 @@ def run_one_fold(
                         simulation_results=primary.simulation,
                         rm_scores=primary.rm,
                         inductive_graphs=[
-                            networkx_to_hetero_data(
-                                b.graph if use_qos else _mask_qos_in_graph(b.graph),
-                                b.structural if use_qos else _mask_qos_in_structural(b.structural),
-                                b.simulation,
-                                b.rm,
-                                qos_enabled=use_qos
-                            ).hetero_data
+                            _build_training_hetero(b, use_qos, rank_normalize_features)
                             for b in inductives
                         ],
+                        val_graph=(
+                            _build_validation_hetero(
+                                val_bundle, use_qos, rank_normalize_features
+                            )
+                            if val_bundle is not None else None
+                        ),
                         seeds=[seed],
                         num_epochs=1 if variant == "topology_rm" else epochs,
                         lr=lr,
@@ -634,6 +785,8 @@ def run_one_fold(
                         rm_consistency_weight=rm_consistency_weight,
                         ranking_weight=ranking_weight,
                         pairwise_ranking_weight=pairwise_ranking_weight,
+                        rank_normalize_features=rank_normalize_features,
+                        rank_normalize_labels=rank_normalize_labels,
                     )
                 result = service.predict(
                     graph=holdout_graph,
@@ -746,6 +899,8 @@ def run_one_fold(
         },
         per_type_rho=per_type_summary,
         node_predictions=node_agg,
+        effective_layers=effective_layers,
+        val_scenario_id=val_bundle.scenario_id if val_bundle else None,
     )
 
 
@@ -774,6 +929,9 @@ def run_loso(
     ranking_weight: float = 0.3,
     pairwise_ranking_weight: float = 0.1,
     eval_population: str = "application",
+    inner_val: str = "none",
+    rank_normalize_features: bool = False,
+    rank_normalize_labels: bool = False,
 ) -> LOSOReport:
     """Run leave-one-scenario-out across all loaded bundles."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -813,6 +971,9 @@ def run_loso(
                 rm_consistency_weight=rm_consistency_weight,
                 ranking_weight=ranking_weight,
                 pairwise_ranking_weight=pairwise_ranking_weight,
+                inner_val=inner_val,
+                rank_normalize_features=rank_normalize_features,
+                rank_normalize_labels=rank_normalize_labels,
             )
             fold_results.append(fold)
         except Exception as exc:
@@ -872,6 +1033,8 @@ def write_results_json(report: LOSOReport, path: Path) -> None:
                 "holdout_id": f.holdout_id,
                 "primary_id": f.primary_id,
                 "train_ids": f.train_ids,
+                "effective_layers": f.effective_layers,
+                "val_scenario_id": f.val_scenario_id,
                 "mean_metrics": f.mean_metrics,
                 "std_metrics": f.std_metrics,
                 "per_type_rho": f.per_type_rho,
@@ -1151,6 +1314,31 @@ def parse_args() -> argparse.Namespace:
              "retained for reproducing older runs, but it mixes populations with "
              "different scales and base rates (Simpson's paradox).",
     )
+    p.add_argument(
+        "--inner-val-scenario", default="none", choices=["none", "auto"],
+        help="Where early stopping and checkpoint selection get their metric. "
+             "'none' (default) uses a within-scenario val_mask split of the "
+             "primary training graph — i.e. selection on the training "
+             "distribution, under a protocol whose point is distribution "
+             "shift. 'auto' holds one training scenario (the median-sized "
+             "inductive, ties by id) out of the loss entirely and selects on "
+             "its whole labelled population. The outer holdout is never "
+             "eligible either way.",
+    )
+    p.add_argument(
+        "--rank-normalize-features", action="store_true",
+        help="Within-graph rank-normalize the base structural feature columns. "
+             "results/feature_shift_diagnostic.md measures up to 115.7x "
+             "cross-scenario drift in these columns (mpci), which puts every "
+             "LOSO holdout off the training distribution. Off by default; the "
+             "un-normalized path remains the ablation arm.",
+    )
+    p.add_argument(
+        "--rank-normalize-labels", action="store_true",
+        help="Rank-normalize label targets instead of the IQR+sigmoid default. "
+             "The reported metric is Spearman, so ranks are the matched target "
+             "scale. Off by default.",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -1198,6 +1386,9 @@ def main() -> int:
         ranking_weight=args.ranking_weight,
         pairwise_ranking_weight=args.pairwise_ranking_weight,
         eval_population=args.eval_population,
+        inner_val=args.inner_val_scenario,
+        rank_normalize_features=args.rank_normalize_features,
+        rank_normalize_labels=args.rank_normalize_labels,
     )
     elapsed = time.time() - t0
     logger.info("LOSO complete in %.1f s.", elapsed)

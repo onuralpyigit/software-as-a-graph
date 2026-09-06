@@ -26,14 +26,21 @@ from scripts.write_scenario_manifest import (  # noqa: E402
 )
 from tools.generation import GenerationService, load_config  # noqa: E402
 
-#: Pooled node population of the seven evaluation scenarios, as reported in
+#: Pooled node population of the eleven evaluation scenarios, as reported in
 #: docs/research/jss/draft.md §7.1. A change here is a change to the paper.
+#:
+#: Was seven scenarios / 1,545 nodes. Four new domains (telecom_ran,
+#: industrial_scada, realtime_gaming, logistics_fleet) were added to raise the
+#: LOSO fold count from 8 to 12: at n=8 the two-sided Wilcoxon signed-rank
+#: statistic bottoms out at p=0.0078 and tolerates no large loss, so a real but
+#: moderate effect is undetectable by construction. See
+#: docs/research/jss/PREREGISTRATION.md.
 _PAPER_POOLED_COUNTS = {
-    "applications": 850,
-    "topics": 375,
-    "libraries": 165,
-    "nodes": 119,
-    "brokers": 36,
+    "applications": 1295,
+    "topics": 588,
+    "libraries": 250,
+    "nodes": 194,
+    "brokers": 60,
 }
 
 
@@ -106,7 +113,7 @@ def test_evaluation_suite_matches_paper_population():
 
     assert pooled == _PAPER_POOLED_COUNTS, (
         f"Evaluation-suite population changed: {pooled} != {_PAPER_POOLED_COUNTS}. "
-        "draft.md §7.1 states 1,545 pooled nodes with this breakdown; update the paper "
+        "draft.md §7.1 states 2,387 pooled nodes with this breakdown; update the paper "
         "and this test together, never one alone."
     )
-    assert sum(pooled.values()) == 1545
+    assert sum(pooled.values()) == 2387

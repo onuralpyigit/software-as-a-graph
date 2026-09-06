@@ -1,0 +1,242 @@
+# =============================================================================
+# Scenario 20 — Real-Time Multiplayer Game Backend (Dense Mesh, Flat Spectrum)
+# =============================================================================
+# Domain   : Session-oriented multiplayer backend. Match, state-replication,
+#            matchmaking and telemetry services exchange high-rate updates.
+# Scale    : 75 apps, 38 topics, 5 brokers, 12 nodes
+# Purpose  : Add the corpus's only densely-meshed, low-latency, best-effort
+#            regime. Every existing scenario is either sparse (microservices)
+#            or concentrated (hub, enterprise, IoT); none is dense *and* flat.
+#            A LOSO fold the structural baselines should find genuinely hard is
+#            worth having — a corpus of only spine-shaped systems flatters any
+#            centrality score.
+#
+# Topology fingerprint:
+#   • pubsub-dominant role mix; most services both emit and consume
+#   • Many publishers AND many subscribers per topic (shared world state)
+#   • Highest library sharing in the corpus (one engine/netcode stack)
+#   • VOLATILE + BEST_EFFORT dominant — stale frames are dropped, not queued
+#   • Smallest median payload after SCADA (delta-encoded state)
+#
+# Expected analysis outcomes:
+#   • Flat betweenness spectrum; low Gini — few structural bottlenecks
+#   • Only ~5 % critical (session directory, authoritative state store)
+#   • The hardest LOSO fold for training-free centrality by construction
+#
+# Usage:
+#   PYTHONPATH=. python cli/generate_graph.py --config data/scenarios/scenario_20_realtime_gaming.yaml \
+#          --output output/realtime_gaming_system.json
+# =============================================================================
+
+graph:
+  seed: 2003
+  domain: gaming
+  scenario: realtime_gaming
+
+  counts:
+    nodes: 12
+    applications: 75
+    libraries: 28
+    topics: 38
+    brokers: 5
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS — Dense packing; session hosts run many services each
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 6.3
+      median: 6.0
+      std: 2.8
+      min: 2
+      max: 13
+      q1: 4.0
+      q3: 8.0
+      iqr: 4.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS — Everything talks to everything
+  # ---------------------------------------------------------------------------
+  application_stats:
+    direct_publish_count:
+      mean: 2.6
+      median: 3.0
+      std: 1.4
+      min: 0
+      max: 7
+      q1: 2.0
+      q3: 4.0
+      iqr: 2.0
+
+    direct_subscribe_count:
+      mean: 2.8
+      median: 3.0
+      std: 1.5
+      min: 0
+      max: 8
+      q1: 2.0
+      q3: 4.0
+      iqr: 2.0
+
+    total_publish_count_including_libraries:
+      mean: 3.4
+      median: 3.0
+      std: 1.7
+      min: 0
+      max: 9
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+    total_subscribe_count_including_libraries:
+      mean: 3.7
+      median: 4.0
+      std: 1.8
+      min: 0
+      max: 10
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+    app_role_distribution:
+      total_count: 75
+      category_counts:
+        pub: 12       # Telemetry emitters, replay recorders
+        sub: 15       # Analytics sinks, anti-cheat scorers
+        pubsub: 48    # State replication, match, chat, presence
+      mode: pubsub
+      mode_count: 48
+      mode_percentage: 64.0
+
+    # ~5.3 % critical — session directory and the authoritative state store
+    app_criticality_distribution:
+      total_count: 75
+      category_counts:
+        critical: 4
+        non_critical: 71
+      mode: non_critical
+      mode_count: 71
+      mode_percentage: 94.7
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS — One shared engine stack: highest reuse in the corpus
+  # ---------------------------------------------------------------------------
+  library_stats:
+    applications_using_this_library:
+      mean: 8.0
+      median: 7.0
+      std: 5.0
+      min: 1
+      max: 24
+      q1: 4.0
+      q3: 11.0
+      iqr: 7.0
+
+    direct_publish_count:
+      mean: 1.1
+      median: 1.0
+      std: 0.8
+      min: 0
+      max: 3
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    direct_subscribe_count:
+      mean: 1.3
+      median: 1.0
+      std: 0.9
+      min: 0
+      max: 4
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    total_publish_count_including_libraries:
+      mean: 1.5
+      median: 1.0
+      std: 1.0
+      min: 0
+      max: 4
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    total_subscribe_count_including_libraries:
+      mean: 1.8
+      median: 2.0
+      std: 1.1
+      min: 0
+      max: 5
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS — Shared world state: dense on both sides
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    topic_size_bytes:
+      mean: 192.0
+      median: 96.0
+      std: 300.0
+      min: 16
+      max: 2048
+      q1: 48.0
+      q3: 192.0
+      iqr: 144.0
+
+    applications_publishing_to_this_topic:
+      mean: 5.1
+      median: 4.0
+      std: 3.4
+      min: 1
+      max: 16
+      q1: 2.0
+      q3: 7.0
+      iqr: 5.0
+
+    applications_subscribing_to_this_topic:
+      mean: 5.5
+      median: 5.0
+      std: 3.6
+      min: 1
+      max: 18
+      q1: 3.0
+      q3: 8.0
+      iqr: 5.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — Latency over delivery: drop the frame, send the next one
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 38
+      category_counts:
+        volatile: 24        # Position, animation, input deltas
+        transient_local: 8  # Lobby and presence state for late joiners
+        transient: 4        # Match lifecycle transitions
+        persistent: 2       # Ranked results, economy transactions
+      mode: volatile
+      mode_count: 24
+      mode_percentage: 63.2
+
+    qos_reliability_distribution:
+      total_count: 38
+      category_counts:
+        best_effort: 27     # Everything on the tick loop
+        reliable: 11        # Economy, ranking, match commit
+      mode: best_effort
+      mode_count: 27
+      mode_percentage: 71.1
+
+    qos_transport_priority_distribution:
+      total_count: 38
+      category_counts:
+        low: 6
+        medium: 14
+        high: 15
+        critical: 3
+      mode: high
+      mode_count: 15
+      mode_percentage: 39.5

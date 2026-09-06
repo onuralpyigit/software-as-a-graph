@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/populate_loso_cache.sh
 # =======================================================================
-# Populates output/loso_cache/<scenario>/ for all 8 reference scenarios.
+# Populates output/loso_cache/<scenario>/ for all 12 reference scenarios.
 # Each scenario dir needs: topology.json, structural_metrics.json,
 #   failure_impact.json, quality_scores.json
 #
@@ -25,6 +25,10 @@ ALL_SCENARIOS=(
     hub_and_spoke_system
     microservices_system
     enterprise_system
+    telecom_ran_system
+    industrial_scada_system
+    realtime_gaming_system
+    logistics_fleet_system
 )
 
 # Allow passing specific scenarios as args

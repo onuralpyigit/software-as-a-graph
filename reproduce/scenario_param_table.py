@@ -48,7 +48,7 @@ if __name__ == "__main__" and __package__ is None:
 SCENARIOS_DIR = Path("data/scenarios")
 RESULTS_DIR = Path("results")
 
-#: The seven evaluation scenarios, in the order the manuscript's corpus table
+#: The eleven evaluation scenarios, in the order the manuscript's corpus table
 #: uses. Keyed by the dataset name so the manifest can be cross-checked.
 _EVAL_ORDER = [
     ("av_system", "Autonomous Vehicle (AV)"),
@@ -56,8 +56,12 @@ _EVAL_ORDER = [
     ("financial_trading_system", "Financial Trading"),
     ("healthcare_system", "Healthcare Integration"),
     ("hub_and_spoke_system", "Hub-and-Spoke"),
+    ("industrial_scada_system", "Industrial SCADA"),
     ("iot_smart_city_system", "IoT Smart City"),
+    ("logistics_fleet_system", "Logistics Fleet"),
     ("microservices_system", "Microservices Mesh"),
+    ("realtime_gaming_system", "Real-Time Gaming"),
+    ("telecom_ran_system", "Telecom RAN"),
 ]
 
 
@@ -135,7 +139,7 @@ def render_tex(rows: List[Dict[str, Any]], path: Path) -> None:
         r"\begin{table}[htbp]",
         r"\centering",
         r"\small",
-        r"\caption{Generative parameters of the seven synthetic evaluation scenarios. "
+        r"\caption{Generative parameters of the eleven synthetic evaluation scenarios. "
         r"Counts, seed and fan-out figures are read directly from the committed "
         r"configurations. The modal QoS column gives the most common "
         r"reliability/durability/priority value and the range of topic shares carrying "

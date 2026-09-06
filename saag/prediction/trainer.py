@@ -347,7 +347,10 @@ class GNNTrainer:
                     logger.info("  [%s] Train: %d | Val: %d", nt, n_train, n_val)
 
     def train(
-        self, data: "HeteroData", primary_data: Optional["HeteroData"] = None
+        self,
+        data: "HeteroData",
+        primary_data: Optional["HeteroData"] = None,
+        val_data: Optional["HeteroData"] = None,
     ) -> Tuple[Dict[str, List[float]], Optional[EvalMetrics]]:
         """Run the full training loop with combined-metric early stopping.
 
@@ -364,6 +367,16 @@ class GNNTrainer:
             order, which is not guaranteed to be the scenario being trained
             toward. Ignored when ``data`` is a single HeteroData (in that
             case the single graph is always the validation target).
+        val_data:
+            A graph that takes no part in training and drives validation,
+            early stopping and checkpoint selection instead of
+            ``primary_data``'s within-graph val_mask. Under a protocol whose
+            point is distribution shift (LOSO), selecting on a split of a
+            *training* scenario selects for in-distribution fit; a held-out
+            scenario selects for the thing actually being claimed. The caller
+            owns the masks — set its ``val_mask`` to the population that
+            should be scored, and keep it out of the training loader.
+            ``None`` (default) leaves the existing behaviour bit-identical.
         """
         logger.info(
             "Starting training | epochs=%d | lr=%.2e | device=%s",
@@ -391,7 +404,10 @@ class GNNTrainer:
             optimizer, T_0=self.warmup_T0, T_mult=2, eta_min=self.lr * 0.01,
         )
         loader = DataLoader([data], batch_size=1) if isinstance(data, HeteroData) else data
-        if primary_data is not None:
+        if val_data is not None:
+            first_batch = val_data.to(self.device)
+            logger.info("Validation graph is held out of training (inner-scenario validation).")
+        elif primary_data is not None:
             first_batch = primary_data.to(self.device)
         else:
             first_batch = next(iter(loader))

@@ -11,6 +11,8 @@
 #   make table3          — JSS Table 6: 7×6×5 in-distribution held-out training matrix
 #   make table4          — JSS Table 8: LOSO × 4 variants
 #   make kfold           — Per-domain k-fold × 5 variants (opt-in; primary validation protocol)
+#   make significance    — pre-registered Wilcoxon tests + attainable-p floor (no training)
+#   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
 #   make jss-figures     — all 5 figures for the JSS submission (docs/research/jss/latex/figures/)
 #   make jss-tables      — JSS Table 5: generator-parameter table (tab_genparams.tex)
@@ -35,7 +37,7 @@ SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios cache block0 table3 table4 kfold convergent-validity \
+.PHONY: setup scenarios cache block0 table3 table4 significance nested-search kfold convergent-validity \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
         jss-figures jss-tables all smoke-test clean clean-all
@@ -105,7 +107,35 @@ table4:
 	$(PYTHON) reproduce/render_table.py \
 	    --table4 $(RESULTS_DIR)/loso_all_variants.json \
 	    --output-dir $(RESULTS_DIR)
+	$(MAKE) -f reproduce/Makefile significance
 	@echo "✓ Table 4 ready: $(RESULTS_DIR)/table4_loso_results.tex"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The pre-registered tests, next to the attainable-p floor for the realised
+# fold count. Cheap (no training) — run it whenever table4 is regenerated.
+# ─────────────────────────────────────────────────────────────────────────────
+
+significance:
+	$(PYTHON) reproduce/loso_significance.py \
+	    --input $(RESULTS_DIR)/loso_all_variants.json \
+	    --output $(RESULTS_DIR)/loso_significance.json
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Nested-CV configuration search. Selection happens inside each outer fold's
+# training set, so the reported LOSO score is not tuned on what it reports.
+# Opt-in and expensive: |outer| x |configs| x |inner| fold-trainings.
+# Override the grid with GRID=stage2 or GRID=full.
+# ─────────────────────────────────────────────────────────────────────────────
+
+GRID ?= stage1
+
+nested-search:
+	$(PYTHON) reproduce/nested_loso_search.py \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --grid $(GRID) \
+	    --epochs $(EPOCHS) \
+	    --output $(RESULTS_DIR)/nested_loso_search_$(GRID).json \
+	    --resume
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Per-domain k-fold — primary in-domain validation protocol (5 variants).
