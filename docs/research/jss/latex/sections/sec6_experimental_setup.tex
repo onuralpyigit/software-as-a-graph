@@ -4,7 +4,7 @@
 \subsection{Datasets and System Corpus}
 \label{sec:6.1}
 
-The evaluation corpus comprises 1,770 components distributed across ten distinct system architectures, as detailed in Table~\ref{tab:4}:
+The evaluation corpus comprises 1{,}896 components distributed across twelve distinct system architectures, as detailed in Table~\ref{tab:4}:
 
 \begin{table}[htbp]
 \centering
@@ -26,22 +26,24 @@ The evaluation corpus comprises 1,770 components distributed across ten distinct
 \textbf{Autoware.universe \cite{kato2018autoware}} & Real-World ROS 2 Autoware & 75 & 32 & 24 & 3 & 6 & 10 & 179 \\
 \textbf{Cloud Microservices \cite{google2024onlineboutique}} & Real-World GCP Boutique & 60 & 22 & 20 & 4 & 6 & 8 & 128 \\
 \textbf{Train-Ticket \cite{zhou2021fault}} & Real-World Microservices & 90 & 41 & 30 & 3 & 8 & 8 & 162 \\
+\textbf{Home Assistant \cite{homeassistant2024}} & Real-World Smart Home & 63 & 24 & 22 & 3 & 6 & 8 & 119 \\
+\textbf{EdgeX Foundry \cite{edgexfoundry2024}} & Real-World Industrial IoT & 63 & 22 & 24 & 3 & 6 & 8 & 112 \\
 \midrule
-\textbf{Total} & & \textbf{1{,}770} & & & & & & \\
+\textbf{Total} & & \textbf{1{,}896} & & & & & & \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-Here, $|V|$ is the sum of all five entity-type counts per scenario, totaling exactly 1,770 components. $|E|$ counts every raw structural relationship instance recorded in the scenario specification (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}) --- the native substrate that simulation oracles traverse --- rather than the derived \texttt{DEPENDS\_ON} projection constructed for GNN training.
+Here, $|V|$ is the sum of all five entity-type counts per scenario, totaling exactly 1,896 components. $|E|$ counts every raw structural relationship instance recorded in the scenario specification (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}) --- the native substrate that simulation oracles traverse --- rather than the derived \texttt{DEPENDS\_ON} projection constructed for GNN training.
 
-Three real-world architectures were transcribed from authentic open-source repositories using dedicated architectural adapters. The seven synthetic scenarios were produced by a parameterized topology generator: each is fully defined by a committed configuration specifying a random seed, per-entity-type counts, seven-number summaries (mean, median, standard deviation, minimum, maximum, $Q_1$, $Q_3$) for application publish and subscribe fan-out, applications per host, library fan-in, topic payload size, and categorical distributions over the three QoS dimensions. Graph degree distributions and clustering emerge directly from these parameters rather than being synthetically forced. Table~\ref{tab:genparams} reports the generative parameters governing each topology's shape; complete configurations are included in the replication package.
+Five real-world architectures were transcribed from authentic open-source repositories using dedicated architectural adapters. The seven synthetic scenarios were produced by a parameterized topology generator: each is fully defined by a committed configuration specifying a random seed, per-entity-type counts, seven-number summaries (mean, median, standard deviation, minimum, maximum, $Q_1$, $Q_3$) for application publish and subscribe fan-out, applications per host, library fan-in, topic payload size, and categorical distributions over the three QoS dimensions. Graph degree distributions and clustering emerge directly from these parameters rather than being synthetically forced. Table~\ref{tab:genparams} reports the generative parameters governing each topology's shape; complete configurations are included in the replication package.
 
 \input{sections/tab_genparams.tex}
 
 \noindent\textbf{QoS diversity across the corpus.} Per-topic QoS profiles come from domain-keyed lookups that override the generic categorical distributions. Three domains (\texttt{hub-and-spoke}, \texttt{microservices}, \texttt{enterprise}) receive an identical (reliability, durability, priority) triple across all topics and a fourth (\texttt{av}) collapses four of five entries to one profile, giving $85\%$--$100\%$ concentration at the modal triple against $51\%$--$79\%$ for the genuinely multi-valued domains (\texttt{finance}, \texttt{healthcare}, \texttt{iot}); see Table~\ref{tab:genparams}. The scalar coupling weight $w(t)$ therefore has standard deviation $\approx 0.02$ in those four scenarios against $0.19$--$0.28$ in the other three. This bounds what our QoS ablations can establish (Sections~\ref{sec:7.3} and~\ref{sec:8.3}); we report it as a corpus property rather than forcing artificial variation.
 
-\noindent\textbf{Role of the ATM case study.} An additional Automated Teller Machine network scenario serves as the eighth LOSO fold and as the substrate for the attention analysis of Section~\ref{sec:7.3}. It is omitted from Table~\ref{tab:4} and from the 1,770-component total because it was authored as an illustrative walkthrough and its specification lacks the seven-number summaries the other scenarios carry --- so it participates in the headline LOSO result without being characterized alongside the rest of the corpus, which we note as a reproducibility limitation. Every LOSO evaluation therefore reports eight folds: the seven synthetic topologies of Table~\ref{tab:4} plus ATM. The three real-world systems are never LOSO folds; they are withheld entirely and used only for the zero-shot transfer evaluation of Section~\ref{sec:7.4}.
+\noindent\textbf{Role of the ATM case study.} An additional Automated Teller Machine network scenario serves as the eighth LOSO fold and as the substrate for the attention analysis of Section~\ref{sec:7.3}. It is omitted from Table~\ref{tab:4} and from the 1,896-component total because it was authored as an illustrative walkthrough and its specification lacks the seven-number summaries the other scenarios carry --- so it participates in the headline LOSO result without being characterized alongside the rest of the corpus, which we note as a reproducibility limitation. Every LOSO evaluation therefore reports eight folds: the seven synthetic topologies of Table~\ref{tab:4} plus ATM. The five real-world systems are never LOSO folds; they are withheld entirely and used only for the zero-shot transfer evaluation of Section~\ref{sec:7.4}.
 
 \subsubsection{Reproducibility of the Corpus}
 \label{sec:6.1.repro}
