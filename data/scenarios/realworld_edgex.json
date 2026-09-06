@@ -1,0 +1,1519 @@
+{
+  "metadata": {
+    "scale": {
+      "apps": 22,
+      "topics": 24,
+      "brokers": 3,
+      "nodes": 6,
+      "libs": 8
+    },
+    "seed": 2026,
+    "generation_mode": "realworld_open_source",
+    "domain": "edgex_foundry_iiot",
+    "scenario": "production_edgex_industrial_iot_mesh",
+    "description": "Authentic production-grade EdgeX Foundry industrial IoT (IIoT) edge computing topology (Linux Foundation LF Edge) with Redis Streams, southbound Modbus/GPIO device services, and eKuiper stream rules."
+  },
+  "nodes": [
+    {
+      "id": "N0",
+      "name": "industrial-edge-gateway-main",
+      "type": "Node",
+      "spec": "Advantech UNO Xeon x86_64 / 32GB RAM"
+    },
+    {
+      "id": "N1",
+      "name": "plc-controller-cell-a",
+      "type": "Node",
+      "spec": "Siemens SIMATIC IOT2050 / ARM64"
+    },
+    {
+      "id": "N2",
+      "name": "plc-controller-cell-b",
+      "type": "Node",
+      "spec": "Advantech Edge PLC / ARM64 Cortex-A72"
+    },
+    {
+      "id": "N3",
+      "name": "ot-scada-historian-node",
+      "type": "Node",
+      "spec": "Local SCADA Host / RAID-10 NVMe"
+    },
+    {
+      "id": "N4",
+      "name": "cloud-connector-gateway",
+      "type": "Node",
+      "spec": "Edge DMZ Security Appliance / Dual NIC"
+    },
+    {
+      "id": "N5",
+      "name": "vision-inspection-accelerator",
+      "type": "Node",
+      "spec": "NVIDIA Jetson AGX Orin 64GB Industrial"
+    }
+  ],
+  "brokers": [
+    {
+      "id": "B0",
+      "name": "edgex-redis-streams-bus",
+      "type": "Broker",
+      "protocol": "Redis-Streams"
+    },
+    {
+      "id": "B1",
+      "name": "mosquitto-ot-mqtt-broker",
+      "type": "Broker",
+      "protocol": "MQTT"
+    },
+    {
+      "id": "B2",
+      "name": "ekuiper-rule-engine-bus",
+      "type": "Broker",
+      "protocol": "ZeroMQ-eKuiper"
+    }
+  ],
+  "topics": [
+    {
+      "id": "T0",
+      "name": "edgex.events.device.modbus_readings",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 100.0,
+      "criticality": "medium"
+    },
+    {
+      "id": "T1",
+      "name": "edgex.events.device.mqtt_telemetry",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 80.0,
+      "criticality": "medium"
+    },
+    {
+      "id": "T2",
+      "name": "edgex.events.device.gpio_digital",
+      "size": 256,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 50.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T3",
+      "name": "edgex.events.device.vision_anomaly",
+      "size": 4096,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "CRITICAL"
+      },
+      "frequency": 10.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T4",
+      "name": "edgex.core.data.normalized",
+      "size": 1024,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 200.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T5",
+      "name": "edgex.core.metadata.device_sync",
+      "size": 2048,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 1.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T6",
+      "name": "edgex.commands.request.actuate_valve",
+      "size": 256,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "CRITICAL"
+      },
+      "frequency": 5.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T7",
+      "name": "edgex.commands.request.emergency_stop",
+      "size": 128,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGHEST"
+      },
+      "frequency": 1.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T8",
+      "name": "edgex.commands.request.speed_override",
+      "size": 256,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 10.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T9",
+      "name": "edgex.commands.response.status",
+      "size": 256,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 20.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T10",
+      "name": "edgex.alerts.critical_safety",
+      "size": 512,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGHEST"
+      },
+      "frequency": 2.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T11",
+      "name": "edgex.alerts.equipment_fault",
+      "size": 512,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "CRITICAL"
+      },
+      "frequency": 5.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T12",
+      "name": "edgex.alerts.maintenance_warning",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 1.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T13",
+      "name": "edgex.rules.stream.filtered",
+      "size": 1024,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 50.0,
+      "criticality": "medium"
+    },
+    {
+      "id": "T14",
+      "name": "edgex.export.aws_iot_core",
+      "size": 2048,
+      "qos": {
+        "durability": "TRANSIENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 10.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T15",
+      "name": "edgex.export.azure_iot_hub",
+      "size": 2048,
+      "qos": {
+        "durability": "TRANSIENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 10.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T16",
+      "name": "edgex.export.historian_db",
+      "size": 4096,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 50.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T17",
+      "name": "edgex.scheduler.cron_heartbeat",
+      "size": 128,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 1.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T18",
+      "name": "edgex.notifications.sms_pager",
+      "size": 256,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGHEST"
+      },
+      "frequency": 1.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T19",
+      "name": "edgex.notifications.email_digest",
+      "size": 1024,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 0.1,
+      "criticality": "low"
+    },
+    {
+      "id": "T20",
+      "name": "edgex.security.token_exchange",
+      "size": 512,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 5.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T21",
+      "name": "edgex.support.system_metrics",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 2.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T22",
+      "name": "edgex.events.device.snmp_network",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 1.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T23",
+      "name": "edgex.core.keeper.config_update",
+      "size": 1024,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 0.2,
+      "criticality": "high"
+    }
+  ],
+  "applications": [
+    {
+      "id": "A0",
+      "name": "device_modbus_service",
+      "app_type": "sensor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4200,
+          "total_classes": 22,
+          "total_methods": 135
+        },
+        "complexity": {
+          "avg_wmc": 19.5
+        },
+        "cohesion": {
+          "avg_lcom": 18.0
+        },
+        "coupling": {
+          "avg_cbo": 9.5,
+          "avg_rfc": 31.0
+        }
+      }
+    },
+    {
+      "id": "A1",
+      "name": "device_mqtt_service",
+      "app_type": "sensor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3600,
+          "total_classes": 18,
+          "total_methods": 115
+        },
+        "complexity": {
+          "avg_wmc": 16.8
+        },
+        "cohesion": {
+          "avg_lcom": 15.5
+        },
+        "coupling": {
+          "avg_cbo": 8.5,
+          "avg_rfc": 27.5
+        }
+      }
+    },
+    {
+      "id": "A2",
+      "name": "device_gpio_service",
+      "app_type": "sensor",
+      "criticality": true,
+      "priority": "HIGHEST",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2800,
+          "total_classes": 14,
+          "total_methods": 88
+        },
+        "complexity": {
+          "avg_wmc": 14.0
+        },
+        "cohesion": {
+          "avg_lcom": 12.5
+        },
+        "coupling": {
+          "avg_cbo": 7.0,
+          "avg_rfc": 22.0
+        }
+      }
+    },
+    {
+      "id": "A3",
+      "name": "device_camera_vision_service",
+      "app_type": "sensor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 5200,
+          "total_classes": 26,
+          "total_methods": 160
+        },
+        "complexity": {
+          "avg_wmc": 23.5
+        },
+        "cohesion": {
+          "avg_lcom": 22.0
+        },
+        "coupling": {
+          "avg_cbo": 11.5,
+          "avg_rfc": 37.0
+        }
+      }
+    },
+    {
+      "id": "A4",
+      "name": "device_snmp_service",
+      "app_type": "sensor",
+      "criticality": false,
+      "priority": "LOW",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2100,
+          "total_classes": 11,
+          "total_methods": 65
+        },
+        "complexity": {
+          "avg_wmc": 10.5
+        },
+        "cohesion": {
+          "avg_lcom": 9.5
+        },
+        "coupling": {
+          "avg_cbo": 5.2,
+          "avg_rfc": 16.5
+        }
+      }
+    },
+    {
+      "id": "A5",
+      "name": "core_data_service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGHEST",
+      "code_metrics": {
+        "size": {
+          "total_loc": 6100,
+          "total_classes": 29,
+          "total_methods": 185
+        },
+        "complexity": {
+          "avg_wmc": 26.0
+        },
+        "cohesion": {
+          "avg_lcom": 24.5
+        },
+        "coupling": {
+          "avg_cbo": 13.0,
+          "avg_rfc": 42.0
+        }
+      }
+    },
+    {
+      "id": "A6",
+      "name": "core_metadata_service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 5400,
+          "total_classes": 25,
+          "total_methods": 165
+        },
+        "complexity": {
+          "avg_wmc": 22.5
+        },
+        "cohesion": {
+          "avg_lcom": 21.0
+        },
+        "coupling": {
+          "avg_cbo": 11.2,
+          "avg_rfc": 36.0
+        }
+      }
+    },
+    {
+      "id": "A7",
+      "name": "core_command_service",
+      "app_type": "actuator",
+      "criticality": true,
+      "priority": "HIGHEST",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4800,
+          "total_classes": 23,
+          "total_methods": 145
+        },
+        "complexity": {
+          "avg_wmc": 20.0
+        },
+        "cohesion": {
+          "avg_lcom": 18.8
+        },
+        "coupling": {
+          "avg_cbo": 10.0,
+          "avg_rfc": 32.5
+        }
+      }
+    },
+    {
+      "id": "A8",
+      "name": "core_keeper_registry",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3900,
+          "total_classes": 19,
+          "total_methods": 120
+        },
+        "complexity": {
+          "avg_wmc": 17.5
+        },
+        "cohesion": {
+          "avg_lcom": 16.0
+        },
+        "coupling": {
+          "avg_cbo": 8.8,
+          "avg_rfc": 28.5
+        }
+      }
+    },
+    {
+      "id": "A9",
+      "name": "app_service_configurable",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 5900,
+          "total_classes": 28,
+          "total_methods": 175
+        },
+        "complexity": {
+          "avg_wmc": 25.0
+        },
+        "cohesion": {
+          "avg_lcom": 23.5
+        },
+        "coupling": {
+          "avg_cbo": 12.5,
+          "avg_rfc": 40.5
+        }
+      }
+    },
+    {
+      "id": "A10",
+      "name": "app_rules_engine_ekuiper",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGHEST",
+      "code_metrics": {
+        "size": {
+          "total_loc": 7200,
+          "total_classes": 34,
+          "total_methods": 215
+        },
+        "complexity": {
+          "avg_wmc": 31.0
+        },
+        "cohesion": {
+          "avg_lcom": 29.5
+        },
+        "coupling": {
+          "avg_cbo": 15.0,
+          "avg_rfc": 49.0
+        }
+      }
+    },
+    {
+      "id": "A11",
+      "name": "app_safety_interlock",
+      "app_type": "actuator",
+      "criticality": true,
+      "priority": "HIGHEST",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3100,
+          "total_classes": 15,
+          "total_methods": 95
+        },
+        "complexity": {
+          "avg_wmc": 15.5
+        },
+        "cohesion": {
+          "avg_lcom": 13.8
+        },
+        "coupling": {
+          "avg_cbo": 7.8,
+          "avg_rfc": 24.5
+        }
+      }
+    },
+    {
+      "id": "A12",
+      "name": "app_cloud_exporter_aws",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3300,
+          "total_classes": 16,
+          "total_methods": 100
+        },
+        "complexity": {
+          "avg_wmc": 15.0
+        },
+        "cohesion": {
+          "avg_lcom": 13.5
+        },
+        "coupling": {
+          "avg_cbo": 7.5,
+          "avg_rfc": 24.0
+        }
+      }
+    },
+    {
+      "id": "A13",
+      "name": "app_cloud_exporter_azure",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3200,
+          "total_classes": 15,
+          "total_methods": 98
+        },
+        "complexity": {
+          "avg_wmc": 14.8
+        },
+        "cohesion": {
+          "avg_lcom": 13.2
+        },
+        "coupling": {
+          "avg_cbo": 7.2,
+          "avg_rfc": 23.5
+        }
+      }
+    },
+    {
+      "id": "A14",
+      "name": "app_historian_persister",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3500,
+          "total_classes": 17,
+          "total_methods": 108
+        },
+        "complexity": {
+          "avg_wmc": 16.2
+        },
+        "cohesion": {
+          "avg_lcom": 14.8
+        },
+        "coupling": {
+          "avg_cbo": 8.0,
+          "avg_rfc": 26.0
+        }
+      }
+    },
+    {
+      "id": "A15",
+      "name": "support_notifications",
+      "app_type": "actuator",
+      "criticality": true,
+      "priority": "HIGHEST",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3700,
+          "total_classes": 18,
+          "total_methods": 112
+        },
+        "complexity": {
+          "avg_wmc": 17.0
+        },
+        "cohesion": {
+          "avg_lcom": 15.2
+        },
+        "coupling": {
+          "avg_cbo": 8.4,
+          "avg_rfc": 27.2
+        }
+      }
+    },
+    {
+      "id": "A16",
+      "name": "support_scheduler",
+      "app_type": "sensor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2400,
+          "total_classes": 12,
+          "total_methods": 76
+        },
+        "complexity": {
+          "avg_wmc": 12.2
+        },
+        "cohesion": {
+          "avg_lcom": 11.0
+        },
+        "coupling": {
+          "avg_cbo": 6.1,
+          "avg_rfc": 19.5
+        }
+      }
+    },
+    {
+      "id": "A17",
+      "name": "security_proxy_kong",
+      "app_type": "sensor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4400,
+          "total_classes": 21,
+          "total_methods": 132
+        },
+        "complexity": {
+          "avg_wmc": 19.2
+        },
+        "cohesion": {
+          "avg_lcom": 17.8
+        },
+        "coupling": {
+          "avg_cbo": 9.8,
+          "avg_rfc": 31.5
+        }
+      }
+    },
+    {
+      "id": "A18",
+      "name": "security_secretstore_vault",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGHEST",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4100,
+          "total_classes": 20,
+          "total_methods": 125
+        },
+        "complexity": {
+          "avg_wmc": 18.5
+        },
+        "cohesion": {
+          "avg_lcom": 16.8
+        },
+        "coupling": {
+          "avg_cbo": 9.2,
+          "avg_rfc": 29.8
+        }
+      }
+    },
+    {
+      "id": "A19",
+      "name": "security_bootstrapper",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2600,
+          "total_classes": 13,
+          "total_methods": 82
+        },
+        "complexity": {
+          "avg_wmc": 13.0
+        },
+        "cohesion": {
+          "avg_lcom": 11.5
+        },
+        "coupling": {
+          "avg_cbo": 6.6,
+          "avg_rfc": 21.0
+        }
+      }
+    },
+    {
+      "id": "A20",
+      "name": "system_management_agent",
+      "app_type": "sensor",
+      "criticality": false,
+      "priority": "LOW",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2200,
+          "total_classes": 11,
+          "total_methods": 68
+        },
+        "complexity": {
+          "avg_wmc": 11.0
+        },
+        "cohesion": {
+          "avg_lcom": 9.8
+        },
+        "coupling": {
+          "avg_cbo": 5.5,
+          "avg_rfc": 17.5
+        }
+      }
+    },
+    {
+      "id": "A21",
+      "name": "ui_management_dashboard",
+      "app_type": "actuator",
+      "criticality": false,
+      "priority": "LOW",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3800,
+          "total_classes": 19,
+          "total_methods": 118
+        },
+        "complexity": {
+          "avg_wmc": 17.5
+        },
+        "cohesion": {
+          "avg_lcom": 16.0
+        },
+        "coupling": {
+          "avg_cbo": 8.7,
+          "avg_rfc": 28.0
+        }
+      }
+    }
+  ],
+  "libraries": [
+    {
+      "id": "L0",
+      "name": "go-mod-core-contracts",
+      "version": "3.1.0",
+      "description": "EdgeX canonical Go struct DTOs and data models"
+    },
+    {
+      "id": "L1",
+      "name": "go-mod-messaging",
+      "version": "3.1.1",
+      "description": "Multi-bus message client abstraction for Redis Streams and MQTT"
+    },
+    {
+      "id": "L2",
+      "name": "go-mod-bootstrap",
+      "version": "3.1.0",
+      "description": "Microservice bootstrap lifecycle and dependency injector"
+    },
+    {
+      "id": "L3",
+      "name": "go-mod-secrets",
+      "version": "3.1.0",
+      "description": "HashiCorp Vault secret store interface helper"
+    },
+    {
+      "id": "L4",
+      "name": "ekuiper-go-sdk",
+      "version": "1.11.2",
+      "description": "LF Edge eKuiper stream SQL processor extension client"
+    },
+    {
+      "id": "L5",
+      "name": "paho-mqtt-golang",
+      "version": "1.4.3",
+      "description": "Eclipse Paho MQTT client runtime for Go"
+    },
+    {
+      "id": "L6",
+      "go_mod": "go-redis-v9",
+      "name": "go-redis-v9",
+      "version": "9.5.1",
+      "description": "Redis Streams client connection pool manager"
+    },
+    {
+      "id": "L7",
+      "name": "opentelemetry-go",
+      "version": "1.24.0",
+      "description": "OpenTelemetry distributed tracing and metrics SDK"
+    }
+  ],
+  "relationships": {
+    "publishes_to": [
+      {
+        "from": "A0",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "T1",
+        "weight": 1.0
+      },
+      {
+        "from": "A2",
+        "to": "T2",
+        "weight": 1.0
+      },
+      {
+        "from": "A3",
+        "to": "T3",
+        "weight": 1.0
+      },
+      {
+        "from": "A4",
+        "to": "T22",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "T4",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "T5",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "T23",
+        "weight": 1.0
+      },
+      {
+        "from": "A7",
+        "to": "T9",
+        "weight": 1.0
+      },
+      {
+        "from": "A9",
+        "to": "T13",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "T10",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "T11",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "T12",
+        "weight": 1.0
+      },
+      {
+        "from": "A11",
+        "to": "T7",
+        "weight": 1.0
+      },
+      {
+        "from": "A11",
+        "to": "T18",
+        "weight": 1.0
+      },
+      {
+        "from": "A12",
+        "to": "T14",
+        "weight": 1.0
+      },
+      {
+        "from": "A13",
+        "to": "T15",
+        "weight": 1.0
+      },
+      {
+        "from": "A14",
+        "to": "T16",
+        "weight": 1.0
+      },
+      {
+        "from": "A16",
+        "to": "T17",
+        "weight": 1.0
+      },
+      {
+        "from": "A17",
+        "to": "T20",
+        "weight": 1.0
+      },
+      {
+        "from": "A20",
+        "to": "T21",
+        "weight": 1.0
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "A5",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "T1",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "T2",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "T3",
+        "weight": 1.0
+      },
+      {
+        "from": "A0",
+        "to": "T5",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "T5",
+        "weight": 1.0
+      },
+      {
+        "from": "A7",
+        "to": "T6",
+        "weight": 1.0
+      },
+      {
+        "from": "A7",
+        "to": "T7",
+        "weight": 1.0
+      },
+      {
+        "from": "A7",
+        "to": "T8",
+        "weight": 1.0
+      },
+      {
+        "from": "A0",
+        "to": "T6",
+        "weight": 1.0
+      },
+      {
+        "from": "A2",
+        "to": "T7",
+        "weight": 1.0
+      },
+      {
+        "from": "A9",
+        "to": "T4",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "T4",
+        "weight": 1.0
+      },
+      {
+        "from": "A11",
+        "to": "T10",
+        "weight": 1.0
+      },
+      {
+        "from": "A12",
+        "to": "T13",
+        "weight": 1.0
+      },
+      {
+        "from": "A13",
+        "to": "T13",
+        "weight": 1.0
+      },
+      {
+        "from": "A14",
+        "to": "T4",
+        "weight": 1.0
+      },
+      {
+        "from": "A15",
+        "to": "T18",
+        "weight": 1.0
+      },
+      {
+        "from": "A15",
+        "to": "T19",
+        "weight": 1.0
+      },
+      {
+        "from": "A18",
+        "to": "T20",
+        "weight": 1.0
+      },
+      {
+        "from": "A21",
+        "to": "T4",
+        "weight": 1.0
+      }
+    ],
+    "routes": [
+      {
+        "from": "B0",
+        "to": "T4",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T5",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T6",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T7",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T8",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T9",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T10",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T11",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T12",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T13",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T16",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T18",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T23",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T1",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T2",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T6",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T7",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T22",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T3",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T10",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T13",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T14",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T15",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T17",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T21",
+        "weight": 1.0
+      }
+    ],
+    "runs_on": [
+      {
+        "from": "A5",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A7",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A9",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A11",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A0",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A2",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "A4",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "A3",
+        "to": "N5",
+        "weight": 1.0
+      },
+      {
+        "from": "A14",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A12",
+        "to": "N4",
+        "weight": 1.0
+      },
+      {
+        "from": "A13",
+        "to": "N4",
+        "weight": 1.0
+      },
+      {
+        "from": "A17",
+        "to": "N4",
+        "weight": 1.0
+      },
+      {
+        "from": "A18",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A19",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A15",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A16",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A20",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A21",
+        "to": "N0",
+        "weight": 1.0
+      }
+    ],
+    "connects_to": [
+      {
+        "from": "N0",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "N0",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "N0",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "N0",
+        "to": "N4",
+        "weight": 1.0
+      },
+      {
+        "from": "N0",
+        "to": "N5",
+        "weight": 1.0
+      },
+      {
+        "from": "N1",
+        "to": "N2",
+        "weight": 1.0
+      }
+    ],
+    "uses": [
+      {
+        "from": "A0",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "L5",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "L1",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "L6",
+        "weight": 1.0
+      },
+      {
+        "from": "A7",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A7",
+        "to": "L1",
+        "weight": 1.0
+      },
+      {
+        "from": "A9",
+        "to": "L1",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "L4",
+        "weight": 1.0
+      },
+      {
+        "from": "A18",
+        "to": "L3",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "L7",
+        "weight": 1.0
+      },
+      {
+        "from": "A9",
+        "to": "L2",
+        "weight": 1.0
+      }
+    ]
+  }
+}

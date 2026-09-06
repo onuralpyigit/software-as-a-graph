@@ -51,6 +51,28 @@ def main():
         json.dump(trainticket_data, f, indent=2)
     print(f"Generated {trainticket_json_path} (apps: {len(trainticket_data['applications'])}, topics: {len(trainticket_data['topics'])}, libs: {len(trainticket_data['libraries'])})")
 
+    # 4. Home Assistant IoT topology
+    ha_data = RealWorldAdapter.create_homeassistant_topology()
+    ha_json_path = scenarios_dir / "scenario_14_realworld_homeassistant.json"
+    ha_alias_path = scenarios_dir / "realworld_homeassistant.json"
+    
+    with open(ha_json_path, "w") as f:
+        json.dump(ha_data, f, indent=2)
+    with open(ha_alias_path, "w") as f:
+        json.dump(ha_data, f, indent=2)
+    print(f"Generated {ha_json_path} (apps: {len(ha_data['applications'])}, topics: {len(ha_data['topics'])}, libs: {len(ha_data['libraries'])})")
+
+    # 5. EdgeX Foundry Industrial IoT topology
+    edgex_data = RealWorldAdapter.create_edgex_foundry_topology()
+    edgex_json_path = scenarios_dir / "scenario_15_realworld_edgex.json"
+    edgex_alias_path = scenarios_dir / "realworld_edgex.json"
+    
+    with open(edgex_json_path, "w") as f:
+        json.dump(edgex_data, f, indent=2)
+    with open(edgex_alias_path, "w") as f:
+        json.dump(edgex_data, f, indent=2)
+    print(f"Generated {edgex_json_path} (apps: {len(edgex_data['applications'])}, topics: {len(edgex_data['topics'])}, libs: {len(edgex_data['libraries'])})")
+
     # Generate YAML scenario files to support batch scenario discovery
     autoware_yaml = """graph:
   seed: 2026
@@ -94,9 +116,38 @@ def main():
     with open(scenarios_dir / "scenario_13_realworld_trainticket.yaml", "w") as f:
         f.write(trainticket_yaml)
 
+    ha_yaml = """graph:
+  seed: 2026
+  domain: homeassistant_iot
+  scenario: production_homeassistant_smarthome_mesh
+  counts:
+    nodes: 6
+    applications: 24
+    libraries: 8
+    topics: 22
+    brokers: 3
+"""
+    with open(scenarios_dir / "scenario_14_realworld_homeassistant.yaml", "w") as f:
+        f.write(ha_yaml)
+
+    edgex_yaml = """graph:
+  seed: 2026
+  domain: edgex_foundry_iiot
+  scenario: production_edgex_industrial_iot_mesh
+  counts:
+    nodes: 6
+    applications: 22
+    libraries: 8
+    topics: 24
+    brokers: 3
+"""
+    with open(scenarios_dir / "scenario_15_realworld_edgex.yaml", "w") as f:
+        f.write(edgex_yaml)
+
     print("Real-world scenario files and YAML descriptors generated successfully!")
 
 
 if __name__ == "__main__":
     main()
+
 

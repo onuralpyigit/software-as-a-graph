@@ -81,11 +81,13 @@ SYNTHETIC_SCENARIOS = [
     "enterprise_system",
 ]
 
-#: The three real-world graphs backing RQ4. No LOSO cache exists for these.
+#: The real-world graphs backing RQ4. No LOSO cache exists for these.
 REALWORLD_SCENARIOS = [
     "realworld_autoware_ros2",
     "realworld_trainticket",
     "realworld_cloud_microservices",
+    "realworld_homeassistant",
+    "realworld_edgex",
 ]
 
 #: Named points marked on the w_R sweep curve. "domain_derived" is resolved

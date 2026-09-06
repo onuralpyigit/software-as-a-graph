@@ -1,0 +1,10 @@
+graph:
+  seed: 2026
+  domain: homeassistant_iot
+  scenario: production_homeassistant_smarthome_mesh
+  counts:
+    nodes: 6
+    applications: 24
+    libraries: 8
+    topics: 22
+    brokers: 3

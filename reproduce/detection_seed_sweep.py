@@ -64,6 +64,8 @@ SCENARIOS: List[tuple] = (
         ("realworld_autoware_ros2", "transcribed"),
         ("realworld_trainticket", "transcribed"),
         ("realworld_cloud_microservices", "transcribed"),
+        ("realworld_homeassistant", "transcribed"),
+        ("realworld_edgex", "transcribed"),
     ]
 )
 

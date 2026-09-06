@@ -1,0 +1,1577 @@
+{
+  "metadata": {
+    "scale": {
+      "apps": 24,
+      "topics": 22,
+      "brokers": 3,
+      "nodes": 6,
+      "libs": 8
+    },
+    "seed": 2026,
+    "generation_mode": "realworld_open_source",
+    "domain": "homeassistant_iot",
+    "scenario": "production_homeassistant_smarthome_mesh",
+    "description": "Authentic production-grade Home Assistant smart home IoT topology (open-source local-first home automation) featuring async event bus, MQTT, and safety hazard actuation."
+  },
+  "nodes": [
+    {
+      "id": "N0",
+      "name": "ha-host-appliance",
+      "type": "Node",
+      "spec": "ODROID-N2+ ARM64 / Home Assistant Green"
+    },
+    {
+      "id": "N1",
+      "name": "zigbee-matter-radio",
+      "type": "Node",
+      "spec": "Silicon Labs EFR32MG21 USB Coordinator"
+    },
+    {
+      "id": "N2",
+      "name": "zwave-controller-hub",
+      "type": "Node",
+      "spec": "Aeotec Z-Stick Gen7 / 700 Series Controller"
+    },
+    {
+      "id": "N3",
+      "name": "edge-nas-storage",
+      "type": "Node",
+      "spec": "Local TrueNAS Storage Host / NVMe"
+    },
+    {
+      "id": "N4",
+      "name": "edge-sensor-bridge",
+      "type": "Node",
+      "spec": "ESP32 ESPHome Distributed Gateway Hub"
+    },
+    {
+      "id": "N5",
+      "name": "mobile-tablet-wallmount",
+      "type": "Node",
+      "spec": "Android Wall Display / Lovelace Kiosk"
+    }
+  ],
+  "brokers": [
+    {
+      "id": "B0",
+      "name": "hass-core-eventbus",
+      "type": "Broker",
+      "protocol": "AsyncIO-EventBus"
+    },
+    {
+      "id": "B1",
+      "name": "mosquitto-mqtt-broker",
+      "type": "Broker",
+      "protocol": "MQTT"
+    },
+    {
+      "id": "B2",
+      "name": "websocket-push-router",
+      "type": "Broker",
+      "protocol": "WebSocket"
+    }
+  ],
+  "topics": [
+    {
+      "id": "T0",
+      "name": "event.state_changed",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 100.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T1",
+      "name": "event.call_service",
+      "size": 256,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "CRITICAL"
+      },
+      "frequency": 50.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T2",
+      "name": "alarm.hazard.fire_smoke",
+      "size": 128,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGHEST"
+      },
+      "frequency": 1.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T3",
+      "name": "alarm.hazard.water_leak",
+      "size": 128,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGHEST"
+      },
+      "frequency": 1.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T4",
+      "name": "alarm.security.intrusion",
+      "size": 256,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGHEST"
+      },
+      "frequency": 2.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T5",
+      "name": "device.zigbee.raw_state",
+      "size": 256,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 60.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T6",
+      "name": "device.zwave.raw_state",
+      "size": 256,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 40.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T7",
+      "name": "device.esphome.telemetry",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 30.0,
+      "criticality": "medium"
+    },
+    {
+      "id": "T8",
+      "name": "command.actuate.valve",
+      "size": 128,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGHEST"
+      },
+      "frequency": 0.5,
+      "criticality": "critical"
+    },
+    {
+      "id": "T9",
+      "name": "command.actuate.siren",
+      "size": 128,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGHEST"
+      },
+      "frequency": 1.0,
+      "criticality": "critical"
+    },
+    {
+      "id": "T10",
+      "name": "command.actuate.switch",
+      "size": 128,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 20.0,
+      "criticality": "medium"
+    },
+    {
+      "id": "T11",
+      "name": "climate.thermostat.status",
+      "size": 256,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 10.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T12",
+      "name": "climate.hvac.command",
+      "size": 128,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 5.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T13",
+      "name": "recorder.db.write_queue",
+      "size": 2048,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      },
+      "frequency": 80.0,
+      "criticality": "medium"
+    },
+    {
+      "id": "T14",
+      "name": "energy.meter.consumption",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 10.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T15",
+      "name": "energy.solar.production",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 10.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T16",
+      "name": "presence.occupancy.detected",
+      "size": 256,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 15.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T17",
+      "name": "notification.push.alert",
+      "size": 1024,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 5.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T18",
+      "name": "media.playback.status",
+      "size": 256,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 2.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T19",
+      "name": "camera.motion.event",
+      "size": 1024,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 5.0,
+      "criticality": "high"
+    },
+    {
+      "id": "T20",
+      "name": "system.health.heartbeat",
+      "size": 128,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      },
+      "frequency": 1.0,
+      "criticality": "low"
+    },
+    {
+      "id": "T21",
+      "name": "automation.trigger.event",
+      "size": 512,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      },
+      "frequency": 30.0,
+      "criticality": "high"
+    }
+  ],
+  "applications": [
+    {
+      "id": "A0",
+      "name": "core_state_machine",
+      "app_type": "sensor",
+      "criticality": true,
+      "priority": "HIGHEST",
+      "code_metrics": {
+        "size": {
+          "total_loc": 5800,
+          "total_classes": 26,
+          "total_methods": 175
+        },
+        "complexity": {
+          "avg_wmc": 24.5
+        },
+        "cohesion": {
+          "avg_lcom": 22.0
+        },
+        "coupling": {
+          "avg_cbo": 12.0,
+          "avg_rfc": 39.5
+        }
+      }
+    },
+    {
+      "id": "A1",
+      "name": "automation_engine",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGHEST",
+      "code_metrics": {
+        "size": {
+          "total_loc": 6400,
+          "total_classes": 30,
+          "total_methods": 190
+        },
+        "complexity": {
+          "avg_wmc": 28.0
+        },
+        "cohesion": {
+          "avg_lcom": 26.5
+        },
+        "coupling": {
+          "avg_cbo": 14.2,
+          "avg_rfc": 45.0
+        }
+      }
+    },
+    {
+      "id": "A2",
+      "name": "script_execution_service",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3200,
+          "total_classes": 15,
+          "total_methods": 95
+        },
+        "complexity": {
+          "avg_wmc": 16.0
+        },
+        "cohesion": {
+          "avg_lcom": 14.2
+        },
+        "coupling": {
+          "avg_cbo": 8.1,
+          "avg_rfc": 25.4
+        }
+      }
+    },
+    {
+      "id": "A3",
+      "name": "safety_hazard_monitor",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGHEST",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2900,
+          "total_classes": 14,
+          "total_methods": 88
+        },
+        "complexity": {
+          "avg_wmc": 15.5
+        },
+        "cohesion": {
+          "avg_lcom": 13.0
+        },
+        "coupling": {
+          "avg_cbo": 7.5,
+          "avg_rfc": 23.0
+        }
+      }
+    },
+    {
+      "id": "A4",
+      "name": "alarm_control_panel",
+      "app_type": "actuator",
+      "criticality": true,
+      "priority": "HIGHEST",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3400,
+          "total_classes": 16,
+          "total_methods": 105
+        },
+        "complexity": {
+          "avg_wmc": 17.2
+        },
+        "cohesion": {
+          "avg_lcom": 15.8
+        },
+        "coupling": {
+          "avg_cbo": 8.9,
+          "avg_rfc": 28.1
+        }
+      }
+    },
+    {
+      "id": "A5",
+      "name": "emergency_actuation_manager",
+      "app_type": "actuator",
+      "criticality": true,
+      "priority": "HIGHEST",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2100,
+          "total_classes": 11,
+          "total_methods": 65
+        },
+        "complexity": {
+          "avg_wmc": 12.0
+        },
+        "cohesion": {
+          "avg_lcom": 10.5
+        },
+        "coupling": {
+          "avg_cbo": 6.2,
+          "avg_rfc": 19.5
+        }
+      }
+    },
+    {
+      "id": "A6",
+      "name": "zha_zigbee_gateway",
+      "app_type": "sensor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4800,
+          "total_classes": 24,
+          "total_methods": 150
+        },
+        "complexity": {
+          "avg_wmc": 21.4
+        },
+        "cohesion": {
+          "avg_lcom": 20.2
+        },
+        "coupling": {
+          "avg_cbo": 11.0,
+          "avg_rfc": 35.0
+        }
+      }
+    },
+    {
+      "id": "A7",
+      "name": "zwave_js_supervisor",
+      "app_type": "sensor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4300,
+          "total_classes": 21,
+          "total_methods": 135
+        },
+        "complexity": {
+          "avg_wmc": 19.8
+        },
+        "cohesion": {
+          "avg_lcom": 18.5
+        },
+        "coupling": {
+          "avg_cbo": 10.2,
+          "avg_rfc": 32.4
+        }
+      }
+    },
+    {
+      "id": "A8",
+      "name": "esphome_device_manager",
+      "app_type": "sensor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3100,
+          "total_classes": 16,
+          "total_methods": 92
+        },
+        "complexity": {
+          "avg_wmc": 14.5
+        },
+        "cohesion": {
+          "avg_lcom": 13.0
+        },
+        "coupling": {
+          "avg_cbo": 7.4,
+          "avg_rfc": 23.8
+        }
+      }
+    },
+    {
+      "id": "A9",
+      "name": "mqtt_event_bridge",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2600,
+          "total_classes": 13,
+          "total_methods": 80
+        },
+        "complexity": {
+          "avg_wmc": 13.0
+        },
+        "cohesion": {
+          "avg_lcom": 11.8
+        },
+        "coupling": {
+          "avg_cbo": 6.8,
+          "avg_rfc": 21.5
+        }
+      }
+    },
+    {
+      "id": "A10",
+      "name": "camera_stream_manager",
+      "app_type": "sensor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3500,
+          "total_classes": 17,
+          "total_methods": 110
+        },
+        "complexity": {
+          "avg_wmc": 16.8
+        },
+        "cohesion": {
+          "avg_lcom": 15.0
+        },
+        "coupling": {
+          "avg_cbo": 8.5,
+          "avg_rfc": 27.0
+        }
+      }
+    },
+    {
+      "id": "A11",
+      "name": "matter_thread_bridge",
+      "app_type": "sensor",
+      "criticality": false,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3900,
+          "total_classes": 19,
+          "total_methods": 125
+        },
+        "complexity": {
+          "avg_wmc": 18.2
+        },
+        "cohesion": {
+          "avg_lcom": 16.9
+        },
+        "coupling": {
+          "avg_cbo": 9.4,
+          "avg_rfc": 30.1
+        }
+      }
+    },
+    {
+      "id": "A12",
+      "name": "climate_hvac_controller",
+      "app_type": "actuator",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2800,
+          "total_classes": 14,
+          "total_methods": 85
+        },
+        "complexity": {
+          "avg_wmc": 14.0
+        },
+        "cohesion": {
+          "avg_lcom": 12.5
+        },
+        "coupling": {
+          "avg_cbo": 7.1,
+          "avg_rfc": 22.8
+        }
+      }
+    },
+    {
+      "id": "A13",
+      "name": "light_switch_controller",
+      "app_type": "actuator",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2200,
+          "total_classes": 11,
+          "total_methods": 70
+        },
+        "complexity": {
+          "avg_wmc": 11.0
+        },
+        "cohesion": {
+          "avg_lcom": 9.8
+        },
+        "coupling": {
+          "avg_cbo": 5.8,
+          "avg_rfc": 18.2
+        }
+      }
+    },
+    {
+      "id": "A14",
+      "name": "presence_detection_engine",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2500,
+          "total_classes": 12,
+          "total_methods": 78
+        },
+        "complexity": {
+          "avg_wmc": 12.5
+        },
+        "cohesion": {
+          "avg_lcom": 11.2
+        },
+        "coupling": {
+          "avg_cbo": 6.5,
+          "avg_rfc": 20.4
+        }
+      }
+    },
+    {
+      "id": "A15",
+      "name": "media_player_coordinator",
+      "app_type": "actuator",
+      "criticality": false,
+      "priority": "LOW",
+      "code_metrics": {
+        "size": {
+          "total_loc": 1900,
+          "total_classes": 10,
+          "total_methods": 60
+        },
+        "complexity": {
+          "avg_wmc": 9.5
+        },
+        "cohesion": {
+          "avg_lcom": 8.5
+        },
+        "coupling": {
+          "avg_cbo": 5.0,
+          "avg_rfc": 15.8
+        }
+      }
+    },
+    {
+      "id": "A16",
+      "name": "recorder_persistence_worker",
+      "app_type": "processor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4100,
+          "total_classes": 20,
+          "total_methods": 130
+        },
+        "complexity": {
+          "avg_wmc": 19.0
+        },
+        "cohesion": {
+          "avg_lcom": 17.5
+        },
+        "coupling": {
+          "avg_cbo": 9.8,
+          "avg_rfc": 31.0
+        }
+      }
+    },
+    {
+      "id": "A17",
+      "name": "energy_analytics_worker",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "LOW",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2700,
+          "total_classes": 13,
+          "total_methods": 82
+        },
+        "complexity": {
+          "avg_wmc": 13.5
+        },
+        "cohesion": {
+          "avg_lcom": 12.0
+        },
+        "coupling": {
+          "avg_cbo": 6.9,
+          "avg_rfc": 22.0
+        }
+      }
+    },
+    {
+      "id": "A18",
+      "name": "logbook_history_service",
+      "app_type": "processor",
+      "criticality": false,
+      "priority": "LOW",
+      "code_metrics": {
+        "size": {
+          "total_loc": 1800,
+          "total_classes": 9,
+          "total_methods": 55
+        },
+        "complexity": {
+          "avg_wmc": 9.0
+        },
+        "cohesion": {
+          "avg_lcom": 8.0
+        },
+        "coupling": {
+          "avg_cbo": 4.8,
+          "avg_rfc": 15.0
+        }
+      }
+    },
+    {
+      "id": "A19",
+      "name": "notification_dispatcher",
+      "app_type": "actuator",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2400,
+          "total_classes": 12,
+          "total_methods": 75
+        },
+        "complexity": {
+          "avg_wmc": 12.0
+        },
+        "cohesion": {
+          "avg_lcom": 10.8
+        },
+        "coupling": {
+          "avg_cbo": 6.2,
+          "avg_rfc": 19.8
+        }
+      }
+    },
+    {
+      "id": "A20",
+      "name": "websocket_api_server",
+      "app_type": "sensor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3600,
+          "total_classes": 18,
+          "total_methods": 115
+        },
+        "complexity": {
+          "avg_wmc": 17.0
+        },
+        "cohesion": {
+          "avg_lcom": 15.5
+        },
+        "coupling": {
+          "avg_cbo": 8.8,
+          "avg_rfc": 28.0
+        }
+      }
+    },
+    {
+      "id": "A21",
+      "name": "http_api_ingress",
+      "app_type": "sensor",
+      "criticality": true,
+      "priority": "HIGH",
+      "code_metrics": {
+        "size": {
+          "total_loc": 3100,
+          "total_classes": 15,
+          "total_methods": 96
+        },
+        "complexity": {
+          "avg_wmc": 15.2
+        },
+        "cohesion": {
+          "avg_lcom": 13.8
+        },
+        "coupling": {
+          "avg_cbo": 7.9,
+          "avg_rfc": 25.0
+        }
+      }
+    },
+    {
+      "id": "A22",
+      "name": "lovelace_ui_dashboard",
+      "app_type": "actuator",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 4600,
+          "total_classes": 23,
+          "total_methods": 145
+        },
+        "complexity": {
+          "avg_wmc": 20.5
+        },
+        "cohesion": {
+          "avg_lcom": 19.0
+        },
+        "coupling": {
+          "avg_cbo": 10.5,
+          "avg_rfc": 33.5
+        }
+      }
+    },
+    {
+      "id": "A23",
+      "name": "cloud_remote_agent",
+      "app_type": "sensor",
+      "criticality": false,
+      "priority": "MEDIUM",
+      "code_metrics": {
+        "size": {
+          "total_loc": 2300,
+          "total_classes": 11,
+          "total_methods": 72
+        },
+        "complexity": {
+          "avg_wmc": 11.5
+        },
+        "cohesion": {
+          "avg_lcom": 10.2
+        },
+        "coupling": {
+          "avg_cbo": 5.9,
+          "avg_rfc": 18.6
+        }
+      }
+    }
+  ],
+  "libraries": [
+    {
+      "id": "L0",
+      "name": "aiohttp",
+      "version": "3.9.5",
+      "description": "Async HTTP client & WebSocket server runtime"
+    },
+    {
+      "id": "L1",
+      "name": "voluptuous",
+      "version": "0.15.2",
+      "description": "Data schema validation and typing library"
+    },
+    {
+      "id": "L2",
+      "name": "sqlalchemy",
+      "version": "2.0.30",
+      "description": "Database abstraction layer and ORM"
+    },
+    {
+      "id": "L3",
+      "name": "paho-mqtt",
+      "version": "2.1.0",
+      "description": "MQTT client protocol implementation"
+    },
+    {
+      "id": "L4",
+      "name": "zeroconf",
+      "version": "0.132.2",
+      "description": "Pure Python mDNS service discovery"
+    },
+    {
+      "id": "L5",
+      "name": "webrtc-streamer",
+      "version": "0.8.4",
+      "description": "Live camera low-latency WebRTC client helper"
+    },
+    {
+      "id": "L6",
+      "name": "pyroute2",
+      "version": "0.7.12",
+      "description": "Linux network routing and netlink socket client"
+    },
+    {
+      "id": "L7",
+      "name": "homeassistant-frontend",
+      "version": "20240710.0",
+      "description": "Lovelace reactive UI web client asset pack"
+    }
+  ],
+  "relationships": {
+    "publishes_to": [
+      {
+        "from": "A6",
+        "to": "T5",
+        "weight": 1.0
+      },
+      {
+        "from": "A7",
+        "to": "T6",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "T7",
+        "weight": 1.0
+      },
+      {
+        "from": "A9",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A7",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "T19",
+        "weight": 1.0
+      },
+      {
+        "from": "A11",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A14",
+        "to": "T16",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "T14",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "T15",
+        "weight": 1.0
+      },
+      {
+        "from": "A0",
+        "to": "T20",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "T21",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "T1",
+        "weight": 1.0
+      },
+      {
+        "from": "A2",
+        "to": "T10",
+        "weight": 1.0
+      },
+      {
+        "from": "A2",
+        "to": "T12",
+        "weight": 1.0
+      },
+      {
+        "from": "A3",
+        "to": "T2",
+        "weight": 1.0
+      },
+      {
+        "from": "A3",
+        "to": "T3",
+        "weight": 1.0
+      },
+      {
+        "from": "A3",
+        "to": "T4",
+        "weight": 1.0
+      },
+      {
+        "from": "A4",
+        "to": "T9",
+        "weight": 1.0
+      },
+      {
+        "from": "A4",
+        "to": "T17",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "T8",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "T17",
+        "weight": 1.0
+      },
+      {
+        "from": "A12",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A13",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A15",
+        "to": "T18",
+        "weight": 1.0
+      },
+      {
+        "from": "A16",
+        "to": "T13",
+        "weight": 1.0
+      },
+      {
+        "from": "A20",
+        "to": "T1",
+        "weight": 1.0
+      },
+      {
+        "from": "A21",
+        "to": "T1",
+        "weight": 1.0
+      },
+      {
+        "from": "A22",
+        "to": "T1",
+        "weight": 1.0
+      },
+      {
+        "from": "A23",
+        "to": "T1",
+        "weight": 1.0
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "A0",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A0",
+        "to": "T1",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "T16",
+        "weight": 1.0
+      },
+      {
+        "from": "A2",
+        "to": "T1",
+        "weight": 1.0
+      },
+      {
+        "from": "A3",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A4",
+        "to": "T4",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "T3",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "T2",
+        "weight": 1.0
+      },
+      {
+        "from": "A12",
+        "to": "T11",
+        "weight": 1.0
+      },
+      {
+        "from": "A12",
+        "to": "T12",
+        "weight": 1.0
+      },
+      {
+        "from": "A13",
+        "to": "T10",
+        "weight": 1.0
+      },
+      {
+        "from": "A16",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A17",
+        "to": "T14",
+        "weight": 1.0
+      },
+      {
+        "from": "A17",
+        "to": "T15",
+        "weight": 1.0
+      },
+      {
+        "from": "A18",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A19",
+        "to": "T17",
+        "weight": 1.0
+      },
+      {
+        "from": "A20",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A22",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "A23",
+        "to": "T17",
+        "weight": 1.0
+      }
+    ],
+    "routes": [
+      {
+        "from": "B0",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T1",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T2",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T3",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T4",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T11",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T13",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T14",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T15",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T16",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T17",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T20",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "T21",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T5",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T6",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T7",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T8",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T9",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T10",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "T12",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T0",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T18",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "T19",
+        "weight": 1.0
+      }
+    ],
+    "runs_on": [
+      {
+        "from": "A0",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A2",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A3",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A4",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A5",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "B0",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "B1",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "B2",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A11",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "A7",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "A16",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A17",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A18",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "N4",
+        "weight": 1.0
+      },
+      {
+        "from": "A9",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A12",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A13",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A14",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A15",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A19",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A20",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A21",
+        "to": "N0",
+        "weight": 1.0
+      },
+      {
+        "from": "A22",
+        "to": "N5",
+        "weight": 1.0
+      },
+      {
+        "from": "A23",
+        "to": "N0",
+        "weight": 1.0
+      }
+    ],
+    "connects_to": [
+      {
+        "from": "N0",
+        "to": "N1",
+        "weight": 1.0
+      },
+      {
+        "from": "N0",
+        "to": "N2",
+        "weight": 1.0
+      },
+      {
+        "from": "N0",
+        "to": "N3",
+        "weight": 1.0
+      },
+      {
+        "from": "N0",
+        "to": "N4",
+        "weight": 1.0
+      },
+      {
+        "from": "N0",
+        "to": "N5",
+        "weight": 1.0
+      }
+    ],
+    "uses": [
+      {
+        "from": "A0",
+        "to": "L1",
+        "weight": 1.0
+      },
+      {
+        "from": "A1",
+        "to": "L1",
+        "weight": 1.0
+      },
+      {
+        "from": "A9",
+        "to": "L3",
+        "weight": 1.0
+      },
+      {
+        "from": "A16",
+        "to": "L2",
+        "weight": 1.0
+      },
+      {
+        "from": "A17",
+        "to": "L2",
+        "weight": 1.0
+      },
+      {
+        "from": "A18",
+        "to": "L2",
+        "weight": 1.0
+      },
+      {
+        "from": "A20",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A21",
+        "to": "L0",
+        "weight": 1.0
+      },
+      {
+        "from": "A10",
+        "to": "L5",
+        "weight": 1.0
+      },
+      {
+        "from": "A6",
+        "to": "L4",
+        "weight": 1.0
+      },
+      {
+        "from": "A8",
+        "to": "L4",
+        "weight": 1.0
+      },
+      {
+        "from": "A22",
+        "to": "L7",
+        "weight": 1.0
+      },
+      {
+        "from": "A0",
+        "to": "L6",
+        "weight": 1.0
+      }
+    ]
+  }
+}

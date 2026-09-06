@@ -1,0 +1,10 @@
+graph:
+  seed: 2026
+  domain: edgex_foundry_iiot
+  scenario: production_edgex_industrial_iot_mesh
+  counts:
+    nodes: 6
+    applications: 22
+    libraries: 8
+    topics: 24
+    brokers: 3
