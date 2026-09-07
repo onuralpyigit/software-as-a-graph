@@ -120,6 +120,13 @@ class FaultInjectionResult:
     #: explicit instead of letting it vanish in a set intersection downstream.
     unlabeled_node_ids: List[str] = field(default_factory=list)
 
+    #: Injected types whose every label came out 0.0. A type that scores zero
+    #: everywhere is a structural zero, not a measurement, and training or
+    #: scoring on it teaches a constant. This travelled only as a log line
+    #: before, which a batch run discards — the same shape of defect as a
+    #: silently stale cache. Carried in the artifact so a consumer can act on it.
+    degenerate_node_types: List[str] = field(default_factory=list)
+
     #: How reproducible these labels are, measured across `seeds_used`. Travels
     #: with the labels so downstream reports can state the ceiling on any
     #: correlation metric: a model scoring rho=0.93 against labels whose own
@@ -171,6 +178,7 @@ class FaultInjectionResult:
             "labeled_node_types": self.labeled_node_types,
             "labeled_dimensions": self.labeled_dimensions,
             "unlabeled_node_ids": self.unlabeled_node_ids,
+            "degenerate_node_types": self.degenerate_node_types,
             "label_stability": self.label_stability,
             "top_k_by_impact": self.top_k_by_impact,
             "records": {

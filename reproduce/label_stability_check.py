@@ -49,10 +49,14 @@ SCENARIOS = [
 ]
 
 #: Matches scripts/populate_loso_cache.sh's fault-inject invocation exactly:
-#: Application/Broker/Library only (Topic and Node cannot express failure in
-#: the cascade and would contribute spurious zeros), the five canonical seeds,
+#: Application/Broker/Library only, the five canonical seeds,
 #: and FaultInjector's own defaults for cascade_depth_limit (0, unlimited),
 #: propagation_threshold (0.2) and qos_factor_mode ("ladder").
+#:
+#: The restriction is now about matching that invocation, not about what the
+#: engine can express: FaultInjector gained Topic and host-Node injection modes,
+#: and those strata are labelled separately by reproduce/passive_stratum_labels.py.
+#: Adding them here would change what this artifact measures against the cache.
 NODE_TYPES = ["Application", "Broker", "Library"]
 
 CACHE_DIR = Path("output/loso_cache")

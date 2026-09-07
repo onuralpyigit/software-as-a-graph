@@ -93,3 +93,66 @@ def test_flow_disruption_survival(sample_graph_data):
     # Using cascade: fail Node1 which hosts both brokers
     failure_res = fail_sim.simulate(FailureScenario(target_ids=["Node1"], cascade_rule=CascadeRule.PHYSICAL))
     assert failure_res.impact.flow_disruption == 1.0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Both service sweeps must establish the baseline the term is measured against.
+#
+# The flow-disruption term carries 15% of the composite and returns 0.0 for
+# every component when ``_baseline_flows`` is empty, which is silent: the sweep
+# still produces a composite, just one built from three of its four criteria.
+# ``run_failure_simulation_exhaustive`` primed; ``run_failure_simulation_pairwise``
+# did not, so the same oracle name meant two different things depending on which
+# sweep produced it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_PRIMING_TOPOLOGY = {
+    "applications": [{"id": "A0", "name": "pub"}, {"id": "A1", "name": "sub"}],
+    "topics": [{"id": "T0", "name": "t", "size": 256,
+                "qos": {"reliability": "RELIABLE", "durability": "VOLATILE",
+                        "transport_priority": "HIGH"}}],
+    "brokers": [{"id": "B0", "name": "b"}],
+    "nodes": [{"id": "N0", "name": "h"}],
+    "libraries": [],
+    "relationships": {
+        "publishes_to": [{"from": "A0", "to": "T0"}],
+        "subscribes_to": [{"from": "A1", "to": "T0"}],
+        "routes": [{"from": "B0", "to": "T0"}],
+        "runs_on": [{"from": "A0", "to": "N0"}, {"from": "A1", "to": "N0"},
+                    {"from": "B0", "to": "N0"}],
+    },
+}
+
+
+@pytest.fixture
+def primed_service():
+    from saag.infrastructure.memory_repo import MemoryRepository
+    from saag.simulation.service import SimulationService
+
+    repo = MemoryRepository()
+    repo.save_graph(_PRIMING_TOPOLOGY, clear=True)
+    return SimulationService(repo)
+
+
+@pytest.mark.parametrize("sweep", [
+    "run_failure_simulation_exhaustive",
+    "run_failure_simulation_pairwise",
+])
+def test_service_sweeps_prime_baseline_flows(primed_service, monkeypatch, sweep):
+    """Whichever sweep runs, the simulator it builds must carry baseline flows."""
+    from saag.simulation.failure_simulator import FailureSimulator
+
+    seen = []
+    original = FailureSimulator.set_baseline_flows
+
+    def spy(self, flows):
+        original(self, flows)
+        seen.append(list(flows))
+
+    monkeypatch.setattr(FailureSimulator, "set_baseline_flows", spy)
+
+    getattr(primed_service, sweep)(layer="system")
+
+    assert seen, f"{sweep} never primed the flow-disruption baseline"
+    assert seen[-1], f"{sweep} primed an empty flow set"
+    assert ("A0", "T0", "A1") in seen[-1]

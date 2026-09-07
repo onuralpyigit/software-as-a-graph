@@ -57,9 +57,10 @@ def _run_variant(
     epochs: int,
     extra_args: List[str],
     verbose: bool,
+    output_base: Path = OUTPUT_BASE,
 ) -> Optional[Dict]:
     """Invoke loso_evaluate.py for one variant and return its results dict."""
-    out_dir = OUTPUT_BASE / variant
+    out_dir = output_base / variant
 
     # Clear the per-variant workspace first. GNNService restores from any
     # checkpoint it finds under the fold's checkpoint dir, so a leftover
@@ -160,6 +161,8 @@ def _extra_args(args) -> List[str]:
     if not args.auto_layers:
         extra.append("--no-auto-layers")
     extra += ["--inner-val-scenario", args.inner_val_scenario]
+    if args.skip:
+        extra += ["--skip", args.skip]
     if args.rank_normalize_features:
         extra.append("--rank-normalize-features")
     if args.rank_normalize_labels:
@@ -265,6 +268,10 @@ def parse_args():
     p.add_argument("--seeds", default=DEFAULT_SEEDS,
                    help="Comma-separated seeds (default: 5 seeds)")
     p.add_argument("--cache-dir", type=Path, default=Path("output/loso_cache"))
+    p.add_argument("--output-base", type=Path, default=OUTPUT_BASE,
+                   help="Per-variant workspace root (default: output/loso). Point a "
+                        "run that changes the corpus (e.g. --skip) at its own base so "
+                        "it does not overwrite the workspace backing a published table.")
     p.add_argument("--epochs", type=int, default=300)
     p.add_argument("--output", type=Path, default=RESULTS_DIR / "loso_all_variants.json")
     p.add_argument("--resume", action="store_true",
@@ -295,6 +302,11 @@ def parse_args():
         help="Forwarded to cli/loso_evaluate.py. 'auto' selects checkpoints on a "
              "held-out training scenario instead of a within-primary split.",
     )
+    p.add_argument("--skip", default="",
+                   help="Comma-separated scenario id substrings dropped from the "
+                        "corpus entirely, forwarded to cli/loso_evaluate.py. A "
+                        "skipped scenario is neither a fold nor a training graph, "
+                        "so this measures the corpus without it — not a holdout.")
     p.add_argument("--rank-normalize-features", action="store_true",
                    help="Forwarded to cli/loso_evaluate.py.")
     p.add_argument("--rank-normalize-labels", action="store_true",
@@ -315,10 +327,12 @@ def main():
 
     results_by_variant: Dict[str, Optional[Dict]] = {}
 
+    output_base = args.output_base
+
     if args.table_only:
         # Load existing per-variant results
         for var in variants:
-            rp = OUTPUT_BASE / var / "results.json"
+            rp = output_base / var / "results.json"
             if rp.exists():
                 results_by_variant[var] = json.loads(rp.read_text())
                 print(f"  Loaded: {var} ({rp})")
@@ -331,7 +345,7 @@ def main():
             sys.exit(1)
 
         for var in variants:
-            rp = OUTPUT_BASE / var / "results.json"
+            rp = output_base / var / "results.json"
             if args.resume and rp.exists():
                 stale = _staleness(rp, args.cache_dir)
                 if stale is None:
@@ -346,6 +360,7 @@ def main():
                 cache_dir=args.cache_dir, epochs=args.epochs,
                 extra_args=_extra_args(args),
                 verbose=args.verbose,
+                output_base=output_base,
             )
             results_by_variant[var] = data
 

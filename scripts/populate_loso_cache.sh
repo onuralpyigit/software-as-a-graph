@@ -13,7 +13,10 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-CACHE_DIR="output/loso_cache"
+# Overridable so a corpus that is not the LOSO corpus can be cached without
+# landing in output/loso_cache/, where discover_scenarios() would pick it up as
+# an extra fold and silently change every LOSO number.
+CACHE_DIR="${CACHE_DIR:-output/loso_cache}"
 SCENARIOS_DIR="data/scenarios"
 
 ALL_SCENARIOS=(

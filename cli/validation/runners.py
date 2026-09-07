@@ -87,6 +87,12 @@ def run_sweep(
 
     rcr = rank_consistency_rate(all_scores)
 
+    # Zero-exclusion sensitivity: averaged only over the seeds where it was
+    # defined, so a scenario whose positive subset is too small on some seeds
+    # reports the bound from the seeds that had one rather than a padded mean.
+    rhos_pos = [r.spearman_rho_positive for r in results
+                if r.spearman_rho_positive is not None]
+
     return SweepReport(
         qos_enabled=qos,
         seeds=seeds,
@@ -99,6 +105,9 @@ def run_sweep(
         rcr=rcr,
         all_gates_pass_rate=float(np.mean([r.overall_pass for r in results])),
         per_seed=results,
+        rho_positive_mean=float(np.mean(rhos_pos)) if rhos_pos else None,
+        n_zero_impact_mean=float(np.mean([r.n_zero_impact for r in results])),
+        n_positive_impact_mean=float(np.mean([r.n_positive_impact for r in results])),
     )
 
 

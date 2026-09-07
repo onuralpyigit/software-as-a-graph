@@ -14,6 +14,7 @@
 #   make significance    — pre-registered Wilcoxon tests + attainable-p floor (no training)
 #   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
+#   make passive-strata  — Topic / host-Node ground truth + trivial-baseline controls
 #   make jss-figures     — all 5 figures for the JSS submission (docs/research/jss/latex/figures/)
 #   make jss-tables      — JSS Table 5: generator-parameter table (tab_genparams.tex)
 #   make all             — full end-to-end pipeline (tables + JSS figures)
@@ -38,6 +39,7 @@ RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
 .PHONY: setup scenarios cache block0 table3 table4 significance nested-search kfold convergent-validity \
+        passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
         jss-figures jss-tables all smoke-test clean clean-all
@@ -167,6 +169,14 @@ convergent-validity:
 	    --output $(RESULTS_DIR)/convergent_validity.json \
 	    --verbose
 	@echo "✓ Oracle agreement ready: $(RESULTS_DIR)/convergent_validity.json"
+
+# Ground truth for the passive strata (Topic, host Node) that carried no label
+# before FaultInjector gained the two injection modes. Cheap — no training, no
+# discrete-event runs — and additive: the Application/Broker/Library labels the
+# headline tables are scored on are unchanged.
+passive-strata:
+	$(PYTHON) reproduce/passive_stratum_labels.py
+	@echo "✓ Passive-stratum labels ready: $(RESULTS_DIR)/passive_stratum_labels.json"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Topic-weight (β, α, ψ) sensitivity — the DECLARED outer split of w(t).

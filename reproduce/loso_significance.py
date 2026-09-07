@@ -114,6 +114,65 @@ def compare(table: Dict[str, Any], a: str, b: str) -> Optional[Dict[str, Any]]:
     }
 
 
+def stratified_qos_ablation(
+    table: Dict[str, Any], diagnostic_path: Path
+) -> Optional[Dict[str, Any]]:
+    """QoS ablation (HGT-QoS - HGT) split by whether the holdout's QoS varies.
+
+    EXPLORATORY. This split was not pre-registered: it was motivated by
+    ``reproduce/qos_corpus_diagnostic.py``, which found that 7 of the 12
+    scenarios declare an identical QoS triple on every topic, so the 7 QoS
+    edge-feature dimensions are a constant offset on those graphs and cannot
+    discriminate between their components. Pooling them with the graphs where
+    QoS does vary averages a treatment over folds where it is inert.
+
+    No significance test is reported per stratum, and deliberately so: at n = 4
+    the attainable two-sided signed-rank floor is already above 0.05, so no
+    arrangement of four folds can reach significance. The strata are descriptive.
+    """
+    if not diagnostic_path.exists():
+        return None
+    diag = json.loads(diagnostic_path.read_text())
+    degenerate = set(diag.get("qos_degenerate_scenarios", []))
+    if not degenerate:
+        return None
+
+    pa, pb = _per_fold(table, "hgl_qos"), _per_fold(table, "hgl")
+    folds = sorted(set(pa) & set(pb))
+    if not folds:
+        return None
+
+    strata: Dict[str, Dict[str, Any]] = {}
+    for name, members in (
+        ("qos_varying", [f for f in folds if f not in degenerate]),
+        ("qos_degenerate", [f for f in folds if f in degenerate]),
+        ("all", folds),
+    ):
+        if not members:
+            continue
+        diff = np.array([pa[f] - pb[f] for f in members])
+        strata[name] = {
+            "n_folds": len(members),
+            "folds": members,
+            "mean_delta": float(diff.mean()),
+            "wins": int((diff > 0).sum()),
+            "losses": int((diff < 0).sum()),
+            "attainable_floor_p": attainable_floor(len(members)),
+            "per_fold_delta": {f: float(d) for f, d in zip(members, diff)},
+        }
+
+    return {
+        "contrast": "hgl_qos - hgl",
+        "label": "HGT-QoS - HGT (QoS edge-encoding ablation)",
+        "role": "exploratory",
+        "not_preregistered": True,
+        "source": str(diagnostic_path),
+        "dimensions_dead_in_every_scenario":
+            diag.get("dimensions_dead_in_every_scenario", []),
+        "strata": strata,
+    }
+
+
 def holm(results: List[Dict[str, Any]]) -> None:
     """Holm-Bonferroni over the pre-registered family, in place."""
     ordered = sorted(range(len(results)), key=lambda i: results[i]["p"])
@@ -132,6 +191,12 @@ def main() -> int:
     ap.add_argument("--output", type=Path,
                     default=Path("results/loso_significance.json"))
     ap.add_argument("--alpha", type=float, default=0.05)
+    ap.add_argument("--stratify", type=Path,
+                    default=Path("results/qos_corpus_diagnostic.json"),
+                    help="qos_corpus_diagnostic.json used to split the QoS "
+                         "ablation into QoS-varying and QoS-degenerate strata. "
+                         "Reported as exploratory; pass a non-existent path to "
+                         "suppress the block.")
     args = ap.parse_args()
 
     if not args.input.exists():
@@ -178,6 +243,28 @@ def main() -> int:
                           key=lambda kv: kv[1]):
         print(f"    {fold:<32}{d:>+8.4f}")
 
+    stratified = stratified_qos_ablation(table, args.stratify)
+    if stratified:
+        print("\n  QoS edge-encoding ablation, stratified   [EXPLORATORY, "
+              "not pre-registered]")
+        print(f"  Split source: {stratified['source']}")
+        dead = stratified["dimensions_dead_in_every_scenario"]
+        if dead:
+            print(f"  Constant in ALL scenarios: {', '.join(dead)}")
+        print("  " + "─" * 78)
+        print(f"  {'stratum':<18}{'n':>4}{'d rho':>10}{'wins':>8}"
+              f"{'floor p':>10}   reachable at a=0.05?")
+        for name in ("qos_varying", "qos_degenerate", "all"):
+            st = stratified["strata"].get(name)
+            if not st:
+                continue
+            reach = "yes" if st["attainable_floor_p"] < args.alpha else "NO"
+            print(f"  {name:<18}{st['n_folds']:>4}{st['mean_delta']:>+10.4f}"
+                  f"{st['wins']:>5}/{st['n_folds']:<2}"
+                  f"{st['attainable_floor_p']:>10.4f}   {reach}")
+        print("  No per-stratum significance test is reported: see the "
+              "docstring of stratified_qos_ablation().")
+
     payload = {
         "input": str(args.input),
         "alpha": args.alpha,
@@ -186,6 +273,7 @@ def main() -> int:
         "loss_budget_at_alpha": loss_budget(n, args.alpha),
         "preregistered": family,
         "exploratory": exploratory,
+        "qos_stratified_ablation": stratified,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2))

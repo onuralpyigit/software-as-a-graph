@@ -145,19 +145,51 @@ def test_artifact_round_trips_stability(tmp_path):
 def test_degenerate_node_type_is_flagged(caplog):
     """A type the cascade cannot express must warn, not pass as measurement.
 
-    Topic and Node score I(v)=0 for every instance because the cascade derives
-    DEPENDS_ON only from PUBLISHES_TO/SUBSCRIBES_TO/USES. Training on such a
-    block teaches the model a constant.
+    Training on an all-zero block teaches the model a constant, so it has to be
+    visible. This used to be asserted with Topic, which the cascade could not
+    express; Topic is now a measured stratum (tests/test_passive_strata.py), so
+    the property is pinned here on a graph that genuinely starves one type — a
+    Library nothing depends on cannot orphan anything.
+    """
+    import logging
+
+    g = nx.DiGraph()
+    g.add_node("A0", type="Application")
+    g.add_node("T0", type="Topic", qos_reliability="RELIABLE")
+    g.add_node("A1", type="Application")
+    g.add_node("L0", type="Library")
+    g.add_edge("A0", "T0", type="PUBLISHES_TO", rate_hz=10.0)
+    g.add_edge("A1", "T0", type="SUBSCRIBES_TO")
+
+    with caplog.at_level(logging.WARNING):
+        result = FaultInjector(graph=g, seeds=[42]).run(
+            node_types=["Application", "Library"])
+
+    assert any("DEGENERATE LABELS" in r.message and "Library" in r.message
+               for r in caplog.records), (
+        f"expected a degenerate-label warning for Library; got {[r.message for r in caplog.records]}"
+    )
+    # The types also travel on the artifact, not only in the log, so a batch run
+    # that discards logging still carries the fact.
+    assert "Library" in result.degenerate_node_types
+
+
+def test_topic_is_no_longer_a_degenerate_type(caplog):
+    """The limitation this suite used to encode has been fixed.
+
+    Topic injection was unexpressible, which is what left 30-47% of each system
+    unlabelled (JSS Section 8.3, Limitation L1). Pinned here so the regression
+    would surface in the stability suite too, not only in the new one.
     """
     import logging
 
     with caplog.at_level(logging.WARNING):
-        _run([42], node_types=("Application", "Topic"))
+        result = _run([42], node_types=("Application", "Topic"))
 
-    assert any("DEGENERATE LABELS" in r.message and "Topic" in r.message
-               for r in caplog.records), (
-        f"expected a degenerate-label warning for Topic; got {[r.message for r in caplog.records]}"
-    )
+    assert "Topic" not in result.degenerate_node_types
+    topic_scores = [r.impact_score for r in result.records.values()
+                    if r.node_type == "Topic"]
+    assert topic_scores and max(topic_scores) > 0.0
 
 
 def test_healthy_node_types_do_not_warn(caplog):

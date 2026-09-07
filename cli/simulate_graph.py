@@ -99,30 +99,33 @@ def _load_graph(input_path: Path):
     g = nx.DiGraph()
     g.graph["id"] = input_path.stem
 
-    # Nodes
-    for app in data.get("applications", []):
-        g.add_node(app["id"], type="Application",
-                   name=app.get("name", app["id"]),
-                   **{k: v for k, v in app.items() if k not in ("id", "name")})
-    for broker in data.get("brokers", []):
-        g.add_node(broker["id"], type="Broker",
-                   name=broker.get("name", broker["id"]),
-                   **{k: v for k, v in broker.items() if k not in ("id", "name")})
-    for topic in data.get("topics", []):
-        g.add_node(topic["id"], type="Topic",
-                   name=topic.get("name", topic["id"]),
-                   **{k: v for k, v in topic.items() if k not in ("id", "name")})
-    for node in data.get("nodes", []):
-        g.add_node(node["id"], type="Node",
-                   name=node.get("name", node["id"]),
-                   **{k: v for k, v in node.items() if k not in ("id", "name")})
-    # Libraries must be added explicitly. Without this they are still created
-    # implicitly by their USES edges, but with type=None — so they never match
-    # a --node-types filter and silently receive no ground truth at all.
-    for lib in data.get("libraries", []):
-        g.add_node(lib["id"], type="Library",
-                   name=lib.get("name", lib["id"]),
-                   **{k: v for k, v in lib.items() if k not in ("id", "name")})
+    # Nodes.
+    # ``type`` is excluded from the splat, not just ``id``/``name``: the five
+    # real-world topologies carry a per-entity ``type`` field, and letting it
+    # through collided with the keyword below (``TypeError: got multiple values
+    # for keyword argument 'type'``), so this loader raised on every one of
+    # them — which is why no real-world system had fault-injection labels. The
+    # canonical bucket label wins because the node-type contract downstream
+    # (``--node-types``, the injector's own filters) is keyed on it; where both
+    # are present they agree anyway. Same fix as
+    # ``cli/loso_evaluate.py:_build_graph_from_json``.
+    _SPLAT_EXCLUDE = ("id", "name", "type")
+    for bucket, type_label in (
+        ("applications", "Application"),
+        ("brokers", "Broker"),
+        ("topics", "Topic"),
+        ("nodes", "Node"),
+        # Libraries must be added explicitly. Without this they are still
+        # created implicitly by their USES edges, but with type=None — so they
+        # never match a --node-types filter and silently receive no ground
+        # truth at all.
+        ("libraries", "Library"),
+    ):
+        for entity in data.get(bucket, []):
+            g.add_node(entity["id"], type=type_label,
+                       name=entity.get("name", entity["id"]),
+                       **{k: v for k, v in entity.items()
+                          if k not in _SPLAT_EXCLUDE})
 
     # Edges
     # Support both flat and nested 'relationships' structure

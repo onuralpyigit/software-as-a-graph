@@ -14,6 +14,10 @@ from scipy.stats import kendalltau, spearmanr
 
 from .scoring import NodeScores
 
+#: Minimum number of strictly-positive labels for the zero-excluded rho to be
+#: reported at all. Matches ``saag/evaluation/metrics.py::_MIN_STRATUM``.
+_MIN_POSITIVE_FOR_RHO = 3
+
 
 @dataclass
 class ValidationResult:
@@ -30,6 +34,13 @@ class ValidationResult:
     kendall_p: float = 1.0
     bootstrap_ci_lo: float = 0.0
     bootstrap_ci_hi: float = 0.0
+
+    # ── zero-exclusion sensitivity ─────────────────────────────────────────────
+    # rho over the strictly-positive-impact subset, with the count it was taken
+    # over. Reported as a bound on the headline rho, never in place of it.
+    n_zero_impact: int = 0
+    n_positive_impact: int = 0
+    spearman_rho_positive: Optional[float] = None
 
     # ── classification ─────────────────────────────────────────────────────────
     top_k: int = 0
@@ -71,6 +82,12 @@ class SweepReport:
     rcr: float                    # Rank Consistency Rate = 1 − (mean Kendall distance)
     all_gates_pass_rate: float    # Fraction of seeds that pass all gates
     per_seed: List[ValidationResult] = field(default_factory=list)
+
+    # ── zero-exclusion sensitivity (see ValidationResult) ──────────────────────
+    # ``rho_positive_mean`` is None when too few seeds yielded a defined value.
+    rho_positive_mean: Optional[float] = None
+    n_zero_impact_mean: float = 0.0
+    n_positive_impact_mean: float = 0.0
 
 
 def top_k_sets(items, node_scores: Dict[str, "NodeScores"], k: int) -> Tuple[set, set]:
@@ -207,9 +224,30 @@ def run_statistical_tests(
 
     pg = float(abs(rho) - abs(rho_dc))
 
+    # ── zero-exclusion sensitivity ────────────────────────────────────────────
+    # On several transcribed architectures 40-66% of Applications carry I(v)=0,
+    # and Spearman over a heavily tied population is dominated by midrank tie
+    # handling rather than by the ordering under test. rho over the strictly
+    # positive subset bounds how much of the headline figure is the separation
+    # of inert components from active ones. It is a sensitivity check, not a
+    # replacement: a zero label is a real measurement ("its failure reaches
+    # nobody"), so the reported rho keeps them.
+    positive = I_arr > 0.0
+    n_positive = int(positive.sum())
+    rho_pos: Optional[float] = None
+    if n_positive >= _MIN_POSITIVE_FOR_RHO:
+        Q_pos, I_pos = Q_arr[positive], I_arr[positive]
+        if np.std(Q_pos) > 0 and np.std(I_pos) > 0:
+            r_pos, _ = stats.spearmanr(Q_pos, I_pos)
+            if not math.isnan(r_pos):
+                rho_pos = float(r_pos)
+
     return dict(
         spearman_rho=float(rho),
         spearman_p=float(rho_p),
+        n_zero_impact=int(n - n_positive),
+        n_positive_impact=n_positive,
+        spearman_rho_positive=rho_pos,
         kendall_tau=float(tau),
         kendall_p=float(tau_p),
         bootstrap_ci_lo=ci_lo,

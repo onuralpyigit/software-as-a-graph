@@ -63,11 +63,16 @@ if __name__ == "__main__" and __package__ is None:
 import numpy as np
 from scipy.stats import kendalltau, spearmanr
 
+from reproduce._provenance import stamp
 from saag.evaluation.metrics import resolve_eval_keys
 
 logger = logging.getLogger("convergent_validity")
 
 RESULTS_DIR = Path("results")
+
+#: Minimum size of the strictly-positive subset for the zero-excluded rho to be
+#: reported. Matches ``saag/evaluation/metrics.py::_MIN_STRATUM``.
+_MIN_POSITIVE = 3
 
 
 def _fault_injector_labels(
@@ -251,9 +256,31 @@ def _pairwise(a_scores: Dict[str, float], b_scores: Dict[str, float]) -> Dict[st
     exp_union = 2 * k - exp_inter
     random_jaccard = exp_inter / exp_union if exp_union > 0 else float("nan")
 
+    # Zero-exclusion sensitivity. Several architectures label 40-66% of their
+    # Applications at exactly zero, and Spearman over a heavily tied population
+    # is dominated by midrank tie handling rather than by the ordering under
+    # test. rho over the nodes both oracles score strictly positive bounds how
+    # much of the headline agreement is just the two oracles concurring on which
+    # components are inert. Reported alongside the full-population figure, never
+    # instead of it: a zero label is a real measurement, and dropping it would be
+    # a results-favourable filter (cf. resolve_eval_keys in
+    # saag/evaluation/metrics.py, which keeps zeros for the same reason).
+    both_positive = (a > 0) & (b > 0)
+    n_positive = int(both_positive.sum())
+    rho_positive = None
+    if n_positive >= _MIN_POSITIVE:
+        a_pos, b_pos = a[both_positive], b[both_positive]
+        if np.ptp(a_pos) > 0 and np.ptp(b_pos) > 0:
+            r_pos, _ = spearmanr(a_pos, b_pos)
+            rho_positive = round(float(r_pos), 4)
+
     block.update({
         "spearman_rho": round(float(rho), 4),
         "spearman_p": round(float(p), 6),
+        "n_zero_a": int((a == 0).sum()),
+        "n_zero_b": int((b == 0).sum()),
+        "n_both_positive": n_positive,
+        "spearman_rho_positive": rho_positive,
         "kendall_tau": round(float(tau), 4),
         "topk_jaccard": round(float(jaccard), 4),
         "topk_jaccard_tie_robust": round(float(jaccard_robust), 4),
@@ -430,6 +457,18 @@ def main():
         "seeds": args.seeds,
         "duration": args.duration,
         "eval_population": args.eval_population,
+        # I_comp's flow-disruption term is only measured when the discrete-event
+        # baseline is primed first; this path did not prime before, so the state
+        # of that flag is part of what the numbers mean.
+        "provenance": stamp(
+            seeds=args.seeds,
+            qos_weighting=not args.no_qos,
+            duration=args.duration,
+            eval_population=args.eval_population,
+            i_comp_baseline_flows_primed=True,
+            max_candidates=args.max_candidates,
+            skip_message_flow=args.skip_message_flow,
+        ),
         "per_scenario": rows,
         "summary": summary,
         "self_agreement_ceiling": ceiling,

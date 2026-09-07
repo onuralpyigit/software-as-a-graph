@@ -121,6 +121,8 @@ class _PubSubIndex:
         self.broker_routes: Dict[str, Set[str]] = defaultdict(set)
         # topic_id → set of broker_ids that route it (inverse of broker_routes)
         self.topic_routers: Dict[str, Set[str]] = defaultdict(set)
+        # host_id → set of component_ids deployed on it (inverse of RUNS_ON)
+        self.host_residents: Dict[str, Set[str]] = defaultdict(set)
         # node metadata
         self.node_type: Dict[str, str] = {}
         self.node_name: Dict[str, str] = {}
@@ -141,6 +143,8 @@ class _PubSubIndex:
             elif etype == "ROUTES":
                 self.broker_routes[src].add(tgt)
                 self.topic_routers[tgt].add(src)
+            elif etype == "RUNS_ON":
+                self.host_residents[tgt].add(src)
 
         self.all_subscribers: Set[str] = {
             a for a, subs in self.app_subscribes.items() if subs
@@ -161,6 +165,10 @@ class _PubSubIndex:
     def live_routers_of(self, topic: str, failed: Set[str]) -> Set[str]:
         """Return brokers that route *topic* and are not in *failed*."""
         return self.topic_routers.get(topic, set()) - failed
+
+    def residents_of(self, host: str) -> Set[str]:
+        """Return the components deployed on *host* via RUNS_ON."""
+        return self.host_residents.get(host, set())
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -199,6 +207,12 @@ class FaultInjector:
         scaling entirely and is the topology-only arm of the label ablation.
     qos_factor_kappa : float, optional
         Sensitivity of the ``"wt"`` mode.  Default 0.5.
+    strict_labels : bool, optional
+        Raise instead of warning when an injected type scores 0.0 everywhere.
+        Off by default because Broker labels are legitimately degenerate in
+        several corpus scenarios; on for callers where a degenerate stratum
+        means the run is wrong rather than the system is (see
+        ``reproduce/passive_stratum_labels.py``).
     """
 
     #: Accepted values for ``qos_factor_mode``.
@@ -212,6 +226,7 @@ class FaultInjector:
         propagation_threshold: float = 0.2,
         qos_factor_mode: str = "ladder",
         qos_factor_kappa: float = 0.5,
+        strict_labels: bool = False,
     ) -> None:
         if qos_factor_mode not in self.QOS_FACTOR_MODES:
             raise ValueError(
@@ -220,6 +235,7 @@ class FaultInjector:
             )
         self.qos_factor_mode = qos_factor_mode
         self.qos_factor_kappa = qos_factor_kappa
+        self.strict_labels = strict_labels
         self.graph = graph.copy()
         
         # Derive DEPENDS_ON edges dynamically if they are missing
@@ -385,7 +401,14 @@ class FaultInjector:
 
         result.finalise()
         result.label_stability = self._compute_label_stability(result)
-        self._warn_on_degenerate_types(result)
+        self._record_degenerate_types(result)
+        if self.strict_labels and result.degenerate_node_types:
+            raise ValueError(
+                "degenerate labels: "
+                f"{', '.join(result.degenerate_node_types)} scored I(v)=0 for "
+                "every node. Under strict_labels this is an error, not a "
+                "measurement."
+            )
         logger.info("Fault injection complete.  %d records.", result.total_nodes_injected)
         return result
 
@@ -456,14 +479,22 @@ class FaultInjector:
         return stability
 
     @staticmethod
-    def _warn_on_degenerate_types(result: FaultInjectionResult) -> None:
+    def _record_degenerate_types(result: FaultInjectionResult) -> None:
         """Flag node types whose entire label set came out zero.
 
         A type that scores 0.0 everywhere is almost never a finding about the
-        system — it means the cascade has no path to express that type's failure
-        (e.g. Topic and Node, whose RUNS_ON/direct-topic semantics are not derived
-        into DEPENDS_ON). Training on such a block teaches the model to predict a
-        constant, so it must be visible rather than silently averaged in.
+        system — it means the cascade has no path to express that type's failure.
+        Training on such a block teaches the model to predict a constant, so it
+        must be visible rather than silently averaged in.
+
+        This used to warn only. A log line is discarded by any batch run, which
+        is how a degenerate block reaches a table unnoticed — the same shape of
+        defect as a stale cache. The types are now recorded on the result and
+        travel into the artifact; callers that cannot tolerate one (see
+        ``strict_labels``) turn it into an error.
+
+        Broker labels are legitimately degenerate in several corpus scenarios, so
+        this is deliberately not fatal by default.
         """
         by_type: Dict[str, List[float]] = defaultdict(list)
         for rec in result.records.values():
@@ -471,6 +502,7 @@ class FaultInjector:
 
         for node_type, scores in sorted(by_type.items()):
             if scores and max(scores) <= 1e-9:
+                result.degenerate_node_types.append(node_type)
                 logger.warning(
                     "DEGENERATE LABELS: all %d '%s' nodes scored I(v)=0. The cascade "
                     "cannot express this type's failure, so these are not measurements. "
@@ -552,6 +584,14 @@ class FaultInjector:
             """Soft per-topic feed loss given the current `failed_nodes` state."""
             loss: Dict[str, float] = {}
             for topic in idx.all_topics:
+                # A failed Topic — broker partition, or configuration corruption
+                # that severs the channel itself — delivers nothing regardless of
+                # how many publishers survive. Without this branch the loss was
+                # derived purely from failed publishers and routers, so injecting
+                # a Topic scored 0.0 and the type was unlabelled.
+                if topic in failed_nodes:
+                    loss[topic] = 1.0
+                    continue
                 publishers = idx.publishers_of(topic)
                 if not publishers:
                     routers = idx.topic_routers.get(topic, set())
@@ -561,9 +601,17 @@ class FaultInjector:
                     else:
                         loss[topic] = 0.0
                 else:
-                    total_rate = sum(get_rate_hz(p, topic) for p in publishers)
+                    # Sorted for the same reason the subscriber loop below is:
+                    # float addition is not associative, so summing an unordered
+                    # set gives a result whose last bits depend on
+                    # PYTHONHASHSEED. Those bits decide `sub_loss >= threshold`
+                    # for any subscriber sitting exactly on the boundary — a
+                    # k/n feed-loss fraction lands on 0.2 exactly — and a flipped
+                    # comparison shifts every subsequent RNG draw in the wave.
+                    ordered_pubs = sorted(publishers)
+                    total_rate = sum(get_rate_hz(p, topic) for p in ordered_pubs)
                     if total_rate > 0:
-                        failed_rate = sum(get_rate_hz(p, topic) for p in publishers if p in failed_nodes)
+                        failed_rate = sum(get_rate_hz(p, topic) for p in ordered_pubs if p in failed_nodes)
                         loss[topic] = failed_rate / total_rate
                     else:
                         failed_pubs = publishers & failed_nodes
@@ -574,6 +622,16 @@ class FaultInjector:
             return loss
 
         frontier = [node_id]
+
+        # Wave 0 for a host outage: every component deployed on the Node dies
+        # with it, simultaneously. This is the RUNS_ON blast of Rule 6, and it is
+        # the only failure mode in this engine that starts with more than one
+        # dead component. For every other injected type `residents_of` is empty,
+        # so this cannot perturb their labels.
+        if node_type == "Node":
+            residents = sorted(idx.residents_of(node_id) - failed_nodes)
+            failed_nodes.update(residents)
+            frontier.extend(residents)
 
         while frontier:
             if self.cascade_depth_limit and wave_idx >= self.cascade_depth_limit:
@@ -640,7 +698,7 @@ class FaultInjector:
                 all_feeds = idx.app_subscribes.get(sub, set())
                 if not all_feeds:
                     continue
-                sub_loss = sum(topic_loss.get(t, 0.0) for t in all_feeds) / len(all_feeds)
+                sub_loss = sum(topic_loss.get(t, 0.0) for t in sorted(all_feeds)) / len(all_feeds)
                 
                 if sub_loss >= self.propagation_threshold and sub_loss > 1e-6:
                     # Failure probability scaled by propagation_threshold
@@ -670,14 +728,17 @@ class FaultInjector:
         # last in-progress `topic_loss`, which predates that wave's failures.
         final_topic_loss = compute_topic_loss()
         per_sub_loss: Dict[str, float] = {}
-        for sub in idx.all_subscribers:
+        for sub in sorted(idx.all_subscribers):
             all_feeds = idx.app_subscribes.get(sub, set())
             if not all_feeds:
                 per_sub_loss[sub] = 0.0
                 continue
-            per_sub_loss[sub] = sum(final_topic_loss.get(t, 0.0) for t in all_feeds) / len(all_feeds)
+            per_sub_loss[sub] = sum(
+                final_topic_loss.get(t, 0.0) for t in sorted(all_feeds)) / len(all_feeds)
 
         total_subs = len(idx.all_subscribers)
+        # `per_sub_loss` is now insertion-ordered by sorted subscriber id, so this
+        # sum is order-stable across processes as well.
         impact_score = sum(per_sub_loss.values()) / total_subs if total_subs else 0.0
 
         return _SingleSeedResult(

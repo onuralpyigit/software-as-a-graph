@@ -216,8 +216,15 @@ class SimulationService:
                                         library_cascade_probability: Optional[float] = None,
                                         propagation_threshold: float = 0.2,
                                         failure_mode: FailureMode = FailureMode.CRASH) -> List[Any]:
-        """Run pairwise failure analysis for all component pairs in a layer."""
-        _, sim = self._failure_sim(propagation_threshold)
+        """Run pairwise failure analysis for all component pairs in a layer.
+
+        Primes the same discrete-event baseline the exhaustive sweep uses: the
+        flow-disruption term carries 15% of the composite and silently returns
+        0.0 for every pair when ``_baseline_flows`` is empty, so an unprimed
+        sweep reports a composite built from three of its four criteria.
+        """
+        graph, sim = self._failure_sim(propagation_threshold)
+        self._prime_baseline_flows(graph, sim)
         return sim.simulate_pairwise(
             scenario_template=self._sweep_scenario(
                 failure_mode, cascade_probability, library_cascade_probability),

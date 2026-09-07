@@ -38,6 +38,14 @@ EVAL_POPULATIONS: Dict[str, Optional[frozenset]] = {
     "application": frozenset({"Application"}),
     # Applications plus Libraries: the full DEPENDS_ON projection substrate.
     "app_lib": frozenset({"Application", "Library"}),
+    # The passive-infrastructure strata. Labelled only once FaultInjector gained
+    # Topic and host-Node injection modes; before that both scored a constant
+    # 0.0 and were reported as undefined rather than as zero. They are separate
+    # populations, never pooled with "application": a Topic's impact and an
+    # Application's impact are not on a common scale, and pooling them is the
+    # Simpson's-paradox hazard the per-type reporting exists to avoid.
+    "topic": frozenset({"Topic"}),
+    "node": frozenset({"Node"}),
     # Every node that carries a non-degenerate label, whatever its type.
     "labeled": None,
 }
