@@ -48,8 +48,8 @@ comparative: which modelling choices perform better under identical conditions, 
 predictive accuracy in operation. Four further bounds apply, and we state them rather than leave them
 implicit.
 
-*The two oracles agree weakly.* $I^*(v)$ and $I_{\text{comp}}(v)$ correlate at mean $\rho = 0.438$
-(§7.5, Application population, seven scenarios). Results established against one do not transfer to
+*The two oracles agree weakly.* $I^*(v)$ and $I_{\text{comp}}(v)$ correlate at mean $\rho = 0.425$
+(§7.5, Application population, seven scenarios, regenerated corpus). Results established against one do not transfer to
 claims measured against the other, which constrains this paper's own internal cross-referencing:
 §5.4's library finding and §5.5's stratified check are $I_{\text{comp}}$ results and are not evidence
 about the $I^*$-backed tables in §8.1.
@@ -71,6 +71,18 @@ both other oracles, not more ($\rho$ against $I^*$ $0.468 \to 0.438$, against $I
 $0.465 \to 0.439$; top-$K$ Jaccard $0.307 \to 0.287$ and $0.313 \to 0.289$), which strengthens rather
 than softens the bound stated above. The $I_{\text{dyn}}$/$I^*$ pair is unchanged to four decimal
 places, as it must be — neither of those oracles reads the composite.
+
+The corpus regeneration of 2026-09-07 then moved everything again, and it is worth separating the two
+because they are independent and act in opposite directions. Giving topics genuinely varied QoS
+*raised* the behavioural/cascade agreement ($\rho$ $0.883 \to 0.907$, top-$K$ Jaccard $0.424 \to
+0.486$) while pushing both $I_{\text{comp}}$ pairs down further ($0.438 \to 0.425$ and $0.439 \to
+0.427$). The shipped figures are the last of these three measurements; the first two are recorded
+here because both reached a draft. Two consequences are worth stating rather than burying. The
+$I_{\text{comp}}$ ranges now cross zero at their lower bound ($-0.044$, $-0.037$), both on
+`hub_and_spoke`; §7.5.1 shows that sign is an artifact of $I^*$'s tied zeros and not inverted
+ordering, since $\rho_{>0} = +0.263$ on the same pair. And the claim that tie-handling barely matters
+no longer holds: the tie-robust cut now shifts the mean Jaccard by up to $0.023$ and one scenario by
+$0.167$, against the "$\le 0.005$" an earlier draft reported.
 
 *Six instrument defects were found and corrected during this revision.* All were silent — none
 raised an exception or produced an obviously wrong number — and all are recorded here because each
@@ -173,8 +185,8 @@ Application/Broker/Library label is bit-identical and no table scored on the App
 moves; this is pinned by `tests/test_passive_strata.py`. Coverage is not the same as signal: a host
 outage could be little more than a restatement of how many components sit on the host, and a topic
 outage a restatement of fan-out, so each stratum is reported against exactly that count baseline.
-Measured, they are not explained away — Spearman $\rho$ against the trivial baseline ranges 0.06–0.69
-for Topic and −0.03–0.76 for Node — but the baselines are reported alongside the strata rather than
+Measured, they are not explained away — Spearman $\rho$ against the trivial baseline ranges −0.05–0.70
+for Topic and 0.15–0.78 for Node — but the baselines are reported alongside the strata rather than
 omitted. And no learned model is trained on either stratum, so the typing result does not extend to
 them. Broker labels remain degenerate in three of seven scenarios, which is a property of those
 topologies rather than of the engine; degenerate types are now recorded on the artifact itself
@@ -200,7 +212,15 @@ deadline at all**, so the deadline and lifespan counters have no contract to enf
 the key is read; and the best-effort drop path fires only on a full queue, which never occurs at this
 corpus's utilisation (below). The QoS fix therefore changes no reported number — $I_{\text{dyn}}$ is
 unchanged, verified by zero queue overflows and zero deadline violations on a 60 s run — it removes a
-latent defect that would have silently mis-measured any future run under load. Latency is likewise uninformative here, though not for the reason an earlier
+latent defect that would have silently mis-measured any future run under load.
+
+Re-verified after the corpus regeneration of 2026-09-07, which is when this stopped being a small
+point. That regeneration made topic QoS come from the configs' `qos_stats` distributions rather than
+a name-pattern lookup, taking BEST_EFFORT topics from 82 to 282 of 970; the resolver now reads that
+variation where before it would have flattened all 282 to RELIABLE. Deadlines remain undeclared
+corpus-wide and utilisation is unchanged, so both counters are still structurally zero and
+$I_{\text{dyn}}$ is still unmoved — but the amount of declared QoS the engine would have been
+discarding is now more than three times what it was. Latency is likewise uninformative here, though not for the reason an earlier
 version of this passage gave: publication rates are read correctly and span 1-200 Hz across the
 corpus. The binding constraint is service rate. `default_processing_time_s` is $0.001$ s, so each
 subscriber drains at 1000 Hz against an arrival rate of at most 200 Hz; utilisation therefore caps

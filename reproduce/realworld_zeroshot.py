@@ -158,6 +158,45 @@ def score(service: GNNService, bundle: ScenarioBundle, *, use_qos: bool,
     )
 
 
+def score_references(bundle: ScenarioBundle, *, population: str) -> Dict[str, Any]:
+    """Score the training-free references against the SAME oracle and population.
+
+    Without these the learned number is uninterpretable. The Q(v) figures in
+    Section 7.4 are scored against I_comp(v) (FailureSimulator), so they cannot
+    be set beside a model trained and scored on I*(v) — the comparison has to be
+    rebuilt on one oracle, which is what this does.
+
+    ``Topo`` is 0.6*betweenness + 0.4*articulation, the same combination
+    ``reproduce.main_table._compute_topo_baseline_scores`` uses, read off the
+    cached app-layer metrics (already the DEPENDS_ON projection, since the cache
+    is built with ``analyze_graph.py --layer app``). ``Topo-QoS`` is deliberately
+    absent: it needs QoS-weighted betweenness recomputed on the projection graph,
+    which this cache does not carry, and guessing at it would put an
+    unreproducible number next to reproducible ones.
+    """
+    true_impact = {
+        nid: float(d.get("composite", 0.0)) for nid, d in bundle.simulation.items()
+    }
+    out: Dict[str, Any] = {}
+
+    rm_pred = {nid: float(v.get("overall", 0.0)) for nid, v in (bundle.rm or {}).items()}
+    if rm_pred:
+        out["RM"] = compute_inductive_metrics(
+            rm_pred, true_impact, bundle.graph, population=population
+        )
+
+    topo_pred = {
+        nid: 0.6 * float(m.get("betweenness_centrality", 0.0))
+           + 0.4 * float(m.get("ap_c_score", 0.0))
+        for nid, m in (bundle.structural or {}).items()
+    }
+    if topo_pred and any(v > 0 for v in topo_pred.values()):
+        out["Topo"] = compute_inductive_metrics(
+            topo_pred, true_impact, bundle.graph, population=population
+        )
+    return out
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--synthetic-cache", type=Path, default=Path("output/loso_cache"))
@@ -245,6 +284,19 @@ def main() -> int:
             "labeler": bundle.labeler,
         }
 
+    # Training-free references on the same oracle, same population, same labels.
+    references: Dict[str, Dict[str, Any]] = {}
+    for b in real:
+        for name, m in score_references(b, population=args.eval_population).items():
+            references.setdefault(name, {})[b.scenario_id] = {
+                "rho": float(m["spearman_rho"]),
+                "f1_at_k": float(m["f1_at_k"]),
+            }
+    ref_means = {
+        name: float(np.mean([v["rho"] for v in per.values()]))
+        for name, per in references.items()
+    }
+
     scored = [s for s in summary.values() if s.get("n_seeds")]
     payload = {
         "variant": args.variant,
@@ -264,6 +316,14 @@ def main() -> int:
         "rank_normalize_labels": args.rank_normalize_labels,
         "elapsed_s": time.time() - t0,
         "per_system": summary,
+        "references": references,
+        "reference_mean_rho": ref_means,
+        "reference_note": (
+            "Training-free references scored against the same I*(v) labels, "
+            "population and node set as the learned model. Topo-QoS is absent: "
+            "it needs QoS-weighted betweenness on the projection graph, which "
+            "this cache does not carry."
+        ),
         "mean_rho_across_systems": (
             float(np.mean([s["mean_rho"] for s in scored])) if scored else None
         ),
@@ -286,6 +346,28 @@ def main() -> int:
     if payload["mean_rho_across_systems"] is not None:
         print(f"  {'mean across systems':<34}{'':>6}"
               f"{payload['mean_rho_across_systems']:>10.4f}")
+
+    if references:
+        print(f"\n  Training-free references, same oracle and population")
+        print("  " + "─" * 74)
+        hdr = f"  {'system':<34}"
+        for name in sorted(references):
+            hdr += f"{name:>12}"
+        hdr += f"{'HGT-QoS':>12}"
+        print(hdr)
+        for sid in sorted(summary):
+            row = f"  {sid:<34}"
+            for name in sorted(references):
+                v = references[name].get(sid)
+                row += f"{v['rho']:>12.4f}" if v else f"{'—':>12}"
+            s_ = summary[sid]
+            row += f"{s_['mean_rho']:>12.4f}" if s_.get("n_seeds") else f"{'—':>12}"
+            print(row)
+        row = f"  {'mean':<34}"
+        for name in sorted(references):
+            row += f"{ref_means[name]:>12.4f}"
+        row += f"{payload['mean_rho_across_systems']:>12.4f}"
+        print(row)
     print(f"\n  Wrote {args.output}")
     return 0
 

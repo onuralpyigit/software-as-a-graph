@@ -278,20 +278,27 @@ We evaluated inter-oracle agreement across $I^*(v)$ (\texttt{FaultInjector}), $I
 \begin{table}[htbp]
 \centering
 \small
-\caption{Inter-oracle agreement across simulation paradigms (chance top-$K$ Jaccard is $0.111$). The two $I_{\text{comp}}$ rows are measured with the flow-disruption criterion primed; an earlier version of this table computed $I_{\text{comp}}$ without establishing the discrete-event baseline that criterion is measured against, so it silently carried three of its four terms. Restoring it moves $I_{\text{comp}}$ \emph{further} from both other oracles (mean $\rho$ $0.468 \to 0.438$ against $I^*$ and $0.465 \to 0.439$ against $I_{\text{dyn}}$). The $I_{\text{dyn}}$ vs.\ $I^*$ row is unchanged to four decimal places, as it must be: neither oracle reads the composite.}
+\caption{Inter-oracle agreement across simulation paradigms (chance top-$K$ Jaccard is $0.111$), measured on the regenerated corpus. Two independent corrections separate these figures from those an earlier draft reported, and they act in opposite directions. First, $I_{\text{comp}}$ was computed without establishing the discrete-event baseline its flow-disruption criterion is measured against, so it silently carried three of its four terms; priming it moved $I_{\text{comp}}$ \emph{further} from both other oracles ($\rho$ $0.468 \to 0.438$ against $I^*$, $0.465 \to 0.439$ against $I_{\text{dyn}}$) and left the $I_{\text{dyn}}$/$I^*$ row identical to four decimal places, as it must, since neither of those oracles reads the composite. Second, the corpus regeneration that gave topics genuinely varied QoS moved every row: the behavioural/cascade agreement rose ($0.883 \to 0.907$) while both $I_{\text{comp}}$ pairs fell further ($0.438 \to 0.425$ and $0.439 \to 0.427$). The negative lower bounds on the $I_{\text{comp}}$ rows are a single scenario, \texttt{hub\_and\_spoke}, and Section~\ref{sec:7.5.1} shows that sign is an artifact of tied zeros rather than a disagreement about ordering.}
 \label{tab:8c}
 \begin{tabular}{lcccc}
 \toprule
 \textbf{Oracle pair} & \textbf{Mean $\rho$ (range)} & \textbf{Mean $\tau$} & \textbf{Jaccard@$K$} & \textbf{Tie-robust} \\
 \midrule
-$I_{\text{dyn}}$ vs.\ $I^*$ & $\mathbf{0.883}$ ($0.756$--$0.972$) & $0.745$ & $0.424$ & $0.419$ \\
-$I_{\text{comp}}$ vs.\ $I^*$ & $0.438$ ($0.111$--$0.648$) & $0.323$ & $0.287$ & $0.291$ \\
-$I_{\text{comp}}$ vs.\ $I_{\text{dyn}}$ & $0.439$ ($0.076$--$0.635$) & $0.325$ & $0.289$ & $0.289$ \\
+$I_{\text{dyn}}$ vs.\ $I^*$ & $\mathbf{0.907}$ ($0.748$--$0.985$) & $0.788$ & $0.486$ & $0.509$ \\
+$I_{\text{comp}}$ vs.\ $I^*$ & $0.425$ ($-0.044$--$0.654$) & $0.311$ & $0.240$ & $0.258$ \\
+$I_{\text{comp}}$ vs.\ $I_{\text{dyn}}$ & $0.427$ ($-0.037$--$0.654$) & $0.312$ & $0.276$ & $0.275$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\noindent Ordering converges strongly between the queue-flow simulator and topological cascade oracle ($\rho = 0.883$). Top-$K$ set agreement is more conservative (Jaccard $0.42$), bounded by discrete threshold sensitivity in non-linear cascades.
+\noindent Ordering converges strongly between the queue-flow simulator and topological cascade oracle ($\rho = 0.907$). Top-$K$ set agreement is more conservative (Jaccard $0.486$), bounded by discrete threshold sensitivity in non-linear cascades.
+
+\subsubsection{Zero-Inflation Sensitivity of the Agreement Figures}
+\label{sec:7.5.1}
+
+Spearman $\rho$ over a population where many components are tied at exactly zero is driven substantially by how those ties are handled, and $I^*(v)$ is heavily zero-inflated: $19$ to $106$ Applications per scenario carry exactly zero cascade impact, whereas $I_{\text{comp}}(v)$ has no exact zeros at all. We therefore report, alongside each full-population figure, $\rho_{>0}$ --- the same correlation restricted to components both oracles score strictly positive. It is a sensitivity bound, not a replacement: for a component the simulator actually injected, zero impact is a real measurement ("its failure reaches nobody"), and dropping it would be a results-favourable filter.
+
+The bound changes the reading of two scenarios, in opposite directions. On \texttt{hub\_and\_spoke}, $I_{\text{comp}}$ and $I^*$ correlate at $\rho = -0.044$ over the full population but $\rho_{>0} = +0.263$ over the $22$ components both score positive: the apparent \emph{sign} disagreement is an artifact of tied zeros, not evidence that the oracles order active components inversely. On \texttt{microservices}, the movement runs the other way --- $\rho = 0.461$ falls to $\rho_{>0} = 0.257$, so a substantial part of that scenario's agreement is the two oracles concurring on which components are inert rather than on how the active ones rank. Averaged over the seven scenarios the two summaries are close ($\rho = 0.425$, $\rho_{>0} = 0.447$), which is precisely why the per-scenario figures matter: the mean conceals compensating movements of $0.2$--$0.3$ in both directions.
 
 \subsubsection{Domain-Specific Weighting and Threshold Sensitivity}
 
