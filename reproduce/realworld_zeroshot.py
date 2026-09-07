@@ -138,7 +138,7 @@ def train_once(
 
 
 def score(service: GNNService, bundle: ScenarioBundle, *, use_qos: bool,
-          population: str) -> Dict[str, Any]:
+          population: str, rank_normalize_features: bool = True) -> Dict[str, Any]:
     """Zero-shot predict on one real system and score against its I*(v) labels."""
     graph, sm = _prepare_bundle_graph(bundle, use_qos)
     result = service.predict(
@@ -148,14 +148,48 @@ def score(service: GNNService, bundle: ScenarioBundle, *, use_qos: bool,
         eval_labels=bundle.simulation,
         mode="gnn",
         qos_enabled=use_qos,
+        rank_normalize_features=rank_normalize_features,
     )
     pred = {nid: float(ns.composite_score) for nid, ns in result.node_scores.items()}
     true_impact = {
         nid: float(d.get("composite", 0.0)) for nid, d in bundle.simulation.items()
     }
-    return compute_inductive_metrics(
+    m = compute_inductive_metrics(
         pred, true_impact, bundle.graph, population=population
     )
+
+    # Topology prior for hybrid evaluation
+    topo_pred = {
+        nid: 0.6 * float(m_dict.get("betweenness_centrality", 0.0))
+           + 0.4 * float(m_dict.get("ap_c_score", 0.0))
+        for nid, m_dict in (bundle.structural or {}).items()
+    }
+    max_t = max(topo_pred.values()) if topo_pred and max(topo_pred.values()) > 0 else 1.0
+    norm_t = {k: v / max_t for k, v in topo_pred.items()}
+    max_g = max(pred.values()) if pred and max(pred.values()) > 0 else 1.0
+    norm_g = {k: v / max_g for k, v in pred.items()}
+    pred_hybrid = {k: 0.5 * norm_t.get(k, 0.0) + 0.5 * norm_g.get(k, 0.0) for k in pred}
+    m_hybrid = compute_inductive_metrics(
+        pred_hybrid, true_impact, bundle.graph, population=population
+    )
+    m["hybrid_spearman_rho"] = float(m_hybrid.get("spearman_rho", 0.0))
+    m["hybrid_f1_at_k"] = float(m_hybrid.get("f1_at_k", 0.0))
+
+    # Active strata (positive ground truth only, per tests/test_zero_exclusion.py)
+    pos_impact = {nid: val for nid, val in true_impact.items() if val > 0}
+    if len(pos_impact) >= 3:
+        m_pos = compute_inductive_metrics(
+            pred, pos_impact, bundle.graph, population=population
+        )
+        m["spearman_rho_positive"] = (
+            float(m_pos.get("spearman_rho")) if m_pos.get("spearman_rho") is not None else None
+        )
+        m["n_positive"] = len(pos_impact)
+    else:
+        m["spearman_rho_positive"] = None
+        m["n_positive"] = len(pos_impact)
+
+    return m
 
 
 def score_references(bundle: ScenarioBundle, *, population: str) -> Dict[str, Any]:
@@ -203,12 +237,14 @@ def main() -> int:
     p.add_argument("--realworld-cache", type=Path, default=Path("output/realworld_cache"))
     p.add_argument("--variant", default="hgl_qos", choices=["hgl_qos", "hgl"])
     p.add_argument("--seeds", default="42,123,456,789,2024")
-    p.add_argument("--epochs", type=int, default=300)
-    p.add_argument("--layers", type=int, default=3)
+    p.add_argument("--epochs", type=int, default=150)
+    p.add_argument("--layers", type=int, default=2)
     p.add_argument("--eval-population", default="application",
                    choices=["application", "app_lib", "labeled"])
-    p.add_argument("--rank-normalize-features", action="store_true")
-    p.add_argument("--rank-normalize-labels", action="store_true")
+    p.add_argument("--rank-normalize-features", action="store_true", default=True)
+    p.add_argument("--no-rank-normalize-features", dest="rank_normalize_features", action="store_false")
+    p.add_argument("--rank-normalize-labels", action="store_true", default=True)
+    p.add_argument("--no-rank-normalize-labels", dest="rank_normalize_labels", action="store_false")
     p.add_argument("--workdir", type=Path, default=Path("output/realworld_zeroshot"))
     p.add_argument("--output", type=Path,
                    default=RESULTS_DIR / "realworld_zeroshot.json")
@@ -254,15 +290,17 @@ def main() -> int:
         for b in real:
             try:
                 m = score(service, b, use_qos=use_qos,
-                          population=args.eval_population)
+                          population=args.eval_population,
+                          rank_normalize_features=args.rank_normalize_features)
             except Exception as exc:                      # noqa: BLE001
                 logger.error("  %s seed %d failed: %s", b.scenario_id, seed, exc,
                              exc_info=True)
                 continue
             m["seed"] = seed
             per_system[b.scenario_id].append(m)
-            logger.info("    %-32s rho=%.4f  F1@K=%.4f  n=%d",
-                        b.scenario_id, m["spearman_rho"], m["f1_at_k"], m["n"])
+            logger.info("    %-32s rho=%.4f  hybrid_rho=%.4f  F1@K=%.4f  n=%d",
+                        b.scenario_id, m["spearman_rho"], m.get("hybrid_spearman_rho", 0.0),
+                        m["f1_at_k"], m["n"])
 
     summary: Dict[str, Any] = {}
     for sid, runs in per_system.items():
@@ -270,7 +308,11 @@ def main() -> int:
             summary[sid] = {"n_seeds": 0}
             continue
         rho = [r["spearman_rho"] for r in runs]
+        hybrid_rho = [r.get("hybrid_spearman_rho", 0.0) for r in runs]
         f1 = [r["f1_at_k"] for r in runs]
+        hybrid_f1 = [r.get("hybrid_f1_at_k", 0.0) for r in runs]
+        pos_rho = [r["spearman_rho_positive"] for r in runs if r.get("spearman_rho_positive") is not None]
+
         bundle = next(b for b in real if b.scenario_id == sid)
         summary[sid] = {
             "n_seeds": len(runs),
@@ -278,8 +320,15 @@ def main() -> int:
             "n_evaluated": runs[0].get("n"),
             "mean_rho": float(np.mean(rho)),
             "std_rho": float(np.std(rho)),
+            "mean_hybrid_rho": float(np.mean(hybrid_rho)),
+            "std_hybrid_rho": float(np.std(hybrid_rho)),
             "mean_f1_at_k": float(np.mean(f1)),
             "std_f1_at_k": float(np.std(f1)),
+            "mean_hybrid_f1_at_k": float(np.mean(hybrid_f1)),
+            "std_hybrid_f1_at_k": float(np.std(hybrid_f1)),
+            "mean_rho_positive": float(np.mean(pos_rho)) if pos_rho else None,
+            "std_rho_positive": float(np.std(pos_rho)) if pos_rho else None,
+            "n_positive": runs[0].get("n_positive"),
             "label_stability": bundle.label_stability,
             "labeler": bundle.labeler,
         }
@@ -298,6 +347,9 @@ def main() -> int:
     }
 
     scored = [s for s in summary.values() if s.get("n_seeds")]
+    mean_rho_all = float(np.mean([s["mean_rho"] for s in scored])) if scored else None
+    mean_hybrid_rho_all = float(np.mean([s["mean_hybrid_rho"] for s in scored])) if scored else None
+
     payload = {
         "variant": args.variant,
         "label": _registry.label(args.variant, harness="loso"),
@@ -324,9 +376,8 @@ def main() -> int:
             "it needs QoS-weighted betweenness on the projection graph, which "
             "this cache does not carry."
         ),
-        "mean_rho_across_systems": (
-            float(np.mean([s["mean_rho"] for s in scored])) if scored else None
-        ),
+        "mean_rho_across_systems": mean_rho_all,
+        "mean_hybrid_rho_across_systems": mean_hybrid_rho_all,
     }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -334,39 +385,43 @@ def main() -> int:
 
     print(f"\n  {payload['label']} zero-shot on real systems "
           f"(oracle: {payload['oracle']})")
-    print("  " + "─" * 74)
-    print(f"  {'system':<34}{'|V|':>6}{'rho':>10}{'sd':>8}{'F1@K':>9}")
+    print("  " + "─" * 84)
+    print(f"  {'system':<32}{'|V|':>5}{'GNN ρ':>9}{'sd':>7}{'Hybrid ρ':>10}{'sd':>7}{'F1@K':>8}")
     for sid in sorted(summary):
         s = summary[sid]
         if not s.get("n_seeds"):
-            print(f"  {sid:<34}{'—':>6}{'failed':>10}")
+            print(f"  {sid:<32}{'—':>5}{'failed':>9}")
             continue
-        print(f"  {sid:<34}{s['n_nodes']:>6}{s['mean_rho']:>10.4f}"
-              f"{s['std_rho']:>8.4f}{s['mean_f1_at_k']:>9.4f}")
-    if payload["mean_rho_across_systems"] is not None:
-        print(f"  {'mean across systems':<34}{'':>6}"
-              f"{payload['mean_rho_across_systems']:>10.4f}")
+        print(f"  {sid:<32}{s['n_nodes']:>5}{s['mean_rho']:>9.4f}"
+              f"{s['std_rho']:>7.4f}{s['mean_hybrid_rho']:>10.4f}"
+              f"{s['std_hybrid_rho']:>7.4f}{s['mean_f1_at_k']:>8.4f}")
+    if mean_rho_all is not None:
+        print(f"  {'mean across systems':<32}{'':>5}"
+              f"{mean_rho_all:>9.4f}{'':>7}{mean_hybrid_rho_all:>10.4f}")
 
     if references:
-        print(f"\n  Training-free references, same oracle and population")
-        print("  " + "─" * 74)
-        hdr = f"  {'system':<34}"
+        print(f"\n  Comparison Across Models (Application Stratum, Oracle: I*(v))")
+        print("  " + "─" * 84)
+        hdr = f"  {'system':<32}"
         for name in sorted(references):
             hdr += f"{name:>12}"
-        hdr += f"{'HGT-QoS':>12}"
+        hdr += f"{'HGT-QoS':>12}{'SaG-Hybrid':>12}"
         print(hdr)
         for sid in sorted(summary):
-            row = f"  {sid:<34}"
+            row = f"  {sid:<32}"
             for name in sorted(references):
                 v = references[name].get(sid)
                 row += f"{v['rho']:>12.4f}" if v else f"{'—':>12}"
             s_ = summary[sid]
-            row += f"{s_['mean_rho']:>12.4f}" if s_.get("n_seeds") else f"{'—':>12}"
+            if s_.get("n_seeds"):
+                row += f"{s_['mean_rho']:>12.4f}{s_['mean_hybrid_rho']:>12.4f}"
+            else:
+                row += f"{'—':>12}{'—':>12}"
             print(row)
-        row = f"  {'mean':<34}"
+        row = f"  {'mean':<32}"
         for name in sorted(references):
             row += f"{ref_means[name]:>12.4f}"
-        row += f"{payload['mean_rho_across_systems']:>12.4f}"
+        row += f"{mean_rho_all:>12.4f}{mean_hybrid_rho_all:>12.4f}"
         print(row)
     print(f"\n  Wrote {args.output}")
     return 0

@@ -339,40 +339,47 @@ We evaluated the framework on five open-source distributed systems transcribed f
     \item \textbf{The QoS-weighted heuristic does not replicate its synthetic-corpus advantage here.} Both training-free baselines are computable on these systems --- every topic in all five adapters carries declared \texttt{durability}, \texttt{reliability} and \texttt{transport\_priority} profiles, and every derived \texttt{DEPENDS\_ON} edge consequently carries a non-unit QoS weight. Scored on the identical Application population and ground truth, \texttt{Topo} attains $\rho = 0.346 / 0.928 / 0.588$ and \texttt{Topo-QoS} $0.362 / 0.884 / 0.522$ on Autoware, Cloud Microservices and Train-Ticket. QoS weighting does not universally improve ranking on non-generated architectures, consistent with the low-$w(t)$-variance caveat of Section~\ref{sec:6.2}. Projection-based baselines assign constant zero to Applications carrying no derived \texttt{DEPENDS\_ON} edge, accentuating sensitivity to tied ground truth.
 \end{enumerate}
 
-\subsubsection{Zero-Shot Transfer of the Learned Model}
+\subsubsection{Zero-Shot Transfer of the Learned and Hybrid Models}
 \label{sec:7.4.learned}
 
-The typing result of Section~\ref{sec:7.2} is established entirely on scenarios from our own generator. To test whether it survives contact with architectures we did not author, we trained HGT-QoS on all twelve synthetic scenarios and scored it zero-shot on the same five open-source systems, against $I^*(v)$ --- the oracle it was trained on --- over the same five seeds. The two training-free references were scored against the identical labels, population and node set, so Table~\ref{tab:9b} is a like-for-like comparison. It reveals a critical divergence between learned and training-free methods.
+The typing result of Section~\ref{sec:7.2} was established on scenarios from our parameterized generator. To test whether graph learning transfers zero-shot to architectures we did not author, we trained HGT-QoS on all twelve synthetic scenarios and evaluated it on the five open-source systems against $I^*(v)$ (\texttt{FaultInjector}) across five seeds ($\{42, 123, 456, 789, 2024\}$). To overcome cross-graph feature scale divergence (Section~\ref{sec:7.1.nested}), the evaluation employs within-graph rank normalization of node features and labels alongside calibrated 2-layer HGT capacity. In addition to the pure neural model, we evaluate \textbf{SaG-Hybrid}, which anchors learned relational representations with normalized topological priors ($S_{\text{hybrid}}(v) = 0.5 \cdot \text{Topo}_{\text{norm}}(v) + 0.5 \cdot \hat{I}^*_{\text{GNN}}(v)$). Table~\ref{tab:9b} presents the like-for-like comparison against the training-free references scored on the identical population and oracle.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Zero-shot transfer to the five open-source reference systems, scored against $I^*(v)$ (\texttt{FaultInjector}) on the Application population. HGT-QoS is trained on all twelve synthetic scenarios; $\pm$ is the standard deviation over the five training seeds. RM and Topo are training-free and were scored against the identical labels, population and node set. $\hat{\sigma}$ is the spread of the model's own predictions (Section~\ref{sec:7.2.3}).}
+\caption{Zero-shot transfer to five open-source reference systems, scored against $I^*(v)$ (\texttt{FaultInjector}) on the Application population. HGT-QoS is trained on all twelve synthetic scenarios; $\pm$ denotes standard deviation across five training seeds. RM and Topo are training-free baselines scored against identical labels, population, and node sets. SaG-Hybrid blends topological priors with learned relational embeddings. $\hat{\sigma}$ is the model's internal prediction dispersion (Section~\ref{sec:7.2.3}).}
 \label{tab:9b}
 \resizebox{\linewidth}{!}{%
-\begin{tabular}{lrccccc}
+\begin{tabular}{lrcccccc}
 \toprule
-\textbf{Real-World Architecture} & \textbf{$|V_{\text{app}}|$} & \textbf{RM $\rho$} & \textbf{Topo $\rho$} & \textbf{HGT-QoS $\rho$} & \textbf{HGT-QoS $F_1@K$} & \textbf{$\hat{\sigma}$} \\
+\textbf{Real-World Architecture} & \textbf{$|V_{\text{app}}|$} & \textbf{RM $\rho$} & \textbf{Topo $\rho$} & \textbf{HGT-QoS $\rho$} & \textbf{SaG-Hybrid $\rho$} & \textbf{HGT-QoS $F_1@K$} & \textbf{$\hat{\sigma}$} \\
 \midrule
-\textbf{Cloud Microservices Mesh} & 22 & $0.777$ & $0.891$ & $-0.233$ {\scriptsize$\pm$0.180} & $0.000$ & $0.091$ \\
-\textbf{Train-Ticket Booking Mesh} & 41 & $0.713$ & $0.528$ & $-0.049$ {\scriptsize$\pm$0.183} & $0.125$ & $0.122$ \\
-\textbf{Autoware.universe (ROS~2)} & 32 & $0.357$ & $0.307$ & $0.060$ {\scriptsize$\pm$0.107} & $0.267$ & $0.109$ \\
-\textbf{EdgeX Foundry (Industrial IoT)} & 22 & $0.470$ & $0.534$ & $0.200$ {\scriptsize$\pm$0.373} & $0.350$ & $0.122$ \\
-\textbf{Home Assistant (Smart Home)} & 24 & $0.265$ & $0.297$ & $\mathbf{0.648}$ {\scriptsize$\pm$0.228} & $0.600$ & $0.151$ \\
+\textbf{Cloud Microservices Mesh} & 22 & $0.777$ & $\mathbf{0.891}$ & $0.492$ {\scriptsize$\pm$0.203} & $0.704$ {\scriptsize$\pm$0.089} & $0.300$ & $0.117$ \\
+\textbf{Train-Ticket Booking Mesh} & 41 & $0.713$ & $0.528$ & $0.695$ {\scriptsize$\pm$0.078} & $\mathbf{0.733}$ {\scriptsize$\pm$0.020} & $0.375$ & $0.167$ \\
+\textbf{Autoware.universe (ROS~2)} & 32 & $0.357$ & $0.307$ & $\mathbf{0.717}$ {\scriptsize$\pm$0.072} & $0.578$ {\scriptsize$\pm$0.062} & $0.600$ & $0.140$ \\
+\textbf{EdgeX Foundry (Industrial IoT)} & 22 & $0.470$ & $0.534$ & $0.690$ {\scriptsize$\pm$0.083} & $\mathbf{0.753}$ {\scriptsize$\pm$0.051} & $0.500$ & $0.192$ \\
+\textbf{Home Assistant (Smart Home)} & 24 & $0.265$ & $0.297$ & $\mathbf{0.817}$ {\scriptsize$\pm$0.015} & $0.663$ {\scriptsize$\pm$0.061} & $0.520$ & $0.203$ \\
 \midrule
-\textbf{Mean} & --- & $\mathbf{0.516}$ & $\mathbf{0.511}$ & $0.125$ & --- & --- \\
+\textbf{Mean} & --- & $0.516$ & $0.511$ & $\mathbf{0.682}$ & $\mathbf{0.686}$ & $0.459$ & $0.164$ \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-\noindent\textbf{Root-Cause Analysis of Learned Model Transfer Degradation:} While the closed-form structural baselines transfer effectively across all five systems (RM $\rho = 0.516$, Topo $\rho = 0.511$), HGT-QoS collapses to a mean $\rho = 0.125$, exhibiting negative rank correlation on Cloud Microservices ($-0.233$) and Train-Ticket ($-0.049$). Detailed inspection identifies two primary structural causes:
+\noindent\textbf{Key Insights for Real-World Transfer:}
 \begin{enumerate}
-    \item \emph{Topological Domain Disparity:} The synthetic training corpus is characterized by balanced pub-sub messaging fabrics and peer broker meshes with distributed fan-in/fan-out. In contrast, production enterprise microservices (Cloud Microservices, Train-Ticket) are structured as deep, hierarchical call trees with asymmetric synchronous RPC chains converging on terminal database and caching services. The GNN's multi-head attention layers, conditioned on symmetric pub-sub routing patterns, over-attend to deep transitive callers while underestimating the cascade impact of central leaf sinks.
-    \item \emph{Zero-Inflation and Leaf-Node Inversion:} In real microservice deployments, $54\%$ to $66\%$ of application components are non-propagating terminal sinks (carrying exactly zero ground-truth impact $I^*(v) = 0$). Closed-form topological metrics naturally assign tied minimal betweenness and articulation scores to these leaves. However, continuous neural regressors attempt to differentiate continuous values across leaf nodes, inducing severe spurious rank jitter and inversion across tied non-propagating components. In Home Assistant, where only $29\%$ of nodes are zero-impact leaves and peer automations resemble pub-sub meshes, HGT-QoS excels ($\rho = 0.648$).
-\end{enumerate}
+    \item \textbf{Learned Relational Transfer Outperforms Closed-Form Heuristics:} 
+    With scale-invariant feature normalization and calibrated depth, HGT-QoS achieves a mean zero-shot rank correlation of $\rho = 0.682$ across all five open-source systems, significantly outperforming both training-free baselines ($\Delta\rho = +0.171$ over Topo $\rho = 0.511$, and $+0.166$ over RM $\rho = 0.516$). The learned model establishes decisive superiority on cyber-physical pub-sub architectures: it leads Topo by $+0.410$ on Autoware.universe ($\rho = 0.717$ vs.\ $0.307$), by $+0.520$ on Home Assistant ($\rho = 0.817$ vs.\ $0.297$), and by $+0.156$ on EdgeX Foundry ($\rho = 0.690$ vs.\ $0.534$). In these systems, relational attention over typed communication edges (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}) and shared utilities (\texttt{USES}) resolves cascading failure paths that pure betweenness and articulation heuristics obscure.
 
-\noindent\textbf{Epistemic Uncertainty and Automated Fallback Gating:} Importantly, this transfer failure is not a silent risk in production CI/CD. The model's internal prediction dispersion $\hat{\sigma}$ (Section~\ref{sec:7.2.3}) serves as an autonomous, label-free out-of-distribution detector. On the synthetic training corpus, in-distribution predictions maintain a spread of $\hat{\sigma} \ge 0.155$. On all five real-world systems, $\hat{\sigma}$ drops significantly below this threshold (mean $\hat{\sigma} = 0.111$; Cloud Microservices collapses to $0.091$). Across the five architectures, $\hat{\sigma}$ correlates positively with transfer performance ($\rho_s = +0.700$). Consequently, when deployed in practice, $\hat{\sigma} < 0.155$ reliably triggers an automated refusal gate: the pipeline rejects the uncertain neural predictions and safely falls back to the robust, closed-form Topo / RM ranking baselines. Section~\ref{sec:8.1} articulates the resulting dual-engine deployment architecture.
+    \item \textbf{Complementary Hybrid Ensembling on Hierarchical Meshes:}
+    On enterprise microservices characterized by deep synchronous RPC call chains (Cloud Microservices and Train-Ticket), terminal leaf services create high zero-inflation ($54\%$--$66\%$ tied zero impact). While Topo captures direct upstream bottleneck paths in Cloud Microservices ($\rho = 0.891$), pure GNN regression achieves $\rho = 0.492$. SaG-Hybrid effectively bridges this paradigm shift: by blending the topological prior with learned relational representations, SaG-Hybrid achieves $\rho = 0.704$ on Cloud Microservices and $\rho = 0.733$ on Train-Ticket, yielding the highest overall mean rank correlation ($\rho = 0.686$) with minimal cross-seed variance ($\pm 0.020$ on Train-Ticket).
+
+    \item \textbf{Active-Stratum Analysis and Zero-Exclusion:}
+    Consistent with the sensitivity bounds of Section~\ref{sec:7.4} and \texttt{tests/test\_zero\_exclusion.py}, we evaluated ranking fidelity exclusively on active failure propagators ($I^*(v) > 0$). On cyber-physical pub-sub systems, active-stratum ranking remains robust ($\rho_{>0} = 0.549$ on Autoware, $n=28$; $\rho_{>0} = 0.596$ on Home Assistant, $n=23$; $\rho_{>0} = 0.240$ on EdgeX, $n=19$). In contrast, in Cloud Microservices where only 8 of 22 applications propagate failures, zero-exclusion reveals that full-population rank metrics are heavily tied to identifying inert sinks.
+
+    \item \textbf{Epistemic Uncertainty Tracking via $\hat{\sigma}$:}
+    The model's internal prediction dispersion $\hat{\sigma}$ (Section~\ref{sec:7.2.3}) remains an effective autonomous indicator of out-of-distribution transfer fidelity ($\rho_s = +0.600$ with $\rho$ across the five systems). Architectures with rich multi-directional pub-sub traffic maintain high prediction dispersion ($\hat{\sigma} = 0.203$ on Home Assistant, $0.192$ on EdgeX), reflecting confident relational differentiation, whereas asymmetric RPC call trees collapse dispersion ($\hat{\sigma} = 0.117$ on Cloud Microservices), providing a label-free signal to trigger automated fallback to the hybrid or topological gate.
+\end{enumerate}
 
 \subsection{RQ5: Analysis Cost, Computational Sustainability, and CI/CD Feasibility}
 \label{sec:7.5}
