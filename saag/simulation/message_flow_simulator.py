@@ -50,11 +50,17 @@ from typing import Any, Dict, Generator, List, Optional, Set, Tuple
 
 try:
     import simpy  # type: ignore
-except ImportError as exc:  # pragma: no cover
-    raise ImportError(
-        "SimPy is required for message-flow simulation.  "
-        "Install it with:  pip install simpy"
-    ) from exc
+except ImportError:  # pragma: no cover
+    simpy = None  # type: ignore
+
+
+def _require_simpy() -> None:
+    if simpy is None:
+        raise ImportError(
+            "SimPy is required for message-flow simulation.  "
+            "Install it with:  pip install simpy"
+        )
+
 
 import networkx as nx
 
@@ -156,6 +162,7 @@ class SubscriberQueue:
         subscriber_id: str,
         qos: QoSProfile,
     ) -> None:
+        _require_simpy()
         self.env = env
         self.topic_id = topic_id
         self.subscriber_id = subscriber_id
@@ -439,6 +446,7 @@ class MessageFlowSimulator:
         default_processing_time_s: float = 0.001,
         max_latency_samples: int = 10_000,
     ) -> None:
+        _require_simpy()
         self.graph = graph
         self.duration = duration
         self.fault_node = fault_node

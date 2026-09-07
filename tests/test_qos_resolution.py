@@ -256,3 +256,18 @@ def test_message_flow_topic_reliability_is_not_constant():
         for _, d in graph.nodes(data=True) if d.get("type") == "Topic"
     }
     assert resolved == {"RELIABLE", "BEST_EFFORT"}
+
+
+def test_message_flow_simulator_raises_importerror_without_simpy(monkeypatch):
+    """When SimPy is absent, importing the module and resolving QoS succeeds,
+    but instantiating MessageFlowSimulator raises an informative ImportError."""
+    import networkx as nx
+    import saag.simulation.message_flow_simulator as mfs
+
+    monkeypatch.setattr(mfs, "simpy", None)
+    qos = mfs._extract_qos({"qos": dict(MIN_QOS)})
+    assert qos.reliability == "BEST_EFFORT"
+
+    with pytest.raises(ImportError, match="SimPy is required"):
+        mfs.MessageFlowSimulator(nx.DiGraph())
+
