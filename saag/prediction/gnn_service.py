@@ -1036,14 +1036,38 @@ class GNNService:
         and its ``node_gnn.*`` weights win. That is what makes checkpoints
         written before the two models were unified still load correctly.
         """
-        for key, path, model in (
-            ("node", ckpt_dir / "node_model.pt", self._node_model),
-            ("edge", ckpt_dir / "edge_model.pt", self._edge_model),
+        loaded: List[str] = []
+        for key, candidates, model in (
+            # GNNTrainer writes the selected epoch as `best_model.pt` (see
+            # trainer.py's _save_checkpoint); only an explicit GNNService.save()
+            # writes `node_model.pt`. Reading just the latter meant
+            # from_checkpoint() on any trainer-produced directory loaded
+            # *nothing* and still returned a service — scoring a randomly
+            # initialised model while reporting it as the trained one.
+            ("node", (ckpt_dir / "node_model.pt", ckpt_dir / "best_model.pt"),
+             self._node_model),
+            ("edge", (ckpt_dir / "edge_model.pt",), self._edge_model),
         ):
-            if path.exists() and model is not None:
+            if model is None:
+                continue
+            for path in candidates:
+                if not path.exists():
+                    continue
                 sd = torch.load(path, map_location=self.device)
                 model.load_state_dict(sd, strict=False)
                 logger.info("Loaded %s model from '%s'.", key, path)
+                loaded.append(key)
+                break
+
+        if "node" not in loaded and self._node_model is not None:
+            # Silence here is the dangerous outcome, not the loud one: an
+            # unloaded model predicts from its initialisation and every metric
+            # computed from it is noise wearing the shape of a result.
+            raise FileNotFoundError(
+                f"No node-model weights found in '{ckpt_dir}'. Expected one of "
+                f"node_model.pt or best_model.pt. Refusing to return a service "
+                f"whose weights are still at initialisation."
+            )
 
     @classmethod
     def from_checkpoint(
