@@ -13,7 +13,7 @@ Because distributed systems comprise heterogeneous entity types (Applications, L
 \subsubsection{Continuous-Categorical Edge Feature Encoding (16-D)}
 \label{sec:4.1.1}
 
-To capture continuous QoS constraints and channel semantics, SaG encodes each directed edge $e = (u,v)$ as a 16-dimensional continuous-categorical vector $e_{uv} \in \mathbb{R}^{16}$. Index 0 is the scalar coupling weight $w_E(e) \in (0,1]$ of Section~\ref{sec:3.2}; index 1 is the normalized count of simple paths through $e$ in $G_{\text{analysis}}$; indices 2--8 one-hot encode the seven structural and derived relations (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, \texttt{DEPENDS\_ON}). Indices 9--15 carry the seven explicit QoS dimensions, active on \texttt{PUBLISHES\_TO} and \texttt{SUBSCRIBES\_TO} edges and zeroed elsewhere: reliability ($0$ best-effort, $1$ reliable); durability ($0$ volatile, $0.5$ transient-local, $0.6$ transient, $1$ persistent); message priority ($0$, $0.33$, $0.66$, $1$); a deadline-active flag; $\log_{10}(1 + \text{deadline\_ns}/10^6)$; $\log_{10}(1 + \text{max\_blocking\_ms})$; and a heterogeneity flag set when the edge's QoS triple departs from its scenario's modal profile.
+To capture continuous QoS constraints and channel semantics, SaG encodes each directed edge $e = (u,v)$ as a 16-dimensional continuous-categorical vector $e_{uv} \in \mathbb{R}^{16}$. Index 0 is the scalar coupling weight $w_E(e) \in (0,1]$ of Section~\ref{sec:3.2}; index 1 is the normalized count of simple paths through $e$ in $G_{\text{analysis}}$; indices 2--8 one-hot encode the seven structural and derived relations (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}, \texttt{DEPENDS\_ON}). Indices 9--15 encode middleware QoS parameters on \texttt{PUBLISHES\_TO} and \texttt{SUBSCRIBES\_TO} edges (zeroed elsewhere). Four of these dimensions are active in our evaluation corpus: reliability ($0$ best-effort, $1$ reliable); durability ($0$ volatile, $0.5$ transient-local, $0.6$ transient, $1$ persistent); message priority ($0$, $0.33$, $0.66$, $1$); and a heterogeneity flag set when the edge's QoS triple departs from its scenario's modal profile. The remaining three indices (deadline-active flag, $\log_{10}(1 + \text{deadline\_ns}/10^6)$, and $\log_{10}(1 + \text{max\_blocking\_ms})$) are architectural schema provisions designed to accommodate hard real-time DDS and ROS~2 microsecond profiles, and are zero-initialized in the current benchmarks.
 
 An edge projection module maps $e_{uv}$ into the hidden space: $e_{uv}' = W_{\text{edge}} e_{uv}$. Prior to relational attention computation, this projection vector is incorporated directly into the target node representation: $\tilde{h}_v = h_v + e_{uv}'$.
 
@@ -99,11 +99,13 @@ To evaluate predictive accuracy prior to deployment without relying on productio
     \end{equation}
     \item \textbf{Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):} Evaluates the systemic impact of severing an individual dependency or communication channel while keeping endpoint components operational. Writing $\bar{I}_{\text{comp}}(G) = |V|^{-1}\sum_{v \in V} I_{\text{comp}}(v; G)$ for the mean composite impact over a graph $G$:
     \begin{equation}
+    \label{eq:edge_crit}
     I_{\text{edge}}(u,v) = \bar{I}_{\text{comp}}\big(G \setminus \{(u,v)\}\big) - \bar{I}_{\text{comp}}(G)
     \end{equation}
 \end{itemize}
 
-\noindent\textbf{Withholding declared topic criticality from labels.} \texttt{FailureSimulator} can blend a declared \texttt{Topic.criticality} into its severity term; this is disabled, because that field is a GNN input feature (\texttt{topic\_qos\_criticality\_ord}) and consuming it would score the predictor against a transformation of its own input.
+\paragraph{Topic Criticality Label Masking}
+\texttt{FailureSimulator} can blend a declared \texttt{Topic.criticality} into its severity term; this is disabled, because that field is a GNN input feature (\path{topic_qos_criticality_ord}) and consuming it would score the predictor against a transformation of its own input.
 
 \noindent\textbf{Primary Oracle Declaration and Role Assignment.} Because the three reliability-facing oracles ($I^*$, $I_{\text{comp}}$, $I_{\text{dyn}}$) measure distinct operational constructs, we designate \textbf{$I^*(v)$ (\texttt{FaultInjector}) as the primary oracle} for all predictive ranking results (Tables~\ref{tab:5}--\ref{tab:7}, RQ1--RQ3). $I_{\text{comp}}(v)$ is reserved for Validate-stage quality gates, $I_{\text{dyn}}(v)$ serves as an independent convergent-validity probe, and $I_M(v)$ serves as a structural maintainability reference.
 

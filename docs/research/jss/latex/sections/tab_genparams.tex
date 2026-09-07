@@ -3,6 +3,7 @@
 \small
 \caption{Generative parameters of the eleven synthetic evaluation scenarios. Counts, seed and fan-out figures are read directly from the committed configurations. The modal QoS column gives the most common reliability/durability/priority value and the range of topic shares carrying them, computed from the committed topology rather than the config's declared QoS targets, which domain-driven assignment does not always realize (Section~\ref{sec:6.1}).}
 \label{tab:genparams}
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{llrrrrl}
 \toprule
 \textbf{Scenario} & \textbf{Config} & \textbf{Seed} & \textbf{Counts} & \textbf{Pub} & \textbf{Sub} & \textbf{Modal QoS (R/D/P)} \\
@@ -19,5 +20,6 @@
 \textbf{Real-Time Gaming} & \texttt{scenario\_20\_realtime\_gaming} & 2003 & 75/38/5/12/28 & 2.6 & 2.8 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (100--100\%) \\
 \textbf{Telecom RAN} & \texttt{scenario\_18\_telecom\_ran} & 1801 & 120/55/8/20/22 & 2.2 & 1.6 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (100--100\%) \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}

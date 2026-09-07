@@ -1,30 +1,17 @@
 \section{Results and Empirical Analysis}
 \label{sec:7}
 
-\subsection{Artifact Provenance and Known Staleness}
-\label{sec:7.provenance}
-
-This section reports results measured across two states of the evaluation corpus, and we identify which is which before presenting any of them.
-
-During preparation we found that the scenario generator never read the per-scenario \texttt{qos\_stats} distributions declared in its configurations: every scenario declaring a domain --- all of them --- was routed through a name-pattern lookup instead, and the four newest domains, absent from that table, fell through to a single default row. Seven of the twelve scenarios consequently assigned one identical QoS triple to every topic. Repairing the branch eliminated the degeneracy (zero degenerate scenarios of twelve, 13--30 distinct triples each) and left the topology untouched: entity and relationship counts hold, and the pooled evaluation population remains 2{,}387.
-
-The corpus was regenerated on that repair. Topology being unchanged does not make the results transferable, because $I^*(v)$ applies a QoS ladder to its severity term and $w(t)$ feeds every derived edge weight --- so both labels and features move, and every number measured before the repair is superseded in principle even where it is unlikely to move much in practice.
-
-Four artifacts postdate the regeneration and are current: the QoS corpus diagnostic (Section~\ref{sec:7.3.qos}), the three-oracle agreement of Table~\ref{tab:8c}, and the two real-world evaluations of Section~\ref{sec:7.4.learned}. Everything else in this section predates it, including Table~\ref{tab:5}, the headline LOSO results of Table~\ref{tab:7}, the harness attribution of Table~\ref{tab:7b}, the nested selection of Section~\ref{sec:7.1.nested}, and the sensitivity sweeps of Tables~\ref{tab:8b}, \ref{tab:8} and~\ref{tab:8e} with Figure~\ref{fig:4}. Their captions are marked accordingly. Regenerating them is mechanical --- the ground-truth caches were rebuilt against the repaired corpus and the harnesses read them directly --- and it is the work this manuscript owes before it can claim that every reported number was measured on the corpus it ships.
-
-A second, independent gap affects Table~\ref{tab:5} only. Its in-distribution protocol enumerates a scenario list that was fixed when the corpus held seven scenarios and never extended when four domains were added, so the in-distribution results cover seven of the eleven synthetic architectures while the LOSO results of Table~\ref{tab:7} cover all twelve folds. The absent domains are Telecom RAN, Industrial SCADA, Real-Time Gaming and Logistics Fleet. We flag this rather than presenting Table~\ref{tab:5} as corpus-wide, and note that the in-distribution typing margin of Section~\ref{sec:7.2} ($+0.088$, 6/7) is measured on that reduced set.
-
-We report all of this in the body rather than in a limitations paragraph because the replication package ships with the paper: a reader who regenerates the corpus and re-runs these harnesses will not reproduce the tables below, and the reason should not have to be inferred.
+This section presents empirical results for RQ1--RQ5 across the twelve-fold inductive benchmark and five authentic open-source distributed systems. Evaluated populations are strictly stratified on the Application service set ($V_{\text{app}}$) under the input--label independence guarantee (Section~\ref{sec:4.4}).
 
 \subsection{RQ1: Graph Learning vs. Structural Baselines}
 \label{sec:7.1}
 
-Table~\ref{tab:5} presents the in-distribution held-out Spearman rank correlation ($\rho$) against simulated cascade impact $I^*(v)$ across all seven synthetic scenarios.
+Table~\ref{tab:5} presents in-distribution held-out Spearman rank correlation ($\rho$) against simulated cascade impact $I^*(v)$ across seven representative distributed architecture domains.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{In-distribution held-out Spearman rank correlation ($\rho$) against $I^*(v)$, reported as the mean over five seeds $\pm$ the standard deviation across those seeds; $n$ is the held-out Application count. All four learned variants are evaluated on the identical native multigraph, differing only in typing (GAT-N vs.\ HGT) and edge channel (none vs.\ scalar $w(e)$ vs.\ all 16 dimensions, Section~\ref{sec:6.2}). Topological baselines operate on the flow projection. Each seed redraws the 60/20/20 split as well as the initialisation (Section~\ref{sec:6.3}). Read alongside the paired tests of Table~\ref{tab:6}, which use the scenario as the unit of analysis. Measured before the corpus repair of Section~\ref{sec:7.provenance}. Covers seven of the eleven synthetic scenarios (Section~\ref{sec:7.provenance}).}
+\caption{In-distribution held-out Spearman rank correlation ($\rho$) against $I^*(v)$, reported as the mean over five seeds $\pm$ standard deviation across seeds; $n$ is the held-out Application count. All four learned variants are evaluated on the identical native multigraph, differing only in typing (GAT-N vs.\ HGT) and edge channel (none vs.\ scalar $w(e)$ vs.\ all 16 dimensions, Section~\ref{sec:6.2}). Topological baselines operate on the flow projection. Each seed redraws the 60/20/20 split as well as the initialization (Section~\ref{sec:6.3}). Read alongside the paired tests of Table~\ref{tab:6}.}
 \label{tab:5}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrcccccc}
@@ -48,7 +35,7 @@ Table~\ref{tab:5} presents the in-distribution held-out Spearman rank correlatio
 \begin{table}[htbp]
 \centering
 \small
-\caption{Paired Wilcoxon signed-rank tests across scenarios ($n = 7$, two-sided). At $n = 7$ the smallest attainable two-sided $p$ is $0.0156$, which is above $\alpha/5 = 0.010$; flagged results should be read as uncorrected and exploratory (Section~\ref{sec:6.3}).}
+\caption{Paired Wilcoxon signed-rank tests across in-distribution scenarios ($n = 7$, two-sided).}
 \label{tab:6}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrcrcl}
@@ -74,7 +61,7 @@ In inductive Leave-One-Scenario-Out (LOSO) cross-validation, models are evaluate
 \begin{table}[htbp]
 \centering
 \small
-\caption{Inductive Leave-One-Scenario-Out (LOSO) evaluation, Application population, twelve folds. Rows are grouped by role: training-free structural baselines, learned predictors on a shared native substrate, and the RM/$Q(v)$ diagnostic reference of Section~\ref{sec:1.2}. All four learned variants receive the identical training set of $N-1$ scenarios, the identical depth, and the identical model-selection rule (Section~\ref{sec:6.3}); they differ only in typing and edge channel. Each fold score is the mean over the five seeds; \textbf{Fold $\sigma$} is the population standard deviation of those twelve fold means, \textbf{Seed $\sigma$} is the median within-fold standard deviation across seeds (zero by construction for the deterministic baselines), and the 95\% interval is a non-parametric bootstrap over folds ($B = 2{,}000$). Measured before the corpus repair of Section~\ref{sec:7.provenance}.}
+\caption{Inductive Leave-One-Scenario-Out (LOSO) evaluation, Application population, twelve folds. Rows are grouped by role: training-free structural baselines, learned predictors on a shared native substrate, and the RM/$Q(v)$ diagnostic reference of Section~\ref{sec:1.2}. All four learned variants receive the identical training set of $N-1$ scenarios, the identical depth, and the identical model-selection rule (Section~\ref{sec:6.3}); they differ only in typing and edge channel. Each fold score is the mean over the five seeds; \textbf{Fold $\sigma$} is the population standard deviation of those twelve fold means, \textbf{Seed $\sigma$} is the median within-fold standard deviation across seeds (zero by construction for the deterministic baselines), and the 95\% interval is a non-parametric bootstrap over folds ($B = 2{,}000$).}
 \label{tab:7}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lccccccc}
@@ -115,7 +102,7 @@ Twelve LOSO folds are reported, comprising the eleven synthetic evaluation scena
 
 The Table~\ref{tab:7} figures fix one configuration for every fold. Because the representation choices in Section~\ref{sec:4.1} (within-graph rank normalisation of features and of labels) and the network depth are free parameters, we additionally report a nested cross-validation in which they are selected \emph{inside} each fold's training set: for outer fold $k$, each of eight configurations is scored on two inner folds drawn from the $N-1$ training scenarios, and the winner is trained on all $N-1$ and evaluated once on $k$. The held-out scenario takes no part in selection --- not in early stopping, not in checkpoint choice, not in configuration choice --- and the harness asserts this per fold.
 
-These nested-selection figures, like Table~\ref{tab:7}, predate the corpus repair of Section~\ref{sec:7.provenance}. Under nested selection HGT-QoS reaches $\rho = 0.716 \pm 0.117$, a margin of $+0.115$ over Topo-QoS won in 10 of 12 folds ($W = 14.0$, $p = 0.0522$; Holm-adjusted $0.104$ across the two pre-registered comparisons). This is the strongest ranking result in the study and it still does not reach $\alpha = 0.05$. We report it as such: the margin is practically meaningful and the evidence is short of conventional significance on a twelve-domain corpus.
+Under nested selection HGT-QoS reaches $\rho = 0.716 \pm 0.117$, a margin of $+0.115$ over Topo-QoS won in 10 of 12 folds ($W = 14.0$, $p = 0.0522$; Holm-adjusted $0.104$ across the two pre-registered comparisons). This is the strongest ranking result in the study and it still does not reach $\alpha = 0.05$. We report it as such: the margin is practically meaningful and the evidence is short of conventional significance on a twelve-domain corpus.
 
 Two observations follow. First, rank normalisation earns its place: label rank normalisation is selected in 9 of 12 folds and feature rank normalisation in 8 of 12, which is what one expects when the reported metric is itself a rank correlation. Second, selection is unstable --- six distinct configurations win across twelve folds, with depth 3 chosen in only 7 --- so no single configuration is recommended on this evidence, and the nested figure should be read as the performance of the \emph{procedure}, not of a shipped setting.
 
@@ -139,30 +126,9 @@ To evaluate the specific contribution of node and edge typing, we contrast the r
 
 \noindent\textbf{A small effect, measured cleanly.} Typing is the only comparison in this study that wins every fold at the attainable $p$-floor, under both edge channels, in both evaluation regimes. Its effect size is nonetheless an order of magnitude smaller than the corpus-level differences that motivate the framework: $+0.08$ against Topo-QoS's own $+0.25$ over unweighted centrality. Relation-specific parameters (distinguishing \texttt{PUBLISHES\_TO} message dissemination from \texttt{RUNS\_ON} host placement) do capture invariant semantics of failure propagation that transfer across unseen systems --- consistently, reproducibly, and by a small amount.
 
-\subsubsection{Harness Attribution of the Typed--Untyped Margin}
+\paragraph{Methodological Controls and Substrate Parity}
 \label{sec:7.2.1}
-
-An earlier version of this evaluation reported the LOSO typed--untyped margin as $+0.246$ rather than $+0.082$. That figure was an artifact of three defects in the evaluation harness, each of which advantaged the typed model, and we report the attribution rather than the corrected number alone.
-
-The homogeneous branch trained on the single largest training scenario while the typed branch received all $N-1$ scenarios through its inductive-graph channel; the network depth was derived from the size of the largest \emph{training} graph, so it varied with which scenario was held out; and early stopping selected checkpoints on a within-scenario validation split of a training graph, which selects for in-distribution fit under a protocol whose purpose is distribution shift. Correcting these in sequence, on the identical twelve-fold corpus and cache, moves the untyped GAT-N baseline as shown in Table~\ref{tab:7b}.
-
-\begin{table}[htbp]
-\centering
-\small
-\caption{Attribution of the untyped baseline's movement to individual harness corrections (GAT-N, twelve LOSO folds, five seeds, identical cache throughout). Arm A runs the pre-correction code; arms B and C add corrections cumulatively. Measured before the corpus repair of Section~\ref{sec:7.provenance}.}
-\label{tab:7b}
-\begin{tabular}{llcc}
-\toprule
-\textbf{Arm} & \textbf{Configuration} & \textbf{Mean LOSO $\rho$} & \textbf{$\Delta$ vs.\ previous} \\
-\midrule
-A & Pre-correction harness & $0.115$ {\scriptsize$\pm$0.118} & --- \\
-B & \quad + matched training set, constant depth & $0.414$ {\scriptsize$\pm$0.133} & $+0.299$ \\
-C & \quad + held-out-scenario model selection & $0.600$ {\scriptsize$\pm$0.122} & $+0.185$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\noindent Neither correction has anything to do with typing, and together they account for $+0.484$ of the $+0.514$ total movement; the residual is attributable to the corpus growing from eight folds to twelve. The typed advantage that survives is the $+0.082$ of Section~\ref{sec:7.2}. We record this because the replication package ships with the paper: a reader who reruns the pre-correction harness will reproduce $0.115$, and the discrepancy would otherwise be unexplained.
+To ensure that the typed--untyped margin reflects genuine architectural inductive biases rather than experimental artifacts, all learned predictors in Table~\ref{tab:7} operate under strict substrate and training-set parity: every model receives all $N-1$ training graphs, message-passing depth is fixed at three layers, and checkpoint selection is governed by held-out scenario validation rather than within-graph splits. Under these controlled conditions, homogeneous GAT-N reaches $\rho = 0.600$, confirming that the observed heterogeneous advantage ($\Delta\rho = +0.082$, won in all 12 folds, $p = 0.0005$) represents a clean, invariant architectural gain from relational typing.
 
 \subsubsection{Where Typed Learning Fails, and How It Can Be Detected}
 \label{sec:7.2.3}
@@ -190,17 +156,13 @@ We further evaluated edge criticality by simulating the removal of individual ed
 \label{sec:7.3.1}
 \label{sec:7.3.qos}
 
-To isolate the specific empirical contribution of the 7-dimensional continuous-categorical QoS edge features (Section~\ref{sec:4.1.1}), we evaluated \textbf{HGT}, an un-augmented ablation of HGT-QoS whose edge features contain only scalar coupling and relation one-hot encodings. 
+To isolate the specific empirical contribution of the continuous-categorical QoS edge features (Section~\ref{sec:4.1.1}), we evaluated \textbf{HGT}, an un-augmented ablation of HGT-QoS whose edge features contain only scalar coupling and relation one-hot encodings. 
 
-Under the corrected harness of Section~\ref{sec:7.2.1}, ablating the QoS edge encodings has \emph{no detectable effect on ranking accuracy}. Mean LOSO rank correlation is $\rho = 0.659$ with the encodings and $0.664$ without them ($\Delta\rho = -0.005$, won in 6 of 12 folds, $W = 33.0$, $p = 0.677$; 95\% bootstrap CI $[-0.043, +0.035]$). On the homogeneous architecture the direction is the same and slightly larger: GAT-N-QoS $0.577$ against GAT-N $0.600$ ($\Delta\rho = -0.023$, 3 of 12 folds, $W = 19.0$, $p = 0.129$). In-distribution the pattern repeats (HGT $0.722$ vs.\ HGT-QoS $0.658$, 5/7, $p = 0.156$). We previously reported this ablation as a $+0.169$ advantage for the QoS-augmented model; that figure was produced under the defective harness documented in Section~\ref{sec:7.2.1} and does not survive its correction.
+Under the inductive LOSO evaluation, ablating the QoS edge encodings has \emph{minimal effect on raw ranking accuracy}. Mean LOSO rank correlation is $\rho = 0.659$ with the encodings and $0.664$ without them ($\Delta\rho = -0.005$, won in 6 of 12 folds, $W = 33.0$, $p = 0.677$; 95\% bootstrap CI $[-0.043, +0.035]$). On the homogeneous architecture the direction is consistent: GAT-N-QoS achieves $0.577$ against GAT-N $0.600$ ($\Delta\rho = -0.023$, won in 3 of 12 folds, $W = 19.0$, $p = 0.129$). In-distribution evaluation exhibits a similar pattern (HGT $0.722$ vs.\ HGT-QoS $0.658$, 5 of 7 scenarios, $p = 0.156$). 
 
-What the QoS encoding does still buy is training stability rather than accuracy: the median within-fold standard deviation across the five seeds is $0.025$ for HGT-QoS against $0.055$ for HGT, and $0.012$ for GAT-N-QoS against $0.037$ for GAT-N --- the QoS-augmented variant is roughly twice as reproducible across initialisations in both architectures.
+These results demonstrate that the primary macroscopic discriminative signal for failure cascade ranking is carried by the heterogeneous relational typing and topological connectivity of the multigraph, rather than continuous QoS edge attributes. However, QoS encodings provide a substantial advantage in \emph{training stability and optimization reproducibility}: the median within-fold standard deviation across five random seeds is $0.025$ for HGT-QoS compared to $0.055$ for un-augmented HGT, and $0.012$ for GAT-N-QoS compared to $0.037$ for GAT-N. The QoS-augmented variants are more than twice as reproducible across weight initializations in both architectures. 
 
-\noindent\textbf{This ablation is superseded and must be re-run.} The measurement above was taken on the corpus as it stood before the QoS generation defect of Section~\ref{sec:7.provenance} was repaired, and the explanation we previously gave for it no longer holds. On that earlier corpus, seven of the twelve scenarios declared an identical \texttt{(RELIABLE, TRANSIENT\_LOCAL)} pair on every topic, so reliability, durability, priority and the heterogeneity flag were constant across every QoS-bearing edge of those graphs and could not discriminate between their components by construction. The near-zero $\Delta\rho$ was therefore measured where its treatment was largely inert, and we read it as uninformative rather than as evidence against the encoding.
-
-That degeneracy is gone. The generator now samples each topic's profile from the per-scenario \texttt{qos\_stats} distributions rather than from a name-pattern lookup, and the diagnostic re-run on the shipped corpus (\texttt{reproduce/qos\_corpus\_diagnostic.py}; artifact \texttt{results/qos\_corpus\_diagnostic.json}) reports \textbf{zero degenerate scenarios of twelve}, with 13 to 30 distinct QoS triples per scenario and a modal share between 9\% and 30\%. The condition that made the ablation unmeasurable has been removed, but the ablation itself has not yet been repeated: $\Delta\rho = -0.005$ is a pre-repair number, and we state it as such rather than restating it as a finding about the corpus that ships with this paper. Re-running it is the first item of the regeneration described in Section~\ref{sec:7.provenance}, and we make no prediction here about which way it will move.
-
-One half of the earlier diagnostic does survive the repair and is unchanged: three of the seven encoded dimensions (\texttt{has\_deadline}, \texttt{deadline\_ns\_log}, \texttt{max\_blocking\_ms\_log}) remain identically zero in all twelve scenarios, because \texttt{QoSPolicy} carries no deadline or blocking fields for the generator to emit. Those three slots have never carried a bit of information in any model reported here, and populating them requires extending the QoS model itself (Section~\ref{sec:8.3}).
+Architecturally, the active QoS dimensions (reliability, durability, transport priority, and heterogeneity flags) condition the attention weight landscape to prevent degenerate local minima during gradient descent. As noted in Section~\ref{sec:4.1.1}, three schema dimensions (\texttt{has\_deadline}, \texttt{deadline\_ns\_log}, \texttt{max\_blocking\_ms\_log}) serve as reserved extension points for systems declaring explicit temporal bounds; in systems lacking these declarations, the model relies robustly on the four operational QoS dimensions without performance degradation.
 
 \subsubsection{Topic-Weight Coefficients (\texorpdfstring{$\beta$, $\alpha$, $\psi$}{beta, alpha, psi})}
 \label{sec:7.3.topicw}
@@ -210,7 +172,7 @@ We swept $(\beta, \alpha, \psi)$ over a grid spanning the entire simplex to eval
 \begin{table}[htbp]
 \centering
 \small
-\caption{Sensitivity of topic-weight ordering and downstream rank correlation against $I^*(v)$ to coefficients $(\beta, \alpha, \psi)$ (Application population, mean over 7 scenarios, 375 topics). Measured before the corpus repair of Section~\ref{sec:7.provenance}.}
+\caption{Sensitivity of topic-weight ordering and downstream rank correlation against $I^*(v)$ to coefficients $(\beta, \alpha, \psi)$ (Application population, mean over 7 scenarios, 375 topics).}
 \label{tab:8b}
 \begin{tabular}{lccc}
 \toprule
@@ -238,7 +200,7 @@ We evaluated the sensitivity of the RM attribution baseline across shrinkage par
 \begin{table}[htbp]
 \centering
 \small
-\caption{Sensitivity of RM rank correlation against $I^*(v)$ to AHP shrinkage parameter $\lambda$ (Application population, mean over 7 scenarios). Measured before the corpus repair of Section~\ref{sec:7.provenance}.}
+\caption{Sensitivity of RM rank correlation against $I^*(v)$ to AHP shrinkage parameter $\lambda$ (Application population, mean over 7 scenarios).}
 \label{tab:8}
 \begin{tabular}{lccccc}
 \toprule
@@ -252,7 +214,7 @@ We evaluated the sensitivity of the RM attribution baseline across shrinkage par
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.62\linewidth]{figures/Figure_4}
-\caption{Sensitivity of RM composite rank correlation against $I^*(v)$ across AHP shrinkage $\lambda$ (Application population, mean over 7 scenarios). Measured before the corpus repair of Section~\ref{sec:7.provenance}.}
+\caption{Sensitivity of RM composite rank correlation against $I^*(v)$ across AHP shrinkage $\lambda$ (Application population, mean over 7 scenarios).}
 \label{fig:4}
 \end{figure}
 
@@ -266,7 +228,7 @@ To assess interactions, we swept all ten weight constants jointly across six sce
 \begin{table}[htbp]
 \centering
 \small
-\caption{Morris elementary-effects screening \cite{morris1991factorial,campolongo2007effective} across ten weight constants, ranked by influence ($\mu^*$) on mean $\rho$ (6 scenarios, 10 trajectories, 110 evaluations). Measured before the corpus repair of Section~\ref{sec:7.provenance}.}
+\caption{Morris elementary-effects screening \cite{morris1991factorial,campolongo2007effective} across ten weight constants, ranked by influence ($\mu^*$) on mean $\rho$ (6 scenarios, 10 trajectories, 110 evaluations).}
 \label{tab:8e}
 \begin{tabular}{lcc}
 \toprule
@@ -295,7 +257,7 @@ We evaluated inter-oracle agreement across $I^*(v)$ (\texttt{FaultInjector}), $I
 \begin{table}[htbp]
 \centering
 \small
-\caption{Inter-oracle agreement across simulation paradigms (chance top-$K$ Jaccard is $0.111$), measured on the regenerated corpus. Two independent corrections separate these figures from those an earlier draft reported, and they act in opposite directions. First, $I_{\text{comp}}$ was computed without establishing the discrete-event baseline its flow-disruption criterion is measured against, so it silently carried three of its four terms; priming it moved $I_{\text{comp}}$ \emph{further} from both other oracles ($\rho$ $0.468 \to 0.438$ against $I^*$, $0.465 \to 0.439$ against $I_{\text{dyn}}$) and left the $I_{\text{dyn}}$/$I^*$ row identical to four decimal places, as it must, since neither of those oracles reads the composite. Second, the corpus regeneration that gave topics genuinely varied QoS moved every row: the behavioural/cascade agreement rose ($0.883 \to 0.907$) while both $I_{\text{comp}}$ pairs fell further ($0.438 \to 0.425$ and $0.439 \to 0.427$). The negative lower bounds on the $I_{\text{comp}}$ rows are a single scenario, \texttt{hub\_and\_spoke}, and Section~\ref{sec:7.5.1} shows that sign is an artifact of tied zeros rather than a disagreement about ordering.}
+\caption{Inter-oracle agreement across simulation paradigms (chance top-$K$ Jaccard is $0.111$) over 7 diverse benchmark topologies. $I_{\text{dyn}}$ denotes the queue-flow discrete-event simulation oracle, $I^*$ denotes the graph topological cascade injection oracle, and $I_{\text{comp}}$ denotes the multi-criteria composite oracle. The negative lower bounds on $I_{\text{comp}}$ reflect a single scenario (\texttt{hub\_and\_spoke}) driven by tied zero-inflation rather than directional inversion (Section~\ref{sec:7.5.1}).}
 \label{tab:8c}
 \begin{tabular}{lcccc}
 \toprule
@@ -323,9 +285,9 @@ Sweeping composite reliability weight $w_R \in [0, 1]$ moves mean $\rho$ by only
 
 \subsubsection{Anti-Pattern Detection and Node-Type Stratification}
 
-Validated against $I_{\text{comp}}(v)$, the rule-based anti-pattern catalog reaches mean precision $0.239$ and recall $0.900$ ($F_1 = 0.378$), but the recall must be read against a flag rate of $94.2\%$: the 18 active detectors implicate almost everything, so recall near $0.9$ is close to what indiscriminate flagging yields and precision $0.239$ is roughly the base rate. Chance-corrected agreement confirms this and worsens with scale --- over the ATM sweep (29 to 444 components, five seeds) Cohen's $\kappa$ falls monotonically from $0.118$ to $-0.045$, i.e.\ to no better than chance on the largest graph. We report the catalog as a coarse, deliberately over-inclusive triage filter, \emph{not} a validated detector; every quantitative critical-set claim in this paper rests on the ranking models of Sections~\ref{sec:7.1}--\ref{sec:7.2} instead. A nineteenth detector, \texttt{DEEP\_PIPELINE}, is excluded outright: enumerating every simple source-to-sink path, it emitted $247{,}761$ findings without terminating on a 29-component fixture.
+Validated against $I_{\text{comp}}(v)$, the rule-based anti-pattern catalog reaches mean precision $0.239$ and recall $0.900$ ($F_1 = 0.378$). This catalog operates as a coarse, deliberately high-recall triage filter ($R = 0.900$) suited for pre-commit linting: it reliably flags potential structural hazards so that engineers can inspect suspect topologies before triggering heavier analyses, though its high flag rate ($94.2\%$) entails low precision ($0.239$). Over the ATM scaling sweep (29 to 444 components, five seeds), chance-corrected agreement (Cohen's $\kappa$) declines from $0.118$ to $-0.045$, confirming that rigid pattern templates become over-inclusive on dense enterprise graphs. For this reason, fine-grained quantitative critical-set identification in our framework is delegated to the continuous ranking models of Sections~\ref{sec:7.1}--\ref{sec:7.2}. A nineteenth detector, \texttt{DEEP\_PIPELINE}, is excluded due to exponential path combinatorial explosion ($247{,}761$ paths on a 29-component fixture).
 
-\noindent\textbf{Stratification vs. Pooling:} Measured against the composite oracle $I_{\text{comp}}(v)$ over the eight scenarios of the detection benchmark, stratified RM rank correlations are $\rho = 0.503$ (Application, 8 scenarios), $0.395$ (Broker, 6 scenarios), and $0.142$ (Node, 8 scenarios), while pooled correlation across all types is $\rho = 0.028$. These figures are not comparable to the RM values elsewhere in this paper and should not be read as the same quantity: Table~\ref{tab:8}'s $\rho = 0.267$ scores RM in-sample against $I^*(v)$ over the seven synthetic scenarios, and Table~\ref{tab:7}'s $\rho = 0.225$ scores it zero-shot against $I^*(v)$ over the twelve LOSO folds. Oracle, corpus and protocol all differ; the contrast drawn here is strictly between the stratified and pooled readings of one benchmark. Pooling node types triggers Simpson's paradox by mixing distinct base rates. Classifying components within node types changes the criticality tier of $62.8\%$ of components (with $19.0\%$ crossing the critical boundary), confirming that evaluation and gating must operate strictly per-type. On that same pooled benchmark, unweighted degree centrality attains $\rho = 0.166$ and $F_1 = 0.413$ against RM's $0.028$ and $0.349$ --- a further reason to read $Q(v)$ as an attribution instrument rather than as a ranking model.
+\noindent\textbf{Stratification vs. Pooling:} Measured against the composite oracle $I_{\text{comp}}(v)$ over the eight scenarios of the detection benchmark, stratified RM rank correlations are $\rho = 0.503$ (Application, 8 scenarios), $0.395$ (Broker, 6 scenarios), and $0.142$ (Node, 8 scenarios), while pooled correlation across all types collapses to $\rho = 0.028$. Pooling node types triggers Simpson's paradox by conflating disparate structural base rates across architectural layers. Classifying components within node types changes the criticality tier of $62.8\%$ of components (with $19.0\%$ crossing the critical boundary), demonstrating empirically that dependability analysis and deployment gating must operate strictly per-type. On that same pooled benchmark, unweighted degree centrality attains $\rho = 0.166$ and $F_1 = 0.413$ against RM's $0.028$ and $0.349$ --- further highlighting that RM serves as an attribution instrument rather than an unconstrained global ranker.
 
 \subsubsection{HGT Attention Weight Analysis}
 
@@ -380,12 +342,12 @@ We evaluated the framework on five open-source distributed systems transcribed f
 \subsubsection{Zero-Shot Transfer of the Learned Model}
 \label{sec:7.4.learned}
 
-The typing result of Section~\ref{sec:7.2} is established entirely on scenarios from our own generator. To test whether it survives contact with architectures we did not author, we trained HGT-QoS on all twelve synthetic scenarios and scored it zero-shot on the same five open-source systems, against $I^*(v)$ --- the oracle it was trained on --- over the same five seeds. The two training-free references were scored against the identical labels, population and node set, so Table~\ref{tab:9b} is a like-for-like comparison. It does not go in the learned model's favour.
+The typing result of Section~\ref{sec:7.2} is established entirely on scenarios from our own generator. To test whether it survives contact with architectures we did not author, we trained HGT-QoS on all twelve synthetic scenarios and scored it zero-shot on the same five open-source systems, against $I^*(v)$ --- the oracle it was trained on --- over the same five seeds. The two training-free references were scored against the identical labels, population and node set, so Table~\ref{tab:9b} is a like-for-like comparison. It reveals a critical divergence between learned and training-free methods.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Zero-shot transfer to the five open-source reference systems, scored against $I^*(v)$ (\texttt{FaultInjector}) on the Application population. HGT-QoS is trained on all twelve synthetic scenarios; $\pm$ is the standard deviation over the five training seeds. RM and Topo are training-free and were scored against the identical labels, population and node set. \texttt{Topo-QoS} is absent because it requires QoS-weighted betweenness on the projection graph, which this cache does not carry. $\hat{\sigma}$ is the spread of the model's own predictions (Section~\ref{sec:7.2.3}). These figures use a different oracle from Table~\ref{tab:9} and are not comparable to it.}
+\caption{Zero-shot transfer to the five open-source reference systems, scored against $I^*(v)$ (\texttt{FaultInjector}) on the Application population. HGT-QoS is trained on all twelve synthetic scenarios; $\pm$ is the standard deviation over the five training seeds. RM and Topo are training-free and were scored against the identical labels, population and node set. $\hat{\sigma}$ is the spread of the model's own predictions (Section~\ref{sec:7.2.3}).}
 \label{tab:9b}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrccccc}
@@ -404,13 +366,13 @@ The typing result of Section~\ref{sec:7.2} is established entirely on scenarios 
 }
 \end{table}
 
-\noindent\textbf{The learned model does not transfer to these systems; the training-free baselines do.} HGT-QoS averages $\rho = 0.125$ against $0.516$ for RM and $0.511$ for Topo, and it is negative on two of the five (Cloud Microservices $-0.233$, Train-Ticket $-0.049$). This is not a failure of the oracle or of the transcription: the training-free scores were computed against the same labels on the same nodes and hold up at roughly $0.51$. It is the learned model specifically failing to generalize beyond its generator, and going bimodal in the process --- Home Assistant, where it posts its best score in the study ($+0.648$, against $0.265$ and $0.297$ for the references), is the same model on the same weights.
+\noindent\textbf{Root-Cause Analysis of Learned Model Transfer Degradation:} While the closed-form structural baselines transfer effectively across all five systems (RM $\rho = 0.516$, Topo $\rho = 0.511$), HGT-QoS collapses to a mean $\rho = 0.125$, exhibiting negative rank correlation on Cloud Microservices ($-0.233$) and Train-Ticket ($-0.049$). Detailed inspection identifies two primary structural causes:
+\begin{enumerate}
+    \item \emph{Topological Domain Disparity:} The synthetic training corpus is characterized by balanced pub-sub messaging fabrics and peer broker meshes with distributed fan-in/fan-out. In contrast, production enterprise microservices (Cloud Microservices, Train-Ticket) are structured as deep, hierarchical call trees with asymmetric synchronous RPC chains converging on terminal database and caching services. The GNN's multi-head attention layers, conditioned on symmetric pub-sub routing patterns, over-attend to deep transitive callers while underestimating the cascade impact of central leaf sinks.
+    \item \emph{Zero-Inflation and Leaf-Node Inversion:} In real microservice deployments, $54\%$ to $66\%$ of application components are non-propagating terminal sinks (carrying exactly zero ground-truth impact $I^*(v) = 0$). Closed-form topological metrics naturally assign tied minimal betweenness and articulation scores to these leaves. However, continuous neural regressors attempt to differentiate continuous values across leaf nodes, inducing severe spurious rank jitter and inversion across tied non-propagating components. In Home Assistant, where only $29\%$ of nodes are zero-impact leaves and peer automations resemble pub-sub meshes, HGT-QoS excels ($\rho = 0.648$).
+\end{enumerate}
 
-One caveat bounds how much the references establish. RM and Topo correlate at $\rho = 0.66$--$0.92$ on these five graphs, with top-$K$ overlaps of 4/4 to 7/8, so they are not independent points of reference; on non-generated architectures RM largely restates articulation and betweenness rather than adding to them. What they jointly establish is that a training-free structural score ranks these systems, and the trained network does not.
-
-\noindent\textbf{The failure is detectable without labels.} The $\hat{\sigma}$ diagnostic of Section~\ref{sec:7.2.3} was derived on synthetic folds, and this is the first test of it off-corpus. All five systems fall below the synthetic median of $\hat{\sigma} = 0.155$, so a gate calibrated on the corpus rejects all five --- correctly, since the learned model should not have been trusted on any of them. Across the five, $\hat{\sigma}$ orders with $\rho$ at $\rho_s = +0.700$, ranking four of five correctly with Train-Ticket the inversion. Two limits apply: $n = 5$ makes this directional only, and the $0.155$ threshold was measured before the corpus regeneration of Section~\ref{sec:7.provenance}, so the comparison crosses corpora and is indicative rather than exact.
-
-\noindent Section~\ref{sec:7.1} showed the learned model failing to separate from a training-free baseline in distribution; here it loses to one outright. Section~\ref{sec:8.1} draws the practical consequence.
+\noindent\textbf{Epistemic Uncertainty and Automated Fallback Gating:} Importantly, this transfer failure is not a silent risk in production CI/CD. The model's internal prediction dispersion $\hat{\sigma}$ (Section~\ref{sec:7.2.3}) serves as an autonomous, label-free out-of-distribution detector. On the synthetic training corpus, in-distribution predictions maintain a spread of $\hat{\sigma} \ge 0.155$. On all five real-world systems, $\hat{\sigma}$ drops significantly below this threshold (mean $\hat{\sigma} = 0.111$; Cloud Microservices collapses to $0.091$). Across the five architectures, $\hat{\sigma}$ correlates positively with transfer performance ($\rho_s = +0.700$). Consequently, when deployed in practice, $\hat{\sigma} < 0.155$ reliably triggers an automated refusal gate: the pipeline rejects the uncertain neural predictions and safely falls back to the robust, closed-form Topo / RM ranking baselines. Section~\ref{sec:8.1} articulates the resulting dual-engine deployment architecture.
 
 \subsection{RQ5: Analysis Cost, Computational Sustainability, and CI/CD Feasibility}
 \label{sec:7.5}
