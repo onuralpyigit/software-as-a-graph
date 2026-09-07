@@ -54,19 +54,19 @@
       "name": "radar.tracks-1",
       "size": 4096,
       "qos": {
-        "durability": "VOLATILE",
+        "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
         "transport_priority": "HIGH"
       },
       "frequency": 100.0,
-      "criticality": "low"
+      "criticality": "medium"
     },
     {
       "id": "T2",
       "name": "flight.plans",
       "size": 32,
       "qos": {
-        "durability": "PERSISTENT",
+        "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },
@@ -80,7 +80,7 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
+        "transport_priority": "MEDIUM"
       },
       "frequency": 25.0,
       "criticality": "minimal"
@@ -91,20 +91,20 @@
       "size": 2048,
       "qos": {
         "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
       },
       "frequency": 100.0,
-      "criticality": "low"
+      "criticality": "medium"
     },
     {
       "id": "T5",
       "name": "weather.updates",
       "size": 2048,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
       },
       "frequency": 100.0,
       "criticality": "medium"
@@ -127,11 +127,11 @@
       "size": 2048,
       "qos": {
         "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
+        "reliability": "RELIABLE",
+        "transport_priority": "CRITICAL"
       },
       "frequency": 50.0,
-      "criticality": "low"
+      "criticality": "medium"
     },
     {
       "id": "T8",
@@ -140,7 +140,7 @@
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
+        "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
       "criticality": "critical"
@@ -150,9 +150,9 @@
       "name": "flight.plans-2",
       "size": 2048,
       "qos": {
-        "durability": "PERSISTENT",
+        "durability": "VOLATILE",
         "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
+        "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
       "criticality": "low"
@@ -162,7 +162,7 @@
       "name": "flight.plans-3",
       "size": 1024,
       "qos": {
-        "durability": "PERSISTENT",
+        "durability": "VOLATILE",
         "reliability": "RELIABLE",
         "transport_priority": "HIGH"
       },

@@ -62,9 +62,9 @@
       "name": "Topic-0",
       "size": 128,
       "qos": {
-        "durability": "transient_local",
-        "reliability": "reliable",
-        "transport_priority": "high"
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
       },
       "frequency": 1.0,
       "criticality": "critical"
@@ -74,9 +74,9 @@
       "name": "Topic-1",
       "size": 128,
       "qos": {
-        "durability": "volatile",
-        "reliability": "reliable",
-        "transport_priority": "high"
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
       },
       "frequency": 1.0,
       "criticality": "high"
@@ -86,9 +86,9 @@
       "name": "Topic-2",
       "size": 2048,
       "qos": {
-        "durability": "persistent",
-        "reliability": "reliable",
-        "transport_priority": "critical"
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "CRITICAL"
       },
       "frequency": 1.0,
       "criticality": "critical"
@@ -98,9 +98,9 @@
       "name": "Topic-3",
       "size": 2048,
       "qos": {
-        "durability": "transient",
-        "reliability": "best_effort",
-        "transport_priority": "medium"
+        "durability": "TRANSIENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
       },
       "frequency": 10.0,
       "criticality": "medium"
@@ -110,9 +110,9 @@
       "name": "Topic-4",
       "size": 1024,
       "qos": {
-        "durability": "persistent",
-        "reliability": "best_effort",
-        "transport_priority": "high"
+        "durability": "PERSISTENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "HIGH"
       },
       "frequency": 1.0,
       "criticality": "critical"
@@ -122,9 +122,9 @@
       "name": "Topic-5",
       "size": 128,
       "qos": {
-        "durability": "transient",
-        "reliability": "reliable",
-        "transport_priority": "low"
+        "durability": "TRANSIENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "LOW"
       },
       "frequency": 10.0,
       "criticality": "critical"
@@ -134,9 +134,9 @@
       "name": "Topic-6",
       "size": 1024,
       "qos": {
-        "durability": "volatile",
-        "reliability": "best_effort",
-        "transport_priority": "high"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "HIGH"
       },
       "frequency": 10.0,
       "criticality": "low"
@@ -146,9 +146,9 @@
       "name": "Topic-7",
       "size": 2048,
       "qos": {
-        "durability": "transient_local",
-        "reliability": "best_effort",
-        "transport_priority": "medium"
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
       "criticality": "medium"
@@ -158,9 +158,9 @@
       "name": "Topic-8",
       "size": 512,
       "qos": {
-        "durability": "volatile",
-        "reliability": "best_effort",
-        "transport_priority": "low"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
       },
       "frequency": 1.0,
       "criticality": "minimal"
@@ -170,9 +170,9 @@
       "name": "Topic-9",
       "size": 2048,
       "qos": {
-        "durability": "transient",
-        "reliability": "best_effort",
-        "transport_priority": "critical"
+        "durability": "TRANSIENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "CRITICAL"
       },
       "frequency": 1.0,
       "criticality": "high"
@@ -182,9 +182,9 @@
       "name": "Topic-10",
       "size": 1024,
       "qos": {
-        "durability": "volatile",
-        "reliability": "reliable",
-        "transport_priority": "low"
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "LOW"
       },
       "frequency": 25.0,
       "criticality": "medium"
@@ -194,9 +194,9 @@
       "name": "Topic-11",
       "size": 4096,
       "qos": {
-        "durability": "transient_local",
-        "reliability": "best_effort",
-        "transport_priority": "high"
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "HIGH"
       },
       "frequency": 1.0,
       "criticality": "medium"
@@ -206,9 +206,9 @@
       "name": "Topic-12",
       "size": 2048,
       "qos": {
-        "durability": "transient",
-        "reliability": "reliable",
-        "transport_priority": "medium"
+        "durability": "TRANSIENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
       "criticality": "medium"
@@ -218,9 +218,9 @@
       "name": "Topic-13",
       "size": 128,
       "qos": {
-        "durability": "volatile",
-        "reliability": "best_effort",
-        "transport_priority": "low"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
       },
       "frequency": 50.0,
       "criticality": "minimal"
@@ -230,9 +230,9 @@
       "name": "Topic-14",
       "size": 512,
       "qos": {
-        "durability": "transient_local",
-        "reliability": "best_effort",
-        "transport_priority": "medium"
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
       },
       "frequency": 10.0,
       "criticality": "medium"
@@ -242,9 +242,9 @@
       "name": "Topic-15",
       "size": 2048,
       "qos": {
-        "durability": "persistent",
-        "reliability": "reliable",
-        "transport_priority": "critical"
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "CRITICAL"
       },
       "frequency": 50.0,
       "criticality": "critical"
@@ -254,9 +254,9 @@
       "name": "Topic-16",
       "size": 1024,
       "qos": {
-        "durability": "volatile",
-        "reliability": "reliable",
-        "transport_priority": "high"
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
       },
       "frequency": 25.0,
       "criticality": "medium"
@@ -266,9 +266,9 @@
       "name": "Topic-17",
       "size": 2048,
       "qos": {
-        "durability": "transient",
-        "reliability": "reliable",
-        "transport_priority": "low"
+        "durability": "TRANSIENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "LOW"
       },
       "frequency": 1.0,
       "criticality": "high"
@@ -278,9 +278,9 @@
       "name": "Topic-18",
       "size": 2048,
       "qos": {
-        "durability": "persistent",
-        "reliability": "reliable",
-        "transport_priority": "medium"
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
       "criticality": "critical"
@@ -290,9 +290,9 @@
       "name": "Topic-19",
       "size": 2048,
       "qos": {
-        "durability": "transient_local",
-        "reliability": "reliable",
-        "transport_priority": "medium"
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
       "criticality": "high"

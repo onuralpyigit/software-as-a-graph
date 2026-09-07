@@ -530,6 +530,15 @@ def run_batch_generation(args: argparse.Namespace) -> int:
         "scenario_09_xlarge_stress": "xlarge_system",
         "scenario_10_atm_system": "atm_system",
         "scenario_11_integration_hub_migration": "integration_hub_migration_system",
+        # ATM scale variants. Omitting these left atm_system_{tiny,medium,large,
+        # xlarge}.json unwritten by the manifest's own documented regeneration
+        # command, so they silently survived a corpus regeneration while the
+        # rest of the corpus moved. Must stay in sync with CORPUS in
+        # scripts/write_scenario_manifest.py.
+        "scenario_14_atm_tiny": "atm_system_tiny",
+        "scenario_15_atm_medium": "atm_system_medium",
+        "scenario_16_atm_large": "atm_system_large",
+        "scenario_17_atm_xlarge": "atm_system_xlarge",
         "scenario_18_telecom_ran": "telecom_ran_system",
         "scenario_19_industrial_scada": "industrial_scada_system",
         "scenario_20_realtime_gaming": "realtime_gaming_system",

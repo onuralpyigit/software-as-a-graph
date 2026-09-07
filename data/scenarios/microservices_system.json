@@ -106,21 +106,21 @@
       "name": "payment.events",
       "size": 1024,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "durability": "TRANSIENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
       },
       "frequency": 25.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T1",
       "name": "payment.events-1",
       "size": 1024,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "TRANSIENT",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "LOW"
       },
       "frequency": 1.0,
       "criticality": "minimal"
@@ -132,34 +132,34 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "HIGH"
       },
       "frequency": 10.0,
-      "criticality": "high"
+      "criticality": "critical"
     },
     {
       "id": "T3",
       "name": "email.queue",
       "size": 1024,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
       "frequency": 10.0,
-      "criticality": "high"
+      "criticality": "low"
     },
     {
       "id": "T4",
       "name": "email.queue-1",
       "size": 2048,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "VOLATILE",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "CRITICAL"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T5",
@@ -168,7 +168,7 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "LOW"
       },
       "frequency": 1.0,
       "criticality": "high"
@@ -178,21 +178,21 @@
       "name": "product.events-1",
       "size": 2048,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "VOLATILE",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "medium"
+      "criticality": "high"
     },
     {
       "id": "T7",
       "name": "user.events",
       "size": 64,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "durability": "TRANSIENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "HIGH"
       },
       "frequency": 1.0,
       "criticality": "high"
@@ -202,9 +202,9 @@
       "name": "payment.events-2",
       "size": 64,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "durability": "TRANSIENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
       },
       "frequency": 1.0,
       "criticality": "minimal"
@@ -214,21 +214,21 @@
       "name": "product.events-2",
       "size": 256,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "VOLATILE",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "LOW"
       },
       "frequency": 25.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T10",
       "name": "user.events-1",
       "size": 2048,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "durability": "TRANSIENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
       },
       "frequency": 1.0,
       "criticality": "low"
@@ -238,12 +238,12 @@
       "name": "user.events-2",
       "size": 256,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "PERSISTENT",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "LOW"
       },
       "frequency": 1.0,
-      "criticality": "critical"
+      "criticality": "high"
     },
     {
       "id": "T12",
@@ -275,47 +275,47 @@
       "size": 64,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T15",
       "name": "user.events-4",
       "size": 64,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
+        "durability": "TRANSIENT",
+        "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T16",
       "name": "email.queue-4",
       "size": 2048,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
       },
       "frequency": 25.0,
-      "criticality": "high"
+      "criticality": "minimal"
     },
     {
       "id": "T17",
       "name": "user.events-5",
       "size": 4096,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "TRANSIENT",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "HIGH"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "critical"
     },
     {
       "id": "T18",
@@ -323,11 +323,11 @@
       "size": 1024,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T19",
@@ -336,7 +336,7 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "HIGH"
       },
       "frequency": 25.0,
       "criticality": "minimal"
@@ -346,9 +346,9 @@
       "name": "email.queue-6",
       "size": 64,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "VOLATILE",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "HIGH"
       },
       "frequency": 1.0,
       "criticality": "critical"
@@ -359,7 +359,7 @@
       "size": 2048,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
+        "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
@@ -372,10 +372,10 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "HIGH"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "critical"
     },
     {
       "id": "T23",
@@ -384,7 +384,7 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "LOW"
       },
       "frequency": 1.0,
       "criticality": "high"
@@ -396,7 +396,7 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "LOW"
       },
       "frequency": 10.0,
       "criticality": "high"
@@ -406,19 +406,19 @@
       "name": "user.events-7",
       "size": 4096,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "VOLATILE",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "LOW"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T26",
       "name": "user.events-8",
       "size": 4096,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "VOLATILE",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
@@ -430,12 +430,12 @@
       "name": "user.events-9",
       "size": 2048,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "VOLATILE",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "HIGH"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T28",
@@ -443,11 +443,11 @@
       "size": 512,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
+        "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T29",
@@ -456,43 +456,43 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "HIGH"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "critical"
     },
     {
       "id": "T30",
       "name": "email.queue-9",
       "size": 1024,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
       },
       "frequency": 25.0,
-      "criticality": "minimal"
+      "criticality": "low"
     },
     {
       "id": "T31",
       "name": "user.events-11",
       "size": 64,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "VOLATILE",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T32",
       "name": "user.events-12",
       "size": 2048,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "PERSISTENT",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "CRITICAL"
       },
       "frequency": 1.0,
       "criticality": "medium"
@@ -502,12 +502,12 @@
       "name": "user.events-13",
       "size": 2048,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "TRANSIENT",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "critical"
     },
     {
       "id": "T34",
@@ -515,11 +515,11 @@
       "size": 512,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
+        "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T35",
@@ -527,23 +527,23 @@
       "size": 1024,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
+        "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T36",
       "name": "email.queue-11",
       "size": 2048,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "critical"
     },
     {
       "id": "T37",
@@ -574,36 +574,36 @@
       "name": "payment.events-7",
       "size": 64,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
       },
       "frequency": 10.0,
-      "criticality": "high"
+      "criticality": "minimal"
     },
     {
       "id": "T40",
       "name": "email.queue-13",
       "size": 64,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
+        "durability": "PERSISTENT",
+        "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "critical"
     },
     {
       "id": "T41",
       "name": "product.events-4",
       "size": 256,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "HIGH"
       },
       "frequency": 25.0,
-      "criticality": "high"
+      "criticality": "low"
     },
     {
       "id": "T42",
@@ -622,24 +622,24 @@
       "name": "product.events-6",
       "size": 2048,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "VOLATILE",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T44",
       "name": "payment.events-8",
       "size": 64,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "HIGH"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "low"
     }
   ],
   "applications": [

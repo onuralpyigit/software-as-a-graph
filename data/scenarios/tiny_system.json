@@ -42,20 +42,20 @@
       "name": "crm.leads",
       "size": 1024,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "VOLATILE",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "LOW"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T1",
       "name": "warehouse.stock",
       "size": 2048,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
+        "durability": "PERSISTENT",
+        "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
@@ -66,12 +66,12 @@
       "name": "crm.leads-1",
       "size": 2048,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "critical"
     },
     {
       "id": "T3",
@@ -79,20 +79,20 @@
       "size": 1024,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "medium"
     },
     {
       "id": "T4",
       "name": "crm.leads-2",
       "size": 1024,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "durability": "TRANSIENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "HIGH"
       },
       "frequency": 1.0,
       "criticality": "high"
@@ -102,24 +102,24 @@
       "name": "erp.updates",
       "size": 512,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "HIGH"
       },
       "frequency": 1.0,
-      "criticality": "low"
+      "criticality": "medium"
     },
     {
       "id": "T6",
       "name": "crm.leads-3",
       "size": 1024,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
+        "durability": "TRANSIENT",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "CRITICAL"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "critical"
     },
     {
       "id": "T7",
@@ -128,10 +128,10 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "CRITICAL"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "critical"
     }
   ],
   "applications": [
@@ -1156,7 +1156,7 @@
       },
       {
         "from": "A4",
-        "to": "T5"
+        "to": "T0"
       },
       {
         "from": "A5",

@@ -137,6 +137,14 @@ DOMAIN_DATASETS: Dict[str, Dict[str, List[str]]] = {
 
 # Default QoS mappings based on topic name patterns within a scenario/domain
 # Format: List of (pattern, (durability, reliability, transport_priority))
+#
+# NOTE: no longer wired into GraphGenerator. Topic QoS is drawn from the
+# scenario config's `qos_stats` distributions instead. These tables assigned one
+# triple to every topic in any domain whose entry is a single "default" row
+# (hub-and-spoke, microservices, enterprise, and the four domains with no entry
+# at all), which zeroed the QoS edge-feature entropy on 7 of the 12 LOSO
+# scenarios. Retained for reference; do not re-wire without re-running
+# reproduce/qos_corpus_diagnostic.py.
 _ATM_QOS_MAPPING = [
     ("tracks", ("VOLATILE", "BEST_EFFORT", "HIGH")),
     ("plans", ("PERSISTENT", "RELIABLE", "HIGH")),

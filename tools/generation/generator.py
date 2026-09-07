@@ -29,7 +29,6 @@ from .models import (
 )
 from .datasets import (
     DomainDataset,
-    get_qos_for_topic,
     get_app_type_for_name,
     get_lib_archetype_for_name,
     get_generic_system_hierarchy,
@@ -583,10 +582,15 @@ class StatisticalGraphGenerator:
         Returns None (no self.rng draw) when *dist* is absent, matching the
         "only shuffle if this specific distribution was configured" behaviour
         of the original inline QoS-pool setup.
+
+        Values are upper-cased: configs declare ``category_counts`` in lower
+        case, but QoSPolicy's score tables, _APP_TYPE_QOS_AFFINITY and the
+        emitted corpus are upper-case only, and the membership tests in
+        _qos_preferred_topics() are raw (uncanonicalised) comparisons.
         """
         if not dist:
             return None
-        pool = dist.to_weighted_list(defaults)
+        pool = [str(v).strip().upper() for v in dist.to_weighted_list(defaults)]
         self.rng.shuffle(pool)
         return pool
 
@@ -612,9 +616,9 @@ class StatisticalGraphGenerator:
         and noisy criticality ground truth.
 
         Draws from self.rng (size sampling, QoS-pool shuffling), name_rng
-        (naming, and QoS-pool selection when domain_ds is absent), and
-        topic_attr_rng (frequency/criticality — isolated from the main
-        topology stream so those draws never perturb it).
+        (naming and QoS-pool selection), and topic_attr_rng
+        (frequency/criticality — isolated from the main topology stream so
+        those draws never perturb it).
         """
         qos_stats = c.qos_stats
         durability_pool = self._weighted_pool(
@@ -639,14 +643,15 @@ class StatisticalGraphGenerator:
 
             topic_name = domain_ds.get_topic_name() if domain_ds else f"Topic-{i}"
 
-            if domain_ds:
-                durability, reliability, transport_priority = get_qos_for_topic(
-                    topic_name, c.domain, c.scenario
-                )
-            else:
-                durability = self._pick_categorical(durability_pool, DURABILITY_OPTIONS, i, name_rng)
-                reliability = self._pick_categorical(reliability_pool, RELIABILITY_OPTIONS, i, name_rng)
-                transport_priority = self._pick_categorical(priority_pool, PRIORITY_OPTIONS, i, name_rng)
+            # QoS always comes from the configured distributions. It used to be
+            # overridden by a name-pattern lookup whenever the scenario declared
+            # a domain -- true of every scenario -- which made these pools dead
+            # config and collapsed seven of the twelve LOSO scenarios onto a
+            # single QoS triple, zeroing the entropy of the edge-feature
+            # dimensions that carry it. See reproduce/qos_corpus_diagnostic.py.
+            durability = self._pick_categorical(durability_pool, DURABILITY_OPTIONS, i, name_rng)
+            reliability = self._pick_categorical(reliability_pool, RELIABILITY_OPTIONS, i, name_rng)
+            transport_priority = self._pick_categorical(priority_pool, PRIORITY_OPTIONS, i, name_rng)
 
             qos_policy = QoSPolicy(
                 durability=durability,

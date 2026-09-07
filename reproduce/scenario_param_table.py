@@ -19,15 +19,12 @@ the share of topics that carry it.
 
 The modal QoS column is computed from the committed topology
 (``data/scenarios/<name>.json``'s ``topics``), not from the config's
-``qos_stats`` block. Domain-driven topic QoS (``get_qos_for_topic`` in
-``tools/generation/datasets.py``) takes precedence over the pool sampled from
-``qos_stats`` whenever a scenario declares a ``domain`` -- true of every
-scenario in this corpus -- so ``qos_stats.category_counts`` does not describe
-what was actually generated for domains whose ``QOS_MAPPINGS`` entry is a
-single ``"default"`` triple (``hub-and-spoke``, ``microservices``,
-``enterprise``; ``av`` collapses four of five patterns to one triple). An
-earlier version of this script read ``qos_stats`` directly and reported that
-un-realized target distribution.
+``qos_stats`` block. The two now agree by construction: topic QoS is sampled
+from ``qos_stats``, so ``category_counts`` describes what was generated. It did
+not always -- a name-pattern lookup (``get_qos_for_topic`` in
+``tools/generation/datasets.py``) used to override the pool whenever a scenario
+declared a ``domain``, true of every scenario in this corpus, which is why this
+column is still read off the topology rather than the config.
 
 Usage
 -----
