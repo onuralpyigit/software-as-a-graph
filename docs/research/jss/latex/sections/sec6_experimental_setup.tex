@@ -4,38 +4,50 @@
 \subsection{Datasets and System Corpus}
 \label{sec:6.1}
 
-The evaluation corpus comprises 1{,}896 components distributed across twelve distinct system architectures, as detailed in Table~\ref{tab:4}:
+The evaluation corpus comprises 2{,}812 components across seventeen system architectures --- twelve synthetic topologies that form the inductive cross-validation folds, and five real-world reference systems withheld entirely from training --- as detailed in Table~\ref{tab:4}:
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Experimental evaluation corpus.}
+\caption{Experimental evaluation corpus. The twelve synthetic topologies are the inductive Leave-One-Scenario-Out folds of Table~\ref{tab:7}; the five real-world systems are withheld from every training fold and used only for zero-shot transfer (Section~\ref{sec:7.4}). Counts are read from the committed topology files rather than from the generator configurations.}
 \label{tab:4}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{llrrrrrrr}
 \toprule
 \textbf{Dataset / Architecture} & \textbf{System Paradigm} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Topics} & \textbf{Brokers} & \textbf{Hosts} & \textbf{Libs} & \textbf{$|E|$} \\
 \midrule
-\textbf{Autonomous Vehicle (AV)} & ROS 2 Cyber-Physical & 152 & 80 & 40 & 4 & 8 & 20 & 797 \\
-\textbf{Enterprise Pub-Sub} & Kafka Event Mesh & 520 & 300 & 120 & 10 & 40 & 50 & 3{,}245 \\
-\textbf{Financial Trading} & Low-Latency Pub-Sub & 124 & 60 & 35 & 5 & 6 & 18 & 580 \\
-\textbf{Healthcare Integration} & HL7/FHIR Event Mesh & 98 & 50 & 25 & 3 & 8 & 12 & 400 \\
-\textbf{Hub-and-Spoke Enterprise} & Broker-Centric Messaging & 139 & 70 & 30 & 2 & 12 & 25 & 797 \\
-\textbf{IoT Smart City} & MQTT Telemetry Mesh & 326 & 200 & 80 & 6 & 30 & 10 & 1{,}322 \\
+\multicolumn{9}{l}{\textit{Synthetic evaluation scenarios (\texttt{evaluation} role in the manifest)}} \\
+\textbf{Autonomous Vehicle (AV)} & ROS 2 Cyber-Physical & 152 & 80 & 40 & 4 & 8 & 20 & 773 \\
+\textbf{Enterprise Pub-Sub} & Kafka Event Mesh & 520 & 300 & 120 & 10 & 40 & 50 & 3{,}389 \\
+\textbf{Financial Trading} & Low-Latency Pub-Sub & 124 & 60 & 35 & 5 & 6 & 18 & 583 \\
+\textbf{Healthcare Integration} & HL7/FHIR Event Mesh & 98 & 50 & 25 & 3 & 8 & 12 & 428 \\
+\textbf{Hub-and-Spoke Enterprise} & Broker-Centric Messaging & 139 & 70 & 30 & 2 & 12 & 25 & 751 \\
+\textbf{IoT Smart City} & MQTT Telemetry Mesh & 326 & 200 & 80 & 6 & 30 & 10 & 1{,}331 \\
 \textbf{Microservices Mesh} & Cloud-Native Services & 186 & 90 & 45 & 6 & 15 & 30 & 680 \\
+\textbf{Telecom RAN} & 5G Radio Access Network & 225 & 120 & 55 & 8 & 20 & 22 & 858 \\
+\textbf{Industrial SCADA} & Plant Control Telemetry & 254 & 140 & 70 & 4 & 25 & 15 & 818 \\
+\textbf{Real-Time Gaming} & Multiplayer State Sync & 158 & 75 & 38 & 5 & 12 & 28 & 643 \\
+\textbf{Logistics Fleet} & Vehicle Telematics Mesh & 205 & 110 & 50 & 7 & 18 & 20 & 792 \\
+\midrule
+\multicolumn{9}{l}{\textit{Synthetic case study (LOSO fold; \texttt{case\_study} role in the manifest)}} \\
+\textbf{Air Traffic Management (ATM)} & ICAO Global ATM Concept & 74 & 26 & 27 & 5 & 8 & 8 & 271 \\
+\midrule
+\multicolumn{9}{l}{\textit{Real-world reference systems (never used as training folds)}} \\
 \textbf{Autoware.universe \cite{kato2018autoware}} & Real-World ROS 2 Autoware & 75 & 32 & 24 & 3 & 6 & 10 & 179 \\
 \textbf{Cloud Microservices \cite{google2024onlineboutique}} & Real-World GCP Boutique & 60 & 22 & 20 & 4 & 6 & 8 & 128 \\
 \textbf{Train-Ticket \cite{zhou2021fault}} & Real-World Microservices & 90 & 41 & 30 & 3 & 8 & 8 & 162 \\
 \textbf{Home Assistant \cite{homeassistant2024}} & Real-World Smart Home & 63 & 24 & 22 & 3 & 6 & 8 & 119 \\
 \textbf{EdgeX Foundry \cite{edgexfoundry2024}} & Real-World Industrial IoT & 63 & 22 & 24 & 3 & 6 & 8 & 112 \\
 \midrule
-\textbf{Total} & & \textbf{1{,}896} & & & & & & \\
+\textbf{Synthetic subtotal (12 LOSO folds)} & & \textbf{2{,}461} & 1{,}321 & 615 & 65 & 202 & 258 & \textbf{11{,}317} \\
+\textbf{Real-world subtotal (5 systems)} & & \textbf{351} & 141 & 120 & 16 & 32 & 42 & \textbf{700} \\
+\textbf{Total} & & \textbf{2{,}812} & & & & & & \textbf{12{,}017} \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-Here, $|V|$ is the sum of all five entity-type counts per scenario, totaling 1,896 components across the primary benchmark suite (1,545 components across the seven core synthetic domains, and 351 components across the five real-world systems). $|E|$ counts every raw structural relationship instance recorded in the scenario specification (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}) --- the native substrate that simulation oracles traverse --- rather than the derived \texttt{DEPENDS\_ON} projection constructed for GNN training.
+Here, $|V|$ is the sum of all five entity-type counts per scenario. The twelve synthetic topologies total 2{,}461 components; the eleven carrying the manifest's \texttt{evaluation} role account for 2{,}387 of these and the ATM case study for the remaining 74. The five real-world systems add 351. $|E|$ counts every raw structural relationship instance recorded in the scenario specification --- the native substrate that simulation oracles traverse --- rather than the derived \texttt{DEPENDS\_ON} projection constructed for GNN training. All six structural relation types are included in that count (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}); we note the convention explicitly because the generator's own build log omits \texttt{CONNECTS\_TO} and therefore reports slightly lower per-scenario totals. Every count in Table~\ref{tab:4} is read directly from the committed topology files, whose byte-identical regeneration from configuration is asserted in continuous integration (Section~\ref{sec:6.1.repro}).
 
 Five real-world architectures were transcribed from authentic open-source repositories using dedicated architectural adapters. The synthetic scenarios were produced by a parameterized topology generator: each is fully defined by a committed configuration specifying a random seed, per-entity-type counts, seven-number summaries (mean, median, standard deviation, minimum, maximum, $Q_1$, $Q_3$) for application publish and subscribe fan-out, applications per host, library fan-in, topic payload size, and categorical distributions over the three QoS dimensions. Graph degree distributions and clustering emerge directly from these parameters rather than being synthetically forced. Table~\ref{tab:genparams} reports the generative parameters governing each topology's shape; complete configurations are included in the replication package.
 
@@ -45,9 +57,36 @@ Five real-world architectures were transcribed from authentic open-source reposi
 The experimental evaluation spans three complementary regimes with precisely bounded corpora:
 \begin{enumerate}
     \item \emph{In-Distribution Evaluation (Table~\ref{tab:5}):} Evaluated on the seven core synthetic domains from Table~\ref{tab:4} using stratified 60\% train / 20\% validation / 20\% test node splits over five random seeds.
-    \item \emph{Inductive Leave-One-Scenario-Out (LOSO) Cross-Validation (Table~\ref{tab:7}):} Evaluated across twelve distinct inductive folds totaling 2,387 components: the seven core synthetic scenarios, four extended domain topologies (Telecom RAN, Industrial SCADA, Realtime Gaming, and Logistics Fleet), and an Air Traffic Management (ATM) network scenario. In each fold, models are trained on eleven graphs and tested zero-shot on the held-out twelfth graph.
+    \item \emph{Inductive Leave-One-Scenario-Out (LOSO) Cross-Validation (Table~\ref{tab:7}):} Evaluated across twelve distinct inductive folds totaling 2,461 components: the seven core synthetic scenarios, four extended domain topologies (Telecom RAN, Industrial SCADA, Realtime Gaming, and Logistics Fleet) --- 2,387 components between them --- and an Air Traffic Management (ATM) network scenario contributing the remaining 74. In each fold, models are trained on eleven graphs and tested zero-shot on the held-out twelfth graph.
     \item \emph{Real-World Architectural Transfer (Tables~\ref{tab:9} and~\ref{tab:9b}):} The five open-source real-world systems (Autoware.universe, Cloud Microservices, Train-Ticket, Home Assistant, EdgeX Foundry) are never used as training folds; they are withheld entirely and used strictly for zero-shot architectural transfer validation.
 \end{enumerate}
+
+Not every analysis in Section~\ref{sec:7} runs on the full corpus: the sensitivity sweeps and the detection benchmark predate the four extended domains and operate on smaller cached subsets. Because a reader comparing figures across subsections would otherwise have no way to tell which population a number belongs to, Table~\ref{tab:corpusmap} states the subset used by each analysis. Comparisons are made only within a row.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Which corpus subset backs each analysis. Figures from different rows are not directly comparable, and we do not compare them.}
+\label{tab:corpusmap}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llcl}
+\toprule
+\textbf{Analysis} & \textbf{Scenario subset} & \textbf{$n$} & \textbf{Reported in} \\
+\midrule
+In-distribution ranking & Seven core synthetic domains & 7 & Tables~\ref{tab:5}--\ref{tab:6} \\
+Inductive LOSO & Eleven evaluation scenarios $+$ ATM & 12 & Table~\ref{tab:7}, Sections~\ref{sec:7.1}--\ref{sec:7.2} \\
+QoS edge-feature ablation & Same twelve LOSO folds & 12 & Section~\ref{sec:7.3.1} \\
+Topic-weight sweep $(\beta,\alpha,\psi)$ & Seven core synthetic domains & 7 & Table~\ref{tab:8b} \\
+AHP shrinkage sweep ($\lambda$) & Seven core synthetic domains & 7 & Table~\ref{tab:8} \\
+Morris global screening & Six of the seven core domains & 6 & Table~\ref{tab:8e} \\
+Cross-oracle convergent validity & Seven core synthetic domains & 7 & Table~\ref{tab:8c} \\
+Anti-pattern detection, stratification & Seven core domains $+$ ATM & 8 & Section~\ref{sec:7.3.6} \\
+Relational attention illustration & ATM case study alone & 1 & Figure~\ref{fig:3} \\
+Real-world zero-shot transfer & Five open-source systems & 5 & Tables~\ref{tab:9}--\ref{tab:9b} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
 
 \subsubsection{Reproducibility of the Corpus}
 \label{sec:6.1.repro}
@@ -89,7 +128,7 @@ Regardless of substrate, all variants are scored on an identical, independently 
 \begin{itemize}
     \item \textbf{Ranking Precision:} Evaluated via Spearman rank correlation ($\rho$) and Kendall's rank correlation ($\tau$) between predicted component rankings and ground-truth simulated impact $I^*(v)$ from the primary oracle (Section~\ref{sec:4.3}).
     \item \textbf{Critical-Set Identification:} Measured via $F_1@K$, Precision@$K$, and Recall@$K$ for top-$K$ critical components, where $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$. Because predicted and ground-truth sets both contain exactly $K$ elements, Precision, Recall, and $F_1$ coincide identically as the top-$K$ set overlap.
-    \item \textbf{Statistical Significance:} Assessed through paired Wilcoxon signed-rank tests \cite{wilcoxon1945individual} ($p < 0.05$) and non-parametric bootstrap 95\% confidence intervals over folds ($B = 2{,}000$) \cite{efron1993introduction,spearman1904proof}, reported for every out-of-distribution predictor in Table~\ref{tab:7} and for the paired contrasts in Section~\ref{sec:7.1}. Given the sample size, we regard those intervals rather than the $p$-values as the primary evidence. The unit of analysis is the scenario (in-distribution, $n = 7$) or the fold (LOSO, $n = 12$). The in-distribution design sits at the floor of its own resolving power --- the smallest attainable two-sided $p$ is $0.0156$ at $n = 7$, so only a near-unanimous sign pattern can register at all. The twelve-fold LOSO design is materially better resourced: its floor is $0.00049$, and it tolerates as many as four lost folds while still reaching $\alpha = 0.05$, provided those losses are the smallest in magnitude. Where a LOSO comparison nonetheless fails to reach significance (Section~\ref{sec:7.1}), the cause is therefore the size of the losing folds rather than the size of the corpus, and enlarging the corpus would not remedy it. We report $p$-values uncorrected and treat them as exploratory. Under a family-wise correction no in-distribution comparison in Table~\ref{tab:6} can reach $\alpha/6 = 0.0083$ regardless of the data, and the unanimous 8/8 LOSO results survive a six-comparison correction ($\alpha/6 = 0.0083$) but not a seven-comparison one ($\alpha/7 = 0.0071$). Directional consistency across folds, rather than any single $p$-value, is what carries the out-of-distribution claims.
+    \item \textbf{Statistical Significance:} Assessed through paired Wilcoxon signed-rank tests \cite{wilcoxon1945individual} ($p < 0.05$) and non-parametric bootstrap 95\% confidence intervals over folds ($B = 2{,}000$) \cite{efron1993introduction,spearman1904proof}, reported for every out-of-distribution predictor in Table~\ref{tab:7} and for the paired contrasts in Section~\ref{sec:7.1}. Given the sample size, we regard those intervals rather than the $p$-values as the primary evidence. The unit of analysis is the scenario (in-distribution, $n = 7$) or the fold (LOSO, $n = 12$). The in-distribution design sits at the floor of its own resolving power --- the smallest attainable two-sided $p$ is $0.0156$ at $n = 7$, so only a near-unanimous sign pattern can register at all. The twelve-fold LOSO design is materially better resourced: its floor is $0.00049$, and it tolerates as many as four lost folds while still reaching $\alpha = 0.05$, provided those losses are the smallest in magnitude. Where a LOSO comparison nonetheless fails to reach significance (Section~\ref{sec:7.1}), the cause is therefore the size of the losing folds rather than the size of the corpus, and enlarging the corpus would not remedy it. We report $p$-values uncorrected and treat them as exploratory. Under a family-wise correction no in-distribution comparison in Table~\ref{tab:6} can reach $\alpha/6 = 0.0083$ regardless of the data, and the unanimous 12/12 LOSO results survive a six-comparison correction ($\alpha/6 = 0.0083$) but not a seven-comparison one ($\alpha/7 = 0.0071$). Directional consistency across folds, rather than any single $p$-value, is what carries the out-of-distribution claims.
 \end{itemize}
 
 \subsubsection{Evaluation Population}

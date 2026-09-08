@@ -48,6 +48,10 @@ RESULTS_DIR = Path("results")
 #: The eleven evaluation scenarios, in the order the manuscript's corpus table
 #: uses. Keyed by the dataset name so the manifest can be cross-checked.
 _EVAL_ORDER = [
+    # ATM carries the manifest's ``case_study`` role rather than ``evaluation``,
+    # but it is one of the twelve LOSO folds, so its generative parameters belong
+    # in this table alongside the other eleven.
+    ("atm_system", "Air Traffic Management (ATM)"),
     ("av_system", "Autonomous Vehicle (AV)"),
     ("enterprise_system", "Enterprise Pub-Sub"),
     ("financial_trading_system", "Financial Trading"),
