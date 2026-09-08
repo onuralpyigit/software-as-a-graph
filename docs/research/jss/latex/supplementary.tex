@@ -1,0 +1,88 @@
+% supplementary.tex -- Supplementary material for the JSS submission
+% "Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment
+%  Dependability Analysis of Complex Distributed Systems"
+%
+% Contains the parameter-sensitivity analyses supporting RQ3. Every figure here
+% is regenerable from the committed artifacts named in the replication package;
+% the main text cites this document rather than reproducing the sweeps.
+
+\documentclass[preprint,3p]{elsarticle}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{microtype}
+
+\renewcommand{\thesection}{S\arabic{section}}
+\renewcommand{\thetable}{S\arabic{table}}
+\renewcommand{\thefigure}{S\arabic{figure}}
+
+\journal{Journal of Systems and Software}
+
+\begin{document}
+
+\begin{frontmatter}
+\title{Supplementary Material --- Software-as-a-Graph: Parameter Sensitivity of the Explanation Layer}
+\author[itu]{Ibrahim Onuralp Yigit}
+\author[itu]{Feza Buzluca}
+\affiliation[itu]{organization={Department of Computer Engineering, Istanbul Technical University},
+             city={Istanbul}, postcode={34469}, country={Turkey}}
+\end{frontmatter}
+
+\noindent This supplement reports the parameter-sensitivity analyses supporting RQ3 of the main manuscript. They are placed here rather than in the body because they establish \emph{robustness} of the reported orderings rather than any headline result: their collective finding is that the explanation layer's ten declared weight constants are not load-bearing, with the two exceptions identified below. Section and table numbers are prefixed \textbf{S}. All figures are regenerable from the committed artifacts listed in the replication package.
+
+\section{Parameter Sensitivity of the Explanation Layer}
+\label{supp:params}
+
+The RM composite of Section~\ref{sec:5} declares ten weight constants. We screen all of them, one factor at a time where a natural sweep range exists and jointly via Morris elementary effects \cite{morris1991factorial,campolongo2007effective} otherwise, and report both views in Table~\ref{tab:S1}. Morris is a screening design: $\mu^*$ ranks influence on mean $\rho$ without decomposing it, and a $\sigma$ comparable to a factor's own $\mu^*$ signals that its effect depends on where the other nine sit rather than being a fixed marginal slope. It is the computationally efficient alternative to variance-based global analysis \cite{saltelli2008global,sobol1993sensitivity}.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Sensitivity of the RM composite to its ten declared weight constants. \textbf{OFAT} reports one-factor-at-a-time sweeps against $I^*(v)$ over the seven core synthetic domains; \textbf{Morris} reports elementary-effects screening over six scenarios (10 trajectories, 110 evaluations), where $\mu^*$ is influence on mean $\rho$ and $\sigma$ its interaction spread. Rows are ordered by $\mu^*$. Only $r_\alpha$ and $\lambda$ are load-bearing.}
+\label{tab:S1}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llcc}
+\toprule
+\textbf{Constant} & \textbf{One-factor sweep (OFAT)} & \textbf{Morris $\mu^*$} & \textbf{Morris $\sigma$} \\
+\midrule
+$r_\alpha$ (Fault Tolerance / Availability blend) & not swept individually & $\mathbf{0.144}$ & $0.042$ \\
+$\lambda$ (AHP shrinkage, uniform $\to$ raw) & $\rho = 0.262 \to 0.166$, monotone (spread $0.096$) & $\mathbf{0.117}$ & $0.080$ \\
+\midrule
+$w_{\text{dur}}$ (QoS durability) & \multirow{3}{*}{\parbox{5.2cm}{part of the AHP-derived QoS vector $(0.24, 0.62, 0.14)$; not swept separately}} & $0.023$ & $0.023$ \\
+$w_{\text{prio}}$ (QoS priority) & & $0.023$ & $0.025$ \\
+$w_{\text{rel}}$ (QoS reliability) & & $0.008$ & $0.012$ \\
+\midrule
+$\alpha$ (topic payload size) & \multirow{3}{*}{\parbox{5.2cm}{swept jointly over the full $(\beta, \alpha, \psi)$ simplex, 7 points: $w(t)$ ordering never falls below $\rho = 0.924$ against the shipped split; downstream spread $0.020$ (Topo-QoS), $0.005$ (RM)}} & $0.018$ & $0.021$ \\
+$\beta$ (topic QoS term) & & $0.016$ & $0.017$ \\
+$\psi$ (topic frequency) & & $0.013$ & $0.016$ \\
+\midrule
+$p$ (power-mean exponent) & not swept individually & $0.003$ & $0.005$ \\
+$\gamma$ (library fan-out) & not swept individually & $0.000$ & $0.001$ \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\noindent Three things follow. First, the parameter risk of the explanation layer is concentrated in two constants, both internal to the RM composite; the QoS-derived weights on which the framework's architectural story rests are not load-bearing for its output. Second, the topic-weight split $(\beta, \alpha, \psi) = (0.75, 0.15, 0.10)$ is a documented convention rather than a tuned parameter --- no choice within its simplex, including uniform weighting, would meaningfully change any result in this paper. Third, Dirichlet sampling over 100 draws of the whole weight vector confirms that the parameterisation is stable as a whole: mean $\rho = 0.176$ (sd $0.011$, 90\% interval $[0.157, 0.194]$), with mean Kendall $\tau = 0.838$ and mean top-20\% Jaccard $0.763$ against the shipped ranking.
+
+\paragraph{The elicited weights are anti-predictive, and we keep them anyway}
+The $\lambda$ row deserves separate comment because its direction is unfavourable. Rank correlation falls monotonically as the intra-dimension weights move from a uniform prior toward the raw AHP judgement ($0.262 \to 0.166$): expert elicitation makes the ranking worse, by $0.069$. We retain $\lambda = 0.70$ regardless, and the reasoning should be explicit rather than assumed. RM is an attribution instrument, not a ranking model (Section~\ref{sec:6.2}); its purpose is to say \emph{why} a component is fragile in auditable, standards-referenced terms, and rank correlation against a cascade oracle is not the quantity it is built to maximise. Tuning $\lambda$ toward zero would improve a number we do not claim at the cost of the traceability we do. What this sweep establishes is nonetheless a genuine limitation: we have evidence that the elicited weights produce worse rankings and none that they produce better attributions. Validating the attribution itself --- against practitioner judgement, or against the outcome of applying the repairs it recommends --- is outside this study and is the explanation layer's principal open question (Section~\ref{sec:8.4}).
+
+
+\section{Zero-Inflation Sensitivity of the Agreement Figures}
+\label{supp:zeroinfl}
+
+Spearman $\rho$ over a population where many components are tied at exactly zero is driven substantially by how those ties are handled, and $I^*(v)$ is heavily zero-inflated: $19$ to $106$ Applications per scenario carry exactly zero cascade impact, whereas $I_{\text{comp}}(v)$ has no exact zeros at all. We therefore report, alongside each full-population figure, $\rho_{>0}$ --- the same correlation restricted to components both oracles score strictly positive. It is a sensitivity bound, not a replacement: for a component the simulator actually injected, zero impact is a real measurement ("its failure reaches nobody"), and dropping it would be a results-favourable filter.
+
+The bound changes the reading of two scenarios, in opposite directions. On \texttt{hub\_and\_spoke}, $I_{\text{comp}}$ and $I^*$ correlate at $\rho = -0.044$ over the full population but $\rho_{>0} = +0.263$ over the $22$ components both score positive: the apparent \emph{sign} disagreement is an artifact of tied zeros, not evidence that the oracles order active components inversely. On \texttt{microservices}, the movement runs the other way --- $\rho = 0.461$ falls to $\rho_{>0} = 0.257$, so a substantial part of that scenario's agreement is the two oracles concurring on which components are inert rather than on how the active ones rank. Averaged over the seven scenarios the two summaries are close ($\rho = 0.425$, $\rho_{>0} = 0.447$), which is precisely why the per-scenario figures matter: the mean conceals compensating movements of $0.2$--$0.3$ in both directions.
+
+\section{Domain-Specific Weighting and Threshold Sensitivity}
+
+Sweeping the composite reliability weight $w_R \in [0, 1]$ moves mean $\rho$ by only $0.018$ ($0.317$ at $w_R = 0$ to $0.336$ at $w_R = 1$), and the domain-derived and static rankings agree at mean Kendall $\tau = 0.980$ --- the two orderings are very nearly the same ordering. Within that narrow band the domain-derived weighting does not improve on either alternative it replaces: mean $\rho$ is $0.318$ (domain-derived) against $0.331$ (equal) and $0.321$ (static), so it is marginally the \emph{worst} of the three, losing to equal weighting by $0.013$ and to static by $0.003$. Both margins are far smaller than the between-model differences of Section~\ref{sec:7.1} and we draw no ranking conclusion from either. What the sweep establishes is that no weighting confined to this parameter could move $\rho$ appreciably, so ISO/IEC 25019 context-of-use reweighting must be understood as an attributional device that expresses criticality in stakeholder terms --- and not, on this evidence, as a mechanism that makes the ranking more accurate. Two free parameters of the ground truth itself matter more than any scoring weight, and we sweep both. The cascade propagation threshold moves mean $\rho$ across a spread of $0.072$ ($0.147$ at a threshold of $0$, rising to $0.218$ at $0.5$ and flat thereafter): a permissive threshold that lets every edge propagate produces a noisier target than one that requires meaningful coupling, and the ordering stabilises once the cutoff exceeds $0.35$. The choice of feature normalisation matters far less, spanning $0.006$ across robust, min--max and $z$-score scaling. Neither spread indicates that the ordering is \emph{correct}; they indicate only that it is stable under the free parameters of the oracle and the scorer, which is the weaker property a sensitivity sweep can establish.
+
+
+\end{document}

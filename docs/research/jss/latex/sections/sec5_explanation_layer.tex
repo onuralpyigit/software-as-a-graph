@@ -54,7 +54,7 @@ All raw topological and code metrics are rank-normalized to $[0, 1]$. Quality su
     \begin{equation}
     R(v) = r_\alpha \cdot FT(v) + (1 - r_\alpha) \cdot A(v), \quad r_\alpha = 0.36
     \end{equation}
-    The blend weight is written $r_\alpha$ throughout to distinguish it from the payload-size coefficient $\alpha$ of Equation~(\ref{eq:3}); the two are unrelated parameters and are screened separately in Table~\ref{tab:8e}.
+    The blend weight is written $r_\alpha$ throughout to distinguish it from the payload-size coefficient $\alpha$ of Equation~(\ref{eq:3}); the two are unrelated parameters and are screened separately (Supplementary Section~S1).
     Intra-dimension pairwise comparison matrices are audited against Saaty's consistency ratio and measure $CR = 0.001$ (Fault Tolerance), $CR = 0.001$ (Availability), and $CR = 0.000$ (Maintainability) --- all well within the $CR \le 0.10$ acceptability threshold. The shipped intra-dimension weights apply a $\lambda = 0.70$ shrinkage blend between the raw AHP-derived vector and a uniform prior (Section~\ref{sec:7.3} reports ranking sensitivity to $\lambda$).
     \item \textbf{Maintainability ($M(v)$):} Evaluates structural coupling combined with code-level static analysis across five terms --- betweenness, QoS-weighted efferent coupling, the Code Quality Penalty, an afferent/efferent coupling-risk imbalance term, and inverse clustering:
     \begin{equation}

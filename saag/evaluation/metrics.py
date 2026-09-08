@@ -380,6 +380,8 @@ def compute_inductive_metrics(
         return {
             **base,
             "spearman_rho": float("nan"),
+            "spearman_rho_positive": None,
+            "n_positive": 0,
             "n": len(common),
             "per_type_rho": {},
             "note": "insufficient_overlap",
@@ -393,6 +395,22 @@ def compute_inductive_metrics(
     else:
         rho, p_val = spearmanr(y_pred, y_true)
         rho = float(rho) if not np.isnan(rho) else float("nan")
+
+    # Active-stratum rho: the same correlation restricted to components the
+    # oracle scores strictly positive. I*(v) is heavily zero-inflated, so the
+    # full-population rho above rewards separating inert components from active
+    # ones at least as much as ordering the active ones. Reported alongside
+    # rather than instead: a targeted component scoring 0.0 is a real
+    # measurement ("its failure reaches nobody"), so dropping it would be a
+    # results-favourable filter. Mirrors reproduce/realworld_zeroshot.py, whose
+    # equivalent block is what surfaced the RQ4 inversion.
+    pos_mask = y_true > 0
+    n_positive = int(pos_mask.sum())
+    if n_positive >= 3 and np.ptp(y_pred[pos_mask]) > 0.0 and np.ptp(y_true[pos_mask]) > 0.0:
+        rho_pos = spearmanr(y_pred[pos_mask], y_true[pos_mask]).correlation
+        rho_positive = float(rho_pos) if not np.isnan(rho_pos) else None
+    else:
+        rho_positive = None
 
     # F1 @ top-K. Both sets have exactly k elements, so precision == recall == f1.
     k = max(1, int(round(len(common) * top_k_frac)))
@@ -440,6 +458,8 @@ def compute_inductive_metrics(
     return {
         **base,
         "spearman_rho": rho,
+        "spearman_rho_positive": rho_positive,
+        "n_positive": n_positive,
         "spearman_p": float(p_val) if not np.isnan(p_val) else 1.0,
         "f1_at_k": f1,
         "precision_at_k": precision,
