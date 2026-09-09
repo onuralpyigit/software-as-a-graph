@@ -101,8 +101,8 @@ We evaluate four primary predictor configurations drawn from three families. Pre
 \begin{enumerate}
     \item \textbf{Heterogeneous graph learning (typed HGT).} \textbf{HGT-QoS} (proposed): relation-specific Heterogeneous Graph Transformer (Section~\ref{sec:4}) ingesting the complete native multigraph with 16-dimensional continuous-categorical edge features that encode middleware QoS contracts. Its ablation \textbf{HGT}, which masks those QoS dimensions, is reported in Section~\ref{sec:7.3.1}.
     \item \textbf{Homogeneous graph learning (untyped GAT).} \textbf{GAT-N-QoS}: homogeneous Graph Attention Network \cite{velickovic2018graph} trained on the identical native multigraph substrate with per-type input projections, but untyped, single-relation message passing. Its edge channel carries the scalar QoS aggregate $w(e)$ --- dimension $0$ of the same 16-D encoding HGT-QoS consumes --- rather than the per-dimension decomposition; no homogeneous architecture in our suite ingests the full 16-D vector. The HGT-QoS--GAT-N-QoS contrast therefore bounds the \emph{joint} contribution of relational typing and per-dimension QoS encoding. Section~\ref{sec:7.3.1} separates the second factor within the typed architecture, and the corresponding unweighted ablation is \textbf{GAT-N}.
-    \item \textbf{Structural baselines (training-free).} \textbf{Topo-QoS}: QoS-weighted topological centrality evaluated on the derived application flow projection.
-    \item \textbf{Structural baselines (training-free).} \textbf{Topo}: structural centrality combining unweighted betweenness centrality and articulation point scoring on the flow projection.
+    \item \textbf{QoS-weighted structural baseline (training-free).} \textbf{Topo-QoS}: QoS-weighted topological centrality evaluated on the derived application flow projection.
+    \item \textbf{Unweighted structural baseline (training-free).} \textbf{Topo}: structural centrality combining unweighted betweenness centrality and articulation point scoring on the flow projection.
 \end{enumerate}
 \noindent In addition, the out-of-distribution evaluation (Table~\ref{tab:7}) reports \textbf{RM} ($Q(v)$, the deterministic hierarchical quality attribution model of Section~\ref{sec:5}) as a diagnostic reference baseline. RM is not fitted to rank failure impact; its inclusion demonstrates how much learned relational prediction adds over static structural attribution (Section~\ref{sec:1.2}). Furthermore, deterministic RM scoring drives every sensitivity sweep in Section~\ref{sec:7.3}, where closed-form formulations isolate parameter effects from neural training stochasticity.
 
@@ -120,7 +120,7 @@ Regardless of substrate, all variants are scored on an identical, independently 
 \subsection{Evaluation Metrics and Protocols}
 \label{sec:6.3}
 
-\noindent\textbf{Figure accessibility.} All figures in this paper use the high-contrast, colorblind-safe Okabe--Ito palette together with distinct marker, hatching and node-shape encodings, so that every distinction carried by colour is also carried by form and remains legible in monochrome.
+\noindent\textbf{Figure accessibility.} All figures in this paper use the high-contrast, colorblind-safe Okabe--Ito palette together with distinct marker, hatching, and node-shape encodings, so that every distinction carried by color is also carried by form and remains legible in monochrome.
 
 \begin{itemize}
     \item \textbf{Ranking Precision:} Evaluated via Spearman rank correlation ($\rho$) and Kendall's rank correlation ($\tau$) between predicted component rankings and ground-truth simulated impact $I^*(v)$ from the primary oracle (Section~\ref{sec:4.3}).

@@ -8,7 +8,7 @@
 The results do not support a simple recommendation of the learned model over the closed-form one, and we set out the trade-off as measured rather than as hoped.
 
 \begin{enumerate}
-    \item \textbf{Training-free ranking (\texttt{Topo-QoS}).} It requires no training, no checkpoint storage and no retraining as a corpus evolves, reaching $\rho = 0.568$ zero-shot across twelve unseen synthetic architectures and $\approx 0.51$ across five open-source systems. Nothing in this study establishes that a learned model beats it on ranking: the margin is $+0.127$ ($p = 0.077$) and collapses to $+0.078$ when one fold is removed (Section~\ref{sec:7.1}). For a team that wants a criticality ordering and nothing more, this is the defensible default, and we say so despite proposing the alternative.
+    \item \textbf{Training-free ranking (\texttt{Topo-QoS}).} It requires no training, no checkpoint storage, and no retraining as a corpus evolves, reaching $\rho = 0.568$ zero-shot across twelve unseen synthetic architectures and $\approx 0.51$ across five open-source systems. Nothing in this study establishes that a learned model beats it on ranking: the margin is $+0.127$ ($p = 0.077$) and collapses to $+0.078$ when one fold is removed (Section~\ref{sec:7.1}). For a team that wants a criticality ordering and nothing more, this is the defensible default, and we say so despite proposing the alternative.
     \item \textbf{Learned relational prediction (\texttt{HGT-QoS}).} Its established advantage is over \emph{untyped} learning under distribution shift ($+0.114$, 11 of 12 folds), not over closed-form centrality. It also leads on critical-set identification, where it does separate from the training-free baseline ($F_1@K$ $+0.154$, $p = 0.034$). Two further capabilities have no closed-form counterpart, and they are the substantive reason to prefer it where the extra machinery is affordable:
     \begin{itemize}
         \item \emph{Typed relational attention} exposes \emph{which} channels mediate a cascade, rather than only which components rank highly. Supplementary Section~S8 illustrates this on one topology and is explicitly not evidence of a general effect.
@@ -18,7 +18,7 @@ The results do not support a simple recommendation of the learned model over the
 \end{enumerate}
 
 \paragraph{A gate we can no longer recommend}
-An earlier version of this work proposed a tiered gate: run the learned model by default and fall back to \texttt{Topo-QoS} when the model's prediction dispersion $\hat{\sigma}$ fell below a threshold. That heuristic does not replicate: across twelve folds, $\hat{\sigma}$ correlates with the margin over \texttt{Topo-QoS} at $\rho_s = -0.126$ for HGT-QoS (the wrong sign, Section~\ref{sec:7.2.1}). We therefore withdraw the automated fallback recommendation. Instead, because both engines run in seconds, our results support running both concurrently and escalating ranking disagreements to human architectural review.
+An earlier version of this work proposed a tiered gate: run the learned model by default and fall back to \texttt{Topo-QoS} when the model's prediction dispersion $\hat{\sigma}$ fell below a threshold. That heuristic does not replicate: across twelve folds, $\hat{\sigma}$ correlates with the margin over \texttt{Topo-QoS} at $\rho_s = -0.126$ for HGT-QoS (the wrong sign, Section~\ref{sec:7.2.3}). We therefore withdraw the automated fallback recommendation. Instead, because both engines run in seconds, our results support running both concurrently and escalating ranking disagreements to human architectural review.
 
 \paragraph{Role of the Explanation Layer}
 The RM attribution profile ($Q(v)$, Section~\ref{sec:5}) provides transparent, standards-compliant architectural diagnostics aligned with ISO/IEC 25010. By separating single-point-of-failure exposure (Availability) from wide error propagation reach (Fault Tolerance), RM provides qualitative remediation guidance (e.g., distinguishing whether a component requires replication or decoupling) that purely numeric rankers and simulation oracles cannot provide.
@@ -32,9 +32,7 @@ Green software engineering distinguishes the energy a system consumes from the e
 literature has concentrated on the second: the cost of training and serving models
 \cite{schwartz2020greenai,strubell2019energy,patterson2021carbon}, the frameworks that mediate it
 \cite{georgiou2022greenframeworks}, and how to account for it at all
-\cite{lannelongue2021green,verdecchia2023greenai}. Reliability assurance sits in the same category
-and is rarely measured: chaos engineering, hardware-in-the-loop benches and staging-cluster fault
-injection consume cluster-hours per sweep, and they do so on every pull request that triggers them.
+\cite{lannelongue2021green,verdecchia2023greenai}. Reliability assurance sits in the same category and is rarely measured: chaos engineering, hardware-in-the-loop benches, and staging-cluster fault injection consume cluster-hours per sweep, and they do so on every pull request that triggers them.
 Two findings in this study bear on that, and we state them at the strength the measurements support.
 
 The first is about the learned component, and it is unambiguous. \emph{Within} the pipeline the
@@ -63,7 +61,7 @@ for articulation points alone; gating it to articulation points would restore ro
 magnitude of speed at the price of a degenerate Availability score (Section~\ref{sec:7.5}). A
 deployment that needed the speed more than the single-point-of-failure sensitivity could make the
 opposite trade, and we would rather document that choice than hide it behind a faster number. This
-also identifies where an optimisation effort should go: the sustainability of this framework is a
+also identifies where an optimization effort should go: the sustainability of this framework is a
 question about one graph-theoretic routine, not about its use of machine learning.
 
 Settling this comprehensively requires energy counters rather than wall-clock time \cite{lannelongue2021green}. Furthermore, while preventing cascading failures plausibly reduces datacenter compute consumed by retry storms and restart loops, we treat this as motivation rather than an empirical claim.
@@ -77,7 +75,7 @@ Settling this comprehensively requires energy counters rather than wall-clock ti
 
 \paragraph{External Validity} Our evaluation spans twelve synthetic architectures and five open-source systems. Zero-shot transfer to real systems is \emph{not} demonstrated on active components (mean $\rho_{>0} = +0.160$, inverting on the two microservice call trees, Section~\ref{sec:7.4.learned}). Because the training corpus consists of pub-sub meshes, deep synchronous RPC hierarchies represent out-of-domain topologies that additional pub-sub data cannot resolve. Furthermore, while synthetic QoS profiles exhibit genuine variance (modal shares $29$--$89\%$, Section~\ref{sec:7.3.1}), their alignment with production distributions remains unverified. Finally, our timing evaluations scale to 2,000 components; architectures an order of magnitude larger cannot be assumed to fit PR budgets given the $O(|V|^2 + |V||E|)$ dominant stage.
 
-\paragraph{Conclusion Validity} Given heavy-tailed impact distributions, statistical analyses use non-parametric rank correlation (Spearman $\rho$, Kendall $\tau$), bootstrap confidence intervals ($B = 2{,}000$) and paired Wilcoxon signed-rank tests, with the fold or scenario as the unit of analysis. Two hazards recur and shape how we report. Pooling across heterogeneous entity types triggers Simpson's paradox --- pooled $\rho = 0.057$ sits below every per-type value it aggregates ($0.149$--$0.515$) --- so all headline figures are stratified on a single population. And rank correlation over zero-inflated labels conflates ordering the active components with separating them from inert ones, which is why we report zero-excluded correlations alongside full-population ones wherever the label distribution permits. Where the two disagree, as on the real-world systems, we read the zero-excluded figure as the ranking result.
+\paragraph{Conclusion Validity} Given heavy-tailed impact distributions, statistical analyses use non-parametric rank correlation (Spearman $\rho$, Kendall $\tau$), bootstrap confidence intervals ($B = 2{,}000$), and paired Wilcoxon signed-rank tests, with the fold or scenario as the unit of analysis. Two hazards recur and shape how we report. Pooling across heterogeneous entity types triggers Simpson's paradox --- pooled $\rho = 0.057$ sits below every per-type value it aggregates ($0.149$--$0.515$) --- so all headline figures are stratified on a single population. And rank correlation over zero-inflated labels conflates ordering the active components with separating them from inert ones, which is why we report zero-excluded correlations alongside full-population ones wherever the label distribution permits. Where the two disagree, as on the real-world systems, we read the zero-excluded figure as the ranking result.
 
 \subsection{Limitations and Future Work}
 \label{sec:8.4}
@@ -88,7 +86,7 @@ Settling this comprehensively requires energy counters rather than wall-clock ti
 
 \paragraph{Model selection is made on the training distribution} Early stopping in LOSO uses an inner validation split within the primary training graph (Section~\ref{sec:6.3}). While a protocol limitation under distribution shift, the rule is uniform across variants and cannot manufacture the typed-versus-untyped margin. Held-out scenario validation (\texttt{-{}-inner-val-scenario auto}) is our prioritized extension.
 
-\paragraph{No label-free reliability signal} Prediction dispersion does not replicate as a fallback indicator on this corpus (Section~\ref{sec:7.2.1}); discovering a reliable OOD confidence signal remains an open problem.
+\paragraph{No label-free reliability signal} Prediction dispersion does not replicate as a fallback indicator on this corpus (Section~\ref{sec:7.2.3}); discovering a reliable OOD confidence signal remains an open problem.
 
 \paragraph{Future Directions: Distributed AI, Power Testbeds, and Self-Healing}
 We envision three primary extensions: (1)~modeling distributed LLM serving clusters (e.g., vLLM, DeepSpeed) to mitigate straggler-induced GPU dissipation; (2)~measuring hardware energy directly via RAPL/NVML to compare static gating against live chaos sweeps in joules; and (3)~advancing from predictive diagnostics to prescriptive synthesis, automatically generating pull requests with circuit breakers, broker replicas, and tuned QoS parameters to resolve single points of failure.

@@ -12,7 +12,7 @@ In accordance with \textbf{ISO/IEC 25010:2023} (Product Quality Model) \cite{iso
     \item \textbf{Relationship Criticality ($D_2$):} The degree of systemic service degradation resulting from the severance, partitioning, or failure of a specific dependency or communication channel while both endpoint components remain operational.
 \end{itemize}
 
-Criticality is evaluated across two orthogonal quality characteristics: \textbf{Reliability ($R$)} and \textbf{Maintainability ($M$)}. The two are separated because they imply different repairs, not because they predict different runtime quantities: this layer attributes structural fragility and does not forecast latency, throughput or queue occupancy. Table~\ref{tab:3} outlines this Reliability--Maintainability (RM) quality decomposition, mapping ISO/IEC sub-characteristics to architectural questions, underlying graph metrics, and targeted engineering remediations.
+Criticality is evaluated across two orthogonal quality characteristics: \textbf{Reliability ($R$)} and \textbf{Maintainability ($M$)}. The two are separated because they imply different repairs, not because they predict different runtime quantities: this layer attributes structural fragility and does not forecast latency, throughput, or queue occupancy. Table~\ref{tab:3} outlines this Reliability--Maintainability (RM) quality decomposition, mapping ISO/IEC sub-characteristics to architectural questions, underlying graph metrics, and targeted engineering remediations.
 
 \begin{table}[htbp]
 \centering
@@ -54,7 +54,7 @@ All raw topological and code metrics are rank-normalized to $[0, 1]$. Quality su
     \begin{equation}
     R(v) = r_\alpha \cdot FT(v) + (1 - r_\alpha) \cdot A(v), \quad r_\alpha = 0.36
     \end{equation}
-    The blend weight $r_\alpha = 0.36$ is screened in Supplementary Section~S1. The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior (Section~\ref{sec:7.3}). Because three of the comparison matrices are rank-one by construction (implying near-zero $CR$ by construction, detailed in Supplementary Section~S4), these weights represent declared constants with documented internal structure rather than independently elicited expert judgements.
+    The blend weight $r_\alpha = 0.36$ is screened in Supplementary Section~S1. The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior (Section~\ref{sec:7.3}). Because three of the comparison matrices are rank-one by construction (implying near-zero $CR$ by construction, detailed in Supplementary Section~S4), these weights represent declared constants with documented internal structure rather than independently elicited expert judgments.
     \item \textbf{Maintainability ($M(v)$):} Evaluates structural coupling combined with code-level static analysis across five terms:
     \begin{equation}
     M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))

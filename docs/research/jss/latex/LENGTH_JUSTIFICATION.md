@@ -23,7 +23,7 @@ which data.
 **2. A substantial share of the length is negative and boundary-setting
 results, which we consider the paper's main contribution to the community.**
 We report that our proposed model does *not* significantly outperform an
-unparameterised QoS-weighted centrality baseline; that its apparent margin rests
+unparameterized QoS-weighted centrality baseline; that its apparent margin rests
 on a single fold; that typing helps out-of-distribution but not in-distribution,
 where the untyped model is nominally better; that the QoS encoding's ranking gain
 does not survive restriction to components that actually propagate failures; that
@@ -49,6 +49,6 @@ claims requires stating protocols — evaluation populations, oracle assignment,
 substrate parity, model-selection rules — that a shorter paper would leave
 implicit and a referee could not check.
 
-Further reduction is possible on request, but in our judgement the next cuts
+Further reduction is possible on request, but in our judgment the next cuts
 would remove either an evaluation condition or one of the caveats above, and we
-would rather the editors make that call than pre-empt it.
+would rather the editors make that call than preempt it.
