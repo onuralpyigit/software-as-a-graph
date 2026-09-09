@@ -300,7 +300,17 @@ def _project_topic_qos_onto_edges(g: nx.DiGraph) -> None:
 
         if not data.get("qos_profile"):
             data["qos_profile"] = QoSPolicy.from_node_attrs(attrs).to_dict()
-        if "weight" not in data:
+        # An explicit ``weight: 1.0`` counts as absent, not as a stated value.
+        # The real-world architecture adapters emit ``weight: 1.0`` on every
+        # edge while the synthetic generator omits the key entirely, so a bare
+        # ``"weight" not in data`` guard applied the QoS weight to generated
+        # topologies and skipped it on transcribed ones -- leaving all five
+        # open-source systems with constant edge weights, which is precisely the
+        # signal-free condition this pass exists to prevent. 1.0 is the default
+        # rather than a meaningful contract, so it is safe to overwrite; any
+        # other stated value is still honoured.
+        existing = data.get("weight")
+        if existing is None or abs(float(existing) - 1.0) < 1e-9:
             data["weight"] = topic_weight_from_node_attrs(attrs)
 
 
@@ -862,12 +872,29 @@ def run_one_fold(
     # Metrics added alongside the originals. Aggregated the same way, and
     # tolerant of seed dicts written before these keys existed.
     def _agg(key: str) -> List[float]:
-        return [m[key] for m in seed_metrics if key in m and not np.isnan(m[key])]
+        # ``None`` is skipped as well as NaN: the active-stratum rho is None when
+        # a seed's holdout has fewer than three positive-impact components, which
+        # is an undefined statistic rather than a zero one (see metrics.py's
+        # "absent is not zero" doctrine). np.isnan raises on None, so the None
+        # test has to come first.
+        out: List[float] = []
+        for m in seed_metrics:
+            v = m.get(key)
+            if v is None:
+                continue
+            if isinstance(v, float) and np.isnan(v):
+                continue
+            out.append(v)
+        return out
 
     added_keys = [
         "precision_at_tau", "recall_at_tau", "f1_at_tau", "pr_auc",
         "rmse_scaled", "mae_scaled", "n_true_critical",
         "n_predicted", "n_labeled", "n_evaluated",
+        # Active-stratum ranking: rho restricted to components the oracle scores
+        # strictly positive, plus that stratum's size. Reported alongside the
+        # full-population rho because I*(v) is heavily zero-inflated.
+        "spearman_rho_positive", "n_positive",
     ]
     added_mean = {k: float(np.mean(v)) for k in added_keys if (v := _agg(k))}
     added_std = {k: float(np.std(v)) for k in added_keys if (v := _agg(k))}

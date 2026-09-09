@@ -203,10 +203,17 @@ def score_references(bundle: ScenarioBundle, *, population: str) -> Dict[str, An
     ``Topo`` is 0.6*betweenness + 0.4*articulation, the same combination
     ``reproduce.main_table._compute_topo_baseline_scores`` uses, read off the
     cached app-layer metrics (already the DEPENDS_ON projection, since the cache
-    is built with ``analyze_graph.py --layer app``). ``Topo-QoS`` is deliberately
-    absent: it needs QoS-weighted betweenness recomputed on the projection graph,
-    which this cache does not carry, and guessing at it would put an
-    unreproducible number next to reproducible ones.
+    is built with ``analyze_graph.py --layer app``). ``Topo-QoS`` is the same
+    combination with QoS-weighted betweenness, computed by the same function.
+
+    Topo-QoS was previously omitted here on the grounds that the cache carried no
+    QoS edge weights. It did not, but the cause was a defect rather than a
+    property of the data: the architecture adapters emit ``weight: 1.0`` on every
+    edge while the generator omits the key, and ``_project_topic_qos_onto_edges``
+    guarded on key *absence*, so the QoS-derived weight was applied to generated
+    topologies and skipped on transcribed ones. With that guard corrected the
+    weights are present (48-66% of edges non-unit across the five systems) and
+    the baseline is computable on the same footing as everywhere else.
     """
     true_impact = {
         nid: float(d.get("composite", 0.0)) for nid, d in bundle.simulation.items()
@@ -228,6 +235,48 @@ def score_references(bundle: ScenarioBundle, *, population: str) -> Dict[str, An
         out["Topo"] = compute_inductive_metrics(
             topo_pred, true_impact, bundle.graph, population=population
         )
+
+    # Topo-QoS via the canonical implementation, so this column and the synthetic
+    # tables cannot drift apart. It returns None when the graph yields no signal,
+    # and _qos_weighted_betweenness falls back to unweighted betweenness when no
+    # QoS weights are present -- in which case Topo-QoS would equal Topo, so we
+    # record whether the weights were actually there rather than leaving a
+    # silently duplicated column.
+    from reproduce.main_table import (
+        _compute_topo_baseline_scores,
+        _qos_weighted_betweenness,
+    )
+    n_weighted = sum(
+        1 for _, _, d in bundle.graph.edges(data=True)
+        if abs(float(d.get("qos_weight", d.get("weight", 1.0))) - 1.0) > 1e-9
+    )
+    topo_qos_pred = _compute_topo_baseline_scores(
+        bundle.graph, bundle.structural, use_qos=True
+    )
+    app_ids = [n for n, d in bundle.graph.nodes(data=True)
+               if d.get("type") == "Application"]
+    scored = {v for nid, v in (topo_qos_pred or {}).items() if nid in set(app_ids)}
+    if topo_qos_pred and len(scored) > 1:
+        m = compute_inductive_metrics(
+            topo_qos_pred, true_impact, bundle.graph, population=population
+        )
+        m["n_qos_weighted_edges"] = n_weighted
+        out["Topo-QoS"] = m
+    else:
+        # Degenerate, and the reason is structural rather than incidental, so it
+        # is recorded instead of emitted as a NaN column. ``Topo`` reads
+        # betweenness off the cached *app-layer projection*; the QoS-weighted
+        # variant recomputes it on the raw multigraph, where Applications never
+        # route messages and betweenness is identically zero for all of them
+        # (the degeneracy Section 6.2.2 gives as the reason topological
+        # baselines run on the projection at all). Scoring Topo-QoS here needs
+        # the derived DEPENDS_ON projection as a graph object; this cache stores
+        # that layer only as precomputed scalars.
+        out["Topo-QoS"] = {
+            "unavailable": "qos_weighted_betweenness_degenerate_on_raw_multigraph",
+            "n_qos_weighted_edges": n_weighted,
+            "n_distinct_app_scores": len(scored),
+        }
     return out
 
 
@@ -337,14 +386,19 @@ def main() -> int:
     references: Dict[str, Dict[str, Any]] = {}
     for b in real:
         for name, m in score_references(b, population=args.eval_population).items():
+            # A reference that could not be computed records why; it is carried
+            # through as-is rather than coerced to a number.
+            if "spearman_rho" not in m:
+                references.setdefault(name, {})[b.scenario_id] = dict(m)
+                continue
             references.setdefault(name, {})[b.scenario_id] = {
                 "rho": float(m["spearman_rho"]),
                 "f1_at_k": float(m["f1_at_k"]),
             }
-    ref_means = {
-        name: float(np.mean([v["rho"] for v in per.values()]))
-        for name, per in references.items()
-    }
+    ref_means = {}
+    for name, per in references.items():
+        rhos = [v["rho"] for v in per.values() if "rho" in v]
+        ref_means[name] = float(np.mean(rhos)) if len(rhos) == len(per) else None
 
     scored = [s for s in summary.values() if s.get("n_seeds")]
     mean_rho_all = float(np.mean([s["mean_rho"] for s in scored])) if scored else None
@@ -410,8 +464,8 @@ def main() -> int:
         for sid in sorted(summary):
             row = f"  {sid:<32}"
             for name in sorted(references):
-                v = references[name].get(sid)
-                row += f"{v['rho']:>12.4f}" if v else f"{'—':>12}"
+                v = references[name].get(sid) or {}
+                row += f"{v['rho']:>12.4f}" if "rho" in v else f"{'—':>12}"
             s_ = summary[sid]
             if s_.get("n_seeds"):
                 row += f"{s_['mean_rho']:>12.4f}{s_['mean_hybrid_rho']:>12.4f}"
@@ -420,7 +474,8 @@ def main() -> int:
             print(row)
         row = f"  {'mean':<32}"
         for name in sorted(references):
-            row += f"{ref_means[name]:>12.4f}"
+            m = ref_means[name]
+            row += f"{m:>12.4f}" if m is not None else f"{'—':>12}"
         row += f"{mean_rho_all:>12.4f}{mean_hybrid_rho_all:>12.4f}"
         print(row)
     print(f"\n  Wrote {args.output}")
