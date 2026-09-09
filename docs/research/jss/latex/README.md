@@ -37,7 +37,7 @@ latex/
 ├── title_page.tex       — SEPARATE, non-anonymous title page for Editorial Manager
 ├── highlights.tex       — SEPARATE file, 5 bullets ≤85 chars (Elsevier requires "highlights" in the name)
 ├── LENGTH_JUSTIFICATION.md — text for the "Comments to the Editor" field
-├── figures/             — Figure_1..Figure_5 (.pdf + .png @300dpi); figures/src/ has the two
+├── figures/             — Figure_1..3 + Figure_S1..S2 (.pdf + .png @300dpi); figures/src/ has the two
 │                          graphviz .dot sources
 ├── vendor/              — elsarticle.cls + the .sty/.bst files this machine's TeX Live didn't ship
 └── Makefile
@@ -104,21 +104,22 @@ written as literal text ("Section 7.1 of the main manuscript"), never as `\ref`.
 
 ## Figures
 
-Four figures, each `\includegraphics`'d from a live section and cross-referenced with `\ref`, plus
-one in the supplement:
+Three figures in the manuscript, each `\includegraphics`'d from a live section and cross-referenced
+with `\ref`, plus two in the supplement:
 
 | Fig. | File | Content | Section | Generator |
 |:---:|---|---|---|---|
 | 1 | `Figure_1.pdf` | end-to-end SaG pipeline | §1.3 | `figures/src/figure1_pipeline.dot` |
 | 2 | `Figure_2.pdf` | running example: structural graph + `DEPENDS_ON` | §3.3 | `figures/src/figure2_running_example.dot` |
-| 3 | `Figure_5.pdf` | results at a glance (LOSO ρ, F1@K, oracle agreement) | §7.1 | `reproduce/render_results_figure.py` |
-| 4 | `Figure_3.pdf` | HGT attention-weight case study | §7.3 | `reproduce/extract_attention.py` + `render_attention_subgraph.py` |
-| S1 | `Figure_4.pdf` | AHP shrinkage sensitivity | Supp. S1 | `reproduce/render_shrinkage_figure.py` |
+| 3 | `Figure_3.pdf` | results at a glance (LOSO ρ, F1@K, oracle agreement) | §7.1 | `reproduce/render_results_figure.py` |
+| S1 | `Figure_S1.pdf` | AHP shrinkage sensitivity | Supp. S1 | `reproduce/render_shrinkage_figure.py` |
+| S2 | `Figure_S2.pdf` | HGT attention-weight case study | Supp. S8 | `reproduce/extract_attention.py` + `render_attention_subgraph.py` |
 
-Note that the *file* numbering and the *printed* numbering differ, because Figure_4 and Figure_5 were
-orphaned during one revision and reinstated in different places. Both generators now default to the
-current (`_v4`/`_v3`) artifacts, so `make figures` reproduces what is shipped; they previously
-defaulted to superseded ones, which is how the figures went stale before.
+File numbering and printed numbering now agree, as the JSS Guide for Authors requires ("number images
+according to the order they appear within your article"): the manuscript's artwork is `Figure_1..3`
+and the supplement's is kept in a separate `Figure_S*` series. Both generators default to the current
+(`_v4`/`_v3`) artifacts, so `make figures` reproduces what is shipped; they previously defaulted to
+superseded ones, which is how the figures went stale before.
 
 The Graphviz figures must keep their **natural canvas width near the text block (~468pt)**. They are
 included at `width=\linewidth`, so a canvas twice that width is scaled to ~0.5 and every font inside
@@ -141,9 +142,9 @@ revision:
 grep -rnE '0\.680|0\.160|0\.695|0\.581|0\.568|0\.114|0\.054|0\.127|2,461|2,812' sections/ ../draft.md
 ```
 
-Current state of the build: 43 pages, **zero LaTeX errors, zero undefined references, zero undefined
-citations, zero overfull boxes**, 12 tables, 4 figures, 91 references (all cited). The supplement
-builds to 7 pages, also with zero undefined references.
+Current state of the build: 36 pages, **zero LaTeX errors, zero undefined references, zero undefined
+citations, zero overfull boxes**, 12 tables, 3 figures, 91 references (all cited). The supplement
+builds to 8 pages, also with zero undefined references.
 
 ## What's still a placeholder
 
@@ -151,7 +152,15 @@ builds to 7 pages, also with zero undefined references.
   Authors, confirmed September 2026), so `manuscript.tex` correctly carries the author block
   and `title_page.tex` is uploaded to Editorial Manager as a separate file. Do not anonymise
   the body.
-- **Generative-AI declaration** — present in `sections/declarations.tex`, to be confirmed by the
-  authors.
-- No **Acknowledgements** section is included; add one before submission if needed.
-- **Graphical abstract** — encouraged by the Guide, not required; not produced here.
+- **Generative-AI declaration** — now its own `\section*{}` at the end of
+  `sections/declarations.tex`, immediately before the reference list, with the heading the Guide
+  prescribes. **The tool name is still `[NAME OF TOOL / SERVICE]` and must be filled in (or the
+  whole section deleted, if only basic grammar/spell checkers were used — the Guide exempts those).**
+- **Vitae** — `vitae.tex` exists but both biographies are placeholders. The Guide requires a
+  ≤100-word biography per author, in an editable format.
+- No **Acknowledgements** section is included; add one before submission if needed. It belongs in its
+  own section directly before the reference list (and before the generative-AI declaration).
+- **Graphical abstract** — encouraged by the Guide, not required; not produced here. If added:
+  531 × 1328 px (h × w) or proportionally more, TIFF/EPS/PDF/MS Office, separate file.
+- **Length** — 36 pages, one over the "less than 36 pages single-column" the Guide encourages, so
+  `LENGTH_JUSTIFICATION.md` must go into the "Comments to the Editor" field at submission.

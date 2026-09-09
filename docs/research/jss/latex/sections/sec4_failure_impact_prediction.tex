@@ -95,9 +95,10 @@ To evaluate predictive accuracy prior to deployment without relying on productio
     each term weighted by operational severity $s(t) = w(t) \cdot \text{rate}(t)$. These four coefficients are AHP-derived on the same footing as the rest of the framework's weights, from a Saaty pairwise-comparison matrix over the four impact criteria (Supplementary Section~S4): the raw priority vector is $(0.389, 0.255, 0.255, 0.100)$, and the $\lambda = 0.7$ shrinkage toward a uniform prior that the framework applies throughout yields $(0.347, 0.254, 0.254, 0.145)$, which the shipped constants round. That matrix is rank-one, so it records where the constants came from without independently justifying them. They are not fitted to any evaluation, and they are not swept in the supplementary sensitivity analysis --- a gap we note because $I_{\text{comp}}$ supplies the labels for the real-world evaluation of the explanation layer (Supplementary Section~S7). $\text{rate}(t)$ reads from a runtime telemetry profile when one is attached; none is attached anywhere in this paper, so $s(t) = w(t)$ throughout and the rate channel should be read as an interface for deployment-time calibration rather than an active term. Publication frequency and payload size still reach $s(t)$ through $w(t)$'s own modulators (Section~\ref{sec:3.2}).
     \item \textbf{Dynamic Queue-Flow Oracle ($I_{\text{dyn}}(v)$)}, via \texttt{MessageFlowSimulator} on SimPy \cite{team2020simpy}: simulates emission rates, stochastic latencies, broker buffer saturation, and queue drops under fault injection, extracting the drop in delivered message rate to surviving consumers.
     \item \textbf{Change-Propagation Oracle ($I_M(v)$)}, via \texttt{ChangePropagationSimulator}: a deterministic reverse-dependency traversal quantifying maintenance change impact,
-    \begin{equation*}
-    I_M(v) = 0.45\,\text{ChangeReach}(v) + 0.35\,\text{WeightedChangeImpact}(v) + 0.20\,\text{NormalizedChangeDepth}(v).
-    \end{equation*}
+    \begin{equation}
+    \label{eq:change_prop}
+    I_M(v) = 0.45\,\text{ChangeReach}(v) + 0.35\,\text{WeightedChangeImpact}(v) + 0.20\,\text{NormalizedChangeDepth}(v)
+    \end{equation}
     \item \textbf{Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):} the systemic impact of severing one dependency while both endpoints stay operational. Writing $\bar{I}_{\text{comp}}(G)$ for the mean composite impact over $G$:
     \begin{equation}
     \label{eq:edge_crit}

@@ -2,7 +2,7 @@
 # ==================================
 # Build the JSS manuscript PDF from the vendored, no-sudo TeX toolchain in
 # vendor/. See README.md for what's in this folder and what's still a
-# placeholder pending de-anonymisation.
+# placeholder pending de-anonymization.
 #
 # Usage:
 #   make            — full build (pdflatex -> bibtex -> pdflatex x2)
@@ -25,7 +25,7 @@ export TEXINPUTS BSTINPUTS
 all: $(MAIN).pdf
 
 $(MAIN).pdf: $(MAIN).tex sections/*.tex refs.bib figures/Figure_1.pdf figures/Figure_2.pdf \
-             figures/Figure_3.pdf figures/Figure_4.pdf figures/Figure_5.pdf
+             figures/Figure_3.pdf
 	$(PDFLATEX) -interaction=nonstopmode $(MAIN).tex
 	$(BIBTEX) $(MAIN)
 	$(PDFLATEX) -interaction=nonstopmode $(MAIN).tex
@@ -58,12 +58,12 @@ zip: $(MAIN).pdf supplementary.pdf
 	rm -f submission_package.zip
 	zip -r submission_package.zip \
 	    $(MAIN).tex sections/ refs.bib vendor/ figures/*.pdf figures/*.png \
-	    title_page.tex highlights.tex $(MAIN).bbl \
+	    title_page.tex highlights.tex vitae.tex $(MAIN).bbl \
 	    supplementary.tex supplementary.bbl supplementary.pdf \
 	    LENGTH_JUSTIFICATION.md -x '*.dot'
-	@echo "✓ submission_package.zip ready (manuscript + supplement + title page + highlights)."
+	@echo "✓ submission_package.zip ready (manuscript + supplement + title page + highlights + vitae)."
 
-supplementary.pdf: supplementary.tex refs.bib
+supplementary.pdf: supplementary.tex refs.bib figures/Figure_S1.pdf figures/Figure_S2.pdf
 	$(PDFLATEX) -interaction=nonstopmode supplementary
 	$(BIBTEX) supplementary
 	$(PDFLATEX) -interaction=nonstopmode supplementary

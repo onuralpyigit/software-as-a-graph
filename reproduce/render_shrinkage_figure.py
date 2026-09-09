@@ -3,18 +3,19 @@
 reproduce/render_shrinkage_figure.py — JSS Figure 4 generator
 ===============================================================
 
-Reads results/ahp_shrinkage_sweep_v3.json and produces the manuscript's Figure 4
+Reads results/ahp_shrinkage_sweep_v3.json and produces the supplement's Figure S1
 (§8.3: mean Spearman ρ against I*(v) as the AHP shrinkage parameter λ blends
 the stated composite weighting toward a uniform prior; λ=0 equal weights,
 λ=1 raw AHP judgement). See draft.md Table 11 / §8.3.
 
-This was Figure_5 before the manuscript was condensed to four figures; printed
-number, filename and draft.md's own caption label now all agree, so no
-numbering-mismatch caveat applies any more.
+This figure lives in supplementary.tex (Section S1), not in the manuscript body,
+so its file is named Figure_S1 -- per the JSS Guide for Authors, manuscript
+artwork files are named for their printed order (Figure_1..Figure_3) and the
+supplement's figures are kept in a separate S-series.
 
 Output:
-  docs/research/jss/latex/figures/Figure_4.png  (300 dpi)
-  docs/research/jss/latex/figures/Figure_4.pdf  (vector)
+  docs/research/jss/latex/figures/Figure_S1.png  (300 dpi)
+  docs/research/jss/latex/figures/Figure_S1.pdf  (vector)
 
 Usage
 -----
@@ -30,7 +31,7 @@ import sys
 from pathlib import Path
 
 _DEFAULT_INPUT = Path("results/ahp_shrinkage_sweep_v3.json")
-_DEFAULT_OUTPUT = Path("docs/research/jss/latex/figures/Figure_4")
+_DEFAULT_OUTPUT = Path("docs/research/jss/latex/figures/Figure_S1")
 _DEFAULT_LAMBDA = 0.70  # the stated/canonical operating point (draft.md Table 11)
 
 # House palette, matching reproduce/render_stratified_figure.py's _VARIANT_COLORS.

@@ -3,7 +3,7 @@
 
 This section presents empirical results for RQ1--RQ5 across the twelve-fold inductive benchmark and five authentic open-source distributed systems. Evaluated populations are strictly stratified on the Application service set ($V_{\text{app}}$) under the input--label independence guarantee (Section~\ref{sec:4.4}).
 
-\subsection{RQ1: Graph Learning vs. Structural Baselines}
+\subsection{RQ1: Graph Learning vs.\ Structural Baselines}
 \label{sec:7.1}
 
 Table~\ref{tab:5} presents in-distribution held-out Spearman rank correlation ($\rho$) against simulated cascade impact $I^*(v)$ across seven representative distributed architecture domains.
@@ -91,7 +91,7 @@ Twelve LOSO folds are reported, comprising the eleven synthetic evaluation scena
 
 \noindent\textbf{Label-noise ceiling.} These correlations are bounded by the reproducibility of the target they are scored against. Re-running the ground-truth oracle across the five seeds gives a test--retest rank correlation between $0.880$ and $1.000$ across the twelve folds (median $0.979$; ten of twelve at or above $0.95$), with Microservices the least reproducible at $0.880$. HGT-QoS's $\rho = 0.695$ therefore recovers roughly $71\%$ of the attainable signal against the median ceiling, and no predictor in Table~\ref{tab:7} can exceed the reproducibility of its own labels. Top-$K$ critical sets are the noisier construct by a wide margin: their cross-seed Jaccard has a median of $0.709$ and falls to $0.400$ (Microservices), $0.467$ (Telecom RAN), and $0.481$ (Logistics Fleet). That instability is the main reason the $F_1@K$ margins are less stable than the ranking margins, and it bounds how much weight any single critical-set comparison can carry. Notably, Microservices is both the least reproducible fold and one of the two on which typed learning loses (Section~\ref{sec:7.2.3}) --- part of that deficit may be label noise rather than model failure.
 
-Figure~\ref{fig:5} summarizes these results alongside critical-set identification and inter-oracle agreement.
+Figure~\ref{fig:3} summarizes these results alongside critical-set identification and inter-oracle agreement.
 
 \noindent\textbf{Key Insights for RQ1:}
 \begin{enumerate}
@@ -103,9 +103,9 @@ Figure~\ref{fig:5} summarizes these results alongside critical-set identificatio
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.88\linewidth]{figures/Figure_5}
+\includegraphics[width=0.88\linewidth]{figures/Figure_3}
 \caption{Results at a glance, Application population. \textbf{(A)} Out-of-distribution rank correlation per predictor across the twelve LOSO folds. \textbf{(B)} Critical-set identification at $K = 20\%$. \textbf{(C)} Pairwise rank agreement between the three simulation oracles, against the chance baseline. Panels A and B are read directly from the same artifact as Table~\ref{tab:7} and panel C from that behind Table~\ref{tab:8c}; the ordering shown is whatever the data gives, which is why the untrained \texttt{Topo-QoS} baseline sits third rather than last.}
-\label{fig:5}
+\label{fig:3}
 \end{figure}
 
 \subsubsection{The Active Stratum: Ranking Quality Separated From Inertness Detection}
@@ -286,9 +286,9 @@ RQ5 quantifies computational overhead and sustainability during CI/CD evaluation
 \end{tabular}
 \end{table}
 
-\noindent\textbf{The neural model is the cheapest stage, and the deterministic one is expensive.} At 2,000 components the HGT forward pass takes $56\,\text{ms}$ against $239\,\text{s}$ for deterministic structural analysis --- a ratio of $4{,}259\times$. That ratio locates cost \emph{inside} the pipeline; it is not the cost of evaluating an architecture. Indices 0--17 of every node feature vector (Section~\ref{sec:3.4}) --- betweenness, closeness, reverse PageRank, articulation and bridge scores --- are products of that same analysis stage, so the forward pass cannot run without it. End-to-end evaluation of an unseen 2,000-component architecture costs about four minutes, of which the learned model is $0.02\%$; the $56\,\text{ms}$ figure is the marginal cost of re-scoring an already-analyzed graph. Across the eight-scenario detection benchmark the complete gate (structural analysis plus 18 anti-pattern detectors) runs in $0.04$--$82.7\,\text{s}$, the upper bound being the 520-component Enterprise mesh.
+\noindent\textbf{The neural model is the cheapest stage, and the deterministic one is expensive.} At 2{,}000 components the HGT forward pass takes $56\,\text{ms}$ against $239\,\text{s}$ for deterministic structural analysis --- a ratio of $4{,}259\times$. That ratio locates cost \emph{inside} the pipeline; it is not the cost of evaluating an architecture. Indices 0--17 of every node feature vector (Section~\ref{sec:3.4}) --- betweenness, closeness, reverse PageRank, articulation and bridge scores --- are products of that same analysis stage, so the forward pass cannot run without it. End-to-end evaluation of an unseen 2{,}000-component architecture costs about four minutes, of which the learned model is $0.02\%$; the $56\,\text{ms}$ figure is the marginal cost of re-scoring an already-analyzed graph. Across the eight-scenario detection benchmark the complete gate (structural analysis plus 18 anti-pattern detectors) runs in $0.04$--$82.7\,\text{s}$, the upper bound being the 520-component Enterprise mesh.
 
-\noindent\textbf{Cost is dominated by one metric, and it grew.} Measured cost now tracks the stage's $O(|V|^2 + |V||E|)$ bound closely: from 249 to 1,998 components wall-clock rises $138\times$ against a $137\times$ growth in $|V||E|$. The dominant term is the Connectivity Degradation Index, which is computed for every node in the main connected component rather than for articulation points alone. That choice is deliberate and is a correctness requirement rather than an oversight: gating CDI to articulation points leaves it identically zero for every node whose removal does not literally disconnect the graph, which drives $A(v)$ to a near-constant in the redundant multi-publisher topologies this framework targets. The cost is the price of a non-degenerate Availability score, and we report it rather than the cheaper gated variant we could have measured.
+\noindent\textbf{Cost is dominated by one metric, and it grew.} Measured cost now tracks the stage's $O(|V|^2 + |V||E|)$ bound closely: from 249 to 1{,}998 components wall-clock rises $138\times$ against a $137\times$ growth in $|V||E|$. The dominant term is the Connectivity Degradation Index, which is computed for every node in the main connected component rather than for articulation points alone. That choice is deliberate and is a correctness requirement rather than an oversight: gating CDI to articulation points leaves it identically zero for every node whose removal does not literally disconnect the graph, which drives $A(v)$ to a near-constant in the redundant multi-publisher topologies this framework targets. The cost is the price of a non-degenerate Availability score, and we report it rather than the cheaper gated variant we could have measured.
 
 \subsubsection{The Gate Is Not Cheaper Than the Simulation It Replaces}
 \label{sec:7.5.oracle}

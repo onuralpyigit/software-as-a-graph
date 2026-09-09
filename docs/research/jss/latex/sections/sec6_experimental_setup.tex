@@ -17,7 +17,7 @@ The evaluation corpus comprises 2{,}812 components across seventeen system archi
 \textbf{Dataset / Architecture} & \textbf{System Paradigm} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Topics} & \textbf{Brokers} & \textbf{Hosts} & \textbf{Libs} & \textbf{$|E|$} \\
 \midrule
 \multicolumn{9}{l}{\textit{Synthetic evaluation scenarios (\texttt{evaluation} role in the manifest)}} \\
-\textbf{Autonomous Vehicle (AV)} & ROS 2 Cyber-Physical & 152 & 80 & 40 & 4 & 8 & 20 & 773 \\
+\textbf{Autonomous Vehicle (AV)} & ROS~2 Cyber-Physical & 152 & 80 & 40 & 4 & 8 & 20 & 773 \\
 \textbf{Enterprise Pub-Sub} & Kafka Event Mesh & 520 & 300 & 120 & 10 & 40 & 50 & 3{,}389 \\
 \textbf{Financial Trading} & Low-Latency Pub-Sub & 124 & 60 & 35 & 5 & 6 & 18 & 583 \\
 \textbf{Healthcare Integration} & HL7/FHIR Event Mesh & 98 & 50 & 25 & 3 & 8 & 12 & 428 \\
@@ -33,7 +33,7 @@ The evaluation corpus comprises 2{,}812 components across seventeen system archi
 \textbf{Air Traffic Management (ATM)} & ICAO Global ATM Concept & 74 & 26 & 27 & 5 & 8 & 8 & 271 \\
 \midrule
 \multicolumn{9}{l}{\textit{Real-world reference systems (never used as training folds)}} \\
-\textbf{Autoware.universe \cite{kato2018autoware}} & Real-World ROS 2 Autoware & 75 & 32 & 24 & 3 & 6 & 10 & 179 \\
+\textbf{Autoware.universe \cite{kato2018autoware}} & Real-World ROS~2 Autoware & 75 & 32 & 24 & 3 & 6 & 10 & 179 \\
 \textbf{Cloud Microservices \cite{google2024onlineboutique}} & Real-World GCP Boutique & 60 & 22 & 20 & 4 & 6 & 8 & 128 \\
 \textbf{Train-Ticket \cite{zhou2021fault}} & Real-World Microservices & 90 & 41 & 30 & 3 & 8 & 8 & 162 \\
 \textbf{Home Assistant \cite{homeassistant2024}} & Real-World Smart Home & 63 & 24 & 22 & 3 & 6 & 8 & 119 \\
@@ -56,7 +56,7 @@ Five real-world architectures were transcribed from authentic open-source reposi
 The experimental evaluation spans three complementary regimes with precisely bounded corpora:
 \begin{enumerate}
     \item \emph{In-Distribution Evaluation (Table~\ref{tab:5}):} Evaluated on the seven core synthetic domains from Table~\ref{tab:4} using stratified 60\% train / 20\% validation / 20\% test node splits over five random seeds.
-    \item \emph{Inductive Leave-One-Scenario-Out (LOSO) Cross-Validation (Table~\ref{tab:7}):} Evaluated across twelve distinct inductive folds totaling 2,461 components: the seven core synthetic scenarios, four extended domain topologies (Telecom RAN, Industrial SCADA, Realtime Gaming, and Logistics Fleet) --- 2,387 components between them --- and an Air Traffic Management (ATM) network scenario contributing the remaining 74. In each fold, models are trained on eleven graphs and tested zero-shot on the held-out twelfth graph.
+    \item \emph{Inductive Leave-One-Scenario-Out (LOSO) Cross-Validation (Table~\ref{tab:7}):} Evaluated across twelve distinct inductive folds totaling 2{,}461 components: the seven core synthetic scenarios, four extended domain topologies (Telecom RAN, Industrial SCADA, Real-Time Gaming, and Logistics Fleet) --- 2{,}387 components between them --- and an Air Traffic Management (ATM) network scenario contributing the remaining 74. In each fold, models are trained on eleven graphs and tested zero-shot on the held-out twelfth graph.
     \item \emph{Real-World Architectural Transfer (Table~\ref{tab:9b}; Supplementary Section~S7):} The five open-source real-world systems (Autoware.universe, Cloud Microservices, Train-Ticket, Home Assistant, EdgeX Foundry) are never used as training folds; they are withheld entirely and used strictly for zero-shot architectural transfer validation.
 \end{enumerate}
 

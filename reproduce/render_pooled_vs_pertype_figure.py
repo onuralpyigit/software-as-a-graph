@@ -9,9 +9,8 @@ correlation check) was compressed to a single paragraph and its figure dropped;
 the full treatment now lives in
 docs/research/thesis/material/oracles_and_labels.md. The script is kept because
 the analysis is still current and a thesis chapter may want the figure -- but it
-is NOT part of `make -f reproduce/Makefile jss-figures` any more, and writing to
-Figure_4 would now overwrite the AHP shrinkage figure. Point --output somewhere
-else (or at the thesis material) before running it.
+is NOT part of `make -f reproduce/Makefile jss-figures` any more. Point --output
+somewhere outside the submission's figure directory before running it.
 
 Produces the pooled-versus-per-node-type Spearman rho figure between Q(v)
 and I_comp(v), with per-type sample sizes. See draft.md §5.5 (the Simpson's-
@@ -23,15 +22,11 @@ Declarations/data-availability note), so they are transcribed here rather
 than recomputed. If the artifact is later retained, point this script at it
 instead of the hardcoded _RESULTS table.
 
-NOTE on the file number: this is draft.md's own "Figure 3" (the caption at
-§5.5 says so, and \label{fig:3} in the LaTeX cites it that way), but it is
-NOT the 3rd figure by physical position in the manuscript -- the attention-
-subgraph figure (draft.md's own "Figure 6") appears earlier, at §5.2. LaTeX
-numbers floats by reading order regardless of the source's own label, so
-the file that lands as the *printed* "Fig. 3" is Figure_3.pdf (the attention
-subgraph, produced by extract_attention.py + render_attention_subgraph.py);
-this script's output is the printed "Fig. 4". See the numbering table in
-docs/research/jss/latex/README.md before renaming anything here.
+NOTE on file naming: the submission's artwork files are now named for the
+order in which they are printed, per the JSS Guide for Authors -- Figure_1..
+Figure_3 in the manuscript, Figure_S1..Figure_S2 in the supplement. This
+script is not part of that set; it writes to the thesis material instead.
+See the numbering table in docs/research/jss/latex/README.md.
 
 Output:
   docs/research/thesis/material/figures/pooled_vs_pertype.png  (300 dpi)
@@ -47,9 +42,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Was hardcoded to docs/research/jss/latex/figures/Figure_4, silently
-# overwriting the AHP shrinkage figure (reproduce/render_shrinkage_figure.py)
-# on every run -- exactly the landmine the docstring above warns about.
+# Was hardcoded into the submission's figure directory, silently overwriting
+# the AHP shrinkage figure (reproduce/render_shrinkage_figure.py) on every run.
 # Retargeted at the thesis material this script's analysis actually lives in.
 _OUTPUT = Path("docs/research/thesis/material/figures/pooled_vs_pertype")
 

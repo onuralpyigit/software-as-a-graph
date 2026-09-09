@@ -3,7 +3,7 @@
 reproduce/render_results_figure.py — the manuscript's results-at-a-glance figure
 ===============================================================================
 
-Writes ``docs/research/jss/latex/figures/Figure_5.{png,pdf}``: three panels that
+Writes ``docs/research/jss/latex/figures/Figure_3.{png,pdf}``: three panels that
 carry the study's headline numbers and its principal limitation side by side.
 
     A. Out-of-distribution generalisation — LOSO Spearman rho per variant.
@@ -44,7 +44,7 @@ if __name__ == "__main__" and __package__ is None:
 from saag.evaluation import variant_registry as _registry
 
 RESULTS_DIR = Path("results")
-_DEFAULT_OUTPUT = Path("docs/research/jss/latex/figures/Figure_5")
+_DEFAULT_OUTPUT = Path("docs/research/jss/latex/figures/Figure_3")
 
 #: Printed labels, and the colour family each variant belongs to. Labels come
 #: from saag/evaluation/variant_registry.py under the "loso" harness — this

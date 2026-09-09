@@ -155,11 +155,12 @@ def main() -> int:
             "Graph Transformer predictor. The LaTeX sources carry no counterpart; the equations "
             "it summarises are those of §4.1.2 and §4.2.*" + body[nxt:])
 
-    note = ("> **Figure numbering.** Figures 1–4 are numbered as in the LaTeX submission sources: "
-            "Figure 1 pipeline (`Figure_1`), Figure 2 running example (`Figure_2`), Figure 3 "
-            "results at a glance (`Figure_5`), Figure 4 HGT attention (`Figure_3`). The ASCII "
-            "schematics and Figure M1 are specific to this document. Supplementary Sections S1–S7 "
-            "live in `latex/supplementary.tex` and are not reproduced here.")
+    note = ("> **Figure numbering.** Figure files are named for the order in which they print, "
+            "per the JSS Guide for Authors: Figure 1 pipeline (`Figure_1`), Figure 2 running "
+            "example (`Figure_2`), Figure 3 results at a glance (`Figure_3`). The supplement's "
+            "two figures are `Figure_S1` (AHP shrinkage) and `Figure_S2` (HGT attention). The "
+            "ASCII schematics and Figure M1 are specific to this document. Supplementary "
+            "Sections S1–S8 live in `latex/supplementary.tex` and are not reproduced here.")
     body = body.replace(anchor, anchor + "\n\n" + note, 1)
 
     header = old[:old.index("# Abstract")]

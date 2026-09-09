@@ -15,7 +15,7 @@
 #   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
 #   make passive-strata  — Topic / host-Node ground truth + trivial-baseline controls
-#   make jss-figures     — all 5 figures for the JSS submission (docs/research/jss/latex/figures/)
+#   make jss-figures     — Figure_1..3 (manuscript) + Figure_S1..S2 (supplement)
 #   make jss-tables      — JSS Table 5: generator-parameter table (tab_genparams.tex)
 #   make all             — full end-to-end pipeline (tables + JSS figures)
 #   make clean           — remove generated outputs (keeps checkpoints)
@@ -41,8 +41,8 @@ OUTPUT_DIR    ?= output
 .PHONY: setup scenarios cache block0 table3 table4 significance nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
-        figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
-        jss-figures jss-tables all smoke-test clean clean-all
+        figure4 figure5 jss-fig1 jss-fig2 jss-fig3 \
+        jss-figures jss-figS1 jss-figS2 jss-tables all smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 0. Environment
@@ -255,24 +255,24 @@ jss-fig2:
 	@echo "✓ Figure 2 (running example) ready."
 
 jss-fig3:
+	$(PYTHON) reproduce/render_results_figure.py
+	@echo "✓ Figure 3 (results at a glance) ready."
+
+jss-figS1:
+	$(PYTHON) reproduce/render_shrinkage_figure.py
+	@echo "✓ Figure S1 (AHP shrinkage sensitivity) ready."
+
+jss-figS2:
 	$(PYTHON) reproduce/extract_attention.py \
 	    --scenario atm_system \
 	    --output-dir $(OUTPUT_DIR)/atm_case_study
 	$(PYTHON) reproduce/render_attention_subgraph.py \
 	    --input $(OUTPUT_DIR)/atm_case_study/attention_weights.json \
-	    --output docs/research/jss/latex/figures/Figure_3
-	@echo "✓ Figure 3 (HGT attention subgraph) ready."
+	    --output docs/research/jss/latex/figures/Figure_S2
+	@echo "✓ Figure S2 (HGT attention subgraph) ready."
 
-jss-fig4:
-	$(PYTHON) reproduce/render_shrinkage_figure.py
-	@echo "✓ Figure 4 (AHP shrinkage sensitivity) ready."
-
-jss-fig5:
-	$(PYTHON) reproduce/render_results_figure.py
-	@echo "✓ Figure 5 (results at a glance) ready."
-
-jss-figures: jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5
-	@echo "✓ All 5 JSS figures ready in docs/research/jss/latex/figures/."
+jss-figures: jss-fig1 jss-fig2 jss-fig3 jss-figS1 jss-figS2
+	@echo "✓ All JSS figures ready (3 in the manuscript, 2 supplementary)."
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Manuscript tables generated from committed configs/artifacts rather than by

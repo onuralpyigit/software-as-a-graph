@@ -7,7 +7,7 @@ explanation in your submission as to why the length is justified."*
 
 ---
 
-The manuscript runs to 36 single-column pages in the `elsarticle` preprint class, fully compliant with the JSS Guide for Authors threshold (less than or equal to 36 pages). Three of those are the reference list (91 entries); the main text and declarations, from the Introduction through the Declarations, occupy 33 pages. We have moved extensive material to supplementary material — parameter-sensitivity sweeps (OFAT, Morris screening), AHP matrices and consistency diagnostics, generative corpus parameters, the anti-pattern detection benchmark, the explanation layer's real-world evaluation, and the HGT attention weight distribution analysis now occupy eight supplementary sections (Sections S1–S8) rather than the body. We provide this note to contextualize the depth of the remaining manuscript across three key dimensions:
+The manuscript runs to 36 single-column pages in the `elsarticle` preprint class. The Guide for Authors encourages full-length papers of *less than* 36 pages single-column, so we are one page over the encouraged limit and offer this explanation as the Guide asks. Three of those pages are the reference list (91 entries); the main text and declarations, from the Introduction through the Declarations, occupy 33 pages. We have moved extensive material to supplementary material — parameter-sensitivity sweeps (OFAT, Morris screening), AHP matrices and consistency diagnostics, generative corpus parameters, the anti-pattern detection benchmark, the explanation layer's real-world evaluation, and the HGT attention weight distribution analysis now occupy eight supplementary sections (Sections S1–S8) rather than the body. We provide this note to contextualize the depth of the remaining manuscript across three key dimensions:
 
 **1. The empirical program is unusually broad for a single paper.** The study
 evaluates six predictor configurations across twelve synthetic architectures
@@ -49,6 +49,11 @@ claims requires stating protocols — evaluation populations, oracle assignment,
 substrate parity, model-selection rules — that a shorter paper would leave
 implicit and a referee could not check.
 
-Further reduction is possible on request, but in our judgment the next cuts
-would remove either an evaluation condition or one of the caveats above, and we
-would rather the editors make that call than preempt it.
+Further reduction is possible on request. Bringing the paper under the
+encouraged threshold requires roughly one page, and the two candidates we would
+cut first are the cross-oracle convergent-validity subsection (§7.3.2, movable to
+the supplement alongside the zero-inflation analysis it already cites) and the
+node-type stratification discussion (§7.3.3). Both, however, are the evidence for
+methodological choices the rest of the paper depends on, so in our judgment the
+next cuts would remove either an evaluation condition or one of the caveats
+above, and we would rather the editors make that call than preempt it.
