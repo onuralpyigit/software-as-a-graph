@@ -317,12 +317,50 @@ def check_freshness(rep: Report) -> None:
                  "realworld_zeroshot_v4.json", "detection_validation_v3.json",
                  "convergent_validity.json", "topic_weight_sensitivity_v3.json",
                  "weight_global_sensitivity_v3.json", "ahp_shrinkage_sweep_v3.json",
-                 "threshold_sensitivity_v3.json", "atm_scale_sweep_v3.json"):
+                 "threshold_sensitivity_v3.json", "atm_scale_sweep_v3.json",
+                 "oracle_timing_v4.json"):
         p = RESULTS / name
         if not p.exists():
             continue
         if p.stat().st_mtime < newest_corpus:
             rep.stale.append(f"{name} predates the committed corpus")
+
+
+def check_oracle_timing(rep: Report) -> None:
+    """Check Section 7.5.1's oracle-cost comparison against its artifact.
+
+    These two figures are prose, not a table, and they are checked anyway
+    because they carry a headline claim --- that the static gate is more
+    expensive than the simulation it was meant to displace --- and because they
+    previously had no committed artifact at all.
+    """
+    art = _load("oracle_timing_v4.json")
+    if art is None:
+        rep.skipped.append("oracle_timing_v4.json absent; 7.5.1 unchecked")
+        return
+    tex = _tex("sec7_results.tex")
+    summary = art["summary"]
+    lo, hi = summary["oracle_seconds"]["min"], summary["oracle_seconds"]["max"]
+
+    m = re.search(r"gives \$([\d.]+)\$--\$([\d.]+)\\,\\text\{s\}\$ per scenario", tex)
+    rep.checked += 1
+    if not m:
+        rep.findings.append(Finding("sec:7.5.oracle", "oracle sweep", "range",
+                                    "not found", f"{lo}-{hi}"))
+    else:
+        got_lo, got_hi = float(m.group(1)), float(m.group(2))
+        if abs(got_lo - lo) > 0.05 or abs(got_hi - hi) > 0.05:
+            rep.findings.append(Finding("sec:7.5.oracle", "oracle sweep", "range",
+                                        f"{got_lo}-{got_hi}", f"{lo}-{hi}"))
+
+    ratio = summary.get("gate_over_oracle_at_max")
+    if ratio is not None:
+        words = {10: "ten", 11: "eleven", 12: "twelve", 13: "thirteen", 14: "fourteen"}
+        expected = words.get(round(ratio))
+        rep.checked += 1
+        if expected is None or f"roughly {expected} times" not in tex:
+            rep.findings.append(Finding("sec:7.5.oracle", "gate/oracle", "ratio",
+                                        "see text", f"{ratio}x -> 'roughly {expected} times'"))
 
 
 PROSE_NOTES = [
@@ -331,7 +369,6 @@ PROSE_NOTES = [
     "sigma-hat diagnostic in 7.2.3 <- output/loso_v*/<variant>/inductive_predictions.json",
     "label-noise ceiling in 7.1 <- output/loso_cache/*/failure_impact.json label_stability",
     "gate range in 7.5 <- results/detection_validation_timed_v3.json gate_seconds",
-    "oracle sweep cost in 7.5.1 <- scratchpad/oracle_timing.csv",
 ]
 
 
@@ -350,6 +387,7 @@ def main() -> int:
     check_table7c_active(rep, args.loso)
     check_scale_table(rep)
     check_realworld(rep)
+    check_oracle_timing(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts.\n")
 

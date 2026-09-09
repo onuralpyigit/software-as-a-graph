@@ -20,7 +20,7 @@ TEXINPUTS  := ./vendor:
 BSTINPUTS  := ./vendor:
 export TEXINPUTS BSTINPUTS
 
-.PHONY: all figures flat clean distclean zip
+.PHONY: all figures flat clean distclean zip supplement
 
 all: $(MAIN).pdf
 
@@ -44,16 +44,27 @@ out = re.sub(r'\\\\input\{([^}]+\.tex)\}', lambda m: pathlib.Path(m.group(1)).re
 pathlib.Path('$(MAIN)_flat.tex').write_text(out)"
 	@echo "✓ $(MAIN)_flat.tex written."
 
+supplement: supplementary.pdf
+
 clean:
-	rm -f $(MAIN).aux $(MAIN).bbl $(MAIN).blg $(MAIN).log $(MAIN).out $(MAIN).spl \
+	rm -f supplementary.aux supplementary.bbl supplementary.blg supplementary.log supplementary.out supplementary.spl \
+	      $(MAIN).aux $(MAIN).bbl $(MAIN).blg $(MAIN).log $(MAIN).out $(MAIN).spl \
 	      $(MAIN).synctex.gz $(MAIN).fls $(MAIN).fdb_latexmk missfont.log
 
 distclean: clean
 	rm -f $(MAIN).pdf $(MAIN)_flat.tex
 
-zip: $(MAIN).pdf
+zip: $(MAIN).pdf supplementary.pdf
 	rm -f submission_package.zip
 	zip -r submission_package.zip \
 	    $(MAIN).tex sections/ refs.bib vendor/ figures/*.pdf figures/*.png \
-	    title_page.tex highlights.tex $(MAIN).bbl -x '*.dot'
-	@echo "✓ submission_package.zip ready."
+	    title_page.tex highlights.tex $(MAIN).bbl \
+	    supplementary.tex supplementary.bbl supplementary.pdf \
+	    LENGTH_JUSTIFICATION.md -x '*.dot'
+	@echo "✓ submission_package.zip ready (manuscript + supplement + title page + highlights)."
+
+supplementary.pdf: supplementary.tex refs.bib
+	$(PDFLATEX) -interaction=nonstopmode supplementary
+	$(BIBTEX) supplementary
+	$(PDFLATEX) -interaction=nonstopmode supplementary
+	$(PDFLATEX) -interaction=nonstopmode supplementary

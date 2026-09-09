@@ -12,7 +12,7 @@ carry the study's headline numbers and its principal limitation side by side.
 
 Everything is read from committed artifacts:
 
-    results/loso_all_variants.json   -> panels A and B
+    results/loso_all_variants_v4.json -> panels A and B
     results/convergent_validity.json -> panel C
 
 **Nothing here is hardcoded, and that is deliberate.** An earlier version of this
@@ -48,7 +48,7 @@ _DEFAULT_OUTPUT = Path("docs/research/jss/latex/figures/Figure_5")
 
 #: Printed labels, and the colour family each variant belongs to. Labels come
 #: from saag/evaluation/variant_registry.py under the "loso" harness — this
-#: figure reads results/loso_all_variants.json, where gl_qos is run on the
+#: figure reads results/loso_all_variants_v4.json, where gl_qos is run on the
 #: native graph and is therefore reported as GAT-N-QoS.
 _VARIANTS: List[Tuple[str, str, str]] = [
     ("hgl_qos",       f"{_registry.label('hgl_qos', 'loso')} (Typed Heterogeneous)", "learned_best"),
@@ -264,7 +264,7 @@ def render(variants, oracles, jac, population, output: Path, dpi: int = 300):
 
 def parse_args():
     p = argparse.ArgumentParser(description="Three-panel results figure (Figure 5)")
-    p.add_argument("--loso", type=Path, default=RESULTS_DIR / "loso_all_variants.json")
+    p.add_argument("--loso", type=Path, default=RESULTS_DIR / "loso_all_variants_v4.json")
     p.add_argument("--oracles", type=Path, default=RESULTS_DIR / "convergent_validity.json")
     p.add_argument("--output", type=Path, default=_DEFAULT_OUTPUT)
     p.add_argument("--dpi", type=int, default=300)

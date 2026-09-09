@@ -37,7 +37,7 @@
 \section{Parameter Sensitivity of the Explanation Layer}
 \label{supp:params}
 
-The RM composite of Section~\ref{sec:5} declares ten weight constants. We screen all of them, one factor at a time where a natural sweep range exists and jointly via Morris elementary effects \cite{morris1991factorial,campolongo2007effective} otherwise, and report both views in Table~\ref{tab:S1}. Morris is a screening design: $\mu^*$ ranks influence on mean $\rho$ without decomposing it, and a $\sigma$ comparable to a factor's own $\mu^*$ signals that its effect depends on where the other nine sit rather than being a fixed marginal slope. It is the computationally efficient alternative to variance-based global analysis \cite{saltelli2008global,sobol1993sensitivity}.
+The RM composite of Section~5 of the main manuscript declares ten weight constants. We screen all of them, one factor at a time where a natural sweep range exists and jointly via Morris elementary effects \cite{morris1991factorial,campolongo2007effective} otherwise, and report both views in Table~\ref{tab:S1}. Morris is a screening design: $\mu^*$ ranks influence on mean $\rho$ without decomposing it, and a $\sigma$ comparable to a factor's own $\mu^*$ signals that its effect depends on where the other nine sit rather than being a fixed marginal slope. It is the computationally efficient alternative to variance-based global analysis \cite{saltelli2008global,sobol1993sensitivity}.
 
 \begin{table}[htbp]
 \centering
@@ -70,7 +70,15 @@ $\gamma$ (library fan-out) & not swept individually & $0.000$ & $0.001$ \\
 \noindent Three things follow. First, the parameter risk of the explanation layer is concentrated in two constants, both internal to the RM composite; the QoS-derived weights on which the framework's architectural story rests are not load-bearing for its output. Second, the topic-weight split $(\beta, \alpha, \psi) = (0.75, 0.15, 0.10)$ is a documented convention rather than a tuned parameter --- no choice within its simplex, including uniform weighting, would meaningfully change any result in this paper. Third, Dirichlet sampling over 100 draws of the whole weight vector confirms that the parameterisation is stable as a whole: mean $\rho = 0.176$ (sd $0.011$, 90\% interval $[0.157, 0.194]$), with mean Kendall $\tau = 0.838$ and mean top-20\% Jaccard $0.763$ against the shipped ranking.
 
 \paragraph{The elicited weights are anti-predictive, and we keep them anyway}
-The $\lambda$ row deserves separate comment because its direction is unfavourable. Rank correlation falls monotonically as the intra-dimension weights move from a uniform prior toward the raw AHP judgement ($0.262 \to 0.166$): expert elicitation makes the ranking worse, by $0.069$. We retain $\lambda = 0.70$ regardless, and the reasoning should be explicit rather than assumed. RM is an attribution instrument, not a ranking model (Section~\ref{sec:6.2}); its purpose is to say \emph{why} a component is fragile in auditable, standards-referenced terms, and rank correlation against a cascade oracle is not the quantity it is built to maximise. Tuning $\lambda$ toward zero would improve a number we do not claim at the cost of the traceability we do. What this sweep establishes is nonetheless a genuine limitation: we have evidence that the elicited weights produce worse rankings and none that they produce better attributions. Validating the attribution itself --- against practitioner judgement, or against the outcome of applying the repairs it recommends --- is outside this study and is the explanation layer's principal open question (Section~\ref{sec:8.4}).
+The $\lambda$ row deserves separate comment because its direction is unfavourable. Rank correlation falls monotonically as the intra-dimension weights move from a uniform prior toward the raw AHP judgement ($0.262 \to 0.166$, Figure~\ref{fig:S1}): expert elicitation makes the ranking worse, by $0.069$. We retain $\lambda = 0.70$ regardless, and the reasoning should be explicit rather than assumed. RM is an attribution instrument, not a ranking model (Section~6.2 of the main manuscript); its purpose is to say \emph{why} a component is fragile in auditable, standards-referenced terms, and rank correlation against a cascade oracle is not the quantity it is built to maximise. Tuning $\lambda$ toward zero would improve a number we do not claim at the cost of the traceability we do. What this sweep establishes is nonetheless a genuine limitation: we have evidence that the elicited weights produce worse rankings and none that they produce better attributions. Validating the attribution itself --- against practitioner judgement, or against the outcome of applying the repairs it recommends --- is outside this study and is the explanation layer's principal open question (Section~8.4 of the main manuscript).
+
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.62\linewidth]{figures/Figure_4}
+\caption{RM composite rank correlation against $I^*(v)$ across the AHP shrinkage parameter $\lambda$ (Application population, mean over the seven core synthetic domains). The descent is monotone: the closer the intra-dimension weights move to raw elicited judgement, the worse the ranking. Rendered from \texttt{results/ahp\_shrinkage\_sweep\_v3.json}.}
+\label{fig:S1}
+\end{figure}
 
 
 \section{Zero-Inflation Sensitivity of the Agreement Figures}
@@ -82,8 +90,146 @@ The bound changes the reading of two scenarios, in opposite directions. On \text
 
 \section{Domain-Specific Weighting and Threshold Sensitivity}
 
-Sweeping the composite reliability weight $w_R \in [0, 1]$ moves mean $\rho$ by only $0.018$ ($0.317$ at $w_R = 0$ to $0.336$ at $w_R = 1$), and the domain-derived and static rankings agree at mean Kendall $\tau = 0.980$ --- the two orderings are very nearly the same ordering. Within that narrow band the domain-derived weighting does not improve on either alternative it replaces: mean $\rho$ is $0.318$ (domain-derived) against $0.331$ (equal) and $0.321$ (static), so it is marginally the \emph{worst} of the three, losing to equal weighting by $0.013$ and to static by $0.003$. Both margins are far smaller than the between-model differences of Section~\ref{sec:7.1} and we draw no ranking conclusion from either. What the sweep establishes is that no weighting confined to this parameter could move $\rho$ appreciably, so ISO/IEC 25019 context-of-use reweighting must be understood as an attributional device that expresses criticality in stakeholder terms --- and not, on this evidence, as a mechanism that makes the ranking more accurate. Two free parameters of the ground truth itself matter more than any scoring weight, and we sweep both. The cascade propagation threshold moves mean $\rho$ across a spread of $0.072$ ($0.147$ at a threshold of $0$, rising to $0.218$ at $0.5$ and flat thereafter): a permissive threshold that lets every edge propagate produces a noisier target than one that requires meaningful coupling, and the ordering stabilises once the cutoff exceeds $0.35$. The choice of feature normalisation matters far less, spanning $0.006$ across robust, min--max and $z$-score scaling. Neither spread indicates that the ordering is \emph{correct}; they indicate only that it is stable under the free parameters of the oracle and the scorer, which is the weaker property a sensitivity sweep can establish.
+Sweeping the composite reliability weight $w_R \in [0, 1]$ moves mean $\rho$ by only $0.018$ ($0.317$ at $w_R = 0$ to $0.336$ at $w_R = 1$), and the domain-derived and static rankings agree at mean Kendall $\tau = 0.980$ --- the two orderings are very nearly the same ordering. Within that narrow band the domain-derived weighting does not improve on either alternative it replaces: mean $\rho$ is $0.318$ (domain-derived) against $0.331$ (equal) and $0.321$ (static), so it is marginally the \emph{worst} of the three, losing to equal weighting by $0.013$ and to static by $0.003$. Both margins are far smaller than the between-model differences of Section~7.1 of the main manuscript and we draw no ranking conclusion from either. What the sweep establishes is that no weighting confined to this parameter could move $\rho$ appreciably, so ISO/IEC 25019 context-of-use reweighting must be understood as an attributional device that expresses criticality in stakeholder terms --- and not, on this evidence, as a mechanism that makes the ranking more accurate. Two free parameters of the ground truth itself matter more than any scoring weight, and we sweep both. The cascade propagation threshold moves mean $\rho$ across a spread of $0.072$ ($0.147$ at a threshold of $0$, rising to $0.218$ at $0.5$ and flat thereafter): a permissive threshold that lets every edge propagate produces a noisier target than one that requires meaningful coupling, and the ordering stabilises once the cutoff exceeds $0.35$. The choice of feature normalisation matters far less, spanning $0.006$ across robust, min--max and $z$-score scaling. Neither spread indicates that the ordering is \emph{correct}; they indicate only that it is stable under the free parameters of the oracle and the scorer, which is the weaker property a sensitivity sweep can establish.
 
+
+\section{AHP Pairwise-Comparison Matrices and Their Consistency}
+\label{supp:ahp}
+
+
+Several weight vectors in this framework are derived by the Analytic Hierarchy Process. We state the two that back reported quantities, and we report a property of the matrix family that bears on how much the accompanying consistency ratios are worth.
+
+\paragraph{A caveat on consistency ratios} Saaty's consistency ratio detects \emph{in}consistent judgement; it does not detect a matrix constructed from its own answer. If a priority vector $w$ is chosen first and entry $(i,j)$ is then filled in as $w_i / w_j$, the resulting matrix is perfectly consistent, $CR \approx 0$, and the statistic certifies nothing. Such a matrix is rank-one: every row is a scalar multiple of every other. Writing $\sigma_1 \ge \sigma_2$ for its two largest singular values, the ratio $\sigma_2 / \sigma_1$ separates the two cases --- it is near zero for a back-filled matrix and appreciably positive for one carrying genuine judgement disagreement.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Consistency diagnostics for the framework's five AHP matrices. $CR$ alone would suggest all five are sound; $\sigma_2/\sigma_1$ shows that three encode a declared priority vector rather than independent pairwise elicitation. The Availability matrix returns a slightly negative $CR$, which is not attainable for a genuinely elicited matrix ($\lambda_{\max} \ge n$) and arises here as floating-point noise around exact consistency.}
+\label{tab:ahp-diag}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Matrix} & \textbf{$n$} & \textbf{$CR$} & \textbf{$\sigma_2/\sigma_1$} \\
+\midrule
+Topic QoS (main manuscript, Eq.~3) & 3 & $+0.0158$ & $0.072$ \\
+Fault Tolerance & 3 & $+0.0029$ & $0.027$ \\
+\midrule
+Composite impact ($I_{\text{comp}}$) & 4 & $+0.0011$ & $0.014$ \\
+Maintainability & 5 & $+0.0005$ & $0.0006$ \\
+Availability & 5 & $-0.0029$ & $0.0006$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Only the Topic QoS matrix carries a consistency ratio that means what a consistency ratio is supposed to mean, and it is the one matrix a continuous-integration test guards on both sides: \texttt{tests/test\_ahp\_shrinkage.py} asserts $0.005 < CR < 0.10$, the lower bound existing precisely as a non-degeneracy check. We report the remaining vectors as declared constants with documented structure rather than as elicited judgement, and note that this reading costs the framework little: the global sensitivity analysis (Section~\ref{supp:params}) finds eight of the ten weight constants to have $\mu^* \le 0.023$, so the ranking results in Section~7 of the main manuscript do not rest on these values being optimal.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Saaty matrix over the three Topic QoS dimensions backing $\text{QoS}(t)$ in Equation~(3) of the main manuscript. Geometric-mean priority vector $(0.2385, 0.6250, 0.1365)$; $\lambda_{\max} = 3.018$, $CI = 0.0092$, $RI = 0.58$, $CR = 0.0158$. The shipped constants $(0.24, 0.62, 0.14)$ round this within $0.005$.}
+\label{tab:ahp-qos}
+\begin{tabular}{lccc}
+\toprule
+ & \textbf{Reliability} & \textbf{Durability} & \textbf{Priority} \\
+\midrule
+\textbf{Reliability} & $1$ & $1/3$ & $2$ \\
+\textbf{Durability} & $3$ & $1$ & $4$ \\
+\textbf{Priority} & $1/2$ & $1/4$ & $1$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Matrix over the four composite-impact criteria --- reachability loss (RL), fragmentation (FR), throughput loss (TL), flow disruption (FD) --- backing $I_{\text{comp}}(v)$ (Section~4.3 of the main manuscript). Raw priority vector $(0.389, 0.255, 0.255, 0.100)$; after the framework's $\lambda = 0.7$ shrinkage toward a uniform prior, $(0.347, 0.254, 0.254, 0.145)$, which the shipped $(0.35, 0.25, 0.25, 0.15)$ round. Per Table~\ref{tab:ahp-diag} this matrix is rank-one, so it documents the provenance of those constants without independently justifying them.}
+\label{tab:ahp-impact}
+\begin{tabular}{lcccc}
+\toprule
+ & \textbf{RL} & \textbf{FR} & \textbf{TL} & \textbf{FD} \\
+\midrule
+\textbf{RL} & $1$ & $3/2$ & $3/2$ & $4$ \\
+\textbf{FR} & $2/3$ & $1$ & $1$ & $5/2$ \\
+\textbf{TL} & $2/3$ & $1$ & $1$ & $5/2$ \\
+\textbf{FD} & $1/4$ & $2/5$ & $2/5$ & $1$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Generative Parameters of the Synthetic Corpus}
+\label{supp:genparams}
+
+Table~\ref{tab:genparams} records the configuration behind each synthetic scenario of Table~4 in the main manuscript. It is replication detail rather than a result: the corpus shape a reader needs to interpret the evaluation is in Table~4 itself, and every configuration is committed in the replication package.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Generative parameters of the twelve synthetic scenarios (eleven evaluation scenarios plus the ATM case study). Seed and fan-out figures are read from the committed configurations; per-entity counts are in Table~4 of the main manuscript. The modal QoS column gives the most common reliability/durability/priority value and the range of topic shares carrying them, computed from the committed topology rather than the config's declared QoS targets, which domain-driven assignment does not always realize (Section~6.1 of the main manuscript).}
+\label{tab:genparams}
+\begin{tabular}{lrrrl}
+\toprule
+\textbf{Scenario} & \textbf{Seed} & \textbf{Pub} & \textbf{Sub} & \textbf{Modal QoS (R/D/P)} \\
+\midrule
+\textbf{Air Traffic Management (ATM)} & 42 & 1.2 & 2.9 & RELIABLE/VOLATILE/HIGH (41--81\%) \\
+\textbf{Autonomous Vehicle (AV)} & 1001 & 2.5 & 5.0 & RELIABLE/TRANSIENT\_LOCAL/HIGH (45--80\%) \\
+\textbf{Enterprise Pub-Sub} & 7007 & 3.0 & 4.5 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (29--79\%) \\
+\textbf{Financial Trading} & 3003 & 4.0 & 6.0 & RELIABLE/PERSISTENT/HIGH (40--89\%) \\
+\textbf{Healthcare Integration} & 4004 & 2.5 & 3.0 & RELIABLE/PERSISTENT/HIGH (40--88\%) \\
+\textbf{Hub-and-Spoke} & 5005 & 2.0 & 7.0 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (33--67\%) \\
+\textbf{Industrial SCADA} & 1902 & 1.1 & 1.0 & RELIABLE/TRANSIENT/HIGH (31--80\%) \\
+\textbf{IoT Smart City} & 2002 & 2.0 & 1.5 & BEST\_EFFORT/VOLATILE/LOW (56--75\%) \\
+\textbf{Logistics Fleet} & 2104 & 1.8 & 1.9 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (40--76\%) \\
+\textbf{Microservices Mesh} & 6006 & 1.5 & 2.0 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (40--60\%) \\
+\textbf{Real-Time Gaming} & 2003 & 2.6 & 2.8 & BEST\_EFFORT/VOLATILE/HIGH (39--71\%) \\
+\textbf{Telecom RAN} & 1801 & 2.2 & 1.6 & RELIABLE/VOLATILE/HIGH (36--67\%) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Anti-Pattern Detection and Node-Type Stratification}
+\label{supp:detection}
+
+Validated against $I_{\text{comp}}(v)$, the rule-based anti-pattern catalog reaches mean precision $0.236$ and recall $0.887$ ($F_1 = 0.372$) --- but it implicates $94.3\%$ of scored components, so that recall is close to what indiscriminate flagging achieves and the precision is near the base rate. The ATM scaling sweep (29 to 444 components, five seeds, seed-invariant) shows the mechanism: Cohen's $\kappa$ declines monotonically from $0.074$ to $0.019$ as the flag rate rises from $86.7\%$ to $92.3\%$. The catalog does not become wrong at scale so much as it stops discriminating. We report it as a characterisation of the catalog rather than a working triage mechanism, and delegate critical-set identification to the continuous rankers of Sections~7.1--7.2 of the main manuscript. A nineteenth detector, \texttt{DEEP\_PIPELINE}, is excluded for path-combinatorial explosion ($247{,}761$ paths on a 29-component fixture).
+
+\noindent\textbf{Stratification vs. Pooling:} Measured against the composite oracle $I_{\text{comp}}(v)$ over the eight scenarios of the detection benchmark, stratified RM rank correlations are $\rho = 0.515$ (Application, 8 scenarios), $0.183$ (Broker, 6 scenarios), and $0.149$ (Node, 8 scenarios), while pooled correlation across all types collapses to $\rho = 0.057$. Pooling node types triggers Simpson's paradox by conflating disparate structural base rates across architectural layers: the pooled figure sits below every per-type figure it aggregates. This is why every evaluation in this paper is reported on a single stratum, and why pooled critical-set numbers should be read as inflated wherever they appear (Section~7.4 of the main manuscript). On that same pooled benchmark, unweighted degree centrality attains $\rho = 0.161$ and $F_1 = 0.451$ against RM's $0.057$ and $0.321$ --- RM is beaten by degree on both, confirming that it serves as an attribution instrument rather than an unconstrained global ranker.
+
+\section{Real-World Evaluation of the Explanation Layer}
+\label{supp:rq4}
+
+We evaluated the framework on five open-source distributed systems transcribed from their public repositories by dedicated architectural adapters, with results presented in Table~\ref{tab:9supp}. We note the scope of this evaluation before reporting it. Online Boutique is a vendor demonstration application and Train-Ticket an academic benchmark, Home Assistant is an authentic open-source IoT automation platform, and EdgeX Foundry is an industrial edge computing reference implementation; each is an abstraction of its upstream repository rather than a complete transcription; and their labels come from the same simulation oracle used throughout, so what follows tests topological generalization, not agreement with observed field failures. Two further limits bound what this table can support. First, the predictor scored in Table~\ref{tab:9supp} is the deterministic explanation layer $Q(v)$ together with the two training-free topological baselines, and it is scored against $I_{\text{comp}}(v)$; the learned model is evaluated separately in Section~7.4.1 of the main manuscript against $I^*(v)$, and the two are not commensurable. Second, the labels are strongly tied at zero in several architectures --- 13 of 32 Applications in Autoware, 14 of 22 in Cloud Microservices, 27 of 41 in Train-Ticket, and 12 of 22 in EdgeX carry zero simulated impact (the complement of the ``Impactful Apps'' column), whereas Home Assistant exhibits much lower zero-inflation with 17 of 24 applications actively participating in failure cascades. Spearman $\rho$ over populations that are heavily tied is dominated by how those ties are handled; the values below use midrank ties throughout.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Open-source reference systems scored by the deterministic explanation layer RM / $Q(v)$ --- no GNN checkpoint is invoked, so $\pm$ is oracle variance over five simulation seeds, not training variance. ``Gain vs.\ Deg'' is $|\rho_{Q}| - |\rho_{\text{deg}}|$. Ground truth here is $I_{\text{comp}}(v)$, whereas Table~9b of the main manuscript uses $I^*(v)$: \textbf{the two must not be read against each other}. Simulator-derived labels, not observed incidents.}
+\label{tab:9supp}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcccccccc}
+\toprule
+\textbf{Real-World Architecture} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Spearman $\rho$} & \textbf{Kendall $\tau$} & \textbf{App $F_1@K$} & \textbf{Pooled $F_1@K$} & \textbf{Impactful Apps} & \textbf{Gain vs.\ Deg} \\
+\midrule
+\textbf{Autoware.universe (ROS 2)} & 75 & 32 & \textbf{0.685 $\pm$ 0.010} & 0.513 & 0.333 & 0.800 & 19 / 32 & +0.357 \\
+\textbf{Cloud Microservices Mesh} & 60 & 22 & \textbf{0.778 $\pm$ 0.001} & 0.639 & 0.500 & 1.000 & 8 / 22 & +0.014 \\
+\textbf{Train-Ticket Booking Mesh} & 90 & 41 & \textbf{0.759 $\pm$ 0.001} & 0.605 & 0.625 & 1.000 & 14 / 41 & +0.264 \\
+\textbf{Home Assistant (Smart Home)} & 63 & 24 & \textbf{0.514 $\pm$ 0.016} & 0.373 & 0.250 & 0.667 & 17 / 24 & +0.289 \\
+\textbf{EdgeX Foundry (Industrial IoT)} & 63 & 22 & \textbf{0.800 $\pm$ 0.015} & 0.563 & 0.000 & 1.000 & 10 / 22 & +0.427 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\noindent\textbf{Key Insights for RQ4:}
+\begin{enumerate}
+    \item \textbf{The explanation layer ranks unseen architectures well, but this is not a learned-transfer result.} RM / $Q(v)$ attains $\rho = 0.800$ on EdgeX Foundry, $0.778$ on Cloud Microservices, $0.759$ on Train-Ticket, $0.685$ on Autoware.universe, and $0.514$ on Home Assistant. Because $Q(v)$ is a closed-form scoring function rather than a fitted model, applying it to a new architecture involves no transfer in the inductive sense of Section~7.2 of the main manuscript: nothing was trained, and no distribution shift is being survived. What this table establishes is that the deterministic attribution of Section~5 of the main manuscript remains informative on architectures we did not generate. The learned model is a separate question, answered in Section~7.4.1 of the main manuscript.
+
+    Table~\ref{tab:9supp} is not commensurable with Table~7's RM column ($\rho = 0.133$), and the gap has two separate causes that should not be conflated. The larger is the oracle: Table~\ref{tab:9supp} scores $Q(v)$ against $I_{\text{comp}}(v)$ (\texttt{FailureSimulator}), whereas Table~7 of the main manuscript scores it against $I^*(v)$ (\texttt{FaultInjector}), and the two agree at only $\rho = 0.425$ (Section~7.3 of the main manuscript). Scored against $I^*(v)$ on these same five systems, RM attains $\rho = 0.516$ (Table~9b of the main manuscript) --- still far above its synthetic-corpus figure, so the remainder is a real-versus-generated difference, with the tied-label structure described above contributing to both. The practical consequence is that no RM figure in this paper should be compared across tables without checking which oracle produced it.
+
+    \item \textbf{Stratified vs.\ Pooled Critical Set Identification:} On the stratified Application population ($V_{\text{app}}$ with $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$), $Q(v)$ identifies the top-20\% critical services with $F_1@K = 0.333$ in Autoware, $0.500$ in Cloud Microservices, $0.625$ in Train-Ticket, $0.250$ in Home Assistant, and $0.000$ in EdgeX Foundry (where failure impact is dispersed broadly across active device services). When evaluated across the pooled multigraph ($K = \text{round}(0.20 \cdot |V|)$), the pooled $F_1@K$ reaches $0.800$, $1.000$, $1.000$, $0.667$, and $1.000$, respectively. This disparity is the base-rate phenomenon of Section~6.3 of the main manuscript: the passive infrastructure entities (Topics, Nodes, Libraries) carry constant zero failure impact under the injector configuration used for these runs, so a pooled top-$K$ set is largely populated by correctly identifying inert nodes. The pooled column is therefore inflated and we do not read it; the stratified $V_{\text{app}}$ column is the operational figure.
+    \item \textbf{Framework Acceptance Gates and Cross-Domain Disparities:} The framework ships a five-condition release gate ($\rho \ge 0.75$, $F_1 \ge 0.65$, SPOF $F_1 \ge 0.60$, fault-tolerance ratio $\le 0.30$, prediction gain $\ge 0.02$). EdgeX Foundry passes all five gates across all five seeds ($100\%$ pass rate), driven by strong rank correlation ($\rho = 0.800$), pooled $F_1 = 1.00$, and robust articulation detection ($\text{SPOF } F_1 = 0.80$). In contrast, the pass rate is zero on the other four architectures: Autoware fails the $\rho$ and SPOF conditions, Cloud Microservices fails SPOF and prediction gain, Train-Ticket fails SPOF, and Home Assistant misses the $\rho$ gate ($\rho = 0.514$) despite scoring a perfect $\text{SPOF } F_1 = 1.00$. What this establishes is a negative result about thresholds, not a positive one about ordering: a gate calibrated on our synthetic corpus fires correctly on one architecture in five, so its absolute cut-offs are domain-specific and do not transfer as shipped. The ordering half of the question --- whether the ranking underneath those thresholds transfers --- is not answered here and is answered negatively in Section~7.4.1 of the main manuscript, once the population is restricted to components that actually propagate a failure.
+
+    \item \textbf{Predictive Advantage over Structural Heuristics:} The ``Gain vs.\ Deg'' column reports $Q(v)$'s rank-correlation margin over an unweighted degree centrality baseline ($+0.427$ on EdgeX Foundry, $+0.357$ on Autoware, $+0.289$ on Home Assistant, $+0.264$ on Train-Ticket, $+0.014$ on Cloud Microservices), so on this population and this oracle the hierarchical attribution of Section~5 of the main manuscript orders components better than degree centrality does. The margin does not generalise beyond those conditions, and we scope it accordingly: on the pooled synthetic detection benchmark of Section~7.3.6 of the main manuscript, measured against the same $I_{\text{comp}}(v)$ but across all entity types, degree \emph{beats} RM on both rank correlation ($0.161$ vs.\ $0.057$) and $F_1@K$ ($0.451$ vs.\ $0.321$). The two findings are not in conflict --- one is stratified on Applications in five transcribed systems, the other pooled across types in eight generated ones --- but neither supports a general claim that RM dominates degree. Wilcoxon signed-rank tests over the five systems do not reach significance ($p \ge 0.33$), which at $n = 5$ they could hardly do; we report them for completeness rather than as support.
+
+    \item \textbf{The QoS-weighted heuristic cannot be scored here, and the reason is structural rather than incidental.} The unweighted \texttt{Topo} reference is computable ($\rho = 0.307 / 0.891 / 0.528$ on Autoware, Cloud Microservices and Train-Ticket; mean $0.511$, Table~9b of the main manuscript); \texttt{Topo-QoS} is not. The obstacle is not missing QoS data --- every topic in all five adapters carries declared \texttt{durability}, \texttt{reliability} and \texttt{transport\_priority} profiles, and projecting $w(t)$ onto the structural edges yields non-unit weights on $45.3$--$62.2\%$ of them. It is that \texttt{Topo} reads betweenness off the cached \texttt{DEPENDS\_ON} projection, whereas the QoS-weighted variant must recompute it on the raw multigraph, where Applications never route messages and betweenness is identically zero for all of them --- the same degeneracy Section~6.2.1 of the main manuscript gives as the reason topological baselines are run on the projection at all. We record the gap rather than substitute a number for it; the consequence, that the real-world margin is measured against the weaker training-free reference, is stated in Section~8.4 of the main manuscript. Separately, projection-based baselines assign constant zero to Applications carrying no derived \texttt{DEPENDS\_ON} edge, accentuating sensitivity to tied ground truth.
+\end{enumerate}
 
 \setlength{\bibsep}{0.5pt}
 \bibliographystyle{elsarticle-num}

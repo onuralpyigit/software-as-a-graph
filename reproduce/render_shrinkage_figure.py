@@ -3,7 +3,7 @@
 reproduce/render_shrinkage_figure.py — JSS Figure 4 generator
 ===============================================================
 
-Reads results/ahp_shrinkage_sweep.json and produces the manuscript's Figure 4
+Reads results/ahp_shrinkage_sweep_v3.json and produces the manuscript's Figure 4
 (§8.3: mean Spearman ρ against I*(v) as the AHP shrinkage parameter λ blends
 the stated composite weighting toward a uniform prior; λ=0 equal weights,
 λ=1 raw AHP judgement). See draft.md Table 11 / §8.3.
@@ -19,7 +19,7 @@ Output:
 Usage
 -----
   python reproduce/render_shrinkage_figure.py
-  python reproduce/render_shrinkage_figure.py --input results/ahp_shrinkage_sweep.json
+  python reproduce/render_shrinkage_figure.py --input results/ahp_shrinkage_sweep_v3.json
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ import json
 import sys
 from pathlib import Path
 
-_DEFAULT_INPUT = Path("results/ahp_shrinkage_sweep.json")
+_DEFAULT_INPUT = Path("results/ahp_shrinkage_sweep_v3.json")
 _DEFAULT_OUTPUT = Path("docs/research/jss/latex/figures/Figure_4")
 _DEFAULT_LAMBDA = 0.70  # the stated/canonical operating point (draft.md Table 11)
 

@@ -6,11 +6,20 @@ must be reported as such.
 
 ## Motivation
 
-`results/loso_all_variants.json` (the pre-revision artifact) reports HGT-QoS
+`results/loso_all_variants.json` (the pre-revision artifact) reported HGT-QoS
 ρ = 0.608 against the training-free Topo-QoS at 0.571 — +0.037 on 5/8 folds,
-two-sided Wilcoxon p = 0.64. The unweighted HGT is significantly *worse*
-(−0.132, 1/8, p = 0.039). This pass asks whether a heterogeneous model can beat
-Topo-QoS under LOSO by a margin that survives a signed-rank test.
+two-sided Wilcoxon p = 0.64. That artifact was subsequently shown to reproduce
+from no commit in the repository and has been withdrawn; it is recorded here
+only because it is what motivated this pass. The question it raised stands:
+can a heterogeneous model beat Topo-QoS under LOSO by a margin that survives a
+signed-rank test?
+
+**Outcome (recorded after the fact, 2026-09-09).** No. On the twelve-fold
+corpus the measured margin is +0.127 (9/12, W = 16.0, p = 0.077), and it rests
+almost entirely on the ATM fold where Topo-QoS fails outright; excluding that
+fold it falls to +0.078 (8/11, p = 0.148). Reported as registered, in
+Section 7.1 of the manuscript. The secondary contrast and the typing
+comparisons are reported in the same section and in Section 7.2.
 
 ## Primary comparison
 
