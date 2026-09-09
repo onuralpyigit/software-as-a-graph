@@ -464,8 +464,8 @@ def main() -> int:
         for sid in sorted(summary):
             row = f"  {sid:<32}"
             for name in sorted(references):
-                v = references[name].get(sid)
-                row += f"{v['rho']:>12.4f}" if v else f"{'—':>12}"
+                v = references[name].get(sid) or {}
+                row += f"{v['rho']:>12.4f}" if "rho" in v else f"{'—':>12}"
             s_ = summary[sid]
             if s_.get("n_seeds"):
                 row += f"{s_['mean_rho']:>12.4f}{s_['mean_hybrid_rho']:>12.4f}"
@@ -474,7 +474,8 @@ def main() -> int:
             print(row)
         row = f"  {'mean':<32}"
         for name in sorted(references):
-            row += f"{ref_means[name]:>12.4f}"
+            m = ref_means[name]
+            row += f"{m:>12.4f}" if m is not None else f"{'—':>12}"
         row += f"{mean_rho_all:>12.4f}{mean_hybrid_rho_all:>12.4f}"
         print(row)
     print(f"\n  Wrote {args.output}")

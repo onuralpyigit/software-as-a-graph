@@ -282,13 +282,13 @@ That motivation is a reason to expect the transform to help; it is not evidence 
 \toprule
 \textbf{Real-World Architecture} & \textbf{$|V_{\text{app}}|$} & \textbf{RM $\rho$} & \textbf{Topo $\rho$} & \textbf{HGT-QoS $\rho$} & \textbf{HGT-QoS $\rho_{>0}$} & \textbf{$n_{>0}$} & \textbf{$F_1@K$} \\
 \midrule
-\textbf{Cloud Microservices Mesh} & 22 & $0.777$ & $\mathbf{0.891}$ & $0.492$ {\scriptsize$\pm$0.203} & $\mathbf{-0.249}$ & 18 & $0.300$ \\
-\textbf{Train-Ticket Booking Mesh} & 41 & $0.713$ & $0.528$ & $\mathbf{0.695}$ {\scriptsize$\pm$0.078} & $\mathbf{-0.237}$ & 22 & $0.375$ \\
-\textbf{Autoware.universe (ROS~2)} & 32 & $0.357$ & $0.307$ & $\mathbf{0.717}$ {\scriptsize$\pm$0.072} & $+0.549$ & 28 & $0.600$ \\
-\textbf{EdgeX Foundry (Industrial IoT)} & 22 & $0.470$ & $0.534$ & $\mathbf{0.690}$ {\scriptsize$\pm$0.083} & $+0.240$ & 19 & $0.500$ \\
-\textbf{Home Assistant (Smart Home)} & 24 & $0.265$ & $0.297$ & $\mathbf{0.817}$ {\scriptsize$\pm$0.015} & $+0.596$ & 23 & $0.520$ \\
+\textbf{Cloud Microservices Mesh} & 22 & $0.777$ & $\mathbf{0.891}$ & $0.492$ {\scriptsize$\pm$0.199} & $\mathbf{-0.314}$ & 18 & $0.200$ \\
+\textbf{Train-Ticket Booking Mesh} & 41 & $0.713$ & $0.528$ & $\mathbf{0.702}$ {\scriptsize$\pm$0.071} & $\mathbf{-0.244}$ & 22 & $0.375$ \\
+\textbf{Autoware.universe (ROS~2)} & 32 & $0.357$ & $0.307$ & $\mathbf{0.715}$ {\scriptsize$\pm$0.067} & $+0.549$ & 28 & $0.567$ \\
+\textbf{EdgeX Foundry (Industrial IoT)} & 22 & $0.470$ & $0.534$ & $\mathbf{0.688}$ {\scriptsize$\pm$0.086} & $+0.247$ & 19 & $0.500$ \\
+\textbf{Home Assistant (Smart Home)} & 24 & $0.265$ & $0.297$ & $\mathbf{0.803}$ {\scriptsize$\pm$0.032} & $+0.564$ & 23 & $0.480$ \\
 \midrule
-\textbf{Mean} & --- & $0.516$ & $0.511$ & $\mathbf{0.682}$ & $+0.180$ & --- & $0.459$ \\
+\textbf{Mean} & --- & $0.516$ & $0.511$ & $\mathbf{0.680}$ & $+0.160$ & --- & $0.424$ \\
 \bottomrule
 \end{tabular}%
 }
@@ -296,11 +296,11 @@ That motivation is a reason to expect the transform to help; it is not evidence 
 
 \noindent\textbf{Key Insights for Real-World Transfer:}
 \begin{enumerate}
-    \item \textbf{The full-population figure is not a ranking result.} On the whole Application population HGT-QoS reaches $\rho = 0.682$ against $0.511$ for Topo and $0.516$ for RM, leading on four of five systems. Read alone, that looks like successful zero-shot transfer. It is not, because between $18\%$ and $59\%$ of Applications in these architectures carry exactly zero simulated impact, and a correlation computed over a population that is heavily tied at zero rewards separating the inert from the active at least as much as ordering the active correctly.
+    \item \textbf{The full-population figure is not a ranking result.} On the whole Application population HGT-QoS reaches $\rho = 0.680$ against $0.511$ for Topo and $0.516$ for RM, leading on four of five systems. Read alone, that looks like successful zero-shot transfer. It is not, because between $18\%$ and $59\%$ of Applications in these architectures carry exactly zero simulated impact, and a correlation computed over a population that is heavily tied at zero rewards separating the inert from the active at least as much as ordering the active correctly.
 
-    \item \textbf{Restricted to components that actually propagate failures, transfer is not established.} On the active stratum the mean falls from $0.682$ to $+0.180$, and two of the five systems invert: Cloud Microservices to $\rho_{>0} = -0.249$ ($n = 18$) and Train-Ticket to $-0.237$ ($n = 22$). Both are the microservice call-tree architectures. The three pub-sub systems hold up ($+0.549$ Autoware, $+0.596$ Home Assistant, $+0.240$ EdgeX), so the pattern is architectural rather than random --- but a method that anti-correlates with the truth on two of five held-out systems has not demonstrated zero-shot generalisation, and we do not claim it. \textbf{We therefore report RQ4 as a negative result:} learned relational transfer to authentic open-source architectures is not established by this evidence.
+    \item \textbf{Restricted to components that actually propagate failures, transfer is not established.} On the active stratum the mean falls from $0.680$ to $+0.160$, and two of the five systems invert: Cloud Microservices to $\rho_{>0} = -0.314$ ($n = 18$) and Train-Ticket to $-0.244$ ($n = 22$). Both are the microservice call-tree architectures. The three pub-sub systems hold up ($+0.549$ Autoware, $+0.564$ Home Assistant, $+0.247$ EdgeX), so the pattern is architectural rather than random --- but a method that anti-correlates with the truth on two of five held-out systems has not demonstrated zero-shot generalisation, and we do not claim it. \textbf{We therefore report RQ4 as a negative result:} learned relational transfer to authentic open-source architectures is not established by this evidence.
 
-    \item \textbf{What the full-population number does support.} Separating components that propagate failures from those that do not is itself the operationally useful half of the task --- a gate that correctly identifies which two thirds of a system cannot cause a cascade has narrowed the review surface, even if it orders the remainder poorly. The $F_1@K$ column ($0.459$ mean) is the honest expression of that capability, and it is what a practitioner would act on. We separate the two claims rather than let the first stand in for the second.
+    \item \textbf{What the full-population number does support.} Separating components that propagate failures from those that do not is itself the operationally useful half of the task --- a gate that correctly identifies which two thirds of a system cannot cause a cascade has narrowed the review surface, even if it orders the remainder poorly. The $F_1@K$ column ($0.424$ mean) is the honest expression of that capability, and it is what a practitioner would act on. We separate the two claims rather than let the first stand in for the second.
 
     \item \textbf{Why the microservice architectures invert.} Both are deep synchronous RPC call trees rather than pub-sub meshes: a large fraction of services are terminal sinks whose failure reaches nobody, and among the minority that do propagate, impact is governed by position in a call hierarchy that the model, trained entirely on generated pub-sub topologies, has never seen. Topo captures the upstream bottleneck structure directly and leads on Cloud Microservices ($\rho = 0.891$). This is a domain-shift limit of the training corpus, not a defect of typed message passing, and it marks the boundary of what our synthetic corpus can prepare a model for.
 \end{enumerate}

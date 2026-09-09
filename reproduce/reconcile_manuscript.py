@@ -272,7 +272,7 @@ def check_scale_table(rep: Report) -> None:
 
 def check_realworld(rep: Report) -> None:
     """Table 9b full-population and active-stratum correlations."""
-    d = _load("realworld_zeroshot.json")
+    d = _load("realworld_zeroshot_v4.json") or _load("realworld_zeroshot.json")
     if d is None:
         rep.skipped.append("tab:9b: realworld_zeroshot.json absent")
         return
@@ -297,7 +297,8 @@ def check_realworld(rep: Report) -> None:
         s = per[key]
         for idx, k, tol, nm in ((4, "mean_rho", 0.002, "rho"),
                                 (5, "mean_rho_positive", 0.002, "rho_positive"),
-                                (6, "n_positive", 0.5, "n_positive")):
+                                (6, "n_positive", 0.5, "n_positive"),
+                                (7, "mean_f1_at_k", 0.002, "f1_at_k")):
             got, truth = _num(cells[idx]), s.get(k)
             rep.checked += 1
             if truth is not None and (got is None or abs(got - truth) > tol):
@@ -313,7 +314,7 @@ def check_freshness(rep: Report) -> None:
     newest_corpus = max(p.stat().st_mtime for p in CORPUS.glob("*_system.json"))
     for name in ("loso_all_variants_v4.json", "loso_all_variants_v3.json",
                  "main_table_v3.json", "inference_latency_v3.json",
-                 "realworld_zeroshot.json", "detection_validation_v3.json",
+                 "realworld_zeroshot_v4.json", "detection_validation_v3.json",
                  "convergent_validity.json", "topic_weight_sensitivity_v3.json",
                  "weight_global_sensitivity_v3.json", "ahp_shrinkage_sweep_v3.json",
                  "threshold_sensitivity_v3.json", "atm_scale_sweep_v3.json"):
