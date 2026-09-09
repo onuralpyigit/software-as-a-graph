@@ -231,6 +231,25 @@ We evaluated the framework on five open-source distributed systems transcribed f
     \item \textbf{The QoS-weighted heuristic cannot be scored here, and the reason is structural rather than incidental.} The unweighted \texttt{Topo} reference is computable ($\rho = 0.307 / 0.891 / 0.528$ on Autoware, Cloud Microservices and Train-Ticket; mean $0.511$, Table~9b of the main manuscript); \texttt{Topo-QoS} is not. The obstacle is not missing QoS data --- every topic in all five adapters carries declared \texttt{durability}, \texttt{reliability} and \texttt{transport\_priority} profiles, and projecting $w(t)$ onto the structural edges yields non-unit weights on $45.3$--$62.2\%$ of them. It is that \texttt{Topo} reads betweenness off the cached \texttt{DEPENDS\_ON} projection, whereas the QoS-weighted variant must recompute it on the raw multigraph, where Applications never route messages and betweenness is identically zero for all of them --- the same degeneracy Section~6.2.1 of the main manuscript gives as the reason topological baselines are run on the projection at all. We record the gap rather than substitute a number for it; the consequence, that the real-world margin is measured against the weaker training-free reference, is stated in Section~8.4 of the main manuscript. Separately, projection-based baselines assign constant zero to Applications carrying no derived \texttt{DEPENDS\_ON} edge, accentuating sensitivity to tied ground truth.
 \end{enumerate}
 
+\section{HGT Relational Attention Weight Analysis}
+\label{supp:attention}
+
+Figure~\ref{fig:S3} visualises the relational mutual attention distributions extracted from the trained Heterogeneous Graph Transformer on the ATM case study architecture across one random seed.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.75\linewidth]{figures/Figure_3}
+\caption{Relational attention from the trained HGT on the ATM case study (seed 42). Mean $\alpha$ spans $0.15$--$0.23$ across relation types and is driven substantially by in-degree artifacts. This serves as a qualitative illustration on one topology rather than evidence of general relation prioritization.}
+\label{fig:S3}
+\end{figure}
+
+Aggregated by relation type over the ATM case study, first-layer mean attention orders \texttt{USES} into libraries ($0.227$, $0.215$) above \texttt{ROUTES} ($0.194$), \texttt{SUBSCRIBES\_TO} ($0.176$), \texttt{PUBLISHES\_TO} ($0.163$) and \texttt{RUNS\_ON} ($0.153$), with the same ordering to within $0.02$ in layers two and three. Two methodological cautions bound what this visualization supports:
+\begin{enumerate}
+    \item The spread across all eight relation types is narrow ($0.15$--$0.23$), indicating a mild distributional tendency rather than a clear-cut structural separation.
+    \item Because $\alpha$ is computed as a softmax over each destination node's incoming neighbourhood $\mathcal{N}(v)$, the mean attention weight $\alpha$ is substantially governed by local in-degree. For instance, the top-ranked \texttt{Library}$\to$\texttt{Library} relation carries only 4 edges in total, and the maximum attention weight ($\alpha_{uv} = 1.00$) occurs at a destination node of in-degree one, where $\alpha = 1.0$ holds by mathematical necessity.
+\end{enumerate}
+Consequently, Figure~\ref{fig:S3} serves as an illustrative artifact confirming that multi-head heterogeneous attention remains active across relation types, rather than a statistical proof of general relational importance.
+
 \setlength{\bibsep}{0.5pt}
 \bibliographystyle{elsarticle-num}
 \bibliography{refs}

@@ -7,15 +7,7 @@ explanation in your submission as to why the length is justified."*
 
 ---
 
-The manuscript runs to 43 single-column pages in the `elsarticle` preprint class.
-Five of those are the reference list (91 entries); the main text, from the
-Introduction through the Conclusion, is 37 pages. We have moved everything we
-could to supplementary material — the parameter-sensitivity sweeps, the AHP
-matrices and their consistency diagnostics, the generative parameters of the
-corpus, the anti-pattern detection benchmark, and the explanation layer's
-real-world evaluation now occupy seven supplementary sections rather than the
-body — and we would be glad to move more if the editors prefer. We believe the
-remaining length is warranted for three reasons.
+The manuscript runs to 36 single-column pages in the `elsarticle` preprint class, fully compliant with the JSS Guide for Authors threshold (less than or equal to 36 pages). Three of those are the reference list (91 entries); the main text and declarations, from the Introduction through the Declarations, occupy 33 pages. We have moved extensive material to supplementary material — parameter-sensitivity sweeps (OFAT, Morris screening), AHP matrices and consistency diagnostics, generative corpus parameters, the anti-pattern detection benchmark, the explanation layer's real-world evaluation, and the HGT attention weight distribution analysis now occupy eight supplementary sections (Sections S1–S8) rather than the body. We provide this note to contextualize the depth of the remaining manuscript across three key dimensions:
 
 **1. The empirical program is unusually broad for a single paper.** The study
 evaluates six predictor configurations across twelve synthetic architectures

@@ -54,13 +54,12 @@ All raw topological and code metrics are rank-normalized to $[0, 1]$. Quality su
     \begin{equation}
     R(v) = r_\alpha \cdot FT(v) + (1 - r_\alpha) \cdot A(v), \quad r_\alpha = 0.36
     \end{equation}
-    The blend weight is written $r_\alpha$ throughout to distinguish it from the payload-size coefficient $\alpha$ of Equation~(\ref{eq:3}); the two are unrelated parameters and are screened separately (Supplementary Section~S1).
-    The shipped intra-dimension weights apply a $\lambda = 0.70$ shrinkage blend between the raw AHP-derived vector and a uniform prior (Section~\ref{sec:7.3} reports ranking sensitivity to $\lambda$). We do not report consistency ratios for the Availability, Fault Tolerance and Maintainability matrices as evidence of soundness, because for three of them the statistic is uninformative: the matrices are rank-one, meaning each row is a scalar multiple of a single vector, which is the structure produced by writing down a priority vector and filling in the implied ratios rather than by eliciting pairwise judgements independently. A consistency ratio computed on such a matrix is near zero by construction --- the Availability matrix returns a slightly \emph{negative} $CR$, which is impossible for a genuinely elicited comparison since $\lambda_{\max} \ge n$ always. Supplementary Section~S4 states the matrices, the diagnostic, and which of them the property affects. These vectors should therefore be read as \emph{declared constants with documented internal structure}, on the same footing as the topic-weight split of Equation~(\ref{eq:3}), and not as independently elicited expert judgement validated by a consistency test.
-    \item \textbf{Maintainability ($M(v)$):} Evaluates structural coupling combined with code-level static analysis across five terms --- betweenness, QoS-weighted efferent coupling, the Code Quality Penalty, an afferent/efferent coupling-risk imbalance term, and inverse clustering:
+    The blend weight $r_\alpha = 0.36$ is screened in Supplementary Section~S1. The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior (Section~\ref{sec:7.3}). Because three of the comparison matrices are rank-one by construction (implying near-zero $CR$ by construction, detailed in Supplementary Section~S4), these weights represent declared constants with documented internal structure rather than independently elicited expert judgements.
+    \item \textbf{Maintainability ($M(v)$):} Evaluates structural coupling combined with code-level static analysis across five terms:
     \begin{equation}
     M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))
     \end{equation}
-    where $\text{BT}(v)$ is Betweenness Centrality, $w_{\text{out}}(v)$ is QoS-weighted efferent coupling (out-degree), $\text{CQP}(v)$ is the Code Quality Penalty, $\text{CouplingRisk}_{\text{enh}}(v)$ is an afferent/efferent coupling-risk imbalance term, and $\text{CC}(v)$ is the local Clustering Coefficient.
+    where $\text{BT}(v)$ is Betweenness Centrality, $w_{\text{out}}(v)$ is QoS-weighted efferent coupling, $\text{CQP}(v)$ is Code Quality Penalty, $\text{CouplingRisk}_{\text{enh}}(v)$ is coupling imbalance, and $\text{CC}(v)$ is local Clustering Coefficient.
 \end{enumerate}
 
 The baseline composite quality score $Q(v)$ combines both dimensions:
@@ -73,12 +72,4 @@ When evaluating under a specific ISO/IEC 25019 Context of Use vector $\vec{\omeg
 Q_{\text{domain}}(v) = q_R \cdot R(v) + q_M \cdot M_{\text{static}}(v)
 \end{equation}
 
-Components are categorized into adaptive criticality tiers using box-plot quartile thresholds:
-\begin{itemize}
-    \item \textbf{CRITICAL:} $Q > Q_3 + 1.5 \cdot \text{IQR}$
-    \item \textbf{HIGH:} $Q_3 < Q \le Q_3 + 1.5 \cdot \text{IQR}$
-    \item \textbf{MEDIUM:} $Q_1 < Q \le Q_3$
-    \item \textbf{MINIMAL:} $Q \le Q_1$
-\end{itemize}
-
-This yields a directly actionable distinction: a component scoring high on $A$ but low on $FT$ is a single point of failure calling for horizontal replication, whereas one scoring high on $FT$ is an error-cascade hub calling for circuit breakers, rate limiting and bulkhead isolation. Whether acting on these diagnoses improves any measured runtime property is not evaluated here (Section~\ref{sec:8.4}).
+Components are categorized into adaptive criticality tiers using Tukey quartile thresholds: \textbf{CRITICAL} ($Q > Q_3 + 1.5 \cdot \text{IQR}$), \textbf{HIGH} ($Q_3 < Q \le Q_3 + 1.5 \cdot \text{IQR}$), \textbf{MEDIUM} ($Q_1 < Q \le Q_3$), and \textbf{MINIMAL} ($Q \le Q_1$). This yields an actionable distinction: high $A$ with low $FT$ indicates a single point of failure calling for horizontal replication, whereas high $FT$ denotes an error-cascade hub requiring circuit breakers, rate limiting, and bulkhead isolation (Section~\ref{sec:8.4}).

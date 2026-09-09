@@ -32,8 +32,8 @@
 \setlength{\textfloatsep}{10pt plus 2pt minus 2pt}
 \setlength{\intextsep}{10pt plus 2pt minus 2pt}
 \setlength{\floatsep}{8pt plus 2pt minus 2pt}
-\setlength{\abovecaptionskip}{6pt}
-\setlength{\belowcaptionskip}{4pt}
+\setlength{\abovecaptionskip}{4pt}
+\setlength{\belowcaptionskip}{2pt}
 
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
@@ -86,7 +86,8 @@ Explainable AI
 
 \input{sections/declarations.tex}
 
-\setlength{\bibsep}{0.5pt}
+\renewcommand{\bibfont}{\footnotesize}
+\setlength{\bibsep}{0pt plus 0.2pt}
 \bibliographystyle{elsarticle-num}
 \bibliography{refs}
 
