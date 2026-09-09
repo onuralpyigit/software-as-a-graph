@@ -7,10 +7,10 @@ explanation in your submission as to why the length is justified."*
 
 ---
 
-The manuscript runs to 43 single-column pages in the elsarticle preprint class.
+The manuscript runs to 44 single-column pages in the elsarticle preprint class.
 Of these, five are the reference list (87 entries) and two are an appendix
 printing the AHP pairwise-comparison matrices so that their consistency ratios
-are independently checkable; the main text through the Conclusion is 36 pages.
+are independently checkable; the main text through the Conclusion is 37 pages.
 We have already moved the parameter-sensitivity analyses to supplementary
 material and would be glad to move more if the editors prefer, but we believe
 the remaining length is warranted for three reasons.

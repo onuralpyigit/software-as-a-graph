@@ -99,6 +99,39 @@ Twelve LOSO folds are reported, comprising the eleven synthetic evaluation scena
     \item \textbf{The explanation layer is weakly predictive, not noise.} RM/$Q(v)$ reaches $\rho = 0.133$, losing to unweighted Topo on all twelve folds ($-0.117$, $p = 0.0005$), so no ranking claim is made for it. Its interval $[0.009, 0.247]$ stays above zero and it supplies interpretable diagnostics without training (Section~\ref{sec:5}). It appears in Table~\ref{tab:7} as a reference point, not a competitor.
 \end{enumerate}
 
+\subsubsection{The Active Stratum: Ranking Quality Separated From Inertness Detection}
+\label{sec:7.1.active}
+
+Every LOSO figure above is a correlation over the full held-out Application population, and between $21\%$ (Microservices) and $52\%$ (Healthcare) of that population carries exactly zero simulated impact depending on the fold. A predictor can therefore score well by separating components that can propagate a failure from those that cannot, without ordering the propagating ones correctly. Because these are different capabilities with different operational value, we re-score all twelve folds on the \emph{active stratum} --- the $n_{>0}$ components with strictly positive ground-truth impact --- using the same predictions, folds and seeds. Table~\ref{tab:7c} reports both.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{LOSO means over twelve folds on the full Application population ($\rho$) and restricted to components with strictly positive ground-truth impact ($\rho_{>0}$). Same predictions, folds and seeds; only the evaluated subset differs. Training-free baselines lose most of their apparent accuracy under the restriction; learned models lose far less.}
+\label{tab:7c}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Predictor} & \textbf{$\rho$ (full)} & \textbf{$\rho_{>0}$ (active)} & \textbf{Retained} \\
+\midrule
+\textbf{RM / $Q(v)$} & $0.133$ & $0.014$ & $11\%$ \\
+\textbf{Topo} & $0.250$ & $0.064$ & $26\%$ \\
+\textbf{Topo-QoS} & $0.567$ & $0.183$ & $32\%$ \\
+\textbf{GAT-N} & $0.493$ & $0.322$ & $65\%$ \\
+\textbf{GAT-N-QoS} & $0.581$ & $0.338$ & $58\%$ \\
+\textbf{HGT} & $0.640$ & $0.382$ & $60\%$ \\
+\textbf{HGT-QoS} & $\mathbf{0.695}$ & $\mathbf{0.407}$ & $59\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three consequences follow, and they do not all favour the proposed model.
+
+\begin{enumerate}
+    \item \textbf{The training-free baselines are substantially weaker than their headline figures suggest.} Topo-QoS retains only $32\%$ of its full-population correlation on the active stratum, against $59\%$ for HGT-QoS, and it turns negative on three folds (ATM $-0.556$, Healthcare $-0.248$, and Topo on Financial Trading $-0.185$). Much of what a QoS-weighted centrality score contributes is the detection of inert components, which the degree-zero structure of the projection makes nearly free. This is the clearest evidence in the paper that learning contributes something a structural heuristic does not.
+    \item \textbf{RQ1's verdict is nonetheless unchanged.} On the active stratum HGT-QoS leads Topo-QoS by $+0.224$ (9/12, $W = 18.0$, $p = 0.110$) --- a margin nearly twice the full-population $+0.127$, but with enough fold-level variance that it still does not reach significance. We report it as a widened but statistically undemonstrated margin, and the RQ1 conclusion of Section~\ref{sec:7.1} stands as written.
+    \item \textbf{The typed-versus-untyped result survives; the QoS ablation does not.} Typing remains significant under the restriction (HGT-QoS vs.\ GAT-N-QoS $+0.069$, 10/12, $p = 0.043$; HGT vs.\ GAT-N $+0.060$, 10/12, $p = 0.027$), so the central claim of Section~\ref{sec:7.2} is not an artifact of zero-inflation. The QoS \emph{encoding}, by contrast, loses its significance entirely: the $+0.054$ typed gain ($p = 0.009$) falls to $+0.025$ ($p = 0.151$), and the untyped gain from $+0.088$ ($p = 0.034$) to $+0.017$ ($p = 0.791$). We therefore narrow the RQ3 ablation claim in Section~\ref{sec:7.3}: declared QoS attributes help identify \emph{which} components can propagate a failure, and we have no evidence that they help rank the ones that do.
+\end{enumerate}
+
 \subsection{RQ2: Value of Typed Heterogeneity}
 \label{sec:7.2}
 
@@ -145,7 +178,9 @@ This section reports the ablations that bear on a headline claim --- the QoS edg
 
 To isolate the specific empirical contribution of the continuous-categorical QoS edge features (Section~\ref{sec:4.1.1}), we evaluated \textbf{HGT}, an un-augmented ablation of HGT-QoS whose edge features contain only scalar coupling and relation one-hot encodings. 
 
-Under the inductive LOSO evaluation, the QoS edge encodings carry a clear ranking benefit in both architectures. Mean LOSO rank correlation is $\rho = 0.695$ with the encodings and $0.640$ without them ($\Delta\rho = +0.054$, won in 11 of 12 folds, $W = 7.0$, $p = 0.0093$; 95\% bootstrap CI $[+0.021, +0.091]$). The homogeneous architecture agrees in direction and magnitude: GAT-N-QoS achieves $0.581$ against GAT-N $0.493$ ($\Delta\rho = +0.088$, won in 9 of 12 folds, $W = 12.0$, $p = 0.034$, CI $[+0.021, +0.151]$). The typed result is robust to dropping the ATM fold ($+0.049$, 10 of 11, $p = 0.019$); the homogeneous one is not ($+0.071$, 8 of 11, $p = 0.067$), so we treat the typed evidence as the finding and the homogeneous replication as supporting.
+Under the inductive LOSO evaluation, the QoS edge encodings carry a ranking benefit in both architectures on the full held-out population. Mean LOSO rank correlation is $\rho = 0.695$ with the encodings and $0.640$ without them ($\Delta\rho = +0.054$, won in 11 of 12 folds, $W = 7.0$, $p = 0.0093$; 95\% bootstrap CI $[+0.021, +0.091]$). The homogeneous architecture agrees in direction and magnitude: GAT-N-QoS achieves $0.581$ against GAT-N $0.493$ ($\Delta\rho = +0.088$, won in 9 of 12 folds, $W = 12.0$, $p = 0.034$, CI $[+0.021, +0.151]$). The typed result is robust to dropping the ATM fold ($+0.049$, 10 of 11, $p = 0.019$); the homogeneous one is not ($+0.071$, 8 of 11, $p = 0.067$), so we treat the typed evidence as the finding and the homogeneous replication as supporting.
+
+\paragraph{The gain does not survive restriction to the active stratum, and we do not claim it does} Re-scoring the identical folds on the $n_{>0}$ components that carry strictly positive impact (Section~\ref{sec:7.1.active}) removes the effect in both architectures: the typed gain falls from $+0.054$ ($p = 0.0093$) to $+0.025$ (8 of 12, $W = 20.0$, $p = 0.151$), and the homogeneous gain from $+0.088$ ($p = 0.034$) to $+0.017$ (6 of 12, $W = 35.0$, $p = 0.791$) --- the latter no better than a coin flip across folds. The full-population effect is therefore real but narrower than it first appears: declared QoS attributes help the model decide \emph{which} components can propagate a failure at all, and this evaluation provides no evidence that they help order the components that do. That is a weaker claim than the one an earlier version of this section made, and it is the claim the data support. It matters for deployment, because a practitioner reading Table~\ref{tab:7} would otherwise expect the QoS channel to sharpen a criticality ranking, which is the use it cannot be shown to serve. The typed-versus-untyped result, by contrast, does survive the same restriction (Section~\ref{sec:7.1.active}), which is why we treat typing rather than QoS encoding as this paper's load-bearing architectural claim.
 
 The encodings also improve optimisation reproducibility, though less symmetrically than the ranking result. The median within-fold standard deviation across five random seeds is $0.053$ for HGT-QoS against $0.069$ for un-augmented HGT, and $0.017$ for GAT-N-QoS against $0.158$ for GAT-N --- a large effect in the homogeneous pair and a modest one in the typed pair. We read the ranking gain as the primary result and the variance reduction as a secondary property, rather than the reverse.
 

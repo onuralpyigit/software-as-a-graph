@@ -204,6 +204,44 @@ def check_table7_loso(rep: Report, artifact: str) -> None:
                 rep.findings.append(Finding("tab:7", label, key, got, round(truth, 4)))
 
 
+def check_table7c_active(rep: Report, artifact: str) -> None:
+    """Table 7c full-population and active-stratum LOSO means.
+
+    ``rho_>0`` is the mean over folds of ``spearman_rho_positive``; folds where
+    the metric is undefined (fewer than three positive components, or no spread)
+    record ``None`` and are excluded from the mean rather than counted as zero.
+    """
+    d = _load(artifact)
+    if d is None:
+        rep.skipped.append(f"tab:7c: {artifact} absent")
+        return
+    ct = d["comparison_table"]
+    pv = d["per_variant_results"]
+    tex = _tex("sec7_results.tex")
+    rows = _rows(tex, r"\textbf{RM / $Q(v)$}", after_label=r"\label{tab:7c}")
+    by_label = {LOSO_LABELS[k]: k for k in ct if k in LOSO_LABELS}
+    for row in rows:
+        cells = _cells(row)
+        if len(cells) < 4:
+            continue
+        label = _label(cells[0])
+        key = by_label.get(label)
+        if key is None:
+            continue
+        vals = [f["mean_metrics"].get("spearman_rho_positive")
+                for f in pv[key]["folds"]]
+        vals = [v for v in vals if v is not None]
+        truths = (ct[key].get("mean_rho"),
+                  sum(vals) / len(vals) if vals else None)
+        for idx, truth, name in ((1, truths[0], "mean_rho"),
+                                 (2, truths[1], "mean_rho_positive")):
+            got = _num(cells[idx])
+            rep.checked += 1
+            if truth is not None and (got is None or abs(got - truth) > 0.001):
+                rep.findings.append(
+                    Finding("tab:7c", label, name, got, round(truth, 4)))
+
+
 def check_scale_table(rep: Report) -> None:
     """Table tab:scale per-stage latency against inference_latency artifact."""
     d = _load("inference_latency_v3.json") or _load("inference_latency.json")
@@ -299,7 +337,7 @@ PROSE_NOTES = [
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--loso", default="loso_all_variants_v3.json",
+    ap.add_argument("--loso", default="loso_all_variants_v4.json",
                     help="LOSO artifact backing Table 7 (default: v3)")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
@@ -308,6 +346,7 @@ def main() -> int:
     check_freshness(rep)
     check_table4_corpus(rep)
     check_table7_loso(rep, args.loso)
+    check_table7c_active(rep, args.loso)
     check_scale_table(rep)
     check_realworld(rep)
 
