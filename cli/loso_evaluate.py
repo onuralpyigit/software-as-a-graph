@@ -300,7 +300,17 @@ def _project_topic_qos_onto_edges(g: nx.DiGraph) -> None:
 
         if not data.get("qos_profile"):
             data["qos_profile"] = QoSPolicy.from_node_attrs(attrs).to_dict()
-        if "weight" not in data:
+        # An explicit ``weight: 1.0`` counts as absent, not as a stated value.
+        # The real-world architecture adapters emit ``weight: 1.0`` on every
+        # edge while the synthetic generator omits the key entirely, so a bare
+        # ``"weight" not in data`` guard applied the QoS weight to generated
+        # topologies and skipped it on transcribed ones -- leaving all five
+        # open-source systems with constant edge weights, which is precisely the
+        # signal-free condition this pass exists to prevent. 1.0 is the default
+        # rather than a meaningful contract, so it is safe to overwrite; any
+        # other stated value is still honoured.
+        existing = data.get("weight")
+        if existing is None or abs(float(existing) - 1.0) < 1e-9:
             data["weight"] = topic_weight_from_node_attrs(attrs)
 
 
