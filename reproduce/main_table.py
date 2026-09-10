@@ -129,15 +129,30 @@ LOSO_CACHE_DIR = Path("output/loso_cache")
 
 def _find_cache_dir(scenario: str) -> Path:
     """Return the best-matching LOSO cache directory for *scenario*."""
-    exact = LOSO_CACHE_DIR / scenario
-    if exact.exists():
-        return exact
-    if LOSO_CACHE_DIR.exists():
-        for d in LOSO_CACHE_DIR.iterdir():
-            if d.is_dir() and scenario in d.name:
-                logger.debug("Fuzzy cache match: %s → %s", scenario, d)
-                return d
-    return exact  # caller checks .exists()
+    candidate_roots = [
+        LOSO_CACHE_DIR,
+        Path("output/loso_cache"),
+        Path("loso_cache"),
+        Path("/content/SoftwareAsAGraph/output/loso_cache"),
+        Path("/content/SoftwareAsAGraph/loso_cache"),
+        Path("/content/loso_cache"),
+        Path("/content/output/loso_cache"),
+        Path("../output/loso_cache"),
+    ]
+    env_cache = os.environ.get("LOSO_CACHE_DIR")
+    if env_cache:
+        candidate_roots.insert(0, Path(env_cache))
+
+    for root in candidate_roots:
+        exact = root / scenario
+        if exact.exists():
+            return exact
+        if root.exists():
+            for d in root.iterdir():
+                if d.is_dir() and scenario in d.name:
+                    logger.debug("Fuzzy cache match: %s → %s", scenario, d)
+                    return d
+    return LOSO_CACHE_DIR / scenario
 
 
 def _safe_rho(rho: Any) -> float:
@@ -687,12 +702,14 @@ def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[A
 
     nx_graph = _build_graph_from_json(topology)
 
-    if cache_dir.exists():
+    if cache_dir and cache_dir.exists():
         graph_nodes = {str(n) for n in nx_graph.nodes()}
         structural_dict, simulation_dict, rm_dict, gt_source = _load_cache_dicts(cache_dir, graph_nodes)
     else:
-        logger.warning("No LOSO cache for '%s'. Structural/simulation data will be empty.", scenario)
-        structural_dict, simulation_dict, rm_dict, gt_source = {}, {}, {}, "Sim"
+        raise FileNotFoundError(
+            f"No LOSO cache found for '{scenario}' at {cache_dir}. "
+            "Please ensure the cache is extracted into 'output/loso_cache' or specify '--cache-dir <path>'."
+        )
 
     # Derive DEPENDS_ON features and build a DEPENDS_ON-only graph.
     #
@@ -1800,6 +1817,8 @@ def parse_args():
     p.add_argument("--dry-run", action="store_true",
                    help="Print the planned matrix without training")
     p.add_argument("-v", "--verbose", action="store_true")
+    p.add_argument("--cache-dir", type=Path, default=None,
+                   help="Path to LOSO cache directory (default: output/loso_cache)")
     p.add_argument("--allow-rm-substitution", action="store_true",
                    help="Permit substituting RM quality scores for sparse simulation labels. "
                         "This is a label-leakage path (RM derives from the same structural "
@@ -1809,9 +1828,12 @@ def parse_args():
 
 
 def main():
-    global ALLOW_RM_SUBSTITUTION
+    global ALLOW_RM_SUBSTITUTION, LOSO_CACHE_DIR
     args = parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARNING)
+
+    if args.cache_dir:
+        LOSO_CACHE_DIR = args.cache_dir
 
     ALLOW_RM_SUBSTITUTION = args.allow_rm_substitution
 
@@ -1854,7 +1876,11 @@ def main():
         n_flagged = sum(1 for c in raw_cells if c.get("needs_recalibration"))
         existing_cells = [
             c for c in raw_cells 
-            if not c.get("needs_recalibration") and c["variant"] not in ("topo_baseline", "q_topo_baseline")
+            if not c.get("needs_recalibration")
+            and "error" not in c
+            and c.get("spearman_rho") is not None
+            and c.get("rho") != "undefined"
+            and c.get("n_nodes", 1) > 0
         ]
         for c in existing_cells:
             c.pop("top_5_overlap", None)
@@ -1863,7 +1889,7 @@ def main():
         done_keys = {
             (c["scenario"], c["variant"], c["seed"])
             for c in existing_cells
-            if "error" not in c
+            if "error" not in c and c.get("rho") not in (None, "undefined") and c.get("n_nodes", 1) > 0
         }
 
         msg = f"  Resuming: {len(done_keys)} cells already completed"
@@ -1932,7 +1958,9 @@ def main():
         "cells": cells,
         "aggregate": agg_serializable,
         "config": {
-            "scenarios": scenarios, "variants": variants, "seeds": seeds,
+            "scenarios": sorted(list({c["scenario"] for c in cells if "scenario" in c})),
+            "variants": sorted(list({c["variant"] for c in cells if "variant" in c})),
+            "seeds": sorted(list({c["seed"] for c in cells if "seed" in c})),
             "epochs": args.epochs, "hidden": args.hidden,
             # Recorded so any table rendered from this file can state which node
             # population produced it — the single most important caveat when
