@@ -207,6 +207,7 @@ $$\text{Delivery Rate} = \frac{\text{Total Messages Delivered}}{\sum_{t \in \tex
 |:---|:---|
 | **Reliability (`RELIABLE`)** | Queue overflow triggers **head-drop** (drops oldest sample to retain fresh data, matching DDS `KEEP_LAST`). |
 | **Reliability (`BEST_EFFORT`)** | Queue overflow triggers **tail-drop** (incoming sample is dropped). |
+| **History Depth (`history_depth`)** | Subscriber queue capacity limit under DDS `KEEP_LAST` policy; governs queue overflow trigger thresholds. |
 | **Deadline (`deadline_ms`)** | End-to-end check: $(\text{time}_{\text{processed}} - \text{time}_{\text{created}}) > \text{deadline} \to \text{Violation}$. |
 | **Lifespan (`lifespan_ms`)** | Expired samples are silently discarded upon dequeue. |
 

@@ -103,8 +103,8 @@ Every entity in the input JSON is imported into its corresponding vertex categor
 |:---|:---|:---|
 | **Node** | `id`, `name` | Physical or virtual compute host. |
 | **Broker** | `id`, `name` | Middleware message routing engine. |
-| **Topic** | `id`, `name`, `size`, `qos_*`, `frequency` | Asynchronous message distribution channel. |
-| **Application** | `id`, `name`, `role`, `app_type`, `version`, `criticality`, `cm_*` | Executable software service or process. |
+| **Topic** | `id`, `name`, `size`, `qos_*`, `frequency`, `criticality`, `deadline_ms`, `history_depth` | Asynchronous message distribution channel with QoS contracts (reliability, durability, transport priority, deadline SLA, history depth buffer limit). |
+| **Application** | `id`, `name`, `role`, `app_type`, `version`, `criticality`, `hotstandby`, `cm_*` | Executable software service or process with 3-tier operational criticality (`HIGH`, `MEDIUM`, `LOW`) and dual-node redundancy (`hotstandby`). |
 | **Library** | `id`, `name`, `version`, `cm_*` | Shared software module or package. |
 
 #### Internal Code-Quality Attributes (`cm_*`)
@@ -162,6 +162,9 @@ since an unconditional delivery guarantee precedes the scheduling of it.
 Lookups are case-normalised (trimmed and upper-cased) before matching the
 score tables, so an authored value such as `"reliable"` scores identically to
 `"RELIABLE"` rather than silently falling through to `0.0`.
+
+> [!NOTE]
+> In addition to the three scoring dimensions above, the Topic entity and `QoSPolicy` capture temporal SLA deadlines (`deadline_ms`) and queue capacity limits (`history_depth`), matching DDS `KEEP_LAST` semantics. These contract fields parameterize runtime discrete-event simulation (Phase 5 / `failure-simulation.md`) and inductive GNN edge feature representations (Phase 3 / `prediction.md`).
 
 #### 2. Size and Frequency Normalization
 $$\text{SizeNorm}(t) = \min\left(1.0, \; \frac{\log_2(1 + \text{size\_bytes})}{20.0}\right)$$
@@ -311,10 +314,15 @@ Input topologies use a clear, declarative schema with nested entity lists and re
       "id": "T0",
       "name": "/telemetry/imu",
       "size": 64,
+      "criticality": "HIGH",
+      "deadline_ms": 10.0,
+      "history_depth": 10,
       "qos": {
         "reliability": "RELIABLE",
         "durability": "TRANSIENT_LOCAL",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 10.0,
+        "history_depth": 10
       }
     }
   ],
@@ -324,7 +332,8 @@ Input topologies use a clear, declarative schema with nested entity lists and re
       "name": "ImuSensorApp",
       "role": ["pub"],
       "app_type": "driver",
-      "criticality": true,
+      "criticality": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": { "total_loc": 1200 },
         "complexity": { "avg_wmc": 12.5 },
@@ -336,7 +345,8 @@ Input topologies use a clear, declarative schema with nested entity lists and re
       "name": "NavigationApp",
       "role": ["sub"],
       "app_type": "controller",
-      "criticality": true
+      "criticality": "HIGH",
+      "hotstandby": false
     }
   ],
   "libraries": [

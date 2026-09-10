@@ -97,7 +97,7 @@ Node vectors combine a **shared 18-dimensional topological base** (indices 0–1
 | Node Type | Total Dimensions | Type-Specific Extensions (Indices 18+) |
 |:---|:---:|:---|
 | `Application` | **23** | 5 Code Quality attributes (`loc_norm`, `complexity_norm`, $I_{\text{code}}$, `lcom_norm`, $CQP$) |
-| `Library` | **23** | 5 Code Quality attributes (`loc_norm`, `complexity_norm`, $I_{\text{code}}$, `lcom_norm`, $CQP$) |
+| `Library` | **25** | 5 Code Quality attributes + 2 structural extensions (`library_uses_reach_norm`, `library_downstream_subs_norm`) |
 | `Broker` | **19** | `max_connections_norm` |
 | `Topic` | **22** | `subscriber_count_norm`, `publisher_count_norm`, `log1p_frequency_norm`, `topic_qos_criticality_ord` |
 | `Node` (Infra) | **20** | `cpu_cores_norm`, `memory_gb_norm` |
@@ -143,8 +143,8 @@ Edge features capture both topological connectivity and declared transport QoS d
 | **9** | `reliability_score` | QoS Reliability (`BEST_EFFORT` = 0.0, `RELIABLE` = 1.0) |
 | **10** | `durability_score` | QoS Durability (`VOLATILE` = 0.0, `TRANSIENT_LOCAL` = 0.5, `TRANSIENT` = 0.6, `PERSISTENT` = 1.0) |
 | **11** | `priority_score` | Transport Priority (`LOW` = 0.0, `MEDIUM` = 0.33, `HIGH` = 0.66, `URGENT` = 1.0) |
-| **12** | `has_deadline` | Binary flag (1.0 if finite contract deadline is configured) |
-| **13** | `deadline_ns_log` | Scaled contract deadline duration |
+| **12** | `has_deadline` | Binary flag (1.0 if finite contract deadline `deadline_ms` is configured) |
+| **13** | `deadline_ns_log` | Scaled contract deadline duration: $\min(\log_{10}(1 + \text{deadline\_ms}), 10.0)/10.0$ |
 | **14** | `max_blocking_ms_log`| Scaled blocking timeout duration |
 | **15** | `qos_heterogeneity_flag`| Flag indicating edge QoS diverges from system mode |
 

@@ -484,15 +484,19 @@ Port mapping (host → container):
 ├─────────────┤  ├─────────────┤  ├─────────────┤  ├─────────────┤  ├─────────────┤
 │ id: str     │  │ id: str     │  │ id: str     │  │ id: str     │  │ id: str     │
 │ name: str   │  │ name: str   │  │ name: str   │  │ name: str   │  │ name: str   │
-│ role: str   │  │ weight: f   │  │ qos: QoS    │  │ weight: f   │  │ version: str│
-│ app_type: s │  └─────────────┘  │ size: int   │  └─────────────┘  │ weight: f   │
-│ weight: f   │                   │ weight: f   │                   └─────────────┘
-└─────────────┘  ┌─────────────┐  └─────────────┘
-                 │  QoSPolicy  │
+│ role: str   │  │ weight: f   │  │ criticality │  │ weight: f   │  │ version: str│
+│ app_type: s │  └─────────────┘  │ qos: QoS    │  └─────────────┘  │ weight: f   │
+│ criticality │                   │ size: int   │                   └─────────────┘
+│ hotstandby:b│                   │ deadline_ms │
+│ weight: f   │                   │ hist_depth  │
+└─────────────┘  ┌─────────────┐  │ weight: f   │
+                 │  QoSPolicy  │  └─────────────┘
                  ├─────────────┤
                  │ reliability │  → RELIABLE | BEST_EFFORT
                  │ durability  │  → PERSISTENT | TRANSIENT | TRANSIENT_LOCAL | VOLATILE
                  │ priority    │  → URGENT | HIGH | MEDIUM | LOW
+                 │ deadline_ms │  → float (temporal SLA in ms)
+                 │ hist_depth  │  → int (queue capacity limit)
                  │ msg_size    │  → bytes
                  └─────────────┘
 ```
@@ -1393,13 +1397,16 @@ This step (formerly `EnsembleGNN`) has been deprecated and removed. All predicti
 
 ```cypher
 (:Application {id: String!, name: String, role: String,
-               app_type: String, version: String, weight: Float})
+               app_type: String, version: String, criticality: String,
+               hotstandby: Boolean, weight: Float})
 
 (:Broker      {id: String!, name: String, weight: Float})
 
-(:Topic       {id: String!, name: String, size: Integer,
+(:Topic       {id: String!, name: String, size: Integer, criticality: String,
                qos_reliability: String, qos_durability: String,
-               qos_transport_priority: String, weight: Float})
+               qos_transport_priority: String, qos_deadline_ms: Float,
+               qos_history_depth: Integer, deadline_ms: Float,
+               history_depth: Integer, weight: Float})
 
 (:Node        {id: String!, name: String, weight: Float})
 

@@ -157,6 +157,9 @@ Extracted directly from the typed architecture multigraph $G$ ([graph-model.md](
 | `topic_publisher_count`, `topic_subscriber_count` | Publisher and subscriber counts on a Topic node |
 | `path_count(e)` | Number of redundant communication paths establishing a `DEPENDS_ON` edge |
 | `topic_frequency_hz` | Execution/publication rate assigned from the topic's QoS band |
+| `topic_deadline_ms`, `topic_history_depth` | Declared temporal SLA deadline and queue buffer depth limit (DDS `KEEP_LAST`) |
+| `topic_criticality`, `app_criticality` | Operational criticality tier (`HIGH`, `MEDIUM`, `LOW`) |
+| `app_hotstandby` | Boolean flag indicating active-standby dual-node host deployment redundancy |
 | `size` | Topic message payload size in bytes |
 
 *(Note: Global centralities like PageRank and Betweenness require algorithmic computation across the full graph and belong to Layer 1).*
@@ -187,6 +190,11 @@ $$\begin{aligned}
 \text{Durability Policy:}\quad &\text{VOLATILE} \to 0.0, \quad \text{TRANSIENT\_LOCAL} \to 0.5, \quad \text{TRANSIENT} \to 0.6, \quad \text{PERSISTENT} \to 1.0 \\
 \text{Transport Priority:}\quad &\text{LOW} \to 0.0, \quad \text{MEDIUM} \to 0.33, \quad \text{HIGH} \to 0.66, \quad \text{CRITICAL/URGENT} \to 1.0
 \end{aligned}$$
+
+#### Temporal SLA and Buffering Contracts
+Along with the three categorical policies above, `QoSPolicy` and `Topic` specify:
+- **`deadline_ms`**: Expected maximum end-to-end latency tolerance for message delivery (ms).
+- **`history_depth`**: Queue buffer depth under DDS `KEEP_LAST` policy, dictating buffer overflow thresholds during message burst contention.
 
 #### Topic QoS and Weight Formulation
 

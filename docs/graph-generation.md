@@ -65,11 +65,11 @@ A generated graph contains five node types and six structural edge types.
 
 | Type | ID Prefix | Description |
 |:---|:---|:---|
-| `Application` (CSU) | `A{n}` | Software component that publishes and/or subscribes to topics |
+| `Application` (CSU) | `A{n}` | Software component that publishes and/or subscribes to topics; includes 3-tier criticality (`HIGH`, `MEDIUM`, `LOW`) and dual-node redundancy (`hotstandby`) |
 | `Library` | `L{n}` | Shared software library used by one or more applications |
 | `Broker` | `B{n}` | Message broker / DDS participant that routes topics |
 | `Node` (Infrastructure) | `N{n}` | Physical or virtual host running applications and brokers |
-| `Topic` | `T{n}` | Named communication channel carrying typed messages; includes size, QoS policies, frequency (Hz), and ground-truth criticality |
+| `Topic` | `T{n}` | Named communication channel carrying typed messages; includes size, QoS policies (reliability, durability, transport priority, deadline, history depth), frequency (Hz), and ground-truth criticality (`HIGH`, `MEDIUM`, `LOW`) |
 
 ### 3.2 Structural Edge Types
 
@@ -158,7 +158,7 @@ graph:
     total_publish_count_including_libraries: { ... }   # takes priority over direct_* when present
     total_subscribe_count_including_libraries: { ... }
     app_criticality_distribution:
-      category_counts: { critical: <int>, non_critical: <int> }
+      category_counts: { high: <int>, medium: <int>, low: <int> }
       # (+ total_count, mode, mode_count, mode_percentage — see StatisticalMetric-style fields above)
 
   library_stats:
@@ -204,12 +204,12 @@ Located at [tools/generation/generator.py](../tools/generation/generator.py). `g
 | Phase | Method | Produces |
 |:---|:---|:---|
 | Infrastructure | `_build_infrastructure` | `Node`, `Broker` entities |
-| Topics | `_build_topics` | `Topic` entities: QoS, size, domain-aware frequency, noisy criticality |
+| Topics | `_build_topics` | `Topic` entities: QoS, size, domain-aware frequency, deadline SLA, history depth, noisy criticality |
 | Hierarchy clusters | `_assign_clusters` | Pre-assigns apps/libs/topics to `css_name` clusters so later wiring is structurally coherent, not an independent label |
-| Applications | `_build_apps` | `Application` entities (criticality left `False`; assigned in Pass 2) |
+| Applications | `_build_apps` | `Application` entities (criticality defaulted to `LOW`, updated to `HIGH`/`MEDIUM` in Pass 2 based on degree and hotstandby redundancy) |
 | Libraries | `_build_libs` | `Library` entities and the cluster→libs grouping |
 
-**Topic frequency** is sampled by `_sample_topic_frequency()` from a per-domain log-uniform range (`_DOMAIN_FREQ_BOUNDS`), then snapped to the nearest of a fixed Hz set. **Topic criticality** is derived from the QoS weight via a threshold table, then has ~17% label noise injected (`_derive_topic_criticality_with_noise()`) so a GNN cannot recover it from QoS features via lookup alone — it must use structural context. Both draws use an isolated RNG stream (`topic_attr_rng`), so changing them never perturbs the main topology RNG and existing seeded outputs for unrelated fields stay stable.
+**Topic frequency** is sampled by `_sample_topic_frequency()` from a per-domain log-uniform range (`_DOMAIN_FREQ_BOUNDS`), then snapped to the nearest of a fixed Hz set. **Topic deadline** (`deadline_ms`) is set in inverse correlation with frequency ($T = 1000/f$), while **history depth** (`history_depth`) reflects buffering requirements under DDS `KEEP_LAST`. **Topic criticality** is derived from the QoS weight via a threshold table (`HIGH`, `MEDIUM`, `LOW`), then has ~17% label noise injected (`_derive_topic_criticality_with_noise()`) so a GNN cannot recover it from QoS features via lookup alone — it must use structural context. These draws use an isolated RNG stream (`topic_attr_rng`), so changing them never perturbs the main topology RNG and existing seeded outputs for unrelated fields stay stable.
 
 ### 6.2 Pass 2 — Relationships
 
@@ -221,7 +221,7 @@ Edges are constructed in dependency order because later steps consume earlier on
 4. **`USES`** and library-direct pub/sub — `_wire_uses()`: lib→lib transitive dependencies (30% chance per library), then, if configured, direct library `PUBLISHES_TO`/`SUBSCRIBES_TO` edges, then app→lib usage.
 5. **`PUBLISHES_TO`/`SUBSCRIBES_TO`** (apps) — `_wire_pubsub()` dispatches to one of four mutually-exclusive strategies (§5.1's priority order). All four apply cluster-biased sampling (`_sample_biased`, `p_intra` = `intra_cluster_coupling`) and QoS-affinity steering (`_qos_preferred_topics()`: gateway/controller apps draw from `RELIABLE`/`HIGH` topics first, sensors from `BEST_EFFORT`/`LOW`).
 6. **`CONNECTS_TO`** — `_wire_connects()`: probabilistic node mesh, guarded against a fully disconnected result.
-7. **Post-topology passes** — `_apply_post_topology()`: guarantees every app has at least one pub/sub edge (isolated apps would otherwise inflate F1 scores trivially), then assigns `criticality = True` to the structurally highest-degree apps (`_assign_criticality_two_pass()`) now that the topology — and therefore each app's degree — is known.
+7. **Post-topology passes** — `_apply_post_topology()`: guarantees every app has at least one pub/sub edge (isolated apps would otherwise inflate F1 scores trivially), then assigns 3-tier criticality (`HIGH`, `MEDIUM`, `LOW`) and correlated `hotstandby: bool` redundancy (with dual-node host placement) to structurally highest-degree apps (`_assign_criticality_two_pass()`) now that the topology — and therefore each app's degree — is known.
 
 ### 6.3 Code-Metrics Generation
 
@@ -235,9 +235,9 @@ Every `Application` and `Library` node carries a `code_metrics` block feeding th
 
 Every application and library carries a `system_hierarchy` block (`csc_name`, `csci_name`, `css_name`, `csms_name`) representing its position in the MIL-STD-498 decomposition hierarchy, drawn from `SYSTEM_HIERARCHY_POOLS` for the configured domain (or `GENERIC_HIERARCHY_POOL` when no domain is set). `css_name` is the same value used for hierarchy-cluster pre-assignment in §6.1 — it is not an independent random draw.
 
-### 6.5 QoS Assignment
+### 6.5 QoS and Contract Assignment
 
-Topics receive one categorical value each for durability, reliability, and transport priority. The QoS weight (`QoSPolicy.calculate_weight()`) drives both the criticality threshold lookup (§6.1) and, downstream in analysis, the QSPOF Availability $A(v)$ term — topics carrying `PERSISTENT + RELIABLE + CRITICAL` traffic receive the maximum QoS weight ($1.0$).
+Topics receive categorical values for durability, reliability, and transport priority, along with continuous temporal SLA contracts (`deadline_ms`, inversely correlated with publishing frequency: $T = 1000/f$) and queue capacity limits (`history_depth`, scaled by reliability and criticality, matching DDS `KEEP_LAST`). The QoS weight (`QoSPolicy.calculate_weight()`) drives both the criticality threshold lookup (§6.1) and, downstream in analysis, the QSPOF Availability $A(v)$ term — topics carrying `PERSISTENT + RELIABLE + CRITICAL` traffic receive the maximum QoS weight ($1.0$).
 
 ---
 
@@ -265,9 +265,17 @@ The generator produces a single JSON file. Field values below are from an actual
       "id": "T0",
       "name": "goal_pose",
       "size": 8192,
-      "qos": { "durability": "TRANSIENT_LOCAL", "reliability": "RELIABLE", "transport_priority": "HIGH" },
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH",
+        "deadline_ms": 1000.0,
+        "history_depth": 50
+      },
       "frequency": 1.0,
-      "criticality": "critical"
+      "criticality": "HIGH",
+      "deadline_ms": 1000.0,
+      "history_depth": 50
     }
   ],
   "applications": [
@@ -277,8 +285,7 @@ The generator produces a single JSON file. Field values below are from an actual
       "version": "2.3.3",
       "app_type": "service",
       "role": ["Engineer", "Supervisor"],
-      "criticality": false,
-      "priority": "HIGH",
+      "criticality": "HIGH",
       "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Robotic Systems",

@@ -321,11 +321,11 @@ Topological nodes are categorized into five entity types within the graph databa
 
 | Entity Type | Represents | Core Schema Attributes |
 |:---|:---|:---|
-| `Application` | Executable process | `id`, `name`, `role`, `app_type`, `version`, static code metrics (`cm_*`) |
+| `Application` | Executable process | `id`, `name`, `role`, `app_type`, `version`, `criticality` (HIGH/MEDIUM/LOW), `hotstandby` (dual-node redundancy), static code metrics (`cm_*`) |
 | `Library` | Shared package | `id`, `name`, `version`, static code coupling metrics |
 | `Broker` | Message broker instance | `id`, `name`, operational weight |
 | `Node` | Physical or virtual host | `id`, `name`, IP address, hardware capacity details |
-| `Topic` | Message queue channel | `id`, `name`, QoS policy (Reliability, Durability, Priority), payload size |
+| `Topic` | Message queue channel | `id`, `name`, `criticality` (HIGH/MEDIUM/LOW), QoS policy (Reliability, Durability, Priority, Deadline, History Depth), `deadline_ms`, `history_depth`, payload size, frequency |
 
 ### Analysis Layer Projections
 Analytic metrics are calculated on specific subgraphs matching the active layer:

@@ -302,6 +302,8 @@ classDiagram
         +id: String
         +name: String
         +app_type: String
+        +criticality: String
+        +hotstandby: Boolean
     }
     class Broker {
         +id: String
@@ -310,10 +312,14 @@ classDiagram
     class Topic {
         +id: String
         +name: String
+        +criticality: String
         +reliability: String
         +durability: String
         +priority: String
+        +deadline_ms: Float
+        +history_depth: Integer
         +msg_size: Integer
+        +frequency: Float
     }
     class Node {
         +id: String
