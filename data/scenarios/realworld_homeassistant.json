@@ -82,7 +82,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 100.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T1",
@@ -94,7 +94,7 @@
         "transport_priority": "CRITICAL"
       },
       "frequency": 50.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T2",
@@ -106,7 +106,7 @@
         "transport_priority": "HIGHEST"
       },
       "frequency": 1.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T3",
@@ -118,7 +118,7 @@
         "transport_priority": "HIGHEST"
       },
       "frequency": 1.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T4",
@@ -130,7 +130,7 @@
         "transport_priority": "HIGHEST"
       },
       "frequency": 2.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T5",
@@ -142,7 +142,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 60.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T6",
@@ -154,7 +154,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 40.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T7",
@@ -166,7 +166,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 30.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T8",
@@ -178,7 +178,7 @@
         "transport_priority": "HIGHEST"
       },
       "frequency": 0.5,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T9",
@@ -190,7 +190,7 @@
         "transport_priority": "HIGHEST"
       },
       "frequency": 1.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T10",
@@ -202,7 +202,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 20.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T11",
@@ -214,7 +214,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 10.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T12",
@@ -226,7 +226,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 5.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T13",
@@ -238,7 +238,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 80.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T14",
@@ -250,7 +250,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 10.0,
-      "criticality": "low"
+      "criticality": "LOW"
     },
     {
       "id": "T15",
@@ -262,7 +262,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 10.0,
-      "criticality": "low"
+      "criticality": "LOW"
     },
     {
       "id": "T16",
@@ -274,7 +274,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 15.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T17",
@@ -286,7 +286,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 5.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T18",
@@ -298,7 +298,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 2.0,
-      "criticality": "low"
+      "criticality": "LOW"
     },
     {
       "id": "T19",
@@ -310,7 +310,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 5.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T20",
@@ -322,7 +322,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 1.0,
-      "criticality": "low"
+      "criticality": "LOW"
     },
     {
       "id": "T21",
@@ -334,7 +334,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 30.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     }
   ],
   "applications": [
@@ -342,7 +342,7 @@
       "id": "A0",
       "name": "core_state_machine",
       "app_type": "sensor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGHEST",
       "code_metrics": {
         "size": {
@@ -366,7 +366,7 @@
       "id": "A1",
       "name": "automation_engine",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGHEST",
       "code_metrics": {
         "size": {
@@ -390,7 +390,7 @@
       "id": "A2",
       "name": "script_execution_service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -414,7 +414,7 @@
       "id": "A3",
       "name": "safety_hazard_monitor",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGHEST",
       "code_metrics": {
         "size": {
@@ -438,7 +438,7 @@
       "id": "A4",
       "name": "alarm_control_panel",
       "app_type": "actuator",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGHEST",
       "code_metrics": {
         "size": {
@@ -462,7 +462,7 @@
       "id": "A5",
       "name": "emergency_actuation_manager",
       "app_type": "actuator",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGHEST",
       "code_metrics": {
         "size": {
@@ -486,7 +486,7 @@
       "id": "A6",
       "name": "zha_zigbee_gateway",
       "app_type": "sensor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -510,7 +510,7 @@
       "id": "A7",
       "name": "zwave_js_supervisor",
       "app_type": "sensor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -534,7 +534,7 @@
       "id": "A8",
       "name": "esphome_device_manager",
       "app_type": "sensor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -558,7 +558,7 @@
       "id": "A9",
       "name": "mqtt_event_bridge",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -582,7 +582,7 @@
       "id": "A10",
       "name": "camera_stream_manager",
       "app_type": "sensor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -606,7 +606,7 @@
       "id": "A11",
       "name": "matter_thread_bridge",
       "app_type": "sensor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -630,7 +630,7 @@
       "id": "A12",
       "name": "climate_hvac_controller",
       "app_type": "actuator",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -654,7 +654,7 @@
       "id": "A13",
       "name": "light_switch_controller",
       "app_type": "actuator",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -678,7 +678,7 @@
       "id": "A14",
       "name": "presence_detection_engine",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -702,7 +702,7 @@
       "id": "A15",
       "name": "media_player_coordinator",
       "app_type": "actuator",
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "code_metrics": {
         "size": {
@@ -726,7 +726,7 @@
       "id": "A16",
       "name": "recorder_persistence_worker",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -750,7 +750,7 @@
       "id": "A17",
       "name": "energy_analytics_worker",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "code_metrics": {
         "size": {
@@ -774,7 +774,7 @@
       "id": "A18",
       "name": "logbook_history_service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "code_metrics": {
         "size": {
@@ -798,7 +798,7 @@
       "id": "A19",
       "name": "notification_dispatcher",
       "app_type": "actuator",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -822,7 +822,7 @@
       "id": "A20",
       "name": "websocket_api_server",
       "app_type": "sensor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -846,7 +846,7 @@
       "id": "A21",
       "name": "http_api_ingress",
       "app_type": "sensor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -870,7 +870,7 @@
       "id": "A22",
       "name": "lovelace_ui_dashboard",
       "app_type": "actuator",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -894,7 +894,7 @@
       "id": "A23",
       "name": "cloud_remote_agent",
       "app_type": "sensor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {

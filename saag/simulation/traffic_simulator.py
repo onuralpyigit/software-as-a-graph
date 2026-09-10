@@ -74,6 +74,7 @@ class TrafficSimulator:
                         a.role                     AS role,
                         a.priority                 AS priority,
                         a.hotstandby               AS hotstandby,
+                        a.criticality              AS criticality,
                         pub_ids,
                         sub_ids
                     ORDER BY name
@@ -87,10 +88,11 @@ class TrafficSimulator:
                             "name": rec["name"],
                             "weight": float(rec["weight"]),
                             "role": rec["role"],
-                            # priority and hotstandby are optional — only include when
+                            # priority, hotstandby, criticality are optional — only include when
                             # the property exists on the node (not null/missing)
                             "priority": rec["priority"],
                             "hotstandby": rec["hotstandby"],
+                            "criticality": rec["criticality"],
                             "pub_topic_ids": list(rec["pub_ids"]),
                             "sub_topic_ids": list(rec["sub_ids"]),
                         }
@@ -131,7 +133,8 @@ class TrafficSimulator:
                         t.qos_durability           AS qos_durability,
                         t.qos_transport_priority   AS qos_transport_priority,
                         COALESCE(t.size, 0)        AS size,
-                        COALESCE(t.topic_frequency, 10.0) AS frequency
+                        COALESCE(t.topic_frequency, 10.0) AS frequency,
+                        t.criticality              AS criticality
                     ORDER BY t.id
                     """
                 )
@@ -151,6 +154,7 @@ class TrafficSimulator:
                             "qos_transport_priority": rec["qos_transport_priority"],
                             "size": int(rec["size"]),
                             "frequency": float(rec["frequency"]),
+                            "criticality": rec["criticality"],
                         }
                     )
                 return topics

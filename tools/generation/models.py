@@ -20,6 +20,7 @@ DURABILITY_OPTIONS = list(QoSPolicy.DURABILITY_SCORES.keys())
 RELIABILITY_OPTIONS = list(QoSPolicy.RELIABILITY_SCORES.keys())
 PRIORITY_OPTIONS = list(QoSPolicy.PRIORITY_SCORES.keys())
 APP_PRIORITY_OPTIONS = ["HIGH", "MEDIUM", "LOW"]
+APP_CRITICALITY_OPTIONS = ["HIGH", "MEDIUM", "LOW"]
 
 APP_TYPE_OPTIONS = ["sensor", "actuator", "controller", "monitor", "gateway", "processor"]
 APP_HOTSTANDBY_OPTIONS = [False, True]
@@ -83,15 +84,23 @@ class CategoricalDistribution:
 
 @dataclass
 class AppCriticalityDistribution(CategoricalDistribution):
-    """Distribution of application criticality."""
+    """Distribution of application operational criticality (HIGH, MEDIUM, LOW)."""
 
-    def to_weighted_list(self, default_options: Optional[List[bool]] = None) -> List[bool]:
-        """Convert to weighted list with boolean criticality values."""
+    def to_weighted_list(self, default_options: Optional[List[str]] = None) -> List[str]:
+        """Convert to weighted list with HIGH, MEDIUM, LOW criticality values."""
         result = []
         for category, count in self.category_counts.items():
-            val = category.lower() in ("true", "1", "yes", "critical", "high")
+            cat_upper = category.upper()
+            if cat_upper in ("HIGH", "CRITICAL", "TRUE", "1", "YES"):
+                val = "HIGH"
+            elif cat_upper in ("LOW", "NON_CRITICAL", "MINIMAL", "FALSE", "0", "NO"):
+                val = "LOW"
+            elif cat_upper == "MEDIUM":
+                val = "MEDIUM"
+            else:
+                val = "MEDIUM"
             result.extend([val] * count)
-        return result if result else [True, False]
+        return result if result else (default_options or ["LOW", "MEDIUM", "HIGH"])
 
 
 @dataclass

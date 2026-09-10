@@ -28,17 +28,16 @@ Architectural decision: Application.criticality vs Topic.topic_qos_criticality
 Two fields named ``criticality`` exist in the system, and they are *not* the
 same concept.  They must NOT share a feature dimension:
 
-  ``Application.criticality`` (bool)
-      Process-level ground truth.  Set by the two-pass topology-aware
-      assignment in the generator (structurally central apps → True).
-      Represents whether the *service* is mission-critical.
-      Used as a classification label for the Application node type.
+  ``Application.criticality`` (str: LOW/MEDIUM/HIGH)
+      Process-level operational criticality. Represents whether the *service*
+      is mission-critical. Set by the two-pass topology and QoS-correlated
+      assignment in the generator.
 
-  ``Topic.criticality`` (str: minimal/low/medium/high/critical)
+  ``Topic.criticality`` (str: LOW/MEDIUM/HIGH)
       QoS-channel urgency, derived from the QoS weight score
       (0.24·Rel + 0.62·Dur + 0.14·Pri) with ≈17% label-noise injection
       so the GNN must use graph context to resolve ambiguous cases.
-      Encoded as an ordinal integer 0–4 (``topic_qos_criticality_ord``).
+      Encoded as an ordinal integer 0–2 (``topic_qos_criticality_ord``).
       Appears **only** in the Topic NodeStorage (dim 21) — it is absent
       from Application, Broker, Node, and Library stores.
 
@@ -133,6 +132,7 @@ from torch import Tensor
 from saag.core.models import (
     QoSPolicy,
     TOPIC_CRITICALITY_ORD as _TOPIC_CRITICALITY_ORD,
+    MAX_TOPIC_CRITICALITY_ORD,
 )
 
 logger = logging.getLogger(__name__)
@@ -430,10 +430,13 @@ def _normalize_infra_features(
             )
             topic_freq_raw[n] = freq_raw
             # Criticality ordinal (Topic.criticality, NOT Application.criticality).
-            crit_str = str(
-                attrs.get("criticality", attrs.get("topic_criticality", "minimal"))
-            ).lower()
-            topic_crit_ord[n] = TOPIC_CRITICALITY_ORD.get(crit_str, 0.0) if qos_enabled else 0.0
+            crit_raw = attrs.get("criticality", attrs.get("topic_criticality", "LOW"))
+            crit_str = str(crit_raw).upper()
+            topic_crit_ord[n] = (
+                TOPIC_CRITICALITY_ORD.get(crit_str, TOPIC_CRITICALITY_ORD.get(crit_str.lower(), 0.0))
+                if qos_enabled
+                else 0.0
+            )
         elif nt == "Library":
             library_nodes.append(n)
 
@@ -483,8 +486,8 @@ def _normalize_infra_features(
     else:
         log1p_freq_norm = {}
 
-    # Normalise topic_qos_criticality_ord to [0, 1] (max value is 4.0).
-    max_crit_ord = 4.0
+    # Normalise topic_qos_criticality_ord to [0, 1] (max value is MAX_TOPIC_CRITICALITY_ORD = 2.0).
+    max_crit_ord = MAX_TOPIC_CRITICALITY_ORD
 
     all_topic_nodes = set(topic_subs) | set(topic_pubs) | set(topic_freq_raw)
 

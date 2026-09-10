@@ -187,7 +187,7 @@ _DOMAIN_FREQ_BOUNDS_DEFAULT: tuple = (0.1, 100.0)
 _CRITICALITY_NOISE_RATE: float = 0.17
 
 # Ordered criticality levels (used to pick a random *different* label on flip).
-_CRITICALITY_LABELS = ["minimal", "low", "medium", "high", "critical"]
+_CRITICALITY_LABELS = ["LOW", "MEDIUM", "HIGH"]
 
 
 class StatisticalGraphGenerator:
@@ -504,7 +504,7 @@ class StatisticalGraphGenerator:
         _rng = rng if rng is not None else self.rng
         # --- derive base label via threshold table ---
         qos_score = qos.calculate_weight()
-        base_label = "critical"  # fallback if all thresholds exceeded
+        base_label = "HIGH"  # fallback if all thresholds exceeded
         for threshold, label in CRITICALITY_THRESHOLDS:
             if qos_score <= threshold:
                 base_label = label
@@ -521,42 +521,111 @@ class StatisticalGraphGenerator:
         apps: List[Application],
         publishes: List[Dict[str, str]],
         subscribes: List[Dict[str, str]],
-        criticality_pool: Optional[List[bool]],
+        criticality_pool: Optional[List[Any]],
+        topics: Optional[List[Topic]] = None,
     ) -> None:
-        """Assign criticality in-place after topology is built.
+        """Assign operational criticality (HIGH, MEDIUM, LOW) in-place after topology is built.
 
-        Ranks apps by structural degree proxy (pub_count + sub_count) and
-        assigns critical=True to the top-N highest-degree apps, where N is
-        derived from *criticality_pool* (or 10 % of apps as fallback).  Ties
-        are broken with a seeded jitter so the result is deterministic but
-        not index-position biased.
+        Ranks apps by a composite correlation score combining:
+          1. Connected topic QoS and Topic.criticality urgency (w(t) and urgency of pub/sub channels)
+          2. Application priority and operational app_type semantics
+          3. Structural degree proxy (pub_count + sub_count)
 
-        This intentionally changes seeded output vs. the previous approach
-        (random assignment before topology existed) because it produces
-        topologically coherent criticality: structurally central components
-        are more likely to be labelled critical.
+        Assigns HIGH, MEDIUM, LOW to apps according to the scenario's criticality_pool
+        (or a calibrated domain fallback). Also harmonizes app.priority with criticality
+        to ensure operational coherence across the system.
         """
-        pub_count: Counter = Counter(e["from"] for e in publishes)
-        sub_count: Counter = Counter(e["from"] for e in subscribes)
+        pub_topics_by_app: Dict[str, List[str]] = {}
+        sub_topics_by_app: Dict[str, List[str]] = {}
+        for e in publishes:
+            pub_topics_by_app.setdefault(e["from"], []).append(e["to"])
+        for e in subscribes:
+            sub_topics_by_app.setdefault(e["from"], []).append(e["to"])
 
-        if criticality_pool is not None:
-            n_critical = sum(1 for x in criticality_pool if x)
+        topic_map: Dict[str, Topic] = {t.id: t for t in (topics or [])}
+        topic_imp: Dict[str, float] = {}
+        for tid, t in topic_map.items():
+            qos_w = t.qos.calculate_weight()
+            crit_ord = {"LOW": 0.0, "MEDIUM": 0.5, "HIGH": 1.0}.get(str(t.criticality).upper(), 0.5)
+            topic_imp[tid] = 0.6 * qos_w + 0.4 * crit_ord
+
+        deg_counts = {
+            a.id: len(pub_topics_by_app.get(a.id, [])) + len(sub_topics_by_app.get(a.id, []))
+            for a in apps
+        }
+        max_deg = max(deg_counts.values(), default=1) or 1
+
+        priority_score_map = {"HIGH": 1.0, "MEDIUM": 0.5, "LOW": 0.0}
+        type_score_map = {
+            "controller": 1.0,
+            "gateway": 0.9,
+            "processor": 0.75,
+            "actuator": 0.65,
+            "sensor": 0.45,
+            "monitor": 0.35,
+            "service": 0.55,
+        }
+
+        app_scores: Dict[str, float] = {}
+        for a in apps:
+            t_ids = pub_topics_by_app.get(a.id, []) + sub_topics_by_app.get(a.id, [])
+            if t_ids:
+                t_scores = [topic_imp.get(tid, 0.5) for tid in t_ids]
+                app_qos = 0.55 * max(t_scores) + 0.45 * (sum(t_scores) / len(t_scores))
+            else:
+                app_qos = 0.4
+
+            pri_score = priority_score_map.get(str(a.priority).upper(), 0.5)
+            type_score = type_score_map.get(a.app_type, 0.5)
+            deg_norm = deg_counts[a.id] / max_deg
+
+            composite = (
+                0.40 * app_qos
+                + 0.25 * pri_score
+                + 0.20 * deg_norm
+                + 0.15 * type_score
+                + self.rng.uniform(0.0, 0.1)
+            )
+            app_scores[a.id] = composite
+
+        ranked = sorted(apps, key=lambda a: app_scores[a.id], reverse=True)
+        n_total = len(apps)
+
+        if criticality_pool is not None and len(criticality_pool) > 0:
+            pool_norm = []
+            for item in criticality_pool:
+                iu = str(item).upper()
+                if iu in ("HIGH", "CRITICAL", "TRUE", "1"):
+                    pool_norm.append("HIGH")
+                elif iu in ("LOW", "NON_CRITICAL", "MINIMAL", "FALSE", "0"):
+                    pool_norm.append("LOW")
+                elif iu == "MEDIUM":
+                    pool_norm.append("MEDIUM")
+                else:
+                    pool_norm.append("MEDIUM")
+            n_high = sum(1 for x in pool_norm if x == "HIGH")
+            n_med = sum(1 for x in pool_norm if x == "MEDIUM")
+            if n_med == 0 and n_high > 0 and n_high < n_total:
+                n_med = max(1, round((n_total - n_high) * 0.6))
+            n_high = min(n_high, n_total)
+            n_med = min(n_med, n_total - n_high)
         else:
-            n_critical = max(1, round(len(apps) * 0.10))
-        n_critical = min(n_critical, len(apps))
+            n_high = max(1, round(n_total * 0.25))
+            n_med = max(1, round(n_total * 0.50))
+            if n_high + n_med > n_total:
+                n_med = max(0, n_total - n_high)
 
-        # Sort descending by degree proxy + small seeded jitter to break ties
-        ranked = sorted(
-            apps,
-            key=lambda a: (
-                pub_count.get(a.id, 0) + sub_count.get(a.id, 0)
-                + self.rng.uniform(0.0, 0.3)
-            ),
-            reverse=True,
-        )
-        critical_ids = {a.id for a in ranked[:n_critical]}
-        for app in apps:
-            app.criticality = app.id in critical_ids
+        for idx, app in enumerate(ranked):
+            if idx < n_high:
+                app.criticality = "HIGH"
+                if app.priority == "LOW":
+                    app.priority = "MEDIUM"
+            elif idx < n_high + n_med:
+                app.criticality = "MEDIUM"
+            else:
+                app.criticality = "LOW"
+                if app.priority == "HIGH":
+                    app.priority = "MEDIUM"
 
     # ------------------------------------------------------------------
     # Generation phases (called in order from generate() below)
@@ -717,12 +786,12 @@ class StatisticalGraphGenerator:
         app_cluster_domain: List[str],
         single_csms_name: str,
         cluster_domains: List[str],
-    ) -> Tuple[List[Application], Optional[List[bool]], Dict[str, List[Application]]]:
+    ) -> Tuple[List[Application], Optional[List[str]], Dict[str, List[Application]]]:
         """Construct all Application entities and the criticality-pool target
         count and cluster grouping.
 
         Criticality is NOT assigned here (every app starts with
-        criticality=False); _apply_post_topology()'s two-pass assignment sets
+        criticality="MEDIUM"); _apply_post_topology()'s two-pass assignment sets
         it once the topology (and therefore each app's structural degree) is
         known.
         """
@@ -758,7 +827,7 @@ class StatisticalGraphGenerator:
                 name=app_name,
                 app_type=app_type,
                 role=role,
-                criticality=False,  # assigned after topology by _assign_criticality_two_pass
+                criticality="MEDIUM",  # assigned after topology by _assign_criticality_two_pass
                 priority=priority,
                 hotstandby=hotstandby,
                 version=f"{self.rng.randint(1, 3)}.{self.rng.randint(0, 9)}.{self.rng.randint(0, 9)}",
@@ -1136,7 +1205,7 @@ class StatisticalGraphGenerator:
         topics: List[Topic],
         publishes: List[Dict[str, str]],
         subscribes: List[Dict[str, str]],
-        criticality_pool: Optional[List[bool]],
+        criticality_pool: Optional[List[str]],
     ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
         """Post-topology quality passes: guarantee every app has at least one
         pub/sub edge (preventing inflated F1 from trivially-isolated nodes),
@@ -1152,7 +1221,7 @@ class StatisticalGraphGenerator:
             elif _can_subscribe(app.app_type):
                 subscribes.append(self._make_edge(app, t))
 
-        self._assign_criticality_two_pass(apps, publishes, subscribes, criticality_pool)
+        self._assign_criticality_two_pass(apps, publishes, subscribes, criticality_pool, topics=topics)
         return publishes, subscribes
 
     def _assemble(

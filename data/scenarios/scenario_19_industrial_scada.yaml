@@ -112,11 +112,12 @@ graph:
     app_criticality_distribution:
       total_count: 140
       category_counts:
-        critical: 10
-        non_critical: 130
-      mode: non_critical
-      mode_count: 130
-      mode_percentage: 92.9
+        HIGH: 35
+        MEDIUM: 65
+        LOW: 40
+      mode: MEDIUM
+      mode_count: 65
+      mode_percentage: 46.43
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Few libraries, but each is widely linked (fieldbus drivers)

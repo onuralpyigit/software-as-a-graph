@@ -94,7 +94,7 @@
         "transport_priority": "CRITICAL"
       },
       "frequency": 80.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T1",
@@ -106,7 +106,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 10.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T2",
@@ -118,7 +118,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 150.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T3",
@@ -130,7 +130,7 @@
         "transport_priority": "CRITICAL"
       },
       "frequency": 60.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T4",
@@ -142,7 +142,7 @@
         "transport_priority": "CRITICAL"
       },
       "frequency": 100.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T5",
@@ -154,7 +154,7 @@
         "transport_priority": "CRITICAL"
       },
       "frequency": 50.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T6",
@@ -166,7 +166,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 5.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T7",
@@ -178,7 +178,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 15.0,
-      "criticality": "low"
+      "criticality": "LOW"
     },
     {
       "id": "T8",
@@ -190,7 +190,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 25.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T9",
@@ -202,7 +202,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 40.0,
-      "criticality": "low"
+      "criticality": "LOW"
     },
     {
       "id": "T10",
@@ -214,7 +214,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 30.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T11",
@@ -226,7 +226,7 @@
         "transport_priority": "CRITICAL"
       },
       "frequency": 120.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T12",
@@ -238,7 +238,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 45.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T13",
@@ -250,7 +250,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 10.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T14",
@@ -262,7 +262,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 2.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T15",
@@ -274,7 +274,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 5.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T16",
@@ -286,7 +286,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T17",
@@ -298,7 +298,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 0.5,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T18",
@@ -310,7 +310,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 8.0,
-      "criticality": "low"
+      "criticality": "LOW"
     },
     {
       "id": "T19",
@@ -322,7 +322,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 20.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T20",
@@ -334,7 +334,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 0.2,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T21",
@@ -346,7 +346,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 0.2,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T22",
@@ -358,7 +358,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 0.2,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T23",
@@ -370,7 +370,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 0.2,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T24",
@@ -382,7 +382,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 500.0,
-      "criticality": "low"
+      "criticality": "LOW"
     },
     {
       "id": "T25",
@@ -394,7 +394,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 300.0,
-      "criticality": "low"
+      "criticality": "LOW"
     },
     {
       "id": "T26",
@@ -406,7 +406,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 100.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T27",
@@ -418,7 +418,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 12.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T28",
@@ -430,7 +430,7 @@
         "transport_priority": "CRITICAL"
       },
       "frequency": 40.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T29",
@@ -442,7 +442,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 15.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     }
   ],
   "applications": [
@@ -450,7 +450,7 @@
       "id": "A0",
       "name": "ts-ui-dashboard",
       "app_type": "sensor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -474,7 +474,7 @@
       "id": "A1",
       "name": "ts-gateway-service",
       "app_type": "sensor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -498,7 +498,7 @@
       "id": "A2",
       "name": "ts-auth-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -522,7 +522,7 @@
       "id": "A3",
       "name": "ts-user-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -546,7 +546,7 @@
       "id": "A4",
       "name": "ts-verification-code-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -570,7 +570,7 @@
       "id": "A5",
       "name": "ts-contacts-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -594,7 +594,7 @@
       "id": "A6",
       "name": "ts-order-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -618,7 +618,7 @@
       "id": "A7",
       "name": "ts-order-other-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -642,7 +642,7 @@
       "id": "A8",
       "name": "ts-preserve-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -666,7 +666,7 @@
       "id": "A9",
       "name": "ts-preserve-other-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -690,7 +690,7 @@
       "id": "A10",
       "name": "ts-travel-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -714,7 +714,7 @@
       "id": "A11",
       "name": "ts-travel2-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -738,7 +738,7 @@
       "id": "A12",
       "name": "ts-travel-plan-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -762,7 +762,7 @@
       "id": "A13",
       "name": "ts-route-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -786,7 +786,7 @@
       "id": "A14",
       "name": "ts-route-plan-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -810,7 +810,7 @@
       "id": "A15",
       "name": "ts-train-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -834,7 +834,7 @@
       "id": "A16",
       "name": "ts-station-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -858,7 +858,7 @@
       "id": "A17",
       "name": "ts-seat-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -882,7 +882,7 @@
       "id": "A18",
       "name": "ts-price-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -906,7 +906,7 @@
       "id": "A19",
       "name": "ts-config-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -930,7 +930,7 @@
       "id": "A20",
       "name": "ts-payment-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -954,7 +954,7 @@
       "id": "A21",
       "name": "ts-inside-payment-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -978,7 +978,7 @@
       "id": "A22",
       "name": "ts-execute-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -1002,7 +1002,7 @@
       "id": "A23",
       "name": "ts-cancel-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -1026,7 +1026,7 @@
       "id": "A24",
       "name": "ts-rebook-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -1050,7 +1050,7 @@
       "id": "A25",
       "name": "ts-assurance-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -1074,7 +1074,7 @@
       "id": "A26",
       "name": "ts-consign-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -1098,7 +1098,7 @@
       "id": "A27",
       "name": "ts-consign-price-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "code_metrics": {
         "size": {
@@ -1122,7 +1122,7 @@
       "id": "A28",
       "name": "ts-food-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -1146,7 +1146,7 @@
       "id": "A29",
       "name": "ts-food-map-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "code_metrics": {
         "size": {
@@ -1170,7 +1170,7 @@
       "id": "A30",
       "name": "ts-notification-service",
       "app_type": "actuator",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -1194,7 +1194,7 @@
       "id": "A31",
       "name": "ts-security-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -1218,7 +1218,7 @@
       "id": "A32",
       "name": "ts-voucher-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "code_metrics": {
         "size": {
@@ -1242,7 +1242,7 @@
       "id": "A33",
       "name": "ts-admin-user-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -1266,7 +1266,7 @@
       "id": "A34",
       "name": "ts-admin-travel-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -1290,7 +1290,7 @@
       "id": "A35",
       "name": "ts-admin-order-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -1314,7 +1314,7 @@
       "id": "A36",
       "name": "ts-admin-route-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -1338,7 +1338,7 @@
       "id": "A37",
       "name": "ts-admin-basic-info-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -1362,7 +1362,7 @@
       "id": "A38",
       "name": "ts-delivery-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "code_metrics": {
         "size": {
@@ -1386,7 +1386,7 @@
       "id": "A39",
       "name": "ts-wait-order-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -1410,7 +1410,7 @@
       "id": "A40",
       "name": "ts-news-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "code_metrics": {
         "size": {

@@ -125,11 +125,12 @@ graph:
     app_criticality_distribution:
       total_count: 500
       category_counts:
-        critical: 40
-        non_critical: 460
-      mode: non_critical
-      mode_count: 460
-      mode_percentage: 92.0
+        HIGH: 80
+        MEDIUM: 220
+        LOW: 200
+      mode: MEDIUM
+      mode_count: 220
+      mode_percentage: 44.0
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Platform SDKs shared broadly across tenants

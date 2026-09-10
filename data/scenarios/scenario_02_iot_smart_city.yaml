@@ -112,11 +112,12 @@ graph:
     app_criticality_distribution:
       total_count: 200
       category_counts:
-        critical: 10
-        non_critical: 190
-      mode: non_critical
-      mode_count: 190
-      mode_percentage: 95.0
+        HIGH: 20
+        MEDIUM: 60
+        LOW: 120
+      mode: LOW
+      mode_count: 120
+      mode_percentage: 60.0
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Minimal shared code on constrained edge devices

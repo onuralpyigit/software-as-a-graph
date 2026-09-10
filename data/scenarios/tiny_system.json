@@ -47,7 +47,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 1.0,
-      "criticality": "medium"
+      "criticality": "LOW"
     },
     {
       "id": "T1",
@@ -59,7 +59,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "minimal"
+      "criticality": "LOW"
     },
     {
       "id": "T2",
@@ -71,7 +71,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 1.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T3",
@@ -83,7 +83,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 1.0,
-      "criticality": "medium"
+      "criticality": "LOW"
     },
     {
       "id": "T4",
@@ -95,7 +95,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 1.0,
-      "criticality": "high"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T5",
@@ -107,7 +107,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 1.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T6",
@@ -119,7 +119,7 @@
         "transport_priority": "CRITICAL"
       },
       "frequency": 1.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T7",
@@ -131,7 +131,7 @@
         "transport_priority": "CRITICAL"
       },
       "frequency": 1.0,
-      "criticality": "critical"
+      "criticality": "MEDIUM"
     }
   ],
   "applications": [
@@ -144,7 +144,7 @@
         "Operative",
         "Supervisor"
       ],
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "hotstandby": false,
       "system_hierarchy": {
@@ -190,7 +190,7 @@
         "Analyst",
         "Supervisor"
       ],
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "hotstandby": true,
       "system_hierarchy": {
@@ -236,7 +236,7 @@
         "Operative",
         "Supervisor"
       ],
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "HIGH",
       "hotstandby": true,
       "system_hierarchy": {
@@ -283,7 +283,7 @@
         "Analyst",
         "Engineer"
       ],
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "hotstandby": true,
       "system_hierarchy": {
@@ -330,7 +330,7 @@
         "Engineer",
         "Supervisor"
       ],
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "MEDIUM",
       "hotstandby": false,
       "system_hierarchy": {
@@ -376,7 +376,7 @@
         "Engineer",
         "Supervisor"
       ],
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "hotstandby": true,
       "system_hierarchy": {
@@ -422,8 +422,8 @@
         "Administrator",
         "Analyst"
       ],
-      "criticality": false,
-      "priority": "HIGH",
+      "criticality": "LOW",
+      "priority": "MEDIUM",
       "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -467,7 +467,7 @@
       "role": [
         "Supervisor"
       ],
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "hotstandby": false,
       "system_hierarchy": {
@@ -513,7 +513,7 @@
         "Administrator",
         "Analyst"
       ],
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "hotstandby": true,
       "system_hierarchy": {
@@ -560,7 +560,7 @@
         "Engineer",
         "Operative"
       ],
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "HIGH",
       "hotstandby": false,
       "system_hierarchy": {
@@ -607,7 +607,7 @@
         "Analyst",
         "Supervisor"
       ],
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "HIGH",
       "hotstandby": true,
       "system_hierarchy": {
@@ -654,7 +654,7 @@
         "Analyst",
         "Engineer"
       ],
-      "criticality": true,
+      "criticality": "MEDIUM",
       "priority": "HIGH",
       "hotstandby": true,
       "system_hierarchy": {

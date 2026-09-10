@@ -31,7 +31,7 @@ def _canonical_sha256(data: dict) -> str:
 
 _SCENARIO_08_YAML = project_root / "data" / "scenarios" / "scenario_08_tiny_regression.yaml"
 
-_GOLDEN_SHA256 = "e6c7c67ced93b7df7f1b0e48c683283714bce46a9378d202d2d45c4e730ab31e"
+_GOLDEN_SHA256 = "2685013828c48def4b3a48f41c94ee76ab98e7c7b3ff3a2566f915daa2b283df"
 
 _GOLDEN_ENTITY_COUNTS = {
     "nodes": 3,
@@ -192,12 +192,14 @@ class TestTopicDerivedFields:
 
     def _cases():
         # (reliability, durability, priority) -> (expected_criticality, expected_freq)
-        # Thresholds: ≤0.19 minimal, ≤0.43 low, ≤0.64 medium, ≤1.00 high, >1.00 critical
+        # Thresholds: ≤0.35 LOW, ≤0.70 MEDIUM, ≤1.00 HIGH
         return [
-            # RELIABLE × MEDIUM  → combined=0.330 bin 5 → 20 Hz
-            ("RELIABLE",    "VOLATILE",   "MEDIUM",   "medium",   20.0),
-            # RELIABLE × HIGH   → combined=0.660 bin 10 → 100 Hz
-            ("RELIABLE",    "VOLATILE",   "HIGH",     "high",    100.0),
+            # RELIABLE × MEDIUM  → combined=0.330 bin 5 → 20 Hz, weight=0.2862 → LOW
+            ("RELIABLE",    "VOLATILE",         "MEDIUM",   "LOW",     20.0),
+            # RELIABLE × HIGH   → combined=0.660 bin 10 → 100 Hz, weight=0.6424 → MEDIUM
+            ("RELIABLE",    "TRANSIENT_LOCAL",  "HIGH",     "MEDIUM",  100.0),
+            # RELIABLE × CRITICAL → combined=0.990 bin 10 → 100 Hz, weight=1.0000 → HIGH
+            ("RELIABLE",    "PERSISTENT",       "CRITICAL", "HIGH",    100.0),
         ]
 
     @pytest.mark.parametrize("rel,dur,pri,exp_crit,exp_hz", _cases())
@@ -218,7 +220,7 @@ class TestTopicDerivedFields:
 
         # 2. Criticality must match the threshold table in __post_init__
         qos_score = t.qos.calculate_weight()
-        expected_crit = "critical"
+        expected_crit = "HIGH"
         for threshold, label in CRITICALITY_THRESHOLDS:
             if qos_score <= threshold:
                 expected_crit = label
@@ -234,7 +236,7 @@ class TestTopicDerivedFields:
         assert "frequency" in d, "to_dict() missing 'frequency'"
         assert "criticality" in d, "to_dict() missing 'criticality'"
         assert isinstance(d["frequency"], (int, float))
-        assert d["criticality"] in {"critical", "high", "medium", "low", "minimal"}
+        assert d["criticality"] in {"HIGH", "MEDIUM", "LOW"}
 
     def test_generated_topics_have_derived_fields(self):
         gen = GenerationService(scale="tiny", seed=7)
@@ -242,11 +244,20 @@ class TestTopicDerivedFields:
         for topic in data["topics"]:
             assert "frequency" in topic, f"Topic {topic.get('id')!r} missing 'frequency'"
             assert "criticality" in topic, f"Topic {topic.get('id')!r} missing 'criticality'"
-            assert topic["criticality"] in {"critical", "high", "medium", "low", "minimal"}, (
+            assert topic["criticality"] in {"HIGH", "MEDIUM", "LOW"}, (
                 f"Topic {topic.get('id')!r}: invalid criticality {topic['criticality']!r}"
             )
             assert isinstance(topic["frequency"], (int, float))
             assert topic["frequency"] > 0.0
+
+    def test_generated_apps_have_derived_fields(self):
+        gen = GenerationService(scale="tiny", seed=7)
+        data = gen.generate()
+        for app in data["applications"]:
+            assert "criticality" in app, f"Application {app.get('id')!r} missing 'criticality'"
+            assert app["criticality"] in {"HIGH", "MEDIUM", "LOW"}, (
+                f"Application {app.get('id')!r}: invalid criticality {app['criticality']!r}"
+            )
 
 
 class TestSchemaValidation:

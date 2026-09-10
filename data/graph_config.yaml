@@ -84,15 +84,16 @@ graph:
       mode_percentage: 40.0  # Percentage of the mode
 
     # Application criticality distribution (Categorical)
-    # Values: critical, non_critical
+    # Values: HIGH, MEDIUM, LOW
     app_criticality_distribution:
       total_count: 50
       category_counts:
-        critical: 12         # Number of critical applications
-        non_critical: 38     # Number of non-critical applications
-      mode: non_critical     # Most frequent category
-      mode_count: 38         # Count of the mode
-      mode_percentage: 76.0  # Percentage of the mode
+        HIGH: 12             # Number of high-criticality applications
+        MEDIUM: 23           # Number of medium-criticality applications
+        LOW: 15              # Number of low-criticality applications
+      mode: MEDIUM           # Most frequent category
+      mode_count: 23         # Count of the mode
+      mode_percentage: 46.0  # Percentage of the mode
 
   # =============================================================================
   # LIBRARY STATISTICS

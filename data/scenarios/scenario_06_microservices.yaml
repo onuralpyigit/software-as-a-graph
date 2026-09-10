@@ -115,11 +115,12 @@ graph:
     app_criticality_distribution:
       total_count: 90
       category_counts:
-        critical: 6
-        non_critical: 84
-      mode: non_critical
-      mode_count: 84
-      mode_percentage: 93.3
+        HIGH: 18
+        MEDIUM: 42
+        LOW: 30
+      mode: MEDIUM
+      mode_count: 42
+      mode_percentage: 46.67
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Service-specific; low fan-out = lower blast radius

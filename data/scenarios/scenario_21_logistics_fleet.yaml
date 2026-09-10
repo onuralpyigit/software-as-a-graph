@@ -111,11 +111,12 @@ graph:
     app_criticality_distribution:
       total_count: 110
       category_counts:
-        critical: 12
-        non_critical: 98
-      mode: non_critical
-      mode_count: 98
-      mode_percentage: 89.1
+        HIGH: 25
+        MEDIUM: 45
+        LOW: 40
+      mode: MEDIUM
+      mode_count: 45
+      mode_percentage: 40.91
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Shared geo/manifest codecs, moderate reuse

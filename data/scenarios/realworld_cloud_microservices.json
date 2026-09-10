@@ -88,7 +88,7 @@
         "transport_priority": "CRITICAL"
       },
       "frequency": 50.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T1",
@@ -100,7 +100,7 @@
         "transport_priority": "CRITICAL"
       },
       "frequency": 50.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T2",
@@ -112,7 +112,7 @@
         "transport_priority": "CRITICAL"
       },
       "frequency": 5.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T3",
@@ -124,7 +124,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 100.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T4",
@@ -136,7 +136,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 2.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T5",
@@ -148,7 +148,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 20.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T6",
@@ -160,7 +160,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 30.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T7",
@@ -172,7 +172,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 500.0,
-      "criticality": "low"
+      "criticality": "LOW"
     },
     {
       "id": "T8",
@@ -184,7 +184,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 800.0,
-      "criticality": "low"
+      "criticality": "LOW"
     },
     {
       "id": "T9",
@@ -196,7 +196,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 10.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T10",
@@ -208,7 +208,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 15.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T11",
@@ -220,7 +220,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 15.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T12",
@@ -232,7 +232,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 200.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T13",
@@ -244,7 +244,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 25.0,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T14",
@@ -256,7 +256,7 @@
         "transport_priority": "HIGHEST"
       },
       "frequency": 1.0,
-      "criticality": "critical"
+      "criticality": "HIGH"
     },
     {
       "id": "T15",
@@ -268,7 +268,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 100.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     },
     {
       "id": "T16",
@@ -280,7 +280,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 300.0,
-      "criticality": "low"
+      "criticality": "LOW"
     },
     {
       "id": "T17",
@@ -292,7 +292,7 @@
         "transport_priority": "MEDIUM"
       },
       "frequency": 0.01,
-      "criticality": "medium"
+      "criticality": "MEDIUM"
     },
     {
       "id": "T18",
@@ -304,7 +304,7 @@
         "transport_priority": "LOW"
       },
       "frequency": 1.0,
-      "criticality": "low"
+      "criticality": "LOW"
     },
     {
       "id": "T19",
@@ -316,7 +316,7 @@
         "transport_priority": "HIGH"
       },
       "frequency": 5.0,
-      "criticality": "high"
+      "criticality": "HIGH"
     }
   ],
   "applications": [
@@ -324,7 +324,7 @@
       "id": "A0",
       "name": "frontend-web-ui",
       "app_type": "sensor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -348,7 +348,7 @@
       "id": "A1",
       "name": "api-gateway-service",
       "app_type": "sensor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -372,7 +372,7 @@
       "id": "A2",
       "name": "auth-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -396,7 +396,7 @@
       "id": "A3",
       "name": "cart-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -420,7 +420,7 @@
       "id": "A4",
       "name": "checkout-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -444,7 +444,7 @@
       "id": "A5",
       "name": "order-processor-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -468,7 +468,7 @@
       "id": "A6",
       "name": "payment-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -492,7 +492,7 @@
       "id": "A7",
       "name": "inventory-reservation-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "CRITICAL",
       "code_metrics": {
         "size": {
@@ -516,7 +516,7 @@
       "id": "A8",
       "name": "email-notification-worker",
       "app_type": "actuator",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -540,7 +540,7 @@
       "id": "A9",
       "name": "push-notification-worker",
       "app_type": "actuator",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -564,7 +564,7 @@
       "id": "A10",
       "name": "shipping-fulfillment-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -588,7 +588,7 @@
       "id": "A11",
       "name": "clickstream-analytics-consumer",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "code_metrics": {
         "size": {
@@ -612,7 +612,7 @@
       "id": "A12",
       "name": "product-recommendation-engine",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -636,7 +636,7 @@
       "id": "A13",
       "name": "fraud-detection-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGHEST",
       "code_metrics": {
         "size": {
@@ -660,7 +660,7 @@
       "id": "A14",
       "name": "search-indexing-worker",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "MEDIUM",
       "priority": "MEDIUM",
       "code_metrics": {
         "size": {
@@ -684,7 +684,7 @@
       "id": "A15",
       "name": "catalog-search-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -708,7 +708,7 @@
       "id": "A16",
       "name": "currency-conversion-service",
       "app_type": "processor",
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "code_metrics": {
         "size": {
@@ -732,7 +732,7 @@
       "id": "A17",
       "name": "audit-logging-collector",
       "app_type": "actuator",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -756,7 +756,7 @@
       "id": "A18",
       "name": "ad-service",
       "app_type": "sensor",
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "code_metrics": {
         "size": {
@@ -780,7 +780,7 @@
       "id": "A19",
       "name": "user-profile-service",
       "app_type": "processor",
-      "criticality": true,
+      "criticality": "HIGH",
       "priority": "HIGH",
       "code_metrics": {
         "size": {
@@ -804,7 +804,7 @@
       "id": "A20",
       "name": "prometheus-metrics-exporter",
       "app_type": "actuator",
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "code_metrics": {
         "size": {
@@ -828,7 +828,7 @@
       "id": "A21",
       "name": "tracing-agent-daemon",
       "app_type": "actuator",
-      "criticality": false,
+      "criticality": "LOW",
       "priority": "LOW",
       "code_metrics": {
         "size": {

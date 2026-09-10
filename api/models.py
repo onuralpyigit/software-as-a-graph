@@ -368,6 +368,7 @@ class TopicInfoModel(BaseModel):
     qos_transport_priority: Optional[str] = None
     size: int = 0
     frequency: Optional[float] = None
+    criticality: Optional[str] = None
 
 
 class TopicsListResponse(BaseModel):
@@ -385,6 +386,7 @@ class AppInfoModel(BaseModel):
     hotstandby: Optional[bool] = None
     pub_topic_ids: List[str]
     sub_topic_ids: List[str]
+    criticality: Optional[str] = None
 
 
 class AppsListResponse(BaseModel):

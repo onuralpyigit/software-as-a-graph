@@ -113,11 +113,12 @@ graph:
     app_criticality_distribution:
       total_count: 120
       category_counts:
-        critical: 14
-        non_critical: 106
-      mode: non_critical
-      mode_count: 106
-      mode_percentage: 88.3
+        HIGH: 36
+        MEDIUM: 54
+        LOW: 30
+      mode: MEDIUM
+      mode_count: 54
+      mode_percentage: 45.0
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Shared telemetry-encoding and 3GPP model stack

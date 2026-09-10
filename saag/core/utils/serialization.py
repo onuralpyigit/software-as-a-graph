@@ -117,15 +117,30 @@ def _reconstruct_topic(props: Dict[str, Any]) -> Dict[str, Any]:
     if "topic_frequency" in props:
         res["frequency"] = props["topic_frequency"]
     if "topic_criticality" in props:
-        res["criticality"] = props["topic_criticality"]
+        tc = str(props["topic_criticality"]).upper()
+        if tc in ("HIGH", "CRITICAL"):
+            res["criticality"] = "HIGH"
+        elif tc in ("LOW", "MINIMAL"):
+            res["criticality"] = "LOW"
+        else:
+            res["criticality"] = "MEDIUM"
     return res
 
 
 def _reconstruct_application(props: Dict[str, Any]) -> Dict[str, Any]:
+    crit = props.get("criticality", "MEDIUM")
+    if isinstance(crit, bool):
+        crit = "HIGH" if crit else "LOW"
+    elif isinstance(crit, str):
+        cu = crit.upper()
+        crit = "HIGH" if cu in ("HIGH", "CRITICAL") else ("LOW" if cu in ("LOW", "MINIMAL") else "MEDIUM")
+    else:
+        crit = "MEDIUM"
+
     res = {
         "app_type": props.get("app_type", "service"),
         "role": _normalize_role(props.get("role", ["Operative"])),
-        "criticality": props.get("criticality", "LOW"),
+        "criticality": crit,
         "priority": props.get("priority", "MEDIUM"),
         "hotstandby": props.get("hotstandby", False),
     }
@@ -273,7 +288,13 @@ def _flatten_topic(comp: Dict[str, Any]) -> Dict[str, Any]:
     if comp.get("frequency") is not None:
         res["topic_frequency"] = comp["frequency"]
     if comp.get("criticality") is not None:
-        res["topic_criticality"] = comp["criticality"]
+        tc = str(comp["criticality"]).upper()
+        if tc in ("HIGH", "CRITICAL"):
+            res["topic_criticality"] = "HIGH"
+        elif tc in ("LOW", "MINIMAL"):
+            res["topic_criticality"] = "LOW"
+        else:
+            res["topic_criticality"] = "MEDIUM"
     return res
 
 
@@ -284,7 +305,16 @@ def _flatten_application(comp: Dict[str, Any]) -> Dict[str, Any]:
         "version": comp.get("version", ""),
     }
     # Only include optional classification fields if explicitly present in the source data
-    res.update(_present_keys(comp, ("criticality", "priority", "hotstandby")))
+    res.update(_present_keys(comp, ("priority", "hotstandby")))
+    if "criticality" in comp and comp["criticality"] is not None:
+        crit = comp["criticality"]
+        if isinstance(crit, bool):
+            res["criticality"] = "HIGH" if crit else "LOW"
+        elif isinstance(crit, str):
+            cu = crit.upper()
+            res["criticality"] = "HIGH" if cu in ("HIGH", "CRITICAL") else ("LOW" if cu in ("LOW", "MINIMAL") else "MEDIUM")
+        else:
+            res["criticality"] = "MEDIUM"
     return res
 
 

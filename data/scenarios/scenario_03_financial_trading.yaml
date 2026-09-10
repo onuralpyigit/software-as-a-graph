@@ -112,11 +112,12 @@ graph:
     app_criticality_distribution:
       total_count: 60
       category_counts:
-        critical: 18
-        non_critical: 42
-      mode: non_critical
-      mode_count: 42
-      mode_percentage: 70.0
+        HIGH: 22
+        MEDIUM: 26
+        LOW: 12
+      mode: MEDIUM
+      mode_count: 26
+      mode_percentage: 43.33
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Shared quant/order-management libraries widely used

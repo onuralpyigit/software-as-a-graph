@@ -149,11 +149,12 @@ graph:
     app_criticality_distribution:
       total_count: 40
       category_counts:
-        critical: 9
-        non_critical: 31
-      mode: non_critical
-      mode_count: 31
-      mode_percentage: 77.5
+        HIGH: 10
+        MEDIUM: 20
+        LOW: 10
+      mode: MEDIUM
+      mode_count: 20
+      mode_percentage: 50.0
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — integration/adapter SDKs, shared across services

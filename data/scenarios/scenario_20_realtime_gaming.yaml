@@ -112,11 +112,12 @@ graph:
     app_criticality_distribution:
       total_count: 75
       category_counts:
-        critical: 4
-        non_critical: 71
-      mode: non_critical
-      mode_count: 71
-      mode_percentage: 94.7
+        HIGH: 15
+        MEDIUM: 35
+        LOW: 25
+      mode: MEDIUM
+      mode_count: 35
+      mode_percentage: 46.67
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — One shared engine stack: highest reuse in the corpus

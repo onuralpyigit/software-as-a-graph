@@ -36,27 +36,44 @@ TOPIC_FREQUENCY_HZ: list = [
 #: Thresholds for classifying a QoS weight score into criticality levels.
 #: Sorted ascending; first threshold whose lower bound is exceeded wins.
 CRITICALITY_THRESHOLDS: list = [
-    (0.00, "minimal"),
-    (0.19, "low"),    # ≈ 1/5
-    (0.43, "medium"), # ≈ 3/7
-    (0.64, "high"),   # ≈ 7/11
-    (1.00, "critical"),
+    (0.35, "LOW"),
+    (0.70, "MEDIUM"),
+    (1.00, "HIGH"),
 ]
 
-#: Ordinal encoding of the 5-level Topic.criticality label produced by
+#: Ordinal encoding of the Topic.criticality label produced by
 #: CRITICALITY_THRESHOLDS. Lives in core because both the prediction feature
 #: encoder and the simulation severity model read it, and simulation must not
 #: import prediction (see tests/test_independence_guarantee.py).
 TOPIC_CRITICALITY_ORD: Dict[str, float] = {
+    "LOW": 0.0,
+    "MEDIUM": 1.0,
+    "HIGH": 2.0,
+    # Case-insensitive and backward-compatible fallbacks
+    "low": 0.0,
+    "medium": 1.0,
+    "high": 2.0,
     "minimal": 0.0,
-    "low": 1.0,
-    "medium": 2.0,
-    "high": 3.0,
-    "critical": 4.0,
+    "critical": 2.0,
+    "MINIMAL": 0.0,
+    "CRITICAL": 2.0,
 }
 
 #: Highest value in TOPIC_CRITICALITY_ORD, used to normalise it to [0, 1].
-MAX_TOPIC_CRITICALITY_ORD: float = 4.0
+MAX_TOPIC_CRITICALITY_ORD: float = 2.0
+
+#: Ordinal encoding of the Application.criticality operational label.
+APP_CRITICALITY_ORD: Dict[str, float] = {
+    "LOW": 0.0,
+    "MEDIUM": 1.0,
+    "HIGH": 2.0,
+    "low": 0.0,
+    "medium": 1.0,
+    "high": 2.0,
+}
+
+#: Highest value in APP_CRITICALITY_ORD, used to normalise it to [0, 1].
+MAX_APP_CRITICALITY_ORD: float = 2.0
 
 #: Convex combination factors for topic weight: β QoS + α Size + ψ Frequency.
 #: Rationale: QoS semantics are the primary signal; payload size and message rate modulate runtime stress.
@@ -396,12 +413,28 @@ class Application(GraphEntity):
     """
     app_type: str = "service"
     role: List[str] = field(default_factory=lambda: ["Operative"])
-    criticality: bool = False
+    criticality: str = "MEDIUM"  # HIGH, MEDIUM, LOW
     priority: str = "MEDIUM"  # HIGH, MEDIUM, LOW
     hotstandby: bool = False  # true = runs on 2 distinct nodes
     version: Optional[str] = None
     system_hierarchy: Optional[Dict[str, str]] = None
     code_metrics: Optional[Dict[str, Any]] = None
+
+    def __post_init__(self) -> None:
+        if isinstance(self.criticality, bool):
+            self.criticality = "HIGH" if self.criticality else "LOW"
+        elif isinstance(self.criticality, str):
+            crit_upper = self.criticality.upper()
+            if crit_upper in ("HIGH", "CRITICAL"):
+                self.criticality = "HIGH"
+            elif crit_upper in ("LOW", "MINIMAL"):
+                self.criticality = "LOW"
+            elif crit_upper == "MEDIUM":
+                self.criticality = "MEDIUM"
+            else:
+                self.criticality = "MEDIUM"
+        elif self.criticality is None:
+            self.criticality = "MEDIUM"
 
     # --- backward-compatible computed properties for analysis pipeline ---
 
@@ -532,7 +565,17 @@ class Topic(GraphEntity):
                     self.criticality = label
                     break
             else:
-                self.criticality = "critical"
+                self.criticality = "HIGH"
+        else:
+            crit_upper = str(self.criticality).upper()
+            if crit_upper in ("HIGH", "CRITICAL"):
+                self.criticality = "HIGH"
+            elif crit_upper in ("LOW", "MINIMAL"):
+                self.criticality = "LOW"
+            elif crit_upper == "MEDIUM":
+                self.criticality = "MEDIUM"
+            else:
+                self.criticality = "MEDIUM"
 
     def to_dict(self) -> Dict[str, Any]:
         return {

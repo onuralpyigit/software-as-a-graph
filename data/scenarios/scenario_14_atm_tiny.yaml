@@ -103,11 +103,12 @@ graph:
     app_criticality_distribution:
       total_count: 26
       category_counts:
-        critical: 18
-        non_critical: 8
-      mode: critical
-      mode_count: 18
-      mode_percentage: 69.2
+        HIGH: 12
+        MEDIUM: 10
+        LOW: 4
+      mode: HIGH
+      mode_count: 12
+      mode_percentage: 46.15
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS

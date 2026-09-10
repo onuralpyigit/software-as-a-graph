@@ -113,11 +113,12 @@ graph:
     app_criticality_distribution:
       total_count: 50
       category_counts:
-        critical: 13
-        non_critical: 37
-      mode: non_critical
-      mode_count: 37
-      mode_percentage: 74.0
+        HIGH: 16
+        MEDIUM: 22
+        LOW: 12
+      mode: MEDIUM
+      mode_count: 22
+      mode_percentage: 44.0
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Medical device SDK used by many apps

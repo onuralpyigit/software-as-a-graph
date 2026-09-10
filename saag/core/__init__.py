@@ -22,6 +22,11 @@ from .models import (
     Topic,
     Library,
     MIN_TOPIC_WEIGHT,
+    CRITICALITY_THRESHOLDS,
+    TOPIC_CRITICALITY_ORD,
+    MAX_TOPIC_CRITICALITY_ORD,
+    APP_CRITICALITY_ORD,
+    MAX_APP_CRITICALITY_ORD,
 )
 from .metrics import (
     StructuralMetrics,
@@ -60,6 +65,11 @@ __all__ = [
     "Topic",
     "Library",
     "MIN_TOPIC_WEIGHT",
+    "CRITICALITY_THRESHOLDS",
+    "TOPIC_CRITICALITY_ORD",
+    "MAX_TOPIC_CRITICALITY_ORD",
+    "APP_CRITICALITY_ORD",
+    "MAX_APP_CRITICALITY_ORD",
     "StructuralMetrics",
     "EdgeMetrics",
     "QualityScores",
